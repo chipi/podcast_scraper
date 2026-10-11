@@ -22,7 +22,9 @@ from podcast_scraper.server.app_goal_reel import goal_reel  # noqa: E402
 from podcast_scraper.server.app_reasons import MIN_SUPPORT, quote_support  # noqa: E402
 from podcast_scraper.server.app_user_store import get_or_create_user  # noqa: E402
 
-pytestmark = [pytest.mark.integration]
+# The rails, reels and Mine read the search sidecar (`interest_episode_index`), which is gitignored:
+# this builds it once per session, rebuilds it when the corpus changes, and skips without a model.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("app_validation_search_index")]
 
 ROOT = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 
@@ -31,14 +33,22 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
     """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it."""
     reel = goal_reel(ROOT, "topic:systems-thinking", minutes=15)
     assert [(c.episode_slug, c.moment.speaker) for c in reel] == [
-        ("p07-769d04686d", "Alex Morgan"),
         ("p02-8fdd7b7f79", "Priya Nair"),
+        ("p07-3f1584920f", "Skanda Amarnath"),
+        ("p07-769d04686d", "Dr. Elena Fischer"),
         ("p07-a5eb82076a", "Dr. Elena Fischer"),
+        ("p05-693ecaa09e", "Scott Bessent"),
+        ("p09-db2d39ef2e", "Dr. Elena Fischer"),
+        ("p07-2aceab172c", "Skanda Amarnath"),
         ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p05-25cb576153", "Scott Bessent"),
-        ("p07-2aceab172c", "Skanda Amarnath"),
+        ("p02-8fdd7b7f79", "Priya Nair"),
+        ("p07-a5eb82076a", "Dr. Elena Fischer"),
     ]
-    assert len({c.episode_slug for c in reel}) == len(reel)  # every episode once before any twice
+    # Breadth first: every episode's first clip comes before any episode's second.
+    episodes = [c.episode_slug for c in reel]
+    distinct = len(set(episodes))
+    assert len(set(episodes[:distinct])) == distinct
     for c in reel:
         assert quote_support(c.moment.quote_text, c.moment.text) >= MIN_SUPPORT
         assert c.moment.end_ms > c.moment.start_ms
@@ -72,9 +82,9 @@ def test_the_route_reports_what_the_reel_actually_runs(tmp_path: Path) -> None:
     ).json()
     assert body["topic_label"] == "systems thinking"
     assert body["minutes"] == 15
-    assert body["total_seconds"] == 72.0  # the small fixture: far less than the budget
+    assert body["total_seconds"] == 132.0  # the small fixture: far less than the budget
     first = body["clips"][0]
-    assert first["episode"]["slug"] == "p07-769d04686d" and first["end_ms"] > first["start_ms"]
+    assert first["episode"]["slug"] == "p02-8fdd7b7f79" and first["end_ms"] > first["start_ms"]
     assert client.get("/api/app/discover/reel", params={"topic": "person:x"}).status_code == 422
 
 
@@ -88,8 +98,9 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
     assert everyone["scope"] == "corpus"
     # Rising topics with a reel; the rest (no clip says what its insight says) are not offered.
     assert [(i["topic_id"], i["clips"]) for i in everyone["items"]] == [
-        ("topic:systems-thinking", 6),
-        ("topic:risk-management", 4),
+        ("topic:systems-thinking", 11),
+        ("topic:reliability", 15),
+        ("topic:risk-management", 20),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(

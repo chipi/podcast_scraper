@@ -1,9 +1,29 @@
 {
   "edges": [
     {
-      "from": "episode:ep-efc13989b676df9d",
+      "from": "insight:3be44d7d620fad29",
       "to": "topic:public-radio",
-      "type": "MENTIONS"
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:7e8bebf1c1c40238",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:3be44d7d620fad29",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:7e8bebf1c1c40238",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:98184194cba1e9e8",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-efc13989b676df9d",
@@ -12,7 +32,22 @@
     },
     {
       "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
       "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:public-radio",
       "type": "MENTIONS"
     },
     {
@@ -26,114 +61,39 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "insight:ac49c363a6ff3818",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "insight:3be44d7d620fad29",
-      "type": "HAS_INSIGHT"
-    },
-    {
       "from": "insight:3be44d7d620fad29",
-      "to": "topic:public-radio",
-      "type": "ABOUT"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "insight:7e8bebf1c1c40238",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:7e8bebf1c1c40238",
-      "to": "topic:reliability",
-      "type": "ABOUT"
-    },
-    {
-      "from": "quote:eff42bcd88c9f528",
-      "to": "person:a-correspondent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ac49c363a6ff3818",
-      "to": "quote:eff42bcd88c9f528",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:cb2b6869fdeaf607",
-      "to": "person:renee-montagne-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:3be44d7d620fad29",
-      "to": "quote:cb2b6869fdeaf607",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f3674a5857bdb75e",
-      "to": "person:renee-montagne-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7e8bebf1c1c40238",
-      "to": "quote:f3674a5857bdb75e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d2fd5d26eb4a09a2",
-      "to": "person:a-correspondent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ac49c363a6ff3818",
-      "to": "quote:d2fd5d26eb4a09a2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f0689e8d44d84825",
-      "to": "person:renee-montagne-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:3be44d7d620fad29",
-      "to": "quote:f0689e8d44d84825",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:832a54ad6062136f",
-      "to": "person:a-correspondent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7e8bebf1c1c40238",
-      "to": "quote:832a54ad6062136f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:ac49c363a6ff3818",
       "to": "person:a-correspondent",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:3be44d7d620fad29",
+      "from": "quote:8d81de8481f85067",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:9f384a3458c7d964",
       "to": "person:renee-montagne-park",
-      "type": "MENTIONS_PERSON"
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:d37f36da6d7a07dd",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3be44d7d620fad29",
+      "to": "quote:d37f36da6d7a07dd",
+      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:7e8bebf1c1c40238",
-      "to": "person:a-correspondent",
-      "type": "MENTIONS_PERSON"
+      "to": "quote:9f384a3458c7d964",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:98184194cba1e9e8",
+      "to": "quote:8d81de8481f85067",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-efc13989b676df9d",
@@ -200,35 +160,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:ac49c363a6ff3818",
-      "properties": {
-        "episode_id": "ep-efc13989b676df9d",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "insight:3be44d7d620fad29",
-      "properties": {
-        "episode_id": "ep-efc13989b676df9d",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:7e8bebf1c1c40238",
       "properties": {
         "episode_id": "ep-efc13989b676df9d",
         "grounded": true,
@@ -236,31 +168,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Here's how I think about it. Reliability of pronunciation matters more than people think. Once you internalize that, the rest of the decisions get easier.",
+        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:a-correspondent",
-      "properties": {
-        "name": "A. correspondent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:eff42bcd88c9f528",
-      "properties": {
-        "char_end": 592,
-        "char_start": 499,
-        "episode_id": "ep-efc13989b676df9d",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p08_e01.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:renee-montagne-park",
@@ -270,7 +181,14 @@
       "type": "Person"
     },
     {
-      "id": "quote:cb2b6869fdeaf607",
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d37f36da6d7a07dd",
       "properties": {
         "char_end": 789,
         "char_start": 614,
@@ -284,7 +202,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:f3674a5857bdb75e",
+      "id": "quote:9f384a3458c7d964",
       "properties": {
         "char_end": 1049,
         "char_start": 895,
@@ -298,43 +216,43 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d2fd5d26eb4a09a2",
+      "id": "insight:7e8bebf1c1c40238",
       "properties": {
-        "char_end": 1150,
-        "char_start": 1068,
         "episode_id": "ep-efc13989b676df9d",
-        "speaker_id": "person:speaker-01",
-        "text": "That's a useful framing. What's the version of the question that actually matters?",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p08_e01.txt"
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's how I think about it. Reliability of pronunciation matters more than people think. Once you internalize that, the rest of the decisions get easier.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:f0689e8d44d84825",
+      "id": "insight:98184194cba1e9e8",
       "properties": {
-        "char_end": 1369,
-        "char_start": 1172,
         "episode_id": "ep-efc13989b676df9d",
-        "speaker_id": "person:speaker-02",
-        "text": "It comes down to this: Listeners trust the format before they trust the content. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p08_e01.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Renee Montagne-Park, thanks for the conversation.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:832a54ad6062136f",
+      "id": "quote:8d81de8481f85067",
       "properties": {
-        "char_end": 1408,
-        "char_start": 1388,
+        "char_end": 4706,
+        "char_start": 4657,
         "episode_id": "ep-efc13989b676df9d",
-        "speaker_id": "person:speaker-01",
-        "text": "Say more about that.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "speaker_id": "person:a-correspondent",
+        "text": "Renee Montagne-Park, thanks for the conversation.",
+        "timestamp_end_ms": 216000,
+        "timestamp_start_ms": 210000,
         "transcript_ref": "transcripts/p08_e01.txt"
       },
       "type": "Quote"

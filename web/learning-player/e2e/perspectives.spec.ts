@@ -39,19 +39,24 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   const section = page.getByTestId('topic-perspectives')
   await expect(section).toBeVisible()
   // The heading names the topic (operator 2026-10-05).
-  await expect(section.getByText('9 perspectives on risk management', { exact: true })).toBeVisible()
+  // 11 since the fixture grounds every insight in the line that says it (ADR-165, 2026-10-11).
+  await expect(section.getByText('11 perspectives on risk management', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
-  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 9th of 9, so he
-  // appears on the second "Show more voices". 9, not 10, since the 2026-10-13 corpus refresh: Maya
-  // was here only because her question was cycled onto Sophie Laurent's answer as its support.
+  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 11th of 11, so he
+  // appears on the third "Show more voices".
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
   const moreVoices = section.getByTestId('perspectives-more-speakers')
-  await expect(moreVoices).toHaveText('Show more voices (6)')
+  await expect(moreVoices).toHaveText('Show more voices (8)')
+  await moreVoices.click()
+  await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
   await moreVoices.click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
   await moreVoices.click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toBeVisible()
-  // The engineered opposition surfaces verbatim as a grounded claim.
+  // The engineered opposition surfaces verbatim as a grounded claim. It is Daniel Cho's third take
+  // since the fixture grounds every insight (ADR-165): the card previews two, so open his.
+  const cho = section.getByTestId('topic-perspective').filter({ hasText: 'Daniel Cho' })
+  await cho.getByRole('button', { name: /^Show \d+ more$/ }).click()
   await expect(
     section.getByText(/Diversification is the only real risk control/),
   ).toBeVisible()

@@ -1,13 +1,28 @@
 {
   "edges": [
     {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:security-design",
-      "type": "MENTIONS"
+      "from": "insight:62579f0bc62a88da",
+      "to": "topic:frame",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:reliability",
+      "to": "insight:01a91bddf077003a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "insight:62579f0bc62a88da",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "insight:6d1a9cda459df713",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:expert-interviews",
       "type": "MENTIONS"
     },
     {
@@ -17,7 +32,22 @@
     },
     {
       "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
       "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:security-design",
       "type": "MENTIONS"
     },
     {
@@ -26,104 +56,39 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:00c37b14c35c25e2",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:01a91bddf077003a",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:f97ef1a7c3fde3d2",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:e4a46f608b7a24f2",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "quote:e4a46f608b7a24f2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7b29a21442e33eaa",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:01a91bddf077003a",
-      "to": "quote:7b29a21442e33eaa",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:016f14243a76da79",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f97ef1a7c3fde3d2",
-      "to": "quote:016f14243a76da79",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e416e358202e315a",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "quote:e416e358202e315a",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c4e590daf4d2b00f",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:01a91bddf077003a",
-      "to": "quote:c4e590daf4d2b00f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d2b46c54a7ce6ef1",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f97ef1a7c3fde3d2",
-      "to": "quote:d2b46c54a7ce6ef1",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "person:ethan",
-      "type": "MENTIONS_PERSON"
-    },
-    {
       "from": "insight:01a91bddf077003a",
       "to": "person:priya-nair",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:f97ef1a7c3fde3d2",
+      "from": "quote:2bcc526eee9d15b7",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:377f0d6d329025f4",
       "to": "person:ethan",
-      "type": "MENTIONS_PERSON"
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:d1556fd9ec2fd9a0",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:01a91bddf077003a",
+      "to": "quote:2bcc526eee9d15b7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:62579f0bc62a88da",
+      "to": "quote:d1556fd9ec2fd9a0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:6d1a9cda459df713",
+      "to": "quote:377f0d6d329025f4",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-d8cc458a5f0049a8",
@@ -190,20 +155,6 @@
       "type": "Topic"
     },
     {
-      "id": "insight:00c37b14c35c25e2",
-      "properties": {
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "insight:01a91bddf077003a",
       "properties": {
         "episode_id": "ep-d8cc458a5f0049a8",
@@ -218,18 +169,11 @@
       "type": "Insight"
     },
     {
-      "id": "insight:f97ef1a7c3fde3d2",
+      "id": "person:priya-nair",
       "properties": {
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Real talk: Sentry is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for error tracking.",
-        "tier": 2
+        "name": "Priya Nair"
       },
-      "type": "Insight"
+      "type": "Person"
     },
     {
       "id": "person:ethan",
@@ -239,28 +183,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:e4a46f608b7a24f2",
-      "properties": {
-        "char_end": 453,
-        "char_start": 341,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p02_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "person:priya-nair",
-      "properties": {
-        "name": "Priya Nair"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:7b29a21442e33eaa",
+      "id": "quote:2bcc526eee9d15b7",
       "properties": {
         "char_end": 685,
         "char_start": 524,
@@ -274,57 +197,57 @@
       "type": "Quote"
     },
     {
-      "id": "quote:016f14243a76da79",
+      "id": "insight:62579f0bc62a88da",
       "properties": {
-        "char_end": 731,
-        "char_start": 693,
         "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "That's a real shift. Worth pulling on.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p02_e03.txt"
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me give you the version I actually believe. Threat modeling is a framing exercise \u2014 frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Notion. On\u2026",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:e416e358202e315a",
+      "id": "insight:6d1a9cda459df713",
       "properties": {
-        "char_end": 871,
-        "char_start": 731,
         "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "Real talk: Sentry is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for error tracking.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p02_e03.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Priya Nair, thanks for the conversation.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:c4e590daf4d2b00f",
-      "properties": {
-        "char_end": 973,
-        "char_start": 871,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of security design?",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p02_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d2b46c54a7ce6ef1",
+      "id": "quote:d1556fd9ec2fd9a0",
       "properties": {
         "char_end": 1245,
         "char_start": 986,
         "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-02",
+        "speaker_id": "person:priya-nair",
         "text": "Let me give you the version I actually believe. Threat modeling is a framing exercise \u2014 frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 60000,
         "timestamp_start_ms": 54000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:377f0d6d329025f4",
+      "properties": {
+        "char_end": 6506,
+        "char_start": 6466,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:ethan",
+        "text": "Priya Nair, thanks for the conversation.",
+        "timestamp_end_ms": 318000,
+        "timestamp_start_ms": 312000,
         "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"

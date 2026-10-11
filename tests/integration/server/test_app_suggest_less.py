@@ -20,7 +20,9 @@ from podcast_scraper.server.app import create_app  # noqa: E402
 from podcast_scraper.server.app_access import AccessPolicy  # noqa: E402
 from podcast_scraper.server.app_user_store import get_or_create_user  # noqa: E402
 
-pytestmark = [pytest.mark.integration]
+# The rails, reels and Mine read the search sidecar (`interest_episode_index`), which is gitignored:
+# this builds it once per session, rebuilds it when the corpus changes, and skips without a model.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("app_validation_search_index")]
 
 ROOT = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 

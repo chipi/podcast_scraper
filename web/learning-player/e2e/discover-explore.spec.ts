@@ -113,13 +113,16 @@ test('a guest heard twice brings "People you keep hearing": their episodes on an
   page,
 }, testInfo) => {
   // Discover arc Step 3. Dr. Elena Fischer guests twice on The Long View (p07) and also on
-  // Cross-Show (p09); highlights in her two p07 episodes make her someone the listener keeps hearing.
+  // Cross-Show (p09); hearing her two p07 episodes makes her someone the listener keeps hearing.
+  // LISTENED, not highlighted: highlights would also seed "More from what you captured", which sits
+  // higher on the page and — one card per episode (ADR-164) — would show her p09 episodes first.
   await signInIsolated(page, 'discover-people', testInfo)
   for (const slug of ['p07-a5eb82076a', 'p07-769d04686d']) {
-    const made = await page.request.post('/api/app/highlights', {
-      data: { episode_slug: slug, kind: 'moment', quote_text: 'kept', start_ms: 1000 },
+    // Heard = the saved position reaches 30% of the episode (these run under ten minutes).
+    const heard = await page.request.put(`/api/app/playback/${slug}`, {
+      data: { position_seconds: 300, finished: true },
     })
-    expect(made.status()).toBe(201)
+    expect(heard.ok()).toBe(true)
   }
 
   await page.goto('/browse')
@@ -213,22 +216,22 @@ test('"15 min on" a topic: clips from different episodes, back to back, then kee
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on systems thinking')
   // The small fixture: the page says what the reel runs, not the fifteen minutes asked for.
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('6 clips from different episodes · 1:12')
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('11 clips from different episodes · 2:12')
 
   await page.getByTestId('topic-reel-play').click()
   const current = page.getByTestId('topic-reel-current')
-  await expect(current).toContainText('Clip 1 of 6')
+  await expect(current).toContainText('Clip 1 of 11')
   // The clip's episode loads asynchronously (resolve, then load): wait for it before comparing.
   const audioSrc = () => page.evaluate(() => document.querySelector('audio')?.src ?? '')
   await expect.poll(audioSrc).toContain('/audio/')
   const first = await audioSrc()
   await page.getByTestId('topic-reel-next').click()
-  await expect(current).toContainText('Clip 2 of 6')
-  await expect(page.getByTestId('topic-reel-quote')).toContainText('Reliability is a property of the whole system')
+  await expect(current).toContainText('Clip 2 of 11')
+  await expect(page.getByTestId('topic-reel-quote')).toContainText('Systems thinking in macro means watching feedback loops')
   await expect.poll(audioSrc).not.toBe(first) // the next clip's episode was loaded
 
   await page.getByTestId('topic-reel-keep').click()
-  await expect(page).toHaveURL(/\/episode\/p02-8fdd7b7f79/)
+  await expect(page).toHaveURL(/\/episode\/p07-3f1584920f/)
 })
 
 test('Discover is a taste: two cards a rail, "Show more" pages from the server, one card per episode', async ({

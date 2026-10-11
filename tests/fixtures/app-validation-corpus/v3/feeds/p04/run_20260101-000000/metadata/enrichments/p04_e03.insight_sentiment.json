@@ -10,19 +10,19 @@
     "episode_id": "ep-9f97daef33906cf6",
     "insights": [
       {
+        "compound": 0.8201,
+        "insight_id": "insight:aab36db87df1f001",
+        "label": "positive"
+      },
+      {
+        "compound": 0.6187,
+        "insight_id": "insight:51ade54b94b5adfb",
+        "label": "positive"
+      },
+      {
         "compound": 0.0,
-        "insight_id": "insight:cb626e0a5fe29a63",
+        "insight_id": "insight:ba1e151640de5a3f",
         "label": "neutral"
-      },
-      {
-        "compound": 0.4118,
-        "insight_id": "insight:72fd97ce71dea026",
-        "label": "positive"
-      },
-      {
-        "compound": 0.6597,
-        "insight_id": "insight:6eddc5dcf4d2ffc0",
-        "label": "positive"
       }
     ],
     "total_insights": 3

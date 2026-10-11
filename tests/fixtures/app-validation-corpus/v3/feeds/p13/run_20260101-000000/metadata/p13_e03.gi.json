@@ -2,27 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "topic:drivetrain-mechanics",
-      "type": "MENTIONS"
+      "to": "insight:49783bdf4399b23d",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "topic:maintenance",
-      "type": "MENTIONS"
+      "to": "insight:49b97f4477d8c96b",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
+      "to": "insight:c20c5f6a486777e3",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
       "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -32,93 +27,43 @@
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:fe3f9f5ac54d0a30",
-      "type": "HAS_INSIGHT"
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:7989dd48f774e396",
-      "type": "HAS_INSIGHT"
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:aae5b5ea057a4595",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:37463e5e0832fc60",
+      "from": "quote:83829d03f504b577",
       "to": "person:katrin-vogel",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:fe3f9f5ac54d0a30",
-      "to": "quote:37463e5e0832fc60",
-      "type": "SUPPORTED_BY"
+      "from": "quote:f1ad7ff72a9d36b6",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:717cd373751b116e",
+      "from": "quote:fe5e57c46e5420c3",
       "to": "person:jonas-richter",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:7989dd48f774e396",
-      "to": "quote:717cd373751b116e",
+      "from": "insight:49783bdf4399b23d",
+      "to": "quote:fe5e57c46e5420c3",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:af0baeaed116e400",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:aae5b5ea057a4595",
-      "to": "quote:af0baeaed116e400",
+      "from": "insight:49b97f4477d8c96b",
+      "to": "quote:f1ad7ff72a9d36b6",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c0494f7ea95d2090",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:fe3f9f5ac54d0a30",
-      "to": "quote:c0494f7ea95d2090",
+      "from": "insight:c20c5f6a486777e3",
+      "to": "quote:83829d03f504b577",
       "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8c54ea65b2b0c550",
-      "to": "person:jonas-richter",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7989dd48f774e396",
-      "to": "quote:8c54ea65b2b0c550",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e97386c58ba8b5ff",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:aae5b5ea057a4595",
-      "to": "quote:e97386c58ba8b5ff",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:fe3f9f5ac54d0a30",
-      "to": "person:katrin-vogel",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:7989dd48f774e396",
-      "to": "person:jonas-richter",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:aae5b5ea057a4595",
-      "to": "person:katrin-vogel",
-      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-d005b87f4d3b1c0e",
@@ -130,22 +75,15 @@
         "duration_ms": 419000,
         "feed_id": "p13",
         "podcast_id": "p13",
-        "publish_date": "2025-07-02T00:00:00",
+        "publish_date": "2025-12-21T00:00:00",
         "title": "Die Mechanik Eines Leisen, Schnellen Bikes"
       },
       "type": "Episode"
     },
     {
-      "id": "topic:drivetrain-mechanics",
+      "id": "topic:endurance-sport",
       "properties": {
-        "label": "drivetrain mechanics"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:maintenance",
-      "properties": {
-        "label": "maintenance"
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -153,13 +91,6 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -178,77 +109,11 @@
       "type": "Topic"
     },
     {
-      "id": "insight:fe3f9f5ac54d0a30",
-      "properties": {
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Notion replaces the dozen tools your team only half uses. Try notion.com today. Before we get started, Lena Hofmann was on the last episode and said that tire pressure is more important than suspen\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:7989dd48f774e396",
-      "properties": {
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Yes, exactly. And that connects to what we are discussing today.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:aae5b5ea057a4595",
-      "properties": {
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I'd like to point something out \u2013 Lena Hofmann mentioned the same dynamic a few episodes ago. I'd like to point something out \u2013 Stefan Brandt mentioned the same dynamic a few episodes ago.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "person:katrin-vogel",
       "properties": {
         "name": "Katrin Vogel"
       },
       "type": "Person"
-    },
-    {
-      "id": "quote:37463e5e0832fc60",
-      "properties": {
-        "char_end": 228,
-        "char_start": 14,
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:speaker-01",
-        "text": "Notion replaces the dozen tools your team only half uses. Try notion.com today. Before we get started, Lena Hofmann was on the last episode and said that tire pressure is more important than suspension adjustments.",
-        "timestamp_end_ms": 29520,
-        "timestamp_start_ms": 15840,
-        "transcript_ref": "transcripts/p13_e03.txt",
-        "translation": {
-          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:jonas-richter",
@@ -258,124 +123,88 @@
       "type": "Person"
     },
     {
-      "id": "quote:717cd373751b116e",
+      "id": "quote:83829d03f504b577",
       "properties": {
-        "char_end": 308,
-        "char_start": 244,
+        "char_end": 537,
+        "char_start": 405,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-01",
+        "text": "Bevor wir einsteigen \u2014 Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr z\u00e4hlt als Fahrwerksabstimmungen.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fe5e57c46e5420c3",
+      "properties": {
+        "char_end": 614,
+        "char_start": 553,
         "episode_id": "ep-d005b87f4d3b1c0e",
         "speaker_id": "person:speaker-02",
-        "text": "Yes, exactly. And that connects to what we are discussing today.",
-        "timestamp_end_ms": 33180,
-        "timestamp_start_ms": 29520,
-        "transcript_ref": "transcripts/p13_e03.txt",
-        "translation": {
-          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0003.u01"
-          ]
-        }
+        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p13_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:af0baeaed116e400",
+      "id": "quote:f1ad7ff72a9d36b6",
       "properties": {
-        "char_end": 511,
-        "char_start": 323,
+        "char_end": 719,
+        "char_start": 629,
         "episode_id": "ep-d005b87f4d3b1c0e",
         "speaker_id": "person:speaker-01",
-        "text": "I'd like to point something out \u2013 Lena Hofmann mentioned the same dynamic a few episodes ago. I'd like to point something out \u2013 Stefan Brandt mentioned the same dynamic a few episodes ago.",
-        "timestamp_end_ms": 44040,
-        "timestamp_start_ms": 33180,
-        "transcript_ref": "transcripts/p13_e03.txt",
-        "translation": {
-          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "text": "Ich m\u00f6chte etwas anmerken \u2014 Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p13_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:c0494f7ea95d2090",
+      "id": "insight:c20c5f6a486777e3",
       "properties": {
-        "char_end": 625,
-        "char_start": 512,
         "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into that. What did you believe about it previously, and what have you revised since then?",
-        "timestamp_end_ms": 215160,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p13_e03.txt",
-        "translation": {
-          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bevor wir einsteigen \u2014 Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr z\u00e4hlt als Fahrwerksabstimmungen.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:8c54ea65b2b0c550",
+      "id": "insight:49783bdf4399b23d",
       "properties": {
-        "char_end": 916,
-        "char_start": 641,
         "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:speaker-02",
-        "text": "In most cases, the mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening them to the specified torque. We've seen this work with teams that use Spoke & Wrench. The framing is important because it tells you what compromises you are making.",
-        "timestamp_end_ms": 232320,
-        "timestamp_start_ms": 215160,
-        "transcript_ref": "transcripts/p13_e03.txt",
-        "translation": {
-          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0005.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:e97386c58ba8b5ff",
+      "id": "insight:49b97f4477d8c96b",
       "properties": {
-        "char_end": 1012,
-        "char_start": 931,
         "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:speaker-01",
-        "text": "This is a useful framework. Where do maintenance and the drive mechanism overlap?",
-        "timestamp_end_ms": 237300,
-        "timestamp_start_ms": 232320,
-        "transcript_ref": "transcripts/p13_e03.txt",
-        "translation": {
-          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0006.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Ich m\u00f6chte etwas anmerken \u2014 Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     }
   ],
   "prompt_version": "n/a",

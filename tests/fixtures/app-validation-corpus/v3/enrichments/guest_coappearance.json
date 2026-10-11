@@ -1,6 +1,6 @@
 {
   "derived": true,
-  "computed_at": "2026-10-13T14:14:28Z",
+  "computed_at": "2026-10-11T09:02:23Z",
   "enricher_id": "guest_coappearance",
   "enricher_version": "1.1.0",
   "schema_version": "1.0",
@@ -29,13 +29,6 @@
         "episode_count": 4
       },
       {
-        "person_a_id": "person:daniel-cho",
-        "person_b_id": "person:nora",
-        "person_a_name": "Daniel Cho",
-        "person_b_name": "Nora",
-        "episode_count": 3
-      },
-      {
         "person_a_id": "person:alex-morgan",
         "person_b_id": "person:dr-elena-fischer",
         "person_a_name": "Alex Morgan",
@@ -54,6 +47,13 @@
         "person_b_id": "person:leo",
         "person_a_name": "Ava Lemoine",
         "person_b_name": "Leo",
+        "episode_count": 2
+      },
+      {
+        "person_a_id": "person:daniel-cho",
+        "person_b_id": "person:nora",
+        "person_a_name": "Daniel Cho",
+        "person_b_name": "Nora",
         "episode_count": 2
       },
       {
@@ -120,20 +120,6 @@
         "episode_count": 1
       },
       {
-        "person_a_id": "person:caller",
-        "person_b_id": "person:ethan",
-        "person_a_name": "Caller",
-        "person_b_name": "Ethan",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:caller",
-        "person_b_id": "person:priya-nair",
-        "person_a_name": "Caller",
-        "person_b_name": "Priya Nair",
-        "episode_count": 1
-      },
-      {
         "person_a_id": "person:camille-dubois",
         "person_b_id": "person:elodie-chevalier",
         "person_a_name": "Camille Dubois",
@@ -159,13 +145,6 @@
         "person_b_id": "person:giulia-ferrara",
         "person_a_name": "Chiara Ricci",
         "person_b_name": "Giulia Ferrara",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:daniel-cho",
-        "person_b_id": "person:nadia-sereni",
-        "person_a_name": "Daniel Cho",
-        "person_b_name": "Nadia Sereni",
         "episode_count": 1
       },
       {
@@ -243,13 +222,6 @@
         "person_b_id": "person:tariq-hassan",
         "person_a_name": "Leo",
         "person_b_name": "Tariq Hassan",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:liam",
-        "person_b_id": "person:maya",
-        "person_a_name": "Liam",
-        "person_b_name": "Maya",
         "episode_count": 1
       },
       {
@@ -377,5 +349,5 @@
   "retry_count": 0,
   "circuit_state": null,
   "duration_ms": 0,
-  "records_written": 40
+  "records_written": 36
 }

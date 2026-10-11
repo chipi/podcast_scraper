@@ -30,7 +30,9 @@ from podcast_scraper.server.app_another_view_rail import (  # noqa: E402
 )
 from podcast_scraper.server.app_user_store import get_or_create_user  # noqa: E402
 
-pytestmark = [pytest.mark.integration]
+# The rails, reels and Mine read the search sidecar (`interest_episode_index`), which is gitignored:
+# this builds it once per session, rebuilds it when the corpus changes, and skips without a model.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("app_validation_search_index")]
 
 ROOT = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 HEARD = ("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")
@@ -80,9 +82,10 @@ def test_the_answer_is_pinned(tmp_path: Path) -> None:
         for c in another_view_rail(ROOT, tmp_path, "u1")
     ]
     assert got == [
+        ("p01-74565a3a19", "risk management", "Sophie Laurent"),
+        ("p05-693ecaa09e", "systems thinking", "Scott Bessent"),
         ("p05-25cb576153", "risk management", "Daniel Cho"),
         ("p03-5b8ca67393", "systems thinking", "Marco Silva"),
-        ("p01-f2b497cfa3", "risk management", "Maya"),
     ]
 
 
@@ -94,7 +97,8 @@ def test_a_speaker_recorded_as_agreeing_with_one_heard_is_not_another_view(
     import podcast_scraper.server.app_another_view_rail as av
 
     _seed(tmp_path, "u1")
-    assert another_view_rail(ROOT, tmp_path, "u1")[0].why.quote.speaker == "Daniel Cho"  # type: ignore[union-attr]
+    before = [c.why.quote.speaker for c in another_view_rail(ROOT, tmp_path, "u1")]  # type: ignore[union-attr]
+    assert "Daniel Cho" in before
     pair = ("topic:risk-management", frozenset({"person:daniel-cho", "person:dr-elena-fischer"}))
     monkeypatch.setattr(av, "agreeing_pairs", lambda root: {pair})
     speakers = [c.why.quote.speaker for c in another_view_rail(ROOT, tmp_path, "u1")]  # type: ignore[union-attr]

@@ -2,27 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:enduro-racing",
-      "type": "MENTIONS"
+      "to": "insight:3ed6ad51398a71fa",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:soil-erosion",
-      "type": "MENTIONS"
+      "to": "insight:49783bdf4399b23d",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
+      "to": "insight:c0198740ec0bd56a",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
       "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -32,93 +27,43 @@
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:558de94420aa78f2",
-      "type": "HAS_INSIGHT"
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:7989dd48f774e396",
-      "type": "HAS_INSIGHT"
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:3ca798db298f5f8e",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:808942183cfc917c",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:558de94420aa78f2",
-      "to": "quote:808942183cfc917c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:43ac9c5f2a8f3aa7",
+      "from": "quote:135c32d89f353e17",
       "to": "person:lena-hofmann",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:7989dd48f774e396",
-      "to": "quote:43ac9c5f2a8f3aa7",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:592bb0dc44e38341",
+      "from": "quote:9118e4bf926afe79",
       "to": "person:katrin-vogel",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:3ca798db298f5f8e",
-      "to": "quote:592bb0dc44e38341",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0b456b5719b7204b",
+      "from": "quote:af7b45d31947527a",
       "to": "person:katrin-vogel",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:558de94420aa78f2",
-      "to": "quote:0b456b5719b7204b",
+      "from": "insight:3ed6ad51398a71fa",
+      "to": "quote:9118e4bf926afe79",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d468001725802005",
-      "to": "person:lena-hofmann",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7989dd48f774e396",
-      "to": "quote:d468001725802005",
+      "from": "insight:49783bdf4399b23d",
+      "to": "quote:135c32d89f353e17",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:0573644fb2c872d5",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:3ca798db298f5f8e",
-      "to": "quote:0573644fb2c872d5",
+      "from": "insight:c0198740ec0bd56a",
+      "to": "quote:af7b45d31947527a",
       "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:558de94420aa78f2",
-      "to": "person:katrin-vogel",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:7989dd48f774e396",
-      "to": "person:lena-hofmann",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:3ca798db298f5f8e",
-      "to": "person:katrin-vogel",
-      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-ca65ab78f4c50f2a",
@@ -130,22 +75,15 @@
         "duration_ms": 408000,
         "feed_id": "p13",
         "podcast_id": "p13",
-        "publish_date": "2025-03-01T00:00:00",
+        "publish_date": "2025-12-22T00:00:00",
         "title": "Enduro-Technik Ohne Hype"
       },
       "type": "Episode"
     },
     {
-      "id": "topic:enduro-racing",
+      "id": "topic:endurance-sport",
       "properties": {
-        "label": "enduro racing"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:soil-erosion",
-      "properties": {
-        "label": "soil erosion"
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -153,13 +91,6 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -178,77 +109,11 @@
       "type": "Topic"
     },
     {
-      "id": "insight:558de94420aa78f2",
-      "properties": {
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Linear is the issue tracker built for speed \u2013 designed for the keyboard. Try linear.com today. Before we get started, Stefan Brandt was on the show and mentioned that drainage is the design decisio\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:7989dd48f774e396",
-      "properties": {
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Yes, exactly. And that connects to what we are discussing today.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:3ca798db298f5f8e",
-      "properties": {
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I'd like to point something out \u2013 Stefan Brandt mentioned a similar dynamic a few episodes ago.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "person:katrin-vogel",
       "properties": {
         "name": "Katrin Vogel"
       },
       "type": "Person"
-    },
-    {
-      "id": "quote:808942183cfc917c",
-      "properties": {
-        "char_end": 237,
-        "char_start": 14,
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "Linear is the issue tracker built for speed \u2013 designed for the keyboard. Try linear.com today. Before we get started, Stefan Brandt was on the show and mentioned that drainage is the design decision with the biggest impact.",
-        "timestamp_end_ms": 31440,
-        "timestamp_start_ms": 15540,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:lena-hofmann",
@@ -258,124 +123,88 @@
       "type": "Person"
     },
     {
-      "id": "quote:43ac9c5f2a8f3aa7",
+      "id": "quote:9118e4bf926afe79",
       "properties": {
-        "char_end": 316,
-        "char_start": 252,
+        "char_end": 568,
+        "char_start": 426,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:speaker-01",
+        "text": "Bevor wir einsteigen \u2014 Stefan Brandt war in der Sendung und hat erz\u00e4hlt, dass Entw\u00e4sserung die Designentscheidung mit der gr\u00f6\u00dften Wirkung ist.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:135c32d89f353e17",
+      "properties": {
+        "char_end": 644,
+        "char_start": 583,
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-02",
-        "text": "Yes, exactly. And that connects to what we are discussing today.",
-        "timestamp_end_ms": 35100,
-        "timestamp_start_ms": 31440,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0003.u01"
-          ]
-        }
+        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p13_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:592bb0dc44e38341",
+      "id": "quote:af7b45d31947527a",
       "properties": {
-        "char_end": 426,
-        "char_start": 331,
+        "char_end": 750,
+        "char_start": 659,
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-01",
-        "text": "I'd like to point something out \u2013 Stefan Brandt mentioned a similar dynamic a few episodes ago.",
-        "timestamp_end_ms": 40560,
-        "timestamp_start_ms": 35100,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "text": "Ich m\u00f6chte etwas anmerken \u2014 Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p13_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:0b456b5719b7204b",
+      "id": "insight:3ed6ad51398a71fa",
       "properties": {
-        "char_end": 512,
-        "char_start": 427,
         "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "Can you give me a specific example? Where do soil erosion and enduro races intersect?",
-        "timestamp_end_ms": 215100,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bevor wir einsteigen \u2014 Stefan Brandt war in der Sendung und hat erz\u00e4hlt, dass Entw\u00e4sserung die Designentscheidung mit der gr\u00f6\u00dften Wirkung ist.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:d468001725802005",
+      "id": "insight:49783bdf4399b23d",
       "properties": {
-        "char_end": 722,
-        "char_start": 527,
         "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-02",
-        "text": "To be honest, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.",
-        "timestamp_end_ms": 229080,
-        "timestamp_start_ms": 215100,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0005.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:0573644fb2c872d5",
+      "id": "insight:c0198740ec0bd56a",
       "properties": {
-        "char_end": 820,
-        "char_start": 737,
         "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into that. Where do soil erosion and enduro races intersect?",
-        "timestamp_end_ms": 233760,
-        "timestamp_start_ms": 229080,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0006.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Ich m\u00f6chte etwas anmerken \u2014 Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     }
   ],
   "prompt_version": "n/a",

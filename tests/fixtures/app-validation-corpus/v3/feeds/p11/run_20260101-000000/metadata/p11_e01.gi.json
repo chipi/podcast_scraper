@@ -2,32 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "topic:trail-building",
-      "type": "MENTIONS"
+      "to": "insight:858d279b1cf58aa2",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "topic:soil-erosion",
-      "type": "MENTIONS"
+      "to": "insight:a4efd1647a8a49ef",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "topic:land-stewardship",
-      "type": "MENTIONS"
+      "to": "insight:a6210765a88b7d1a",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-e2231244311ca964",
       "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-e2231244311ca964",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-e2231244311ca964",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -37,93 +27,58 @@
     },
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "insight:45350807a6038550",
-      "type": "HAS_INSIGHT"
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "insight:fe3de44103010078",
-      "type": "HAS_INSIGHT"
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "insight:da3888c1595e902e",
-      "type": "HAS_INSIGHT"
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
     },
     {
-      "from": "quote:38b485aefb0284ba",
+      "from": "episode:ep-e2231244311ca964",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-e2231244311ca964",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "quote:4891a2b0483d00e3",
       "to": "person:giulia-ferrara",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:45350807a6038550",
-      "to": "quote:38b485aefb0284ba",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:86a8e1666f795d42",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:fe3de44103010078",
-      "to": "quote:86a8e1666f795d42",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c0e75c9e8d76f981",
+      "from": "quote:619c4a4f78e5851b",
       "to": "person:marco-bellini",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:da3888c1595e902e",
-      "to": "quote:c0e75c9e8d76f981",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:bd1071d8d019c312",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:45350807a6038550",
-      "to": "quote:bd1071d8d019c312",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:eec6372d03f9bf67",
+      "from": "quote:a4338b44ed0d2556",
       "to": "person:marco-bellini",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:fe3de44103010078",
-      "to": "quote:eec6372d03f9bf67",
+      "from": "insight:858d279b1cf58aa2",
+      "to": "quote:4891a2b0483d00e3",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:5e2c94786e7b8315",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:da3888c1595e902e",
-      "to": "quote:5e2c94786e7b8315",
+      "from": "insight:a4efd1647a8a49ef",
+      "to": "quote:a4338b44ed0d2556",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:45350807a6038550",
-      "to": "person:giulia-ferrara",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:fe3de44103010078",
-      "to": "person:marco-bellini",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:da3888c1595e902e",
-      "to": "person:giulia-ferrara",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:a6210765a88b7d1a",
+      "to": "quote:619c4a4f78e5851b",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-e2231244311ca964",
@@ -135,7 +90,7 @@
         "duration_ms": 390000,
         "feed_id": "p11",
         "podcast_id": "p11",
-        "publish_date": "2024-10-01T00:00:00",
+        "publish_date": "2025-10-01T00:00:00",
         "title": "Costruire Sentieri Che Durano"
       },
       "type": "Episode"
@@ -190,101 +145,11 @@
       "type": "Topic"
     },
     {
-      "id": "insight:45350807a6038550",
-      "properties": {
-        "episode_id": "ep-e2231244311ca964",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:fe3de44103010078",
-      "properties": {
-        "episode_id": "ep-e2231244311ca964",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:da3888c1595e902e",
-      "properties": {
-        "episode_id": "ep-e2231244311ca964",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "person:giulia-ferrara",
       "properties": {
         "name": "Giulia Ferrara"
       },
       "type": "Person"
-    },
-    {
-      "id": "quote:38b485aefb0284ba",
-      "properties": {
-        "char_end": 72,
-        "char_start": 12,
-        "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:speaker-01",
-        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
-        "timestamp_end_ms": 23400,
-        "timestamp_start_ms": 19800,
-        "transcript_ref": "transcripts/p11_e01.txt",
-        "translation": {
-          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:86a8e1666f795d42",
-      "properties": {
-        "char_end": 155,
-        "char_start": 73,
-        "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:speaker-01",
-        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
-        "timestamp_end_ms": 215040,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p11_e01.txt",
-        "translation": {
-          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:marco-bellini",
@@ -294,98 +159,86 @@
       "type": "Person"
     },
     {
-      "id": "quote:c0e75c9e8d76f981",
+      "id": "quote:619c4a4f78e5851b",
       "properties": {
-        "char_end": 371,
-        "char_start": 168,
+        "char_end": 746,
+        "char_start": 539,
         "episode_id": "ep-e2231244311ca964",
         "speaker_id": "person:speaker-02",
-        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different teams.",
-        "timestamp_end_ms": 227460,
-        "timestamp_start_ms": 215040,
-        "transcript_ref": "transcripts/p11_e01.txt",
-        "translation": {
-          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0003.u01"
-          ]
-        }
+        "text": "Sinceramente, il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p11_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:bd1071d8d019c312",
+      "id": "insight:a6210765a88b7d1a",
       "properties": {
-        "char_end": 472,
-        "char_start": 384,
         "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:speaker-01",
-        "text": "Tell me how you came to that decision. Which version of the question is truly important?",
-        "timestamp_end_ms": 232920,
-        "timestamp_start_ms": 227460,
-        "transcript_ref": "transcripts/p11_e01.txt",
-        "translation": {
-          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sinceramente, il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadr\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:a4efd1647a8a49ef",
+      "properties": {
+        "episode_id": "ep-e2231244311ca964",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:858d279b1cf58aa2",
+      "properties": {
+        "episode_id": "ep-e2231244311ca964",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Torniamo subito, dopo una breve pausa pubblicitaria.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:a4338b44ed0d2556",
+      "properties": {
+        "char_end": 1054,
+        "char_start": 870,
+        "episode_id": "ep-e2231244311ca964",
+        "speaker_id": "person:marco-bellini",
+        "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p11_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:eec6372d03f9bf67",
+      "id": "quote:4891a2b0483d00e3",
       "properties": {
-        "char_end": 657,
-        "char_start": 485,
+        "char_end": 2823,
+        "char_start": 2771,
         "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:speaker-02",
-        "text": "Yes, see \u2013 the most common mistake that beginner builders make is digging with a slope that is too steep. Once you understand that, the rest of the decisions become easier.",
-        "timestamp_end_ms": 243960,
-        "timestamp_start_ms": 232920,
-        "transcript_ref": "transcripts/p11_e01.txt",
-        "translation": {
-          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0005.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:5e2c94786e7b8315",
-      "properties": {
-        "char_end": 759,
-        "char_start": 670,
-        "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into this. Where do soil erosion and trail construction intersect?",
-        "timestamp_end_ms": 249360,
-        "timestamp_start_ms": 243960,
-        "transcript_ref": "transcripts/p11_e01.txt",
-        "translation": {
-          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0006.u01"
-          ]
-        }
+        "speaker_id": "person:giulia-ferrara",
+        "text": "Torniamo subito, dopo una breve pausa pubblicitaria.",
+        "timestamp_end_ms": 120000,
+        "timestamp_start_ms": 114000,
+        "transcript_ref": "transcripts/p11_e01.txt"
       },
       "type": "Quote"
     }

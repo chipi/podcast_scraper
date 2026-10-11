@@ -1,6 +1,41 @@
 {
   "edges": [
     {
+      "from": "insight:141f8e7ab6b9a12f",
+      "to": "topic:reef-conservation",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:149be35a939e40cb",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "insight:141f8e7ab6b9a12f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "insight:149be35a939e40cb",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "insight:eea27491faa3eaf5",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-a884b153355070f0",
       "to": "topic:marine-biology",
       "type": "MENTIONS"
@@ -21,109 +56,34 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-a884b153355070f0",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a884b153355070f0",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a884b153355070f0",
-      "to": "insight:dc5e6437623bc58f",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-a884b153355070f0",
-      "to": "insight:0aa0f4acd9c66848",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-a884b153355070f0",
-      "to": "insight:db787214f85609da",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:db787214f85609da",
-      "to": "topic:marine-biology",
-      "type": "ABOUT"
-    },
-    {
-      "from": "quote:e9b43ad12ace7e4c",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "quote:e9b43ad12ace7e4c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:4552220e8c1b32ce",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0aa0f4acd9c66848",
-      "to": "quote:4552220e8c1b32ce",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:327d73c3774787d8",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:db787214f85609da",
-      "to": "quote:327d73c3774787d8",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b8ac2c6e15efd248",
+      "from": "quote:09b7a5ba745c15d1",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "quote:b8ac2c6e15efd248",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:bb3d36c36ebcb838",
+      "from": "quote:30ca1f78e4f7b39d",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:0aa0f4acd9c66848",
-      "to": "quote:bb3d36c36ebcb838",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7095880212899bbc",
+      "from": "quote:917c50808f1d85cc",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:db787214f85609da",
-      "to": "quote:7095880212899bbc",
+      "from": "insight:141f8e7ab6b9a12f",
+      "to": "quote:917c50808f1d85cc",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "person:rina",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:149be35a939e40cb",
+      "to": "quote:09b7a5ba745c15d1",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:0aa0f4acd9c66848",
-      "to": "person:hanna-crebo-rediker",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:db787214f85609da",
-      "to": "person:rina",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:eea27491faa3eaf5",
+      "to": "quote:30ca1f78e4f7b39d",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-a884b153355070f0",
@@ -183,46 +143,11 @@
       "type": "Topic"
     },
     {
-      "id": "insight:dc5e6437623bc58f",
+      "id": "person:hanna-crebo-rediker",
       "properties": {
-        "episode_id": "ep-a884b153355070f0",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys.",
-        "tier": 2
+        "name": "Hanna Crebo-Rediker"
       },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:0aa0f4acd9c66848",
-      "properties": {
-        "episode_id": "ep-a884b153355070f0",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:db787214f85609da",
-      "properties": {
-        "episode_id": "ep-a884b153355070f0",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I want to dig into that. What's the most underrated piece of marine biology?",
-        "tier": 2
-      },
-      "type": "Insight"
+      "type": "Person"
     },
     {
       "id": "person:rina",
@@ -232,56 +157,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:e9b43ad12ace7e4c",
-      "properties": {
-        "char_end": 514,
-        "char_start": 390,
-        "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Marco was on episode 1 walking through wreck planning \u2014 the same discipline applies to reef surveys.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:4552220e8c1b32ce",
-      "properties": {
-        "char_end": 684,
-        "char_start": 600,
-        "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:327d73c3774787d8",
-      "properties": {
-        "char_end": 760,
-        "char_start": 684,
-        "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to dig into that. What's the most underrated piece of marine biology?",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "person:hanna-crebo-rediker",
-      "properties": {
-        "name": "Hanna Crebo-Rediker"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:b8ac2c6e15efd248",
+      "id": "quote:917c50808f1d85cc",
       "properties": {
         "char_end": 977,
         "char_start": 781,
@@ -295,29 +171,71 @@
       "type": "Quote"
     },
     {
-      "id": "quote:bb3d36c36ebcb838",
+      "id": "insight:141f8e7ab6b9a12f",
       "properties": {
-        "char_end": 1102,
-        "char_start": 984,
         "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-01",
-        "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yeah, so \u2014 Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're making.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:149be35a939e40cb",
+      "properties": {
+        "episode_id": "ep-a884b153355070f0",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yeah, so \u2014 Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:eea27491faa3eaf5",
+      "properties": {
+        "episode_id": "ep-a884b153355070f0",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Hanna Krebohticker, thanks for the conversation.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:09b7a5ba745c15d1",
+      "properties": {
+        "char_end": 1585,
+        "char_start": 1391,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:hanna-crebo-rediker",
+        "text": "Yeah, so \u2014 Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
         "transcript_ref": "transcripts/p03_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:7095880212899bbc",
+      "id": "quote:30ca1f78e4f7b39d",
       "properties": {
-        "char_end": 1269,
-        "char_start": 1123,
+        "char_end": 4806,
+        "char_start": 4758,
         "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-02",
-        "text": "It comes down to this: Most operational dive safety is about not pushing tired teams. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "speaker_id": "person:rina",
+        "text": "Hanna Krebohticker, thanks for the conversation.",
+        "timestamp_end_ms": 234000,
+        "timestamp_start_ms": 228000,
         "transcript_ref": "transcripts/p03_e03.txt"
       },
       "type": "Quote"

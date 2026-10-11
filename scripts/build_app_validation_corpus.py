@@ -70,6 +70,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 # second sys.path dance. Both generators normalize exactly as the pipeline does, so a
 # fixture cannot disagree with production about what a language tag means (#2185).
 from build_synthetic_validation_corpus import (  # noqa: E402
+    about_topic_ids,
     build_gi,
     build_kg,
     episode_topics_for,
@@ -1156,29 +1157,56 @@ def _norm_words(text: str) -> str:
 
 
 def authored_quote_anchor(
-    text: str, segments: list[dict[str, Any]], transcript: str
-) -> dict[str, int] | None:
-    """Where an authored claim is SAID: the times of the one transcript segment containing it, and
-    its character offsets in the transcript. ``None`` when no single segment contains it — the
-    claim is not transcript text, and inventing a time for it would make a quote of a paraphrase.
+    text: str, segments: list[dict[str, Any]], transcript: str, speaker: str | None = None
+) -> dict[str, Any] | None:
+    """Where an authored claim is SAID, as quote properties.
 
-    Authored quotes used to be stamped at 0 ms with offsets 0..len, so the player could not play
-    them and the Moments picker could not clip them.
+    - The one transcript segment containing the claim: its times, and the claim's character
+      offsets when the exact text is in the transcript.
+    - Otherwise the claim is a paraphrase. Its quote becomes the line it paraphrases: that
+      speaker's segment sharing the most words with it (at least a third of the claim's words),
+      verbatim, with its times and offsets. The insight keeps the paraphrase; the quote is what
+      was said, as in real GI. "Shares" is measured against the CLAIM (a third of its words), since
+      the claim is what paraphrases the line and lines run long.
+    - ``None`` when neither exists: no time is invented.
+
+    Authored quotes used to be stamped at 0 ms with offsets 0..len, and 7 of the 16 were not
+    transcript text at all (2026-10-11 fixture review).
     """
     want = _norm_words(text)
     if not want:
         return None
     hits = [s for s in segments if want in _norm_words(str(s.get("text") or ""))]
-    if len(hits) != 1:
+
+    def times(seg: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "timestamp_start_ms": int(round(float(seg.get("start") or 0.0) * 1000)),
+            "timestamp_end_ms": int(round(float(seg.get("end") or 0.0) * 1000)),
+        }
+
+    if len(hits) == 1:
+        anchor = times(hits[0])
+        at = transcript.find(text)
+        if at >= 0:
+            anchor["char_start"], anchor["char_end"] = at, at + len(text)
+        return anchor
+    claim = {w for w in want.split() if len(w) > 3}
+    best: tuple[int, dict[str, Any]] | None = None
+    for seg in segments:
+        if speaker and str(seg.get("speaker_label") or "") != speaker:
+            continue
+        line = {w for w in _norm_words(str(seg.get("text") or "")).split() if len(w) > 3}
+        shared = len(claim & line)
+        if claim and shared * 3 >= len(claim) and (best is None or shared > best[0]):
+            best = (shared, seg)
+    if best is None:
         return None
-    seg = hits[0]
-    anchor = {
-        "timestamp_start_ms": int(round(float(seg.get("start") or 0.0) * 1000)),
-        "timestamp_end_ms": int(round(float(seg.get("end") or 0.0) * 1000)),
-    }
-    at = transcript.find(text)
+    seg = best[1]
+    verbatim = str(seg.get("text") or "").strip()
+    anchor = {**times(seg), "text": verbatim}
+    at = transcript.find(verbatim)
     if at >= 0:
-        anchor["char_start"], anchor["char_end"] = at, at + len(text)
+        anchor["char_start"], anchor["char_end"] = at, at + len(verbatim)
     return anchor
 
 
@@ -1272,13 +1300,25 @@ def _inject_authored_claims(
                 },
             }
         )
-        anchor = authored_quote_anchor(text, segments or [], transcript)
+        anchor = authored_quote_anchor(text, segments or [], transcript, speaker=name)
         if anchor:
             nodes[-1]["properties"].update(anchor)
         edges.append({"from": iid, "to": qid, "type": "SUPPORTED_BY"})
         edges.append({"from": qid, "to": pid, "type": "SPOKEN_BY"})
         edges.append({"from": iid, "to": tid, "type": "ABOUT"})
         edges.append({"from": iid, "to": pid, "type": "MENTIONS_PERSON"})
+
+
+def has_failure_mode(ep_label: str, gt_dir: Path, mode: str) -> bool:
+    """Whether the episode's ground truth tags it with ``mode`` (``low_grounding_dialogue``…)."""
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return False
+    try:
+        modes = json.loads(gt.read_text(encoding="utf-8")).get("failure_modes", [])
+    except (OSError, ValueError):
+        return False
+    return mode in modes
 
 
 def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
@@ -1289,14 +1329,7 @@ def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
     "Drift" show), flip alternate Insights to ``grounded: False`` so the enricher
     sees real variation (#1148).
     """
-    gt = gt_dir / f"{ep_label}.json"
-    if not gt.is_file():
-        return
-    try:
-        modes = json.loads(gt.read_text(encoding="utf-8")).get("failure_modes", [])
-    except (OSError, ValueError):
-        return
-    if "low_grounding_dialogue" not in modes:
+    if not has_failure_mode(ep_label, gt_dir, "low_grounding_dialogue"):
         return
     insights = [n for n in gi.get("nodes", []) if n.get("type") == "Insight"]
     for i, node in enumerate(insights):
@@ -1486,6 +1519,57 @@ def _stable_episode_id(show_dir: str, ep_label: str) -> str:
 #: Openings and connective filler that read as content but say nothing about the episode.
 #: Matched case-insensitively against the START of an utterance, except the filler lines, which
 #: are matched anywhere because they arrive mid-sentence.
+#: Ad copy the v3 generator writes (`build_v3_fixtures`: SPONSOR_TEMPLATES_OPENING / _CLOSING and
+#: NATIVE_AD_TEMPLATES, the latter host-read on purpose to slip past ad detection), plus the
+#: translated sponsor stems. None of it is a claim.
+_AD_COPY = re.compile(
+    r"sponsor|patrocin|brought to you by|use code|promo code|not an ad|backing the show"
+    r"|thanks again to our friends at|thank you to our partners at|link's in the show notes"
+    r"|special deal for our listeners|use the link in show notes",
+    re.I,
+)
+
+
+def is_ad_copy(text: str) -> bool:
+    """A sponsor read, sign-off or native ad (see ``_AD_COPY``)."""
+    return bool(_AD_COPY.search(text))
+
+
+def speaker_balanced(
+    candidates: list[tuple[str, str]],
+    n: int,
+    already: frozenset[str] = frozenset(),
+    topical: list[bool] | None = None,
+) -> list[int]:
+    """Which of ``candidates`` (``(text, speaker)``, in transcript order) become insights, at most
+    ``n``, returned in transcript order:
+
+    1. each speaker not in ``already`` contributes one — their first claim about one of the
+       episode's topics (``topical``), else their first claim;
+    2. the remaining slots go to topical claims first, then the rest, in order.
+
+    The first claims of an episode are often all one speaker's chatter, and an insight's quote
+    carries its speaker — so a guest whose substance came later was never quoted, and the people
+    and co-appearance surfaces had nothing to see (2026-10-11). Real extraction yields dozens of
+    insights across the speakers, and favours what is said ABOUT the episode's subjects.
+    """
+    on = topical or [False] * len(candidates)
+    picked: list[int] = []
+    seen = set(already)
+    for speaker in dict.fromkeys(s for _t, s in candidates if s):
+        if len(picked) >= n or speaker in seen:
+            continue
+        mine = [i for i, (_t, s) in enumerate(candidates) if s == speaker]
+        picked.append(next((i for i in mine if on[i]), mine[0]))
+        seen.add(speaker)
+    for i in sorted(range(len(candidates)), key=lambda k: (not on[k], k)):
+        if len(picked) >= n:
+            break
+        if i not in picked:
+            picked.append(i)
+    return sorted(picked)
+
+
 def _clean_insight_quote_excerpts(
     diar_segments: list[dict[str, Any]],
     topics: list[str],
@@ -1507,6 +1591,7 @@ def _clean_insight_quote_excerpts(
     surface is for.
     """
     sentences: list[str] = []
+    speakers: list[str] = []
     for seg in diar_segments:
         txt = str(seg.get("text") or "").strip()
         # Skip ad-read / sponsor utterances and very short interjections; keep substantive
@@ -1515,13 +1600,28 @@ def _clean_insight_quote_excerpts(
             continue
         if is_greeting_or_filler(txt):
             continue
-        if _is_ad_read(txt):
+        low = txt.lower()
+        if (
+            _is_ad_read(txt)
+            or is_ad_copy(txt)
+            or "use code pod" in low
+            or str(seg.get("speaker_label") or "").strip().lower() in _NON_PERSON_LABELS
+        ):
+            continue
+        # A question is the host asking, not a takeaway: "Walk me through a concrete example?"
+        # shipped as 31 of the corpus's insights (2026-10-11 fixture review).
+        if txt.rstrip().endswith("?") or "? " in txt:
             continue
         sentences.append(txt if len(txt) <= 200 else txt[:197].rstrip() + "…")
-        if len(sentences) >= 6:
-            break
-    insights = sentences[:3]
-    quotes = sentences[3:6] or sentences[:3]
+        speakers.append(str(seg.get("speaker_label") or ""))
+    topic_pairs = [(f"topic:{slug(t)}", t) for t in topics]
+    chosen = speaker_balanced(
+        list(zip(sentences, speakers)),
+        3,
+        topical=[bool(about_topic_ids(t, topic_pairs)) for t in sentences],
+    )
+    insights = [sentences[i] for i in chosen]
+    quotes = [s for i, s in enumerate(sentences) if i not in chosen][:3] or insights
     return {"topics": topics, "insights": insights, "quotes": quotes}
 
 

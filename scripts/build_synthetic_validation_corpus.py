@@ -436,6 +436,10 @@ _GREETING_PREFIXES = (
     "in today's episode",
     "on today's episode",
     "today we're talking about",
+    # Thanking the host by name opens a guest's first turn ("Thank you, Beatriz. My pleasure — …",
+    # 2026-10-11). The comma is the address: "Thanks to better data, …" is substance and stays.
+    "thank you,",
+    "thanks,",
 )
 _FILLER_MARKERS = (
     "yeah, exactly. and it ties into what we're covering today",
@@ -452,6 +456,21 @@ _FILLER_MARKERS = (
     "happy to be the boring one",
     "and i'll be the reckless one",
     "always happy to talk shop",
+    # The v3 generator's connective templates (2026-10-11): a callback, a mention, a segue and its
+    # generic reply. They exist to exercise recurrence and name mentions (the KG and bridge carry
+    # those); none says anything, so none is an insight.
+    "before we get into it —",
+    "i want to flag something —",
+    "let's pivot —",
+    "that's where the conversation gets interesting, because the trade-offs around",
+    # Host prompts that end in a full stop rather than a question mark — the generator's
+    # HOST_TRANSITIONS and two authored ones. A prompt asks; it is not a take.
+    "let's start there.",
+    "take me through the decision.",
+    "walk me through a concrete example.",
+    "push back on the conventional wisdom for me.",
+    "say more.",
+    "unpack that.",
     "take me through the decision",
 )
 
@@ -467,6 +486,44 @@ def is_greeting_or_filler(text: str) -> bool:
     if any(low.startswith(p) for p in _GREETING_PREFIXES):
         return True
     return any(m in low for m in _FILLER_MARKERS)
+
+
+ABOUT_STOP = {
+    "the",
+    "a",
+    "an",
+    "of",
+    "and",
+    "or",
+    "to",
+    "in",
+    "on",
+    "for",
+    "is",
+    "are",
+    "with",
+    "as",
+    "at",
+    "by",
+    "how",
+    "what",
+    "why",
+    "that",
+    "this",
+    "it",
+}
+
+
+def about_tokens(s: str) -> set[str]:
+    """Significant tokens for the ABOUT rule (see :func:`about_topic_ids`)."""
+    return {w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2 and w not in ABOUT_STOP}
+
+
+def about_topic_ids(text: str, topics: list[tuple[str, str]], cap: int = 2) -> list[str]:
+    """The topics an insight is ABOUT: those whose label's significant tokens ALL appear in the
+    insight text, at most ``cap`` (the real extractor's top-2). ``topics`` is ``[(id, label)]``."""
+    itoks = about_tokens(text)
+    return [tid for tid, label in topics if (t := about_tokens(label)) and t <= itoks][:cap]
 
 
 def build_gi(
@@ -534,39 +591,6 @@ def build_gi(
     # "about" contested topics, so topic_perspectives returns dozens of bogus speakers. No-ML
     # deterministic proxy for the cosine match: an insight is ABOUT a topic only when ALL of the
     # topic label's significant tokens appear in the insight text; capped at ABOUT_EDGE top-2.
-    _ABOUT_STOP = {
-        "the",
-        "a",
-        "an",
-        "of",
-        "and",
-        "or",
-        "to",
-        "in",
-        "on",
-        "for",
-        "is",
-        "are",
-        "with",
-        "as",
-        "at",
-        "by",
-        "how",
-        "what",
-        "why",
-        "that",
-        "this",
-        "it",
-    }
-
-    def _about_tokens(s: str) -> set[str]:
-        return {
-            w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2 and w not in _ABOUT_STOP
-        }
-
-    _topic_toksets = [
-        (tid, _about_tokens(label)) for tid, label in zip(topic_ids, excerpts["topics"])
-    ]
     insight_ids: list[str] = []
     for ii, txt in enumerate(excerpts["insights"]):
         iid = f"insight:{short_hash(txt)}"
@@ -586,14 +610,13 @@ def build_gi(
             }
         )
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": iid})
-        # ABOUT only for topics whose label the insight actually discusses (see note above).
-        itoks = _about_tokens(txt)
-        about_tids = [tid for tid, ttoks in _topic_toksets if ttoks and ttoks <= itoks]
-        for tid in about_tids[:2]:
+        # ABOUT only for topics whose label the insight actually discusses (`about_topic_ids`).
+        for tid in about_topic_ids(txt, list(zip(topic_ids, excerpts["topics"]))):
             edges.append({"type": "ABOUT", "from": iid, "to": tid})
 
     # Person nodes for every speaker that actually appears in a quote.
     persons_emitted: set[str] = set()
+
     # Diarized Quotes grounded in the ad-free transcript. Cap at a handful so the
     # artifact stays small but each speaker is represented.
     # Quotes must be grounded in real segments (they carry char offsets and
@@ -602,9 +625,22 @@ def build_gi(
     # single time. Taking [:6] verbatim shipped "Welcome back to …" as a Quote in
     # every episode: the greeting defect one layer below the summary, using the
     # same rule the summary fix already had but never applied here.
-    usable = [q for q in quote_segments if not is_greeting_or_filler(str(q.get("text") or ""))]
-    quote_budget = (usable or quote_segments)[:6]
-    for qi, seg in enumerate(quote_budget):
+    # Each insight is grounded in the segment that SAYS it (2026-10-11). Quotes used to be the first
+    # six non-greeting segments handed out round-robin (`insight_ids[qi % n]`), so an insight's
+    # quote was whichever line came next — a sponsor read, "Thanks, Sam", the neighbouring
+    # insight's sentence — and only by accident its own. A quote now backs its insight or does not
+    # exist: the segment whose text contains the insight's sentence, with that segment's offsets,
+    # times and speaker.
+    def _norm(s: str) -> str:
+        return " ".join(re.findall(r"[a-z0-9']+", s.lower()))
+
+    for qi, (iid, itxt) in enumerate(zip(insight_ids, excerpts["insights"])):
+        want = _norm(itxt.rstrip("…"))
+        seg = next(
+            (q for q in quote_segments if want and want in _norm(str(q.get("text") or ""))), None
+        )
+        if seg is None:
+            continue  # no segment says it: no quote rather than someone else's
         label = str(seg.get("speaker_label") or "SPEAKER")
         pid = person_id_for(label, roster)
         if pid not in persons_emitted:
@@ -628,17 +664,8 @@ def build_gi(
                 },
             }
         )
-        # quote → person (diarized speaker attribution)
         edges.append({"type": "SPOKEN_BY", "from": qid, "to": pid})
-        # insight → quote (evidence grounding), cycling through insights
-        if insight_ids:
-            edges.append(
-                {
-                    "type": "SUPPORTED_BY",
-                    "from": insight_ids[qi % len(insight_ids)],
-                    "to": qid,
-                }
-            )
+        edges.append({"type": "SUPPORTED_BY", "from": iid, "to": qid})
     # RFC-097 v3: insight → person (MENTIONS_PERSON). Each insight names a roster person so
     # the person-mention graph isn't empty (test_gi_v3_emission_contract requires >0 across the
     # corpus; the checked-in fixture linked insights to speaker persons, e.g.

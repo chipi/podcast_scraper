@@ -75,18 +75,18 @@ def test_recommends_elsewhere_round_robin_with_a_grounded_quote(tmp_path: Path) 
 
 
 def test_top_results_are_pinned(tmp_path: Path) -> None:
-    """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it."""
+    """The eval's frozen answer (2026-10-11, re-frozen on the grounded corpus, ADR-165). A change
+    here is a ranking change: review it. Three, not five: the seeded highlights' insights now link
+    only through what their lines actually discuss."""
     _seed(tmp_path, "u1")
     got = [
         (c.slug, c.why.capture.episode_slug, c.why.subject.kind)  # type: ignore[union-attr]
         for c in captured_rail(ROOT, tmp_path, "u1", limit=5)
     ]
     assert got == [
-        ("p09-a4bbb5dde3", "p07-769d04686d", "topic"),
-        ("p08-72169222b1", "p02-8fdd7b7f79", "topic"),
-        ("p03-5b8ca67393", "p07-769d04686d", "topic"),
-        ("p08-bd7cc798ff", "p02-8fdd7b7f79", "topic"),
-        ("p05-25cb576153", "p07-769d04686d", "storyline"),
+        ("p09-db2d39ef2e", "p07-769d04686d", "topic"),
+        ("p09-a4bbb5dde3", "p02-8fdd7b7f79", "topic"),
+        ("p01-74565a3a19", "p07-769d04686d", "storyline"),
     ]
 
 

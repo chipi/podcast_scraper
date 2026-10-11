@@ -24,17 +24,48 @@ an episode was recommended, and a topic reel had almost nothing it could honestl
 ## Decision
 
 1. **A quote backs its insight or does not exist.** Each insight is supported by the transcript
-   segment that contains its sentence, with that segment's offsets, times and speaker.
-2. **Insights are claims.** Questions, greetings and sponsor reads are not insights.
-3. **Authored claims are anchored.** An authored claim's quote is the one segment that contains it;
+   segment that contains its sentence, with that segment's offsets, times and speaker. The speaker
+   is the Person named as the segment's speaker label; the old quote edges are only a fallback,
+   because they credited people who never speak.
+2. **Insights are claims.** These are not insights:
+   - questions, in any language (a question mark);
+   - greetings, and thanking the host by name;
+   - sponsor reads;
+   - the generator's connective templates: a callback, a name mention, a segue and its generic
+     reply;
+   - host prompts that end in a full stop ("Unpack that.", "Walk me through a concrete example.").
+3. **The claims chosen are representative.** Each speaker first contributes their first claim
+   about one of the episode's topics (or their first claim), then the remaining slots go to topical
+   claims. An episode keeps its insight count: removed non-claims are replaced by the next claims.
+   Real extraction yields many insights across the speakers. Three that are all the host's left
+   guests unquoted, which emptied the people and co-appearance surfaces.
+4. **Authored claims are anchored.** An authored claim's quote is the one segment that contains it;
    a paraphrase gets the verbatim line it paraphrases (that speaker's segment sharing the most words,
    at least a third), and the insight keeps the paraphrase. No time is invented.
-4. **The builder and the committed corpus follow the same rules.** The builder is fixed
+5. **Non-English episodes are grounded in their own language.** Insights are matched against the
+   source-language segments (`<stem>.<lang>.segments.json`). A line is classified through its
+   English translation only in the opening run, where index pairing with the translation's turns
+   is verified by a shared name; further in, the pairing drifts.
+6. **The builder's grounding variation is kept.** In `low_grounding_dialogue` episodes every second
+   pipeline insight stays ungrounded, so the grounding-rate enricher still has variation to measure.
+7. **The builder and the committed corpus follow the same rules.** The builder is fixed
    (`build_gi`, insight selection, `authored_quote_anchor`). Because a rebuild does not reproduce the
    committed corpus (later edits live only in the committed files), a migration applies the same
-   rules in place (`scripts/tools/realign_fixture_gi.py`, dry run by default), and everything derived
-   from the GI is regenerated: the per-episode enrichments, the corpus enrichments that read the GI,
-   and the search sidecar.
+   rules in place (`scripts/tools/realign_fixture_gi.py`, dry run by default, idempotent), and
+   everything derived from the GI is regenerated:
+   - the per-episode `insight_density` and `insight_sentiment` envelopes, with the builder's own
+     functions;
+   - the corpus `grounding_rate` and `guest_coappearance`, with `cli enrich`. This also moves
+     `grounding_rate` to the per-episode shape the server has read since #1927;
+   - the search sidecar, which is gitignored and rebuilt by the tests' index fixture.
+
+**Result** (2026-10-11):
+
+- All 178 insights are backed by their own quote, with times.
+- No question, greeting, sponsor read (in any of the six languages), connective or prompt insight
+  or quote remains; ad-labelled lines are never claims.
+- Every episode keeps its insight count (178 in all, as before), each backed by its own quote.
+- Co-appearance went from 20 to 36 real speaker pairs, keeping all 20.
 
 ## Consequences
 
@@ -45,8 +76,10 @@ an episode was recommended, and a topic reel had almost nothing it could honestl
 
 **Negative**
 
-- Pinned evals and Moments e2e expectations change where the data honestly changed.
-- Fewer insights per episode in some episodes (the non-claims are gone).
+- Pinned evals and Moments e2e expectations change where the data honestly changed (each re-pin
+  was read before it was frozen).
+- One property, "a storyline gathers a speaker its anchor topic does not have", held on the fixture
+  only through a misattributed quote. Its test now runs on data built for it.
 
 **Neutral**
 

@@ -3,27 +3,12 @@
   "computed_at": "2026-01-01T00:00:00Z",
   "data": {
     "counts": {
-      "negative": 5,
+      "negative": 4,
       "neutral": 0,
-      "positive": 2
+      "positive": 3
     },
     "episode_id": "ep-16ff698c1bd21087",
     "insights": [
-      {
-        "compound": -0.1779,
-        "insight_id": "insight:6745f6b01936982b",
-        "label": "negative"
-      },
-      {
-        "compound": -0.128,
-        "insight_id": "insight:bcfb53c35d7b6917",
-        "label": "negative"
-      },
-      {
-        "compound": -0.1027,
-        "insight_id": "insight:4db6ad82bb47e6fe",
-        "label": "negative"
-      },
       {
         "compound": 0.5106,
         "insight_id": "insight:authored-p05_e04-0",
@@ -43,6 +28,21 @@
         "compound": -0.2732,
         "insight_id": "insight:authored-p05_e04-3",
         "label": "negative"
+      },
+      {
+        "compound": -0.1027,
+        "insight_id": "insight:4db6ad82bb47e6fe",
+        "label": "negative"
+      },
+      {
+        "compound": -0.3252,
+        "insight_id": "insight:7d4413f14e9648e9",
+        "label": "negative"
+      },
+      {
+        "compound": 0.0772,
+        "insight_id": "insight:75d4d3871f97dc92",
+        "label": "positive"
       }
     ],
     "total_insights": 7

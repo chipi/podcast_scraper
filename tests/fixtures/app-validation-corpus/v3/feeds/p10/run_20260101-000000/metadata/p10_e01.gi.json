@@ -2,32 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "topic:trail-building",
-      "type": "MENTIONS"
+      "to": "insight:126e7b1f12971e15",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "topic:soil-erosion",
-      "type": "MENTIONS"
+      "to": "insight:85088630cd6e24a9",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "topic:land-stewardship",
-      "type": "MENTIONS"
+      "to": "insight:aec7a8fb35594b66",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
       "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-7072d2e85dcd5233",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-7072d2e85dcd5233",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -37,93 +27,58 @@
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:45350807a6038550",
-      "type": "HAS_INSIGHT"
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:583f7ac5140e6f29",
-      "type": "HAS_INSIGHT"
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:da3888c1595e902e",
-      "type": "HAS_INSIGHT"
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
     },
     {
-      "from": "quote:57f4b3a5e54cda45",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
+      "from": "episode:ep-7072d2e85dcd5233",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
     },
     {
-      "from": "insight:45350807a6038550",
-      "to": "quote:57f4b3a5e54cda45",
-      "type": "SUPPORTED_BY"
+      "from": "episode:ep-7072d2e85dcd5233",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
     },
     {
-      "from": "quote:41bf06552f35ed9e",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:583f7ac5140e6f29",
-      "to": "quote:41bf06552f35ed9e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7bb7fa6b0060cf6c",
+      "from": "quote:0ab04b9f1c9b61a3",
       "to": "person:javier-benavides",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:da3888c1595e902e",
-      "to": "quote:7bb7fa6b0060cf6c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:07cc327343b22c84",
+      "from": "quote:268e8542ca67f4c6",
       "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:45350807a6038550",
-      "to": "quote:07cc327343b22c84",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2c25d35b4639286c",
+      "from": "quote:9d19487f716ed0fd",
       "to": "person:javier-benavides",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:583f7ac5140e6f29",
-      "to": "quote:2c25d35b4639286c",
+      "from": "insight:126e7b1f12971e15",
+      "to": "quote:0ab04b9f1c9b61a3",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:7f2abf56776742c0",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:da3888c1595e902e",
-      "to": "quote:7f2abf56776742c0",
+      "from": "insight:85088630cd6e24a9",
+      "to": "quote:9d19487f716ed0fd",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:45350807a6038550",
-      "to": "person:lucia-herrera",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:583f7ac5140e6f29",
-      "to": "person:javier-benavides",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:da3888c1595e902e",
-      "to": "person:lucia-herrera",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:aec7a8fb35594b66",
+      "to": "quote:268e8542ca67f4c6",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-7072d2e85dcd5233",
@@ -135,7 +90,7 @@
         "duration_ms": 409000,
         "feed_id": "p10",
         "podcast_id": "p10",
-        "publish_date": "2025-01-19T00:00:00",
+        "publish_date": "2026-01-19T00:00:00",
         "title": "Construyendo Senderos Que Duran"
       },
       "type": "Episode"
@@ -190,101 +145,11 @@
       "type": "Topic"
     },
     {
-      "id": "insight:45350807a6038550",
-      "properties": {
-        "episode_id": "ep-7072d2e85dcd5233",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:583f7ac5140e6f29",
-      "properties": {
-        "episode_id": "ep-7072d2e85dcd5233",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Tell me about how you made that decision. How does RockShox fit into this landscape?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:da3888c1595e902e",
-      "properties": {
-        "episode_id": "ep-7072d2e85dcd5233",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "person:lucia-herrera",
       "properties": {
         "name": "Luc\u00eda Herrera"
       },
       "type": "Person"
-    },
-    {
-      "id": "quote:57f4b3a5e54cda45",
-      "properties": {
-        "char_end": 72,
-        "char_start": 12,
-        "episode_id": "ep-7072d2e85dcd5233",
-        "speaker_id": "person:speaker-01",
-        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
-        "timestamp_end_ms": 24900,
-        "timestamp_start_ms": 20940,
-        "transcript_ref": "transcripts/p10_e01.txt",
-        "translation": {
-          "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:41bf06552f35ed9e",
-      "properties": {
-        "char_end": 157,
-        "char_start": 73,
-        "episode_id": "ep-7072d2e85dcd5233",
-        "speaker_id": "person:speaker-01",
-        "text": "Tell me about how you made that decision. How does RockShox fit into this landscape?",
-        "timestamp_end_ms": 214440,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p10_e01.txt",
-        "translation": {
-          "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:javier-benavides",
@@ -294,98 +159,86 @@
       "type": "Person"
     },
     {
-      "id": "quote:7bb7fa6b0060cf6c",
+      "id": "quote:0ab04b9f1c9b61a3",
       "properties": {
-        "char_end": 373,
-        "char_start": 170,
+        "char_end": 759,
+        "char_start": 558,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-02",
-        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different teams.",
-        "timestamp_end_ms": 226500,
-        "timestamp_start_ms": 214440,
-        "transcript_ref": "transcripts/p10_e01.txt",
-        "translation": {
-          "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0003.u01"
-          ]
-        }
+        "text": "Sinceramente, el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto en cualquier sendero. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patr\u00f3n repetirse en tres equipos distintos.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p10_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:07cc327343b22c84",
+      "id": "insight:126e7b1f12971e15",
       "properties": {
-        "char_end": 477,
-        "char_start": 386,
         "episode_id": "ep-7072d2e85dcd5233",
-        "speaker_id": "person:speaker-01",
-        "text": "Tell me how you made the decision. What is the version of the question that really matters?",
-        "timestamp_end_ms": 232020,
-        "timestamp_start_ms": 226500,
-        "transcript_ref": "transcripts/p10_e01.txt",
-        "translation": {
-          "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sinceramente, el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto en cualquier sendero. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patr\u00f3n repetirse en tres equipos distin\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:85088630cd6e24a9",
+      "properties": {
+        "episode_id": "ep-7072d2e85dcd5233",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "S\u00ed, mira \u2014 el error m\u00e1s com\u00fan de los constructores nuevos es excavar con demasiada pendiente. Una vez que interiorizas eso, el resto de las decisiones se vuelven m\u00e1s f\u00e1ciles.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:aec7a8fb35594b66",
+      "properties": {
+        "episode_id": "ep-7072d2e85dcd5233",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Volvemos enseguida, despu\u00e9s de una breve pausa publicitaria.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:9d19487f716ed0fd",
+      "properties": {
+        "char_end": 1060,
+        "char_start": 886,
+        "episode_id": "ep-7072d2e85dcd5233",
+        "speaker_id": "person:javier-benavides",
+        "text": "S\u00ed, mira \u2014 el error m\u00e1s com\u00fan de los constructores nuevos es excavar con demasiada pendiente. Una vez que interiorizas eso, el resto de las decisiones se vuelven m\u00e1s f\u00e1ciles.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p10_e01.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:2c25d35b4639286c",
+      "id": "quote:268e8542ca67f4c6",
       "properties": {
-        "char_end": 654,
-        "char_start": 490,
+        "char_end": 2861,
+        "char_start": 2801,
         "episode_id": "ep-7072d2e85dcd5233",
-        "speaker_id": "person:speaker-02",
-        "text": "Yes, see \u2013 the most common mistake that new builders make is excavating with too much of a slope. Once you understand that, the rest of the decisions become easier.",
-        "timestamp_end_ms": 242460,
-        "timestamp_start_ms": 232020,
-        "transcript_ref": "transcripts/p10_e01.txt",
-        "translation": {
-          "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0005.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:7f2abf56776742c0",
-      "properties": {
-        "char_end": 756,
-        "char_start": 667,
-        "episode_id": "ep-7072d2e85dcd5233",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into that. Where do soil erosion and trail construction intersect?",
-        "timestamp_end_ms": 248160,
-        "timestamp_start_ms": 242460,
-        "transcript_ref": "transcripts/p10_e01.txt",
-        "translation": {
-          "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0006.u01"
-          ]
-        }
+        "speaker_id": "person:lucia-herrera",
+        "text": "Volvemos enseguida, despu\u00e9s de una breve pausa publicitaria.",
+        "timestamp_end_ms": 120000,
+        "timestamp_start_ms": 114000,
+        "transcript_ref": "transcripts/p10_e01.txt"
       },
       "type": "Quote"
     }

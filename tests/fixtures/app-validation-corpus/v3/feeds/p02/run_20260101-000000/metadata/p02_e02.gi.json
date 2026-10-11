@@ -1,18 +1,53 @@
 {
   "edges": [
     {
+      "from": "insight:60379597406af455",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:fb4dbba05e6b88fc",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "insight:60379597406af455",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "insight:da174023cbfc2f7d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "insight:fb4dbba05e6b88fc",
+      "type": "HAS_INSIGHT"
+    },
+    {
       "from": "episode:ep-35f04bce441bf827",
       "to": "topic:engineering-communication",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-35f04bce441bf827",
-      "to": "topic:reliability",
+      "to": "topic:expert-interviews",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-35f04bce441bf827",
       "to": "topic:incident-postmortems",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "topic:reliability",
       "type": "MENTIONS"
     },
     {
@@ -26,104 +61,34 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-35f04bce441bf827",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-35f04bce441bf827",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-35f04bce441bf827",
-      "to": "insight:f6015b46ac8d9512",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-35f04bce441bf827",
-      "to": "insight:f0ae6579fa1160ab",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-35f04bce441bf827",
-      "to": "insight:7e2691fe27da850c",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:d357a96a252f91cf",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f6015b46ac8d9512",
-      "to": "quote:d357a96a252f91cf",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:9ddc1dec1e29f7a4",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f0ae6579fa1160ab",
-      "to": "quote:9ddc1dec1e29f7a4",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b1476c7900723141",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7e2691fe27da850c",
-      "to": "quote:b1476c7900723141",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:caadf98dbfc7ce30",
+      "from": "quote:0d7157b3af52109a",
       "to": "person:jonas-weisenthal",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:f6015b46ac8d9512",
-      "to": "quote:caadf98dbfc7ce30",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:3d5dfb9dfbdb9d60",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f0ae6579fa1160ab",
-      "to": "quote:3d5dfb9dfbdb9d60",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:5b40f6441d6cdbba",
+      "from": "quote:0f4f3aab94efec5d",
       "to": "person:jonas-weisenthal",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:7e2691fe27da850c",
-      "to": "quote:5b40f6441d6cdbba",
+      "from": "quote:691a310a34c0f51c",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:60379597406af455",
+      "to": "quote:0f4f3aab94efec5d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:f6015b46ac8d9512",
-      "to": "person:ethan",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:da174023cbfc2f7d",
+      "to": "quote:691a310a34c0f51c",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:f0ae6579fa1160ab",
-      "to": "person:jonas-weisenthal",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:7e2691fe27da850c",
-      "to": "person:ethan",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:fb4dbba05e6b88fc",
+      "to": "quote:0d7157b3af52109a",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-35f04bce441bf827",
@@ -190,46 +155,11 @@
       "type": "Topic"
     },
     {
-      "id": "insight:f6015b46ac8d9512",
+      "id": "person:jonas-weisenthal",
       "properties": {
-        "episode_id": "ep-35f04bce441bf827",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
-        "tier": 2
+        "name": "Jonas Weisenthal"
       },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:f0ae6579fa1160ab",
-      "properties": {
-        "episode_id": "ep-35f04bce441bf827",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:7e2691fe27da850c",
-      "properties": {
-        "episode_id": "ep-35f04bce441bf827",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "That's a useful framing. What's the version of the question that actually matters?",
-        "tier": 2
-      },
-      "type": "Insight"
+      "type": "Person"
     },
     {
       "id": "person:ethan",
@@ -239,92 +169,85 @@
       "type": "Person"
     },
     {
-      "id": "quote:d357a96a252f91cf",
+      "id": "insight:60379597406af455",
       "properties": {
-        "char_end": 530,
-        "char_start": 399,
         "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's how I think about it. Risk management is a communication problem. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:fb4dbba05e6b88fc",
+      "properties": {
+        "episode_id": "ep-35f04bce441bf827",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me give you the version I actually believe. Risk management is a communication problem. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:da174023cbfc2f7d",
+      "properties": {
+        "episode_id": "ep-35f04bce441bf827",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Joll Wisenthal, thanks for the conversation.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:0f4f3aab94efec5d",
+      "properties": {
+        "char_end": 2254,
+        "char_start": 2069,
+        "episode_id": "ep-35f04bce441bf827",
+        "speaker_id": "person:jonas-weisenthal",
+        "text": "Here's how I think about it. Risk management is a communication problem. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 108000,
+        "timestamp_start_ms": 102000,
         "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:9ddc1dec1e29f7a4",
+      "id": "quote:0d7157b3af52109a",
       "properties": {
-        "char_end": 703,
-        "char_start": 613,
+        "char_end": 4202,
+        "char_start": 3998,
         "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "speaker_id": "person:jonas-weisenthal",
+        "text": "Let me give you the version I actually believe. Risk management is a communication problem. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 198000,
+        "timestamp_start_ms": 192000,
         "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:b1476c7900723141",
+      "id": "quote:691a310a34c0f51c",
       "properties": {
-        "char_end": 785,
-        "char_start": 703,
+        "char_end": 6405,
+        "char_start": 6361,
         "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-01",
-        "text": "That's a useful framing. What's the version of the question that actually matters?",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p02_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "person:jonas-weisenthal",
-      "properties": {
-        "name": "Jonas Weisenthal"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:caadf98dbfc7ce30",
-      "properties": {
-        "char_end": 987,
-        "char_start": 802,
-        "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-02",
-        "text": "Honestly, A great RFC starts with context and constraints, then options. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p02_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:3d5dfb9dfbdb9d60",
-      "properties": {
-        "char_end": 1069,
-        "char_start": 995,
-        "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-01",
-        "text": "Walk me through a concrete example. How does Linear fit into this picture?",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p02_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:5b40f6441d6cdbba",
-      "properties": {
-        "char_end": 1213,
-        "char_start": 1086,
-        "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 Writing things down turns disagreement into collaboration. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "speaker_id": "person:ethan",
+        "text": "Joll Wisenthal, thanks for the conversation.",
+        "timestamp_end_ms": 306000,
+        "timestamp_start_ms": 300000,
         "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"

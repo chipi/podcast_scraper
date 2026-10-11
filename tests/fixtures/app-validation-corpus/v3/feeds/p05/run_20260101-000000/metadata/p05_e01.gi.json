@@ -1,8 +1,48 @@
 {
   "edges": [
     {
+      "from": "insight:058777af848d6ae8",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:058777af848d6ae8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:450b6aa41c4b371b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:9afa059c5a93e54c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:personal-finance",
       "type": "MENTIONS"
     },
     {
@@ -16,114 +56,39 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:frame",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:personal-finance",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:1860b98400777024",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:450b6aa41c4b371b",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:b552da1625a22af8",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:82faca19fcc19732",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "quote:82faca19fcc19732",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d76545a5049eed44",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:450b6aa41c4b371b",
-      "to": "quote:d76545a5049eed44",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d3c3eadbfd050726",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b552da1625a22af8",
-      "to": "quote:d3c3eadbfd050726",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:73a50f705e99379f",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "quote:73a50f705e99379f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:83a9c6c8863e55f6",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:450b6aa41c4b371b",
-      "to": "quote:83a9c6c8863e55f6",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:24d3e18855fdec35",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b552da1625a22af8",
-      "to": "quote:24d3e18855fdec35",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:1860b98400777024",
       "to": "person:nora",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:450b6aa41c4b371b",
+      "from": "quote:b05d1d1efa059547",
       "to": "person:daniel-cho",
-      "type": "MENTIONS_PERSON"
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:b552da1625a22af8",
+      "from": "quote:e7f46d03b3ca9b22",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:ebf24ac0814586c4",
       "to": "person:nora",
-      "type": "MENTIONS_PERSON"
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:058777af848d6ae8",
+      "to": "quote:b05d1d1efa059547",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:450b6aa41c4b371b",
+      "to": "quote:e7f46d03b3ca9b22",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:9afa059c5a93e54c",
+      "to": "quote:ebf24ac0814586c4",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-bccfce5798a83a6e",
@@ -190,35 +155,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:1860b98400777024",
-      "properties": {
-        "episode_id": "ep-bccfce5798a83a6e",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "What does the failure mode look like? How does Vanguard fit into this picture?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "insight:450b6aa41c4b371b",
-      "properties": {
-        "episode_id": "ep-bccfce5798a83a6e",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the par\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:b552da1625a22af8",
       "properties": {
         "episode_id": "ep-bccfce5798a83a6e",
         "grounded": true,
@@ -226,31 +163,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
+        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the par\u2026",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:nora",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:82faca19fcc19732",
-      "properties": {
-        "char_end": 507,
-        "char_start": 429,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-01",
-        "text": "What does the failure mode look like? How does Vanguard fit into this picture?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:daniel-cho",
@@ -260,7 +176,14 @@
       "type": "Person"
     },
     {
-      "id": "quote:d76545a5049eed44",
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e7f46d03b3ca9b22",
       "properties": {
         "char_end": 736,
         "char_start": 520,
@@ -274,57 +197,57 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d3c3eadbfd050726",
+      "id": "insight:058777af848d6ae8",
       "properties": {
-        "char_end": 861,
-        "char_start": 743,
         "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-01",
-        "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p05_e01.txt"
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the de\u2026",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:73a50f705e99379f",
+      "id": "insight:9afa059c5a93e54c",
       "properties": {
-        "char_end": 986,
-        "char_start": 874,
         "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-02",
-        "text": "Honestly, Vanguard's structure pioneered low costs. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p05_e01.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Daniel Cho, thanks for the conversation.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:83a9c6c8863e55f6",
-      "properties": {
-        "char_end": 1063,
-        "char_start": 993,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-01",
-        "text": "Let's start there. Where do reliability and index investing intersect?",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:24d3e18855fdec35",
+      "id": "quote:b05d1d1efa059547",
       "properties": {
         "char_end": 1292,
         "char_start": 1076,
         "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-02",
+        "speaker_id": "person:daniel-cho",
         "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 54000,
         "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ebf24ac0814586c4",
+      "properties": {
+        "char_end": 5966,
+        "char_start": 5926,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:nora",
+        "text": "Daniel Cho, thanks for the conversation.",
+        "timestamp_end_ms": 288000,
+        "timestamp_start_ms": 282000,
         "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"

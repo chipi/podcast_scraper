@@ -117,6 +117,87 @@ def _write_storylines(root: Path) -> None:
     )
 
 
+def _write_spoken_insight(
+    root: Path, stem: str, person: str, name: str, topic: str, label: str, text: str
+) -> None:
+    """One episode with one insight ABOUT ``topic``, grounded in a quote ``person`` speaks — the
+    metadata, transcript, bridge, GI and KG a perspective is read from."""
+    meta = root / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    eid = f"ep-{stem}"
+    (meta / f"{stem}.metadata.json").write_text(
+        json.dumps(
+            {
+                "feed": {"feed_id": "f", "title": "F", "url": "https://pod.example/f.xml"},
+                "episode": {
+                    "episode_id": eid,
+                    "title": eid,
+                    "published_date": "2024-03-10T00:00:00",
+                    "duration_seconds": 600,
+                },
+                "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (root / "transcripts" / f"{stem}.txt").write_text(text, encoding="utf-8")
+    identities = [
+        {"id": person, "type": "person", "sources": {"gi": True, "kg": True}, "display_name": name},
+        {"id": topic, "type": "topic", "sources": {"gi": True, "kg": True}, "display_name": label},
+    ]
+    (meta / f"{stem}.bridge.json").write_text(
+        json.dumps({"schema_version": "3.0", "episode_id": eid, "identities": identities}),
+        encoding="utf-8",
+    )
+    iid, qid = f"insight:{stem}", f"quote:{stem}"
+    gi = {
+        "schema_version": "3.0",
+        "episode_id": eid,
+        "nodes": [
+            {"id": iid, "type": "Insight", "properties": {"text": text, "insight_type": "claim"}},
+            {
+                "id": qid,
+                "type": "Quote",
+                "properties": {"text": text, "timestamp_start_ms": 1000, "timestamp_end_ms": 5000},
+            },
+            {"id": person, "type": "Person", "properties": {"name": name}},
+            {"id": topic, "type": "Topic", "properties": {"label": label}},
+        ],
+        "edges": [
+            {"type": "SPOKEN_BY", "from": qid, "to": person},
+            {"type": "SUPPORTED_BY", "from": iid, "to": qid},
+            {"type": "ABOUT", "from": iid, "to": topic},
+        ],
+    }
+    (meta / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    kg = {
+        "schema_version": "2.0",
+        "episode_id": eid,
+        "nodes": [
+            {"id": person, "type": "Person", "properties": {"name": name, "role": "guest"}},
+            {"id": topic, "type": "Topic", "properties": {"label": label}},
+        ],
+        "edges": [],
+    }
+    (meta / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
+
+
+def _write_storyline(root: Path, storyline_id: str, topics: list[str]) -> None:
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    cluster = {
+        "cluster_type": "theme",
+        "graph_compound_parent_id": storyline_id,
+        "canonical_label": storyline_id.split(":", 1)[-1],
+        "member_count": len(topics),
+        "members": [{"topic_id": t, "label": t.split(":", 1)[-1]} for t in topics],
+    }
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps({"schema_version": "1", "method": "cooccurrence_lift", "clusters": [cluster]}),
+        encoding="utf-8",
+    )
+
+
 def _write_person_web(root: Path, persons: list, provider: str = "wikipedia") -> None:
     """Write person_web.json in the executor's ENVELOPE shape ({..., data: {provider, persons}}) —
     the real on-disk artifact. A FLAT fixture ({provider, persons} at top level) is what let the
@@ -1152,15 +1233,29 @@ class TestAGroupingMovesOverTime:
             assert p.insights, f"{p.person_name} is a perspective with no take"
             assert all(i.text.strip() for i in p.insights)
 
-    def test_the_union_is_wider_than_any_single_member(self) -> None:
-        """A grouping's speakers are the ones across it, not the biggest member's."""
+    def test_the_union_is_wider_than_any_single_member(self, tmp_path: Path) -> None:
+        """A grouping's speakers are the ones across it, not the biggest member's.
+
+        MOVED OFF THE FIXTURE (2026-10-11, ADR-165). On the committed corpus this held only because
+        quotes were handed to insights round-robin: Ethan "said" a line Priya Nair says. Once every
+        insight is grounded in the line that says it, no grouping in the corpus has a speaker
+        beyond its widest member (measured over every theme and the storyline), so the property is
+        exercised on data built for it: two episodes, two speakers, two member topics.
+        """
         from podcast_scraper.server.app_relational_view import (
             build_cluster_perspectives,
             build_topic_perspectives,
         )
 
-        grouping = build_cluster_perspectives(self.FIXTURE, "thc:managing-risk", "storyline")
-        anchor = build_topic_perspectives(self.FIXTURE, "topic:risk-management")
+        _write_spoken_insight(
+            tmp_path, "a", "person:ann", "Ann", "topic:risk", "risk", "Risk lives in the couplings."
+        )
+        _write_spoken_insight(
+            tmp_path, "b", "person:bo", "Bo", "topic:systems", "systems", "Systems fail at seams."
+        )
+        _write_storyline(tmp_path, "thc:managing", ["topic:risk", "topic:systems"])
+        grouping = build_cluster_perspectives(tmp_path, "thc:managing", "storyline")
+        anchor = build_topic_perspectives(tmp_path, "topic:risk")
         assert grouping is not None and anchor is not None
         speakers = {p.person_id for p in grouping.perspectives}
         assert speakers >= {

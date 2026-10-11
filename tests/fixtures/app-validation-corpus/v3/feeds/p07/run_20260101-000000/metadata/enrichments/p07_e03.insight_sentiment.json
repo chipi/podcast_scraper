@@ -4,16 +4,11 @@
   "data": {
     "counts": {
       "negative": 4,
-      "neutral": 1,
-      "positive": 0
+      "neutral": 0,
+      "positive": 1
     },
     "episode_id": "ep-a86da8f148d3bf29",
     "insights": [
-      {
-        "compound": 0.0,
-        "insight_id": "insight:7d6f7075083505ad",
-        "label": "neutral"
-      },
       {
         "compound": -0.8453,
         "insight_id": "insight:4dd75a8b258e871f",
@@ -33,6 +28,11 @@
         "compound": -0.3818,
         "insight_id": "insight:authored-p07_e03-1",
         "label": "negative"
+      },
+      {
+        "compound": 0.9186,
+        "insight_id": "insight:edf1788469cf7cbb",
+        "label": "positive"
       }
     ],
     "total_insights": 5

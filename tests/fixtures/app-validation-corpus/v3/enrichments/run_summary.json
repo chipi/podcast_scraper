@@ -1,11 +1,11 @@
 {
-  "duration_ms": 81,
-  "finished_at": "2026-10-13T14:14:28Z",
+  "duration_ms": 7,
+  "finished_at": "2026-10-11T09:02:23Z",
   "parent_run_id": null,
   "per_enricher": {
     "grounding_rate": {
       "cost_usd": 0.0,
-      "duration_ms": 15,
+      "duration_ms": 4,
       "error_samples": [],
       "model_id": "",
       "model_version": "",
@@ -24,11 +24,11 @@
     },
     "guest_coappearance": {
       "cost_usd": 0.0,
-      "duration_ms": 17,
+      "duration_ms": 5,
       "error_samples": [],
       "model_id": "",
       "model_version": "",
-      "records_written": 40,
+      "records_written": 36,
       "retries": 0,
       "runs_cancelled": 0,
       "runs_failed": 0,
@@ -43,8 +43,8 @@
     }
   },
   "profile": null,
-  "run_id": "4599f13c-3950-4428-be37-bf437e40fbfb",
+  "run_id": "063745d6-0c0e-40bf-8ffa-9766055fee78",
   "schema_version": "1",
-  "started_at": "2026-10-13T14:14:28Z",
+  "started_at": "2026-10-11T09:02:23Z",
   "status": "ok"
 }

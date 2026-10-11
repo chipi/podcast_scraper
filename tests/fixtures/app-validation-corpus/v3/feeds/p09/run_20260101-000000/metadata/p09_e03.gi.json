@@ -1,8 +1,38 @@
 {
   "edges": [
     {
+      "from": "insight:90ae1acc06309c16",
+      "to": "topic:labor-markets",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "insight:0605b90752bdc08b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "insight:90ae1acc06309c16",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "insight:f0ec2dfad28a4f80",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-919c77e84ad37664",
       "to": "topic:labor-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -16,104 +46,39 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "insight:55e92f2750d46129",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "insight:0cade861cce564cd",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "insight:0605b90752bdc08b",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:6d6187eeaaf07818",
+      "from": "insight:0605b90752bdc08b",
       "to": "person:sam",
-      "type": "SPOKEN_BY"
+      "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:55e92f2750d46129",
-      "to": "quote:6d6187eeaaf07818",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:630ebf0be19a5134",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0cade861cce564cd",
-      "to": "quote:630ebf0be19a5134",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a1af95282ced7948",
+      "from": "quote:0ad420387b656203",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:0605b90752bdc08b",
-      "to": "quote:a1af95282ced7948",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:4cddfb8123f4de96",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:55e92f2750d46129",
-      "to": "quote:4cddfb8123f4de96",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:25047182a0cde058",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0cade861cce564cd",
-      "to": "quote:25047182a0cde058",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2b6f30bf2614f697",
+      "from": "quote:4a847efb125f2fa5",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:a9e1bee90a7a9e99",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:0605b90752bdc08b",
-      "to": "quote:2b6f30bf2614f697",
+      "to": "quote:0ad420387b656203",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:55e92f2750d46129",
-      "to": "person:sam",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:90ae1acc06309c16",
+      "to": "quote:4a847efb125f2fa5",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:0cade861cce564cd",
-      "to": "person:skanda-amarnath",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:0605b90752bdc08b",
-      "to": "person:sam",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:f0ec2dfad28a4f80",
+      "to": "quote:a9e1bee90a7a9e99",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-919c77e84ad37664",
@@ -166,34 +131,6 @@
       "type": "Topic"
     },
     {
-      "id": "insight:55e92f2750d46129",
-      "properties": {
-        "episode_id": "ep-919c77e84ad37664",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Before we get into it \u2014 Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:0cade861cce564cd",
-      "properties": {
-        "episode_id": "ep-919c77e84ad37664",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I want to flag something \u2014 Skanda Eminas mentioned this same dynamic a couple episodes back.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "insight:0605b90752bdc08b",
       "properties": {
         "episode_id": "ep-919c77e84ad37664",
@@ -208,41 +145,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:sam",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:6d6187eeaaf07818",
-      "properties": {
-        "char_end": 470,
-        "char_start": 366,
-        "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p09_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:630ebf0be19a5134",
-      "properties": {
-        "char_end": 644,
-        "char_start": 552,
-        "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Skanda Eminas mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p09_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:skanda-amarnath",
       "properties": {
         "name": "Skanda Amarnath"
@@ -250,7 +152,14 @@
       "type": "Person"
     },
     {
-      "id": "quote:a1af95282ced7948",
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0ad420387b656203",
       "properties": {
         "char_end": 782,
         "char_start": 662,
@@ -264,43 +173,57 @@
       "type": "Quote"
     },
     {
-      "id": "quote:4cddfb8123f4de96",
+      "id": "insight:90ae1acc06309c16",
       "properties": {
-        "char_end": 826,
-        "char_start": 788,
         "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:speaker-01",
-        "text": "That's a real shift. Worth pulling on.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p09_e03.txt"
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yeah, so \u2014 Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:25047182a0cde058",
+      "id": "insight:f0ec2dfad28a4f80",
       "properties": {
-        "char_end": 909,
-        "char_start": 826,
         "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:speaker-01",
-        "text": "Let's start there. What's the structural angle most listeners don't have access to?",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p09_e03.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Skanda Amarnath, thanks for the conversation.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:2b6f30bf2614f697",
+      "id": "quote:4a847efb125f2fa5",
       "properties": {
         "char_end": 1107,
         "char_start": 927,
         "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:speaker-02",
+        "speaker_id": "person:skanda-amarnath",
         "text": "Yeah, so \u2014 Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.",
         "timestamp_end_ms": 60000,
         "timestamp_start_ms": 54000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a9e1bee90a7a9e99",
+      "properties": {
+        "char_end": 3327,
+        "char_start": 3282,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:sam",
+        "text": "Skanda Amarnath, thanks for the conversation.",
+        "timestamp_end_ms": 174000,
+        "timestamp_start_ms": 168000,
         "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"

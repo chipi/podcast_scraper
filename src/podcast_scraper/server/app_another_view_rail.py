@@ -6,11 +6,12 @@ have NOT heard on it, in an episode they have not heard, captured or saved. Each
 "Another view on <topic>" over that speaker's quote about it (topic perspectives,
 ``app_reasons``; extractive only).
 
-"Another" means a different speaker, not an opposing one: the corpus records agreement
-(``enrichments/topic_consensus.json`` keeps pairs below its contradiction threshold) but not
-disagreement, so contrast cannot be claimed. What the agreement data does decide: a speaker recorded
-as agreeing, on that topic, with someone the listener already heard on it is not another view and is
-skipped.
+"Another" means a speaker the listener does not already hear — not any host or guest of their
+heard-or-captured episodes — and a different speaker, not an opposing one: the corpus records
+agreement (``enrichments/topic_consensus.json`` keeps pairs below its contradiction threshold) but
+not disagreement, so contrast cannot be claimed. What the agreement data does decide: a speaker
+recorded as agreeing, on that topic, with someone the listener already heard on it is not another
+view and is skipped.
 
 Umbrella topics carried by nearly every episode (``MAX_TOPIC_SHARE``, #1669) are skipped: "another
 view on lifelong learning" says nothing. Topics take turns, one card per episode. No LLM.
@@ -79,6 +80,24 @@ def agreeing_pairs(root: Path) -> set[tuple[str, frozenset[str]]]:
     return out
 
 
+def speakers_heard(root: Path, episodes: set[str]) -> set[str]:
+    """Every host and guest of the listener's heard-or-captured episodes (their KG roles). Someone
+    they already hear — the host of a show they listen to — is never "another view", whatever the
+    topic (2026-10-11: the topic-only rule offered a heard host once his lines moved topic)."""
+    from podcast_scraper.server.app_corpus_access import load_json_artifact
+    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.app_slugs import resolve_slug
+
+    out: set[str] = set()
+    for slug in episodes:
+        row = resolve_slug(root, slug)
+        if row is None or not row.has_kg:
+            continue
+        persons, _orgs, _topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+        out |= {p.id for p in persons if p.role in ("host", "guest")}
+    return out
+
+
 def _person_key(person: Any) -> str:
     return str(getattr(person, "person_id", None) or getattr(person, "person_name", "") or "")
 
@@ -96,6 +115,7 @@ def another_view_rail(
     heard = experienced_episode_set(root, data_dir, user_id)
     excluded = heard | saved_episode_set(data_dir, user_id)
     agree = agreeing_pairs(root)
+    voices = speakers_heard(root, heard)
 
     per_topic: list[list[tuple[ReasonSubject, ReasonQuote]]] = []
     for tid, label in topics:
@@ -112,8 +132,8 @@ def another_view_rail(
         found: list[tuple[ReasonSubject, ReasonQuote]] = []
         for p in perspectives:
             key = _person_key(p)
-            if key in heard_on_topic:
-                continue
+            if key in heard_on_topic or key in voices:
+                continue  # someone they already hear (the host of their show) is not "another"
             if any((tid, frozenset({key, h})) in agree for h in heard_on_topic):
                 continue  # recorded as agreeing with someone they heard: not another view
             for slug, insights in insights_by_episode(p.insights):

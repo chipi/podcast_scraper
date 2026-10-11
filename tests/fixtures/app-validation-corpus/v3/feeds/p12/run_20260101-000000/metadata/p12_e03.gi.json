@@ -2,27 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:drivetrain-mechanics",
-      "type": "MENTIONS"
+      "to": "insight:65f2d2aac09f5c76",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:maintenance",
-      "type": "MENTIONS"
+      "to": "insight:7e61b50161a03c28",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
+      "to": "insight:a8811063c55fddfa",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
       "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -32,93 +27,48 @@
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "insight:86c064f69afe7050",
-      "type": "HAS_INSIGHT"
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "insight:431b433cad334669",
-      "type": "HAS_INSIGHT"
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "insight:6b31010cbf9b094f",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:262f336de126538c",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:86c064f69afe7050",
-      "to": "quote:262f336de126538c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f2b3435e89c6851c",
-      "to": "person:mathieu-lefevre",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:431b433cad334669",
-      "to": "quote:f2b3435e89c6851c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:ddfd5c2302d05a88",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6b31010cbf9b094f",
-      "to": "quote:ddfd5c2302d05a88",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:89d8d7bc0ee92774",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:86c064f69afe7050",
-      "to": "quote:89d8d7bc0ee92774",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:60772d44242228ff",
-      "to": "person:mathieu-lefevre",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:431b433cad334669",
-      "to": "quote:60772d44242228ff",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f4551d2d71e8cf0c",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6b31010cbf9b094f",
-      "to": "quote:f4551d2d71e8cf0c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:86c064f69afe7050",
+      "from": "insight:7e61b50161a03c28",
       "to": "person:camille-dubois",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:431b433cad334669",
-      "to": "person:mathieu-lefevre",
-      "type": "MENTIONS_PERSON"
+      "from": "quote:5632fbd72c22e934",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6b31010cbf9b094f",
+      "from": "quote:62ef845b8cda39a5",
+      "to": "person:mathieu-lefevre",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:8dc760bd57f2a49e",
       "to": "person:camille-dubois",
-      "type": "MENTIONS_PERSON"
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:65f2d2aac09f5c76",
+      "to": "quote:62ef845b8cda39a5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:7e61b50161a03c28",
+      "to": "quote:8dc760bd57f2a49e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:a8811063c55fddfa",
+      "to": "quote:5632fbd72c22e934",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-2e3fcd5d8c418fb4",
@@ -127,25 +77,18 @@
     {
       "id": "episode:ep-2e3fcd5d8c418fb4",
       "properties": {
-        "duration_ms": 358000,
+        "duration_ms": 375000,
         "feed_id": "p12",
         "podcast_id": "p12",
-        "publish_date": "2025-06-29T00:00:00",
+        "publish_date": "2025-12-24T00:00:00",
         "title": "La M\u00e9canique d'un V\u00e9lo Silencieux et Rapide"
       },
       "type": "Episode"
     },
     {
-      "id": "topic:drivetrain-mechanics",
+      "id": "topic:endurance-sport",
       "properties": {
-        "label": "drivetrain mechanics"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:maintenance",
-      "properties": {
-        "label": "maintenance"
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -153,13 +96,6 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -178,35 +114,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:86c064f69afe7050",
-      "properties": {
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Notion replaces the dozen tools your team is currently using, half the time. Try notion.com today. Before we get into the details \u2013 \u00c9lodie Chevalier was on the previous episode and said that tire p\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:431b433cad334669",
-      "properties": {
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Yes, exactly. And that ties in with what we're discussing today.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:6b31010cbf9b094f",
+      "id": "insight:7e61b50161a03c28",
       "properties": {
         "episode_id": "ep-2e3fcd5d8c418fb4",
         "grounded": true,
@@ -214,7 +122,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to point something out \u2013 \u00c9lodie Chevalier mentioned this same dynamic a few episodes ago. I want to point something out \u2013 Julien Mercier mentioned this same dynamic a few episodes ago.",
+        "text": "Avant d'entrer dans le vif \u2014 \u00c9lodie Chevalier \u00e9tait l\u00e0 \u00e0 l'\u00e9pisode pr\u00e9c\u00e9dent et disait que la pression des pneus compte plus que les r\u00e9glages de suspension.",
         "tier": 2
       },
       "type": "Insight"
@@ -227,30 +135,6 @@
       "type": "Person"
     },
     {
-      "id": "quote:262f336de126538c",
-      "properties": {
-        "char_end": 264,
-        "char_start": 16,
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "speaker_id": "person:speaker-01",
-        "text": "Notion replaces the dozen tools your team is currently using, half the time. Try notion.com today. Before we get into the details \u2013 \u00c9lodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.",
-        "timestamp_end_ms": 31920,
-        "timestamp_start_ms": 16140,
-        "transcript_ref": "transcripts/p12_e03.txt",
-        "translation": {
-          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:mathieu-lefevre",
       "properties": {
         "name": "Mathieu Lef\u00e8vre"
@@ -258,124 +142,74 @@
       "type": "Person"
     },
     {
-      "id": "quote:f2b3435e89c6851c",
+      "id": "quote:8dc760bd57f2a49e",
       "properties": {
-        "char_end": 346,
-        "char_start": 282,
+        "char_end": 583,
+        "char_start": 427,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-01",
+        "text": "Avant d'entrer dans le vif \u2014 \u00c9lodie Chevalier \u00e9tait l\u00e0 \u00e0 l'\u00e9pisode pr\u00e9c\u00e9dent et disait que la pression des pneus compte plus que les r\u00e9glages de suspension.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p12_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:62ef845b8cda39a5",
+      "properties": {
+        "char_end": 660,
+        "char_start": 601,
         "episode_id": "ep-2e3fcd5d8c418fb4",
         "speaker_id": "person:speaker-02",
-        "text": "Yes, exactly. And that ties in with what we're discussing today.",
-        "timestamp_end_ms": 35460,
-        "timestamp_start_ms": 31920,
-        "transcript_ref": "transcripts/p12_e03.txt",
-        "translation": {
-          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0003.u01"
-          ]
-        }
+        "text": "Oui, exactement. Et \u00e7a rejoint ce qu'on couvre aujourd'hui.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p12_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:ddfd5c2302d05a88",
+      "id": "quote:5632fbd72c22e934",
       "properties": {
-        "char_end": 554,
-        "char_start": 363,
+        "char_end": 781,
+        "char_start": 677,
         "episode_id": "ep-2e3fcd5d8c418fb4",
         "speaker_id": "person:speaker-01",
-        "text": "I want to point something out \u2013 \u00c9lodie Chevalier mentioned this same dynamic a few episodes ago. I want to point something out \u2013 Julien Mercier mentioned this same dynamic a few episodes ago.",
-        "timestamp_end_ms": 47820,
-        "timestamp_start_ms": 35460,
-        "transcript_ref": "transcripts/p12_e03.txt",
-        "translation": {
-          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "text": "Je veux signaler une chose \u2014 \u00c9lodie Chevalier a mentionn\u00e9 cette m\u00eame dynamique il y a quelques \u00e9pisodes.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p12_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:89d8d7bc0ee92774",
+      "id": "insight:65f2d2aac09f5c76",
       "properties": {
-        "char_end": 666,
-        "char_start": 555,
         "episode_id": "ep-2e3fcd5d8c418fb4",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to explore this further. What did you believe about this topic, and what have you revised your views on?",
-        "timestamp_end_ms": 214620,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p12_e03.txt",
-        "translation": {
-          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Oui, exactement. Et \u00e7a rejoint ce qu'on couvre aujourd'hui.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:60772d44242228ff",
+      "id": "insight:a8811063c55fddfa",
       "properties": {
-        "char_end": 962,
-        "char_start": 684,
         "episode_id": "ep-2e3fcd5d8c418fb4",
-        "speaker_id": "person:speaker-02",
-        "text": "It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. The framing is important because it tells you what compromises you're making.",
-        "timestamp_end_ms": 230340,
-        "timestamp_start_ms": 214620,
-        "transcript_ref": "transcripts/p12_e03.txt",
-        "translation": {
-          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0005.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Je veux signaler une chose \u2014 \u00c9lodie Chevalier a mentionn\u00e9 cette m\u00eame dynamique il y a quelques \u00e9pisodes.",
+        "tier": 2
       },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f4551d2d71e8cf0c",
-      "properties": {
-        "char_end": 1085,
-        "char_start": 979,
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "speaker_id": "person:speaker-01",
-        "text": "This is a useful perspective. Where do the fields of human resources and transmission mechanics intersect?",
-        "timestamp_end_ms": 235380,
-        "timestamp_start_ms": 230340,
-        "transcript_ref": "transcripts/p12_e03.txt",
-        "translation": {
-          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0006.u01"
-          ]
-        }
-      },
-      "type": "Quote"
+      "type": "Insight"
     }
   ],
   "prompt_version": "n/a",

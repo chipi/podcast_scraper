@@ -1,28 +1,33 @@
 {
   "edges": [
     {
-      "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "topic:macro-policy",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-8aa4d883afa10fa4",
+      "from": "insight:8f15068b7064df00",
       "to": "topic:reliability",
-      "type": "MENTIONS"
+      "type": "ABOUT"
     },
     {
-      "from": "episode:ep-8aa4d883afa10fa4",
+      "from": "insight:be774a32be7c6c0f",
       "to": "topic:systems-thinking",
-      "type": "MENTIONS"
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "topic:personal-finance",
+      "to": "insight:2d4bca24d1a64828",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:8f15068b7064df00",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:be774a32be7c6c0f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:expert-interviews",
       "type": "MENTIONS"
     },
     {
@@ -32,98 +37,58 @@
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "topic:expert-interviews",
+      "to": "topic:macro-policy",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "insight:859a389940dcde54",
-      "type": "HAS_INSIGHT"
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "insight:bedcae13375c310e",
-      "type": "HAS_INSIGHT"
+      "to": "topic:reliability",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "insight:1518c165982941b8",
-      "type": "HAS_INSIGHT"
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
     },
     {
-      "from": "quote:8d7dd36a37873e9c",
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "quote:5a404027bfca42cb",
       "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:859a389940dcde54",
-      "to": "quote:8d7dd36a37873e9c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:4448b2bc89f6db22",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bedcae13375c310e",
-      "to": "quote:4448b2bc89f6db22",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:aeae933c1e31a5d3",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1518c165982941b8",
-      "to": "quote:aeae933c1e31a5d3",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:3bf87438df243d45",
+      "from": "quote:7ad50444fc3fd1a4",
       "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:859a389940dcde54",
-      "to": "quote:3bf87438df243d45",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:29036a86328c0521",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bedcae13375c310e",
-      "to": "quote:29036a86328c0521",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2ebe7e0040ef4bc6",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1518c165982941b8",
-      "to": "quote:2ebe7e0040ef4bc6",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:859a389940dcde54",
-      "to": "person:nora",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:bedcae13375c310e",
+      "from": "quote:ee466978d35f01cd",
       "to": "person:scott-bessent",
-      "type": "MENTIONS_PERSON"
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:1518c165982941b8",
-      "to": "person:nora",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:2d4bca24d1a64828",
+      "to": "quote:5a404027bfca42cb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:8f15068b7064df00",
+      "to": "quote:7ad50444fc3fd1a4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:be774a32be7c6c0f",
+      "to": "quote:ee466978d35f01cd",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-8aa4d883afa10fa4",
@@ -190,46 +155,11 @@
       "type": "Topic"
     },
     {
-      "id": "insight:859a389940dcde54",
+      "id": "person:scott-bessent",
       "properties": {
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here.",
-        "tier": 2
+        "name": "Scott Bessent"
       },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:bedcae13375c310e",
-      "properties": {
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:1518c165982941b8",
-      "properties": {
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back.",
-        "tier": 2
-      },
-      "type": "Insight"
+      "type": "Person"
     },
     {
       "id": "person:nora",
@@ -239,92 +169,85 @@
       "type": "Person"
     },
     {
-      "id": "quote:8d7dd36a37873e9c",
+      "id": "insight:8f15068b7064df00",
       "properties": {
-        "char_end": 499,
-        "char_start": 397,
         "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sure. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:be774a32be7c6c0f",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me give you the version I actually believe. Systems thinking applies \u2014 the dollar is a system, not a price. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2d4bca24d1a64828",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Scott Bessett, thanks for the conversation.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:7ad50444fc3fd1a4",
+      "properties": {
+        "char_end": 1805,
+        "char_start": 1618,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:scott-bessent",
+        "text": "Sure. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 90000,
+        "timestamp_start_ms": 84000,
         "transcript_ref": "transcripts/p05_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:4448b2bc89f6db22",
+      "id": "quote:ee466978d35f01cd",
       "properties": {
-        "char_end": 671,
-        "char_start": 580,
+        "char_end": 2289,
+        "char_start": 2106,
         "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "speaker_id": "person:scott-bessent",
+        "text": "Let me give you the version I actually believe. Systems thinking applies \u2014 the dollar is a system, not a price. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 114000,
+        "timestamp_start_ms": 108000,
         "transcript_ref": "transcripts/p05_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:aeae933c1e31a5d3",
+      "id": "quote:5a404027bfca42cb",
       "properties": {
-        "char_end": 764,
-        "char_start": 671,
+        "char_end": 5692,
+        "char_start": 5649,
         "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p05_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "person:scott-bessent",
-      "properties": {
-        "name": "Scott Bessent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:3bf87438df243d45",
-      "properties": {
-        "char_end": 954,
-        "char_start": 780,
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:speaker-02",
-        "text": "I used to think currency intervention was always counter-productive. After 2023 I changed my mind \u2014 selective intervention in thin overnight markets can be a legitimate tool.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p05_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:29036a86328c0521",
-      "properties": {
-        "char_end": 999,
-        "char_start": 961,
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:speaker-01",
-        "text": "That's a real shift. Worth pulling on.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p05_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:2ebe7e0040ef4bc6",
-      "properties": {
-        "char_end": 1078,
-        "char_start": 999,
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:speaker-01",
-        "text": "What does the failure mode look like? How does Bloomberg fit into this picture?",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "speaker_id": "person:nora",
+        "text": "Scott Bessett, thanks for the conversation.",
+        "timestamp_end_ms": 288000,
+        "timestamp_start_ms": 282000,
         "transcript_ref": "transcripts/p05_e03.txt"
       },
       "type": "Quote"

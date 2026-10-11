@@ -8,20 +8,20 @@
       "mid": 1,
       "unknown": 0
     },
-    "duration_seconds": 344.0,
+    "duration_seconds": 364.0,
     "episode_id": "ep-16fcdef77d624069",
     "has_timing": false,
     "insight_segments": [
       {
-        "insight_id": "insight:1bb27a52f7e3058a",
+        "insight_id": "insight:83af90ed0e3d819b",
         "segment": "early"
       },
       {
-        "insight_id": "insight:431b433cad334669",
+        "insight_id": "insight:65f2d2aac09f5c76",
         "segment": "mid"
       },
       {
-        "insight_id": "insight:975d0c96324ad9e6",
+        "insight_id": "insight:92ccd9d2972f8bd6",
         "segment": "late"
       }
     ],

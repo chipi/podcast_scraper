@@ -151,6 +151,22 @@ make enrich CORPUS=tests/fixtures/app-validation-corpus/v3 # corpus-scope + per-
 Prefix both commands with `HF_HUB_OFFLINE=1` — the build is deterministic and must not reach
 the network for models.
 
+**A rebuild does not reproduce the committed corpus** (2026-10-11: 153 files differ — later fixes
+live only in the committed files). Corpus-wide corrections are therefore MIGRATIONS of the
+committed files, with the builder fixed to the same rules so a future rebuild agrees:
+
+```sh
+.venv/bin/python scripts/tools/realign_fixture_gi.py            # report (dry run)
+.venv/bin/python scripts/tools/realign_fixture_gi.py --apply    # GI + per-episode envelopes
+.venv/bin/python -m podcast_scraper.cli enrich --output-dir tests/fixtures/app-validation-corpus/v3 \
+  --only grounding_rate,guest_coappearance --corpus-only --force   # the corpus enrichers on GI
+```
+
+`realign_fixture_gi.py` grounds every insight in the transcript line that says it (ADR-165):
+insights are claims (no questions, greetings, sponsor reads, connective templates or host
+prompts), chosen speaker-balanced and topical first; non-English episodes are grounded in their
+source-language segments. It is idempotent — a second `--apply` changes nothing.
+
 The generator reuses the viewer generator's construction helpers
 (`scripts/build_synthetic_validation_corpus.py`: `build_gi`, `build_kg`,
 `parse_diarized_segments`, …) so GI/KG can't drift from what the readers expect.

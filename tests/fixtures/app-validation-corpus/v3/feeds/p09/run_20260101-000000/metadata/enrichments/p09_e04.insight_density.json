@@ -13,23 +13,23 @@
     "has_timing": false,
     "insight_segments": [
       {
-        "insight_id": "insight:95e6bff7ab4955fb",
-        "segment": "early"
-      },
-      {
         "insight_id": "insight:1f21124fba3a3ec2",
-        "segment": "mid"
-      },
-      {
-        "insight_id": "insight:8914b76de4bda3a8",
-        "segment": "late"
+        "segment": "early"
       },
       {
         "insight_id": "insight:authored-p09_e04-0",
-        "segment": "early"
+        "segment": "mid"
       },
       {
         "insight_id": "insight:authored-p09_e04-1",
+        "segment": "late"
+      },
+      {
+        "insight_id": "insight:ed074a5090bf3658",
+        "segment": "early"
+      },
+      {
+        "insight_id": "insight:1f7c9ff625f76824",
         "segment": "mid"
       }
     ],
