@@ -9,7 +9,8 @@ with a punctuated ``prompt`` came back punctuated. These pin the retry strategy:
   return the identical text), and the better of the two is kept;
 - a retry that errors, comes back unpunctuated, or echoes the prompt keeps the FIRST transcript,
   and never charges the circuit breaker -- the endpoint answered, the content is the problem;
-- the English prompt is never sent for another language;
+- the English prompt is never sent for another language: the retry uses that language's prompt
+  (``WINDOW_PROMPTS``), and a language without one is not retried;
 - the outcome is recorded on the result so the episode can be flagged.
 """
 
@@ -25,7 +26,7 @@ from podcast_scraper.providers.tailnet_dgx import whisper_provider as wp
 from podcast_scraper.providers.tailnet_dgx.whisper_provider import (
     TailnetDgxWhisperTranscriptionProvider,
 )
-from podcast_scraper.transcription.punctuation import PUNCTUATION_PROMPT
+from podcast_scraper.transcription.punctuation import PUNCTUATION_PROMPT, WINDOW_PROMPTS
 
 pytestmark = pytest.mark.unit
 
@@ -134,12 +135,31 @@ def test_a_failed_retry_keeps_the_transcript_and_spares_the_breaker(tmp_path) ->
     assert wp._whisper_breaker.allow()
 
 
-def test_another_language_is_not_sent_the_english_prompt(tmp_path) -> None:
-    server = _Server(UNPUNCTUATED)
+def test_another_language_is_retried_with_its_own_prompt(tmp_path) -> None:
+    """RFI 10-09 (French, 2026-10-11) came back with 2.0 sentence ends per 1,000 words and was
+    never retried: the only prompt was English. A 10-minute episode is one window, so the window
+    repair could not help either."""
+    server = _Server(UNPUNCTUATED, PUNCTUATED)
+    result = _run(_provider(), server, tmp_path, language="fr")
+    assert server.prompts == [None, WINDOW_PROMPTS["fr"]]
+    assert PUNCTUATION_PROMPT not in server.prompts
+    assert result["text"] == PUNCTUATED
+    assert result["punctuation"]["retried"] is True
+
+
+def test_a_retry_echoing_its_own_language_prompt_is_rejected(tmp_path) -> None:
+    server = _Server(UNPUNCTUATED, WINDOW_PROMPTS["de"] + " " + PUNCTUATED)
     result = _run(_provider(), server, tmp_path, language="de")
+    assert result["text"] == UNPUNCTUATED
+    assert result["punctuation"]["retry_rejected"] == "echoed the prompt"
+
+
+def test_a_language_without_a_prompt_is_not_retried(tmp_path) -> None:
+    server = _Server(UNPUNCTUATED)
+    result = _run(_provider(), server, tmp_path, language="nl")
     assert server.prompts == [None]
     assert result["punctuation"]["unpunctuated"] is True
-    assert result["punctuation"]["skipped"] == "language=de"
+    assert result["punctuation"]["skipped"] == "language=nl"
 
 
 def test_mode_off_detects_but_never_prompts(tmp_path) -> None:
