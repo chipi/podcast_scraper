@@ -102,8 +102,12 @@ The Discover 2 preview was removed (UI only; its APIs stay).
 
 ## Step 3 — more rails
 
-- **People you keep hearing** (scan #5) — recurring real speakers (not people merely mentioned) on
-  shows the listener does not follow.
+- **People you keep hearing** ✅ (2026-10-11; `app_people_rail`, `GET /discover/people`; eval pinned
+  in `test_app_people_rail.py`) (scan #5) — hosts and guests in two or more of the listener's
+  episodes (never people merely mentioned), on shows they neither follow nor heard them on.
+- **Quotes back an insight** ✅ (2026-10-11; `best_grounded_quote`) — every rail's quote is one that
+  shares words with an insight of its episode, no longer the first in the list (greetings, ad
+  reads). Residual: where the GI has nothing better by that speaker, the greeting stays.
 - **Sample an episode** — its best moments as a short taste, reusing the Moments picker.
 - **Hear another view** (scan #7) — a contrasting speaker on a topic the listener engages with.
 - **Mentioned in this episode** (scan #8) — people and topics, linked onward.

@@ -5,7 +5,8 @@
  *
  * Episode-first (§2): the recommendation rails lead (`RecommendationRail` — each card says why it
  * is here and plays from the quote): the quote cards, then, under Mine, more from what you
- * captured and new in the storylines you follow; trending shows sit below them, then search. Trends and the Episodes ·
+ * captured, new in the storylines you follow, and the people you keep hearing on other shows;
+ * trending shows sit below them, then search. Trends and the Episodes ·
  * Shows catalog moved to Explore (operator 2026-10-11), reached from this header; old
  * `/browse?trends=…` / `?tab=…` / `#catalog` links redirect there (router).
  *
@@ -18,6 +19,7 @@ import SearchSection from '../components/SearchSection.vue'
 import RecommendationRail from '../components/RecommendationRail.vue'
 import {
   getCapturedRecommendations,
+  getPeopleRecommendations,
   getThreadRecommendations,
   getTrendingEpisodes,
 } from '../services/api'
@@ -57,8 +59,8 @@ function onShowsSeeAll(): void {
     </div>
 
     <!-- Episode-first (ADR-163 §2): the quote cards, then — under Mine, for a signed-in listener —
-         more from what they captured (Step 2.2) and new in the storylines they follow (Step 2.3),
-         then trending shows. -->
+         more from what they captured (Step 2.2), new in the storylines they follow (Step 2.3) and
+         the people they keep hearing (Step 3), then trending shows. -->
     <RecommendationRail
       rail="quotes"
       cards-testid="quote-cards"
@@ -87,6 +89,16 @@ function onShowsSeeAll(): void {
       open-testid="thread-card-open"
       :title="t('discover.thread.title')"
       :load="() => getThreadRecommendations(6)"
+      scope="mine"
+    />
+    <RecommendationRail
+      v-if="auth.isAuthenticated && trendingScope === 'mine'"
+      rail="people"
+      cards-testid="people-cards"
+      card-testid="people-card"
+      open-testid="people-card-open"
+      :title="t('discover.people.title')"
+      :load="() => getPeopleRecommendations(6)"
       scope="mine"
     />
 

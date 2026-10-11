@@ -108,3 +108,24 @@ test('following a storyline brings "Continue the thread": its episodes, saying w
   await expect(first.getByTestId('why-quote')).toContainText('“')
   await expect(first.getByTestId('thread-card-open')).toHaveAttribute('href', /\/episode\/p\d\d-/)
 })
+
+test('a guest heard twice brings "People you keep hearing": their episodes on another show', async ({
+  page,
+}, testInfo) => {
+  // Discover arc Step 3. Dr. Elena Fischer guests twice on The Long View (p07) and also on
+  // Cross-Show (p09); highlights in her two p07 episodes make her someone the listener keeps hearing.
+  await signInIsolated(page, 'discover-people', testInfo)
+  for (const slug of ['p07-a5eb82076a', 'p07-769d04686d']) {
+    const made = await page.request.post('/api/app/highlights', {
+      data: { episode_slug: slug, kind: 'moment', quote_text: 'kept', start_ms: 1000 },
+    })
+    expect(made.status()).toBe(201)
+  }
+
+  await page.goto('/browse')
+  const rail = page.getByTestId('people-cards')
+  await expect(rail).toBeVisible()
+  const first = rail.getByTestId('people-card').first()
+  await expect(first.getByTestId('why-reason')).toHaveText('Dr. Elena Fischer, whom you keep hearing')
+  await expect(first.getByTestId('people-card-open')).toHaveAttribute('href', /\/episode\/p09-/)
+})

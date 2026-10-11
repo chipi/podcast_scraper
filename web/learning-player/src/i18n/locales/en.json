@@ -1253,6 +1253,9 @@
     },
     "thread": {
       "title": "Continue the thread"
+    },
+    "people": {
+      "title": "People you keep hearing"
     }
   },
   "explore": {

@@ -39,6 +39,7 @@ from podcast_scraper.server.app_momentum import (
     trending,
     WINDOW_MONTHS,
 )
+from podcast_scraper.server.app_people_rail import people_rail
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
     ranking_config_from_dict,
@@ -276,6 +277,26 @@ def app_discover_thread(
         return AppTrendingEpisodesResponse(scope="mine", items=[])
     data_dir = Path(raw_dir)
     cards = thread_rail(root, data_dir, user.user_id, limit=limit)
+    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
+
+
+@router.get("/discover/people", response_model=AppTrendingEpisodesResponse)
+def app_discover_people(
+    request: Request,
+    limit: int = Query(default=6, ge=1, le=20),
+    user: User = Depends(get_current_user),
+) -> AppTrendingEpisodesResponse:
+    """People you keep hearing (ADR-163; Discover arc Step 3): hosts and guests in two or more of
+    the listener's episodes — never someone merely mentioned — on shows the listener neither
+    follows nor heard them on, each with a quote that person says there. Every 5th card is the
+    labelled outside-your-usual share. Signed in only (401 otherwise); empty until someone recurs.
+    """
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    if user is None or raw_dir is None:
+        return AppTrendingEpisodesResponse(scope="mine", items=[])
+    data_dir = Path(raw_dir)
+    cards = people_rail(root, data_dir, user.user_id, limit=limit)
     return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
 
 

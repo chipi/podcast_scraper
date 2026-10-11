@@ -413,7 +413,7 @@ piece to its design home:
   rebuilt against ADR-163 one by one.
 - **Discover today** (2026-10-11): the header carries the scope switch and an **"Explore ›"**
   link. Then, episode-first: the quote cards, then (signed in, under Mine) more from what you
-  captured and continue the thread, then trending shows, and search. Trends and the
+  captured, continue the thread and people you keep hearing, then trending shows, and search. Trends and the
   Episodes · Shows catalog moved to Explore (below).
 - **`RecommendationRail`** — the shape every Discover rail shares (ADR-163). The rail supplies
   its id, title and loader; the card, its `RecommendationWhy`, hiding when empty, reloading on
@@ -426,6 +426,9 @@ piece to its design home:
     the listener follows. Each is about one of the storyline's topics, not yet heard, captured or
     saved, and published after their last listen in that storyline. Newest first. "New in
     <storyline>" over a quote about the topic.
+  - **"People you keep hearing"** (Step 3; signed in, under Mine only): hosts and guests in two or
+    more of the listener's episodes (never someone merely mentioned), on shows the listener neither
+    follows nor heard them on. "<name>, whom you keep hearing" over a quote that person says there.
 - **The quote cards** — Discover's first rail (ADR-163, Discover arc Step 2.1): "Worth hearing
   next".
   - **Content:** rising topics and the most engaged episodes (`GET /trending/episodes`) in the page
