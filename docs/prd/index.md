@@ -41,6 +41,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-041](PRD-041-consolidation.md) | Consolidation — personal knowledge corpus | [RFC-101](../rfc/RFC-101-personal-knowledge-corpus.md) | **Draft (v2.7, P3):** per-user projection over GIL/KG; grounded recall scoped to heard episodes; spaced resurfacing; interest profile. |
 | [PRD-042](PRD-042-home.md) | Home (Learning Hub) | [RFC-099](../rfc/RFC-099-learning-platform-consumer-client.md) | **Draft (v2.7, P1):** the app's launch surface — orient (what's new) / resume (continue) / discover-within (recommended + corpus-wide grounded search) / route; catalog moves to /catalog. GH #1090. |
 | [PRD-043](PRD-043-knowledge-layer.md) | Knowledge Layer — Topic Clusters, Entity Cards & Personalized Discovery | [RFC-102](../rfc/RFC-102-knowledge-clusters-entity-cards.md) | **Draft (v2.8, Epic 3):** make knowledge first-class — topic clusters (cluster-first UI), person/topic entity cards, entities in search, and digest × interest-cluster personalized discovery. Merges the proposed Epic 3+4. |
+| [PRD-048](PRD-048-discover-and-explore.md) | Discover and Explore — what to hear next, and looking around | [RFC-126](../rfc/RFC-126-discover-rails-reasons-paging-and-reels.md) | **Implemented in part (2026-10-11, epic #2306):** episode-first rails with an extractive reason, a taste not a scroll (server-paged), cold start, "Less like this", cross-episode topic reels, Explore with its own nav place. |
 
 ## Implemented PRDs
 
