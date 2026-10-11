@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 8 |
+| Doc version | 9 |
 | Last updated | 2026-10-11 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
-| Code content hash | `54d19fb53f53` (see below) |
+| Code content hash | `a34e1009f2cb` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,14 @@
 
 **Changelog**
 
+- **v9, 2026-10-11.** One rule changed (#2304, F4b2): `inputs.conversation_roles` no longer marks
+  "host" a voice that owns at least half the talk (`_DOMINANT_SHARE`) when every host act in it is
+  half of a bled pair: within 200 characters (`hosts.BLEED_PAIR_CHARS`) of a guest reply that opens
+  its own sentence ("Welcome to the show. Thank you for having me."). Gated on the share because the
+  text cannot say which side owns the pair: applied to every bled voice it un-named Hard Fork's two
+  hosts on the corpus replay.
+  Only a voice the model NAMED (a role fix, never an open guest seat): on an unnamed voice the
+  one-name-one-voice arithmetic put the wrong stated guest on it (gold val_v1 v226).
 - **v8, 2026-10-11.** One rule changed (#2304, F4c): `host_seat_step` `5_llm_host_no_pool` no longer
   seats a voice that replies to being invited ("Thank you for inviting me", "thank you for the
   invitation", `roster._INVITED_REPLY`). Read ONLY there: as a general guest act the same phrase,
@@ -240,7 +248,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `ad_voice_placeholder` | `ad_narrator_saying_its_name_is_not_a_person` |
 | `cohost_formula` | `cohost_formula_from_the_other_side`, `cohost_formula_with_the_first_name_only` |
 | `guest_host_pool` | `guest_host_named_in_the_episode_text` |
-| `guest_naming` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cold_open_guest_owns_the_interview` (+34) |
+| `guest_naming` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cold_open_guest_owns_the_interview` (+35) |
 | `guest_naming_forced` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `guest_pool` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `host_introduction_harvest` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `introduced_spelling_nobody_stated_is_refused` |
@@ -253,11 +261,11 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `host_seat_opener` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `host_seat_step` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `host_seats` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
-| `inputs.baseline_without_llm` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)`, `host_line_bled_into_the_guest_cluster (xfail)` (+6) |
+| `inputs.baseline_without_llm` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)`, `host_line_bled_into_the_guest_cluster` (+6) |
 | `inputs.detection` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `inputs.llm_resolution` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
-| `intro_reader` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `feed_lists_interviewees_not_hosts`, `feed_states_its_host_as_title_then_name (xfail)`, `guest_sharing_the_hosts_surname_is_another_person` (+3) |
-| `llm_merge` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)`, `host_line_bled_into_the_guest_cluster (xfail)` (+6) |
+| `intro_reader` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `feed_lists_interviewees_not_hosts`, `feed_states_its_host_as_title_then_name (xfail)`, `guest_sharing_the_hosts_surname_is_another_person` (+4) |
+| `llm_merge` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)`, `host_line_bled_into_the_guest_cluster` (+6) |
 | `nameable` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `non_regression` | `wrong_llm_host_name_on_the_guest_is_not_published` |
 | `one_name_per_person` | `credential_written_without_comma`, `stated_spelling_wins_over_self_intro_spelling` |

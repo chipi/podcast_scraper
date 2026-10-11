@@ -62,11 +62,13 @@ from ....speaker_detectors.hosts import (
     _NAME_RE as _INTRO_NAME_RE,
     _STATED_UC,
     _uc,
+    BLEED_PAIR_CHARS,
     distinct_self_introductions,
     extract_self_introduced_host,
     guests_introduced_by_the_host,
     has_org_markers,
     HONORIFIC_TITLES,
+    host_acts_are_all_bled,
     host_speech_act_starts,
     is_network_or_org_author,
     is_plausible_mononym,
@@ -395,11 +397,8 @@ def _talk_share(diarization: DiarizationResult, ad_voices: set) -> Dict[str, flo
     return {v: secs / total for v, secs in talk.items()}
 
 
-#: How far a host act must sit from every guest act to count as the seat's OWN evidence rather
-#: than half of a bleed pair. Measured on the 92 seats the blunt version added: a bled pair is
-#: 20-200 characters apart ("welcome to the podcast. Thanks, KG. I'm very happy to be here"),
-#: because it is one exchange that diarization failed to split.
-_BLEED_PAIR_CHARS = 200
+#: See `hosts.BLEED_PAIR_CHARS`: one exchange the diarizer failed to split.
+_BLEED_PAIR_CHARS = BLEED_PAIR_CHARS
 
 #: A voice owning most of a two-party conversation is the interviewee, not the presenter. Measured
 #: on the same 92: of 14 seats that were rank-0 with >= 50% of the talk on a <= 3-voice episode,
@@ -436,6 +435,38 @@ _INVITED_REPLY = re.compile(
     r"(?:inviting me|having me|the invitation|the invite)\b",
     re.IGNORECASE,
 )
+
+
+def _without_bled_dominant_hosts(
+    conv_roles: Dict[str, str],
+    voice_texts: Optional[Mapping[str, str]],
+    share: Mapping[str, float],
+    model_named: AbstractSet[str],
+) -> Dict[str, str]:
+    """Drop the conversation's "host" from a DOMINANT voice whose every host act is half of a bled
+    pair ("Welcome to the show. Thank you for having me." in one cluster).
+
+    The text cannot say which side owns a bled pair; the talk share can. The voice that owns most of
+    the conversation is the interviewee (11 of 14 such seats were the guest or a merged cluster,
+    see `_DOMINANT_SHARE`): Carina Hong, Zach Dell, Ivan Burazin, Kelsey Hightower were seated as
+    hosts on prod (2026-10-11). Applied to EVERY bled voice it un-named Hard Fork's hosts, whose
+    clusters carry the same pair at 30-48% of the talk.
+
+    Only a voice the MODEL named: this corrects a role, it must not open a guest seat. On an
+    unnamed voice it did (Hard Fork's guest Dave Bazooki took the episode's other stated guest,
+    Dr. Dana Suskind, by one-name-one-voice arithmetic: gold set val_v1 case v226).
+    """
+    texts = voice_texts or {}
+    return {
+        v: r
+        for v, r in conv_roles.items()
+        if not (
+            r == "host"
+            and v in model_named
+            and share.get(v, 0.0) >= _DOMINANT_SHARE
+            and host_acts_are_all_bled(texts.get(v, ""))
+        )
+    }
 
 
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
@@ -5100,7 +5131,12 @@ def resolve_speaker_roster(
     )
     # Conversation-performed roles, computed once and reused for host selection below. A voice that
     # says "thanks for having me" is a guest even if it speaks first.
-    conv_roles = roles_from_conversation(voice_texts)
+    conv_roles = _without_bled_dominant_hosts(
+        roles_from_conversation(voice_texts),
+        voice_texts,
+        _talk_share(diarization, set(ad_voices)),
+        set(llm_voice_names or {}),
+    )
     conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
     conv_host_voices = {v for v, r in conv_roles.items() if r == "host"}
     tr.roster_inputs(ad_voices=sorted(ad_voices), conversation_roles=dict(conv_roles))

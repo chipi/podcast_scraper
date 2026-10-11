@@ -1158,6 +1158,49 @@ _NOT_A_WELCOME_BEFORE = re.compile(
 _NOT_A_WELCOME_AT = re.compile(r"welcome to the club\b", re.IGNORECASE)
 
 
+#: How far a host act must sit from every guest act to count as the voice's OWN evidence rather
+#: than half of a bleed pair. Measured on the 92 seats the blunt version added: a bled pair is
+#: 20-200 characters apart ("welcome to the podcast. Thanks, KG. I'm very happy to be here"),
+#: because it is one exchange that diarization failed to split.
+BLEED_PAIR_CHARS = 200
+
+
+def _opens_its_sentence(text: str, pos: int, max_lead_words: int = 3) -> bool:
+    """Does the phrase at ``pos`` start its sentence (a few lead words allowed: "Yeah, I'm really")?
+
+    A bled guest reply is the OTHER speaker's turn, so it opens a sentence ("Welcome to the show.
+    Thank you for having me."). A host quoting a listener ("A listener wrote in to say thank you
+    very much for having me") carries the phrase deep inside the host's own sentence.
+    """
+    head = text[max(0, pos - 200) : pos]
+    cut = max(head.rfind(". "), head.rfind("? "), head.rfind("! "))
+    if cut >= 0:
+        lead = head[cut + 2 :]
+    elif pos <= 200:
+        lead = head
+    else:
+        return False
+    return len(lead.split()) <= max_lead_words
+
+
+def host_acts_are_all_bled(text: str) -> bool:
+    """Is every host act in ``text`` half of a BLED PAIR: within ``BLEED_PAIR_CHARS`` of a guest
+    reply that opens its own sentence ("Welcome to the show. Thank you for having me.")?
+
+    One exchange the diarizer did not split; the text alone cannot say whose cluster owns it.
+    """
+    host_at = host_speech_act_starts(text)
+    replies = [
+        m.start()
+        for p in _GUEST_SPEECH_ACTS
+        for m in p.finditer(text or "")
+        if _opens_its_sentence(text, m.start())
+    ]
+    return bool(host_at and replies) and all(
+        any(abs(h - g) <= BLEED_PAIR_CHARS for g in replies) for h in host_at
+    )
+
+
 def host_speech_act_starts(text: str) -> List[int]:
     """Offsets in ``text`` where a host speech act starts, without the "welcome to" idioms."""
     out: List[int] = []

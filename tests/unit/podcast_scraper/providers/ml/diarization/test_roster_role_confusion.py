@@ -453,3 +453,49 @@ def test_llm_guest_verdict_never_unseats_a_self_intro_known_host() -> None:
     )
     assert roster.by_voice["H1"].role == "host"
     assert roster.by_voice["H1"].name == "Casey Newton"
+
+
+BLED = [
+    "Yeah. Welcome to the show. Thank you for having me. Well, super excited to be here.",
+    "Zach, thanks so much for joining me in No Priors. Thank you for having me. Really enjoyed it.",
+    "Kelsey, welcome to the podcast. So nice to see you. Yeah. I'm really happy to be here today.",
+]
+
+
+@pytest.mark.parametrize("text", BLED)
+def test_a_bled_pair_is_recognised(text: str) -> None:
+    # F4b2 (prod 2026-10-11): the host's line and the guest's sentence-opening reply in one cluster.
+    from podcast_scraper.speaker_detectors.hosts import host_acts_are_all_bled
+
+    assert host_acts_are_all_bled(text)
+
+
+def test_a_host_act_far_from_the_reply_or_a_quoted_reply_is_not_bled() -> None:
+    from podcast_scraper.speaker_detectors.hosts import host_acts_are_all_bled
+
+    far = "Welcome to Big Ideas. " + "We talk about cities. " * 20 + "Thank you for having me."
+    quoted = (
+        "Welcome back to the show. A listener wrote in to say thank you very much for having me."
+    )
+    assert not host_acts_are_all_bled(far)
+    assert not host_acts_are_all_bled(quoted)
+
+
+def test_only_the_dominant_bled_voice_loses_the_host_role() -> None:
+    # Hard Fork's hosts carry the same bled pair at 30-48% of the talk and must stay hosts.
+    from podcast_scraper.providers.ml.diarization.roster import _without_bled_dominant_hosts
+
+    texts = {"G": BLED[0], "H": BLED[1]}
+    roles = {"G": "host", "H": "host"}
+    named = {"G", "H"}
+    assert _without_bled_dominant_hosts(roles, texts, {"G": 0.8, "H": 0.2}, named) == {"H": "host"}
+    assert _without_bled_dominant_hosts(roles, texts, {"G": 0.4, "H": 0.35}, named) == roles
+
+
+def test_an_unnamed_bled_voice_keeps_its_role() -> None:
+    # Gold val_v1 v226 (Hard Fork): dropping the role of a voice the model did not name opened a
+    # guest seat, and one-name-one-voice arithmetic put the wrong stated guest on it.
+    from podcast_scraper.providers.ml.diarization.roster import _without_bled_dominant_hosts
+
+    roles = {"G": "host"}
+    assert _without_bled_dominant_hosts(roles, {"G": BLED[0]}, {"G": 0.8}, set()) == roles

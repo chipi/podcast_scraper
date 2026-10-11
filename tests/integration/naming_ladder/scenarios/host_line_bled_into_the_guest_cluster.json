@@ -1,6 +1,5 @@
 {
- "why": "F4b2 (No Priors, Zach Dell, prod replay 2026-10-11): the diarizer put the host's closing line into the guest's cluster ('Zach, thanks so much for joining me on No Priors. Thank you for having me.'). Host acts are checked before guest acts, so the guest's own 'thank you for having me' is ignored, the voice performs the host role and is seated with the LLM's 'host'. 10 served episodes have a host line bled at a turn boundary.",
- "xfail": "F4b2: one bled host phrase outweighs the voice's own guest act",
+ "why": "F4b2 (No Priors, Zach Dell, prod replay 2026-10-11): the diarizer put the host's closing line into the guest's cluster ('Zach, thanks so much for joining me on No Priors. Thank you for having me.'). Host acts are checked before guest acts, so the guest's own 'thank you for having me' is ignored, the voice performs the host role and is seated with the LLM's 'host'. 10 served episodes have a host line bled at a turn boundary. Fixed 2026-10-11 (F4b2): a host act that is half of a bled pair (within 200 characters of a guest reply that opens its own sentence) gives the voice no conversation role.",
  "feed": {
   "title": "No Priors: Artificial Intelligence | Technology | Startups",
   "description": "Hosted by Sarah Guo and Elad Gil."
