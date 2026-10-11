@@ -486,6 +486,31 @@ def _declared_guests_not_hosts(
     ]
 
 
+def _without_names_the_voice_introduces(
+    llm_voice_names: Optional[Mapping[str, str]],
+    voice_texts: Optional[Mapping[str, str]],
+    tr: Any,
+) -> Dict[str, str]:
+    """The model's names, minus each one the voice itself INTRODUCES ("Today, my guest is Jacob
+    Warwick", "I'm here with Eric Alabest"): a voice that introduces a person is not that person.
+
+    The model put the guest's name on the host's own voice on 10 served episodes (prod replay
+    2026-10-11), and the real guest's voice was then refused the name as taken. The introduced
+    spelling is the ASR's ("Eric Alabest" for Erik Allebest), so the comparison is the bounded
+    stated-name snap. Only the NAME is dropped; the model's host/guest verdict for the voice stands.
+    """
+    texts = voice_texts or {}
+    out: Dict[str, str] = {}
+    for v, n in (llm_voice_names or {}).items():
+        said = guests_introduced_by_the_host({v: texts.get(v, "")}) if n else set()
+        hit = next((x for x in said if _canonicalize_to_stated_name(x, [n]) == n), None)
+        if hit:
+            tr.voice(v, "llm_merge", "skipped", proposed=n, reason="introduced_by_this_voice")
+            continue
+        out[v] = n
+    return out
+
+
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
@@ -5319,6 +5344,7 @@ def resolve_speaker_roster(
     # It can only ever MATCH a name the metadata already stated (the resolver enforces the closed
     # list), so it cannot invent a speaker here; the worst it can do is misplace a real one.
     llm_named: set = set()
+    llm_voice_names = _without_names_the_voice_introduces(llm_voice_names, voice_texts, tr)
     _yield_unstated_introductions(
         voice_intro,
         introduced_named,

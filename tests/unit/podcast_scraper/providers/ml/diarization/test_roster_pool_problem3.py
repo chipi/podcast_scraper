@@ -207,3 +207,16 @@ def test_a_declared_guest_that_is_a_host_in_the_asr_spelling_is_not_a_guest() ->
     assert _declared_guests_not_hosts(["RJ Hanaki", "Carina Hong"], hosts, lower) == ["Carina Hong"]
     # A guest who merely shares the host's first name stays a guest.
     assert _declared_guests_not_hosts(["RJ Smith"], hosts, lower) == ["RJ Smith"]
+
+
+def test_the_model_never_names_a_voice_after_the_person_it_introduces() -> None:
+    # F4a (prod 2026-10-11): the host's voice carried the guest's name on 10 served episodes.
+    from podcast_scraper.providers.ml.diarization.naming_trace import NamingTrace
+    from podcast_scraper.providers.ml.diarization.roster import _without_names_the_voice_introduces
+
+    texts = {
+        "H": "Hi, listeners. Welcome back to No Priors. Today, I'm here with Eric Alabest.",
+        "G": "Thanks for having me.",
+    }
+    names = {"H": "Erik Allebest", "G": "Sarah Guo"}
+    assert _without_names_the_voice_introduces(names, texts, NamingTrace()) == {"G": "Sarah Guo"}
