@@ -310,12 +310,12 @@ test('reel', async ({ page }) => {
   await page.goto(DOORS)
   await page.getByTestId('reel-door').click()
   await expect(page.getByTestId('topic-reel-title')).toBeVisible()
-  await expect(page.getByTestId('topic-reel-segment').first()).toBeVisible()
+  await expect(page.getByTestId('topic-reel-current')).toContainText('Clip 1 of')
+  await page.getByTestId('topic-reel-next').click()
+  await page.getByTestId('topic-reel-next').click()
+  await expect(page.getByTestId('topic-reel-current')).toContainText('Clip 3 of')
   await shoot(page, 'reel')
-  await page.getByTestId('topic-reel-play').click()
-  await expect(page.getByTestId('topic-reel-quote')).toBeVisible()
-  await settle(page)
-  await page.screenshot({ path: dir('reel-playing-viewport'), fullPage: false })
+
 })
 
 test('learn', async ({ page }) => {

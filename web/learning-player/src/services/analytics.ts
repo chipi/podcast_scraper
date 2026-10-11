@@ -454,7 +454,7 @@ export type EventProps = {
     day?: number
     source?: 'discover' | 'subject_page'
   }
-  /** A "15 minutes on" reel opened: from Discover's row or a subject page's "15 min on this". */
+  /** A short listen opened: from Discover's Short listens row or a subject page's "N min on this". */
   reel_open: {
     source: 'discover_row' | 'subject_page'
     kind: 'topic' | 'theme' | 'storyline'

@@ -8,7 +8,7 @@
  * on the SERVER: one `GET /discover/rails` gives every rail's first page in page order, one card per
  * episode across the page, and each rail's "Show more" asks for its next page. The rails: the quote
  * cards, then under Mine more from what you captured, continue the thread, people you keep hearing,
- * another view on your topics. Then "15 minutes on" and trending shows. Trends and the Episodes ·
+ * another view on your topics. Then Short listens and trending shows. Trends and the Episodes ·
  * Shows catalog are on Explore (its own tab); old `/browse?trends=…` / `?tab=…` / `#catalog` links
  * redirect there (router).
  *

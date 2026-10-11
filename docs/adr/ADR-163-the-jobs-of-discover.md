@@ -71,7 +71,7 @@ fixes those answers so every later rail is built against the same rules.
      across every rail, undone from Profile › Interests. *Initial setup, 2026-10-11 (operator):* it
      REMOVES (a down-weighted card that still shows reads as being ignored), in BOTH scopes (it is
      the listener's preference about recommendations), on every recommendation surface — Discover's
-     rails, the "15 minutes on" row, the Learn offers — and never where the listener asks: Search,
+     rails, the Short listens row, the Learn offers — and never where the listener asks: Search,
      Explore's Trends and catalogue, the subject's own page. No expiry; the "less" taps per rail are
      measured, and down-weighting or fading is reconsidered on that evidence.
 7. ~~**Serendipity: a small, labelled share inside each rail.**~~ *Superseded 2026-10-11

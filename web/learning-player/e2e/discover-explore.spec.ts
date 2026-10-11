@@ -224,23 +224,27 @@ test('"Less like this" hides a storyline from Discover; Profile › Interests un
   await expect(page.getByTestId('thread-cards').getByTestId('thread-card').first()).toBeVisible()
 })
 
-test('"15 min on" a topic: clips from different episodes, back to back, then keep listening to one', async ({
+test('a short listen on a topic: the tap that opens it starts clip 1; next, jump, keep listening', async ({
   page,
 }, testInfo) => {
-  // ADR-163 §8 amendment (operator 2026-10-11: goal-shaped listening = a cross-episode reel).
+  // ADR-163 §8 amendment (operator 2026-10-11: goal-shaped listening = a cross-episode reel; no start
+  // page, one bar, the clips to come as a list; "real length everywhere").
   await signInIsolated(page, 'discover-topic-reel', testInfo)
   await page.goto('/browse')
   await showEveryonesTrends(page)
   const chip = page.getByTestId('reel-topic-chip').filter({ hasText: 'systems thinking' })
+  await expect(chip).toHaveText('▶ systems thinking · 2 min')
   await chip.click()
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
-  await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on systems thinking')
+  await expect(page.getByTestId('topic-reel-title')).toHaveText('systems thinking')
   // The small fixture: the page says what the reel runs, not the fifteen minutes asked for.
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('9 clips from different episodes · 1:48')
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('1:48 · 9 clips · 9 episodes')
 
-  await page.getByTestId('topic-reel-play').click()
+  // Started by the chip's tap: clip 1, playing, with the eight to come listed.
   const current = page.getByTestId('topic-reel-current')
   await expect(current).toContainText('Clip 1 of 9')
+  await expect(page.getByTestId('topic-reel-pause')).toBeVisible()
+  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(8)
   // The clip's episode loads asynchronously (resolve, then load): wait for it before comparing.
   const audioSrc = () => page.evaluate(() => document.querySelector('audio')?.src ?? '')
   await expect.poll(audioSrc).toContain('/audio/')
@@ -249,12 +253,18 @@ test('"15 min on" a topic: clips from different episodes, back to back, then kee
   await expect(current).toContainText('Clip 2 of 9')
   await expect(page.getByTestId('topic-reel-quote')).toContainText('Systems thinking in macro means watching feedback loops')
   await expect.poll(audioSrc).not.toBe(first) // the next clip's episode was loaded
+  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(7)
+
+  // Any clip to come is a jump.
+  await page.getByTestId('topic-reel-up-next').nth(2).click() // clip 5
+  await expect(current).toContainText('Clip 5 of 9')
+  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(4)
 
   await page.getByTestId('topic-reel-keep').click()
-  await expect(page).toHaveURL(/\/episode\/p07-3f1584920f/)
+  await expect(page).toHaveURL(/\/episode\/p05-693ecaa09e/)
 })
 
-test('"15 min on this" from a storyline and a theme: clips about any member topic; chips wear their kind', async ({
+test('a short listen from a storyline and a theme: clips about any member topic; chips wear their kind', async ({
   page,
 }, testInfo) => {
   // Operator 2026-10-11: reels for themes and storylines, a door on their pages, chips coloured
@@ -272,12 +282,12 @@ test('"15 min on this" from a storyline and a theme: clips about any member topi
   await expect(page.getByTestId('learn-door')).toHaveText('Learn this in 7 days')
   await page.getByTestId('reel-door').click()
   await expect(page).toHaveURL(/\/listen\/topic\/thc(:|%3A)managing-risk\?minutes=15/)
-  await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on Managing risk across domains')
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('22 clips from different episodes · 4:24')
+  await expect(page.getByTestId('topic-reel-title')).toHaveText('Managing risk across domains')
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('4:24 · 22 clips · 16 episodes')
 
   await page.goto(`/theme/${encodeURIComponent('tc:reliability')}`)
   await page.getByTestId('reel-door').click()
-  await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on reliability')
+  await expect(page.getByTestId('topic-reel-title')).toHaveText('reliability')
 })
 
 test('Learn X this week: start a path on Discover, do today, see the week, stop', async ({ page }, testInfo) => {

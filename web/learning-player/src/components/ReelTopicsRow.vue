@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Discover's "15 minutes on" row (ADR-163 §8 amendment; goal-shaped listening): a few topics, themes
- * and storylines, each a way into fifteen minutes of clips about it across episodes
+ * Discover's "Short listens" row (ADR-163 §8 amendment; goal-shaped listening): a few topics, themes
+ * and storylines, each a way into up to fifteen minutes of clips about it across episodes
  * (`TopicReelView`). Under Mine, the listener's own; under Everyone, the rising ones — and only
  * those whose reel has at least two clips (the server checks), so a chip never opens an empty reel.
  * Each chip wears its kind's colours (`kindPill`), as topics, themes and storylines do on episode
@@ -11,6 +11,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getReelTopics, type ReelTopic } from '../services/api'
 import { kindPill } from '../utils/interests'
+import { reelMinutes } from '../utils/reelLength'
 import { track } from '../services/analytics'
 
 const props = defineProps<{ scope: 'mine' | 'corpus' }>()
@@ -29,9 +30,9 @@ watch(() => props.scope, load, { immediate: true })
 
 <template>
   <section v-if="topics.length" class="mt-7" data-testid="reel-topics">
-    <!-- The duration once, in the heading; each pill is just ▶ and the subject (operator
-         2026-10-11: "15 min on …" on every pill was the same words over and over). -->
-    <h2 class="lp-section mb-3">{{ t('reel.row', { minutes: MINUTES }) }}</h2>
+    <!-- Each pill says what it actually runs (operator 2026-10-11: "real length everywhere"); the
+         heading promises no number. -->
+    <h2 class="lp-section mb-3">{{ t('reel.row') }}</h2>
     <ul class="flex flex-wrap gap-2">
       <li v-for="topic in topics" :key="topic.subject_id">
         <RouterLink
@@ -39,10 +40,10 @@ watch(() => props.scope, load, { immediate: true })
           class="lp-tap inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold transition hover:opacity-80"
           :class="kindPill(topic.subject_kind)"
           :data-kind="topic.subject_kind"
-          :aria-label="t('reel.chipLabel', { minutes: MINUTES, topic: topic.subject_label })"
+          :aria-label="t('reel.chipLabel', { minutes: reelMinutes(topic.total_seconds), topic: topic.subject_label }, reelMinutes(topic.total_seconds))"
           data-testid="reel-topic-chip"
           @click="track('reel_open', { source: 'discover_row', kind: topic.subject_kind })"
-        ><span aria-hidden="true">▶ {{ topic.subject_label }}</span></RouterLink>
+        ><span aria-hidden="true">▶ {{ t('reel.chip', { topic: topic.subject_label, minutes: reelMinutes(topic.total_seconds) }) }}</span></RouterLink>
       </li>
     </ul>
   </section>

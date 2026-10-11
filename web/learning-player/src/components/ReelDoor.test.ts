@@ -26,18 +26,18 @@ const router = createRouter({
     { path: '/listen/topic/:id', name: 'topic-reel', component: { template: '<div/>' } },
   ],
 })
-const reel = (clips: number) => ({ clips: Array.from({ length: clips }, () => ({})) })
+const reel = (clips: number, seconds = 144) => ({ clips: Array.from({ length: clips }, () => ({})), total_seconds: seconds })
 
 describe('ReelDoor', () => {
-  it('opens the subject’s fifteen-minute reel, named for screen readers', async () => {
+  it('opens the subject’s reel, named by what it actually runs', async () => {
     api.getTopicReel.mockResolvedValue(reel(3))
     const w = mount(ReelDoor, { props: { subjectId: 'thc:risk', label: 'Managing risk' }, global: { plugins: [i18n, router] } })
     await flushPromises()
     expect(api.getTopicReel).toHaveBeenCalledWith('thc:risk', 15)
     const door = w.get('[data-testid="reel-door"]')
-    expect(door.text()).toBe('▶ 15 min on this')
+    expect(door.text()).toBe('▶ 2 min on this') // 2:24
     expect(door.attributes('href')).toBe('/listen/topic/thc:risk?minutes=15')
-    expect(door.attributes('aria-label')).toBe('Play 15 minutes of clips on Managing risk')
+    expect(door.attributes('aria-label')).toBe('Play 2 minutes of clips on Managing risk')
     await door.trigger('click')
     expect(tracked.at(-1)).toEqual({ name: 'reel_open', props: { source: 'subject_page', kind: 'storyline' } })
   })

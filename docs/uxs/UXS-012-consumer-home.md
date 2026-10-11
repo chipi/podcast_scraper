@@ -455,8 +455,9 @@ piece to its design home:
     not heard, captured from or saved. Nothing from Everyone is mixed in.
   - **Empty:** with nothing to show, the rail is hidden.
   - **Telemetry:** reports shown and taps to Umami (`useRailTelemetry('quotes')`).
-- **`ReelTopicsRow`** — Discover's "15 minutes on" row (ADR-163 §8 amendment; goal-shaped listening):
-  "15 minutes on" with up to four chips, "▶ <subject>" (the duration once, in the heading), topics, themes and storylines taking turns — under Mine
+- **`ReelTopicsRow`** — Discover's **Short listens** row (ADR-163 §8 amendment; goal-shaped listening):
+  up to four chips, "▶ <subject> · 4 min" (each its real length, rounded, at most 15; operator
+  2026-10-11: "real length everywhere"), topics, themes and storylines taking turns — under Mine
   the listener's own (top topics; the themes and storylines of their world), under Everyone the
   rising ones — each offered only when its reel has at least two clips, and two subjects whose reels
   are the same clips offered once. Each chip wears its kind's colours (`kindPill`: topic, theme,
@@ -472,11 +473,11 @@ piece to its design home:
   two lines), on every page and sheet — measured identical across all eight. Every sheet has an ✕
   that closes it, always; a topic or person sheet drilled one level in adds ‹ before the kind to go
   back (operator 2026-10-11).
-- **`ReelDoor`** — "▶ 15 min on this", a tinted pill the size of the Follow pill, in `listen`
+- **`ReelDoor`** — "▶ 4 min on this" (the reel's real length), a tinted pill the size of the Follow pill, in `listen`
   (emerald, the categorical `cat-3`): it plays now. Never the accent — Follow owns that. It appears only once
   that subject's reel has at least two clips.
 - **`LearnThisWeek`** — Discover's **Learn X this week** (operator 2026-10-11), signed in, under
-  the "15 minutes on" row: a seven-day path through a theme or storyline, one step a day.
+  the Short listens row: a seven-day path through a theme or storyline, one step a day.
   - **Without a path:** "Learn something this week", a line saying what it is, and up to three
     chips in their kind's colours — "Managing risk across domains · 7 days" — themes and storylines
     with a path of three to seven days, in the page scope. One tap starts it.
@@ -502,13 +503,17 @@ piece to its design home:
   are"). An earlier day is a closed card; tapping it opens it to replay that day. Then "Stop this path", confirmed in place ("Stop learning this?" Stop / Keep going),
   then back to Discover. Without a path: "You are not learning anything this week." and a link to
   Discover.
-- **`TopicReelView`** — **N minutes on a topic, theme or storyline** (`/listen/topic/:id?minutes=`,
+- **`TopicReelView`** — **a short listen on a topic, theme or storyline** (`/listen/topic/:id?minutes=`,
   `id` a `topic:`, `tc:` or `thc:` id): the strongest clips ABOUT it (a theme or storyline: about any
   of its member topics, umbrella members left out) from different episodes, back to back (the Moments picker's clip windows; a clip
-  must say what its insight says). The header states what the reel actually runs ("6 clips from
-  different episodes · 1:12"), never the budget. Play starts it; each clip shows its episode, show,
-  what is said and by whom, ‹ ›, and **Keep listening to this episode** (the full episode, which
-  then counts as a listen). Like any reel it never moves a resume point. Leaving the page keeps it
+  must say what its insight says; never the same seconds or the same claim twice). LISTEN · <kind>
+  in `listen`, the subject as the title, and what the reel actually runs ("2:24 · 12 clips ·
+  10 episodes"), never the budget. **No start page** (operator 2026-10-11): it starts on clip 1 at
+  once; where the browser blocks the sound (opened by a link, no tap behind it) clip 1 waits with ▶.
+  One bar for the whole reel, time heard of total, not a dot per clip. The clip card shows its
+  episode, show, what is said and by whom, ‹ ▶/❚❚ ›, and **Keep listening to this episode** (the
+  full episode, which then counts as a listen). Under it **Up next**: the clips to come, "speaker ·
+  episode", each a jump. Like any reel it never moves a resume point. Leaving the page keeps it
   playing — the mini-player reads "<topic> · 3 / 6" and reopens it. The end card lists the
   episodes heard.
 - **`ExploreView`** — **Explore** (`/explore`, ADR-163 §1, 2026-10-11): for looking around, so

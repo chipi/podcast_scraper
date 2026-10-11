@@ -20,7 +20,7 @@ test('a reel reports how it was opened, and what the listener did inside it', as
   const open = await sink.waitForEvent('reel_open')
   expect(open.data).toMatchObject({ source: 'discover_row', kind: 'storyline' })
 
-  await page.getByTestId('topic-reel-play').click()
+  // No start page: the chip's tap starts the reel.
   const start = await sink.waitForEvent('reel_action')
   expect(start.data).toMatchObject({ action: 'start', kind: 'storyline', clips: '21+' })
   await expect(page.getByTestId('topic-reel-current')).toBeVisible()

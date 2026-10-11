@@ -187,7 +187,7 @@ Reels and paths read transcripts, so they are built to cost per episode once, no
   about 5 ms on real transcripts (prod-v2), mostly reading its segments.
 - **Per-subject lists** (`subject_episodes`) are rebuilt from those on each corpus change: about
   15 µs an episode, about 25 ms for a subject covering 1,600 episodes.
-- **Text only for what plays.** The "15 minutes on" chips and the Learn offers count clips and
+- **Text only for what plays.** The Short listens chips and the Learn offers count clips and
   days from the text-free lists (`reel_selection`, `path_plan`). Only an opened reel or a started
   path reads its clips in full (`hydrate`).
 - **Warmed in the background.** The cache warmer scores every episode after startup and after

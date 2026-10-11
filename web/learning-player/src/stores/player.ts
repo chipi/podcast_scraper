@@ -62,7 +62,7 @@ export interface ReelMoment {
   artwork?: string | null
 }
 
-/** The topic a cross-episode reel is about ("15 minutes on …", ADR-163 §8 amendment). */
+/** The topic a cross-episode reel is about (a short listen, ADR-163 §8 amendment). */
 export interface ReelTopic {
   id: string
   label: string

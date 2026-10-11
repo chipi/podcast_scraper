@@ -104,7 +104,7 @@ note "Everyone's picks — yours begin once you listen, save or pick a few topic
 ### FR5: "Less like this"
 
 On a card whose reason names a subject, one tap hides that subject from every Discover rail and
-from the "15 minutes on" row, with Undo in place. Profile › Interests › Suggested less lists what is
+from the Short listens row, with Undo in place. Profile › Interests › Suggested less lists what is
 hidden and undoes it.
 
 ### FR6: Card actions
@@ -113,11 +113,12 @@ Every card has the standard episode actions (save, queue, ⋯ with Play moments 
 download) and "Play from" the quote. The whole card opens the episode in the player, paused; the
 show is named, not linked — the player leads to the show (operator 2026-10-11, UXS-014).
 
-### FR7: Minutes on a topic
+### FR7: Short listens on a topic
 
-"15 minutes on" a topic plays the strongest clips about a topic from different episodes, back to back,
-and says what it actually runs. It is reachable from Discover's "15 minutes on" row and from topic,
-theme and storyline cards.
+A short listen on a topic, theme or storyline (up to 15 minutes) plays the strongest clips about it
+from different episodes, back to back, starting at once, and says what it actually runs everywhere
+it is offered (operator 2026-10-11). It is reachable from Discover's Short listens row and from
+topic, theme and storyline cards.
 
 ### FR7b: Learn X this week
 

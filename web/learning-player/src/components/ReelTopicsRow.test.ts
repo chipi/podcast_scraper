@@ -1,5 +1,5 @@
 /**
- * Discover's "15 minutes on" row (ADR-163 §8 amendment): chips into topic, theme and storyline reels,
+ * Discover's "Short listens" row (ADR-163 §8 amendment): chips into topic, theme and storyline reels,
  * in the page scope,
  * hidden with none; a scope switch mid-load never shows the old scope's topics.
  */
@@ -36,15 +36,15 @@ const topic = (id: string, label: string, kind: 'topic' | 'theme' | 'storyline' 
 })
 
 describe('ReelTopicsRow', () => {
-  it('offers each topic as a chip into its fifteen-minute reel', async () => {
+  it('offers each topic as a chip into its reel, saying what the reel actually runs', async () => {
     api.getReelTopics.mockResolvedValue([topic('topic:a', 'alpha')])
     const w = mount(ReelTopicsRow, { props: { scope: 'mine' }, global: { plugins: [i18n, router] } })
     await flushPromises()
     expect(api.getReelTopics).toHaveBeenCalledWith('mine')
     const chip = w.get('[data-testid="reel-topic-chip"]')
-    expect(chip.text()).toBe('▶ alpha')
-    expect(chip.attributes('aria-label')).toBe('Play 15 minutes on alpha')
-    expect(w.get('h2').text()).toBe('15 minutes on')
+    expect(chip.text()).toBe('▶ alpha · 1 min') // 40 s rounds up to one minute, never zero
+    expect(chip.attributes('aria-label')).toBe('Play 1 minute on alpha')
+    expect(w.get('h2').text()).toBe('Short listens')
     expect(chip.attributes('href')).toBe('/listen/topic/topic:a?minutes=15')
   })
 
