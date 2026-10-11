@@ -572,7 +572,7 @@
    },
    "_FIRST_NAME_PRESENTERS": {
     "flags": 34,
-    "re": "(?P<names>(?-i:[A-Z][a-z]+(?:\\s*(?:,\\s*and|,|and|&)\\s*[A-Z][a-z]+){1,3}))[\\w\\s,'’\\-]{0,40}?\\s+(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?\\b"
+    "re": "(?P<names>(?-i:[A-Z][a-z]+(?:\\s*(?:,\\s*and|,|and|&)\\s*[A-Z][a-z]+){1,3}))[\\w\\s,'’\\-]{0,40}?\\s+(?:(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?|tracks?\\s+down)\\b"
    },
    "_FIRST_NAME_RE": {
     "flags": 32,
@@ -638,7 +638,11 @@
     "patterns": [
      {
       "flags": 34,
-      "re": "(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})[\\w\\s,'’\\-]{0,60}?\\s+(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?\\b"
+      "re": "(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})[\\w\\s,'’\\-]{0,60}?\\s+(?:(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?|tracks?\\s+down)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:team|hosts?|presenters?)\\s*[—–-]\\s*(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})\\s*[—–-]\\s*(?:(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?|tracks?\\s+down)\\b"
      }
     ]
    },
@@ -1044,7 +1048,7 @@
     "re": "^(?:[A-Z][\\w&.\\-]*\\s+){0,3}[A-Z][\\w&.\\-]*['’]s\\s+"
    },
    "_PRESENTS": {
-    "str": "(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?\\b"
+    "str": "(?:(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?|tracks?\\s+down)\\b"
    },
    "_REPORTED_LEAD": {
     "flags": 34,
@@ -1159,5 +1163,17 @@
    }
   }
  },
- "sha": "712ff7ebbf73c3b70920a34f958553d3d0e652f0"
+ "sha": "712ff7ebbf73c3b70920a34f958553d3d0e652f0",
+ "deliberate_english_changes": [
+  {
+   "ref": "9805f1637",
+   "date": "2026-10-11",
+   "entries": [
+    "hosts._PRESENTS",
+    "hosts._HOST_PHRASES_DESCRIPTION_ONLY",
+    "hosts._FIRST_NAME_PRESENTERS"
+   ],
+   "why": "#2304 F8, operator-asked naming fix: 'track(s) down' presenting verb; dash-set team list pattern"
+  }
+ ]
 }
