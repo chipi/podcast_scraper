@@ -171,6 +171,15 @@ real names twice (D12, D22's first model).
   0.0389 -> 0.0379 (estimated 0.0362; run before the fix below). The first SWR run exposed a bug:
   a gap the diarized retry had partly covered (70.6-74.2 s of 74.0-81.2 s) was skipped whole, and
   the intro in its uncovered part was lost; retried stretches are now subtracted from a gap.
+  Two invented recoveries on Throughline packed words faster than anyone speaks ("That's it for
+  this." in 0.26 s, 15.4 words/s; "Stay warm." 16.7 and 100) where the real ones ran 1.1-6.2,
+  so a recovered segment over 8 words per second is rejected (`too_fast`), for both triggers.
+- Foreign-language tape in a recovered gap is decoded in the episode's declared language, as the
+  whole episode is: the declared language is the truth, and a wrong one is caught by the language
+  check (`asr_language_mismatch`), not by guessing per clip. Whisper then sometimes renders the
+  foreign speech in the episode language instead of transcribing it (Rádio Novelo 09-24: a Spanish
+  bolero came back as Portuguese, "Já perfumado, e os seus lábios..."). That is the model's
+  behaviour, kept and recorded; it cost Novelo 09-24 3 main-voice errors in the measurement.
 - To probe a span by hand, cut the episode audio at the transcript's times (preprocessing keeps
   the timeline, #1173) and compare the clip's words with the episode's words around the span,
   not with the stretched word: the episode text there is often what Whisper misheard.
