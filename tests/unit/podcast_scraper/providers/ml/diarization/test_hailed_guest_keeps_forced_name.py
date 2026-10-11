@@ -63,3 +63,32 @@ class TestTheGuardStillHolds:
 
     def test_no_turn_order_means_no_rescue(self) -> None:
         assert _refuted_unless_hailed("S1", NAME, {"S0": HOST, "S1": GUEST}, None)
+
+
+_LONG = "We talk about coordination and common knowledge. " * 40
+
+
+def test_the_hosts_bled_close_does_not_refuse_the_guest_his_name() -> None:
+    # F2 (Conversations with Tyler, prod 2026-10-11): "Steven Pinker, thank you very much." is
+    # Tyler's close, bled into Pinker's own 78% cluster ahead of "Thanks so much, Tyler."
+    from podcast_scraper.providers.ml.diarization.roster import _only_addressed_in_a_dominant_voice
+
+    texts = {
+        "G": _LONG + "What are the prospects?  Steven Pinker, thank you very much. Thanks, Tyler.",
+        "H": "Welcome back to Conversations with Tyler.",
+    }
+    assert _only_addressed_in_a_dominant_voice("G", "Steven Pinker", texts)
+
+
+def test_a_comma_after_a_name_in_mid_sentence_is_not_address() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _only_addressed_in_a_dominant_voice
+
+    texts = {"G": _LONG + "move to Los Angeles, get a job at Starbucks", "H": "Welcome back."}
+    assert not _only_addressed_in_a_dominant_voice("G", "Los Angeles", texts)
+
+
+def test_a_minority_voice_addressing_the_guest_is_still_the_host() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _only_addressed_in_a_dominant_voice
+
+    texts = {"H": "Steven Pinker, welcome to the show.", "G": _LONG}
+    assert not _only_addressed_in_a_dominant_voice("H", "Steven Pinker", texts)

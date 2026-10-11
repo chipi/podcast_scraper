@@ -60,6 +60,7 @@ from ....speaker_detectors.hosts import (
     _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE,
     _NAME_FIRST_TAIL_BY_LANGUAGE,
     _NAME_RE as _INTRO_NAME_RE,
+    _opens_its_sentence,
     _STATED_UC,
     _uc,
     BLEED_PAIR_CHARS,
@@ -3021,6 +3022,8 @@ def _refuted_unless_hailed(
     text = voice_texts.get(v, "")
     if not refuted_by_third_person(text, name, language):
         return False
+    if _only_addressed_in_a_dominant_voice(v, name, voice_texts):
+        return False
     if not ordered_turns or _vocative_count(text, name):
         return True
     if re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE):
@@ -3031,6 +3034,32 @@ def _refuted_unless_hailed(
         for (speaker, said), (nxt, _) in zip(turns, turns[1:])
     )
     return not hailed
+
+
+def _only_addressed_in_a_dominant_voice(v: str, name: str, voice_texts: Mapping[str, str]) -> bool:
+    """Does the voice own most of the words, and say ``name`` only in DIRECT ADDRESS ("Steven
+    Pinker, thank you very much." / "So, Stephen, where...")?
+
+    Then those mentions are the host's lines bled into the guest's cluster at a turn boundary,
+    not the guest talking about someone: Conversations with Tyler's close, "Steven Pinker, thank
+    you very much. Thanks so much, Tyler.", sat in Pinker's own 78% cluster and refused him his
+    stated name (prod replay 2026-10-11). In a minority voice, addressing the guest still means the
+    voice is the host, and the refusal stands. The share is of the words, as a proxy for talk time.
+    """
+    text = voice_texts.get(v, "")
+    total = sum(len(t) for t in voice_texts.values()) or 1
+    if len(text) / total < _DOMINANT_SHARE:
+        return False
+    toks = name.split()
+    forms = {re.escape(name)} | ({re.escape(toks[-1])} if len(toks) > 1 else set())
+    mentions = list(re.finditer(rf"\b(?:{'|'.join(forms)})\b", text, re.IGNORECASE))
+    # Address OPENS its sentence ("Steven Pinker, thank you very much."); a comma after a name in
+    # mid-sentence is not address ("move to Los Angeles, get a job": The Journal, where a junk
+    # stated "Los Angeles" would otherwise have been forced onto the guest).
+    return bool(mentions) and all(
+        re.match(r"\s*,", text[m.end() :]) and _opens_its_sentence(text, m.start(), 1)
+        for m in mentions
+    )
 
 
 def _guest_intro_refusal(
