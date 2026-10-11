@@ -68,6 +68,35 @@ describe('LearnPathView', () => {
     expect(router.currentRoute.value.name).toBe('browse')
   })
 
+  it('opens only today; an earlier day is closed with whether it was done, and opens on tap', async () => {
+    const steps = [1, 2, 3, 4, 5, 6, 7].map((d) => ({ ...step(d, d <= 3), done: d === 1 }))
+    api.getLearn.mockResolvedValue({
+      path: { subject_id: 'tc:x', subject_kind: 'theme', subject_label: 'R', started_at: 0, day: 3, steps },
+      candidates: [],
+    })
+    setActivePinia(createPinia())
+    const router = makeRouter()
+    await router.push('/learn')
+    await router.isReady()
+    const w = mount(LearnPathView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const card = (d: number) => w.get(`[data-testid="learn-step"][data-day="${d}"]`)
+    expect(w.findAll('[data-open="true"]').map((c) => c.attributes('data-day'))).toEqual(['3'])
+    expect(card(3).find('[data-testid="learn-step-play"]').exists()).toBe(true)
+    expect(card(1).find('[data-testid="learn-step-done-mark"]').exists()).toBe(true)
+    expect(card(1).find('[data-testid="learn-step-play"]').exists()).toBe(false)
+    expect(card(2).get('[data-testid="learn-step-not-done"]').text()).toContain('Not done yet')
+    expect(card(4).find('[data-testid="learn-step-open"]').exists()).toBe(false) // later: not openable
+    await card(1).get('[data-testid="learn-step-open"]').trigger('click')
+    expect(card(1).attributes('data-open')).toBe('true')
+    expect(card(1).get('[data-testid="learn-step-play"]').attributes('href')).toBe('/episode/ep-1?t=1&play=1')
+    expect(card(1).find('[data-testid="learn-step-mark-done"]').exists()).toBe(false) // already done
+    await card(1).get('[data-testid="learn-step-toggle"]').trigger('click')
+    expect(card(1).attributes('data-open')).toBe('false')
+    await card(3).get('[data-testid="learn-step-toggle"]').trigger('click') // today can close too
+    expect(w.findAll('[data-open="true"]')).toHaveLength(0)
+  })
+
   it('without a path says so and points to Discover', async () => {
     api.getLearn.mockResolvedValue({ path: null, candidates: [] })
     setActivePinia(createPinia())

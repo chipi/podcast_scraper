@@ -4,13 +4,17 @@ import { describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
-const api = vi.hoisted(() => ({ getDiscoverRails: vi.fn(async () => []), getReelTopics: vi.fn(async () => []) }))
+import type { DiscoverRail } from '../services/api'
+const api = vi.hoisted(() => ({
+  getDiscoverRails: vi.fn(async (_scope: string): Promise<DiscoverRail[]> => []),
+  getReelTopics: vi.fn(async () => []),
+}))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
 
 import BrowseView from './BrowseView.vue'
 import { useAuthStore } from '../stores/auth'
 
-const rail = (id: string, fallback = false) => ({ rail: id, items: [], total: 2, fallback })
+const rail = (id: DiscoverRail['rail'], fallback = false): DiscoverRail => ({ rail: id, items: [], total: 2, fallback })
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // Discover = what to hear next (ADR-163): quote cards, trending shows, search. Stub the rails (they

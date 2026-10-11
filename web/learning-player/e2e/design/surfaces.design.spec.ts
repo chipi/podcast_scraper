@@ -329,6 +329,35 @@ test('learn', async ({ page }) => {
   await page.request.delete('/api/app/discover/learn')
 })
 
+// The same path two days in (operator 2026-10-11: "show me day three"): the start is moved back two
+// days in the design server's own state file, and days 1 and 2 are marked done through the API.
+test('learn-day-3', async ({ page }) => {
+  await signIn(page)
+  await page.request.delete('/api/app/discover/learn')
+  const started = await page.request.post('/api/app/discover/learn', {
+    data: { subject_id: 'thc:second-order-effects' },
+  })
+  expect(started.ok()).toBeTruthy()
+  const fs = await import('node:fs')
+  const path = await import('node:path')
+  const root = 'e2e/.design-state/users'
+  const file = fs
+    .readdirSync(root)
+    .map((u) => path.join(root, u, 'learning_path.json'))
+    .filter((f) => fs.existsSync(f))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0]
+  const state = JSON.parse(fs.readFileSync(file, 'utf8'))
+  state.started_at -= 2 * 86_400
+  fs.writeFileSync(file, JSON.stringify(state))
+  for (const i of [0, 1]) {
+    expect((await page.request.post(`/api/app/discover/learn/steps/${i}/done`)).ok()).toBeTruthy()
+  }
+  await page.goto('/learn')
+  await expect(page.getByText('Day 3 of 7')).toBeVisible()
+  await shoot(page, 'learn-day-3')
+  await page.request.delete('/api/app/discover/learn')
+})
+
 test('moments', async ({ page }) => {
   await signIn(page)
   await page.goto('/podcast/p05')

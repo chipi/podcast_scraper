@@ -49,7 +49,10 @@ const page = (items: TrendingEpisodeCard[], total: number, fallback = false): Di
   fallback,
 })
 
-async function mountRail(first: DiscoverRail, more = vi.fn(async () => page([], first.total))) {
+async function mountRail(
+  first: DiscoverRail,
+  more = vi.fn(async (_offset: number, _limit: number) => page([], first.total)),
+) {
   const w = mount(RecommendationRail, {
     props: {
       rail: 'captured',

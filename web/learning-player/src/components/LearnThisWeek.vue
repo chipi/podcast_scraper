@@ -98,7 +98,7 @@ async function markDone(): Promise<void> {
           />
         </span>
       </p>
-      <LearnStep v-if="now" :step="now" :busy="busy" :kind="path.subject_kind" @done="markDone" />
+      <LearnStep v-if="now" :step="now" :busy="busy" :kind="path.subject_kind" open @done="markDone" />
     </template>
     <template v-else>
       <h2 class="lp-section mb-1">{{ t('learn.offerTitle') }}</h2>

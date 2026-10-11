@@ -493,9 +493,11 @@ piece to its design home:
   else: "This replaces “Reliability”." with Start / Not now, in place, before anything changes.
 - **`LearnStep`** — one day: "DAY 2" (✓ Done once done), the episode (a link) and its show (two
   lines at most), the clip in the speaker's words with their name, "▶ Play from 1:24" (the
-  episode, playing at the clip) and "Done". A day not yet come shows only "Opens on day 4".
-- **`LearnPathView`** — **the whole week** (`/learn`): the subject, "Day N of 7", every day as a
-  `LearnStep`, and "Stop this path", confirmed in place ("Stop learning this?" Stop / Keep going),
+  episode, playing at the clip) and "Done". A day not yet come shows only "Opens on day 4". Closed,
+  a day is its label, episode and show, with "✓ Done" or "· Not done yet"; open, a ⌃ closes it.
+- **`LearnPathView`** — **the whole week** (`/learn`), "‹ Back" like every page: the subject, "Day N
+  of 7", every day as a `LearnStep`, only today's open (operator 2026-10-11: "focus on where we
+  are"). An earlier day is a closed card; tapping it opens it to replay that day. Then "Stop this path", confirmed in place ("Stop learning this?" Stop / Keep going),
   then back to Discover. Without a path: "You are not learning anything this week." and a link to
   Discover.
 - **`TopicReelView`** — **N minutes on a topic, theme or storyline** (`/listen/topic/:id?minutes=`,
