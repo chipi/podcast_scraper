@@ -54,6 +54,17 @@ final class DownloadThroughUITests: UITestCase {
     download(app, slug: first.slug, title: first.title)
     download(app, slug: second.slug, title: second.title)
 
+    // QUEUE THE EPISODES THIS TEST DOWNLOADED, and prove the queue holds them (2026-10-11).
+    //
+    // The queue step used to run on the PLAYER page and tap the first "Add to queue" it found. The
+    // player has no queue control for its own episode, so that was always a "More like this"
+    // recommendation's toggle: the test queued an episode it never named and its flip check
+    // ("Remove from queue" anywhere on screen) could not tell. Now each title is queued from its
+    // OWN row on the show page, and the queue page must list both, in the order they were added.
+    openShow(app, feed: "p06")
+    for ep in [first, second] { queueFromItsRow(app, title: ep.title) }
+    assertQueueHolds(app, [first.title, second.title])
+
     // The end state, asserted by TITLE — unique per episode, so unlike the label-only download
     // states it cannot be satisfied by some other episode that happened to be downloaded already.
     var libTries = 0
@@ -116,7 +127,7 @@ final class DownloadThroughUITests: UITestCase {
     show.tap()
   }
 
-  /// Open one episode, tap Download, wait for the app to report it stored, and queue it.
+  /// Open one episode, tap Download, and wait for the app to report it stored.
   private func download(_ app: XCUIApplication, slug: String, title: String) {
     AppSession.openEpisode(app, slug: slug)
     XCTAssertTrue(
@@ -269,49 +280,85 @@ final class DownloadThroughUITests: UITestCase {
       )
       return
     }
+  }
 
-    // Queue it, so the offline auto-advance run has somewhere to advance TO.
-    // QueueButton carries `aria-pressed`, so it is not a Button to XCUITest either.
-    //
-    // THIS STEP ASSERTED NOTHING, and that is why this test's name was a lie. It read
-    // `if queue.waitForExistence(timeout: 10) { queue.tap() }` — no postcondition — and the suite
-    // made ZERO `POST /api/app/queue/items` over a container's whole lifetime while passing. Two
-    // ways it silently did nothing, both live:
-    //
-    //   1. The label is STATE-DEPENDENT. `QueueButton.vue:60` renders `queue.remove` ("Remove from
-    //      queue") once the slug is already queued, and the shared `simtest` account accumulated
-    //      across runs — so an exact match on "Add to queue" found nothing and the `if` swallowed
-    //      it. That is the immortal-account regime `app-e2e-users-reset` now clears.
-    //   2. The settle loop above re-opens the overflow panel on its last iteration and never closes
-    //      it, so the tap can land on the panel instead of the control.
-    //
-    // Downstream made it worse: the offline auto-advance suite "passed" on a queue left by earlier
-    // sessions, so the dependency this step exists to serve was fictional at both ends.
-    //
-    // Already-queued counts as success, because it is. Otherwise tap and REQUIRE the flip —
-    // `queue.has(slug)` drives the label, so "Remove from queue" on screen means the store holds it.
-    if Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 3) {
-      print("=====QUEUE \(title) was already queued; nothing to add=====")
+  /// The show page by deep link, top of its episode list in view.
+  private func openShow(_ app: XCUIApplication, feed: String) {
+    AppSession.openLink(app, "podcast/\(feed)")
+    sleep(4)
+  }
+
+  /// The queue toggle of THIS title's row. An EpisodeCard puts its actions under the artwork, LEFT
+  /// of the title and below the title's top edge, so the row's toggle is the nearest one below the
+  /// title on that side. The previous card's toggle sits above the title, the next card's further
+  /// down, so "nearest below" cannot pick a neighbour.
+  private func queueToggle(_ app: XCUIApplication, rowOf title: String) -> XCUIElement? {
+    let t = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", title)).firstMatch
+    guard t.exists else { return nil }
+    let top = t.frame.minY, left = t.frame.minX
+    let toggles = app.descendants(matching: .any).matching(
+      NSPredicate(format: "label == %@ OR label == %@", "Add to queue", "Remove from queue"))
+    var best: XCUIElement?
+    var bestY = CGFloat.greatestFiniteMagnitude
+    for i in 0..<min(toggles.count, 80) {
+      let e = toggles.element(boundBy: i)
+      guard e.exists else { continue }
+      let f = e.frame
+      if f.midY > top && f.midX < left && f.midY < bestY { best = e; bestY = f.midY }
+    }
+    return best
+  }
+
+  private func queueFromItsRow(_ app: XCUIApplication, title: String) {
+    guard Journey.scrollTo(app, labels: [title], contains: false) != nil,
+      let toggle = queueToggle(app, rowOf: title)
+    else {
+      XCTFail("no row with a queue toggle for \(title) on the show page. Labelled elements: "
+        + "\(Journey.labelledInventory(app, limit: 20))")
       return
     }
-    let add = Journey.control(app, label: "Add to queue")
-    guard add.waitForExistence(timeout: 10) else {
-      XCTFail(
-        "no queue control on \(title) — neither \"Add to queue\" nor \"Remove from queue\". The "
-          + "offline auto-advance suite depends on this episode being queued, and this step used to "
-          + "skip silently when the control was missing. Labelled elements: "
-          + "\(Journey.labelledInventory(app, limit: 20))"
-      )
+    var target = toggle
+    // Clear of the tab bar and a docked mini-player: the toggle sits a card's artwork below the
+    // title, so a title just in view can leave its toggle under them, and the tap lands on a tab.
+    if target.frame.maxY > app.frame.height - 180 {
+      app.swipeUp()
+      sleep(1)
+      guard let again = queueToggle(app, rowOf: title) else {
+        XCTFail("lost the row of \(title) after scrolling it clear of the tab bar"); return
+      }
+      target = again
+    }
+    if target.label == "Add to queue" { target.tap() }
+    // THAT row's toggle, re-read: the store drives its label, so the flip is the write confirmed.
+    var flipped = false
+    for _ in 0..<20 where !flipped {
+      flipped = queueToggle(app, rowOf: title)?.label == "Remove from queue"
+      if !flipped { usleep(500_000) }
+    }
+    XCTAssertTrue(flipped, "queued \(title) from its row and its toggle never read \"Remove from "
+      + "queue\", so the queue was not written. Labelled elements: "
+      + "\(Journey.labelledInventory(app, limit: 20))")
+  }
+
+  /// Up next lists exactly what was queued, in the order it was added.
+  private func assertQueueHolds(_ app: XCUIApplication, _ titles: [String]) {
+    for _ in 0..<8 { app.swipeDown() }
+    sleep(1)
+    guard Journey.tap(app, labels: ["Queue ("], contains: true, timeout: 15) else {
+      XCTFail("the masthead queue control was not reachable — the queue is empty or unreachable. "
+        + "Labelled elements: \(Journey.labelledInventory(app, limit: 20))")
       return
     }
-    add.tap()
-    XCTAssertTrue(
-      Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 10),
-      "tapped \"Add to queue\" on \(title) and the control never flipped to \"Remove from queue\", "
-        + "so the queue was not written. This is the assertion whose absence let a test called "
-        + "…AndQueuesThem make zero queue writes for months. Labelled elements: "
-        + "\(Journey.labelledInventory(app, limit: 20))"
-    )
+    var tops: [CGFloat] = []
+    for title in titles {
+      guard let row = Journey.scrollTo(app, labels: [title], contains: false, maxSwipes: 10) else {
+        XCTFail("\(title) was queued from its row but is not in Up next. Labelled elements: "
+          + "\(Journey.labelledInventory(app, limit: 20))")
+        return
+      }
+      tops.append(row.frame.minY)
+    }
+    XCTAssertEqual(tops, tops.sorted(), "Up next holds \(titles) out of the order they were added")
   }
 
   /// The PAGE's ⋯ — the topmost one on screen. Every "More like this" card under the player has a

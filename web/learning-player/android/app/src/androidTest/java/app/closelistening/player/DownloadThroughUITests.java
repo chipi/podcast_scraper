@@ -5,6 +5,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import android.graphics.Rect;
+
+import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiObject2;
 
 import org.junit.Test;
@@ -55,6 +58,8 @@ public class DownloadThroughUITests extends UITestCase {
     private static final String DOWNLOAD = "Download for offline";
     private static final String DOWNLOADED = "Downloaded — tap to remove";
     private static final String OVERFLOW = "More actions";
+    private static final String QUEUE_ADD = "Add to queue";
+    private static final String QUEUE_REMOVE = "Remove from queue";
 
     @Test
     public void downloadsTwoEpisodesThroughTheUIAndQueuesThem() {
@@ -66,6 +71,18 @@ public class DownloadThroughUITests extends UITestCase {
         // known one, and the queue control appends.
         download(FIRST_SLUG, FIRST_TITLE);
         download(SECOND_SLUG, SECOND_TITLE);
+
+        // QUEUE THE EPISODES THIS TEST DOWNLOADED, and prove the queue holds them (2026-10-11).
+        //
+        // The queue step used to run on the PLAYER page and tap the first "Add to queue" it found.
+        // The player has no queue control for its own episode, so that was always a "More like
+        // this" recommendation's toggle: the test queued an episode it never named, and its flip
+        // check ("Remove from queue" anywhere on screen) could not tell. Now each title is queued
+        // from its OWN row on the show page, and the queue page must list both, in order.
+        AppSession.openLink("podcast/p06");
+        Journey.sleep(4_000);
+        for (String title : Arrays.asList(FIRST_TITLE, SECOND_TITLE)) queueFromItsRow(title);
+        assertQueueHolds(Arrays.asList(FIRST_TITLE, SECOND_TITLE));
 
         // The end state, asserted by TITLE. A title is unique per episode, where the download-state
         // labels are not — those can be satisfied by some other episode that happened to be
@@ -85,7 +102,93 @@ public class DownloadThroughUITests extends UITestCase {
         }
     }
 
-    /** Open one episode, tap Download, wait for the app to report it stored, and queue it. */
+    /**
+     * The queue toggle of THIS title's row. An EpisodeCard puts its actions under the artwork, LEFT
+     * of the title and below the title's top edge, so the row's toggle is the nearest one below the
+     * title on that side. The previous card's toggle sits above the title and the next card's
+     * further down, so "nearest below" cannot pick a neighbour.
+     */
+    private static UiObject2 queueToggle(String title) {
+        Rect t = null;
+        UiObject2 best = null;
+        int bestY = Integer.MAX_VALUE;
+        try {
+            List<UiObject2> all = Journey.device().findObjects(By.pkg(Journey.PKG));
+            for (UiObject2 o : all) {
+                if (title.equals(Journey.nameOf(o))) {
+                    t = Journey.attr(o, UiObject2::getVisibleBounds);
+                    if (t != null) break;
+                }
+            }
+            if (t == null) return null;
+            for (UiObject2 o : all) {
+                String n = Journey.nameOf(o);
+                if (!QUEUE_ADD.equals(n) && !QUEUE_REMOVE.equals(n)) continue;
+                if (!Boolean.TRUE.equals(Journey.attr(o, UiObject2::isClickable))) continue;
+                Rect b = Journey.attr(o, UiObject2::getVisibleBounds);
+                if (b == null) continue;
+                if (b.centerY() > t.top && b.centerX() < t.left && b.centerY() < bestY) {
+                    best = o;
+                    bestY = b.centerY();
+                }
+            }
+        } catch (Throwable ignored) {
+            // A tree that changed mid-read; the caller looks again.
+        }
+        return best;
+    }
+
+    private void queueFromItsRow(String title) {
+        if (Journey.scrollTo(title, false) == null) {
+            fail(title + " is not on the show page. On screen: " + Journey.labelledInventory(80));
+        }
+        UiObject2 toggle = queueToggle(title);
+        // Clear of the tab bar and a docked mini-player: the toggle sits a card's artwork below the
+        // title, so a title just in view can leave its toggle under them.
+        Rect b = toggle == null ? null : Journey.attr(toggle, UiObject2::getVisibleBounds);
+        if (b != null && b.bottom > Journey.device().getDisplayHeight() - 260) {
+            Journey.swipeUp();
+            Journey.sleep(1_000);
+            toggle = queueToggle(title);
+        }
+        if (toggle == null) {
+            fail("no queue toggle in the row of " + title + ". On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        if (QUEUE_ADD.equals(Journey.nameOf(toggle))) toggle.click();
+        // THAT row's toggle, re-read: the store drives its label, so the flip is the write confirmed.
+        boolean flipped = false;
+        for (int i = 0; i < 20 && !flipped; i++) {
+            UiObject2 now = queueToggle(title);
+            flipped = now != null && QUEUE_REMOVE.equals(Journey.nameOf(now));
+            if (!flipped) Journey.sleep(500);
+        }
+        assertTrue("queued " + title + " from its row and its toggle never read \"" + QUEUE_REMOVE
+                + "\", so the queue was not written. On screen: " + Journey.labelledInventory(80),
+                flipped);
+    }
+
+    /** Up next lists exactly what was queued, in the order it was added. */
+    private void assertQueueHolds(List<String> titles) {
+        // To the top first: the masthead scrolls with the page, and off screen its node is absent.
+        for (int i = 0; i < 12; i++) Journey.swipeDown();
+        Journey.sleep(1_000);
+        assertTrue("the masthead queue control was not reachable. On screen: "
+                + Journey.labelledInventory(80), Journey.tap("Queue (", true, 15_000));
+        int lastTop = Integer.MIN_VALUE;
+        for (String title : titles) {
+            UiObject2 row = Journey.scrollTo(title, false);
+            assertNotNull(title + " was queued from its row but is not in Up next. On screen: "
+                    + Journey.labelledInventory(80), row);
+            Rect r = Journey.attr(row, UiObject2::getVisibleBounds);
+            int top = r == null ? lastTop : r.top;
+            assertTrue("Up next holds " + titles + " out of the order they were added",
+                    top >= lastTop);
+            lastTop = top;
+        }
+    }
+
+    /** Open one episode, tap Download, and wait for the app to report it stored. */
     private void download(String slug, String title) {
         AppSession.openEpisode(slug);
         assertTrue("the deep link did not land on " + title + ". On screen: "
@@ -139,40 +242,6 @@ public class DownloadThroughUITests extends UITestCase {
         }
 
         waitForDownloaded(title);
-
-        // Queue it, so the offline auto-advance run has somewhere to advance TO.
-        //
-        // THE RETURN VALUE USED TO BE DISCARDED, which made this step a no-op nobody could see —
-        // the same defect as the iOS twin, where it cost a test called `…AndQueuesThem` its meaning:
-        // ZERO `POST /api/app/queue/items` over a container's lifetime, while passing. Two live ways
-        // to silently do nothing:
-        //
-        //   1. The label is STATE-DEPENDENT. `QueueButton.vue:60` renders `queue.remove` ("Remove
-        //      from queue") once the slug is queued, and the shared `simtest` account accumulated
-        //      across runs, so an exact match on "Add to queue" found nothing.
-        //   2. `waitForDownloaded` re-opens the overflow panel and does not close it, so the tap can
-        //      land on the panel rather than the control.
-        //
-        // `NativeOnlySurfacesTests` already had the right pattern — tap, then confirm the label
-        // flipped — so this is the pattern the repo already knows, applied where it was missing.
-        if (Journey.find("Remove from queue", false, 3_000) != null) {
-            System.out.println("=====QUEUE " + title + " was already queued; nothing to add=====");
-            return;
-        }
-        boolean tapped = Journey.tap("Add to queue", false, 10_000);
-        assertTrue(
-                "could not tap \"Add to queue\" on " + title + " (tapped=" + tapped + "). The "
-                        + "offline auto-advance suite depends on this episode being queued, and this "
-                        + "step used to discard the result. On screen: "
-                        + Journey.labelledInventory(60),
-                tapped);
-        // `queue.has(slug)` drives the label, so the flip to "Remove from queue" is the store
-        // confirming the write — the postcondition whose absence made the old line meaningless.
-        assertNotNull(
-                "tapped \"Add to queue\" on " + title + " and the control never flipped to "
-                        + "\"Remove from queue\", so the queue was not written. On screen: "
-                        + Journey.labelledInventory(60),
-                Journey.find("Remove from queue", false, 10_000));
     }
 
     /**
