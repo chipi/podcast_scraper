@@ -334,3 +334,30 @@ class TestFeedWordingsF8:
             " tiny (George Hotz)."
         )
         assert detect_hosts_from_feed("Latent Space", desc, ["Latent.Space"]) == set()
+
+
+class TestDelightedToBeChattingWithIsAnIntroduction:
+    """F2/F4a (Conversations with Tyler, 2026-10-11): the show's opening introduced nobody."""
+
+    @pytest.mark.parametrize(
+        ("line", "name"),
+        [
+            (
+                "Today, I'm delighted to be chatting with Stephen Pinker. Stephen needs none.",
+                "Stephen Pinker",
+            ),
+            (
+                "Today, I'm very happy to be chatting with, in person, Julia Yoffe. We talk.",
+                "Julia Yoffe",
+            ),
+        ],
+    )
+    def test_the_guest_is_read(self, line: str, name: str) -> None:
+        from podcast_scraper.speaker_detectors.hosts import guests_introduced_by_the_host
+
+        assert guests_introduced_by_the_host({"H": line}) == {name}
+
+    def test_no_name_no_introduction(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import guests_introduced_by_the_host
+
+        assert guests_introduced_by_the_host({"H": "I'm happy to be talking with you."}) == set()

@@ -2889,6 +2889,12 @@ CUE_FIRST_BODY: Dict[str, str] = {
         r"|here\s+with\s+me\s+(?:is|are)|(?:my|our)\s+colleague"
         r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:chatting|talking|speaking|sitting\s+down)\s+(?:with|to)"
         r"|with\s+us\s+(?:today\s+)?(?:is|are)"
+        # "Today, I'm delighted to be chatting with Stephen Pinker" / "I'm very happy to be chatting
+        # with, in person, Julia Yoffe": Conversations with Tyler's opening on every episode (#2304
+        # F2/F4a, 2026-10-11). The aside "in person" is allowed between the cue and the name.
+        r"|(?:i'?m|we'?re)\s+(?:(?:very|so|really)\s+)?(?:delighted|happy|thrilled|pleased|excited"
+        r"|glad)\s+to\s+be\s+(?:chatting|talking|speaking|sitting\s+down)\s+with"
+        r"(?:\s*,\s*in\s+person\s*,)?"
     ),
     "es": (
         r"(?:mi|nuestr[oa])s?\s+invitad[oa]s?\s+(?:de\s+hoy\s+)?(?:es|son)"
