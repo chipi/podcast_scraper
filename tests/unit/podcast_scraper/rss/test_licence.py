@@ -12,6 +12,7 @@ from __future__ import annotations
 from xml.etree import ElementTree as ET
 
 import pytest
+from defusedxml.ElementTree import fromstring as safe_fromstring
 
 from podcast_scraper.rss import licence as L
 
@@ -22,7 +23,7 @@ BASE = "https://example.com/feed.xml"
 
 def _channel(inner: str, ns: str = "") -> ET.Element:
     xml = f"<rss version='2.0' {ns}><channel><title>T</title>{inner}</channel></rss>"
-    channel = ET.fromstring(xml).find("channel")
+    channel: ET.Element | None = safe_fromstring(xml).find("channel")
     assert channel is not None
     return channel
 
@@ -158,7 +159,7 @@ def test_an_episode_keeps_its_own_declarations_apart_from_the_channel() -> None:
         "<item><title>E1</title><podcast:license>cc-by-nc-4.0</podcast:license></item>"
         "<item><title>E2</title></item></channel></rss>"
     )
-    channel = ET.fromstring(xml).find("channel")
+    channel: ET.Element | None = safe_fromstring(xml).find("channel")
     assert channel is not None
     chan = L.channel_licence(channel, BASE)
     first, second = channel.findall("item")
@@ -172,7 +173,7 @@ def test_an_episode_keeps_its_own_declarations_apart_from_the_channel() -> None:
 
 
 def test_copyright_is_a_channel_element_only() -> None:
-    item = ET.fromstring("<item><title>E</title><copyright>Someone</copyright></item>")
+    item = safe_fromstring("<item><title>E</title><copyright>Someone</copyright></item>")
     assert L.episode_licence(item, BASE).declarations == []
 
 
