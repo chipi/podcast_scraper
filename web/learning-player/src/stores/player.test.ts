@@ -553,6 +553,22 @@ describe('a refused play() is recorded, not dropped', () => {
 
     expect(p.audioError).toBe(false)
   })
+
+  it('does NOT flag a play() that a pause interrupted — the audio is fine, the request was overtaken', async () => {
+    // Moments' ‹ › and leaving the reel pause and seek while a play() is pending; Chromium rejects
+    // that play() with AbortError ("interrupted by a call to pause()"). Flagging it replaced the
+    // transport with "Couldn't load the audio" on an episode that was playing (e2e moments.spec:165).
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    ;(el as unknown as { play: () => Promise<void> }).play = () =>
+      Promise.reject(new DOMException('The play() request was interrupted by a call to pause().', 'AbortError'))
+
+    p.toggle()
+    await settle()
+
+    expect(p.audioError).toBe(false)
+  })
 })
 
 describe('finishing an episode', () => {

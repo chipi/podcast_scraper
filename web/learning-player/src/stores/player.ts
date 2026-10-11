@@ -692,8 +692,11 @@ export const usePlayerStore = defineStore('player', () => {
    * nothing, repeatably, with no feedback. The element's `error` event does not reliably cover
    * this — a rejected play() is its own signal.
    *
-   * NotAllowedError is excluded: that is the browser's autoplay policy asking for a gesture, not a
-   * broken episode, and flagging it would tell the user their audio is unavailable when it is fine.
+   * Two rejections are excluded, because neither is a broken episode and flagging them would tell
+   * the user their audio is unavailable when it is fine:
+   * - NotAllowedError — the browser's autoplay policy asking for a gesture;
+   * - AbortError — the play() was overtaken by a pause() or a new load before it started (Moments'
+   *   ‹ › and leaving the reel pause and seek while a play() is pending).
    */
   function play(): void {
     // `resumed` distinguishes picking up where they left off from starting fresh, which is the
@@ -711,7 +714,7 @@ export const usePlayerStore = defineStore('player', () => {
   }
   function playElement(): void {
     el.value?.play().catch((err: unknown) => {
-      if (err instanceof DOMException && err.name === 'NotAllowedError') return
+      if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'AbortError')) return
       audioError.value = true
       void stopBackgroundAudio()
     })
