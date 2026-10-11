@@ -103,8 +103,13 @@ real names twice (D12, D22's first model).
 
 - `asr_publisher_reference_wer_v1.py RUN_DIR`. Normalisation `unicode-v1`: `ascii-v1` breaks every
   accented word.
-- Read **adjusted** WER: numbers, long insertions and long deletions are split out. Raw WER on
-  iHeart shows is inflated by ~750-785 words of ads the reference does not contain.
+- Read **adjusted** WER: numbers, spoken contractions, long insertions and long deletions are
+  split out. Raw WER on iHeart shows is inflated by ~750-785 words of ads the reference does not
+  contain. A spoken contraction ("pra" / "para a", "tá" / "está", "gonna" / "going to") is what
+  Whisper writes for what was said, and the publisher writes the standard form; both are correct,
+  so a substitution span whose two sides match after contraction (`SPOKEN_FORMS`, per language,
+  eval repo `fe06311`) leaves the adjusted figure. A new language adds its contractions there
+  before gate B is read.
 - Measure each step's effect as `asr_bare` → `full` per episode (gap recovery, punctuation
   repair, stretched-word recovery). Whisper's sampling fallback makes two decodes differ slightly
   (ADR-161), so small deltas are noise.
@@ -202,7 +207,51 @@ each with a human reference and its tags.
 | en | — | 0.028-0.034 | 80,000 Hours, 3 episodes, ASR only: the one genre measured so far |
 
 The large whole-episode figures are tape; on main voices every language sits near English's band.
-Gate B numbers wait for English on narrative and read-news shows (parked until the DGX is free).
+
+**Gate B, first result (2026-10-11): every show passes, three on thin margins.** English was
+measured on the two kinds of show the six non-English shows are: read news (NPR Up First) and
+narrative journalism with tape (NPR Throughline), 3 episodes each, with hand tags (eval dataset
+`asr_publisher_ref_en_v1`). Each non-English show got a third episode
+(`asr_publisher_ref_nonen_v1b`). The rule, with nothing invented: a show passes when the
+**median** of its 3 episodes' main-voice adjusted WER is at most `(English median + English
+range) x ratio` for its kind of show, the range being the spread between English's 3 episodes of
+that kind.
+
+| English, main-voice adjusted | episodes | median | range |
+| --- | --- | --- | --- |
+| read news (Up First) | 0.0225 / 0.0270 / 0.0277 | 0.0270 | 0.0052 |
+| narrative (Throughline) | 0.0244 / 0.0254 / 0.0391 | 0.0254 | 0.0147 |
+| interview (80,000 Hours, for reference; no non-English show is this kind) | 0.028-0.034 | | |
+
+| show | language, ratio | kind | episodes | median | bar | margin |
+| --- | --- | --- | --- | --- | --- | --- |
+| El Hilo | es, 1.0 | narrative | 0.060 / 0.016 / 0.038 | 0.0377 | 0.0401 | 0.0024 |
+| Radio Ambulante | es, 1.0 | narrative | 0.035 / 0.011 / 0.058 | 0.0345 | 0.0401 | 0.0056 |
+| Rádio Novelo | pt, 1.02 | narrative | 0.036 / 0.029 / 0.060 | 0.0356 | 0.0411 | 0.0055 |
+| SWR Wissen | de, 1.07 | narrative | 0.037 / 0.042 / 0.046 | 0.0422 | 0.0430 | 0.0008 |
+| RFI Journal en français facile | fr, 1.98 | news | 0.047 / 0.043 / 0.037 | 0.0427 | 0.0636 | 0.0209 |
+| Senado | pt, 1.02 | news | 0.053 / 0.023 / 0.032 | 0.0318 | 0.0330 | 0.0012 |
+
+What this result does not show:
+
+- **The margins are inside the noise of 3 episodes.** SWR passes by 0.0008, Senado by 0.0012, El
+  Hilo by 0.0024. One more English or non-English episode can move a median by more than that.
+  The bar is as wide as English's own spread over 3 episodes, nothing more.
+- **Rádio Novelo passed only after the spoken-contraction rule.** Before it Novelo's median was
+  0.049 against 0.041. The rule was written after reading Novelo's errors (pra/para 43, tá/tava/tô
+  17 of 303 on 09-17), so it was checked on every episode: it fired on Novelo only (105, 54 and 51
+  words) and on no English, Spanish, French, German or Senado episode. Senado's newsreaders read
+  standard Portuguese.
+- **Two code versions.** The first two episodes per show ran on 2026-10-09 code, the third on
+  `23956c651`. Re-decoding the same audio was reproducible (above), but the chain changed between
+  them; they were not re-run on one version.
+- **Residue left on the third episodes.** Novelo 09-17 (0.060 after the rule) is name spellings
+  (Elder / Hélder 19, Adivaldo / Advaldo 7, Aurélio / Aurelio 7), "(ri)" laughter notes in the
+  transcript (12), and fillers the publisher edited out ("e", "né", "assim", "aí", "eu", about
+  60). Senado 10-07's 0.053 includes 10-word sign-offs ("Da Rádio Senado, …") that are in the
+  script and not in the audio (a 0.12 s gap where they would be); without them it is about 0.045.
+  Radio Ambulante 07-14 (0.058) has not been read.
+- **Gate A on the third episodes** has not been checked item by item as it was on the first set.
 
 **Reading the residue (how gate A was closed on the first set).** Each item is read, not counted:
 
