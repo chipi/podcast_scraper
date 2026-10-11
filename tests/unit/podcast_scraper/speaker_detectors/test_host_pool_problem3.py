@@ -14,9 +14,11 @@ from podcast_scraper.speaker_detectors.hosts import (
     _HOST_SPEECH_ACTS,
     compose_episode_hosts,
     detect_hosts_from_feed,
+    host_speech_act_starts,
     hosts_from_episode_description,
     hosts_from_feed_statement,
     names_the_show,
+    roles_from_conversation,
 )
 
 
@@ -266,3 +268,42 @@ class TestHostActs:
     )
     def test_the_singular_close_that_bleeds_into_the_guest_is_not(self, line: str) -> None:
         assert not any(p.search(line) for p in _HOST_SPEECH_ACTS)
+
+
+class TestWelcomeIdiomsAreNotHostActs:
+    """F4b1 (prod 2026-10-11): guests' "welcome to" idioms made 7 guests perform the host role."""
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "You've seen some of the photos. You're welcome to share them too.",
+            "You are more than welcome to contact me and ask for a demo.",
+            "So any listeners are welcome to come chat to us about that.",
+            "you're welcome to do so, but I intend to leave it as convoluted as that.",
+            "So struggling with mindfulness? Well, welcome to the club.",
+        ],
+    )
+    def test_a_permission_or_idiom_is_not_a_welcome(self, line: str) -> None:
+        assert host_speech_act_starts(line) == []
+        assert roles_from_conversation({"G": line}) == {}
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Hello and welcome to Big Ideas.",
+            "Hi, it's Tracy, welcome to Odd Lots.",
+            "Kelsey, welcome to the podcast.",
+            "Welcome back to No Priors.",
+        ],
+    )
+    def test_a_host_welcome_still_is(self, line: str) -> None:
+        assert host_speech_act_starts(line)
+        assert roles_from_conversation({"H": line}) == {"H": "host"}
+
+    def test_an_idiom_does_not_hide_a_real_welcome_in_the_same_text(self) -> None:
+        text = "Welcome to Big Ideas. You're welcome to write in, by the way."
+        assert host_speech_act_starts(text) == [0]
+
+    def test_only_the_welcome_is_filtered_not_every_act_after_a_be_verb(self) -> None:
+        line = "The person who is joining us today is Jane Doe."
+        assert roles_from_conversation({"H": line}) == {"H": "host"}

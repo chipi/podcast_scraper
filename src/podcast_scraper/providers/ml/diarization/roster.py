@@ -57,7 +57,6 @@ from ....speaker_detectors.hosts import (
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _GUEST_SPEECH_ACTS,
-    _HOST_SPEECH_ACTS,
     _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE,
     _NAME_FIRST_TAIL_BY_LANGUAGE,
     _NAME_RE as _INTRO_NAME_RE,
@@ -68,6 +67,7 @@ from ....speaker_detectors.hosts import (
     guests_introduced_by_the_host,
     has_org_markers,
     HONORIFIC_TITLES,
+    host_speech_act_starts,
     is_network_or_org_author,
     is_plausible_mononym,
     is_publishable_speaker_name,
@@ -534,7 +534,7 @@ def _rescued_from_bleed(
     """
     if not text or not name:
         return False
-    host_at = [m.start() for p in _HOST_SPEECH_ACTS for m in p.finditer(text)]
+    host_at = host_speech_act_starts(text)
     if not host_at:
         return False
     reply_at = [m.start() for p in _GUEST_REPLY_WIDE for m in p.finditer(text)]
@@ -4843,6 +4843,37 @@ def _select_host_voices(
     return host_voices
 
 
+def _yield_unstated_introductions(
+    voice_intro: Dict[str, str],
+    introduced_named: AbstractSet[str],
+    llm_voice_names: Optional[Mapping[str, str]],
+    stated: Sequence[str],
+    tr: Any,
+) -> None:
+    """Drop (in place) an INTRODUCED name that is nobody the episode states, when the model put a
+    stated person on that same voice and nobody else carries them, so the LLM merge names it.
+
+    The introduction reader binds whoever speaks after a cue, and a cue can be a mention: "I'm
+    talking to Justin Welber, the former archbishop, about this" mid-interview named the stated
+    guest Professor Mark Williams after the archbishop (The Rest Is Politics, prod replay
+    2026-10-11). The "nobody else carries them" test only spares a refuse-then-restore cycle: the
+    one-name-one-voice rule and the non-regression contract reach the same roster without it.
+    """
+    stated_lower = {s.lower() for s in stated}
+    for v, n in (llm_voice_names or {}).items():
+        cur = voice_intro.get(v)
+        if (
+            cur
+            and v in introduced_named
+            and n
+            and n.lower() in stated_lower
+            and not any(_same_person(cur, s) for s in stated)
+            and all(x.lower() != n.lower() for o, x in voice_intro.items() if o != v and x)
+        ):
+            tr.voice(v, "llm_merge", "over_unstated_introduction", introduced=cur, llm_said=n)
+            del voice_intro[v]
+
+
 def _claim_cohost_formula_voices(
     voice_intro: Dict[str, str],
     diarization: DiarizationResult,
@@ -5221,6 +5252,13 @@ def resolve_speaker_roster(
     # It can only ever MATCH a name the metadata already stated (the resolver enforces the closed
     # list), so it cannot invent a speaker here; the worst it can do is misplace a real one.
     llm_named: set = set()
+    _yield_unstated_introductions(
+        voice_intro,
+        introduced_named,
+        llm_voice_names,
+        list(detected_guests or ()) + list(metadata_named or ()),
+        tr,
+    )
     for v, n in (llm_voice_names or {}).items():
         if v not in ad_voices and v not in voice_intro:
             # The closed list carried the show's own name ("Machine Learning Street") and the model

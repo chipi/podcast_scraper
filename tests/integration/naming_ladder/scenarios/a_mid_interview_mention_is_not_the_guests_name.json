@@ -1,0 +1,63 @@
+{
+ "why": "A cue can be a MENTION (The Rest Is Politics, 'Faith, Depression, and Finding Calm in the Chaos (Professor Mark Williams)', prod replay 2026-10-11): mid-interview the co-host says 'I'm talking to Justin Welber, the former archbishop, about this' and the guest answers next, so the introduction reader names the guest's voice after the archbishop, a person the episode never states. The model put the stated guest Mark Williams on that voice; a stated name nobody else carries wins over an introduced name that resembles nobody stated.",
+ "feed": {
+  "title": "The Rest Is Politics: Leading",
+  "description": "Alastair Campbell and Rory Stewart interview the world's leaders."
+ },
+ "episode": {
+  "title": "Faith, Depression, and Finding Calm in the Chaos (Professor Mark Williams)"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Mark Williams"
+  ]
+ },
+ "llm": {
+  "G": [
+   "Mark Williams",
+   "guest"
+  ]
+ },
+ "turns": [
+  [
+   "A",
+   30,
+   "Welcome to The Rest Is Politics Leading with me, Alastair Campbell."
+  ],
+  [
+   "R",
+   20,
+   "And with me, Rory Stewart. We are interviewing Professor Mark Williams."
+  ],
+  [
+   "G",
+   400,
+   "The point about mindfulness keeps changing over the years, part 0. The point about mindfulness keeps changing over the years, part 1. The point about mindfulness keeps changing over the years, part 2. The point about mindfulness keeps changing over the years, part 3. The point about mindfulness keeps changing over the years, part 4. The point about mindfulness keeps changing over the years, part 5. The point about mindfulness keeps changing over the years, part 6. The point about mindfulness keeps changing over the years, part 7. The point about mindfulness keeps changing over the years, part 8. The point about mindfulness keeps changing over the years, part 9. The point about mindfulness keeps changing over the years, part 10. The point about mindfulness keeps changing over the years, part 11. The point about mindfulness keeps changing over the years, part 12. The point about mindfulness keeps changing over the years, part 13. The point about mindfulness keeps changing over the years, part 14. The point about mindfulness keeps changing over the years, part 15. The point about mindfulness keeps changing over the years, part 16. The point about mindfulness keeps changing over the years, part 17. The point about mindfulness keeps changing over the years, part 18. The point about mindfulness keeps changing over the years, part 19. The point about mindfulness keeps changing over the years, part 20. The point about mindfulness keeps changing over the years, part 21. The point about mindfulness keeps changing over the years, part 22. The point about mindfulness keeps changing over the years, part 23. The point about mindfulness keeps changing over the years, part 24. The point about mindfulness keeps changing over the years, part 25. The point about mindfulness keeps changing over the years, part 26. The point about mindfulness keeps changing over the years, part 27. The point about mindfulness keeps changing over the years, part 28. The point about mindfulness keeps changing over the years, part 29. The point about mindfulness keeps changing over the years, part 30. The point about mindfulness keeps changing over the years, part 31. The point about mindfulness keeps changing over the years, part 32. The point about mindfulness keeps changing over the years, part 33. The point about mindfulness keeps changing over the years, part 34. The point about mindfulness keeps changing over the years, part 35. The point about mindfulness keeps changing over the years, part 36. The point about mindfulness keeps changing over the years, part 37. The point about mindfulness keeps changing over the years, part 38. The point about mindfulness keeps changing over the years, part 39."
+  ],
+  [
+   "R",
+   30,
+   "And have you ever had days? I'm talking to Justin Welber, the former archbishop, about this. But have you ever had days where you doubt?"
+  ],
+  [
+   "G",
+   300,
+   "Oh, plenty. The point about faith keeps changing over the years, part 0. The point about faith keeps changing over the years, part 1. The point about faith keeps changing over the years, part 2. The point about faith keeps changing over the years, part 3. The point about faith keeps changing over the years, part 4. The point about faith keeps changing over the years, part 5. The point about faith keeps changing over the years, part 6. The point about faith keeps changing over the years, part 7. The point about faith keeps changing over the years, part 8. The point about faith keeps changing over the years, part 9. The point about faith keeps changing over the years, part 10. The point about faith keeps changing over the years, part 11. The point about faith keeps changing over the years, part 12. The point about faith keeps changing over the years, part 13. The point about faith keeps changing over the years, part 14. The point about faith keeps changing over the years, part 15. The point about faith keeps changing over the years, part 16. The point about faith keeps changing over the years, part 17. The point about faith keeps changing over the years, part 18. The point about faith keeps changing over the years, part 19. The point about faith keeps changing over the years, part 20. The point about faith keeps changing over the years, part 21. The point about faith keeps changing over the years, part 22. The point about faith keeps changing over the years, part 23. The point about faith keeps changing over the years, part 24. The point about faith keeps changing over the years, part 25. The point about faith keeps changing over the years, part 26. The point about faith keeps changing over the years, part 27. The point about faith keeps changing over the years, part 28. The point about faith keeps changing over the years, part 29."
+  ],
+  [
+   "A",
+   120,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10. The point about questions keeps changing over the years, part 11."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Mark Williams",
+   "role": "guest",
+   "name_not": [
+    "Justin Welber"
+   ]
+  }
+ }
+}

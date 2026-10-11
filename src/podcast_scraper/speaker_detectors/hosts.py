@@ -1144,6 +1144,34 @@ _HOST_SPEECH_ACTS_BY_LANGUAGE: Dict[str, Tuple["re.Pattern[str]", ...]] = {
 }
 
 _HOST_SPEECH_ACTS = _HOST_SPEECH_ACTS_BY_LANGUAGE[TARGET_LANGUAGE]
+
+#: "Welcome to" said as a PERMISSION or an idiom, not a host welcoming anybody: "you're welcome to
+#: share them", "you are more than welcome to contact me", "listeners are welcome to come chat",
+#: "welcome to the club". Guests say these; on prod (2026-10-11) they made 7 guests perform the host
+#: role, and with the LLM's "host" each took the host seat (Ian Cameron on BizNews, Peter Hitchens,
+#: Walden Yan, Mark Williams...). English only: the rows above are the measured ones.
+_NOT_A_WELCOME_BEFORE = re.compile(
+    r"(?:'re|\bare|\bis|'s|\bam|\bbe|\bwere|\bwas)"
+    r"(?:\s+(?:more than|very|always|most|all|so|also|certainly|of course))*\s+$",
+    re.IGNORECASE,
+)
+_NOT_A_WELCOME_AT = re.compile(r"welcome to the club\b", re.IGNORECASE)
+
+
+def host_speech_act_starts(text: str) -> List[int]:
+    """Offsets in ``text`` where a host speech act starts, without the "welcome to" idioms."""
+    out: List[int] = []
+    for p in _HOST_SPEECH_ACTS:
+        for m in p.finditer(text or ""):
+            head = text[max(0, m.start() - 40) : m.start()]
+            if m.group(0).lower().startswith("welcome") and (
+                _NOT_A_WELCOME_BEFORE.search(head) or _NOT_A_WELCOME_AT.match(text, m.start())
+            ):
+                continue
+            out.append(m.start())
+    return out
+
+
 # NOTE (#1228) — a "floor-managing" host act (a co-host who only self-introduces on a no-host feed
 # but directs the show, "Let's get into this week's news") was TRIED as a recall lever and REVERTED.
 # On the prod-v2 corpus (90 eps, `relabel_corpus.py --llm none`) the tightened, nameability-gated
@@ -1679,7 +1707,7 @@ def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, 
     for voice, text in (voice_texts or {}).items():
         if not text:
             continue
-        if any(p.search(text) for p in _HOST_SPEECH_ACTS):
+        if host_speech_act_starts(text):
             out[voice] = "host"
         elif any(p.search(text) for p in _GUEST_SPEECH_ACTS):
             out[voice] = "guest"
