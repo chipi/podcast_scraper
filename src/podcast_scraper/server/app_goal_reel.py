@@ -28,6 +28,10 @@ from podcast_scraper.server.app_reasons import MIN_SUPPORT, quote_support
 
 #: Clips taken from one episode at most, so the reel is many voices rather than one long episode.
 MAX_PER_EPISODE = 2
+#: Two clips of one episode whose insights share at least this much of their content words (either
+#: way) say the same thing: the second plays as a repeat (measured on the fixture, 2026-10-11:
+#: restatements 0.75-1.00, different claims 0.30-0.53).
+ECHO_SIMILARITY = 0.65
 #: Budgets offered, in minutes.
 MINUTES_CHOICES = (5, 15, 30)
 
@@ -207,18 +211,43 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
         for m in score_candidates(artifact, cfg, episode_segments(root, row))
         if links.get(m.insight_id) and quote_support(m.quote_text, m.text) >= MIN_SUPPORT
     ]
-    return tuple(
-        ClipRef(
+    ranked = rank_moments(scored, cfg)
+    # Strongest first, a clip that restates a stronger one is that one again (a restatement in
+    # another segment). It is folded in, its topics with it, so a subject it was about still gets
+    # the stronger clip. Clips that only overlap in time say different things and stay; a subject
+    # never takes two that overlap (``_subject_episodes_uncached``).
+    kept: dict[int, set[str]] = {}
+    for i in sorted(range(len(ranked)), key=lambda i: (-ranked[i].score, i)):
+        m = ranked[i]
+        echo = next((k for k in kept if _echoes(ranked[k], m)), None)
+        if echo is None:
+            kept[i] = set(links[m.insight_id])
+        else:
+            kept[echo] |= links[m.insight_id]
+
+    def ref(i: int) -> ClipRef:
+        m = ranked[i]
+        return ClipRef(
             insight_id=m.insight_id,
             score=m.score,
             order=i,
             start_ms=m.start_ms,
             end_ms=m.end_ms,
             speaker=sys.intern(m.speaker) if m.speaker else m.speaker,
-            topics=frozenset(sys.intern(t) for t in links[m.insight_id]),
+            topics=frozenset(sys.intern(t) for t in kept[i]),
         )
-        for i, m in enumerate(rank_moments(scored, cfg))
-    )
+
+    return tuple(ref(i) for i in sorted(kept))
+
+
+def _echoes(a: Moment, b: Moment) -> bool:
+    """``b`` says what ``a`` says."""
+    return max(quote_support(a.text, b.text), quote_support(b.text, a.text)) >= ECHO_SIMILARITY
+
+
+def _overlap(a: ClipRef, b: ClipRef) -> bool:
+    """``a`` and ``b`` play some of the same seconds (two insights grounded in one segment)."""
+    return a.start_ms < b.end_ms and b.start_ms < a.end_ms
 
 
 def _subject_token(root: Path) -> float:
@@ -268,8 +297,11 @@ def _subject_episodes_uncached(
     out: list[SubjectEpisode] = []
     for row in _episode_rows(root, topics):
         about = [c for c in episode_clips(root, row, cfg) if c.topics & topics]
-        if about:
-            best = sorted(about, key=lambda c: (-c.score, c.order))[:MAX_PER_EPISODE]
+        best: list[ClipRef] = []
+        for c in sorted(about, key=lambda c: (-c.score, c.order)):
+            if len(best) < MAX_PER_EPISODE and not any(_overlap(c, b) for b in best):
+                best.append(c)
+        if best:
             out.append(SubjectEpisode(slug_for_row(row), row, tuple(best)))
     # Episodes by their best clip, strongest first; a tie keeps a stable order by slug.
     out.sort(key=lambda e: (-e.clips[0].score, e.slug))

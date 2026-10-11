@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-a86da8f148d3bf29",
-      "to": "insight:edf1788469cf7cbb",
+      "to": "insight:ac4db52689f9b723",
       "type": "HAS_INSIGHT"
     },
     {
@@ -86,11 +86,6 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:9f812782ac7d252f",
-      "to": "person:alex-morgan",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "quote:authored-p07_e03-0",
       "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
@@ -98,6 +93,11 @@
     {
       "from": "quote:authored-p07_e03-1",
       "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:b19a4f4bf3b0c405",
+      "to": "person:alex-morgan",
       "type": "SPOKEN_BY"
     },
     {
@@ -111,6 +111,11 @@
       "type": "SUPPORTED_BY"
     },
     {
+      "from": "insight:ac4db52689f9b723",
+      "to": "quote:b19a4f4bf3b0c405",
+      "type": "SUPPORTED_BY"
+    },
+    {
       "from": "insight:authored-p07_e03-0",
       "to": "quote:authored-p07_e03-0",
       "type": "SUPPORTED_BY"
@@ -118,11 +123,6 @@
     {
       "from": "insight:authored-p07_e03-1",
       "to": "quote:authored-p07_e03-1",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:edf1788469cf7cbb",
-      "to": "quote:9f812782ac7d252f",
       "type": "SUPPORTED_BY"
     },
     {
@@ -307,7 +307,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:edf1788469cf7cbb",
+      "id": "insight:ac4db52689f9b723",
       "properties": {
         "episode_id": "ep-a86da8f148d3bf29",
         "grounded": true,
@@ -315,21 +315,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Thanks to Squarespace for supporting the show. Squarespace makes building a beautiful, branded website actually pleasant.",
+        "text": "That's it for this Long View. Until next time.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:9f812782ac7d252f",
+      "id": "quote:b19a4f4bf3b0c405",
       "properties": {
-        "char_end": 1298,
-        "char_start": 1177,
+        "char_end": 1394,
+        "char_start": 1348,
         "episode_id": "ep-a86da8f148d3bf29",
         "speaker_id": "person:alex-morgan",
-        "text": "Thanks to Squarespace for supporting the show. Squarespace makes building a beautiful, branded website actually pleasant.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "text": "That's it for this Long View. Until next time.",
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
         "transcript_ref": "transcripts/p07_e03.txt"
       },
       "type": "Quote"

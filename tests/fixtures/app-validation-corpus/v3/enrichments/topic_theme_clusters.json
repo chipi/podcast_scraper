@@ -197,16 +197,12 @@
           },
           {
             "episode_ids": [
-              "ep-9b36e2e3b959298d",
-              "ep-9f97daef33906cf6",
-              "ep-bccfce5798a83a6e",
-              "ep-d8cc458a5f0049a8",
-              "ep-fb2bb5f0f4044f1d",
-              "ep-febd9a8f53bf3a3a"
+              "ep-18ede6ffbd63f18f",
+              "ep-4a1a673a7005a6b5"
             ],
-            "label": "frame",
+            "label": "incident response",
             "lift_to_cluster": 1.6,
-            "topic_id": "topic:frame"
+            "topic_id": "topic:incident-response"
           },
           {
             "episode_ids": [

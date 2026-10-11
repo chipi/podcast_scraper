@@ -1525,7 +1525,8 @@ def _stable_episode_id(show_dir: str, ep_label: str) -> str:
 _AD_COPY = re.compile(
     r"sponsor|patrocin|brought to you by|use code|promo code|not an ad|backing the show"
     r"|thanks again to our friends at|thank you to our partners at|link's in the show notes"
-    r"|special deal for our listeners|use the link in show notes",
+    r"|special deal for our listeners|use the link in show notes"
+    r"|for supporting the show|is supported by|see you next time|that's it for today's episode",
     re.I,
 )
 
@@ -1878,7 +1879,9 @@ def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any
 #: storyline, so a shared member would silently drop from the others. Each has at least four
 #: members (the surface's floor, see below). Three since 2026-10-11 (operator): with one,
 #: "Continue the thread" could never take turns, hiding one storyline emptied it, and every
-#: storyline reel / path / door test landed on the same subject. "Second-order effects" has
+#: storyline reel / path / door test landed on the same subject. No member may be a homonym of
+#: the storyline's sense: "frame" here once meant photo framing, and filled a decisions path with
+#: lighting episodes (operator 2026-10-11). "Second-order effects" has
 #: grounded clips (a reel and a path); "Building trails that last" has none, so the reel and
 #: Learn doors are proven to stay away.
 STORYLINES: list[tuple[str, str, list[tuple[str, str, float]]]] = [
@@ -1898,7 +1901,7 @@ STORYLINES: list[tuple[str, str, list[tuple[str, str, float]]]] = [
         [
             ("topic:second-order-effects", "second-order effects", 2.4),
             ("topic:reliability", "reliability", 2.0),
-            ("topic:frame", "frame", 1.6),
+            ("topic:incident-response", "incident response", 1.6),
             ("topic:iteration-practice", "iteration practice", 1.4),
         ],
     ),

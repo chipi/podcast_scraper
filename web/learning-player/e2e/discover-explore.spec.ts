@@ -236,17 +236,17 @@ test('"15 min on" a topic: clips from different episodes, back to back, then kee
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on systems thinking')
   // The small fixture: the page says what the reel runs, not the fifteen minutes asked for.
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('11 clips from different episodes · 2:12')
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('9 clips from different episodes · 1:48')
 
   await page.getByTestId('topic-reel-play').click()
   const current = page.getByTestId('topic-reel-current')
-  await expect(current).toContainText('Clip 1 of 11')
+  await expect(current).toContainText('Clip 1 of 9')
   // The clip's episode loads asynchronously (resolve, then load): wait for it before comparing.
   const audioSrc = () => page.evaluate(() => document.querySelector('audio')?.src ?? '')
   await expect.poll(audioSrc).toContain('/audio/')
   const first = await audioSrc()
   await page.getByTestId('topic-reel-next').click()
-  await expect(current).toContainText('Clip 2 of 11')
+  await expect(current).toContainText('Clip 2 of 9')
   await expect(page.getByTestId('topic-reel-quote')).toContainText('Systems thinking in macro means watching feedback loops')
   await expect.poll(audioSrc).not.toBe(first) // the next clip's episode was loaded
 
@@ -273,7 +273,7 @@ test('"15 min on this" from a storyline and a theme: clips about any member topi
   await page.getByTestId('reel-door').click()
   await expect(page).toHaveURL(/\/listen\/topic\/thc(:|%3A)managing-risk\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on Managing risk across domains')
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('28 clips from different episodes · 5:36')
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('22 clips from different episodes · 4:24')
 
   await page.goto(`/theme/${encodeURIComponent('tc:reliability')}`)
   await page.getByTestId('reel-door').click()
@@ -286,17 +286,20 @@ test('Learn X this week: start a path on Discover, do today, see the week, stop'
   await page.goto('/browse')
   await showEveryonesTrends(page)
   const section = page.getByTestId('learn-this-week')
-  const subject = section.getByTestId('learn-subject').filter({ hasText: 'Managing risk across domains' })
-  await expect(subject).toHaveText('Managing risk across domains · 7 days')
-  await expect(subject).toHaveAttribute('data-kind', 'storyline')
+  // Whichever storyline is offered: which one rises depends on what earlier specs in the run
+  // listened to (everyone's momentum is shared state). The path's contents are pinned server-side
+  // (test_app_learning_path.py).
+  const subject = section.locator('[data-testid="learn-subject"][data-kind="storyline"]').first()
+  await expect(subject).toHaveText(/^.+ · 7 days$/)
+  const label = ((await subject.textContent()) ?? '').replace(/ · 7 days$/, '').trim()
   await subject.click()
 
-  await expect(section.getByTestId('learn-title')).toHaveText('Learn Managing risk across domains this week')
+  await expect(section.getByTestId('learn-title')).toHaveText(`Learn ${label} this week`)
   await expect(section.getByTestId('learn-day')).toHaveText('Day 1 of 7')
   await expect(section.getByTestId('learn-dot')).toHaveCount(7)
   const today = section.getByTestId('learn-step')
   await expect(today).toHaveAttribute('data-day', '1')
-  await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/p01-74565a3a19\?t=\d+&play=1$/)
+  await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1$/)
   await today.getByTestId('learn-step-mark-done').click()
   await expect(today.getByTestId('learn-step-done-mark')).toBeVisible()
 

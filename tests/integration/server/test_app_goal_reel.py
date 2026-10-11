@@ -30,7 +30,10 @@ ROOT = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validat
 
 
 def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> None:
-    """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it."""
+    """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it.
+
+    Re-pinned the same day: p02's and p07-a5eb's second clips played seconds of their first, and
+    are gone (an episode never plays the same seconds, or the same claim, twice)."""
     reel = goal_reel(ROOT, "topic:systems-thinking", minutes=15)
     assert [(c.episode_slug, c.moment.speaker) for c in reel] == [
         ("p02-8fdd7b7f79", "Priya Nair"),
@@ -42,8 +45,6 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
         ("p07-2aceab172c", "Skanda Amarnath"),
         ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p05-25cb576153", "Scott Bessent"),
-        ("p02-8fdd7b7f79", "Priya Nair"),
-        ("p07-a5eb82076a", "Dr. Elena Fischer"),
     ]
     # Breadth first: every episode's first clip comes before any episode's second.
     episodes = [c.episode_slug for c in reel]
@@ -52,6 +53,21 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
     for c in reel:
         assert quote_support(c.moment.quote_text, c.moment.text) >= MIN_SUPPORT
         assert c.moment.end_ms > c.moment.start_ms
+    assert_no_repeats(reel)
+
+
+def assert_no_repeats(reel: list) -> None:
+    """No two clips of one episode play the same seconds or say the same thing."""
+    from podcast_scraper.server.app_goal_reel import ECHO_SIMILARITY
+
+    for i, a in enumerate(reel):
+        for b in reel[i + 1 :]:
+            if a.episode_slug != b.episode_slug:
+                continue
+            x, y = a.moment, b.moment
+            assert not (x.start_ms < y.end_ms and y.start_ms < x.end_ms), (a.episode_slug, x.text)
+            similar = max(quote_support(x.text, y.text), quote_support(y.text, x.text))
+            assert similar < ECHO_SIMILARITY, (a.episode_slug, x.text, y.text)
 
 
 def test_the_budget_is_never_exceeded() -> None:
@@ -82,7 +98,8 @@ def test_a_storyline_reel_is_clips_about_any_of_its_member_topics() -> None:
         "topic:systems-thinking",
     }
     reel = goal_reel(ROOT, "thc:managing-risk", minutes=15)
-    assert len(reel) == 28 and len({c.episode_slug for c in reel}) == 16
+    assert len(reel) == 22 and len({c.episode_slug for c in reel}) == 16
+    assert_no_repeats(reel)
     one_member = {c.episode_slug for c in goal_reel(ROOT, "topic:risk-management", minutes=15)}
     assert len({c.episode_slug for c in reel}) > len(one_member)
     for c in reel:
@@ -108,7 +125,7 @@ def test_the_route_names_a_storyline_reel_by_its_storyline(tmp_path: Path) -> No
         "storyline",
         "Managing risk across domains",
     )
-    assert len(body["clips"]) == 28
+    assert len(body["clips"]) == 22
 
 
 def _client(data_dir: Path) -> tuple[TestClient, str]:
@@ -130,7 +147,7 @@ def test_the_route_reports_what_the_reel_actually_runs(tmp_path: Path) -> None:
     ).json()
     assert (body["subject_label"], body["subject_kind"]) == ("systems thinking", "topic")
     assert body["minutes"] == 15
-    assert body["total_seconds"] == 132.0  # the small fixture: far less than the budget
+    assert body["total_seconds"] == 108.0  # the small fixture: far less than the budget
     first = body["clips"][0]
     assert first["episode"]["slug"] == "p02-8fdd7b7f79" and first["end_ms"] > first["start_ms"]
     assert client.get("/api/app/discover/reel", params={"subject": "person:x"}).status_code == 422
@@ -148,10 +165,10 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
     # its insight says) are not offered. topic:reliability's reel is tc:reliability's (its other
     # member says nothing quotable), so it is the same offer and appears once.
     assert [(i["subject_id"], i["subject_kind"], i["clips"]) for i in everyone["items"]] == [
-        ("topic:systems-thinking", "topic", 11),
-        ("tc:reliability", "theme", 15),
-        ("thc:managing-risk", "storyline", 28),
-        ("topic:risk-management", "topic", 20),
+        ("topic:systems-thinking", "topic", 9),
+        ("tc:reliability", "theme", 12),
+        ("thc:managing-risk", "storyline", 22),
+        ("topic:risk-management", "topic", 15),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(
@@ -199,13 +216,13 @@ def test_reel_topics_leave_out_what_the_listener_asked_to_see_less_of(
 
 
 def test_a_long_reel_is_trimmed_to_its_budget_breadth_first() -> None:
-    """A realistic budget against a reel longer than it (2026-10-11): the 28-clip storyline runs
-    5:36 uncut, so five minutes must cut it — every episode's first clip still before any second."""
+    """A budget against a reel longer than it (2026-10-11): the 22-clip storyline runs 4:24 uncut,
+    so two minutes must cut it — every episode's first clip still before any second."""
     whole = goal_reel(ROOT, "thc:managing-risk", minutes=15)
-    cut = goal_reel(ROOT, "thc:managing-risk", minutes=5)
+    cut = goal_reel(ROOT, "thc:managing-risk", minutes=2)
     run = lambda reel: sum(c.moment.end_ms - c.moment.start_ms for c in reel)  # noqa: E731
-    assert run(whole) > 5 * 60_000
-    assert 0 < run(cut) <= 5 * 60_000 and len(cut) < len(whole)
+    assert run(whole) > 2 * 60_000
+    assert 0 < run(cut) <= 2 * 60_000 and len(cut) < len(whole)
     episodes = [c.episode_slug for c in cut]
     distinct = len(set(episodes))
     assert len(set(episodes[:distinct])) == distinct

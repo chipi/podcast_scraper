@@ -105,3 +105,22 @@ file's summary counts are recomputed from today's committed corpus (407 topics; 
 stale). One audit figure moved where it measures the corpus: the picker band gained the trail
 storyline (112 → 113) and its top 12 lost one distinct feed set (10 → 9), because that storyline and
 its broadest member cover the same nine episodes.
+
+## Amendment 2026-10-11: sign-offs, sponsor wording, a homonym member
+
+Reading every clip of every reel and every day of every path on the fixture found what the first
+pass missed:
+
+- **Eight non-claims left as insights:** five sign-offs ("That's it for today's episode of Frame &
+  Light. See you next time.") and three sponsor reads worded "…for supporting the show" and
+  "…is supported by…". `is_ad_copy` said it caught sign-offs but its pattern had none. It now
+  does, and `realign_fixture_gi.py --apply` replaced the eight with the episodes' next claims.
+  The second pass changes nothing. `grounding_rate` and `guest_coappearance` were re-run.
+- **A homonym storyline member:** *Second-order effects* had `topic:frame`, which on this corpus is
+  photo framing. Its path spent two of seven days on lighting episodes. The member is now
+  `topic:incident-response`. `regen_fixture_storylines.py --change thc:second-order-effects`
+  applied that one change and still refuses any other.
+
+The anchor topic `topic:second-order-effects` is on 21 episodes but no insight is ABOUT it, so the
+storyline's clips come from its other members (mostly reliability). That follows from the
+storyline rule (any member topic) and is left as data.

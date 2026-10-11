@@ -5,9 +5,10 @@ episodes, but a rebuild does not reproduce the committed corpus (ADR-165), so th
 builder's OWN functions to the committed files: each topic's episode ids from the episodes'
 knowledge graphs, then ``_theme_clusters_data`` and ``_enrichment_envelope``. Dry run by
 default; ``--write`` writes. It refuses when an existing storyline would change, so adding
-one never moves another.
+one never moves another; ``--change ID`` lets that one storyline change (its members were
+corrected in the builder), and still refuses any other.
 
-Usage:  .venv/bin/python scripts/tools/regen_fixture_storylines.py [--write]
+Usage:  .venv/bin/python scripts/tools/regen_fixture_storylines.py [--change thc:ID] [--write]
 """
 
 from __future__ import annotations
@@ -57,6 +58,9 @@ def topic_episodes(corpus: Path) -> dict[str, list[str]]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--write", action="store_true", help="write the file (default: dry run)")
+    ap.add_argument(
+        "--change", action="append", default=[], metavar="ID", help="a storyline allowed to change"
+    )
     args = ap.parse_args()
     builder = _builder()
     data = builder._theme_clusters_data(topic_episodes(CORPUS))
@@ -66,13 +70,14 @@ def main() -> int:
     for cluster in data["clusters"]:
         cid = cluster["graph_compound_parent_id"]
         before = old_by_id.get(cid)
-        if before is not None and before != cluster:
+        if before is not None and before != cluster and cid not in args.change:
             print(f"REFUSED: {cid} would change — adding storylines must not move existing ones")
             return 1
         members = ", ".join(
             f"{m['topic_id']} ({len(m['episode_ids'])} eps)" for m in cluster["members"]
         )
-        print(f"{'kept ' if before else 'NEW  '} {cid} — {cluster['canonical_label']}: {members}")
+        state = "NEW  " if before is None else ("CHANGED" if before != cluster else "kept ")
+        print(f"{state} {cid} — {cluster['canonical_label']}: {members}")
     text = json.dumps(envelope, indent=2, sort_keys=True) + "\n"
     if args.write:
         TARGET.write_text(text, encoding="utf-8")

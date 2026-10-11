@@ -6,11 +6,6 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:2ad00af062e28237",
-      "to": "topic:incident-response",
-      "type": "ABOUT"
-    },
-    {
       "from": "insight:87d008bfa722a799",
       "to": "topic:reliability",
       "type": "ABOUT"
@@ -32,12 +27,12 @@
     },
     {
       "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "insight:2ad00af062e28237",
+      "to": "insight:87d008bfa722a799",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "insight:87d008bfa722a799",
+      "to": "insight:aa0b1ec0ef608c72",
       "type": "HAS_INSIGHT"
     },
     {
@@ -101,6 +96,11 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:85c07b522d318f07",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "quote:authored-p02_e04-0",
       "to": "person:priya-nair",
       "type": "SPOKEN_BY"
@@ -111,23 +111,18 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:dea2d4e0d24e5ba8",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:07dcf9af0368ccff",
       "to": "quote:3f623cc708ffcce2",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:2ad00af062e28237",
-      "to": "quote:dea2d4e0d24e5ba8",
+      "from": "insight:87d008bfa722a799",
+      "to": "quote:493b89eb3e734cb8",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:87d008bfa722a799",
-      "to": "quote:493b89eb3e734cb8",
+      "from": "insight:aa0b1ec0ef608c72",
+      "to": "quote:85c07b522d318f07",
       "type": "SUPPORTED_BY"
     },
     {
@@ -324,7 +319,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:2ad00af062e28237",
+      "id": "insight:aa0b1ec0ef608c72",
       "properties": {
         "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
@@ -332,21 +327,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Thanks again to PagerDuty for supporting the show. PagerDuty turns noisy alerts into structured incident response.",
+        "text": "That sounds a lot like what the investing folks say about a portfolio.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:dea2d4e0d24e5ba8",
+      "id": "quote:85c07b522d318f07",
       "properties": {
-        "char_end": 1604,
-        "char_start": 1490,
+        "char_end": 1296,
+        "char_start": 1226,
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:ethan",
-        "text": "Thanks again to PagerDuty for supporting the show. PagerDuty turns noisy alerts into structured incident response.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
+        "text": "That sounds a lot like what the investing folks say about a portfolio.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"

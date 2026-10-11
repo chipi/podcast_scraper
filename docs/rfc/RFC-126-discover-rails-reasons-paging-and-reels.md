@@ -124,6 +124,10 @@ of them. `GET /discover/reel?subject=` takes any of the three and reports `subje
 most), keyed on the reel's clips so a theme whose reel is its one topic's reel is offered once. A
 `ReelDoor` on topic cards and theme and storyline pages opens the reel once it has two clips.
 
+**No repeats** (2026-10-11): within an episode, a clip that restates a stronger one (content-word
+overlap ≥ `ECHO_SIMILARITY`, either way) is folded into it, its topics with it. A subject never
+takes two clips of one episode that play the same seconds (two insights grounded in one segment).
+
 ### 4b. Learn X this week (`app_learning_path`, 2026-10-11)
 
 A seven-day path (operator's choice: one a day, progress on the server, no reminders). `build_path`

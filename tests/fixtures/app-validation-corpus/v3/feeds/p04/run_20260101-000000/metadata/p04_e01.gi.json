@@ -6,23 +6,18 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:ba1e151640de5a3f",
-      "to": "topic:frame",
-      "type": "ABOUT"
-    },
-    {
       "from": "insight:e1cac8889a8e10d6",
       "to": "topic:frame",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-febd9a8f53bf3a3a",
-      "to": "insight:31287a748fde62be",
+      "to": "insight:2d2489d72d5b201a",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-febd9a8f53bf3a3a",
-      "to": "insight:ba1e151640de5a3f",
+      "to": "insight:31287a748fde62be",
       "type": "HAS_INSIGHT"
     },
     {
@@ -76,7 +71,7 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:65ee69de9aaa51a0",
+      "from": "quote:a3ad3a1901ce7ea8",
       "to": "person:leo",
       "type": "SPOKEN_BY"
     },
@@ -86,13 +81,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:31287a748fde62be",
-      "to": "quote:f03920dc907d186e",
+      "from": "insight:2d2489d72d5b201a",
+      "to": "quote:a3ad3a1901ce7ea8",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:ba1e151640de5a3f",
-      "to": "quote:65ee69de9aaa51a0",
+      "from": "insight:31287a748fde62be",
+      "to": "quote:f03920dc907d186e",
       "type": "SUPPORTED_BY"
     },
     {
@@ -221,20 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:ba1e151640de5a3f",
-      "properties": {
-        "episode_id": "ep-febd9a8f53bf3a3a",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "That's it for today's episode of Frame & Light. See you next time.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:165dc40bc4b8e390",
       "properties": {
         "char_end": 1881,
@@ -249,15 +230,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:65ee69de9aaa51a0",
+      "id": "insight:2d2489d72d5b201a",
       "properties": {
-        "char_end": 5574,
-        "char_start": 5508,
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Ava Lemoine, thanks for the conversation.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:a3ad3a1901ce7ea8",
+      "properties": {
+        "char_end": 5476,
+        "char_start": 5435,
         "episode_id": "ep-febd9a8f53bf3a3a",
         "speaker_id": "person:leo",
-        "text": "That's it for today's episode of Frame & Light. See you next time.",
-        "timestamp_end_ms": 270000,
-        "timestamp_start_ms": 264000,
+        "text": "Ava Lemoine, thanks for the conversation.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
         "transcript_ref": "transcripts/p04_e01.txt"
       },
       "type": "Quote"

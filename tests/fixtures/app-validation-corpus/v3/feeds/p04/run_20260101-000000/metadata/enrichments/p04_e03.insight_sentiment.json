@@ -4,8 +4,8 @@
   "data": {
     "counts": {
       "negative": 0,
-      "neutral": 1,
-      "positive": 2
+      "neutral": 0,
+      "positive": 3
     },
     "episode_id": "ep-9f97daef33906cf6",
     "insights": [
@@ -20,9 +20,9 @@
         "label": "positive"
       },
       {
-        "compound": 0.0,
-        "insight_id": "insight:ba1e151640de5a3f",
-        "label": "neutral"
+        "compound": 0.4404,
+        "insight_id": "insight:31236112e8d093ae",
+        "label": "positive"
       }
     ],
     "total_insights": 3
