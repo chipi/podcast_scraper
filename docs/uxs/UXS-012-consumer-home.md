@@ -484,8 +484,10 @@ piece to its design home:
     not yet), the step to do now (the earliest open day not done; with all done, today's) as a
     `LearnStep`, and "The whole week ›" to `LearnPathView`.
   - **Rules:** the steps are the subject's strongest episodes by their best clip, oldest first, and
-    frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late,
-    never early. One path at a time; starting another replaces it. No reminders.
+    frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late.
+    Once the newest open day is done, "Next day now ›" (in `learn`) opens the next one early, so a
+    keen listener can finish in one sitting. One path at a time; starting another replaces it. No
+    reminders.
 - **`LearnDoor`** — "Learn this in 7 days", a tinted pill the size of the Follow pill, in `learn`
   (pink, the categorical `cat-5`) with a small calendar (`CalendarMark`): it starts a week rather
   than playing now. Two colours so the listen row reads as two options (operator 2026-10-11). Signed in, only when the subject has

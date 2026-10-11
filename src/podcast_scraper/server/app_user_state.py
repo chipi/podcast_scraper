@@ -1181,6 +1181,20 @@ def mark_learning_step_done(data_dir: Path, user_id: str, index: int) -> dict[st
         return path
 
 
+def open_next_learning_day(data_dir: Path, user_id: str) -> dict[str, Any] | None:
+    """Open the path's next day early (``app_learning_path.can_open_next`` checked under the lock);
+    the path, or ``None`` without one or when the next day may not be opened."""
+    from podcast_scraper.server.app_learning_path import can_open_next
+
+    with _user_lock(data_dir, user_id, "learning_path"):
+        path = get_learning_path(data_dir, user_id)
+        if path is None or not can_open_next(path):
+            return None
+        path = {**path, "ahead": int(path.get("ahead") or 0) + 1}
+        _write(data_dir, user_id, "learning_path", path)
+        return path
+
+
 # Follow events — an append-only, timestamped log of interest follows (momentum engagement source,
 # RFC-103). The interest LIST above stays the source of truth for "what's followed"; this log is the
 # timestamped history a weekly-momentum series needs (the list carries no per-token time). One line

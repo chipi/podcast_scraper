@@ -140,6 +140,31 @@ def test_one_step_opens_a_day_never_early_and_the_path_is_frozen(tmp_path: Path)
     assert client.post("/api/app/discover/learn/steps/0/done").status_code == 404
 
 
+def test_once_the_open_day_is_done_the_next_can_be_opened_now(tmp_path: Path) -> None:
+    """Operator 2026-10-11: a day a day is the rhythm, not a wall. "Next day now" only after the
+    newest open day is done; a keen listener can finish in one sitting."""
+    client, _uid = _client(tmp_path)
+    path = client.post("/api/app/discover/learn", json={"subject_id": "thc:managing-risk"}).json()
+    assert path["can_open_next"] is False
+    assert client.post("/api/app/discover/learn/next").status_code == 409  # day 1 not done
+    assert client.post("/api/app/discover/learn/steps/0/done").json()["can_open_next"] is True
+    ahead = client.post("/api/app/discover/learn/next").json()
+    assert ahead["day"] == 2
+    assert [s["unlocked"] for s in ahead["steps"]] == [True, True] + [False] * 5
+    assert ahead["can_open_next"] is False
+    assert client.post("/api/app/discover/learn/next").status_code == 409  # day 2 not done
+    for i in range(1, 7):
+        assert client.post(f"/api/app/discover/learn/steps/{i}/done").status_code == 200
+        if i < 6:
+            assert client.post("/api/app/discover/learn/next").status_code == 200
+    final = client.get("/api/app/discover/learn").json()["path"]
+    assert final["day"] == 7 and all(s["unlocked"] and s["done"] for s in final["steps"])
+    assert final["can_open_next"] is False
+    assert client.post("/api/app/discover/learn/next").status_code == 409  # nothing left
+    client.delete("/api/app/discover/learn")
+    assert client.post("/api/app/discover/learn/next").status_code == 404
+
+
 def test_a_subject_without_a_path_cannot_be_started(tmp_path: Path) -> None:
     client, _uid = _client(tmp_path)
     r = client.post("/api/app/discover/learn", json={"subject_id": "tc:dialogue"})

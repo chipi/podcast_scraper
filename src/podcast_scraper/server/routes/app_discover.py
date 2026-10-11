@@ -507,9 +507,9 @@ LEARN_CANDIDATES = 6
 
 
 def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
-    from podcast_scraper.server.app_learning_path import day_of
+    from podcast_scraper.server.app_learning_path import can_open_next, open_days
 
-    today = day_of(path)
+    opened = open_days(path)
     done = {int(i) for i in path.get("done") or []}
     steps: list[AppPathStep] = []
     for i, st in enumerate(path.get("steps") or []):
@@ -526,7 +526,7 @@ def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
                 speaker=st.get("speaker"),
                 start_ms=int(st.get("start_ms") or 0),
                 end_ms=int(st.get("end_ms") or 0),
-                unlocked=i <= today,
+                unlocked=i < opened,
                 done=i in done,
             )
         )
@@ -535,7 +535,8 @@ def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
         subject_kind=path.get("subject_kind") or "topic",
         subject_label=str(path.get("subject_label") or path["subject_id"]),
         started_at=int(path.get("started_at") or 0),
-        day=min(today + 1, max(1, len(path.get("steps") or []))),
+        day=max(1, opened),
+        can_open_next=can_open_next(path),
         steps=steps,
     )
 
@@ -648,7 +649,8 @@ def app_learning_step_done(
     index: int,
     user: User = Depends(get_current_user),
 ) -> AppLearningPath:
-    """Mark a step done. A step opens on its day: one not yet open cannot be done (409)."""
+    """Mark a step done. A step opens on its day (or when opened early): one not yet open cannot be
+    done (409)."""
     from podcast_scraper.server.app_learning_path import unlocked
 
     root = corpus_root_or_503(request)
@@ -660,6 +662,22 @@ def app_learning_step_done(
         raise HTTPException(status_code=409, detail="That day has not come yet.")
     updated = app_user_state.mark_learning_step_done(data_dir, user.user_id, index)
     assert updated is not None
+    return _path_out(root, updated)
+
+
+@router.post("/discover/learn/next", response_model=AppLearningPath)
+def app_open_next_learning_day(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppLearningPath:
+    """Open the next day now (operator 2026-10-11: a day a day is the rhythm, not a wall). Only
+    once the newest open day is done (409 before; 404 without a path)."""
+    root = corpus_root_or_503(request)
+    data_dir = _data_dir(request)
+    if app_user_state.get_learning_path(data_dir, user.user_id) is None:
+        raise HTTPException(status_code=404, detail="No path.")
+    updated = app_user_state.open_next_learning_day(data_dir, user.user_id)
+    if updated is None:
+        raise HTTPException(status_code=409, detail="Finish the open day first.")
     return _path_out(root, updated)
 
 

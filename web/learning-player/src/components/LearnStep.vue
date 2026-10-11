@@ -4,6 +4,9 @@
  * whom), "▶ Play from mm:ss" — the episode opened playing at the clip — and "Done". A day not yet
  * come says when it opens and offers nothing to do.
  *
+ * Done, with a later day left, it offers "Next day now" (operator 2026-10-11: a day a day is the
+ * rhythm, not a wall).
+ *
  * Only today's day is open (operator 2026-10-11: "focus on where we are"). An earlier day is a
  * closed card that says whether it was done; tapping it opens it, to replay that day, and its ⌃
  * closes it again. A later day stays closed.
@@ -21,8 +24,10 @@ const props = defineProps<{
   kind?: 'topic' | 'theme' | 'storyline'
   /** Show the clip, Play and Done (today's day, or an earlier one the listener opened). */
   open?: boolean
+  /** Done, and the next day may be opened now: offer "Next day now". */
+  canOpenNext?: boolean
 }>()
-const emit = defineEmits<{ done: []; toggle: [] }>()
+const emit = defineEmits<{ done: []; toggle: []; next: [] }>()
 const { t } = useI18n()
 const time = computed(() => formatTime(props.step.start_ms / 1000))
 const playTo = computed(() => ({
@@ -81,6 +86,14 @@ const playTo = computed(() => ({
           data-testid="learn-step-mark-done"
           @click="emit('done')"
         >{{ t('learn.markDone') }}</button>
+        <button
+          v-else-if="canOpenNext"
+          type="button"
+          class="lp-tap min-h-[44px] text-sm font-bold text-learn"
+          :disabled="busy"
+          data-testid="learn-step-next"
+          @click="emit('next')"
+        >{{ t('learn.openNext') }} ›</button>
       </div>
     </template>
     <template v-else>

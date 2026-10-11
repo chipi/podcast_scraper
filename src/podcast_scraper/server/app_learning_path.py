@@ -9,6 +9,10 @@ The path is frozen when the listener starts it (``learning_path.json``): a corpu
 the week does not move the steps under them. Step ``k`` (0-based) opens on day ``k`` after the
 start, counted in whole days since ``started_at`` (UTC); a step can be done late, never early. One
 path at a time; starting another replaces it. Built from what is on disk: no LLM.
+
+A day a day is the rhythm, not a wall (operator 2026-10-11): once the newest open day is done, the
+listener may open the next one now (``ahead`` counts the days opened early), so a keen listener can
+do the whole path in one sitting.
 """
 
 from __future__ import annotations
@@ -147,6 +151,19 @@ def day_of(path: dict[str, Any], now: Optional[float] = None) -> int:
     return max(0, int(elapsed // _DAY_S))
 
 
+def open_days(path: dict[str, Any], now: Optional[float] = None) -> int:
+    """How many days are open: one per day since the start, plus those opened early."""
+    total = len(path.get("steps") or [])
+    return min(total, day_of(path, now) + 1 + int(path.get("ahead") or 0))
+
+
 def unlocked(path: dict[str, Any], index: int, now: Optional[float] = None) -> bool:
-    """Step ``index`` is open: it is that step's day or later."""
-    return 0 <= index < len(path.get("steps") or []) and index <= day_of(path, now)
+    """Step ``index`` is open: its day has come, or the listener opened it early."""
+    return 0 <= index < open_days(path, now)
+
+
+def can_open_next(path: dict[str, Any], now: Optional[float] = None) -> bool:
+    """The next day may be opened now: the newest open day is done and a later one is left."""
+    n = open_days(path, now)
+    done = {int(i) for i in path.get("done") or []}
+    return n < len(path.get("steps") or []) and (n - 1) in done

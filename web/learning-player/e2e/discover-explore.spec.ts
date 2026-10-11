@@ -302,11 +302,16 @@ test('Learn X this week: start a path on Discover, do today, see the week, stop'
   await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1$/)
   await today.getByTestId('learn-step-mark-done').click()
   await expect(today.getByTestId('learn-step-done-mark')).toBeVisible()
+  // A day a day is the rhythm, not a wall: once today's is done, the next can open now.
+  await today.getByTestId('learn-step-next').click()
+  await expect(section.getByTestId('learn-day')).toHaveText('Day 2 of 7')
+  await expect(section.getByTestId('learn-step')).toHaveAttribute('data-day', '2')
 
   await section.getByTestId('learn-see-week').click()
   await expect(page).toHaveURL(/\/learn$/)
   await expect(page.getByTestId('learn-step')).toHaveCount(7)
-  await expect(page.getByTestId('learn-step-locked')).toHaveCount(6) // one a day, never early
+  await expect(page.getByTestId('learn-step-locked')).toHaveCount(5) // never early unless opened
+  await expect(page.locator('[data-testid="learn-step"][data-open="true"]')).toHaveAttribute('data-day', '2')
   await page.getByTestId('learn-stop').click()
   await page.getByTestId('learn-stop-yes').click()
   await expect(page).toHaveURL(/\/browse/)

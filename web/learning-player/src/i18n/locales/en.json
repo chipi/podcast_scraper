@@ -1304,6 +1304,7 @@
     "done": "Done",
     "opensOn": "Opens on day {n}",
     "notDone": "Not done yet",
+    "openNext": "Next day now",
     "expand": "Day {n}: {title}. Open to replay",
     "collapse": "Close day {n}",
     "stop": "Stop this path",

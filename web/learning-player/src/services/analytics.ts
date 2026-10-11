@@ -449,7 +449,7 @@ export type EventProps = {
   /** Learn X this week: a path started (and from where), a step played or done (its 1-based day),
    *  or the path stopped. */
   learn_path: {
-    action: 'start' | 'step_play' | 'step_done' | 'stop'
+    action: 'start' | 'step_play' | 'step_done' | 'open_next' | 'stop'
     kind: 'topic' | 'theme' | 'storyline'
     day?: number
     source?: 'discover' | 'subject_page'

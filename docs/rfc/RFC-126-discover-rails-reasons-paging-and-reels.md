@@ -131,23 +131,26 @@ takes two clips of one episode that play the same seconds (two insights grounded
 ### 4b. Learn X this week (`app_learning_path`, 2026-10-11)
 
 A seven-day path (operator's choice: one a day, progress on the server, no reminders). `build_path`
-takes the subject's strongest episodes by their best clip (`subject_moments`, the reel's ranking),
+takes the subject's strongest episodes by their best clip (`subject_episodes`, the reel's ranking),
 at most `PATH_DAYS` (7), at least `MIN_STEPS` (3), and orders them by publish date, oldest first.
 `start_path` freezes the steps into `learning_path.json` with `started_at`; step `k` opens when
-`k` whole days (UTC) have passed. One path per listener; starting another replaces it. Variety
+`k` whole days (UTC) have passed, or earlier when the listener asks: once the newest open day is
+done, "Next day now" opens the next (`ahead` counts days opened early; operator 2026-10-11, "a day a
+day is the rhythm, not a wall"). One path per listener; starting another replaces it. Variety
 (operator 2026-10-11): at most two days per speaker and two per show, the next-best episodes filling
 the gaps (`MAX_PER_SPEAKER`, `MAX_PER_SHOW`).
 
 ```text
 GET    /api/app/discover/learn?scope    → { path | null, candidates: [{subject_id, kind, label, steps}] }
 POST   /api/app/discover/learn {subject_id}          → path   (422: too few episodes)
-POST   /api/app/discover/learn/steps/{index}/done    → path   (409: its day has not come; 404: no path)
+POST   /api/app/discover/learn/steps/{index}/done    → path   (409: not open yet; 404: no path)
+POST   /api/app/discover/learn/next                  → path   (409: newest open day not done; 404)
 DELETE /api/app/discover/learn                       → 204
 ```
 
 Candidates are themes and storylines taking turns, three at most, each only with a path: under
 Mine those of the listener's world (momentum restricted to `personal_entity_ids`, less "Less like
-this"), under Everyone the rising ones. Telemetry: `learn_path { action: start | step_done | stop,
+this"), under Everyone the rising ones. Telemetry: `learn_path { action: start | step_done | open_next | stop,
 kind, day }`.
 
 ### 5. Cold start and Mine
@@ -168,7 +171,7 @@ The reel, Learn and Explore (2026-10-11; every event checked end to end into the
 ```text
 reel_open        { source: discover_row|subject_page, kind }
 reel_action      { action: start|next|prev|keep|done, kind, clips: CountBucket, clip?: RankBucket }
-learn_path       { action: start|step_play|step_done|stop, kind, day?, source?: discover|subject_page }
+learn_path       { action: start|step_play|step_done|open_next|stop, kind, day?, source?: discover|subject_page }
 trends_show_more { kind, sort, shown: CountBucket }
 explore_see_all  { list: episodes|shows }
 catalog_filter   { list: episodes|shows, value: all|following|mine }

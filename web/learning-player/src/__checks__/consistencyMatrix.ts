@@ -32,6 +32,7 @@ export const CONSISTENCY_MATRIX: ConsistencyRow[] = [
   { write: 'undoSuggestLess', readers: ['every Discover rail', 'Profile › Interests › Suggested less'], proof: ['e2e/discover-explore.spec.ts', 'src/components/SuggestedLessList.test.ts'] },
   { write: 'startLearn', readers: ['Discover › Learn this week', 'Learn › the whole week', 'topic card / theme / storyline › Learn door'], proof: ['e2e/discover-explore.spec.ts', 'src/components/LearnThisWeek.test.ts'] },
   { write: 'learnStepDone', readers: ['Discover › Learn this week', 'Learn › the whole week'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
+  { write: 'learnOpenNext', readers: ['Discover › Learn this week', 'Learn › the whole week'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
   { write: 'stopLearn', readers: ['Discover › Learn this week', 'Learn › the whole week'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
   { write: 'putUserInterests', readers: ['every interests reader (store replaceAll)'], proof: ['src/components/InterestsPicker.test.ts'] },
 

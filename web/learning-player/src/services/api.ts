@@ -972,8 +972,10 @@ export interface LearningPath {
   subject_kind: ReelKind
   subject_label: string
   started_at: number
-  /** Today's day of the path, 1-based. */
+  /** The newest open day, 1-based: today's, or later when days were opened early. */
   day: number
+  /** The newest open day is done and the next may be opened now ("Next day now"). */
+  can_open_next?: boolean
   steps: PathStep[]
 }
 export interface LearnSubject {
@@ -1017,6 +1019,12 @@ export async function learnStepDone(index: number): Promise<LearningPath> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/steps → ${resp.status}`)
+  return (await resp.json()) as LearningPath
+}
+/** Open the next day now (only once the newest open day is done; 409 before). */
+export async function learnOpenNext(): Promise<LearningPath> {
+  const resp = await apiFetch(`${BASE}/discover/learn/next`, { method: "POST", credentials: "include" })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/next → ${resp.status}`)
   return (await resp.json()) as LearningPath
 }
 export async function stopLearn(): Promise<void> {

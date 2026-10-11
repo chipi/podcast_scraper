@@ -1250,7 +1250,12 @@ class AppLearningPath(BaseModel):
     subject_kind: Literal["topic", "theme", "storyline"]
     subject_label: str
     started_at: int = Field(description="When it started (epoch seconds).")
-    day: int = Field(description="Today's day of the path, 1-based, at most the number of steps.")
+    day: int = Field(
+        description="The newest open day, 1-based: today's, or later when days were opened early."
+    )
+    can_open_next: bool = Field(
+        default=False, description="The newest open day is done and the next may be opened now."
+    )
     steps: list[AppPathStep] = Field(default_factory=list)
 
 

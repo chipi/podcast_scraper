@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import BackIcon from '../components/BackIcon.vue'
 import LearnStep from '../components/LearnStep.vue'
-import { getLearn, learnStepDone, stopLearn, type LearningPath } from '../services/api'
+import { getLearn, learnOpenNext, learnStepDone, stopLearn, type LearningPath } from '../services/api'
 import { track } from '../services/analytics'
 
 const { t } = useI18n()
@@ -51,6 +51,21 @@ async function markDone(index: number): Promise<void> {
     busy.value = false
   }
 }
+async function openNext(): Promise<void> {
+  if (busy.value || !path.value) return
+  busy.value = true
+  try {
+    const kind = path.value.subject_kind
+    const was = path.value.day
+    path.value = await learnOpenNext()
+    flipped.value = new Set() // the new day is "today": it opens, the one just done closes
+    track('learn_path', { action: 'open_next', kind, day: was + 1 })
+  } catch {
+    // Not opened: the button stays.
+  } finally {
+    busy.value = false
+  }
+}
 async function stop(): Promise<void> {
   if (!path.value) return
   const kind = path.value.subject_kind
@@ -80,7 +95,9 @@ function goBack(): void {
             :busy="busy"
             :kind="path.subject_kind"
             :open="isOpen(s.day)"
+            :can-open-next="!!path.can_open_next && s.day === path.day"
             @done="markDone(i)"
+            @next="openNext"
             @toggle="toggle(s.day)"
           /></li>
       </ol>

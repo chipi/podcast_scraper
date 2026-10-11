@@ -10,7 +10,7 @@ import { computed, onActivated, onDeactivated, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import LearnStep from './LearnStep.vue'
-import { getLearn, learnStepDone, startLearn, type LearningPath, type LearnSubject } from '../services/api'
+import { getLearn, learnOpenNext, learnStepDone, startLearn, type LearningPath, type LearnSubject } from '../services/api'
 import { track } from '../services/analytics'
 import { kindPill } from '../utils/interests'
 
@@ -73,6 +73,20 @@ async function markDone(): Promise<void> {
     busy.value = false
   }
 }
+async function openNext(): Promise<void> {
+  if (busy.value || !path.value) return
+  busy.value = true
+  try {
+    const kind = path.value.subject_kind
+    const was = path.value.day
+    path.value = await learnOpenNext()
+    track('learn_path', { action: 'open_next', kind, day: was + 1 })
+  } catch {
+    // Not opened: the button stays.
+  } finally {
+    busy.value = false
+  }
+}
 </script>
 
 <template>
@@ -98,7 +112,16 @@ async function markDone(): Promise<void> {
           />
         </span>
       </p>
-      <LearnStep v-if="now" :step="now" :busy="busy" :kind="path.subject_kind" open @done="markDone" />
+      <LearnStep
+        v-if="now"
+        :step="now"
+        :busy="busy"
+        :kind="path.subject_kind"
+        open
+        :can-open-next="!!path.can_open_next && now.day === path.day"
+        @done="markDone"
+        @next="openNext"
+      />
     </template>
     <template v-else>
       <h2 class="lp-section mb-1">{{ t('learn.offerTitle') }}</h2>
