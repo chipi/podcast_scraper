@@ -14,6 +14,7 @@ from podcast_scraper.server.app_serendipity import (
     interleave_outside,
     is_outside_habits,
     OUTSIDE_EVERY,
+    take_turns,
 )
 
 pytestmark = [pytest.mark.unit]
@@ -80,3 +81,17 @@ def test_an_episodes_people_and_topics_come_from_its_kg(tmp_path: Path) -> None:
         "person:ann-lee",
     }
     assert episode_entity_ids(tmp_path, None) == set()
+
+
+def test_take_turns_passes_over_an_item_another_list_took_not_the_turn() -> None:
+    """Lists sharing episodes still fill the rail: on its turn a list gives its next free item."""
+    a = ["ep-1", "ep-2", "ep-3"]
+    b = ["ep-2", "ep-1", "ep-4"]
+    assert take_turns([a, b], limit=10, key=lambda s: s) == ["ep-1", "ep-2", "ep-3", "ep-4"]
+
+
+def test_take_turns_caps_each_list_and_the_rail() -> None:
+    a, b = ["a1", "a2", "a3"], ["b1"]
+    assert take_turns([a, b], limit=10, key=lambda s: s, per_list=2) == ["a1", "b1", "a2"]
+    assert take_turns([a, b], limit=2, key=lambda s: s) == ["a1", "b1"]
+    assert take_turns([], limit=3, key=lambda s: s) == []

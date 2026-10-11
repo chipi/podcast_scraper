@@ -34,6 +34,7 @@ from podcast_scraper.server.app_reasons import (
     ReasonQuote,
     ReasonSubject,
 )
+from podcast_scraper.server.app_serendipity import take_turns
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 
 #: How many of the listener's most recent captures seed the rail.
@@ -273,27 +274,21 @@ def captured_rail(
             ]
         per_capture.append(found)
 
-    cards: list[TrendingEpisodeCard] = []
-    taken: set[str] = set()
-    depth = 0
-    while len(cards) < limit and any(depth < len(f) for f in per_capture):
-        for found in per_capture:
-            if depth < len(found) and len(cards) < limit:
-                cap, subj, q = found[depth]
-                if q.episode_slug in taken:
-                    continue
-                taken.add(q.episode_slug)
-                capture = ReasonCapture(
+    picked = take_turns(per_capture, limit=limit, key=lambda f: f[2].episode_slug)
+    return [
+        TrendingEpisodeCard(
+            slug=q.episode_slug,
+            why=Reason(
+                kind="captured",
+                quote=q,
+                subject=subj,
+                capture=ReasonCapture(
                     kind=cap.kind,  # type: ignore[arg-type]
                     episode_slug=cap.episode_slug,
                     text=cap.text,
                     start_ms=cap.start_ms,
-                )
-                cards.append(
-                    TrendingEpisodeCard(
-                        slug=q.episode_slug,
-                        why=Reason(kind="captured", quote=q, subject=subj, capture=capture),
-                    )
-                )
-        depth += 1
-    return cards
+                ),
+            ),
+        )
+        for cap, subj, q in picked
+    ]

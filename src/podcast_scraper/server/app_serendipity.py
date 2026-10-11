@@ -90,3 +90,38 @@ def interleave_outside(
             out.append(on_habit[on_i])
             on_i += 1
     return out
+
+
+def take_turns(
+    lists: Sequence[Sequence[T]],
+    *,
+    limit: int,
+    key: Callable[[T], str],
+    per_list: Optional[int] = None,
+) -> list[T]:
+    """At most ``limit`` items, the lists taking turns in order, one item per ``key`` (an episode).
+
+    On its turn a list gives its next item not already taken — an item another list took is passed
+    over, not the turn — so overlapping lists still fill the rail. ``per_list`` caps what any one
+    list gives.
+    """
+    out: list[T] = []
+    taken: set[str] = set()
+    pos = [0] * len(lists)
+    given = [0] * len(lists)
+    progressed = True
+    while len(out) < limit and progressed:
+        progressed = False
+        for i, items in enumerate(lists):
+            if len(out) >= limit or (per_list is not None and given[i] >= per_list):
+                continue
+            while pos[i] < len(items) and key(items[pos[i]]) in taken:
+                pos[i] += 1
+            if pos[i] < len(items):
+                item = items[pos[i]]
+                pos[i] += 1
+                taken.add(key(item))
+                out.append(item)
+                given[i] += 1
+                progressed = True
+    return out

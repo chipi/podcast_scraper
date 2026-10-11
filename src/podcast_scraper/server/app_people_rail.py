@@ -16,6 +16,7 @@ from pathlib import Path
 
 from podcast_scraper.server.app_captured_rail import person_quotes
 from podcast_scraper.server.app_reasons import Reason, ReasonQuote, ReasonSubject
+from podcast_scraper.server.app_serendipity import take_turns
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 
 #: A person counts as "kept hearing" from this many of the listener's episodes.
@@ -102,21 +103,11 @@ def people_rail(
             found.append((subject, person.episodes, q))
         per_person.append(found)
 
-    cards: list[TrendingEpisodeCard] = []
-    taken: set[str] = set()
-    depth = 0
-    while len(cards) < limit and any(depth < len(f) for f in per_person):
-        for found in per_person:
-            if depth < len(found) and len(cards) < limit:
-                subject, heard_in, q = found[depth]
-                if q.episode_slug in taken:
-                    continue
-                taken.add(q.episode_slug)
-                cards.append(
-                    TrendingEpisodeCard(
-                        slug=q.episode_slug,
-                        why=Reason(kind="person", quote=q, subject=subject, events=heard_in),
-                    )
-                )
-        depth += 1
-    return cards
+    picked = take_turns(per_person, limit=limit, key=lambda f: f[2].episode_slug)
+    return [
+        TrendingEpisodeCard(
+            slug=q.episode_slug,
+            why=Reason(kind="person", quote=q, subject=subject, events=heard_in),
+        )
+        for subject, heard_in, q in picked
+    ]
