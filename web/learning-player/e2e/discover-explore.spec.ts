@@ -244,6 +244,13 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   const current = page.getByTestId('topic-reel-current')
   await expect(current).toContainText('Clip 1 of 9')
   await expect(page.getByTestId('topic-reel-pause')).toBeVisible()
+  // The transport sits centred in its card (operator 2026-10-11): equal room left and right.
+  const row = (await page.getByTestId('topic-reel-transport').boundingBox())!
+  const prevBox = (await page.getByTestId('topic-reel-prev').boundingBox())!
+  const nextBox = (await page.getByTestId('topic-reel-next').boundingBox())!
+  const leftRoom = prevBox.x - row.x
+  const rightRoom = row.x + row.width - (nextBox.x + nextBox.width)
+  expect(Math.abs(leftRoom - rightRoom)).toBeLessThan(2)
   await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(8)
   // The clip's episode loads asynchronously (resolve, then load): wait for it before comparing.
   const audioSrc = () => page.evaluate(() => document.querySelector('audio')?.src ?? '')

@@ -231,7 +231,9 @@ function goBack(): void {
             </div>
             <blockquote class="mt-4 text-lg leading-snug" data-testid="topic-reel-quote">“{{ shown.text }}”</blockquote>
             <p v-if="shown.speaker" class="mt-1 text-sm text-muted">— {{ shown.speaker }}</p>
-            <div class="mt-5 flex flex-wrap items-center gap-3">
+            <!-- Centred in the card (operator 2026-10-11, on the phone): the transport is the card's
+                 control, and "Keep listening" sits centred under it as on the episode's Moments. -->
+            <div class="mt-5 flex items-center justify-center gap-3" data-testid="topic-reel-transport">
               <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :disabled="!live" :aria-label="t('reel.prev')" data-testid="topic-reel-prev" @click="prev">‹</button>
               <button
                 type="button"
@@ -241,7 +243,9 @@ function goBack(): void {
                 @click="togglePlay"
               >{{ playingNow ? '❚❚' : '▶' }}</button>
               <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :disabled="!live" :aria-label="t('reel.next')" data-testid="topic-reel-next" @click="next">›</button>
-              <button v-if="live" type="button" class="lp-tap font-bold text-accent" data-testid="topic-reel-keep" @click="keepListening">
+            </div>
+            <div v-if="live" class="mt-3 flex justify-center">
+              <button type="button" class="lp-tap font-bold text-accent" data-testid="topic-reel-keep" @click="keepListening">
                 {{ t('reel.keep') }}
               </button>
             </div>
