@@ -22,7 +22,9 @@ BASE = "https://example.com/feed.xml"
 
 def _channel(inner: str, ns: str = "") -> ET.Element:
     xml = f"<rss version='2.0' {ns}><channel><title>T</title>{inner}</channel></rss>"
-    return ET.fromstring(xml).find("channel")
+    channel = ET.fromstring(xml).find("channel")
+    assert channel is not None
+    return channel
 
 
 P = "xmlns:podcast='https://podcastindex.org/namespace/1.0'"
@@ -42,7 +44,8 @@ def test_rss_copyright_is_kept_verbatim_and_is_not_a_licence() -> None:
     assert d.raw.startswith("© 2020-2021 THE NEW YORK TIMES COMPANY;")
     assert d.raw.endswith("in a news reader.")
     assert rec.status == "declared"
-    assert L.summary_label(rec).startswith("© 2020-2021 THE NEW YORK TIMES")
+    label = L.summary_label(rec)
+    assert label is not None and label.startswith("© 2020-2021 THE NEW YORK TIMES")
 
 
 def test_a_namespace_is_matched_by_uri_not_by_prefix() -> None:
@@ -62,6 +65,7 @@ def test_a_namespace_is_matched_by_uri_not_by_prefix() -> None:
 def test_a_known_licence_carries_its_conditions() -> None:
     rec = L.channel_licence(_channel("<podcast:license>cc-by-sa-4.0</podcast:license>", P), BASE)
     k = rec.declarations[0].known
+    assert k is not None
     assert (k.commercial_use, k.adaptations, k.attribution, k.share_alike) == (
         True,
         True,
@@ -69,8 +73,10 @@ def test_a_known_licence_carries_its_conditions() -> None:
         True,
     )
     nd = L.recognise("https://creativecommons.org/licenses/by-nc-nd/3.0/")
+    assert nd is not None
     assert (nd.commercial_use, nd.adaptations) == (False, False)
     zero = L.recognise("cc0-1.0")
+    assert zero is not None
     assert zero.attribution is False
 
 
@@ -104,7 +110,8 @@ def test_creative_commons_module_url() -> None:
         BASE,
     )
     (d,) = rec.declarations
-    assert d.mechanism == "creative_commons_license" and d.known.id == "CC-BY-ND-2.0"
+    assert d.mechanism == "creative_commons_license"
+    assert d.known is not None and d.known.id == "CC-BY-ND-2.0"
     assert rec.documents_for_review == ["http://creativecommons.org/licenses/by-nd/2.0/"]
 
 
@@ -152,6 +159,7 @@ def test_an_episode_keeps_its_own_declarations_apart_from_the_channel() -> None:
         "<item><title>E2</title></item></channel></rss>"
     )
     channel = ET.fromstring(xml).find("channel")
+    assert channel is not None
     chan = L.channel_licence(channel, BASE)
     first, second = channel.findall("item")
     ep1 = L.episode_licence(first, BASE, channel=chan)
@@ -174,6 +182,7 @@ def test_a_record_names_its_source_and_read_time() -> None:
         BASE,
         "https://feeds.example.com/x.rss",
     )
+    assert rec is not None
     assert rec.source_feed_url == "https://feeds.example.com/x.rss"
     assert rec.retrieved_at and rec.retrieved_at.endswith("+00:00")
 
@@ -183,4 +192,4 @@ def test_long_notices_are_shortened_for_the_line_only() -> None:
     rec = L.channel_licence(_channel(f"<copyright>{long}</copyright>"), BASE)
     assert rec.declarations[0].raw == long
     label = L.summary_label(rec)
-    assert len(label) == 90 and label.endswith("…")
+    assert label is not None and len(label) == 90 and label.endswith("…")

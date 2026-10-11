@@ -85,7 +85,7 @@ class LicenceRecord(BaseModel):
 # --- recognised licences ---------------------------------------------------------------------
 
 _CC_CONDITIONS = {
-    # type: (commercial_use, adaptations, attribution, share_alike)
+    # slug -> (commercial_use, adaptations, attribution, share_alike)
     "by": (True, True, True, False),
     "by-sa": (True, True, True, True),
     "by-nd": (True, False, True, False),

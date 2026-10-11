@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from podcast_scraper.languages import primary_language
-from podcast_scraper.rss.licence import summary_label
+from podcast_scraper.rss.licence import LicenceRecord, summary_label
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
@@ -425,16 +425,24 @@ def episode_detail(
     return _episode_detail(root, row, slug)
 
 
-def _episode_licence_records(row: CatalogEpisodeRow) -> tuple[dict | None, dict | None]:
-    own = json.loads(row.episode_licence_json) if row.episode_licence_json else None
-    show = json.loads(row.feed_licence_json) if row.feed_licence_json else None
+def _episode_licence_records(
+    row: CatalogEpisodeRow,
+) -> tuple[LicenceRecord | None, LicenceRecord | None]:
+    own = (
+        LicenceRecord.model_validate_json(row.episode_licence_json)
+        if row.episode_licence_json
+        else None
+    )
+    show = (
+        LicenceRecord.model_validate_json(row.feed_licence_json) if row.feed_licence_json else None
+    )
     return own, show
 
 
 def _episode_licence_line(row: CatalogEpisodeRow) -> dict:
     """The episode's line (#2325): its own declaration when it has one, else its show's."""
     own, show = _episode_licence_records(row)
-    if own and own.get("status") == "declared":
+    if own is not None and own.status == "declared":
         return {"licence_summary": summary_label(own), "licence_scope": "episode"}
     if show:
         return {"licence_summary": summary_label(show), "licence_scope": "show"}

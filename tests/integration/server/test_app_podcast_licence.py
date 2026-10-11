@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -32,7 +33,7 @@ NYT = (
 
 
 def _record(raw: str | None, read: str) -> dict:
-    decls = (
+    decls: list[dict[str, Any]] = (
         []
         if raw is None
         else [
@@ -66,10 +67,14 @@ def _episode(
     own: dict | None = None,
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
-    feed = {"feed_id": feed_id, "title": feed_id.title(), "url": f"https://{feed_id}.example/f"}
+    feed: dict[str, Any] = {
+        "feed_id": feed_id,
+        "title": feed_id.title(),
+        "url": f"https://{feed_id}.example/f",
+    }
     if licence is not None:
         feed["licence"] = licence
-    episode = {"episode_id": stem, "title": stem, "published_date": published}
+    episode: dict[str, Any] = {"episode_id": stem, "title": stem, "published_date": published}
     if own is not None:
         episode["licence"] = own
     doc = {
