@@ -9,6 +9,7 @@
  * zone doubles as a live intelligence surface (speaking-now + grounded signal); per-show
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
+import { returnFocus } from '../utils/inputModality'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
 import { sourceOfCurrentNavigation } from '../services/provenance'
@@ -308,7 +309,8 @@ watch(panelOpen, (open) => {
  */
 function onPanelClose(): void {
   panelOpen.value = false
-  void nextTick(() => insightsOpener.value?.focus())
+  // Back to the opener, with the keyboard ring only after a key (utils/inputModality).
+  void nextTick(() => returnFocus(insightsOpener.value))
 }
 
 /**

@@ -1,6 +1,7 @@
 import { nextTick, onMounted, onUnmounted, watch, type Ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { lastTappedElement, tapTopOf } from "../utils/backAnchor"
+import { returnFocus } from "../utils/inputModality"
 import { keepInPlace } from "../utils/scrollRestore"
 
 /**
@@ -99,7 +100,8 @@ export function useModalSheet(
     window.removeEventListener("keydown", onKeydown)
     // preventScroll: the opener goes back to where the reader saw it, not to wherever focus() would
     // nudge it; keepInPlace then holds it there while the surface underneath finishes loading.
-    restoreFocus?.focus?.({ preventScroll: true })
+    // The keyboard ring only after a key: after a tap it outlined the opener as if still selected.
+    returnFocus(restoreFocus)
     if (restoreFocus?.isConnected && openerTop != null) keepInPlace(restoreFocus, openerTop)
     // Only when WE closed it (✕ / Escape / backdrop). A Back press or a navigation from inside the
     // sheet already consumed the entry — popping again would undo the user's actual navigation.
