@@ -893,6 +893,12 @@ export async function getPeopleRecommendations(limit = 6): Promise<TrendingEpiso
   return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/people", { limit })).items
 }
 
+/** Hear another view (ADR-163, Discover arc Step 3): on the listener's topics, a speaker they have
+ *  not heard on it yet. Signed-in only. */
+export async function getAnotherViewRecommendations(limit = 6): Promise<TrendingEpisodeCard[]> {
+  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/another-view", { limit })).items
+}
+
 /** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
  *  (ADR-162). The server's one definition, so Browse never re-derives it. */
 export async function getWorldEpisodeSlugs(): Promise<string[]> {

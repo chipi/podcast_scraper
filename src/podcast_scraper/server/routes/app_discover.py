@@ -22,6 +22,7 @@ from podcast_scraper.server import (
     app_ranking_config_store,
     app_user_state,
 )
+from podcast_scraper.server.app_another_view_rail import another_view_rail
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_captured_rail import captured_rail
 from podcast_scraper.server.app_catalog_cache import cached_catalog
@@ -297,6 +298,25 @@ def app_discover_people(
         return AppTrendingEpisodesResponse(scope="mine", items=[])
     data_dir = Path(raw_dir)
     cards = people_rail(root, data_dir, user.user_id, limit=limit)
+    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
+
+
+@router.get("/discover/another-view", response_model=AppTrendingEpisodesResponse)
+def app_discover_another_view(
+    request: Request,
+    limit: int = Query(default=6, ge=1, le=20),
+    user: User = Depends(get_current_user),
+) -> AppTrendingEpisodesResponse:
+    """Hear another view (ADR-163; Discover arc Step 3): on the topics the listener engages with
+    most, a speaker they have not heard on it, in an episode they have not heard, each with that
+    speaker's quote about it. "Another" is a different speaker, not a claimed opposite. Every 5th
+    card is the labelled outside-your-usual share. Signed in only (401 otherwise)."""
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    if user is None or raw_dir is None:
+        return AppTrendingEpisodesResponse(scope="mine", items=[])
+    data_dir = Path(raw_dir)
+    cards = another_view_rail(root, data_dir, user.user_id, limit=limit)
     return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
 
 

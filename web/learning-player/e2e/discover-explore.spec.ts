@@ -129,3 +129,24 @@ test('a guest heard twice brings "People you keep hearing": their episodes on an
   await expect(first.getByTestId('why-reason')).toHaveText('Dr. Elena Fischer, whom you keep hearing')
   await expect(first.getByTestId('people-card-open')).toHaveAttribute('href', /\/episode\/p09-/)
 })
+
+test('topics a listener keeps hearing bring "Hear another view": a speaker not yet heard on one', async ({
+  page,
+}, testInfo) => {
+  // Discover arc Step 3. Three highlighted episodes about risk management and systems thinking;
+  // the rail offers someone the listener has not heard on either.
+  await signInIsolated(page, 'discover-another-view', testInfo)
+  for (const slug of ['p07-a5eb82076a', 'p07-2aceab172c', 'p02-8fdd7b7f79']) {
+    const made = await page.request.post('/api/app/highlights', {
+      data: { episode_slug: slug, kind: 'moment', quote_text: 'kept', start_ms: 1000 },
+    })
+    expect(made.status()).toBe(201)
+  }
+
+  await page.goto('/browse')
+  const rail = page.getByTestId('another-view-cards')
+  await expect(rail).toBeVisible()
+  const first = rail.getByTestId('another-view-card').first()
+  await expect(first.getByTestId('why-reason')).toHaveText('Another view on risk management')
+  await expect(first.getByTestId('why-quote')).toContainText('Daniel Cho')
+})

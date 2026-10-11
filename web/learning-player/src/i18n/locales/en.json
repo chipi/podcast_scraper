@@ -1256,6 +1256,9 @@
     },
     "people": {
       "title": "People you keep hearing"
+    },
+    "anotherView": {
+      "title": "Hear another view"
     }
   },
   "explore": {

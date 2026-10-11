@@ -109,7 +109,13 @@ The Discover 2 preview was removed (UI only; its APIs stay).
   shares words with an insight of its episode, no longer the first in the list (greetings, ad
   reads). Residual: where the GI has nothing better by that speaker, the greeting stays.
 - **Sample an episode** — its best moments as a short taste, reusing the Moments picker.
-- **Hear another view** (scan #7) — a contrasting speaker on a topic the listener engages with.
+- **Hear another view** ✅ (2026-10-11; `app_another_view_rail`, `GET /discover/another-view`; eval
+  pinned in `test_app_another_view_rail.py`) (scan #7) — a speaker the listener has not heard on
+  one of their top topics. "Another", not "contrasting": `topic_consensus` keeps agreement pairs
+  only, so contrast cannot be claimed; agreeing speakers are skipped. Umbrella topics (in ≥ 90% of
+  episodes) skipped.
+- **Rails take turns properly** ✅ (`take_turns`) — a list whose next episode another list took
+  gives its following one, so overlapping rails still fill (the earlier loop skipped the turn).
 - **Mentioned in this episode** (scan #8) — people and topics, linked onward.
 - **Goal-shaped listening** (scan #6) — "15 minutes on X", "Learn X this week".
 
