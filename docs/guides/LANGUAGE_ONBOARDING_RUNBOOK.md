@@ -34,6 +34,21 @@ gate per language (es, pt-BR, fr, de, it are judged separately; one can pass whi
 stuck), and each gate is set against what the English pipeline achieves on the same measure, not
 against perfection.
 
+**A tier does not close until the per-language lists it uses are checked** for every onboarded
+language. A hand-written list cannot be shown optimal; it can be shown covered, sourced and
+measured:
+
+1. covered: each onboarded language has entries, or the list says it has none on purpose;
+2. sourced: each entry was seen on our real data or kept by a probe whose changed cases were all
+   read, never translated from the English row;
+3. measured: adding or removing entries is scored against the references like any switch.
+
+| tier | lists |
+| --- | --- |
+| ASR | `transcription/invented_lines.py` (`INVENTED_LINES`), `transcription/gap_recovery.py` (`_FILLERS`), `transcription/punctuation.py` (prompts), `providers/ml/diarization/ad_signatures.py` (stopwords); in the eval repo `SPOKEN_FORMS` and the bracketed-note rule |
+| naming | `speaker_detectors/naming_vocabulary.py` (`X_BY_LANGUAGE`), `speaker_detectors/hosts.py`, `speaker_detectors/constants.py` (step 2 below is the method) |
+| after prod | `gi/filters.py`, `search/query_language.py` (shape insights and search, not the transcript) |
+
 ## Where each decision is recorded
 
 | decision | file | field |
@@ -110,6 +125,11 @@ real names twice (D12, D22's first model).
   so a substitution span whose two sides match after contraction (`SPOKEN_FORMS`, per language,
   eval repo `fe06311`) leaves the adjusted figure. A new language adds its contractions there
   before gate B is read.
+- The publisher's bracketed notes are not speech and are dropped from the reference before
+  scoring (`reference_words`, eval repo `842606a`): "[MÚSICA: …]", "[ri]", "(Laughter)",
+  "(Speaking Arabic)", "(ph)" after a name spelled by ear, SWR's "(Atmo abblenden)", "[de]" words
+  an editor added, "[Gabriela Llanos]" an inline speaker change. Every reference set had some;
+  Radio Ambulante 07-14 lost 30 main-voice errors to them.
 - Measure each step's effect as `asr_bare` → `full` per episode (gap recovery, punctuation
   repair, stretched-word recovery). Whisper's sampling fallback makes two decodes differ slightly
   (ADR-161), so small deltas are noise.
@@ -121,6 +141,24 @@ real names twice (D12, D22's first model).
   `.asr.json`). The first version, which demanded the clip hear the stretched word itself,
   declined every real case: a stretched word is often a word Whisper invented ("¿no?") over speech
   it skipped. Scored against the references before shipping: adjusted errors -33, -3, -5, 0.
+- Silent gaps (`asr_silent_gap_recovery` in `.asr.json`). The diarizer misses a voice over a music
+  bed, so a gap with no speaker turn was never retried: SWR's intro ("Die Kriminellen. Von Beate
+  Kroll."), RFI's ("Le journal en français facile. Adrien Delgrange."), El Hilo's date line, Rádio
+  Novelo's outro, a Throughline narrator line, all decoded word for word when cut out alone. Every
+  transcript gap of 3 s+ not already retried is now re-transcribed, and its text kept only when it
+  holds 3+ words that are not fillers (the D16 rule; `transcription_recover_silent_gaps`). Measured
+  2026-10-11 on the 24 reference episodes by cutting every gap and decoding it with the pipeline's
+  clip transcriber, which on `prod_dgx_full` is the DGX Whisper server: main-voice adjusted errors
+  2861 -> 2761 (2780 keeping every gap); 8 episodes better (SWR 10-07 -23, Radio Ambulante 07-21
+  -26), 15 unchanged including 5 of 6 English, Rádio Novelo 09-24 +3. The 1-2 word decodes of
+  music gaps ("for", "Hmm.", "Episodio") were what made episodes worse without the floor. Of the
+  26 gaps kept where the reference has nothing, about 18 read as real speech the publisher did not
+  transcribe (foreign-language tape, songs, promos) and about 4 as invented ("That's it for this."
+  over 18.6 s of music, "Bye! Bye! Bye! Bye!"); not listened to. Checked on the full chain on the
+  DGX, main-voice adjusted: SWR 10-07 0.0454 -> 0.0402 (the estimate exactly), Throughline 10-08
+  0.0389 -> 0.0379 (estimated 0.0362; run before the fix below). The first SWR run exposed a bug:
+  a gap the diarized retry had partly covered (70.6-74.2 s of 74.0-81.2 s) was skipped whole, and
+  the intro in its uncovered part was lost; retried stretches are now subtracted from a gap.
 - To probe a span by hand, cut the episode audio at the transcript's times (preprocessing keeps
   the timeline, #1173) and compare the clip's words with the episode's words around the span,
   not with the stretched word: the episode text there is often what Whisper misheard.
@@ -208,7 +246,7 @@ each with a human reference and its tags.
 
 The large whole-episode figures are tape; on main voices every language sits near English's band.
 
-**Gate B, first result (2026-10-11): every show passes, three on thin margins.** English was
+**Gate B, first result (2026-10-11): every show passes; Senado by 0.0001.** English was
 measured on the two kinds of show the six non-English shows are: read news (NPR Up First) and
 narrative journalism with tape (NPR Throughline), 3 episodes each, with hand tags (eval dataset
 `asr_publisher_ref_en_v1`). Each non-English show got a third episode
@@ -219,23 +257,27 @@ that kind.
 
 | English, main-voice adjusted | episodes | median | range |
 | --- | --- | --- | --- |
-| read news (Up First) | 0.0225 / 0.0270 / 0.0277 | 0.0270 | 0.0052 |
-| narrative (Throughline) | 0.0244 / 0.0254 / 0.0391 | 0.0254 | 0.0147 |
+| read news (Up First) | 0.0225 / 0.0256 / 0.0281 | 0.0256 | 0.0056 |
+| narrative (Throughline) | 0.0224 / 0.0232 / 0.0389 | 0.0232 | 0.0165 |
 | interview (80,000 Hours, for reference; no non-English show is this kind) | 0.028-0.034 | | |
 
 | show | language, ratio | kind | episodes | median | bar | margin |
 | --- | --- | --- | --- | --- | --- | --- |
-| El Hilo | es, 1.0 | narrative | 0.060 / 0.016 / 0.038 | 0.0377 | 0.0401 | 0.0024 |
-| Radio Ambulante | es, 1.0 | narrative | 0.035 / 0.011 / 0.058 | 0.0345 | 0.0401 | 0.0056 |
-| Rádio Novelo | pt, 1.02 | narrative | 0.036 / 0.029 / 0.060 | 0.0356 | 0.0411 | 0.0055 |
-| SWR Wissen | de, 1.07 | narrative | 0.037 / 0.042 / 0.046 | 0.0422 | 0.0430 | 0.0008 |
-| RFI Journal en français facile | fr, 1.98 | news | 0.047 / 0.043 / 0.037 | 0.0427 | 0.0636 | 0.0209 |
-| Senado | pt, 1.02 | news | 0.053 / 0.023 / 0.032 | 0.0318 | 0.0330 | 0.0012 |
+| El Hilo | es, 1.0 | narrative | 0.060 / 0.016 / 0.038 | 0.0377 | 0.0397 | 0.0020 |
+| Radio Ambulante | es, 1.0 | narrative | 0.034 / 0.011 / 0.048 | 0.0339 | 0.0397 | 0.0058 |
+| Rádio Novelo | pt, 1.02 | narrative | 0.035 / 0.029 / 0.060 | 0.0351 | 0.0406 | 0.0055 |
+| SWR Wissen | de, 1.07 | narrative | 0.037 / 0.038 / 0.045 | 0.0378 | 0.0425 | 0.0047 |
+| RFI Journal en français facile | fr, 1.98 | news | 0.048 / 0.043 / 0.034 | 0.0427 | 0.0617 | 0.0190 |
+| Senado | pt, 1.02 | news | 0.053 / 0.023 / 0.032 | 0.0318 | 0.0319 | 0.0001 |
+
+Scored with the spoken-contraction rule and the bracketed notes dropped. Dropping the notes
+helped English narrative most (Throughline 09-24: 0.0254 -> 0.0224), so the bars fell and
+Senado's margin with them (0.0012 -> 0.0001).
 
 What this result does not show:
 
-- **The margins are inside the noise of 3 episodes.** SWR passes by 0.0008, Senado by 0.0012, El
-  Hilo by 0.0024. One more English or non-English episode can move a median by more than that.
+- **The margins are inside the noise of 3 episodes.** Senado passes by 0.0001, El Hilo by
+  0.0020. One more English or non-English episode can move a median by more than that.
   The bar is as wide as English's own spread over 3 episodes, nothing more.
 - **Rádio Novelo passed only after the spoken-contraction rule.** Before it Novelo's median was
   0.049 against 0.041. The rule was written after reading Novelo's errors (pra/para 43, tá/tava/tô
@@ -247,12 +289,20 @@ What this result does not show:
   rebase onto main). Re-decoding the same audio was reproducible (above), but the chain changed
   between them; they were not re-run on one version.
 - **Residue left on the third episodes.** Novelo 09-17 (0.060 after the rule) is name spellings
-  (Elder / Hélder 19, Adivaldo / Advaldo 7, Aurélio / Aurelio 7), "(ri)" laughter notes in the
-  transcript (12), and fillers the publisher edited out ("e", "né", "assim", "aí", "eu", about
-  60). Senado 10-07's 0.053 includes 10-word sign-offs ("Da Rádio Senado, …") that are in the
-  script and not in the audio (a 0.12 s gap where they would be); without them it is about 0.045.
-  Radio Ambulante 07-14 (0.058) has not been read.
-- **Gate A on the third episodes** has not been checked item by item as it was on the first set.
+  (Elder / Hélder 19, Adivaldo / Advaldo 7, Aurélio / Aurelio 7) and fillers the publisher edited
+  out ("e", "né", "assim", "aí", "eu", about 60); its 20 "[ri]" notes sit in interviewees' tape
+  turns, so dropping them moved the whole episode (0.097 -> 0.086), not the main voices. Senado
+  10-07's 0.053 includes 10-word sign-offs ("Da Rádio Senado, …") that are in the script and not
+  in the audio (a 0.12 s gap where two would be; the third, at 307 s, sits in a 5.2 s gap that
+  transcribed alone holds no words); without them it is about 0.045. Radio Ambulante 07-14
+  (0.048 after the notes) is about 25 name spellings (Iolany / Yolani, Azpiri / Aspiri, Annie /
+  Ani), about 12 accent-only differences (cómo / como 6, sólo / solo 2), a word the reference
+  spells letter by letter ("A-S-E-S-I-N-A-T-O", 9 errors), a line not in the audio ("Así lo
+  afirma un hoy", no gap at 1480.86 s), and plain mishearings ("disc jokey" -> "dijoque y",
+  "amoratado" -> "amor atado"). Senado 10-02's two-word deletion is the reading differing from
+  the script (order of "Câmara" and "Tribunal de Contas", and the technician's name). El Hilo
+  10-09 quotes an English ad inside Spanish ("they/them"); Whisper, decoding Spanish, renders
+  part of it in Spanish: a model limit.
 
 **Reading the residue (how gate A was closed on the first set).** Each item is read, not counted:
 
