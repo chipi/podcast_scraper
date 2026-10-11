@@ -23,7 +23,7 @@
   },
   "podcast_scraper.providers.ml.diarization.roster": {
    "CUE_FIRST_BODY": {
-    "str": "(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)"
+    "str": "(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)|(?:i'?m|we'?re)\\s+(?:(?:very|so|really)\\s+)?(?:delighted|happy|thrilled|pleased|excited|glad)\\s+to\\s+be\\s+(?:chatting|talking|speaking|sitting\\s+down)\\s+with(?:\\s*,\\s*in\\s+person\\s*,)?"
    },
    "CUE_FIRST_PAST_BODY": {
     "str": "(?:i|we)\\s+(?:spoke|talked|sat\\s+down)\\s+with"
@@ -143,7 +143,7 @@
    },
    "_CUE_FIRST_MATCHFORM": {
     "flags": 32,
-    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are))\\s+(?:the\\s+|our\\s+)?([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})"
+    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)|(?:i'?m|we'?re)\\s+(?:(?:very|so|really)\\s+)?(?:delighted|happy|thrilled|pleased|excited|glad)\\s+to\\s+be\\s+(?:chatting|talking|speaking|sitting\\s+down)\\s+with(?:\\s*,\\s*in\\s+person\\s*,)?)\\s+(?:the\\s+|our\\s+)?([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})"
    },
    "_CUE_FIRST_PAST_MATCHFORM": {
     "flags": 32,
@@ -183,7 +183,7 @@
    },
    "_GUEST_INTRODUCED_BY_HOST_RE": {
     "flags": 34,
-    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are))\\s+(?:the\\s+|our\\s+)?(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})"
+    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)|(?:i'?m|we'?re)\\s+(?:(?:very|so|really)\\s+)?(?:delighted|happy|thrilled|pleased|excited|glad)\\s+to\\s+be\\s+(?:chatting|talking|speaking|sitting\\s+down)\\s+with(?:\\s*,\\s*in\\s+person\\s*,)?)\\s+(?:the\\s+|our\\s+)?(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})"
    },
    "_GUEST_INTRODUCED_NAME_FIRST_RE": {
     "flags": 34,
@@ -445,7 +445,7 @@
   },
   "podcast_scraper.speaker_detectors.hosts": {
    "CUE_FIRST_BODY": {
-    "str": "(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)"
+    "str": "(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)|(?:i'?m|we'?re)\\s+(?:(?:very|so|really)\\s+)?(?:delighted|happy|thrilled|pleased|excited|glad)\\s+to\\s+be\\s+(?:chatting|talking|speaking|sitting\\s+down)\\s+with(?:\\s*,\\s*in\\s+person\\s*,)?"
    },
    "CUE_FIRST_PAST_BODY": {
     "str": "(?:i|we)\\s+(?:spoke|talked|sat\\s+down)\\s+with"
@@ -584,7 +584,7 @@
    },
    "_GUEST_INTRODUCED_BY_HOST": {
     "flags": 34,
-    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are))\\s+(?:the\\s+|our\\s+)?(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})"
+    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)|(?:i'?m|we'?re)\\s+(?:(?:very|so|really)\\s+)?(?:delighted|happy|thrilled|pleased|excited|glad)\\s+to\\s+be\\s+(?:chatting|talking|speaking|sitting\\s+down)\\s+with(?:\\s*,\\s*in\\s+person\\s*,)?)\\s+(?:the\\s+|our\\s+)?(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})"
    },
    "_GUEST_INTRODUCED_NAME_FIRST": {
     "flags": 34,
@@ -1174,6 +1174,18 @@
     "hosts._FIRST_NAME_PRESENTERS"
    ],
    "why": "#2304 F8, operator-asked naming fix: 'track(s) down' presenting verb; dash-set team list pattern"
+  },
+  {
+   "ref": "4a34d13db",
+   "date": "2026-10-11",
+   "entries": [
+    "hosts.CUE_FIRST_BODY",
+    "hosts._GUEST_INTRODUCED_BY_HOST",
+    "roster.CUE_FIRST_BODY",
+    "roster._CUE_FIRST_MATCHFORM",
+    "roster._GUEST_INTRODUCED_BY_HOST_RE"
+   ],
+   "why": "#2304 F2, operator-asked naming fix: 'I'm delighted/happy to be chatting with X' introduction cue"
   }
  ]
 }
