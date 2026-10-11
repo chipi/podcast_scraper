@@ -95,8 +95,10 @@ The Discover 2 preview was removed (UI only; its APIs stay).
    generic `RecommendationRail`; eval pinned in `test_app_captured_rail.py`) (scan #3, unique) — highlights, notes and saves seed episodes on
    other shows, by the same topic, person or storyline. Server-side, not the preview's per-highlight
    searches.
-3. **Continue the thread** (scan #4) — new episodes in the storylines the listener follows, in time
-   order.
+3. **Continue the thread** ✅ (2026-10-11; `app_thread_rail`, `GET /discover/thread`; eval pinned in
+   `test_app_thread_rail.py`) (scan #4) — new episodes in the storylines the listener follows:
+   about one of the storyline's topics, not heard, captured or saved, published after their last
+   listen in it (all of them before a first listen), newest first, storylines taking turns.
 
 ## Step 3 — more rails
 

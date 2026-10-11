@@ -412,7 +412,8 @@ piece to its design home:
   dashboards move to an Explore surface. This section describes the page as built today; rails are
   rebuilt against ADR-163 one by one.
 - **Discover today** (2026-10-11): the header carries the scope switch and an **"Explore ›"**
-  link. Then, episode-first: the quote cards, trending shows, and search. Trends and the
+  link. Then, episode-first: the quote cards, then (signed in, under Mine) more from what you
+  captured and continue the thread, then trending shows, and search. Trends and the
   Episodes · Shows catalog moved to Explore (below).
 - **`RecommendationRail`** — the shape every Discover rail shares (ADR-163). The rail supplies
   its id, title and loader; the card, its `RecommendationWhy`, hiding when empty, reloading on
@@ -421,6 +422,10 @@ piece to its design home:
     listener does not follow or captured from, each linked to one of their highlights, notes or
     saves by a topic, person or storyline. "Because you highlighted “…”" over a quote from the
     recommended episode.
+  - **"Continue the thread"** (Step 2.3; signed in, under Mine only): new episodes in the storylines
+    the listener follows. Each is about one of the storyline's topics, not yet heard, captured or
+    saved, and published after their last listen in that storyline. Newest first. "New in
+    <storyline>" over a quote about the topic.
 - **The quote cards** — Discover's first rail (ADR-163, Discover arc Step 2.1): "Worth hearing
   next".
   - **Content:** rising topics and the most engaged episodes (`GET /trending/episodes`) in the page

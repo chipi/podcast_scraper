@@ -177,7 +177,7 @@ def _storyline_topics(root: Path, topic_ids: Iterable[str]) -> dict[str, tuple[s
     return out
 
 
-def _topic_candidates(root: Path, topic_id: str) -> list[ReasonQuote]:
+def topic_quotes(root: Path, topic_id: str) -> list[ReasonQuote]:
     """Grounded quotes about ``topic_id``, one per episode, by speaker take (topic perspectives)."""
     from podcast_scraper.server.app_relational_view import build_topic_perspectives
 
@@ -259,16 +259,16 @@ def captured_rail(
         found: list[tuple[Capture, ReasonSubject, ReasonQuote]] = []
         for subj in links:
             quotes = (
-                _topic_candidates(root, subj.id)
+                topic_quotes(root, subj.id)
                 if subj.kind == "topic"
                 else _person_candidates(root, subj.id, subj.label)
             )
             found += [(cap, subj, q) for q in quotes if eligible(q.episode_slug)][:PER_LINK]
         for tid, (sid, slabel) in sorted(story.items()):
             subj = ReasonSubject("storyline", sid, slabel)
-            found += [
-                (cap, subj, q) for q in _topic_candidates(root, tid) if eligible(q.episode_slug)
-            ][:1]
+            found += [(cap, subj, q) for q in topic_quotes(root, tid) if eligible(q.episode_slug)][
+                :1
+            ]
         per_capture.append(found)
 
     cards: list[TrendingEpisodeCard] = []

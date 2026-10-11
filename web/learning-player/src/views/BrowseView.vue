@@ -5,7 +5,7 @@
  *
  * Episode-first (§2): the recommendation rails lead (`RecommendationRail` — each card says why it
  * is here and plays from the quote): the quote cards, then, under Mine, more from what you
- * captured; trending shows sit below them, then search. Trends and the Episodes ·
+ * captured and new in the storylines you follow; trending shows sit below them, then search. Trends and the Episodes ·
  * Shows catalog moved to Explore (operator 2026-10-11), reached from this header; old
  * `/browse?trends=…` / `?tab=…` / `#catalog` links redirect there (router).
  *
@@ -16,7 +16,11 @@ import { useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
 import SearchSection from '../components/SearchSection.vue'
 import RecommendationRail from '../components/RecommendationRail.vue'
-import { getCapturedRecommendations, getTrendingEpisodes } from '../services/api'
+import {
+  getCapturedRecommendations,
+  getThreadRecommendations,
+  getTrendingEpisodes,
+} from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import TrendingScopeButton from '../components/TrendingScopeButton.vue'
@@ -53,7 +57,8 @@ function onShowsSeeAll(): void {
     </div>
 
     <!-- Episode-first (ADR-163 §2): the quote cards, then — under Mine, for a signed-in listener —
-         more from what they captured (Step 2.2), then trending shows. -->
+         more from what they captured (Step 2.2) and new in the storylines they follow (Step 2.3),
+         then trending shows. -->
     <RecommendationRail
       rail="quotes"
       cards-testid="quote-cards"
@@ -72,6 +77,16 @@ function onShowsSeeAll(): void {
       open-testid="captured-card-open"
       :title="t('discover.captured.title')"
       :load="() => getCapturedRecommendations(6)"
+      scope="mine"
+    />
+    <RecommendationRail
+      v-if="auth.isAuthenticated && trendingScope === 'mine'"
+      rail="thread"
+      cards-testid="thread-cards"
+      card-testid="thread-card"
+      open-testid="thread-card-open"
+      :title="t('discover.thread.title')"
+      :load="() => getThreadRecommendations(6)"
       scope="mine"
     />
 

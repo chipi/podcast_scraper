@@ -47,7 +47,12 @@ from podcast_scraper.server.app_ranking_config import (
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
 from podcast_scraper.server.app_serendipity import listener_habits
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
-from podcast_scraper.server.app_trending_episodes import mix_outside_habits, trending_episodes
+from podcast_scraper.server.app_thread_rail import thread_rail
+from podcast_scraper.server.app_trending_episodes import (
+    mix_outside_habits,
+    trending_episodes,
+    TrendingEpisodeCard,
+)
 from podcast_scraper.server.app_user_corpus import (
     derive_interests,
     personal_entity_ids,
@@ -244,19 +249,52 @@ def app_discover_captured(
     """More from what you captured (ADR-163; Discover arc Step 2.2): episodes on shows the listener
     does not follow, each linked to one of their highlights, notes or saves by a topic, person or
     storyline, with the quote that grounds it. Every 5th card is the labelled outside-your-usual
-    share. Empty when signed out or nothing has been captured yet."""
+    share. Signed in only (401 otherwise); empty until something has been captured."""
     root = corpus_root_or_503(request)
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     if user is None or raw_dir is None:
         return AppTrendingEpisodesResponse(scope="mine", items=[])
     data_dir = Path(raw_dir)
     cards = captured_rail(root, data_dir, user.user_id, limit=limit)
+    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
+
+
+@router.get("/discover/thread", response_model=AppTrendingEpisodesResponse)
+def app_discover_thread(
+    request: Request,
+    limit: int = Query(default=6, ge=1, le=20),
+    user: User = Depends(get_current_user),
+) -> AppTrendingEpisodesResponse:
+    """Continue the thread (ADR-163; Discover arc Step 2.3): new episodes in the storylines the
+    listener follows — about one of the storyline's topics, not heard, captured or saved, published
+    since their last listen in it — newest first, each with the quote that grounds it. Every 5th
+    card is the labelled outside-your-usual share. Signed in only (401 otherwise); empty until a
+    storyline is followed."""
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    if user is None or raw_dir is None:
+        return AppTrendingEpisodesResponse(scope="mine", items=[])
+    data_dir = Path(raw_dir)
+    cards = thread_rail(root, data_dir, user.user_id, limit=limit)
+    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
+
+
+def _personal_rail(
+    request: Request,
+    root: Path,
+    data_dir: Path,
+    user_id: str,
+    cards: list[TrendingEpisodeCard],
+    limit: int,
+) -> AppTrendingEpisodesResponse:
+    """A signed-in listener's rail: their cards mixed with Everyone's outside-habits share (ADR-163
+    §7), projected onto episode summaries. Nothing of theirs → nothing at all (no padding)."""
     if cards:
         everyone = trending_episodes(
             root, data_dir, scope="corpus", limit=limit * 2, config=_momentum_config(request)
         )
         cards = mix_outside_habits(
-            root, cards, everyone, listener_habits(root, data_dir, user.user_id), limit=limit
+            root, cards, everyone, listener_habits(root, data_dir, user_id), limit=limit
         )
     items: list[AppTrendingEpisodeCard] = []
     for card in cards:

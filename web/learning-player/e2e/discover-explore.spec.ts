@@ -91,3 +91,20 @@ test('a highlight seeds "More from what you captured": elsewhere, saying which h
   await expect(first.getByTestId('why-quote')).toContainText('“')
   await expect(first.getByTestId('captured-card-open')).not.toHaveAttribute('href', /\/episode\/p07-/)
 })
+
+test('following a storyline brings "Continue the thread": its episodes, saying which storyline', async ({
+  page,
+}, testInfo) => {
+  // Discover arc Step 2.3. The follow is made through the API the storyline page's Follow uses.
+  await signInIsolated(page, 'discover-thread', testInfo)
+  const followed = await page.request.post(`/api/app/interests/${encodeURIComponent('thc:managing-risk')}`)
+  expect(followed.ok()).toBe(true)
+
+  await page.goto('/browse')
+  const rail = page.getByTestId('thread-cards')
+  await expect(rail).toBeVisible()
+  const first = rail.getByTestId('thread-card').first()
+  await expect(first.getByTestId('why-reason')).toHaveText('New in Managing risk across domains')
+  await expect(first.getByTestId('why-quote')).toContainText('“')
+  await expect(first.getByTestId('thread-card-open')).toHaveAttribute('href', /\/episode\/p\d\d-/)
+})

@@ -881,6 +881,12 @@ export async function getCapturedRecommendations(limit = 6): Promise<TrendingEpi
   return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/captured", { limit })).items
 }
 
+/** Continue the thread (ADR-163, Discover arc Step 2.3): new episodes in the storylines the
+ *  listener follows, newest first. Signed-in only; empty while following no storyline. */
+export async function getThreadRecommendations(limit = 6): Promise<TrendingEpisodeCard[]> {
+  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/thread", { limit })).items
+}
+
 /** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
  *  (ADR-162). The server's one definition, so Browse never re-derives it. */
 export async function getWorldEpisodeSlugs(): Promise<string[]> {

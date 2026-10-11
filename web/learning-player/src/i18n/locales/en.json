@@ -1250,6 +1250,9 @@
     },
     "captured": {
       "title": "More from what you captured"
+    },
+    "thread": {
+      "title": "Continue the thread"
     }
   },
   "explore": {
