@@ -2,8 +2,8 @@
 /**
  * "Learn this in a week" on a topic card and a theme or storyline page (operator 2026-10-11: another
  * door into the seven-day path than Discover). Beside "▶ 15 min on this" on the page's "listen"
- * row, and styled UNLIKE it (operator 2026-10-11: two separate options): an outlined pill with a
- * calendar mark, because it starts a week rather than playing now.
+ * row: the Follow pill's size, in its own colour (`learn`), unlike the reel door and unlike Follow
+ * (operator 2026-10-11: two separate options). The calendar mark says it starts a week.
  *
  * - Shown only when the subject has a path (`GET /discover/learn/subjects/{id}`).
  * - Already learning this: "Day 3 of 7 ›", to the whole week.
@@ -64,13 +64,13 @@ async function start(): Promise<void> {
     <RouterLink
       v-if="learningThis && current"
       :to="{ name: 'learn' }"
-      class="lp-tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+      class="lp-tap inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold no-underline transition bg-learn/15 text-learn ring-1 ring-inset ring-learn/40 hover:bg-learn/25"
       data-testid="learn-door"
     ><CalendarMark />{{ t('learn.doorDay', { n: current.day, total: current.steps.length }) }} ›</RouterLink>
     <button
       v-else-if="!confirming"
       type="button"
-      class="lp-tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+      class="lp-tap inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold no-underline transition bg-learn/15 text-learn ring-1 ring-inset ring-learn/40 hover:bg-learn/25"
       :disabled="busy"
       data-testid="learn-door"
       @click="start"

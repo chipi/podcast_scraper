@@ -468,7 +468,8 @@ piece to its design home:
   Brief, Home or Search: `EntityCard` for topics and people, `ThemeCard`, `StorylineCard`): the kind
   and ✕ on one row, then title, actions, listen row, with one 16px top inset and no rule under the
   header on all four.
-- **`ReelDoor`** — "▶ 15 min on this", a filled accent pill: it plays now. It appears only once
+- **`ReelDoor`** — "▶ 15 min on this", a tinted pill the size of the Follow pill, in `listen`
+  (emerald, the categorical `cat-3`): it plays now. Never the accent — Follow owns that. It appears only once
   that subject's reel has at least two clips.
 - **`LearnThisWeek`** — Discover's **Learn X this week** (operator 2026-10-11), signed in, under
   the "15 minutes on" row: a seven-day path through a theme or storyline, one step a day.
@@ -481,8 +482,9 @@ piece to its design home:
   - **Rules:** the steps are the subject's strongest episodes by their best clip, oldest first, and
     frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late,
     never early. One path at a time; starting another replaces it. No reminders.
-- **`LearnDoor`** — "Learn this in 7 days", an outlined pill with a small calendar
-  (`CalendarMark`): it starts a week rather than playing now. Signed in, only when the subject has
+- **`LearnDoor`** — "Learn this in 7 days", a tinted pill the size of the Follow pill, in `learn`
+  (pink, the categorical `cat-5`) with a small calendar (`CalendarMark`): it starts a week rather
+  than playing now. Two colours so the listen row reads as two options (operator 2026-10-11). Signed in, only when the subject has
   a path. Starting opens the whole week. Already learning it: "Learning · day 3 of 7 ›". Learning something
   else: "This replaces “Reliability”." with Start / Not now, in place, before anything changes.
 - **`LearnStep`** — one day: "DAY 2" (✓ Done once done), the episode (a link) and its show (two

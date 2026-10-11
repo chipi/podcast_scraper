@@ -106,6 +106,8 @@ export default {
         danger: alphaToken('danger'),
         // Knowledge-layer domain tokens (provenance cues — separate from UI intents).
         grounded: alphaToken('grounded'),
+        listen: alphaToken('listen'),
+        learn: alphaToken('learn'),
         topic: alphaToken('topic'),
         person: alphaToken('person'),
         theme: alphaToken('theme'),
