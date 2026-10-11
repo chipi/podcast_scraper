@@ -17,8 +17,9 @@
  *   `ec`          — inline pill for topic/person/org cards (`EntityCardBody`). Same class-shape as
  *                   `inline` but testid `ec-follow`, `ec.*` i18n keys, and a sr-only that appends
  *                   the entity's label so "Follow" is never announced four-identical-times in a row.
- *   `storyline`   — inline pill for StorylineView. Testid `storyline-follow`,
- *                   `ec.followStoryline`/`ec.followingStoryline` keys, sr-only includes `label`.
+ *   `storyline`   — inline pill for StorylineView. Testid `storyline-follow`, the SAME words as
+ *                   every subject page ("Follow" / "Following", operator 2026-10-11 — the page's kind
+ *                   label already says what it is), sr-only includes `label`.
  *   `discovery`   — glyph button for DiscoveryList rows. Testid `discovery-follow`, `ec.*` keys,
  *                   sr-only includes `label`.
  *   `trend-spark` — glyph button for TrendingSparkChips rows. Testid `trend-spark-follow`, same
@@ -197,14 +198,13 @@ function srLabel(followKey: string, followingKey: string): string {
     @click.prevent.stop="$emit('toggle')"
   >
     <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-    {{ following ? t("ec.followingStoryline") : t("ec.followStoryline") }}
+    {{ following ? t("ec.following") : t("ec.follow") }}
     <span v-if="label" class="sr-only"> — {{ label }}</span>
   </button>
 
   <!-- ── theme variant ──────────────────────────────────────────────────────── -->
-  <!-- The storyline pill with the theme's words. Reusing `storyline` outright put "Follow
-       storyline" on the theme page, which says the wrong thing about the one distinction the page
-       exists to make. Its own testid so an e2e can tell the two apart. -->
+  <!-- The theme page's pill: the same words as every subject page ("Follow" / "Following",
+       operator 2026-10-11). Its own testid so an e2e can tell the pages apart. -->
   <button
     v-else-if="variant === 'theme'"
     type="button"
@@ -220,7 +220,7 @@ function srLabel(followKey: string, followingKey: string): string {
     @click.prevent.stop="$emit('toggle')"
   >
     <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-    {{ following ? t("ec.followingTheme") : t("ec.followTheme") }}
+    {{ following ? t("ec.following") : t("ec.follow") }}
     <span v-if="label" class="sr-only"> — {{ label }}</span>
   </button>
 

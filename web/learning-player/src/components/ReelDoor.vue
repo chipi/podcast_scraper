@@ -2,8 +2,9 @@
 /**
  * "▶ 15 min on this" — the way into a topic's, theme's or storyline's reel from its own card or
  * page (operator 2026-10-11): fifteen minutes of clips about it across episodes (`TopicReelView`).
- * It sits on the action row and looks like the Moments door (small amber monospace text, padded to
- * 44px), because it is the same kind of thing: a reel to play.
+ * It sits on the subject page's own "listen" row, beside "Learn this in 7 days", and the two look
+ * different on purpose (operator 2026-10-11): this one PLAYS now — a filled accent pill with ▶ —
+ * the other starts a week-long path — an outlined pill with a calendar mark.
  *
  * It appears only once the reel is known to have at least two clips, so it never opens an empty
  * reel; a subject nobody speaks to has no door.
@@ -33,7 +34,7 @@ watch(() => props.subjectId, check, { immediate: true })
   <RouterLink
     v-if="ready"
     :to="{ name: 'topic-reel', params: { id: subjectId }, query: { minutes: String(MINUTES) } }"
-    class="lp-tap -my-3 inline-flex min-h-[44px] shrink-0 items-center px-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-accent no-underline"
+    class="lp-tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-bold text-accent-foreground no-underline transition hover:opacity-90"
     :aria-label="t('reel.doorLabel', { minutes: MINUTES, topic: label })"
     data-testid="reel-door"
   >

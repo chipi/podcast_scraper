@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
  * "Learn this in a week" on a topic card and a theme or storyline page (operator 2026-10-11: another
- * door into the seven-day path than Discover). Beside "▶ 15 min on this" and styled like it.
+ * door into the seven-day path than Discover). Beside "▶ 15 min on this" on the page's "listen"
+ * row, and styled UNLIKE it (operator 2026-10-11: two separate options): an outlined pill with a
+ * calendar mark, because it starts a week rather than playing now.
  *
  * - Shown only when the subject has a path (`GET /discover/learn/subjects/{id}`).
  * - Already learning this: "Day 3 of 7 ›", to the whole week.
@@ -12,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import { getLearn, getLearnSubject, startLearn, type LearningPath, type LearnSubject } from '../services/api'
 import { track } from '../services/analytics'
+import CalendarMark from './CalendarMark.vue'
 
 const props = defineProps<{ subjectId: string }>()
 const { t } = useI18n()
@@ -61,17 +64,17 @@ async function start(): Promise<void> {
     <RouterLink
       v-if="learningThis && current"
       :to="{ name: 'learn' }"
-      class="lp-tap -my-3 inline-flex min-h-[44px] shrink-0 items-center px-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-accent no-underline"
+      class="lp-tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       data-testid="learn-door"
-    >{{ t('learn.doorDay', { n: current.day, total: current.steps.length }) }} ›</RouterLink>
+    ><CalendarMark />{{ t('learn.doorDay', { n: current.day, total: current.steps.length }) }} ›</RouterLink>
     <button
       v-else-if="!confirming"
       type="button"
-      class="lp-tap -my-3 inline-flex min-h-[44px] shrink-0 items-center px-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-accent"
+      class="lp-tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
       :disabled="busy"
       data-testid="learn-door"
       @click="start"
-    >{{ t('learn.door', { days: subject.steps }) }}</button>
+    ><CalendarMark />{{ t('learn.door', { days: subject.steps }) }}</button>
     <span v-else class="inline-flex flex-wrap items-center gap-x-3 text-xs" role="group" data-testid="learn-door-confirm">
       <span class="text-muted">{{ t('learn.doorReplaces', { subject: current?.subject_label ?? '' }) }}</span>
       <button type="button" class="lp-tap min-h-[44px] font-bold text-accent" :disabled="busy" data-testid="learn-door-yes" @click="start">{{ t('learn.doorStart') }}</button>

@@ -186,7 +186,7 @@ function goBack(): void {
     <button
       v-if="!embedded"
       type="button"
-      class="lp-nav"
+      class="lp-nav flex w-fit"
       :aria-label="t('nav.back')"
       @click="goBack"
     >
@@ -218,14 +218,10 @@ function goBack(): void {
       >
         {{ label || "…" }}
       </h1>
-      <!-- Actions on their OWN aligned row, AFTER the title (operator). -->
+      <!-- Actions on their OWN row, AFTER the title, in the topic and theme pages' order: Follow
+           first, then save, board, share (operator 2026-10-11: the three tops are identical). Save
+           (heart) is a per-kind favorite, distinct from Follow, which subscribes to the cluster. -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
-             other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
-        <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
-        <!-- Share (card / link / text) — #2036. -->
-        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
-        <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"
           variant="storyline"
@@ -233,10 +229,15 @@ function goBack(): void {
           :label="label || undefined"
           @toggle="toggleFollow"
         />
-        <!-- Fifteen minutes of clips on any of its topics (operator 2026-10-11). -->
-        <ReelDoor v-if="storylineId" :subject-id="storylineId" :label="label || storylineId" />
-        <!-- And seven days of it, one episode a day (operator 2026-10-11). -->
-        <LearnDoor v-if="auth.isAuthenticated && storylineId" :subject-id="storylineId" />
+        <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
+        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
+        <!-- Share (card / link / text) — #2036. -->
+        <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
+      </div>
+      <!-- The listen row, always its own row: fifteen minutes of clips now, or seven days of it. -->
+      <div v-if="storylineId" class="mt-3 flex flex-wrap items-center gap-2 empty:hidden" data-testid="subject-listen-row">
+        <ReelDoor :subject-id="storylineId" :label="label || storylineId" />
+        <LearnDoor v-if="auth.isAuthenticated" :subject-id="storylineId" />
       </div>
     </div>
 

@@ -66,15 +66,19 @@ describe("PersonView (#1261-6)", () => {
     expect(w.text()).toContain("Jane Doe")
   })
 
-  it("the control at the ROOT of the page DISMISSES — an ✕, not a back arrow", async () => {
-    // The page is the destination; nothing contains it, so the dismiss control is a Close (✕), not
-    // a Back (‹). The control is now glyph-only in the header actions row — assert via its label.
+  it("the page's top is the theme and storyline pages' top: ‹ Back on its own row, which leaves", async () => {
+    // Operator 2026-10-11: the three subject pages' tops are identical. The standalone theme and
+    // storyline pages lead with "‹ Back" on its own row; this page did with an ✕ beside the kind.
     const { w } = await mountPerson()
-    const dismiss = w.find('[data-testid="ec-dismiss"]')
-    expect(dismiss.exists()).toBe(true)
-    expect(dismiss.attributes("aria-label")).toBe("Close")
+    const back = w.find('[data-testid="ec-dismiss"]')
+    expect(back.exists()).toBe(true)
+    expect(back.attributes("aria-label")).toBe("Back")
+    expect(back.text()).toBe("Back")
+    expect(w.findAll('[data-testid="ec-dismiss"]')).toHaveLength(1) // no ✕ beside the kind as well
+    // Open-in-page link is overlay-only and would loop back to the same page.
     expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })
+
 
   it("renders the person role badge for a signed-in view", async () => {
     const { w } = await mountPerson()

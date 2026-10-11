@@ -86,17 +86,19 @@ describe("TopicView (#1261-6)", () => {
   })
 
   // #1261-final: EntityCardBody surfaces inside the standalone page
-  it("the control at the ROOT of the page DISMISSES — an ✕, not a back arrow", async () => {
-    // It used to render "‹ Back" here, because the ✕ was gated on the overlay variant. On the
-    // full-page route that was a back-arrow whose only job was to close the page. Back means "up
-    // one level, still inside this card" — see the drill-down test below, which still gets it.
+  it("the page's top is the theme and storyline pages' top: ‹ Back on its own row, which leaves", async () => {
+    // Operator 2026-10-11: the three subject pages' tops are identical. The standalone theme and
+    // storyline pages lead with "‹ Back" on its own row; this page did with an ✕ beside the kind.
     const { w } = await mountTopic()
-    const dismiss = w.find('[data-testid="ec-dismiss"]')
-    expect(dismiss.exists()).toBe(true)
-    expect(dismiss.attributes("aria-label")).toBe("Close")
+    const back = w.find('[data-testid="ec-dismiss"]')
+    expect(back.exists()).toBe(true)
+    expect(back.attributes("aria-label")).toBe("Back")
+    expect(back.text()).toBe("Back")
+    expect(w.findAll('[data-testid="ec-dismiss"]')).toHaveLength(1) // no ✕ beside the kind as well
     // Open-in-page link is overlay-only and would loop back to the same page.
     expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })
+
 
   it("renders the sibling-topics chip section from the topic card payload", async () => {
     const { w } = await mountTopic()

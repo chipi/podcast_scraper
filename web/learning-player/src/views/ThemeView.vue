@@ -182,7 +182,7 @@ function goBack(): void {
     <button
       v-if="!embedded"
       type="button"
-      class="lp-nav"
+      class="lp-nav flex w-fit"
       :aria-label="t('nav.back')"
       @click="goBack"
     >
@@ -216,12 +216,9 @@ function goBack(): void {
       <!-- The same action set as the topic and storyline pages: Save, Share, Follow. These were
            absent while `FavoriteKind` / `NoteTarget` did not admit "theme" — the buttons would have
            offered an action the API rejects. Both contracts now carry it end to end. -->
+      <!-- Follow first, then save, board, share — the topic and storyline pages' order (operator
+           2026-10-11: the three tops are identical). -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
-        <AddToCollectionButton :item="{ kind: 'theme', ref: id }" />
-        <!-- Shares as a THEME — its own server card and link (operator 2026-10-05); it used to share
-             as a topic. Analytics has no theme bucket, so `target-kind` stays topic. -->
-        <ShareMenu kind="theme" :id="id" :title="label || id" target-kind="topic" />
         <FollowButton
           v-if="auth.isAuthenticated"
           variant="theme"
@@ -229,9 +226,15 @@ function goBack(): void {
           :label="label || undefined"
           @toggle="toggleFollow"
         />
-        <!-- Fifteen minutes of clips on any of its topics (operator 2026-10-11). -->
+        <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
+        <AddToCollectionButton :item="{ kind: 'theme', ref: id }" />
+        <!-- Shares as a THEME — its own server card and link (operator 2026-10-05); it used to share
+             as a topic. Analytics has no theme bucket, so `target-kind` stays topic. -->
+        <ShareMenu kind="theme" :id="id" :title="label || id" target-kind="topic" />
+      </div>
+      <!-- The listen row, always its own row: fifteen minutes of clips now, or seven days of it. -->
+      <div class="mt-3 flex flex-wrap items-center gap-2 empty:hidden" data-testid="subject-listen-row">
         <ReelDoor :subject-id="id" :label="label || id" />
-        <!-- And seven days of it, one episode a day (operator 2026-10-11). -->
         <LearnDoor v-if="auth.isAuthenticated" :subject-id="id" />
       </div>
     </div>

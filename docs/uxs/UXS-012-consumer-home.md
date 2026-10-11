@@ -460,9 +460,13 @@ piece to its design home:
   rising ones — each offered only when its reel has at least two clips, and two subjects whose reels
   are the same clips offered once. Each chip wears its kind's colours (`kindPill`: topic, theme,
   storyline), as on episode notes. Hidden when there are none.
-- **`ReelDoor`** — "▶ 15 MIN ON THIS" on the action row of a topic card, a theme page and a
-  storyline page (operator 2026-10-11), styled like the Moments door (amber monospace, 44px tap).
-  It appears only once that subject's reel has at least two clips.
+- **The subject pages' top** (topic, theme, storyline; operator 2026-10-11) is identical on all
+  three: "‹ Back" on its own row (standalone pages), the kind in its colour (TOPIC / THEME /
+  STORYLINE), the title, the actions row — **Follow** ("Follow" / "Following", the same words on
+  every page) first, then save, board, share — and then the **listen row**, always its own row:
+  `ReelDoor` and `LearnDoor`, styled as two different options.
+- **`ReelDoor`** — "▶ 15 min on this", a filled accent pill: it plays now. It appears only once
+  that subject's reel has at least two clips.
 - **`LearnThisWeek`** — Discover's **Learn X this week** (operator 2026-10-11), signed in, under
   the "15 minutes on" row: a seven-day path through a theme or storyline, one step a day.
   - **Without a path:** "Learn something this week", a line saying what it is, and up to three
@@ -474,9 +478,9 @@ piece to its design home:
   - **Rules:** the steps are the subject's strongest episodes by their best clip, oldest first, and
     frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late,
     never early. One path at a time; starting another replaces it. No reminders.
-- **`LearnDoor`** — "LEARN THIS IN 7 DAYS" beside "▶ 15 MIN ON THIS" on the topic card and the
-  theme and storyline pages (operator 2026-10-11), signed in, only when the subject has a path.
-  Starting opens the whole week. Already learning it: "LEARNING · DAY 3 OF 7 ›". Learning something
+- **`LearnDoor`** — "Learn this in 7 days", an outlined pill with a small calendar
+  (`CalendarMark`): it starts a week rather than playing now. Signed in, only when the subject has
+  a path. Starting opens the whole week. Already learning it: "Learning · day 3 of 7 ›". Learning something
   else: "This replaces “Reliability”." with Start / Not now, in place, before anything changes.
 - **`LearnStep`** — one day: "DAY 2" (✓ Done once done), the episode (a link) and its show (two
   lines at most), the clip in the speaker's words with their name, "▶ Play from 1:24" (the

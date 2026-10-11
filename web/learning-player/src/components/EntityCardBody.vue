@@ -229,10 +229,27 @@ const isTopic = computed(() => current.value.kind === "topic")
     <!-- Header (UXS-014, unified across topic / person / storyline): the actions ride the top row
          WITH the kicker, so the TITLE owns its own full-width row and can run to two lines instead
          of being crushed to "agent in…" beside the icons. Same structure in StorylineView. -->
-    <header class="border-b border-border py-3" :class="props.flush ? '' : 'px-4'">
+    <header :class="props.flush ? 'pb-3' : 'border-b border-border px-4 py-3'">
+      <!-- As a PAGE (the /topic and /person routes) the top is the theme and storyline pages' top,
+           exactly (operator 2026-10-11): "‹ Back" on its own row, then the kind in its colour, the
+           title, Follow first on the actions row, and the listen row under it. -->
+      <button
+        v-if="props.flush"
+        type="button"
+        class="lp-nav mb-3 flex w-fit"
+        :aria-label="t('nav.back')"
+        data-testid="ec-dismiss"
+        @click="onBack"
+      >
+        <BackIcon />
+        <span>{{ t("nav.back") }}</span>
+      </button>
       <div class="flex items-start justify-between gap-3">
         <span class="flex min-w-0 flex-wrap items-center gap-2">
-          <span class="lp-kicker">{{
+          <span
+            class="lp-kicker"
+            :class="current.kind === 'topic' ? 'text-topic' : current.kind === 'person' ? 'text-person' : ''"
+          >{{
             current.kind === "person"
               ? t("ec.person")
               : current.kind === "organization"
@@ -253,6 +270,7 @@ const isTopic = computed(() => current.value.kind === "topic")
         <!-- Only the close/back control rides the kicker row; the primary actions get their OWN
              row AFTER the title (operator: the kicker+actions row was too cramped and misaligned). -->
         <button
+          v-if="!props.flush"
           type="button"
           class="lp-nav shrink-0"
           :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
@@ -267,7 +285,10 @@ const isTopic = computed(() => current.value.kind === "topic")
       </div>
 
       <!-- TITLE on its own full-width row — up to two lines, never sliced against the actions. -->
-      <h2 class="mt-2 font-display text-xl font-extrabold leading-snug line-clamp-2">
+      <h2
+        class="mt-2 font-display font-extrabold leading-snug line-clamp-2"
+        :class="props.flush ? 'text-2xl tracking-tight' : 'text-xl'"
+      >
         {{ label || "…" }}
       </h2>
       <!-- One-line "who is this" descriptor under the name (person_web) — glanceable identity
@@ -305,10 +326,12 @@ const isTopic = computed(() => current.value.kind === "topic")
           :context="person?.web?.description ?? org?.web?.description ?? null"
           :target-kind="current.kind"
         />
-        <!-- Fifteen minutes of clips about this topic across episodes (operator 2026-10-11). -->
-        <ReelDoor v-if="isTopic" :subject-id="current.id" :label="label" />
-        <!-- And seven days of it, one episode a day (operator 2026-10-11). -->
-        <LearnDoor v-if="isTopic && auth.isAuthenticated" :subject-id="current.id" />
+      </div>
+      <!-- The listen row, ALWAYS its own row (operator 2026-10-11): fifteen minutes of clips now, or
+           seven days of it, one episode a day. Same row on the theme and storyline pages. -->
+      <div v-if="label && isTopic" class="mt-3 flex flex-wrap items-center gap-2 empty:hidden" data-testid="subject-listen-row">
+        <ReelDoor :subject-id="current.id" :label="label" />
+        <LearnDoor v-if="auth.isAuthenticated" :subject-id="current.id" />
       </div>
 
       <!-- REMOVED (operator 2026-09-16): the "Open in page ›" escape hatch (#1261-9).
