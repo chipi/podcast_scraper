@@ -219,6 +219,15 @@ def _feed_licence(doc: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _episode_licence(doc: dict[str, Any]) -> Optional[str]:
+    """The episode's OWN licence record (#2325) as JSON -- its ``<podcast:license>``,
+    ``<creativeCommons:license>`` and show-note notices -- or None (not checked)."""
+    episode = doc.get("episode")
+    if isinstance(episode, dict) and isinstance(episode.get("licence"), dict):
+        return json.dumps(episode["licence"], ensure_ascii=False, sort_keys=True)
+    return None
+
+
 def _optional_image_url(raw: Any) -> Optional[str]:
     if isinstance(raw, str) and raw.strip():
         return raw.strip()
@@ -360,6 +369,8 @@ class CatalogEpisodeRow:
     feed_last_updated: Optional[str] = None
     #: The feed's licence record (#2325) as JSON, or None (not checked).
     feed_licence_json: Optional[str] = None
+    #: The episode's own licence record (#2325) as JSON, or None (not checked).
+    episode_licence_json: Optional[str] = None
 
     def sort_key(self) -> tuple[int, int, str]:
         """Newest-first: dated episodes before undated; then by ordinal desc; then path."""
@@ -477,6 +488,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
                 feed_licence_json=_feed_licence(doc),
+                episode_licence_json=_episode_licence(doc),
             )
         )
     rows.sort(key=lambda r: r.sort_key())
@@ -585,6 +597,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
                 feed_licence_json=_feed_licence(doc),
+                episode_licence_json=_episode_licence(doc),
             )
         )
 
@@ -699,6 +712,7 @@ def catalog_row_for_metadata_path(
         episode_language=_episode_language(doc),
         feed_last_updated=feed_updated,
         feed_licence_json=_feed_licence(doc),
+        episode_licence_json=_episode_licence(doc),
     )
 
 

@@ -57,14 +57,24 @@ def _record(raw: str | None, read: str) -> dict:
     }
 
 
-def _episode(root: Path, stem: str, feed_id: str, published: str, licence: dict | None) -> None:
+def _episode(
+    root: Path,
+    stem: str,
+    feed_id: str,
+    published: str,
+    licence: dict | None,
+    own: dict | None = None,
+) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     feed = {"feed_id": feed_id, "title": feed_id.title(), "url": f"https://{feed_id}.example/f"}
     if licence is not None:
         feed["licence"] = licence
+    episode = {"episode_id": stem, "title": stem, "published_date": published}
+    if own is not None:
+        episode["licence"] = own
     doc = {
         "feed": feed,
-        "episode": {"episode_id": stem, "title": stem, "published_date": published},
+        "episode": episode,
         "summary": {"title": "s", "bullets": ["a"]},
         "content": {},
     }
@@ -141,3 +151,61 @@ def test_an_episode_carries_the_line_its_feed_had_when_it_was_ingested(tmp_path:
     assert newest["licence_summary"].startswith("© 2020-2021 THE NEW YORK TIMES COMPANY")
     unchecked = client.get("/api/app/podcasts/old/episodes").json()["items"][0]["slug"]
     assert client.get(f"/api/app/episodes/{unchecked}").json()["licence_summary"] is None
+
+
+CC_BY = {
+    "status": "declared",
+    "declarations": [
+        {
+            "level": "episode",
+            "mechanism": "podcast_license",
+            "raw": "cc-by-4.0",
+            "url": None,
+            "asset_scope": "audio_video",
+            "known": {
+                "id": "CC-BY-4.0",
+                "name": "CC BY 4.0",
+                "url": "https://creativecommons.org/licenses/by/4.0/",
+                "commercial_use": True,
+                "adaptations": True,
+                "attribution": True,
+                "share_alike": False,
+            },
+            "notes": [],
+        }
+    ],
+    "conflicts": [],
+    "documents_for_review": [],
+    "source_feed_url": "https://feeds.example/x",
+    "retrieved_at": "2024-05-02T00:00:00+00:00",
+}
+
+
+def test_an_episode_licence_tag_is_the_episodes_line_and_both_are_on_its_page(
+    tmp_path: Path,
+) -> None:
+    """Podcasting 2.0 lets an item carry its own <podcast:license>; the listener sees that one
+    on the episode, and the page shows it beside the show's declaration."""
+    _corpus(tmp_path)
+    show = _record(NYT, "2024-05-02T00:00:00+00:00")
+    _episode(tmp_path, "d4", "daily", "2024-05-01T00:00:00", show, own=CC_BY)
+    nothing_own = dict(_record(None, "2024-05-02T00:00:00+00:00"))
+    _episode(tmp_path, "d5", "daily", "2024-06-01T00:00:00", show, own=nothing_own)
+    client = _client(tmp_path)
+    slugs = {
+        e["title"]: e["slug"]
+        for e in client.get("/api/app/podcasts/daily/episodes").json()["items"]
+    }
+
+    own = client.get(f"/api/app/episodes/{slugs['d4']}").json()
+    assert (own["licence_summary"], own["licence_scope"]) == ("CC BY 4.0", "episode")
+    page = client.get(f"/api/app/episodes/{slugs['d4']}/licence").json()
+    assert page["scope"] == "episode"
+    assert page["episode"]["declarations"][0]["raw"] == "cc-by-4.0"
+    assert page["show"]["declarations"][0]["raw"] == NYT
+
+    inherits = client.get(f"/api/app/episodes/{slugs['d5']}").json()
+    assert inherits["licence_scope"] == "show"
+    assert inherits["licence_summary"].startswith("© 2020-2021 THE NEW YORK TIMES COMPANY")
+    page = client.get(f"/api/app/episodes/{slugs['d5']}/licence").json()
+    assert page["episode"]["status"] == "no_explicit_licence_found"

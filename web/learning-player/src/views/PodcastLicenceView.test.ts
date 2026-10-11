@@ -4,7 +4,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { LicenceDeclaration, PodcastLicence } from '../services/types'
+import type { EpisodeLicence, LicenceDeclaration, PodcastLicence } from '../services/types'
 import PodcastLicenceView from './PodcastLicenceView.vue'
 
 // The full text of a show's licence declarations (#2325). Every declaration verbatim, what it
@@ -60,10 +60,13 @@ function record(over: Partial<PodcastLicence> = {}): PodcastLicence {
   }
 }
 
-async function mountWith(body: PodcastLicence | Error) {
+async function mountWith(body: PodcastLicence | Error, episode: string | null = null) {
   if (body instanceof Error) vi.spyOn(api, 'getPodcastLicence').mockRejectedValue(body)
   else vi.spyOn(api, 'getPodcastLicence').mockResolvedValue(body)
-  const w = mount(PodcastLicenceView, { props: { feedId: FEED }, global: { plugins: [i18n, router] } })
+  const w = mount(PodcastLicenceView, {
+    props: { feedId: FEED, episode },
+    global: { plugins: [i18n, router] },
+  })
   await flushPromises()
   return w
 }
@@ -104,5 +107,39 @@ describe('PodcastLicenceView', () => {
   it('reports a failed load instead of an empty page', async () => {
     const w = await mountWith(new Error('500'))
     expect(w.find('[data-testid="podcast-licence-error"]').exists()).toBe(true)
+  })
+})
+
+describe('PodcastLicenceView — opened from an episode (#2325)', () => {
+  function episodeRecord(declared: boolean): EpisodeLicence {
+    const own = declared
+      ? [decl({ level: 'episode', mechanism: 'podcast_license', raw: 'cc-by-4.0', asset_scope: 'audio_video' })]
+      : []
+    return {
+      slug: 'ep-1', title: 'Ep 1', feed_id: FEED, show_title: 'The Daily',
+      summary: declared ? 'CC BY 4.0' : 'x', scope: declared ? 'episode' : 'show',
+      episode: { status: declared ? 'declared' : 'no_explicit_licence_found', declarations: own, conflicts: [], documents_for_review: [], source_feed_url: null, retrieved_at: null },
+      show: null,
+    }
+  }
+
+  it("shows the episode's own declaration above the show's, on the same page", async () => {
+    vi.spyOn(api, 'getEpisodeLicence').mockResolvedValue(episodeRecord(true))
+    const w = await mountWith(record(), 'ep-1')
+    const own = w.get('[data-testid="podcast-licence-episode"]')
+    expect(own.text()).toContain('This episode: Ep 1')
+    expect(own.text()).toContain('cc-by-4.0')
+    // The show's declarations are still all there below it.
+    expect(w.findAll('[data-testid="podcast-licence-raw"]').map((r) => r.text())).toEqual([
+      'cc-by-4.0',
+      NYT,
+      'cc-by-nc-4.0',
+    ])
+  })
+
+  it("is the show's page unchanged when the episode declares nothing of its own", async () => {
+    vi.spyOn(api, 'getEpisodeLicence').mockResolvedValue(episodeRecord(false))
+    const w = await mountWith(record(), 'ep-1')
+    expect(w.find('[data-testid="podcast-licence-episode"]').exists()).toBe(false)
   })
 })

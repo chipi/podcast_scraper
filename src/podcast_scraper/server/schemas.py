@@ -103,9 +103,14 @@ class AppEpisodeDetail(BaseModel):
     licence_summary: str | None = Field(
         default=None,
         description=(
-            "The show's licence line (#2325) as recorded when THIS episode was ingested; the full "
-            "text is GET /api/app/podcasts/{feed_id}/licence. Null when the feed was not checked."
+            "The licence line for this episode (#2325): its OWN declaration when it has one, else "
+            "its show's as recorded when the episode was ingested. Full text: GET "
+            "/api/app/episodes/{slug}/licence. Null when the feed was not checked."
         ),
+    )
+    licence_scope: Literal["episode", "show"] | None = Field(
+        default=None,
+        description="Whose declaration licence_summary is: the episode's own, or its show's.",
     )
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
@@ -2357,6 +2362,26 @@ class AppPodcastLicenceResponse(BaseModel):
     history: list[AppLicenceVersion] = Field(
         default_factory=list,
         description="Every distinct set of declarations seen across episodes, newest first.",
+    )
+
+
+class AppEpisodeLicenceResponse(BaseModel):
+    """GET /api/app/episodes/{slug}/licence: what this episode declares and what its show
+    declared when the episode was ingested (#2325). A record, not a licence grant."""
+
+    slug: str
+    title: str
+    feed_id: str
+    show_title: str | None = None
+    summary: str | None = Field(default=None, description="The episode's line, as in About.")
+    scope: Literal["episode", "show"] | None = None
+    episode: LicenceRecord | None = Field(
+        default=None,
+        description="The episode's OWN declarations (podcast:license, creativeCommons:license, "
+        "show-note notices); status no_explicit_licence_found when it declares nothing itself.",
+    )
+    show: LicenceRecord | None = Field(
+        default=None, description="The show's declarations as read with this episode."
     )
 
 

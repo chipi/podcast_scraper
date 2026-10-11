@@ -88,7 +88,12 @@ const routes: RouteRecordRaw[] = [
     path: '/podcast/:feedId/licence',
     name: 'podcast-licence',
     component: () => import('../views/PodcastLicenceView.vue'),
-    props: true,
+    // `?episode=<slug>` when opened from an episode's About: the same page, plus that episode's
+    // own declarations when it has any.
+    props: (route) => ({
+      feedId: route.params.feedId,
+      episode: typeof route.query.episode === 'string' ? route.query.episode : null,
+    }),
   },
   {
     path: '/episode/:slug',

@@ -54,6 +54,7 @@ import type {
   PlaybackPosition,
   Podcast,
   PodcastLicence,
+  EpisodeLicence,
   PodcastSignals,
   ResurfacingResponse,
   ResurfacingSettings,
@@ -1006,6 +1007,11 @@ export async function getPodcastsPage(query: PodcastsQuery): Promise<PodcastsPag
   return resp as PodcastsPage
 }
 
+
+/** What an episode declares about licence and copyright, and its show's declaration (#2325). */
+export async function getEpisodeLicence(slug: string): Promise<EpisodeLicence> {
+  return getJSON<EpisodeLicence>(`/episodes/${encodeURIComponent(slug)}/licence`)
+}
 
 /** Everything a show's feed declares about licence and copyright, verbatim (#2325). */
 export async function getPodcastLicence(feedId: string): Promise<PodcastLicence> {

@@ -10,28 +10,43 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import BackIcon from '../components/BackIcon.vue'
-import { getPodcastLicence } from '../services/api'
-import type { LicenceDeclaration, PodcastLicence } from '../services/types'
+import LicenceDeclarationCard from '../components/LicenceDeclarationCard.vue'
+import { getEpisodeLicence, getPodcastLicence } from '../services/api'
+import type { EpisodeLicence, PodcastLicence } from '../services/types'
 import { formatPublishDate } from '../utils/format'
 
-const props = defineProps<{ feedId: string }>()
+// `episode`: opened from that episode's About (#2325) -- the same page, plus the episode's own
+// declarations at the top when it has any (Podcasting 2.0 lets an item declare its own licence).
+const props = defineProps<{ feedId: string; episode?: string | null }>()
 const { t, locale } = useI18n()
 const router = useRouter()
 
 const data = ref<PodcastLicence | null>(null)
+const episodeData = ref<EpisodeLicence | null>(null)
 const error = ref(false)
 
 async function load(): Promise<void> {
   error.value = false
   data.value = null
+  episodeData.value = null
   try {
-    data.value = await getPodcastLicence(props.feedId)
+    const [show, episode] = await Promise.all([
+      getPodcastLicence(props.feedId),
+      props.episode ? getEpisodeLicence(props.episode).catch(() => null) : Promise.resolve(null),
+    ])
+    data.value = show
+    episodeData.value = episode
   } catch {
     error.value = true
   }
 }
 onMounted(load)
-watch(() => props.feedId, load)
+watch(() => [props.feedId, props.episode], load)
+
+/** The episode's own record, only when it declares something itself. */
+const episodeOwn = computed(() =>
+  episodeData.value?.episode?.status === 'declared' ? episodeData.value.episode : null,
+)
 
 const cameFromApp = typeof window !== 'undefined' && Boolean(window.history.state?.back)
 function goBack(e: MouseEvent): void {
@@ -46,19 +61,6 @@ const earlier = computed(() => (data.value?.history ?? []).slice(1))
 
 function date(iso: string | null | undefined): string {
   return (iso && formatPublishDate(iso, locale.value)) || ''
-}
-function yesNo(v: boolean): string {
-  return v ? t('licence.yes') : t('licence.no')
-}
-function conditions(d: LicenceDeclaration): string[] {
-  const k = d.known
-  if (!k) return []
-  return [
-    t('licence.conditions.commercial', { value: yesNo(k.commercial_use) }),
-    t('licence.conditions.adaptations', { value: yesNo(k.adaptations) }),
-    t('licence.conditions.attribution', { value: yesNo(k.attribution) }),
-    t('licence.conditions.shareAlike', { value: yesNo(k.share_alike) }),
-  ]
 }
 </script>
 
@@ -80,6 +82,17 @@ function conditions(d: LicenceDeclaration): string[] {
     </p>
 
     <template v-else-if="data">
+      <div v-if="episodeOwn" class="mb-3" data-testid="podcast-licence-episode">
+        <h2 class="mb-2 text-lg font-bold">
+          {{ t('licence.thisEpisode', { title: episodeData?.title ?? '' }) }}
+        </h2>
+        <p class="mb-3 text-sm text-muted">{{ t('licence.episodeOwnApplies') }}</p>
+        <LicenceDeclarationCard v-for="(d, i) in episodeOwn.declarations" :key="i" :declaration="d" />
+        <ul v-if="episodeOwn.conflicts.length" class="mb-4 list-disc pl-5 text-sm">
+          <li v-for="c in episodeOwn.conflicts" :key="c">{{ c }}</li>
+        </ul>
+        <h2 class="mt-6 text-lg font-bold">{{ t('licence.theShow') }}</h2>
+      </div>
       <p v-if="data.status === 'not_checked'" class="mb-4 text-sm" data-testid="podcast-licence-not-checked">
         {{ t('licence.notChecked') }}
       </p>
@@ -93,31 +106,7 @@ function conditions(d: LicenceDeclaration): string[] {
 
       <template v-else>
         <h2 class="mb-3 text-lg font-bold">{{ t('licence.current') }}</h2>
-        <article
-          v-for="(d, i) in current"
-          :key="i"
-          class="mb-4 rounded-xl bg-elevated p-4"
-          data-testid="podcast-licence-declaration"
-        >
-          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            {{ t(`licence.mechanism.${d.mechanism}`) }} · {{ t(`licence.level.${d.level}`) }}
-          </p>
-          <p class="mb-2 text-xs text-muted">{{ t(`licence.scope.${d.asset_scope}`) }}</p>
-          <p class="whitespace-pre-wrap break-words text-sm" data-testid="podcast-licence-raw">{{ d.raw }}</p>
-          <p v-if="d.url" class="mt-2 text-sm">
-            {{ t('licence.link') }}:
-            <a :href="d.url" target="_blank" rel="noopener noreferrer" class="break-all underline">{{ d.url }}</a>
-          </p>
-          <div v-if="d.known" class="mt-2 text-sm">
-            <p>{{ t('licence.recognised', { name: d.known.name }) }}</p>
-            <ul class="mt-1 list-disc pl-5 text-muted">
-              <li v-for="c in conditions(d)" :key="c">{{ c }}</li>
-            </ul>
-          </div>
-          <ul v-if="d.notes.length" class="mt-2 list-disc pl-5 text-xs text-muted">
-            <li v-for="n in d.notes" :key="n">{{ n }}</li>
-          </ul>
-        </article>
+        <LicenceDeclarationCard v-for="(d, i) in current" :key="i" :declaration="d" />
 
         <div v-if="data.licence?.conflicts.length" class="mb-4" data-testid="podcast-licence-conflicts">
           <h2 class="mb-2 text-lg font-bold">{{ t('licence.conflicts') }}</h2>

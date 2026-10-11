@@ -136,6 +136,8 @@ export interface EpisodeDetail {
    * the show's licence page. Null when the feed was not checked.
    */
   licence_summary?: string | null
+  /** Whose declaration `licence_summary` is: the episode's own, or its show's (#2325). */
+  licence_scope?: 'episode' | 'show' | null
   podcast_title: string | null
   publish_date: string | null
   duration_seconds: number | null
@@ -266,6 +268,28 @@ export interface LicenceDeclaration {
 }
 
 export type LicenceStatus = 'declared' | 'no_explicit_licence_found' | 'not_checked'
+
+/** A channel's or an episode's declarations, where they were read and when (#2325). */
+export interface LicenceRecord {
+  status: LicenceStatus
+  declarations: LicenceDeclaration[]
+  conflicts: string[]
+  documents_for_review: string[]
+  source_feed_url: string | null
+  retrieved_at: string | null
+}
+
+/** GET /api/app/episodes/{slug}/licence: the episode's own declarations and its show's (#2325). */
+export interface EpisodeLicence {
+  slug: string
+  title: string
+  feed_id: string
+  show_title: string | null
+  summary: string | null
+  scope: 'episode' | 'show' | null
+  episode: LicenceRecord | null
+  show: LicenceRecord | null
+}
 
 /** GET /api/app/podcasts/{feed_id}/licence: everything the publisher declares (#2325). */
 export interface PodcastLicence {

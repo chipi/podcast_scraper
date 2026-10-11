@@ -2391,6 +2391,7 @@ const { badgeShown } = useCorpusLanguages()
         :description="episodeDescription"
         :licence-summary="episodeLicence || null"
         :feed-id="episode.feed_id"
+        :slug="episode.slug"
         @close="descriptionOpen = false"
       />
 

@@ -1222,6 +1222,9 @@
     "conflicts": "Conflicting declarations",
     "documents": "Linked documents to review",
     "back": "Back to the show",
-    "loadError": "Couldn't load the licence information."
+    "loadError": "Couldn't load the licence information.",
+    "thisEpisode": "This episode: {title}",
+    "episodeOwnApplies": "This episode declares its own. Podcasting 2.0 lets an episode do so for its audio and video in place of the show's.",
+    "theShow": "The show"
   }
 }

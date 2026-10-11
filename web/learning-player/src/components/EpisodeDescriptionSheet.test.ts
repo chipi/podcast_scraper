@@ -125,7 +125,7 @@ describe('EpisodeDescriptionSheet — copyright / licence line (#2325)', () => {
       ],
     })
     const w = mount(EpisodeDescriptionSheet, {
-      props: { open: true, title: 'Ep', description, showTitle: 'Show', licenceSummary, feedId: 'p05' },
+      props: { open: true, title: 'Ep', description, showTitle: 'Show', licenceSummary, feedId: 'p05', slug: 'ep-1' },
       global: { plugins: [i18n, router] },
       attachTo: document.body,
     })
@@ -137,7 +137,8 @@ describe('EpisodeDescriptionSheet — copyright / licence line (#2325)', () => {
     const w = await withLicence('An episode.', '© 2020-2021 THE NEW YORK TIMES COMPANY; The New…')
     const link = w.get('[data-testid="episode-description-licence"]')
     expect(link.text()).toBe('© 2020-2021 THE NEW YORK TIMES COMPANY; The New…')
-    expect(link.attributes('href')).toBe('/podcast/p05/licence')
+    // The same page as the show's, with this episode attached.
+    expect(link.attributes('href')).toBe('/podcast/p05/licence?episode=ep-1')
     await link.trigger('click')
     expect(w.emitted('close')).toBeTruthy()
   })
