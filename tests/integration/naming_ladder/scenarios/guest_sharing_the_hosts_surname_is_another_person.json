@@ -1,0 +1,64 @@
+{
+ "why": "Guard for the F5 fix (F6 risk): a guest with the host's SURNAME and a different given name, introduced as such, is a different person. A fix that snaps a near-identical host spelling must not swallow her.",
+ "feed": {
+  "title": "Odd Lots",
+  "description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics."
+ },
+ "episode": {
+  "title": "Anna Weisenthal on Shipping Insurance"
+ },
+ "detected": {
+  "speaker_names": [
+   "Anna Weisenthal"
+  ],
+  "metadata_named": [
+   "Anna Weisenthal"
+  ]
+ },
+ "turns": [
+  [
+   "J",
+   30,
+   "Hello and welcome to another episode of the Odd Lots podcast. I'm Joe Weisenthal."
+  ],
+  [
+   "T",
+   20,
+   "And I'm Tracy Alloway."
+  ],
+  [
+   "J",
+   30,
+   "Our guest today is Anna Weisenthal, no relation, who runs marine insurance at a large broker."
+  ],
+  [
+   "G",
+   400,
+   "Thanks for having me, Joe. I'm Anna Weisenthal. The point about shipping keeps changing over the years, part 0. The point about shipping keeps changing over the years, part 1. The point about shipping keeps changing over the years, part 2. The point about shipping keeps changing over the years, part 3. The point about shipping keeps changing over the years, part 4. The point about shipping keeps changing over the years, part 5. The point about shipping keeps changing over the years, part 6. The point about shipping keeps changing over the years, part 7. The point about shipping keeps changing over the years, part 8. The point about shipping keeps changing over the years, part 9. The point about shipping keeps changing over the years, part 10. The point about shipping keeps changing over the years, part 11. The point about shipping keeps changing over the years, part 12. The point about shipping keeps changing over the years, part 13. The point about shipping keeps changing over the years, part 14. The point about shipping keeps changing over the years, part 15. The point about shipping keeps changing over the years, part 16. The point about shipping keeps changing over the years, part 17. The point about shipping keeps changing over the years, part 18. The point about shipping keeps changing over the years, part 19. The point about shipping keeps changing over the years, part 20. The point about shipping keeps changing over the years, part 21. The point about shipping keeps changing over the years, part 22. The point about shipping keeps changing over the years, part 23. The point about shipping keeps changing over the years, part 24. The point about shipping keeps changing over the years, part 25. The point about shipping keeps changing over the years, part 26. The point about shipping keeps changing over the years, part 27. The point about shipping keeps changing over the years, part 28. The point about shipping keeps changing over the years, part 29. The point about shipping keeps changing over the years, part 30. The point about shipping keeps changing over the years, part 31. The point about shipping keeps changing over the years, part 32. The point about shipping keeps changing over the years, part 33. The point about shipping keeps changing over the years, part 34. The point about shipping keeps changing over the years, part 35. The point about shipping keeps changing over the years, part 36. The point about shipping keeps changing over the years, part 37. The point about shipping keeps changing over the years, part 38. The point about shipping keeps changing over the years, part 39."
+  ],
+  [
+   "T",
+   200,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10. The point about questions keeps changing over the years, part 11. The point about questions keeps changing over the years, part 12. The point about questions keeps changing over the years, part 13. The point about questions keeps changing over the years, part 14. The point about questions keeps changing over the years, part 15. The point about questions keeps changing over the years, part 16. The point about questions keeps changing over the years, part 17. The point about questions keeps changing over the years, part 18. The point about questions keeps changing over the years, part 19."
+  ],
+  [
+   "J",
+   200,
+   "The point about follow ups keeps changing over the years, part 0. The point about follow ups keeps changing over the years, part 1. The point about follow ups keeps changing over the years, part 2. The point about follow ups keeps changing over the years, part 3. The point about follow ups keeps changing over the years, part 4. The point about follow ups keeps changing over the years, part 5. The point about follow ups keeps changing over the years, part 6. The point about follow ups keeps changing over the years, part 7. The point about follow ups keeps changing over the years, part 8. The point about follow ups keeps changing over the years, part 9. The point about follow ups keeps changing over the years, part 10. The point about follow ups keeps changing over the years, part 11. The point about follow ups keeps changing over the years, part 12. The point about follow ups keeps changing over the years, part 13. The point about follow ups keeps changing over the years, part 14. The point about follow ups keeps changing over the years, part 15. The point about follow ups keeps changing over the years, part 16. The point about follow ups keeps changing over the years, part 17. The point about follow ups keeps changing over the years, part 18. The point about follow ups keeps changing over the years, part 19."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Anna Weisenthal",
+   "role": "guest"
+  },
+  "J": {
+   "name": "Joe Weisenthal",
+   "role": "host"
+  },
+  "T": {
+   "name": "Tracy Alloway",
+   "role": "host"
+  }
+ }
+}
