@@ -31,6 +31,7 @@ import { groupEpisodesByYear, type YearSection } from "../utils/yearGrouping"
 import { useSignInGate } from "../composables/useSignInGate"
 import { useTrendingScope } from "../composables/useTrendingScope"
 import { useSavedQueriesStore } from "../stores/savedQueries"
+import { useUserPreferencesStore } from "../stores/userPreferences"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
@@ -410,23 +411,19 @@ function isClusterOpen(groupKey: string | null, cluster: FoldedHitCluster): bool
   return clusterExpanded.value.has(clusterKey(groupKey, cluster))
 }
 
-// Recent searches (SR.3) — a small per-device history shown under the box; localStorage, cap 8.
-const RECENTS_KEY = "lp.search.recents"
+// Recent searches (SR.3) — the last few terms, shown under the box, cap 8. The ACCOUNT's, synced
+// through preferences (2026-10-11): kept in device storage, one account's searches showed to the
+// next account signed in on the same phone, and never followed the listener to another device.
+const RECENTS_PREF = "lp.search.recents"
 const RECENTS_MAX = 8
-const recents = ref<string[]>([])
-try {
-  const raw = localStorage.getItem(RECENTS_KEY)
-  recents.value = raw ? (JSON.parse(raw) as string[]).slice(0, RECENTS_MAX) : []
-} catch {
-  recents.value = []
-}
+const searchPrefs = useUserPreferencesStore()
+void searchPrefs.hydrate()
+const recents = computed<string[]>(() => {
+  const v = searchPrefs.get<unknown>(RECENTS_PREF)
+  return Array.isArray(v) ? v.filter((r): r is string => typeof r === "string").slice(0, RECENTS_MAX) : []
+})
 function recordRecent(term: string): void {
-  recents.value = [term, ...recents.value.filter((r) => r !== term)].slice(0, RECENTS_MAX)
-  try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.value))
-  } catch {
-    /* storage blocked — recents are a convenience, not critical */
-  }
+  void searchPrefs.set(RECENTS_PREF, [term, ...recents.value.filter((r) => r !== term)].slice(0, RECENTS_MAX))
 }
 function runRecent(q: string): void {
   query.value = q

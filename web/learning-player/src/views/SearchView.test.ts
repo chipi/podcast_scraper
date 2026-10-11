@@ -100,6 +100,12 @@ async function mountAt(q: string) {
   return { w, router }
 }
 
+// The last write of the shared scope. A search also records the term under its own key, so the
+// last write overall is not the scope's.
+function lastScopeWrite(setPref: { mock: { calls: unknown[][] } }): unknown {
+  return setPref.mock.calls.filter((c) => c[0] === TRENDING_SCOPE_PREF).at(-1)?.[1]
+}
+
 describe("SearchView", () => {
   it("renders grounded passages with source + jump, and jumps with ?t=", async () => {
     vi.spyOn(api, "searchCorpus").mockResolvedValue({
@@ -674,11 +680,37 @@ describe("SearchView", () => {
     await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
     expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
-    expect(setPref).toHaveBeenLastCalledWith(TRENDING_SCOPE_PREF, "corpus")
+    expect(lastScopeWrite(setPref)).toBe("corpus")
     await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
     expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
-    expect(setPref).toHaveBeenLastCalledWith(TRENDING_SCOPE_PREF, "mine")
+    expect(lastScopeWrite(setPref)).toBe("mine")
+  })
+
+  it("recent searches are the ACCOUNT's (synced preferences), not the device's", async () => {
+    // Kept in localStorage, one account's searches showed to the next account on the same phone
+    // (2026-10-11). A device-level list must not appear; the account's synced list must.
+    localStorage.setItem("lp.search.recents", JSON.stringify(["someone else's search"]))
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: "u1", email: "a@b.c", name: "A" }
+    const prefs = useUserPreferencesStore()
+    const setPref = vi.spyOn(prefs, "set")
+    void prefs.set("lp.search.recents", ["my earlier search"])
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "sleep", error: null, results: [] })
+    const router = makeRouter()
+    router.push({ name: "search" })
+    await router.isReady()
+    const w = mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
+    mounted = w
+    await flushPromises()
+    const shown = w.get('[data-testid="search-recents"]').text()
+    expect(shown).toContain("my earlier search")
+    expect(shown).not.toContain("someone else's search")
+    await router.push({ name: "search", query: { q: "sleep" } })
+    await flushPromises()
+    expect(setPref).toHaveBeenLastCalledWith("lp.search.recents", ["sleep", "my earlier search"])
+    localStorage.removeItem("lp.search.recents")
   })
 
   it("an explicit ?scope= in the URL wins over the shared choice", async () => {
