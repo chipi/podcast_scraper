@@ -26,7 +26,17 @@ describe('useGuidedStart (operator 2026-10-08)', () => {
 
   it('a "dismissed: true" from before the snooze counts as long ago, not forever', () => {
     void useUserPreferencesStore().set(GUIDED_SNOOZED_PREF, true)
-    localStorage.setItem('lp.interests.dismissed', '1')
+    localStorage.setItem('lp.interests.dismissed:u_1', '1')
+    expect(useGuidedStart().isSnoozed()).toBe(false)
+  })
+
+  it("one account's \"Not now\" does not hide the guide for another account on the same device", () => {
+    // The local copy of the snooze was keyed by device, not account (2026-10-11): a new account
+    // signed in on a phone where someone had tapped "Not now" never saw the guide.
+    useGuidedStart().snooze()
+    setActivePinia(createPinia())
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) }))
+    useAuthStore().user = { user_id: 'u_2', email: 'new@l', name: 'New' }
     expect(useGuidedStart().isSnoozed()).toBe(false)
   })
 
@@ -37,6 +47,6 @@ describe('useGuidedStart (operator 2026-10-08)', () => {
     expect(g.isSnoozed()).toBe(false)
     expect(g.state.value).toBe('restart')
     expect(useUserPreferencesStore().get(GUIDED_START_PREF)).toBe('restart')
-    expect(localStorage.getItem('lp.interests.dismissed')).toBeNull()
+    expect(localStorage.getItem('lp.interests.dismissed:u_1')).toBeNull()
   })
 })

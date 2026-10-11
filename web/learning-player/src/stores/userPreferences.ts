@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { apiRequest } from '../services/api'
 import { useAuthStore } from './auth'
 
 /**
@@ -21,7 +22,8 @@ import { useAuthStore } from './auth'
  * Related: gh #1213 (whole-surface USERPREFS-1 adoption).
  */
 
-const PREFS_URL = '/api/app/preferences'
+// Through the api client: its base and its auth, which the native shell needs (see apiRequest).
+const PREFS_PATH = '/preferences'
 
 interface PrefsResponse {
   preferences: Record<string, unknown>
@@ -67,10 +69,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     const startedAt = writeCount
     const unsaved = new Set(inFlight.keys())
     try {
-      const res = await fetch(PREFS_URL, {
-        method: 'GET',
-        credentials: 'include',
-      })
+      const res = await apiRequest(PREFS_PATH, { method: 'GET' })
       if (!res.ok) {
         available.value = false
         hydrated.value = true
@@ -121,9 +120,8 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     if (!available.value) return
     inFlight.set(key, (inFlight.get(key) ?? 0) + 1)
     try {
-      const res = await fetch(PREFS_URL, {
+      const res = await apiRequest(PREFS_PATH, {
         method: 'PATCH',
-        credentials: 'include',
         // A choice made just before a reload or app close must still land: without keepalive the
         // navigation cancelled this request and the next load read the old value (2026-10-10).
         keepalive: true,

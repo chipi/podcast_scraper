@@ -169,6 +169,16 @@ async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promi
 }
 
 /**
+ * A request to `${BASE}${path}` under the client's own rules (auth header, offline policy), for a
+ * caller that reads the Response itself. A bare `fetch('/api/app/…')` resolves against
+ * capacitor://localhost in the native shell and never reaches the server (2026-10-11: synced
+ * preferences never synced on iOS or Android).
+ */
+export function apiRequest(path: string, init: RequestInit = {}): Promise<Response> {
+  return apiFetch(`${BASE}${path}`, { credentials: "include", ...init })
+}
+
+/**
  * Safety timeout for a read the app is waiting on (F1.1a/F1.4). Generous — it is a BACKSTOP for the
  * "online but the server never answers" case, not the primary offline path (`isOffline()` fails
  * fast below). Long enough that a slow-but-legit response on a bad connection still lands; short

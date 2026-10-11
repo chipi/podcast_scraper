@@ -102,7 +102,7 @@ beforeEach(() => {
   // card shows for signed-in users as before. Individual tests override for the "already chosen" case.
   vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
   try {
-    localStorage.removeItem('lp.interests.dismissed')
+    localStorage.removeItem('lp.interests.dismissed:u')
   } catch {
     /* happy-dom storage edge — ignore */
   }
@@ -617,7 +617,7 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.get('[data-testid="guided-interests-to-go"]').text()).toBe('2 more to go')
     // And NOT because we marked the offer declined — that would suppress it forever, so a user who
     // later cleared their interests would never be offered it again.
-    expect(localStorage.getItem('lp.interests.dismissed')).toBeNull()
+    expect(localStorage.getItem('lp.interests.dismissed:u')).toBeNull()
   })
 
   // Compact Discover strip (renamed from Browse topics/people, operator 2026-09-14): chips
