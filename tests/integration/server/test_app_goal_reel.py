@@ -196,3 +196,30 @@ def test_reel_topics_leave_out_what_the_listener_asked_to_see_less_of(
     mine = client.get("/api/app/discover/reel-topics", params={"scope": "mine"}).json()
     assert "topic:risk-management" not in [i["subject_id"] for i in mine["items"]]
     assert mine["items"], "the other topics are still offered"
+
+
+def test_a_long_reel_is_trimmed_to_its_budget_breadth_first() -> None:
+    """A realistic budget against a reel longer than it (2026-10-11): the 28-clip storyline runs
+    5:36 uncut, so five minutes must cut it — every episode's first clip still before any second."""
+    whole = goal_reel(ROOT, "thc:managing-risk", minutes=15)
+    cut = goal_reel(ROOT, "thc:managing-risk", minutes=5)
+    run = lambda reel: sum(c.moment.end_ms - c.moment.start_ms for c in reel)  # noqa: E731
+    assert run(whole) > 5 * 60_000
+    assert 0 < run(cut) <= 5 * 60_000 and len(cut) < len(whole)
+    episodes = [c.episode_slug for c in cut]
+    distinct = len(set(episodes))
+    assert len(set(episodes[:distinct])) == distinct
+
+
+def test_a_storyline_nobody_quotes_has_no_reel_and_no_path(tmp_path: Path) -> None:
+    """thc:building-trails (2026-10-11) has members but no grounded clip about them: no reel to
+    offer, no path to learn — the doors on its page must stay away."""
+    from podcast_scraper.server.app_goal_reel import reel_subject
+    from podcast_scraper.server.app_learning_path import build_path
+
+    subject = reel_subject(ROOT, "thc:building-trails")
+    assert subject.kind == "storyline" and len(subject.topics) == 4
+    assert len(goal_reel(ROOT, "thc:building-trails", minutes=15)) < 2
+    assert build_path(ROOT, "thc:building-trails") == []
+    client, _uid = _client(tmp_path)
+    assert client.get("/api/app/discover/learn/subjects/thc:building-trails").status_code == 404

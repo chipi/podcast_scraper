@@ -190,10 +190,10 @@ class TestPickerDiscrimination:
         # 112 since 2026-10-03, from 86: the ten non-English `e02`/`e03` episodes bring their own
         # extracted topics, and extracted topics are episode-specific by construction — which is
         # exactly the kind of token the band is built to catch.
-        # 114 since 2026-10-13, from 112: the corpus refresh gave the ten non-English `e02`/`e03`
-        # episodes their ground-truth topics (`enduro-racing`, `soil-erosion`, …) in place of the
-        # placeholders they carried since before #2260 wrote that ground truth.
-        assert picker["band_candidates"] == 114
+        # 113 since 2026-10-11: the corpus gained two storylines (thc:second-order-effects,
+        # thc:building-trails); the trail one covers 9 episodes, inside the band, while the other
+        # covers 37 of 55, above its 60% ceiling — so exactly one token joins.
+        assert picker["band_candidates"] == 113
         # THE TWO CAUSES COMPOUND, which is why this number is measured rather than inherited.
         # The branch asserted 75 (the corpus took REAL extracted topics from a pipeline run
         # alongside its authored ones) and main asserted 53 (the real clusters added 12 `tc:`
@@ -222,11 +222,10 @@ class TestPickerDiscrimination:
         # The second effect wins by one. That is the interesting direction and worth watching
         # rather than smoothing over: a band that grows while discriminating less is exactly the
         # failure mode the picker-discrimination section exists to surface.
-        #
-        # 11 since 2026-10-13: the corpus refresh put `topic:enduro-racing` (the non-English `e02`
-        # episodes' ground-truth topic) into the top 12 in place of `topic:drainage-design`, and
-        # its feed set is one not already there. More discrimination between feeds, not less.
-        assert picker["band_distinct_feeds"] == 11
+        # 9 since 2026-10-11, the direction this comment says to watch: the new storyline
+        # thc:building-trails entered the top 12 with the SAME nine episodes as topic:soil-erosion
+        # (its broadest member), so the two give one feed set between them, not two.
+        assert picker["band_distinct_feeds"] == 9
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""
@@ -791,11 +790,8 @@ class TestTopicMomentum:
         # moved for a WINDOW reason, not a topic one: four episodes published Oct 2025-Jan 2026
         # shift where the recent window falls, and the topic's own mentions redistribute across
         # it. Still not acceleration — 1.0 is exactly par, and the rail's point stands.
-        # 0.857 since 2026-10-13: the corpus refresh replaced the non-English episodes' 2025-12-31
-        # placeholder with their real dates, a year before the designed newest episode (operator:
-        # keep risk/systems the freshest storyline). Same window reason; visible, below par.
         assert rows["topic:systems-thinking"]["velocity"] == pytest.approx(
-            0.857, abs=0.01
+            1.0, abs=0.01
         ), "at or below par — it is not accelerating, and that was never the point"
 
     def test_the_headroom_is_reported_not_just_the_verdict(self, report) -> None:
@@ -811,11 +807,8 @@ class TestTopicMomentum:
         # episode-specific topics gave the window something that actually accelerates. It is
         # 3.0 since it/fr/de/pt widened the date axis by four months; same topic, same reason,
         # more headroom.
-        # 1.5 since 2026-10-13: the non-English episodes moved from a 2025-12-31 placeholder to
-        # their real dates, which no longer widen the recent window at its end; reliability still
-        # leads, at the 1.5 it had before they joined.
-        assert mom["max_velocity"] == pytest.approx(1.5, abs=0.01)
-        assert mom["headroom_to_gate"] == pytest.approx(-1.5, abs=0.01)
+        assert mom["max_velocity"] == pytest.approx(3.0, abs=0.01)
+        assert mom["headroom_to_gate"] == pytest.approx(-3.0, abs=0.01)
         assert "short by" not in format_report(report)
 
     def test_the_gate_matches_the_component(self, report) -> None:

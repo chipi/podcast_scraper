@@ -1873,12 +1873,54 @@ def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any
     return {"window_months": window_months, "topics": topics}
 
 
-def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]:
-    """Author one theme cluster ("storyline") for the consumer Storylines surface.
+#: The corpus's storylines: ``(thc: id, label, [(topic, label, lift)])``, the anchor first.
+#: DISJOINT, as the co-occurrence enricher's clusters are: the app maps a topic to ONE
+#: storyline, so a shared member would silently drop from the others. Each has at least four
+#: members (the surface's floor, see below). Three since 2026-10-11 (operator): with one,
+#: "Continue the thread" could never take turns, hiding one storyline emptied it, and every
+#: storyline reel / path / door test landed on the same subject. "Second-order effects" has
+#: grounded clips (a reel and a path); "Building trails that last" has none, so the reel and
+#: Learn doors are proven to stay away.
+STORYLINES: list[tuple[str, str, list[tuple[str, str, float]]]] = [
+    (
+        "thc:managing-risk",
+        "Managing risk across domains",
+        [
+            ("topic:risk-management", "risk management", 2.6),
+            ("topic:systems-thinking", "systems thinking", 2.1),
+            ("topic:safety-practices", "safety practices", 1.7),
+            ("topic:endurance-sport", "endurance sport", 1.5),
+        ],
+    ),
+    (
+        "thc:second-order-effects",
+        "Second-order effects",
+        [
+            ("topic:second-order-effects", "second-order effects", 2.4),
+            ("topic:reliability", "reliability", 2.0),
+            ("topic:frame", "frame", 1.6),
+            ("topic:iteration-practice", "iteration practice", 1.4),
+        ],
+    ),
+    (
+        "thc:building-trails",
+        "Building trails that last",
+        [
+            ("topic:trail-building", "trail building", 2.8),
+            ("topic:soil-erosion", "soil erosion", 2.5),
+            ("topic:drainage-design", "drainage design", 2.2),
+            ("topic:land-stewardship", "land stewardship", 1.9),
+        ],
+    ),
+]
 
-    The cross-domain *managing risk* story: risk management, systems thinking, safety practices
-    and endurance sport co-occur across shows (the transcripts frame risk as "systems of
-    correlated bets" in investing, software, racing, and diving). Members carry
+
+def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]:
+    """Author the theme clusters ("storylines", ``STORYLINES``) for the consumer Storylines surface.
+
+    The first, the cross-domain *managing risk* story: risk management, systems thinking,
+    safety practices and endurance sport co-occur across shows (the transcripts frame risk as
+    "systems of correlated bets" in investing, software, racing, and diving). Members carry
     ``lift_to_cluster`` (anchor = highest) + their episode ids, matching the enricher output the
     consumer readers parse. Deterministic, like ``search/topic_clusters.json``.
 
@@ -1890,38 +1932,32 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
     member — the docstring already claimed "racing" as one of the four domains, and it was the
     one with no topic behind it. If the floor moves again, this list has to grow with it.
     """
-    members_spec = [
-        ("topic:risk-management", "risk management", 2.6),
-        ("topic:systems-thinking", "systems thinking", 2.1),
-        ("topic:safety-practices", "safety practices", 1.7),
-        ("topic:endurance-sport", "endurance sport", 1.5),
-    ]
-    members = [
-        {
-            "topic_id": tid,
-            "label": label,
-            "lift_to_cluster": lift,
-            "episode_ids": sorted(set(topic_episodes.get(tid, []))),
-        }
-        for tid, label, lift in members_spec
-        if topic_episodes.get(tid)  # only topics that actually appear in the corpus
-    ]
     clusters: list[dict[str, Any]] = []
-    if len(members) >= 2:
-        canonical = "Managing risk across domains"
-        clusters.append(
+    for cluster_id, canonical, members_spec in STORYLINES:
+        members = [
             {
-                "cluster_type": "theme",
-                "canonical_label": canonical,
-                "graph_compound_parent_id": "thc:managing-risk",
-                "member_count": len(members),
-                "members": members,
-                # v1.1.0 super-theme rollup (tier 7-1a): with cluster_count ≤ _SUPER_THEME_MIN
-                # each cluster is its own super-theme (super_theme label = canonical_label).
-                "super_theme_id": f"sth:{slug(canonical)}",
-                "super_theme_label": canonical,
+                "topic_id": tid,
+                "label": label,
+                "lift_to_cluster": lift,
+                "episode_ids": sorted(set(topic_episodes.get(tid, []))),
             }
-        )
+            for tid, label, lift in members_spec
+            if topic_episodes.get(tid)  # only topics that actually appear in the corpus
+        ]
+        if len(members) >= 2:
+            clusters.append(
+                {
+                    "cluster_type": "theme",
+                    "canonical_label": canonical,
+                    "graph_compound_parent_id": cluster_id,
+                    "member_count": len(members),
+                    "members": members,
+                    # v1.1.0 super-theme rollup (tier 7-1a): with cluster_count ≤ _SUPER_THEME_MIN
+                    # each cluster is its own super-theme (super_theme label = canonical_label).
+                    "super_theme_id": f"sth:{slug(canonical)}",
+                    "super_theme_label": canonical,
+                }
+            )
     n_members = sum(c["member_count"] for c in clusters)
     super_theme_count = len({c["super_theme_id"] for c in clusters if c.get("super_theme_id")})
     return {

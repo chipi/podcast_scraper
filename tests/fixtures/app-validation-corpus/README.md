@@ -167,6 +167,18 @@ insights are claims (no questions, greetings, sponsor reads, connective template
 prompts), chosen speaker-balanced and topical first; non-English episodes are grounded in their
 source-language segments. It is idempotent — a second `--apply` changes nothing.
 
+**Storylines** (`enrichments/topic_theme_clusters.json`, 2026-10-11) come from
+`build_app_validation_corpus.STORYLINES`: three DISJOINT storylines of four topics each (the app maps a
+topic to one storyline). *Managing risk across domains* and *Second-order effects* have grounded clips
+(a reel and a seven-day path each); *Building trails that last* has none, so the reel and Learn doors
+are proven to stay away. Regenerate the file from the committed graphs with the builder's own
+functions — it refuses if an existing storyline would change:
+
+```sh
+.venv/bin/python scripts/tools/regen_fixture_storylines.py            # dry run
+.venv/bin/python scripts/tools/regen_fixture_storylines.py --write
+```
+
 The generator reuses the viewer generator's construction helpers
 (`scripts/build_synthetic_validation_corpus.py`: `build_gi`, `build_kg`,
 `parse_diarized_segments`, …) so GI/KG can't drift from what the readers expect.

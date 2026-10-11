@@ -92,3 +92,16 @@ an episode was recommended, and a topic reel had almost nothing it could honestl
   teaching tests that a greeting is a valid insight.
 - **Regenerate the corpus from the builder.** Rejected: it does not reproduce the committed files
   (153 differ), so later fixes would be lost.
+
+## Amendment 2026-10-11: three storylines
+
+The corpus carried one storyline, so "Continue the thread" could never take turns, hiding the
+storyline emptied that rail, and every storyline reel, path and door test landed on one subject
+(measured: 1 storyline, 14 themes, 6 topics with a reel). The builder now authors three disjoint
+storylines (`STORYLINES`), and `scripts/tools/regen_fixture_storylines.py` applies them to the
+committed file from the committed graphs, refusing to move an existing one. *Second-order effects*
+has a 24-clip reel and a seven-day path; *Building trails that last* has neither, on purpose. The
+file's summary counts are recomputed from today's committed corpus (407 topics; the old 50 had gone
+stale). One audit figure moved where it measures the corpus: the picker band gained the trail
+storyline (112 → 113) and its top 12 lost one distinct feed set (10 → 9), because that storyline and
+its broadest member cover the same nine episodes.

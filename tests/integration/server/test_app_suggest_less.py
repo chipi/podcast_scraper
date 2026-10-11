@@ -162,3 +162,32 @@ def test_signed_out_is_refused(tmp_path: Path) -> None:
     app.state.app_data_dir = tmp_path
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     assert TestClient(app).get("/api/app/discover/suggest-less").status_code == 401
+
+
+def test_two_followed_storylines_take_turns_and_hiding_one_leaves_the_other(tmp_path: Path) -> None:
+    """With the corpus's second storyline (2026-10-11) the thread rail can show what one never
+    could: two followed storylines taking turns, and "Less like this" on one keeping the other."""
+    client, uid = _client(tmp_path)
+    app_user_state.add_interest(tmp_path, uid, "thc:managing-risk")
+    app_user_state.add_interest(tmp_path, uid, "thc:second-order-effects")
+
+    def thread() -> list[str]:
+        return _subjects(
+            client.get(
+                "/api/app/discover/rails/thread", params={"scope": "mine", "limit": 12}
+            ).json()
+        )
+
+    both = thread()
+    assert both[:4] == [
+        "thc:managing-risk",
+        "thc:second-order-effects",
+        "thc:managing-risk",
+        "thc:second-order-effects",
+    ]
+    client.post(
+        "/api/app/discover/suggest-less/thc:managing-risk",
+        json={"label": "Managing risk across domains"},
+    )
+    left = thread()
+    assert left and set(left) == {"thc:second-order-effects"}
