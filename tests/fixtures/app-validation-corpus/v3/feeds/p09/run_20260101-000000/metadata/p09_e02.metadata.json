@@ -31,7 +31,15 @@
     "language_source": "rss",
     "published_date": "2025-09-19T00:00:00",
     "title": "Macro Without the Theatrics",
-    "description": "A practical framework for 2025: how sleep and metabolism interact, what wearables and glucose data can (and cannot) tell you, and how to integrate measurement without obsession."
+    "description": "A practical framework for 2025: how sleep and metabolism interact, what wearables and glucose data can (and cannot) tell you, and how to integrate measurement without obsession.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -46,7 +54,15 @@
     "language_source": "rss",
     "last_updated": "2026-07-16T00:00:00",
     "title": "Cross-Show",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

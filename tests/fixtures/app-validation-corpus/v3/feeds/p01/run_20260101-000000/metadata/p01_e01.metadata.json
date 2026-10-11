@@ -31,7 +31,15 @@
     "language_source": "rss",
     "published_date": "2024-01-02T00:00:00",
     "title": "Building Trails That Last",
-    "description": "Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter."
+    "description": "Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -46,7 +54,15 @@
     "language_source": "rss",
     "last_updated": "2024-12-17T00:00:00",
     "title": "Singletrack Sessions",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

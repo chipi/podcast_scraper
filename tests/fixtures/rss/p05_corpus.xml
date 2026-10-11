@@ -7,6 +7,7 @@
     <link>http://localhost/</link>
     <description>Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.</description>
     <language>en-us</language>
+    <copyright>© 2025 Long Horizon Media. All rights reserved.</copyright>
 
     <itunes:author>Nora Bakker</itunes:author>
     <itunes:explicit>no</itunes:explicit>
@@ -67,6 +68,7 @@
       <description>Nora talks with Daniel Cho: From the Archive.</description>
       <enclosure url="/audio/p05_e05.mp3" length="554466" type="audio/mpeg"/>
       <podcast:transcript url="/transcripts/p05_e05.vtt" type="text/vtt"/>
+      <podcast:license url="https://creativecommons.org/licenses/by/4.0/">cc-by-4.0</podcast:license>
       <itunes:episode>5</itunes:episode>
       <itunes:duration>00:01:09</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

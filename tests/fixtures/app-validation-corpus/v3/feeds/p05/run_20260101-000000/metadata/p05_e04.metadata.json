@@ -31,7 +31,15 @@
     "language_source": "rss",
     "published_date": "2025-07-03T00:00:00",
     "title": "The Risk Panel: Diversify or Concentrate?",
-    "description": "Nora talks with Daniel Cho: The Risk Panel: Diversify or Concentrate?."
+    "description": "Nora talks with Daniel Cho: The Risk Panel: Diversify or Concentrate?.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -46,7 +54,25 @@
     "language_source": "rss",
     "last_updated": "2025-09-11T00:00:00",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "declared",
+      "declarations": [
+        {
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "raw": "© 2025 Long Horizon Media. All rights reserved.",
+          "url": null,
+          "asset_scope": "unspecified",
+          "known": null,
+          "notes": []
+        }
+      ],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

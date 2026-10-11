@@ -10,6 +10,13 @@ Generic by design: add a new feed-level field to :func:`_derive_feed_updates` an
 feed picks it up on the next backfill. Only non-None derived values are written (a merge, never a
 wipe), so a transient/partial fetch cannot blank a good stored value, and re-running an unchanged
 feed is a no-op.
+
+Licence records (#2325) are filled where MISSING only, never replaced: a stored record is what
+the feed declared when that episode was read, and that history must survive. The channel's goes
+into ``feed.licence``; an episode's own (its item-level ``<podcast:license>``,
+``<creativeCommons:license>``, show-note notices) into ``episode.licence``, read from the item
+whose guid matches -- an episode no longer in the feed keeps no record ("not checked"), rather
+than one guessed from the channel.
 """
 
 from __future__ import annotations
@@ -23,7 +30,13 @@ from typing import Any, Callable, Optional
 
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
-from ..rss.parser import extract_feed_category, extract_feed_metadata
+from ..rss.licence import channel_licence_from_bytes, episode_licence
+from ..rss.parser import (
+    extract_feed_category,
+    extract_feed_metadata,
+    extract_item_guid,
+    parse_rss_items,
+)
 from ..server.atomic_write import atomic_write_text
 
 logger = logging.getLogger(__name__)
@@ -118,6 +131,50 @@ def _dump(path: Path, doc: dict[str, Any]) -> str:
     return json.dumps(doc, ensure_ascii=False, indent=2)
 
 
+def _licence_sources(
+    rss_bytes: bytes, base_url: str, source_url: str
+) -> tuple[Any, dict[str, Any]]:
+    """The channel's licence record and the feed's items by guid (#2325)."""
+    channel = channel_licence_from_bytes(rss_bytes, base_url, source_url)
+    items: dict[str, Any] = {}
+    try:
+        _title, _authors, elements = parse_rss_items(rss_bytes)
+    except Exception:  # noqa: BLE001 - the feed fields above still apply
+        return channel, items
+    for item in elements:
+        guid = extract_item_guid(item)
+        if guid:
+            items.setdefault(guid.strip(), item)
+    return channel, items
+
+
+def _fill_licences(
+    doc: dict[str, Any], channel: Any, items_by_guid: dict[str, Any], base_url: str
+) -> bool:
+    """Fill a missing ``feed.licence`` / ``episode.licence``; never replace a stored one."""
+    if channel is None:
+        return False
+    changed = False
+    feed_block = doc["feed"]
+    if not isinstance(feed_block.get("licence"), dict):
+        feed_block["licence"] = channel.model_dump()
+        changed = True
+    episode = doc.get("episode")
+    if isinstance(episode, dict) and not isinstance(episode.get("licence"), dict):
+        guid = str(episode.get("guid") or "").strip()
+        item = items_by_guid.get(guid) if guid else None
+        if item is not None:
+            episode["licence"] = episode_licence(
+                item,
+                base_url,
+                channel=channel,
+                source_feed_url=channel.source_feed_url,
+                retrieved_at=channel.retrieved_at,
+            ).model_dump()
+            changed = True
+    return changed
+
+
 def refresh_feed_metadata(
     corpus_dir: Path,
     *,
@@ -162,7 +219,8 @@ def refresh_feed_metadata(
             continue
         rss_bytes, base_url = fetched
         updates = _derive_feed_updates(rss_bytes, base_url)
-        if not updates:
+        channel, items_by_guid = _licence_sources(rss_bytes, base_url, url)
+        if not updates and channel is None:
             continue
         refreshed_any = False
         for path in paths:
@@ -170,7 +228,10 @@ def refresh_feed_metadata(
             if doc is None or not isinstance(doc.get("feed"), dict):
                 continue
             feed_block = doc["feed"]
-            if all(_value_current(k, feed_block.get(k), v) for k, v in updates.items()):
+            licence_changed = _fill_licences(doc, channel, items_by_guid, base_url)
+            if not licence_changed and all(
+                _value_current(k, feed_block.get(k), v) for k, v in updates.items()
+            ):
                 continue  # already current — idempotent no-op
             feed_block.update(updates)
             # Atomic (advisor M1): the backfill rewrites every file of every feed, so a mid-write

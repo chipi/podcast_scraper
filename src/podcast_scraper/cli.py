@@ -2525,8 +2525,10 @@ def _parse_refresh_feed_metadata_args(argv: Optional[Sequence[str]] = None) -> a
     parser = argparse.ArgumentParser(
         description=(
             "Re-fetch feeds' RSS and refresh the derivable fields of the feed block "
-            "(description/image/last_updated/category) in existing metadata files. Does NOT "
-            "re-transcribe or re-enrich."
+            "(description/image/last_updated/category) in existing metadata files, and fill "
+            "MISSING licence records (#2325): the show's into feed.licence and each episode's own "
+            "into episode.licence, from its item by guid; a stored record is never replaced. "
+            "Does NOT re-transcribe or re-enrich."
         ),
         prog="podcast_scraper refresh-feed-metadata",
     )
