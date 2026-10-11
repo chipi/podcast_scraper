@@ -147,8 +147,12 @@ test('topics a listener keeps hearing bring "Hear another view": a speaker not y
   const rail = page.getByTestId('another-view-cards')
   await expect(rail).toBeVisible()
   const first = rail.getByTestId('another-view-card').first()
-  await expect(first.getByTestId('why-reason')).toHaveText('Another view on risk management')
-  await expect(first.getByTestId('why-quote')).toContainText('Daniel Cho')
+  // Which topic leads depends on what the rails above already show (one card per episode), so the
+  // promise is asserted, not the order: a speaker the listener has not heard, on one of their topics.
+  await expect(first.getByTestId('why-reason')).toHaveText(/^Another view on (risk management|systems thinking)$/)
+  for (const heard of ['Dr. Elena Fischer', 'Skanda Amarnath', 'Alex Morgan', 'Priya Nair', 'Ethan']) {
+    await expect(first.getByTestId('why-quote')).not.toContainText(heard)
+  }
 })
 
 test('cold start: Everyone, labelled, until a few topics are picked — then Mine is theirs', async ({
@@ -225,4 +229,28 @@ test('"15 min on" a topic: clips from different episodes, back to back, then kee
 
   await page.getByTestId('topic-reel-keep').click()
   await expect(page).toHaveURL(/\/episode\/p02-8fdd7b7f79/)
+})
+
+test('Discover is a taste: two cards a rail, "Show more" pages from the server, one card per episode', async ({
+  page,
+}, testInfo) => {
+  // Operator 2026-10-11: no long scroll; more on request, paged on the server.
+  await signInIsolated(page, 'discover-taste', testInfo)
+  const followed = await page.request.post(`/api/app/interests/${encodeURIComponent('thc:managing-risk')}`)
+  expect(followed.ok()).toBe(true)
+  await page.goto('/browse')
+  const rail = page.getByTestId('thread-cards')
+  await expect(rail.getByTestId('thread-card')).toHaveCount(2)
+  const paged = page.waitForRequest((r) => r.url().includes('/api/app/discover/rails/thread?'))
+  await rail.getByTestId('show-all-toggle').click()
+  const req = await paged
+  expect(new URL(req.url()).searchParams.get('offset')).toBe('2')
+  await expect.poll(() => rail.getByTestId('thread-card').count()).toBeGreaterThan(2)
+  // One card per episode across the page.
+  const hrefs = await page.locator('[data-testid$="-card-open"]').evaluateAll((els) =>
+    els.map((e) => e.getAttribute('href')),
+  )
+  expect(new Set(hrefs).size).toBe(hrefs.length)
+  // The show is named, so it is a way there.
+  await expect(rail.getByTestId('rail-show-link').first()).toHaveAttribute('href', /\/podcast\//)
 })

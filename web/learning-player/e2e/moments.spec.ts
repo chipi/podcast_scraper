@@ -145,13 +145,14 @@ test.describe('the ways into Moments', () => {
     await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 
-  test('Discover: "▶ Moments" on a recommendation samples the episode', async ({ page }, testInfo) => {
-    // Discover arc Step 3, "Sample an episode": every recommendation rail offers the reel.
+  test('Discover: "Play moments" in a recommendation card ⋯ samples the episode', async ({ page }, testInfo) => {
+    // Discover arc Step 3, "Sample an episode": every recommendation card offers the reel, through
+    // the standard episode actions' ⋯ menu (operator 2026-10-11: the same actions as every card).
     await signInIsolated(page, 'moments-entry-discover', testInfo)
     await page.goto('/browse')
-    const link = page.getByTestId('quote-cards').getByTestId('moments-link').first()
-    await expect(link).toBeVisible()
-    await link.click()
+    const card = page.getByTestId('quote-cards').getByTestId('quote-card').first()
+    await card.getByTestId('overflow-trigger').click()
+    await page.getByTestId('episode-play-moments').click()
     await expect(page).toHaveURL(/moments=1/)
     await expect(page.getByTestId('moments-card')).toBeVisible()
   })

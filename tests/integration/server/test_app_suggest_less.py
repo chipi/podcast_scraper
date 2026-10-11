@@ -44,7 +44,9 @@ def _subjects(body: dict) -> list[str]:
 def test_hiding_a_storyline_empties_the_thread_rail_and_undo_brings_it_back(tmp_path: Path) -> None:
     client, uid = _client(tmp_path)
     app_user_state.add_interest(tmp_path, uid, "thc:managing-risk")
-    before = client.get("/api/app/discover/thread").json()
+    before = client.get(
+        "/api/app/discover/rails/thread", params={"scope": "mine", "limit": 12}
+    ).json()
     assert before["items"] and set(_subjects(before)) == {"thc:managing-risk"}
 
     r = client.post(
@@ -55,12 +57,19 @@ def test_hiding_a_storyline_empties_the_thread_rail_and_undo_brings_it_back(tmp_
     assert [(i["token"], i["label"]) for i in r.json()["items"]] == [
         ("thc:managing-risk", "Managing risk across domains")
     ]
-    assert client.get("/api/app/discover/thread").json()["items"] == []
+    assert (
+        client.get("/api/app/discover/rails/thread", params={"scope": "mine", "limit": 12}).json()[
+            "items"
+        ]
+        == []
+    )
 
     listed = client.get("/api/app/discover/suggest-less").json()["items"]
     assert [i["token"] for i in listed] == ["thc:managing-risk"]
     assert client.delete("/api/app/discover/suggest-less/thc:managing-risk").json()["items"] == []
-    assert client.get("/api/app/discover/thread").json()["items"]
+    assert client.get(
+        "/api/app/discover/rails/thread", params={"scope": "mine", "limit": 12}
+    ).json()["items"]
 
 
 def test_a_hidden_topic_leaves_every_card_that_names_it_and_only_those(tmp_path: Path) -> None:
@@ -77,12 +86,20 @@ def test_a_hidden_topic_leaves_every_card_that_names_it_and_only_those(tmp_path:
                 "created_at": i + 1,
             },
         )
-    before = _subjects(client.get("/api/app/discover/another-view").json())
+    before = _subjects(
+        client.get(
+            "/api/app/discover/rails/another_view", params={"scope": "mine", "limit": 12}
+        ).json()
+    )
     assert "topic:risk-management" in before
     client.post(
         "/api/app/discover/suggest-less/topic:risk-management", json={"label": "risk management"}
     )
-    after = _subjects(client.get("/api/app/discover/another-view").json())
+    after = _subjects(
+        client.get(
+            "/api/app/discover/rails/another_view", params={"scope": "mine", "limit": 12}
+        ).json()
+    )
     assert "topic:risk-management" not in after
     assert after, "the other topics' cards stay"
 

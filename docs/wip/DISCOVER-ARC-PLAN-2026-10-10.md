@@ -48,7 +48,7 @@ The Discover 2 preview was removed (UI only; its APIs stay).
        `discover_people`, `discover_another_view`, `discover_trending_shows`, `explore_trends`);
      - `discover_rail_shown {rail, items, outside, scope}`, once per rail per mount, only when it
        rendered a card;
-     - `discover_rail_tap {rail, reason_kind, action: open|play_from|moments, rank, outside_habits}`;
+     - `discover_rail_tap {rail, reason_kind, action: open|play_from|less, rank, outside_habits}`;
      - `capture_created.source`, how the capture screen was reached.
    - **Wiring:**
      - `useRailTelemetry(rail)` reports `shown`/`tapped` and marks the next navigation with the

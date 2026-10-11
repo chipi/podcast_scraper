@@ -862,41 +862,38 @@ export async function setFavoriteColor(
 }
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
-/** A trending-episode quote card (GET /trending/episodes, 2026-10-10). */
+/** A recommendation card: the episode and why it is here (ADR-163; every Discover rail). */
 export interface TrendingEpisodeCard {
   why: Reason
   episode: EpisodeSummary
 }
-/** Episodes speaking to a rising topic, interleaved with the most listened-to and saved. */
-export async function getTrendingEpisodes(
-  scope: "corpus" | "mine" = "corpus",
-  limit = 8,
-): Promise<TrendingEpisodeCard[]> {
-  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/trending/episodes", { scope, limit })).items
+/** One page of one Discover rail (ADR-163; paged on the server, operator 2026-10-11). */
+export interface DiscoverRail {
+  rail: "quotes" | "captured" | "thread" | "people" | "another_view"
+  items: TrendingEpisodeCard[]
+  /** Cards the rail has in all, after the rails above took theirs: what "Show more" pages through. */
+  total: number
+  /** Cold start: Everyone's cards standing in for an empty Mine — the page labels them so. */
+  fallback: boolean
 }
 
-/** More from what you captured (ADR-163, Discover arc Step 2.2): episodes elsewhere, each linked to
- *  one of the listener's highlights, notes or saves. Signed-in only; empty with nothing captured. */
-export async function getCapturedRecommendations(limit = 6): Promise<TrendingEpisodeCard[]> {
-  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/captured", { limit })).items
+/** Every Discover rail's first page, in page order, one card per episode across the page. */
+export async function getDiscoverRails(scope: "corpus" | "mine", first = 2): Promise<DiscoverRail[]> {
+  return (await getJSON<{ rails?: DiscoverRail[] }>("/discover/rails", { scope, first })).rails ?? []
 }
 
-/** Continue the thread (ADR-163, Discover arc Step 2.3): new episodes in the storylines the
- *  listener follows, newest first. Signed-in only; empty while following no storyline. */
-export async function getThreadRecommendations(limit = 6): Promise<TrendingEpisodeCard[]> {
-  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/thread", { limit })).items
-}
-
-/** People you keep hearing (ADR-163, Discover arc Step 3): episodes on other shows with the hosts
- *  and guests the listener keeps hearing. Signed-in only; empty until someone recurs. */
-export async function getPeopleRecommendations(limit = 6): Promise<TrendingEpisodeCard[]> {
-  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/people", { limit })).items
-}
-
-/** Hear another view (ADR-163, Discover arc Step 3): on the listener's topics, a speaker they have
- *  not heard on it yet. Signed-in only. */
-export async function getAnotherViewRecommendations(limit = 6): Promise<TrendingEpisodeCard[]> {
-  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/another-view", { limit })).items
+/** The next page of one rail. `exclude` is the episodes the rails above it showed first. */
+export async function getDiscoverRailPage(
+  rail: DiscoverRail["rail"],
+  query: { scope: "corpus" | "mine"; offset: number; limit: number; exclude: string[] },
+): Promise<DiscoverRail> {
+  const params = new URLSearchParams({
+    scope: query.scope,
+    offset: String(query.offset),
+    limit: String(query.limit),
+  })
+  for (const slug of query.exclude) params.append("exclude", slug)
+  return getJSON<DiscoverRail>(`/discover/rails/${encodeURIComponent(rail)}?${params}`)
 }
 
 /** One clip of a topic reel (GET /discover/reel). */

@@ -116,8 +116,12 @@ def _client(data_dir: Path, *, signed_in: bool) -> TestClient:
 
 
 def test_the_route_returns_cards_with_their_reason(tmp_path: Path) -> None:
-    body = _client(tmp_path, signed_in=True).get("/api/app/discover/captured").json()
-    assert body["scope"] == "mine" and body["items"]
+    body = (
+        _client(tmp_path, signed_in=True)
+        .get("/api/app/discover/rails/captured", params={"scope": "mine", "limit": 12})
+        .json()
+    )
+    assert body["rail"] == "captured" and body["items"]
     item = body["items"][0]
     assert item["why"]["kind"] == "captured"
     assert item["why"]["capture"]["kind"] == "highlight"

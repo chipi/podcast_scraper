@@ -4,16 +4,21 @@ import { describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
+const api = vi.hoisted(() => ({ getDiscoverRails: vi.fn(async () => []), getReelTopics: vi.fn(async () => []) }))
+vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
+
 import BrowseView from './BrowseView.vue'
 import { useAuthStore } from '../stores/auth'
+
+const rail = (id: string, fallback = false) => ({ rail: id, items: [], total: 2, fallback })
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // Discover = what to hear next (ADR-163): quote cards, trending shows, search. Stub the rails (they
 // fetch); here we test the page's composition and its ways out.
 const stubs = {
   RecommendationRail: {
-    props: ['rail', 'scope', 'fallback'],
-    template: '<div :data-testid="`stub-rail-${rail}`" :data-fallback="fallback ? \'yes\' : \'no\'">{{ scope }}</div>',
+    props: ['rail', 'scope', 'page', 'more'],
+    template: '<div :data-testid="`stub-rail-${rail}`" :data-fallback="page.fallback ? \'yes\' : \'no\'">{{ scope }}</div>',
   },
   TrendingShowsRail: {
     props: ['scope'],
@@ -44,13 +49,14 @@ async function mountView(pinia = createPinia()) {
 }
 
 describe('BrowseView (Discover): what to hear next', () => {
-  it('leads with the quote cards, then trending shows, then search — no Trends, no catalog', async () => {
+  it('leads with search, then the rails the server returns in their order, then trending shows', async () => {
+    api.getDiscoverRails.mockResolvedValue([rail('quotes')])
     const w = await mountView()
     const html = w.html()
     const at = (id: string) => html.indexOf(`data-testid="${id}"`)
-    expect(at('stub-rail-quotes')).toBeGreaterThan(-1)
+    expect(at('browse-search-section')).toBeGreaterThan(-1)
+    expect(at('browse-search-section')).toBeLessThan(at('stub-rail-quotes'))
     expect(at('stub-rail-quotes')).toBeLessThan(at('stub-trending-shows'))
-    expect(at('stub-trending-shows')).toBeLessThan(at('browse-search-section'))
     expect(w.find('[data-testid="browse-tab-episodes"]').exists()).toBe(false)
     expect(w.findComponent({ name: 'TrendsSection' }).exists()).toBe(false)
     expect(w.findComponent({ name: 'CatalogView' }).exists()).toBe(false)
@@ -89,8 +95,11 @@ describe('BrowseView (Discover): what to hear next', () => {
     expect(w.vm.$router.currentRoute.value.name).toBe('browse')
   })
 
-  // One Mine ⇄ Everyone switch for the whole page (operator 2026-10-09): both rails follow it.
-  it('a signed-in Discover carries ONE scope switch, and both rails follow it', async () => {
+  // One Mine ⇄ Everyone switch for the whole page (operator 2026-10-09): every rail follows it.
+  it('a signed-in Discover carries ONE scope switch, and the rails follow it from the server', async () => {
+    api.getDiscoverRails.mockImplementation(async (scope: string) =>
+      scope === 'mine' ? [rail('quotes', true), rail('captured')] : [rail('quotes')],
+    )
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
     const pinia = createPinia()
     setActivePinia(pinia)
@@ -98,17 +107,17 @@ describe('BrowseView (Discover): what to hear next', () => {
     const w = await mountView(pinia)
     const toggle = w.get('[data-testid="discover-scope"]')
     expect(toggle.attributes('aria-pressed')).toBe('true')
+    expect(api.getDiscoverRails).toHaveBeenLastCalledWith('mine')
     expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('mine')
     expect(w.get('[data-testid="stub-rail-quotes"]').text()).toBe('mine')
-    // Cold start (ADR-163 §6): only Mine's quote cards fall back to Everyone's, labelled.
+    // Cold start is the server's call: its flag reaches the rail.
     expect(w.get('[data-testid="stub-rail-quotes"]').attributes('data-fallback')).toBe('yes')
-    // More from what you captured: signed in, under Mine only.
     expect(w.find('[data-testid="stub-rail-captured"]').exists()).toBe(true)
     await toggle.trigger('click')
     await flushPromises()
+    expect(api.getDiscoverRails).toHaveBeenLastCalledWith('corpus')
     expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('corpus')
     expect(w.get('[data-testid="stub-rail-quotes"]').text()).toBe('everyone')
-    expect(w.get('[data-testid="stub-rail-quotes"]').attributes('data-fallback')).toBe('no')
     expect(w.find('[data-testid="stub-rail-captured"]').exists()).toBe(false)
     expect(w.findAll('[data-testid="discover-scope"]')).toHaveLength(1)
     vi.unstubAllGlobals()

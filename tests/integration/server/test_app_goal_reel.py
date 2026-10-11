@@ -109,3 +109,27 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
         "topic:risk-management",
         "topic:systems-thinking",
     ]
+
+
+def test_reel_topics_leave_out_what_the_listener_asked_to_see_less_of(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_TRENDING_NOW", "2026-07-20")
+    monkeypatch.setenv("APP_MOMENTUM_MIN_TOTAL", "1")
+    client, uid = _client(tmp_path)
+    for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
+        app_user_state.add_highlight(
+            tmp_path,
+            uid,
+            {
+                "id": f"h{i}",
+                "episode_slug": slug,
+                "kind": "moment",
+                "quote_text": "k",
+                "created_at": i + 1,
+            },
+        )
+    app_user_state.add_suggest_less(tmp_path, uid, "topic:risk-management", "risk management", 1)
+    mine = client.get("/api/app/discover/reel-topics", params={"scope": "mine"}).json()
+    assert "topic:risk-management" not in [i["topic_id"] for i in mine["items"]]
+    assert mine["items"], "the other topics are still offered"

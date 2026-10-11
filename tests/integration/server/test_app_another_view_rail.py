@@ -120,8 +120,15 @@ def test_the_route_returns_cards_with_their_reason(tmp_path: Path) -> None:
     _seed(tmp_path, user.user_id)
     token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
     client.cookies.set(app_sessions.SESSION_COOKIE, token)
-    body = client.get("/api/app/discover/another-view").json()
-    assert body["scope"] == "mine" and body["items"]
+    body = client.get(
+        "/api/app/discover/rails/another_view", params={"scope": "mine", "limit": 12}
+    ).json()
+    assert body["rail"] == "another_view" and body["items"]
     item = body["items"][0]
     assert item["why"]["kind"] == "another_view" and item["why"]["subject"]["kind"] == "topic"
-    assert TestClient(app).get("/api/app/discover/another-view").status_code == 401
+    assert (
+        TestClient(app)
+        .get("/api/app/discover/rails/another_view", params={"scope": "mine", "limit": 12})
+        .status_code
+        == 401
+    )

@@ -22,12 +22,21 @@ from podcast_scraper.server import (
     app_ranking_config_store,
     app_user_state,
 )
-from podcast_scraper.server.app_another_view_rail import another_view_rail, engaged_topics
+from podcast_scraper.server.app_another_view_rail import engaged_topics
 from podcast_scraper.server.app_audit import append_audit
-from podcast_scraper.server.app_captured_rail import captured_rail
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_discover_rails import (
+    FIRST,
+    first_pages,
+    MINE_RAILS,
+    page_of,
+    rail_cards,
+    RAIL_MAX,
+    RailContext,
+    rails_for,
+)
 from podcast_scraper.server.app_discover_view import (
     build_discover_pool,
     interest_relpaths,
@@ -41,26 +50,18 @@ from podcast_scraper.server.app_momentum import (
     trending,
     WINDOW_MONTHS,
 )
-from podcast_scraper.server.app_people_rail import people_rail
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
     ranking_config_from_dict,
     ranking_config_to_dict,
 )
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
-from podcast_scraper.server.app_serendipity import listener_habits
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
-from podcast_scraper.server.app_thread_rail import thread_rail
-from podcast_scraper.server.app_trending_episodes import (
-    mix_outside_habits,
-    trending_episodes,
-    TrendingEpisodeCard,
-)
+from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 from podcast_scraper.server.app_user_corpus import (
     derive_interests,
     personal_entity_ids,
     user_episode_set,
-    world_episode_set,
 )
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import (
@@ -69,6 +70,8 @@ from podcast_scraper.server.routes.app_auth import (
     get_optional_user,
 )
 from podcast_scraper.server.schemas import (
+    AppDiscoverRail,
+    AppDiscoverRailsResponse,
     AppEpisodesResponse,
     AppInterestCluster,
     AppInterestClustersResponse,
@@ -86,7 +89,6 @@ from podcast_scraper.server.schemas import (
     AppTopicReelResponse,
     AppTrendingEntity,
     AppTrendingEpisodeCard,
-    AppTrendingEpisodesResponse,
     AppTrendingResponse,
     AppWhatsNewResponse,
 )
@@ -250,109 +252,19 @@ def app_trending(
     )
 
 
-@router.get("/discover/captured", response_model=AppTrendingEpisodesResponse)
-def app_discover_captured(
-    request: Request,
-    limit: int = Query(default=6, ge=1, le=20),
-    user: User = Depends(get_current_user),
-) -> AppTrendingEpisodesResponse:
-    """More from what you captured (ADR-163; Discover arc Step 2.2): episodes on shows the listener
-    does not follow, each linked to one of their highlights, notes or saves by a topic, person or
-    storyline, with the quote that grounds it. Every 5th card is the labelled outside-your-usual
-    share. Signed in only (401 otherwise); empty until something has been captured."""
+def _rail_context(request: Request, scope: str, user: User) -> RailContext:
     root = corpus_root_or_503(request)
     raw_dir = getattr(request.app.state, "app_data_dir", None)
-    if user is None or raw_dir is None:
-        return AppTrendingEpisodesResponse(scope="mine", items=[])
-    data_dir = Path(raw_dir)
-    cards = captured_rail(root, data_dir, user.user_id, limit=limit * 2)
-    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
+    return RailContext(
+        root=root,
+        data_dir=Path(raw_dir) if raw_dir is not None else None,
+        user_id=user.user_id if user is not None else None,
+        scope="mine" if scope == "mine" else "corpus",
+        config=_momentum_config(request),
+    )
 
 
-@router.get("/discover/thread", response_model=AppTrendingEpisodesResponse)
-def app_discover_thread(
-    request: Request,
-    limit: int = Query(default=6, ge=1, le=20),
-    user: User = Depends(get_current_user),
-) -> AppTrendingEpisodesResponse:
-    """Continue the thread (ADR-163; Discover arc Step 2.3): new episodes in the storylines the
-    listener follows — about one of the storyline's topics, not heard, captured or saved, published
-    since their last listen in it — newest first, each with the quote that grounds it. Every 5th
-    card is the labelled outside-your-usual share. Signed in only (401 otherwise); empty until a
-    storyline is followed."""
-    root = corpus_root_or_503(request)
-    raw_dir = getattr(request.app.state, "app_data_dir", None)
-    if user is None or raw_dir is None:
-        return AppTrendingEpisodesResponse(scope="mine", items=[])
-    data_dir = Path(raw_dir)
-    cards = thread_rail(root, data_dir, user.user_id, limit=limit * 2)
-    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
-
-
-@router.get("/discover/people", response_model=AppTrendingEpisodesResponse)
-def app_discover_people(
-    request: Request,
-    limit: int = Query(default=6, ge=1, le=20),
-    user: User = Depends(get_current_user),
-) -> AppTrendingEpisodesResponse:
-    """People you keep hearing (ADR-163; Discover arc Step 3): hosts and guests in two or more of
-    the listener's episodes — never someone merely mentioned — on shows the listener neither
-    follows nor heard them on, each with a quote that person says there. Every 5th card is the
-    labelled outside-your-usual share. Signed in only (401 otherwise); empty until someone recurs.
-    """
-    root = corpus_root_or_503(request)
-    raw_dir = getattr(request.app.state, "app_data_dir", None)
-    if user is None or raw_dir is None:
-        return AppTrendingEpisodesResponse(scope="mine", items=[])
-    data_dir = Path(raw_dir)
-    cards = people_rail(root, data_dir, user.user_id, limit=limit * 2)
-    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
-
-
-@router.get("/discover/another-view", response_model=AppTrendingEpisodesResponse)
-def app_discover_another_view(
-    request: Request,
-    limit: int = Query(default=6, ge=1, le=20),
-    user: User = Depends(get_current_user),
-) -> AppTrendingEpisodesResponse:
-    """Hear another view (ADR-163; Discover arc Step 3): on the topics the listener engages with
-    most, a speaker they have not heard on it, in an episode they have not heard, each with that
-    speaker's quote about it. "Another" is a different speaker, not a claimed opposite. Every 5th
-    card is the labelled outside-your-usual share. Signed in only (401 otherwise)."""
-    root = corpus_root_or_503(request)
-    raw_dir = getattr(request.app.state, "app_data_dir", None)
-    if user is None or raw_dir is None:
-        return AppTrendingEpisodesResponse(scope="mine", items=[])
-    data_dir = Path(raw_dir)
-    cards = another_view_rail(root, data_dir, user.user_id, limit=limit * 2)
-    return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
-
-
-def _personal_rail(
-    request: Request,
-    root: Path,
-    data_dir: Path,
-    user_id: str,
-    cards: list[TrendingEpisodeCard],
-    limit: int,
-) -> AppTrendingEpisodesResponse:
-    """A signed-in listener's rail: their cards (the rail asks for twice ``limit``, so what "Suggest
-    less" removes does not shorten it) less what they asked to see less of, mixed with Everyone's
-    outside-habits share (ADR-163 §6, §7), projected onto episode summaries. Nothing of theirs →
-    nothing at all (no padding)."""
-    less = app_user_state.suggest_less_tokens(data_dir, user_id)
-    cards = without_suggested_less(cards, less)[:limit]
-    if cards:
-        everyone = trending_episodes(
-            root, data_dir, scope="corpus", limit=limit * 2, config=_momentum_config(request)
-        )
-        cards = mix_outside_habits(
-            root,
-            cards,
-            without_suggested_less(everyone, less),
-            listener_habits(root, data_dir, user_id),
-            limit=limit,
-        )
+def _project(root: Path, cards: list[TrendingEpisodeCard]) -> list[AppTrendingEpisodeCard]:
     items: list[AppTrendingEpisodeCard] = []
     for card in cards:
         row = resolve_slug(root, card.slug)
@@ -363,7 +275,55 @@ def _personal_rail(
                     episode=row_to_summary(root, row),
                 )
             )
-    return AppTrendingEpisodesResponse(scope="mine", items=items)
+    return items
+
+
+@router.get("/discover/rails", response_model=AppDiscoverRailsResponse)
+def app_discover_rails(
+    request: Request,
+    scope: str = Query(default="corpus", description="corpus (Everyone) | mine."),
+    first: int = Query(default=FIRST, ge=1, le=RAIL_MAX),
+    user: User = Depends(get_current_user),
+) -> AppDiscoverRailsResponse:
+    """Discover's rails (ADR-163), first page each, in page order: the quote cards, then — under
+    Mine — more from what you captured, continue the thread, people you keep hearing, hear another
+    view. One card per episode across the page (the highest rail keeps it); a rail left with
+    nothing is not returned. ``total`` is what "Show more" can page through
+    (``/discover/rails/{rail}``). Under Mine with an empty world, the quote rail is Everyone's,
+    ``fallback``."""
+    ctx = _rail_context(request, scope, user)
+    pages = first_pages(ctx, first)
+    return AppDiscoverRailsResponse(
+        scope="mine" if ctx.mine else "corpus",
+        rails=[
+            AppDiscoverRail(
+                rail=p.rail, items=_project(ctx.root, p.items), total=p.total, fallback=p.fallback
+            )
+            for p in pages
+        ],
+    )
+
+
+@router.get("/discover/rails/{rail}", response_model=AppDiscoverRail)
+def app_discover_rail_page(
+    request: Request,
+    rail: str,
+    scope: str = Query(default="corpus"),
+    offset: int = Query(default=0, ge=0, le=RAIL_MAX),
+    limit: int = Query(default=4, ge=1, le=RAIL_MAX),
+    exclude: list[str] = Query(default=[], max_length=RAIL_MAX * len(MINE_RAILS)),
+    user: User = Depends(get_current_user),
+) -> AppDiscoverRail:
+    """One page of one rail — what "Show more" asks for. ``exclude`` is the episodes the rails
+    above it showed first, so the page stays one card per episode; ``offset`` counts after them."""
+    ctx = _rail_context(request, scope, user)
+    if rail not in rails_for(ctx):
+        raise HTTPException(status_code=404, detail=f"No rail {rail!r} under this scope.")
+    cards, fallback = rail_cards(ctx, rail)
+    items, total = page_of(cards, exclude, offset, limit)
+    return AppDiscoverRail(
+        rail=rail, items=_project(ctx.root, items), total=total, fallback=fallback
+    )
 
 
 def _topic_label(root: Path, topic_id: str, slugs: list[str]) -> str:
@@ -453,6 +413,11 @@ def app_discover_reel_topics(
             config=_momentum_config(request),
         )
         candidates = [(t.entity_id, t.label) for t in rising]
+    # A topic the listener asked to see less of is not offered either (ADR-163 §6): the row sits on
+    # the same page as the rails that already leave it out.
+    if eff == "mine" and data_dir is not None:
+        hidden = app_user_state.suggest_less_tokens(data_dir, user.user_id)
+        candidates = [(tid, label) for tid, label in candidates if tid not in hidden]
     config = getattr(request.app.state, "moments_config", None)
     items: list[AppReelTopic] = []
     for tid, label in candidates:
@@ -470,16 +435,6 @@ def app_discover_reel_topics(
         if len(items) >= REEL_TOPICS:
             break
     return AppReelTopicsResponse(scope=eff, items=items)
-
-
-def without_suggested_less(
-    cards: list[TrendingEpisodeCard], tokens: set[str]
-) -> list[TrendingEpisodeCard]:
-    """Cards whose reason does not name a subject the listener asked to see less of (ADR-163 §6).
-    A card with no subject (most engaged) is never removed: "less" has nothing to point at."""
-    if not tokens:
-        return cards
-    return [c for c in cards if c.why.subject is None or c.why.subject.id not in tokens]
 
 
 def _data_dir(request: Request) -> Path:
@@ -524,67 +479,6 @@ def app_remove_suggest_less(
     """Undo a "suggest less" (Profile › Interests, or the card's Undo). No-op if absent."""
     rows = app_user_state.remove_suggest_less(_data_dir(request), user.user_id, token)
     return AppSuggestLessResponse(items=[AppSuggestLessItem(**r) for r in rows])
-
-
-@router.get("/trending/episodes", response_model=AppTrendingEpisodesResponse)
-def app_trending_episodes(
-    request: Request,
-    scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
-    limit: int = Query(default=8, ge=1, le=20),
-    user: User = Depends(get_current_user),
-) -> AppTrendingEpisodesResponse:
-    """Trending episodes as quote cards (operator 2026-10-10): episodes speaking to a rising topic,
-    interleaved with the ones listened to, opened and saved most over four weeks. Under
-    ``scope=mine`` both keep to the listener's world (ADR-162)."""
-    root = corpus_root_or_503(request)
-    raw_dir = getattr(request.app.state, "app_data_dir", None)
-    data_dir = Path(raw_dir) if raw_dir is not None else None
-    eff_scope = "mine" if (scope == "mine" and user is not None) else "corpus"
-    uid = user.user_id if eff_scope == "mine" and user is not None else None
-    entities = world = None
-    if uid is not None and data_dir is not None:
-        entities = personal_entity_ids(root, data_dir, uid)
-        world = world_episode_set(root, data_dir, uid)
-    less = (
-        app_user_state.suggest_less_tokens(data_dir, uid)
-        if uid is not None and data_dir is not None
-        else set()
-    )
-    cards = trending_episodes(
-        root,
-        data_dir,
-        scope=eff_scope,
-        user_id=uid,
-        restrict_entities=entities,
-        world=world,
-        limit=limit * 2 if less else limit,
-        config=_momentum_config(request),
-    )
-    cards = without_suggested_less(cards, less)[:limit]
-    if uid is not None and data_dir is not None:
-        # The serendipity share (ADR-163 §7): every 5th card from outside the listener's habits.
-        everyone = trending_episodes(
-            root, data_dir, scope="corpus", limit=limit * 2, config=_momentum_config(request)
-        )
-        cards = mix_outside_habits(
-            root,
-            cards,
-            without_suggested_less(everyone, less),
-            listener_habits(root, data_dir, uid),
-            limit=limit,
-        )
-    items: list[AppTrendingEpisodeCard] = []
-    for card in cards:
-        row = resolve_slug(root, card.slug)
-        if row is None:
-            continue
-        items.append(
-            AppTrendingEpisodeCard(
-                why=AppReason.model_validate(card.why.to_dict()),
-                episode=row_to_summary(root, row),
-            )
-        )
-    return AppTrendingEpisodesResponse(scope=eff_scope, items=items)
 
 
 @router.get("/discover", response_model=AppEpisodesResponse)

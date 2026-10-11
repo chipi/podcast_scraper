@@ -63,10 +63,11 @@ test('Discovery carries the search box, and it runs the search', async ({ page }
   await expect(page.getByTestId('search-scope')).toBeVisible()
 })
 
-test('the search box sits below Trending shows, and Trends are not on Discover', async ({ page }, testInfo) => {
+test('the search box leads Discover, above the rails, and Trends are not on Discover', async ({ page }, testInfo) => {
   // Placement is the operator's instruction, so it is asserted by POSITION rather than presence:
   // "it renders somewhere on Discovery" would stay green if it drifted to the bottom of the page.
-  // Trends moved to Explore (ADR-163 §1, 2026-10-11).
+  // On a phone the Discover tab IS the way into search, so it leads (operator 2026-10-11; it sat
+  // below Trending shows before). Trends moved to Explore (ADR-163 §1).
   await signInIsolated(page, 'sid-order', testInfo)
   await page.goto('/browse')
 
@@ -76,7 +77,10 @@ test('the search box sits below Trending shows, and Trends are not on Discover',
   await expect(page.getByTestId('discovery-explorer')).toHaveCount(0)
 
   const y = async (l: typeof rail) => (await l.boundingBox())!.y
-  expect(await y(rail)).toBeLessThan(await y(box))
+  expect(await y(box)).toBeLessThan(await y(rail))
+  const quotes = page.getByTestId('quote-cards')
+  await expect(quotes).toBeVisible()
+  expect(await y(box)).toBeLessThan(await y(quotes))
 })
 
 test('the DESKTOP masthead agrees with the phone bar on /search', async ({ page }, testInfo) => {

@@ -108,8 +108,12 @@ def _client(data_dir: Path) -> TestClient:
 
 
 def test_the_route_returns_cards_with_their_reason(tmp_path: Path) -> None:
-    body = _client(tmp_path).get("/api/app/discover/thread").json()
-    assert body["scope"] == "mine" and body["items"]
+    body = (
+        _client(tmp_path)
+        .get("/api/app/discover/rails/thread", params={"scope": "mine", "limit": 12})
+        .json()
+    )
+    assert body["rail"] == "thread" and body["items"]
     item = body["items"][0]
     assert item["why"]["kind"] == "thread"
     assert item["why"]["subject"]["id"] == STORYLINE
@@ -120,4 +124,9 @@ def test_signed_out_is_refused(tmp_path: Path) -> None:
     app = create_app(ROOT, static_dir=False)
     app.state.app_data_dir = tmp_path
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
-    assert TestClient(app).get("/api/app/discover/thread").status_code == 401
+    assert (
+        TestClient(app)
+        .get("/api/app/discover/rails/thread", params={"scope": "mine", "limit": 12})
+        .status_code
+        == 401
+    )

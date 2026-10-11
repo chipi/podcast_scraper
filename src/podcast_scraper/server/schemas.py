@@ -1191,6 +1191,25 @@ class AppTrendingEpisodesResponse(BaseModel):
     items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
 
 
+class AppDiscoverRail(BaseModel):
+    """One page of one Discover rail (ADR-163; paged on the server, operator 2026-10-11)."""
+
+    rail: str = Field(description="quotes | captured | thread | people | another_view.")
+    items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
+    total: int = Field(ge=0, description="Cards the rail has in all (after the rails above).")
+    fallback: bool = Field(
+        default=False,
+        description="Cold start: Everyone's cards standing in for an empty Mine — label them so.",
+    )
+
+
+class AppDiscoverRailsResponse(BaseModel):
+    """Every rail's first page, in page order, one card per episode across the page."""
+
+    scope: str = Field(description="mine | corpus.")
+    rails: list[AppDiscoverRail] = Field(default_factory=list)
+
+
 class AppReelClip(BaseModel):
     """One clip of a topic reel: a moment of an episode (the Moments picker's clip window)."""
 

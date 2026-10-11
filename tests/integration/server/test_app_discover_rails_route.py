@@ -1,4 +1,4 @@
-"""GET /api/app/trending/episodes: each card carries its reason in the shared shape (ADR-163).
+"""GET /api/app/discover/rails: each card carries its reason in the shared shape (ADR-163).
 
 The selection itself is unit-tested (``test_app_trending_episodes``); this pins the seam — the
 builder's ``Reason`` becomes the response's ``why``, beside the episode it recommends.
@@ -40,10 +40,12 @@ def test_each_card_carries_its_reason_beside_the_episode(
         ),
     )
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.app_discover.trending_episodes", lambda *a, **k: [card]
+        "podcast_scraper.server.app_discover_rails.trending_episodes", lambda *a, **k: [card]
     )
-    body = _client(tmp_path).get("/api/app/trending/episodes").json()
-    [item] = body["items"]
+    body = _client(tmp_path).get("/api/app/discover/rails").json()
+    [rail] = body["rails"]
+    assert (rail["rail"], rail["total"], rail["fallback"]) == ("quotes", 1, False)
+    [item] = rail["items"]
     assert item["episode"]["slug"] == slug
     why = item["why"]
     assert why["kind"] == "rising_topic" and why["outside_habits"] is False
