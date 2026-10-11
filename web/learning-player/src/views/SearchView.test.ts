@@ -36,6 +36,7 @@ function makeRouter() {
       // section did not render" AND corrupted later tests in this file, rather than as a routing
       // error (operator 2026-09-17). Same failure mode as an EpisodeCard with no feed_id.
       { path: "/storyline/:id", name: "storyline", component: { template: "<div/>" }, props: true },
+      { path: "/theme/:id", name: "theme", component: { template: "<div/>" }, props: true },
     ],
   })
 }
@@ -53,6 +54,9 @@ beforeEach(async () => {
   // store the component had written looked empty to the test.
   await clearCached(["captures"])
   vi.spyOn(api, "resolveEntity").mockResolvedValue({ query: "", entity: null })
+  // Default: no theme matches. Unmocked, the theme lookup fails against no server, the client marks
+  // the server unreachable, and offline-gated controls (▶ Moments) vanish from unrelated tests.
+  vi.spyOn(api, "searchInterests").mockResolvedValue([])
   // Default: no storylines. Unmocked, the onMounted fetch rejects into an unhandled rejection that
   // Vitest reports across the whole run.
   vi.spyOn(api, "getStorylines").mockResolvedValue([])
@@ -406,6 +410,22 @@ describe("SearchView", () => {
     expect(episodes).not.toContain("systems problem")
     expect(episodes).not.toContain("Dr. Elena Fischer")
     expect(episodes).toContain("Systems fail at the couplings.")
+  })
+
+  it("lists THEMES that contain the query, as pills like every other kind (\"safety\" → safety practices)", async () => {
+    // Operator 2026-10-11: themes are not indexed rows, and the resolver needs the whole name, so
+    // "safety" found nothing although "safety practices" is a theme.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "safety", error: null, results: [] })
+    const themes = vi
+      .spyOn(api, "searchInterests")
+      .mockResolvedValue([{ id: "tc:safety-practices", kind: "theme", label: "safety practices" }])
+    const { w } = await mountAt("safety")
+    expect(themes).toHaveBeenCalledWith("theme", "safety", 8)
+    expect(w.get('[data-testid="search-section-themes"]').text()).toBe("Themes")
+    const pill = w.get('[data-testid="search-theme-result"]')
+    expect(pill.text()).toBe("safety practices")
+    expect(pill.attributes("href")).toBe("/theme/tc:safety-practices")
+    expect(w.text()).not.toContain("No matches found.")
   })
 
   it("surfaces a STORYLINE from the resolver, in its own section", async () => {

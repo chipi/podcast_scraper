@@ -140,15 +140,17 @@ This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in 
 
 ## Entities in search (3.4 — shipped)
 
-The people and topics a query reaches are listed **above** the grouped passage results (UXS-012
-search), each **once** — **People**, then **Topics**, as compact kind-coloured pills (eight, then
-"Show all (N)"); a pill opens the §Entity-cards overlay. The exact/near-exact name match leads its
-list; the index's topic and person hits follow in rank order, however many episodes each was found
-in. They are **not** rows under an episode (operator 2026-10-11): a topic or a person connects
-episodes, and under one episode it read as a fact about that episode. A theme (resolver only) keeps
-its single card with a "View ›" affordance; storylines keep their list. The "no grounded passages"
-line is suppressed when any of these matched (we *did* find something). Resolved in parallel with
-the passage search, so a miss never delays results.
+Every subject a query reaches is shown **one way**, **above** the grouped passage results (UXS-012
+search; operator 2026-10-11): a section per kind — **People**, **Topics**, **Themes**,
+**Storylines** — each the same compact kind-coloured pills, one per subject however many episodes it
+was found in (eight, then "Show all (N)"). The exact/near-exact name match leads its kind. People and
+topics come from the index's hits; themes by partial name (they are not indexed rows, so "safety"
+reaches "safety practices" through `/interests/search?kind=theme`); storylines from the index. A
+person or topic pill opens the §Entity-cards overlay; a theme or storyline pill opens its page. None
+of them is a row under an episode: a subject connects episodes, and under one it read as a fact
+about that episode. The "no grounded passages" line is suppressed when any of these matched (we
+*did* find something). Resolved in parallel with the passage search, so a miss never delays
+results.
 
 ## Personalized discovery (3.5 — shipped)
 

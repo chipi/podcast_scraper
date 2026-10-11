@@ -12,7 +12,7 @@ import { useI18n } from "vue-i18n"
 import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
-import { getPodcastsPage, resolveEntity, searchCorpus } from "../services/api"
+import { getPodcastsPage, resolveEntity, searchCorpus, searchInterests } from "../services/api"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { resolveMediaUrl } from "../services/tier"
 import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
@@ -368,11 +368,29 @@ function entityRows(kind: "topic" | "person"): EntityRow[] {
   return out
 }
 const topicResults = computed(() => entityRows("topic"))
+/** Themes whose name contains the query (`searchInterests`), set per run. */
+const themeMatches = ref<{ id: string; label: string }[]>([])
+/** The exact-name theme first, then the partial matches, one per id. */
+const themeResults = computed<EntityRow[]>(() => {
+  const out: EntityRow[] = []
+  const seen = new Set<string>()
+  const e = entity.value
+  if (e?.kind === "theme") {
+    seen.add(e.id)
+    out.push({ key: e.id, id: e.id, label: e.label })
+  }
+  for (const m of themeMatches.value) {
+    if (seen.has(m.id)) continue
+    seen.add(m.id)
+    out.push({ key: m.id, id: m.id, label: m.label })
+  }
+  return out
+})
 const peopleResults = computed(() => entityRows("person"))
 /** A long list folds behind "Show all" (a broad word like "risk" reaches twenty topics). */
 const ENTITY_ROWS_SHOWN = 8
 const expandedEntityLists = ref(new Set<string>())
-function shownRows(key: string, rows: EntityRow[]): EntityRow[] {
+function shownRows<T>(key: string, rows: T[]): T[] {
   return expandedEntityLists.value.has(key) ? rows : rows.slice(0, ENTITY_ROWS_SHOWN)
 }
 function toggleEntityList(key: string): void {
@@ -380,6 +398,25 @@ function toggleEntityList(key: string): void {
   if (next.has(key)) next.delete(key)
   else next.add(key)
   expandedEntityLists.value = next
+}
+/**
+ * Every subject the query reached, ONE way (operator 2026-10-11: "topics, themes, people and
+ * storylines in search results in one way"): a section per kind — People, Topics, Themes,
+ * Storylines — each a list of the same kind-coloured pills. A person or topic opens its card; a
+ * theme or storyline opens its page (neither has a card). Empty kinds are left out.
+ */
+type SubjectKind = "person" | "topic" | "theme" | "storyline"
+type SubjectPill = { key: string; label: string; open: { card: { kind: "person" | "topic"; id: string } } | { to: { name: string; params: { id: string } } } }
+const subjectSections = computed<{ key: string; kind: SubjectKind; rows: SubjectPill[] }[]>(() => {
+  return [
+    { key: "people", kind: "person" as const, rows: peopleResults.value.map((r) => ({ key: r.key, label: r.label, open: { card: { kind: "person" as const, id: r.id } } })) },
+    { key: "topics", kind: "topic" as const, rows: topicResults.value.map((r) => ({ key: r.key, label: r.label, open: { card: { kind: "topic" as const, id: r.id } } })) },
+    { key: "themes", kind: "theme" as const, rows: themeResults.value.map((r) => ({ key: r.key, label: r.label, open: { to: { name: "theme", params: { id: r.id } } } })) },
+    { key: "storylines", kind: "storyline" as const, rows: storylineResults.value.map((r) => ({ key: r.key, label: r.label, open: { to: { name: "storyline", params: { id: r.routeId } } } })) },
+  ].filter((sec) => sec.rows.length > 0)
+})
+function trackSubjectPage(kind: SubjectKind): void {
+  track("entity_open", { kind, presentation: "page", source: "search" })
 }
 function openEntityRow(kind: "topic" | "person", id: string): void {
   track("search_result_click", { result_kind: kind, rank: "1" })
@@ -496,6 +533,7 @@ async function run(q: string): Promise<void> {
     lastRunTerm = ""
     results.value = []
     entity.value = null
+    themeMatches.value = []
     ran.value = false
     lastRunSig.value = ""
     ranTerm.value = ""
@@ -536,6 +574,18 @@ async function run(q: string): Promise<void> {
           if (current()) entity.value = null
         }
       )
+  // THEMES by name, partially ("safety" → "safety practices"): themes are not indexed rows, so the
+  // passage search never returns one and the resolver above needs the whole name (operator
+  // 2026-10-11: searching "safety" found nothing). Both scopes, like the topics and storylines the
+  // index returns. A failure leaves the list empty; it never fails the search.
+  void searchInterests("theme", term, 8).then(
+    (items) => {
+      if (current()) themeMatches.value = items
+    },
+    () => {
+      if (current()) themeMatches.value = []
+    }
+  )
   try {
     // #1261-1: always ask the server for related-topic decoration; a broken
     // enricher chain degrades to plain hits and the chip row simply disappears.
@@ -594,21 +644,6 @@ function setScope(s: "all" | "mine"): void {
   setSharedScope(s === "mine" ? "mine" : "corpus")
   void router.replace({ name: "search", query: { q: query.value.trim() || undefined, scope: s } })
   void run(query.value)
-}
-
-function openEntity(): void {
-  const e = entity.value
-  // Person / topic / org only. A storyline has no EntityCard — it renders in the Storylines list as
-  // a RouterLink straight to its page, and the button this drives is not rendered for one.
-  if (!e || e.kind === "storyline") return
-  // A theme has no EntityCard either — it is a grouping, never a node on an episode, so the card
-  // would be empty. It has a PAGE, so go there. Without this the kind falls through to
-  // `cardTarget` and opens a card that cannot load.
-  if (e.kind === "theme") {
-    void router.push({ name: "theme", params: { id: e.id } })
-    return
-  }
-  cardTarget.value = { kind: e.kind, id: e.id }
 }
 
 function submit(): void {
@@ -682,31 +717,6 @@ watch(
  * presence rule Library's bar follows. Not persisted: a filter is about the query you are reading
  * now, and carrying it into the next search would silently hide results.
  */
-/**
- * Which SECTION the resolved entity belongs in — people, topics and storylines are three sections
- * now, not one lumped list (operator 2026-09-17). `organization` never reaches here; it is filtered
- * when the resolver answers.
- */
-const entityKey = computed<"people" | "topics" | "storylines" | "themes" | null>(() => {
-  switch (entity.value?.kind) {
-    case "person":
-      return "people"
-    case "topic":
-      return "topics"
-    case "storyline":
-      return "storylines"
-    // Its OWN section, not folded into storylines. A theme and a storyline are different objects —
-    // one groups by meaning, the other by co-occurrence — and showing a theme under a "Storylines"
-    // heading is the same conflation that has to be undone everywhere else it was done.
-    case "theme":
-      return "themes"
-    default:
-      // An unknown kind renders NOTHING (every entity block is `v-if="entity && entityKey"`), which
-      // is how a resolved theme was invisible here before this case existed.
-      return null
-  }
-})
-
 const resultTypes = ref<string[]>([])
 const typeVisible = (key: string) => resultTypes.value.length === 0 || resultTypes.value.includes(key)
 const availableResultTypes = computed(() => {
@@ -717,7 +727,7 @@ const availableResultTypes = computed(() => {
   // follow the lists; the single entity card is left for a theme or a storyline.
   if (peopleResults.value.length) out.push({ key: "people", label: t("search.type_people") })
   if (topicResults.value.length) out.push({ key: "topics", label: t("search.type_topics") })
-  if (entityKey.value === "themes") out.push({ key: "themes", label: t("search.type_themes") })
+  if (themeResults.value.length) out.push({ key: "themes", label: t("search.type_themes") })
   // Storylines: index hits plus the resolver's exact-name answer, one list (storylineResults).
   if (storylineResults.value.length)
     out.push({ key: "storylines", label: t("search.type_storylines") })
@@ -744,6 +754,7 @@ const showEmpty = computed(
     storylineResults.value.length === 0 &&
     topicResults.value.length === 0 &&
     peopleResults.value.length === 0 &&
+    themeResults.value.length === 0 &&
     entity.value === null
 )
 </script>
@@ -876,105 +887,49 @@ const showEmpty = computed(
          its own heading, subtitle and filter chip. The resolver returns at most ONE entity, so
          exactly one of them renders for a given query — but which one is now named, instead of a
          lumped heading that made a person and a storyline look like the same kind of result. -->
-    <!-- PEOPLE and TOPICS — lifted out of the episode results (operator 2026-10-11): a topic or a
-         person connects episodes, so it is listed once, up here, like storylines, not under the
-         episode it was indexed from. The resolver's exact-name answer leads each list. -->
-    <template v-for="list in ([['people', 'person', peopleResults], ['topics', 'topic', topicResults]] as const)" :key="list[0]">
-      <template v-if="list[2].length && !searching && typeVisible(list[0])">
-        <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${list[0]}`">
-          {{ t(`search.type_${list[0]}`) }}
+    <!-- PEOPLE · TOPICS · THEMES · STORYLINES — one way (operator 2026-10-11): a section per kind,
+         each the same kind-coloured pills, one per subject however many episodes it was found in,
+         listed above the episodes (a topic or person connects episodes, so it is not a row under
+         one). The exact-name answer leads its kind; eight, then "Show all (N)". A person or topic
+         opens its card, a theme or storyline its page. -->
+    <template v-for="sec in subjectSections" :key="sec.key">
+      <template v-if="!searching && typeVisible(sec.key)">
+        <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${sec.key}`">
+          {{ t(`search.type_${sec.key}`) }}
         </h2>
-        <ul class="mt-2 flex flex-wrap gap-2" :data-testid="`search-${list[0]}`">
-          <li v-for="row in shownRows(list[0], list[2])" :key="row.key">
+        <ul class="mt-2 flex flex-wrap gap-2" :data-testid="`search-${sec.key}`">
+          <li v-for="row in shownRows(sec.key, sec.rows)" :key="row.key">
+            <RouterLink
+              v-if="'to' in row.open"
+              :to="row.open.to"
+              class="lp-tap inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
+              :class="kindPill(sec.kind)"
+              :data-kind="sec.kind"
+              :data-testid="`search-${sec.kind}-result`"
+              :aria-label="t('kp.openEntity', { term: row.label })"
+              @click="trackSubjectPage(sec.kind)"
+            >{{ row.label }}</RouterLink>
             <button
+              v-else
               type="button"
               class="lp-tap inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
-              :class="kindPill(list[1])"
-              :data-kind="list[1]"
-              :data-testid="`search-${list[1]}-result`"
+              :class="kindPill(sec.kind)"
+              :data-kind="sec.kind"
+              :data-testid="`search-${sec.kind}-result`"
               :aria-label="t('kp.openEntity', { term: row.label })"
-              @click="openEntityRow(list[1], row.id)"
+              @click="openEntityRow(row.open.card.kind, row.open.card.id)"
             >{{ row.label }}</button>
           </li>
         </ul>
         <button
-          v-if="list[2].length > ENTITY_ROWS_SHOWN"
+          v-if="sec.rows.length > ENTITY_ROWS_SHOWN"
           type="button"
           class="lp-tap mt-2 text-sm font-bold text-accent"
-          :aria-expanded="expandedEntityLists.has(list[0])"
-          :data-testid="`search-${list[0]}-more`"
-          @click="toggleEntityList(list[0])"
-        >{{ expandedEntityLists.has(list[0]) ? t("home.showLess") : t("search.showAllCount", { count: list[2].length }) }}</button>
+          :aria-expanded="expandedEntityLists.has(sec.key)"
+          :data-testid="`search-${sec.key}-more`"
+          @click="toggleEntityList(sec.key)"
+        >{{ expandedEntityLists.has(sec.key) ? t("home.showLess") : t("search.showAllCount", { count: sec.rows.length }) }}</button>
       </template>
-    </template>
-
-    <!-- A THEME (from the resolver only — themes are not indexed rows) keeps its single card. -->
-    <template v-if="entity && entityKey === 'themes' && !searching && typeVisible(entityKey)">
-      <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${entityKey}`">
-        {{ t(`search.type_${entityKey}`) }}
-      </h2>
-      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.entitySummary") }}
-      </p>
-    </template>
-    <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
-    <button
-      v-if="entity && entityKey === 'themes' && !searching && typeVisible(entityKey)"
-      type="button"
-      class="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:bg-overlay"
-      :aria-label="t('kp.openEntity', { term: entity.label })"
-      @click="openEntity"
-    >
-      <span class="min-w-0 flex-1">
-        <!-- An `organization` never reaches here; it is filtered when the resolver answers. -->
-        <span class="lp-kicker block">{{
-          entity.kind === "person"
-            ? t("ec.person")
-            : entity.kind === "storyline"
-              ? t("home.storylines")
-              : entity.kind === "theme"
-                ? t("home.themes")
-                : t("ec.topic")
-        }}</span>
-        <span class="block font-display text-lg font-bold text-canvas-foreground">{{
-          entity.label
-        }}</span>
-      </span>
-      <span class="shrink-0 text-sm font-semibold text-accent">{{ t("search.viewEntity") }} ›</span>
-    </button>
-
-    <!-- STORYLINES — from the INDEX, so a partial or member-topic query reaches them ("risk"
-         finds "Managing risk across domains" through its members), with the resolver's exact-name
-         answer folded in and de-duplicated by id. A list rather than the single entity card,
-         because an index query can legitimately match several. -->
-    <template v-if="storylineResults.length && !searching && typeVisible('storylines')">
-      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-storylines">
-        {{ t("search.type_storylines") }}
-      </h2>
-      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.storylinesSummary", { count: storylineResults.length }, storylineResults.length) }}
-      </p>
-      <ul class="flex flex-col gap-2" data-testid="search-storylines">
-        <li v-for="s in storylineResults" :key="s.key">
-          <RouterLink
-            :to="{ name: 'storyline', params: { id: s.routeId } }"
-            class="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 no-underline transition hover:bg-overlay"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="lp-kicker block">{{ t("home.storylines") }}</span>
-              <span class="block font-display text-lg font-bold text-canvas-foreground">{{
-                s.label
-              }}</span>
-              <span v-if="s.size" class="lp-kicker mt-0.5 block">{{
-                t("search.storylineSize", { count: s.size }, s.size)
-              }}</span>
-            </span>
-            <span class="shrink-0 text-sm font-semibold text-accent"
-              >{{ t("search.viewEntity") }} ›</span
-            >
-          </RouterLink>
-        </li>
-      </ul>
     </template>
 
     <!-- SHOWS — matched by title / host, every word in any order (see `showMatches`). -->
