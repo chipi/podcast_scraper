@@ -136,10 +136,10 @@ playable) and the last short listen left unfinished (resumable at its clip). Ope
 ### FR8: Explore
 
 Explore has its own place in the navigation. It holds Trends, each kind as a short list with
-"Show more" paged from the server, and a taste of the catalogue: the newest four episodes or six
-shows, with "See all" to the full lists (`/catalog`, `/shows`). Mine applies to Trends and Search;
-the catalogue is everyone's, and its full lists carry a "Which episodes" / "Which shows" filter
-(All shows, Following, Mine) for the listener's own.
+"Show more" paged from the server, and Browse: the Episodes and Shows lists in full, with their
+filter bars (text filter, which episodes, state, sort, category, language, list or grid), as Browse
+had them in the last release. (A "taste with See all" replaced these lists for a day on this branch
+and dropped every control; the operator never asked for that, and it was reverted on 2026-10-11.)
 
 ### FR9: Search
 
@@ -150,7 +150,7 @@ told what to hear next), so search is one tap from the Explore tab on a phone.
 
 Measured in Umami (`discover_rail_shown`, `discover_rail_tap`, `capture_created.source`), per rail;
 the reel, Learn and Explore by `reel_open`, `reel_action`, `learn_path`, `trends_show_more`,
-`explore_see_all` and `catalog_filter` (RFC-126 §6):
+and `catalog_filter` (RFC-126 §6):
 
 - **Primary:** captures per tap, and the cross-show share of opens.
 - **Secondary:** tap rate.

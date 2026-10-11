@@ -262,7 +262,6 @@ export const EVENT_NAMES = [
   // The reel and Explore (operator 2026-10-11: real telemetry for everything new)
   'reel_open',
   'reel_action',
-  'explore_see_all',
   'trends_show_more',
   'catalog_filter',
 ] as const
@@ -469,8 +468,6 @@ export type EventProps = {
     clips: CountBucket
     clip?: RankBucket
   }
-  /** Explore's catalog taste: "See all" to the full episode or show list. */
-  explore_see_all: { list: 'episodes' | 'shows' }
   /** Explore's Trends: "Show more" asked the server for the next page of a kind. */
   trends_show_more: {
     kind: 'topic' | 'theme' | 'storyline' | 'person'

@@ -276,12 +276,11 @@ test('browse', async ({ page }) => {
 })
 
 test('explore', async ({ page }) => {
-  // Trends + a taste of the catalog (operator 2026-10-11): judged whole, since its length was the
-  // complaint that made it a taste.
+  // Trends + Browse (the full Episodes list with its filter bar, as the last release had it).
   await signIn(page)
   await page.goto('/explore')
   await expect(page.getByTestId('discovery-explorer')).toBeVisible()
-  await expect(page.getByTestId('explore-see-all-episodes')).toBeVisible()
+  await expect(page.getByTestId('browse-panel-episodes').getByTestId('catalog-from')).toBeVisible()
   await shoot(page, 'explore')
 })
 

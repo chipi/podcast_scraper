@@ -155,6 +155,9 @@ function componentTestids(): { exact: Set<string>; prefixes: string[] } {
   // toggle-testid="revisit-group-collapse">` — render as `data-testid` inside the child. Static
   // values only: the leading space keeps `:testid` bindings and `data-testid` (read above) out.
   for (const m of allComponentSrc.matchAll(/\s(?:[a-z]+-)?testid\s*=\s*"([a-z0-9-]+)"/g)) raw.add(m[1])
+  // ...and a forwarding prop's DEFAULT (`withDefaults(…, { filterTestid: "list-toolbar-filter" })`),
+  // which is what renders when the host passes none — Explore's Episodes toolbar does exactly that.
+  for (const m of allComponentSrc.matchAll(/\b[a-z]+Testid:\s*["']([a-z0-9-]+)["']/g)) raw.add(m[1])
 
   const exact = new Set<string>()
   const prefixes: string[] = []

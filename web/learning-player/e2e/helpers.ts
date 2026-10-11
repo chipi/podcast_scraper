@@ -107,7 +107,7 @@ async function tapTo(
 ): Promise<void> {
   // `explore` is Explore (Trends + a taste of the catalog, ADR-163 §1): its own bottom tab on a
   // phone, the masthead icon on desktop. `catalog` is the full episode list behind it (2026-10-11):
-  // on a phone Home's "Browse all", on desktop Explore's "See all episodes".
+  // on a phone Home's "Browse all", on desktop Explore's Episodes tab (the full list).
   if (dest === 'explore' || dest === 'catalog') {
     const tab = page.getByTestId('bottom-nav-explore')
     const phone = await tab.isVisible().catch(() => false)
@@ -119,7 +119,6 @@ async function tapTo(
     await (phone ? tab : page.getByTestId('masthead-explore')).click()
     if (dest === 'catalog') {
       await page.getByTestId('browse-tab-episodes').click()
-      await page.getByTestId('explore-see-all-episodes').click()
     }
     return
   }

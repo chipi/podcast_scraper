@@ -103,7 +103,7 @@ test.describe('signed-in UI surfaces', () => {
     for (const tab of ['episodes', 'shows']) {
       await expect(page.getByTestId(`browse-tab-${tab}`)).toBeVisible()
     }
-    await expect(page.getByTestId('explore-see-all-episodes')).toBeVisible()
+    await expect(page.getByTestId('browse-panel-episodes').getByTestId('catalog-from')).toBeVisible()
   })
 
   test('Player opens a playable episode with a live audio element', async ({ page, request }) => {

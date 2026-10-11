@@ -22,7 +22,7 @@ test('Explore renders the discovery explorer and both content tabs', async ({ pa
 
   // Content band — Episodes and Shows only (topics/people/storylines surface via the explorer).
   await page.getByTestId('browse-tab-shows').click()
-  await expect(page.getByTestId('explore-taste-shows')).toBeVisible()
+  await expect(page.getByTestId('browse-panel-shows').getByTestId('show-browse-search')).toBeVisible()
 
   await page.getByTestId('browse-tab-episodes').click()
   await expect(page.getByTestId('browse-panel-episodes')).toBeVisible()

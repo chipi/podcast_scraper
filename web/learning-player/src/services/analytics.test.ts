@@ -119,10 +119,10 @@ describe('registry guard', () => {
     // `home_rail_click` (2026-10-07: its only rail, Home's Trends, moved to Discover), plus
     // `trends_row_click`, which asks its question on Discover, plus `discover_rail_shown` and
     // `discover_rail_tap` (ADR-163, Discover's rails), plus `learn_path` (2026-10-11, Learn X this
-    // week), plus `reel_open`, `reel_action`, `explore_see_all`, `trends_show_more` and
+    // week), plus `reel_open`, `reel_action`, `trends_show_more` and
     // `catalog_filter` (2026-10-11, telemetry for the reel and Explore). If this number changes, the
     // catalog changed — record where, do not just bump it.
-    expect(EVENT_NAMES).toHaveLength(50)
+    expect(EVENT_NAMES).toHaveLength(49)
     expect(new Set(EVENT_NAMES).size).toBe(EVENT_NAMES.length)
   })
 

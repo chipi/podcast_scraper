@@ -194,24 +194,23 @@ const routes: RouteRecordRaw[] = [
     path: '/explore',
     name: 'explore',
     component: () => import('../views/ExploreView.vue'),
-    // Explore shows a taste of the catalogue (operator 2026-10-11); a link that carries a list's
-    // filters means that full list, so it goes there with them.
+    // Explore embeds the full Episodes and Shows lists; a link that carries a list's filters opens
+    // that list on its own page, already filtered.
     beforeEnter: (to) => {
       const q = to.query
-      if (q.tab === 'shows' && (q.sort || q.view || q.from)) return { name: 'shows', query: q }
+      if (q.tab === 'shows' && (q.sort || q.view)) return { name: 'shows', query: q }
       if ((q.tab === 'episodes' || !q.tab) && (q.from || q.state)) return { name: 'catalog', query: q }
       return true
     },
   },
   {
-    // The full show list: "See all" from Explore's taste, trending shows' "See all" on Discover.
+    // The full show list on its own page: trending shows' "See all" on Discover.
     path: '/shows',
     name: 'shows',
     component: () => import('../views/ShowBrowseView.vue'),
     props: (route) => ({
       initialSort: route.query.sort === 'trending' ? 'trending' : undefined,
       initialView: route.query.view === 'list' ? 'list' : undefined,
-      initialFrom: ['following', 'mine'].includes(String(route.query.from)) ? route.query.from : undefined,
     }),
   },
   {

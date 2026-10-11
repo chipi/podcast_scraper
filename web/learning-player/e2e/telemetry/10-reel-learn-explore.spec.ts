@@ -112,15 +112,9 @@ test("Explore reports Trends paging, the catalog taste's See all, and the list f
   expect(more.data).toMatchObject({ kind: 'topic', sort: 'rising' })
   expect(['1', '2-5', '6-20', '21+']).toContain(String(more.data?.shown))
 
-  await page.getByTestId('browse-tab-shows').click()
-  await page.getByTestId('explore-see-all-shows').click()
-  const all = await sink.waitForEvent('explore_see_all')
-  expect(all.data).toEqual({ list: 'shows' })
-
-  await expect(page).toHaveURL(/\/shows$/)
-  await page.getByTestId('show-browse-from').click()
-  await page.getByTestId('show-browse-from-opt-mine').click()
+  await page.getByTestId('catalog-from').click()
+  await page.getByTestId('catalog-from-opt-following').click()
   const filter = await sink.waitForEvent('catalog_filter')
-  expect(filter.data).toEqual({ list: 'shows', value: 'mine' })
+  expect(filter.data).toEqual({ list: 'episodes', value: 'following' })
   expect(sink.rejectedBeacons(), 'Umami accepted every beacon').toEqual([])
 })

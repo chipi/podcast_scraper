@@ -7,13 +7,11 @@ import en from '../i18n/locales/en.json'
 import ExploreView from './ExploreView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-// Explore (ADR-163 §1) = Trends on top + a taste of the catalog, Episodes · Shows. Stub the taste
-// + Trends (they fetch); here we test the page's composition and the catalog's tab logic.
+// Explore (ADR-163 §1) = Trends on top + Browse, Episodes · Shows: the full lists, as the last release
+// had them. Stub the lists + Trends (they fetch); here we test the page's composition and tab logic.
 const stubs = {
-  ExploreCatalogTaste: {
-    props: ['kind'],
-    template: '<div :data-testid="`stub-${kind}`" />',
-  },
+  CatalogView: { props: { embedded: Boolean }, template: '<div data-testid="stub-episodes" :data-embedded="embedded" />' },
+  ShowBrowseView: { props: { embedded: Boolean }, template: '<div data-testid="stub-shows" :data-embedded="embedded" />' },
   TrendsSection: { template: '<div data-testid="stub-trends" />' },
 }
 
@@ -52,11 +50,11 @@ describe('ExploreView', () => {
     expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
   })
 
-  it('shows a taste per tab (no navigation); a tab mounts when first opened, then stays', async () => {
+  it('embeds the full list per tab; a tab mounts when first opened, then stays', async () => {
     // A tab never opened builds nothing: the hidden Shows grid used to fetch and decode artwork
     // (a 3000px one on prod) while the listener was on Episodes (2026-10-08).
     const w = await mountView()
-    expect(w.find('[data-testid="stub-episodes"]').exists()).toBe(true)
+    expect(w.get('[data-testid="stub-episodes"]').attributes('data-embedded')).toBe('true')
     expect(w.find('[data-testid="stub-shows"]').exists()).toBe(false)
     await w.get('[data-testid="browse-tab-shows"]').trigger('click')
     await flushPromises()

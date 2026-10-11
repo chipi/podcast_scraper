@@ -220,38 +220,3 @@ describe('ShowBrowseView: the language filter (operator 2026-10-10)', () => {
   })
 })
 
-
-describe('ShowBrowseView: which shows — everyone’s, or the listener’s own (operator 2026-10-11)', () => {
-  async function mountAs(signedIn: boolean) {
-    const pinia = createPinia()
-    setActivePinia(pinia)
-    const { useAuthStore } = await import('../stores/auth')
-    if (signedIn) useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
-    const router = makeRouter()
-    await router.push({ name: 'browse-shows' })
-    await router.isReady()
-    const w = mount(ShowBrowseView, { props: { initialView: 'list' }, global: { plugins: [i18n, router, pinia] } })
-    await flushPromises()
-    return w
-  }
-
-  it('asks the server for the chosen facet — the catalogue stays everyone’s until then', async () => {
-    const page = vi.spyOn(api, 'getPodcastsPage').mockResolvedValue({
-      items: [show('f-a', 'Acme Show')],
-      total: 1,
-      categories: [],
-      languages: [],
-    })
-    const w = await mountAs(true)
-    expect(page.mock.calls.at(-1)![0]).toEqual(expect.objectContaining({ facet: 'all' }))
-    await w.get('[data-testid="show-browse-from"]').trigger('click')
-    await w.get('[data-testid="show-browse-from-opt-mine"]').trigger('click')
-    await flushPromises()
-    expect(page.mock.calls.at(-1)![0]).toEqual(expect.objectContaining({ facet: 'mine', offset: 0 }))
-  })
-
-  it('offers no such filter signed out', async () => {
-    const w = await mountAs(false)
-    expect(w.find('[data-testid="show-browse-from"]').exists()).toBe(false)
-  })
-})

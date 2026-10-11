@@ -189,8 +189,7 @@ reel_open        { source: discover_row|subject_page|in_progress, kind }
 reel_action      { action: start|next|prev|jump|keep|done, kind, clips: CountBucket, clip?: RankBucket }
 learn_path       { action: start|open|step_play|step_done|open_next|stop, kind, day?, source?: discover|subject_page|in_progress }
 trends_show_more { kind, sort, shown: CountBucket }
-explore_see_all  { list: episodes|shows }
-catalog_filter   { list: episodes|shows, value: all|following|mine }
+catalog_filter   { list: episodes, value: all|following|mine }
 ```
 
 ### 7. Scale (2026-10-11: 2,500 episodes on prod, 10,000 planned)

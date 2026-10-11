@@ -4,7 +4,7 @@
  * through the catalogue by show, not just by episode. A Browse-hub tab (embedded) and a standalone
  * route reached from Home/Library. Tiles are followable so you can follow while browsing.
  */
-import { computed, onActivated, onDeactivated, onMounted, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import BackIcon from "../components/BackIcon.vue"
@@ -18,10 +18,8 @@ import FavoriteButton from "../components/FavoriteButton.vue"
 import { trendColor } from "../components/trending"
 import { listSortOptions, type ListSortValue } from "../utils/listSort"
 import { getPodcastsPage, getTrending } from "../services/api"
-import { track } from "../services/analytics"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useLibraryStore } from "../stores/library"
-import { useAuthStore } from "../stores/auth"
 import { useSignInGate } from "../composables/useSignInGate"
 import type { Podcast, TrendingEntity } from "../services/types"
 
@@ -34,13 +32,8 @@ type ShowSort = ListSortValue | "trending"
 // `initialSort` — Discover's "See all →" on the trending-shows rail lands here pre-sorted by Trending
 // (operator 2026-09-14); a later prop change re-applies it, since this view is kept-alive.
 const props = withDefaults(
-  defineProps<{
-    embedded?: boolean
-    initialSort?: ShowSort
-    initialView?: "grid" | "list"
-    initialFrom?: "following" | "mine"
-  }>(),
-  { embedded: false, initialSort: undefined, initialView: undefined, initialFrom: undefined }
+  defineProps<{ embedded?: boolean; initialSort?: ShowSort; initialView?: "grid" | "list" }>(),
+  { embedded: false, initialSort: undefined, initialView: undefined }
 )
 
 // Embedded in the Discover band, the grid is a dispatch surface, not the full index: reveal in
@@ -143,25 +136,12 @@ const visible = computed(() => shows.value)
 const capped = visible
 const hasMore = computed(() => shows.value.length < total.value)
 
-// Which shows (operator 2026-10-11): the catalogue is everyone's, with a filter for the listener's
-// own — the same chip, labels and meaning as the Episodes list's (Following = shows they follow,
-// Mine = their world's shows, ADR-162). The server narrows the page; signed out there is no chip.
-type From = "all" | "following" | "mine"
-const auth = useAuthStore()
-const from = ref<From>(props.initialFrom ?? "all")
-const fromOptions = computed(() => [
-  { value: "all", label: t("browse.fromAll"), short: t("browse.fromAll") },
-  { value: "following", label: t("browse.fromFollowing"), short: t("browse.fromFollowingShort") },
-  { value: "mine", label: t("browse.fromMine"), short: t("browse.fromMine") },
-])
-
 function pageQuery(offset: number, limit: number) {
   return {
     q: search.value,
     category: categoryFilter.value || undefined,
     language: languageFilter.value || undefined,
     sort: sort.value,
-    facet: from.value,
     offset,
     limit,
   }
@@ -186,16 +166,7 @@ watch(search, () => {
   if (debounce) clearTimeout(debounce)
   debounce = setTimeout(() => void load(), 250)
 })
-watch([sort, categoryFilter, languageFilter, from], () => void load())
-// Kept alive inside Explore: a follow or a listen elsewhere changes "Following" and "Mine", so a
-// return re-reads those (everyone's list does not move because of you).
-let leftOnce = false
-onDeactivated(() => {
-  leftOnce = true
-})
-onActivated(() => {
-  if (leftOnce && from.value !== "all") void load()
-})
+watch([sort, categoryFilter, languageFilter], () => void load())
 
 let seq = 0
 async function load(): Promise<void> {
@@ -215,7 +186,7 @@ async function load(): Promise<void> {
     total.value = page.total
     allCategories.value = page.categories
     allLanguages.value = page.languages ?? []
-    if (!search.value.trim() && !categoryFilter.value && !languageFilter.value && from.value === "all") {
+    if (!search.value.trim() && !categoryFilter.value && !languageFilter.value) {
       catalogueSize.value = page.total
     }
     else catalogueSize.value = Math.max(catalogueSize.value, page.total)
@@ -281,10 +252,6 @@ onMounted(load)
         v-model:filter="categoryFilter"
         v-model:language="languageFilter"
         v-model:view="view"
-        :from="from"
-        :from-options="auth.isAuthenticated ? fromOptions : undefined"
-        :from-label="t('browse.fromShowsLabel')"
-        from-testid="show-browse-from"
         :sort-options="sortOptions"
         :filter-options="categories.length ? categoryOptions : undefined"
         :language-options="languageOptions"
@@ -294,7 +261,6 @@ onMounted(load)
         sort-testid="show-browse-sort"
         filter-testid="show-browse-category"
         view-testid="show-view"
-        @update:from="(v) => { from = v as From; track('catalog_filter', { list: 'shows', value: from }) }"
       />
       <template v-if="visible.length">
         <ul

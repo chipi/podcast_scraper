@@ -7,11 +7,10 @@
  *   Discover). On a phone the Explore tab is the way into search.
  * - **Trends** — rising topics, themes, storylines and people (`TrendsSection`), in the shared
  *   Mine ⇄ Everyone scope. `?trends=<kind>` selects a kind and scrolls to it.
- * - **A taste of the catalog** — Episodes · Shows (`ExploreCatalogTaste`), anchored at `#catalog`:
- *   the newest few, then "See all" to the full lists, `/catalog` and `/shows` (operator 2026-10-11),
- *   where search, sort and the filters (Mine among them) live. `?tab=episodes|shows` picks the tab;
- *   a link carrying a list's filters (`?from=`, `?state=`, `?sort=`, `?view=`) goes straight to that
- *   full list (the router does it).
+ * - **Browse** — Episodes · Shows, the FULL lists with their filter bars (text filter, which
+ *   episodes/shows, state, sort, category, language, list ⇄ grid), exactly as Browse had them in the
+ *   last release (operator 2026-10-11: the "taste with See all" that replaced them was never asked
+ *   for and dropped every control). `?tab=episodes|shows` picks the tab; anchored at `#catalog`.
  *
  * A panel mounts the first time its tab opens, then stays (v-show): switching back never refetches.
  */
@@ -22,7 +21,8 @@ defineOptions({ name: 'ExploreView' })
 import Tabs from '../components/Tabs.vue'
 import { toRankBucket, track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
-import ExploreCatalogTaste from '../components/ExploreCatalogTaste.vue'
+import CatalogView from './CatalogView.vue'
+import ShowBrowseView from './ShowBrowseView.vue'
 import { useVisitedTabs } from '../composables/useVisitedTabs'
 import SearchSection from '../components/SearchSection.vue'
 import TrendsSection from '../components/TrendsSection.vue'
@@ -111,8 +111,8 @@ watch(
     <div id="catalog" class="scroll-mt-4">
       <h2 class="lp-section mb-3 mt-8">{{ t('browse.catalogTitle') }}</h2>
       <Tabs v-model="tab" :tabs="tabs" :label="t('explore.title')" id-prefix="browse" equal-width class="mb-6" />
-      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><template v-if="visitedTabs.has('episodes')"><ExploreCatalogTaste kind="episodes" /></template></div>
-      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><template v-if="visitedTabs.has('shows')"><ExploreCatalogTaste kind="shows" /></template></div>
+      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><template v-if="visitedTabs.has('episodes')"><CatalogView embedded /></template></div>
+      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><template v-if="visitedTabs.has('shows')"><ShowBrowseView embedded /></template></div>
     </div>
   </section>
 </template>

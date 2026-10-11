@@ -42,23 +42,15 @@ test('Explore holds Trends and the catalog, one tap from Discover', async ({ pag
   await expect(page.getByTestId('explore-view')).toBeVisible()
   await expect(page.getByTestId('discovery-explorer')).toBeVisible()
   await expect(page.getByTestId('browse-tab-episodes')).toHaveAttribute('aria-selected', 'true')
-  // A taste of the catalog (operator 2026-10-11): four episodes, then "See all" to the full list.
-  await expect(page.getByTestId('explore-taste-episodes').getByTestId('episode-card')).toHaveCount(4)
+  // Browse: the FULL lists with their filter bars, as in the last release (operator 2026-10-11).
+  const episodes = page.getByTestId('browse-panel-episodes')
+  await expect(episodes.getByPlaceholder('Filter episodes…')).toBeVisible()
+  await expect(episodes.getByTestId('catalog-from')).toBeVisible()
   await page.getByTestId('browse-tab-shows').click()
-  await expect(page.getByTestId('browse-panel-shows')).toBeVisible()
-  await expect(page.getByTestId('explore-taste-shows').getByRole('listitem')).toHaveCount(6)
-  await page.getByTestId('explore-see-all-shows').click()
-  await expect(page).toHaveURL(/\/shows$/)
-  await expect(page.getByTestId('show-browse-view')).toBeVisible()
-  // The catalogue is everyone's, with a filter for the listener's own (operator 2026-10-11).
-  await page.getByTestId('show-browse-from').click()
-  await page.getByTestId('show-browse-from-opt-mine').click()
-  await expect(page.getByTestId('show-browse-grid')).toBeHidden() // a fresh account has no shows of its own
-
-  await page.goto('/explore')
-  await page.getByTestId('explore-see-all-episodes').click()
-  await expect(page).toHaveURL(/\/catalog$/)
-  await expect(page.getByTestId('catalog-from')).toBeVisible()
+  const shows = page.getByTestId('browse-panel-shows')
+  await expect(shows.getByTestId('show-browse-search')).toBeVisible()
+  await expect(shows.getByTestId('show-browse-sort')).toBeVisible()
+  await expect(shows.getByTestId('show-view')).toBeVisible()
 })
 
 test('old Discover links into Trends and the catalog land on Explore', async ({ page }, testInfo) => {
