@@ -31,7 +31,12 @@ from podcast_scraper.server.app_momentum import (
     resolve_as_of_week,
     trending,
 )
-from podcast_scraper.server.app_reasons import grounded_quote, Reason, ReasonSubject
+from podcast_scraper.server.app_reasons import (
+    best_grounded_quote,
+    insights_by_episode,
+    Reason,
+    ReasonSubject,
+)
 from podcast_scraper.server.app_relational_view import build_topic_perspectives
 from podcast_scraper.server.app_serendipity import (
     episode_entity_ids,
@@ -88,14 +93,11 @@ def _rising_topic_cards(
             continue
         pick = None
         for person in resp.perspectives:
-            for ins in person.insights:
-                if not ins.episode_slug or ins.episode_slug in used:
+            for slug, insights in insights_by_episode(person.insights):
+                if slug in used:
                     continue
-                quote = grounded_quote(
-                    ins.quotes, str(ins.episode_slug), speaker=person.person_name, insight_id=ins.id
-                )
-                if quote is not None:
-                    pick = quote
+                pick = best_grounded_quote(insights, slug, speaker=person.person_name)
+                if pick is not None:
                     break
             if pick:
                 break
@@ -152,14 +154,7 @@ def _engaged_cards(
         insights = insights_from_gi(
             load_json_artifact(root, row.gi_relative_path), unattributed_fallback=True
         )
-        quote = next(
-            (
-                q
-                for q in (grounded_quote(i.quotes, slug, insight_id=i.id) for i in insights)
-                if q is not None
-            ),
-            None,
-        )
+        quote = best_grounded_quote(insights, slug)
         if quote is None:
             continue
         cards.append(

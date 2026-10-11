@@ -27,7 +27,8 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from podcast_scraper.server.app_reasons import (
-    grounded_quote,
+    best_grounded_quote,
+    insights_by_episode,
     Reason,
     ReasonCapture,
     ReasonQuote,
@@ -185,18 +186,17 @@ def topic_quotes(root: Path, topic_id: str) -> list[ReasonQuote]:
     out: list[ReasonQuote] = []
     seen: set[str] = set()
     for person in resp.perspectives if resp else []:
-        for ins in person.insights:
-            slug = str(ins.episode_slug or "")
-            if not slug or slug in seen:
+        for slug, insights in insights_by_episode(person.insights):
+            if slug in seen:
                 continue
-            q = grounded_quote(ins.quotes, slug, speaker=person.person_name, insight_id=ins.id)
+            q = best_grounded_quote(insights, slug, speaker=person.person_name)
             if q is not None:
                 out.append(q)
                 seen.add(slug)
     return out
 
 
-def _person_candidates(root: Path, person_id: str, person_name: str) -> list[ReasonQuote]:
+def person_quotes(root: Path, person_id: str, person_name: str) -> list[ReasonQuote]:
     """A quote ``person_name`` said, in each of their episodes (person card episodes, KG-based)."""
     from podcast_scraper.server.app_gi_view import insights_from_gi
     from podcast_scraper.server.app_relational_view import build_person_card
@@ -207,12 +207,14 @@ def _person_candidates(root: Path, person_id: str, person_name: str) -> list[Rea
         gi, _kg, _row = _gi_and_kg(root, ep.slug)
         if gi is None:
             continue
-        for ins in insights_from_gi(gi, unattributed_fallback=True):
-            mine = [q for q in ins.quotes if q.speaker == person_name]
-            q = grounded_quote(mine, ep.slug, speaker=person_name, insight_id=ins.id)
-            if q is not None:
-                out.append(q)
-                break
+        q = best_grounded_quote(
+            insights_from_gi(gi, unattributed_fallback=True),
+            ep.slug,
+            speaker=person_name,
+            said_by=person_name,
+        )
+        if q is not None:
+            out.append(q)
     return out
 
 
@@ -261,7 +263,7 @@ def captured_rail(
             quotes = (
                 topic_quotes(root, subj.id)
                 if subj.kind == "topic"
-                else _person_candidates(root, subj.id, subj.label)
+                else person_quotes(root, subj.id, subj.label)
             )
             found += [(cap, subj, q) for q in quotes if eligible(q.episode_slug)][:PER_LINK]
         for tid, (sid, slabel) in sorted(story.items()):

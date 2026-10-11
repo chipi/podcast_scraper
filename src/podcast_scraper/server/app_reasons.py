@@ -26,8 +26,9 @@ usual shows and topics, which the client labels as such.
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
-from typing import Any, Literal, Optional, Sequence
+from typing import Any, Iterable, Literal, Optional, Sequence
 
 from podcast_scraper.server.schemas import AppQuote
 
@@ -115,4 +116,82 @@ def grounded_quote(
         speaker=speaker or q.speaker,
         start_ms=q.start_ms,
         insight_id=insight_id,
+    )
+
+
+#: A quote supports its insight when at least this share of its content words is in the insight.
+#: Pleasantries and ad reads attached to an insight ("Thanks, Sam. Great to be back.") share none.
+MIN_SUPPORT = 1 / 3
+
+_WORD = re.compile(r"[a-z0-9']+")
+
+
+def _content_words(text: str) -> set[str]:
+    return {w for w in _WORD.findall(text.lower()) if len(w) > 3}
+
+
+def quote_support(quote_text: str, insight_text: str) -> float:
+    """The share of the quote's content words (longer than three letters) the insight also uses."""
+    words = _content_words(quote_text)
+    return len(words & _content_words(insight_text)) / len(words) if words else 0.0
+
+
+def insights_by_episode(insights: Iterable[Any]) -> list[tuple[str, list[Any]]]:
+    """``[(episode slug, its insights)]`` in first-seen order; insights with no episode dropped."""
+    groups: dict[str, list[Any]] = {}
+    for ins in insights:
+        slug = str(getattr(ins, "episode_slug", None) or "")
+        if slug:
+            groups.setdefault(slug, []).append(ins)
+    return list(groups.items())
+
+
+def best_grounded_quote(
+    insights: Iterable[Any],
+    episode_slug: str,
+    *,
+    speaker: Optional[str] = None,
+    said_by: Optional[str] = None,
+) -> Optional[ReasonQuote]:
+    """The quote to ground a reason on, chosen across one episode's ``insights``.
+
+    The quote that best backs one of the episode's insights wins, credited to the insight it backs:
+    it must share at least ``MIN_SUPPORT`` of its content words with that insight, and among those
+    the most shared words wins (a ratio alone would crown "Before we start."); ties go to the
+    earlier quote. An insight's
+    quote list can carry a greeting or an ad read that says nothing any insight says, and a quote
+    can sit under the neighbouring insight rather than the one it supports. With no backing quote
+    anywhere, the first insight's ``grounded_quote`` — the choice before support was measured, so
+    no card is lost. ``said_by`` keeps only quotes by that speaker; ``speaker`` overrides the name.
+    """
+    insights = list(insights)
+    claims = [(getattr(i, "id", None), getattr(i, "text", "") or "") for i in insights]
+    best: Optional[tuple[AppQuote, Optional[str]]] = None
+    best_shared = 0
+    fallback: Optional[ReasonQuote] = None
+    for ins in insights:
+        quotes = [
+            q
+            for q in getattr(ins, "quotes", None) or []
+            if (q.text or "").strip() and (said_by is None or q.speaker == said_by)
+        ]
+        if fallback is None:
+            fallback = grounded_quote(
+                quotes, episode_slug, speaker=speaker, insight_id=getattr(ins, "id", None)
+            )
+        for q in quotes:
+            words = _content_words(q.text)
+            for iid, claim in claims:
+                shared = len(words & _content_words(claim))
+                if quote_support(q.text, claim) >= MIN_SUPPORT and shared > best_shared:
+                    best, best_shared = (q, iid), shared
+    if best is None:
+        return fallback
+    q, iid = best
+    return ReasonQuote(
+        text=cut_quote(q.text),
+        episode_slug=episode_slug,
+        speaker=speaker or q.speaker,
+        start_ms=q.start_ms,
+        insight_id=iid,
     )
