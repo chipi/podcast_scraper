@@ -333,3 +333,13 @@ def test_a_promo_sliver_or_a_short_unlike_surname_is_not_snapped() -> None:
     texts = {"A": "Welcome to Biz Talk. I'm Michael Wong and today"}
     _snap_hosts_by_their_formula(out, texts, ["Zhao Yang"], {"A": 0.4})
     assert out["A"] == "Michael Wong"
+
+
+def test_the_description_can_state_the_title_guest() -> None:
+    # F2 (The a16z Show, prod 2026-10-11): the metadata stated nobody, the description did.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "Samo Burja on Growth, Energy, and AI. Erik Torenberg speaks with Samo Burja, founder."
+    assert _title_subject_guest(text, [], ["Erik Torenberg"], True) == "Samo Burja"
+    about = "John D. Rockefeller: His Principles. Shane Parrish explores the life of John D."
+    assert _title_subject_guest(about, [], ["Shane Parrish"], True) is None

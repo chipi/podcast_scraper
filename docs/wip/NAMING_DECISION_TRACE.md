@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 15 |
+| Doc version | 16 |
 | Last updated | 2026-10-11 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
-| Code content hash | `19d94f71ee8f` (see below) |
+| Code content hash | `667d784f14b7` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,9 @@
 
 **Changelog**
 
+- **v16, 2026-10-11.** `title_subject` also accepts the title's person when the episode's own
+  description introduces them ("X speaks with / is joined by / interviews <the same person>"), for
+  episodes whose metadata extraction stated nobody.
 - **v15, 2026-10-11.** One rule changed (#2304, F5): `self_intro` snaps a self-introduction said
   INSIDE the host's own formula ("Welcome to X... I'm N", "My name is N, and I'm joined by",
   "And I'm N") onto the one unclaimed stated host whose surname is within one edit (two for

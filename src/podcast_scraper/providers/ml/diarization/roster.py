@@ -563,9 +563,24 @@ def _title_subject_guest(
         return None
     name = m.group("name")
     hosts_lower = {h.lower() for h in known_hosts}
+    if name.lower() in hosts_lower:
+        return None
     for stated in metadata_named or ():
-        if stated.lower() == name.lower() and stated.lower() not in hosts_lower:
+        if stated.lower() == name.lower():
             return stated
+    # ...or the episode's own description introduces that same person: "David Haber speaks with
+    # Marc Rowan, Cofounder, CEO, and Chair of Apollo" (The a16z Show; the metadata extraction
+    # stated nobody). Two independent places name the guest, one of them as who is spoken WITH.
+    rest = episode_text[m.end() :]
+    if re.search(
+        r"\b(?:speaks?|talks?|chats?|sits?\s+down)\s+with\s+(?:[\w'’.\-]+\s+){0,4}?"
+        + re.escape(name)
+        + r"\b|\b(?:joined\s+by|interviews?)\s+(?:[\w'’.\-]+\s+){0,4}?"
+        + re.escape(name)
+        + r"\b",
+        rest,
+    ):
+        return name
     return None
 
 
