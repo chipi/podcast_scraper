@@ -3,7 +3,7 @@
  * under the listener's opt-out, and nothing else: no rail data goes to the server.
  *
  * - `shown(items, scope)` once per mount, and only when the rail rendered a card — the denominator.
- * - `tapped(item, index, action)` when a card is opened or its "Play from" tapped; it also marks the
+ * - `tapped(item, index, action)` when a card is opened, its "Play from" or Moments tapped; it marks the
  *   next navigation with the rail's source, so `episode_open` and any `capture_created` in that
  *   visit say which rail sent the listener.
  *
@@ -18,6 +18,7 @@ import {
   track,
   type RailId,
   type RailReasonKind,
+  type RailAction,
 } from '../services/analytics'
 
 export interface RailItem {
@@ -38,7 +39,7 @@ export function useRailTelemetry(rail: RailId) {
     })
   }
 
-  function tapped(item: RailItem, index: number, action: 'open' | 'play_from'): void {
+  function tapped(item: RailItem, index: number, action: RailAction): void {
     track('discover_rail_tap', {
       rail,
       reason_kind: (item.why?.kind ?? 'none') as RailReasonKind,

@@ -11,6 +11,7 @@ vi.mock('../services/analytics', async (orig) => ({
   track: (name: string, props: unknown) => tracked.push({ name, props }),
 }))
 
+import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
@@ -26,9 +27,9 @@ const router = createRouter({
   ],
 })
 
-const card = (slug: string): TrendingEpisodeCard =>
+const card = (slug: string, hasMoments = false): TrendingEpisodeCard =>
   ({
-    episode: { slug, title: `Title ${slug}`, podcast_title: 'A show with a long name' },
+    episode: { slug, title: `Title ${slug}`, podcast_title: 'A show with a long name', has_moments: hasMoments },
     why: {
       kind: 'captured',
       quote: { text: 'Said it.', episode_slug: slug, speaker: 'Ann', start_ms: 61_000, insight_id: null },
@@ -50,13 +51,14 @@ async function mountRail(load: () => Promise<TrendingEpisodeCard[]>) {
       cardTestid: 'captured-card',
       openTestid: 'captured-card-open',
     },
-    global: { plugins: [i18n, router] },
+    global: { plugins: [i18n, router, createPinia()] },
   })
   await flushPromises()
   return w
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia())
   tracked.length = 0
 })
 
@@ -76,6 +78,17 @@ describe('RecommendationRail', () => {
     expect(tracked.filter((e) => e.name === 'discover_rail_tap').map((e) => e.props)).toEqual([
       expect.objectContaining({ rail: 'captured', action: 'open', rank: '2-3' }),
       expect.objectContaining({ rail: 'captured', action: 'play_from', rank: '1' }),
+    ])
+  })
+
+  it('offers "▶ Moments" only for an episode with moments, and reports the sample as its own action', async () => {
+    const w = await mountRail(async () => [card('a'), card('b', true)])
+    const links = w.findAll('[data-testid="moments-link"]')
+    expect(links).toHaveLength(1)
+    expect(links[0].attributes('href')).toBe('/episode/b?moments=1')
+    await links[0].trigger('click')
+    expect(tracked.filter((e) => e.name === 'discover_rail_tap').map((e) => e.props)).toEqual([
+      expect.objectContaining({ rail: 'captured', action: 'moments', rank: '2-3' }),
     ])
   })
 

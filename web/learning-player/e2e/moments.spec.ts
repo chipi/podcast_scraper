@@ -145,6 +145,17 @@ test.describe('the ways into Moments', () => {
     await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 
+  test('Discover: "▶ Moments" on a recommendation samples the episode', async ({ page }, testInfo) => {
+    // Discover arc Step 3, "Sample an episode": every recommendation rail offers the reel.
+    await signInIsolated(page, 'moments-entry-discover', testInfo)
+    await page.goto('/browse')
+    const link = page.getByTestId('quote-cards').getByTestId('moments-link').first()
+    await expect(link).toBeVisible()
+    await link.click()
+    await expect(page).toHaveURL(/moments=1/)
+    await expect(page.getByTestId('moments-card')).toBeVisible()
+  })
+
   test('search results: "▶ Moments" on an episode result', async ({ page }, testInfo) => {
     await signInIsolated(page, 'moments-entry-search', testInfo)
     await page.goto('/search?q=risk&scope=all')

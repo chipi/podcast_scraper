@@ -111,6 +111,8 @@ export type Source = (typeof SOURCES)[number]
  * Discover's rails (ADR-163; Discover arc plan, Step 1.2). The rail id is code-defined; each maps to
  * one `Source`, so a capture made after arriving from a rail is attributed to it.
  */
+/** What a rail tap did: opened the episode, played from the quote, or sampled its Moments. */
+export type RailAction = 'open' | 'play_from' | 'moments'
 export type RailId = 'quotes' | 'captured' | 'thread' | 'people' | 'another_view' | 'trending_shows'
 /** Why a recommendation was there (`Reason.kind`), or `none` when it carried no reason. */
 export type RailReasonKind =
@@ -435,11 +437,11 @@ export type EventProps = {
     outside: CountBucket
     scope: 'mine' | 'everyone'
   }
-  /** A card on a Discover rail was opened, or its "Play from" tapped. */
+  /** A card on a Discover rail was opened, its "Play from" tapped, or its Moments sampled. */
   discover_rail_tap: {
     rail: RailId
     reason_kind: RailReasonKind
-    action: 'open' | 'play_from'
+    action: RailAction
     rank: RankBucket
     outside_habits: boolean
   }

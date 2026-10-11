@@ -7,7 +7,9 @@
  * The rail supplies its id, its title and how to load its cards; everything else is the same for
  * every rail, so a new rail cannot drift in how it explains itself or how it is measured.
  *
- * - The card opens the episode; "Play from" opens it playing at the quote (ADR-163 §8).
+ * - The card opens the episode; "Play from" opens it playing at the quote (ADR-163 §8); "▶ Moments"
+ *   (the shared `MomentsLink`, only when the episode has moments) samples it: its strongest moments,
+ *   back to back (Discover arc Step 3, "Sample an episode").
  * - A rail with nothing to show hides itself (thin data is not padded out).
  * - `reloadKey` changing (e.g. the page scope) reloads it and counts a fresh impression.
  * - Discover is kept alive, so returning to it reloads too — a highlight made a minute ago must be
@@ -18,6 +20,7 @@ import type { TrendingEpisodeCard } from '../services/api'
 import type { RailId } from '../services/analytics'
 import { episodeArtwork } from '../utils/episode'
 import { useRailTelemetry } from '../composables/useRailTelemetry'
+import MomentsLink from './MomentsLink.vue'
 import RecommendationWhy from './RecommendationWhy.vue'
 import SectionHeading from './SectionHeading.vue'
 
@@ -78,6 +81,12 @@ watch(() => props.reloadKey, reload)
             </span>
           </RouterLink>
           <RecommendationWhy :why="c.why" @play="telemetry.tapped(c, i, 'play_from')" />
+          <MomentsLink
+            v-if="c.episode.has_moments"
+            :slug="c.episode.slug"
+            class="self-start"
+            @click="telemetry.tapped(c, i, 'moments')"
+          />
         </article>
       </li>
     </ul>

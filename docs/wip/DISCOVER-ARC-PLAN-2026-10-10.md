@@ -48,7 +48,7 @@ The Discover 2 preview was removed (UI only; its APIs stay).
        `discover_people`, `discover_another_view`, `discover_trending_shows`, `explore_trends`);
      - `discover_rail_shown {rail, items, outside, scope}`, once per rail per mount, only when it
        rendered a card;
-     - `discover_rail_tap {rail, reason_kind, action: open|play_from, rank, outside_habits}`;
+     - `discover_rail_tap {rail, reason_kind, action: open|play_from|moments, rank, outside_habits}`;
      - `capture_created.source`, how the capture screen was reached.
    - **Wiring:**
      - `useRailTelemetry(rail)` reports `shown`/`tapped` and marks the next navigation with the
@@ -108,7 +108,10 @@ The Discover 2 preview was removed (UI only; its APIs stay).
 - **Quotes back an insight** ✅ (2026-10-11; `best_grounded_quote`) — every rail's quote is one that
   shares words with an insight of its episode, no longer the first in the list (greetings, ad
   reads). Residual: where the GI has nothing better by that speaker, the greeting stays.
-- **Sample an episode** — its best moments as a short taste, reusing the Moments picker.
+- **Sample an episode** ✅ (2026-10-11) — every recommendation card carries the shared "▶ Moments"
+  door (`MomentsLink`, only when `has_moments`), which opens the episode's Moments reel
+  (`?moments=1`); its tap is measured as `action: moments`. Surfaced a real bug, fixed: a `play()`
+  that a pause overtook (AbortError) showed "Couldn't load the audio" over a playing episode.
 - **Hear another view** ✅ (2026-10-11; `app_another_view_rail`, `GET /discover/another-view`; eval
   pinned in `test_app_another_view_rail.py`) (scan #7) — a speaker the listener has not heard on
   one of their top topics. "Another", not "contrasting": `topic_consensus` keeps agreement pairs
@@ -116,7 +119,9 @@ The Discover 2 preview was removed (UI only; its APIs stay).
   episodes) skipped.
 - **Rails take turns properly** ✅ (`take_turns`) — a list whose next episode another list took
   gives its following one, so overlapping rails still fill (the earlier loop skipped the turn).
-- **Mentioned in this episode** (scan #8) — people and topics, linked onward.
+- **Mentioned in this episode** (scan #8) — already present, nothing built: the player's Brief
+  lists the episode's topics and people as chips that open their entity cards
+  (`KnowledgePanel.vue`, `kp-topic-chip` / `kp-person-chip`, with host/guest roles).
 - **Goal-shaped listening** (scan #6) — "15 minutes on X", "Learn X this week".
 
 ## Step 4 — cold start and control
