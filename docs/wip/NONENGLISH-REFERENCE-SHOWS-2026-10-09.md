@@ -26,10 +26,18 @@ more than one episode per show.
 | de | DW Langsam gesprochene Nachrichten (backup) | `rss.dw.com/xml/DKpodcast_lgn_de` | human read script, in the page's embedded `__APOLLO_STATE__` | 07.10.2026, 9:13 | 586 (64 wpm) | ok: news; coverage unconfirmed, very slow speech |
 | pt-BR | **Rádio Novelo Apresenta** | `feeds.megaphone.fm/NPP6869883964` | human, edited, named speakers; PDF from radionovelo.com.br | ep 198 "Recado recebido", 70:58 | 10,313 vs 9.2-12.1k | ok: narrative journalism |
 | pt-BR | **Rádio Senado – Jornal do Senado** | `www12.senado.leg.br/radio/1/voz-do-brasil/podcast.xml` | human broadcast script, "Transcrição" on the episode page (anchor lines in capitals); the 60-min "Íntegra" items have none | 08/10/2026, 10:01 | ~1,350 vs 1.3-1.7k | good: Brazilian politics <!-- codespell:ignore jornal --> |
-| it | Podcast Italiano (Davide Gemello) | `rss.buzzsprout.com/2413795.rss` | human prepared monologue; the page asks for a free login but the full text is in the HTML | "6 differenze tra italiano del nord e del sud", 12:19 | ~1,630 vs 1.6-2.1k | ok: language and culture |
+| it | Podcast Italiano (Davide Gemello) | `rss.buzzsprout.com/2413795.rss` | human prepared monologue; the page asks for a free login but the full text is in the HTML | "6 differenze tra italiano del nord e del sud", 12:19 | ~1,630 vs 1.6-2.1k | not used (gated, one voice; see below) |
+| it | **Italiano ON-Air** (Scuola Leonardo da Vinci) | `rss.buzzsprout.com/1985114.rss` | human, two hosts labelled, hesitations kept; `<podcast:transcript>` in the feed, ungated | "Ci vediamo in Piazza!", 8:11 | 998 (122 wpm) | ok: language and culture, scripted conversation |
+| it | **Camera dei deputati, Question Time** | none: sittings named in the spec | the Camera's stenographic record of the section; audio is Radio Radicale's recording of the sitting (CC BY-NC-SA 4.0), cut to the window | seduta 722, 7.10.2026, 70:52 | 9,982 (141 wpm) | good: Italian politics, many voices |
 
-**Italian has no clean, ungated human transcript.** Podcast Italiano works only if the login does
-not block an automated fetch.
+**Italian (2026-10-11).** Podcast Italiano was the only candidate here and was never built: its
+transcripts sit behind a free login (Memberstack; the text is in the HTML, hidden in the
+browser), only 47 of its 119 episode pages carry one, and it is one voice. Two ungated shows
+replace it, `asr_publisher_ref_it_v1` (eval repo): Italiano ON-Air, whose feed links the school's
+own transcripts, and the Camera's Question Time, the parliamentary equivalent of Senado: Radio
+Radicale records every sitting and lists each speech's offset, so the Question Time window is
+cut exactly (checked against the silence of the suspension before it), and the Camera publishes
+the stenographic record the same day.
 
 ## Auto-generated transcripts — disagreement only, not accuracy
 
@@ -305,4 +313,5 @@ feed with only guid, enclosure and transcript links changed, and runs an export 
 
 **Caveats.** The measuring set is narrative journalism and news, not the long interviews of the
 corpus; interview-style human references exist only in auto form (Lage der Nation, Logbuch:
-Netzpolitik, Monde Numérique). Italian can be measured only through Podcast Italiano.
+Netzpolitik, Monde Numérique). Italian is measured on Italiano ON-Air and the Camera's Question
+Time (above).
