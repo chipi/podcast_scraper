@@ -424,3 +424,40 @@ class TestRecoverSilentGaps:
         gap = [{**self.GAP[0], "speaker": "SPEAKER_01"}]
         out = G.recover_untranscribed_speech(self.RESULT, gap, "a.mp3", lambda p: self._clip("Sí."))
         assert out["asr_speech_recovery"][0]["status"] == "recovered"
+
+
+class TestSpeakingRate:
+    """Throughline 10-08 on the DGX (2026-10-11): two recoveries packed words faster than anyone
+    speaks ("That's it for this." in 0.26 s, "Stay warm." in 0.12 s) and passed the confidence and
+    loop filters; the real ones ran 1.1-6.2 words/s."""
+
+    def _seg(self, text: str, start: float, end: float) -> Dict[str, Any]:
+        return {"start": start, "end": end, "text": text, "avg_logprob": -0.4}
+
+    def test_words_packed_into_a_fraction_of_a_second_are_rejected(self) -> None:
+        kept, rejected = G.segments_inside_gap(
+            [self._seg("That's it for this.", 4.54, 4.80)],
+            clip_start=2525.9,
+            gap_start=2526.9,
+            gap_end=2545.5,
+        )
+        assert kept == [] and rejected == ["too_fast"]
+
+    def test_a_zero_length_segment_is_rejected(self) -> None:
+        kept, rejected = G.segments_inside_gap(
+            [self._seg("warm.", 2.0, 2.0)], clip_start=0.0, gap_start=1.0, gap_end=4.0
+        )
+        assert kept == [] and rejected == ["too_fast"]
+
+    def test_fast_real_speech_is_kept(self) -> None:
+        kept, _ = G.segments_inside_gap(
+            [self._seg("the way it is.", 1.43, 2.07)], clip_start=0.0, gap_start=1.0, gap_end=4.0
+        )
+        assert [k["text"] for k in kept] == ["the way it is."]
+
+    def test_the_cap_is_eight_words_a_second(self) -> None:
+        assert G.RECOVERY_MAX_WORDS_PER_S == 8.0
+        at_cap, _ = G.segments_inside_gap(
+            [self._seg("one two three four", 1.5, 2.0)], clip_start=0.0, gap_start=1.0, gap_end=4.0
+        )
+        assert len(at_cap) == 1

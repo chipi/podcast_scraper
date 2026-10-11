@@ -16,7 +16,8 @@ What a recovered clip must pass, because a short clip is where Whisper invents t
 - not a loop: ``compression_ratio`` at or below ``RECOVERY_MAX_COMPRESSION_RATIO`` and no run of
   the same short phrase repeated (``is_repetitive``);
 - not an invented line: a subtitle credit or video sign-off (``invented_lines``), which passes
-  both checks above (V.6b French feed: avg_logprob -0.1 to -0.3).
+  both checks above (V.6b French feed: avg_logprob -0.1 to -0.3);
+- a speaking rate a person can produce: at most ``RECOVERY_MAX_WORDS_PER_S`` inside the gap.
 
 ``no_speech_prob`` is NOT used: the DGX faster-whisper server returns 0.0 for every segment (all
 six 80k A/B responses, 2026-10-08), so it cannot tell speech from silence there. The diarizer's
@@ -50,6 +51,10 @@ RECOVERY_PAD_S = 1.0
 RECOVERY_MIN_AVG_LOGPROB = -1.0
 #: Whisper's own loop threshold (``compression_ratio_threshold`` in openai-whisper).
 RECOVERY_MAX_COMPRESSION_RATIO = 2.4
+#: Nobody speaks faster than this. Real recoveries on Throughline 10-08 (DGX, 2026-10-11) ran
+#: 1.1-6.2 words/s; the invented ones packed words into a fraction of a second: "That's it for
+#: this." 15.4, "Stay warm." 16.7 and 100. Both passed the confidence and loop filters.
+RECOVERY_MAX_WORDS_PER_S = 8.0
 
 #: A gap with no diarized speech keeps its text only from this many words, not fillers (the D16
 #: rule, ``STRETCHED_MIN_EXTRA_WORDS``). Measured 2026-10-11 on 24 reference episodes (6 English,
@@ -182,6 +187,10 @@ def segments_inside_gap(
         if not text:
             continue
         reason = _rejection(seg, text)
+        if reason is None and len(_WORD.findall(text)) > RECOVERY_MAX_WORDS_PER_S * max(
+            end - start, 0.0
+        ):
+            reason = "too_fast"
         if reason is not None:
             rejected.append(reason)
             continue
