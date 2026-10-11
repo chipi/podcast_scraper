@@ -97,10 +97,9 @@ _CC_URL = re.compile(
     r"creativecommons\.org/licenses/(?P<type>by(?:-nc)?(?:-sa|-nd)?)/(?P<version>\d\.\d)", re.I
 )
 _CC0_URL = re.compile(r"creativecommons\.org/publicdomain/zero/(?P<version>\d\.\d)", re.I)
-_CC_SLUG = re.compile(
-    r"^cc[-_ ](?P<type>by(?:[-_ ]nc)?(?:[-_ ]sa|[-_ ]nd)?)[-_ ](?P<version>\d\.\d)$", re.I
-)
-_CC0_SLUG = re.compile(r"^cc0[-_ ](?P<version>\d\.\d)$", re.I)
+# Matched after "_" and " " are read as "-": cc-by-nc-sa-4.0, CC BY-NC-SA 4.0, cc_by_4.0.
+_CC_SLUG = re.compile(r"^cc-(?P<type>by(?:-nc)?(?:-sa|-nd)?)-(?P<version>\d\.\d)$", re.I)
+_CC0_SLUG = re.compile(r"^cc0-(?P<version>\d\.\d)$", re.I)
 
 
 def _cc(kind: str, version: str) -> KnownLicence:
@@ -141,10 +140,11 @@ def recognise(text: Optional[str], url: Optional[str] = None) -> Optional[KnownL
         m = _CC0_URL.search(candidate)
         if m:
             return _cc0(m.group("version"))
-        m = _CC_SLUG.match(candidate)
+        slug = re.sub(r"[_ ]", "-", candidate)
+        m = _CC_SLUG.match(slug)
         if m:
             return _cc(m.group("type"), m.group("version"))
-        m = _CC0_SLUG.match(candidate)
+        m = _CC0_SLUG.match(slug)
         if m:
             return _cc0(m.group("version"))
     return None
