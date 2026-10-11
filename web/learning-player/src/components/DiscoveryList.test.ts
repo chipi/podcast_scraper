@@ -27,6 +27,7 @@ const router = createRouter({
   routes: [
     { path: "/", name: "home", component: { template: "<div/>" } },
     { path: "/browse", name: "browse", component: { template: "<div/>" } },
+    { path: "/explore", name: "explore", component: { template: "<div/>" } },
   ],
 })
 
