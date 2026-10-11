@@ -1,5 +1,6 @@
 /**
- * Discover's "Minutes on" row (ADR-163 §8 amendment): chips into topic reels, in the page scope,
+ * Discover's "Minutes on" row (ADR-163 §8 amendment): chips into topic, theme and storyline reels,
+ * in the page scope,
  * hidden with none; a scope switch mid-load never shows the old scope's topics.
  */
 import { flushPromises, mount } from '@vue/test-utils'
@@ -21,7 +22,13 @@ const router = createRouter({
     { path: '/listen/topic/:id', name: 'topic-reel', component: { template: '<div/>' } },
   ],
 })
-const topic = (id: string, label: string) => ({ topic_id: id, topic_label: label, clips: 3, total_seconds: 40 })
+const topic = (id: string, label: string, kind: 'topic' | 'theme' | 'storyline' = 'topic') => ({
+  subject_id: id,
+  subject_kind: kind,
+  subject_label: label,
+  clips: 3,
+  total_seconds: 40,
+})
 
 describe('ReelTopicsRow', () => {
   it('offers each topic as a chip into its fifteen-minute reel', async () => {
@@ -32,6 +39,22 @@ describe('ReelTopicsRow', () => {
     const chip = w.get('[data-testid="reel-topic-chip"]')
     expect(chip.text()).toBe('▶ 15 min on alpha')
     expect(chip.attributes('href')).toBe('/listen/topic/topic:a?minutes=15')
+  })
+
+  it("colours each chip by its kind, as topics, themes and storylines are on episode notes", async () => {
+    api.getReelTopics.mockResolvedValue([
+      topic('topic:a', 'alpha'),
+      topic('tc:b', 'beta', 'theme'),
+      topic('thc:c', 'gamma', 'storyline'),
+    ])
+    const w = mount(ReelTopicsRow, { props: { scope: 'corpus' }, global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const chips = w.findAll('[data-testid="reel-topic-chip"]')
+    expect(chips.map((c) => c.attributes('data-kind'))).toEqual(['topic', 'theme', 'storyline'])
+    expect(chips[0].classes()).toContain('text-topic')
+    expect(chips[1].classes()).toContain('text-theme')
+    expect(chips[2].classes()).toContain('text-storyline')
+    expect(chips[2].attributes('href')).toBe('/listen/topic/thc:c?minutes=15')
   })
 
   it('is hidden with no topic, and the newest scope wins a race', async () => {

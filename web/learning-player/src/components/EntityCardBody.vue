@@ -25,6 +25,7 @@ import FollowButton from "./FollowButton.vue"
 import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
+import ReelDoor from "./ReelDoor.vue"
 import ShareMenu from "./ShareMenu.vue"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
@@ -303,6 +304,8 @@ const isTopic = computed(() => current.value.kind === "topic")
           :context="person?.web?.description ?? org?.web?.description ?? null"
           :target-kind="current.kind"
         />
+        <!-- Fifteen minutes of clips about this topic across episodes (operator 2026-10-11). -->
+        <ReelDoor v-if="isTopic" :subject-id="current.id" :label="label" />
       </div>
 
       <!-- REMOVED (operator 2026-09-16): the "Open in page ›" escape hatch (#1261-9).

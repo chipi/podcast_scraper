@@ -1218,20 +1218,22 @@ class AppReelClip(BaseModel):
 
 
 class AppTopicReelResponse(BaseModel):
-    """N minutes on a topic: clips about it across episodes, back to back (ADR-163; scan #6)."""
+    """N minutes on a topic, theme or storyline: clips about it across episodes, back to back."""
 
-    topic_id: str
-    topic_label: str
+    subject_id: str = Field(description="topic: / tc: (theme) / thc: (storyline) id.")
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
     minutes: int = Field(description="The budget asked for.")
     total_seconds: float = Field(description="What the reel actually runs — never the budget.")
     clips: list[AppReelClip] = Field(default_factory=list)
 
 
 class AppReelTopic(BaseModel):
-    """A topic Discover offers a reel on."""
+    """A topic, theme or storyline Discover offers a reel on."""
 
-    topic_id: str
-    topic_label: str
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
     clips: int
     total_seconds: float
 

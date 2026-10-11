@@ -455,11 +455,17 @@ piece to its design home:
   - **Empty:** with nothing to show, the rail is hidden.
   - **Telemetry:** reports shown and taps to Umami (`useRailTelemetry('quotes')`).
 - **`ReelTopicsRow`** — Discover's "Minutes on" row (ADR-163 §8 amendment; goal-shaped listening):
-  up to three topics as chips, "▶ 15 min on <topic>" — under Mine the listener's top topics, under
-  Everyone the rising ones — each offered only when its reel has at least two clips. Hidden when
-  there are none.
-- **`TopicReelView`** — **N minutes on a topic** (`/listen/topic/:id?minutes=`): the strongest clips
-  ABOUT the topic from different episodes, back to back (the Moments picker's clip windows; a clip
+  up to four chips, "▶ 15 min on <subject>", topics, themes and storylines taking turns — under Mine
+  the listener's own (top topics; the themes and storylines of their world), under Everyone the
+  rising ones — each offered only when its reel has at least two clips, and two subjects whose reels
+  are the same clips offered once. Each chip wears its kind's colours (`kindPill`: topic, theme,
+  storyline), as on episode notes. Hidden when there are none.
+- **`ReelDoor`** — "▶ 15 MIN ON THIS" on the action row of a topic card, a theme page and a
+  storyline page (operator 2026-10-11), styled like the Moments door (amber monospace, 44px tap).
+  It appears only once that subject's reel has at least two clips.
+- **`TopicReelView`** — **N minutes on a topic, theme or storyline** (`/listen/topic/:id?minutes=`,
+  `id` a `topic:`, `tc:` or `thc:` id): the strongest clips ABOUT it (a theme or storyline: about any
+  of its member topics, umbrella members left out) from different episodes, back to back (the Moments picker's clip windows; a clip
   must say what its insight says). The header states what the reel actually runs ("6 clips from
   different episodes · 1:12"), never the budget. Play starts it; each clip shows its episode, show,
   what is said and by whom, ‹ ›, and **Keep listening to this episode** (the full episode, which

@@ -1,4 +1,4 @@
-"""N minutes on a topic (ADR-163; Discover arc Step 3, goal-shaped listening) — the reel's eval.
+"""N minutes on a topic, theme or storyline (ADR-163; goal-shaped listening) — the reel's eval.
 
 Over the COMMITTED fixture corpus (read only): clips ABOUT the topic across episodes, breadth first,
 each saying what its insight says, within the budget. The answer is pinned.
@@ -61,6 +61,54 @@ def test_the_budget_is_never_exceeded() -> None:
 
 def test_a_topic_nobody_speaks_to_has_no_reel() -> None:
     assert goal_reel(ROOT, "topic:no-such-topic", minutes=15) == []
+    assert goal_reel(ROOT, "tc:no-such-theme", minutes=15) == []
+    assert goal_reel(ROOT, "thc:no-such-storyline", minutes=15) == []
+
+
+def test_a_storyline_reel_is_clips_about_any_of_its_member_topics() -> None:
+    """Operator 2026-10-11: reels for themes and storylines too. A storyline is its member topics;
+    every clip is ABOUT one of them, more episodes than any one member reaches, breadth first."""
+    import json
+
+    from podcast_scraper.server.app_goal_reel import reel_subject
+    from podcast_scraper.server.app_slugs import resolve_slug
+
+    subject = reel_subject(ROOT, "thc:managing-risk")
+    assert (subject.kind, subject.label) == ("storyline", "Managing risk across domains")
+    assert subject.topics == {
+        "topic:endurance-sport",
+        "topic:risk-management",
+        "topic:safety-practices",
+        "topic:systems-thinking",
+    }
+    reel = goal_reel(ROOT, "thc:managing-risk", minutes=15)
+    assert len(reel) == 28 and len({c.episode_slug for c in reel}) == 16
+    one_member = {c.episode_slug for c in goal_reel(ROOT, "topic:risk-management", minutes=15)}
+    assert len({c.episode_slug for c in reel}) > len(one_member)
+    for c in reel:
+        row = resolve_slug(ROOT, c.episode_slug)
+        assert row is not None
+        gi = json.loads((ROOT / row.gi_relative_path).read_text(encoding="utf-8"))
+        about = {
+            e["to"]
+            for e in gi["edges"]
+            if e.get("type") == "ABOUT" and e.get("from") == c.moment.insight_id
+        }
+        assert about & subject.topics, (c.episode_slug, c.moment.insight_id)
+    theme = reel_subject(ROOT, "tc:reliability")
+    assert (theme.kind, theme.label) == ("theme", "reliability")
+
+
+def test_the_route_names_a_storyline_reel_by_its_storyline(tmp_path: Path) -> None:
+    client, _uid = _client(tmp_path)
+    body = client.get(
+        "/api/app/discover/reel", params={"subject": "thc:managing-risk", "minutes": 15}
+    ).json()
+    assert (body["subject_kind"], body["subject_label"]) == (
+        "storyline",
+        "Managing risk across domains",
+    )
+    assert len(body["clips"]) == 28
 
 
 def _client(data_dir: Path) -> tuple[TestClient, str]:
@@ -78,14 +126,14 @@ def _client(data_dir: Path) -> tuple[TestClient, str]:
 def test_the_route_reports_what_the_reel_actually_runs(tmp_path: Path) -> None:
     client, _uid = _client(tmp_path)
     body = client.get(
-        "/api/app/discover/reel", params={"topic": "topic:systems-thinking", "minutes": 15}
+        "/api/app/discover/reel", params={"subject": "topic:systems-thinking", "minutes": 15}
     ).json()
-    assert body["topic_label"] == "systems thinking"
+    assert (body["subject_label"], body["subject_kind"]) == ("systems thinking", "topic")
     assert body["minutes"] == 15
     assert body["total_seconds"] == 132.0  # the small fixture: far less than the budget
     first = body["clips"][0]
     assert first["episode"]["slug"] == "p02-8fdd7b7f79" and first["end_ms"] > first["start_ms"]
-    assert client.get("/api/app/discover/reel", params={"topic": "person:x"}).status_code == 422
+    assert client.get("/api/app/discover/reel", params={"subject": "person:x"}).status_code == 422
 
 
 def test_reel_topics_offers_only_topics_with_a_real_reel(
@@ -96,11 +144,14 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
     client, uid = _client(tmp_path)
     everyone = client.get("/api/app/discover/reel-topics").json()
     assert everyone["scope"] == "corpus"
-    # Rising topics with a reel; the rest (no clip says what its insight says) are not offered.
-    assert [(i["topic_id"], i["clips"]) for i in everyone["items"]] == [
-        ("topic:systems-thinking", 11),
-        ("topic:reliability", 15),
-        ("topic:risk-management", 20),
+    # Rising topics, themes and storylines with a reel, taking turns; the rest (no clip says what
+    # its insight says) are not offered. topic:reliability's reel is tc:reliability's (its other
+    # member says nothing quotable), so it is the same offer and appears once.
+    assert [(i["subject_id"], i["subject_kind"], i["clips"]) for i in everyone["items"]] == [
+        ("topic:systems-thinking", "topic", 11),
+        ("tc:reliability", "theme", 15),
+        ("thc:managing-risk", "storyline", 28),
+        ("topic:risk-management", "topic", 20),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(
@@ -116,7 +167,8 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
         )
     mine = client.get("/api/app/discover/reel-topics", params={"scope": "mine"}).json()
     assert mine["scope"] == "mine"
-    assert [i["topic_id"] for i in mine["items"]][:2] == [
+    # Their own top topics lead the topic turns (most engaged first).
+    assert [i["subject_id"] for i in mine["items"] if i["subject_kind"] == "topic"][:2] == [
         "topic:risk-management",
         "topic:systems-thinking",
     ]
@@ -142,5 +194,5 @@ def test_reel_topics_leave_out_what_the_listener_asked_to_see_less_of(
         )
     app_user_state.add_suggest_less(tmp_path, uid, "topic:risk-management", "risk management", 1)
     mine = client.get("/api/app/discover/reel-topics", params={"scope": "mine"}).json()
-    assert "topic:risk-management" not in [i["topic_id"] for i in mine["items"]]
+    assert "topic:risk-management" not in [i["subject_id"] for i in mine["items"]]
     assert mine["items"], "the other topics are still offered"

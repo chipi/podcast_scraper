@@ -518,7 +518,9 @@
     "progress": "Clips",
     "mini": "{topic} · {n} / {total}",
     "row": "Minutes on",
-    "chip": "{minutes} min on {topic}"
+    "chip": "{minutes} min on {topic}",
+    "door": "{minutes} min on this",
+    "doorLabel": "Play {minutes} minutes of clips on {topic}"
   },
   "moments": {
     "title": "Moments",

@@ -111,8 +111,15 @@ resolver the shell supplies (`resolveNextUpForSlug`), then seeks. `savePosition`
 listen already skip while any reel runs, so no resume point moves and no listen is logged until
 "Keep listening to this episode". ✕ stops without seeking back.
 
-**Planned:** reels for themes and storylines (clips about any member topic); "Learn X this week" as
-an ordered path through a theme (one episode a day, oldest claim first, each with its best clip).
+**Themes and storylines** (2026-10-11): `reel_subject` turns a `tc:` or `thc:` id into its member
+topics, less any umbrella member (≥ 90% of episodes); a clip qualifies when its insight is ABOUT any
+of them. `GET /discover/reel?subject=` takes any of the three and reports `subject_kind` and
+`subject_label`. `/discover/reel-topics` offers topics, themes and storylines taking turns (four at
+most), keyed on the reel's clips so a theme whose reel is its one topic's reel is offered once. A
+`ReelDoor` on topic cards and theme and storyline pages opens the reel once it has two clips.
+
+**Planned:** "Learn X this week" as an ordered path through a theme (one episode a day, oldest claim
+first, each with its best clip).
 
 ### 5. Cold start and Mine
 

@@ -43,7 +43,7 @@ from podcast_scraper.server.app_discover_view import (
     rank_discover,
     whats_new_rows,
 )
-from podcast_scraper.server.app_goal_reel import goal_reel
+from podcast_scraper.server.app_goal_reel import goal_reel, reel_subject, ReelKind
 from podcast_scraper.server.app_momentum import (
     MomentumConfig,
     resolve_as_of_week,
@@ -345,16 +345,18 @@ def _topic_label(root: Path, topic_id: str, slugs: list[str]) -> str:
 @router.get("/discover/reel", response_model=AppTopicReelResponse)
 def app_discover_reel(
     request: Request,
-    topic: str = Query(min_length=7, max_length=200, pattern=r"^topic:"),
+    subject: str = Query(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):"),
     minutes: int = Query(default=15, ge=1, le=60),
     _user: User = Depends(get_current_user),
 ) -> AppTopicReelResponse:
-    """N minutes on a topic (ADR-163 §8 amendment; Discover arc Step 3, goal-shaped listening): the
-    strongest clips ABOUT it across episodes, breadth first, within ``minutes``. ``total_seconds``
-    is what it actually runs — a small corpus gives less than the budget, and the client says so."""
+    """N minutes on a topic, theme or storyline (ADR-163 §8 amendment; goal-shaped listening): the
+    strongest clips ABOUT it (a theme or storyline: about any member topic) across episodes, breadth
+    first, within ``minutes``. ``total_seconds`` is what it actually runs — a small corpus gives
+    less than the budget, and the client says so."""
     root = corpus_root_or_503(request)
     config = getattr(request.app.state, "moments_config", None)
-    clips = goal_reel(root, topic, minutes=minutes, config=config)
+    about = reel_subject(root, subject)
+    clips = goal_reel(root, subject, minutes=minutes, config=config)
     out: list[AppReelClip] = []
     for c in clips:
         row = resolve_slug(root, c.episode_slug)
@@ -373,16 +375,17 @@ def app_discover_reel(
             )
         )
     return AppTopicReelResponse(
-        topic_id=topic,
-        topic_label=_topic_label(root, topic, [c.episode.slug for c in out]),
+        subject_id=subject,
+        subject_kind=about.kind,
+        subject_label=about.label or _topic_label(root, subject, [c.episode.slug for c in out]),
         minutes=minutes,
         total_seconds=round(sum(c.end_ms - c.start_ms for c in out) / 1000.0, 1),
         clips=out,
     )
 
 
-#: Topics on Discover's "15 minutes on…" row, and how many candidates are tried to find them.
-REEL_TOPICS = 3
+#: Chips on Discover's "15 minutes on…" row, and how many candidates of each kind are tried.
+REEL_TOPICS = 4
 REEL_TOPIC_CANDIDATES = 8
 #: A reel of one clip is not "minutes on" anything.
 REEL_MIN_CLIPS = 2
@@ -394,46 +397,84 @@ def app_discover_reel_topics(
     scope: str = Query(default="corpus", description="corpus | mine"),
     user: User = Depends(get_current_user),
 ) -> AppReelTopicsResponse:
-    """The topics Discover offers "15 minutes on": under Mine the listener's own top topics
-    (umbrellas skipped), under Everyone the rising ones — each kept only if its reel has at least
+    """What Discover offers "15 minutes on": topics, themes and storylines taking turns. Under
+    Mine the listener's own (their top topics, umbrellas skipped; the themes and storylines of their
+    world by momentum), under Everyone the rising ones. Each is kept only if its reel has at least
     ``REEL_MIN_CLIPS`` clips, so a chip never opens an empty reel."""
+    from podcast_scraper.server.app_rail_turns import take_turns
+
     root = corpus_root_or_503(request)
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     data_dir = Path(raw_dir) if raw_dir is not None else None
     eff = "mine" if scope == "mine" and data_dir is not None else "corpus"
-    if eff == "mine" and data_dir is not None:
-        candidates = engaged_topics(root, data_dir, user.user_id)[:REEL_TOPIC_CANDIDATES]
-    else:
-        rising = trending(
+    mine_entities = (
+        personal_entity_ids(root, data_dir, user.user_id)
+        if eff == "mine" and data_dir is not None
+        else None
+    )
+
+    def rising(kind: str) -> list[tuple[str, str]]:
+        found = trending(
             root,
             data_dir,
-            kind="topic",
-            scope="corpus",
+            kind=kind,
+            scope=eff,
+            user_id=user.user_id if eff == "mine" else None,
             limit=REEL_TOPIC_CANDIDATES,
             config=_momentum_config(request),
+            restrict_to=mine_entities,
         )
-        candidates = [(t.entity_id, t.label) for t in rising]
-    # A topic the listener asked to see less of is not offered either (ADR-163 §6): the row sits on
-    # the same page as the rails that already leave it out.
+        return [(t.entity_id, t.label) for t in found]
+
     if eff == "mine" and data_dir is not None:
-        hidden = app_user_state.suggest_less_tokens(data_dir, user.user_id)
-        candidates = [(tid, label) for tid, label in candidates if tid not in hidden]
+        topics = engaged_topics(root, data_dir, user.user_id)[:REEL_TOPIC_CANDIDATES]
+    else:
+        topics = rising("topic")
+    kinds: dict[ReelKind, list[tuple[str, str]]] = {
+        "topic": topics,
+        "theme": rising("theme"),
+        "storyline": rising("storyline"),
+    }
+    # What the listener asked to see less of is not offered either (ADR-163 §6): the row sits on the
+    # same page as the rails that already leave it out.
+    hidden = (
+        app_user_state.suggest_less_tokens(data_dir, user.user_id)
+        if eff == "mine" and data_dir is not None
+        else set()
+    )
     config = getattr(request.app.state, "moments_config", None)
-    items: list[AppReelTopic] = []
-    for tid, label in candidates:
-        clips = goal_reel(root, tid, minutes=15, config=config)
-        if len(clips) >= REEL_MIN_CLIPS:
-            seconds = sum(c.moment.end_ms - c.moment.start_ms for c in clips) / 1000.0
-            items.append(
-                AppReelTopic(
-                    topic_id=tid,
-                    topic_label=label,
-                    clips=len(clips),
-                    total_seconds=round(seconds, 1),
+
+    def with_reels(kind: ReelKind, cands: list[tuple[str, str]]) -> list[tuple[str, AppReelTopic]]:
+        """``(the reel's clips as a key, the chip)`` for each candidate with a real reel."""
+        kept: list[tuple[str, AppReelTopic]] = []
+        for sid, label in cands:
+            if sid in hidden or len(kept) >= REEL_TOPICS:
+                continue
+            clips = goal_reel(root, sid, minutes=15, config=config)
+            if len(clips) >= REEL_MIN_CLIPS:
+                seconds = sum(c.moment.end_ms - c.moment.start_ms for c in clips) / 1000.0
+                same = "|".join(sorted(f"{c.episode_slug}@{c.moment.start_ms}" for c in clips))
+                kept.append(
+                    (
+                        same,
+                        AppReelTopic(
+                            subject_id=sid,
+                            subject_kind=kind,
+                            subject_label=label,
+                            clips=len(clips),
+                            total_seconds=round(seconds, 1),
+                        ),
+                    )
                 )
-            )
-        if len(items) >= REEL_TOPICS:
-            break
+        return kept
+
+    # Keyed on the clips: a theme whose reel is its one topic's reel is the same offer, once.
+    items = [
+        chip
+        for _same, chip in take_turns(
+            [with_reels(k, c) for k, c in kinds.items()], limit=REEL_TOPICS, key=lambda i: i[0]
+        )
+    ]
     return AppReelTopicsResponse(scope=eff, items=items)
 
 

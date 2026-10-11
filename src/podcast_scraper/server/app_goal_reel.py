@@ -1,9 +1,11 @@
-"""Fifteen minutes on a topic — goal-shaped listening, Discover arc Step 3 (ADR-163; scan #6).
+"""Fifteen minutes on a topic, theme or storyline — goal-shaped listening (ADR-163; scan #6).
 
 A reel across episodes (operator 2026-10-11, "cross-episode reel"): the strongest clips ABOUT one
-topic, from different episodes, back to back, within a time budget. It reuses the Moments picker
-(``app_moments.score_candidates``: the same candidates, clip windows and scores as an episode's
-Moments) and keeps only the candidates whose insight is ABOUT the topic.
+subject, from different episodes, back to back, within a time budget. A topic is its own subject; a
+theme (``tc:``) or storyline (``thc:``) is its member topics, less any umbrella member (one that
+reaches ``UMBRELLA_TOPIC_SHARE`` of the corpus would make the reel about everything). It reuses the
+Moments picker (``app_moments.score_candidates``: the same candidates, clip windows and scores as an
+episode's Moments) and keeps only the candidates whose insight is ABOUT one of those topics.
 
 A clip must say what its insight says: its opening quote shares at least ``MIN_SUPPORT`` of its
 content words with the insight (``app_reasons.quote_support``). An insight's quote list can open
@@ -18,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from podcast_scraper.server.app_moments import Moment, MomentsConfig, rank_moments, score_candidates
 from podcast_scraper.server.app_reasons import MIN_SUPPORT, quote_support
@@ -37,34 +39,80 @@ class ReelClip:
     moment: Moment
 
 
-def _topic_episode_rows(root: Path, topic_id: str) -> list:
+ReelKind = Literal["topic", "theme", "storyline"]
+
+
+@dataclass(frozen=True)
+class ReelSubject:
+    """What a reel is about: its kind, its member topics and (theme / storyline) its label."""
+
+    kind: ReelKind
+    topics: frozenset[str]
+    label: Optional[str] = None
+
+
+def reel_subject(root: Path, subject_id: str) -> ReelSubject:
+    """The topics a reel on ``subject_id`` is about (none for an unknown theme or storyline)."""
+    if subject_id.startswith("topic:"):
+        return ReelSubject("topic", frozenset({subject_id}))
+    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.app_discover_view import interest_episode_index
+    from podcast_scraper.server.app_user_corpus import UMBRELLA_TOPIC_SHARE
+
+    kind: ReelKind
+    if subject_id.startswith("tc:"):
+        from podcast_scraper.search.topic_clusters import theme_map_by_topic
+
+        kind, by_topic = "theme", theme_map_by_topic(root)
+        id_key, label_key = "cluster_id", "cluster_label"
+    elif subject_id.startswith("thc:"):
+        from podcast_scraper.search.storylines import storyline_map_by_topic
+
+        kind, by_topic = "storyline", storyline_map_by_topic(root)
+        id_key, label_key = "storyline_id", "storyline_label"
+    else:
+        return ReelSubject("topic", frozenset())
+    members = {tid: info for tid, info in by_topic.items() if info.get(id_key) == subject_id}
+    index = interest_episode_index(root)
+    ceiling = UMBRELLA_TOPIC_SHARE * len(cached_catalog(root))
+    topics = frozenset(t for t in members if len(index.get(t, set())) < ceiling)
+    label = next((str(i.get(label_key) or "") for i in members.values() if i.get(label_key)), None)
+    return ReelSubject(kind, topics, label)
+
+
+def _episode_rows(root: Path, topics: frozenset[str]) -> list:
     from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_discover_view import interest_episode_index
 
-    paths = interest_episode_index(root).get(topic_id, set())
+    index = interest_episode_index(root)
+    paths = set().union(*(index.get(t, set()) for t in topics)) if topics else set()
     return [r for r in cached_catalog(root) if r.metadata_relative_path in paths and r.has_gi]
 
 
 def goal_reel(
     root: Path,
-    topic_id: str,
+    subject_id: str,
     *,
     minutes: int = 15,
     config: Optional[MomentsConfig] = None,
 ) -> list[ReelClip]:
-    """Clips about ``topic_id`` across episodes, best and breadth first, within ``minutes``."""
+    """Clips about ``subject_id`` (a topic, or a theme's or storyline's member topics) across
+    episodes, best and breadth first, within ``minutes``."""
     from podcast_scraper.server.app_corpus_access import load_json_artifact
     from podcast_scraper.server.app_episode_search import episode_segments
     from podcast_scraper.server.app_moments import _topic_links
     from podcast_scraper.server.app_slugs import slug_for_row
 
     cfg = config or MomentsConfig.from_env()
+    subject = reel_subject(root, subject_id)
     per_episode: list[tuple[str, list[Moment]]] = []
-    for row in _topic_episode_rows(root, topic_id):
+    for row in _episode_rows(root, subject.topics):
         artifact = load_json_artifact(root, row.gi_relative_path)
         if not isinstance(artifact, dict):
             continue
-        about = {iid for iid, topics in _topic_links(artifact).items() if topic_id in topics}
+        about = {
+            iid for iid, topics in _topic_links(artifact).items() if subject.topics & set(topics)
+        }
         if not about:
             continue
         scored = [

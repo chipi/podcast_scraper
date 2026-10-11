@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * N minutes on a topic — goal-shaped listening (ADR-163 §8 amendment; Discover arc Step 3).
+ * N minutes on a topic, theme or storyline — goal-shaped listening (ADR-163 §8 amendment).
  *
- * The strongest clips ABOUT one topic from different episodes, back to back (`GET /discover/reel`,
+ * The strongest clips ABOUT one subject (a theme or storyline: any of its member topics) from
+ * different episodes, back to back (`GET /discover/reel`,
  * the Moments picker's clip windows). The player store plays them: each clip loads its own episode
  * (`startTopicReel` with the shell's `resolveNextUpForSlug`), and like any reel it never moves a
  * resume point or counts as a listen until "Keep listening to this episode" makes it one.
@@ -65,7 +66,7 @@ const episodesHeard = computed(() => {
 async function start(): Promise<void> {
   if (!data.value) return
   await player.startTopicReel(
-    { id: props.id, label: data.value.topic_label, minutes: budget.value },
+    { id: props.id, label: data.value.subject_label, minutes: budget.value },
     moments.value,
     resolveNextUpForSlug,
   )
@@ -94,7 +95,7 @@ function goBack(): void {
       <header class="mt-3">
         <span class="lp-kicker text-topic">{{ t('reel.kicker') }}</span>
         <h1 class="font-display text-3xl font-extrabold tracking-tight" data-testid="topic-reel-title">
-          {{ t('reel.title', { minutes: budget, topic: data.topic_label }) }}
+          {{ t('reel.title', { minutes: budget, topic: data.subject_label }) }}
         </h1>
         <p class="mt-1 text-sm text-muted" data-testid="topic-reel-length">
           {{ t('reel.length', { clips: data.clips.length, time: formatTime(data.total_seconds) }) }}
@@ -102,7 +103,7 @@ function goBack(): void {
       </header>
 
       <p v-if="!data.clips.length" class="mt-6 text-sm text-muted" data-testid="topic-reel-empty">
-        {{ t('reel.empty', { topic: data.topic_label }) }}
+        {{ t('reel.empty', { topic: data.subject_label }) }}
       </p>
 
       <template v-else>
@@ -151,7 +152,7 @@ function goBack(): void {
         </article>
 
         <section v-else-if="live?.done" class="mt-6" data-testid="topic-reel-done">
-          <h2 class="lp-section mb-3">{{ t('reel.done', { topic: data.topic_label }) }}</h2>
+          <h2 class="lp-section mb-3">{{ t('reel.done', { topic: data.subject_label }) }}</h2>
           <ul class="grid gap-2">
             <li v-for="m in episodesHeard" :key="m.slug">
               <RouterLink :to="{ name: 'player', params: { slug: m.slug } }" class="lp-tap block rounded-xl border border-border p-3" data-testid="topic-reel-episode">

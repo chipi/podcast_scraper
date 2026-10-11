@@ -36,6 +36,7 @@ import NoteComposer from "../components/NoteComposer.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
 import { useCappedSections } from "../composables/useCappedSections"
 import TopicPerspectives from "../components/TopicPerspectives.vue"
+import ReelDoor from "../components/ReelDoor.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import TopVoices from "../components/TopVoices.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
@@ -227,6 +228,8 @@ function goBack(): void {
           :label="label || undefined"
           @toggle="toggleFollow"
         />
+        <!-- Fifteen minutes of clips on any of its topics (operator 2026-10-11). -->
+        <ReelDoor :subject-id="id" :label="label || id" />
       </div>
     </div>
 

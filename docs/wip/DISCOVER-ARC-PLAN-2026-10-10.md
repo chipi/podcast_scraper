@@ -130,8 +130,10 @@ The Discover 2 preview was removed (UI only; its APIs stay).
   "Keep listening"), `TopicReelView` at `/listen/topic/:id`, Discover's `ReelTopicsRow`.
   ADR-163 §8 amended. The fixture's authored quotes were stamped with their transcript times
   (`scripts/tools/stamp_authored_quotes.py`; the builder now does it too) — 9 of 16; the other 7
-  are not transcript text (see the fixture review). NOT done: "Learn X this week" (an ordered
-  path); a door on the topic card (its action row was kept lean by the operator — ask first).
+  are not transcript text (see the fixture review). Themes and storylines too (2026-10-11,
+  operator): `reel_subject` (member topics, umbrellas out), `?subject=`, kind-coloured chips
+  taking turns on `ReelTopicsRow`, and a `ReelDoor` ("▶ 15 min on this") on the topic card and the
+  theme and storyline pages, asked for by the operator. NOT done: "Learn X this week".
 
 ## Step 4 — cold start and control
 
@@ -183,13 +185,12 @@ Each of these changes what the pinned evals and Moments e2e expect.
 ### Not done in this arc
 
 - "Learn X this week" (an ordered path through a theme).
-- A "15 min on this" door on the topic card. Its action row was kept lean by the operator, so ask
-  first.
 - Telemetry for the topic reel: no Umami event yet for a reel started, a clip skipped, or "Keep
   listening".
-- The Explore nav tab, to be decided on a device.
 - Performance at prod size. The new rails were measured only on the 55-episode fixture: the thread
-  rail takes 17–66 ms in-process there, and about 1.9 s under parallel e2e load.
+  rail takes 17–66 ms in-process there, and about 1.9 s under parallel e2e load. The reel door
+  computes the subject's whole reel to decide whether to show itself; a storyline reel reads the GI
+  of every member topic's episode, unmeasured at prod size.
 
 ## Also
 

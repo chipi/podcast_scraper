@@ -234,6 +234,30 @@ test('"15 min on" a topic: clips from different episodes, back to back, then kee
   await expect(page).toHaveURL(/\/episode\/p07-3f1584920f/)
 })
 
+test('"15 min on this" from a storyline and a theme: clips about any member topic; chips wear their kind', async ({
+  page,
+}, testInfo) => {
+  // Operator 2026-10-11: reels for themes and storylines, a door on their pages, chips coloured
+  // like topics, themes and storylines on episode notes.
+  await signInIsolated(page, 'discover-storyline-reel', testInfo)
+  await page.goto('/browse')
+  await showEveryonesTrends(page)
+  const chips = page.getByTestId('reel-topic-chip')
+  await expect(chips.filter({ hasText: 'Managing risk across domains' })).toHaveAttribute('data-kind', 'storyline')
+  await expect(chips.filter({ hasText: 'reliability' })).toHaveAttribute('data-kind', 'theme')
+  await expect(chips.filter({ hasText: 'Managing risk across domains' })).toHaveClass(/text-storyline/)
+
+  await page.goto(`/storyline/${encodeURIComponent('thc:managing-risk')}`)
+  await page.getByTestId('reel-door').click()
+  await expect(page).toHaveURL(/\/listen\/topic\/thc(:|%3A)managing-risk\?minutes=15/)
+  await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on Managing risk across domains')
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('28 clips from different episodes · 5:36')
+
+  await page.goto(`/theme/${encodeURIComponent('tc:reliability')}`)
+  await page.getByTestId('reel-door').click()
+  await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on reliability')
+})
+
 test('Discover is a taste: two cards a rail, "Show more" pages from the server, one card per episode', async ({
   page,
 }, testInfo) => {

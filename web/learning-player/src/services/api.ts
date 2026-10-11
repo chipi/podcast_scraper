@@ -906,25 +906,30 @@ export interface ReelClip {
   start_ms: number
   end_ms: number
 }
+/** What a reel is about: a topic, or a theme's or storyline's member topics. */
+export type ReelKind = "topic" | "theme" | "storyline"
 export interface TopicReel {
-  topic_id: string
-  topic_label: string
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
   minutes: number
   /** What the reel actually runs — never the budget. */
   total_seconds: number
   clips: ReelClip[]
 }
-/** N minutes on a topic (ADR-163 §8 amendment): clips about it across episodes. */
-export async function getTopicReel(topicId: string, minutes = 15): Promise<TopicReel> {
-  return getJSON<TopicReel>("/discover/reel", { topic: topicId, minutes })
+/** N minutes on a topic, theme or storyline (ADR-163 §8 amendment): clips about it across
+ *  episodes. `subjectId` is a `topic:`, `tc:` (theme) or `thc:` (storyline) id. */
+export async function getTopicReel(subjectId: string, minutes = 15): Promise<TopicReel> {
+  return getJSON<TopicReel>("/discover/reel", { subject: subjectId, minutes })
 }
 export interface ReelTopic {
-  topic_id: string
-  topic_label: string
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
   clips: number
   total_seconds: number
 }
-/** The topics Discover offers a reel on (each with at least two clips). */
+/** The topics, themes and storylines Discover offers a reel on (each with at least two clips). */
 export async function getReelTopics(scope: "mine" | "corpus"): Promise<ReelTopic[]> {
   return (await getJSON<{ items?: ReelTopic[] }>("/discover/reel-topics", { scope })).items ?? []
 }
