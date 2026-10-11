@@ -1,5 +1,5 @@
 /**
- * Discover's "Minutes on" row (ADR-163 §8 amendment): chips into topic, theme and storyline reels,
+ * Discover's "15 minutes on" row (ADR-163 §8 amendment): chips into topic, theme and storyline reels,
  * in the page scope,
  * hidden with none; a scope switch mid-load never shows the old scope's topics.
  */
@@ -37,7 +37,9 @@ describe('ReelTopicsRow', () => {
     await flushPromises()
     expect(api.getReelTopics).toHaveBeenCalledWith('mine')
     const chip = w.get('[data-testid="reel-topic-chip"]')
-    expect(chip.text()).toBe('▶ 15 min on alpha')
+    expect(chip.text()).toBe('▶ alpha')
+    expect(chip.attributes('aria-label')).toBe('Play 15 minutes on alpha')
+    expect(w.get('h2').text()).toBe('15 minutes on')
     expect(chip.attributes('href')).toBe('/listen/topic/topic:a?minutes=15')
   })
 

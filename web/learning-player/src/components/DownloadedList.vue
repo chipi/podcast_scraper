@@ -80,8 +80,10 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
         v-for="e in visibleItems"
         :key="e.slug"
         data-testid="downloaded-item"
-        class="flex items-start gap-3 border-b border-border py-3"
+        class="relative flex items-start gap-3 border-b border-border py-3"
       >
+        <!-- The whole row opens the episode, paused (operator 2026-10-11): the title's link stretches
+             over it; Moments and the download control sit above it. -->
         <!-- The downloaded FILE first; the API's url while the episode is still queued, so a
              pending row is not a bare line of text beside rows that have covers. -->
         <img
@@ -93,7 +95,7 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
         />
         <RouterLink
           :to="{ name: 'player', params: { slug: e.slug } }"
-          class="min-w-0 flex-1 no-underline text-canvas-foreground"
+          class="min-w-0 flex-1 no-underline text-canvas-foreground after:absolute after:inset-0"
         >
           <p class="text-sm font-semibold leading-snug">{{ e.title ?? e.slug }}</p>
           <p class="lp-kicker mt-1 truncate">
@@ -120,7 +122,7 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
         </RouterLink>
         <!-- The plane case (operator 2026-10-10): a downloaded episode's reel plays from the file. -->
         <MomentsLink v-if="!noMoments.has(e.slug)" :slug="e.slug" class="self-center" />
-        <DownloadButton :slug="e.slug" />
+        <DownloadButton class="relative z-30" :slug="e.slug" />
       </li>
     </ul>
 

@@ -268,6 +268,8 @@ test('"15 min on this" from a storyline and a theme: clips about any member topi
   await expect(chips.filter({ hasText: 'Managing risk across domains' })).toHaveClass(/text-storyline/)
 
   await page.goto(`/storyline/${encodeURIComponent('thc:managing-risk')}`)
+  // Its other door: seven days of it (operator 2026-10-11).
+  await expect(page.getByTestId('learn-door')).toHaveText('Learn this in 7 days')
   await page.getByTestId('reel-door').click()
   await expect(page).toHaveURL(/\/listen\/topic\/thc(:|%3A)managing-risk\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on Managing risk across domains')
@@ -328,6 +330,13 @@ test('Discover is a taste: two cards a rail, "Show more" pages from the server, 
     els.map((e) => e.getAttribute('href')),
   )
   expect(new Set(hrefs).size).toBe(hrefs.length)
-  // The show is named, so it is a way there.
-  await expect(rail.getByTestId('rail-show-link').first()).toHaveAttribute('href', /\/podcast\//)
+  // The whole card opens the episode, paused; the show is named, not linked (operator 2026-10-11).
+  await expect(rail.locator('a[href^="/podcast/"]')).toHaveCount(0)
+  const card = rail.getByTestId('thread-card').first()
+  const href = await card.getByTestId('thread-card-open').getAttribute('href')
+  await card.scrollIntoViewIfNeeded()
+  const box = await card.boundingBox()
+  await page.mouse.click(box!.x + box!.width - 12, box!.y + 12) // a corner, not the title
+  await expect(page).toHaveURL(new RegExp(`${href}$`))
+  await expect.poll(() => page.evaluate(() => document.querySelector('audio')?.paused ?? true)).toBe(true)
 })

@@ -129,3 +129,16 @@ def test_a_subject_without_a_path_cannot_be_started(tmp_path: Path) -> None:
     r = client.post("/api/app/discover/learn", json={"subject_id": "tc:dialogue"})
     assert r.status_code == 422
     assert client.post("/api/app/discover/learn", json={"subject_id": "x"}).status_code == 422
+
+
+def test_a_page_can_ask_whether_its_subject_has_a_path(tmp_path: Path) -> None:
+    """The topic card and theme / storyline pages offer "Learn this in a week" only with a path."""
+    client, _uid = _client(tmp_path)
+    body = client.get("/api/app/discover/learn/subjects/thc:managing-risk").json()
+    assert (body["subject_kind"], body["subject_label"], body["steps"]) == (
+        "storyline",
+        "Managing risk across domains",
+        7,
+    )
+    assert client.get("/api/app/discover/learn/subjects/tc:dialogue").status_code == 404
+    assert client.get("/api/app/discover/learn/subjects/person:x").status_code == 422

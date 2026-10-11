@@ -285,6 +285,21 @@ test('explore', async ({ page }) => {
   await shoot(page, 'explore')
 })
 
+// The subject pages (operator 2026-10-11): each carries the doors into a reel and a seven-day path.
+for (const [name, path] of [
+  ['topic', `/topic/${encodeURIComponent('topic:systems-thinking')}`],
+  ['theme', `/theme/${encodeURIComponent('tc:reliability')}`],
+  ['storyline', `/storyline/${encodeURIComponent('thc:managing-risk')}`],
+] as const) {
+  test(name, async ({ page }) => {
+    await signIn(page)
+    await page.goto(path)
+    await expect(page.getByTestId('reel-door')).toBeVisible()
+    await expect(page.getByTestId('learn-door')).toBeVisible()
+    await shoot(page, name)
+  })
+}
+
 test('library', async ({ page }) => {
   await signIn(page)
   await page.goto('/library')

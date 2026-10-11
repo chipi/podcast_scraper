@@ -76,11 +76,13 @@ beforeEach(() => {
 })
 
 describe('RecommendationRail', () => {
-  it('renders the first page with each reason, links the show, and reports the rail once', async () => {
+  it('renders the first page with each reason, the whole card a way into the episode, and reports the rail once', async () => {
     const { w } = await mountRail(page([card('a'), card('b')], 2))
     expect(w.findAll('[data-testid="captured-card"]')).toHaveLength(2)
     expect(w.get('[data-testid="captured-card-open"]').attributes('href')).toBe('/episode/a')
-    expect(w.get('[data-testid="rail-show-link"]').attributes('href')).toBe('/podcast/p01')
+    // The title's link stretches over the card; the show is named, not linked (operator 2026-10-11).
+    expect(w.get('[data-testid="captured-card-open"]').classes()).toContain('after:inset-0')
+    expect(w.find('a[href^="/podcast/"]').exists()).toBe(false)
     expect(w.get('[data-testid="why-reason"]').text()).toBe('Because you highlighted “kept”')
     expect(tracked.filter((e) => e.name === 'discover_rail_shown')).toHaveLength(1)
     expect(w.find('[data-testid="show-all-toggle"]').exists()).toBe(false) // nothing more to page

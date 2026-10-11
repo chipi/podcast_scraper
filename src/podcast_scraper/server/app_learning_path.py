@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from podcast_scraper.server.app_goal_reel import reel_subject, subject_moments
+from podcast_scraper.server.app_goal_reel import reel_subject, ReelKind, subject_moments
 from podcast_scraper.server.app_moments import MomentsConfig
 
 #: Days in a path, at most; a subject with fewer good episodes gives a shorter path.
@@ -72,7 +72,7 @@ def build_path(
     return sorted(steps, key=lambda s: (published(s.episode_slug), s.episode_slug))
 
 
-def subject_label(root: Path, subject_id: str) -> tuple[str, str]:
+def subject_label(root: Path, subject_id: str) -> tuple[ReelKind, str]:
     """``(kind, display label)`` for a path's subject."""
     subject = reel_subject(root, subject_id)
     if subject.label:

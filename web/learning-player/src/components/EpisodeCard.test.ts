@@ -125,11 +125,13 @@ describe("EpisodeCard", () => {
     expect(w.text()).toContain("48 min")
   })
 
-  it("links to the player and to the podcast view", () => {
+  it("the whole card links to the player; the show is named, not linked (operator 2026-10-11)", () => {
     const w = mountCard(makeEpisode())
     const hrefs = w.findAll("a").map((a) => a.attributes("href"))
     expect(hrefs).toContain("/episode/show-abc123")
-    expect(hrefs).toContain("/podcast/show")
+    expect(hrefs.some((h) => h?.startsWith("/podcast/"))).toBe(false)
+    const title = w.findAll("a").find((a) => a.attributes("href") === "/episode/show-abc123")!
+    expect(title.classes()).toContain("after:inset-0")
   })
 
   it("compact still renders the shared action row, capped to the artwork width", () => {
@@ -276,7 +278,7 @@ describe("the two columns are rebalanced (#2004 items 4/7)", () => {
     const w = mountCard(
       makeEpisode({ podcast_title: "Complex Systems with Patrick McKenzie (patio11)" })
     )
-    const name = w.findAll("a").find((a) => a.text().includes("Complex Systems"))!
+    const name = w.findAll(".lp-kicker").find((el) => el.text().includes("Complex Systems"))!
     expect(name.classes()).toContain("truncate")
     expect(name.classes()).toContain("block")
     expect(name.classes()).not.toContain("flex-1")

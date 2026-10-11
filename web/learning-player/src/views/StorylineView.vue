@@ -32,6 +32,7 @@ import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
+import LearnDoor from "../components/LearnDoor.vue"
 import ReelDoor from "../components/ReelDoor.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
@@ -234,6 +235,8 @@ function goBack(): void {
         />
         <!-- Fifteen minutes of clips on any of its topics (operator 2026-10-11). -->
         <ReelDoor v-if="storylineId" :subject-id="storylineId" :label="label || storylineId" />
+        <!-- And seven days of it, one episode a day (operator 2026-10-11). -->
+        <LearnDoor v-if="auth.isAuthenticated && storylineId" :subject-id="storylineId" />
       </div>
     </div>
 

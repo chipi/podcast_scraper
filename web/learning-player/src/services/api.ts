@@ -992,6 +992,15 @@ export async function getLearn(
   )
   return { path: r.path ?? null, candidates: r.candidates ?? [] }
 }
+/** Whether a topic, theme or storyline can be learned in a week (`null`: too few episodes). */
+export async function getLearnSubject(subjectId: string): Promise<LearnSubject | null> {
+  try {
+    return await getJSON<LearnSubject>(`/discover/learn/subjects/${encodeURIComponent(subjectId)}`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
 export async function startLearn(subjectId: string): Promise<LearningPath> {
   const resp = await apiFetch(`${BASE}/discover/learn`, {
     method: "POST",

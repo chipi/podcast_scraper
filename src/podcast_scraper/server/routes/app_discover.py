@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Path as PathParam, Query, Request
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.storylines import top_storylines_by_member_count
@@ -596,6 +596,27 @@ def app_discover_learn(
         key=lambda s: s.subject_id,
     )
     return AppLearnResponse(candidates=picks)
+
+
+@router.get("/discover/learn/subjects/{subject_id}", response_model=AppLearnSubject)
+def app_learn_subject(
+    request: Request,
+    subject_id: str = PathParam(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):"),
+    _user: User = Depends(get_current_user),
+) -> AppLearnSubject:
+    """Whether a topic, theme or storyline can be learned in a week, and in how many days — what a
+    topic card or theme / storyline page asks before offering "Learn this in a week" (404: too few
+    good episodes for a path)."""
+    from podcast_scraper.server.app_learning_path import build_path, subject_label
+
+    root = corpus_root_or_503(request)
+    steps = build_path(root, subject_id, getattr(request.app.state, "moments_config", None))
+    if not steps:
+        raise HTTPException(status_code=404, detail="Too few episodes on this for a path.")
+    kind, label = subject_label(root, subject_id)
+    return AppLearnSubject(
+        subject_id=subject_id, subject_kind=kind, subject_label=label, steps=len(steps)
+    )
 
 
 @router.post("/discover/learn", response_model=AppLearningPath)

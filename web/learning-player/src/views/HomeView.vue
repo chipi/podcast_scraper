@@ -421,8 +421,14 @@ async function loadContinue(): Promise<void> {
       />
       <div class="relative p-5">
         <span class="lp-kicker text-grounded">{{ t("home.continue") }}</span>
+        <!-- The whole card opens the episode, PAUSED, like every episode card (operator 2026-10-11):
+             the title's link stretches over it; Resume sits above and is the one control that plays. -->
         <h1 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
-          {{ resumeTop.detail.title }}
+          <RouterLink
+            :to="{ name: 'player', params: { slug: resumeTop.detail.slug } }"
+            class="text-canvas-foreground no-underline after:absolute after:inset-0"
+            data-testid="home-resume-open"
+          >{{ resumeTop.detail.title }}</RouterLink>
         </h1>
         <p class="lp-show-name mt-1 text-sm text-muted" :title="resumeTop.detail.podcast_title ?? undefined">{{ resumeTop.detail.podcast_title }}</p>
         <div class="mt-3 h-1 rounded bg-overlay">
@@ -445,7 +451,7 @@ async function loadContinue(): Promise<void> {
              more reach than a control that only exists while something is in progress — the exact
              gap it was added for in the first place (2026-09-19). Two ways in, one of them
              conditional, is one too many. -->
-        <div class="mt-3 flex items-center gap-2">
+        <div class="relative z-30 mt-3 flex items-center gap-2">
           <RouterLink
             :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
             data-testid="home-resume"

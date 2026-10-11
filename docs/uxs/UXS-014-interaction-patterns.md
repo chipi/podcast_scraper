@@ -388,6 +388,15 @@ highlight it, then add the highlight to a board (`kind: highlight` is a first-cl
 item). Do not add a second control to a fragment to shortcut that; add it to the board from the
 highlight.
 
+**An episode card opens the episode, paused — the whole card (operator 2026-10-11).** Everywhere
+an episode is a card or a row (rails, Discover, search, Saved, Downloaded, boards, Your Week, Learn,
+Continue), a tap anywhere on it opens the episode in the player WITHOUT playing. The title's link
+stretches over the card (`after:absolute after:inset-0`); the card's own controls (save, queue, ⋯,
+download, Moments, "Play from", "Less like this", Remove) sit above it (`relative z-30`). Only a
+control that says so plays: Resume, "▶ Play from mm:ss", Play moments. **The show is named, not
+linked** on an episode card: the player leads to the show, so a card has one destination and no
+small target competing with it. Show tiles and show rows still open the show — they ARE the show.
+
 **The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · queue · `⋯`
 (add-to-collection, Play moments, share) · **download**, via the one component. Download is a
 first-tier action on every episode, the fourth control, after the `⋯` (operator 2026-10-11). Until

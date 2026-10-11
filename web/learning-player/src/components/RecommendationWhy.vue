@@ -68,7 +68,7 @@ const time = computed(() => {
         <RouterLink
           v-if="playTo"
           :to="playTo"
-          class="lp-tap font-bold text-accent"
+          class="lp-tap relative z-30 font-bold text-accent"
           :aria-label="t('why.playFromLabel', { quote: why.quote.text, time })"
           data-testid="why-play-from"
           @click="emit('play')"

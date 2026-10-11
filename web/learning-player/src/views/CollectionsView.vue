@@ -823,9 +823,11 @@ onMounted(() => {
             <li
               v-for="it in open.items"
               :key="itemKey(it)"
-              class="flex items-center gap-3 rounded-xl border border-border p-3"
+              class="relative flex items-center gap-3 rounded-xl border border-border p-3"
               data-testid="collection-item"
             >
+              <!-- The whole row opens what it is (an episode in the player, paused; operator
+                   2026-10-11): the title's link stretches over it; Remove sits above it. -->
               <img
                 v-if="shown[itemKey(it)]?.artwork"
                 :src="shown[itemKey(it)]!.artwork"
@@ -851,7 +853,7 @@ onMounted(() => {
                       ? { to: it.deep_link }
                       : {}
                   "
-                  class="block truncate text-sm font-semibold text-canvas-foreground no-underline"
+                  class="block truncate text-sm font-semibold text-canvas-foreground no-underline after:absolute after:inset-0"
                   data-testid="collection-item-title"
                   >{{ shown[itemKey(it)]?.title ?? fallbackTitle(it) }}</component
                 >
@@ -866,7 +868,7 @@ onMounted(() => {
               </div>
               <button
                 type="button"
-                class="shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
+                class="relative z-30 shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
                 :aria-label="t('collections.removeItem')"
                 data-testid="collection-item-remove"
                 @click="removeItem(it)"

@@ -132,7 +132,10 @@ async function undoLess(): Promise<void> {
     </p>
     <ul class="grid gap-3 lg:grid-cols-2">
       <li v-for="(c, i) in cards" :key="c.episode.slug">
-        <article class="flex h-full flex-col gap-3 rounded-xl border border-border p-4" :data-testid="cardTestid">
+        <!-- The WHOLE card opens the episode, paused (operator 2026-10-11): the title's link stretches
+             over it (`after:absolute after:inset-0`, EpisodeCard's pattern) and the card's own controls
+             sit above it (`relative z-30`). The show is named, not linked — the player leads there. -->
+        <article class="relative flex h-full flex-col gap-3 rounded-xl border border-border p-4 transition hover:border-accent" :data-testid="cardTestid">
           <div class="flex min-w-0 items-center gap-3">
             <RouterLink
               :to="{ name: 'player', params: { slug: c.episode.slug } }"
@@ -151,30 +154,22 @@ async function undoLess(): Promise<void> {
             <span class="min-w-0">
               <RouterLink
                 :to="{ name: 'player', params: { slug: c.episode.slug } }"
-                class="lp-tap line-clamp-2 text-sm font-bold no-underline"
+                class="block text-sm font-bold no-underline after:absolute after:inset-0"
                 :data-testid="openTestid"
                 @click="telemetry.tapped(c, i, 'open')"
-              >{{ c.episode.title }}</RouterLink>
-              <!-- The show is named, so it is a way there (operator 2026-10-11) — a link only when the
-                   card knows the feed: routing to a podcast with no id throws (EpisodeCard's rule). -->
-              <RouterLink
-                v-if="c.episode.feed_id && c.episode.podcast_title"
-                :to="{ name: 'podcast', params: { feedId: c.episode.feed_id } }"
-                class="lp-tap lp-show-name text-xs text-muted no-underline hover:text-canvas-foreground"
-                data-testid="rail-show-link"
-              >{{ c.episode.podcast_title }}</RouterLink>
-              <span v-else class="lp-show-name text-xs text-muted">{{ c.episode.podcast_title }}</span>
+              ><span class="line-clamp-2">{{ c.episode.title }}</span></RouterLink>
+              <span class="lp-show-name text-xs text-muted">{{ c.episode.podcast_title }}</span>
             </span>
           </div>
           <RecommendationWhy :why="c.why" @play="telemetry.tapped(c, i, 'play_from')" />
           <!-- The standard episode actions, as on every episode card (UXS-014): save, queue, and ⋯ —
                which leads with "Play moments" when the episode has them. -->
           <div class="mt-auto flex flex-wrap items-center justify-between gap-x-4">
-            <EpisodeActions :slug="c.episode.slug" :moments="!!c.episode.has_moments" />
+            <EpisodeActions class="relative z-30" :slug="c.episode.slug" :moments="!!c.episode.has_moments" />
             <button
               v-if="c.why.subject && !usingFallback"
               type="button"
-              class="lp-tap relative -my-3 ml-auto min-h-[44px] px-1 text-xs text-muted transition hover:text-canvas-foreground"
+              class="lp-tap relative z-30 -my-3 ml-auto min-h-[44px] px-1 text-xs text-muted transition hover:text-canvas-foreground"
               :aria-label="t('discover.less.label', { subject: c.why.subject.label })"
               data-testid="rail-less"
               @click="less(c, i)"

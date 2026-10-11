@@ -22,8 +22,10 @@ const playTo = computed(() => ({
 </script>
 
 <template>
+  <!-- The whole card opens the episode, paused (operator 2026-10-11): the title's link stretches over
+       it; "Play from" and "Done" sit above it. -->
   <article
-    class="rounded-xl border border-border p-4"
+    class="relative rounded-xl border border-border p-4"
     :class="step.unlocked ? '' : 'opacity-60'"
     :data-day="step.day"
     data-testid="learn-step"
@@ -34,14 +36,14 @@ const playTo = computed(() => ({
     </p>
     <RouterLink
       :to="{ name: 'player', params: { slug: step.episode.slug } }"
-      class="mt-1 block font-semibold text-canvas-foreground no-underline"
+      class="mt-1 block font-semibold text-canvas-foreground no-underline after:absolute after:inset-0"
       data-testid="learn-step-episode"
     >{{ step.episode.title }}</RouterLink>
     <p class="line-clamp-2 text-xs text-muted">{{ step.episode.podcast_title }}</p>
     <template v-if="step.unlocked">
       <blockquote class="mt-3 text-sm leading-snug text-canvas-foreground" data-testid="learn-step-quote">“{{ step.quote_text || step.text }}”</blockquote>
       <p v-if="step.speaker" class="mt-1 text-xs text-muted">{{ step.speaker }}</p>
-      <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <div class="relative z-30 mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
         <RouterLink
           :to="playTo"
           class="lp-tap inline-flex min-h-[44px] items-center text-sm font-bold text-accent no-underline"

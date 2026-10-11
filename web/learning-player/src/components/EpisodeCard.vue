@@ -4,7 +4,7 @@
  * insights **one tap away, expanding in place** — the same gesture on touch and pointer.
  *
  * Uses the "stretched link" pattern (no nested anchors): the title link's ::after overlay covers
- * the whole card → Player; the podcast kicker, queue toggle and insights control sit above it
+ * the whole card → Player (paused); the queue toggle and insights control sit above it
  * (relative z-30) so they stay independently interactive.
  *
  * ## Why there is no hover reveal (#1583)
@@ -230,25 +230,12 @@ const { badgeShown } = useCorpusLanguages()
          columns foot their last element with `mt-auto`, so the action row and "Read more" land on
          the same line. -->
     <div class="lp-media-body">
-      <!-- Show name — full column width; only ellipsizes when genuinely long.
-           A LINK only when there is a feed to link to. `feed_id` is optional on EpisodeSummary, and
-           `router.resolve({ name: 'podcast', params: { feedId: undefined } })` THROWS rather than
-           degrading — so a row whose source carries the show's NAME but not its id (Search groups
-           its hits by episode, and the feed id lives in the hit metadata) took the whole view down.
-           Plain text is the honest fallback: the name is still information without being a
-           destination. -->
+      <!-- Show name — full column width; only ellipsizes when genuinely long. Named, not linked
+           (operator 2026-10-11): the whole card opens the episode, and the player leads to the show. -->
       <!-- The show line also carries "▶ Moments" on browsing surfaces (Discover, show pages;
            operator 2026-10-10): on a row that already exists, so the card grows no taller. -->
       <div class="flex items-center justify-between gap-2">
-        <RouterLink
-          v-if="episode.podcast_title && episode.feed_id"
-          :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-          class="lp-kicker relative z-30 block min-w-0 truncate no-underline"
-          :title="episode.podcast_title"
-        >
-          {{ episode.podcast_title }}
-        </RouterLink>
-        <span v-else-if="episode.podcast_title" class="lp-kicker block min-w-0 truncate" :title="episode.podcast_title">
+        <span v-if="episode.podcast_title" class="lp-kicker block min-w-0 truncate" :title="episode.podcast_title">
           {{ episode.podcast_title }}
         </span>
         <span v-else />

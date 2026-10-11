@@ -334,8 +334,8 @@ because a theme is followed by its `tc:` token and the interests store already c
 - **Search bar:** pill input (UXS-011 input tokens), search icon, example chips (`topic` toned).
 - **Continue hero card:** artwork bg + progress rule + circular resume button (player transport
   styling, UXS-011).
-- **Search result card:** passage text (`surface-foreground`), source line (`muted` + `accent`
-  show link), `▶ mm:ss` (`accent`, `font-mono` tabular).
+- **Search result card:** passage text (`surface-foreground`), source line (`muted`; the show is
+  named, not linked — UXS-014), `▶ mm:ss` (`accent`, `font-mono` tabular).
 
 ## Accessibility
 
@@ -454,8 +454,8 @@ piece to its design home:
     not heard, captured from or saved. Nothing from Everyone is mixed in.
   - **Empty:** with nothing to show, the rail is hidden.
   - **Telemetry:** reports shown and taps to Umami (`useRailTelemetry('quotes')`).
-- **`ReelTopicsRow`** — Discover's "Minutes on" row (ADR-163 §8 amendment; goal-shaped listening):
-  up to four chips, "▶ 15 min on <subject>", topics, themes and storylines taking turns — under Mine
+- **`ReelTopicsRow`** — Discover's "15 minutes on" row (ADR-163 §8 amendment; goal-shaped listening):
+  "15 minutes on" with up to four chips, "▶ <subject>" (the duration once, in the heading), topics, themes and storylines taking turns — under Mine
   the listener's own (top topics; the themes and storylines of their world), under Everyone the
   rising ones — each offered only when its reel has at least two clips, and two subjects whose reels
   are the same clips offered once. Each chip wears its kind's colours (`kindPill`: topic, theme,
@@ -464,7 +464,7 @@ piece to its design home:
   storyline page (operator 2026-10-11), styled like the Moments door (amber monospace, 44px tap).
   It appears only once that subject's reel has at least two clips.
 - **`LearnThisWeek`** — Discover's **Learn X this week** (operator 2026-10-11), signed in, under
-  the "Minutes on" row: a seven-day path through a theme or storyline, one step a day.
+  the "15 minutes on" row: a seven-day path through a theme or storyline, one step a day.
   - **Without a path:** "Learn something this week", a line saying what it is, and up to three
     chips in their kind's colours — "Managing risk across domains · 7 days" — themes and storylines
     with a path of three to seven days, in the page scope. One tap starts it.
@@ -474,6 +474,10 @@ piece to its design home:
   - **Rules:** the steps are the subject's strongest episodes by their best clip, oldest first, and
     frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late,
     never early. One path at a time; starting another replaces it. No reminders.
+- **`LearnDoor`** — "LEARN THIS IN 7 DAYS" beside "▶ 15 MIN ON THIS" on the topic card and the
+  theme and storyline pages (operator 2026-10-11), signed in, only when the subject has a path.
+  Starting opens the whole week. Already learning it: "LEARNING · DAY 3 OF 7 ›". Learning something
+  else: "This replaces “Reliability”." with Start / Not now, in place, before anything changes.
 - **`LearnStep`** — one day: "DAY 2" (✓ Done once done), the episode (a link) and its show (two
   lines at most), the clip in the speaker's words with their name, "▶ Play from 1:24" (the
   episode, playing at the clip) and "Done". A day not yet come shows only "Opens on day 4".

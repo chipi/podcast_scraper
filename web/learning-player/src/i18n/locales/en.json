@@ -518,8 +518,8 @@
     "unavailable": "This reel could not be loaded. Try again later.",
     "progress": "Clips",
     "mini": "{topic} · {n} / {total}",
-    "row": "Minutes on",
-    "chip": "{minutes} min on {topic}",
+    "row": "{minutes} minutes on",
+    "chipLabel": "Play {minutes} minutes on {topic}",
     "door": "{minutes} min on this",
     "doorLabel": "Play {minutes} minutes of clips on {topic}"
   },
@@ -1312,7 +1312,12 @@
     "stopYes": "Stop",
     "stopNo": "Keep going",
     "none": "You are not learning anything this week.",
-    "toDiscover": "Pick something on Discover"
+    "toDiscover": "Pick something on Discover",
+    "door": "Learn this in {days} days",
+    "doorDay": "Learning · day {n} of {total}",
+    "doorReplaces": "This replaces “{subject}”.",
+    "doorStart": "Start",
+    "doorCancel": "Not now"
   },
   "explore": {
     "title": "Explore",
