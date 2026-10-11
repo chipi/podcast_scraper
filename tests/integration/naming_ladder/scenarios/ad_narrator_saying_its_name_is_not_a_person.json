@@ -37,5 +37,5 @@
    "role": "host"
   }
  },
- "xfail": "CANDIDATE BUG (inventory): the ad detector marks the whole read (0-25 s), yet the full stage passes no ad_voices and names the narrator; the unit test only passes because it injects ad_intervals. To be measured on prod."
+ "xfail": "HARNESS GAP: production marks ad voices in a cleaning step the harness does not run; on prod 0 named voices sit >=90% inside detected ads (2,606 episodes, 2026-10-11)"
 }

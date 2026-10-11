@@ -25,7 +25,7 @@ DOC = Path(__file__).resolve().parents[3] / "docs" / "wip" / "NAMING_DECISION_TR
 NOT_YET_EXERCISED = {
     "host_naming_pair": "needs the feed's host co-presence history (harness gap)",
     "non_regression": "needs an LLM answer that drops a rules-only name (to add)",
-    "ad_voice_placeholder": "the full stage marks no ad voice on the scenario (candidate bug)",
+    "ad_voice_placeholder": "harness gap: ad voices are marked by a cleaning step the harness does not run",
     "cohost_formula": "the formula scenario's co-host is named by an earlier rung (to add)",
 }
 

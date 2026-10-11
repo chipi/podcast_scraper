@@ -216,7 +216,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 
 | Rung | Scenarios that reach it |
 | --- | --- |
-| `ad_voice_placeholder` | **none yet**: the full stage marks no ad voice on the scenario (candidate bug) |
+| `ad_voice_placeholder` | **none yet**: harness gap: ad voices are marked by a cleaning step the harness does not run |
 | `cohost_formula` | **none yet**: the formula scenario's co-host is named by an earlier rung (to add) |
 | `guest_host_pool` | `guest_host_named_in_the_episode_text` |
 | `guest_naming` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host`, `guest_host_named_in_the_episode_text` (+18) |
