@@ -9,6 +9,12 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
+const tracked = vi.hoisted(() => [] as Array<{ name: string; props: unknown }>)
+vi.mock('../services/analytics', async (orig) => ({
+  ...(await orig<typeof import('../services/analytics')>()),
+  track: (name: string, props: unknown) => tracked.push({ name, props }),
+}))
+
 import ExploreCatalogTaste from './ExploreCatalogTaste.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -64,5 +70,7 @@ describe('ExploreCatalogTaste', () => {
     const all = w.get('[data-testid="explore-see-all-shows"]')
     expect(all.text()).toBe('See all 12 shows ›')
     expect(all.attributes('href')).toBe('/shows')
+    await all.trigger('click')
+    expect(tracked.at(-1)).toEqual({ name: 'explore_see_all', props: { list: 'shows' } })
   })
 })

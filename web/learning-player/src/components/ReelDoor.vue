@@ -9,12 +9,16 @@
  * It appears only once the reel is known to have at least two clips, so it never opens an empty
  * reel; a subject nobody speaks to has no door.
  */
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getTopicReel } from '../services/api'
+import { track } from '../services/analytics'
 
 const props = defineProps<{ subjectId: string; label: string }>()
+const kind = computed<'topic' | 'theme' | 'storyline'>(() =>
+  props.subjectId.startsWith('thc:') ? 'storyline' : props.subjectId.startsWith('tc:') ? 'theme' : 'topic',
+)
 const { t } = useI18n()
 const MINUTES = 15
 const MIN_CLIPS = 2
@@ -37,6 +41,7 @@ watch(() => props.subjectId, check, { immediate: true })
     class="lp-tap inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold no-underline transition bg-listen/15 text-listen ring-1 ring-inset ring-listen/40 hover:bg-listen/25"
     :aria-label="t('reel.doorLabel', { minutes: MINUTES, topic: label })"
     data-testid="reel-door"
+    @click="track('reel_open', { source: 'subject_page', kind })"
   >
     <span aria-hidden="true">▶ {{ t('reel.door', { minutes: MINUTES }) }}</span>
   </RouterLink>

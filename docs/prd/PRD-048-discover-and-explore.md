@@ -141,7 +141,9 @@ told what to hear next), so search is one tap from the Explore tab on a phone.
 
 ## Success Metrics
 
-Measured in Umami (`discover_rail_shown`, `discover_rail_tap`, `capture_created.source`), per rail:
+Measured in Umami (`discover_rail_shown`, `discover_rail_tap`, `capture_created.source`), per rail;
+the reel, Learn and Explore by `reel_open`, `reel_action`, `learn_path`, `trends_show_more`,
+`explore_see_all` and `catalog_filter` (RFC-126 §6):
 
 - **Primary:** captures per tap, and the cross-show share of opens.
 - **Secondary:** tap rate.
@@ -164,5 +166,5 @@ Measured in Umami (`discover_rail_shown`, `discover_rail_tap`, `capture_created.
 
 ## Open questions
 
-- Should "Less like this" down-weight rather than remove, and should it reach Home, Explore and
-  Search?
+- Whether "Less like this" should later fade or down-weight rather than remove (initial setup in
+  ADR-163 §6: remove, both scopes, recommendation surfaces only; decided on the measured taps).

@@ -59,7 +59,7 @@ function goBack(): void {
       <h1 class="font-display text-3xl font-extrabold tracking-tight" data-testid="learn-view-title">{{ path.subject_label }}</h1>
       <p class="mt-1 text-sm text-muted">{{ t('learn.dayOf', { n: path.day, total: path.steps.length }) }}</p>
       <ol class="mt-6 flex flex-col gap-3">
-        <li v-for="(s, i) in path.steps" :key="s.day"><LearnStep :step="s" :busy="busy" @done="markDone(i)" /></li>
+        <li v-for="(s, i) in path.steps" :key="s.day"><LearnStep :step="s" :busy="busy" :kind="path.subject_kind" @done="markDone(i)" /></li>
       </ol>
       <div class="mt-8">
         <button

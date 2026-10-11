@@ -184,10 +184,7 @@ Each of these changes what the pinned evals and Moments e2e expect.
 
 ### Not done in this arc
 
-- "Learn X this week" (an ordered path through a theme).
-- Telemetry for the topic reel: no Umami event yet for a reel started, a clip skipped, or "Keep
-  listening".
-- Performance at prod size. The new rails were measured only on the 55-episode fixture: the thread
+- Performance at prod size (operator 2026-10-11: measured later). The new rails were measured only on the 55-episode fixture: the thread
   rail takes 17–66 ms in-process there, and about 1.9 s under parallel e2e load. The reel door
   computes the subject's whole reel to decide whether to show itself; a storyline reel reads the GI
   of every member topic's episode, unmeasured at prod size.
@@ -209,7 +206,6 @@ Each of these changes what the pinned evals and Moments e2e expect.
 ## Not decided yet
 
 - The order inside Step 2, if measurement suggests otherwise.
-- Whether Explore also gets a nav tab (today: a link in Discover's header).
 - What the picker offers and how many picks it asks for.
 
 ## 2026-10-11 (later): Mine everywhere, Explore as a taste
@@ -225,3 +221,19 @@ Each of these changes what the pinned evals and Moments e2e expect.
   reminders (operator 2026-10-11): `app_learning_path`, `/discover/learn`, `LearnThisWeek` on
   Discover, `/learn` for the whole week. NOT done: a "Learn this in a week" door on theme and
   storyline pages; a path's steps can lean on one speaker (tc:reliability: 4 of 7 are one host).
+
+## 2026-10-11 (latest): telemetry, "Less like this", path variety — what is left
+
+Done today: search moved to Explore; Umami events for the reel, Learn, Trends paging, the catalog
+taste and the list filters, each checked end to end into the dev site (telemetry tier: 40 passed, no
+skips — two search specs had skipped silently on a stale selector and the Mine default); "Less like
+this" initial setup (ADR-163 §6: remove, both scopes, recommendation surfaces only); path variety (two
+days per speaker and per show at most).
+
+Left, in order:
+
+1. Push (operator approved "when stable").
+2. Fixture review for the Discover combinations (operator question 2026-10-11).
+3. Performance at prod size (rails, reel door, Learn door, reel-topics computing reels per load).
+4. End of arc: full e2e, the iOS / Android device tiers, final UXS pass, close #2306's children.
+

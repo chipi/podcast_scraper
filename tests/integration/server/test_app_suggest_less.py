@@ -106,6 +106,43 @@ def test_a_hidden_topic_leaves_every_card_that_names_it_and_only_those(tmp_path:
     assert after, "the other topics' cards stay"
 
 
+def test_less_applies_under_everyone_too_on_every_recommendation_surface(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Operator 2026-10-11 (the initial setup): "Less like this" is the listener's preference about
+    recommendations, so it holds in both scopes — the quote rail, the "15 minutes on" row and the
+    Learn offers — and nowhere it was asked for (search, Trends, the subject's own page)."""
+    monkeypatch.setenv("APP_TRENDING_NOW", "2026-07-20")
+    monkeypatch.setenv("APP_MOMENTUM_MIN_TOTAL", "1")
+    client, _uid = _client(tmp_path)
+
+    def everyone() -> tuple[list[str], list[str], list[str]]:
+        quotes = _subjects(
+            client.get("/api/app/discover/rails/quotes", params={"limit": 12}).json()
+        )
+        reels = [
+            i["subject_id"] for i in client.get("/api/app/discover/reel-topics").json()["items"]
+        ]
+        learn = [
+            c["subject_id"] for c in client.get("/api/app/discover/learn").json()["candidates"]
+        ]
+        return quotes, reels, learn
+
+    quotes, reels, learn = everyone()
+    assert "topic:systems-thinking" in quotes and "topic:systems-thinking" in reels
+    assert "tc:reliability" in learn
+    client.post(
+        "/api/app/discover/suggest-less/topic:systems-thinking", json={"label": "systems thinking"}
+    )
+    client.post("/api/app/discover/suggest-less/tc:reliability", json={"label": "reliability"})
+    quotes, reels, learn = everyone()
+    assert "topic:systems-thinking" not in quotes and "topic:systems-thinking" not in reels
+    assert "tc:reliability" not in learn and learn, "other subjects are still offered"
+    # Not on what the listener asks for: its own page still offers the reel.
+    page = client.get("/api/app/discover/reel", params={"subject": "topic:systems-thinking"})
+    assert page.status_code == 200 and page.json()["clips"]
+
+
 def test_repeat_is_idempotent_and_junk_is_refused(tmp_path: Path) -> None:
     client, _uid = _client(tmp_path)
     for _ in range(2):

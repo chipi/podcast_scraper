@@ -26,6 +26,7 @@ import { useInterestsStore } from "../stores/interests"
 import { useSectionState } from "../composables/useSectionState"
 import SectionStatus from "./SectionStatus.vue"
 import ShowAllToggle from "./ShowAllToggle.vue"
+import { toCountBucket, track } from "../services/analytics"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import Sparkline from "./Sparkline.vue"
 import TrendWindowTabs from "./TrendWindowTabs.vue"
@@ -201,6 +202,7 @@ async function showMoreOrLess(): Promise<void> {
     return
   }
   if (loadingMore.value) return
+  track("trends_show_more", { kind: props.kind, sort: props.sort, shown: toCountBucket(rows.value.length) })
   loadingMore.value = true
   const asked = generation
   try {

@@ -83,7 +83,9 @@ describe('LearnThisWeek', () => {
     expect(api.startLearn).toHaveBeenCalledWith('thc:risk')
     expect(w.get('[data-testid="learn-title"]').text()).toBe('Learn Managing risk this week')
     expect(w.get('[data-testid="learn-day"]').text()).toBe('Day 1 of 7')
-    expect(tracked).toEqual([{ name: 'learn_path', props: { action: 'start', kind: 'storyline' } }])
+    expect(tracked).toEqual([
+      { name: 'learn_path', props: { action: 'start', kind: 'storyline', source: 'discover' } },
+    ])
   })
 
   it('shows the earliest open day not yet done, playable from its clip, and marks it done', async () => {
@@ -100,6 +102,8 @@ describe('LearnThisWeek', () => {
     expect(api.learnStepDone).toHaveBeenCalledWith(1)
     expect(w.get('[data-testid="learn-step"]').attributes('data-day')).toBe('3')
     expect(tracked.at(-1)).toEqual({ name: 'learn_path', props: { action: 'step_done', kind: 'storyline', day: 2 } })
+    await w.get('[data-testid="learn-step-play"]').trigger('click')
+    expect(tracked.at(-1)).toEqual({ name: 'learn_path', props: { action: 'step_play', kind: 'storyline', day: 3 } })
   })
 
   it('is hidden with neither a path nor anything to offer', async () => {

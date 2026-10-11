@@ -13,6 +13,7 @@ import EpisodeTile from "../components/EpisodeTile.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import { getInProgressSlugs, getPodcastsPage, getWorldEpisodeSlugs, listEpisodes } from "../services/api"
+import { track } from "../services/analytics"
 import { useRoute } from "vue-router"
 import { useLibraryStore } from "../stores/library"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
@@ -352,7 +353,7 @@ onMounted(async () => {
         :sort-options="sortOptions"
         :count="countLabel"
         :search-placeholder="t('browse.filterEpisodes')"
-        @update:from="(v) => (from = v as From)"
+        @update:from="(v) => { from = v as From; track('catalog_filter', { list: 'episodes', value: from }) }"
       />
 
       <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>

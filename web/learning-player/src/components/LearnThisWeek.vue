@@ -52,7 +52,7 @@ async function start(subject: LearnSubject): Promise<void> {
   busy.value = true
   try {
     path.value = await startLearn(subject.subject_id)
-    track('learn_path', { action: 'start', kind: subject.subject_kind })
+    track('learn_path', { action: 'start', kind: subject.subject_kind, source: 'discover' })
   } catch {
     // Nothing started: the chips stay, rather than pretend.
   } finally {
@@ -98,7 +98,7 @@ async function markDone(): Promise<void> {
           />
         </span>
       </p>
-      <LearnStep v-if="now" :step="now" :busy="busy" @done="markDone" />
+      <LearnStep v-if="now" :step="now" :busy="busy" :kind="path.subject_kind" @done="markDone" />
     </template>
     <template v-else>
       <h2 class="lp-section mb-1">{{ t('learn.offerTitle') }}</h2>

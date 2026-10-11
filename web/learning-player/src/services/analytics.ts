@@ -259,6 +259,12 @@ export const EVENT_NAMES = [
   'discover_rail_tap',
   // Learn X this week (operator 2026-10-11): a path started, a day done, a path stopped
   'learn_path',
+  // The reel and Explore (operator 2026-10-11: real telemetry for everything new)
+  'reel_open',
+  'reel_action',
+  'explore_see_all',
+  'trends_show_more',
+  'catalog_filter',
 ] as const
 
 export type EventName = (typeof EVENT_NAMES)[number]
@@ -440,12 +446,37 @@ export type EventProps = {
     items: CountBucket
     scope: 'mine' | 'everyone'
   }
-  /** Learn X this week: a path started, a step done (its 1-based day), or the path stopped. */
+  /** Learn X this week: a path started (and from where), a step played or done (its 1-based day),
+   *  or the path stopped. */
   learn_path: {
-    action: 'start' | 'step_done' | 'stop'
+    action: 'start' | 'step_play' | 'step_done' | 'stop'
     kind: 'topic' | 'theme' | 'storyline'
     day?: number
+    source?: 'discover' | 'subject_page'
   }
+  /** A "15 minutes on" reel opened: from Discover's row or a subject page's "15 min on this". */
+  reel_open: {
+    source: 'discover_row' | 'subject_page'
+    kind: 'topic' | 'theme' | 'storyline'
+  }
+  /** Inside a reel: started, a clip skipped back or on, "Keep listening to this episode" (it became
+   *  a listen), or the last clip finished. `clip` is the 1-based clip it happened on, bucketed. */
+  reel_action: {
+    action: 'start' | 'next' | 'prev' | 'keep' | 'done'
+    kind: 'topic' | 'theme' | 'storyline'
+    clips: CountBucket
+    clip?: RankBucket
+  }
+  /** Explore's catalog taste: "See all" to the full episode or show list. */
+  explore_see_all: { list: 'episodes' | 'shows' }
+  /** Explore's Trends: "Show more" asked the server for the next page of a kind. */
+  trends_show_more: {
+    kind: 'topic' | 'theme' | 'storyline' | 'person'
+    sort: 'rising' | 'trending'
+    shown: CountBucket
+  }
+  /** The full lists' "Which episodes" / "Which shows" filter changed. */
+  catalog_filter: { list: 'episodes' | 'shows'; value: 'all' | 'following' | 'mine' }
   /** A card on a Discover rail was opened, its "Play from" tapped, or "Less like this" tapped. */
   discover_rail_tap: {
     rail: RailId

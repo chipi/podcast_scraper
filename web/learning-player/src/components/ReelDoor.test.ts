@@ -9,6 +9,11 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 
 const api = vi.hoisted(() => ({ getTopicReel: vi.fn() }))
+const tracked = vi.hoisted(() => [] as Array<{ name: string; props: unknown }>)
+vi.mock('../services/analytics', async (orig) => ({
+  ...(await orig<typeof import('../services/analytics')>()),
+  track: (name: string, props: unknown) => tracked.push({ name, props }),
+}))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
 
 import ReelDoor from './ReelDoor.vue'
@@ -33,6 +38,8 @@ describe('ReelDoor', () => {
     expect(door.text()).toBe('▶ 15 min on this')
     expect(door.attributes('href')).toBe('/listen/topic/thc:risk?minutes=15')
     expect(door.attributes('aria-label')).toBe('Play 15 minutes of clips on Managing risk')
+    await door.trigger('click')
+    expect(tracked.at(-1)).toEqual({ name: 'reel_open', props: { source: 'subject_page', kind: 'storyline' } })
   })
 
   it('has no door for a reel of fewer than two clips, or one that fails to load', async () => {

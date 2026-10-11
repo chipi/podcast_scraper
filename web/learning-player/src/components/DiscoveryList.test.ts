@@ -7,6 +7,7 @@ import { createMemoryHistory, createRouter } from "vue-router"
 import * as api from "../services/api"
 import en from "../i18n/locales/en.json"
 import DiscoveryList from "./DiscoveryList.vue"
+import * as analytics from "../services/analytics"
 import type { Storyline, TrendingEntity } from "../services/types"
 
 /**
@@ -198,6 +199,7 @@ describe("DiscoveryList — paged on the server (operator 2026-10-11)", () => {
 
   it("asks for the first page in the chosen order, then the next page on Show more, then back", async () => {
     setActivePinia(createPinia())
+    const trackSpy = vi.spyOn(analytics, "track")
     const spy = vi
       .spyOn(api, "getTrendingPage")
       .mockResolvedValueOnce(page([topic(1), topic(2), topic(3)], 9))
@@ -215,6 +217,7 @@ describe("DiscoveryList — paged on the server (operator 2026-10-11)", () => {
     await more.trigger("click")
     await flushPromises()
     expect(spy).toHaveBeenLastCalledWith("topic", { scope: "corpus", window: "3m", sort: "trending", offset: 3, limit: 5 })
+    expect(trackSpy).toHaveBeenCalledWith("trends_show_more", { kind: "topic", sort: "trending", shown: "2-5" })
     expect(w.findAll('[data-testid="discovery-row"]')).toHaveLength(8)
     expect(w.get('[data-testid="show-all-toggle"]').text()).toBe("Show more (1)")
   })

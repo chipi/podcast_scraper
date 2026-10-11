@@ -68,7 +68,12 @@ fixes those answers so every later rail is built against the same rules.
      Everyone's cards, labelled, with "Pick topics". A listener with history whose Mine is quiet
      sees it empty, never told their picks "begin once you listen".
    - **"Suggest less" hides the card's reason**: the topic, person or storyline its "why" names,
-     across every rail, undone from Profile › Interests.
+     across every rail, undone from Profile › Interests. *Initial setup, 2026-10-11 (operator):* it
+     REMOVES (a down-weighted card that still shows reads as being ignored), in BOTH scopes (it is
+     the listener's preference about recommendations), on every recommendation surface — Discover's
+     rails, the "15 minutes on" row, the Learn offers — and never where the listener asks: Search,
+     Explore's Trends and catalogue, the subject's own page. No expiry; the "less" taps per rail are
+     measured, and down-weighting or fading is reconsidered on that evidence.
 7. ~~**Serendipity: a small, labelled share inside each rail.**~~ *Superseded 2026-10-11
    (operator):* **under Mine everything on the page is the listener's own.** A corpus holds babies,
    history, cars and sport; a listener who cares about none of them is not shown them under Mine,

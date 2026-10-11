@@ -16,7 +16,9 @@ test.describe('recap', () => {
   test('recap_view fires when the listening recap is actually rendered', async ({ page }) => {
     const sink = attachSink(page)
     await signIn(page, 'telemetry-recap')
-    await page.goto('/profile')
+    // The recap is on Profile's Stats tab, which renders on first visit; Profile opens on Account
+    // (#2289, 2026-10-06), so `/profile` alone never rendered it and the event could not fire.
+    await page.goto('/profile?tab=stats')
     const recap = await sink.waitForEvent('recap_view', 20_000)
     expect(recap.name).toBe('recap_view')
   })
@@ -112,17 +114,22 @@ test.describe('search result click', () => {
     await page.getByTestId('home-search-input').fill('risk')
     await page.getByTestId('home-search-submit').click()
     await page.waitForURL(/\/search/)
+    // A signed-in search opens on Mine (2026-10-09), and this account has listened to nothing: read
+    // everything, or there is no result to take.
+    await page.getByTestId('search-scope').click()
+    await page.waitForURL(/scope=all/)
 
     // `Play from {time} in {episode}` — the per-hit jump control, which is what calls `openEpisode`
     // with the hit's rank. The surrounding row is not the tracked element.
     //
-    // MEASURED ABSENCE, not a flaky selector: this host has no `lancedb` wheel (no x86_64 build), so
-    // the API logs `hybrid_search open failed (No module named 'lancedb'); reporting no_index` and the
-    // search page renders "Couldn't load this right now." No grouped episode row exists to carry a
-    // jump control. The wiring is instead asserted statically in
-    // `src/__checks__/analytics-wiring.test.ts`, which runs everywhere — so the event is covered even
-    // though this tier cannot reach it here. On a host with the search extras this test runs for real.
-    const jump = page.locator('button[aria-label^="Play from "]').first()
+    // The shared jump control is `PlayFrom` (`data-testid="play-from"`, 2026-10-05). This looked for
+    // a `button[aria-label^="Play from "]` that no longer exists, so it SKIPPED rather than tested —
+    // and blamed a missing `lancedb` (2026-10-11: the tier now builds the index in its globalSetup).
+    // A host without the search extras still skips, saying so; the wiring is also asserted statically
+    // in `src/__checks__/analytics-wiring.test.ts`.
+    const jump = page.locator('main [data-testid="play-from"]').first()
+    // Results load after the page: wait for them before deciding there are none.
+    await jump.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
     if (!(await jump.isVisible().catch(() => false))) {
       test.skip(
         true,
@@ -146,8 +153,13 @@ test.describe('search result click', () => {
     await page.getByTestId('home-search-input').fill('risk')
     await page.getByTestId('home-search-submit').click()
     await page.waitForURL(/\/search/)
+    // A signed-in search opens on Mine (2026-10-09), and this account has listened to nothing: read
+    // everything, or there is no result to take.
+    await page.getByTestId('search-scope').click()
+    await page.waitForURL(/scope=all/)
 
     const chip = page.locator('[data-testid="related-topic-chips"] button').first()
+    await chip.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
     if (!(await chip.isVisible().catch(() => false))) {
       test.skip(
         true,

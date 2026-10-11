@@ -49,7 +49,7 @@ async function start(): Promise<void> {
   busy.value = true
   try {
     await startLearn(props.subjectId)
-    track('learn_path', { action: 'start', kind: subject.value.subject_kind })
+    track('learn_path', { action: 'start', kind: subject.value.subject_kind, source: 'subject_page' })
     void router.push({ name: 'learn' })
   } catch {
     // Nothing started: the door stays.

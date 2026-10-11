@@ -458,11 +458,11 @@ def app_discover_reel_topics(
         "theme": rising("theme"),
         "storyline": rising("storyline"),
     }
-    # What the listener asked to see less of is not offered either (ADR-163 §6): the row sits on the
-    # same page as the rails that already leave it out.
+    # What the listener asked to see less of is not offered either (ADR-163 §6), in either scope:
+    # the row sits on the same page as the rails that already leave it out.
     hidden = (
         app_user_state.suggest_less_tokens(data_dir, user.user_id)
-        if eff == "mine" and data_dir is not None
+        if data_dir is not None
         else set()
     )
     config = getattr(request.app.state, "moments_config", None)
@@ -558,7 +558,8 @@ def app_discover_learn(
         return AppLearnResponse(path=_path_out(root, path))
     mine = scope == "mine"
     restrict = personal_entity_ids(root, data_dir, user.user_id) if mine else None
-    hidden = app_user_state.suggest_less_tokens(data_dir, user.user_id) if mine else set()
+    # "Less like this" is the listener's, in either scope (operator 2026-10-11).
+    hidden = app_user_state.suggest_less_tokens(data_dir, user.user_id)
     config = getattr(request.app.state, "moments_config", None)
 
     def offered(kind: ReelKind) -> list[AppLearnSubject]:

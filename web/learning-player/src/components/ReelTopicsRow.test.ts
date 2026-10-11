@@ -10,6 +10,11 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 
 const api = vi.hoisted(() => ({ getReelTopics: vi.fn() }))
+const tracked = vi.hoisted(() => [] as Array<{ name: string; props: unknown }>)
+vi.mock('../services/analytics', async (orig) => ({
+  ...(await orig<typeof import('../services/analytics')>()),
+  track: (name: string, props: unknown) => tracked.push({ name, props }),
+}))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
 
 import ReelTopicsRow from './ReelTopicsRow.vue'
@@ -69,5 +74,14 @@ describe('ReelTopicsRow', () => {
     releaseOld([topic('topic:old', 'old')])
     await flushPromises()
     expect(w.find('[data-testid="reel-topics"]').exists()).toBe(false)
+  })
+
+  it('a chip tap reports reel_open from the Discover row, with the kind — never the subject', async () => {
+    tracked.length = 0
+    api.getReelTopics.mockResolvedValue([topic('thc:c', 'gamma', 'storyline')])
+    const w = mount(ReelTopicsRow, { props: { scope: 'corpus' }, global: { plugins: [i18n, router] } })
+    await flushPromises()
+    await w.get('[data-testid="reel-topic-chip"]').trigger('click')
+    expect(tracked).toEqual([{ name: 'reel_open', props: { source: 'discover_row', kind: 'storyline' } }])
   })
 })

@@ -25,6 +25,10 @@ from podcast_scraper.server.app_moments import MomentsConfig
 PATH_DAYS = 7
 #: Fewer steps than this is not a path worth a week.
 MIN_STEPS = 3
+#: Days one speaker, or one show, may take (operator 2026-10-11: a week of one host is not a path
+#: through a subject, it is that host's show). The next-best episodes fill the gaps.
+MAX_PER_SPEAKER = 2
+MAX_PER_SHOW = 2
 _DAY_S = 86_400
 
 
@@ -45,10 +49,28 @@ def build_path(
     root: Path, subject_id: str, config: Optional[MomentsConfig] = None
 ) -> list[PathStep]:
     """The subject's strongest episodes (at most ``PATH_DAYS``), oldest first, each with its best
-    clip; empty when there are fewer than ``MIN_STEPS``."""
+    clip; at most ``MAX_PER_SPEAKER`` days per speaker and ``MAX_PER_SHOW`` per show, the next-best
+    episodes filling the gaps. Empty when there are fewer than ``MIN_STEPS``."""
     from podcast_scraper.server.app_slugs import resolve_slug
 
-    best = subject_moments(root, subject_id, config)[:PATH_DAYS]
+    best: list = []
+    by_speaker: dict[str, int] = {}
+    by_show: dict[str, int] = {}
+    for slug, moments in subject_moments(root, subject_id, config):
+        if len(best) >= PATH_DAYS:
+            break
+        speaker = (moments[0].speaker or "").strip().casefold()
+        row = resolve_slug(root, slug)
+        show = str((row.feed_id if row is not None else None) or "")
+        if speaker and by_speaker.get(speaker, 0) >= MAX_PER_SPEAKER:
+            continue
+        if show and by_show.get(show, 0) >= MAX_PER_SHOW:
+            continue
+        best.append((slug, moments))
+        if speaker:
+            by_speaker[speaker] = by_speaker.get(speaker, 0) + 1
+        if show:
+            by_show[show] = by_show.get(show, 0) + 1
     if len(best) < MIN_STEPS:
         return []
 

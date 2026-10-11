@@ -18,6 +18,7 @@ import FavoriteButton from "../components/FavoriteButton.vue"
 import { trendColor } from "../components/trending"
 import { listSortOptions, type ListSortValue } from "../utils/listSort"
 import { getPodcastsPage, getTrending } from "../services/api"
+import { track } from "../services/analytics"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useLibraryStore } from "../stores/library"
 import { useAuthStore } from "../stores/auth"
@@ -293,7 +294,7 @@ onMounted(load)
         sort-testid="show-browse-sort"
         filter-testid="show-browse-category"
         view-testid="show-view"
-        @update:from="(v) => (from = v as From)"
+        @update:from="(v) => { from = v as From; track('catalog_filter', { list: 'shows', value: from }) }"
       />
       <template v-if="visible.length">
         <ul

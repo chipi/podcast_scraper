@@ -11,6 +11,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getReelTopics, type ReelTopic } from '../services/api'
 import { kindPill } from '../utils/interests'
+import { track } from '../services/analytics'
 
 const props = defineProps<{ scope: 'mine' | 'corpus' }>()
 const { t } = useI18n()
@@ -40,6 +41,7 @@ watch(() => props.scope, load, { immediate: true })
           :data-kind="topic.subject_kind"
           :aria-label="t('reel.chipLabel', { minutes: MINUTES, topic: topic.subject_label })"
           data-testid="reel-topic-chip"
+          @click="track('reel_open', { source: 'discover_row', kind: topic.subject_kind })"
         ><span aria-hidden="true">▶ {{ topic.subject_label }}</span></RouterLink>
       </li>
     </ul>

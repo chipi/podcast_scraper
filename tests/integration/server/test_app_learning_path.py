@@ -40,11 +40,11 @@ def test_the_path_is_pinned_oldest_first_each_step_saying_what_its_insight_says(
         ("p01-74565a3a19", "Sophie Laurent"),
         ("p02-4487cfb778", "Jonas Weisenthal"),
         ("p01-3cad86824c", "Noah Brier"),
-        ("p01-f2b497cfa3", "Sophie Laurent"),
+        ("p05-fa4fd4b684", "Richard Clarida"),
         ("p02-8fdd7b7f79", "Priya Nair"),
         ("p05-25cb576153", "Daniel Cho"),
         ("p03-5b8ca67393", "Marco Silva"),
-    ]
+    ]  # p01-f2b497cfa3 (Sophie Laurent, p01's third day) gave way to the variety rule
     assert len(path) == PATH_DAYS and len({s.episode_slug for s in path}) == PATH_DAYS
     dates = []
     for s in path:
@@ -54,6 +54,22 @@ def test_the_path_is_pinned_oldest_first_each_step_saying_what_its_insight_says(
         assert quote_support(s.quote_text, s.text) >= MIN_SUPPORT
         assert s.end_ms > s.start_ms
     assert dates == sorted(dates)  # the week follows how the conversation developed
+
+
+def test_no_speaker_or_show_takes_more_than_two_days() -> None:
+    """Operator 2026-10-11 ("what about path variety?"): tc:reliability's week was four days of one
+    host. Now at most MAX_PER_SPEAKER per speaker and MAX_PER_SHOW per show, in every path."""
+    from collections import Counter
+
+    from podcast_scraper.server.app_learning_path import MAX_PER_SHOW, MAX_PER_SPEAKER
+
+    for subject in ("tc:reliability", "thc:managing-risk", "tc:safety-practices"):
+        path = build_path(ROOT, subject)
+        assert len(path) == PATH_DAYS, subject
+        speakers = Counter(s.speaker for s in path)
+        shows = Counter(s.episode_slug.split("-")[0] for s in path)
+        assert max(speakers.values()) <= MAX_PER_SPEAKER, (subject, speakers)
+        assert max(shows.values()) <= MAX_PER_SHOW, (subject, shows)
 
 
 def test_a_subject_with_too_few_good_episodes_has_no_path() -> None:

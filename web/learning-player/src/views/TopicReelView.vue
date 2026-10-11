@@ -14,7 +14,7 @@
  * - Leaving the page keeps it playing; the mini-player brings you back here.
  * - After the last clip, the end card lists the episodes heard, each a way to listen in full.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import BackIcon from '../components/BackIcon.vue'
@@ -22,6 +22,7 @@ import { getTopicReel, type TopicReel } from '../services/api'
 import { resolveNextUpForSlug } from '../services/nextUp'
 import { formatTime } from '../player/transcriptSync'
 import { usePlayerStore, type ReelMoment } from '../stores/player'
+import { toCountBucket, toRankBucket, track } from '../services/analytics'
 import { episodeArtwork } from '../utils/episode'
 
 const props = defineProps<{ id: string; minutes?: number }>()
@@ -63,8 +64,36 @@ const episodesHeard = computed(() => {
   return [...seen.values()]
 })
 
+/** One reel event (operator 2026-10-11: real telemetry for everything new): which action, on which
+ *  kind of subject, on which clip — never which subject or episode. */
+function report(action: 'start' | 'next' | 'prev' | 'keep' | 'done'): void {
+  if (!data.value) return
+  const at = live.value ? live.value.index + 1 : undefined
+  track('reel_action', {
+    action,
+    kind: data.value.subject_kind,
+    clips: toCountBucket(moments.value.length),
+    ...(at ? { clip: toRankBucket(at) } : {}),
+  })
+}
+watch(
+  () => live.value?.done,
+  (done, was) => {
+    if (done && !was) report('done')
+  },
+)
+function next(): void {
+  report('next')
+  player.reelNext()
+}
+function prev(): void {
+  report('prev')
+  player.reelPrev()
+}
+
 async function start(): Promise<void> {
   if (!data.value) return
+  report('start')
   await player.startTopicReel(
     { id: props.id, label: data.value.subject_label, minutes: budget.value },
     moments.value,
@@ -74,6 +103,7 @@ async function start(): Promise<void> {
 function keepListening(): void {
   const slug = current.value?.slug
   if (!slug) return
+  report('keep')
   player.exitReel(true)
   void router.push({ name: 'player', params: { slug } })
 }
@@ -143,8 +173,8 @@ function goBack(): void {
           <blockquote class="mt-4 text-lg leading-snug" data-testid="topic-reel-quote">“{{ current.text }}”</blockquote>
           <p v-if="current.speaker" class="mt-1 text-sm text-muted">— {{ current.speaker }}</p>
           <div class="mt-5 flex flex-wrap items-center gap-3">
-            <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :aria-label="t('reel.prev')" data-testid="topic-reel-prev" @click="player.reelPrev()">‹</button>
-            <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :aria-label="t('reel.next')" data-testid="topic-reel-next" @click="player.reelNext()">›</button>
+            <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :aria-label="t('reel.prev')" data-testid="topic-reel-prev" @click="prev">‹</button>
+            <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :aria-label="t('reel.next')" data-testid="topic-reel-next" @click="next">›</button>
             <button type="button" class="lp-tap font-bold text-accent" data-testid="topic-reel-keep" @click="keepListening">
               {{ t('reel.keep') }}
             </button>

@@ -130,7 +130,9 @@ A seven-day path (operator's choice: one a day, progress on the server, no remin
 takes the subject's strongest episodes by their best clip (`subject_moments`, the reel's ranking),
 at most `PATH_DAYS` (7), at least `MIN_STEPS` (3), and orders them by publish date, oldest first.
 `start_path` freezes the steps into `learning_path.json` with `started_at`; step `k` opens when
-`k` whole days (UTC) have passed. One path per listener; starting another replaces it.
+`k` whole days (UTC) have passed. One path per listener; starting another replaces it. Variety
+(operator 2026-10-11): at most two days per speaker and two per show, the next-best episodes filling
+the gaps (`MAX_PER_SPEAKER`, `MAX_PER_SHOW`).
 
 ```text
 GET    /api/app/discover/learn?scope    → { path | null, candidates: [{subject_id, kind, label, steps}] }
@@ -155,6 +157,18 @@ at least 90% of episodes is an umbrella and adds nothing. Cold start is an empty
 `discover_rail_shown { rail, items, scope }` once per first page;
 `discover_rail_tap { rail, reason_kind, action: open|play_from|less, rank }`.
 Save, queue and Play moments are the shared episode actions and are not rail taps.
+
+The reel, Learn and Explore (2026-10-11; every event checked end to end into the dev Umami site by
+`e2e/telemetry/10-reel-learn-explore.spec.ts`, accepted, never naming a subject or episode):
+
+```text
+reel_open        { source: discover_row|subject_page, kind }
+reel_action      { action: start|next|prev|keep|done, kind, clips: CountBucket, clip?: RankBucket }
+learn_path       { action: start|step_play|step_done|stop, kind, day?, source?: discover|subject_page }
+trends_show_more { kind, sort, shown: CountBucket }
+explore_see_all  { list: episodes|shows }
+catalog_filter   { list: episodes|shows, value: all|following|mine }
+```
 
 ## Key Decisions
 

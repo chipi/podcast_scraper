@@ -14,6 +14,7 @@ import ShowTile from './ShowTile.vue'
 import { useSectionState } from '../composables/useSectionState'
 import { getPodcastsPage, listEpisodes } from '../services/api'
 import type { EpisodeSummary, Podcast } from '../services/types'
+import { track } from '../services/analytics'
 
 const props = defineProps<{ kind: 'episodes' | 'shows' }>()
 const { t } = useI18n()
@@ -57,6 +58,7 @@ onMounted(load)
       :to="{ name: kind === 'episodes' ? 'catalog' : 'shows' }"
       class="lp-tap mt-4 inline-flex min-h-[44px] items-center text-sm font-bold text-accent no-underline"
       :data-testid="`explore-see-all-${kind}`"
+      @click="track('explore_see_all', { list: kind })"
     >{{ kind === 'episodes' ? t('explore.seeAllEpisodes', { count: section.data.value.total }) : t('explore.seeAllShows', { count: section.data.value.total }) }} ›</RouterLink>
   </div>
 </template>

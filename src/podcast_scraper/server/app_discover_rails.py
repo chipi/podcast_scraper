@@ -79,11 +79,15 @@ class RailContext:
         return self._everyone
 
     def less(self) -> set[str]:
+        """What the listener asked to see less of. Theirs in EVERY scope (operator 2026-10-11): it
+        is a preference about recommendations, not about whose cards these are."""
         if self._less is None:
             from podcast_scraper.server import app_user_state
 
             self._less = (
-                app_user_state.suggest_less_tokens(self.dd, self.uid) if self.mine else set()
+                app_user_state.suggest_less_tokens(self.data_dir, self.user_id)
+                if self.user_id is not None and self.data_dir is not None
+                else set()
             )
         return self._less
 
@@ -114,7 +118,7 @@ def rail_cards(ctx: RailContext, rail: str) -> tuple[list[TrendingEpisodeCard], 
         return [], False
     if rail == "quotes":
         if not ctx.mine:
-            return ctx.everyone()[:RAIL_MAX], False
+            return without_suggested_less(ctx.everyone(), ctx.less())[:RAIL_MAX], False
         from podcast_scraper.server.app_user_corpus import (
             experienced_episode_set,
             personal_entity_ids,

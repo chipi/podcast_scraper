@@ -10,7 +10,11 @@ import en from '../i18n/locales/en.json'
 
 const api = vi.hoisted(() => ({ getLearn: vi.fn(), getLearnSubject: vi.fn(), startLearn: vi.fn() }))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
-vi.mock('../services/analytics', async (orig) => ({ ...(await orig<typeof import('../services/analytics')>()), track: vi.fn() }))
+const tracked = vi.hoisted(() => [] as Array<{ name: string; props: unknown }>)
+vi.mock('../services/analytics', async (orig) => ({
+  ...(await orig<typeof import('../services/analytics')>()),
+  track: (name: string, props: unknown) => tracked.push({ name, props }),
+}))
 
 import LearnDoor from './LearnDoor.vue'
 
@@ -55,6 +59,10 @@ describe('LearnDoor', () => {
     await flushPromises()
     expect(api.startLearn).toHaveBeenCalledWith('thc:risk')
     expect(router.currentRoute.value.name).toBe('learn')
+    expect(tracked.at(-1)).toEqual({
+      name: 'learn_path',
+      props: { action: 'start', kind: 'storyline', source: 'subject_page' },
+    })
   })
 
   it('asks in place before replacing another path', async () => {

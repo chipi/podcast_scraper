@@ -9,8 +9,9 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { formatTime } from '../player/transcriptSync'
 import type { PathStep } from '../services/api'
+import { track } from '../services/analytics'
 
-const props = defineProps<{ step: PathStep; busy?: boolean }>()
+const props = defineProps<{ step: PathStep; busy?: boolean; kind?: 'topic' | 'theme' | 'storyline' }>()
 const emit = defineEmits<{ done: [] }>()
 const { t } = useI18n()
 const time = computed(() => formatTime(props.step.start_ms / 1000))
@@ -48,6 +49,7 @@ const playTo = computed(() => ({
           :to="playTo"
           class="lp-tap inline-flex min-h-[44px] items-center text-sm font-bold text-accent no-underline"
           data-testid="learn-step-play"
+          @click="kind && track('learn_path', { action: 'step_play', kind, day: step.day })"
         >▶ {{ t('why.playFrom', { time }) }}</RouterLink>
         <button
           v-if="!step.done"
