@@ -12,8 +12,8 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // fetch); here we test the page's composition and its ways out.
 const stubs = {
   RecommendationRail: {
-    props: ['rail', 'scope'],
-    template: '<div :data-testid="`stub-rail-${rail}`">{{ scope }}</div>',
+    props: ['rail', 'scope', 'fallback'],
+    template: '<div :data-testid="`stub-rail-${rail}`" :data-fallback="fallback ? \'yes\' : \'no\'">{{ scope }}</div>',
   },
   TrendingShowsRail: {
     props: ['scope'],
@@ -100,12 +100,15 @@ describe('BrowseView (Discover): what to hear next', () => {
     expect(toggle.attributes('aria-pressed')).toBe('true')
     expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('mine')
     expect(w.get('[data-testid="stub-rail-quotes"]').text()).toBe('mine')
+    // Cold start (ADR-163 §6): only Mine's quote cards fall back to Everyone's, labelled.
+    expect(w.get('[data-testid="stub-rail-quotes"]').attributes('data-fallback')).toBe('yes')
     // More from what you captured: signed in, under Mine only.
     expect(w.find('[data-testid="stub-rail-captured"]').exists()).toBe(true)
     await toggle.trigger('click')
     await flushPromises()
     expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('corpus')
     expect(w.get('[data-testid="stub-rail-quotes"]').text()).toBe('everyone')
+    expect(w.get('[data-testid="stub-rail-quotes"]').attributes('data-fallback')).toBe('no')
     expect(w.find('[data-testid="stub-rail-captured"]').exists()).toBe(false)
     expect(w.findAll('[data-testid="discover-scope"]')).toHaveLength(1)
     vi.unstubAllGlobals()

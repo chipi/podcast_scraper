@@ -59,6 +59,18 @@ fixes those answers so every later rail is built against the same rules.
 6. **Cold start: Everyone, labelled, plus an optional picker.** A listener with no history sees
    Everyone's rails, labelled as such ("Everyone", never "For you"). A pick-a-few-topics-or-people
    step, optional and skippable, seeds Mine. A "Suggest less" control lets a listener steer.
+   *Amended 2026-10-11 (operator):*
+   - **The picker seeds Mine by widening it.** A followed topic or person brings its episodes into
+     the listener's world, and a followed theme or storyline brings its member topics' episodes
+     (ADR-162 amendment). Umbrella topics are excepted, and so is any interest reaching ≥ 90% of
+     episodes, so following one cannot make Mine everyone's.
+   - **Cold start is an empty world, not an empty rail.** Only then does Mine's quote rail show
+     Everyone's cards, labelled, with "Pick topics". A listener with history whose Mine is quiet
+     sees it empty, never told their picks "begin once you listen".
+   - **No habits, no serendipity share** (§7): with no "usual" there is no outside, so nothing is
+     labelled "Outside your usual".
+   - **"Suggest less" hides the card's reason**: the topic, person or storyline its "why" names,
+     across every rail, undone from Profile › Interests.
 7. **Serendipity: a small, labelled share inside each rail.** About one item in five comes from
    outside the listener's usual shows and topics, and it is marked. Breadth is part of every rail,
    not a separate one people learn to skip.

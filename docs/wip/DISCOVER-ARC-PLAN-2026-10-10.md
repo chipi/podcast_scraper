@@ -126,9 +126,16 @@ The Discover 2 preview was removed (UI only; its APIs stay).
 
 ## Step 4 — cold start and control
 
-- The optional topic / person picker (seeds Mine).
-- "Suggest less".
-- The Everyone fallback, labelled, until history exists.
+Operator decisions 2026-10-11 (all the recommended options): goal-shaped = a cross-episode reel;
+"Suggest less" hides the card's reason subject; picked interests widen Mine.
+
+- The optional topic / person picker (seeds Mine) ✅ — the existing `InterestsPicker`, opened from
+  Discover's cold-start note (`trigger: discover_cold_start`). Follows widen Mine
+  (`followed_interest_episodes` in `world_episode_set`; umbrellas excepted). ADR-162/163 amended.
+- The Everyone fallback, labelled, until history exists ✅ — gated on an EMPTY WORLD, not an
+  empty rail. Surfaced and fixed: with no habits, Mine filled with Everyone's cards each marked
+  "Outside your usual"; now no habits → no outside share.
+- "Suggest less" — hides the card's reason subject (topic / person / storyline) everywhere.
 
 ## Also
 

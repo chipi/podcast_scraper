@@ -150,3 +150,24 @@ test('topics a listener keeps hearing bring "Hear another view": a speaker not y
   await expect(first.getByTestId('why-reason')).toHaveText('Another view on risk management')
   await expect(first.getByTestId('why-quote')).toContainText('Daniel Cho')
 })
+
+test('cold start: Everyone, labelled, until a few topics are picked — then Mine is theirs', async ({
+  page,
+}, testInfo) => {
+  // ADR-163 §6. A fresh listener's Mine has nothing in it: the quote cards are Everyone's and say so,
+  // with "Pick topics". Following a topic widens Mine (world_episode_set), so after saving, the
+  // note is gone and the cards are the listener's own.
+  await signInIsolated(page, 'discover-cold-start', testInfo)
+  await page.goto('/browse')
+  await expect(page.getByTestId('discover-cold-start')).toBeVisible()
+  await expect(page.getByTestId('quote-card').first()).toBeVisible()
+
+  await page.getByTestId('discover-pick-topics').click()
+  await page.getByTestId('interest-add-topic').click()
+  await page.getByTestId('interest-search-topic').fill('systems thinking')
+  await page.getByTestId('interest-add-panel-topic').getByTestId('interest-result').first().click()
+  await page.getByTestId('interests-save').click()
+
+  await expect(page.getByTestId('discover-cold-start')).toHaveCount(0)
+  await expect(page.getByTestId('quote-card').first()).toBeVisible()
+})

@@ -111,6 +111,8 @@ export type Source = (typeof SOURCES)[number]
  * Discover's rails (ADR-163; Discover arc plan, Step 1.2). The rail id is code-defined; each maps to
  * one `Source`, so a capture made after arriving from a rail is attributed to it.
  */
+/** Where the interests picker was opened from (#2267; Discover's cold start, ADR-163 §6). */
+export type PickerTrigger = 'first_run' | 'profile' | 'home_prompt' | 'discover_cold_start'
 /** What a rail tap did: opened the episode, played from the quote, or sampled its Moments. */
 export type RailAction = 'open' | 'play_from' | 'moments'
 export type RailId = 'quotes' | 'captured' | 'thread' | 'people' | 'another_view' | 'trending_shows'
@@ -292,7 +294,7 @@ export type EventProps = {
    */
   auth_completed: { provider: string }
   auth_failed: { provider: string; reason: 'cancelled' | 'error' }
-  interests_picker_shown: { trigger: 'first_run' | 'profile' | 'home_prompt' }
+  interests_picker_shown: { trigger: PickerTrigger }
   interests_saved: { count: CountBucket }
   interests_dismissed: undefined
 

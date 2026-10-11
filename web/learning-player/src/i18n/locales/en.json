@@ -1259,6 +1259,10 @@
     },
     "anotherView": {
       "title": "Hear another view"
+    },
+    "coldStart": {
+      "note": "Everyone’s picks — yours begin once you listen, save or pick a few topics.",
+      "pick": "Pick topics"
     }
   },
   "explore": {

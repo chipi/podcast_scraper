@@ -12,6 +12,9 @@
  *   back to back (Discover arc Step 3, "Sample an episode").
  * - A rail with nothing to show hides itself (thin data is not padded out).
  * - `reloadKey` changing (e.g. the page scope) reloads it and counts a fresh impression.
+ * - `fallback` (ADR-163 §6, cold start): when `load` finds nothing, Everyone's cards are shown in
+ *   its place, measured as scope `everyone`, with the `fallback-note` slot under the heading — the
+ *   page says whose they are and how to make them yours. Never presented as the listener's own.
  * - Discover is kept alive, so returning to it reloads too — a highlight made a minute ago must be
  *   able to seed "More from what you captured" without an app restart.
  */
@@ -35,14 +38,23 @@ const props = defineProps<{
   cardTestid: string
   openTestid: string
   reloadKey?: string
+  /** Everyone's cards, shown (and labelled by the `fallback-note` slot) when `load` finds none. */
+  fallback?: () => Promise<TrendingEpisodeCard[]>
 }>()
 
 const cards = ref<TrendingEpisodeCard[]>([])
+const usingFallback = ref(false)
 let telemetry = useRailTelemetry(props.rail)
 
 async function fetchCards(): Promise<void> {
-  cards.value = await props.load().catch(() => [])
-  telemetry.shown(cards.value, props.scope)
+  let got = await props.load().catch(() => [] as TrendingEpisodeCard[])
+  usingFallback.value = false
+  if (!got.length && props.fallback) {
+    got = await props.fallback().catch(() => [] as TrendingEpisodeCard[])
+    usingFallback.value = got.length > 0
+  }
+  cards.value = got
+  telemetry.shown(cards.value, usingFallback.value ? 'everyone' : props.scope)
 }
 function reload(): void {
   telemetry = useRailTelemetry(props.rail) // a new visit or scope is a new rail impression
@@ -60,6 +72,7 @@ watch(() => props.reloadKey, reload)
 <template>
   <section v-if="cards.length" class="mt-7" :data-testid="cardsTestid">
     <SectionHeading :title="title" />
+    <slot v-if="usingFallback" name="fallback-note" />
     <ul class="grid gap-3 lg:grid-cols-2">
       <li v-for="(c, i) in cards" :key="c.episode.slug">
         <article class="flex h-full flex-col gap-3 rounded-xl border border-border p-4" :data-testid="cardTestid">

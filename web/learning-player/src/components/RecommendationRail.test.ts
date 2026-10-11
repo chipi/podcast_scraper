@@ -40,7 +40,10 @@ const card = (slug: string, hasMoments = false): TrendingEpisodeCard =>
     },
   }) as unknown as TrendingEpisodeCard
 
-async function mountRail(load: () => Promise<TrendingEpisodeCard[]>) {
+async function mountRail(
+  load: () => Promise<TrendingEpisodeCard[]>,
+  fallback?: () => Promise<TrendingEpisodeCard[]>,
+) {
   const w = mount(RecommendationRail, {
     props: {
       rail: 'captured',
@@ -50,7 +53,9 @@ async function mountRail(load: () => Promise<TrendingEpisodeCard[]>) {
       cardsTestid: 'captured-cards',
       cardTestid: 'captured-card',
       openTestid: 'captured-card-open',
+      fallback,
     },
+    slots: { 'fallback-note': '<p data-testid="note">Everyone’s</p>' },
     global: { plugins: [i18n, router, createPinia()] },
   })
   await flushPromises()
@@ -90,6 +95,21 @@ describe('RecommendationRail', () => {
     expect(tracked.filter((e) => e.name === 'discover_rail_tap').map((e) => e.props)).toEqual([
       expect.objectContaining({ rail: 'captured', action: 'moments', rank: '2-3' }),
     ])
+  })
+
+  it("cold start: nothing of the listener's shows the fallback, labelled, measured as Everyone", async () => {
+    const w = await mountRail(async () => [], async () => [card('e1')])
+    expect(w.findAll('[data-testid="captured-card"]')).toHaveLength(1)
+    expect(w.find('[data-testid="note"]').exists()).toBe(true)
+    expect(tracked.find((e) => e.name === 'discover_rail_shown')?.props).toMatchObject({ scope: 'everyone' })
+  })
+
+  it("the listener's own cards never carry the fallback note, and the fallback is not loaded", async () => {
+    const fallback = vi.fn(async () => [card('e1')])
+    const w = await mountRail(async () => [card('a')], fallback)
+    expect(w.find('[data-testid="note"]').exists()).toBe(false)
+    expect(fallback).not.toHaveBeenCalled()
+    expect(tracked.find((e) => e.name === 'discover_rail_shown')?.props).toMatchObject({ scope: 'mine' })
   })
 
   it('hides itself with nothing to show, or when loading fails', async () => {

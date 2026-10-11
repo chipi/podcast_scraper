@@ -439,6 +439,11 @@ piece to its design home:
     skipped.
 - **The quote cards** — Discover's first rail (ADR-163, Discover arc Step 2.1): "Worth hearing
   next".
+  - **Cold start** (ADR-163 §6): under Mine, while the listener's world is empty (nothing heard,
+    captured, saved, followed or picked), the rail shows Everyone's cards under a note,
+    "Everyone's picks — yours begin once you listen, save or pick a few topics", with **Pick
+    topics** (the interests picker, `trigger: discover_cold_start`). Saving reloads the rail as
+    theirs. Telemetry reports the fallback as scope `everyone`.
   - **Content:** rising topics and the most engaged episodes (`GET /trending/episodes`) in the page
     scope, as cards. Each card shows the episode (artwork, title, show name, which wraps and never
     truncates per UXS-014), then its `RecommendationWhy`.

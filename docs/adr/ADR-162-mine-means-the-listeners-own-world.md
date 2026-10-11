@@ -27,9 +27,13 @@ Three controls, three definitions. A listener who flipped one could not predict 
    | Item | In "mine" when the listener… | Server |
    | --- | --- | --- |
    | Show | follows it, saved it, or heard / captured from / saved one of its episodes | `personal_show_ids` |
-   | Episode (search) | heard or captured from it, saved it, or it belongs to a show they follow | `world_episode_set` |
+   | Episode (search, Discover) | heard or captured from it, saved it, it belongs to a show they follow, or it is about an interest they follow (amended 2026-10-11, below) | `world_episode_set` |
    | Topic, person, theme, storyline (Trends) | follows it, saved it, or it appears in an episode they heard, captured from, or saved | `personal_entity_ids` |
 
+   *Amended 2026-10-11 (operator; ADR-163 §6):* following a topic or person, or a theme or storyline
+   through its member topics, is a subscription like following a show, so its episodes join the
+   listener's episodes (`followed_interest_episodes`). Umbrella topics are excepted, and so is any
+   interest reaching ≥ 90% of episodes (#1669). This is how the interests picker seeds Mine.
 2. **Following a show widens search, not Trends.** A followed show's episodes are the listener's to
    search; every topic such a show has ever covered is not "theirs". Counting those would make Mine
    indistinguishable from Everyone for anyone following a few busy shows, and cost one knowledge-

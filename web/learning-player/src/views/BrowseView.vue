@@ -11,6 +11,10 @@
  * `/browse?trends=…` / `?tab=…` / `#catalog` links redirect there (router).
  *
  * One Mine ⇄ Everyone switch for the whole page (ADR-162), shared with Explore and Search.
+ *
+ * Cold start (ADR-163 §6): under Mine with nothing in the listener's world yet, the quote cards
+ * fall back to Everyone's, labelled as Everyone's, with "Pick topics" — the interests picker,
+ * whose follows widen Mine (`world_episode_set`) so the next load is theirs.
  */
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -23,16 +27,28 @@ import {
   getPeopleRecommendations,
   getThreadRecommendations,
   getTrendingEpisodes,
+  getWorldEpisodeSlugs,
 } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import TrendingScopeButton from '../components/TrendingScopeButton.vue'
+import InterestsPicker from '../components/InterestsPicker.vue'
+import { ref } from 'vue'
 import { useTrendingScope } from '../composables/useTrendingScope'
 
 const { t } = useI18n()
 const router = useRouter()
 const { scope: trendingScope, setScope: setTrendingScope } = useTrendingScope()
 const auth = useAuthStore()
+const pickerOpen = ref(false)
+/** Everyone's quote cards — only while the listener's world is EMPTY (cold start). An empty Mine
+ *  rail for someone with history is a quiet week, not a cold start: it stays empty rather than
+ *  telling them their picks "begin once you listen". */
+async function coldStartCards() {
+  if ((await getWorldEpisodeSlugs()).length) return []
+  return getTrendingEpisodes('corpus', 6)
+}
+const picked = ref(0) // bumps the quote rail's reloadKey after a save, so Mine reloads as theirs
 
 // Trending shows' "See all" opens Explore's Shows tab sorted by trending, as a list, so the
 // destination matches the rail it came from (operator 2026-09-14).
@@ -71,8 +87,21 @@ function onShowsSeeAll(): void {
       :title="t('discover.quotes.title')"
       :load="() => getTrendingEpisodes(trendingScope, 6)"
       :scope="trendingScope === 'mine' ? 'mine' : 'everyone'"
-      :reload-key="trendingScope"
-    />
+      :reload-key="`${trendingScope}:${picked}`"
+      :fallback="trendingScope === 'mine' ? coldStartCards : undefined"
+    >
+      <template #fallback-note>
+        <p class="-mt-1 mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted" data-testid="discover-cold-start">
+          <span>{{ t('discover.coldStart.note') }}</span>
+          <button
+            type="button"
+            class="lp-tap font-bold text-accent"
+            data-testid="discover-pick-topics"
+            @click="pickerOpen = true"
+          >{{ t('discover.coldStart.pick') }}</button>
+        </p>
+      </template>
+    </RecommendationRail>
     <RecommendationRail
       v-if="auth.isAuthenticated && trendingScope === 'mine'"
       rail="captured"
@@ -129,5 +158,11 @@ function onShowsSeeAll(): void {
       </div>
       <div class="hidden lg:block lg:w-1/2" aria-hidden="true" />
     </div>
+    <InterestsPicker
+      v-if="pickerOpen"
+      trigger="discover_cold_start"
+      @close="pickerOpen = false"
+      @saved="picked++"
+    />
   </section>
 </template>
