@@ -1,6 +1,5 @@
 {
- "why": "F4c (The Living Philosophy, Sharon Blackie, prod replay 2026-10-11): the feed states no host, the LLM said 'host' for the guest, and step 5 (LLM host, no pool) seats her although her first words are 'Thank you for inviting me', which is not in the guest speech-act list.",
- "xfail": "F4c: 'thank you for inviting me' is not a guest act, and the LLM host verdict seats the guest on a no-pool feed",
+ "why": "F4c (The Living Philosophy, Sharon Blackie, prod replay 2026-10-11): the feed states no host, the LLM said 'host' for the guest, and step 5 (LLM host, no pool) seats her although her first words are 'Thank you for inviting me', which is not in the guest speech-act list. Fixed 2026-10-11: being invited is a guest speech act, so the guest is a heard guest and step 5 skips her.",
  "feed": {
   "title": "The Living Philosophy",
   "description": "Conversations on philosophy, meaning and the inner life."

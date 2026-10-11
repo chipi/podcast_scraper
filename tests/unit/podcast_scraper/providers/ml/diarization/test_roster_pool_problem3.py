@@ -183,3 +183,16 @@ def test_as_guest_host_names_the_guest_host() -> None:
     assert _guest_hosts_named(
         "This week on Sinica, I'm delighted to have Iza Ding as guest host."
     ) == ["Iza Ding"]
+
+
+def test_being_invited_is_the_visitors_reply() -> None:
+    # F4c (prod 2026-10-11): read only by the no-pool LLM-host step, never as a general guest act.
+    from podcast_scraper.providers.ml.diarization.roster import _INVITED_REPLY
+
+    for line in (
+        "Thank you for inviting me. It's a pleasure.",
+        "Well, thank you for the invitation and welcome to Moldova.",
+        "Thanks so much for the invite!",
+    ):
+        assert _INVITED_REPLY.search(line), line
+    assert not _INVITED_REPLY.search("We sent the invitation to him last week.")

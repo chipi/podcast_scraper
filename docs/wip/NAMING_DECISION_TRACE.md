@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 7 |
+| Doc version | 8 |
 | Last updated | 2026-10-11 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
-| Code content hash | `5b13d30d6071` (see below) |
+| Code content hash | `54d19fb53f53` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,10 @@
 
 **Changelog**
 
+- **v8, 2026-10-11.** One rule changed (#2304, F4c): `host_seat_step` `5_llm_host_no_pool` no longer
+  seats a voice that replies to being invited ("Thank you for inviting me", "thank you for the
+  invitation", `roster._INVITED_REPLY`). Read ONLY there: as a general guest act the same phrase,
+  bled into the host's cluster at a turn boundary, un-named two hosts on the corpus replay.
 - **v7, 2026-10-11.** Two rules changed (#2304, failure inventory F4b1):
   - conversation roles: "welcome to" said as a permission or idiom ("you're welcome to share",
     "listeners are welcome to", "welcome to the club") is no longer a host speech act
@@ -236,7 +240,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `ad_voice_placeholder` | `ad_narrator_saying_its_name_is_not_a_person` |
 | `cohost_formula` | `cohost_formula_from_the_other_side`, `cohost_formula_with_the_first_name_only` |
 | `guest_host_pool` | `guest_host_named_in_the_episode_text` |
-| `guest_naming` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cold_open_guest_owns_the_interview` (+33) |
+| `guest_naming` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cold_open_guest_owns_the_interview` (+34) |
 | `guest_naming_forced` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `guest_pool` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice`, `cohost_formula_from_the_other_side` (+43) |
 | `host_introduction_harvest` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `introduced_spelling_nobody_stated_is_refused` |

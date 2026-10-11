@@ -425,6 +425,19 @@ _GUEST_REPLY_WIDE = [
 ]
 
 
+#: The guest's reply to being INVITED ("Thank you for inviting me", "thank you for the invitation").
+#: Read only where the feed states no host and the model's "host" would seat the voice (step 5):
+#: there it is the one sign a voice is the visitor (The Living Philosophy, Sharon Blackie, prod
+#: 2026-10-11). NOT a general guest act: at turn boundaries it bleeds into the HOST's cluster
+#: ("thank you so much for spending your time on this. Thank you for inviting me." on The Pragmatic
+#: Engineer) and, as a veto, it un-named two hosts on the corpus replay.
+_INVITED_REPLY = re.compile(
+    r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)? for "
+    r"(?:inviting me|having me|the invitation|the invite)\b",
+    re.IGNORECASE,
+)
+
+
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
@@ -4804,6 +4817,7 @@ def _select_host_voices(
                 and v not in conv_guests
                 and v not in ad_voices
                 and v in voice_intro
+                and not _INVITED_REPLY.search(texts.get(v, ""))
             ):
                 host_voices.append(v)
     tr.appended("host_seat_step", host_voices, _n, "seated", step="5_llm_host_no_pool")
