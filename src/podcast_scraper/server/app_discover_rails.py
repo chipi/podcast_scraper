@@ -72,6 +72,7 @@ class RailContext:
         return self.data_dir
 
     def everyone(self) -> list[TrendingEpisodeCard]:
+        """Everyone's trending episodes, read once per request (the cold-start rail's cards)."""
         if self._everyone is None:
             self._everyone = trending_episodes(
                 self.root, self.data_dir, scope="corpus", limit=RAIL_MAX * 2, config=self.config
@@ -158,6 +159,9 @@ def rail_cards(ctx: RailContext, rail: str) -> tuple[list[TrendingEpisodeCard], 
 
 @dataclass(frozen=True)
 class RailPage:
+    """One page of a rail: its cards, how many it has in all, and whether it is the cold-start
+    fallback (everyone's cards under Mine)."""
+
     rail: str
     items: list[TrendingEpisodeCard]
     total: int
