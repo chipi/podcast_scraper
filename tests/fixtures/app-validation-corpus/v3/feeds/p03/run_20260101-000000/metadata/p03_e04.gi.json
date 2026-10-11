@@ -2,6 +2,11 @@
   "edges": [
     {
       "from": "insight:authored-p03_e04-0",
+      "to": "topic:dive-planning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p03_e04-0",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },

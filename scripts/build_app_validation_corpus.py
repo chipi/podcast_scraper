@@ -1882,8 +1882,8 @@ def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any
 #: storyline reel / path / door test landed on the same subject. No member may be a homonym of
 #: the storyline's sense: "frame" here once meant photo framing, and filled a decisions path with
 #: lighting episodes (operator 2026-10-11). "Second-order effects" has
-#: grounded clips (a reel and a path); "Building trails that last" has none, so the reel and
-#: Learn doors are proven to stay away.
+#: grounded clips (a reel and a path); "Building trails that last" has a two-clip reel from one
+#: episode and no path, so the Learn door is proven to stay away while the reel door shows.
 STORYLINES: list[tuple[str, str, list[tuple[str, str, float]]]] = [
     (
         "thc:managing-risk",

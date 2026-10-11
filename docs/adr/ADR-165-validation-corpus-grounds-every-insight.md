@@ -121,6 +121,20 @@ pass missed:
   `topic:incident-response`. `regen_fixture_storylines.py --change thc:second-order-effects`
   applied that one change and still refuses any other.
 
-The anchor topic `topic:second-order-effects` is on 21 episodes but no insight is ABOUT it, so the
-storyline's clips come from its other members (mostly reliability). That follows from the
-storyline rule (any member topic) and is left as data.
+**The anchor gets its own clips** (same day). `topic:second-order-effects` was on 21 episodes'
+knowledge graphs but in no GI, so no insight could be about it. Two rule fixes, applied by
+`realign_fixture_gi.py` (step 6) and the builder alike:
+
+- The ABOUT rule is plural-aware (`about_tokens` singularises plain plurals): "the second-order
+  effect" names "second-order effects".
+- An insight that names a storyline member its episode's knowledge graph carries is ABOUT it, and
+  the topic joins that GI. The step only adds links, never past two topics per insight, and a
+  second pass changes nothing.
+
+Eleven links were added, each to a line that says its topic: three on second-order effects
+(Bessent, Cho, Clarida), plus drainage design, reliability, dive planning, frame, sustainability,
+risk management and edge cases ×2. Effects, each read before re-pinning: *Building trails that
+last* now has a two-clip reel (still no path); the systems-thinking reel orders one clip higher (an
+insight about more topics scores higher); the two edge-case episodes read the same sentence, so a
+reel now never repeats a line across episodes either (`SAME_LINE_SIMILARITY`, 0.95; different
+claims sharing the generator's framing words reach 0.79).

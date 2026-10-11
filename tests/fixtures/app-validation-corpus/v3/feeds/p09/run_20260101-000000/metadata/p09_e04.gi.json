@@ -12,6 +12,11 @@
     },
     {
       "from": "insight:authored-p09_e04-1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p09_e04-1",
       "to": "topic:systems-thinking",
       "type": "ABOUT"
     },

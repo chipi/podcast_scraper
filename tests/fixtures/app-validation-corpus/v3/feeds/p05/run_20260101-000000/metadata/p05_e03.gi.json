@@ -6,6 +6,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:8f15068b7064df00",
+      "to": "topic:second-order-effects",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:be774a32be7c6c0f",
       "to": "topic:systems-thinking",
       "type": "ABOUT"
@@ -251,6 +256,13 @@
         "transcript_ref": "transcripts/p05_e03.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second-order effects"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

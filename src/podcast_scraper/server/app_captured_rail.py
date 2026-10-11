@@ -269,9 +269,14 @@ def captured_rail(
             found += [(cap, subj, q) for q in quotes if eligible(q.episode_slug)][:PER_LINK]
         for tid, (sid, slabel) in sorted(story.items()):
             subj = ReasonSubject("storyline", sid, slabel)
-            found += [(cap, subj, q) for q in topic_quotes(root, tid) if eligible(q.episode_slug)][
-                :1
-            ]
+            # The first episode not already found for this capture: one found through a topic
+            # would be dropped as a repeat, and the storyline would never show (2026-10-11).
+            seen = {f[2].episode_slug for f in found}
+            found += [
+                (cap, subj, q)
+                for q in topic_quotes(root, tid)
+                if eligible(q.episode_slug) and q.episode_slug not in seen
+            ][:1]
         per_capture.append(found)
 
     picked = take_turns(per_capture, limit=limit, key=lambda f: f[2].episode_slug)

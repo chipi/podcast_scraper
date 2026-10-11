@@ -258,7 +258,7 @@ def test_in_progress_lists_the_paths_and_the_last_unfinished_short_listen(tmp_pa
     )
     assert (reel["index"], reel["clips"]) == (4, 9)
     # The clip it resumes at, for the card: clip 5 of the systems-thinking reel.
-    assert (reel["episode"]["slug"], reel["speaker"]) == ("p05-693ecaa09e", "Scott Bessent")
+    assert (reel["episode"]["slug"], reel["speaker"]) == ("p09-a4bbb5dde3", "Dr. Elena Fischer")
     assert reel["quote_text"]
     client.put(
         "/api/app/discover/reel/progress",

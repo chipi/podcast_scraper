@@ -1,6 +1,11 @@
 {
   "edges": [
     {
+      "from": "insight:c238fd416f3f4baf",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "insight:80668e705599be57",
       "type": "HAS_INSIGHT"

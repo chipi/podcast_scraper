@@ -6,6 +6,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:450b6aa41c4b371b",
+      "to": "topic:second-order-effects",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "insight:058777af848d6ae8",
       "type": "HAS_INSIGHT"
@@ -251,6 +256,13 @@
         "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second-order effects"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

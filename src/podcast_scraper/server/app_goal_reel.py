@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional, Sequence
 
 from podcast_scraper.server.app_moments import Moment, MomentsConfig, rank_moments, score_candidates
-from podcast_scraper.server.app_reasons import MIN_SUPPORT, quote_support
+from podcast_scraper.server.app_reasons import _content_words, MIN_SUPPORT, quote_support
 
 #: Clips taken from one episode at most, so the reel is many voices rather than one long episode.
 MAX_PER_EPISODE = 2
@@ -32,6 +32,10 @@ MAX_PER_EPISODE = 2
 #: way) say the same thing: the second plays as a repeat (measured on the fixture, 2026-10-11:
 #: restatements 0.75-1.00, different claims 0.30-0.53).
 ECHO_SIMILARITY = 0.65
+#: Across episodes only the same sentence counts as a repeat: different claims there share their
+#: framing words (measured on the fixture, 2026-10-11: one identical line read in two episodes at
+#: 1.0; the closest different claims at 0.79).
+SAME_LINE_SIMILARITY = 0.95
 #: Budgets offered, in minutes.
 MINUTES_CHOICES = (5, 15, 30)
 
@@ -108,6 +112,8 @@ class ClipRef:
     end_ms: int
     speaker: Optional[str]
     topics: frozenset[str]
+    #: The insight's content words, so a reel can tell when two episodes say the same thing.
+    words: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -235,6 +241,7 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
             end_ms=m.end_ms,
             speaker=sys.intern(m.speaker) if m.speaker else m.speaker,
             topics=frozenset(sys.intern(t) for t in kept[i]),
+            words=frozenset(sys.intern(w) for w in _content_words(m.text)),
         )
 
     return tuple(ref(i) for i in sorted(kept))
@@ -243,6 +250,14 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
 def _echoes(a: Moment, b: Moment) -> bool:
     """``b`` says what ``a`` says."""
     return max(quote_support(a.text, b.text), quote_support(b.text, a.text)) >= ECHO_SIMILARITY
+
+
+def _same_line(a: frozenset[str], b: frozenset[str]) -> bool:
+    """Two clips (of different episodes) say the same sentence (``SAME_LINE_SIMILARITY``)."""
+    if not a or not b:
+        return False
+    shared = len(a & b)
+    return min(shared / len(a), shared / len(b)) >= SAME_LINE_SIMILARITY
 
 
 def _overlap(a: ClipRef, b: ClipRef) -> bool:
@@ -294,16 +309,31 @@ def _subject_episodes_uncached(
     from podcast_scraper.server.app_slugs import slug_for_row
 
     topics = reel_subject(root, subject_id).topics
-    out: list[SubjectEpisode] = []
+    candidates: list[tuple[str, Any, list[ClipRef]]] = []
     for row in _episode_rows(root, topics):
-        about = [c for c in episode_clips(root, row, cfg) if c.topics & topics]
+        about = sorted(
+            (c for c in episode_clips(root, row, cfg) if c.topics & topics),
+            key=lambda c: (-c.score, c.order),
+        )
+        if about:
+            candidates.append((slug_for_row(row), row, about))
+    # Strongest episodes first (a tie keeps a stable order by slug). Each takes its best clips that
+    # neither overlap one another nor repeat the sentence of a clip already taken in another
+    # episode (2026-10-11: two episodes reading the same line made a reel of one sentence, twice).
+    candidates.sort(key=lambda e: (-e[2][0].score, e[0]))
+    taken: list[frozenset[str]] = []
+    out: list[SubjectEpisode] = []
+    for slug, row, about in candidates:
         best: list[ClipRef] = []
-        for c in sorted(about, key=lambda c: (-c.score, c.order)):
-            if len(best) < MAX_PER_EPISODE and not any(_overlap(c, b) for b in best):
-                best.append(c)
+        for c in about:
+            if len(best) >= MAX_PER_EPISODE:
+                break
+            if any(_overlap(c, b) for b in best) or any(_same_line(c.words, w) for w in taken):
+                continue
+            best.append(c)
+            taken.append(c.words)
         if best:
-            out.append(SubjectEpisode(slug_for_row(row), row, tuple(best)))
-    # Episodes by their best clip, strongest first; a tie keeps a stable order by slug.
+            out.append(SubjectEpisode(slug, row, tuple(best)))
     out.sort(key=lambda e: (-e.clips[0].score, e.slug))
     return tuple(out)
 

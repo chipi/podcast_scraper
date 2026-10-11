@@ -33,17 +33,19 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
     """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it.
 
     Re-pinned the same day: p02's and p07-a5eb's second clips played seconds of their first, and
-    are gone (an episode never plays the same seconds, or the same claim, twice)."""
+    are gone (an episode never plays the same seconds, or the same claim, twice). Then p09-a4bbb
+    rose: "Systems thinking and risk management are one discipline" became about risk management
+    too, and an insight about more topics scores higher (centrality)."""
     reel = goal_reel(ROOT, "topic:systems-thinking", minutes=15)
     assert [(c.episode_slug, c.moment.speaker) for c in reel] == [
         ("p02-8fdd7b7f79", "Priya Nair"),
         ("p07-3f1584920f", "Skanda Amarnath"),
         ("p07-769d04686d", "Dr. Elena Fischer"),
         ("p07-a5eb82076a", "Dr. Elena Fischer"),
+        ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p05-693ecaa09e", "Scott Bessent"),
         ("p09-db2d39ef2e", "Dr. Elena Fischer"),
         ("p07-2aceab172c", "Skanda Amarnath"),
-        ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p05-25cb576153", "Scott Bessent"),
     ]
     # Breadth first: every episode's first clip comes before any episode's second.
@@ -168,7 +170,7 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
         ("topic:systems-thinking", "topic", 9),
         ("tc:reliability", "theme", 12),
         ("thc:managing-risk", "storyline", 22),
-        ("topic:risk-management", "topic", 15),
+        ("topic:risk-management", "topic", 16),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(
@@ -228,15 +230,16 @@ def test_a_long_reel_is_trimmed_to_its_budget_breadth_first() -> None:
     assert len(set(episodes[:distinct])) == distinct
 
 
-def test_a_storyline_nobody_quotes_has_no_reel_and_no_path(tmp_path: Path) -> None:
-    """thc:building-trails (2026-10-11) has members but no grounded clip about them: no reel to
-    offer, no path to learn — the doors on its page must stay away."""
+def test_a_storyline_with_too_few_episodes_has_a_short_reel_and_no_path(tmp_path: Path) -> None:
+    """thc:building-trails (2026-10-11): two grounded clips from one episode — a short listen, but
+    too few episodes for a path, so the Learn door on its page stays away (since the ABOUT rule
+    became plural-aware, "Drainage is…" is about "drainage design"; it had no reel before)."""
     from podcast_scraper.server.app_goal_reel import reel_subject
     from podcast_scraper.server.app_learning_path import build_path
 
     subject = reel_subject(ROOT, "thc:building-trails")
     assert subject.kind == "storyline" and len(subject.topics) == 4
-    assert len(goal_reel(ROOT, "thc:building-trails", minutes=15)) < 2
+    assert len(goal_reel(ROOT, "thc:building-trails", minutes=15)) == 2
     assert build_path(ROOT, "thc:building-trails") == []
     client, _uid = _client(tmp_path)
     assert client.get("/api/app/discover/learn/subjects/thc:building-trails").status_code == 404
@@ -327,3 +330,24 @@ def test_the_chip_counts_are_the_reel_the_chip_opens() -> None:
                 (r.episode_slug, r.moment.insight_id, r.moment.start_ms, r.moment.end_ms)
                 for r in reel
             ]
+
+
+def test_a_line_read_in_two_episodes_plays_once() -> None:
+    """The two edge-case episodes read the same sentence (2026-10-11): their topic's reel plays it
+    once, so it is one clip — too short to offer — not one sentence twice."""
+    assert len(goal_reel(ROOT, "topic:edge-cases", minutes=15)) == 1
+
+
+def test_a_storyline_anchor_has_clips_of_its_own() -> None:
+    """ "Second-order effects" was on 21 episodes and no insight was about it, so its reel was its
+    other members' (2026-10-11). Insights that name it now link to it."""
+    own = goal_reel(ROOT, "topic:second-order-effects", minutes=15)
+    assert sorted((c.episode_slug, c.moment.speaker) for c in own) == [
+        ("p05-693ecaa09e", "Scott Bessent"),
+        ("p05-ee8e47b94b", "Daniel Cho"),
+        ("p05-fa4fd4b684", "Richard Clarida"),
+    ]
+    storyline = {
+        c.moment.insight_id for c in goal_reel(ROOT, "thc:second-order-effects", minutes=15)
+    }
+    assert {c.moment.insight_id for c in own} <= storyline

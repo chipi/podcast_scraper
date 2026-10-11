@@ -22,7 +22,9 @@ in place, per episode:
 4. every pipeline insight is SUPPORTED_BY the one segment that contains its sentence (an existing
    quote node with that text is reused, else one is made from the segment);
 5. quotes no insight is supported by any more are removed, with their edges; edges are written in
-   a stable order, so a second pass changes nothing.
+   a stable order, so a second pass changes nothing;
+6. an insight that names a topic is ABOUT it (plural-aware), including a storyline member the
+   episode's knowledge graph carries but its GI never listed; only adds, at most two per insight.
 
 A non-English episode's insights are in its source language, so they are grounded in the
 source-language segments (``<stem>.<lang>.segments.json``); the translation is read only to say
@@ -376,13 +378,48 @@ class _Episode:
         for i, n in enumerate(self.pipeline()):
             n["properties"]["grounded"] = not (low_grounding and i % 2 == 1)
 
-    def realign(self, low_grounding: bool = False) -> dict[str, int]:
+    def link_named_topics(self, extra: list[tuple[str, str]]) -> None:
+        """Step 6: an insight that names a topic (``about_topic_ids``: every label token in its
+        text, plural-aware) is ABOUT it — the GI's own topics, and ``extra``: storyline members
+        the episode's knowledge graph carries but its GI never listed (2026-10-11: the anchor of
+        "Second-order effects" was on 21 episodes and no insight was about it). Only adds, never
+        past the two topics an insight may be about; a topic linked from ``extra`` joins the GI."""
+        topics = [
+            (n["id"], str(n["properties"].get("label") or ""))
+            for n in self.nodes
+            if n.get("type") == "Topic"
+        ]
+        known = {tid for tid, _label in topics}
+        candidates = topics + [(tid, label) for tid, label in extra if tid not in known]
+        about: dict[str, list[str]] = {}
+        for e in self.edges:
+            if e.get("type") == "ABOUT":
+                about.setdefault(str(e.get("from")), []).append(str(e.get("to")))
+        for n in self.nodes:
+            if n.get("type") != "Insight":
+                continue
+            have = about.setdefault(n["id"], [])
+            for tid in about_topic_ids(str(n["properties"].get("text") or ""), candidates):
+                if tid in have or len(have) >= 2:
+                    continue
+                if tid not in known:
+                    label = next(label for t, label in candidates if t == tid)
+                    self.nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
+                    known.add(tid)
+                self.edges.append({"type": "ABOUT", "from": n["id"], "to": tid})
+                have.append(tid)
+                self.stats["about_added"] = self.stats.get("about_added", 0) + 1
+
+    def realign(
+        self, low_grounding: bool = False, extra_topics: Optional[list[tuple[str, str]]] = None
+    ) -> dict[str, int]:
         removed = self.drop_non_claims()
         self.fill_with_claims(removed)
         self.vary_grounding(low_grounding)
         self.anchor_authored()
         self.ground_pipeline()
-        self.drop_orphan_quotes()
+        self.link_named_topics(extra_topics or [])
+        self.drop_orphan_quotes()  # last: it writes the edges in their stable order
         return self.stats
 
 
@@ -392,9 +429,27 @@ def realign(
     transcript: str,
     turns: Optional[dict[str, list[str]]] = None,
     low_grounding: bool = False,
+    extra_topics: Optional[list[tuple[str, str]]] = None,
 ) -> dict[str, int]:
-    """Re-ground one episode's GI in place (the module docstring's five steps)."""
-    return _Episode(gi, segments, transcript, turns).realign(low_grounding)
+    """Re-ground one episode's GI in place (the module docstring's steps)."""
+    return _Episode(gi, segments, transcript, turns).realign(low_grounding, extra_topics)
+
+
+def storyline_members_on(kg_path: Path) -> list[tuple[str, str]]:
+    """The builder's storyline member topics (``STORYLINES``) this episode's knowledge graph
+    carries, as ``(topic id, label)``."""
+    from build_app_validation_corpus import STORYLINES
+
+    if not kg_path.is_file():
+        return []
+    kg = json.loads(kg_path.read_text(encoding="utf-8"))
+    on = {str(n.get("id")) for n in kg.get("nodes") or [] if n.get("type") == "Topic"}
+    return [
+        (tid, label)
+        for _sid, _name, members in STORYLINES
+        for tid, label, _lift in members
+        if tid in on
+    ]
 
 
 def _episode_inputs(
@@ -455,7 +510,10 @@ def main() -> int:
         before = json.dumps(gi, sort_keys=True)
         segments, transcript, turns = _episode_inputs(gi_path)
         low = has_failure_mode(gi_path.name[: -len(".gi.json")], gt_dir, "low_grounding_dialogue")
-        for k, v in realign(gi, segments, transcript, turns, low).items():
+        extra = storyline_members_on(
+            gi_path.with_name(gi_path.name.replace(".gi.json", ".kg.json"))
+        )
+        for k, v in realign(gi, segments, transcript, turns, low, extra).items():
             total[k] = total.get(k, 0) + v
         if json.dumps(gi, sort_keys=True) != before:
             changed += 1

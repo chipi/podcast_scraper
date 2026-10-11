@@ -1,6 +1,11 @@
 {
   "edges": [
     {
+      "from": "insight:ae4361058ac53839",
+      "to": "topic:edge-cases",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-0c46a67a56b05689",
       "to": "insight:ae4361058ac53839",
       "type": "HAS_INSIGHT"

@@ -7,6 +7,11 @@
     },
     {
       "from": "insight:authored-p07_e03-0",
+      "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
       "to": "topic:systems-thinking",
       "type": "ABOUT"
     },

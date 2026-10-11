@@ -514,9 +514,20 @@ ABOUT_STOP = {
 }
 
 
+def _singular(w: str) -> str:
+    """A plain plural's singular ("effects" -> "effect"; "process", "analysis" stay)."""
+    return w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith(("ss", "is", "us")) else w
+
+
 def about_tokens(s: str) -> set[str]:
-    """Significant tokens for the ABOUT rule (see :func:`about_topic_ids`)."""
-    return {w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2 and w not in ABOUT_STOP}
+    """Significant tokens for the ABOUT rule (see :func:`about_topic_ids`), singular, so "the
+    second-order effect" is about the topic "second-order effects" (2026-10-11: the plural alone
+    kept a storyline's anchor topic from every insight that names it)."""
+    return {
+        _singular(w)
+        for w in re.findall(r"[a-z0-9]+", s.lower())
+        if len(w) > 2 and w not in ABOUT_STOP
+    }
 
 
 def about_topic_ids(text: str, topics: list[tuple[str, str]], cap: int = 2) -> list[str]:

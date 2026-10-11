@@ -6,6 +6,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:83da6a33821dac95",
+      "to": "topic:second-order-effects",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:bee7604302efaa3d",
       "to": "topic:reliability",
       "type": "ABOUT"
@@ -239,6 +244,13 @@
         "transcript_ref": "transcripts/p05_e02.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second-order effects"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

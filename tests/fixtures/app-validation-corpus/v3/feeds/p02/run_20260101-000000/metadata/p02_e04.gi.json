@@ -12,6 +12,11 @@
     },
     {
       "from": "insight:authored-p02_e04-0",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p02_e04-0",
       "to": "topic:systems-thinking",
       "type": "ABOUT"
     },

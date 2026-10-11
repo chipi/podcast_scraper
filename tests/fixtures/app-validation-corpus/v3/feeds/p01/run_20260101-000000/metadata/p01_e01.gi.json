@@ -1,6 +1,11 @@
 {
   "edges": [
     {
+      "from": "insight:0bc0138cbf4d6eb4",
+      "to": "topic:drainage-design",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:bf9b3bf4a21ee6f8",
       "to": "topic:land-stewardship",
       "type": "ABOUT"
@@ -251,6 +256,13 @@
         "transcript_ref": "transcripts/p01_e01.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",
