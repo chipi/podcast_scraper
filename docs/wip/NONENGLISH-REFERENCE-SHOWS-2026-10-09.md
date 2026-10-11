@@ -33,7 +33,7 @@ more than one episode per show.
 **Italian (2026-10-11).** Podcast Italiano was the only candidate here and was never built: its
 transcripts sit behind a free login (Memberstack; the text is in the HTML, hidden in the
 browser), only 47 of its 119 episode pages carry one, and it is one voice. Two ungated shows
-replace it, `asr_publisher_ref_it_v1` (eval repo): Italiano ON-Air, whose feed links the school's
+replace it, `asr_publisher_ref_it_v2` (eval repo): Italiano ON-Air, whose feed links the school's
 own transcripts, and the Camera's Question Time, the parliamentary equivalent of Senado: Radio
 Radicale records every sitting and lists each speech's offset, so the Question Time window is
 cut exactly (checked against the silence of the suspension before it), and the Camera publishes

@@ -252,14 +252,16 @@ absolute rate.
   comparison (#2251); if that does not close the gap, the gap is recorded and the language moves
   on to translation.
 
-**Italian reference set (2026-10-11, eval `asr_publisher_ref_it_v1`)**: Italiano ON-Air (two hosts
+**Italian reference set (2026-10-11, eval `asr_publisher_ref_it_v2`)**: Italiano ON-Air (two hosts
 in a prepared conversation, the school's own transcripts in the feed) and the Camera dei
 deputati's Question Time (the stenographic record against Radio Radicale's recording of the
 sitting, cut to the Question Time window read off its per-speech offsets), 3 episodes each. A show
 with no feed can now supply its own (`Publisher.feed`) and its own audio (`fetch_audio`). Both
 take English news as their gate B bar: Question Time is news; ON-Air is scripted studio speech
 with no tape, closer to read news than to narrative with tape, and the stricter bar of the two.
-Podcast Italiano, the earlier candidate, is gated behind a free login and one voice.
+Podcast Italiano, the earlier candidate, is gated behind a free login and one voice. The Camera's chair is labelled with
+the presiding name the record gives ("PRESIDENZA DELLA VICEPRESIDENTE ANNA ASCANI"), not
+"PRESIDENTE", so a name resolved for that voice can be scored (v2; v1 labelled the role).
 
 **Evidence needed per language**: at least 2 shows x 3 episodes, one of them interview or news,
 each with a human reference and its tags.
