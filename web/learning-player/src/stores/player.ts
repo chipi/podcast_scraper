@@ -55,11 +55,26 @@ export interface ReelMoment {
   endMs: number
   /** D-36(b): source language when the moment's quote is a machine translation. */
   translatedFrom?: string | null
+  /** A topic reel's clip names its episode; an episode reel's clips are all on the loaded one. */
+  slug?: string
+  episodeTitle?: string | null
+  showTitle?: string | null
+  artwork?: string | null
+}
+
+/** The topic a cross-episode reel is about ("15 minutes on …", ADR-163 §8 amendment). */
+export interface ReelTopic {
+  id: string
+  label: string
+  minutes: number
 }
 
 /** A Moments reel in progress: which moment, and where the listener was before it started. */
 export interface ReelState {
+  /** The episode playing now: fixed for an episode reel, the current clip's for a topic reel. */
   slug: string
+  /** Set for a topic reel; its clips come from many episodes. */
+  topic?: ReelTopic
   moments: ReelMoment[]
   index: number
   /** Seconds — ✕ returns here; "Keep listening here" does not. */
@@ -503,7 +518,7 @@ export const usePlayerStore = defineStore('player', () => {
       // The reel plays clip windows: past the current one's end, on to the next (or the end card).
       // No position saves and no milestones while it runs — a reel must not move the resume point
       // or count as listening.
-      if (!r.done && currentTime.value * 1000 >= r.moments[r.index].endMs) reelNext()
+      if (!r.done && !reelSwitching && currentTime.value * 1000 >= r.moments[r.index].endMs) reelNext()
       return
     }
     maybeSavePosition()
@@ -616,15 +631,45 @@ export const usePlayerStore = defineStore('player', () => {
     if (currentSlug.value !== slug || moments.length === 0) return false
     const returnTo = el.value?.currentTime ?? currentTime.value
     reel.value = { slug, moments, index: 0, returnTo, done: false }
-    reelGo(startIndex)
+    void reelGo(startIndex)
     return true
   }
-  function reelGo(index: number): void {
+  /** Start a reel across episodes on one topic. ``resolve`` turns a clip's episode into something
+   *  playable — the shell's job, since the store must not import the API. False with no clips. */
+  async function startTopicReel(
+    topic: ReelTopic,
+    moments: ReelMoment[],
+    resolve: (slug: string) => Promise<NextUp | null>,
+  ): Promise<boolean> {
+    const playable = moments.filter((m) => m.slug)
+    if (!playable.length) return false
+    reelResolve = resolve
+    reel.value = { slug: playable[0].slug!, topic, moments: playable, index: 0, returnTo: 0, done: false }
+    await reelGo(0)
+    return true
+  }
+  let reelResolve: ((slug: string) => Promise<NextUp | null>) | null = null
+  /** True while a topic reel loads the next clip's episode: the old one's `timeupdate`s must not
+   *  move the reel on in the meantime. */
+  let reelSwitching = false
+
+  async function reelGo(index: number): Promise<void> {
     const r = reel.value
     if (!r) return
     const i = Math.max(0, Math.min(r.moments.length - 1, index))
-    reel.value = { ...r, index: i, done: false }
-    seek(r.moments[i].startMs / 1000)
+    const clip = r.moments[i]
+    if (r.topic && clip.slug && clip.slug !== currentSlug.value) {
+      reelSwitching = true
+      try {
+        const next = await reelResolve?.(clip.slug)
+        if (!next || reel.value?.topic !== r.topic) return // unplayable, or the reel was left
+        load(next)
+      } finally {
+        reelSwitching = false
+      }
+    }
+    reel.value = { ...r, slug: clip.slug ?? r.slug, index: i, done: false }
+    seek(clip.startMs / 1000)
     // Each clip fades in rather than cutting in mid-breath: from one speaker's sentence to
     // another's is a jump, and a quarter second of fade is what makes it read as a transition.
     fadeIn(REEL_FADE_MS)
@@ -655,7 +700,7 @@ export const usePlayerStore = defineStore('player', () => {
     const r = reel.value
     if (!r) return
     if (r.index < r.moments.length - 1) {
-      reelGo(r.index + 1)
+      void reelGo(r.index + 1)
       return
     }
     el.value?.pause()
@@ -665,7 +710,7 @@ export const usePlayerStore = defineStore('player', () => {
     const r = reel.value
     if (!r) return
     const intoCurrent = currentTime.value - r.moments[r.index].startMs / 1000
-    reelGo(intoCurrent > REEL_PREV_RESTART_S ? r.index : r.index - 1)
+    void reelGo(intoCurrent > REEL_PREV_RESTART_S ? r.index : r.index - 1)
   }
   /**
    * Leave the reel. ``keepHere`` ("Keep listening here") stays at this moment and keeps playing as
@@ -675,12 +720,14 @@ export const usePlayerStore = defineStore('player', () => {
     const r = reel.value
     if (!r) return
     reel.value = null
+    reelResolve = null
     if (keepHere) {
       if (el.value?.paused) playElement()
       return
     }
     el.value?.pause()
-    seek(r.returnTo)
+    // A topic reel moved across episodes: there is no one place to go back to, so ✕ just stops.
+    if (!r.topic) seek(r.returnTo)
   }
 
   /**
@@ -1047,6 +1094,7 @@ export const usePlayerStore = defineStore('player', () => {
     reel,
     inReel,
     startReel,
+    startTopicReel,
     reelGo,
     reelNext,
     reelPrev,

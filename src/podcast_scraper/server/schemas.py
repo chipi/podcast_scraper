@@ -1191,6 +1191,44 @@ class AppTrendingEpisodesResponse(BaseModel):
     items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
 
 
+class AppReelClip(BaseModel):
+    """One clip of a topic reel: a moment of an episode (the Moments picker's clip window)."""
+
+    episode: AppEpisodeSummary
+    insight_id: str
+    text: str = Field(description="The moment's point (the insight).")
+    quote_text: str = Field(description="What is said at the clip's start (transcript).")
+    speaker: str | None = None
+    start_ms: int
+    end_ms: int
+
+
+class AppTopicReelResponse(BaseModel):
+    """N minutes on a topic: clips about it across episodes, back to back (ADR-163; scan #6)."""
+
+    topic_id: str
+    topic_label: str
+    minutes: int = Field(description="The budget asked for.")
+    total_seconds: float = Field(description="What the reel actually runs — never the budget.")
+    clips: list[AppReelClip] = Field(default_factory=list)
+
+
+class AppReelTopic(BaseModel):
+    """A topic Discover offers a reel on."""
+
+    topic_id: str
+    topic_label: str
+    clips: int
+    total_seconds: float
+
+
+class AppReelTopicsResponse(BaseModel):
+    """The topics of Discover's "15 minutes on…" row (each has a reel of at least two clips)."""
+
+    scope: str = Field(description="mine | corpus — whose topics.")
+    items: list[AppReelTopic] = Field(default_factory=list)
+
+
 class AppSuggestLessItem(BaseModel):
     """One subject the listener asked Discover to suggest less of (ADR-163 §6)."""
 

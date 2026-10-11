@@ -1081,6 +1081,77 @@ describe('Moments reel (operator 2026-10-10)', () => {
   })
 })
 
+describe('topic reel — clips across episodes (ADR-163 §8 amendment, 2026-10-11)', () => {
+  const TOPIC = { id: 'topic:x', label: 'X', minutes: 15 }
+  const CLIPS = [
+    { insightId: 'a', text: 'a', speaker: 'Ann', startMs: 30_000, endMs: 42_000, slug: 'ep-a' },
+    { insightId: 'b', text: 'b', speaker: 'Bo', startMs: 90_000, endMs: 100_000, slug: 'ep-b' },
+  ]
+  let el: HTMLAudioElement & { __emit: (k: string) => void }
+  let p: ReturnType<typeof usePlayerStore>
+  const resolve = vi.fn(async (slug: string) => ({ slug, url: `https://x/${slug}.mp3`, title: slug }))
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    p = usePlayerStore()
+    el = stubAudio({ currentTime: 0, duration: 1800 })
+    resolve.mockClear()
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  function at(seconds: number): void {
+    ;(el as unknown as { currentTime: number }).currentTime = seconds
+    p.onTimeUpdate()
+  }
+
+  it("loads each clip's episode, seeks to the clip, and moves on across episodes", async () => {
+    expect(await p.startTopicReel(TOPIC, CLIPS, resolve)).toBe(true)
+    expect(resolve).toHaveBeenCalledWith('ep-a')
+    expect(p.currentSlug).toBe('ep-a')
+    expect(el.currentTime).toBe(30)
+    expect(p.reel).toMatchObject({ slug: 'ep-a', topic: TOPIC, index: 0 })
+    at(42)
+    await drainMicrotasks()
+    expect(resolve).toHaveBeenCalledWith('ep-b')
+    expect(p.currentSlug).toBe('ep-b')
+    expect(el.currentTime).toBe(90)
+    expect(p.reel).toMatchObject({ slug: 'ep-b', index: 1 })
+  })
+
+  it('never moves a resume point and logs no listen while it plays', async () => {
+    const saves: [string, number, boolean][] = []
+    const listens: string[] = []
+    p.setPositionPersister((slug, seconds, finished) => saves.push([slug, seconds, finished]))
+    p.setListenLogger((slug) => listens.push(slug))
+    await p.startTopicReel(TOPIC, CLIPS, resolve)
+    el.__emit('play')
+    at(41)
+    at(42) // to ep-b: the switch must not save ep-a at 42 s
+    await drainMicrotasks()
+    el.__emit('play')
+    expect(saves.filter(([slug]) => slug === 'ep-a')).toEqual([])
+    expect(listens).toEqual([])
+  })
+
+  it('"Keep listening here" turns the clip into a listen; ✕ stops without seeking back', async () => {
+    const listens: string[] = []
+    p.setListenLogger((slug) => listens.push(slug))
+    await p.startTopicReel(TOPIC, CLIPS, resolve)
+    p.exitReel(true)
+    el.__emit('play')
+    expect(listens).toEqual(['ep-a'])
+    await p.startTopicReel(TOPIC, CLIPS, resolve)
+    at(35)
+    p.exitReel(false)
+    expect(el.pause).toHaveBeenCalled()
+    expect(el.currentTime).toBe(35)
+  })
+
+  it('refuses a reel with no playable clip', async () => {
+    expect(await p.startTopicReel(TOPIC, [{ ...CLIPS[0], slug: undefined }], resolve)).toBe(false)
+    expect(p.reel).toBeNull()
+  })
+})
+
 describe('Moments reel — clips fade in (2026-10-10)', () => {
   it('each clip starts silent and ramps to the listener\'s volume', () => {
     vi.useFakeTimers()

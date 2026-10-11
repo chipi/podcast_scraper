@@ -41,18 +41,28 @@ const {
   audioError,
 } = storeToRefs(player)
 
-const onPlayerPage = computed(() => route.name === 'player' && route.params.slug === currentSlug.value)
+const onPlayerPage = computed(
+  () =>
+    (route.name === 'player' && route.params.slug === currentSlug.value) ||
+    // A topic reel's own page carries its controls, as the episode page does.
+    (route.name === 'topic-reel' && route.params.id === player.reel?.topic?.id),
+)
 const visible = computed(() => !!currentSlug.value && !onPlayerPage.value)
 /** While a Moments reel plays (operator 2026-10-10): "Moments · 3 / 8" in place of the show. */
 const reelLabel = computed(() => {
   const r = player.reel
-  return r ? t('moments.mini', { n: r.index + 1, total: r.moments.length }) : null
+  if (!r) return null
+  const at = { n: r.index + 1, total: r.moments.length }
+  return r.topic ? t('reel.mini', { topic: r.topic.label, ...at }) : t('moments.mini', at)
 })
-const openTo = computed(() =>
-  player.reel
+// A topic reel opens its own page (its clips are from many episodes), an episode reel its episode.
+const openTo = computed(() => {
+  const r = player.reel
+  if (r?.topic) return { name: 'topic-reel', params: { id: r.topic.id }, query: { minutes: String(r.topic.minutes) } }
+  return r
     ? { name: 'player', params: { slug: currentSlug.value }, query: { moments: '1' } }
-    : { name: 'player', params: { slug: currentSlug.value } },
-)
+    : { name: 'player', params: { slug: currentSlug.value } }
+})
 const progress = computed(() =>
   duration.value > 0 ? Math.min(100, (currentTime.value / duration.value) * 100) : 0,
 )

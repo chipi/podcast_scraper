@@ -453,6 +453,18 @@ piece to its design home:
   - **Mine:** every fifth card is the labelled outside-your-usual share.
   - **Empty:** with nothing to show, the rail is hidden.
   - **Telemetry:** reports shown and taps to Umami (`useRailTelemetry('quotes')`).
+- **`ReelTopicsRow`** — Discover's "Minutes on" row (ADR-163 §8 amendment; goal-shaped listening):
+  up to three topics as chips, "▶ 15 min on <topic>" — under Mine the listener's top topics, under
+  Everyone the rising ones — each offered only when its reel has at least two clips. Hidden when
+  there are none.
+- **`TopicReelView`** — **N minutes on a topic** (`/listen/topic/:id?minutes=`): the strongest clips
+  ABOUT the topic from different episodes, back to back (the Moments picker's clip windows; a clip
+  must say what its insight says). The header states what the reel actually runs ("6 clips from
+  different episodes · 1:12"), never the budget. Play starts it; each clip shows its episode, show,
+  what is said and by whom, ‹ ›, and **Keep listening to this episode** (the full episode, which
+  then counts as a listen). Like any reel it never moves a resume point. Leaving the page keeps it
+  playing — the mini-player reads "<topic> · 3 / 6" and reopens it. The end card lists the
+  episodes heard.
 - **`ExploreView`** — **Explore** (`/explore`, ADR-163 §1, 2026-10-11): for looking around, so
   Discover keeps one job.
   - **Trends:** the shared `DiscoveryExplorer` in the shared scope; `?trends=<kind>` selects a kind

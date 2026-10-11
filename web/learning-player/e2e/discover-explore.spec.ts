@@ -196,3 +196,33 @@ test('"Less like this" hides a storyline from Discover; Profile › Interests un
   await page.goto('/browse')
   await expect(page.getByTestId('thread-cards').getByTestId('thread-card').first()).toBeVisible()
 })
+
+test('"15 min on" a topic: clips from different episodes, back to back, then keep listening to one', async ({
+  page,
+}, testInfo) => {
+  // ADR-163 §8 amendment (operator 2026-10-11: goal-shaped listening = a cross-episode reel).
+  await signInIsolated(page, 'discover-topic-reel', testInfo)
+  await page.goto('/browse')
+  await showEveryonesTrends(page)
+  const chip = page.getByTestId('reel-topic-chip').filter({ hasText: 'systems thinking' })
+  await chip.click()
+  await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
+  await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on systems thinking')
+  // The small fixture: the page says what the reel runs, not the fifteen minutes asked for.
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('6 clips from different episodes · 1:12')
+
+  await page.getByTestId('topic-reel-play').click()
+  const current = page.getByTestId('topic-reel-current')
+  await expect(current).toContainText('Clip 1 of 6')
+  // The clip's episode loads asynchronously (resolve, then load): wait for it before comparing.
+  const audioSrc = () => page.evaluate(() => document.querySelector('audio')?.src ?? '')
+  await expect.poll(audioSrc).toContain('/audio/')
+  const first = await audioSrc()
+  await page.getByTestId('topic-reel-next').click()
+  await expect(current).toContainText('Clip 2 of 6')
+  await expect(page.getByTestId('topic-reel-quote')).toContainText('Reliability is a property of the whole system')
+  await expect.poll(audioSrc).not.toBe(first) // the next clip's episode was loaded
+
+  await page.getByTestId('topic-reel-keep').click()
+  await expect(page).toHaveURL(/\/episode\/p02-8fdd7b7f79/)
+})

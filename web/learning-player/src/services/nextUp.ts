@@ -19,7 +19,12 @@ export async function resolveNextUpFor(
   if (!currentSlug) return null
   const next = nextAfter(currentSlug)
   if (!next) return null
+  return resolveNextUpForSlug(next)
+}
 
+/** Something the player can load for ``next``: its audio (a downloaded copy when there is one)
+ *  and the identity the lock screen shows. Also how a topic reel loads each clip's episode. */
+export async function resolveNextUpForSlug(next: string): Promise<NextUp | null> {
   const [src, detail] = await Promise.all([
     getAudioSource(next).catch(() => null),
     getEpisode(next).catch(() => null),

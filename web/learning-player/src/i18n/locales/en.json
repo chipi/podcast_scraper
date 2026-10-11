@@ -501,6 +501,24 @@
     "recapRegion": "Episode recap",
     "closeMini": "Close player"
   },
+  "reel": {
+    "kicker": "Listen",
+    "title": "{minutes} minutes on {topic}",
+    "length": "{clips} clips from different episodes · {time}",
+    "play": "Play {clips} clips",
+    "ofCount": "Clip {n} of {total}",
+    "prev": "Previous clip",
+    "next": "Next clip",
+    "keep": "Keep listening to this episode",
+    "done": "That was {topic}. The episodes:",
+    "again": "Play again",
+    "empty": "Nothing on {topic} to play yet.",
+    "unavailable": "This reel could not be loaded. Try again later.",
+    "progress": "Clips",
+    "mini": "{topic} · {n} / {total}",
+    "row": "Minutes on",
+    "chip": "{minutes} min on {topic}"
+  },
   "moments": {
     "title": "Moments",
     "close": "Close moments and go back",

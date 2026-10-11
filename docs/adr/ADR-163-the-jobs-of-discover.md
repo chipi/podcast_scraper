@@ -77,6 +77,15 @@ fixes those answers so every later rail is built against the same rules.
 8. **A quote card opens the player at the quote's moment.** No separate in-place clip player: the
    episode plays from the time, with its context and capture at hand, under the same rights as any
    playback. Moments stays the way to hear an episode's best parts back to back.
+   *Amended 2026-10-11 (operator: goal-shaped listening is a cross-episode reel):*
+   - **"N minutes on a topic"** is a second reel. It takes the strongest clips about one topic from
+     different episodes, back to back (the Moments picker's clip windows, breadth first), and lives
+     on its own page (`/listen/topic/:id`).
+   - Each clip loads its own episode under the same rights as any playback.
+   - Like Moments, it never moves a resume point or counts as a listen until "Keep listening to
+     this episode" makes it one.
+   - A clip must say what its insight says, so no greetings or ad reads.
+   - The page states what the reel actually runs, never the budget.
 9. **No curation for now.** No editorial lists, no creator Podroll, no social graph. Revisit when
    there are listeners and curators to serve.
 10. **Scope is labelled honestly** (ADR-162): a "Latest from shows you follow" rail holds only

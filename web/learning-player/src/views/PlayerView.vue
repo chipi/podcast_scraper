@@ -1226,7 +1226,8 @@ watch(
   },
   { immediate: true },
 )
-const momentsActive = computed(() => player.reel?.slug === props.slug)
+// An episode reel only: a topic reel's clips are from many episodes and play on their own page.
+const momentsActive = computed(() => player.reel?.slug === props.slug && !player.reel?.topic)
 /** "Nora, host" on the current moment: hosts and guests from the episode's people. */
 const speakerRoles = computed<Record<string, string>>(() => {
   const out: Record<string, string> = {}

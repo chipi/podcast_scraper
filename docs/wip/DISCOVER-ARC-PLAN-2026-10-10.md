@@ -122,7 +122,15 @@ The Discover 2 preview was removed (UI only; its APIs stay).
 - **Mentioned in this episode** (scan #8) — already present, nothing built: the player's Brief
   lists the episode's topics and people as chips that open their entity cards
   (`KnowledgePanel.vue`, `kp-topic-chip` / `kp-person-chip`, with host/guest roles).
-- **Goal-shaped listening** (scan #6) — "15 minutes on X", "Learn X this week".
+- **Goal-shaped listening** ✅ "15 minutes on X" (2026-10-11; operator: a cross-episode reel) (scan
+  #6) — `app_goal_reel` (Moments candidates ABOUT the topic whose quote backs their insight,
+  breadth first, within the budget), `GET /discover/reel` + `/discover/reel-topics`, the player
+  store's `startTopicReel` (each clip loads its episode; no resume-point moves, no listen until
+  "Keep listening"), `TopicReelView` at `/listen/topic/:id`, Discover's `ReelTopicsRow`.
+  ADR-163 §8 amended. The fixture's authored quotes were stamped with their transcript times
+  (`scripts/tools/stamp_authored_quotes.py`; the builder now does it too) — 9 of 16; the other 7
+  are not transcript text (see the fixture review). NOT done: "Learn X this week" (an ordered
+  path); a door on the topic card (its action row was kept lean by the operator — ask first).
 
 ## Step 4 — cold start and control
 

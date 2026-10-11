@@ -33,6 +33,7 @@ import { useAuthStore } from '../stores/auth'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import TrendingScopeButton from '../components/TrendingScopeButton.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
+import ReelTopicsRow from '../components/ReelTopicsRow.vue'
 import { ref } from 'vue'
 import { useTrendingScope } from '../composables/useTrendingScope'
 
@@ -142,6 +143,9 @@ function onShowsSeeAll(): void {
       :load="() => getAnotherViewRecommendations(6)"
       scope="mine"
     />
+
+    <!-- Goal-shaped listening (ADR-163 §8 amendment): fifteen minutes on a topic, across episodes. -->
+    <ReelTopicsRow :scope="auth.isAuthenticated && trendingScope === 'mine' ? 'mine' : 'corpus'" />
 
     <TrendingShowsRail
       :title="t('home.trendingShows')"

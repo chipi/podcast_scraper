@@ -899,6 +899,39 @@ export async function getAnotherViewRecommendations(limit = 6): Promise<Trending
   return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/another-view", { limit })).items
 }
 
+/** One clip of a topic reel (GET /discover/reel). */
+export interface ReelClip {
+  episode: EpisodeSummary
+  insight_id: string
+  text: string
+  quote_text: string
+  speaker: string | null
+  start_ms: number
+  end_ms: number
+}
+export interface TopicReel {
+  topic_id: string
+  topic_label: string
+  minutes: number
+  /** What the reel actually runs — never the budget. */
+  total_seconds: number
+  clips: ReelClip[]
+}
+/** N minutes on a topic (ADR-163 §8 amendment): clips about it across episodes. */
+export async function getTopicReel(topicId: string, minutes = 15): Promise<TopicReel> {
+  return getJSON<TopicReel>("/discover/reel", { topic: topicId, minutes })
+}
+export interface ReelTopic {
+  topic_id: string
+  topic_label: string
+  clips: number
+  total_seconds: number
+}
+/** The topics Discover offers a reel on (each with at least two clips). */
+export async function getReelTopics(scope: "mine" | "corpus"): Promise<ReelTopic[]> {
+  return (await getJSON<{ items?: ReelTopic[] }>("/discover/reel-topics", { scope })).items ?? []
+}
+
 /** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
  *  (ADR-162). The server's one definition, so Browse never re-derives it. */
 export async function getWorldEpisodeSlugs(): Promise<string[]> {

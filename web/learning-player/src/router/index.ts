@@ -196,6 +196,16 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/ExploreView.vue'),
   },
   {
+    // N minutes on a topic: clips across episodes (ADR-163 §8 amendment). `:id` is the topic id.
+    path: '/listen/topic/:id',
+    name: 'topic-reel',
+    component: () => import('../views/TopicReelView.vue'),
+    props: (route) => ({
+      id: String(route.params.id),
+      minutes: Number(route.query.minutes) > 0 ? Number(route.query.minutes) : undefined,
+    }),
+  },
+  {
     // #2273. PUBLIC on purpose: Google Play's listing needs a web address that explains deletion
     // to someone who is not signed in. Signed in, the same page performs it.
     path: '/account/delete',
