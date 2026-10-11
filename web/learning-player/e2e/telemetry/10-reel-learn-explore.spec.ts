@@ -42,20 +42,62 @@ test('a reel reports how it was opened, and what the listener did inside it', as
   expect(sink.rejectedBeacons(), 'Umami accepted every beacon').toEqual([])
 })
 
-test('Learn this week reports where a path started and a step played', async ({ page }) => {
+test('Learn reports a start, a step played and done, a day opened early, Home plays, and a stop', async ({ page }) => {
   const sink = attachSink(page)
   await page.goto('/api/app/auth/login?as=telemetry-learn')
   await page.waitForLoadState('networkidle')
   await page.goto('/browse')
   await showEveryonesTrends(page)
-  await page.getByTestId('learn-subject').filter({ hasText: 'Managing risk across domains' }).click()
+  // Whichever storyline is offered (everyone's momentum is shared state across the run).
+  await page.locator('[data-testid="learn-subject"][data-kind="storyline"]').first().click()
   const start = await sink.waitForEvent('learn_path')
   expect(start.data).toMatchObject({ action: 'start', kind: 'storyline', source: 'discover' })
 
-  await page.getByTestId('learn-this-week').getByTestId('learn-step-play').click()
-  await expect.poll(() => sink.byName('learn_path').map((e) => e.data?.action)).toContain('step_play')
-  const play = sink.byName('learn_path').find((e) => e.data?.action === 'step_play')!
-  expect(play.data).toMatchObject({ kind: 'storyline', day: 1 })
+  // Its week: today's day played (it navigates away, so come back), done, the next opened early.
+  await expect(page).toHaveURL(/\/learn\?subject=/)
+  const week = page.url()
+  const today = page.locator('[data-testid="learn-step"][data-open="true"]')
+  await today.getByTestId('learn-step-play').click()
+  const actions = () => sink.byName('learn_path').map((e) => `${e.data?.action}:${e.data?.source ?? ''}`)
+  await expect.poll(actions).toContain('step_play:')
+  expect(sink.byName('learn_path').find((e) => e.data?.action === 'step_play')!.data).toMatchObject({ kind: 'storyline', day: 1 })
+  await page.goto(week)
+  await page.locator('[data-testid="learn-step"][data-open="true"]').getByTestId('learn-step-mark-done').click()
+  await expect.poll(actions).toContain('step_done:')
+  await page.locator('[data-testid="learn-step"][data-open="true"]').getByTestId('learn-step-next').click()
+  await expect.poll(actions).toContain('open_next:')
+  expect(sink.byName('learn_path').find((e) => e.data?.action === 'open_next')!.data).toMatchObject({ day: 2 })
+
+  // Home's "In progress": the day played from there says so.
+  await page.goto('/')
+  await page.getByTestId('in-progress-learn').first().getByTestId('in-progress-learn-play').click()
+  await expect.poll(actions).toContain('step_play:in_progress')
+
+  await page.goto(week)
+  await page.getByTestId('learn-stop').click()
+  await page.getByTestId('learn-stop-yes').click()
+  await expect.poll(actions).toContain('stop:')
+  expect(JSON.stringify(sink.byName('learn_path').map((e) => e.raw))).not.toMatch(/thc:|tc:|topic:|episode\//)
+  expect(sink.rejectedBeacons(), 'Umami accepted every beacon').toEqual([])
+})
+
+test('a short listen left unfinished reports its resume from Home', async ({ page }) => {
+  const sink = attachSink(page)
+  await page.goto('/api/app/auth/login?as=telemetry-resume')
+  await page.waitForLoadState('networkidle')
+  await page.goto('/browse')
+  await showEveryonesTrends(page)
+  await page.getByTestId('reel-topic-chip').first().click()
+  await expect(page.getByTestId('topic-reel-current')).toBeVisible()
+  await page.getByTestId('topic-reel-next').click()
+  await expect
+    .poll(async () => (await (await page.request.get('/api/app/discover/in-progress')).json()).reel?.index)
+    .toBe(1)
+  await page.goto('/')
+  await page.getByTestId('in-progress-reel-resume').click()
+  await expect
+    .poll(() => sink.byName('reel_open').map((e) => e.data?.source))
+    .toContain('in_progress')
   expect(sink.rejectedBeacons(), 'Umami accepted every beacon').toEqual([])
 })
 

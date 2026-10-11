@@ -260,6 +260,17 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   await expect(current).toContainText('Clip 5 of 9')
   await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(4)
 
+  // Left unfinished, Home's "In progress" resumes it at clip 5 (the place is kept on the server).
+  await expect
+    .poll(async () => (await (await page.request.get('/api/app/discover/in-progress')).json()).reel?.index)
+    .toBe(4)
+  await page.goto('/')
+  const resume = page.getByTestId('in-progress-reel')
+  await expect(resume).toContainText('Short listen · clip 5 of 9')
+  await resume.getByTestId('in-progress-reel-resume').click()
+  await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15&at=5/)
+  await expect(current).toContainText('Clip 5 of 9')
+
   await page.getByTestId('topic-reel-keep').click()
   await expect(page).toHaveURL(/\/episode\/p05-693ecaa09e/)
 })
@@ -290,8 +301,9 @@ test('a short listen from a storyline and a theme: clips about any member topic;
   await expect(page.getByTestId('topic-reel-title')).toHaveText('reliability')
 })
 
-test('Learn X this week: start a path on Discover, do today, see the week, stop', async ({ page }, testInfo) => {
-  // Operator 2026-10-11: a seven-day path, one step a day, progress on the server, no reminders.
+test('Learn X this week: start on Discover, do today, go ahead, find it on Home, stop', async ({ page }, testInfo) => {
+  // Operator 2026-10-11: a seven-day path, one day a day or faster, up to three at once; Home's
+  // "In progress" is the door back into it.
   await signInIsolated(page, 'discover-learn', testInfo)
   await page.goto('/browse')
   await showEveryonesTrends(page)
@@ -304,24 +316,27 @@ test('Learn X this week: start a path on Discover, do today, see the week, stop'
   const label = ((await subject.textContent()) ?? '').replace(/ · 7 days$/, '').trim()
   await subject.click()
 
-  await expect(section.getByTestId('learn-title')).toHaveText(`Learn ${label} this week`)
-  await expect(section.getByTestId('learn-day')).toHaveText('Day 1 of 7')
-  await expect(section.getByTestId('learn-dot')).toHaveCount(7)
-  const today = section.getByTestId('learn-step')
+  // Starting opens its week, on day 1.
+  await expect(page).toHaveURL(/\/learn\?subject=thc/)
+  await expect(page.getByTestId('learn-view-title')).toHaveText(label)
+  const today = page.locator('[data-testid="learn-step"][data-open="true"]')
   await expect(today).toHaveAttribute('data-day', '1')
   await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1$/)
   await today.getByTestId('learn-step-mark-done').click()
   await expect(today.getByTestId('learn-step-done-mark')).toBeVisible()
   // A day a day is the rhythm, not a wall: once today's is done, the next can open now.
   await today.getByTestId('learn-step-next').click()
-  await expect(section.getByTestId('learn-day')).toHaveText('Day 2 of 7')
-  await expect(section.getByTestId('learn-step')).toHaveAttribute('data-day', '2')
-
-  await section.getByTestId('learn-see-week').click()
-  await expect(page).toHaveURL(/\/learn$/)
-  await expect(page.getByTestId('learn-step')).toHaveCount(7)
-  await expect(page.getByTestId('learn-step-locked')).toHaveCount(5) // never early unless opened
   await expect(page.locator('[data-testid="learn-step"][data-open="true"]')).toHaveAttribute('data-day', '2')
+  await expect(page.getByTestId('learn-step-locked')).toHaveCount(5) // never early unless opened
+
+  // Home's "In progress" is the door back: day 2, playable from its clip.
+  await page.goto('/')
+  const card = page.getByTestId('in-progress-learn').filter({ hasText: label })
+  await expect(card).toContainText('Learn · day 2 of 7')
+  await expect(card.getByTestId('in-progress-learn-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1$/)
+  await card.getByTestId('in-progress-learn-open').click()
+  await expect(page).toHaveURL(/\/learn\?subject=thc/)
+
   await page.getByTestId('learn-stop').click()
   await page.getByTestId('learn-stop-yes').click()
   await expect(page).toHaveURL(/\/browse/)

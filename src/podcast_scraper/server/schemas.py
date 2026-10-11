@@ -1269,16 +1269,57 @@ class AppLearnSubject(BaseModel):
 
 
 class AppLearnResponse(BaseModel):
-    """GET /discover/learn: the listener's path, or what they could start one on."""
+    """GET /discover/learn: the listener's paths, and what else they could start one on."""
 
-    path: AppLearningPath | None = None
-    candidates: list[AppLearnSubject] = Field(default_factory=list)
+    paths: list[AppLearningPath] = Field(default_factory=list)
+    candidates: list[AppLearnSubject] = Field(
+        default_factory=list, description="Empty at max_paths: a new path needs one stopped."
+    )
+    max_paths: int
 
 
 class AppLearnStart(BaseModel):
     """POST /discover/learn: the subject to learn this week."""
 
     subject_id: str = Field(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
+    replace: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=200,
+        pattern=r"^(topic|tc|thc):",
+        description="A path to stop in the same request (at max_paths).",
+    )
+
+
+class AppReelProgressIn(BaseModel):
+    """PUT /discover/reel/progress: where an unfinished short listen is."""
+
+    subject_id: str = Field(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
+    index: int = Field(ge=0, le=500, description="The clip playing, 0-based.")
+    clips: int = Field(ge=1, le=500)
+
+
+class AppReelProgress(BaseModel):
+    """The last short listen left unfinished, to resume."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
+    index: int = Field(description="The clip to resume at, 0-based.")
+    clips: int
+    updated_at: int
+    episode: AppEpisodeSummary | None = Field(
+        default=None, description="The episode of the clip it resumes at (its artwork, its title)."
+    )
+    speaker: str | None = None
+    quote_text: str = ""
+
+
+class AppInProgress(BaseModel):
+    """GET /discover/in-progress: what the listener started and has not finished — Home's door."""
+
+    paths: list[AppLearningPath] = Field(default_factory=list)
+    reel: AppReelProgress | None = None
 
 
 class AppReelTopic(BaseModel):

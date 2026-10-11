@@ -640,12 +640,14 @@ export const usePlayerStore = defineStore('player', () => {
     topic: ReelTopic,
     moments: ReelMoment[],
     resolve: (slug: string) => Promise<NextUp | null>,
+    startIndex = 0,
   ): Promise<boolean> {
     const playable = moments.filter((m) => m.slug)
     if (!playable.length) return false
     reelResolve = resolve
-    reel.value = { slug: playable[0].slug!, topic, moments: playable, index: 0, returnTo: 0, done: false }
-    await reelGo(0)
+    const at = Math.max(0, Math.min(playable.length - 1, startIndex))
+    reel.value = { slug: playable[at].slug!, topic, moments: playable, index: at, returnTo: 0, done: false }
+    await reelGo(at)
     return true
   }
   let reelResolve: ((slug: string) => Promise<NextUp | null>) | null = null

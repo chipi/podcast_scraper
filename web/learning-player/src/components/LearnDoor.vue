@@ -6,8 +6,9 @@
  * (operator 2026-10-11: two separate options). The calendar mark says it starts a week.
  *
  * - Shown only when the subject has a path (`GET /discover/learn/subjects/{id}`).
- * - Already learning this: "Day 3 of 7 ›", to the whole week.
- * - Learning something else: starting replaces it, so it asks in place first.
+ * - Already learning this: "Learning · day 3 of 7 ›", to its week.
+ * - Up to three paths at once (operator 2026-10-11); at three, starting replaces the oldest, so it
+ *   asks in place first.
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,7 +21,9 @@ const props = defineProps<{ subjectId: string }>()
 const { t } = useI18n()
 const router = useRouter()
 const subject = ref<LearnSubject | null>(null)
-const current = ref<LearningPath | null>(null)
+/** The listener's paths, oldest first. */
+const paths = ref<LearningPath[]>([])
+const maxPaths = ref(3)
 const confirming = ref(false)
 const busy = ref(false)
 
@@ -34,23 +37,29 @@ async function load(): Promise<void> {
   ])
   if (run !== latest) return
   subject.value = s
-  current.value = mine?.path ?? null
+  paths.value = mine?.paths ?? []
+  maxPaths.value = mine?.max_paths ?? 3
 }
 watch(() => props.subjectId, load, { immediate: true })
 
-const learningThis = computed(() => current.value?.subject_id === props.subjectId)
+const current = computed(() => paths.value.find((p) => p.subject_id === props.subjectId) ?? null)
+const learningThis = computed(() => current.value !== null)
+/** At the cap, starting this replaces the oldest path. */
+const replaces = computed(() =>
+  !learningThis.value && paths.value.length >= maxPaths.value ? paths.value[0] : null,
+)
 
 async function start(): Promise<void> {
   if (!subject.value || busy.value) return
-  if (current.value && !confirming.value) {
+  if (replaces.value && !confirming.value) {
     confirming.value = true
     return
   }
   busy.value = true
   try {
-    await startLearn(props.subjectId)
+    await startLearn(props.subjectId, replaces.value?.subject_id)
     track('learn_path', { action: 'start', kind: subject.value.subject_kind, source: 'subject_page' })
-    void router.push({ name: 'learn' })
+    void router.push({ name: 'learn', query: { subject: props.subjectId } })
   } catch {
     // Nothing started: the door stays.
   } finally {
@@ -63,7 +72,7 @@ async function start(): Promise<void> {
   <template v-if="subject">
     <RouterLink
       v-if="learningThis && current"
-      :to="{ name: 'learn' }"
+      :to="{ name: 'learn', query: { subject: props.subjectId } }"
       class="lp-tap inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold no-underline transition bg-learn/15 text-learn ring-1 ring-inset ring-learn/40 hover:bg-learn/25"
       data-testid="learn-door"
     ><CalendarMark />{{ t('learn.doorDay', { n: current.day, total: current.steps.length }) }} ›</RouterLink>
@@ -76,7 +85,7 @@ async function start(): Promise<void> {
       @click="start"
     ><CalendarMark />{{ t('learn.door', { days: subject.steps }) }}</button>
     <span v-else class="inline-flex flex-wrap items-center gap-x-3 text-xs" role="group" data-testid="learn-door-confirm">
-      <span class="text-muted">{{ t('learn.doorReplaces', { subject: current?.subject_label ?? '' }) }}</span>
+      <span class="text-muted">{{ t('learn.atCap', { subject: replaces?.subject_label ?? '' }) }}</span>
       <button type="button" class="lp-tap min-h-[44px] font-bold text-accent" :disabled="busy" data-testid="learn-door-yes" @click="start">{{ t('learn.doorStart') }}</button>
       <button type="button" class="lp-tap min-h-[44px] font-bold" data-testid="learn-door-no" @click="confirming = false">{{ t('learn.doorCancel') }}</button>
     </span>

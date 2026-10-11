@@ -43,6 +43,7 @@ import CollectionsTeaser from "../components/CollectionsTeaser.vue"
 import RevisitRail from "../components/RevisitRail.vue"
 import SectionHeading from "../components/SectionHeading.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
+import InProgressStrip from "../components/InProgressStrip.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import CardRail from "../components/CardRail.vue"
 import SectionStatus from "../components/SectionStatus.vue"
@@ -396,6 +397,9 @@ async function loadContinue(): Promise<void> {
          and silently blank the resume hero, so a user mid-episode lost their place (#1591, S7); it
          now shows the error skeleton below instead. (The old "discover hero" fallback in this slot
          was removed when search moved down — H.3; the top is resume-or-error now.) -->
+    <!-- The door into what was started (operator 2026-10-11): Learn paths and the last unfinished
+         short listen, above Continue listening. -->
+    <InProgressStrip v-if="auth.isAuthenticated" />
     <SectionStatus
       v-if="auth.isAuthenticated && !continueSection.isReady.value"
       :phase="continueSection.phase.value"

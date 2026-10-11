@@ -1152,47 +1152,118 @@ def remove_suggest_less(data_dir: Path, user_id: str, token: str) -> list[dict[s
         return get_suggest_less(data_dir, user_id)
 
 
-# Learn X this week (operator 2026-10-11): ONE frozen seven-day path, or none.
+# Learn X this week (operator 2026-10-11): up to ``MAX_LEARNING_PATHS`` frozen paths, one per
+# subject, oldest first (``learning_paths.json``); and the last unfinished short listen.
 
 
-def get_learning_path(data_dir: Path, user_id: str) -> dict[str, Any] | None:
-    """The listener's current path (``app_learning_path``), or ``None``."""
-    data = _read(data_dir, user_id, "learning_path", None)
-    if not isinstance(data, dict) or not isinstance(data.get("steps"), list):
-        return None
-    return data
+def get_learning_paths(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """The listener's paths (``app_learning_path``), the oldest started first."""
+    data = _read(data_dir, user_id, "learning_paths", [])
+    if not isinstance(data, list):
+        return []
+    return [p for p in data if isinstance(p, dict) and isinstance(p.get("steps"), list)]
 
 
-def set_learning_path(data_dir: Path, user_id: str, path: dict[str, Any] | None) -> None:
-    """Replace the path; ``None`` stops it."""
-    with _user_lock(data_dir, user_id, "learning_path"):
-        _write(data_dir, user_id, "learning_path", path)
+def get_learning_path(data_dir: Path, user_id: str, subject_id: str) -> dict[str, Any] | None:
+    """The listener's path through ``subject_id``, or ``None``."""
+    return next(
+        (p for p in get_learning_paths(data_dir, user_id) if p.get("subject_id") == subject_id),
+        None,
+    )
 
 
-def mark_learning_step_done(data_dir: Path, user_id: str, index: int) -> dict[str, Any] | None:
-    """Record step ``index`` as done (idempotent); the path, or ``None`` without one."""
-    with _user_lock(data_dir, user_id, "learning_path"):
-        path = get_learning_path(data_dir, user_id)
-        if path is None:
+def add_learning_path(
+    data_dir: Path,
+    user_id: str,
+    path: dict[str, Any],
+    *,
+    cap: int,
+    replace: str | None = None,
+) -> dict[str, Any] | None:
+    """Add ``path``; the path kept, or ``None`` at ``cap`` paths with nothing to ``replace``.
+
+    A subject already being learned keeps its path (starting it again changes nothing).
+    ``replace`` names a path to stop in the same write, so one at the cap can swap."""
+    with _user_lock(data_dir, user_id, "learning_paths"):
+        paths = get_learning_paths(data_dir, user_id)
+        same = next((p for p in paths if p.get("subject_id") == path.get("subject_id")), None)
+        if same is not None:
+            return same
+        if replace:
+            paths = [p for p in paths if p.get("subject_id") != replace]
+        if len(paths) >= cap:
             return None
-        done = sorted({int(i) for i in path.get("done") or []} | {int(index)})
-        path = {**path, "done": done}
-        _write(data_dir, user_id, "learning_path", path)
+        _write(data_dir, user_id, "learning_paths", [*paths, path])
         return path
 
 
-def open_next_learning_day(data_dir: Path, user_id: str) -> dict[str, Any] | None:
-    """Open the path's next day early (``app_learning_path.can_open_next`` checked under the lock);
-    the path, or ``None`` without one or when the next day may not be opened."""
+def remove_learning_path(data_dir: Path, user_id: str, subject_id: str) -> bool:
+    """Stop the path through ``subject_id``; whether there was one."""
+    with _user_lock(data_dir, user_id, "learning_paths"):
+        paths = get_learning_paths(data_dir, user_id)
+        kept = [p for p in paths if p.get("subject_id") != subject_id]
+        if len(kept) == len(paths):
+            return False
+        _write(data_dir, user_id, "learning_paths", kept)
+        return True
+
+
+def _update_learning_path(
+    data_dir: Path,
+    user_id: str,
+    subject_id: str,
+    change: Any,
+) -> dict[str, Any] | None:
+    """Apply ``change(path) -> path | None`` to one path under the lock; the new path, or ``None``
+    without that path or when ``change`` declines."""
+    with _user_lock(data_dir, user_id, "learning_paths"):
+        paths = get_learning_paths(data_dir, user_id)
+        for i, p in enumerate(paths):
+            if p.get("subject_id") == subject_id:
+                updated = change(p)
+                if updated is None:
+                    return None
+                paths[i] = updated
+                _write(data_dir, user_id, "learning_paths", paths)
+                return dict(updated)
+        return None
+
+
+def mark_learning_step_done(
+    data_dir: Path, user_id: str, subject_id: str, index: int
+) -> dict[str, Any] | None:
+    """Record step ``index`` of that path as done (idempotent); the path, or ``None`` without it."""
+    return _update_learning_path(
+        data_dir,
+        user_id,
+        subject_id,
+        lambda p: {**p, "done": sorted({int(i) for i in p.get("done") or []} | {int(index)})},
+    )
+
+
+def open_next_learning_day(data_dir: Path, user_id: str, subject_id: str) -> dict[str, Any] | None:
+    """Open that path's next day early (``app_learning_path.can_open_next`` checked under the
+    lock); the path, or ``None`` without it or when the next day may not be opened."""
     from podcast_scraper.server.app_learning_path import can_open_next
 
-    with _user_lock(data_dir, user_id, "learning_path"):
-        path = get_learning_path(data_dir, user_id)
-        if path is None or not can_open_next(path):
-            return None
-        path = {**path, "ahead": int(path.get("ahead") or 0) + 1}
-        _write(data_dir, user_id, "learning_path", path)
-        return path
+    return _update_learning_path(
+        data_dir,
+        user_id,
+        subject_id,
+        lambda p: {**p, "ahead": int(p.get("ahead") or 0) + 1} if can_open_next(p) else None,
+    )
+
+
+def get_reel_progress(data_dir: Path, user_id: str) -> dict[str, Any] | None:
+    """The last short listen left unfinished: ``{subject_id, index, clips, updated_at}``."""
+    data = _read(data_dir, user_id, "reel_progress", None)
+    return data if isinstance(data, dict) and data.get("subject_id") else None
+
+
+def set_reel_progress(data_dir: Path, user_id: str, progress: dict[str, Any] | None) -> None:
+    """Remember where a short listen is (``None``: finished, nothing to resume)."""
+    with _user_lock(data_dir, user_id, "reel_progress"):
+        _write(data_dir, user_id, "reel_progress", progress)
 
 
 # Follow events — an append-only, timestamped log of interest follows (momentum engagement source,

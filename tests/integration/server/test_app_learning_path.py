@@ -1,7 +1,9 @@
 """Learn X this week (operator 2026-10-11): a seven-day path through a theme, storyline or topic.
 
 Over the COMMITTED fixture corpus (read only): the subject's strongest episodes, oldest first, each
-with its best clip ON the subject; frozen at the start; one step opens a day, never early.
+with its best clip ON the subject; frozen at the start; one step opens a day (or early, once the
+newest is done); up to three paths at once; Home's "In progress" lists them with the last
+unfinished short listen.
 """
 
 from __future__ import annotations
@@ -97,7 +99,7 @@ def test_without_a_path_discover_offers_subjects_that_have_one(
     monkeypatch.setenv("APP_MOMENTUM_MIN_TOTAL", "1")
     client, _uid = _client(tmp_path)
     body = client.get("/api/app/discover/learn").json()
-    assert body["path"] is None
+    assert body["paths"] == [] and body["max_paths"] == 3
     assert [(c["subject_id"], c["subject_kind"], c["steps"]) for c in body["candidates"]] == [
         ("tc:reliability", "theme", 7),
         ("thc:managing-risk", "storyline", 7),
@@ -117,27 +119,39 @@ def test_one_step_opens_a_day_never_early_and_the_path_is_frozen(tmp_path: Path)
     )
     assert [s["unlocked"] for s in path["steps"]] == [True] + [False] * 6
     # Today's step can be done; tomorrow's cannot.
-    assert client.post("/api/app/discover/learn/steps/1/done").status_code == 409
-    done = client.post("/api/app/discover/learn/steps/0/done").json()
+    assert (
+        client.post("/api/app/discover/learn/paths/thc:managing-risk/steps/1/done").status_code
+        == 409
+    )
+    done = client.post("/api/app/discover/learn/paths/thc:managing-risk/steps/0/done").json()
     assert [s["done"] for s in done["steps"]][:2] == [True, False]
 
     # Two days on: day 3, three steps open, the first still done; the steps did not move.
-    stored = app_user_state.get_learning_path(tmp_path, uid)
-    assert stored is not None
-    app_user_state.set_learning_path(
-        tmp_path, uid, {**stored, "started_at": stored["started_at"] - 2 * _DAY}
+    stored = app_user_state.get_learning_paths(tmp_path, uid)
+    app_user_state._write(
+        tmp_path,
+        uid,
+        "learning_paths",
+        [{**stored[0], "started_at": stored[0]["started_at"] - 2 * _DAY}],
     )
-    later = client.get("/api/app/discover/learn").json()["path"]
+    later = client.get("/api/app/discover/learn/paths/thc:managing-risk").json()
     assert later["day"] == 3
     assert [s["unlocked"] for s in later["steps"]] == [True] * 3 + [False] * 4
     assert [s["episode"]["slug"] for s in later["steps"]] == [
         s["episode"]["slug"] for s in path["steps"]
     ]
-    assert client.post("/api/app/discover/learn/steps/2/done").status_code == 200
+    assert (
+        client.post("/api/app/discover/learn/paths/thc:managing-risk/steps/2/done").status_code
+        == 200
+    )
 
-    assert client.delete("/api/app/discover/learn").status_code == 204
-    assert client.get("/api/app/discover/learn").json()["path"] is None
-    assert client.post("/api/app/discover/learn/steps/0/done").status_code == 404
+    assert client.delete("/api/app/discover/learn/paths/thc:managing-risk").status_code == 204
+    assert client.get("/api/app/discover/learn").json()["paths"] == []
+    assert (
+        client.post("/api/app/discover/learn/paths/thc:managing-risk/steps/0/done").status_code
+        == 404
+    )
+    assert client.delete("/api/app/discover/learn/paths/thc:managing-risk").status_code == 404
 
 
 def test_once_the_open_day_is_done_the_next_can_be_opened_now(tmp_path: Path) -> None:
@@ -146,23 +160,122 @@ def test_once_the_open_day_is_done_the_next_can_be_opened_now(tmp_path: Path) ->
     client, _uid = _client(tmp_path)
     path = client.post("/api/app/discover/learn", json={"subject_id": "thc:managing-risk"}).json()
     assert path["can_open_next"] is False
-    assert client.post("/api/app/discover/learn/next").status_code == 409  # day 1 not done
-    assert client.post("/api/app/discover/learn/steps/0/done").json()["can_open_next"] is True
-    ahead = client.post("/api/app/discover/learn/next").json()
+    assert (
+        client.post("/api/app/discover/learn/paths/thc:managing-risk/next").status_code == 409
+    )  # day 1 not done
+    assert (
+        client.post("/api/app/discover/learn/paths/thc:managing-risk/steps/0/done").json()[
+            "can_open_next"
+        ]
+        is True
+    )
+    ahead = client.post("/api/app/discover/learn/paths/thc:managing-risk/next").json()
     assert ahead["day"] == 2
     assert [s["unlocked"] for s in ahead["steps"]] == [True, True] + [False] * 5
     assert ahead["can_open_next"] is False
-    assert client.post("/api/app/discover/learn/next").status_code == 409  # day 2 not done
+    assert (
+        client.post("/api/app/discover/learn/paths/thc:managing-risk/next").status_code == 409
+    )  # day 2 not done
     for i in range(1, 7):
-        assert client.post(f"/api/app/discover/learn/steps/{i}/done").status_code == 200
+        assert (
+            client.post(
+                f"/api/app/discover/learn/paths/thc:managing-risk/steps/{i}/done"
+            ).status_code
+            == 200
+        )
         if i < 6:
-            assert client.post("/api/app/discover/learn/next").status_code == 200
-    final = client.get("/api/app/discover/learn").json()["path"]
+            assert (
+                client.post("/api/app/discover/learn/paths/thc:managing-risk/next").status_code
+                == 200
+            )
+    final = client.get("/api/app/discover/learn/paths/thc:managing-risk").json()
     assert final["day"] == 7 and all(s["unlocked"] and s["done"] for s in final["steps"])
     assert final["can_open_next"] is False
-    assert client.post("/api/app/discover/learn/next").status_code == 409  # nothing left
-    client.delete("/api/app/discover/learn")
-    assert client.post("/api/app/discover/learn/next").status_code == 404
+    assert (
+        client.post("/api/app/discover/learn/paths/thc:managing-risk/next").status_code == 409
+    )  # nothing left
+    client.delete("/api/app/discover/learn/paths/thc:managing-risk")
+    assert client.post("/api/app/discover/learn/paths/thc:managing-risk/next").status_code == 404
+
+
+def test_up_to_three_paths_at_once_each_its_own(tmp_path: Path) -> None:
+    """Operator 2026-10-11: several paths at once, capped at three ("a habit, not a backlog").
+    A fourth is refused until one is stopped, or replaces one in the same request; each path keeps
+    its own days; Discover stops offering what is being learned, and offers nothing at the cap."""
+    client, _uid = _client(tmp_path)
+    for sid in ("thc:managing-risk", "thc:second-order-effects", "tc:reliability"):
+        assert client.post("/api/app/discover/learn", json={"subject_id": sid}).status_code == 200
+    again = client.post("/api/app/discover/learn", json={"subject_id": "thc:managing-risk"})
+    assert again.status_code == 200 and again.json()["day"] == 1  # already learning it: unchanged
+    body = client.get("/api/app/discover/learn").json()
+    assert [p["subject_id"] for p in body["paths"]] == [
+        "thc:managing-risk",
+        "thc:second-order-effects",
+        "tc:reliability",
+    ]
+    assert body["candidates"] == []  # at the cap
+    fourth = client.post("/api/app/discover/learn", json={"subject_id": "tc:safety-practices"})
+    assert (fourth.status_code, fourth.json()["detail"]) == (409, "at_cap")
+
+    client.post(
+        "/api/app/discover/learn/paths/thc:managing-risk/steps/0/done"
+    )  # one path's progress is its own
+    other = client.get("/api/app/discover/learn/paths/tc:reliability").json()
+    assert not any(s["done"] for s in other["steps"])
+
+    swapped = client.post(
+        "/api/app/discover/learn",
+        json={"subject_id": "tc:safety-practices", "replace": "tc:reliability"},
+    )
+    assert swapped.status_code == 200, swapped.text
+    left = [p["subject_id"] for p in client.get("/api/app/discover/learn").json()["paths"]]
+    assert left == ["thc:managing-risk", "thc:second-order-effects", "tc:safety-practices"]
+    client.delete("/api/app/discover/learn/paths/thc:managing-risk")
+    offered = client.get("/api/app/discover/learn").json()
+    assert len(offered["paths"]) == 2
+    learning = {p["subject_id"] for p in offered["paths"]}
+    assert not learning & {c["subject_id"] for c in offered["candidates"]}
+
+
+def test_in_progress_lists_the_paths_and_the_last_unfinished_short_listen(tmp_path: Path) -> None:
+    """Home's door (operator 2026-10-11): every path, and the last short listen left unfinished,
+    resumable at its clip; finishing it (DELETE) clears it, and a newer one replaces it."""
+    client, _uid = _client(tmp_path)
+    assert client.get("/api/app/discover/in-progress").json() == {"paths": [], "reel": None}
+    client.post("/api/app/discover/learn", json={"subject_id": "thc:managing-risk"})
+    put = client.put(
+        "/api/app/discover/reel/progress",
+        json={"subject_id": "topic:systems-thinking", "index": 4, "clips": 9},
+    )
+    assert put.status_code == 200, put.text
+    body = client.get("/api/app/discover/in-progress").json()
+    assert [p["subject_id"] for p in body["paths"]] == ["thc:managing-risk"]
+    reel = body["reel"]
+    assert (reel["subject_id"], reel["subject_kind"], reel["subject_label"]) == (
+        "topic:systems-thinking",
+        "topic",
+        "systems thinking",
+    )
+    assert (reel["index"], reel["clips"]) == (4, 9)
+    # The clip it resumes at, for the card: clip 5 of the systems-thinking reel.
+    assert (reel["episode"]["slug"], reel["speaker"]) == ("p05-693ecaa09e", "Scott Bessent")
+    assert reel["quote_text"]
+    client.put(
+        "/api/app/discover/reel/progress",
+        json={"subject_id": "thc:second-order-effects", "index": 99, "clips": 12},
+    )
+    newer = client.get("/api/app/discover/in-progress").json()["reel"]
+    assert (newer["subject_id"], newer["subject_label"], newer["index"]) == (
+        "thc:second-order-effects",
+        "Second-order effects",
+        11,  # clamped to the last clip
+    )
+    bad = client.put(
+        "/api/app/discover/reel/progress", json={"subject_id": "person:x", "index": 0, "clips": 1}
+    )
+    assert bad.status_code == 422
+    assert client.delete("/api/app/discover/reel/progress").status_code == 204
+    assert client.get("/api/app/discover/in-progress").json()["reel"] is None
 
 
 def test_a_subject_without_a_path_cannot_be_started(tmp_path: Path) -> None:

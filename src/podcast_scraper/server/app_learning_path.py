@@ -5,10 +5,11 @@ each step an episode and its best clip ABOUT the subject. The steps are the subj
 episodes (by their best clip, the reel's ranking), then put in the order they were published, so the
 week follows how the conversation developed: oldest first.
 
-The path is frozen when the listener starts it (``learning_path.json``): a corpus that grows during
+The path is frozen when the listener starts it (``learning_paths.json``): a corpus that grows during
 the week does not move the steps under them. Step ``k`` (0-based) opens on day ``k`` after the
-start, counted in whole days since ``started_at`` (UTC); a step can be done late, never early. One
-path at a time; starting another replaces it. Built from what is on disk: no LLM.
+start, counted in whole days since ``started_at`` (UTC); a step can be done late. Up to
+``MAX_PATHS`` at once, one per subject (operator 2026-10-11): a fourth needs one stopped, or
+replaces one in the same request. Built from what is on disk: no LLM.
 
 A day a day is the rhythm, not a wall (operator 2026-10-11): once the newest open day is done, the
 listener may open the next one now (``ahead`` counts the days opened early), so a keen listener can
@@ -33,6 +34,8 @@ from podcast_scraper.server.app_moments import MomentsConfig
 
 #: Days in a path, at most; a subject with fewer good episodes gives a shorter path.
 PATH_DAYS = 7
+#: Paths a listener may follow at once (operator 2026-10-11: "a habit, not a backlog").
+MAX_PATHS = 3
 #: Fewer steps than this is not a path worth a week.
 MIN_STEPS = 3
 #: Days one speaker, or one show, may take (operator 2026-10-11: a week of one host is not a path
@@ -124,14 +127,19 @@ def start_path(
     *,
     config: Optional[MomentsConfig] = None,
     now: Optional[float] = None,
-) -> Optional[dict[str, Any]]:
-    """Freeze a new path for the listener (replacing any) and return it; ``None`` when the subject
-    has too few good episodes for a path."""
+    replace: Optional[str] = None,
+) -> tuple[str, Optional[dict[str, Any]]]:
+    """Freeze a new path for the listener and return ``("ok", path)``. ``("too_few", None)`` when
+    the subject has too few good episodes; ``("at_cap", None)`` with ``MAX_PATHS`` already and no
+    ``replace``. A subject already being learned returns its path unchanged."""
     from podcast_scraper.server import app_user_state
 
+    existing = app_user_state.get_learning_path(data_dir, user_id, subject_id)
+    if existing is not None:
+        return "ok", existing
     steps = build_path(root, subject_id, config)
     if not steps:
-        return None
+        return "too_few", None
     kind, label = subject_label(root, subject_id)
     path = {
         "subject_id": subject_id,
@@ -141,8 +149,8 @@ def start_path(
         "steps": [vars(s) for s in steps],
         "done": [],
     }
-    app_user_state.set_learning_path(data_dir, user_id, path)
-    return path
+    kept = app_user_state.add_learning_path(data_dir, user_id, path, cap=MAX_PATHS, replace=replace)
+    return ("ok", kept) if kept is not None else ("at_cap", None)
 
 
 def day_of(path: dict[str, Any], now: Optional[float] = None) -> int:

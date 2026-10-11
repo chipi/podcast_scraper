@@ -984,15 +984,15 @@ export interface LearnSubject {
   subject_label: string
   steps: number
 }
-/** The listener's seven-day path, or the subjects they could start one on. */
-export async function getLearn(
-  scope: "mine" | "corpus"
-): Promise<{ path: LearningPath | null; candidates: LearnSubject[] }> {
-  const r = await getJSON<{ path: LearningPath | null; candidates?: LearnSubject[] }>(
-    "/discover/learn",
-    { scope }
-  )
-  return { path: r.path ?? null, candidates: r.candidates ?? [] }
+/** The listener's paths (up to `max_paths`) and, below the cap, subjects they could start one on. */
+export interface LearnResponse {
+  paths: LearningPath[]
+  candidates: LearnSubject[]
+  max_paths: number
+}
+export async function getLearn(scope: "mine" | "corpus"): Promise<LearnResponse> {
+  const r = await getJSON<Partial<LearnResponse>>("/discover/learn", { scope })
+  return { paths: r.paths ?? [], candidates: r.candidates ?? [], max_paths: r.max_paths ?? 3 }
 }
 /** Whether a topic, theme or storyline can be learned in a week (`null`: too few episodes). */
 export async function getLearnSubject(subjectId: string): Promise<LearnSubject | null> {
@@ -1003,33 +1003,79 @@ export async function getLearnSubject(subjectId: string): Promise<LearnSubject |
     throw e
   }
 }
-export async function startLearn(subjectId: string): Promise<LearningPath> {
+/** Start a path (one already being learned comes back unchanged). At the cap the server answers
+ *  409 unless `replace` names a path to stop in the same request. */
+export async function startLearn(subjectId: string, replace?: string): Promise<LearningPath> {
   const resp = await apiFetch(`${BASE}/discover/learn`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subject_id: subjectId }),
+    body: JSON.stringify(replace ? { subject_id: subjectId, replace } : { subject_id: subjectId }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn → ${resp.status}`)
   return (await resp.json()) as LearningPath
 }
-export async function learnStepDone(index: number): Promise<LearningPath> {
-  const resp = await apiFetch(`${BASE}/discover/learn/steps/${index}/done`, {
+const pathUrl = (subjectId: string) => `${BASE}/discover/learn/paths/${encodeURIComponent(subjectId)}`
+/** One of the listener's paths (`null`: not learning it). */
+export async function getLearningPath(subjectId: string): Promise<LearningPath | null> {
+  try {
+    return await getJSON<LearningPath>(`/discover/learn/paths/${encodeURIComponent(subjectId)}`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
+export async function learnStepDone(subjectId: string, index: number): Promise<LearningPath> {
+  const resp = await apiFetch(`${pathUrl(subjectId)}/steps/${index}/done`, {
     method: "POST",
     credentials: "include",
   })
-  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/steps → ${resp.status}`)
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/paths/…/done → ${resp.status}`)
   return (await resp.json()) as LearningPath
 }
-/** Open the next day now (only once the newest open day is done; 409 before). */
-export async function learnOpenNext(): Promise<LearningPath> {
-  const resp = await apiFetch(`${BASE}/discover/learn/next`, { method: "POST", credentials: "include" })
-  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/next → ${resp.status}`)
+/** Open a path's next day now (only once its newest open day is done; 409 before). */
+export async function learnOpenNext(subjectId: string): Promise<LearningPath> {
+  const resp = await apiFetch(`${pathUrl(subjectId)}/next`, { method: "POST", credentials: "include" })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/paths/…/next → ${resp.status}`)
   return (await resp.json()) as LearningPath
 }
-export async function stopLearn(): Promise<void> {
-  const resp = await apiFetch(`${BASE}/discover/learn`, { method: "DELETE", credentials: "include" })
-  if (!resp.ok) throw new ApiError(resp.status, `DELETE /discover/learn → ${resp.status}`)
+export async function stopLearn(subjectId: string): Promise<void> {
+  const resp = await apiFetch(pathUrl(subjectId), { method: "DELETE", credentials: "include" })
+  if (!resp.ok && resp.status !== 404) throw new ApiError(resp.status, `DELETE /discover/learn/paths/… → ${resp.status}`)
+}
+
+/** The last short listen left unfinished: where to resume it (`index` is the 0-based clip). */
+export interface ReelProgress {
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
+  index: number
+  clips: number
+  updated_at: number
+  /** The episode of the clip it resumes at (its artwork and title), and what is said there. */
+  episode?: EpisodeSummary | null
+  speaker?: string | null
+  quote_text?: string
+}
+/** Remember where a short listen is, so Home can resume it. */
+export async function putReelProgress(subjectId: string, index: number, clips: number): Promise<void> {
+  const resp = await apiFetch(`${BASE}/discover/reel/progress`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject_id: subjectId, index, clips }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /discover/reel/progress → ${resp.status}`)
+}
+/** The short listen was finished: nothing left to resume. */
+export async function clearReelProgress(): Promise<void> {
+  const resp = await apiFetch(`${BASE}/discover/reel/progress`, { method: "DELETE", credentials: "include" })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /discover/reel/progress → ${resp.status}`)
+}
+/** What the listener started and has not finished: Home's "In progress". */
+export async function getInProgress(): Promise<{ paths: LearningPath[]; reel: ReelProgress | null }> {
+  const r = await getJSON<{ paths?: LearningPath[]; reel?: ReelProgress | null }>("/discover/in-progress")
+  return { paths: r.paths ?? [], reel: r.reel ?? null }
 }
 
 /** The topics, themes and storylines Discover offers a reel on (each with at least two clips). */

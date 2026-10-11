@@ -215,10 +215,12 @@ const routes: RouteRecordRaw[] = [
     }),
   },
   {
-    // Learn X this week: the whole seven-day path (operator 2026-10-11).
+    // Learn X this week: one path's whole week (`?subject=`), or with none named every path the
+    // listener is on (operator 2026-10-11: up to three at once).
     path: '/learn',
     name: 'learn',
     component: () => import('../views/LearnPathView.vue'),
+    props: (route) => ({ subject: typeof route.query.subject === 'string' ? route.query.subject : undefined }),
   },
   {
     // N minutes on a topic: clips across episodes (ADR-163 §8 amendment). `:id` is the topic id.
@@ -228,6 +230,8 @@ const routes: RouteRecordRaw[] = [
     props: (route) => ({
       id: String(route.params.id),
       minutes: Number(route.query.minutes) > 0 ? Number(route.query.minutes) : undefined,
+      // Resume a short listen at this clip (1-based; Home's "In progress").
+      at: Number(route.query.at) > 0 ? Number(route.query.at) : undefined,
     }),
   },
   {

@@ -318,41 +318,57 @@ test('reel', async ({ page }) => {
 
 })
 
+/** Stop every path and forget the short listen: the shared design identity's state, so no shot
+ *  depends on which ran first. */
+async function clearStarted(page: Page): Promise<void> {
+  const body = await (await page.request.get('/api/app/discover/learn')).json()
+  for (const p of body.paths ?? []) {
+    await page.request.delete(`/api/app/discover/learn/paths/${encodeURIComponent(p.subject_id)}`)
+  }
+  await page.request.delete('/api/app/discover/reel/progress')
+}
+
+/** Move a path's start back `days` days in the design server's own state file. */
+async function backdate(subjectId: string, days: number): Promise<void> {
+  const fs = await import('node:fs')
+  const path = await import('node:path')
+  const root = 'e2e/.design-state/users'
+  const file = fs
+    .readdirSync(root)
+    .map((u) => path.join(root, u, 'learning_paths.json'))
+    .filter((f) => fs.existsSync(f))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0]
+  const paths = JSON.parse(fs.readFileSync(file, 'utf8')) as Array<{ subject_id: string; started_at: number }>
+  for (const p of paths) if (p.subject_id === subjectId) p.started_at -= days * 86_400
+  fs.writeFileSync(file, JSON.stringify(paths))
+}
+const pathApi = (id: string) => `/api/app/discover/learn/paths/${encodeURIComponent(id)}`
+
 test('learn', async ({ page }) => {
   await signIn(page)
-  await page.request.delete('/api/app/discover/learn')
+  await clearStarted(page)
   await page.goto(DOORS)
   await expect(page.getByTestId('learn-door')).toBeVisible()
   await page.getByTestId('learn-door').click()
   await expect(page.getByTestId('learn-view-title')).toBeVisible()
   await shoot(page, 'learn')
-  await page.request.delete('/api/app/discover/learn')
+  await clearStarted(page)
 })
 
 // The same path two days in (operator 2026-10-11: "show me day three"): the start is moved back two
 // days in the design server's own state file, and days 1 and 2 are marked done through the API.
 test('learn-day-3', async ({ page }) => {
   await signIn(page)
-  await page.request.delete('/api/app/discover/learn')
+  await clearStarted(page)
   const started = await page.request.post('/api/app/discover/learn', {
     data: { subject_id: 'thc:second-order-effects' },
   })
   expect(started.ok()).toBeTruthy()
-  const fs = await import('node:fs')
-  const path = await import('node:path')
-  const root = 'e2e/.design-state/users'
-  const file = fs
-    .readdirSync(root)
-    .map((u) => path.join(root, u, 'learning_path.json'))
-    .filter((f) => fs.existsSync(f))
-    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0]
-  const state = JSON.parse(fs.readFileSync(file, 'utf8'))
-  state.started_at -= 2 * 86_400
-  fs.writeFileSync(file, JSON.stringify(state))
+  await backdate('thc:second-order-effects', 2)
   for (const i of [0, 1]) {
-    expect((await page.request.post(`/api/app/discover/learn/steps/${i}/done`)).ok()).toBeTruthy()
+    expect((await page.request.post(`${pathApi('thc:second-order-effects')}/steps/${i}/done`)).ok()).toBeTruthy()
   }
-  await page.goto('/learn')
+  await page.goto(`/learn?subject=${encodeURIComponent('thc:second-order-effects')}`)
   await expect(page.getByText('Day 3 of 7')).toBeVisible()
   await shoot(page, 'learn-day-3')
   // An earlier day, tapped open to replay it.
@@ -360,7 +376,28 @@ test('learn-day-3', async ({ page }) => {
   await expect(page.locator('[data-testid="learn-step"][data-day="1"]')).toHaveAttribute('data-open', 'true')
   await settle(page)
   await page.screenshot({ path: dir('learn-day-3-replay-full'), fullPage: true })
-  await page.request.delete('/api/app/discover/learn')
+  await clearStarted(page)
+})
+
+// Home's "In progress" (operator 2026-10-11: "show me how a homepage looks with all this in
+// progress stuff"): two paths at different points, and a short listen left at clip 5.
+test('home-in-progress', async ({ page }) => {
+  await signIn(page)
+  await clearStarted(page)
+  for (const id of ['thc:second-order-effects', 'thc:managing-risk']) {
+    expect((await page.request.post('/api/app/discover/learn', { data: { subject_id: id } })).ok()).toBeTruthy()
+  }
+  await backdate('thc:second-order-effects', 2)
+  for (const i of [0, 1]) await page.request.post(`${pathApi('thc:second-order-effects')}/steps/${i}/done`)
+  await page.request.post(`${pathApi('thc:managing-risk')}/steps/0/done`) // today done: "Next day now"
+  await page.request.put('/api/app/discover/reel/progress', {
+    data: { subject_id: 'topic:systems-thinking', index: 4, clips: 9 },
+  })
+  await page.goto('/')
+  await expect(page.getByTestId('in-progress-learn')).toHaveCount(2)
+  await expect(page.getByTestId('in-progress-reel')).toBeVisible()
+  await shoot(page, 'home-in-progress')
+  await clearStarted(page)
 })
 
 test('moments', async ({ page }) => {

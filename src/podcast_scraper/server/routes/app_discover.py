@@ -73,6 +73,7 @@ from podcast_scraper.server.schemas import (
     AppDiscoverRail,
     AppDiscoverRailsResponse,
     AppEpisodesResponse,
+    AppInProgress,
     AppInterestCluster,
     AppInterestClustersResponse,
     AppInterestSearchResponse,
@@ -84,6 +85,8 @@ from podcast_scraper.server.schemas import (
     AppReason,
     AppRecommendedResponse,
     AppReelClip,
+    AppReelProgress,
+    AppReelProgressIn,
     AppReelTopic,
     AppReelTopicsResponse,
     AppStoryline,
@@ -547,16 +550,19 @@ def app_discover_learn(
     scope: str = Query(default="corpus", description="corpus | mine: whose subjects to offer."),
     user: User = Depends(get_current_user),
 ) -> AppLearnResponse:
-    """Learn X this week (operator 2026-10-11): the listener's seven-day path, or — with none —
-    the themes and storylines they could start one on (under Mine those of their world, under
-    Everyone the rising ones), each only when it has enough good episodes for a path."""
-    from podcast_scraper.server.app_learning_path import path_plan
+    """Learn X this week (operator 2026-10-11): the listener's paths (up to ``MAX_PATHS``), and —
+    below the cap — the themes and storylines they could start one on (under Mine those of their
+    world, under Everyone the rising ones), each only with enough good episodes for a path and
+    none they are already learning."""
+    from podcast_scraper.server.app_learning_path import MAX_PATHS, path_plan
 
     root = corpus_root_or_503(request)
     data_dir = _data_dir(request)
-    path = app_user_state.get_learning_path(data_dir, user.user_id)
-    if path is not None:
-        return AppLearnResponse(path=_path_out(root, path))
+    mine_paths = app_user_state.get_learning_paths(data_dir, user.user_id)
+    paths = [_path_out(root, p) for p in mine_paths]
+    if len(mine_paths) >= MAX_PATHS:
+        return AppLearnResponse(paths=paths, max_paths=MAX_PATHS)
+    learning = {str(p.get("subject_id")) for p in mine_paths}
     mine = scope == "mine"
     restrict = personal_entity_ids(root, data_dir, user.user_id) if mine else None
     # "Less like this" is the listener's, in either scope (operator 2026-10-11).
@@ -576,7 +582,7 @@ def app_discover_learn(
         )
         out: list[AppLearnSubject] = []
         for t in found:
-            if t.entity_id in hidden or len(out) >= LEARN_SUBJECTS:
+            if t.entity_id in hidden or t.entity_id in learning or len(out) >= LEARN_SUBJECTS:
                 continue
             steps = path_plan(root, t.entity_id, config)
             if steps:
@@ -597,7 +603,7 @@ def app_discover_learn(
         limit=LEARN_SUBJECTS,
         key=lambda s: s.subject_id,
     )
-    return AppLearnResponse(candidates=picks)
+    return AppLearnResponse(paths=paths, candidates=picks, max_paths=MAX_PATHS)
 
 
 @router.get("/discover/learn/subjects/{subject_id}", response_model=AppLearnSubject)
@@ -627,26 +633,51 @@ def app_start_learning_path(
     body: AppLearnStart,
     user: User = Depends(get_current_user),
 ) -> AppLearningPath:
-    """Start a seven-day path through the subject, replacing any path the listener had."""
+    """Start a path through the subject (one already being learned is returned unchanged). 409 at
+    ``MAX_PATHS`` unless ``replace`` names one to stop; 422 with too few good episodes."""
     from podcast_scraper.server.app_learning_path import start_path
 
     root = corpus_root_or_503(request)
-    path = start_path(
+    status, path = start_path(
         root,
         _data_dir(request),
         user.user_id,
         body.subject_id,
         config=getattr(request.app.state, "moments_config", None),
+        replace=body.replace,
     )
+    if status == "at_cap":
+        raise HTTPException(status_code=409, detail="at_cap")
     if path is None:
         raise HTTPException(status_code=422, detail="Too few episodes on this for a path.")
     return _path_out(root, path)
 
 
-@router.post("/discover/learn/steps/{index}/done", response_model=AppLearningPath)
+_SUBJECT = PathParam(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
+
+
+def _own_path(request: Request, user: User, subject_id: str) -> dict[str, Any]:
+    path = app_user_state.get_learning_path(_data_dir(request), user.user_id, subject_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="No path on this.")
+    return path
+
+
+@router.get("/discover/learn/paths/{subject_id}", response_model=AppLearningPath)
+def app_learning_path(
+    request: Request, subject_id: str = _SUBJECT, user: User = Depends(get_current_user)
+) -> AppLearningPath:
+    """One of the listener's paths (404: not learning it)."""
+    return _path_out(corpus_root_or_503(request), _own_path(request, user, subject_id))
+
+
+@router.post(
+    "/discover/learn/paths/{subject_id}/steps/{index}/done", response_model=AppLearningPath
+)
 def app_learning_step_done(
     request: Request,
     index: int,
+    subject_id: str = _SUBJECT,
     user: User = Depends(get_current_user),
 ) -> AppLearningPath:
     """Mark a step done. A step opens on its day (or when opened early): one not yet open cannot be
@@ -654,37 +685,105 @@ def app_learning_step_done(
     from podcast_scraper.server.app_learning_path import unlocked
 
     root = corpus_root_or_503(request)
-    data_dir = _data_dir(request)
-    path = app_user_state.get_learning_path(data_dir, user.user_id)
-    if path is None:
-        raise HTTPException(status_code=404, detail="No path.")
-    if not unlocked(path, index):
+    if not unlocked(_own_path(request, user, subject_id), index):
         raise HTTPException(status_code=409, detail="That day has not come yet.")
-    updated = app_user_state.mark_learning_step_done(data_dir, user.user_id, index)
-    assert updated is not None
+    updated = app_user_state.mark_learning_step_done(
+        _data_dir(request), user.user_id, subject_id, index
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="No path on this.")
     return _path_out(root, updated)
 
 
-@router.post("/discover/learn/next", response_model=AppLearningPath)
+@router.post("/discover/learn/paths/{subject_id}/next", response_model=AppLearningPath)
 def app_open_next_learning_day(
-    request: Request, user: User = Depends(get_current_user)
+    request: Request, subject_id: str = _SUBJECT, user: User = Depends(get_current_user)
 ) -> AppLearningPath:
     """Open the next day now (operator 2026-10-11: a day a day is the rhythm, not a wall). Only
-    once the newest open day is done (409 before; 404 without a path)."""
+    once the newest open day is done (409 before; 404 without that path)."""
     root = corpus_root_or_503(request)
-    data_dir = _data_dir(request)
-    if app_user_state.get_learning_path(data_dir, user.user_id) is None:
-        raise HTTPException(status_code=404, detail="No path.")
-    updated = app_user_state.open_next_learning_day(data_dir, user.user_id)
+    _own_path(request, user, subject_id)
+    updated = app_user_state.open_next_learning_day(_data_dir(request), user.user_id, subject_id)
     if updated is None:
         raise HTTPException(status_code=409, detail="Finish the open day first.")
     return _path_out(root, updated)
 
 
-@router.delete("/discover/learn", status_code=204)
-def app_stop_learning_path(request: Request, user: User = Depends(get_current_user)) -> None:
-    """Stop the listener's path."""
-    app_user_state.set_learning_path(_data_dir(request), user.user_id, None)
+@router.delete("/discover/learn/paths/{subject_id}", status_code=204)
+def app_stop_learning_path(
+    request: Request, subject_id: str = _SUBJECT, user: User = Depends(get_current_user)
+) -> None:
+    """Stop one path (404: not learning it)."""
+    if not app_user_state.remove_learning_path(_data_dir(request), user.user_id, subject_id):
+        raise HTTPException(status_code=404, detail="No path on this.")
+
+
+def _reel_progress_out(root: Path, progress: dict[str, Any], config: Any = None) -> AppReelProgress:
+    """The saved place, with the clip it resumes at (the reel is cached per corpus version, so
+    this costs nothing once it was played)."""
+    from podcast_scraper.server.app_learning_path import subject_label
+
+    subject_id = str(progress["subject_id"])
+    kind, label = subject_label(root, subject_id)
+    index = int(progress.get("index") or 0)
+    clips = goal_reel(root, subject_id, minutes=15, config=config)
+    at = clips[min(index, len(clips) - 1)] if clips else None
+    row = resolve_slug(root, at.episode_slug) if at else None
+    return AppReelProgress(
+        subject_id=subject_id,
+        subject_kind=kind,
+        subject_label=label,
+        index=index,
+        clips=int(progress.get("clips") or 1),
+        updated_at=int(progress.get("updated_at") or 0),
+        episode=row_to_summary(root, row) if row is not None else None,
+        speaker=at.moment.speaker if at else None,
+        quote_text=(at.moment.quote_text or at.moment.text) if at else "",
+    )
+
+
+@router.put("/discover/reel/progress", response_model=AppReelProgress)
+def app_put_reel_progress(
+    request: Request, body: AppReelProgressIn, user: User = Depends(get_current_user)
+) -> AppReelProgress:
+    """Remember where a short listen is, so Home can resume it (operator 2026-10-11: the last one
+    left unfinished). A newer short listen replaces it."""
+    import time
+
+    root = corpus_root_or_503(request)
+    progress = {
+        "subject_id": body.subject_id,
+        "index": min(body.index, body.clips - 1),
+        "clips": body.clips,
+        "updated_at": int(time.time()),
+    }
+    app_user_state.set_reel_progress(_data_dir(request), user.user_id, progress)
+    return _reel_progress_out(root, progress, getattr(request.app.state, "moments_config", None))
+
+
+@router.delete("/discover/reel/progress", status_code=204)
+def app_delete_reel_progress(request: Request, user: User = Depends(get_current_user)) -> None:
+    """The short listen was finished: nothing left to resume."""
+    app_user_state.set_reel_progress(_data_dir(request), user.user_id, None)
+
+
+@router.get("/discover/in-progress", response_model=AppInProgress)
+def app_in_progress(request: Request, user: User = Depends(get_current_user)) -> AppInProgress:
+    """What the listener started and has not finished (operator 2026-10-11, Home's "In progress"):
+    their Learn paths, and the last short listen left unfinished."""
+    root = corpus_root_or_503(request)
+    data_dir = _data_dir(request)
+    reel = app_user_state.get_reel_progress(data_dir, user.user_id)
+    return AppInProgress(
+        paths=[
+            _path_out(root, p) for p in app_user_state.get_learning_paths(data_dir, user.user_id)
+        ],
+        reel=(
+            _reel_progress_out(root, reel, getattr(request.app.state, "moments_config", None))
+            if reel
+            else None
+        ),
+    )
 
 
 def _data_dir(request: Request) -> Path:

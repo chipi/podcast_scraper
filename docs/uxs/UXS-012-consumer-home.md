@@ -83,9 +83,11 @@ Mobile-first single column; on `lg` the rails widen and Home uses the app's max 
 Region order, top to bottom:
 
 1. **Masthead** — app identity kicker + title; account/sign-in affordance (per UXS-011 shell).
-2. **Adaptive hero** (one of two states — see below).
-3. **Continue listening** — *only when not already the hero* (auth; hidden otherwise).
-4. **What's new** — *shipped (#1091) as an editorial **ranked** layout, **not** a horizontal rail*:
+2. **In progress** (`InProgressStrip`, signed in, only when something is) — the door into what
+   was started: Learn paths and the last unfinished short listen (operator 2026-10-11).
+3. **Adaptive hero** (one of two states — see below).
+4. **Continue listening** — *only when not already the hero* (auth; hidden otherwise).
+5. **What's new** — *shipped (#1091) as an editorial **ranked** layout, **not** a horizontal rail*:
    a featured **#01** hero (artwork + gradient + oversized faint numeral) over compact numbered rows
    (02–06, each with artwork), all on screen; "Browse all →" now opens the **Browse hub**
    (`/browse?tab=episodes`, UXS-011), not the standalone catalog.
@@ -95,16 +97,16 @@ Region order, top to bottom:
    (the side-by-side cluster once crushed it to one word per line). Tapping the card or a row OPENS
    the episode, paused, like every episode card; there is no separate ▶. **Only Resume starts
    playback** (`?play=1`) — operator 2026-10-05.
-5. **Discover — tabbed (#4)** — **Rising now** (momentum) / **Trending** / **Storylines** were three
+6. **Discover — tabbed (#4)** — **Rising now** (momentum) / **Trending** / **Storylines** were three
    stacked rails that made Home very tall; they fold into ONE tabbed switcher (`home-discovery`,
    `discovery-tab-{key}`, `rising` default). The **active tab's label IS the section heading** — the
    rails no longer render a duplicate `<h2>`. `v-show` keeps each panel mounted (no refetch on
    switch).
-6. **What's new** — the newest episodes from the shows you follow and about the topics, people,
+7. **What's new** — the newest episodes from the shows you follow and about the topics, people,
    themes and storylines you follow ("New in your shows and topics"); with nothing followed, the newest
    across every show ("New across all shows"). At the bottom of Home since 2026-10-07; it absorbed
    Your Week's new-in-follows / new-in-interests.
-7. **Discover strip** — `home-browse-nav`: a title line ("Explore what people are talking about")
+8. **Discover strip** — `home-browse-nav`: a title line ("Explore what people are talking about")
    over ONE row of chips, **Topics** / **People** / **Themes** / **Storylines** (Themes added
    2026-10-07), each in its kind's colour — the same `kindPill` the Interests page uses, so the colour
    means the kind everywhere (operator 2026-10-08; the inline "Discover" lead-in had pushed a chip onto
@@ -113,8 +115,8 @@ Region order, top to bottom:
    *(Renamed from the old "Browse topics/people" links — operator 2026-09-14. They then pointed at a
    standalone `/trends` page, which was a thinner second copy of a section `/browse` already renders;
    that page is deleted — operator 2026-09-18.)*
-8. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
-9. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
+9. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
+10. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
 
 *("Your shows" — a grid of followed podcasts — was removed from Home operator 2026-09-14: the shows
 you follow already live in Library › Following, so a second copy on Home was redundant.)*
@@ -476,29 +478,47 @@ piece to its design home:
 - **`ReelDoor`** — "▶ 4 min on this" (the reel's real length), a tinted pill the size of the Follow pill, in `listen`
   (emerald, the categorical `cat-3`): it plays now. Never the accent — Follow owns that. It appears only once
   that subject's reel has at least two clips.
-- **`LearnThisWeek`** — Discover's **Learn X this week** (operator 2026-10-11), signed in, under
-  the Short listens row: a seven-day path through a theme or storyline, one step a day.
-  - **Without a path:** "Learn something this week", a line saying what it is, and up to three
-    chips in their kind's colours — "Managing risk across domains · 7 days" — themes and storylines
-    with a path of three to seven days, in the page scope. One tap starts it.
-  - **With a path:** "Learn <subject> this week", "Day 3 of 7" with a dot per day (done, open,
-    not yet), the step to do now (the earliest open day not done; with all done, today's) as a
-    `LearnStep`, and "The whole week ›" to `LearnPathView`.
+- **`InProgressStrip`** — Home's **In progress** (operator 2026-10-11: "what's a door into things I
+  started?"), signed in, above Continue listening, hidden with nothing in progress. One card per
+  Learn path and one for the last short listen left unfinished: a swipe of cards on a phone (each
+  84% wide, so the next peeks), a grid from `md` (three across on `lg`). Each card sits over its
+  episode's artwork (30%, a gradient to the canvas for legibility), with a border in its own colour.
+  - **A path** (`learn`, pink, `CalendarMark`): "LEARN · DAY 3 OF 7", the subject (display type),
+    the day's episode, the week as seven segments (done, open, not yet), and "▶ Play day 3 · 1:24"
+    (the episode at the clip, playing) — the Resume hero's oval, in `learn`, so Home has one play
+    control (operator 2026-10-11). Every open day done: "Day 2 done ✓" with "Next day now ›" (the
+    same oval) in place, or "The next day opens tomorrow"; all done: "All 7 days done ✓". The card opens the
+    week.
+  - **The short listen** (`listen`, emerald): "▶ SHORT LISTEN · CLIP 5 OF 9", the subject, the
+    quote at that clip and its speaker, a bar of clips heard, and "▶ Resume · clip 5" (the same oval,
+    in `listen`).
+  - **Telemetry:** `learn_path` and `reel_open` with `source: in_progress`.
+- **`LearnThisWeek`** — Discover's **Learn something this week** (operator 2026-10-11), signed in,
+  under the Short listens row: where a seven-day path through a theme or storyline starts.
+  - **Offers** (below three paths): a line saying what it is, and up to three chips in their kind's
+    colours — "Managing risk across domains · 7 days" — themes and storylines with a path of three
+    to seven days, in the page scope, none already being learned. One tap starts it and opens its
+    week.
+  - **Learning now:** the paths already on, as `learn` pills "Second-order effects · day 3 of 7 ›"
+    to their weeks (at three, under "What you are learning", with no offers). The day to do is on
+    Home's In progress.
   - **Rules:** the steps are the subject's strongest episodes by their best clip, oldest first, and
     frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late.
     Once the newest open day is done, "Next day now ›" (in `learn`) opens the next one early, so a
-    keen listener can finish in one sitting. One path at a time; starting another replaces it. No
-    reminders.
+    keen listener can finish in one sitting. Up to three paths at once (operator 2026-10-11: "a
+    habit, not a backlog"), one per subject. No reminders.
 - **`LearnDoor`** — "Learn this in 7 days", a tinted pill the size of the Follow pill, in `learn`
   (pink, the categorical `cat-5`) with a small calendar (`CalendarMark`): it starts a week rather
   than playing now. Two colours so the listen row reads as two options (operator 2026-10-11). Signed in, only when the subject has
-  a path. Starting opens the whole week. Already learning it: "Learning · day 3 of 7 ›". Learning something
-  else: "This replaces “Reliability”." with Start / Not now, in place, before anything changes.
+  a path. Starting opens its week. Already learning it: "Learning · day 3 of 7 ›". At three paths:
+  "You are learning 3 things. This replaces “Reliability”, the oldest." with Start / Not now, in
+  place, before anything changes.
 - **`LearnStep`** — one day: "DAY 2" (✓ Done once done), the episode (a link) and its show (two
   lines at most), the clip in the speaker's words with their name, "▶ Play from 1:24" (the
   episode, playing at the clip) and "Done". A day not yet come shows only "Opens on day 4". Closed,
   a day is its label, episode and show, with "✓ Done" or "· Not done yet"; open, a ⌃ closes it.
-- **`LearnPathView`** — **the whole week** (`/learn`), "‹ Back" like every page: the subject, "Day N
+- **`LearnPathView`** — **one path's week** (`/learn?subject=`; with none named, the one path, or
+  with several "What you are learning" and a link each), "‹ Back" like every page: the subject, "Day N
   of 7", every day as a `LearnStep`, only today's open (operator 2026-10-11: "focus on where we
   are"). An earlier day is a closed card; tapping it opens it to replay that day. Then "Stop this path", confirmed in place ("Stop learning this?" Stop / Keep going),
   then back to Discover. Without a path: "You are not learning anything this week." and a link to

@@ -122,10 +122,16 @@ topic, theme and storyline cards.
 
 ### FR7b: Learn X this week
 
-A signed-in listener can start a seven-day path through a theme or storyline from Discover: one
-step a day, each an episode and its best clip on the subject, oldest first. Discover shows "Day 3
-of 7" and the step to do now; `/learn` shows the whole week and stops the path. A day opens on its
-day and can be done late, never early. One path at a time. No reminders (operator 2026-10-11).
+A signed-in listener can start a seven-day path through a theme or storyline from Discover or the
+subject's page: one step a day, each an episode and its best clip on the subject, oldest first. A
+day opens on its day and can be done late; once the newest open day is done, the next can be opened
+now. Up to three paths at once. `/learn?subject=` shows a path's week and stops it. No reminders
+(operator 2026-10-11).
+
+### FR7c: In progress
+
+Home's "In progress" is the door into what the listener started: every Learn path (the day to do,
+playable) and the last short listen left unfinished (resumable at its clip). Operator 2026-10-11.
 
 ### FR8: Explore
 

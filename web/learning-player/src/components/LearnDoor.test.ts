@@ -48,41 +48,48 @@ async function mountDoor() {
 afterEach(() => vi.clearAllMocks())
 
 describe('LearnDoor', () => {
-  it('starts a path and opens the week, when nothing else is being learned', async () => {
+  it('starts a path and opens its week, below three paths without asking', async () => {
     api.getLearnSubject.mockResolvedValue(subject)
-    api.getLearn.mockResolvedValue({ path: null, candidates: [] })
+    api.getLearn.mockResolvedValue({ paths: [pathOn('tc:other', 'Reliability')], candidates: [], max_paths: 3 })
     api.startLearn.mockResolvedValue({})
     const { w, router } = await mountDoor()
     const door = w.get('[data-testid="learn-door"]')
     expect(door.text()).toBe('Learn this in 7 days')
     await door.trigger('click')
     await flushPromises()
-    expect(api.startLearn).toHaveBeenCalledWith('thc:risk')
-    expect(router.currentRoute.value.name).toBe('learn')
+    expect(api.startLearn).toHaveBeenCalledWith('thc:risk', undefined)
+    expect(router.currentRoute.value.fullPath).toBe('/learn?subject=thc:risk')
     expect(tracked.at(-1)).toEqual({
       name: 'learn_path',
       props: { action: 'start', kind: 'storyline', source: 'subject_page' },
     })
   })
 
-  it('asks in place before replacing another path', async () => {
+  it('at three paths asks in place before replacing the oldest', async () => {
     api.getLearnSubject.mockResolvedValue(subject)
-    api.getLearn.mockResolvedValue({ path: pathOn('tc:other', 'Reliability'), candidates: [] })
+    api.getLearn.mockResolvedValue({
+      paths: [pathOn('tc:other', 'Reliability'), pathOn('tc:b', 'B'), pathOn('tc:c', 'C')],
+      candidates: [],
+      max_paths: 3,
+    })
     api.startLearn.mockResolvedValue({})
     const { w } = await mountDoor()
     await w.get('[data-testid="learn-door"]').trigger('click')
     expect(api.startLearn).not.toHaveBeenCalled()
-    expect(w.get('[data-testid="learn-door-confirm"]').text()).toContain('This replaces “Reliability”.')
+    expect(w.get('[data-testid="learn-door-confirm"]').text()).toContain(
+      'You are learning 3 things. This replaces “Reliability”, the oldest.',
+    )
     await w.get('[data-testid="learn-door-yes"]').trigger('click')
     await flushPromises()
-    expect(api.startLearn).toHaveBeenCalledWith('thc:risk')
+    expect(api.startLearn).toHaveBeenCalledWith('thc:risk', 'tc:other')
   })
 
   it('says the day when already learning this, and is absent without a path', async () => {
     api.getLearnSubject.mockResolvedValueOnce(subject)
-    api.getLearn.mockResolvedValue({ path: pathOn('thc:risk', 'Managing risk'), candidates: [] })
+    api.getLearn.mockResolvedValue({ paths: [pathOn('thc:risk', 'Managing risk')], candidates: [], max_paths: 3 })
     const { w } = await mountDoor()
     expect(w.get('[data-testid="learn-door"]').text()).toBe('Learning · day 3 of 7 ›')
+    expect(w.get('[data-testid="learn-door"]').attributes('href')).toBe('/learn?subject=thc:risk')
     api.getLearnSubject.mockResolvedValueOnce(null)
     const none = await mountDoor()
     expect(none.w.find('[data-testid="learn-door"]').exists()).toBe(false)

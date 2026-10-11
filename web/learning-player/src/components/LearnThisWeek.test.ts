@@ -1,6 +1,7 @@
 /**
- * "Learn X this week" on Discover (operator 2026-10-11): subjects to start when there is no path,
- * then the path's day, a dot per day and the step to do now; a step opens on its day.
+ * "Learn something this week" on Discover (operator 2026-10-11): where a path starts — subjects in
+ * their kind's colours, one tap starts a path and opens its week — and the paths already on (up to
+ * three), each a link to its week. The day to do lives on Home's "In progress".
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -9,7 +10,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 
-const api = vi.hoisted(() => ({ getLearn: vi.fn(), startLearn: vi.fn(), learnStepDone: vi.fn() }))
+const api = vi.hoisted(() => ({ getLearn: vi.fn(), startLearn: vi.fn() }))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
 const tracked = vi.hoisted(() => [] as Array<{ name: string; props: unknown }>)
 vi.mock('../services/analytics', async (orig) => ({
@@ -65,49 +66,47 @@ afterEach(() => {
   tracked.length = 0
 })
 
+const offer = { subject_id: 'thc:risk', subject_kind: 'storyline' as const, subject_label: 'Managing risk', steps: 7 }
+
 describe('LearnThisWeek', () => {
-  it('without a path offers subjects in their kind colours, and one tap starts a path', async () => {
-    api.getLearn.mockResolvedValue({
-      path: null,
-      candidates: [{ subject_id: 'thc:risk', subject_kind: 'storyline', subject_label: 'Managing risk', steps: 7 }],
-    })
+  it('offers subjects in their kind colours; one tap starts a path and opens its week', async () => {
+    api.getLearn.mockResolvedValue({ paths: [], candidates: [offer], max_paths: 3 })
     api.startLearn.mockResolvedValue(path(1))
+    await router.push('/')
     const w = mountIt()
     await flushPromises()
     expect(api.getLearn).toHaveBeenCalledWith('mine')
+    expect(w.get('[data-testid="learn-title"]').text()).toBe('Learn something this week')
     const chip = w.get('[data-testid="learn-subject"]')
     expect(chip.text()).toBe('Managing risk · 7 days')
     expect(chip.classes()).toContain('text-storyline')
     await chip.trigger('click')
     await flushPromises()
     expect(api.startLearn).toHaveBeenCalledWith('thc:risk')
-    expect(w.get('[data-testid="learn-title"]').text()).toBe('Learn Managing risk this week')
-    expect(w.get('[data-testid="learn-day"]').text()).toBe('Day 1 of 7')
+    expect(router.currentRoute.value.fullPath).toBe('/learn?subject=thc:risk')
     expect(tracked).toEqual([
       { name: 'learn_path', props: { action: 'start', kind: 'storyline', source: 'discover' } },
     ])
   })
 
-  it('shows the earliest open day not yet done, playable from its clip, and marks it done', async () => {
-    api.getLearn.mockResolvedValue({ path: path(3, [0]), candidates: [] })
-    api.learnStepDone.mockResolvedValue(path(3, [0, 1]))
+  it('lists the paths already on as links to their weeks; at three it offers nothing to start', async () => {
+    api.getLearn.mockResolvedValue({ paths: [path(3, [0]), { ...path(1), subject_id: 'tc:b', subject_label: 'B' }], candidates: [offer], max_paths: 3 })
     const w = mountIt()
     await flushPromises()
-    expect(w.findAll('[data-testid="learn-dot"]')).toHaveLength(7)
-    const now = w.get('[data-testid="learn-step"]')
-    expect(now.attributes('data-day')).toBe('2') // day 1 done, day 2 open and not done
-    expect(w.get('[data-testid="learn-step-play"]').attributes('href')).toBe('/episode/ep-2?t=84&play=1')
-    await w.get('[data-testid="learn-step-mark-done"]').trigger('click')
+    const current = w.findAll('[data-testid="learn-current"]')
+    expect(current.map((c) => c.text())).toEqual(['Managing risk · day 3 of 7 ›', 'B · day 1 of 7 ›'])
+    expect(current[0].attributes('href')).toBe('/learn?subject=thc:risk')
+    expect(w.text()).toContain('Learning now')
+
+    api.getLearn.mockResolvedValue({ paths: [path(1), path(1), path(1)], candidates: [], max_paths: 3 })
+    const full = mountIt()
     await flushPromises()
-    expect(api.learnStepDone).toHaveBeenCalledWith(1)
-    expect(w.get('[data-testid="learn-step"]').attributes('data-day')).toBe('3')
-    expect(tracked.at(-1)).toEqual({ name: 'learn_path', props: { action: 'step_done', kind: 'storyline', day: 2 } })
-    await w.get('[data-testid="learn-step-play"]').trigger('click')
-    expect(tracked.at(-1)).toEqual({ name: 'learn_path', props: { action: 'step_play', kind: 'storyline', day: 3 } })
+    expect(full.find('[data-testid="learn-subject"]').exists()).toBe(false)
+    expect(full.text()).toContain('What you are learning')
   })
 
   it('is hidden with neither a path nor anything to offer', async () => {
-    api.getLearn.mockResolvedValue({ path: null, candidates: [] })
+    api.getLearn.mockResolvedValue({ paths: [], candidates: [], max_paths: 3 })
     const w = mountIt()
     await flushPromises()
     expect(w.find('[data-testid="learn-this-week"]').exists()).toBe(false)
@@ -125,19 +124,17 @@ describe('LearnStep', () => {
 })
 
 describe('LearnThisWeek on a kept-alive Discover', () => {
-  it('re-reads the path on return: stopped on the whole-week page, it offers subjects again', async () => {
+  it('re-reads on return: a path stopped elsewhere is gone, and subjects are offered again', async () => {
     api.getLearn
-      .mockResolvedValueOnce({ path: path(1), candidates: [] })
-      .mockResolvedValue({
-        path: null,
-        candidates: [{ subject_id: 'thc:risk', subject_kind: 'storyline', subject_label: 'Managing risk', steps: 7 }],
-      })
+      .mockResolvedValueOnce({ paths: [path(1), path(1), path(1)], candidates: [], max_paths: 3 })
+      .mockResolvedValue({ paths: [], candidates: [offer], max_paths: 3 })
     setActivePinia(createPinia())
     const tab = await keptAlive(LearnThisWeek, { plugins: [i18n, router], props: { scope: 'mine' } })
-    expect(tab.wrapper.find('[data-testid="learn-title"]').exists()).toBe(true)
+    expect(tab.wrapper.findAll('[data-testid="learn-current"]')).toHaveLength(3)
     await tab.leave()
     await tab.back()
     await flushPromises()
+    expect(tab.wrapper.find('[data-testid="learn-current"]').exists()).toBe(false)
     expect(tab.wrapper.find('[data-testid="learn-subject"]').exists()).toBe(true)
   })
 })

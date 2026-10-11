@@ -47,11 +47,11 @@ const REEL = {
   clips: [clip(1, 'a'), clip(2, 'b'), clip(3, 'a')],
 }
 
-async function mountView() {
+async function mountView(at?: number) {
   setActivePinia(createPinia())
   const player = usePlayerStore()
-  const started = vi.spyOn(player, 'startTopicReel').mockImplementation(async (topic, moments) => {
-    player.reel = { slug: moments[0].slug!, topic, moments, index: 0, returnTo: 0, done: false }
+  const started = vi.spyOn(player, 'startTopicReel').mockImplementation(async (topic, moments, _r, at = 0) => {
+    player.reel = { slug: moments[at].slug!, topic, moments, index: at, returnTo: 0, done: false }
     return true
   })
   const jumped = vi.spyOn(player, 'reelGo').mockImplementation(async (i: number) => {
@@ -60,7 +60,7 @@ async function mountView() {
   api.getTopicReel.mockResolvedValue(REEL)
   await router.push('/listen/topic/thc:x')
   await router.isReady()
-  const w = mount(TopicReelView, { props: { id: 'thc:x' }, global: { plugins: [i18n, router] } })
+  const w = mount(TopicReelView, { props: { id: 'thc:x', at }, global: { plugins: [i18n, router] } })
   await flushPromises()
   return { w, player, started, jumped }
 }
@@ -103,5 +103,13 @@ describe('TopicReelView', () => {
     expect(jumped).toHaveBeenCalledWith(2)
     await flushPromises()
     expect(w.get('[data-testid="topic-reel-current"]').text()).toContain('Clip 3 of 3')
+  })
+
+  it('resumes at the clip Home asks for (`?at=`, 1-based), clamped to the reel', async () => {
+    const { w, started } = await mountView(3)
+    expect(started.mock.calls[0][3]).toBe(2)
+    expect(w.get('[data-testid="topic-reel-current"]').text()).toContain('Clip 3 of 3')
+    const far = await mountView(99)
+    expect(far.started.mock.calls[0][3]).toBe(2)
   })
 })

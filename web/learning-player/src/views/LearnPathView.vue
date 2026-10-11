@@ -1,21 +1,25 @@
 <script setup lang="ts">
 /**
- * The whole week of a "Learn X this week" path (`/learn`, operator 2026-10-11): every day in order,
- * today's open (playable, markable), earlier ones closed with whether they were done (tap to open
- * and replay), later ones saying when they open; "Stop this path" (confirmed in place). Without a
- * path, it says so and points back to Discover.
+ * The whole week of a "Learn X this week" path (`/learn?subject=`, operator 2026-10-11): every day
+ * in order, today's open (playable, markable), earlier ones closed with whether they were done (tap
+ * to open and replay), later ones saying when they open; "Stop this path" (confirmed in place).
+ * With no subject named: the one path straight away, or with several (up to three) a list of them.
+ * Without a path, it says so and points back to Discover.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import BackIcon from '../components/BackIcon.vue'
 import LearnStep from '../components/LearnStep.vue'
-import { getLearn, learnOpenNext, learnStepDone, stopLearn, type LearningPath } from '../services/api'
+import { getLearn, getLearningPath, learnOpenNext, learnStepDone, stopLearn, type LearningPath } from '../services/api'
 import { track } from '../services/analytics'
 
+const props = defineProps<{ subject?: string }>()
 const { t } = useI18n()
 const router = useRouter()
 const path = ref<LearningPath | null>(null)
+/** With no subject named and several paths: the list to choose from. */
+const paths = ref<LearningPath[]>([])
 const loaded = ref(false)
 const busy = ref(false)
 const confirming = ref(false)
@@ -32,18 +36,33 @@ function toggle(day: number): void {
   flipped.value = next
 }
 
-onMounted(async () => {
-  const got = await getLearn('corpus').catch(() => null)
-  path.value = got?.path ?? null
+let latest = 0
+async function load(): Promise<void> {
+  const run = ++latest
+  loaded.value = false
+  flipped.value = new Set()
+  confirming.value = false
+  let one: LearningPath | null = null
+  let all: LearningPath[] = []
+  if (props.subject) {
+    one = await getLearningPath(props.subject).catch(() => null)
+  } else {
+    all = (await getLearn('corpus').catch(() => null))?.paths ?? []
+    if (all.length === 1) one = all[0]
+  }
+  if (run !== latest) return
+  path.value = one
+  paths.value = one ? [] : all
   loaded.value = true
-})
+}
+watch(() => props.subject, load, { immediate: true })
 
 async function markDone(index: number): Promise<void> {
   if (busy.value || !path.value) return
   busy.value = true
   try {
     const kind = path.value.subject_kind
-    path.value = await learnStepDone(index)
+    path.value = await learnStepDone(path.value.subject_id, index)
     track('learn_path', { action: 'step_done', kind, day: index + 1 })
   } catch {
     // Not recorded: the button stays.
@@ -57,7 +76,7 @@ async function openNext(): Promise<void> {
   try {
     const kind = path.value.subject_kind
     const was = path.value.day
-    path.value = await learnOpenNext()
+    path.value = await learnOpenNext(path.value.subject_id)
     flipped.value = new Set() // the new day is "today": it opens, the one just done closes
     track('learn_path', { action: 'open_next', kind, day: was + 1 })
   } catch {
@@ -69,7 +88,7 @@ async function openNext(): Promise<void> {
 async function stop(): Promise<void> {
   if (!path.value) return
   const kind = path.value.subject_kind
-  await stopLearn().catch(() => undefined)
+  await stopLearn(path.value.subject_id).catch(() => undefined)
   track('learn_path', { action: 'stop', kind })
   void router.push({ name: 'browse' })
 }
@@ -115,6 +134,22 @@ function goBack(): void {
           <button type="button" class="lp-tap min-h-[44px] font-bold" data-testid="learn-stop-no" @click="confirming = false">{{ t('learn.stopNo') }}</button>
         </p>
       </div>
+    </template>
+    <template v-else-if="paths.length">
+      <p class="lp-kicker mt-4">{{ t('learn.kicker') }}</p>
+      <h1 class="font-display text-3xl font-extrabold tracking-tight">{{ t('learn.yourPaths') }}</h1>
+      <ul class="mt-6 flex flex-col gap-3">
+        <li v-for="p in paths" :key="p.subject_id">
+          <RouterLink
+            :to="{ name: 'learn', query: { subject: p.subject_id } }"
+            class="lp-tap block rounded-xl border border-border p-4 no-underline"
+            data-testid="learn-path-link"
+          >
+            <span class="block font-semibold text-canvas-foreground">{{ p.subject_label }}</span>
+            <span class="text-sm text-muted">{{ t('learn.dayOf', { n: p.day, total: p.steps.length }) }}</span>
+          </RouterLink>
+        </li>
+      </ul>
     </template>
     <p v-else-if="loaded" class="mt-6 text-sm text-muted" data-testid="learn-none">
       {{ t('learn.none') }}

@@ -84,6 +84,7 @@ import { artworkThumb } from './utils/episode'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
+import { watchReelProgress } from './services/reelProgress'
 import { useCaptureStore } from './stores/capture'
 import { useLibraryStore } from './stores/library'
 import { useCompletedStore } from './stores/completed'
@@ -106,6 +107,11 @@ const queue = useQueueStore()
 const player = usePlayerStore()
 const favorites = useFavoritesStore()
 const router = useRouter()
+// Where a short listen is, for Home's "In progress" (operator 2026-10-11).
+watchReelProgress(
+  () => player.reel,
+  () => !!auth.user,
+)
 
 // Native launch overlay: shown briefly after the native splash hands off, while the app + its first
 // data load behind it (prolongs the branded splash + surfaces the build version). Native only.

@@ -28,7 +28,7 @@ import { usePlayerStore, type ReelMoment } from '../stores/player'
 import { toCountBucket, toRankBucket, track } from '../services/analytics'
 import { episodeArtwork } from '../utils/episode'
 
-const props = defineProps<{ id: string; minutes?: number }>()
+const props = defineProps<{ id: string; minutes?: number; at?: number }>()
 const { t } = useI18n()
 const router = useRouter()
 const player = usePlayerStore()
@@ -47,7 +47,9 @@ onMounted(async () => {
   // No start page: the reel starts at once. Opened by a tap (a pill, a door) the audio plays; where
   // the browser blocks it (a link, a reload: no tap behind it) the reel waits on clip 1 and the
   // card's ▶ resumes it. A reel already playing (back from the mini-player) is left as it is.
-  if (data.value.clips.length && !live.value) void start()
+  // `at` (1-based) resumes a short listen at that clip (Home's "In progress").
+  const at = Math.min(Math.max(1, props.at ?? 1), data.value.clips.length) - 1
+  if (data.value.clips.length && !live.value) void start(at)
 })
 
 const moments = computed<ReelMoment[]>(() =>
@@ -128,8 +130,8 @@ async function start(at = 0): Promise<void> {
     { id: props.id, label: data.value.subject_label, minutes: budget.value },
     moments.value,
     resolveNextUpForSlug,
+    at,
   )
-  if (at > 0) await player.reelGo(at)
 }
 /** ▶ / ❚❚ on the card: start the reel, or pause and resume it (never a `play_start`: a reel is
  *  not a listen). */

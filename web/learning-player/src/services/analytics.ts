@@ -446,17 +446,18 @@ export type EventProps = {
     items: CountBucket
     scope: 'mine' | 'everyone'
   }
-  /** Learn X this week: a path started (and from where), a step played or done (its 1-based day),
-   *  or the path stopped. */
+  /** Learn X this week: a path started (and from where), a step played (from its week or Home's "In
+   *  progress") or done (its 1-based day), the next day opened early, or the path stopped. */
   learn_path: {
     action: 'start' | 'step_play' | 'step_done' | 'open_next' | 'stop'
     kind: 'topic' | 'theme' | 'storyline'
     day?: number
-    source?: 'discover' | 'subject_page'
+    source?: 'discover' | 'subject_page' | 'in_progress'
   }
-  /** A short listen opened: from Discover's Short listens row or a subject page's "N min on this". */
+  /** A short listen opened: from Discover's Short listens row, a subject page's "N min on this", or
+   *  resumed from Home's "In progress". */
   reel_open: {
-    source: 'discover_row' | 'subject_page'
+    source: 'discover_row' | 'subject_page' | 'in_progress'
     kind: 'topic' | 'theme' | 'storyline'
   }
   /** Inside a reel: started, a clip skipped back or on, "Keep listening to this episode" (it became

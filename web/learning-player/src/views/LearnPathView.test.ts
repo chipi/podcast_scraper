@@ -6,7 +6,13 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 
-const api = vi.hoisted(() => ({ getLearn: vi.fn(), learnStepDone: vi.fn(), stopLearn: vi.fn(), learnOpenNext: vi.fn() }))
+const api = vi.hoisted(() => ({
+  getLearn: vi.fn(),
+  getLearningPath: vi.fn(),
+  learnStepDone: vi.fn(),
+  stopLearn: vi.fn(),
+  learnOpenNext: vi.fn(),
+}))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
 
 import LearnPathView from './LearnPathView.vue'
@@ -37,26 +43,24 @@ const step = (day: number, unlocked: boolean) => ({
 
 afterEach(() => vi.clearAllMocks())
 
+const base = { subject_id: 'tc:x', subject_kind: 'theme', subject_label: 'Reliability', started_at: 0 }
+
+async function mountOn(path = '/learn?subject=tc:x', subject: string | null = 'tc:x') {
+  setActivePinia(createPinia())
+  const router = makeRouter()
+  await router.push(path)
+  await router.isReady()
+  const w = mount(LearnPathView, { props: { subject: subject ?? undefined }, global: { plugins: [i18n, router] } })
+  await flushPromises()
+  return { w, router }
+}
+
 describe('LearnPathView', () => {
-  it('lists every day, and Stop asks first, then stops and returns to Discover', async () => {
-    api.getLearn.mockResolvedValue({
-      path: {
-        subject_id: 'tc:x',
-        subject_kind: 'theme',
-        subject_label: 'Reliability',
-        started_at: 0,
-        day: 2,
-        steps: [1, 2, 3, 4, 5, 6, 7].map((d) => step(d, d <= 2)),
-      },
-      candidates: [],
-    })
+  it('lists every day of the path named, and Stop asks first, then stops that path', async () => {
+    api.getLearningPath.mockResolvedValue({ ...base, day: 2, steps: [1, 2, 3, 4, 5, 6, 7].map((d) => step(d, d <= 2)) })
     api.stopLearn.mockResolvedValue(undefined)
-    setActivePinia(createPinia())
-    const router = makeRouter()
-    await router.push('/learn')
-    await router.isReady()
-    const w = mount(LearnPathView, { global: { plugins: [i18n, router] } })
-    await flushPromises()
+    const { w, router } = await mountOn()
+    expect(api.getLearningPath).toHaveBeenCalledWith('tc:x')
     expect(w.get('[data-testid="learn-view-title"]').text()).toBe('Reliability')
     expect(w.findAll('[data-testid="learn-step"]')).toHaveLength(7)
     expect(w.findAll('[data-testid="learn-step-locked"]')).toHaveLength(5)
@@ -64,22 +68,14 @@ describe('LearnPathView', () => {
     expect(api.stopLearn).not.toHaveBeenCalled()
     await w.get('[data-testid="learn-stop-yes"]').trigger('click')
     await flushPromises()
-    expect(api.stopLearn).toHaveBeenCalled()
+    expect(api.stopLearn).toHaveBeenCalledWith('tc:x')
     expect(router.currentRoute.value.name).toBe('browse')
   })
 
   it('opens only today; an earlier day is closed with whether it was done, and opens on tap', async () => {
     const steps = [1, 2, 3, 4, 5, 6, 7].map((d) => ({ ...step(d, d <= 3), done: d === 1 }))
-    api.getLearn.mockResolvedValue({
-      path: { subject_id: 'tc:x', subject_kind: 'theme', subject_label: 'R', started_at: 0, day: 3, steps },
-      candidates: [],
-    })
-    setActivePinia(createPinia())
-    const router = makeRouter()
-    await router.push('/learn')
-    await router.isReady()
-    const w = mount(LearnPathView, { global: { plugins: [i18n, router] } })
-    await flushPromises()
+    api.getLearningPath.mockResolvedValue({ ...base, day: 3, steps })
+    const { w } = await mountOn()
     const card = (d: number) => w.get(`[data-testid="learn-step"][data-day="${d}"]`)
     expect(w.findAll('[data-open="true"]').map((c) => c.attributes('data-day'))).toEqual(['3'])
     expect(card(3).find('[data-testid="learn-step-play"]').exists()).toBe(true)
@@ -99,36 +95,41 @@ describe('LearnPathView', () => {
 
   it('"Next day now" on the done newest day opens the next one, which becomes the open card', async () => {
     const steps = [1, 2, 3, 4, 5, 6, 7].map((d) => ({ ...step(d, d === 1), done: d === 1 }))
-    const base = { subject_id: 'tc:x', subject_kind: 'theme', subject_label: 'R', started_at: 0 }
-    api.getLearn.mockResolvedValue({ path: { ...base, day: 1, can_open_next: true, steps }, candidates: [] })
+    api.getLearningPath.mockResolvedValue({ ...base, day: 1, can_open_next: true, steps })
     api.learnOpenNext.mockResolvedValue({
       ...base,
       day: 2,
       can_open_next: false,
       steps: steps.map((s) => ({ ...s, unlocked: s.day <= 2 })),
     })
-    setActivePinia(createPinia())
-    const router = makeRouter()
-    await router.push('/learn')
-    await router.isReady()
-    const w = mount(LearnPathView, { global: { plugins: [i18n, router] } })
-    await flushPromises()
+    const { w } = await mountOn()
     expect(w.findAll('[data-testid="learn-step-next"]')).toHaveLength(1)
     await w.get('[data-testid="learn-step-next"]').trigger('click')
     await flushPromises()
-    expect(api.learnOpenNext).toHaveBeenCalledOnce()
+    expect(api.learnOpenNext).toHaveBeenCalledWith('tc:x')
     expect(w.findAll('[data-open="true"]').map((c) => c.attributes('data-day'))).toEqual(['2'])
     expect(w.find('[data-testid="learn-step-next"]').exists()).toBe(false)
   })
 
+  it('with no subject named: one path shows straight away, several are a list to choose from', async () => {
+    const path = (id: string, label: string) => ({ ...base, subject_id: id, subject_label: label, day: 1, steps: [step(1, true)] })
+    api.getLearn.mockResolvedValueOnce({ paths: [path('tc:x', 'Reliability')], candidates: [], max_paths: 3 })
+    const one = await mountOn('/learn', null)
+    expect(one.w.get('[data-testid="learn-view-title"]').text()).toBe('Reliability')
+    api.getLearn.mockResolvedValueOnce({
+      paths: [path('tc:x', 'Reliability'), path('thc:y', 'Second-order effects')],
+      candidates: [],
+      max_paths: 3,
+    })
+    const two = await mountOn('/learn', null)
+    const links = two.w.findAll('[data-testid="learn-path-link"]')
+    expect(links.map((l) => l.text())).toEqual(['ReliabilityDay 1 of 1', 'Second-order effectsDay 1 of 1'])
+    expect(links[1].attributes('href')).toBe('/learn?subject=thc:y')
+  })
+
   it('without a path says so and points to Discover', async () => {
-    api.getLearn.mockResolvedValue({ path: null, candidates: [] })
-    setActivePinia(createPinia())
-    const router = makeRouter()
-    await router.push('/learn')
-    await router.isReady()
-    const w = mount(LearnPathView, { global: { plugins: [i18n, router] } })
-    await flushPromises()
+    api.getLearningPath.mockResolvedValue(null)
+    const { w } = await mountOn()
     expect(w.get('[data-testid="learn-none"]').text()).toContain('not learning anything')
   })
 })

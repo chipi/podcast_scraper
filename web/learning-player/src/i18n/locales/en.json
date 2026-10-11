@@ -1309,6 +1309,10 @@
     "opensOn": "Opens on day {n}",
     "notDone": "Not done yet",
     "openNext": "Next day now",
+    "yourPaths": "What you are learning",
+    "learningNow": "Learning now",
+    "current": "{subject} · day {n} of {total}",
+    "atCap": "You are learning 3 things. This replaces “{subject}”, the oldest.",
     "expand": "Day {n}: {title}. Open to replay",
     "collapse": "Close day {n}",
     "stop": "Stop this path",
@@ -1319,9 +1323,20 @@
     "toDiscover": "Pick something on Discover",
     "door": "Learn this in {days} days",
     "doorDay": "Learning · day {n} of {total}",
-    "doorReplaces": "This replaces “{subject}”.",
     "doorStart": "Start",
     "doorCancel": "Not now"
+  },
+  "inProgress": {
+    "title": "In progress",
+    "learnKicker": "Learn · day {n} of {total}",
+    "playDay": "Play day {n}",
+    "doneToday": "Day {n} done ✓",
+    "nextTomorrow": "The next day opens tomorrow",
+    "finished": "All {total} days done ✓",
+    "reelKicker": "Short listen · clip {n} of {total}",
+    "resume": "Resume",
+    "clipN": "clip {n}",
+    "resumeLabel": "Resume {subject} at clip {n}"
   },
   "explore": {
     "title": "Explore",
