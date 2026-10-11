@@ -176,6 +176,33 @@ def test_partial_emission_does_not_prune_the_healthy_rows(tmp_path, monkeypatch,
     ), "the refusal must be logged loudly — a silent skip trades data loss for mystery"
 
 
+def test_a_reprocess_that_shrank_slightly_still_prunes(tmp_path, monkeypatch, caplog):
+    """A reprocess with ONE row fewer than before is a superseded run, not a partial artifact.
+
+    The partial-emission guard compared the rows this build kept with EVERYTHING indexed, and that
+    count includes the rows the build itself just wrote (pruning runs last; content-keyed ids are
+    all new after a reprocess). So ``keep * 2 < keep + old`` refused any reprocess that came out
+    smaller by even one row, and the superseded rows stayed searchable beside the new ones: 30 of
+    32 refusals on prod, 2026-10-03..10-11, e.g. "emitted 55 row(s) but 111 are indexed".
+    """
+    import logging
+
+    monkeypatch.setattr(tti, "_embed", _embed_stub)
+    corpus = tmp_path / "corpus"
+    lance = corpus / "search" / "lance_index"
+    _write_run(corpus, "20260101-000000", [f"alpha insight {i}" for i in range(6)])
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+    _write_run(corpus, "20260202-000000", [f"beta insight {i}" for i in range(5)])
+    with caplog.at_level(logging.WARNING, logger="podcast_scraper.search.two_tier_indexer"):
+        tti.build_two_tier_index(corpus, lance, drop_existing=False)
+    texts = {str(r.get("text") or "") for tier in _rows(lance) for r in _rows(lance)[tier]}
+    assert not any(
+        "alpha insight" in t for t in texts
+    ), f"superseded rows survived a slightly smaller reprocess: {sorted(texts)}"
+    assert sum("beta insight" in t for t in texts) == 5
+    assert "REFUSING to prune" not in caplog.text
+
+
 def test_unchanged_episode_is_not_pruned(tmp_path, monkeypatch):
     """The fingerprint skip must keep an untouched episode's rows intact.
 

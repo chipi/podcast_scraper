@@ -523,7 +523,14 @@ def _prune_superseded_rows(
             # really shrank an episode that much is rare enough to be worth a loud log and a
             # deliberate full rebuild (which bypasses this path via ``clear_requested``).
             existing = backend.count_episode_rows(tier, episode_id)
-            if existing and len(keep) * 2 < existing:
+            # The count INCLUDES the rows this build just wrote (pruning runs last), and a reprocess
+            # gives content-keyed rows all-new ids, so an episode that kept its size reads as
+            # "emitted 55, indexed 111". Compared with that total, every reprocess that did not grow
+            # an episode was refused and its superseded rows stayed searchable beside the new ones:
+            # 30 of 32 refusals on prod, 2026-10-03..10-11 (#2187 backfill). The partial-artifact
+            # signature is the build keeping fewer than half of the rows it REPLACES.
+            previous = existing - len(keep)
+            if existing and len(keep) * 2 < previous:
                 refused += 1
                 logger.warning(
                     "two-tier index: REFUSING to prune tier=%s episode_id=%s — this build emitted "
