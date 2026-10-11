@@ -469,6 +469,23 @@ def _without_bled_dominant_hosts(
     }
 
 
+def _declared_guests_not_hosts(
+    declared: Sequence[str], known_hosts: Sequence[str], host_names_lower: AbstractSet[str]
+) -> List[str]:
+    """Declared guest names, minus those that ARE a stated host in the ASR's spelling.
+
+    "I'm joined by RJ Hanaki" is Latent Space's co-host RJ Honicky; as a declared guest the name was
+    forced onto the co-host's own voice (prod replay and gold val_v1 v337, 2026-10-11). The same
+    bounded host snap the self-introduction uses decides it.
+    """
+    return [
+        n
+        for n in declared
+        if n.lower() in host_names_lower
+        or _canonicalize_to_known_host(n, known_hosts).lower() not in host_names_lower
+    ]
+
+
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
@@ -5556,6 +5573,7 @@ def resolve_speaker_roster(
     # "Andy Rachleff" are two edits apart, past the spoken rule, so the host's spoken form stayed
     # spare and was forced onto the co-guest Yung Lie's voice (The Long Run, 2026-10-08) — one
     # person twice, and a guest under someone else's name.
+    declared = _declared_guests_not_hosts(declared, known_hosts or (), host_names_lower)
     guest_names = _spare_guest_names(
         declared,
         host_names_lower,

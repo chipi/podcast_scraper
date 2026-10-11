@@ -1,0 +1,73 @@
+{
+ "why": "F5 (Latent Space, 'Scaling Past Informal AI', prod replay + gold val_v1 v337, 2026-10-11): the presenter says 'I'm joined by RJ Hanaki, the CTO of Neuroomics', the ASR's rendering of the feed's co-host RJ Honicky. The introduced name entered the GUEST pool and was forced onto the co-host's voice as a guest. A declared guest name the bounded host snap maps onto a stated host is that host.",
+ "feed": {
+  "title": "Latent Space: The AI Engineer Podcast",
+  "description": "The podcast by and for AI Engineers.",
+  "hosts": [
+   "RJ Honicky"
+  ]
+ },
+ "episode": {
+  "title": "Scaling Past Informal AI - Carina Hong, Axiom Math"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Carina Hong"
+  ]
+ },
+ "llm": {
+  "G": [
+   "Carina Hong",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "G",
+   30,
+   "But it's for the first time now that verified AI opens up collaboration. The point about proofs keeps changing over the years, part 0. The point about proofs keeps changing over the years, part 1."
+  ],
+  [
+   "B",
+   20,
+   "Welcome to the AI for science podcast. I'm Brandon Anderson, and I'm joined by RJ Hanaki, the CTO of Neuroomics."
+  ],
+  [
+   "G",
+   15,
+   "Welcome to the show. Thank you for having me. Well, super excited to be here."
+  ],
+  [
+   "R",
+   40,
+   "Yeah. Yeah. I have several things I want. The point about verification keeps changing over the years, part 0. The point about verification keeps changing over the years, part 1. The point about verification keeps changing over the years, part 2."
+  ],
+  [
+   "G",
+   700,
+   "The point about mathematics keeps changing over the years, part 0. The point about mathematics keeps changing over the years, part 1. The point about mathematics keeps changing over the years, part 2. The point about mathematics keeps changing over the years, part 3. The point about mathematics keeps changing over the years, part 4. The point about mathematics keeps changing over the years, part 5. The point about mathematics keeps changing over the years, part 6. The point about mathematics keeps changing over the years, part 7. The point about mathematics keeps changing over the years, part 8. The point about mathematics keeps changing over the years, part 9. The point about mathematics keeps changing over the years, part 10. The point about mathematics keeps changing over the years, part 11. The point about mathematics keeps changing over the years, part 12. The point about mathematics keeps changing over the years, part 13. The point about mathematics keeps changing over the years, part 14. The point about mathematics keeps changing over the years, part 15. The point about mathematics keeps changing over the years, part 16. The point about mathematics keeps changing over the years, part 17. The point about mathematics keeps changing over the years, part 18. The point about mathematics keeps changing over the years, part 19. The point about mathematics keeps changing over the years, part 20. The point about mathematics keeps changing over the years, part 21. The point about mathematics keeps changing over the years, part 22. The point about mathematics keeps changing over the years, part 23. The point about mathematics keeps changing over the years, part 24. The point about mathematics keeps changing over the years, part 25. The point about mathematics keeps changing over the years, part 26. The point about mathematics keeps changing over the years, part 27. The point about mathematics keeps changing over the years, part 28. The point about mathematics keeps changing over the years, part 29. The point about mathematics keeps changing over the years, part 30. The point about mathematics keeps changing over the years, part 31. The point about mathematics keeps changing over the years, part 32. The point about mathematics keeps changing over the years, part 33. The point about mathematics keeps changing over the years, part 34. The point about mathematics keeps changing over the years, part 35. The point about mathematics keeps changing over the years, part 36. The point about mathematics keeps changing over the years, part 37. The point about mathematics keeps changing over the years, part 38. The point about mathematics keeps changing over the years, part 39. The point about mathematics keeps changing over the years, part 40. The point about mathematics keeps changing over the years, part 41. The point about mathematics keeps changing over the years, part 42. The point about mathematics keeps changing over the years, part 43. The point about mathematics keeps changing over the years, part 44. The point about mathematics keeps changing over the years, part 45. The point about mathematics keeps changing over the years, part 46. The point about mathematics keeps changing over the years, part 47. The point about mathematics keeps changing over the years, part 48. The point about mathematics keeps changing over the years, part 49. The point about mathematics keeps changing over the years, part 50. The point about mathematics keeps changing over the years, part 51. The point about mathematics keeps changing over the years, part 52. The point about mathematics keeps changing over the years, part 53. The point about mathematics keeps changing over the years, part 54. The point about mathematics keeps changing over the years, part 55. The point about mathematics keeps changing over the years, part 56. The point about mathematics keeps changing over the years, part 57. The point about mathematics keeps changing over the years, part 58. The point about mathematics keeps changing over the years, part 59. The point about mathematics keeps changing over the years, part 60. The point about mathematics keeps changing over the years, part 61. The point about mathematics keeps changing over the years, part 62. The point about mathematics keeps changing over the years, part 63. The point about mathematics keeps changing over the years, part 64. The point about mathematics keeps changing over the years, part 65. The point about mathematics keeps changing over the years, part 66. The point about mathematics keeps changing over the years, part 67. The point about mathematics keeps changing over the years, part 68. The point about mathematics keeps changing over the years, part 69."
+  ],
+  [
+   "R",
+   110,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10."
+  ],
+  [
+   "B",
+   15,
+   "The point about follow ups keeps changing over the years, part 0."
+  ]
+ ],
+ "expect": {
+  "R": {
+   "name_not": [
+    "RJ Hanaki"
+   ]
+  },
+  "G": {
+   "name": "Carina Hong",
+   "role": "guest"
+  }
+ }
+}

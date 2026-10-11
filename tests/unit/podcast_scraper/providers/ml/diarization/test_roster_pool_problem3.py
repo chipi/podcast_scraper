@@ -196,3 +196,14 @@ def test_being_invited_is_the_visitors_reply() -> None:
     ):
         assert _INVITED_REPLY.search(line), line
     assert not _INVITED_REPLY.search("We sent the invitation to him last week.")
+
+
+def test_a_declared_guest_that_is_a_host_in_the_asr_spelling_is_not_a_guest() -> None:
+    # F5 (Latent Space, 2026-10-11): "I'm joined by RJ Hanaki" is the co-host RJ Honicky.
+    from podcast_scraper.providers.ml.diarization.roster import _declared_guests_not_hosts
+
+    hosts = ["RJ Honicky"]
+    lower = {"rj honicky"}
+    assert _declared_guests_not_hosts(["RJ Hanaki", "Carina Hong"], hosts, lower) == ["Carina Hong"]
+    # A guest who merely shares the host's first name stays a guest.
+    assert _declared_guests_not_hosts(["RJ Smith"], hosts, lower) == ["RJ Smith"]
