@@ -605,6 +605,72 @@ def _declare_the_title_guest(
         tr.name(titled, "title_subject", "added")
 
 
+#: The host's own formula around a self-introduction: the show's welcome before it, the co-host
+#: hand-off or the sign-off after it, or the co-host's "And I'm X".
+_HOST_FORMULA_BEFORE = re.compile(r"\bwelcome\s+(?:back\s+)?to\b", re.IGNORECASE)
+_HOST_FORMULA_AFTER = re.compile(
+    r"^[,.]?\s*(?:and\s+)?(?:i'?m\s+|i\s+am\s+)?(?:joined\s+by|here\s+with|one\s+of\s+the"
+    r"|(?:your\s+)?co-?host|you\s+can\s+follow\s+me)",
+    re.IGNORECASE,
+)
+
+
+def _says_it_in_the_host_formula(text: str, name: str) -> bool:
+    for m in re.finditer(re.escape(name), text):
+        before, after = text[max(0, m.start() - 250) : m.start()], text[m.end() : m.end() + 60]
+        if re.search(r"\band\s+i'?m\s+$", before, re.IGNORECASE):
+            return True
+        if _HOST_FORMULA_AFTER.search(after):
+            return True
+        if re.search(r"(?:i'?m|my\s+name\s+is)\s+$", before, re.IGNORECASE) and (
+            _HOST_FORMULA_BEFORE.search(before)
+        ):
+            return True
+    return False
+
+
+def _snap_hosts_by_their_formula(
+    out: Dict[str, str],
+    texts: Mapping[str, str],
+    known_hosts: Sequence[str],
+    share: Optional[Mapping[str, float]] = None,
+) -> None:
+    """A self-introduction said INSIDE the host's own formula is that host even when the ASR
+    misheard the given name too (in place). F5 (prod 2026-10-11): "My name is Alexander Carpi, and
+    I'm joined by Adam Reichardt" (Talk Eastern Europe's Alexandra Karppi), "Welcome to Analyze
+    Podcast... I'm Brennan Leung" (Bernard Leong), Odd Lots' sign-off "And I'm Jill Weisenthal" (Joe
+    Weisenthal): published as guests of their own shows. The strict snaps stay for every other self-
+    intro (a guest "Kevin Ross" is not the host Kevin Roose; James Holland is not Tom Holland). Here
+    the formula vouches for the host role and the surname picks the host: within two edits of
+    exactly one stated host's surname (one edit up to five letters), a host no other voice already
+    carries, on a voice with at least 5% of the talk: "And I'm James Holland from Goalhangers" was a
+    0.5% cross-promo ad.
+    """
+    hosts_lower = {h.lower(): h for h in known_hosts}
+    for v, n in list(out.items()):
+        toks = (n or "").split()
+        if (
+            len(toks) < 2
+            or n.lower() in hosts_lower
+            or (share is not None and share.get(v, 0.0) < 0.05)
+            or not _says_it_in_the_host_formula(texts.get(v, ""), n)
+        ):
+            continue
+        claimed = {x.lower() for u, x in out.items() if u != v and x}
+        last = toks[-1].lower()
+        matches = [
+            h
+            for h in known_hosts
+            if len(h.split()) >= 2
+            and h.lower() not in claimed
+            and min(len(last), len(h.split()[-1])) >= 4
+            and _edit_distance(last, h.split()[-1].lower())
+            <= (1 if max(len(last), len(h.split()[-1])) <= 5 else 2)
+        ]
+        if len(matches) == 1:
+            out[v] = matches[0]
+
+
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
@@ -3839,6 +3905,9 @@ def _self_intro_voice_names(
         # Inside the host gate: if the surname canonicalization did not fire, the strategy may still
         # resolve a garbled host name (community-1's unique-first-name snap for "Casey Noonan").
         out[v] = canon if canon != n else (strategy.snap_extra(n, known_hosts) or n)
+    _snap_hosts_by_their_formula(
+        out, texts, known_hosts, {v: t / total_talk for v, t in talk.items()}
+    )
     return out
 
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+import pytest
+
 from podcast_scraper.providers.ml.diarization.roster import (
     _better_presenter_elsewhere,
     _is_show_mononym,
@@ -256,3 +258,78 @@ def test_a_place_the_show_or_a_title_phrase_is_not_a_person_heard() -> None:
     assert _not_a_person_heard("Consumer AI Ads", None)
     assert not _not_a_person_heard("Sapna Maheshwari", None)
     assert not _not_a_person_heard("Anna Money", None)
+
+
+@pytest.mark.parametrize(
+    ("name", "text", "hosts", "expected"),
+    [
+        (
+            "Alexander Carpi",
+            "news roundup. My name is Alexander Carpi, and I'm joined by Adam Reichardt",
+            ["Alexandra Karppi", "Adam Reichardt"],
+            "Alexandra Karppi",
+        ),
+        (
+            "Brennan Leung",
+            "Welcome to Analyze Podcast, the premier podcast. I'm Brennan Leung and today",
+            ["Bernard Leong"],
+            "Bernard Leong",
+        ),
+        (
+            "Jill Weisenthal",
+            "Let's leave it there. And I'm Jill Weisenthal. You can follow me at the stalwart.",
+            ["Joe Weisenthal", "Tracy Alloway"],
+            "Joe Weisenthal",
+        ),
+        # Outside the host's formula the strict rules stand: different people stay apart.
+        (
+            "James Holland",
+            "Thanks for having me. I'm James Holland, I write about the war.",
+            ["Tom Holland", "Dominic Sandbrook"],
+            "James Holland",
+        ),
+        (
+            "Kevin Ross",
+            "Hi, I'm Kevin Ross from Acme.",
+            ["Kevin Roose", "Casey Newton"],
+            "Kevin Ross",
+        ),
+        (
+            "Anna Weisenthal",
+            "Thanks for having me, Joe. I'm Anna Weisenthal.",
+            ["Joe Weisenthal"],
+            "Anna Weisenthal",
+        ),
+    ],
+)
+def test_a_self_intro_inside_the_host_formula_is_that_host(name, text, hosts, expected) -> None:
+    # F5 (prod 2026-10-11): hosts published as guests of their own shows under the ASR's spelling.
+    from podcast_scraper.providers.ml.diarization.roster import _snap_hosts_by_their_formula
+
+    out = {"A": name}
+    _snap_hosts_by_their_formula(out, {"A": text}, hosts)
+    assert out["A"] == expected
+
+
+def test_the_formula_never_takes_a_host_another_voice_already_carries() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _snap_hosts_by_their_formula
+
+    out = {"A": "Jill Weisenthal", "B": "Joe Weisenthal"}
+    texts = {"A": "And I'm Jill Weisenthal. You can follow me at the stalwart.", "B": "I'm Joe."}
+    _snap_hosts_by_their_formula(out, texts, ["Joe Weisenthal", "Tracy Alloway"])
+    assert out["A"] == "Jill Weisenthal"
+
+
+def test_a_promo_sliver_or_a_short_unlike_surname_is_not_snapped() -> None:
+    # Prod replay 2026-10-11: "And I'm James Holland from Goalhangers" was a 0.5% cross-promo ad;
+    # "Michael Wong" is not the host Zhao Yang (two edits on four-letter surnames).
+    from podcast_scraper.providers.ml.diarization.roster import _snap_hosts_by_their_formula
+
+    out = {"A": "James Holland"}
+    texts = {"A": "And I'm James Holland from Goalhangers. We have ways of making you talk."}
+    _snap_hosts_by_their_formula(out, texts, ["Tom Holland", "Dominic Sandbrook"], {"A": 0.005})
+    assert out["A"] == "James Holland"
+    out = {"A": "Michael Wong"}
+    texts = {"A": "Welcome to Biz Talk. I'm Michael Wong and today"}
+    _snap_hosts_by_their_formula(out, texts, ["Zhao Yang"], {"A": 0.4})
+    assert out["A"] == "Michael Wong"
