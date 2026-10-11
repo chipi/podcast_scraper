@@ -84,6 +84,13 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    // The full text of what a show's feed declares about licence and copyright (#2325).
+    path: '/podcast/:feedId/licence',
+    name: 'podcast-licence',
+    component: () => import('../views/PodcastLicenceView.vue'),
+    props: true,
+  },
+  {
     path: '/episode/:slug',
     name: 'player',
     component: () => import('../views/PlayerView.vue'),

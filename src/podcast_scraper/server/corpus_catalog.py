@@ -210,6 +210,15 @@ def _feed_last_updated(doc: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _feed_licence(doc: dict[str, Any]) -> Optional[str]:
+    """The feed's licence record (#2325) as stored, re-serialised as JSON so the frozen row stays
+    hashable; None when the metadata predates licence capture (read as "not checked")."""
+    feed = doc.get("feed")
+    if isinstance(feed, dict) and isinstance(feed.get("licence"), dict):
+        return json.dumps(feed["licence"], ensure_ascii=False, sort_keys=True)
+    return None
+
+
 def _optional_image_url(raw: Any) -> Optional[str]:
     if isinstance(raw, str) and raw.strip():
         return raw.strip()
@@ -349,6 +358,8 @@ class CatalogEpisodeRow:
     #: per run rather than to the feed's declared tag.
     episode_language: Optional[str] = None
     feed_last_updated: Optional[str] = None
+    #: The feed's licence record (#2325) as JSON, or None (not checked).
+    feed_licence_json: Optional[str] = None
 
     def sort_key(self) -> tuple[int, int, str]:
         """Newest-first: dated episodes before undated; then by ordinal desc; then path."""
@@ -465,6 +476,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_language=feed_lang,
                 episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
+                feed_licence_json=_feed_licence(doc),
             )
         )
     rows.sort(key=lambda r: r.sort_key())
@@ -572,6 +584,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_language=feed_lang,
                 episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
+                feed_licence_json=_feed_licence(doc),
             )
         )
 
@@ -685,6 +698,7 @@ def catalog_row_for_metadata_path(
         feed_language=feed_lang,
         episode_language=_episode_language(doc),
         feed_last_updated=feed_updated,
+        feed_licence_json=_feed_licence(doc),
     )
 
 
@@ -729,6 +743,8 @@ def aggregate_feeds(rows: Iterable[CatalogEpisodeRow]) -> list[dict[str, Any]]:
                 "authors": (),
                 "language": None,
                 "last_updated": None,
+                "licence": None,
+                "licence_history": [],
             },
         )
         bucket["episode_count"] = int(bucket["episode_count"]) + 1
@@ -751,9 +767,42 @@ def aggregate_feeds(rows: Iterable[CatalogEpisodeRow]) -> list[dict[str, Any]]:
         # Newest row wins for last-updated (rows arrive newest-first from the catalog sort).
         if bucket["last_updated"] is None and row.feed_last_updated:
             bucket["last_updated"] = row.feed_last_updated
+        # Licence (#2325): the newest episode's record is the show's; every distinct set of
+        # declarations seen across episodes is kept with the dates it was read, so a change in
+        # what the publisher declares stays visible.
+        if row.feed_licence_json:
+            record = json.loads(row.feed_licence_json)
+            if bucket["licence"] is None:
+                bucket["licence"] = record
+            _note_licence_version(bucket["licence_history"], record)
     out = list(by_id.values())
     out.sort(key=lambda x: (x["feed_id"] == "", x["feed_id"]))
     return out
+
+
+def _note_licence_version(history: list[dict[str, Any]], record: dict[str, Any]) -> None:
+    """Add ``record`` to ``history`` (distinct declaration sets, newest first), widening the
+    first/last-read dates of the set it repeats."""
+    key = json.dumps(
+        [record.get("status"), record.get("declarations")], ensure_ascii=False, sort_keys=True
+    )
+    read = record.get("retrieved_at")
+    for version in history:
+        if version["key"] == key:
+            if read and (not version["first_read"] or read < version["first_read"]):
+                version["first_read"] = read
+            if read and (not version["last_read"] or read > version["last_read"]):
+                version["last_read"] = read
+            return
+    history.append(
+        {
+            "key": key,
+            "status": record.get("status"),
+            "declarations": record.get("declarations") or [],
+            "first_read": read,
+            "last_read": read,
+        }
+    )
 
 
 def feed_display_title_by_feed_id(rows: Iterable[CatalogEpisodeRow]) -> dict[str, str]:

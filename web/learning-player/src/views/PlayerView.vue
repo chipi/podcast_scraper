@@ -229,8 +229,12 @@ const recapNextTitle = ref<string | null>(null)
 const panelOpen = ref(false)
 const descriptionOpen = ref(false)
 const episodeDescription = computed(() => episode.value?.description?.trim() || '')
-/** The obi exists while it has a door to show (Brief needs insights, Description needs text). */
-const obiShown = computed(() => insights.value.length > 0 || !!episodeDescription.value)
+/** The show's copyright / licence line, shown at the foot of About (#2325). */
+const episodeLicence = computed(() => episode.value?.licence_summary?.trim() || '')
+/** About opens for the description, the licence line, or both. */
+const aboutShown = computed(() => !!episodeDescription.value || !!episodeLicence.value)
+/** The obi exists while it has a door to show (Brief needs insights, About needs content). */
+const obiShown = computed(() => insights.value.length > 0 || aboutShown.value)
 /**
  * The notes panel mounts the first time it opens, then stays. A closed <dialog> still renders its
  * children, so every episode built the whole panel — key points, insights, the related rail and its
@@ -1865,7 +1869,7 @@ const { badgeShown } = useCorpusLanguages()
                 <span class="lp-kicker lp-obi-label">{{ t('kp.title') }}</span>
               </button>
               <button
-                v-if="episodeDescription"
+                v-if="aboutShown"
                 type="button"
                 data-testid="player-open-description"
                 class="lp-obi-door"
@@ -2380,11 +2384,13 @@ const { badgeShown } = useCorpusLanguages()
       </dialog>
 
       <EpisodeDescriptionSheet
-        v-if="episodeDescription"
+        v-if="aboutShown"
         :open="descriptionOpen"
         :title="episode.title"
         :show-title="episode.podcast_title ?? null"
         :description="episodeDescription"
+        :licence-summary="episodeLicence || null"
+        :feed-id="episode.feed_id"
         @close="descriptionOpen = false"
       />
 

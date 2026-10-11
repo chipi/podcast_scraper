@@ -113,3 +113,43 @@ describe('EpisodeDescriptionSheet', () => {
     }
   })
 })
+
+describe('EpisodeDescriptionSheet — copyright / licence line (#2325)', () => {
+  async function withLicence(description: string, licenceSummary: string | null) {
+    const { createMemoryHistory, createRouter } = await import('vue-router')
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/podcast/:feedId/licence', name: 'podcast-licence', component: { template: '<div/>' } },
+      ],
+    })
+    const w = mount(EpisodeDescriptionSheet, {
+      props: { open: true, title: 'Ep', description, showTitle: 'Show', licenceSummary, feedId: 'p05' },
+      global: { plugins: [i18n, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    return w
+  }
+
+  it('ends About with the show licence line, linking to its licence page, and closes on tap', async () => {
+    const w = await withLicence('An episode.', '© 2020-2021 THE NEW YORK TIMES COMPANY; The New…')
+    const link = w.get('[data-testid="episode-description-licence"]')
+    expect(link.text()).toBe('© 2020-2021 THE NEW YORK TIMES COMPANY; The New…')
+    expect(link.attributes('href')).toBe('/podcast/p05/licence')
+    await link.trigger('click')
+    expect(w.emitted('close')).toBeTruthy()
+  })
+
+  it('shows the line alone when the episode has no description', async () => {
+    const w = await withLicence('', 'No explicit licence found')
+    expect(w.find('[data-testid="episode-description-text"]').exists()).toBe(false)
+    expect(w.get('[data-testid="episode-description-licence"]').text()).toBe('No explicit licence found')
+  })
+
+  it('has no line when the feed was not checked', async () => {
+    const w = await withLicence('An episode.', null)
+    expect(w.find('[data-testid="episode-description-licence"]').exists()).toBe(false)
+  })
+})

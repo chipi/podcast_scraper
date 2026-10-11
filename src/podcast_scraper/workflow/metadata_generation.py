@@ -51,6 +51,7 @@ from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
 from ..languages import resolve_episode_language
+from ..rss.licence import episode_licence, LicenceRecord
 from ..speaker_detectors.hosts import (
     is_publishable_speaker_name,
     looks_like_publisher,
@@ -460,6 +461,10 @@ class FeedMetadata(BaseModel):
         description="Corpus-relative path to downloaded feed artwork (POSIX).",
     )
     last_updated: Optional[datetime] = None
+    #: What the publisher declares about licence and copyright at channel level (#2325): every
+    #: declaration verbatim, its asset scope, source feed and read time. Evidence, not clearance.
+    #: Absent on metadata written before it existed, which readers treat as "not checked".
+    licence: Optional[LicenceRecord] = None
 
     @field_serializer("last_updated")
     def serialize_last_updated(self, value: Optional[datetime]) -> Optional[str]:
@@ -489,6 +494,9 @@ class EpisodeMetadata(BaseModel):
     language: Optional[str] = None
     #: Where this episode's language came from; same vocabulary as ``FeedMetadata``.
     language_source: Optional[str] = None
+    #: The episode's OWN licence declarations (#2325) -- its ``<podcast:license>``,
+    #: ``<creativeCommons:license>`` and show-note notices. The channel's are not copied in.
+    licence: Optional[LicenceRecord] = None
 
     @field_serializer("published_date")
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
@@ -949,6 +957,7 @@ def _build_feed_metadata(
         category=feed_category,
         image_url=feed_image_url,
         last_updated=feed_last_updated,
+        licence=getattr(feed, "licence", None),
     )
 
 
@@ -3983,6 +3992,16 @@ def _prepare_base_metadata_objects(
         language=feed_metadata.language,
         language_source=feed_metadata.language_source,
     )
+    channel_licence = getattr(feed, "licence", None)
+    item = getattr(episode, "item", None)
+    if channel_licence is not None and item is not None:
+        episode_metadata.licence = episode_licence(
+            item,
+            feed.base_url,
+            channel=channel_licence,
+            source_feed_url=channel_licence.source_feed_url,
+            retrieved_at=channel_licence.retrieved_at,
+        )
     # #2075: ONE speaker record. Placed voices from the diarized segments, then every person a
     # source named but no voice was matched to, each marked. See `_build_speaker_record`.
     speakers, num_speakers = _build_speaker_record(

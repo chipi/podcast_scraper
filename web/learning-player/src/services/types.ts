@@ -131,6 +131,11 @@ export interface EpisodeDetail {
   slug: string
   title: string
   feed_id: string
+  /**
+   * The show's licence line (#2325) as recorded when this episode was ingested; the full text is
+   * the show's licence page. Null when the feed was not checked.
+   */
+  licence_summary?: string | null
   podcast_title: string | null
   publish_date: string | null
   duration_seconds: number | null
@@ -231,6 +236,57 @@ export interface Podcast {
   language?: string | null
   /** Feed lastBuildDate / Atom updated (ISO) when known. */
   last_updated?: string | null
+  /**
+   * One line for the show page (#2325): a recognised licence's name, else the publisher's own
+   * notice shortened, else "No explicit licence found". Null when the feed was not checked.
+   */
+  licence_summary?: string | null
+}
+
+/** A recognised licence and what it says about four uses (#2325). */
+export interface KnownLicence {
+  id: string
+  name: string
+  url: string
+  commercial_use: boolean
+  adaptations: boolean
+  attribution: boolean
+  share_alike: boolean
+}
+
+/** One licence or copyright declaration exactly as the feed carries it (#2325). */
+export interface LicenceDeclaration {
+  level: 'channel' | 'episode'
+  mechanism: 'rss_copyright' | 'podcast_license' | 'creative_commons_license' | 'notice'
+  raw: string
+  url: string | null
+  asset_scope: 'audio_video' | 'unspecified'
+  known: KnownLicence | null
+  notes: string[]
+}
+
+export type LicenceStatus = 'declared' | 'no_explicit_licence_found' | 'not_checked'
+
+/** GET /api/app/podcasts/{feed_id}/licence: everything the publisher declares (#2325). */
+export interface PodcastLicence {
+  feed_id: string
+  title: string | null
+  summary: string | null
+  status: LicenceStatus
+  licence: {
+    status: LicenceStatus
+    declarations: LicenceDeclaration[]
+    conflicts: string[]
+    documents_for_review: string[]
+    source_feed_url: string | null
+    retrieved_at: string | null
+  } | null
+  history: {
+    status: LicenceStatus
+    declarations: LicenceDeclaration[]
+    first_read: string | null
+    last_read: string | null
+  }[]
 }
 
 /**

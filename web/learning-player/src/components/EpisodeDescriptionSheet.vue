@@ -12,9 +12,13 @@
  * Laid out exactly like the Brief (operator 2026-10-10, "full consistency"): the grab handle (pull
  * it down to close), a header named as its door on the obi — "About" — with ✕, then the show and
  * the episode title opening the content, then the description.
+ *
+ * At its foot, the show's copyright / licence line as the feed declares it (#2325), linking to the
+ * show's licence page with the full text; closing the sheet first, as a page change should.
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import CloseIcon from './CloseIcon.vue'
 import { useSheetDrag } from '../composables/useSheetDrag'
 import { linkify } from '../services/linkify'
@@ -25,6 +29,8 @@ const props = defineProps<{
   title: string
   description: string
   showTitle?: string | null
+  licenceSummary?: string | null
+  feedId?: string | null
 }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
@@ -99,6 +105,7 @@ function onBackdropClick(e: MouseEvent): void {
           </h2>
         </section>
         <p
+          v-if="description"
           class="whitespace-pre-line break-words text-sm leading-relaxed"
           data-testid="episode-description-text"
         ><template v-for="(s, i) in segments" :key="i"><a
@@ -110,6 +117,16 @@ function onBackdropClick(e: MouseEvent): void {
               data-testid="episode-description-link"
               @click.prevent="openExternal(s.href)"
             >{{ s.text }}</a><template v-else>{{ s.text }}</template></template></p>
+        <RouterLink
+          v-if="licenceSummary && feedId"
+          :to="{ name: 'podcast-licence', params: { feedId } }"
+          class="mt-6 block border-t border-border pt-3 text-xs leading-snug text-muted underline decoration-dotted underline-offset-2 hover:text-canvas-foreground"
+          :aria-label="t('podcast.licenceLink', { summary: licenceSummary })"
+          data-testid="episode-description-licence"
+          @click="emit('close')"
+        >
+          {{ licenceSummary }}
+        </RouterLink>
       </div>
     </div>
   </dialog>

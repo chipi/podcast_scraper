@@ -6,6 +6,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from podcast_scraper.rss.licence import LicenceDeclaration, LicenceRecord
+
 
 class TranscriptSegment(BaseModel):
     """One transcript segment in the player ``segments.json`` contract (PRD-036)."""
@@ -98,6 +100,13 @@ class AppEpisodeDetail(BaseModel):
     """Response for GET /api/app/episodes/{slug} — consumer episode detail."""
 
     slug: str = Field(description="Stable episode slug.")
+    licence_summary: str | None = Field(
+        default=None,
+        description=(
+            "The show's licence line (#2325) as recorded when THIS episode was ingested; the full "
+            "text is GET /api/app/podcasts/{feed_id}/licence. Null when the feed was not checked."
+        ),
+    )
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
     language: str | None = Field(
@@ -2309,6 +2318,45 @@ class AppPodcastItem(BaseModel):
     )
     last_updated: str | None = Field(
         default=None, description="Feed lastBuildDate / Atom updated (ISO) if known."
+    )
+    licence_summary: str | None = Field(
+        default=None,
+        description=(
+            "One line for the show page (#2325): a recognised licence's name, else the "
+            "publisher's own notice shortened, else 'No explicit licence found'. Null when the "
+            "feed was not checked. The full text is GET /api/app/podcasts/{feed_id}/licence."
+        ),
+    )
+
+
+class AppLicenceVersion(BaseModel):
+    """A set of declarations the feed carried, and when it was read with them."""
+
+    status: str
+    declarations: list[LicenceDeclaration] = Field(default_factory=list)
+    first_read: str | None = None
+    last_read: str | None = None
+
+
+class AppPodcastLicenceResponse(BaseModel):
+    """GET /api/app/podcasts/{feed_id}/licence: everything the publisher declares (#2325).
+
+    Verbatim, by level and asset scope, with the documents it links for review and any
+    conflicts. Evidence of what was declared, not a licence grant to anyone.
+    """
+
+    feed_id: str
+    title: str | None = None
+    summary: str | None = Field(default=None, description="The same line as the show page.")
+    status: str = Field(
+        description="declared | no_explicit_licence_found | not_checked (no record yet)."
+    )
+    licence: LicenceRecord | None = Field(
+        default=None, description="The newest record: the show's declarations now."
+    )
+    history: list[AppLicenceVersion] = Field(
+        default_factory=list,
+        description="Every distinct set of declarations seen across episodes, newest first.",
     )
 
 

@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from podcast_scraper.languages import primary_language
+from podcast_scraper.rss.licence import summary_label
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
@@ -80,9 +81,11 @@ from podcast_scraper.server.schemas import (
     AppEpisodeRecap,
     AppEpisodesResponse,
     AppInsightsResponse,
+    AppLicenceVersion,
     AppMoment,
     AppMomentsResponse,
     AppPodcastItem,
+    AppPodcastLicenceResponse,
     AppPodcastSignalsResponse,
     AppPodcastsResponse,
     AudioSourceResponse,
@@ -172,6 +175,39 @@ def _podcast_item(f: dict) -> AppPodcastItem:
         authors=list(f.get("authors") or ()),
         language=f.get("language"),
         last_updated=f.get("last_updated"),
+        licence_summary=summary_label(f.get("licence")),
+    )
+
+
+@router.get("/podcasts/{feed_id}/licence", response_model=AppPodcastLicenceResponse)
+def podcast_licence(
+    request: Request,
+    feed_id: str,
+    _user: User = Depends(get_current_user),
+) -> AppPodcastLicenceResponse:
+    """Everything a show's feed declares about licence and copyright (#2325), verbatim."""
+    root = corpus_root_or_503(request)
+    feed = next(
+        (f for f in aggregate_feeds(cached_catalog(root)) if f.get("feed_id") == feed_id), None
+    )
+    if feed is None:
+        raise HTTPException(status_code=404, detail="Show not found.")
+    record = feed.get("licence")
+    return AppPodcastLicenceResponse(
+        feed_id=feed_id,
+        title=feed.get("display_title"),
+        summary=summary_label(record),
+        status=(record or {}).get("status") or "not_checked",
+        licence=record,
+        history=[
+            AppLicenceVersion(
+                status=v["status"],
+                declarations=v["declarations"],
+                first_read=v["first_read"],
+                last_read=v["last_read"],
+            )
+            for v in feed.get("licence_history") or []
+        ],
     )
 
 
@@ -420,6 +456,9 @@ def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisode
         summary_bullets=list(row.summary_bullets),
         summary_text=row.summary_text,
         description=row.episode_description,
+        licence_summary=(
+            summary_label(json.loads(row.feed_licence_json)) if row.feed_licence_json else None
+        ),
         has_transcript=has_transcript,
         has_summary=has_summary,
         has_gi=row.has_gi,

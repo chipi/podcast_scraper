@@ -19,6 +19,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'catalog', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: PodcastView },
+    { path: '/podcast/:feedId/licence', name: 'podcast-licence', component: { template: '<div/>' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
     // Gated controls route here when signed out (#1590).
     { path: '/login', name: 'login', component: { template: '<div/>' } },
@@ -255,5 +256,24 @@ describe('PodcastView — feed metadata (#2043)', () => {
     const meta = w.find('[data-testid="podcast-feed-meta"]')
     expect(meta.text()).not.toContain('By ')
     expect(meta.text()).not.toContain('Updated')
+  })
+})
+
+describe('PodcastView — licence line under the artwork (#2325)', () => {
+  it('shows the publisher notice as a link to the full licence page', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      { ...show(), licence_summary: '© 2020-2021 THE NEW YORK TIMES COMPANY; The New York…' },
+    ])
+    const w = await mountView()
+    const link = w.get('[data-testid="podcast-licence-link"]')
+    expect(link.text()).toBe('© 2020-2021 THE NEW YORK TIMES COMPANY; The New York…')
+    expect(link.attributes('href')).toBe(`/podcast/${FEED}/licence`)
+  })
+
+  it('says nothing when the feed has not been read for licence information', async () => {
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    const w = await mountView()
+    expect(w.find('[data-testid="podcast-licence-link"]').exists()).toBe(false)
   })
 })
