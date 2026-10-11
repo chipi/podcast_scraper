@@ -215,6 +215,12 @@ const routes: RouteRecordRaw[] = [
     }),
   },
   {
+    // Learn X this week: the whole seven-day path (operator 2026-10-11).
+    path: '/learn',
+    name: 'learn',
+    component: () => import('../views/LearnPathView.vue'),
+  },
+  {
     // N minutes on a topic: clips across episodes (ADR-163 §8 amendment). `:id` is the topic id.
     path: '/listen/topic/:id',
     name: 'topic-reel',

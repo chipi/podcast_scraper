@@ -463,6 +463,24 @@ piece to its design home:
 - **`ReelDoor`** — "▶ 15 MIN ON THIS" on the action row of a topic card, a theme page and a
   storyline page (operator 2026-10-11), styled like the Moments door (amber monospace, 44px tap).
   It appears only once that subject's reel has at least two clips.
+- **`LearnThisWeek`** — Discover's **Learn X this week** (operator 2026-10-11), signed in, under
+  the "Minutes on" row: a seven-day path through a theme or storyline, one step a day.
+  - **Without a path:** "Learn something this week", a line saying what it is, and up to three
+    chips in their kind's colours — "Managing risk across domains · 7 days" — themes and storylines
+    with a path of three to seven days, in the page scope. One tap starts it.
+  - **With a path:** "Learn <subject> this week", "Day 3 of 7" with a dot per day (done, open,
+    not yet), the step to do now (the earliest open day not done; with all done, today's) as a
+    `LearnStep`, and "The whole week ›" to `LearnPathView`.
+  - **Rules:** the steps are the subject's strongest episodes by their best clip, oldest first, and
+    frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late,
+    never early. One path at a time; starting another replaces it. No reminders.
+- **`LearnStep`** — one day: "DAY 2" (✓ Done once done), the episode (a link) and its show (two
+  lines at most), the clip in the speaker's words with their name, "▶ Play from 1:24" (the
+  episode, playing at the clip) and "Done". A day not yet come shows only "Opens on day 4".
+- **`LearnPathView`** — **the whole week** (`/learn`): the subject, "Day N of 7", every day as a
+  `LearnStep`, and "Stop this path", confirmed in place ("Stop learning this?" Stop / Keep going),
+  then back to Discover. Without a path: "You are not learning anything this week." and a link to
+  Discover.
 - **`TopicReelView`** — **N minutes on a topic, theme or storyline** (`/listen/topic/:id?minutes=`,
   `id` a `topic:`, `tc:` or `thc:` id): the strongest clips ABOUT it (a theme or storyline: about any
   of its member topics, umbrella members left out) from different episodes, back to back (the Moments picker's clip windows; a clip

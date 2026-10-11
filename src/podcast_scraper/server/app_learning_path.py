@@ -1,0 +1,123 @@
+"""Learn X this week — a seven-day path through a topic, theme or storyline (operator 2026-10-11).
+
+Goal-shaped listening, the slow form of the reel (``app_goal_reel``): one step a day for a week,
+each step an episode and its best clip ABOUT the subject. The steps are the subject's strongest
+episodes (by their best clip, the reel's ranking), then put in the order they were published, so the
+week follows how the conversation developed: oldest first.
+
+The path is frozen when the listener starts it (``learning_path.json``): a corpus that grows during
+the week does not move the steps under them. Step ``k`` (0-based) opens on day ``k`` after the
+start, counted in whole days since ``started_at`` (UTC); a step can be done late, never early. One
+path at a time; starting another replaces it. Built from what is on disk: no LLM.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
+
+from podcast_scraper.server.app_goal_reel import reel_subject, subject_moments
+from podcast_scraper.server.app_moments import MomentsConfig
+
+#: Days in a path, at most; a subject with fewer good episodes gives a shorter path.
+PATH_DAYS = 7
+#: Fewer steps than this is not a path worth a week.
+MIN_STEPS = 3
+_DAY_S = 86_400
+
+
+@dataclass(frozen=True)
+class PathStep:
+    """One day of the path: an episode and the clip that is its reason."""
+
+    episode_slug: str
+    insight_id: str
+    text: str
+    quote_text: str
+    speaker: Optional[str]
+    start_ms: int
+    end_ms: int
+
+
+def build_path(
+    root: Path, subject_id: str, config: Optional[MomentsConfig] = None
+) -> list[PathStep]:
+    """The subject's strongest episodes (at most ``PATH_DAYS``), oldest first, each with its best
+    clip; empty when there are fewer than ``MIN_STEPS``."""
+    from podcast_scraper.server.app_slugs import resolve_slug
+
+    best = subject_moments(root, subject_id, config)[:PATH_DAYS]
+    if len(best) < MIN_STEPS:
+        return []
+
+    def published(slug: str) -> str:
+        row = resolve_slug(root, slug)
+        return str((row.publish_date if row is not None else None) or "9999")
+
+    steps = [
+        PathStep(
+            episode_slug=slug,
+            insight_id=m.insight_id,
+            text=m.text,
+            quote_text=m.quote_text,
+            speaker=m.speaker,
+            start_ms=m.start_ms,
+            end_ms=m.end_ms,
+        )
+        for slug, moments in best
+        for m in moments[:1]
+    ]
+    return sorted(steps, key=lambda s: (published(s.episode_slug), s.episode_slug))
+
+
+def subject_label(root: Path, subject_id: str) -> tuple[str, str]:
+    """``(kind, display label)`` for a path's subject."""
+    subject = reel_subject(root, subject_id)
+    if subject.label:
+        return subject.kind, subject.label
+    from podcast_scraper.server.app_momentum import _entity_labels
+
+    label = _entity_labels(root).get(subject_id) or subject_id.split(":", 1)[-1].replace("-", " ")
+    return subject.kind, str(label)
+
+
+def start_path(
+    root: Path,
+    data_dir: Path,
+    user_id: str,
+    subject_id: str,
+    *,
+    config: Optional[MomentsConfig] = None,
+    now: Optional[float] = None,
+) -> Optional[dict[str, Any]]:
+    """Freeze a new path for the listener (replacing any) and return it; ``None`` when the subject
+    has too few good episodes for a path."""
+    from podcast_scraper.server import app_user_state
+
+    steps = build_path(root, subject_id, config)
+    if not steps:
+        return None
+    kind, label = subject_label(root, subject_id)
+    path = {
+        "subject_id": subject_id,
+        "subject_kind": kind,
+        "subject_label": label,
+        "started_at": int(now if now is not None else time.time()),
+        "steps": [vars(s) for s in steps],
+        "done": [],
+    }
+    app_user_state.set_learning_path(data_dir, user_id, path)
+    return path
+
+
+def day_of(path: dict[str, Any], now: Optional[float] = None) -> int:
+    """Whole days since the path started (0 on the first day)."""
+    elapsed = (now if now is not None else time.time()) - int(path.get("started_at") or 0)
+    return max(0, int(elapsed // _DAY_S))
+
+
+def unlocked(path: dict[str, Any], index: int, now: Optional[float] = None) -> bool:
+    """Step ``index`` is open: it is that step's day or later."""
+    return 0 <= index < len(path.get("steps") or []) and index <= day_of(path, now)

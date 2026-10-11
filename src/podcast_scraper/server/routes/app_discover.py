@@ -76,6 +76,11 @@ from podcast_scraper.server.schemas import (
     AppInterestCluster,
     AppInterestClustersResponse,
     AppInterestSearchResponse,
+    AppLearningPath,
+    AppLearnResponse,
+    AppLearnStart,
+    AppLearnSubject,
+    AppPathStep,
     AppReason,
     AppRecommendedResponse,
     AppReelClip,
@@ -494,6 +499,152 @@ def app_discover_reel_topics(
         )
     ]
     return AppReelTopicsResponse(scope=eff, items=items)
+
+
+#: Subjects Discover offers a path through, and how many candidates of each kind are tried.
+LEARN_SUBJECTS = 3
+LEARN_CANDIDATES = 6
+
+
+def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
+    from podcast_scraper.server.app_learning_path import day_of
+
+    today = day_of(path)
+    done = {int(i) for i in path.get("done") or []}
+    steps: list[AppPathStep] = []
+    for i, st in enumerate(path.get("steps") or []):
+        row = resolve_slug(root, str(st.get("episode_slug") or ""))
+        if row is None:
+            continue  # the episode left the corpus; the other days stand
+        steps.append(
+            AppPathStep(
+                day=i + 1,
+                episode=row_to_summary(root, row),
+                insight_id=str(st.get("insight_id") or ""),
+                text=str(st.get("text") or ""),
+                quote_text=str(st.get("quote_text") or ""),
+                speaker=st.get("speaker"),
+                start_ms=int(st.get("start_ms") or 0),
+                end_ms=int(st.get("end_ms") or 0),
+                unlocked=i <= today,
+                done=i in done,
+            )
+        )
+    return AppLearningPath(
+        subject_id=str(path["subject_id"]),
+        subject_kind=path.get("subject_kind") or "topic",
+        subject_label=str(path.get("subject_label") or path["subject_id"]),
+        started_at=int(path.get("started_at") or 0),
+        day=min(today + 1, max(1, len(path.get("steps") or []))),
+        steps=steps,
+    )
+
+
+@router.get("/discover/learn", response_model=AppLearnResponse)
+def app_discover_learn(
+    request: Request,
+    scope: str = Query(default="corpus", description="corpus | mine: whose subjects to offer."),
+    user: User = Depends(get_current_user),
+) -> AppLearnResponse:
+    """Learn X this week (operator 2026-10-11): the listener's seven-day path, or — with none —
+    the themes and storylines they could start one on (under Mine those of their world, under
+    Everyone the rising ones), each only when it has enough good episodes for a path."""
+    from podcast_scraper.server.app_learning_path import build_path
+
+    root = corpus_root_or_503(request)
+    data_dir = _data_dir(request)
+    path = app_user_state.get_learning_path(data_dir, user.user_id)
+    if path is not None:
+        return AppLearnResponse(path=_path_out(root, path))
+    mine = scope == "mine"
+    restrict = personal_entity_ids(root, data_dir, user.user_id) if mine else None
+    hidden = app_user_state.suggest_less_tokens(data_dir, user.user_id) if mine else set()
+    config = getattr(request.app.state, "moments_config", None)
+
+    def offered(kind: ReelKind) -> list[AppLearnSubject]:
+        found = trending(
+            root,
+            data_dir,
+            kind=kind,
+            scope="mine" if mine else "corpus",
+            user_id=user.user_id if mine else None,
+            limit=LEARN_CANDIDATES,
+            config=_momentum_config(request),
+            restrict_to=restrict,
+        )
+        out: list[AppLearnSubject] = []
+        for t in found:
+            if t.entity_id in hidden or len(out) >= LEARN_SUBJECTS:
+                continue
+            steps = build_path(root, t.entity_id, config)
+            if steps:
+                out.append(
+                    AppLearnSubject(
+                        subject_id=t.entity_id,
+                        subject_kind=kind,
+                        subject_label=t.label,
+                        steps=len(steps),
+                    )
+                )
+        return out
+
+    from podcast_scraper.server.app_rail_turns import take_turns
+
+    picks = take_turns(
+        [offered("theme"), offered("storyline")],
+        limit=LEARN_SUBJECTS,
+        key=lambda s: s.subject_id,
+    )
+    return AppLearnResponse(candidates=picks)
+
+
+@router.post("/discover/learn", response_model=AppLearningPath)
+def app_start_learning_path(
+    request: Request,
+    body: AppLearnStart,
+    user: User = Depends(get_current_user),
+) -> AppLearningPath:
+    """Start a seven-day path through the subject, replacing any path the listener had."""
+    from podcast_scraper.server.app_learning_path import start_path
+
+    root = corpus_root_or_503(request)
+    path = start_path(
+        root,
+        _data_dir(request),
+        user.user_id,
+        body.subject_id,
+        config=getattr(request.app.state, "moments_config", None),
+    )
+    if path is None:
+        raise HTTPException(status_code=422, detail="Too few episodes on this for a path.")
+    return _path_out(root, path)
+
+
+@router.post("/discover/learn/steps/{index}/done", response_model=AppLearningPath)
+def app_learning_step_done(
+    request: Request,
+    index: int,
+    user: User = Depends(get_current_user),
+) -> AppLearningPath:
+    """Mark a step done. A step opens on its day: one not yet open cannot be done (409)."""
+    from podcast_scraper.server.app_learning_path import unlocked
+
+    root = corpus_root_or_503(request)
+    data_dir = _data_dir(request)
+    path = app_user_state.get_learning_path(data_dir, user.user_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="No path.")
+    if not unlocked(path, index):
+        raise HTTPException(status_code=409, detail="That day has not come yet.")
+    updated = app_user_state.mark_learning_step_done(data_dir, user.user_id, index)
+    assert updated is not None
+    return _path_out(root, updated)
+
+
+@router.delete("/discover/learn", status_code=204)
+def app_stop_learning_path(request: Request, user: User = Depends(get_current_user)) -> None:
+    """Stop the listener's path."""
+    app_user_state.set_learning_path(_data_dir(request), user.user_id, None)
 
 
 def _data_dir(request: Request) -> Path:

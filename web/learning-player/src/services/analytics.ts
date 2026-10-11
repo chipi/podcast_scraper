@@ -257,6 +257,8 @@ export const EVENT_NAMES = [
   // Discover's rails (ADR-163): the denominator, and the taps
   'discover_rail_shown',
   'discover_rail_tap',
+  // Learn X this week (operator 2026-10-11): a path started, a day done, a path stopped
+  'learn_path',
 ] as const
 
 export type EventName = (typeof EVENT_NAMES)[number]
@@ -437,6 +439,12 @@ export type EventProps = {
     rail: RailId
     items: CountBucket
     scope: 'mine' | 'everyone'
+  }
+  /** Learn X this week: a path started, a step done (its 1-based day), or the path stopped. */
+  learn_path: {
+    action: 'start' | 'step_done' | 'stop'
+    kind: 'topic' | 'theme' | 'storyline'
+    day?: number
   }
   /** A card on a Discover rail was opened, its "Play from" tapped, or "Less like this" tapped. */
   discover_rail_tap: {

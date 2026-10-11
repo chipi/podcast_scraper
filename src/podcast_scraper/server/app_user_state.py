@@ -1152,6 +1152,35 @@ def remove_suggest_less(data_dir: Path, user_id: str, token: str) -> list[dict[s
         return get_suggest_less(data_dir, user_id)
 
 
+# Learn X this week (operator 2026-10-11): ONE frozen seven-day path, or none.
+
+
+def get_learning_path(data_dir: Path, user_id: str) -> dict[str, Any] | None:
+    """The listener's current path (``app_learning_path``), or ``None``."""
+    data = _read(data_dir, user_id, "learning_path", None)
+    if not isinstance(data, dict) or not isinstance(data.get("steps"), list):
+        return None
+    return data
+
+
+def set_learning_path(data_dir: Path, user_id: str, path: dict[str, Any] | None) -> None:
+    """Replace the path; ``None`` stops it."""
+    with _user_lock(data_dir, user_id, "learning_path"):
+        _write(data_dir, user_id, "learning_path", path)
+
+
+def mark_learning_step_done(data_dir: Path, user_id: str, index: int) -> dict[str, Any] | None:
+    """Record step ``index`` as done (idempotent); the path, or ``None`` without one."""
+    with _user_lock(data_dir, user_id, "learning_path"):
+        path = get_learning_path(data_dir, user_id)
+        if path is None:
+            return None
+        done = sorted({int(i) for i in path.get("done") or []} | {int(index)})
+        path = {**path, "done": done}
+        _write(data_dir, user_id, "learning_path", path)
+        return path
+
+
 # Follow events — an append-only, timestamped log of interest follows (momentum engagement source,
 # RFC-103). The interest LIST above stays the source of truth for "what's followed"; this log is the
 # timestamped history a weekly-momentum series needs (the list carries no per-token time). One line

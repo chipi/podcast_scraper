@@ -124,8 +124,25 @@ of them. `GET /discover/reel?subject=` takes any of the three and reports `subje
 most), keyed on the reel's clips so a theme whose reel is its one topic's reel is offered once. A
 `ReelDoor` on topic cards and theme and storyline pages opens the reel once it has two clips.
 
-**Planned:** "Learn X this week" as an ordered path through a theme (one episode a day, oldest claim
-first, each with its best clip).
+### 4b. Learn X this week (`app_learning_path`, 2026-10-11)
+
+A seven-day path (operator's choice: one a day, progress on the server, no reminders). `build_path`
+takes the subject's strongest episodes by their best clip (`subject_moments`, the reel's ranking),
+at most `PATH_DAYS` (7), at least `MIN_STEPS` (3), and orders them by publish date, oldest first.
+`start_path` freezes the steps into `learning_path.json` with `started_at`; step `k` opens when
+`k` whole days (UTC) have passed. One path per listener; starting another replaces it.
+
+```text
+GET    /api/app/discover/learn?scope    → { path | null, candidates: [{subject_id, kind, label, steps}] }
+POST   /api/app/discover/learn {subject_id}          → path   (422: too few episodes)
+POST   /api/app/discover/learn/steps/{index}/done    → path   (409: its day has not come; 404: no path)
+DELETE /api/app/discover/learn                       → 204
+```
+
+Candidates are themes and storylines taking turns, three at most, each only with a path: under
+Mine those of the listener's world (momentum restricted to `personal_entity_ids`, less "Less like
+this"), under Everyone the rising ones. Telemetry: `learn_path { action: start | step_done | stop,
+kind, day }`.
 
 ### 5. Cold start and Mine
 

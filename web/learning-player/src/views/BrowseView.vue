@@ -29,6 +29,7 @@ import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import TrendingScopeButton from '../components/TrendingScopeButton.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import ReelTopicsRow from '../components/ReelTopicsRow.vue'
+import LearnThisWeek from '../components/LearnThisWeek.vue'
 import { computed, onActivated, onDeactivated, ref, watch } from 'vue'
 import { useTrendingScope } from '../composables/useTrendingScope'
 
@@ -186,6 +187,8 @@ function onShowsSeeAll(): void {
 
     <!-- Goal-shaped listening (ADR-163 §8 amendment): fifteen minutes on a topic, across episodes. -->
     <ReelTopicsRow :scope="railScope" />
+    <!-- Learn X this week (operator 2026-10-11): a seven-day path, one step a day. Signed in only. -->
+    <LearnThisWeek v-if="auth.isAuthenticated" :scope="railScope" />
 
     <TrendingShowsRail
       :title="t('home.trendingShows')"

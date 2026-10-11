@@ -1228,6 +1228,54 @@ class AppTopicReelResponse(BaseModel):
     clips: list[AppReelClip] = Field(default_factory=list)
 
 
+class AppPathStep(BaseModel):
+    """One day of a "Learn X this week" path: an episode and its best clip on the subject."""
+
+    day: int = Field(description="1-based day of the path this step opens on.")
+    episode: AppEpisodeSummary
+    insight_id: str
+    text: str = Field(description="The clip's point (the insight).")
+    quote_text: str = Field(description="What is said at the clip's start (transcript).")
+    speaker: str | None = None
+    start_ms: int
+    end_ms: int
+    unlocked: bool = Field(description="Its day has come (steps open one a day, never early).")
+    done: bool
+
+
+class AppLearningPath(BaseModel):
+    """The listener's seven-day path through a topic, theme or storyline, frozen at its start."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
+    started_at: int = Field(description="When it started (epoch seconds).")
+    day: int = Field(description="Today's day of the path, 1-based, at most the number of steps.")
+    steps: list[AppPathStep] = Field(default_factory=list)
+
+
+class AppLearnSubject(BaseModel):
+    """A theme or storyline Discover offers a path through."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
+    steps: int = Field(description="How many days its path would have.")
+
+
+class AppLearnResponse(BaseModel):
+    """GET /discover/learn: the listener's path, or what they could start one on."""
+
+    path: AppLearningPath | None = None
+    candidates: list[AppLearnSubject] = Field(default_factory=list)
+
+
+class AppLearnStart(BaseModel):
+    """POST /discover/learn: the subject to learn this week."""
+
+    subject_id: str = Field(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
+
+
 class AppReelTopic(BaseModel):
     """A topic, theme or storyline Discover offers a reel on."""
 

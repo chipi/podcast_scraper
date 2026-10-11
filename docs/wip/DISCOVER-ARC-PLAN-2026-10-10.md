@@ -221,6 +221,7 @@ Each of these changes what the pinned evals and Moments e2e expect.
 - Explore's catalog is a taste (4 episodes, 6 shows) with "See all" to `/catalog` and the new
   `/shows`. The catalogue stays everyone's; `/shows` gained the "Which shows" filter (All shows ·
   Following · Mine, `GET /podcasts?facet=`), matching "Which episodes" on `/catalog`.
-- Next: "Learn X this week" as a 7-day path, one step a day, progress kept on the server (operator
-  2026-10-11).
-
+- "Learn X this week" built as a 7-day path, one step a day, progress kept on the server, no
+  reminders (operator 2026-10-11): `app_learning_path`, `/discover/learn`, `LearnThisWeek` on
+  Discover, `/learn` for the whole week. NOT done: a "Learn this in a week" door on theme and
+  storyline pages; a path's steps can lean on one speaker (tc:reliability: 4 of 7 are one host).

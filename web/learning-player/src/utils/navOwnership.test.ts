@@ -19,7 +19,7 @@ describe('nav route ownership (shared by both navs)', () => {
   })
 
   it('Discovery gathers search, show pages and topic reels (#14, ADR-163)', () => {
-    for (const r of ['browse', 'search', 'podcast', 'topic-reel']) {
+    for (const r of ['browse', 'search', 'podcast', 'topic-reel', 'learn']) {
       expect(ownsRoute('browse', r), `browse should own ${r}`).toBe(true)
     }
   })

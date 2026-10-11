@@ -112,14 +112,15 @@ describe('registry guard', () => {
     ).toEqual([])
   })
 
-  it('holds all 42 catalog events, with no duplicates', () => {
+  it('holds all 45 catalog events, with no duplicates', () => {
     // 39 from #2267 (`show_missing` excluded: it needs an affordance that does not exist), plus
     // `app_launch` and `app_resume` from #2277, plus `email_link_opened` (operator 2026-10-05:
     // which links people click in the emails we send — services/inboundLink), minus
     // `home_rail_click` (2026-10-07: its only rail, Home's Trends, moved to Discover), plus
-    // `trends_row_click`, which asks its question on Discover. If this number changes, the catalog
-    // changed — record where, do not just bump it.
-    expect(EVENT_NAMES).toHaveLength(44)
+    // `trends_row_click`, which asks its question on Discover, plus `discover_rail_shown` and
+    // `discover_rail_tap` (ADR-163, Discover's rails), plus `learn_path` (2026-10-11, Learn X this
+    // week). If this number changes, the catalog changed — record where, do not just bump it.
+    expect(EVENT_NAMES).toHaveLength(45)
     expect(new Set(EVENT_NAMES).size).toBe(EVENT_NAMES.length)
   })
 

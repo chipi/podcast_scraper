@@ -276,6 +276,36 @@ test('"15 min on this" from a storyline and a theme: clips about any member topi
   await expect(page.getByTestId('topic-reel-title')).toHaveText('15 minutes on reliability')
 })
 
+test('Learn X this week: start a path on Discover, do today, see the week, stop', async ({ page }, testInfo) => {
+  // Operator 2026-10-11: a seven-day path, one step a day, progress on the server, no reminders.
+  await signInIsolated(page, 'discover-learn', testInfo)
+  await page.goto('/browse')
+  await showEveryonesTrends(page)
+  const section = page.getByTestId('learn-this-week')
+  const subject = section.getByTestId('learn-subject').filter({ hasText: 'Managing risk across domains' })
+  await expect(subject).toHaveText('Managing risk across domains · 7 days')
+  await expect(subject).toHaveAttribute('data-kind', 'storyline')
+  await subject.click()
+
+  await expect(section.getByTestId('learn-title')).toHaveText('Learn Managing risk across domains this week')
+  await expect(section.getByTestId('learn-day')).toHaveText('Day 1 of 7')
+  await expect(section.getByTestId('learn-dot')).toHaveCount(7)
+  const today = section.getByTestId('learn-step')
+  await expect(today).toHaveAttribute('data-day', '1')
+  await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/p01-74565a3a19\?t=\d+&play=1$/)
+  await today.getByTestId('learn-step-mark-done').click()
+  await expect(today.getByTestId('learn-step-done-mark')).toBeVisible()
+
+  await section.getByTestId('learn-see-week').click()
+  await expect(page).toHaveURL(/\/learn$/)
+  await expect(page.getByTestId('learn-step')).toHaveCount(7)
+  await expect(page.getByTestId('learn-step-locked')).toHaveCount(6) // one a day, never early
+  await page.getByTestId('learn-stop').click()
+  await page.getByTestId('learn-stop-yes').click()
+  await expect(page).toHaveURL(/\/browse/)
+  await expect(page.getByTestId('learn-subject').first()).toBeVisible()
+})
+
 test('Discover is a taste: two cards a rail, "Show more" pages from the server, one card per episode', async ({
   page,
 }, testInfo) => {

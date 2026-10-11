@@ -118,6 +118,13 @@ download), "Play from" the quote, and the show name as a link to the show.
 and says what it actually runs. It is reachable from Discover's "Minutes on" row and from topic,
 theme and storyline cards.
 
+### FR7b: Learn X this week
+
+A signed-in listener can start a seven-day path through a theme or storyline from Discover: one
+step a day, each an episode and its best clip on the subject, oldest first. Discover shows "Day 3
+of 7" and the step to do now; `/learn` shows the whole week and stops the path. A day opens on its
+day and can be done late, never early. One path at a time. No reminders (operator 2026-10-11).
+
 ### FR8: Explore
 
 Explore has its own place in the navigation. It holds Trends, each kind as a short list with
@@ -157,4 +164,3 @@ Measured in Umami (`discover_rail_shown`, `discover_rail_tap`, `capture_created.
 
 - Should "Less like this" down-weight rather than remove, and should it reach Home, Explore and
   Search?
-- "Learn X this week" (an ordered path through a theme): designed in RFC-126, not built yet.

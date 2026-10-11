@@ -30,6 +30,9 @@ export const CONSISTENCY_MATRIX: ConsistencyRow[] = [
   { write: 'removeInterest', readers: ['Discover › Your trends', 'Profile › Interests'], proof: ['e2e/cross-surface.spec.ts', 'src/stores/interests.test.ts'] },
   { write: 'suggestLess', readers: ['every Discover rail', 'Profile › Interests › Suggested less'], proof: ['e2e/discover-explore.spec.ts', 'src/components/RecommendationRail.test.ts'] },
   { write: 'undoSuggestLess', readers: ['every Discover rail', 'Profile › Interests › Suggested less'], proof: ['e2e/discover-explore.spec.ts', 'src/components/SuggestedLessList.test.ts'] },
+  { write: 'startLearn', readers: ['Discover › Learn this week', 'Learn › the whole week'], proof: ['e2e/discover-explore.spec.ts', 'src/components/LearnThisWeek.test.ts'] },
+  { write: 'learnStepDone', readers: ['Discover › Learn this week', 'Learn › the whole week'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
+  { write: 'stopLearn', readers: ['Discover › Learn this week', 'Learn › the whole week'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
   { write: 'putUserInterests', readers: ['every interests reader (store replaceAll)'], proof: ['src/components/InterestsPicker.test.ts'] },
 
   // --- follows ------------------------------------------------------------------------------------

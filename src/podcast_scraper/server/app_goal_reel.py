@@ -89,15 +89,12 @@ def _episode_rows(root: Path, topics: frozenset[str]) -> list:
     return [r for r in cached_catalog(root) if r.metadata_relative_path in paths and r.has_gi]
 
 
-def goal_reel(
-    root: Path,
-    subject_id: str,
-    *,
-    minutes: int = 15,
-    config: Optional[MomentsConfig] = None,
-) -> list[ReelClip]:
-    """Clips about ``subject_id`` (a topic, or a theme's or storyline's member topics) across
-    episodes, best and breadth first, within ``minutes``."""
+def subject_moments(
+    root: Path, subject_id: str, config: Optional[MomentsConfig] = None
+) -> list[tuple[str, list[Moment]]]:
+    """``[(episode slug, its best clips ABOUT the subject)]``, episodes by their best clip,
+    strongest first. A clip qualifies when its insight is ABOUT a subject topic and its opening
+    quote says what the insight says. At most ``MAX_PER_EPISODE`` clips an episode."""
     from podcast_scraper.server.app_corpus_access import load_json_artifact
     from podcast_scraper.server.app_episode_search import episode_segments
     from podcast_scraper.server.app_moments import _topic_links
@@ -125,7 +122,19 @@ def goal_reel(
             per_episode.append((slug_for_row(row), ranked[:MAX_PER_EPISODE]))
     # Episodes by their best clip, strongest first; a tie keeps a stable order by slug.
     per_episode.sort(key=lambda e: (-e[1][0].score, e[0]))
+    return per_episode
 
+
+def goal_reel(
+    root: Path,
+    subject_id: str,
+    *,
+    minutes: int = 15,
+    config: Optional[MomentsConfig] = None,
+) -> list[ReelClip]:
+    """Clips about ``subject_id`` (a topic, or a theme's or storyline's member topics) across
+    episodes, best and breadth first, within ``minutes``."""
+    per_episode = subject_moments(root, subject_id, config)
     budget_ms = int(minutes * 60 * 1000)
     used = 0
     reel: list[ReelClip] = []

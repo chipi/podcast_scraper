@@ -23,7 +23,7 @@
  */
 export const OWNED_ROUTES: Record<string, readonly string[]> = {
   home: ['home'],
-  browse: ['browse', 'search', 'podcast', 'topic-reel'],
+  browse: ['browse', 'search', 'podcast', 'topic-reel', 'learn'],
   // Explore (operator 2026-10-11): Trends and the Episodes · Shows catalog, and the catalog's own
   // "see all" lists, which moved there from Discover (ADR-163 §1).
   explore: ['explore', 'catalog', 'shows', 'browse-shows', 'browse-topics', 'browse-people'],

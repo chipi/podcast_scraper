@@ -954,6 +954,67 @@ export interface ReelTopic {
   clips: number
   total_seconds: number
 }
+/** One day of a "Learn X this week" path (GET/POST /discover/learn). */
+export interface PathStep {
+  day: number
+  episode: EpisodeSummary
+  insight_id: string
+  text: string
+  quote_text: string
+  speaker: string | null
+  start_ms: number
+  end_ms: number
+  unlocked: boolean
+  done: boolean
+}
+export interface LearningPath {
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
+  started_at: number
+  /** Today's day of the path, 1-based. */
+  day: number
+  steps: PathStep[]
+}
+export interface LearnSubject {
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
+  steps: number
+}
+/** The listener's seven-day path, or the subjects they could start one on. */
+export async function getLearn(
+  scope: "mine" | "corpus"
+): Promise<{ path: LearningPath | null; candidates: LearnSubject[] }> {
+  const r = await getJSON<{ path: LearningPath | null; candidates?: LearnSubject[] }>(
+    "/discover/learn",
+    { scope }
+  )
+  return { path: r.path ?? null, candidates: r.candidates ?? [] }
+}
+export async function startLearn(subjectId: string): Promise<LearningPath> {
+  const resp = await apiFetch(`${BASE}/discover/learn`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject_id: subjectId }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn → ${resp.status}`)
+  return (await resp.json()) as LearningPath
+}
+export async function learnStepDone(index: number): Promise<LearningPath> {
+  const resp = await apiFetch(`${BASE}/discover/learn/steps/${index}/done`, {
+    method: "POST",
+    credentials: "include",
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/steps → ${resp.status}`)
+  return (await resp.json()) as LearningPath
+}
+export async function stopLearn(): Promise<void> {
+  const resp = await apiFetch(`${BASE}/discover/learn`, { method: "DELETE", credentials: "include" })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /discover/learn → ${resp.status}`)
+}
+
 /** The topics, themes and storylines Discover offers a reel on (each with at least two clips). */
 export async function getReelTopics(scope: "mine" | "corpus"): Promise<ReelTopic[]> {
   return (await getJSON<{ items?: ReelTopic[] }>("/discover/reel-topics", { scope })).items ?? []

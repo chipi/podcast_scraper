@@ -1295,6 +1295,26 @@
       "pick": "Pick topics"
     }
   },
+  "learn": {
+    "kicker": "Learn this week",
+    "title": "Learn {subject} this week",
+    "offerTitle": "Learn something this week",
+    "offerNote": "Seven days, one episode a day, each with the moment that matters.",
+    "subject": "{subject} · {days} days",
+    "dayOf": "Day {n} of {total}",
+    "dayN": "Day {n}",
+    "progress": "{done} of {total} days done",
+    "seeWeek": "The whole week",
+    "markDone": "Done",
+    "done": "Done",
+    "opensOn": "Opens on day {n}",
+    "stop": "Stop this path",
+    "stopConfirm": "Stop learning this?",
+    "stopYes": "Stop",
+    "stopNo": "Keep going",
+    "none": "You are not learning anything this week.",
+    "toDiscover": "Pick something on Discover"
+  },
   "explore": {
     "title": "Explore",
     "seeAllEpisodes": "See all {count} episodes",
