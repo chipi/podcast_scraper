@@ -22,12 +22,7 @@ DOC = Path(__file__).resolve().parents[3] / "docs" / "wip" / "NAMING_DECISION_TR
 
 #: Rungs the library does not reach yet, each with why. Shrinks as scenarios are added; a rung that
 #: becomes reached must leave this list (the test below says so).
-NOT_YET_EXERCISED = {
-    "host_naming_pair": "needs the feed's host co-presence history (harness gap)",
-    "non_regression": "needs an LLM answer that drops a rules-only name (to add)",
-    "ad_voice_placeholder": "harness gap: ad voices are marked by a cleaning step the harness does not run",
-    "cohost_formula": "the formula scenario's co-host is named by an earlier rung (to add)",
-}
+NOT_YET_EXERCISED: dict = {}
 
 
 def _doc_rungs() -> Set[str]:

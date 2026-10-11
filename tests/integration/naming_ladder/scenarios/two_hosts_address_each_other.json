@@ -1,5 +1,5 @@
 {
- "why": "rung host_naming_pair: two unnamed seats, two pool hosts, each seat addressing the OTHER host by first name (The Rest Is History when the diarizer keeps them apart).",
+ "why": "rung host_naming_pair: two unnamed seats, two pool hosts, each seat addressing the OTHER host by first name (The Rest Is History when the diarizer keeps them apart). Both hosts speak in the opening minute, as on the real show: the arithmetic seat only considers voices heard in the intro window. (This scenario was xfail as a 'harness gap: needs co-presence history'; that was wrong — the address pair alone states the co-host is present, and the real reason it failed was that B first spoke at 200 s, outside the intro window.)",
  "feed": {
   "title": "The Rest Is History",
   "hosts": [
@@ -15,6 +15,16 @@
   "metadata_named": []
  },
  "turns": [
+  [
+   "A",
+   20,
+   "So, Dominic, where does the story begin?"
+  ],
+  [
+   "B",
+   20,
+   "Well, Tom, it begins at sea, with a man trying to get home."
+  ],
   [
    "A",
    200,
@@ -48,6 +58,5 @@
    "name": "Dominic Sandbrook",
    "role": "host"
   }
- },
- "xfail": "HARNESS GAP: the address-pair seat needs the feed's host co-presence history, which the harness cannot feed yet (the unit test passes host_copresence directly)"
+ }
 }

@@ -1,0 +1,57 @@
+{
+ "why": "Guard for the F8 fix (Latent Space, prod 2026-10-11): the feed lists past INTERVIEWEES in parentheses ('Sierra (Bret Taylor), tiny (George Hotz)'). None of them hosts, and a fix that reads names from feed descriptions must not seat them.",
+ "feed": {
+  "title": "Latent Space: The AI Engineer Podcast",
+  "description": "The podcast by and for AI Engineers! We break news and exclusive interviews from OpenAI, Anthropic, Meta (Soumith Chintala), Sierra (Bret Taylor), tiny (George Hotz), Modular (Chris Lattner), et al.",
+  "authors": [
+   "Latent.Space"
+  ]
+ },
+ "episode": {
+  "title": "Agents at Sierra with Bret Taylor"
+ },
+ "detected": {
+  "speaker_names": [
+   "Bret Taylor"
+  ],
+  "metadata_named": [
+   "Bret Taylor"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "Hey everyone, welcome to the Latent Space podcast. Today we're joined by Bret Taylor of Sierra."
+  ],
+  [
+   "G",
+   400,
+   "Thanks for having me. The point about agents keeps changing over the years, part 0. The point about agents keeps changing over the years, part 1. The point about agents keeps changing over the years, part 2. The point about agents keeps changing over the years, part 3. The point about agents keeps changing over the years, part 4. The point about agents keeps changing over the years, part 5. The point about agents keeps changing over the years, part 6. The point about agents keeps changing over the years, part 7. The point about agents keeps changing over the years, part 8. The point about agents keeps changing over the years, part 9. The point about agents keeps changing over the years, part 10. The point about agents keeps changing over the years, part 11. The point about agents keeps changing over the years, part 12. The point about agents keeps changing over the years, part 13. The point about agents keeps changing over the years, part 14. The point about agents keeps changing over the years, part 15. The point about agents keeps changing over the years, part 16. The point about agents keeps changing over the years, part 17. The point about agents keeps changing over the years, part 18. The point about agents keeps changing over the years, part 19. The point about agents keeps changing over the years, part 20. The point about agents keeps changing over the years, part 21. The point about agents keeps changing over the years, part 22. The point about agents keeps changing over the years, part 23. The point about agents keeps changing over the years, part 24. The point about agents keeps changing over the years, part 25. The point about agents keeps changing over the years, part 26. The point about agents keeps changing over the years, part 27. The point about agents keeps changing over the years, part 28. The point about agents keeps changing over the years, part 29. The point about agents keeps changing over the years, part 30. The point about agents keeps changing over the years, part 31. The point about agents keeps changing over the years, part 32. The point about agents keeps changing over the years, part 33. The point about agents keeps changing over the years, part 34. The point about agents keeps changing over the years, part 35. The point about agents keeps changing over the years, part 36. The point about agents keeps changing over the years, part 37. The point about agents keeps changing over the years, part 38. The point about agents keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   120,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10. The point about questions keeps changing over the years, part 11."
+  ],
+  [
+   "G",
+   300,
+   "The point about support keeps changing over the years, part 0. The point about support keeps changing over the years, part 1. The point about support keeps changing over the years, part 2. The point about support keeps changing over the years, part 3. The point about support keeps changing over the years, part 4. The point about support keeps changing over the years, part 5. The point about support keeps changing over the years, part 6. The point about support keeps changing over the years, part 7. The point about support keeps changing over the years, part 8. The point about support keeps changing over the years, part 9. The point about support keeps changing over the years, part 10. The point about support keeps changing over the years, part 11. The point about support keeps changing over the years, part 12. The point about support keeps changing over the years, part 13. The point about support keeps changing over the years, part 14. The point about support keeps changing over the years, part 15. The point about support keeps changing over the years, part 16. The point about support keeps changing over the years, part 17. The point about support keeps changing over the years, part 18. The point about support keeps changing over the years, part 19. The point about support keeps changing over the years, part 20. The point about support keeps changing over the years, part 21. The point about support keeps changing over the years, part 22. The point about support keeps changing over the years, part 23. The point about support keeps changing over the years, part 24. The point about support keeps changing over the years, part 25. The point about support keeps changing over the years, part 26. The point about support keeps changing over the years, part 27. The point about support keeps changing over the years, part 28. The point about support keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Bret Taylor",
+   "role": "guest"
+  },
+  "H": {
+   "name_not": [
+    "Bret Taylor",
+    "George Hotz",
+    "Soumith Chintala",
+    "Chris Lattner"
+   ]
+  }
+ }
+}

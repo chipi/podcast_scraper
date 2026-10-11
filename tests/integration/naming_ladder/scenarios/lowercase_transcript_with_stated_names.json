@@ -1,0 +1,50 @@
+{
+ "why": "Lowercase transcripts (42 of 2,602 served episodes, 15+ feeds, 2026-10-11): a self-introduction and an on-air introduction in an all-lowercase transcript are still read when the names are STATED (feed host, detected guest). Measured on prod, lowercase episodes get half the self-intro names per episode (0.45 vs 0.90) and no 'introduced' names; with nothing stating the name a lowercase 'i'm luke robert mason' names nobody (case is the only name signal left, so that is a documented limit, not a scenario).",
+ "feed": {
+  "title": "FUTURES Podcast",
+  "description": "Hosted by Luke Robert Mason."
+ },
+ "episode": {
+  "title": "Why Machines Can't Replace Us w/ Neil Lawrence"
+ },
+ "detected": {
+  "speaker_names": [
+   "Neil Lawrence"
+  ],
+  "metadata_named": [
+   "Neil Lawrence"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "hi, i'm luke robert mason, and this is the futures podcast. my guest today is neil lawrence."
+  ],
+  [
+   "G",
+   400,
+   "thanks for having me. the point about machines keeps changing over the years, part 0. the point about machines keeps changing over the years, part 1. the point about machines keeps changing over the years, part 2. the point about machines keeps changing over the years, part 3. the point about machines keeps changing over the years, part 4. the point about machines keeps changing over the years, part 5. the point about machines keeps changing over the years, part 6. the point about machines keeps changing over the years, part 7. the point about machines keeps changing over the years, part 8. the point about machines keeps changing over the years, part 9. the point about machines keeps changing over the years, part 10. the point about machines keeps changing over the years, part 11. the point about machines keeps changing over the years, part 12. the point about machines keeps changing over the years, part 13. the point about machines keeps changing over the years, part 14. the point about machines keeps changing over the years, part 15. the point about machines keeps changing over the years, part 16. the point about machines keeps changing over the years, part 17. the point about machines keeps changing over the years, part 18. the point about machines keeps changing over the years, part 19. the point about machines keeps changing over the years, part 20. the point about machines keeps changing over the years, part 21. the point about machines keeps changing over the years, part 22. the point about machines keeps changing over the years, part 23. the point about machines keeps changing over the years, part 24. the point about machines keeps changing over the years, part 25. the point about machines keeps changing over the years, part 26. the point about machines keeps changing over the years, part 27. the point about machines keeps changing over the years, part 28. the point about machines keeps changing over the years, part 29. the point about machines keeps changing over the years, part 30. the point about machines keeps changing over the years, part 31. the point about machines keeps changing over the years, part 32. the point about machines keeps changing over the years, part 33. the point about machines keeps changing over the years, part 34. the point about machines keeps changing over the years, part 35. the point about machines keeps changing over the years, part 36. the point about machines keeps changing over the years, part 37. the point about machines keeps changing over the years, part 38. the point about machines keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   120,
+   "the point about questions keeps changing over the years, part 0. the point about questions keeps changing over the years, part 1. the point about questions keeps changing over the years, part 2. the point about questions keeps changing over the years, part 3. the point about questions keeps changing over the years, part 4. the point about questions keeps changing over the years, part 5. the point about questions keeps changing over the years, part 6. the point about questions keeps changing over the years, part 7. the point about questions keeps changing over the years, part 8. the point about questions keeps changing over the years, part 9. the point about questions keeps changing over the years, part 10. the point about questions keeps changing over the years, part 11."
+  ],
+  [
+   "G",
+   300,
+   "the point about people keeps changing over the years, part 0. the point about people keeps changing over the years, part 1. the point about people keeps changing over the years, part 2. the point about people keeps changing over the years, part 3. the point about people keeps changing over the years, part 4. the point about people keeps changing over the years, part 5. the point about people keeps changing over the years, part 6. the point about people keeps changing over the years, part 7. the point about people keeps changing over the years, part 8. the point about people keeps changing over the years, part 9. the point about people keeps changing over the years, part 10. the point about people keeps changing over the years, part 11. the point about people keeps changing over the years, part 12. the point about people keeps changing over the years, part 13. the point about people keeps changing over the years, part 14. the point about people keeps changing over the years, part 15. the point about people keeps changing over the years, part 16. the point about people keeps changing over the years, part 17. the point about people keeps changing over the years, part 18. the point about people keeps changing over the years, part 19. the point about people keeps changing over the years, part 20. the point about people keeps changing over the years, part 21. the point about people keeps changing over the years, part 22. the point about people keeps changing over the years, part 23. the point about people keeps changing over the years, part 24. the point about people keeps changing over the years, part 25. the point about people keeps changing over the years, part 26. the point about people keeps changing over the years, part 27. the point about people keeps changing over the years, part 28. the point about people keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name": "Luke Robert Mason",
+   "role": "host"
+  },
+  "G": {
+   "name": "Neil Lawrence",
+   "role": "guest"
+  }
+ }
+}

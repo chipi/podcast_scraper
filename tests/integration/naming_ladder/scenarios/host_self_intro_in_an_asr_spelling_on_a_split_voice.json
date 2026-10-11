@@ -1,5 +1,5 @@
 {
- "why": "F5 (Odd Lots, read 2026-10-11): the diarizer split Joe Weisenthal into a second cluster that carries his own intro as the ASR heard it, 'And I'm Jill Wisenthal.' The self-intro rung publishes it as a separate GUEST 'Jill Wisenthal' (834 s on one episode). Six Odd Lots voices and one Planet Money voice ('Ciara Gonzalez' for host Sarah Gonzalez) have this shape. Reproduced here: the wrong NAME. NOT reproduced: prod published the voice as a GUEST, here it is seated as host (cause of the difference not found yet).",
+ "why": "F5 (Odd Lots, read 2026-10-11): the diarizer split Joe Weisenthal into a second cluster that carries his own intro as the ASR heard it, 'And I'm Jill Wisenthal.' The self-intro rung publishes it as a separate GUEST 'Jill Wisenthal' (834 s on one episode). Six Odd Lots voices and one Planet Money voice ('Ciara Gonzalez' for host Sarah Gonzalez) have this shape. Prod replay with main's roster (2026-10-11) gives what this scenario gives: the voice seated as HOST (1b_presents_on_own_evidence) under the wrong name 'Jill Wisenthal'; the served record's GUEST role was written by older code.",
  "xfail": "F5: a host's self-intro in an ASR spelling is published as a new guest",
  "feed": {
   "title": "Odd Lots",

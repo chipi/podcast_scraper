@@ -1,0 +1,49 @@
+{
+ "why": "rung cohost_formula, from the other side: on a two-host feed '<other host> and I are back' identifies the speaker as the remaining stated host.",
+ "feed": {
+  "title": "Northern Lights",
+  "description": "Tobias Wren and Greta Holm discuss science."
+ },
+ "episode": {
+  "title": "Auroras"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "S0",
+   20,
+   "Hello and welcome to Northern Lights. I'm Tobias Wren."
+  ],
+  [
+   "S1",
+   10,
+   "Tobias and I are back with another episode."
+  ],
+  [
+   "S0",
+   200,
+   "The point about auroras keeps changing over the years, part 0. The point about auroras keeps changing over the years, part 1. The point about auroras keeps changing over the years, part 2. The point about auroras keeps changing over the years, part 3. The point about auroras keeps changing over the years, part 4. The point about auroras keeps changing over the years, part 5. The point about auroras keeps changing over the years, part 6. The point about auroras keeps changing over the years, part 7. The point about auroras keeps changing over the years, part 8. The point about auroras keeps changing over the years, part 9. The point about auroras keeps changing over the years, part 10. The point about auroras keeps changing over the years, part 11. The point about auroras keeps changing over the years, part 12. The point about auroras keeps changing over the years, part 13. The point about auroras keeps changing over the years, part 14. The point about auroras keeps changing over the years, part 15. The point about auroras keeps changing over the years, part 16. The point about auroras keeps changing over the years, part 17. The point about auroras keeps changing over the years, part 18. The point about auroras keeps changing over the years, part 19."
+  ],
+  [
+   "S1",
+   200,
+   "The point about magnetism keeps changing over the years, part 0. The point about magnetism keeps changing over the years, part 1. The point about magnetism keeps changing over the years, part 2. The point about magnetism keeps changing over the years, part 3. The point about magnetism keeps changing over the years, part 4. The point about magnetism keeps changing over the years, part 5. The point about magnetism keeps changing over the years, part 6. The point about magnetism keeps changing over the years, part 7. The point about magnetism keeps changing over the years, part 8. The point about magnetism keeps changing over the years, part 9. The point about magnetism keeps changing over the years, part 10. The point about magnetism keeps changing over the years, part 11. The point about magnetism keeps changing over the years, part 12. The point about magnetism keeps changing over the years, part 13. The point about magnetism keeps changing over the years, part 14. The point about magnetism keeps changing over the years, part 15. The point about magnetism keeps changing over the years, part 16. The point about magnetism keeps changing over the years, part 17. The point about magnetism keeps changing over the years, part 18. The point about magnetism keeps changing over the years, part 19."
+  ]
+ ],
+ "expect": {
+  "S0": {
+   "name": "Tobias Wren",
+   "role": "host"
+  },
+  "S1": {
+   "name": "Greta Holm",
+   "role": "host",
+   "steps": [
+    "cohost_formula:named"
+   ]
+  }
+ }
+}

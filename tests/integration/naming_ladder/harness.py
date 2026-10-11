@@ -10,6 +10,9 @@ A scenario states what the naming stage receives and what a CORRECT answer is:
 - ``llm``: optional ``{voice: [name, role]}``, the verdicts the LLM resolution step returned. They
   are injected in place of the call (``_resolve_voices_via_llm``), so a scenario can pin how the
   ladder treats a model answer, right or wrong, without a model;
+- ``feed_history``: optional ``[[host, ...], ...]``, one entry per earlier episode of the feed: the
+  hosts that episode named by evidence. Served as the sibling speaker sidecars production reads
+  from disk (``_feed_sibling_diagnostics``), so the real co-presence arithmetic runs on them;
 - ``stated_voice_names``: optional ``{voice: name}``, a publisher's own speaker labels;
 - ``language``: optional transcript language (default English);
 - ``turns``: ``[voice, seconds, text]`` in order. Durations stand in for the diarizer's times;
@@ -81,6 +84,19 @@ def run(scenario: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     )
     llm = scenario.get("llm") or {}
     real_llm = _pipeline._resolve_voices_via_llm
+    real_siblings = _pipeline._feed_sibling_diagnostics
+    history = scenario.get("feed_history")
+    if history is not None:
+        sidecars = [
+            {
+                "voices": [
+                    {"resolved_name": h, "named": True, "role": "host", "source": "self_intro"}
+                    for h in hosts_named
+                ]
+            }
+            for hosts_named in history
+        ]
+        _pipeline._feed_sibling_diagnostics = lambda cfg: sidecars  # type: ignore[assignment]
     if llm:
         _pipeline._resolve_voices_via_llm = lambda *a, **k: (  # type: ignore[assignment]
             {v: nr[0] for v, nr in llm.items() if nr[0]},
@@ -97,6 +113,7 @@ def run(scenario: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         return result
     finally:
         _pipeline._resolve_voices_via_llm = real_llm
+        _pipeline._feed_sibling_diagnostics = real_siblings  # type: ignore[assignment]
         correlation.set_feed_title(previous_title)
 
 

@@ -1,0 +1,52 @@
+{
+ "why": "rung non_regression (ADR-137 additive contract): the LLM answers 'Tyler Moss, host' for the GUEST's voice. The guest must never carry the host's name. The rules-only pass gave the host's seat the pool name by ARITHMETIC (forced), and an arithmetic name is deliberately NOT restored over the LLM pass (measured 2026-10-04: 42 of 49 restored forced names were wrong), so the host stays unnamed here: a wrong name is worse than none. The 'restored' branch (an EVIDENCE name the LLM pass dropped) is not exercised by any scenario yet: evidence names outrank the LLM merge in every variant tried.",
+ "feed": {
+  "title": "Big Ideas",
+  "description": "Hosted by Tyler Moss."
+ },
+ "episode": {
+  "title": "On ideas"
+ },
+ "detected": {},
+ "llm": {
+  "G": [
+   "Tyler Moss",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   30,
+   "Hello and welcome to Big Ideas. Today we have a wonderful guest."
+  ],
+  [
+   "G",
+   400,
+   "Thanks for having me. The point about ideas keeps changing over the years, part 0. The point about ideas keeps changing over the years, part 1. The point about ideas keeps changing over the years, part 2. The point about ideas keeps changing over the years, part 3. The point about ideas keeps changing over the years, part 4. The point about ideas keeps changing over the years, part 5. The point about ideas keeps changing over the years, part 6. The point about ideas keeps changing over the years, part 7. The point about ideas keeps changing over the years, part 8. The point about ideas keeps changing over the years, part 9. The point about ideas keeps changing over the years, part 10. The point about ideas keeps changing over the years, part 11. The point about ideas keeps changing over the years, part 12. The point about ideas keeps changing over the years, part 13. The point about ideas keeps changing over the years, part 14. The point about ideas keeps changing over the years, part 15. The point about ideas keeps changing over the years, part 16. The point about ideas keeps changing over the years, part 17. The point about ideas keeps changing over the years, part 18. The point about ideas keeps changing over the years, part 19. The point about ideas keeps changing over the years, part 20. The point about ideas keeps changing over the years, part 21. The point about ideas keeps changing over the years, part 22. The point about ideas keeps changing over the years, part 23. The point about ideas keeps changing over the years, part 24. The point about ideas keeps changing over the years, part 25. The point about ideas keeps changing over the years, part 26. The point about ideas keeps changing over the years, part 27. The point about ideas keeps changing over the years, part 28. The point about ideas keeps changing over the years, part 29. The point about ideas keeps changing over the years, part 30. The point about ideas keeps changing over the years, part 31. The point about ideas keeps changing over the years, part 32. The point about ideas keeps changing over the years, part 33. The point about ideas keeps changing over the years, part 34. The point about ideas keeps changing over the years, part 35. The point about ideas keeps changing over the years, part 36. The point about ideas keeps changing over the years, part 37. The point about ideas keeps changing over the years, part 38. The point about ideas keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   60,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5."
+  ],
+  [
+   "G",
+   300,
+   "The point about books keeps changing over the years, part 0. The point about books keeps changing over the years, part 1. The point about books keeps changing over the years, part 2. The point about books keeps changing over the years, part 3. The point about books keeps changing over the years, part 4. The point about books keeps changing over the years, part 5. The point about books keeps changing over the years, part 6. The point about books keeps changing over the years, part 7. The point about books keeps changing over the years, part 8. The point about books keeps changing over the years, part 9. The point about books keeps changing over the years, part 10. The point about books keeps changing over the years, part 11. The point about books keeps changing over the years, part 12. The point about books keeps changing over the years, part 13. The point about books keeps changing over the years, part 14. The point about books keeps changing over the years, part 15. The point about books keeps changing over the years, part 16. The point about books keeps changing over the years, part 17. The point about books keeps changing over the years, part 18. The point about books keeps changing over the years, part 19. The point about books keeps changing over the years, part 20. The point about books keeps changing over the years, part 21. The point about books keeps changing over the years, part 22. The point about books keeps changing over the years, part 23. The point about books keeps changing over the years, part 24. The point about books keeps changing over the years, part 25. The point about books keeps changing over the years, part 26. The point about books keeps changing over the years, part 27. The point about books keeps changing over the years, part 28. The point about books keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name_not": [
+    "Tyler Moss"
+   ],
+   "role": "guest"
+  },
+  "H": {
+   "steps": [
+    "non_regression:not_restored"
+   ]
+  }
+ }
+}

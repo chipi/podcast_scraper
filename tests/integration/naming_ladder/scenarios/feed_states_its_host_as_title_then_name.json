@@ -1,0 +1,54 @@
+{
+ "why": "F8 (People I (Mostly) Admire, prod replay 2026-10-11 of '41. Dr. Bapu Jena on Why Freakonomics Is the Best Medicine'): the feed says 'Freakonomics co-author Steve Levitt tracks down other high achievers' — job title, name, verb, no host cue — so host detection finds nobody and no voice is named Steve Levitt. The real episode also shows F4a (the LLM put 'Dr. Bapu Jena' on the 48% voice that says 'my guest today bapu jenna', Levitt's own) on an all-lowercase transcript; this scenario isolates the feed wording.",
+ "xfail": "F8: '<title> <Name> <verb>' in the feed description is not read as a host statement",
+ "feed": {
+  "title": "People I (Mostly) Admire",
+  "description": "Freakonomics co-author Steve Levitt tracks down other high achievers for surprising, revealing conversations about their lives and obsessions.",
+  "authors": [
+   "Freakonomics Radio + Stitcher"
+  ]
+ },
+ "episode": {
+  "title": "How a Sheriff Is Transforming a Jail"
+ },
+ "detected": {
+  "speaker_names": [
+   "Tom Dart"
+  ],
+  "metadata_named": [
+   "Tom Dart"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "Welcome to People I Mostly Admire. My guest today is Tom Dart, the sheriff of Cook County."
+  ],
+  [
+   "G",
+   400,
+   "Thanks for having me. The point about the jail keeps changing over the years, part 0. The point about the jail keeps changing over the years, part 1. The point about the jail keeps changing over the years, part 2. The point about the jail keeps changing over the years, part 3. The point about the jail keeps changing over the years, part 4. The point about the jail keeps changing over the years, part 5. The point about the jail keeps changing over the years, part 6. The point about the jail keeps changing over the years, part 7. The point about the jail keeps changing over the years, part 8. The point about the jail keeps changing over the years, part 9. The point about the jail keeps changing over the years, part 10. The point about the jail keeps changing over the years, part 11. The point about the jail keeps changing over the years, part 12. The point about the jail keeps changing over the years, part 13. The point about the jail keeps changing over the years, part 14. The point about the jail keeps changing over the years, part 15. The point about the jail keeps changing over the years, part 16. The point about the jail keeps changing over the years, part 17. The point about the jail keeps changing over the years, part 18. The point about the jail keeps changing over the years, part 19. The point about the jail keeps changing over the years, part 20. The point about the jail keeps changing over the years, part 21. The point about the jail keeps changing over the years, part 22. The point about the jail keeps changing over the years, part 23. The point about the jail keeps changing over the years, part 24. The point about the jail keeps changing over the years, part 25. The point about the jail keeps changing over the years, part 26. The point about the jail keeps changing over the years, part 27. The point about the jail keeps changing over the years, part 28. The point about the jail keeps changing over the years, part 29. The point about the jail keeps changing over the years, part 30. The point about the jail keeps changing over the years, part 31. The point about the jail keeps changing over the years, part 32. The point about the jail keeps changing over the years, part 33. The point about the jail keeps changing over the years, part 34. The point about the jail keeps changing over the years, part 35. The point about the jail keeps changing over the years, part 36. The point about the jail keeps changing over the years, part 37. The point about the jail keeps changing over the years, part 38. The point about the jail keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   120,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10. The point about questions keeps changing over the years, part 11."
+  ],
+  [
+   "G",
+   300,
+   "The point about reform keeps changing over the years, part 0. The point about reform keeps changing over the years, part 1. The point about reform keeps changing over the years, part 2. The point about reform keeps changing over the years, part 3. The point about reform keeps changing over the years, part 4. The point about reform keeps changing over the years, part 5. The point about reform keeps changing over the years, part 6. The point about reform keeps changing over the years, part 7. The point about reform keeps changing over the years, part 8. The point about reform keeps changing over the years, part 9. The point about reform keeps changing over the years, part 10. The point about reform keeps changing over the years, part 11. The point about reform keeps changing over the years, part 12. The point about reform keeps changing over the years, part 13. The point about reform keeps changing over the years, part 14. The point about reform keeps changing over the years, part 15. The point about reform keeps changing over the years, part 16. The point about reform keeps changing over the years, part 17. The point about reform keeps changing over the years, part 18. The point about reform keeps changing over the years, part 19. The point about reform keeps changing over the years, part 20. The point about reform keeps changing over the years, part 21. The point about reform keeps changing over the years, part 22. The point about reform keeps changing over the years, part 23. The point about reform keeps changing over the years, part 24. The point about reform keeps changing over the years, part 25. The point about reform keeps changing over the years, part 26. The point about reform keeps changing over the years, part 27. The point about reform keeps changing over the years, part 28. The point about reform keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name": "Steve Levitt",
+   "role": "host"
+  },
+  "G": {
+   "name": "Tom Dart",
+   "role": "guest"
+  }
+ }
+}

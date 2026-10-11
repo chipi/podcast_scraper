@@ -1,0 +1,78 @@
+{
+ "feed": {
+  "title": "The Long View",
+  "hosts": [
+   "Anna Reid",
+   "Ben Cole"
+  ]
+ },
+ "episode": {
+  "title": "The Fall of Rome"
+ },
+ "detected": {},
+ "turns": [
+  [
+   "A",
+   30,
+   "Welcome to The Long View. I'm Anna Reid. Today, the fall of Rome."
+  ],
+  [
+   "B",
+   30,
+   "It is a story everybody thinks they know. The point about emperors keeps changing over the years, part 0. The point about emperors keeps changing over the years, part 1."
+  ],
+  [
+   "A",
+   300,
+   "The point about legions keeps changing over the years, part 0. The point about legions keeps changing over the years, part 1. The point about legions keeps changing over the years, part 2. The point about legions keeps changing over the years, part 3. The point about legions keeps changing over the years, part 4. The point about legions keeps changing over the years, part 5. The point about legions keeps changing over the years, part 6. The point about legions keeps changing over the years, part 7. The point about legions keeps changing over the years, part 8. The point about legions keeps changing over the years, part 9. The point about legions keeps changing over the years, part 10. The point about legions keeps changing over the years, part 11. The point about legions keeps changing over the years, part 12. The point about legions keeps changing over the years, part 13. The point about legions keeps changing over the years, part 14. The point about legions keeps changing over the years, part 15. The point about legions keeps changing over the years, part 16. The point about legions keeps changing over the years, part 17. The point about legions keeps changing over the years, part 18. The point about legions keeps changing over the years, part 19. The point about legions keeps changing over the years, part 20. The point about legions keeps changing over the years, part 21. The point about legions keeps changing over the years, part 22. The point about legions keeps changing over the years, part 23. The point about legions keeps changing over the years, part 24. The point about legions keeps changing over the years, part 25. The point about legions keeps changing over the years, part 26. The point about legions keeps changing over the years, part 27. The point about legions keeps changing over the years, part 28. The point about legions keeps changing over the years, part 29."
+  ],
+  [
+   "B",
+   300,
+   "The point about taxes keeps changing over the years, part 0. The point about taxes keeps changing over the years, part 1. The point about taxes keeps changing over the years, part 2. The point about taxes keeps changing over the years, part 3. The point about taxes keeps changing over the years, part 4. The point about taxes keeps changing over the years, part 5. The point about taxes keeps changing over the years, part 6. The point about taxes keeps changing over the years, part 7. The point about taxes keeps changing over the years, part 8. The point about taxes keeps changing over the years, part 9. The point about taxes keeps changing over the years, part 10. The point about taxes keeps changing over the years, part 11. The point about taxes keeps changing over the years, part 12. The point about taxes keeps changing over the years, part 13. The point about taxes keeps changing over the years, part 14. The point about taxes keeps changing over the years, part 15. The point about taxes keeps changing over the years, part 16. The point about taxes keeps changing over the years, part 17. The point about taxes keeps changing over the years, part 18. The point about taxes keeps changing over the years, part 19. The point about taxes keeps changing over the years, part 20. The point about taxes keeps changing over the years, part 21. The point about taxes keeps changing over the years, part 22. The point about taxes keeps changing over the years, part 23. The point about taxes keeps changing over the years, part 24. The point about taxes keeps changing over the years, part 25. The point about taxes keeps changing over the years, part 26. The point about taxes keeps changing over the years, part 27. The point about taxes keeps changing over the years, part 28. The point about taxes keeps changing over the years, part 29."
+  ],
+  [
+   "A",
+   300,
+   "The point about borders keeps changing over the years, part 0. The point about borders keeps changing over the years, part 1. The point about borders keeps changing over the years, part 2. The point about borders keeps changing over the years, part 3. The point about borders keeps changing over the years, part 4. The point about borders keeps changing over the years, part 5. The point about borders keeps changing over the years, part 6. The point about borders keeps changing over the years, part 7. The point about borders keeps changing over the years, part 8. The point about borders keeps changing over the years, part 9. The point about borders keeps changing over the years, part 10. The point about borders keeps changing over the years, part 11. The point about borders keeps changing over the years, part 12. The point about borders keeps changing over the years, part 13. The point about borders keeps changing over the years, part 14. The point about borders keeps changing over the years, part 15. The point about borders keeps changing over the years, part 16. The point about borders keeps changing over the years, part 17. The point about borders keeps changing over the years, part 18. The point about borders keeps changing over the years, part 19. The point about borders keeps changing over the years, part 20. The point about borders keeps changing over the years, part 21. The point about borders keeps changing over the years, part 22. The point about borders keeps changing over the years, part 23. The point about borders keeps changing over the years, part 24. The point about borders keeps changing over the years, part 25. The point about borders keeps changing over the years, part 26. The point about borders keeps changing over the years, part 27. The point about borders keeps changing over the years, part 28. The point about borders keeps changing over the years, part 29."
+  ],
+  [
+   "B",
+   300,
+   "The point about collapse keeps changing over the years, part 0. The point about collapse keeps changing over the years, part 1. The point about collapse keeps changing over the years, part 2. The point about collapse keeps changing over the years, part 3. The point about collapse keeps changing over the years, part 4. The point about collapse keeps changing over the years, part 5. The point about collapse keeps changing over the years, part 6. The point about collapse keeps changing over the years, part 7. The point about collapse keeps changing over the years, part 8. The point about collapse keeps changing over the years, part 9. The point about collapse keeps changing over the years, part 10. The point about collapse keeps changing over the years, part 11. The point about collapse keeps changing over the years, part 12. The point about collapse keeps changing over the years, part 13. The point about collapse keeps changing over the years, part 14. The point about collapse keeps changing over the years, part 15. The point about collapse keeps changing over the years, part 16. The point about collapse keeps changing over the years, part 17. The point about collapse keeps changing over the years, part 18. The point about collapse keeps changing over the years, part 19. The point about collapse keeps changing over the years, part 20. The point about collapse keeps changing over the years, part 21. The point about collapse keeps changing over the years, part 22. The point about collapse keeps changing over the years, part 23. The point about collapse keeps changing over the years, part 24. The point about collapse keeps changing over the years, part 25. The point about collapse keeps changing over the years, part 26. The point about collapse keeps changing over the years, part 27. The point about collapse keeps changing over the years, part 28. The point about collapse keeps changing over the years, part 29."
+  ]
+ ],
+ "why": "Seat logic v4 guard: the SAME episode on a feed whose history shows only ONE host per episode (the feed states two, one presents). The arithmetic second seat is refused and the second voice stays unnamed: a phantom co-host name is worse than none.",
+ "feed_history": [
+  [
+   "Anna Reid"
+  ],
+  [
+   "Anna Reid"
+  ],
+  [
+   "Anna Reid"
+  ],
+  [
+   "Anna Reid"
+  ],
+  [
+   "Anna Reid"
+  ],
+  [
+   "Anna Reid"
+  ]
+ ],
+ "expect": {
+  "A": {
+   "name": "Anna Reid",
+   "role": "host"
+  },
+  "B": {
+   "name": null,
+   "name_not": [
+    "Ben Cole"
+   ]
+  }
+ }
+}
