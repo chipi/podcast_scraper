@@ -1,0 +1,61 @@
+{
+ "why": "Baseline: an ad read must not consume the guest's name.",
+ "feed": {
+  "title": "Odd Lots",
+  "description": "Joe Weisenthal and Tracy Alloway."
+ },
+ "episode": {
+  "title": "Justin Solomon on ports"
+ },
+ "detected": {
+  "speaker_names": [
+   "Justin Solomon"
+  ],
+  "metadata_named": [
+   "Justin Solomon"
+  ]
+ },
+ "turns": [
+  [
+   "AD",
+   30,
+   "This episode is brought to you by Acme Insurance. Visit acme dot com slash podcast for a free quote."
+  ],
+  [
+   "J",
+   30,
+   "Hello and welcome to another episode of the Odd Lots podcast. I'm Joe Weisenthal."
+  ],
+  [
+   "T",
+   20,
+   "And I'm Tracy Alloway."
+  ],
+  [
+   "J",
+   40,
+   "We have the perfect guest. Justin, welcome to the show."
+  ],
+  [
+   "G",
+   600,
+   "Thanks for having me. The point about ports is that it keeps changing as the years go by, part 0. The point about ports is that it keeps changing as the years go by, part 1. The point about ports is that it keeps changing as the years go by, part 2. The point about ports is that it keeps changing as the years go by, part 3. The point about ports is that it keeps changing as the years go by, part 4. The point about ports is that it keeps changing as the years go by, part 5. The point about ports is that it keeps changing as the years go by, part 6. The point about ports is that it keeps changing as the years go by, part 7. The point about ports is that it keeps changing as the years go by, part 8. The point about ports is that it keeps changing as the years go by, part 9. The point about ports is that it keeps changing as the years go by, part 10. The point about ports is that it keeps changing as the years go by, part 11. The point about ports is that it keeps changing as the years go by, part 12. The point about ports is that it keeps changing as the years go by, part 13. The point about ports is that it keeps changing as the years go by, part 14. The point about ports is that it keeps changing as the years go by, part 15. The point about ports is that it keeps changing as the years go by, part 16. The point about ports is that it keeps changing as the years go by, part 17. The point about ports is that it keeps changing as the years go by, part 18. The point about ports is that it keeps changing as the years go by, part 19. The point about ports is that it keeps changing as the years go by, part 20. The point about ports is that it keeps changing as the years go by, part 21. The point about ports is that it keeps changing as the years go by, part 22. The point about ports is that it keeps changing as the years go by, part 23. The point about ports is that it keeps changing as the years go by, part 24. The point about ports is that it keeps changing as the years go by, part 25. The point about ports is that it keeps changing as the years go by, part 26. The point about ports is that it keeps changing as the years go by, part 27. The point about ports is that it keeps changing as the years go by, part 28. The point about ports is that it keeps changing as the years go by, part 29. The point about ports is that it keeps changing as the years go by, part 30. The point about ports is that it keeps changing as the years go by, part 31. The point about ports is that it keeps changing as the years go by, part 32. The point about ports is that it keeps changing as the years go by, part 33. The point about ports is that it keeps changing as the years go by, part 34. The point about ports is that it keeps changing as the years go by, part 35. The point about ports is that it keeps changing as the years go by, part 36. The point about ports is that it keeps changing as the years go by, part 37. The point about ports is that it keeps changing as the years go by, part 38. The point about ports is that it keeps changing as the years go by, part 39. The point about ports is that it keeps changing as the years go by, part 40. The point about ports is that it keeps changing as the years go by, part 41. The point about ports is that it keeps changing as the years go by, part 42. The point about ports is that it keeps changing as the years go by, part 43. The point about ports is that it keeps changing as the years go by, part 44. The point about ports is that it keeps changing as the years go by, part 45. The point about ports is that it keeps changing as the years go by, part 46. The point about ports is that it keeps changing as the years go by, part 47. The point about ports is that it keeps changing as the years go by, part 48. The point about ports is that it keeps changing as the years go by, part 49. The point about ports is that it keeps changing as the years go by, part 50. The point about ports is that it keeps changing as the years go by, part 51. The point about ports is that it keeps changing as the years go by, part 52. The point about ports is that it keeps changing as the years go by, part 53. The point about ports is that it keeps changing as the years go by, part 54. The point about ports is that it keeps changing as the years go by, part 55. The point about ports is that it keeps changing as the years go by, part 56. The point about ports is that it keeps changing as the years go by, part 57. The point about ports is that it keeps changing as the years go by, part 58. The point about ports is that it keeps changing as the years go by, part 59."
+  ],
+  [
+   "T",
+   100,
+   "The point about shipping is that it keeps changing as the years go by, part 0. The point about shipping is that it keeps changing as the years go by, part 1. The point about shipping is that it keeps changing as the years go by, part 2. The point about shipping is that it keeps changing as the years go by, part 3. The point about shipping is that it keeps changing as the years go by, part 4. The point about shipping is that it keeps changing as the years go by, part 5. The point about shipping is that it keeps changing as the years go by, part 6. The point about shipping is that it keeps changing as the years go by, part 7. The point about shipping is that it keeps changing as the years go by, part 8. The point about shipping is that it keeps changing as the years go by, part 9."
+  ]
+ ],
+ "expect": {
+  "AD": {
+   "name_not": [
+    "Justin Solomon"
+   ]
+  },
+  "G": {
+   "name": "Justin Solomon",
+   "role": "guest"
+  }
+ }
+}

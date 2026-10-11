@@ -1,0 +1,48 @@
+{
+ "why": "The Rest Is Politics / Yanis Varoufakis (2026-10-11): the guest holds 67% on a two-host show; a loose narrator rule named him a host.",
+ "feed": {
+  "title": "The Rest Is Politics",
+  "description": "Alastair Campbell and Rory Stewart discuss politics."
+ },
+ "episode": {
+  "title": "Yanis Varoufakis: How The 2008 Crisis Revived the Left"
+ },
+ "detected": {
+  "speaker_names": [
+   "Yanis Varoufakis"
+  ],
+  "metadata_named": [
+   "Yanis Varoufakis"
+  ]
+ },
+ "turns": [
+  [
+   "Y",
+   400,
+   "The point about the crisis is that it keeps changing as the years go by, part 0. The point about the crisis is that it keeps changing as the years go by, part 1. The point about the crisis is that it keeps changing as the years go by, part 2. The point about the crisis is that it keeps changing as the years go by, part 3. The point about the crisis is that it keeps changing as the years go by, part 4. The point about the crisis is that it keeps changing as the years go by, part 5. The point about the crisis is that it keeps changing as the years go by, part 6. The point about the crisis is that it keeps changing as the years go by, part 7. The point about the crisis is that it keeps changing as the years go by, part 8. The point about the crisis is that it keeps changing as the years go by, part 9. The point about the crisis is that it keeps changing as the years go by, part 10. The point about the crisis is that it keeps changing as the years go by, part 11. The point about the crisis is that it keeps changing as the years go by, part 12. The point about the crisis is that it keeps changing as the years go by, part 13. The point about the crisis is that it keeps changing as the years go by, part 14. The point about the crisis is that it keeps changing as the years go by, part 15. The point about the crisis is that it keeps changing as the years go by, part 16. The point about the crisis is that it keeps changing as the years go by, part 17. The point about the crisis is that it keeps changing as the years go by, part 18. The point about the crisis is that it keeps changing as the years go by, part 19. The point about the crisis is that it keeps changing as the years go by, part 20. The point about the crisis is that it keeps changing as the years go by, part 21. The point about the crisis is that it keeps changing as the years go by, part 22. The point about the crisis is that it keeps changing as the years go by, part 23. The point about the crisis is that it keeps changing as the years go by, part 24. The point about the crisis is that it keeps changing as the years go by, part 25. The point about the crisis is that it keeps changing as the years go by, part 26. The point about the crisis is that it keeps changing as the years go by, part 27. The point about the crisis is that it keeps changing as the years go by, part 28. The point about the crisis is that it keeps changing as the years go by, part 29. The point about the crisis is that it keeps changing as the years go by, part 30. The point about the crisis is that it keeps changing as the years go by, part 31. The point about the crisis is that it keeps changing as the years go by, part 32. The point about the crisis is that it keeps changing as the years go by, part 33. The point about the crisis is that it keeps changing as the years go by, part 34. The point about the crisis is that it keeps changing as the years go by, part 35. The point about the crisis is that it keeps changing as the years go by, part 36. The point about the crisis is that it keeps changing as the years go by, part 37. The point about the crisis is that it keeps changing as the years go by, part 38. The point about the crisis is that it keeps changing as the years go by, part 39."
+  ],
+  [
+   "A",
+   110,
+   "The point about labour is that it keeps changing as the years go by, part 0. The point about labour is that it keeps changing as the years go by, part 1. The point about labour is that it keeps changing as the years go by, part 2. The point about labour is that it keeps changing as the years go by, part 3. The point about labour is that it keeps changing as the years go by, part 4. The point about labour is that it keeps changing as the years go by, part 5. The point about labour is that it keeps changing as the years go by, part 6. The point about labour is that it keeps changing as the years go by, part 7. The point about labour is that it keeps changing as the years go by, part 8. The point about labour is that it keeps changing as the years go by, part 9. The point about labour is that it keeps changing as the years go by, part 10."
+  ],
+  [
+   "Y",
+   270,
+   "The point about banks is that it keeps changing as the years go by, part 0. The point about banks is that it keeps changing as the years go by, part 1. The point about banks is that it keeps changing as the years go by, part 2. The point about banks is that it keeps changing as the years go by, part 3. The point about banks is that it keeps changing as the years go by, part 4. The point about banks is that it keeps changing as the years go by, part 5. The point about banks is that it keeps changing as the years go by, part 6. The point about banks is that it keeps changing as the years go by, part 7. The point about banks is that it keeps changing as the years go by, part 8. The point about banks is that it keeps changing as the years go by, part 9. The point about banks is that it keeps changing as the years go by, part 10. The point about banks is that it keeps changing as the years go by, part 11. The point about banks is that it keeps changing as the years go by, part 12. The point about banks is that it keeps changing as the years go by, part 13. The point about banks is that it keeps changing as the years go by, part 14. The point about banks is that it keeps changing as the years go by, part 15. The point about banks is that it keeps changing as the years go by, part 16. The point about banks is that it keeps changing as the years go by, part 17. The point about banks is that it keeps changing as the years go by, part 18. The point about banks is that it keeps changing as the years go by, part 19. The point about banks is that it keeps changing as the years go by, part 20. The point about banks is that it keeps changing as the years go by, part 21. The point about banks is that it keeps changing as the years go by, part 22. The point about banks is that it keeps changing as the years go by, part 23. The point about banks is that it keeps changing as the years go by, part 24. The point about banks is that it keeps changing as the years go by, part 25. The point about banks is that it keeps changing as the years go by, part 26."
+  ],
+  [
+   "R",
+   100,
+   "The point about europe is that it keeps changing as the years go by, part 0. The point about europe is that it keeps changing as the years go by, part 1. The point about europe is that it keeps changing as the years go by, part 2. The point about europe is that it keeps changing as the years go by, part 3. The point about europe is that it keeps changing as the years go by, part 4. The point about europe is that it keeps changing as the years go by, part 5. The point about europe is that it keeps changing as the years go by, part 6. The point about europe is that it keeps changing as the years go by, part 7. The point about europe is that it keeps changing as the years go by, part 8. The point about europe is that it keeps changing as the years go by, part 9."
+  ]
+ ],
+ "expect": {
+  "Y": {
+   "name_not": [
+    "Alastair Campbell",
+    "Rory Stewart"
+   ]
+  }
+ }
+}

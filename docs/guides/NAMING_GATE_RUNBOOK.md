@@ -137,6 +137,16 @@ unnamed. Groups: `no_segments`, `no_diagnostics` (an older record that cannot be
 `replay_no_host`. The replay uses stored LLM verdicts only, so it is a floor. `--max-unnamed N` exits 1
 above N. Report it with every naming change.
 
+**The ladder as one component: scenario tests.** Unit tests pin single rules, the fixture golden
+(`tests/integration/workflow/test_naming_golden.py`) pins the current output, and the gold sets
+cover only the episodes they happen to contain. `tests/integration/naming_ladder/` runs the WHOLE
+naming stage, from feed and episode metadata, detection output, optional injected LLM verdicts and
+anonymous diarized turns to the speaker record. Each file in `scenarios/` states the CORRECT answer
+for a shape of episode (`name`, `role`, or `name_not` when only the wrong answer is certain). Texts
+are synthetic, never a real transcript. A scenario today's code gets wrong carries `"xfail"`,
+strict, so the fix that makes it pass must remove the marker. Every naming fix starts by adding its
+scenario.
+
 **Where to run.** Today the replay runs inside the api container on the box. A read-only local
 snapshot of the needed artifacts (metadata, segments, speaker diagnostics — no audio) into
 `.test_outputs/` would let it run on the workstation without touching prod; planned.

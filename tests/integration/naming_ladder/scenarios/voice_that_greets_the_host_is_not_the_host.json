@@ -1,0 +1,38 @@
+{
+ "why": "ChinaTalk (#2078): the voice opening 'Hey, Jordan. Good morning.' is not Jordan Schneider.",
+ "feed": {
+  "title": "ChinaTalk",
+  "description": "Hosted by Jordan Schneider."
+ },
+ "episode": {
+  "title": "Can AI Beat the Pentagon's Bureaucracy?"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "A",
+   300,
+   "Hey, Jordan. Good morning. The point about procurement is that it keeps changing as the years go by, part 0. The point about procurement is that it keeps changing as the years go by, part 1. The point about procurement is that it keeps changing as the years go by, part 2. The point about procurement is that it keeps changing as the years go by, part 3. The point about procurement is that it keeps changing as the years go by, part 4. The point about procurement is that it keeps changing as the years go by, part 5. The point about procurement is that it keeps changing as the years go by, part 6. The point about procurement is that it keeps changing as the years go by, part 7. The point about procurement is that it keeps changing as the years go by, part 8. The point about procurement is that it keeps changing as the years go by, part 9. The point about procurement is that it keeps changing as the years go by, part 10. The point about procurement is that it keeps changing as the years go by, part 11. The point about procurement is that it keeps changing as the years go by, part 12. The point about procurement is that it keeps changing as the years go by, part 13. The point about procurement is that it keeps changing as the years go by, part 14. The point about procurement is that it keeps changing as the years go by, part 15. The point about procurement is that it keeps changing as the years go by, part 16. The point about procurement is that it keeps changing as the years go by, part 17. The point about procurement is that it keeps changing as the years go by, part 18. The point about procurement is that it keeps changing as the years go by, part 19. The point about procurement is that it keeps changing as the years go by, part 20. The point about procurement is that it keeps changing as the years go by, part 21. The point about procurement is that it keeps changing as the years go by, part 22. The point about procurement is that it keeps changing as the years go by, part 23. The point about procurement is that it keeps changing as the years go by, part 24. The point about procurement is that it keeps changing as the years go by, part 25. The point about procurement is that it keeps changing as the years go by, part 26. The point about procurement is that it keeps changing as the years go by, part 27. The point about procurement is that it keeps changing as the years go by, part 28. The point about procurement is that it keeps changing as the years go by, part 29."
+  ],
+  [
+   "J",
+   200,
+   "The point about defense budgets is that it keeps changing as the years go by, part 0. The point about defense budgets is that it keeps changing as the years go by, part 1. The point about defense budgets is that it keeps changing as the years go by, part 2. The point about defense budgets is that it keeps changing as the years go by, part 3. The point about defense budgets is that it keeps changing as the years go by, part 4. The point about defense budgets is that it keeps changing as the years go by, part 5. The point about defense budgets is that it keeps changing as the years go by, part 6. The point about defense budgets is that it keeps changing as the years go by, part 7. The point about defense budgets is that it keeps changing as the years go by, part 8. The point about defense budgets is that it keeps changing as the years go by, part 9. The point about defense budgets is that it keeps changing as the years go by, part 10. The point about defense budgets is that it keeps changing as the years go by, part 11. The point about defense budgets is that it keeps changing as the years go by, part 12. The point about defense budgets is that it keeps changing as the years go by, part 13. The point about defense budgets is that it keeps changing as the years go by, part 14. The point about defense budgets is that it keeps changing as the years go by, part 15. The point about defense budgets is that it keeps changing as the years go by, part 16. The point about defense budgets is that it keeps changing as the years go by, part 17. The point about defense budgets is that it keeps changing as the years go by, part 18. The point about defense budgets is that it keeps changing as the years go by, part 19."
+  ],
+  [
+   "A",
+   300,
+   "The point about contracts is that it keeps changing as the years go by, part 0. The point about contracts is that it keeps changing as the years go by, part 1. The point about contracts is that it keeps changing as the years go by, part 2. The point about contracts is that it keeps changing as the years go by, part 3. The point about contracts is that it keeps changing as the years go by, part 4. The point about contracts is that it keeps changing as the years go by, part 5. The point about contracts is that it keeps changing as the years go by, part 6. The point about contracts is that it keeps changing as the years go by, part 7. The point about contracts is that it keeps changing as the years go by, part 8. The point about contracts is that it keeps changing as the years go by, part 9. The point about contracts is that it keeps changing as the years go by, part 10. The point about contracts is that it keeps changing as the years go by, part 11. The point about contracts is that it keeps changing as the years go by, part 12. The point about contracts is that it keeps changing as the years go by, part 13. The point about contracts is that it keeps changing as the years go by, part 14. The point about contracts is that it keeps changing as the years go by, part 15. The point about contracts is that it keeps changing as the years go by, part 16. The point about contracts is that it keeps changing as the years go by, part 17. The point about contracts is that it keeps changing as the years go by, part 18. The point about contracts is that it keeps changing as the years go by, part 19. The point about contracts is that it keeps changing as the years go by, part 20. The point about contracts is that it keeps changing as the years go by, part 21. The point about contracts is that it keeps changing as the years go by, part 22. The point about contracts is that it keeps changing as the years go by, part 23. The point about contracts is that it keeps changing as the years go by, part 24. The point about contracts is that it keeps changing as the years go by, part 25. The point about contracts is that it keeps changing as the years go by, part 26. The point about contracts is that it keeps changing as the years go by, part 27. The point about contracts is that it keeps changing as the years go by, part 28. The point about contracts is that it keeps changing as the years go by, part 29."
+  ]
+ ],
+ "expect": {
+  "A": {
+   "name_not": [
+    "Jordan Schneider"
+   ]
+  }
+ }
+}

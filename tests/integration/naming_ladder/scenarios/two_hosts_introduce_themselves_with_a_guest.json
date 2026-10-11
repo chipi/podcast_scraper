@@ -1,0 +1,64 @@
+{
+ "why": "Baseline: two self-introduced co-hosts and a guest named in the metadata and greeted.",
+ "feed": {
+  "title": "Hard Fork",
+  "description": "Kevin Roose and Casey Newton on the future."
+ },
+ "episode": {
+  "title": "Jensen Huang on chips"
+ },
+ "detected": {
+  "speaker_names": [
+   "Jensen Huang"
+  ],
+  "metadata_named": [
+   "Jensen Huang"
+  ]
+ },
+ "turns": [
+  [
+   "K",
+   20,
+   "I'm Kevin Roose, a tech columnist."
+  ],
+  [
+   "C",
+   20,
+   "And I'm Casey Newton from Platformer."
+  ],
+  [
+   "K",
+   60,
+   "Our guest today is the chip maker. Jensen, welcome to the show."
+  ],
+  [
+   "G",
+   600,
+   "Thanks for having me. The point about chips is that it keeps changing as the years go by, part 0. The point about chips is that it keeps changing as the years go by, part 1. The point about chips is that it keeps changing as the years go by, part 2. The point about chips is that it keeps changing as the years go by, part 3. The point about chips is that it keeps changing as the years go by, part 4. The point about chips is that it keeps changing as the years go by, part 5. The point about chips is that it keeps changing as the years go by, part 6. The point about chips is that it keeps changing as the years go by, part 7. The point about chips is that it keeps changing as the years go by, part 8. The point about chips is that it keeps changing as the years go by, part 9. The point about chips is that it keeps changing as the years go by, part 10. The point about chips is that it keeps changing as the years go by, part 11. The point about chips is that it keeps changing as the years go by, part 12. The point about chips is that it keeps changing as the years go by, part 13. The point about chips is that it keeps changing as the years go by, part 14. The point about chips is that it keeps changing as the years go by, part 15. The point about chips is that it keeps changing as the years go by, part 16. The point about chips is that it keeps changing as the years go by, part 17. The point about chips is that it keeps changing as the years go by, part 18. The point about chips is that it keeps changing as the years go by, part 19. The point about chips is that it keeps changing as the years go by, part 20. The point about chips is that it keeps changing as the years go by, part 21. The point about chips is that it keeps changing as the years go by, part 22. The point about chips is that it keeps changing as the years go by, part 23. The point about chips is that it keeps changing as the years go by, part 24. The point about chips is that it keeps changing as the years go by, part 25. The point about chips is that it keeps changing as the years go by, part 26. The point about chips is that it keeps changing as the years go by, part 27. The point about chips is that it keeps changing as the years go by, part 28. The point about chips is that it keeps changing as the years go by, part 29. The point about chips is that it keeps changing as the years go by, part 30. The point about chips is that it keeps changing as the years go by, part 31. The point about chips is that it keeps changing as the years go by, part 32. The point about chips is that it keeps changing as the years go by, part 33. The point about chips is that it keeps changing as the years go by, part 34. The point about chips is that it keeps changing as the years go by, part 35. The point about chips is that it keeps changing as the years go by, part 36. The point about chips is that it keeps changing as the years go by, part 37. The point about chips is that it keeps changing as the years go by, part 38. The point about chips is that it keeps changing as the years go by, part 39. The point about chips is that it keeps changing as the years go by, part 40. The point about chips is that it keeps changing as the years go by, part 41. The point about chips is that it keeps changing as the years go by, part 42. The point about chips is that it keeps changing as the years go by, part 43. The point about chips is that it keeps changing as the years go by, part 44. The point about chips is that it keeps changing as the years go by, part 45. The point about chips is that it keeps changing as the years go by, part 46. The point about chips is that it keeps changing as the years go by, part 47. The point about chips is that it keeps changing as the years go by, part 48. The point about chips is that it keeps changing as the years go by, part 49. The point about chips is that it keeps changing as the years go by, part 50. The point about chips is that it keeps changing as the years go by, part 51. The point about chips is that it keeps changing as the years go by, part 52. The point about chips is that it keeps changing as the years go by, part 53. The point about chips is that it keeps changing as the years go by, part 54. The point about chips is that it keeps changing as the years go by, part 55. The point about chips is that it keeps changing as the years go by, part 56. The point about chips is that it keeps changing as the years go by, part 57. The point about chips is that it keeps changing as the years go by, part 58. The point about chips is that it keeps changing as the years go by, part 59."
+  ],
+  [
+   "C",
+   120,
+   "The point about demand is that it keeps changing as the years go by, part 0. The point about demand is that it keeps changing as the years go by, part 1. The point about demand is that it keeps changing as the years go by, part 2. The point about demand is that it keeps changing as the years go by, part 3. The point about demand is that it keeps changing as the years go by, part 4. The point about demand is that it keeps changing as the years go by, part 5. The point about demand is that it keeps changing as the years go by, part 6. The point about demand is that it keeps changing as the years go by, part 7. The point about demand is that it keeps changing as the years go by, part 8. The point about demand is that it keeps changing as the years go by, part 9. The point about demand is that it keeps changing as the years go by, part 10. The point about demand is that it keeps changing as the years go by, part 11."
+  ],
+  [
+   "G",
+   200,
+   "The point about supply is that it keeps changing as the years go by, part 0. The point about supply is that it keeps changing as the years go by, part 1. The point about supply is that it keeps changing as the years go by, part 2. The point about supply is that it keeps changing as the years go by, part 3. The point about supply is that it keeps changing as the years go by, part 4. The point about supply is that it keeps changing as the years go by, part 5. The point about supply is that it keeps changing as the years go by, part 6. The point about supply is that it keeps changing as the years go by, part 7. The point about supply is that it keeps changing as the years go by, part 8. The point about supply is that it keeps changing as the years go by, part 9. The point about supply is that it keeps changing as the years go by, part 10. The point about supply is that it keeps changing as the years go by, part 11. The point about supply is that it keeps changing as the years go by, part 12. The point about supply is that it keeps changing as the years go by, part 13. The point about supply is that it keeps changing as the years go by, part 14. The point about supply is that it keeps changing as the years go by, part 15. The point about supply is that it keeps changing as the years go by, part 16. The point about supply is that it keeps changing as the years go by, part 17. The point about supply is that it keeps changing as the years go by, part 18. The point about supply is that it keeps changing as the years go by, part 19."
+  ]
+ ],
+ "expect": {
+  "K": {
+   "name": "Kevin Roose",
+   "role": "host"
+  },
+  "C": {
+   "name": "Casey Newton",
+   "role": "host"
+  },
+  "G": {
+   "name": "Jensen Huang",
+   "role": "guest"
+  }
+ }
+}

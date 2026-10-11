@@ -1,0 +1,36 @@
+{
+ "why": "The Rest Is History (2026-10-11): the diarizer merged both hosts into one 85% voice that says 'so true, Tom'. Either host name on it is half wrong.",
+ "feed": {
+  "title": "The Rest Is History",
+  "description": "Tom Holland and Dominic Sandbrook take on history."
+ },
+ "episode": {
+  "title": "Queen Victoria's Revenge: Storming the Citadel (Part 2)"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "M",
+   300,
+   "The point about the empire is that it keeps changing as the years go by, part 0. The point about the empire is that it keeps changing as the years go by, part 1. The point about the empire is that it keeps changing as the years go by, part 2. The point about the empire is that it keeps changing as the years go by, part 3. The point about the empire is that it keeps changing as the years go by, part 4. The point about the empire is that it keeps changing as the years go by, part 5. The point about the empire is that it keeps changing as the years go by, part 6. The point about the empire is that it keeps changing as the years go by, part 7. The point about the empire is that it keeps changing as the years go by, part 8. The point about the empire is that it keeps changing as the years go by, part 9. The point about the empire is that it keeps changing as the years go by, part 10. The point about the empire is that it keeps changing as the years go by, part 11. The point about the empire is that it keeps changing as the years go by, part 12. The point about the empire is that it keeps changing as the years go by, part 13. The point about the empire is that it keeps changing as the years go by, part 14. The point about the empire is that it keeps changing as the years go by, part 15. The point about the empire is that it keeps changing as the years go by, part 16. The point about the empire is that it keeps changing as the years go by, part 17. The point about the empire is that it keeps changing as the years go by, part 18. The point about the empire is that it keeps changing as the years go by, part 19. The point about the empire is that it keeps changing as the years go by, part 20. The point about the empire is that it keeps changing as the years go by, part 21. The point about the empire is that it keeps changing as the years go by, part 22. The point about the empire is that it keeps changing as the years go by, part 23. The point about the empire is that it keeps changing as the years go by, part 24. The point about the empire is that it keeps changing as the years go by, part 25. The point about the empire is that it keeps changing as the years go by, part 26. The point about the empire is that it keeps changing as the years go by, part 27. The point about the empire is that it keeps changing as the years go by, part 28. The point about the empire is that it keeps changing as the years go by, part 29. So true, Tom. And Dominic, what happened next?"
+  ],
+  [
+   "R",
+   60,
+   "A commotion at the doorway brought me back to life, the narrator read aloud."
+  ],
+  [
+   "M",
+   500,
+   "The point about the citadel is that it keeps changing as the years go by, part 0. The point about the citadel is that it keeps changing as the years go by, part 1. The point about the citadel is that it keeps changing as the years go by, part 2. The point about the citadel is that it keeps changing as the years go by, part 3. The point about the citadel is that it keeps changing as the years go by, part 4. The point about the citadel is that it keeps changing as the years go by, part 5. The point about the citadel is that it keeps changing as the years go by, part 6. The point about the citadel is that it keeps changing as the years go by, part 7. The point about the citadel is that it keeps changing as the years go by, part 8. The point about the citadel is that it keeps changing as the years go by, part 9. The point about the citadel is that it keeps changing as the years go by, part 10. The point about the citadel is that it keeps changing as the years go by, part 11. The point about the citadel is that it keeps changing as the years go by, part 12. The point about the citadel is that it keeps changing as the years go by, part 13. The point about the citadel is that it keeps changing as the years go by, part 14. The point about the citadel is that it keeps changing as the years go by, part 15. The point about the citadel is that it keeps changing as the years go by, part 16. The point about the citadel is that it keeps changing as the years go by, part 17. The point about the citadel is that it keeps changing as the years go by, part 18. The point about the citadel is that it keeps changing as the years go by, part 19. The point about the citadel is that it keeps changing as the years go by, part 20. The point about the citadel is that it keeps changing as the years go by, part 21. The point about the citadel is that it keeps changing as the years go by, part 22. The point about the citadel is that it keeps changing as the years go by, part 23. The point about the citadel is that it keeps changing as the years go by, part 24. The point about the citadel is that it keeps changing as the years go by, part 25. The point about the citadel is that it keeps changing as the years go by, part 26. The point about the citadel is that it keeps changing as the years go by, part 27. The point about the citadel is that it keeps changing as the years go by, part 28. The point about the citadel is that it keeps changing as the years go by, part 29. The point about the citadel is that it keeps changing as the years go by, part 30. The point about the citadel is that it keeps changing as the years go by, part 31. The point about the citadel is that it keeps changing as the years go by, part 32. The point about the citadel is that it keeps changing as the years go by, part 33. The point about the citadel is that it keeps changing as the years go by, part 34. The point about the citadel is that it keeps changing as the years go by, part 35. The point about the citadel is that it keeps changing as the years go by, part 36. The point about the citadel is that it keeps changing as the years go by, part 37. The point about the citadel is that it keeps changing as the years go by, part 38. The point about the citadel is that it keeps changing as the years go by, part 39. The point about the citadel is that it keeps changing as the years go by, part 40. The point about the citadel is that it keeps changing as the years go by, part 41. The point about the citadel is that it keeps changing as the years go by, part 42. The point about the citadel is that it keeps changing as the years go by, part 43. The point about the citadel is that it keeps changing as the years go by, part 44. The point about the citadel is that it keeps changing as the years go by, part 45. The point about the citadel is that it keeps changing as the years go by, part 46. The point about the citadel is that it keeps changing as the years go by, part 47. The point about the citadel is that it keeps changing as the years go by, part 48. The point about the citadel is that it keeps changing as the years go by, part 49."
+  ]
+ ],
+ "expect": {
+  "M": {
+   "name": null
+  }
+ }
+}
