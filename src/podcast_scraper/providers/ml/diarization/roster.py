@@ -583,6 +583,28 @@ def _not_a_person_heard(name: str, feed_title: Optional[str]) -> bool:
     return bool(toks) and toks[-1].lower().strip(".,'’") in _NOT_A_SURNAME
 
 
+def _declare_the_title_guest(
+    declared: List[str],
+    episode_text: Optional[str],
+    metadata_named: Optional[Sequence[str]],
+    known_hosts: Sequence[str],
+    host_voices: Sequence[str],
+    llm_named: AbstractSet[str],
+    tr: Any,
+) -> None:
+    """Append the title's stated guest to ``declared`` (in place); see `_title_subject_guest`.
+
+    Only beside a host seated on EVIDENCE: where the model's verdict alone put the host's name on
+    the guest's voice (Dwarkesh, F3), the spare title name went onto the real host's voice.
+    """
+    titled = _title_subject_guest(
+        episode_text, metadata_named, known_hosts, any(v not in llm_named for v in host_voices)
+    )
+    if titled and titled.lower() not in {d.lower() for d in declared}:
+        declared.append(titled)
+        tr.name(titled, "title_subject", "added")
+
+
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
@@ -5625,17 +5647,9 @@ def resolve_speaker_roster(
     # (which the corroboration gate may have had to drop for want of an interview cue).
     intro_names_lower = {n.lower() for n in voice_intro.values()}
     declared = list(_clean_person_names(detected_guests))
-    # Only beside a host seated on EVIDENCE: where the model's verdict alone put the host's name on
-    # the guest's voice (Dwarkesh, F3), the spare title name went onto the real host's voice.
-    titled = _title_subject_guest(
-        episode_text,
-        metadata_named,
-        known_hosts,
-        any(v not in llm_named for v in host_voices),
+    _declare_the_title_guest(
+        declared, episode_text, metadata_named, known_hosts, host_voices, llm_named, tr
     )
-    if titled and titled.lower() not in {d.lower() for d in declared}:
-        declared.append(titled)
-        tr.name(titled, "title_subject", "added")
     # The HOST introduces the guest, so only the resolved HOST voices' turns are trusted here.
     # Scanning EVERY voice let a guest who merely QUOTES a greeting ("...and then Sarah Chen, thanks
     # so much for coming to my defense...") harvest that name into the guest pool, where the forced
@@ -5649,6 +5663,9 @@ def resolve_speaker_roster(
     stated_for_harvest = list(detected_guests or ()) + list(metadata_named or ())
     host_voice_texts = {v: (voice_texts or {}).get(v, "") for v in host_voices}
     for n in sorted(guests_introduced_by_the_host(host_voice_texts)):
+        if _not_a_person_heard(n, feed_title):
+            tr.name(n, "host_introduction_harvest", "refused", reason="not_a_person")
+            continue
         snapped = _canonicalize_to_stated_name(n, stated_for_harvest)
         stated_h_lower = {s.lower() for s in stated_for_harvest}
         if snapped.lower() not in stated_h_lower and not any(

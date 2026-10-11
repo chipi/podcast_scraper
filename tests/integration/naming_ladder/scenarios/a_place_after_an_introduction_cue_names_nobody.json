@@ -1,0 +1,43 @@
+{
+ "why": "F12 (The Daily, 'Zohran Mamdani Knows He Has Political Capital', prod replay 2026-10-11): an introduction cue followed by a place ('we're here with New York City') named the next voice 'New York City'. A heard name that ends in a word no surname is, or that is the show, names nobody.",
+ "feed": {
+  "title": "The Daily",
+  "description": "This is what the news should sound like. Hosted by Natalie Kitroeff."
+ },
+ "episode": {
+  "title": "Zohran Mamdani Knows He Has Political Capital"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "From the New York Times, I'm Natalie Kitroeff. Today, we're here with New York City, on election night."
+  ],
+  [
+   "V",
+   60,
+   "The point about the crowd keeps changing over the years, part 0. The point about the crowd keeps changing over the years, part 1. The point about the crowd keeps changing over the years, part 2. The point about the crowd keeps changing over the years, part 3. The point about the crowd keeps changing over the years, part 4. The point about the crowd keeps changing over the years, part 5."
+  ],
+  [
+   "H",
+   300,
+   "The point about the race keeps changing over the years, part 0. The point about the race keeps changing over the years, part 1. The point about the race keeps changing over the years, part 2. The point about the race keeps changing over the years, part 3. The point about the race keeps changing over the years, part 4. The point about the race keeps changing over the years, part 5. The point about the race keeps changing over the years, part 6. The point about the race keeps changing over the years, part 7. The point about the race keeps changing over the years, part 8. The point about the race keeps changing over the years, part 9. The point about the race keeps changing over the years, part 10. The point about the race keeps changing over the years, part 11. The point about the race keeps changing over the years, part 12. The point about the race keeps changing over the years, part 13. The point about the race keeps changing over the years, part 14. The point about the race keeps changing over the years, part 15. The point about the race keeps changing over the years, part 16. The point about the race keeps changing over the years, part 17. The point about the race keeps changing over the years, part 18. The point about the race keeps changing over the years, part 19. The point about the race keeps changing over the years, part 20. The point about the race keeps changing over the years, part 21. The point about the race keeps changing over the years, part 22. The point about the race keeps changing over the years, part 23. The point about the race keeps changing over the years, part 24. The point about the race keeps changing over the years, part 25. The point about the race keeps changing over the years, part 26. The point about the race keeps changing over the years, part 27. The point about the race keeps changing over the years, part 28. The point about the race keeps changing over the years, part 29."
+  ],
+  [
+   "V",
+   40,
+   "The point about the count keeps changing over the years, part 0. The point about the count keeps changing over the years, part 1. The point about the count keeps changing over the years, part 2. The point about the count keeps changing over the years, part 3."
+  ]
+ ],
+ "expect": {
+  "V": {
+   "name_not": [
+    "New York City"
+   ]
+  }
+ }
+}

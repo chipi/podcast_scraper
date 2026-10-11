@@ -1,0 +1,54 @@
+{
+ "why": "Guard for the title-guest rule (Dwarkesh, 'Jensen Huang – TPU competition...', prod replay 2026-10-11): the model put 'Dwarkesh Patel, host' on the guest's 70% voice (F3, unsolved). With the host seated only by that verdict, the title's guest must not be added: the one spare voice left is the real host's, and Jensen Huang would land on it.",
+ "feed": {
+  "title": "Dwarkesh Podcast",
+  "description": "Deeply researched interviews.",
+  "authors": [
+   "Dwarkesh Patel"
+  ]
+ },
+ "episode": {
+  "title": "Jensen Huang – TPU competition, why we should sell chips to China"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Jensen Huang"
+  ]
+ },
+ "llm": {
+  "G": [
+   "Dwarkesh Patel",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "G",
+   400,
+   "Well, in the end, something has to transform electrons to tokens. The point about compute keeps changing over the years, part 0. The point about compute keeps changing over the years, part 1. The point about compute keeps changing over the years, part 2. The point about compute keeps changing over the years, part 3. The point about compute keeps changing over the years, part 4. The point about compute keeps changing over the years, part 5. The point about compute keeps changing over the years, part 6. The point about compute keeps changing over the years, part 7. The point about compute keeps changing over the years, part 8. The point about compute keeps changing over the years, part 9. The point about compute keeps changing over the years, part 10. The point about compute keeps changing over the years, part 11. The point about compute keeps changing over the years, part 12. The point about compute keeps changing over the years, part 13. The point about compute keeps changing over the years, part 14. The point about compute keeps changing over the years, part 15. The point about compute keeps changing over the years, part 16. The point about compute keeps changing over the years, part 17. The point about compute keeps changing over the years, part 18. The point about compute keeps changing over the years, part 19. The point about compute keeps changing over the years, part 20. The point about compute keeps changing over the years, part 21. The point about compute keeps changing over the years, part 22. The point about compute keeps changing over the years, part 23. The point about compute keeps changing over the years, part 24. The point about compute keeps changing over the years, part 25. The point about compute keeps changing over the years, part 26. The point about compute keeps changing over the years, part 27. The point about compute keeps changing over the years, part 28. The point about compute keeps changing over the years, part 29. The point about compute keeps changing over the years, part 30. The point about compute keeps changing over the years, part 31. The point about compute keeps changing over the years, part 32. The point about compute keeps changing over the years, part 33. The point about compute keeps changing over the years, part 34. The point about compute keeps changing over the years, part 35. The point about compute keeps changing over the years, part 36. The point about compute keeps changing over the years, part 37. The point about compute keeps changing over the years, part 38. The point about compute keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   120,
+   "We've seen the valuations of a bunch of software companies crash. Why? The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10. The point about questions keeps changing over the years, part 11."
+  ],
+  [
+   "G",
+   400,
+   "The point about chips keeps changing over the years, part 0. The point about chips keeps changing over the years, part 1. The point about chips keeps changing over the years, part 2. The point about chips keeps changing over the years, part 3. The point about chips keeps changing over the years, part 4. The point about chips keeps changing over the years, part 5. The point about chips keeps changing over the years, part 6. The point about chips keeps changing over the years, part 7. The point about chips keeps changing over the years, part 8. The point about chips keeps changing over the years, part 9. The point about chips keeps changing over the years, part 10. The point about chips keeps changing over the years, part 11. The point about chips keeps changing over the years, part 12. The point about chips keeps changing over the years, part 13. The point about chips keeps changing over the years, part 14. The point about chips keeps changing over the years, part 15. The point about chips keeps changing over the years, part 16. The point about chips keeps changing over the years, part 17. The point about chips keeps changing over the years, part 18. The point about chips keeps changing over the years, part 19. The point about chips keeps changing over the years, part 20. The point about chips keeps changing over the years, part 21. The point about chips keeps changing over the years, part 22. The point about chips keeps changing over the years, part 23. The point about chips keeps changing over the years, part 24. The point about chips keeps changing over the years, part 25. The point about chips keeps changing over the years, part 26. The point about chips keeps changing over the years, part 27. The point about chips keeps changing over the years, part 28. The point about chips keeps changing over the years, part 29. The point about chips keeps changing over the years, part 30. The point about chips keeps changing over the years, part 31. The point about chips keeps changing over the years, part 32. The point about chips keeps changing over the years, part 33. The point about chips keeps changing over the years, part 34. The point about chips keeps changing over the years, part 35. The point about chips keeps changing over the years, part 36. The point about chips keeps changing over the years, part 37. The point about chips keeps changing over the years, part 38. The point about chips keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   60,
+   "The point about follow ups keeps changing over the years, part 0. The point about follow ups keeps changing over the years, part 1. The point about follow ups keeps changing over the years, part 2. The point about follow ups keeps changing over the years, part 3. The point about follow ups keeps changing over the years, part 4. The point about follow ups keeps changing over the years, part 5."
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name_not": [
+    "Jensen Huang"
+   ]
+  }
+ }
+}
