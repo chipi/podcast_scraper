@@ -389,13 +389,13 @@
     {
       "id": "quote:authored-p02_e04-0",
       "properties": {
-        "char_end": 72,
-        "char_start": 0,
+        "char_end": 495,
+        "char_start": 423,
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:priya-nair",
         "text": "Reliability is a property of the whole system, not of any one component.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"

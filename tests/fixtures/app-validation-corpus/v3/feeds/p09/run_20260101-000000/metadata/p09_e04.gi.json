@@ -367,13 +367,13 @@
     {
       "id": "quote:authored-p09_e04-0",
       "properties": {
-        "char_end": 72,
-        "char_start": 0,
+        "char_end": 2829,
+        "char_start": 2757,
         "episode_id": "ep-4d94c63887afbd1a",
         "speaker_id": "person:dr-elena-fischer",
         "text": "Risk is a systems property: it lives in the interactions, not the parts.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 132000,
+        "timestamp_start_ms": 126000,
         "transcript_ref": "transcripts/p09_e04.txt"
       },
       "type": "Quote"
@@ -395,13 +395,13 @@
     {
       "id": "quote:authored-p09_e04-1",
       "properties": {
-        "char_end": 76,
-        "char_start": 0,
+        "char_end": 3038,
+        "char_start": 2962,
         "episode_id": "ep-4d94c63887afbd1a",
         "speaker_id": "person:dr-elena-fischer",
         "text": "Systems thinking and risk management are one discipline in two vocabularies.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 150000,
+        "timestamp_start_ms": 144000,
         "transcript_ref": "transcripts/p09_e04.txt"
       },
       "type": "Quote"

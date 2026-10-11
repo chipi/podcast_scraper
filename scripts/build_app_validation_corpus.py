@@ -1151,8 +1151,44 @@ def _authored_claim_route(grounded: bool) -> dict[str, Any]:
     return {"tier": 3, "routing_tag": "surface", "salience": salience}
 
 
+def _norm_words(text: str) -> str:
+    return re.sub(r"\W+", " ", text.lower()).strip()
+
+
+def authored_quote_anchor(
+    text: str, segments: list[dict[str, Any]], transcript: str
+) -> dict[str, int] | None:
+    """Where an authored claim is SAID: the times of the one transcript segment containing it, and
+    its character offsets in the transcript. ``None`` when no single segment contains it — the
+    claim is not transcript text, and inventing a time for it would make a quote of a paraphrase.
+
+    Authored quotes used to be stamped at 0 ms with offsets 0..len, so the player could not play
+    them and the Moments picker could not clip them.
+    """
+    want = _norm_words(text)
+    if not want:
+        return None
+    hits = [s for s in segments if want in _norm_words(str(s.get("text") or ""))]
+    if len(hits) != 1:
+        return None
+    seg = hits[0]
+    anchor = {
+        "timestamp_start_ms": int(round(float(seg.get("start") or 0.0) * 1000)),
+        "timestamp_end_ms": int(round(float(seg.get("end") or 0.0) * 1000)),
+    }
+    at = transcript.find(text)
+    if at >= 0:
+        anchor["char_start"], anchor["char_end"] = at, at + len(text)
+    return anchor
+
+
 def _inject_authored_claims(
-    gi: dict[str, Any], ep_label: str, gt_dir: Path, name_by_key: dict[str, str]
+    gi: dict[str, Any],
+    ep_label: str,
+    gt_dir: Path,
+    name_by_key: dict[str, str],
+    segments: list[dict[str, Any]] | None = None,
+    transcript: str = "",
 ) -> None:
     """Inject authored topic/contradiction claims into the GI as real Insights.
 
@@ -1236,6 +1272,9 @@ def _inject_authored_claims(
                 },
             }
         )
+        anchor = authored_quote_anchor(text, segments or [], transcript)
+        if anchor:
+            nodes[-1]["properties"].update(anchor)
         edges.append({"from": iid, "to": qid, "type": "SUPPORTED_BY"})
         edges.append({"from": qid, "to": pid, "type": "SPOKEN_BY"})
         edges.append({"from": iid, "to": tid, "type": "ABOUT"})
@@ -2342,7 +2381,12 @@ def main() -> int:
             # #1148: surface the authored claims (perspectives + opposition) the
             # naive sentences[:3] extractor drops.
             _inject_authored_claims(
-                gi, ep_label, gt_dir, pod_guests.get(ep_label.split("_")[0], {})
+                gi,
+                ep_label,
+                gt_dir,
+                pod_guests.get(ep_label.split("_")[0], {}),
+                segments=diar_segments,
+                transcript=raw_text,
             )
             _attach_captured_provenance(gi, captured, en_segments)
 

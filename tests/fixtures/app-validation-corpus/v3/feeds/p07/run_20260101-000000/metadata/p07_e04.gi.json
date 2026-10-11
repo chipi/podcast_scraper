@@ -405,8 +405,8 @@
         "episode_id": "ep-362f5d463b877d2c",
         "speaker_id": "person:skanda-amarnath",
         "text": "The economy is a system, not a set of levers.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p07_e04.txt"
       },
       "type": "Quote"

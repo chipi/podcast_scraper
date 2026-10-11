@@ -438,13 +438,13 @@
     {
       "id": "quote:authored-p05_e04-0",
       "properties": {
-        "char_end": 93,
-        "char_start": 0,
+        "char_end": 781,
+        "char_start": 688,
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:daniel-cho",
         "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -471,8 +471,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:scott-bessent",
         "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -494,13 +494,13 @@
     {
       "id": "quote:authored-p05_e04-2",
       "properties": {
-        "char_end": 105,
-        "char_start": 0,
+        "char_end": 1970,
+        "char_start": 1865,
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:daniel-cho",
         "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
