@@ -21,7 +21,6 @@ const why = (over: Partial<Reason> = {}): Reason => ({
   subject: null,
   capture: null,
   events: null,
-  outside_habits: false,
   ...over,
 })
 const route = (name: string, path = `/${name}`) =>
@@ -36,21 +35,21 @@ describe('useRailTelemetry', () => {
     const t = useRailTelemetry('quotes')
     t.shown([], 'mine')
     expect(tracked).toEqual([])
-    const items = [{ why: why() }, { why: why({ outside_habits: true }) }, { why: null }]
+    const items = [{ why: why() }, { why: why({ kind: 'captured' }) }, { why: null }]
     t.shown(items, 'mine')
     t.shown(items, 'mine')
     expect(tracked).toEqual([
-      { name: 'discover_rail_shown', props: { rail: 'quotes', items: '2-5', outside: '1', scope: 'mine' } },
+      { name: 'discover_rail_shown', props: { rail: 'quotes', items: '2-5', scope: 'mine' } },
     ])
   })
 
   it('a tap reports the reason kind, action and rank bucket — never the episode', () => {
     const t = useRailTelemetry('captured')
-    t.tapped({ why: why({ kind: 'captured', outside_habits: true }) }, 3, 'play_from')
+    t.tapped({ why: why({ kind: 'captured' }) }, 3, 'play_from')
     t.tapped({ why: null }, 0, 'open')
     expect(tracked.map((e) => e.props)).toEqual([
-      { rail: 'captured', reason_kind: 'captured', action: 'play_from', rank: '4-10', outside_habits: true },
-      { rail: 'captured', reason_kind: 'none', action: 'open', rank: '1', outside_habits: false },
+      { rail: 'captured', reason_kind: 'captured', action: 'play_from', rank: '4-10' },
+      { rail: 'captured', reason_kind: 'none', action: 'open', rank: '1' },
     ])
   })
 

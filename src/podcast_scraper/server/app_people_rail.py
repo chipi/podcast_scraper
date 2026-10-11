@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from podcast_scraper.server.app_captured_rail import person_quotes
+from podcast_scraper.server.app_rail_turns import take_turns
 from podcast_scraper.server.app_reasons import Reason, ReasonQuote, ReasonSubject
-from podcast_scraper.server.app_serendipity import take_turns
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 
 #: A person counts as "kept hearing" from this many of the listener's episodes.

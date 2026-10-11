@@ -107,9 +107,7 @@ async function less(c: TrendingEpisodeCard, i: number): Promise<void> {
   }
   const left = cards.value.filter((x) => x.why.subject?.id !== subject.id)
   total.value -= cards.value.length - left.length
-  // Only Everyone's outside-share cards left: the server shows no rail then (the share only rides
-  // along with the listener's own cards), so neither does this.
-  cards.value = left.every((x) => x.why.outside_habits) ? [] : left
+  cards.value = left
   lessOf.value = { token: subject.id, label: subject.label }
 }
 

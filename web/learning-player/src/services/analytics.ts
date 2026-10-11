@@ -436,8 +436,6 @@ export type EventProps = {
   discover_rail_shown: {
     rail: RailId
     items: CountBucket
-    /** How many of the cards were the labelled outside-your-habits share (ADR-163 §7). */
-    outside: CountBucket
     scope: 'mine' | 'everyone'
   }
   /** A card on a Discover rail was opened, its "Play from" tapped, or "Less like this" tapped. */
@@ -446,7 +444,6 @@ export type EventProps = {
     reason_kind: RailReasonKind
     action: RailAction
     rank: RankBucket
-    outside_habits: boolean
   }
 }
 

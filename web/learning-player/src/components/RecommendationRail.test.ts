@@ -39,7 +39,6 @@ const card = (slug: string, subject = 'topic:x', label = 'X'): TrendingEpisodeCa
       subject: { kind: 'topic', id: subject, label },
       capture: { kind: 'highlight', episode_slug: 'ep-0', text: 'kept', start_ms: 1 },
       events: null,
-      outside_habits: false,
     },
   }) as unknown as TrendingEpisodeCard
 
@@ -148,14 +147,12 @@ describe('RecommendationRail', () => {
     expect(w.emitted('changed')).toHaveLength(1)
   })
 
-  it('when "Less like this" leaves only outside-share cards, the rail goes too (as the server would)', async () => {
-    const outside = card('o', 'topic:z', 'Z')
-    outside.why = { ...outside.why, outside_habits: true }
-    const { w } = await mountRail(page([card('a'), outside], 2))
-    await w.findAll('[data-testid="rail-less"]')[0].trigger('click')
+  it('when "Less like this" removes the last card, Undo stays reachable', async () => {
+    const { w } = await mountRail(page([card('a')], 1))
+    await w.get('[data-testid="rail-less"]').trigger('click')
     await flushPromises()
     expect(w.findAll('[data-testid="captured-card"]')).toHaveLength(0)
-    expect(w.find('[data-testid="rail-less-undo"]').exists()).toBe(true) // Undo stays reachable
+    expect(w.find('[data-testid="rail-less-undo"]').exists()).toBe(true)
   })
 
   it('a new first page (a reload, a scope switch) replaces the cards and counts a new impression', async () => {

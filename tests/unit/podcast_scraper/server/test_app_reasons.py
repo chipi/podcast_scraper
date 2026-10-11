@@ -78,7 +78,7 @@ def test_every_reason_fits_the_api_shape() -> None:
             capture=ReasonCapture(kind="highlight", episode_slug="ep-0", text="mine", start_ms=1),
         ),
         Reason(kind="thread", subject=ReasonSubject(kind="storyline", id="thc:1", label="S")),
-        Reason(kind="another_view", quote=None, outside_habits=True),
+        Reason(kind="another_view", quote=None),
     ]
     for r in reasons:
         assert AppReason.model_validate(r.to_dict()).kind == r.kind

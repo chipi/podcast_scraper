@@ -450,7 +450,8 @@ piece to its design home:
     scope, as cards. Each card shows the episode (artwork, title, show name, which wraps and never
     truncates per UXS-014), then its `RecommendationWhy`.
   - **Taps:** the card opens the episode; "▶ Play from" opens it playing at the quote.
-  - **Mine:** every fifth card is the labelled outside-your-usual share.
+  - **Mine:** only the listener's own: rising topics of their world, through episodes they have
+    not heard, captured from or saved. Nothing from Everyone is mixed in.
   - **Empty:** with nothing to show, the rail is hidden.
   - **Telemetry:** reports shown and taps to Umami (`useRailTelemetry('quotes')`).
 - **`ReelTopicsRow`** — Discover's "Minutes on" row (ADR-163 §8 amendment; goal-shaped listening):
@@ -480,8 +481,7 @@ piece to its design home:
   "{person}, whom you keep hearing", "Another view on {topic}", "Most listened to and saved".
   Below it, the grounded quote in the transcript's own words with its speaker, and "▶ Play from
   23:14", which opens the player playing at that moment (`?t=&play=1`). With no quote, nothing
-  stands in for one. The serendipity share carries an "Outside your usual" tag. Used by the quote
-  cards.
+  stands in for one. Used by the quote cards.
 - **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
   every surface lists the kinds) with the Rising⇄Trending sort switch (`discovery-sort`). It reads

@@ -60,11 +60,6 @@ const time = computed(() => {
   <div class="flex flex-col gap-1.5" data-testid="why">
     <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-muted">
       <span data-testid="why-reason">{{ line }}</span>
-      <span
-        v-if="why.outside_habits"
-        class="rounded-full bg-overlay px-2 py-0.5 text-[11px] font-bold text-canvas-foreground"
-        data-testid="why-outside"
-      >{{ t('why.outside') }}</span>
     </p>
     <figure v-if="why.quote" class="m-0" data-testid="why-quote">
       <blockquote class="m-0 text-sm leading-snug text-canvas-foreground">“{{ why.quote.text }}”</blockquote>

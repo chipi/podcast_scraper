@@ -73,7 +73,7 @@ The Discover 2 preview was removed (UI only; its APIs stay).
    - **Floors:** listener-based, at least 2 distinct listeners.
    - **The card:** `most_engaged.events` becomes the listener count.
    - An ADR-163 amendment line records it.
-4. **The serendipity helper** ✅ (2026-10-11; `app_serendipity`) (ADR-163 §7), moved up from "Also": the first rail needs it.
+4. **The serendipity helper** ✅ then removed (2026-10-11; ADR-163 §7 superseded): what remains is `app_rail_turns`.
    - "Outside" means the show is not in the listener's shows and no topic or person is in their
      world (ADR-162).
    - Under Everyone there are no habits, so no label.
@@ -84,7 +84,8 @@ The Discover 2 preview was removed (UI only; its APIs stay).
    "Play from 23:14", on `GET /trending/episodes`.
    - **On Discover:** `QuoteCardsRail` leads, with `RecommendationWhy` and
      `useRailTelemetry('quotes')`.
-   - **Mine:** every 5th card is the labelled outside-habits share (`mix_outside_habits`).
+   - **Mine:** ~~every 5th card is the labelled outside-habits share~~ — removed 2026-10-11
+     (operator: under Mine everything is the listener's own); no Mine rail offers what they heard.
    - **Fix:** perspective insights now carry their supporting quote (`cil_queries` annotates
      `_quote_text`). Without it the extractive rule left rising-topic cards with nothing to quote,
      so they never appeared.

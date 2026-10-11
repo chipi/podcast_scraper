@@ -22,6 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.server.app_rail_turns import take_turns
 from podcast_scraper.server.app_reasons import (
     best_grounded_quote,
     insights_by_episode,
@@ -29,7 +30,6 @@ from podcast_scraper.server.app_reasons import (
     ReasonQuote,
     ReasonSubject,
 )
-from podcast_scraper.server.app_serendipity import take_turns
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 
 #: The listener's top topics considered.

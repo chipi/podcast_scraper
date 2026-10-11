@@ -1261,7 +1261,6 @@
     "thread": "New in {subject}",
     "person": "{subject}, whom you keep hearing",
     "another_view": "Another view on {subject}",
-    "outside": "Outside your usual",
     "playFrom": "Play from {time}",
     "playFromLabel": "Play “{quote}” from {time}"
   },

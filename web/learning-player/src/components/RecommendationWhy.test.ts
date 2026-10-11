@@ -19,7 +19,7 @@ const router = createRouter({
 const QUOTE = { text: 'Rates will fall.', episode_slug: 'ep-1', speaker: 'Ann', start_ms: 1_394_000, insight_id: 'i1' }
 
 function why(over: Partial<Reason>): Reason {
-  return { kind: 'rising_topic', quote: null, subject: null, capture: null, events: null, outside_habits: false, ...over }
+  return { kind: 'rising_topic', quote: null, subject: null, capture: null, events: null, ...over }
 }
 function mountWhy(w: Reason) {
   return mount(RecommendationWhy, { props: { why: w }, global: { plugins: [i18n, router] } })
@@ -77,10 +77,5 @@ describe('RecommendationWhy: the quote that grounds it', () => {
     const w = mountWhy(why({ quote: null }))
     expect(w.find('[data-testid="why-quote"]').exists()).toBe(false)
     expect(w.get('[data-testid="why-reason"]').text()).not.toBe('')
-  })
-
-  it('labels the serendipity share', () => {
-    expect(mountWhy(why({ outside_habits: true })).get('[data-testid="why-outside"]').text()).toBe('Outside your usual')
-    expect(mountWhy(why({})).find('[data-testid="why-outside"]').exists()).toBe(false)
   })
 })

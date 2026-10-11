@@ -28,7 +28,7 @@ search. Its recommendations were show-first and did not say why.
 1. Every Discover recommendation is an episode with a grounded reason.
 2. Recommendations come from what the listener captured, follows and keeps hearing, not only from
    popularity.
-3. A small, labelled share of every rail comes from outside the listener's habits.
+3. Under Mine everything on the page is the listener's own; breadth is the Everyone scope.
 4. A new listener sees something useful at once, labelled as everyone's, and can make it theirs.
 5. The listener can steer ("Less like this") and undo.
 6. Neither page asks for a long scroll.
@@ -85,8 +85,8 @@ In page order:
 | People you keep hearing | signed in, Mine | recurring hosts and guests, on other shows |
 | Hear another view | signed in, Mine | a speaker not yet heard on one of their topics |
 
-About one card in five is from outside the listener's usual shows and topics, labelled (ADR-163 §7).
-A listener with no habits gets no such share.
+Under Mine every card is the listener's own: nothing from Everyone is mixed in (ADR-163 §7,
+superseded 2026-10-11), and no rail offers an episode they already heard, captured from or saved.
 
 ### FR3: A taste, not a scroll
 

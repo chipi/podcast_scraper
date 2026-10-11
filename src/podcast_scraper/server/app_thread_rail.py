@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Optional
 
 from podcast_scraper.server.app_captured_rail import topic_quotes
+from podcast_scraper.server.app_rail_turns import take_turns
 from podcast_scraper.server.app_reasons import Reason, ReasonQuote, ReasonSubject
-from podcast_scraper.server.app_serendipity import take_turns
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 
 #: Storylines considered, in the order the listener followed them.
@@ -47,7 +47,7 @@ def last_listen_dates(
 ) -> dict[str, str]:
     """``{storyline id: YYYY-MM-DD}`` — the day of the listener's last listen to an episode about
     one of the storyline's topics. A storyline they never listened in is absent."""
-    from podcast_scraper.server.app_serendipity import episode_entity_ids
+    from podcast_scraper.server.app_rail_turns import episode_entity_ids
     from podcast_scraper.server.app_slugs import resolve_slug
     from podcast_scraper.server.app_stats import _ts_to_date
     from podcast_scraper.server.app_user_state import list_listen_events

@@ -34,7 +34,7 @@ and fixture data is often a greeting or an ad read.
 1. One request renders the whole Discover page; one card per episode across it.
 2. "Show more" pages a rail from the server, consistent with the first page.
 3. A reason's quote is transcript text that backs an insight.
-4. "Less like this", the outside share and cold start apply on the server, on every page.
+4. "Less like this", "nothing already heard" and cold start apply on the server, on every page.
 5. A topic reel plays clips across episodes without moving a resume point or counting as a listen.
 
 ## Constraints & Assumptions
@@ -49,7 +49,7 @@ and fixture data is often a greeting or an ad read.
 
 ```text
 Reason { kind, quote?: ReasonQuote, subject?: ReasonSubject, capture?: ReasonCapture,
-         events?: int, outside_habits: bool }
+         events?: int }
 kind ∈ rising_topic | most_engaged | captured | thread | person | another_view
 ```
 
@@ -74,9 +74,12 @@ first insight's first timed quote is used, so no card is lost.
 
 1. the builder's list (asked for twice `RAIL_MAX`);
 2. less what the listener asked to see less of (`suggest_less.json`);
-3. mixed with the outside share (`mix_outside_habits`: every fifth slot, labelled; none without
-   habits);
-4. for `quotes` under Mine with an empty world: everyone's list, `fallback = true`.
+3. for `quotes` under Mine with an empty world: everyone's list, `fallback = true`.
+
+Under Mine nothing from Everyone is mixed in (ADR-163 §7, superseded 2026-10-11), and no rail offers
+an episode the listener heard, captured from or saved. The quote rail takes the rising topics of
+their world through any such episode about the topic (`topics_anywhere`, `exclude`); its most
+engaged half stays inside their world.
 
 Everyone's trending list is computed once per request (`RailContext.everyone`).
 
@@ -119,8 +122,8 @@ at least 90% of episodes is an umbrella and adds nothing. Cold start is an empty
 
 ### 6. Telemetry
 
-`discover_rail_shown { rail, items, outside, scope }` once per first page;
-`discover_rail_tap { rail, reason_kind, action: open|play_from|less, rank, outside_habits }`.
+`discover_rail_shown { rail, items, scope }` once per first page;
+`discover_rail_tap { rail, reason_kind, action: open|play_from|less, rank }`.
 Save, queue and Play moments are the shared episode actions and are not rail taps.
 
 ## Key Decisions

@@ -1170,11 +1170,6 @@ class AppReason(BaseModel):
         description="most_engaged: distinct listeners who finished, captured, saved or opened it "
         "over the window (ADR-163 §5).",
     )
-    outside_habits: bool = Field(
-        default=False,
-        description="The serendipity share (ADR-163 §7): outside the listener's usual shows and "
-        "topics; the client labels it.",
-    )
 
 
 class AppTrendingEpisodeCard(BaseModel):

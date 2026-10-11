@@ -10,7 +10,8 @@ reasons, and each card says which:
   listener count.
 
 Under ``scope=mine`` both halves keep to the listener's world (ADR-162): rising topics of their
-own world, episodes in their world only. Built from what is on disk — no LLM, no fetch.
+own world, episodes in their world only — or, for a rising topic, any episode about it they have not
+heard (``topics_anywhere``, ``exclude``). Built from what is on disk — no LLM, no fetch.
 
 Each card carries its ``Reason`` (``app_reasons``, ADR-163): a card is a QUOTE card, so an insight
 without a quote is passed over for one that has one — never filled from the insight's own text.
@@ -18,7 +19,7 @@ without a quote is passed over for one that has one — never filled from the in
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -38,12 +39,6 @@ from podcast_scraper.server.app_reasons import (
     ReasonSubject,
 )
 from podcast_scraper.server.app_relational_view import build_topic_perspectives
-from podcast_scraper.server.app_serendipity import (
-    episode_entity_ids,
-    Habits,
-    interleave_outside,
-    is_outside_habits,
-)
 from podcast_scraper.server.app_slugs import resolve_slug
 
 #: How far back "most engaged" looks, in ISO weeks.
@@ -68,6 +63,7 @@ def _rising_topic_cards(
     user_id: str | None,
     restrict_entities: set[str] | None,
     world: set[str] | None,
+    exclude: set[str],
     limit: int,
     config: MomentumConfig | None,
     now: str | None,
@@ -84,7 +80,7 @@ def _rising_topic_cards(
         now=now,
     )
     cards: list[TrendingEpisodeCard] = []
-    used: set[str] = set()
+    used: set[str] = set(exclude)
     for topic in topics:
         if len(cards) >= limit:
             break
@@ -141,12 +137,20 @@ def _engaged_slugs(
 
 
 def _engaged_cards(
-    root: Path, data_dir: Path | None, *, world: set[str] | None, limit: int, now: str | None
+    root: Path,
+    data_dir: Path | None,
+    *,
+    world: set[str] | None,
+    exclude: set[str],
+    limit: int,
+    now: str | None,
 ) -> list[TrendingEpisodeCard]:
     cards: list[TrendingEpisodeCard] = []
     for slug, events in _engaged_slugs(data_dir, world=world, now=now):
         if len(cards) >= limit:
             break
+        if slug in exclude:
+            continue
         row = resolve_slug(root, slug)
         if row is None or not row.has_gi:
             continue
@@ -173,23 +177,31 @@ def trending_episodes(
     user_id: str | None = None,
     restrict_entities: set[str] | None = None,
     world: set[str] | None = None,
+    topics_anywhere: bool = False,
+    exclude: set[str] | None = None,
     limit: int = 8,
     config: MomentumConfig | None = None,
     now: str | None = None,
 ) -> list[TrendingEpisodeCard]:
-    """The two halves, interleaved (rising, engaged, rising, …), one card per episode."""
+    """The two halves, interleaved (rising, engaged, rising, …), one card per episode.
+
+    ``world`` limits both halves to those episodes; with ``topics_anywhere`` a rising topic's card
+    may come from any episode about it (the topic itself is what ties it to the listener). Episodes
+    in ``exclude`` are never offered."""
+    skip = exclude or set()
     rising = _rising_topic_cards(
         root,
         data_dir,
         scope=scope,
         user_id=user_id,
         restrict_entities=restrict_entities,
-        world=world,
+        world=None if topics_anywhere else world,
+        exclude=skip,
         limit=limit,
         config=config,
         now=now,
     )
-    engaged = _engaged_cards(root, data_dir, world=world, limit=limit, now=now)
+    engaged = _engaged_cards(root, data_dir, world=world, exclude=skip, limit=limit, now=now)
     out: list[TrendingEpisodeCard] = []
     seen: set[str] = set()
     for i in range(max(len(rising), len(engaged))):
@@ -198,41 +210,6 @@ def trending_episodes(
                 seen.add(half[i].slug)
                 out.append(half[i])
     return out
-
-
-def mix_outside_habits(
-    root: Path,
-    mine: list[TrendingEpisodeCard],
-    everyone: list[TrendingEpisodeCard],
-    habits: Habits,
-    *,
-    limit: int,
-) -> list[TrendingEpisodeCard]:
-    """Mine's cards with the serendipity share (ADR-163 §7): every 5th slot is one of Everyone's
-    cards from OUTSIDE the listener's habits (``app_serendipity``), labelled ``outside_habits``.
-
-    A listener with no habits yet has no "usual" to step outside of, so there is no share: their
-    Mine stays as it is (empty at cold start, where Discover shows Everyone's, labelled as such)
-    rather than filling with Everyone's cards each called "Outside your usual"."""
-    if not habits.shows and not habits.entities:
-        return mine[:limit]
-    taken = {c.slug for c in mine}
-    outside: list[TrendingEpisodeCard] = []
-    for card in everyone:
-        if card.slug in taken:
-            continue
-        row = resolve_slug(root, card.slug)
-        if row is None:
-            continue
-        if is_outside_habits(row.feed_id, episode_entity_ids(root, row.kg_relative_path), habits):
-            outside.append(card)
-            taken.add(card.slug)
-    return interleave_outside(
-        mine,
-        outside,
-        limit=limit,
-        mark=lambda c: TrendingEpisodeCard(slug=c.slug, why=replace(c.why, outside_habits=True)),
-    )
 
 
 def card_to_dict(card: TrendingEpisodeCard) -> dict[str, Any]:

@@ -34,7 +34,6 @@ export function useRailTelemetry(rail: RailId) {
     track('discover_rail_shown', {
       rail,
       items: toCountBucket(items.length),
-      outside: toCountBucket(items.filter((i) => i.why?.outside_habits).length),
       scope,
     })
   }
@@ -45,7 +44,6 @@ export function useRailTelemetry(rail: RailId) {
       reason_kind: (item.why?.kind ?? 'none') as RailReasonKind,
       action,
       rank: toRankBucket(index + 1),
-      outside_habits: Boolean(item.why?.outside_habits),
     })
     markNextNavigation(railSource(rail))
   }

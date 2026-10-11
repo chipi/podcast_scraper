@@ -48,7 +48,7 @@ def test_each_card_carries_its_reason_beside_the_episode(
     [item] = rail["items"]
     assert item["episode"]["slug"] == slug
     why = item["why"]
-    assert why["kind"] == "rising_topic" and why["outside_habits"] is False
+    assert why["kind"] == "rising_topic" and "outside_habits" not in why
     assert why["subject"] == {"kind": "topic", "id": "topic:rates", "label": "Rates"}
     assert why["quote"] == {
         "text": "Rates will fall.",

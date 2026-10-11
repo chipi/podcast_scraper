@@ -67,13 +67,15 @@ fixes those answers so every later rail is built against the same rules.
    - **Cold start is an empty world, not an empty rail.** Only then does Mine's quote rail show
      Everyone's cards, labelled, with "Pick topics". A listener with history whose Mine is quiet
      sees it empty, never told their picks "begin once you listen".
-   - **No habits, no serendipity share** (§7): with no "usual" there is no outside, so nothing is
-     labelled "Outside your usual".
    - **"Suggest less" hides the card's reason**: the topic, person or storyline its "why" names,
      across every rail, undone from Profile › Interests.
-7. **Serendipity: a small, labelled share inside each rail.** About one item in five comes from
-   outside the listener's usual shows and topics, and it is marked. Breadth is part of every rail,
-   not a separate one people learn to skip.
+7. ~~**Serendipity: a small, labelled share inside each rail.**~~ *Superseded 2026-10-11
+   (operator):* **under Mine everything on the page is the listener's own.** A corpus holds babies,
+   history, cars and sport; a listener who cares about none of them is not shown them under Mine,
+   labelled or not. Breadth is the Everyone scope, one tap away on the same switch. And because a
+   rail says what to hear next, no Mine rail offers an episode the listener already heard, captured
+   from or saved; the quote rail reaches any episode about a rising topic of their world, not only
+   episodes already in it.
 8. **A quote card opens the player at the quote's moment.** No separate in-place clip player: the
    episode plays from the time, with its context and capture at hand, under the same rights as any
    playback. Moments stays the way to hear an episode's best parts back to back.
@@ -110,7 +112,8 @@ fixes those answers so every later rail is built against the same rules.
   from Discover.
 - Captures are sparse while the user base is small, so momentum may be thin at first and lean on
   completion.
-- The serendipity share costs some immediate relevance per rail.
+- Without a share from outside, Mine can narrow listening; breadth depends on the listener
+  switching to Everyone.
 
 **Neutral**
 
@@ -130,8 +133,10 @@ fixes those answers so every later rail is built against the same rules.
   noisy at our size, and corpus-only momentum ignores what listeners actually keep.
 - **Everyone with no picker, or a required onboarding** — rejected: the first leaves Mine empty
   longer than needed; the second puts a gate before any value.
-- **A separate "Something different" rail, or no serendipity** — rejected: a separate rail is
-  easily skipped; none narrows listening (Spotify's own diversity research).
+- **A separate "Something different" rail, or no serendipity** — rejected at first: a separate rail
+  is easily skipped; none narrows listening (Spotify's own diversity research). The labelled
+  one-in-five share chosen instead was removed on 2026-10-11 (§7): under Mine the operator wants
+  only the listener's own world.
 - **Trends staying on Discover, or folded into the rails' reasons only** — rejected: two jobs on one
   page, or a useful surface lost.
 - **Playing clips in place on the card, or both** — rejected for now: a second player and its rights

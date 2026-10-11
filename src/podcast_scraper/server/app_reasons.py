@@ -19,9 +19,6 @@ Reason kinds (each rail declares one, ADR-163 §3):
 * ``person`` — a speaker the listener keeps hearing; ``subject`` is the person.
 * ``another_view`` — a different speaker on a topic the listener engages with; ``subject`` is
   the topic.
-
-``outside_habits`` marks the serendipity share (ADR-163 §7): an item from outside the listener's
-usual shows and topics, which the client labels as such.
 """
 
 from __future__ import annotations
@@ -79,7 +76,6 @@ class Reason:
     subject: Optional[ReasonSubject] = None
     capture: Optional[ReasonCapture] = None
     events: Optional[int] = None
-    outside_habits: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Plain dict for the response model (``AppReason``)."""

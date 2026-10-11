@@ -15,8 +15,9 @@ export const TRENDING_SCOPE_PREF = "lp.trendingScope"
  * `corpus` when signed out — `scope=mine` is auth-gated and meaningless without a listening history.
  *
  * `mine` is the DEFAULT for a signed-in listener (operator 2026-10-07); they can switch it off, and
- * the choice sticks. Only the Trends section reads this. Card momentum badges and the Browse topic /
- * people lists stay corpus-wide: since "mine" became strictly the listener's own world, following
+ * the choice sticks. Discover (every rail, the reel row, trending shows), Explore's Trends and Search
+ * read it. Card momentum badges and the Explore catalog (episodes / shows / topics / people) stay
+ * corpus-wide: since "mine" became strictly the listener's own world, following
  * it there would strip the badge from every topic outside it and empty Browse for a new account.
  */
 export function useTrendingScope(): {

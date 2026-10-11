@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from podcast_scraper.server.app_rail_turns import take_turns
 from podcast_scraper.server.app_reasons import (
     best_grounded_quote,
     insights_by_episode,
@@ -34,7 +35,6 @@ from podcast_scraper.server.app_reasons import (
     ReasonQuote,
     ReasonSubject,
 )
-from podcast_scraper.server.app_serendipity import take_turns
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 
 #: How many of the listener's most recent captures seed the rail.

@@ -99,8 +99,8 @@ const { languageOfFeed } = useCorpusLanguages()
 // hydrate call — the tests demonstrated that adding one creates
 // test-order flakiness without changing user-visible behaviour.
 
-// Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
-// heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
+// Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = the listener's own world (heard,
+// captured, saved, followed shows and interests; ADR-162). The toggle only shows when signed in.
 // One "mine" switch everywhere (operator 2026-10-09): with no `scope` in the URL the results open in
 // the shared Mine ⇄ Everyone choice, and flipping it here flips it on Discover too.
 const { scope: sharedScope, setScope: setSharedScope } = useTrendingScope()

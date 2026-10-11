@@ -1379,5 +1379,4 @@ export interface Reason {
   subject: ReasonSubject | null
   capture: ReasonCapture | null
   events: number | null
-  outside_habits: boolean
 }

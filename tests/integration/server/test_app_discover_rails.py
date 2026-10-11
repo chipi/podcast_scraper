@@ -129,3 +129,26 @@ def test_a_mine_rail_does_not_exist_under_everyone(tmp_path: Path) -> None:
     app.state.app_data_dir = tmp_path
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     assert TestClient(app).get("/api/app/discover/rails").status_code == 401
+
+
+def test_under_mine_every_card_is_theirs_and_none_is_one_they_already_had(tmp_path: Path) -> None:
+    """Operator 2026-10-11: under Mine everything on the page is the listener's own (no Everyone
+    cards mixed in), and a rail says what to hear NEXT (never an episode they captured from)."""
+    from podcast_scraper.server.app_user_corpus import personal_entity_ids
+
+    client = _client(tmp_path, history=True)
+    rails = client.get("/api/app/discover/rails", params={"scope": "mine"}).json()["rails"]
+    uid = client.get("/api/app/me").json()["user_id"]
+    mine_entities = personal_entity_ids(ROOT, tmp_path, uid)
+    for rail in rails:
+        whole = client.get(
+            f"/api/app/discover/rails/{rail['rail']}",
+            params={"scope": "mine", "offset": 0, "limit": 12},
+        ).json()
+        assert not set(_slugs(whole)) & set(HEARD), rail["rail"]
+        for item in whole["items"]:
+            assert "outside_habits" not in item["why"]
+            if rail["rail"] == "quotes":
+                assert (
+                    item["why"]["subject"] is None or item["why"]["subject"]["id"] in mine_entities
+                )

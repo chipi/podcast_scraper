@@ -4,11 +4,16 @@ Discover is a taste, not a scroll: every rail shows its first ``FIRST`` cards, a
 the server for the next page. This module owns the two things that must not live in the browser:
 
 * **Each rail's full ranked list** (``rail_cards``), at most ``RAIL_MAX`` cards, with what the
-  listener asked to see less of removed and the labelled outside-your-usual share mixed in
-  (ADR-163 §6, §7) — so every page of a rail is a slice of ONE list.
+  listener asked to see less of removed (ADR-163 §6) — so every page of a rail is a slice of ONE
+  list.
 * **One card per episode on the page** (``first_pages``): rails are taken in page order and an
   episode belongs to the highest rail that has it. Later pages of a rail leave out ``exclude``, the
   episodes the rails above it showed first.
+
+**Under Mine everything on the page is the listener's own** (operator 2026-10-11): a corpus holds
+babies, history, cars and sport, and a listener who cares about none of them is not shown them. No
+rail mixes in Everyone's cards; breadth is the Everyone scope. And a rail says what to hear NEXT, so
+no rail offers an episode the listener already heard, captured from or saved.
 
 Cold start (ADR-163 §6) is decided here too: under Mine with nothing in the listener's world, the
 quote rail is Everyone's cards, flagged ``fallback`` for the page to label — never presented as
@@ -25,13 +30,8 @@ from podcast_scraper.server.app_another_view_rail import another_view_rail
 from podcast_scraper.server.app_captured_rail import captured_rail
 from podcast_scraper.server.app_momentum import MomentumConfig
 from podcast_scraper.server.app_people_rail import people_rail
-from podcast_scraper.server.app_serendipity import listener_habits
 from podcast_scraper.server.app_thread_rail import thread_rail
-from podcast_scraper.server.app_trending_episodes import (
-    mix_outside_habits,
-    trending_episodes,
-    TrendingEpisodeCard,
-)
+from podcast_scraper.server.app_trending_episodes import trending_episodes, TrendingEpisodeCard
 
 #: The most cards a rail ranks; "Show more" pages through these.
 RAIL_MAX = 12
@@ -103,19 +103,9 @@ def without_suggested_less(
     return [c for c in cards if c.why.subject is None or c.why.subject.id not in tokens]
 
 
-def _mixed(ctx: RailContext, own: list[TrendingEpisodeCard]) -> list[TrendingEpisodeCard]:
-    """A listener's own cards less what they hid, with the outside share (nothing of theirs →
-    nothing at all: the share only rides along with their own cards)."""
-    own = without_suggested_less(own, ctx.less())[:RAIL_MAX]
-    if not own:
-        return []
-    return mix_outside_habits(
-        ctx.root,
-        own,
-        without_suggested_less(ctx.everyone(), ctx.less()),
-        listener_habits(ctx.root, ctx.dd, ctx.uid),
-        limit=RAIL_MAX,
-    )
+def _own(ctx: RailContext, cards: list[TrendingEpisodeCard]) -> list[TrendingEpisodeCard]:
+    """A listener's own cards less what they asked to see less of."""
+    return without_suggested_less(cards, ctx.less())[:RAIL_MAX]
 
 
 def rail_cards(ctx: RailContext, rail: str) -> tuple[list[TrendingEpisodeCard], bool]:
@@ -126,7 +116,9 @@ def rail_cards(ctx: RailContext, rail: str) -> tuple[list[TrendingEpisodeCard], 
         if not ctx.mine:
             return ctx.everyone()[:RAIL_MAX], False
         from podcast_scraper.server.app_user_corpus import (
+            experienced_episode_set,
             personal_entity_ids,
+            saved_episode_set,
             world_episode_set,
         )
 
@@ -135,6 +127,8 @@ def rail_cards(ctx: RailContext, rail: str) -> tuple[list[TrendingEpisodeCard], 
             # Cold start: Everyone's, flagged, so the page says whose they are.
             return without_suggested_less(ctx.everyone(), ctx.less())[:RAIL_MAX], True
         entities = personal_entity_ids(ctx.root, ctx.dd, ctx.uid)
+        # Rising topics of their world, through any episode about the topic they have not had yet:
+        # the topic is what makes the card theirs, and the rail is what to hear next.
         own = trending_episodes(
             ctx.root,
             ctx.data_dir,
@@ -142,18 +136,20 @@ def rail_cards(ctx: RailContext, rail: str) -> tuple[list[TrendingEpisodeCard], 
             user_id=ctx.user_id,
             restrict_entities=entities,
             world=world,
+            topics_anywhere=True,
+            exclude=experienced_episode_set(ctx.root, ctx.dd, ctx.uid)
+            | saved_episode_set(ctx.dd, ctx.uid),
             limit=RAIL_MAX * 2,
             config=ctx.config,
         )
-        return _mixed(ctx, own), False
+        return _own(ctx, own), False
     build = {
         "captured": captured_rail,
         "thread": thread_rail,
         "people": people_rail,
         "another_view": another_view_rail,
     }[rail]
-    own = build(ctx.root, ctx.dd, ctx.uid, limit=RAIL_MAX * 2)
-    return _mixed(ctx, own), False
+    return _own(ctx, build(ctx.root, ctx.dd, ctx.uid, limit=RAIL_MAX * 2)), False
 
 
 @dataclass(frozen=True)
