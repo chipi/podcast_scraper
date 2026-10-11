@@ -225,7 +225,9 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   await page.goto('/browse')
   await showEveryonesTrends(page)
   const chip = page.getByTestId('reel-topic-chip').filter({ hasText: 'systems thinking' })
-  await expect(chip).toHaveText('▶ systems thinking · 2 min')
+  // The pill names the subject only (operator 2026-10-11); its length is in the accessible name.
+  await expect(chip).toHaveText('▶ systems thinking')
+  await expect(chip).toHaveAttribute('aria-label', 'Play 2 minutes on systems thinking')
   await chip.click()
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('systems thinking')
@@ -311,8 +313,9 @@ test('Learn X this week: start on Discover, do today, go ahead, find it on Home,
   // listened to (everyone's momentum is shared state). The path's contents are pinned server-side
   // (test_app_learning_path.py).
   const subject = section.locator('[data-testid="learn-subject"][data-kind="storyline"]').first()
-  await expect(subject).toHaveText(/^.+ · 7 days$/)
-  const label = ((await subject.textContent()) ?? '').replace(/ · 7 days$/, '').trim()
+  // The pill is the subject's name alone: every path is seven days, so it does not repeat that.
+  await expect(subject).not.toContainText('days')
+  const label = ((await subject.textContent()) ?? '').trim()
   await subject.click()
 
   // Starting opens its week, on day 1.

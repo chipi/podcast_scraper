@@ -78,7 +78,7 @@ describe('LearnThisWeek', () => {
     expect(api.getLearn).toHaveBeenCalledWith('mine')
     expect(w.get('[data-testid="learn-title"]').text()).toBe('Learn something this week')
     const chip = w.get('[data-testid="learn-subject"]')
-    expect(chip.text()).toBe('Managing risk · 7 days')
+    expect(chip.text()).toBe('Managing risk') // every path is seven days, so the pill does not repeat it
     expect(chip.classes()).toContain('text-storyline')
     await chip.trigger('click')
     await flushPromises()

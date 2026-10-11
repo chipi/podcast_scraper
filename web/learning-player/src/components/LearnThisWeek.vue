@@ -67,13 +67,13 @@ async function start(subject: LearnSubject): Promise<void> {
         <li v-for="c in candidates" :key="c.subject_id">
           <button
             type="button"
-            class="lp-tap inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold transition hover:opacity-80"
+            class="lp-tap inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
             :class="kindPill(c.subject_kind)"
             :data-kind="c.subject_kind"
             :disabled="busy"
             data-testid="learn-subject"
             @click="start(c)"
-          >{{ t('learn.subject', { subject: c.subject_label, days: c.steps }) }}</button>
+          >{{ c.subject_label }}</button>
         </li>
       </ul>
     </template>
@@ -84,7 +84,7 @@ async function start(subject: LearnSubject): Promise<void> {
         <li v-for="p in paths" :key="p.subject_id">
           <RouterLink
             :to="{ name: 'learn', query: { subject: p.subject_id } }"
-            class="lp-tap inline-flex min-h-[44px] items-center rounded-full bg-learn/15 px-4 text-sm font-semibold text-learn no-underline ring-1 ring-inset ring-learn/40"
+            class="lp-tap inline-flex items-center rounded-full bg-learn/15 px-3 py-1.5 text-xs font-semibold text-learn no-underline ring-1 ring-inset ring-learn/40"
             data-testid="learn-current"
             @click="track('learn_path', { action: 'open', kind: p.subject_kind, source: 'discover' })"
           >{{ t('learn.current', { subject: p.subject_label, n: p.day, total: p.steps.length }) }} ›</RouterLink>

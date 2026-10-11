@@ -42,7 +42,9 @@ describe('ReelTopicsRow', () => {
     await flushPromises()
     expect(api.getReelTopics).toHaveBeenCalledWith('mine')
     const chip = w.get('[data-testid="reel-topic-chip"]')
-    expect(chip.text()).toBe('▶ alpha · 1 min') // 40 s rounds up to one minute, never zero
+    // The pill names the subject only (operator 2026-10-11: shorter pills); the length stays in its
+    // accessible name — 40 s rounds up to one minute, never zero.
+    expect(chip.text()).toBe('▶ alpha')
     expect(chip.attributes('aria-label')).toBe('Play 1 minute on alpha')
     expect(w.get('h2').text()).toBe('Short listens')
     expect(chip.attributes('href')).toBe('/listen/topic/topic:a?minutes=15')

@@ -37,13 +37,13 @@ watch(() => props.scope, load, { immediate: true })
       <li v-for="topic in topics" :key="topic.subject_id">
         <RouterLink
           :to="{ name: 'topic-reel', params: { id: topic.subject_id }, query: { minutes: String(MINUTES) } }"
-          class="lp-tap inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold transition hover:opacity-80"
+          class="lp-tap inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
           :class="kindPill(topic.subject_kind)"
           :data-kind="topic.subject_kind"
           :aria-label="t('reel.chipLabel', { minutes: reelMinutes(topic.total_seconds), topic: topic.subject_label }, reelMinutes(topic.total_seconds))"
           data-testid="reel-topic-chip"
           @click="track('reel_open', { source: 'discover_row', kind: topic.subject_kind })"
-        ><span aria-hidden="true">▶ {{ t('reel.chip', { topic: topic.subject_label, minutes: reelMinutes(topic.total_seconds) }) }}</span></RouterLink>
+        ><span aria-hidden="true">▶ {{ topic.subject_label }}</span></RouterLink>
       </li>
     </ul>
   </section>

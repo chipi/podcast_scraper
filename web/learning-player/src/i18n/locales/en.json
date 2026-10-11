@@ -522,7 +522,6 @@
     "unavailable": "This reel could not be loaded. Try again later.",
     "mini": "{topic} · {n} / {total}",
     "row": "Short listens",
-    "chip": "{topic} · {minutes} min",
     "chipLabel": "Play {minutes} minute on {topic} | Play {minutes} minutes on {topic}",
     "door": "{minutes} min on this",
     "doorLabel": "Play {minutes} minute of clips on {topic} | Play {minutes} minutes of clips on {topic}"
@@ -1299,7 +1298,6 @@
     "title": "Learn {subject} this week",
     "offerTitle": "Learn something this week",
     "offerNote": "One episode a day for up to a week, each with the moment that matters. Done early? Open the next day now.",
-    "subject": "{subject} · {days} days",
     "dayOf": "Day {n} of {total}",
     "dayN": "Day {n}",
     "progress": "{done} of {total} days done",
