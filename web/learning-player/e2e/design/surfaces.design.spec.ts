@@ -355,6 +355,11 @@ test('learn-day-3', async ({ page }) => {
   await page.goto('/learn')
   await expect(page.getByText('Day 3 of 7')).toBeVisible()
   await shoot(page, 'learn-day-3')
+  // An earlier day, tapped open to replay it.
+  await page.locator('[data-testid="learn-step"][data-day="1"]').getByTestId('learn-step-open').click()
+  await expect(page.locator('[data-testid="learn-step"][data-day="1"]')).toHaveAttribute('data-open', 'true')
+  await settle(page)
+  await page.screenshot({ path: dir('learn-day-3-replay-full'), fullPage: true })
   await page.request.delete('/api/app/discover/learn')
 })
 
