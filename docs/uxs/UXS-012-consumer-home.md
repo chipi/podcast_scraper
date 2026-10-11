@@ -418,8 +418,10 @@ piece to its design home:
   Episodes · Shows catalog moved to Explore (below).
 - **`RecommendationRail`** — the shape every Discover rail shares (ADR-163). The rail supplies
   its id, title and loader; the card, its `RecommendationWhy`, the "▶ Moments" door (the shared
-  `MomentsLink`, when the episode has moments: a short taste of it), hiding when empty, reloading
-  on return to the kept-alive page, and the Umami telemetry are the same for every rail.
+  `MomentsLink`, when the episode has moments: a short taste of it), "Less like this" (on a card
+  whose reason names a subject: hides that topic, person or storyline from every rail, with Undo
+  in place and later in Profile › Interests; never on the cold-start fallback), hiding when empty,
+  reloading on return to the kept-alive page, and the Umami telemetry are the same for every rail.
   - **"More from what you captured"** (Step 2.2; signed in, under Mine only): episodes on shows the
     listener does not follow or captured from, each linked to one of their highlights, notes or
     saves by a topic, person or storyline. "Because you highlighted “…”" over a quote from the

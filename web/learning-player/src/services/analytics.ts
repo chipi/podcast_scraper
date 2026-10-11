@@ -113,8 +113,9 @@ export type Source = (typeof SOURCES)[number]
  */
 /** Where the interests picker was opened from (#2267; Discover's cold start, ADR-163 §6). */
 export type PickerTrigger = 'first_run' | 'profile' | 'home_prompt' | 'discover_cold_start'
-/** What a rail tap did: opened the episode, played from the quote, or sampled its Moments. */
-export type RailAction = 'open' | 'play_from' | 'moments'
+/** What a rail tap did: opened the episode, played from the quote, sampled its Moments, or asked
+ *  for less of the card's reason ("Suggest less", ADR-163 §6). */
+export type RailAction = 'open' | 'play_from' | 'moments' | 'less'
 export type RailId = 'quotes' | 'captured' | 'thread' | 'people' | 'another_view' | 'trending_shows'
 /** Why a recommendation was there (`Reason.kind`), or `none` when it carried no reason. */
 export type RailReasonKind =
@@ -439,7 +440,8 @@ export type EventProps = {
     outside: CountBucket
     scope: 'mine' | 'everyone'
   }
-  /** A card on a Discover rail was opened, its "Play from" tapped, or its Moments sampled. */
+  /** A card on a Discover rail was opened, its "Play from" tapped, its Moments sampled, or "Less
+   *  like this" tapped. */
   discover_rail_tap: {
     rail: RailId
     reason_kind: RailReasonKind

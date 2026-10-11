@@ -1106,6 +1106,52 @@ def remove_interest(data_dir: Path, user_id: str, token: str) -> list[str]:
         )
 
 
+# --- suggest less (ADR-163 §6; list of {token, label, added_at}) ---
+#
+# "Suggest less" on a Discover card hides the subject its reason names — a topic, person, storyline
+# or theme — from every rail. The label is kept with the token so Profile can list (and undo) it
+# without resolving each id against the corpus.
+
+SUGGEST_LESS_PREFIXES = ("topic:", "person:", "thc:", "tc:")
+
+
+def get_suggest_less(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """What the listener asked to see less of, oldest first; empty when unset."""
+    data = _read(data_dir, user_id, "suggest_less", [])
+    if not isinstance(data, list):
+        return []
+    return [x for x in data if isinstance(x, dict) and isinstance(x.get("token"), str)]
+
+
+def suggest_less_tokens(data_dir: Path, user_id: str) -> set[str]:
+    """Just the tokens, for filtering rails."""
+    return {str(x["token"]) for x in get_suggest_less(data_dir, user_id)}
+
+
+def add_suggest_less(
+    data_dir: Path, user_id: str, token: str, label: str, added_at: int
+) -> list[dict[str, Any]]:
+    """Hide ``token`` from Discover's rails (idempotent: a repeat keeps the first entry)."""
+    with _user_lock(data_dir, user_id, "suggest_less"):
+        rows = _rows_for_update(data_dir, user_id, "suggest_less")
+        if not any(r.get("token") == token for r in rows):
+            rows.append({"token": token, "label": label, "added_at": int(added_at)})
+            _write(data_dir, user_id, "suggest_less", rows)
+        return get_suggest_less(data_dir, user_id)
+
+
+def remove_suggest_less(data_dir: Path, user_id: str, token: str) -> list[dict[str, Any]]:
+    """Undo one "suggest less" (no-op if absent); return what remains."""
+    with _user_lock(data_dir, user_id, "suggest_less"):
+        rows = [
+            r
+            for r in _rows_for_update(data_dir, user_id, "suggest_less")
+            if r.get("token") != token
+        ]
+        _write(data_dir, user_id, "suggest_less", rows)
+        return get_suggest_less(data_dir, user_id)
+
+
 # Follow events — an append-only, timestamped log of interest follows (momentum engagement source,
 # RFC-103). The interest LIST above stays the source of truth for "what's followed"; this log is the
 # timestamped history a weekly-momentum series needs (the list carries no per-token time). One line

@@ -868,6 +868,9 @@
     "tabStats": "Stats",
     "openInterest": "Open {label}",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
+    "suggestedLess": "Suggested less",
+    "suggestedLessHelp": "Discover shows less about these. Tap one to see it again.",
+    "suggestedLessUndo": "See {subject} in Discover again",
     "unavailable": "Couldn't load this — it needs a connection.",
     "notifications": "Notifications",
     "notificationsHelp": "Choose how each kind reaches you. In-app shows in the bell; email and push reach you when you're away.",
@@ -1259,6 +1262,12 @@
     },
     "anotherView": {
       "title": "Hear another view"
+    },
+    "less": {
+      "button": "Less like this",
+      "label": "Suggest less about {subject}",
+      "done": "Less about {subject} from now on.",
+      "undo": "Undo"
     },
     "coldStart": {
       "note": "Everyone’s picks — yours begin once you listen, save or pick a few topics.",

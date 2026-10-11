@@ -135,7 +135,11 @@ Operator decisions 2026-10-11 (all the recommended options): goal-shaped = a cro
 - The Everyone fallback, labelled, until history exists ✅ — gated on an EMPTY WORLD, not an
   empty rail. Surfaced and fixed: with no habits, Mine filled with Everyone's cards each marked
   "Outside your usual"; now no habits → no outside share.
-- "Suggest less" — hides the card's reason subject (topic / person / storyline) everywhere.
+- "Suggest less" ✅ — "Less like this" on a card whose reason names a subject hides that topic,
+  person or storyline from every rail (`suggest_less.json`; `GET/POST/DELETE
+  /discover/suggest-less`; rails ask for 2× so a hidden subject does not shorten them), Undo in
+  place, and Profile › Interests › Suggested less (`SuggestedLessList`) to undo later. Measured as
+  `discover_rail_tap action: less`.
 
 ## Also
 

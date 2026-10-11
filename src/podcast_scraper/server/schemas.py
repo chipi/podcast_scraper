@@ -1191,6 +1191,26 @@ class AppTrendingEpisodesResponse(BaseModel):
     items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
 
 
+class AppSuggestLessItem(BaseModel):
+    """One subject the listener asked Discover to suggest less of (ADR-163 §6)."""
+
+    token: str = Field(description="topic: / person: / thc: / tc: id the card's reason named.")
+    label: str = Field(description="Its display name when it was hidden, for Profile's list.")
+    added_at: int = Field(description="When (epoch seconds).")
+
+
+class AppSuggestLessBody(BaseModel):
+    """POST /discover/suggest-less/{token} — the label shown on the card."""
+
+    label: str = Field(min_length=1, max_length=200)
+
+
+class AppSuggestLessResponse(BaseModel):
+    """Everything the listener asked to see less of, oldest first."""
+
+    items: list[AppSuggestLessItem] = Field(default_factory=list)
+
+
 class AppTrendingResponse(BaseModel):
     """Trending entities of one kind (GET /api/app/trending) — read-time momentum vs today."""
 

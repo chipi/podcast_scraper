@@ -928,6 +928,40 @@ export async function addInterest(token: string): Promise<string[]> {
 }
 
 /** Unfollow one interest token (auth-gated); returns the remaining list. */
+/** One subject the listener asked Discover to suggest less of (ADR-163 §6). */
+export interface SuggestLessItem {
+  token: string
+  label: string
+  added_at: number
+}
+
+/** "Suggest less": hide the subject a card's reason names from every Discover rail. */
+export async function suggestLess(token: string, label: string): Promise<SuggestLessItem[]> {
+  const resp = await apiFetch(`${BASE}/discover/suggest-less/${encodeURIComponent(token)}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/suggest-less → ${resp.status}`)
+  return ((await resp.json()) as { items: SuggestLessItem[] }).items
+}
+
+/** Undo a "suggest less". */
+export async function undoSuggestLess(token: string): Promise<SuggestLessItem[]> {
+  const resp = await apiFetch(`${BASE}/discover/suggest-less/${encodeURIComponent(token)}`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /discover/suggest-less → ${resp.status}`)
+  return ((await resp.json()) as { items: SuggestLessItem[] }).items
+}
+
+/** Everything the listener asked to see less of, for Profile › Interests. */
+export async function getSuggestLess(): Promise<SuggestLessItem[]> {
+  return (await getJSON<{ items: SuggestLessItem[] }>("/discover/suggest-less")).items
+}
+
 export async function removeInterest(token: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
     method: "DELETE",

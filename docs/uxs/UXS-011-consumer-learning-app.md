@@ -1397,6 +1397,10 @@ review or rebuild it.
 - **`QueueButton`** — the ONE add/remove-to-queue control, everywhere. Renders for signed-out
   visitors (#1590). Since the 2026-09 offline arc it stays ENABLED with no connection: adding and
   removing are item-level and replay safely; only reordering needs a live list.
+- **`SuggestedLessList`** — the end of Profile › Interests: "Suggested less", what the listener
+  hid from Discover with "Less like this" (ADR-163 §6), one pill per subject; tapping one undoes it.
+  Hidden when nothing is hidden; a failed load says so rather than reading as "nothing hidden". The
+  Discover picker also opens with `trigger: discover_cold_start` (UXS-012, cold start).
 - **`InterestsPicker`** — the onboarding sheet: the same four `InterestSections` as Profile ›
   Interests, saved once on Save. Modal a11y matches the entity card exactly; "Not now" must be as
   easy to reach as "Save", because a picker that traps someone into choosing is a picker they will

@@ -28,6 +28,8 @@ export const CONSISTENCY_MATRIX: ConsistencyRow[] = [
   // --- interests ----------------------------------------------------------------------------------
   { write: 'addInterest', readers: ['Discover › Your trends', 'Profile › Interests', 'Home recommended'], proof: ['e2e/cross-surface.spec.ts', 'src/stores/interests.test.ts'] },
   { write: 'removeInterest', readers: ['Discover › Your trends', 'Profile › Interests'], proof: ['e2e/cross-surface.spec.ts', 'src/stores/interests.test.ts'] },
+  { write: 'suggestLess', readers: ['every Discover rail', 'Profile › Interests › Suggested less'], proof: ['e2e/discover-explore.spec.ts', 'src/components/RecommendationRail.test.ts'] },
+  { write: 'undoSuggestLess', readers: ['every Discover rail', 'Profile › Interests › Suggested less'], proof: ['e2e/discover-explore.spec.ts', 'src/components/SuggestedLessList.test.ts'] },
   { write: 'putUserInterests', readers: ['every interests reader (store replaceAll)'], proof: ['src/components/InterestsPicker.test.ts'] },
 
   // --- follows ------------------------------------------------------------------------------------

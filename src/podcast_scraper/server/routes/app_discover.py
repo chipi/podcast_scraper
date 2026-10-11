@@ -76,6 +76,9 @@ from podcast_scraper.server.schemas import (
     AppRecommendedResponse,
     AppStoryline,
     AppStorylinesResponse,
+    AppSuggestLessBody,
+    AppSuggestLessItem,
+    AppSuggestLessResponse,
     AppTrendingEntity,
     AppTrendingEpisodeCard,
     AppTrendingEpisodesResponse,
@@ -257,7 +260,7 @@ def app_discover_captured(
     if user is None or raw_dir is None:
         return AppTrendingEpisodesResponse(scope="mine", items=[])
     data_dir = Path(raw_dir)
-    cards = captured_rail(root, data_dir, user.user_id, limit=limit)
+    cards = captured_rail(root, data_dir, user.user_id, limit=limit * 2)
     return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
 
 
@@ -277,7 +280,7 @@ def app_discover_thread(
     if user is None or raw_dir is None:
         return AppTrendingEpisodesResponse(scope="mine", items=[])
     data_dir = Path(raw_dir)
-    cards = thread_rail(root, data_dir, user.user_id, limit=limit)
+    cards = thread_rail(root, data_dir, user.user_id, limit=limit * 2)
     return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
 
 
@@ -297,7 +300,7 @@ def app_discover_people(
     if user is None or raw_dir is None:
         return AppTrendingEpisodesResponse(scope="mine", items=[])
     data_dir = Path(raw_dir)
-    cards = people_rail(root, data_dir, user.user_id, limit=limit)
+    cards = people_rail(root, data_dir, user.user_id, limit=limit * 2)
     return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
 
 
@@ -316,7 +319,7 @@ def app_discover_another_view(
     if user is None or raw_dir is None:
         return AppTrendingEpisodesResponse(scope="mine", items=[])
     data_dir = Path(raw_dir)
-    cards = another_view_rail(root, data_dir, user.user_id, limit=limit)
+    cards = another_view_rail(root, data_dir, user.user_id, limit=limit * 2)
     return _personal_rail(request, root, data_dir, user.user_id, cards, limit)
 
 
@@ -328,14 +331,22 @@ def _personal_rail(
     cards: list[TrendingEpisodeCard],
     limit: int,
 ) -> AppTrendingEpisodesResponse:
-    """A signed-in listener's rail: their cards mixed with Everyone's outside-habits share (ADR-163
-    §7), projected onto episode summaries. Nothing of theirs → nothing at all (no padding)."""
+    """A signed-in listener's rail: their cards (the rail asks for twice ``limit``, so what "Suggest
+    less" removes does not shorten it) less what they asked to see less of, mixed with Everyone's
+    outside-habits share (ADR-163 §6, §7), projected onto episode summaries. Nothing of theirs →
+    nothing at all (no padding)."""
+    less = app_user_state.suggest_less_tokens(data_dir, user_id)
+    cards = without_suggested_less(cards, less)[:limit]
     if cards:
         everyone = trending_episodes(
             root, data_dir, scope="corpus", limit=limit * 2, config=_momentum_config(request)
         )
         cards = mix_outside_habits(
-            root, cards, everyone, listener_habits(root, data_dir, user_id), limit=limit
+            root,
+            cards,
+            without_suggested_less(everyone, less),
+            listener_habits(root, data_dir, user_id),
+            limit=limit,
         )
     items: list[AppTrendingEpisodeCard] = []
     for card in cards:
@@ -348,6 +359,60 @@ def _personal_rail(
                 )
             )
     return AppTrendingEpisodesResponse(scope="mine", items=items)
+
+
+def without_suggested_less(
+    cards: list[TrendingEpisodeCard], tokens: set[str]
+) -> list[TrendingEpisodeCard]:
+    """Cards whose reason does not name a subject the listener asked to see less of (ADR-163 §6).
+    A card with no subject (most engaged) is never removed: "less" has nothing to point at."""
+    if not tokens:
+        return cards
+    return [c for c in cards if c.why.subject is None or c.why.subject.id not in tokens]
+
+
+def _data_dir(request: Request) -> Path:
+    # get_current_user has already guaranteed app_data_dir is configured.
+    return Path(request.app.state.app_data_dir)
+
+
+def _valid_less_token(token: str) -> str:
+    token = token.strip()
+    if len(token) > 200 or not token.startswith(app_user_state.SUGGEST_LESS_PREFIXES):
+        raise HTTPException(status_code=422, detail="Not a topic, person, storyline or theme.")
+    return token
+
+
+@router.get("/discover/suggest-less", response_model=AppSuggestLessResponse)
+def app_get_suggest_less(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppSuggestLessResponse:
+    """What the listener asked Discover to suggest less of (ADR-163 §6), for Profile to list."""
+    rows = app_user_state.get_suggest_less(_data_dir(request), user.user_id)
+    return AppSuggestLessResponse(items=[AppSuggestLessItem(**r) for r in rows])
+
+
+@router.post("/discover/suggest-less/{token}", response_model=AppSuggestLessResponse)
+def app_add_suggest_less(
+    request: Request,
+    token: str,
+    body: AppSuggestLessBody,
+    user: User = Depends(get_current_user),
+) -> AppSuggestLessResponse:
+    """ "Suggest less" on a card: hide the subject its reason names from every rail. Idempotent."""
+    rows = app_user_state.add_suggest_less(
+        _data_dir(request), user.user_id, _valid_less_token(token), body.label, int(time.time())
+    )
+    return AppSuggestLessResponse(items=[AppSuggestLessItem(**r) for r in rows])
+
+
+@router.delete("/discover/suggest-less/{token}", response_model=AppSuggestLessResponse)
+def app_remove_suggest_less(
+    request: Request, token: str, user: User = Depends(get_current_user)
+) -> AppSuggestLessResponse:
+    """Undo a "suggest less" (Profile › Interests, or the card's Undo). No-op if absent."""
+    rows = app_user_state.remove_suggest_less(_data_dir(request), user.user_id, token)
+    return AppSuggestLessResponse(items=[AppSuggestLessItem(**r) for r in rows])
 
 
 @router.get("/trending/episodes", response_model=AppTrendingEpisodesResponse)
@@ -369,6 +434,11 @@ def app_trending_episodes(
     if uid is not None and data_dir is not None:
         entities = personal_entity_ids(root, data_dir, uid)
         world = world_episode_set(root, data_dir, uid)
+    less = (
+        app_user_state.suggest_less_tokens(data_dir, uid)
+        if uid is not None and data_dir is not None
+        else set()
+    )
     cards = trending_episodes(
         root,
         data_dir,
@@ -376,16 +446,21 @@ def app_trending_episodes(
         user_id=uid,
         restrict_entities=entities,
         world=world,
-        limit=limit,
+        limit=limit * 2 if less else limit,
         config=_momentum_config(request),
     )
+    cards = without_suggested_less(cards, less)[:limit]
     if uid is not None and data_dir is not None:
         # The serendipity share (ADR-163 §7): every 5th card from outside the listener's habits.
         everyone = trending_episodes(
             root, data_dir, scope="corpus", limit=limit * 2, config=_momentum_config(request)
         )
         cards = mix_outside_habits(
-            root, cards, everyone, listener_habits(root, data_dir, uid), limit=limit
+            root,
+            cards,
+            without_suggested_less(everyone, less),
+            listener_habits(root, data_dir, uid),
+            limit=limit,
         )
     items: list[AppTrendingEpisodeCard] = []
     for card in cards:

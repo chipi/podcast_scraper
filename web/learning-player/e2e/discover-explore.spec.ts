@@ -171,3 +171,28 @@ test('cold start: Everyone, labelled, until a few topics are picked — then Min
   await expect(page.getByTestId('discover-cold-start')).toHaveCount(0)
   await expect(page.getByTestId('quote-card').first()).toBeVisible()
 })
+
+test('"Less like this" hides a storyline from Discover; Profile › Interests undoes it', async ({
+  page,
+}, testInfo) => {
+  // ADR-163 §6 (operator 2026-10-11: one tap hides the subject the card's reason names).
+  await signInIsolated(page, 'discover-suggest-less', testInfo)
+  const followed = await page.request.post(`/api/app/interests/${encodeURIComponent('thc:managing-risk')}`)
+  expect(followed.ok()).toBe(true)
+
+  await page.goto('/browse')
+  const rail = page.getByTestId('thread-cards')
+  await expect(rail.getByTestId('thread-card').first()).toBeVisible()
+  await rail.getByTestId('thread-card').first().getByTestId('rail-less').click()
+  await expect(rail.getByTestId('rail-less-done')).toContainText('Less about Managing risk across domains')
+  await expect(rail.getByTestId('thread-card')).toHaveCount(0)
+
+  await page.goto('/profile?tab=interests')
+  const hidden = page.getByTestId('suggested-less-item')
+  await expect(hidden).toHaveText(/Managing risk across domains/)
+  await hidden.click()
+  await expect(page.getByTestId('suggested-less')).toHaveCount(0)
+
+  await page.goto('/browse')
+  await expect(page.getByTestId('thread-cards').getByTestId('thread-card').first()).toBeVisible()
+})

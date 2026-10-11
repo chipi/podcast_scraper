@@ -30,6 +30,7 @@ import { useUserPreferencesStore } from "../stores/userPreferences"
 import Tabs from "../components/Tabs.vue"
 import { panelAttrs, type TabSpec } from "../components/tabs"
 import InterestSections from "../components/InterestSections.vue"
+import SuggestedLessList from "../components/SuggestedLessList.vue"
 import Sparkline from "../components/Sparkline.vue"
 import ListeningRecap from "../components/ListeningRecap.vue"
 import ProfileAvatar from "../components/ProfileAvatar.vue"
@@ -773,6 +774,7 @@ onActivated(() => {
         @toggle="(id) => void interests.toggle(id)"
         @open="openInterest"
       />
+      <SuggestedLessList />
       </template>
     </div>
 
