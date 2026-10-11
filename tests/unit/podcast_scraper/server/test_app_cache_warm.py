@@ -133,3 +133,14 @@ def test_the_search_path_maps_are_warmed_before_the_entity_id_map(monkeypatch, t
     monkeypatch.setattr(app_cache_warm, "_warm_entity_id_map", lambda root: order.append("entity"))
     app_cache_warm.warm_caches(tmp_path)
     assert order == ["digest", "search", "entity"]
+
+
+def test_reel_clips_are_warmed_last(monkeypatch, tmp_path) -> None:
+    """The reel-clip walk is the longest (a minute or two at 10,000 episodes) and the least
+    urgent, so it never delays the digest, search paths or entity id map."""
+    order: list[str] = []
+    monkeypatch.setattr(app_cache_warm, "_warm_corpus_digest", lambda root: order.append("digest"))
+    monkeypatch.setattr(app_cache_warm, "_warm_entity_id_map", lambda root: order.append("entity"))
+    monkeypatch.setattr(app_cache_warm, "_warm_reel_clips", lambda root: order.append("reels"))
+    app_cache_warm.warm_caches(tmp_path)
+    assert order == ["digest", "entity", "reels"]

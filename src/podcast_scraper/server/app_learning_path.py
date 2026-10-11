@@ -18,7 +18,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from podcast_scraper.server.app_goal_reel import reel_subject, ReelKind, subject_moments
+from podcast_scraper.server.app_goal_reel import (
+    hydrate,
+    reel_subject,
+    ReelKind,
+    subject_episodes,
+    SubjectEpisode,
+)
 from podcast_scraper.server.app_moments import MomentsConfig
 
 #: Days in a path, at most; a subject with fewer good episodes gives a shorter path.
@@ -45,53 +51,54 @@ class PathStep:
     end_ms: int
 
 
-def build_path(
+def path_plan(
     root: Path, subject_id: str, config: Optional[MomentsConfig] = None
-) -> list[PathStep]:
-    """The subject's strongest episodes (at most ``PATH_DAYS``), oldest first, each with its best
-    clip; at most ``MAX_PER_SPEAKER`` days per speaker and ``MAX_PER_SHOW`` per show, the next-best
-    episodes filling the gaps. Empty when there are fewer than ``MIN_STEPS``."""
-    from podcast_scraper.server.app_slugs import resolve_slug
-
-    best: list = []
+) -> list[SubjectEpisode]:
+    """Which episodes the path takes, without reading a transcript: the subject's strongest (at
+    most ``PATH_DAYS``), at most ``MAX_PER_SPEAKER`` days per speaker and ``MAX_PER_SHOW`` per
+    show, the next-best episodes filling the gaps; oldest first. Empty when there are fewer than
+    ``MIN_STEPS``. Enough to say whether a subject has a path, and how long."""
+    best: list[SubjectEpisode] = []
     by_speaker: dict[str, int] = {}
     by_show: dict[str, int] = {}
-    for slug, moments in subject_moments(root, subject_id, config):
+    for ep in subject_episodes(root, subject_id, config):
         if len(best) >= PATH_DAYS:
             break
-        speaker = (moments[0].speaker or "").strip().casefold()
-        row = resolve_slug(root, slug)
-        show = str((row.feed_id if row is not None else None) or "")
+        speaker = (ep.clips[0].speaker or "").strip().casefold()
+        show = str(ep.row.feed_id or "")
         if speaker and by_speaker.get(speaker, 0) >= MAX_PER_SPEAKER:
             continue
         if show and by_show.get(show, 0) >= MAX_PER_SHOW:
             continue
-        best.append((slug, moments))
+        best.append(ep)
         if speaker:
             by_speaker[speaker] = by_speaker.get(speaker, 0) + 1
         if show:
             by_show[show] = by_show.get(show, 0) + 1
     if len(best) < MIN_STEPS:
         return []
+    return sorted(best, key=lambda e: (str(e.row.publish_date or "9999"), e.slug))
 
-    def published(slug: str) -> str:
-        row = resolve_slug(root, slug)
-        return str((row.publish_date if row is not None else None) or "9999")
 
-    steps = [
-        PathStep(
-            episode_slug=slug,
-            insight_id=m.insight_id,
-            text=m.text,
-            quote_text=m.quote_text,
-            speaker=m.speaker,
-            start_ms=m.start_ms,
-            end_ms=m.end_ms,
-        )
-        for slug, moments in best
-        for m in moments[:1]
-    ]
-    return sorted(steps, key=lambda s: (published(s.episode_slug), s.episode_slug))
+def build_path(
+    root: Path, subject_id: str, config: Optional[MomentsConfig] = None
+) -> list[PathStep]:
+    """:func:`path_plan`, each episode with its best clip read in full."""
+    steps: list[PathStep] = []
+    for ep in path_plan(root, subject_id, config):
+        for m in hydrate(root, ep.row, ep.clips[:1], config):
+            steps.append(
+                PathStep(
+                    episode_slug=ep.slug,
+                    insight_id=m.insight_id,
+                    text=m.text,
+                    quote_text=m.quote_text,
+                    speaker=m.speaker,
+                    start_ms=m.start_ms,
+                    end_ms=m.end_ms,
+                )
+            )
+    return steps
 
 
 def subject_label(root: Path, subject_id: str) -> tuple[ReelKind, str]:

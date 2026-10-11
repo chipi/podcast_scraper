@@ -43,7 +43,7 @@ from podcast_scraper.server.app_discover_view import (
     rank_discover,
     whats_new_rows,
 )
-from podcast_scraper.server.app_goal_reel import goal_reel, reel_subject, ReelKind
+from podcast_scraper.server.app_goal_reel import goal_reel, reel_selection, reel_subject, ReelKind
 from podcast_scraper.server.app_momentum import (
     MomentumConfig,
     resolve_as_of_week,
@@ -473,10 +473,10 @@ def app_discover_reel_topics(
         for sid, label in cands:
             if sid in hidden or len(kept) >= REEL_TOPICS:
                 continue
-            clips = goal_reel(root, sid, minutes=15, config=config)
+            clips = reel_selection(root, sid, minutes=15, config=config)
             if len(clips) >= REEL_MIN_CLIPS:
-                seconds = sum(c.moment.end_ms - c.moment.start_ms for c in clips) / 1000.0
-                same = "|".join(sorted(f"{c.episode_slug}@{c.moment.start_ms}" for c in clips))
+                seconds = sum(c.end_ms - c.start_ms for _ep, c in clips) / 1000.0
+                same = "|".join(sorted(f"{ep.slug}@{c.start_ms}" for ep, c in clips))
                 kept.append(
                     (
                         same,
@@ -549,7 +549,7 @@ def app_discover_learn(
     """Learn X this week (operator 2026-10-11): the listener's seven-day path, or — with none —
     the themes and storylines they could start one on (under Mine those of their world, under
     Everyone the rising ones), each only when it has enough good episodes for a path."""
-    from podcast_scraper.server.app_learning_path import build_path
+    from podcast_scraper.server.app_learning_path import path_plan
 
     root = corpus_root_or_503(request)
     data_dir = _data_dir(request)
@@ -577,7 +577,7 @@ def app_discover_learn(
         for t in found:
             if t.entity_id in hidden or len(out) >= LEARN_SUBJECTS:
                 continue
-            steps = build_path(root, t.entity_id, config)
+            steps = path_plan(root, t.entity_id, config)
             if steps:
                 out.append(
                     AppLearnSubject(
@@ -608,10 +608,10 @@ def app_learn_subject(
     """Whether a topic, theme or storyline can be learned in a week, and in how many days — what a
     topic card or theme / storyline page asks before offering "Learn this in a week" (404: too few
     good episodes for a path)."""
-    from podcast_scraper.server.app_learning_path import build_path, subject_label
+    from podcast_scraper.server.app_learning_path import path_plan, subject_label
 
     root = corpus_root_or_503(request)
-    steps = build_path(root, subject_id, getattr(request.app.state, "moments_config", None))
+    steps = path_plan(root, subject_id, getattr(request.app.state, "moments_config", None))
     if not steps:
         raise HTTPException(status_code=404, detail="Too few episodes on this for a path.")
     kind, label = subject_label(root, subject_id)

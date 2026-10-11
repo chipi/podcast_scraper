@@ -223,3 +223,90 @@ def test_a_storyline_nobody_quotes_has_no_reel_and_no_path(tmp_path: Path) -> No
     assert build_path(ROOT, "thc:building-trails") == []
     client, _uid = _client(tmp_path)
     assert client.get("/api/app/discover/learn/subjects/thc:building-trails").status_code == 404
+
+
+# --- scale (2026-10-11: 2,500 episodes on prod, 10,000 planned) -----------------------------------
+
+
+def test_an_episode_is_scored_once_for_every_subject(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two subjects sharing episodes score each of them once, not once per subject."""
+    from podcast_scraper import perf_cache
+    from podcast_scraper.server import app_goal_reel as g
+
+    perf_cache.clear()
+    scored: list[str] = []
+    real = g._episode_clips_uncached
+
+    def counting(root, row, cfg):
+        scored.append(row.metadata_relative_path)
+        return real(root, row, cfg)
+
+    monkeypatch.setattr(g, "_episode_clips_uncached", counting)
+    g.subject_episodes(ROOT, "thc:managing-risk")
+    g.subject_episodes(ROOT, "topic:risk-management")
+    assert scored, "the storyline has episodes"
+    assert len(scored) == len(set(scored)), "an episode was scored twice"
+
+
+def test_an_ingest_rescores_only_the_episodes_that_changed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A corpus change rebuilds a subject's episode list from the per-episode cache: only the
+    episode whose files moved is scored again (keyed on the corpus mtime, every ingest rescored
+    every episode of every subject)."""
+    from podcast_scraper import perf_cache
+    from podcast_scraper.server import app_goal_reel as g
+
+    perf_cache.clear()
+    tokens: dict[str, float] = {}
+    monkeypatch.setattr(
+        g, "_episode_token", lambda root, row: tokens.get(row.metadata_relative_path, 1.0)
+    )
+    corpus = [1.0]
+    monkeypatch.setattr(g, "_subject_token", lambda root: corpus[0])
+    before = g.subject_episodes(ROOT, "thc:managing-risk")
+    changed = before[0].row.metadata_relative_path
+
+    scored: list[str] = []
+    real = g._episode_clips_uncached
+
+    def counting(root, row, cfg):
+        scored.append(row.metadata_relative_path)
+        return real(root, row, cfg)
+
+    monkeypatch.setattr(g, "_episode_clips_uncached", counting)
+    tokens[changed] = 2.0
+    corpus[0] = 2.0
+    after = g.subject_episodes(ROOT, "thc:managing-risk")
+    assert scored == [changed]
+    assert [(e.slug, e.clips) for e in after] == [(e.slug, e.clips) for e in before]
+
+
+def test_a_touched_file_moves_the_episode_token(tmp_path: Path) -> None:
+    """The per-episode token reads the episode's own GI and metadata files, and refuses a path
+    that could leave the corpus."""
+    from podcast_scraper.server import app_goal_reel as g
+
+    (tmp_path / "a.gi.json").write_text("{}")
+    first = g._mtime_rel(tmp_path, "a.gi.json")
+    assert first > 0
+    import os
+
+    os.utime(tmp_path / "a.gi.json", (first + 10, first + 10))
+    assert g._mtime_rel(tmp_path, "a.gi.json") == first + 10
+    assert g._mtime_rel(tmp_path, "../a.gi.json") == 0.0
+    assert g._mtime_rel(tmp_path, "/etc/hosts") == 0.0
+    assert g._mtime_rel(tmp_path, None) == 0.0
+
+
+def test_the_chip_counts_are_the_reel_the_chip_opens() -> None:
+    """ "15 minutes on" counts clips without reading a transcript (``reel_selection``); the reel a
+    chip opens must be exactly those clips."""
+    from podcast_scraper.server.app_goal_reel import reel_selection
+
+    for subject in ("topic:systems-thinking", "thc:managing-risk", "thc:second-order-effects"):
+        for minutes in (5, 15):
+            picked = reel_selection(ROOT, subject, minutes=minutes)
+            reel = goal_reel(ROOT, subject, minutes=minutes)
+            assert [(ep.slug, c.insight_id, c.start_ms, c.end_ms) for ep, c in picked] == [
+                (r.episode_slug, r.moment.insight_id, r.moment.start_ms, r.moment.end_ms)
+                for r in reel
+            ]

@@ -62,8 +62,22 @@ def _warm_corpus_digest(root: Path) -> None:
     )
 
 
+def _warm_reel_clips(root: Path) -> None:
+    """Score every episode's reel clips into their per-episode cache (``app_goal_reel``), so no
+    "15 minutes on" chip, reel or Learn offer scores episodes on a reader's request. ~5 ms an
+    episode on real transcripts, once per process; after an ingest only changed episodes miss."""
+    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.app_goal_reel import episode_clips
+    from podcast_scraper.server.app_moments import MomentsConfig
+
+    cfg = MomentsConfig.from_env()  # what create_app puts on app.state.moments_config
+    for row in cached_catalog(root):
+        if row.has_gi:
+            episode_clips(root, row, cfg)
+
+
 def warm_caches(root: Path) -> None:
-    """Populate the consumer read caches for ``root`` (catalog, slug index, KG index).
+    """Populate the consumer read caches for ``root`` (catalog, slug index, KG index, reel clips).
 
     Best-effort: each step is independently guarded so one failure (e.g. a missing artifact) does
     not skip the rest. Imports are local so a warm never drags card/relational modules into a
@@ -91,6 +105,9 @@ def warm_caches(root: Path) -> None:
         # surfaces need it. Warming it here is what keeps that cost off a reader's request.
         ("entity_id_map", lambda: _warm_entity_id_map(root)),
         ("kg_index", lambda: get_kg_index(root)),
+        # LAST: the longest walk (a minute or two at 10,000 episodes) and the least urgent; the
+        # reel routes fill the same cache themselves if a reader gets there first.
+        ("reel_clips", lambda: _warm_reel_clips(root)),
     )
     for label, fn in steps:
         try:

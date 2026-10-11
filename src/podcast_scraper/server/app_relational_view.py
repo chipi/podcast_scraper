@@ -39,6 +39,7 @@ from podcast_scraper.server.app_kg_index import (
     iter_kg_entities,
     normalize_label,
 )
+from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
@@ -957,15 +958,13 @@ def build_cluster_perspectives(
         keep = {
             r.episode_id
             for r in cached_catalog(root)
-            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
+            if r.episode_id and slug_for_row(r) in mine_slugs
         }
     groups = topics_perspectives(str(root), str(root), members, keep_episode_ids=keep)
     if not groups:
         return None
     photos = hosted_photo_urls(root)
-    slug_by_episode = {
-        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
-    }
+    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
@@ -1181,19 +1180,13 @@ def build_topic_perspectives(
     keep: set[str] | None = None
     if mine_slugs is not None:
         rows = cached_catalog(root)
-        keep = {
-            r.episode_id
-            for r in rows
-            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
-        }
+        keep = {r.episode_id for r in rows if r.episode_id and slug_for_row(r) in mine_slugs}
     groups = topic_perspectives(str(root), str(root), topic_id, keep_episode_ids=keep)
     if not groups:
         return None
     photos = hosted_photo_urls(root)
     # episode id -> slug, so each perspective insight can carry a jump-to-moment link (#2032).
-    slug_by_episode = {
-        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
-    }
+    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),

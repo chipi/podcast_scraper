@@ -158,3 +158,14 @@ def test_a_page_can_ask_whether_its_subject_has_a_path(tmp_path: Path) -> None:
     )
     assert client.get("/api/app/discover/learn/subjects/tc:dialogue").status_code == 404
     assert client.get("/api/app/discover/learn/subjects/person:x").status_code == 422
+
+
+def test_the_offer_counts_the_days_the_path_has() -> None:
+    """Learn offers count days without reading transcripts (``path_plan``); a started path has
+    exactly those days, on those episodes."""
+    from podcast_scraper.server.app_learning_path import build_path, path_plan
+
+    plan = path_plan(ROOT, "thc:second-order-effects")
+    steps = build_path(ROOT, "thc:second-order-effects")
+    assert len(plan) == len(steps) == 7
+    assert [e.slug for e in plan] == [s.episode_slug for s in steps]

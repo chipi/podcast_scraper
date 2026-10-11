@@ -233,13 +233,8 @@ def time_transcript_hits(results: List[Any], segments: Sequence[Segment]) -> Non
         hit.metadata = timed
 
 
-def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segment]]:
-    """The episode's canonical timed transcript as ``(start_ms, end_ms, text)``, or None.
-
-    The same candidates, in the same order, as ``GET /segments`` serves by default: the raw
-    canonical file first (its timestamps run on the original audio the player streams), the
-    ad-free one only as a fallback.
-    """
+def episode_segments_relpath(root: Path, row: CatalogEpisodeRow) -> Optional[str]:
+    """The corpus-relative path of the file :func:`episode_segments` reads, or None."""
     doc = _load_metadata_doc(root / row.metadata_relative_path)
     content = doc.get("content") if isinstance(doc, dict) else None
     transcript_rel = transcript_relpath(content if isinstance(content, dict) else {})
@@ -248,15 +243,27 @@ def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segmen
     corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
     for candidate in segments_relpaths_for_transcript(corpus_rel):
         safe = safe_relpath_under_corpus_root(root, candidate)
-        if not safe or not (root / safe).is_file():
-            continue
-        try:
-            raw = json.loads((root / safe).read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            logger.warning("Unreadable segments file %s: %s", root / safe, exc)
-            return None
-        return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
+        if safe and (root / safe).is_file():
+            return str(safe)
     return None
+
+
+def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segment]]:
+    """The episode's canonical timed transcript as ``(start_ms, end_ms, text)``, or None.
+
+    The same candidates, in the same order, as ``GET /segments`` serves by default: the raw
+    canonical file first (its timestamps run on the original audio the player streams), the
+    ad-free one only as a fallback.
+    """
+    safe = episode_segments_relpath(root, row)
+    if safe is None:
+        return None
+    try:
+        raw = json.loads((root / safe).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        logger.warning("Unreadable segments file %s: %s", root / safe, exc)
+        return None
+    return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
 
 
 def time_hits_by_episode(root: Path, results: List[Any], rows: Iterable[CatalogEpisodeRow]) -> None:

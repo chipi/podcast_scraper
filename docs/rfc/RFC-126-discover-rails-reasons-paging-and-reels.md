@@ -170,6 +170,25 @@ explore_see_all  { list: episodes|shows }
 catalog_filter   { list: episodes|shows, value: all|following|mine }
 ```
 
+### 7. Scale (2026-10-11: 2,500 episodes on prod, 10,000 planned)
+
+Reels and paths read transcripts, so they are built to cost per episode once, not per request:
+
+- **Per-episode clips** (`episode_clips`): every clip a reel could play from an episode, scored
+  once and kept without text (about 2.7 KB an episode). The cache key is that episode's own GI,
+  metadata and segments files, so an ingest scores only new or changed episodes. Scoring one costs
+  about 5 ms on real transcripts (prod-v2), mostly reading its segments.
+- **Per-subject lists** (`subject_episodes`) are rebuilt from those on each corpus change: about
+  15 µs an episode, about 25 ms for a subject covering 1,600 episodes.
+- **Text only for what plays.** The "15 minutes on" chips and the Learn offers count clips and
+  days from the text-free lists (`reel_selection`, `path_plan`). Only an opened reel or a started
+  path reads its clips in full (`hydrate`).
+- **Warmed in the background.** The cache warmer scores every episode after startup and after
+  each ingest, last of its steps, so readers do not wait on it.
+
+`scripts/tools/bench_discover.py` times every Discover/Explore endpoint, cold and warm, on a
+corpus.
+
 ## Key Decisions
 
 - The server owns ranking, dedup and paging (ADR-164).
