@@ -248,6 +248,18 @@ const isTopic = computed(() => current.value.kind === "topic")
       </button>
       <div class="flex items-start justify-between gap-3">
         <span class="flex min-w-0 flex-wrap items-center gap-2">
+          <!-- In a SHEET drilled one level in, the way back sits before the kind; the ✕ on the right
+               always closes the whole sheet (operator 2026-10-11: every sheet has an ✕). -->
+          <button
+            v-if="props.variant === 'overlay' && !atRoot"
+            type="button"
+            class="lp-nav shrink-0"
+            :aria-label="t('ec.back')"
+            data-testid="ec-back"
+            @click="onBack"
+          >
+            <BackIcon />
+          </button>
           <span
             class="lp-kicker"
             :class="current.kind === 'topic' ? 'text-topic' : current.kind === 'person' ? 'text-person' : ''"
@@ -272,7 +284,17 @@ const isTopic = computed(() => current.value.kind === "topic")
         <!-- Only the close/back control rides the kicker row; the primary actions get their OWN
              row AFTER the title (operator: the kicker+actions row was too cramped and misaligned). -->
         <button
-          v-if="!props.flush"
+          v-if="props.variant === 'overlay'"
+          type="button"
+          class="lp-nav shrink-0"
+          :aria-label="t('ec.close')"
+          data-testid="ec-dismiss"
+          @click="emit('close')"
+        >
+          <CloseIcon />
+        </button>
+        <button
+          v-else-if="!props.flush"
           type="button"
           class="lp-nav shrink-0"
           :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
@@ -287,10 +309,9 @@ const isTopic = computed(() => current.value.kind === "topic")
       </div>
 
       <!-- TITLE on its own full-width row — up to two lines, never sliced against the actions. -->
-      <h2
-        class="mt-2 font-display font-extrabold leading-snug line-clamp-2"
-        :class="props.flush ? 'text-2xl tracking-tight' : 'text-xl'"
-      >
+      <!-- ONE title style for every subject, page or sheet (operator 2026-10-11: literally identical;
+           measured 24px/33px tight on the pages, 20px on the sheets before). -->
+      <h2 class="lp-subject-title">
         {{ label || "…" }}
       </h2>
       <!-- One-line "who is this" descriptor under the name (person_web) — glanceable identity

@@ -207,10 +207,8 @@ function goBack(): void {
           <CloseIcon />
         </button>
       </div>
-      <h1
-        class="mt-2 line-clamp-2 font-display font-extrabold tracking-tight"
-        :class="embedded ? 'text-xl' : 'text-2xl'"
-      >
+      <!-- ONE title style for every subject, page or sheet (operator 2026-10-11). -->
+      <h1 class="lp-subject-title">
         {{ label || "…" }}
       </h1>
       <!-- The same action set as the topic and storyline pages: Save, Share, Follow. These were

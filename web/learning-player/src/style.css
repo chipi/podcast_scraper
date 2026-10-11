@@ -75,6 +75,22 @@
     color: var(--lp-muted);
   }
 
+  /* The title of a subject — topic, person, theme, storyline — on its page AND in its sheet: one
+     class, so the two can never drift (operator 2026-10-11: "literally identical"; they had drifted
+     to 24px vs 20px, and to two line heights and two letter spacings). Two lines at most. */
+  .lp-subject-title {
+    margin-top: 0.5rem;
+    font-family: var(--lp-font-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1.375;
+    letter-spacing: -0.025em;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
   /* A show's name wherever space is tight — ONE safety net, capped at two lines with an ellipsis.
      Show titles are the raw RSS title and some are paragraphs: "BRAVE Southeast Asia Tech:
      Singapore, Indonesia, Vietnam, Philippines, Thailand & Malaysia Startups, Founders & Venture

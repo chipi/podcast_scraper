@@ -467,7 +467,10 @@ piece to its design home:
   `ReelDoor` and `LearnDoor`, styled as two different options. The same top as a SHEET (opened from an episode's
   Brief, Home or Search: `EntityCard` for topics and people, `ThemeCard`, `StorylineCard`): the kind
   and ✕ on one row, then title, actions, listen row, with one 16px top inset and no rule under the
-  header on all four.
+  header on all four. The title is ONE class, `.lp-subject-title` (24px display, extrabold, tight,
+  two lines), on every page and sheet — measured identical across all eight. Every sheet has an ✕
+  that closes it, always; a topic or person sheet drilled one level in adds ‹ before the kind to go
+  back (operator 2026-10-11).
 - **`ReelDoor`** — "▶ 15 min on this", a tinted pill the size of the Follow pill, in `listen`
   (emerald, the categorical `cat-3`): it plays now. Never the accent — Follow owns that. It appears only once
   that subject's reel has at least two clips.
