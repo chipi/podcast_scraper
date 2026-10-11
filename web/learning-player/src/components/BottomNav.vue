@@ -75,9 +75,12 @@ function tabLabel(name: string): string {
  * the magnifier left the phone header on 2026-09-30 for lack of room. Removing Discover from this
  * bar, or its search box, would re-open #1588 on phones.
  */
+// Explore has its own tab (operator 2026-10-11): it is a full page — Trends and the Episodes ·
+// Shows catalog — not a corner of Discover, which keeps "what to hear next" (ADR-163 §1).
 const TABS = [
   { name: 'home', label: 'nav.home' },
   { name: 'browse', label: 'nav.browse' },
+  { name: 'explore', label: 'nav.explore' },
   { name: 'library', label: 'library.title' },
 ] as const
 
@@ -123,6 +126,10 @@ const isActive = (name: string): boolean => ownsRoute(name, route.name as string
             <template v-else-if="tab.name === 'browse'">
               <circle cx="12" cy="12" r="10" />
               <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+            </template>
+            <template v-else-if="tab.name === 'explore'">
+              <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
             </template>
             <template v-else-if="tab.name === 'library'">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />

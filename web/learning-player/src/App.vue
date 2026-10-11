@@ -621,6 +621,17 @@ const mainBottomPadding = computed(() =>
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
           </svg>
         </NavIconLink>
+        <NavIconLink
+          :to="{ name: 'explore' }"
+          :label="t('nav.explore')"
+          owns="explore"
+          data-testid="masthead-explore"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+        </NavIconLink>
         <template v-if="auth.hasSession">
           <!-- Same rule as the phone bar: a badged tab lands on the tab it counted. -->
           <NavIconLink

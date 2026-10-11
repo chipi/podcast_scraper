@@ -15,6 +15,8 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: stub },
     { path: '/browse', name: 'browse', component: stub },
+    { path: '/explore', name: 'explore', component: stub },
+    { path: '/listen/topic/:id', name: 'topic-reel', component: stub },
     { path: '/browse/topics', name: 'browse-topics', component: stub },
     { path: '/browse/people', name: 'browse-people', component: stub },
     { path: '/search', name: 'search', component: stub },
@@ -37,19 +39,21 @@ async function mountNav(opts: { signedIn?: boolean; at?: string } = {}) {
 }
 
 describe('BottomNav (#1594)', () => {
-  it('offers three destinations; Profile is in the masthead and Search folded into Discovery', async () => {
+  it('offers four destinations; Profile is in the masthead and Search folded into Discovery', async () => {
     // Browse got its own tab (#14): it is the destination that unifies the catalogue, topic and
     // people indexes. Profile left the bar for the masthead avatar (2026-09-09). Search left it for
     // Discovery (operator 2026-09-20) — it IS a discovery surface, and it keeps Discovery's own box,
-    // Home's Ask box and (desktop only) the masthead magnifier.
+    // Home's Ask box and (desktop only) the masthead magnifier. Explore got its own tab (operator
+    // 2026-10-11): Trends and the catalog are a full page, not a corner of Discover.
     const w = await mountNav()
-    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(3)
-    for (const name of ['home', 'browse', 'library']) {
+    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(4)
+    for (const name of ['home', 'browse', 'explore', 'library']) {
       expect(w.find(`[data-testid="bottom-nav-${name}"]`).exists()).toBe(true)
     }
     expect(w.find('[data-testid="bottom-nav-profile"]').exists()).toBe(false)
     expect(w.find('[data-testid="bottom-nav-search"]').exists()).toBe(false)
     expect(w.get('[data-testid="bottom-nav-browse"]').attributes('href')).toBe('/browse')
+    expect(w.get('[data-testid="bottom-nav-explore"]').attributes('href')).toBe('/explore')
   })
 
   it('marks the current tab with aria-current', async () => {
@@ -112,20 +116,30 @@ describe('BottomNav (#1594)', () => {
   // Exact-name matching left the bar blank on player, podcast and catalog — the routes users spend
   // most of their time on, so it went dark exactly when orientation matters most.
 
-  it('lights up Browse on the catalogue, a show page, and the topic/people indexes (#14)', async () => {
-    for (const path of ['/catalog', '/podcast/p03', '/browse/topics', '/browse/people']) {
+  it('lights up Explore on Explore, the catalogue and the topic/people indexes (ADR-163 §1)', async () => {
+    for (const path of ['/explore', '/catalog', '/browse/topics', '/browse/people']) {
+      const w = await mountNav({ at: path })
+      expect(
+        w.get('[data-testid="bottom-nav-explore"]').attributes('aria-current'),
+        `${path} should light up Explore`,
+      ).toBe('page')
+      expect(w.get('[data-testid="bottom-nav-browse"]').attributes('aria-current')).toBeUndefined()
+    }
+  })
+
+  it('lights up Discover on a show page and a topic reel', async () => {
+    for (const path of ['/podcast/p03', '/listen/topic/topic:x']) {
       const w = await mountNav({ at: path })
       expect(
         w.get('[data-testid="bottom-nav-browse"]').attributes('aria-current'),
-        `${path} should light up Browse`,
+        `${path} should light up Discover`,
       ).toBe('page')
-      expect(w.get('[data-testid="bottom-nav-home"]').attributes('aria-current')).toBeUndefined()
     }
   })
 
   it('lights up NOTHING on the player — no tab may claim a path the user might not have taken', async () => {
     const w = await mountNav({ at: '/episode/ep-1' })
-    for (const name of ['home', 'browse', 'library']) {
+    for (const name of ['home', 'browse', 'explore', 'library']) {
       expect(
         w.get(`[data-testid="bottom-nav-${name}"]`).attributes('aria-current'),
         `${name} must not claim the player route`,

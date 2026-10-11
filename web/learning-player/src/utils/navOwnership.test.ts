@@ -18,9 +18,16 @@ describe('nav route ownership (shared by both navs)', () => {
     }
   })
 
-  it('Discovery gathers the corpus indexes and show pages (#14)', () => {
-    for (const r of ['browse', 'catalog', 'podcast', 'browse-shows', 'browse-topics', 'browse-people']) {
+  it('Discovery gathers search, show pages and topic reels (#14, ADR-163)', () => {
+    for (const r of ['browse', 'search', 'podcast', 'topic-reel']) {
       expect(ownsRoute('browse', r), `browse should own ${r}`).toBe(true)
+    }
+  })
+
+  it('Explore gathers the catalogue and its indexes, which moved there from Discovery (ADR-163 §1)', () => {
+    for (const r of ['explore', 'catalog', 'browse-shows', 'browse-topics', 'browse-people']) {
+      expect(ownsRoute('explore', r), `explore should own ${r}`).toBe(true)
+      expect(ownsRoute('browse', r), `browse must not also own ${r}`).toBe(false)
     }
   })
 

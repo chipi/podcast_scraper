@@ -21,7 +21,7 @@ test('the phone tab bar has three destinations and Search is not one of them', a
   await page.goto('/')
 
   await expect(page.locator('[data-testid="bottom-nav-search"]')).toHaveCount(0)
-  for (const name of ['home', 'browse', 'library']) {
+  for (const name of ['home', 'browse', 'explore', 'library']) {
     await expect(page.locator(`[data-testid="bottom-nav-${name}"]`)).toHaveCount(1)
   }
 })
