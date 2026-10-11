@@ -1,6 +1,5 @@
 {
- "why": "F8 (Unexplainable, 'The bodies buried in the bog', prod replay 2026-10-11): the feed says 'The Unexplainable team — Noam Hassenfeld, Julia Longoria, Byrd Pinkerton, and Meradith Hoddinott — tackles scientific mysteries'. Host detection finds nobody, so the pool is empty and the presenter's self-intro in the ASR spelling, 'Bird Pinkerton', has no stated spelling to snap to. Today's code seats the voice as host under the wrong spelling; the served record (older code) also had it as a guest.",
- "xfail": "F8: a '<Show> team — A, B, and C —' list is not read as the feed's presenters, so the ASR spelling is published",
+ "why": "F8 (Unexplainable, 'The bodies buried in the bog', prod replay 2026-10-11): the feed says 'The Unexplainable team — Noam Hassenfeld, Julia Longoria, Byrd Pinkerton, and Meradith Hoddinott — tackles scientific mysteries'. Host detection finds nobody, so the pool is empty and the presenter's self-intro in the ASR spelling, 'Bird Pinkerton', has no stated spelling to snap to. Today's code seats the voice as host under the wrong spelling; the served record (older code) also had it as a guest. Fixed 2026-10-11 (F8): the presenting verbs read 'tracks down', and a dash-set presenter list after 'team'/'hosts' is a host statement.",
  "feed": {
   "title": "Unexplainable",
   "description": "Unexplainable takes listeners right up to the edge of what we know. The Unexplainable team — Noam Hassenfeld, Julia Longoria, Byrd Pinkerton, and Meradith Hoddinott — tackles scientific mysteries.",

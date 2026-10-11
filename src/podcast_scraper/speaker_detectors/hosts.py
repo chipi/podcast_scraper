@@ -752,6 +752,17 @@ _HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE: Dict[str, List["re.Pattern[str]"]] =
     ]
     for lang, verb in _PRESENTS_BY_LANGUAGE.items()
 }
+#: "The Unexplainable team — Noam Hassenfeld, Julia Longoria, Byrd Pinkerton, and Meradith Hoddinott
+#: — tackles scientific mysteries": the presenters as a list set off by dashes after "team"/"hosts",
+#: then the presenting verb (Unexplainable, prod 2026-10-11: the feed named nobody, and its
+#: presenter was published under the ASR's spelling as a guest). English only, measured there.
+_HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE[TARGET_LANGUAGE].append(
+    re.compile(
+        rf"\b(?:team|hosts?|presenters?)\s*[—–-]\s*(?P<names>{_stated_names(TARGET_LANGUAGE)})"
+        rf"\s*[—–-]\s*{_PRESENTS_BY_LANGUAGE[TARGET_LANGUAGE]}",
+        re.IGNORECASE,
+    )
+)
 _HOST_PHRASES_DESCRIPTION_ONLY = _HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE[TARGET_LANGUAGE]
 _NAME_RE = re.compile(_NAME)
 _STATED_NAME_RE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {

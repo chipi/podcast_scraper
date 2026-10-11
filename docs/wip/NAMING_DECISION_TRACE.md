@@ -272,7 +272,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `inputs.baseline_without_llm` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)` (+8) |
 | `inputs.detection` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice` (+45) |
 | `inputs.llm_resolution` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice` (+45) |
-| `intro_reader` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `feed_lists_interviewees_not_hosts`, `feed_states_its_host_as_title_then_name (xfail)` (+6) |
+| `intro_reader` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `feed_lists_interviewees_not_hosts`, `feed_states_its_host_as_title_then_name` (+6) |
 | `llm_merge` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)` (+8) |
 | `nameable` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice` (+45) |
 | `non_regression` | `wrong_llm_host_name_on_the_guest_is_not_published` |
@@ -280,7 +280,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `presenter_evidence` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice` (+45) |
 | `publish_gate` | `opener_laden_name_is_refused_at_publish` |
 | `publisher_label` | `publisher_label_names_the_voice` |
-| `recover_stated_names` | `publisher_label_names_the_voice` |
+| `recover_stated_names` | `feed_states_its_team_as_a_dash_list`, `publisher_label_names_the_voice` |
 | `self_intro` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest`, `an_introduced_stated_guest_keeps_their_voice` (+25) |
 | `show_mononym_filter` | `show_mononym_is_not_a_person` |
 | `stated_spelling_snap` | `stated_spelling_wins_over_self_intro_spelling` |

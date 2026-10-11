@@ -2796,8 +2796,8 @@ PRESENTS: Dict[str, str] = {
     #: third-person plural is not the singular plus an s (`presenta`/`presentano`), and German
     #: puts the verb in a different place entirely but the token still has to be matchable.
     "en": (
-        r"(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover"
-        r"|tackle)s?\b"
+        r"(?:(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover"
+        r"|tackle)s?|tracks?\s+down)\b"
     ),
     "es": (
         r"(?:explora|exploran|explica|explican|discute|discuten|habla|hablan|cubre|cubren"

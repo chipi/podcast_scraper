@@ -307,3 +307,30 @@ class TestWelcomeIdiomsAreNotHostActs:
     def test_only_the_welcome_is_filtered_not_every_act_after_a_be_verb(self) -> None:
         line = "The person who is joining us today is Jane Doe."
         assert roles_from_conversation({"H": line}) == {"H": "host"}
+
+
+class TestFeedWordingsF8:
+    """F8 (all 80 prod feeds, 2026-10-11): two real wordings named nobody; nothing else moved."""
+
+    def test_a_dash_set_team_list_names_the_presenters(self) -> None:
+        desc = (
+            "The Unexplainable team — Noam Hassenfeld, Julia Longoria, Byrd Pinkerton, and"
+            " Meradith Hoddinott — tackles scientific mysteries."
+        )
+        assert detect_hosts_from_feed("Unexplainable", desc, ["Vox"]) == {
+            "Noam Hassenfeld",
+            "Julia Longoria",
+            "Byrd Pinkerton",
+            "Meradith Hoddinott",
+        }
+
+    def test_tracks_down_is_a_presenting_verb(self) -> None:
+        desc = "Freakonomics co-author Steve Levitt tracks down other high achievers."
+        assert detect_hosts_from_feed("People I (Mostly) Admire", desc, []) == {"Steve Levitt"}
+
+    def test_interviewees_listed_in_parentheses_are_not_hosts(self) -> None:
+        desc = (
+            "Exclusive interviews from Meta (Soumith Chintala), Sierra (Bret Taylor),"
+            " tiny (George Hotz)."
+        )
+        assert detect_hosts_from_feed("Latent Space", desc, ["Latent.Space"]) == set()
