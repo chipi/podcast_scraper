@@ -92,21 +92,21 @@ public class AppJourneyTests extends UITestCase {
                 + Journey.labelledInventory(16),
                 Journey.find(EPISODE_TITLE, true, 20_000));
 
-        // The Episode notes panel — entry point is "✦ Episode notes" (kp.title). The ✦ is a
+        // The Brief panel — entry point is the "Brief" tab (kp.title; "✦ Episode notes" until #2305). The ✦ is a
         // separate text node on iOS but on Android the whole label lands as one string, so
         // contains is the safe match.
-        boolean tapped = Journey.tap("Episode notes", true, 15_000);
+        boolean tapped = Journey.tap("Brief", false, 15_000);
         if (tapped) {
             Journey.sleep(4_000);
         } else {
-            Journey.scrollTo("Episode notes", true);
+            Journey.scrollTo("Brief", false);
             Journey.sleep(2_000);
         }
-        // The panel's own title (kp.title = 'Episode notes') must now be on screen. The opener pill
+        // The panel's own title (kp.title = 'Brief'; 'Episode notes' until #2305) must now be on screen. The opener pill
         // is v-if'd away while the panel is open, so this match can only be the panel.
-        assertNotNull("the Episode notes panel title did not appear. On screen: "
+        assertNotNull("the Brief panel title did not appear. On screen: "
                 + Journey.labelledInventory(80),
-                Journey.find("Episode notes", true, 10_000));
+                Journey.find("Brief", false, 10_000));
     }
 
     // ------------------------------------------------------------------ 03 topic + storyline
@@ -278,11 +278,11 @@ public class AppJourneyTests extends UITestCase {
         Journey.sleep(6_000);
 
         // Three steps required before the person button is reachable:
-        //   1. Open the knowledge panel (closed on a fresh launch) via the Episode notes entry.
+        //   1. Open the knowledge panel (closed on a fresh launch) via the Brief entry.
         //   2. Expand the "Topics & People" accordion (kp.tags) — collapsed by default, only
         //      section headers in the tree until opened.
         //   3. Scroll the person control into view — offscreen web content is not in the tree.
-        Journey.tap("Episode notes", true, 15_000);
+        Journey.tap("Brief", false, 15_000);
         Journey.sleep(3_000);
 
         // The accordion REMEMBERS its state between tests. Tap only when the person controls
@@ -548,7 +548,7 @@ public class AppJourneyTests extends UITestCase {
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
-        boolean panelOpened = Journey.tap("Episode notes", true, 15_000);
+        boolean panelOpened = Journey.tap("Brief", false, 15_000);
         if (!panelOpened) {
             fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(80));
         }
@@ -602,9 +602,11 @@ public class AppJourneyTests extends UITestCase {
         // Assert on something ONLY a storyline renders. The first version checked for
         // "Managing risk across domains" and passed while nothing had opened — that string is the
         // label of the storyline link card inside the topic card itself.
-        // ec.followStoryline = 'Follow storyline' / ec.followingStoryline = 'Following storyline'
+        // "Topics discussed together" is a storyline's own section (the topic card under it has none).
+        // Not "Follow storyline": Follow reads the same on every subject since 2026-10-11
+        // ("Follow", named "Follow — <subject>"), so it no longer says which sheet is on top.
         UiObject2 followBtn = Journey.find(
-                Arrays.asList("Follow storyline", "Following storyline"), true, 12_000);
+                Arrays.asList("Topics discussed together"), true, 12_000);
         assertNotNull(
                 "no storyline sheet on screen — the storyline never opened, or it opened behind "
                         + "the panel's top layer. On screen: " + Journey.labelledInventory(80),

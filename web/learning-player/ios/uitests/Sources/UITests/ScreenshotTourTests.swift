@@ -57,7 +57,7 @@ final class ScreenshotTourTests: UITestCase {
     "Dr. Elena Fischer", "Sam", "Skanda Amarnath", "Alex Morgan",
   ]
 
-  /// Tap a chip in the Episode notes' "Topics & People" section. The section is a <details> that is
+  /// Tap a chip in the Brief' "Topics & People" section. The section is a <details> that is
   /// open by default and REMEMBERS being closed, so: scroll to the chip; only if it is not there,
   /// open the header and look again. Tapping the header first is what closed it (2026-10-08).
   private static func openFromTopicsAndPeople(_ app: XCUIApplication, _ labels: [String]) -> Bool {
@@ -139,7 +139,7 @@ final class ScreenshotTourTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
     frame("t13-episode")
-    if Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 12) {
+    if Journey.tap(app, labels: ["Brief"], contains: false, timeout: 12) {
       sleep(4)
       frame("t14-episode-insights")
       // SCROLL to these sections, never tap their headers: they are <details> that are OPEN by
@@ -220,7 +220,7 @@ final class ScreenshotTourTests: UITestCase {
 
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(5)
-    _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
+    _ = Journey.tap(app, labels: ["Brief"], contains: false, timeout: 10)
     sleep(2)
     if Self.openFromTopicsAndPeople(app, ["Open Dr. Elena Fischer", "Open Sam"]) {
       sleep(5); frame("t21-person")
@@ -244,7 +244,7 @@ final class ScreenshotTourTests: UITestCase {
     func openTopicSheet() -> Bool {
       AppSession.openEpisode(app, slug: episodeSlug)
       sleep(5)
-      _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
+      _ = Journey.tap(app, labels: ["Brief"], contains: false, timeout: 10)
       sleep(2)
       let opened = Self.openFromTopicsAndPeople(app, ["Open risk management", "Open systems thinking"])
       if opened { sleep(4) }

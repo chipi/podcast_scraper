@@ -99,7 +99,7 @@ public class ScreenshotTourTests extends UITestCase {
     private boolean openTopicSheet() {
         AppSession.openEpisode(EPISODE_SLUG);
         settle(5_000);
-        Journey.tap("Episode notes", true, 10_000);
+        Journey.tap("Brief", false, 10_000);
         settle(2_000);
         List<String> topics = Arrays.asList("Open risk management", "Open systems thinking");
         Journey.scrollTo(topics, true, 10);
@@ -174,7 +174,7 @@ public class ScreenshotTourTests extends UITestCase {
         AppSession.openEpisode(EPISODE_SLUG);
         settle(6_000);
         frame("t13-episode");
-        if (Journey.tap("Episode notes", true, 12_000)) {
+        if (Journey.tap("Brief", false, 12_000)) {
             settle(4_000);
             frame("t14-episode-insights");
             // SCROLL to these sections, never tap their headers: they are <details> that are OPEN by

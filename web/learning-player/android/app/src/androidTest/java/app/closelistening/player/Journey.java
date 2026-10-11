@@ -440,7 +440,11 @@ final class Journey {
             mark("=====TREND_SCOPE already everyone, or caption not found=====");
             return;
         }
-        if (tap(Arrays.asList("My listening", "Trending scope"), false, 5_000)) {
+        // Contains: the switch reads "Trending scope: Mine" (or its sr-only "My listening") since it
+        // became a labelled pill (2026-10-11); the empty Mine list's "Show everyone's trends" is
+        // the fallback.
+        if (tap(Arrays.asList("My listening", "Trending scope"), true, 5_000)
+                || tap(Arrays.asList("Show everyone's trends"), false, 3_000)) {
             boolean switched = find("Everyone's trends", true, 5_000) != null;
             mark("=====TREND_SCOPE switched, everyone=" + switched + "=====");
             sleep(1_000);

@@ -19,7 +19,10 @@ final class ColdLaunchRestoreTests: UITestCase {
   private let episodeTitle = "Risk Is a Systems Property"
   /// The Discover hub's catalogue heading (`browse.catalogTitle`) — rendered by BrowseView only.
   /// ("Discover" is also the tab label and "Trends" is on Home too, so neither says which screen.)
-  private let discoverMarker = "Browse"
+  /// On Discover: its Mine ⇄ Everyone switch ("Trending scope: Mine"). "Browse" went with the
+  /// Explore split (2026-10-11), and the title "Discover" also names the bottom-nav link. The switch
+  /// is on Explore too, so this tells Discover from Home and the player, not from Explore.
+  private let discoverMarker = "Trending scope"
 
   /// The episode title in the MINI-PLAYER — at the bottom of the screen. Matching the title
   /// anywhere would pass on a Discover list row that happens to show the same episode.
@@ -53,7 +56,7 @@ final class ColdLaunchRestoreTests: UITestCase {
     XCTAssertTrue(Journey.openTab(app, "Discover"), "could not open Discover")
     sleep(4)
     XCTAssertNotNil(
-      Journey.find(app, labels: [discoverMarker], contains: false, timeout: 15),
+      Journey.find(app, labels: [discoverMarker], contains: true, timeout: 15),
       "not on Discover before the kill")
     XCTAssertTrue(miniPlayerShows(app, timeout: 10), "the episode is not in the mini-player before the kill")
     Journey.shot(self, "restore-01-before-kill")
@@ -68,7 +71,7 @@ final class ColdLaunchRestoreTests: UITestCase {
     let again = Journey.launch()
     Journey.shot(self, "restore-02-after-relaunch")
     XCTAssertNotNil(
-      Journey.find(again, labels: [discoverMarker], contains: false, timeout: 15),
+      Journey.find(again, labels: [discoverMarker], contains: true, timeout: 15),
       "cold launch did not return to Discover. On screen: \(Journey.labelledInventory(again, limit: 10))")
     XCTAssertTrue(
       miniPlayerShows(again, timeout: 15),

@@ -129,8 +129,7 @@ final class DownloadThroughUITests: UITestCase {
     //
     // The test was looking in the right place for where the button used to be. How the scope is
     // replaced is argued at the query below.
-    let trigger = Journey.control(app, label: "More actions")
-    guard trigger.waitForExistence(timeout: 20) else {
+    guard Journey.control(app, label: "More actions").waitForExistence(timeout: 20) else {
       // The failure MESSAGE carries the diagnosis, not a `print`.
       //
       // This guard used to dump `app.debugDescription` to stdout, and xcodebuild does not reliably
@@ -149,10 +148,10 @@ final class DownloadThroughUITests: UITestCase {
       )
       return
     }
-    trigger.tap()
+    pageOverflow(app).tap()
 
     // `role="menuitem"` maps to MenuItem, not Button — see `Journey.control`.
-    let already = Journey.control(app, label: "Downloaded — tap to remove")
+    let already = menuItem(app, "Downloaded — tap to remove")
     if already.waitForExistence(timeout: 10) {
       already.tap()
       // Removal deletes the file and rewrites the registry; give it room, and CONFIRM the control
@@ -163,8 +162,8 @@ final class DownloadThroughUITests: UITestCase {
       // `<DownloadButton variant="menuitem" @activated="close" />`, so activating an item CLOSES
       // the panel by design. The control we then waited 30s for was not slow, it was off-screen.
       _ = Journey.control(app, label: "More actions").waitForExistence(timeout: 10)
-      Journey.control(app, label: "More actions").tap()
-      if !Journey.control(app, label: "Download for offline").waitForExistence(timeout: 30) {
+      pageOverflow(app).tap()
+      if !menuItem(app, "Download for offline").waitForExistence(timeout: 30) {
         print("=====REMOVE_TREE_START====="); print(app.debugDescription); print("=====REMOVE_TREE_END=====")
         XCTFail("removing the existing download never restored the Download control for \(title)")
         return
@@ -186,18 +185,25 @@ final class DownloadThroughUITests: UITestCase {
     // wrong twice over for web content: the menu variant carries `role="menuitem"` so it is not a
     // Button, and `identifier` maps from `accessibilityIdentifier`, which the DOM does not set —
     // the accessible NAME is what `aria-label` produces. See `Journey.control`.
+    //
+    // ABOVE THE TRANSPORT only (2026-10-11). Download became a first-level action on every episode
+    // CARD, so the "More like this" cards under the player each carry a "Download for offline"
+    // control for their own episode — six of them. This episode's is the one in its ⋯ menu, which
+    // drops down above the transport; count those: still exactly one, and a second would say so.
     let candidates = app.descendants(matching: .any)
       .matching(NSPredicate(format: "label == %@", "Download for offline"))
+      .allElementsBoundByIndex
+      .filter { $0.exists && $0.isHittable && $0.frame.maxY <= aboveTransport(app) }
     if candidates.count > 1 {
       print("=====AMBIGUOUS_DOWNLOAD_TREE_START====="); print(app.debugDescription)
       print("=====AMBIGUOUS_DOWNLOAD_TREE_END=====")
       XCTFail(
-        "\(candidates.count) Download controls are on screen for \(title) — another surface "
-          + "(kept-alive Library → Downloaded?) is offering one too, so tapping would be a guess"
+        "\(candidates.count) Download controls are on screen above the transport for \(title) — "
+          + "another menu is open too, so tapping would be a guess"
       )
       return
     }
-    let downloadButton = candidates.firstMatch
+    let downloadButton = menuItem(app, "Download for offline")
     if !downloadButton.waitForExistence(timeout: 20) {
       print("=====NO_DOWNLOAD_CONTROL_TREE_START====="); print(app.debugDescription)
       print("=====NO_DOWNLOAD_CONTROL_TREE_END=====")
@@ -207,6 +213,11 @@ final class DownloadThroughUITests: UITestCase {
       // believe it is running natively.
       XCTFail(
         "the overflow menu opened on \(title) but carries no \"Download for offline\" control. "
+          + "Download-ish elements: \(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "download")).allElementsBoundByIndex.prefix(12).map { "\($0.elementType.rawValue)|\($0.label)|\(Int($0.frame.minY))|hit=\($0.isHittable)" }). "
+          + "Ceiling: \(Int(aboveTransport(app))). Menu items: \(app.menuItems.allElementsBoundByIndex.map { $0.label }). "
+          + "All elements: \(app.descendants(matching: .any).count). Other menu item present: "
+          + "\(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Mark as")).count). "
+          + "Last 6 labelled: \(app.descendants(matching: .any).allElementsBoundByIndex.suffix(40).map { $0.label }.filter { !$0.isEmpty }.suffix(6)). "
           + "Labelled elements on screen: \(Journey.labelledInventory(app))"
       )
       return
@@ -228,18 +239,18 @@ final class DownloadThroughUITests: UITestCase {
     ]
     var lastSeen = "<never observed>"
     for _ in 0..<9 {
-      if Journey.control(app, label: "Downloaded — tap to remove").waitForExistence(timeout: 2) {
+      if menuItem(app, "Downloaded — tap to remove").waitForExistence(timeout: 2) {
         settled = true
         break
       }
       // Re-open and read the state. A transfer in flight keeps the panel's item on "Downloading",
       // so this doubles as the progress observation.
       if Journey.control(app, label: "More actions").waitForExistence(timeout: 5) {
-        Journey.control(app, label: "More actions").tap()
+        pageOverflow(app).tap()
       }
-      let seen = states.filter { Journey.control(app, label: $0).exists }
+      let seen = states.filter { menuItem(app, $0).exists }
       if !seen.isEmpty { lastSeen = seen.joined(separator: ", ") }
-      if Journey.control(app, label: "Downloaded — tap to remove").exists {
+      if menuItem(app, "Downloaded — tap to remove").exists {
         settled = true
         break
       }
@@ -301,5 +312,42 @@ final class DownloadThroughUITests: UITestCase {
         + "…AndQueuesThem make zero queue writes for months. Labelled elements: "
         + "\(Journey.labelledInventory(app, limit: 20))"
     )
+  }
+
+  /// The PAGE's ⋯ — the topmost one on screen. Every "More like this" card under the player has a
+  /// ⋯ of its own with the same name (2026-10-11), and a card's menu carries no Download item (on a
+  /// card, Download is a button in the row), so the first match in the tree is not good enough.
+  private func aboveTransport(_ app: XCUIApplication) -> CGFloat {
+    let transport = Journey.control(app, label: "Skip back 15 seconds")
+    return transport.exists ? transport.frame.minY : app.frame.height / 2
+  }
+
+  private func pageOverflow(_ app: XCUIApplication) -> XCUIElement {
+    let all = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "More actions"))
+      .allElementsBoundByIndex
+    let onScreen = all.filter { $0.exists && $0.isHittable }
+    return onScreen.min(by: { $0.frame.minY < $1.frame.minY })
+      ?? Journey.control(app, label: "More actions")
+  }
+
+  /// This episode's download control: the item in its ⋯ menu, found by WHERE it is.
+  ///
+  /// Since 2026-10-11 every episode CARD also carries a Download control for its own episode, so
+  /// the "More like this" cards under the player offer the same names. The element TYPE cannot
+  /// separate them: the menu's `role="menuitem"` reached XCUITest as a MenuItem on one episode and
+  /// not on the next (the recording showed the menu open with the item; `app.menuItems` was empty).
+  /// Position can: the menu drops down under the page's ⋯, above the player's transport, and every
+  /// card sits below it. So: a matching element that is on screen, above the transport.
+  private func menuItem(_ app: XCUIApplication, _ label: String) -> XCUIElement {
+    let ceiling = aboveTransport(app)
+    let all = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", label))
+    let pick = all.allElementsBoundByIndex.first {
+      $0.exists && $0.isHittable && $0.frame.maxY <= ceiling
+    }
+    // Not found yet: hand back a query that never matches a card, so `waitForExistence` and
+    // `exists` keep meaning "the menu's item", and the caller's timeout does the waiting.
+    return pick ?? app.menuItems.matching(NSPredicate(format: "label == %@", label)).firstMatch
   }
 }

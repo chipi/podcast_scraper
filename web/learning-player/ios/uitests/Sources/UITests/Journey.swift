@@ -251,7 +251,13 @@ enum Journey {
       print("=====TREND_SCOPE \(everyone.exists ? "already everyone" : "caption not found")=====")
       return
     }
-    if tap(app, labels: ["Trending scope"], timeout: 5) {
+    // Contains, not exact: the switch reads "Trending scope: Mine" since it became a labelled pill
+    // (2026-10-11), and an exact "Trending scope" matched nothing — silently, so test03 hunted
+    // storyline rows in an empty Mine list. The empty list's own "Show everyone's trends" is the
+    // fallback.
+    if tap(app, labels: ["Trending scope"], contains: true, timeout: 5)
+      || tap(app, labels: ["Show everyone's trends"], contains: false, timeout: 3)
+    {
       _ = everyone.waitForExistence(timeout: 5)
       print("=====TREND_SCOPE switched, everyone=\(everyone.exists)=====")
       sleep(1)
