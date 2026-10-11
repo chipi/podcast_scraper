@@ -414,7 +414,14 @@ piece to its design home:
 - **Discover today** (2026-10-11): the header carries the scope switch and an **"Explore ›"**
   link. Then, episode-first: the quote cards, trending shows, and search. Trends and the
   Episodes · Shows catalog moved to Explore (below).
-- **`QuoteCardsRail`** — Discover's first rail (ADR-163, Discover arc Step 2.1): "Worth hearing
+- **`RecommendationRail`** — the shape every Discover rail shares (ADR-163). The rail supplies
+  its id, title and loader; the card, its `RecommendationWhy`, hiding when empty, reloading on
+  return to the kept-alive page, and the Umami telemetry are the same for every rail.
+  - **"More from what you captured"** (Step 2.2; signed in, under Mine only): episodes on shows the
+    listener does not follow or captured from, each linked to one of their highlights, notes or
+    saves by a topic, person or storyline. "Because you highlighted “…”" over a quote from the
+    recommended episode.
+- **The quote cards** — Discover's first rail (ADR-163, Discover arc Step 2.1): "Worth hearing
   next".
   - **Content:** rising topics and the most engaged episodes (`GET /trending/episodes`) in the page
     scope, as cards. Each card shows the episode (artwork, title, show name, which wraps and never

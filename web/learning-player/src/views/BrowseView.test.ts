@@ -11,7 +11,10 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // Discover = what to hear next (ADR-163): quote cards, trending shows, search. Stub the rails (they
 // fetch); here we test the page's composition and its ways out.
 const stubs = {
-  QuoteCardsRail: { props: ['scope'], template: '<div data-testid="stub-quote-cards">{{ scope }}</div>' },
+  RecommendationRail: {
+    props: ['rail', 'scope'],
+    template: '<div :data-testid="`stub-rail-${rail}`">{{ scope }}</div>',
+  },
   TrendingShowsRail: {
     props: ['scope'],
     emits: ['see-all'],
@@ -45,8 +48,8 @@ describe('BrowseView (Discover): what to hear next', () => {
     const w = await mountView()
     const html = w.html()
     const at = (id: string) => html.indexOf(`data-testid="${id}"`)
-    expect(at('stub-quote-cards')).toBeGreaterThan(-1)
-    expect(at('stub-quote-cards')).toBeLessThan(at('stub-trending-shows'))
+    expect(at('stub-rail-quotes')).toBeGreaterThan(-1)
+    expect(at('stub-rail-quotes')).toBeLessThan(at('stub-trending-shows'))
     expect(at('stub-trending-shows')).toBeLessThan(at('browse-search-section'))
     expect(w.find('[data-testid="browse-tab-episodes"]').exists()).toBe(false)
     expect(w.findComponent({ name: 'TrendsSection' }).exists()).toBe(false)
@@ -96,11 +99,14 @@ describe('BrowseView (Discover): what to hear next', () => {
     const toggle = w.get('[data-testid="discover-scope"]')
     expect(toggle.attributes('aria-pressed')).toBe('true')
     expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('mine')
-    expect(w.get('[data-testid="stub-quote-cards"]').text()).toBe('mine')
+    expect(w.get('[data-testid="stub-rail-quotes"]').text()).toBe('mine')
+    // More from what you captured: signed in, under Mine only.
+    expect(w.find('[data-testid="stub-rail-captured"]').exists()).toBe(true)
     await toggle.trigger('click')
     await flushPromises()
     expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('corpus')
-    expect(w.get('[data-testid="stub-quote-cards"]').text()).toBe('corpus')
+    expect(w.get('[data-testid="stub-rail-quotes"]').text()).toBe('everyone')
+    expect(w.find('[data-testid="stub-rail-captured"]').exists()).toBe(false)
     expect(w.findAll('[data-testid="discover-scope"]')).toHaveLength(1)
     vi.unstubAllGlobals()
   })

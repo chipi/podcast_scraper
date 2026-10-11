@@ -1247,6 +1247,9 @@
     "exploreLink": "Explore",
     "quotes": {
       "title": "Worth hearing next"
+    },
+    "captured": {
+      "title": "More from what you captured"
     }
   },
   "explore": {

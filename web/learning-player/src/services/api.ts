@@ -875,6 +875,12 @@ export async function getTrendingEpisodes(
   return (await getJSON<{ items: TrendingEpisodeCard[] }>("/trending/episodes", { scope, limit })).items
 }
 
+/** More from what you captured (ADR-163, Discover arc Step 2.2): episodes elsewhere, each linked to
+ *  one of the listener's highlights, notes or saves. Signed-in only; empty with nothing captured. */
+export async function getCapturedRecommendations(limit = 6): Promise<TrendingEpisodeCard[]> {
+  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/discover/captured", { limit })).items
+}
+
 /** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
  *  (ADR-162). The server's one definition, so Browse never re-derives it. */
 export async function getWorldEpisodeSlugs(): Promise<string[]> {

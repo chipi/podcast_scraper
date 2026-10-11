@@ -91,7 +91,8 @@ The Discover 2 preview was removed (UI only; its APIs stay).
    - **Explore** ✅ (`/explore`): Trends and the Episodes · Shows catalog moved there (operator:
      the catalog too). Old `/browse` links to them redirect; Discover's header links to it.
    - The Umami telemetry spec checks the rail contract end to end.
-2. **More from what you captured** (scan #3, unique) — highlights, notes and saves seed episodes on
+2. **More from what you captured** ✅ (2026-10-11; `app_captured_rail`, `GET /discover/captured`, the
+   generic `RecommendationRail`; eval pinned in `test_app_captured_rail.py`) (scan #3, unique) — highlights, notes and saves seed episodes on
    other shows, by the same topic, person or storyline. Server-side, not the preview's per-highlight
    searches.
 3. **Continue the thread** (scan #4) — new episodes in the storylines the listener follows, in time

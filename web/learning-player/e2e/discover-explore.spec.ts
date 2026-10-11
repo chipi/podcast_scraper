@@ -62,3 +62,32 @@ test("trending shows' See all opens Explore's Shows, sorted by trending", async 
   await expect(page).toHaveURL(/\/explore\?tab=shows&sort=trending&view=list#catalog/)
   await expect(page.getByTestId('browse-tab-shows')).toHaveAttribute('aria-selected', 'true')
 })
+
+test('a highlight seeds "More from what you captured": elsewhere, saying which highlight', async ({
+  page,
+}, testInfo) => {
+  // Discover arc Step 2.2. The highlight is made through the API a listener's tap uses; the rail
+  // must then recommend an episode on ANOTHER show, citing the listener's own words.
+  await signInIsolated(page, 'discover-captured', testInfo)
+  const slug = 'p07-769d04686d' // a fixture episode whose insights are ABOUT topics shared elsewhere
+  const insights = await (await page.request.get(`/api/app/episodes/${slug}/insights`)).json()
+  const insight = insights.insights[0]
+  const made = await page.request.post('/api/app/highlights', {
+    data: {
+      episode_slug: slug,
+      kind: 'insight',
+      source_insight_id: insight.id,
+      quote_text: 'kept for later',
+      start_ms: insight.quotes?.[0]?.start_ms ?? 0,
+    },
+  })
+  expect(made.status()).toBe(201)
+
+  await page.goto('/browse') // Mine is the default for a signed-in listener
+  const rail = page.getByTestId('captured-cards')
+  await expect(rail).toBeVisible()
+  const first = rail.getByTestId('captured-card').first()
+  await expect(first.getByTestId('why-reason')).toHaveText('Because you highlighted “kept for later”')
+  await expect(first.getByTestId('why-quote')).toContainText('“')
+  await expect(first.getByTestId('captured-card-open')).not.toHaveAttribute('href', /\/episode\/p07-/)
+})

@@ -3,8 +3,9 @@
  * Discover — what to hear next, and only that (ADR-163 §1). Route name `browse` (kept: deep links,
  * the bottom nav and the masthead all point here).
  *
- * Episode-first (§2): the quote cards lead (`QuoteCardsRail` — each card says why it is here and
- * plays from the quote), trending shows sit below them, then search. Trends and the Episodes ·
+ * Episode-first (§2): the recommendation rails lead (`RecommendationRail` — each card says why it
+ * is here and plays from the quote): the quote cards, then, under Mine, more from what you
+ * captured; trending shows sit below them, then search. Trends and the Episodes ·
  * Shows catalog moved to Explore (operator 2026-10-11), reached from this header; old
  * `/browse?trends=…` / `?tab=…` / `#catalog` links redirect there (router).
  *
@@ -14,7 +15,9 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
 import SearchSection from '../components/SearchSection.vue'
-import QuoteCardsRail from '../components/QuoteCardsRail.vue'
+import RecommendationRail from '../components/RecommendationRail.vue'
+import { getCapturedRecommendations, getTrendingEpisodes } from '../services/api'
+import { useAuthStore } from '../stores/auth'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import TrendingScopeButton from '../components/TrendingScopeButton.vue'
 import { useTrendingScope } from '../composables/useTrendingScope'
@@ -22,6 +25,7 @@ import { useTrendingScope } from '../composables/useTrendingScope'
 const { t } = useI18n()
 const router = useRouter()
 const { scope: trendingScope, setScope: setTrendingScope } = useTrendingScope()
+const auth = useAuthStore()
 
 // Trending shows' "See all" opens Explore's Shows tab sorted by trending, as a list, so the
 // destination matches the rail it came from (operator 2026-09-14).
@@ -48,7 +52,28 @@ function onShowsSeeAll(): void {
       </div>
     </div>
 
-    <QuoteCardsRail :scope="trendingScope" />
+    <!-- Episode-first (ADR-163 §2): the quote cards, then — under Mine, for a signed-in listener —
+         more from what they captured (Step 2.2), then trending shows. -->
+    <RecommendationRail
+      rail="quotes"
+      cards-testid="quote-cards"
+      card-testid="quote-card"
+      open-testid="quote-card-open"
+      :title="t('discover.quotes.title')"
+      :load="() => getTrendingEpisodes(trendingScope, 6)"
+      :scope="trendingScope === 'mine' ? 'mine' : 'everyone'"
+      :reload-key="trendingScope"
+    />
+    <RecommendationRail
+      v-if="auth.isAuthenticated && trendingScope === 'mine'"
+      rail="captured"
+      cards-testid="captured-cards"
+      card-testid="captured-card"
+      open-testid="captured-card-open"
+      :title="t('discover.captured.title')"
+      :load="() => getCapturedRecommendations(6)"
+      scope="mine"
+    />
 
     <TrendingShowsRail
       :title="t('home.trendingShows')"

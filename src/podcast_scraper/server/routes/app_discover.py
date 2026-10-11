@@ -23,6 +23,7 @@ from podcast_scraper.server import (
     app_user_state,
 )
 from podcast_scraper.server.app_audit import append_audit
+from podcast_scraper.server.app_captured_rail import captured_rail
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
@@ -232,6 +233,42 @@ def app_trending(
         window=window,
         items=items,
     )
+
+
+@router.get("/discover/captured", response_model=AppTrendingEpisodesResponse)
+def app_discover_captured(
+    request: Request,
+    limit: int = Query(default=6, ge=1, le=20),
+    user: User = Depends(get_current_user),
+) -> AppTrendingEpisodesResponse:
+    """More from what you captured (ADR-163; Discover arc Step 2.2): episodes on shows the listener
+    does not follow, each linked to one of their highlights, notes or saves by a topic, person or
+    storyline, with the quote that grounds it. Every 5th card is the labelled outside-your-usual
+    share. Empty when signed out or nothing has been captured yet."""
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    if user is None or raw_dir is None:
+        return AppTrendingEpisodesResponse(scope="mine", items=[])
+    data_dir = Path(raw_dir)
+    cards = captured_rail(root, data_dir, user.user_id, limit=limit)
+    if cards:
+        everyone = trending_episodes(
+            root, data_dir, scope="corpus", limit=limit * 2, config=_momentum_config(request)
+        )
+        cards = mix_outside_habits(
+            root, cards, everyone, listener_habits(root, data_dir, user.user_id), limit=limit
+        )
+    items: list[AppTrendingEpisodeCard] = []
+    for card in cards:
+        row = resolve_slug(root, card.slug)
+        if row is not None:
+            items.append(
+                AppTrendingEpisodeCard(
+                    why=AppReason.model_validate(card.why.to_dict()),
+                    episode=row_to_summary(root, row),
+                )
+            )
+    return AppTrendingEpisodesResponse(scope="mine", items=items)
 
 
 @router.get("/trending/episodes", response_model=AppTrendingEpisodesResponse)
