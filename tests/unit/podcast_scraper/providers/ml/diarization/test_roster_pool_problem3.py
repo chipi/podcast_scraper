@@ -220,3 +220,14 @@ def test_the_model_never_names_a_voice_after_the_person_it_introduces() -> None:
     }
     names = {"H": "Erik Allebest", "G": "Sarah Guo"}
     assert _without_names_the_voice_introduces(names, texts, NamingTrace()) == {"G": "Sarah Guo"}
+
+
+def test_a_small_sponsor_read_never_takes_the_introduced_name() -> None:
+    # F12 (Lenny's Podcast, prod 2026-10-11): the ad after "my guest today is X" took X's name.
+    from podcast_scraper.providers.ml.diarization.roster import _is_a_small_sponsor_read
+
+    guest = "We grew fast because we listened to users. " * 60
+    ad = "Today's episode is brought to you by DX, the developer intelligence platform."
+    assert _is_a_small_sponsor_read("AD", {"AD": ad, "G": guest})
+    # A guest who mentions a sponsor once is not a sponsor read: the voice is not small.
+    assert not _is_a_small_sponsor_read("G", {"G": guest + ad, "H": "Welcome."})

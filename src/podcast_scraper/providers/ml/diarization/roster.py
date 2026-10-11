@@ -512,6 +512,27 @@ def _without_names_the_voice_introduces(
     return out
 
 
+#: A sponsor read says so: "This episode is brought to you by ten web", "Today's episode is brought
+#: to you by DX", "sponsored by", "use code / promo code".
+_SPONSOR_READ = re.compile(
+    r"\b(?:(?:this|today'?s)\s+episode\s+is\s+(?:brought\s+to\s+you|sponsored|presented)\s+by"
+    r"|sponsored\s+by|promo\s+code|use\s+(?:the\s+)?code\s+[A-Z])",
+    re.IGNORECASE,
+)
+
+
+def _is_a_small_sponsor_read(v: str, voice_texts: Mapping[str, str]) -> bool:
+    """A voice under 5% of the words whose own text is a sponsor read: never the introduced guest.
+
+    The introduction reader binds whoever speaks after "my guest today is X"; on Lenny's Podcast the
+    next voice was the ad ("Today's episode is brought to you by DX...") and took the guest's name
+    while the guest's own 75% voice stayed unnamed (prod replay 2026-10-11, inventory F12).
+    """
+    text = voice_texts.get(v, "")
+    total = sum(len(t) for t in voice_texts.values()) or 1
+    return len(text) / total < 0.05 and bool(_SPONSOR_READ.search(text))
+
+
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
@@ -3854,6 +3875,9 @@ def _intro_reader_voice_names(
                 heard=n,
                 reason="ad_voice" if v in ad_voices else "named_itself",
             )
+            continue
+        if _is_a_small_sponsor_read(v, voice_texts or {}):
+            tr.voice(v, "intro_reader", "skipped", heard=n, reason="sponsor_read")
             continue
         # F3 (advisor): the host-ward snap (nickname-as-exact + surname edit ≤ 3) can rename a GUEST
         # whose introduced name merely shares a nickname with a known host ("Rich Perkins" → host
