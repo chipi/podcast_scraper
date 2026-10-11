@@ -35,7 +35,9 @@ test('Explore holds Trends and the catalog, one tap from Discover', async ({ pag
   await signInIsolated(page, 'explore-home', testInfo)
   await page.goto('/browse')
   await expect(page.getByTestId('browse-tab-episodes')).toHaveCount(0)
-  await page.getByTestId('discover-explore-link').click()
+  // Explore is its own nav place (phone tab, desktop masthead icon), not a link in Discover's header.
+  const tab = page.getByTestId('bottom-nav-explore')
+  await ((await tab.isVisible()) ? tab : page.getByTestId('masthead-explore')).click()
   await expect(page).toHaveURL(/\/explore$/)
   await expect(page.getByTestId('explore-view')).toBeVisible()
   await expect(page.getByTestId('discovery-explorer')).toBeVisible()

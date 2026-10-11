@@ -91,11 +91,6 @@ function onShowsSeeAll(): void {
     <div class="mb-4 flex items-center justify-between gap-3">
       <h1 class="font-display text-3xl font-extrabold tracking-tight">{{ t('browse.hubTitle') }}</h1>
       <div class="flex items-center gap-3">
-        <RouterLink
-          :to="{ name: 'explore' }"
-          class="lp-tap whitespace-nowrap text-sm font-bold text-accent"
-          data-testid="discover-explore-link"
-        >{{ t('discover.exploreLink') }} ›</RouterLink>
         <TrendingScopeButton testid="discover-scope" />
       </div>
     </div>

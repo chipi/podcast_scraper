@@ -114,7 +114,10 @@ test('the Browse affordance lands on the hub at every viewport', async ({ page }
   await browseLink.click()
 
   await expect(page.getByTestId('browse-view')).toBeVisible()
-  // Discover is what to hear next (ADR-163); Trends and the catalog are one tap away on Explore.
+  // Discover is what to hear next (ADR-163); Trends and the catalog are on Explore, its own nav place.
   await expect(page.getByTestId('browse-search-section')).toBeVisible()
-  await expect(page.getByTestId('discover-explore-link')).toBeVisible()
+  // A tab on a phone, a masthead icon on desktop.
+  await expect(
+    page.locator('[data-testid="bottom-nav-explore"]:visible, [data-testid="masthead-explore"]:visible'),
+  ).toHaveCount(1)
 })

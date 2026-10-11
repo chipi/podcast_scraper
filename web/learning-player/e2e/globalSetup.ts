@@ -82,6 +82,15 @@ export default async function globalSetup(): Promise<void> {
   // resolves APP_DATA_DIR = 'e2e/.app-state'.
   rmSync(join(process.cwd(), 'e2e', '.app-state'), { recursive: true, force: true })
 
+  await buildIndexIfAbsent()
+}
+
+/**
+ * Build the two-tier search index into the disposable corpus copy when it has none, then warm
+ * search. Shared with the design harness (`e2e/design/globalSetup.ts`), whose shots otherwise
+ * judge a Discover with no reels, no "Learn this week" and an empty search.
+ */
+export async function buildIndexIfAbsent(): Promise<void> {
   const repoRoot = resolve(process.cwd(), '..', '..')
   // The DISPOSABLE copy e2e/prepare-corpus.mjs seeds, not the committed fixture. Playwright
   // starts webServer before globalSetup, so by the time this runs the copy exists and the API

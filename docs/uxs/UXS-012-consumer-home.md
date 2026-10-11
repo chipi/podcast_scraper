@@ -411,8 +411,8 @@ piece to its design home:
   extractive "why" (the listener's capture plus a quote and its time). Trends and the entity
   dashboards move to an Explore surface. This section describes the page as built today; rails are
   rebuilt against ADR-163 one by one.
-- **Discover today** (2026-10-11): the header carries the scope switch and an **"Explore ›"**
-  link. Then, episode-first: the quote cards, then (signed in, under Mine) more from what you
+- **Discover today** (2026-10-11): the header carries the scope switch only — Explore has its own
+  nav tab, so the header no longer links to it (operator 2026-10-11). Then, episode-first: the quote cards, then (signed in, under Mine) more from what you
   captured, continue the thread, people you keep hearing and hear another view, then trending
   shows, and search. Trends and the
   Episodes · Shows catalog moved to Explore (below).

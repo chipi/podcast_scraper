@@ -388,13 +388,14 @@ highlight it, then add the highlight to a board (`kind: highlight` is a first-cl
 item). Do not add a second control to a fragment to shortcut that; add it to the board from the
 highlight.
 
-**The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · queue inline
-plus a `⋯` overflow carrying download · add-to-collection, via the one component. Two inline + `⋯` is
-120px and fits the artwork-width card column in one row; four inline (176px of 44px targets) wrapped
-to a second row, and shrinking below the 44px floor (#1594) is barred, so the fix is to collapse not
-shrink (operator 2026-09-13). Download self-hides on web (`DownloadButton` is native-only), so on web
-the `⋯` carries add-to-collection alone. The top-level count is a uniform three (favourite/queue/`⋯`)
-across web and native — parity, not a per-surface omission.
+**The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · queue · `⋯`
+(add-to-collection, Play moments, share) · **download**, via the one component. Download is a
+first-tier action on every episode, the fourth control, after the `⋯` (operator 2026-10-11). Until
+then it lived in the `⋯` (operator 2026-09-13), because four inline controls (176px of 44px targets)
+wrap under the artwork-width card column and shrinking below the 44px floor (#1594) is barred. The
+wrap is now accepted, the way Up next accepted it on 2026-09-23: download is LAST, so the second line
+reads as a row of its own (`♡ ⧉ ⋯` above `⬇`). Download self-hides on web (`DownloadButton` is
+native-only), so a browser row stays at three.
 
 **Overflow (`⋯`) where space is tight** — one component, `OverflowMenu` (teleported, `role="menu"`,
 keyboard-roaming, Escape/outside-click dismiss). Primary actions sit inline; anything that does not fit is
@@ -409,10 +410,10 @@ density rule.
 
 | Surface | Favorite | Queue | Download | `⋯` overflow |
 | ------- | -------- | ----- | -------- | ------------ |
-| Home rails / Browse / Search / detail episode-lists | add | add | native | add-to-collection, add-note, share |
-| Library › Saved | see **OPEN-1** | add | native | remove |
-| Queue › **Up next** | add | **remove** (inverted — you are in the queue) | **INLINE, native** | add-to-collection, reorder ↑/↓ |
-| Queue › **Recently played** | add | **in the `⋯`** | native (in the `⋯`) | queue, download, add-to-collection |
+| Home rails / Browse / Search / detail episode-lists | add | add | **inline, native** | add-to-collection, add-note, share |
+| Library › Saved | see **OPEN-1** | add | **inline, native** | remove |
+| Queue › **Up next** | add | **remove** (inverted — you are in the queue) | **inline, native** | add-to-collection, reorder ↑/↓ |
+| Queue › **Recently played** | add | **in the `⋯`** | **inline, native** | queue, add-to-collection |
 | Downloaded list | add | add | **downloaded → delete** state | … |
 | Collection detail | add | add | native | add-to-collection *for this collection* omitted |
 | Player (current episode) | add | **n/a** (it is playing) → **mark-as-played** | native | add-to-collection inline (roomy) |
@@ -421,9 +422,10 @@ density rule.
 applications of the density rule above, not exceptions to it — the row stays at most three wide, and
 what occupies the slots changes with the question the surface is answering.
 
-- **`showDownload` promotes download out of the `⋯` (Up next).** There, "is this on the device?" IS
-  the question — you are looking at what you are about to play, often right before losing signal —
-  and it was two taps and a menu away, so the answer was invisible. Native-only by construction, so
+- **Download is inline everywhere (2026-10-11; Up next first, 2026-09-23).** In Up next "is this on
+  the device?" IS the question — you are looking at what you are about to play, often right before
+  losing signal — and behind the `⋯` the answer was invisible. The operator then made it first-tier
+  on every episode, and the per-surface `showDownload` switch went. Native-only by construction, so
   on web this adds nothing.
 
   **The glyph says what the control IS; the colour says whether it is ON.** Downloaded keeps the

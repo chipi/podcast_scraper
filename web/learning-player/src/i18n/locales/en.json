@@ -1268,7 +1268,6 @@
     "playFromLabel": "Play “{quote}” from {time}"
   },
   "discover": {
-    "exploreLink": "Explore",
     "quotes": {
       "title": "Worth hearing next"
     },

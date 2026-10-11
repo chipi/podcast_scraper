@@ -251,9 +251,38 @@ test('search', async ({ page }) => {
 
 test('browse', async ({ page }) => {
   await signIn(page)
+  // A listener with a world (a followed storyline, two captures), so Discover shows its personal
+  // rails rather than the cold start. A capture is made only once, so re-shooting does not pile up.
+  await page.request.post(`/api/app/interests/${encodeURIComponent('thc:managing-risk')}`)
+  const had = await (await page.request.get('/api/app/highlights')).json()
+  const captured = new Set(((Array.isArray(had) ? had : had.items) ?? []).map((h: { episode_slug: string }) => h.episode_slug))
+  for (const slug of ['p07-769d04686d', 'p02-8fdd7b7f79'].filter((s) => !captured.has(s))) {
+    const body = await (await page.request.get(`/api/app/episodes/${slug}/insights`)).json()
+    const insight = body.insights?.[0]
+    if (!insight) continue
+    await page.request.post('/api/app/highlights', {
+      data: {
+        episode_slug: slug,
+        kind: 'insight',
+        source_insight_id: insight.id,
+        quote_text: 'kept for later',
+        start_ms: insight.quotes?.[0]?.start_ms ?? 0,
+      },
+    })
+  }
   await page.goto('/browse')
   await expect(page.getByRole('tab').or(page.getByRole('button')).first()).toBeVisible()
   await shoot(page, 'browse')
+})
+
+test('explore', async ({ page }) => {
+  // Trends + a taste of the catalog (operator 2026-10-11): judged whole, since its length was the
+  // complaint that made it a taste.
+  await signIn(page)
+  await page.goto('/explore')
+  await expect(page.getByTestId('discovery-explorer')).toBeVisible()
+  await expect(page.getByTestId('explore-see-all-episodes')).toBeVisible()
+  await shoot(page, 'explore')
 })
 
 test('library', async ({ page }) => {

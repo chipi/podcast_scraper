@@ -63,9 +63,9 @@ describe('BrowseView (Discover): what to hear next', () => {
     expect(w.findComponent({ name: 'CatalogView' }).exists()).toBe(false)
   })
 
-  it('Explore is one tap away in the header', async () => {
+  it('carries no Explore link: Explore has its own nav place (operator 2026-10-11)', async () => {
     const w = await mountView()
-    expect(w.get('[data-testid="discover-explore-link"]').attributes('href')).toBe('/explore')
+    expect(w.find('[data-testid="discover-explore-link"]').exists()).toBe(false)
   })
 
   it("trending shows' See all opens the full show list, sorted by trending, as a list", async () => {

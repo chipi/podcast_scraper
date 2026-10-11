@@ -354,23 +354,21 @@ describe("action-row composition per surface", () => {
       .map((b) => b.attributes("aria-label"))
   }
 
-  it("keeps download in the ⋯ by default", () => {
-    // Four inline controls is 176px of 44px targets and wraps under the artwork-width column, which
-    // is why the ⋯ exists (operator 2026-09-13). Default stays favourite · queue · ⋯.
-    expect(rowLabels({}).some((l) => /download/i.test(l ?? ""))).toBe(false)
-  })
-
-  it("promotes download INTO the row for Up next, and out of the menu", () => {
-    // "Is this on the device?" is the question Up next answers, usually right before losing signal,
-    // and it was two taps behind a menu (operator 2026-09-23).
+  it("shows download in the row on every episode, after the ⋯, and not in the menu", () => {
+    // Operator 2026-10-11: download is a first-tier action, the fourth control (Up next had it since
+    // 2026-09-23). Last, so a wrap under the artwork reads as a second row.
     const w = mount(EpisodeCard, {
-      props: { episode: makeEpisode(), showDownload: true },
+      props: { episode: makeEpisode() },
       global: { plugins: [i18n, router] },
     })
     const row = w.find('[data-testid="episode-actions"]')
     expect(row.find('[data-testid="download-button"]').exists()).toBe(true)
     // Exactly once in the whole card: promoted, not duplicated into the ⋯ as well.
     expect(w.findAll('[data-testid="download-button"]').length).toBe(1)
+    // The fourth control, after the ⋯.
+    const labels = rowLabels({})
+    expect(labels).toHaveLength(4)
+    expect(labels[3]).toMatch(/download/i)
   })
 
   it("keeps queue in the row by default", () => {
@@ -386,10 +384,12 @@ describe("action-row composition per surface", () => {
     expect(labels.some((l) => /more actions/i.test(l ?? ""))).toBe(true)
   })
 
-  it("leaves the row two-wide when the queue toggle is demoted", () => {
-    // The point of demoting it: an 80px compact column holds two 32px targets, so three wrapped the
-    // ⋯ onto its own line under the artwork.
-    expect(rowLabels({ hideQueue: true }).length).toBe(2)
+  it("keeps ♡ ⋯ together when the queue toggle is demoted, download last", () => {
+    // An 80px compact column holds two 32px targets: demoting queue keeps ♡ ⋯ on the first line, and
+    // download (first-tier since 2026-10-11, native-only) is last, so on a device it wraps alone.
+    const labels = rowLabels({ hideQueue: true })
+    expect(labels).toHaveLength(3)
+    expect(labels[2]).toMatch(/download/i)
   })
 })
 
