@@ -1,0 +1,42 @@
+{
+ "why": "rung guest_host_pool: the description names a guest host (Max Read); his voice takes the stated spelling and the seat, and no feed host lands on the other voice.",
+ "feed": {
+  "title": "Hard Fork",
+  "hosts": [
+   "Casey Newton",
+   "Kevin Roose"
+  ]
+ },
+ "episode": {
+  "title": "Harbours",
+  "description": "This week, join the guest host Max Read and an array of reporters."
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "MAX",
+   120,
+   "Welcome to the show. I'm Max Reed. This week we look at the harbour."
+  ],
+  [
+   "OTHER",
+   240,
+   "Thanks for having me. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. "
+  ]
+ ],
+ "expect": {
+  "MAX": {
+   "name": "Max Read",
+   "role": "host"
+  },
+  "OTHER": {
+   "name_not": [
+    "Casey Newton",
+    "Kevin Roose"
+   ]
+  }
+ }
+}

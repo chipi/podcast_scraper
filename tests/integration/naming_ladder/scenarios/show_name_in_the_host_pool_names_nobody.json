@@ -1,0 +1,44 @@
+{
+ "why": "rung host_pool (never_names: names_the_show): the pool holds the show's own name; the presenter who says 'My name is Nixon Kanali' is the host.",
+ "feed": {
+  "title": "Africa Tech Summit Podcast",
+  "hosts": [
+   "Africa Tech Summit"
+  ]
+ },
+ "episode": {
+  "title": "Payments"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "HOUSE",
+   15,
+   "Brought to you by the founders network."
+  ],
+  [
+   "PRES",
+   160,
+   "Welcome to the Africa Tech Summit podcast. My name is Nixon Kanali. Today, payments."
+  ],
+  [
+   "GUEST",
+   225,
+   "Thanks for having me. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. "
+  ]
+ ],
+ "expect": {
+  "PRES": {
+   "name": "Nixon Kanali",
+   "role": "host"
+  },
+  "GUEST": {
+   "name_not": [
+    "Africa Tech Summit"
+   ]
+  }
+ }
+}

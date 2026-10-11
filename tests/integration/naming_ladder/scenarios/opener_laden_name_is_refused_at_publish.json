@@ -1,0 +1,37 @@
+{
+ "why": "rung publish_gate: a turn-boundary opener ('But Sun') handed over as a guest must not be published.",
+ "feed": {
+  "title": "Ideas",
+  "description": "Hosted by Tobias Wren."
+ },
+ "episode": {
+  "title": "Our guest today"
+ },
+ "detected": {
+  "speaker_names": [
+   "But Sun"
+  ],
+  "metadata_named": [
+   "But Sun"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   30,
+   "Welcome to the show. So please welcome But Sun, our guest today."
+  ],
+  [
+   "G",
+   400,
+   "Thanks for having me. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. "
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name_not": [
+    "But Sun"
+   ]
+  }
+ }
+}

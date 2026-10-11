@@ -1,0 +1,47 @@
+{
+ "why": "rung host_introduction_harvest / guest_pool: 'Let's say I'm Cass Ellery' is a hypothetical, nobody is Cass Ellery.",
+ "feed": {
+  "title": "Test Lab",
+  "description": "Hosted by Tobias Wren."
+ },
+ "episode": {
+  "title": "How tests work"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "S0",
+   30,
+   "Welcome to Test Lab. I'm Tobias Wren."
+  ],
+  [
+   "S1",
+   30,
+   "Thank you so much for having me, Tobias. Excited to be here."
+  ],
+  [
+   "S0",
+   60,
+   "Let's say I'm Cass Ellery. I know Cass. How would you test me?"
+  ],
+  [
+   "S1",
+   400,
+   "We would hand you a case you have never seen before. The point about tests keeps changing over the years, part 0. The point about tests keeps changing over the years, part 1. The point about tests keeps changing over the years, part 2. The point about tests keeps changing over the years, part 3. The point about tests keeps changing over the years, part 4. The point about tests keeps changing over the years, part 5. The point about tests keeps changing over the years, part 6. The point about tests keeps changing over the years, part 7. The point about tests keeps changing over the years, part 8. The point about tests keeps changing over the years, part 9. The point about tests keeps changing over the years, part 10. The point about tests keeps changing over the years, part 11. The point about tests keeps changing over the years, part 12. The point about tests keeps changing over the years, part 13. The point about tests keeps changing over the years, part 14. The point about tests keeps changing over the years, part 15. The point about tests keeps changing over the years, part 16. The point about tests keeps changing over the years, part 17. The point about tests keeps changing over the years, part 18. The point about tests keeps changing over the years, part 19. The point about tests keeps changing over the years, part 20. The point about tests keeps changing over the years, part 21. The point about tests keeps changing over the years, part 22. The point about tests keeps changing over the years, part 23. The point about tests keeps changing over the years, part 24. The point about tests keeps changing over the years, part 25. The point about tests keeps changing over the years, part 26. The point about tests keeps changing over the years, part 27. The point about tests keeps changing over the years, part 28. The point about tests keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "S0": {
+   "name": "Tobias Wren",
+   "role": "host"
+  },
+  "S1": {
+   "name_not": [
+    "Cass Ellery"
+   ]
+  }
+ }
+}

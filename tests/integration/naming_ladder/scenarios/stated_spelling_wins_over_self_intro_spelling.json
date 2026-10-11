@@ -1,0 +1,42 @@
+{
+ "why": "rungs stated_spelling_snap + one_name_per_person: the voice says 'Imani Moiz', the episode states 'Imani Moise'; both of her clusters publish 'Imani Moise', host.",
+ "feed": {
+  "title": "Lantern Hour"
+ },
+ "episode": {
+  "title": "Harbours"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Imani Moise"
+  ]
+ },
+ "turns": [
+  [
+   "H1",
+   60,
+   "Welcome to Lantern Hour. I'm Imani Moiz. Today we talk about harbours."
+  ],
+  [
+   "G",
+   300,
+   "Thanks for having me. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. Our work started a long time ago and we kept learning along the way. "
+  ],
+  [
+   "H2",
+   40,
+   "I'm Imani Moise. That is all for today."
+  ]
+ ],
+ "expect": {
+  "H1": {
+   "name": "Imani Moise",
+   "role": "host"
+  },
+  "H2": {
+   "name": "Imani Moise",
+   "role": "host"
+  }
+ }
+}

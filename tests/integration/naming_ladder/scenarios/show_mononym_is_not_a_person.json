@@ -1,0 +1,43 @@
+{
+ "why": "rung show_mononym_filter: 'I'm Trivium' is the show, not a person.",
+ "feed": {
+  "title": "The Trivium China Podcast",
+  "hosts": [
+   "Andrew Polk"
+  ]
+ },
+ "episode": {
+  "title": "China's economy"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "S0",
+   20,
+   "Hello, I'm Trivium, and welcome to the show."
+  ],
+  [
+   "S1",
+   120,
+   "Thanks so much for having me on today."
+  ],
+  [
+   "S0",
+   120,
+   "Let us talk about the economy."
+  ]
+ ],
+ "expect": {
+  "S0": {
+   "name_not": [
+    "Trivium"
+   ],
+   "steps": [
+    "show_mononym_filter:removed"
+   ]
+  }
+ }
+}

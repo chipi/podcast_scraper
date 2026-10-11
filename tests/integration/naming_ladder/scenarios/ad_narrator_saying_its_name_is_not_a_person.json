@@ -1,0 +1,41 @@
+{
+ "why": "rungs ad_voice_placeholder / voice_types: an ad narrator says its own name; it is an advertisement, never named.",
+ "feed": {
+  "title": "Football Weekly",
+  "description": "Hosted by Max Rushden."
+ },
+ "episode": {
+  "title": "The weekend"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "AD",
+   25,
+   "This episode is sponsored by Acme Bank. Hi, I'm Paul Tenorio for Acme. Go to acme.com/football and use promo code WEEKLY for 20% off your first month. Terms and conditions apply. Download the Acme app today."
+  ],
+  [
+   "H",
+   400,
+   "Welcome to Football Weekly. I'm Max Rushden. The point about the weekend keeps changing over the years, part 0. The point about the weekend keeps changing over the years, part 1. The point about the weekend keeps changing over the years, part 2. The point about the weekend keeps changing over the years, part 3. The point about the weekend keeps changing over the years, part 4. The point about the weekend keeps changing over the years, part 5. The point about the weekend keeps changing over the years, part 6. The point about the weekend keeps changing over the years, part 7. The point about the weekend keeps changing over the years, part 8. The point about the weekend keeps changing over the years, part 9. The point about the weekend keeps changing over the years, part 10. The point about the weekend keeps changing over the years, part 11. The point about the weekend keeps changing over the years, part 12. The point about the weekend keeps changing over the years, part 13. The point about the weekend keeps changing over the years, part 14. The point about the weekend keeps changing over the years, part 15. The point about the weekend keeps changing over the years, part 16. The point about the weekend keeps changing over the years, part 17. The point about the weekend keeps changing over the years, part 18. The point about the weekend keeps changing over the years, part 19. The point about the weekend keeps changing over the years, part 20. The point about the weekend keeps changing over the years, part 21. The point about the weekend keeps changing over the years, part 22. The point about the weekend keeps changing over the years, part 23. The point about the weekend keeps changing over the years, part 24. The point about the weekend keeps changing over the years, part 25. The point about the weekend keeps changing over the years, part 26. The point about the weekend keeps changing over the years, part 27. The point about the weekend keeps changing over the years, part 28. The point about the weekend keeps changing over the years, part 29. The point about the weekend keeps changing over the years, part 30. The point about the weekend keeps changing over the years, part 31. The point about the weekend keeps changing over the years, part 32. The point about the weekend keeps changing over the years, part 33. The point about the weekend keeps changing over the years, part 34. The point about the weekend keeps changing over the years, part 35. The point about the weekend keeps changing over the years, part 36. The point about the weekend keeps changing over the years, part 37. The point about the weekend keeps changing over the years, part 38. The point about the weekend keeps changing over the years, part 39."
+  ],
+  [
+   "G",
+   300,
+   "Thanks Max. The point about tactics keeps changing over the years, part 0. The point about tactics keeps changing over the years, part 1. The point about tactics keeps changing over the years, part 2. The point about tactics keeps changing over the years, part 3. The point about tactics keeps changing over the years, part 4. The point about tactics keeps changing over the years, part 5. The point about tactics keeps changing over the years, part 6. The point about tactics keeps changing over the years, part 7. The point about tactics keeps changing over the years, part 8. The point about tactics keeps changing over the years, part 9. The point about tactics keeps changing over the years, part 10. The point about tactics keeps changing over the years, part 11. The point about tactics keeps changing over the years, part 12. The point about tactics keeps changing over the years, part 13. The point about tactics keeps changing over the years, part 14. The point about tactics keeps changing over the years, part 15. The point about tactics keeps changing over the years, part 16. The point about tactics keeps changing over the years, part 17. The point about tactics keeps changing over the years, part 18. The point about tactics keeps changing over the years, part 19. The point about tactics keeps changing over the years, part 20. The point about tactics keeps changing over the years, part 21. The point about tactics keeps changing over the years, part 22. The point about tactics keeps changing over the years, part 23. The point about tactics keeps changing over the years, part 24. The point about tactics keeps changing over the years, part 25. The point about tactics keeps changing over the years, part 26. The point about tactics keeps changing over the years, part 27. The point about tactics keeps changing over the years, part 28. The point about tactics keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "AD": {
+   "name": null
+  },
+  "H": {
+   "name": "Max Rushden",
+   "role": "host"
+  }
+ },
+ "xfail": "CANDIDATE BUG (inventory): the ad detector marks the whole read (0-25 s), yet the full stage passes no ad_voices and names the narrator; the unit test only passes because it injects ad_intervals. To be measured on prod."
+}

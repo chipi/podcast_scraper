@@ -1,0 +1,59 @@
+{
+ "why": "rungs intro_reader (refused_spelling) + host_introduction_harvest: the host says 'Drance Anderson', the metadata states 'Grant Sanderson'; the ASR spelling must not be published.",
+ "feed": {
+  "title": "Dwarkesh Podcast",
+  "hosts": [
+   "Dwarkesh Patel"
+  ]
+ },
+ "episode": {
+  "title": "Grant Sanderson on maths"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Grant Sanderson"
+  ]
+ },
+ "turns": [
+  [
+   "S0",
+   10,
+   "Welcome to the podcast. I'm Dwarkesh Patel."
+  ],
+  [
+   "S0",
+   10,
+   "Today I'm chatting with Drance Anderson, who runs the blue one."
+  ],
+  [
+   "S1",
+   200,
+   "Thanks for having me. Maths is a joy to explain."
+  ],
+  [
+   "S0",
+   10,
+   "Why animations?"
+  ],
+  [
+   "S1",
+   200,
+   "Because pictures carry the intuition."
+  ]
+ ],
+ "expect": {
+  "S0": {
+   "name": "Dwarkesh Patel",
+   "role": "host"
+  },
+  "S1": {
+   "name_not": [
+    "Drance Anderson"
+   ],
+   "steps": [
+    "intro_reader:refused_spelling"
+   ]
+  }
+ }
+}

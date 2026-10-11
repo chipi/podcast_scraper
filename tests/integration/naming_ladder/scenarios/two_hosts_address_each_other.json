@@ -1,0 +1,53 @@
+{
+ "why": "rung host_naming_pair: two unnamed seats, two pool hosts, each seat addressing the OTHER host by first name (The Rest Is History when the diarizer keeps them apart).",
+ "feed": {
+  "title": "The Rest Is History",
+  "hosts": [
+   "Tom Holland",
+   "Dominic Sandbrook"
+  ]
+ },
+ "episode": {
+  "title": "The Odyssey"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "A",
+   200,
+   "So, Dominic, where does the story begin? The point about troy keeps changing over the years, part 0. The point about troy keeps changing over the years, part 1. The point about troy keeps changing over the years, part 2. The point about troy keeps changing over the years, part 3. The point about troy keeps changing over the years, part 4. The point about troy keeps changing over the years, part 5. The point about troy keeps changing over the years, part 6. The point about troy keeps changing over the years, part 7. The point about troy keeps changing over the years, part 8. The point about troy keeps changing over the years, part 9. The point about troy keeps changing over the years, part 10. The point about troy keeps changing over the years, part 11. The point about troy keeps changing over the years, part 12. The point about troy keeps changing over the years, part 13. The point about troy keeps changing over the years, part 14. The point about troy keeps changing over the years, part 15. The point about troy keeps changing over the years, part 16. The point about troy keeps changing over the years, part 17. The point about troy keeps changing over the years, part 18. The point about troy keeps changing over the years, part 19."
+  ],
+  [
+   "B",
+   200,
+   "Well, Tom, it begins at sea. The point about ithaca keeps changing over the years, part 0. The point about ithaca keeps changing over the years, part 1. The point about ithaca keeps changing over the years, part 2. The point about ithaca keeps changing over the years, part 3. The point about ithaca keeps changing over the years, part 4. The point about ithaca keeps changing over the years, part 5. The point about ithaca keeps changing over the years, part 6. The point about ithaca keeps changing over the years, part 7. The point about ithaca keeps changing over the years, part 8. The point about ithaca keeps changing over the years, part 9. The point about ithaca keeps changing over the years, part 10. The point about ithaca keeps changing over the years, part 11. The point about ithaca keeps changing over the years, part 12. The point about ithaca keeps changing over the years, part 13. The point about ithaca keeps changing over the years, part 14. The point about ithaca keeps changing over the years, part 15. The point about ithaca keeps changing over the years, part 16. The point about ithaca keeps changing over the years, part 17. The point about ithaca keeps changing over the years, part 18. The point about ithaca keeps changing over the years, part 19."
+  ],
+  [
+   "A",
+   200,
+   "Fascinating, Dominic. The point about the suitors keeps changing over the years, part 0. The point about the suitors keeps changing over the years, part 1. The point about the suitors keeps changing over the years, part 2. The point about the suitors keeps changing over the years, part 3. The point about the suitors keeps changing over the years, part 4. The point about the suitors keeps changing over the years, part 5. The point about the suitors keeps changing over the years, part 6. The point about the suitors keeps changing over the years, part 7. The point about the suitors keeps changing over the years, part 8. The point about the suitors keeps changing over the years, part 9. The point about the suitors keeps changing over the years, part 10. The point about the suitors keeps changing over the years, part 11. The point about the suitors keeps changing over the years, part 12. The point about the suitors keeps changing over the years, part 13. The point about the suitors keeps changing over the years, part 14. The point about the suitors keeps changing over the years, part 15. The point about the suitors keeps changing over the years, part 16. The point about the suitors keeps changing over the years, part 17. The point about the suitors keeps changing over the years, part 18. The point about the suitors keeps changing over the years, part 19."
+  ],
+  [
+   "B",
+   200,
+   "Exactly, Tom. The point about penelope keeps changing over the years, part 0. The point about penelope keeps changing over the years, part 1. The point about penelope keeps changing over the years, part 2. The point about penelope keeps changing over the years, part 3. The point about penelope keeps changing over the years, part 4. The point about penelope keeps changing over the years, part 5. The point about penelope keeps changing over the years, part 6. The point about penelope keeps changing over the years, part 7. The point about penelope keeps changing over the years, part 8. The point about penelope keeps changing over the years, part 9. The point about penelope keeps changing over the years, part 10. The point about penelope keeps changing over the years, part 11. The point about penelope keeps changing over the years, part 12. The point about penelope keeps changing over the years, part 13. The point about penelope keeps changing over the years, part 14. The point about penelope keeps changing over the years, part 15. The point about penelope keeps changing over the years, part 16. The point about penelope keeps changing over the years, part 17. The point about penelope keeps changing over the years, part 18. The point about penelope keeps changing over the years, part 19."
+  ]
+ ],
+ "expect": {
+  "A": {
+   "name": "Tom Holland",
+   "role": "host",
+   "steps": [
+    "host_naming:forced_pool_name"
+   ]
+  },
+  "B": {
+   "name": "Dominic Sandbrook",
+   "role": "host"
+  }
+ },
+ "xfail": "HARNESS GAP: the address-pair seat needs the feed's host co-presence history, which the harness cannot feed yet (the unit test passes host_copresence directly)"
+}

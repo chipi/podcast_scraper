@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 4 |
-| Last updated | 2026-10-08 |
+| Doc version | 5 |
+| Last updated | 2026-10-11 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + this version's commit (one person, one entry) |
-| Code content hash | `2c04077820ad` (see below) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
+| Code content hash | `dcc731a431d0` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,15 @@
 
 **Changelog**
 
+- **v5, 2026-10-11.** Three rules changed (#2304 naming plan):
+  - `guest_naming`: a forced name refused "in the third person" is kept when another voice hails that
+    first name and this voice answers next (`_refuted_unless_hailed`);
+  - `host_naming_forced_gates`: `seat_owns_the_talk` steps aside for a narrator below 70% of the talk
+    among at least two more substantial voices than the feed has hosts;
+  - the canonical name drops a trailing capitalised credential written without a comma ("Paul Hoffman
+    SC").
+  The ladder is now also tested as one component: `tests/integration/naming_ladder/` (see "Scenario
+  tests" below).
 - **v4, 2026-10-08.** In line with the code again: the `host_naming_pair` rung and the
   `address_pair` seat naming were missing; the `introduced` source (`93f49482c`) is no longer
   pending; the trace is deployed. The one-person-one-entry rules (`c05cc0273` and the follow-up)
@@ -148,15 +157,15 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `host_seat_step` | per voice `seated` (`step`) | WHICH step seated it: `1_named_as_a_stated_host`, `1b_presents_on_own_evidence`, `1c_unnamed_introducer`, `2_performs_host_role`, `3_opener`, `4_count_fill`, `5_llm_host_no_pool`, `6_stand_in_interviewer` |
 | `host_seat_opener`, `host_seat_step_4` | episode notes | the opener; step 4's arithmetic (empty seats, unclaimed / said-absent hosts, fillable, candidates, guest present, third-party excess, co-host said present) |
 | `host_seats` / `host_seat` | episode note, per voice `order` | final seats in order |
-| `host_naming_forced_gates` | episode note | spare names before/after the feed-history and said-absent filters, unnamed seats, guest-hosted episode, one-name-one-seat, seat owns the talk, better presenter elsewhere |
+| `host_naming_forced_gates` | episode note | spare names before/after the feed-history and said-absent filters, unnamed seats, guest-hosted episode, one-name-one-seat, seat owns the talk (not when the seat narrates: below 70% of the talk with at least two more substantial voices than the feed has hosts — The Flip, `b3fb1c941`), better presenter elsewhere |
 | `host_naming_pair` | episode note (`performs_guest_act`, `named`) | two unnamed seats and two unclaimed pool names, each seat addressing the other's host by name (`_pair_by_address`, The Rest Is History) |
 | `host_naming` | per seat `named_from_earlier_rung` / `forced_pool_name` (`by: address_pair` when the pair rule named it) / `unnamed` (`intro_name_taken`), plus `forced_name_vetoes` (guest act, greeted by that name, rescued from bleed, forced) | how each seat was named or why not |
 | `host_introduction_harvest`, `two_voice_interview` | per name `added` / `refused` | guest names harvested from the host's introduction |
 | `guest_pool` | per name `excluded` (reason), episode note | the guest pool and why declared names left it |
 | `guest_naming_forced` | episode note | spare names, candidates above the cameo floor, forced name, `forced_by` = `one_name_one_voice` / `only_voice_left_below_cameo_floor` / `dominant_unassigned_voice` / `host_elimination`, forced voice |
-| `guest_naming` | per voice `named_from_earlier_rung` / `forced_name` (`forced_by`) / `unnamed` (`role`, `intro_name_refused`, `forced_name_refused`, `role_evidence`) | how each remaining voice was named or why not |
+| `guest_naming` | per voice `named_from_earlier_rung` / `forced_name` (`forced_by`) / `unnamed` (`role`, `intro_name_refused`, `forced_name_refused`, `role_evidence`) | how each remaining voice was named or why not. `forced_name_refused: says_that_name_in_the_third_person` is NOT given when another voice hails the name's first name and this voice answers the next turn, unless this voice hails it itself or says the full name (`_refuted_unless_hailed`, `64654a8c9`) |
 | `talkative_host`, `ad_voice_placeholder`, `stated_spelling_snap`, `recover_stated_names` | role diff | changes only |
-| `publish_gate` | per voice `prefix_stripped` / `refused`, per name `refused` | the final plausibility gate |
+| `publish_gate` | per voice `prefix_stripped` / `refused`, per name `refused` | the final plausibility gate. Every published name is also canonical (`canonical_person_name`): a trailing credential after a comma, or written in capitals without one (`SC`, `QC`, `MD`, `PhD`; not `Ma`, `Do`, nor `KC`, a Nepali surname), is dropped (`aee17d79e`) |
 | `one_name_per_person` | role diff, per voice `bare_first_name_joins`, episode note per group (`unified`: names, roles, kept name + `kept_because`, role + `role_reason`; or `kept_apart`) | one person, one name, one role |
 | `nameable` | episode note | nameable voices, leftover / unbound names |
 | `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why |
@@ -194,6 +203,53 @@ Where each acts:
 | `guest_pool` (`same_person_as_a_named_voice`) | A declared guest name is not spare when it is the same person as a voice's name by `_same_spoken_person` OR the one-episode rule ("Andy Ratcliffe" beside "Andy Rachleff", The Long Run). |
 | `one_name_per_person` | Voices grouped by the one-episode rule take one name and one role. |
 | record (`metadata_generation._unplaced_speakers`) | An unplaced entry is dropped when it is the same person as a placed or earlier entry by EITHER predicate. Not a roster rung: not in the trace. |
+
+## Scenario tests: the ladder as one component
+
+`tests/integration/naming_ladder/` runs the whole naming stage, from feed and episode metadata,
+the detection output, optional injected LLM verdicts and anonymous diarized turns to the speaker
+record. Each `scenarios/*.json` states the CORRECT answer (name, role, or names it must never be;
+optionally the source and the trace steps that must decide). `test_ladder_doc_alignment.py` fails
+when a rung in the table above is reached by no scenario and is not in its `NOT_YET_EXERCISED`
+list, so this document and the library cannot drift apart. Known-wrong outcomes are strict
+`xfail` with the reason.
+
+| Rung | Scenarios that reach it |
+| --- | --- |
+| `ad_voice_placeholder` | **none yet**: the full stage marks no ad voice on the scenario (candidate bug) |
+| `cohost_formula` | **none yet**: the formula scenario's co-host is named by an earlier rung (to add) |
+| `guest_host_pool` | `guest_host_named_in_the_episode_text` |
+| `guest_naming` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host`, `guest_host_named_in_the_episode_text` (+18) |
+| `guest_naming_forced` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `guest_pool` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `host_introduction_harvest` | `introduced_spelling_nobody_stated_is_refused` |
+| `host_naming` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `host_naming_forced_gates` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `host_naming_pair` | **none yet**: needs the feed's host co-presence history (harness gap) |
+| `host_pool` | `show_name_in_the_host_pool_names_nobody` |
+| `host_seat` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `host_seat_guards` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `host_seat_opener` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `host_seat_step` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `host_seats` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `inputs.baseline_without_llm` | `lecture_episode_guest_in_title (xfail)` |
+| `inputs.detection` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `inputs.llm_resolution` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `intro_reader` | `introduced_spelling_nobody_stated_is_refused` |
+| `llm_merge` | `lecture_episode_guest_in_title (xfail)` |
+| `nameable` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `non_regression` | **none yet**: needs an LLM answer that drops a rules-only name (to add) |
+| `one_name_per_person` | `credential_written_without_comma`, `stated_spelling_wins_over_self_intro_spelling` |
+| `presenter_evidence` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
+| `publish_gate` | `opener_laden_name_is_refused_at_publish` |
+| `publisher_label` | `publisher_label_names_the_voice` |
+| `recover_stated_names` | `publisher_label_names_the_voice` |
+| `self_intro` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `credential_written_without_comma`, `guest_host_named_in_the_episode_text`, `host_hypothetical_name_is_not_a_person` (+7) |
+| `show_mononym_filter` | `show_mononym_is_not_a_person` |
+| `stated_spelling_snap` | `stated_spelling_wins_over_self_intro_spelling` |
+| `talkative_host` | `talkative_host_named_after_guest_placed` |
+| `two_voice_interview` | `host_introduces_guest_on_a_two_voice_show` |
+| `voice_types` | `ad_narrator_saying_its_name_is_not_a_person (xfail)`, `ad_read_is_not_a_guest`, `cohost_formula_names_the_second_host`, `cold_open_guest_owns_the_interview`, `credential_written_without_comma`, `documentary_narrator_host` (+20) |
 
 ## What is NOT recorded yet
 

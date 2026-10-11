@@ -1,0 +1,45 @@
+{
+ "why": "rung publisher_label: the publisher's own transcript labels a voice 'Maya'; a bare 'SPEAKER_01' label names nobody.",
+ "feed": {
+  "title": "Trail Talk",
+  "hosts": [
+   "Maya Koster"
+  ]
+ },
+ "episode": {
+  "title": "Drainage"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": []
+ },
+ "stated_voice_names": {
+  "S0": "Maya"
+ },
+ "turns": [
+  [
+   "S0",
+   200,
+   "Welcome back to Trail Talk. The point about drainage keeps changing over the years, part 0. The point about drainage keeps changing over the years, part 1. The point about drainage keeps changing over the years, part 2. The point about drainage keeps changing over the years, part 3. The point about drainage keeps changing over the years, part 4. The point about drainage keeps changing over the years, part 5. The point about drainage keeps changing over the years, part 6. The point about drainage keeps changing over the years, part 7. The point about drainage keeps changing over the years, part 8. The point about drainage keeps changing over the years, part 9. The point about drainage keeps changing over the years, part 10. The point about drainage keeps changing over the years, part 11. The point about drainage keeps changing over the years, part 12. The point about drainage keeps changing over the years, part 13. The point about drainage keeps changing over the years, part 14. The point about drainage keeps changing over the years, part 15. The point about drainage keeps changing over the years, part 16. The point about drainage keeps changing over the years, part 17. The point about drainage keeps changing over the years, part 18. The point about drainage keeps changing over the years, part 19."
+  ],
+  [
+   "S1",
+   200,
+   "Thanks for having me. The point about culverts keeps changing over the years, part 0. The point about culverts keeps changing over the years, part 1. The point about culverts keeps changing over the years, part 2. The point about culverts keeps changing over the years, part 3. The point about culverts keeps changing over the years, part 4. The point about culverts keeps changing over the years, part 5. The point about culverts keeps changing over the years, part 6. The point about culverts keeps changing over the years, part 7. The point about culverts keeps changing over the years, part 8. The point about culverts keeps changing over the years, part 9. The point about culverts keeps changing over the years, part 10. The point about culverts keeps changing over the years, part 11. The point about culverts keeps changing over the years, part 12. The point about culverts keeps changing over the years, part 13. The point about culverts keeps changing over the years, part 14. The point about culverts keeps changing over the years, part 15. The point about culverts keeps changing over the years, part 16. The point about culverts keeps changing over the years, part 17. The point about culverts keeps changing over the years, part 18. The point about culverts keeps changing over the years, part 19."
+  ]
+ ],
+ "expect": {
+  "S0": {
+   "name": "Maya Koster",
+   "role": "host",
+   "steps": [
+    "publisher_label:stated"
+   ]
+  },
+  "S1": {
+   "name_not": [
+    "SPEAKER_01"
+   ]
+  }
+ }
+}
