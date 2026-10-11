@@ -364,18 +364,48 @@ describe("SearchView", () => {
       related_topics: [],
     })
     const { w } = await mountAt("jane")
-    // Entity hit card shows (Person kicker + name); the no-results line is suppressed.
-    expect(w.text()).toContain("Person")
-    expect(w.text()).toContain("Jane Doe")
+    // The exact-name person leads the People list at the top; the no-results line is suppressed.
+    expect(w.get('[data-testid="search-section-people"]').text()).toBe("People")
+    expect(w.get('[data-testid="search-person-result"]').text()).toBe("Jane Doe")
     expect(w.text()).not.toContain("No matches found.")
     // Tapping it opens the full EntityCard overlay.
-    await w
-      .findAll("button")
-      .find((b) => b.text().includes("View"))!
-      .trigger("click")
+    await w.get('[data-testid="search-person-result"]').trigger("click")
     await flushPromises()
     expect(getPerson).toHaveBeenCalledWith("person:jane-doe", undefined, { limit: 5, excludeHostShows: true })
     expect(w.find('[role="dialog"]').exists()).toBe(true)
+  })
+
+  it("lifts topic and person hits OUT of the episodes into lists at the top, one row per id", async () => {
+    // Operator 2026-10-11: a topic connects episodes, so "TOPIC · systems thinking" under one
+    // episode read as a fact about that episode. Topics and people are listed once, up top.
+    const hit = (doc_id: string, doc_type: string, source_id: string, text: string, slug: string) => ({
+      doc_id,
+      score: 1,
+      text,
+      metadata: { doc_type, source_id, episode_slug: slug, episode_title: `Episode ${slug}`, podcast_title: "Show" },
+    })
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "systems",
+      error: null,
+      results: [
+        hit("t1", "kg_topic", "topic:systems-thinking", "systems thinking", "e1"),
+        hit("t2", "kg_topic", "topic:systems-thinking", "systems thinking", "e2"),
+        hit("t3", "kg_topic", "topic:systems-problem", "systems problem", "e2"),
+        hit("p1", "kg_entity", "person:dr-elena-fischer", "Dr. Elena Fischer", "e1"),
+        hit("i1", "insight", "insight:1", "Systems fail at the couplings.", "e1"),
+      ],
+    } as never)
+    const { w } = await mountAt("systems")
+    const topics = w.findAll('[data-testid="search-topic-result"]').map((b) => b.text())
+    expect(topics).toEqual(["systems thinking", "systems problem"])
+    expect(w.findAll('[data-testid="search-person-result"]').map((b) => b.text())).toEqual(["Dr. Elena Fischer"])
+    // ...and none of them is a row under an episode any more; the insight still is.
+    const groups = w.findAll('[data-testid="episode-group"]')
+    expect(groups.length).toBeGreaterThan(0)
+    const episodes = groups.map((g) => g.text()).join(" | ")
+    expect(episodes).not.toContain("systems problem")
+    expect(episodes).not.toContain("Dr. Elena Fischer")
+    expect(episodes).toContain("Systems fail at the couplings.")
   })
 
   it("surfaces a STORYLINE from the resolver, in its own section", async () => {

@@ -140,11 +140,15 @@ This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in 
 
 ## Entities in search (3.4 — shipped)
 
-When a query exact/near-exact-matches a person/topic, an **entity card** sits **above** the grouped
-passage results (UXS-012 search): a kicker ("Person"/"Topic") + name + a "View ›" affordance,
-tapping which opens the §Entity-cards overlay. Distinct from passage cards, never blocking the
-passages below; the "no grounded passages" line is suppressed when an entity matched (we *did* find
-something). Resolved in parallel with the passage search, so a miss never delays results.
+The people and topics a query reaches are listed **above** the grouped passage results (UXS-012
+search), each **once** — **People**, then **Topics**, as compact kind-coloured pills (eight, then
+"Show all (N)"); a pill opens the §Entity-cards overlay. The exact/near-exact name match leads its
+list; the index's topic and person hits follow in rank order, however many episodes each was found
+in. They are **not** rows under an episode (operator 2026-10-11): a topic or a person connects
+episodes, and under one episode it read as a fact about that episode. A theme (resolver only) keeps
+its single card with a "View ›" affordance; storylines keep their list. The "no grounded passages"
+line is suppressed when any of these matched (we *did* find something). Resolved in parallel with
+the passage search, so a miss never delays results.
 
 ## Personalized discovery (3.5 — shipped)
 

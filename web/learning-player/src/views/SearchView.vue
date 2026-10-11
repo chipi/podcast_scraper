@@ -32,6 +32,7 @@ import { useSignInGate } from "../composables/useSignInGate"
 import { useTrendingScope } from "../composables/useTrendingScope"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useUserPreferencesStore } from "../stores/userPreferences"
+import { kindPill } from "../utils/interests"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
@@ -326,10 +327,65 @@ function rowKey(row: CollapsedRow, i: number): string {
 const storylineHits = computed(() =>
   results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type === "storyline")
 )
+/**
+ * A topic or a person hit names something ACROSS episodes, not a passage of one (operator
+ * 2026-10-11): grouped under the episode it was indexed from, "TOPIC · systems thinking
+ * integration" read as a fact about that episode. They are lifted out, like storylines, into their
+ * own lists at the top. Organizations stay where they were (they have no page or list here).
+ */
+function isLiftedEntityHit(h: SearchHit): boolean {
+  const m = md(h)
+  if (m.doc_type === "kg_topic") return true
+  return m.doc_type === "kg_entity" && String(m.source_id ?? "").startsWith("person:")
+}
 /** Everything the episode grouping should see — passages only. */
 const passageResults = computed(() =>
-  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type !== "storyline")
+  results.value.filter((h) => md(h).doc_type !== "storyline" && !isLiftedEntityHit(h))
 )
+
+type EntityRow = { key: string; id: string; label: string }
+/**
+ * The topics or people the query reached: the resolver's exact-name answer first, then the index
+ * hits in rank order, one row per id however many episodes it was found in.
+ */
+function entityRows(kind: "topic" | "person"): EntityRow[] {
+  const out: EntityRow[] = []
+  const seen = new Set<string>()
+  const e = entity.value
+  if (e?.kind === kind) {
+    seen.add(e.id)
+    out.push({ key: e.id, id: e.id, label: e.label })
+  }
+  for (const h of results.value) {
+    if (!isLiftedEntityHit(h)) continue
+    const id = String(md(h).source_id ?? "")
+    if (!id.startsWith(`${kind}:`) || seen.has(id)) continue
+    const label = (h.text ?? "").trim()
+    if (!label) continue
+    seen.add(id)
+    out.push({ key: id, id, label })
+  }
+  return out
+}
+const topicResults = computed(() => entityRows("topic"))
+const peopleResults = computed(() => entityRows("person"))
+/** A long list folds behind "Show all" (a broad word like "risk" reaches twenty topics). */
+const ENTITY_ROWS_SHOWN = 8
+const expandedEntityLists = ref(new Set<string>())
+function shownRows(key: string, rows: EntityRow[]): EntityRow[] {
+  return expandedEntityLists.value.has(key) ? rows : rows.slice(0, ENTITY_ROWS_SHOWN)
+}
+function toggleEntityList(key: string): void {
+  const next = new Set(expandedEntityLists.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedEntityLists.value = next
+}
+function openEntityRow(kind: "topic" | "person", id: string): void {
+  track("search_result_click", { result_kind: kind, rank: "1" })
+  track("entity_open", { kind, presentation: "card", source: "search" })
+  cardTarget.value = { kind, id }
+}
 /**
  * The storylines to show: index hits first, plus the resolver's exact-name answer when it found one
  * the index did not return. Two paths, one list, de-duplicated by id — a listener must never see the
@@ -657,9 +713,13 @@ const availableResultTypes = computed(() => {
   const out: { key: string; label: string }[] = []
   // A chip per KIND, not one lumped "entity" chip (operator 2026-09-17): the resolver returns at
   // most one entity, so whichever kind it is gets its own chip and its own section.
-  if (entityKey.value) out.push({ key: entityKey.value, label: t(`search.type_${entityKey.value}`) })
-  // Index-found storylines get the chip even when the resolver returned nothing (a partial match).
-  if (storylineResults.value.length && entityKey.value !== "storylines")
+  // People and topics are lists now (the exact-name answer plus the index hits), so their chips
+  // follow the lists; the single entity card is left for a theme or a storyline.
+  if (peopleResults.value.length) out.push({ key: "people", label: t("search.type_people") })
+  if (topicResults.value.length) out.push({ key: "topics", label: t("search.type_topics") })
+  if (entityKey.value === "themes") out.push({ key: "themes", label: t("search.type_themes") })
+  // Storylines: index hits plus the resolver's exact-name answer, one list (storylineResults).
+  if (storylineResults.value.length)
     out.push({ key: "storylines", label: t("search.type_storylines") })
   if (showMatches.value.length) out.push({ key: "shows", label: t("search.type_shows") })
   if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
@@ -682,6 +742,8 @@ const showEmpty = computed(
     results.value.length === 0 &&
     noteMatches.value.length === 0 &&
     storylineResults.value.length === 0 &&
+    topicResults.value.length === 0 &&
+    peopleResults.value.length === 0 &&
     entity.value === null
 )
 </script>
@@ -814,7 +876,40 @@ const showEmpty = computed(
          its own heading, subtitle and filter chip. The resolver returns at most ONE entity, so
          exactly one of them renders for a given query — but which one is now named, instead of a
          lumped heading that made a person and a storyline look like the same kind of result. -->
-    <template v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)">
+    <!-- PEOPLE and TOPICS — lifted out of the episode results (operator 2026-10-11): a topic or a
+         person connects episodes, so it is listed once, up here, like storylines, not under the
+         episode it was indexed from. The resolver's exact-name answer leads each list. -->
+    <template v-for="list in ([['people', 'person', peopleResults], ['topics', 'topic', topicResults]] as const)" :key="list[0]">
+      <template v-if="list[2].length && !searching && typeVisible(list[0])">
+        <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${list[0]}`">
+          {{ t(`search.type_${list[0]}`) }}
+        </h2>
+        <ul class="mt-2 flex flex-wrap gap-2" :data-testid="`search-${list[0]}`">
+          <li v-for="row in shownRows(list[0], list[2])" :key="row.key">
+            <button
+              type="button"
+              class="lp-tap inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
+              :class="kindPill(list[1])"
+              :data-kind="list[1]"
+              :data-testid="`search-${list[1]}-result`"
+              :aria-label="t('kp.openEntity', { term: row.label })"
+              @click="openEntityRow(list[1], row.id)"
+            >{{ row.label }}</button>
+          </li>
+        </ul>
+        <button
+          v-if="list[2].length > ENTITY_ROWS_SHOWN"
+          type="button"
+          class="lp-tap mt-2 text-sm font-bold text-accent"
+          :aria-expanded="expandedEntityLists.has(list[0])"
+          :data-testid="`search-${list[0]}-more`"
+          @click="toggleEntityList(list[0])"
+        >{{ expandedEntityLists.has(list[0]) ? t("home.showLess") : t("search.showAllCount", { count: list[2].length }) }}</button>
+      </template>
+    </template>
+
+    <!-- A THEME (from the resolver only — themes are not indexed rows) keeps its single card. -->
+    <template v-if="entity && entityKey === 'themes' && !searching && typeVisible(entityKey)">
       <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${entityKey}`">
         {{ t(`search.type_${entityKey}`) }}
       </h2>
@@ -824,7 +919,7 @@ const showEmpty = computed(
     </template>
     <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
     <button
-      v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)"
+      v-if="entity && entityKey === 'themes' && !searching && typeVisible(entityKey)"
       type="button"
       class="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:bg-overlay"
       :aria-label="t('kp.openEntity', { term: entity.label })"

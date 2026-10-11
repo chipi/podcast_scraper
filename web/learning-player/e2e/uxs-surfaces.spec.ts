@@ -21,7 +21,9 @@ test('UXS-013 §3.4: a search that names a topic shows its card above the passag
 }) => {
   await page.goto('/search?q=risk%20management&scope=all')
   await expect(page.getByTestId('search-section-topics')).toBeVisible({ timeout: 30_000 })
-  const card = page.getByRole('button', { name: /^Open risk management/i })
+  // The topic is a pill in the Topics list at the top (2026-10-11); a broad word reaches several
+  // ("risk management", "risk management practices"…), so the one named exactly.
+  const card = page.getByTestId('search-topic-result').filter({ hasText: /^risk management$/ })
   await expect(card).toBeVisible()
   // ABOVE the passages: the entity is what the reader named; passages are evidence for it.
   const episodes = page.getByTestId('search-section-episodes')
