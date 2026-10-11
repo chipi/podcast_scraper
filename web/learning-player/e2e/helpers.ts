@@ -95,7 +95,7 @@ export async function navTo(
     search: (u) => u.pathname.startsWith('/search'),
     library: (u) => u.pathname.startsWith('/library'),
     profile: (u) => u.pathname.startsWith('/profile'),
-    catalog: (u) => u.pathname.startsWith('/browse') || u.pathname.startsWith('/catalog'),
+    catalog: (u) => u.pathname.startsWith('/explore'),
   }
   await page.waitForURL(at[dest])
 }
@@ -104,6 +104,8 @@ async function tapTo(
   page: Page,
   dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
 ): Promise<void> {
+  // `catalog` is Explore since Trends and the Episodes · Shows catalog moved there (ADR-163 §1): on
+  // a phone, Home's "Browse all"; on desktop, the header's Discover and then its Explore link.
   if (dest === 'catalog') {
     const tab = page.getByTestId('bottom-nav-home')
     if (await tab.isVisible().catch(() => false)) {
@@ -113,6 +115,7 @@ async function tapTo(
     }
     // The header nav link was renamed Browse → Discover (nav.browse, operator 2026-09-14).
     await page.locator('header').getByRole('link', { name: 'Discover' }).click()
+    await page.getByTestId('discover-explore-link').click()
     return
   }
 

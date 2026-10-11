@@ -111,9 +111,9 @@ test.describe('cross-surface: a change shows on the surface that was already ope
     await expect(page.getByTestId('queue-panel-recent'), 'the cleared history is still listed').toHaveCount(0)
   })
 
-  test('"Your trends" on a kept-alive Discover fill in after a follow (#8)', async ({ page }, testInfo) => {
+  test('"Your trends" on a kept-alive Explore fill in after a follow (#8)', async ({ page }, testInfo) => {
     await signInIsolated(page, 'xs-mine-trends', testInfo)
-    await navTo(page, 'catalog') // the reader: Discover, Trends on "mine" (the default)
+    await navTo(page, 'catalog') // the reader: Explore, Trends on "mine" (the default)
     await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByTestId('discovery-mine-empty')).toBeVisible()
 
@@ -124,6 +124,6 @@ test.describe('cross-surface: a change shows on the surface that was already ope
     expect(r.ok()).toBeTruthy()
 
     await navTo(page, 'catalog')
-    await expect(page.getByTestId('discovery-mine-empty'), 'Discover kept the trends from before the follow').toHaveCount(0)
+    await expect(page.getByTestId('discovery-mine-empty'), 'Explore kept the trends from before the follow').toHaveCount(0)
   })
 })

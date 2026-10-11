@@ -149,6 +149,47 @@ Operator decisions 2026-10-11 (all the recommended options): goal-shaped = a cro
   place, and Profile › Interests › Suggested less (`SuggestedLessList`) to undo later. Measured as
   `discover_rail_tap action: less`.
 
+## End-of-arc check (2026-10-11)
+
+### Fixture review — `tests/fixtures/app-validation-corpus/v3` (measured, nothing changed yet)
+
+Measured over all 55 episodes' GI files:
+
+- **Pipeline-shaped insights: 162** (3 per episode, the builder's `sentences[:3]` extractor).
+  - Only 75 have a quote that backs their own text.
+  - 75 have only a NEIGHBOURING insight's quote: the quote lists are shifted by one.
+  - 12 have no backing quote.
+  - 31 insight "texts" are host questions ("Walk me through a concrete example…"), and 2 are ad
+    reads. They are transcript lines, not claims.
+- **Ad reads: 37 quotes; greetings: 37 quotes** ("Thanks, Sam. Great to be back.").
+  `best_grounded_quote` and the topic reel's support filter keep these out of cards and clips
+  where anything better exists. Residual: a greeting still shows where nothing better exists
+  (p09-39f3a01006, p07-3f1584920f; "Welcome." on a rising "code switching" card).
+- **Authored quotes: 9 of 16 now stamped** with their transcript times (`35407e89e`). The other 7
+  are NOT transcript text, so they are paraphrases presented as quotes: p01_e04 ×2, p02_e04-1,
+  p03_e04 ×2, p05_e04-3, p07_e04-0. Several show on the thread and people rails.
+- **A rebuild does not reproduce the committed corpus** (153 files differ: later edits live only
+  in the committed files). Any fix therefore has to be a migration of the committed files, like
+  `stamp_authored_quotes.py`, or a deliberate re-baseline.
+
+Decisions for the operator:
+- Re-align the shifted quotes.
+- Replace the 7 paraphrases with their transcript lines, or drop them.
+- Drop the ad-read and greeting quotes from insights.
+
+Each of these changes what the pinned evals and Moments e2e expect.
+
+### Not done in this arc
+
+- "Learn X this week" (an ordered path through a theme).
+- A "15 min on this" door on the topic card. Its action row was kept lean by the operator, so ask
+  first.
+- Telemetry for the topic reel: no Umami event yet for a reel started, a clip skipped, or "Keep
+  listening".
+- The Explore nav tab, to be decided on a device.
+- Performance at prod size. The new rails were measured only on the 55-episode fixture: the thread
+  rail takes 17–66 ms in-process there, and about 1.9 s under parallel e2e load.
+
 ## Also
 
 - **Explore surface:** Trends and the entity dashboards move off Discover (ADR-163 §1), with a clear
