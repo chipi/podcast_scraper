@@ -49,6 +49,18 @@ measured:
 | naming | `speaker_detectors/naming_vocabulary.py` (`X_BY_LANGUAGE`), `speaker_detectors/hosts.py`, `speaker_detectors/constants.py` (step 2 below is the method) |
 | after prod | `gi/filters.py`, `search/query_language.py` (shape insights and search, not the transcript) |
 
+**ASR lists, checked 2026-10-11** on the 24 reference episodes (en, es, pt, fr, de; it has no
+reference set yet):
+
+| list | covered | sourced and measured | change |
+| --- | --- | --- | --- |
+| `INVENTED_LINES` | en es pt fr de it | entries seen on our runs or standard subtitle credits; 0 hits in 303 gap decodes | none |
+| `_FILLERS` | hesitations for en de fr pt; es and pt discourse words ("né", "o sea", "pues") left out on purpose | Whisper writes no hesitations in any of the 24; adding the es/pt discourse words to the silent-gap floor changed nothing (-100 errors either way) | none |
+| punctuation prompts | en es pt fr de it | window repairs ran on es and pt; the whole-transcript retry had only the English prompt, so RFI 10-09 (French, 2.0 sentence ends per 1,000 words) was never retried | the retry now uses the language's prompt; unmeasured on the DGX until the re-run |
+| ad-signature function words | en de es pt fr it nl | unique-per-language rule measured on prod 2026-10-02 | none |
+| `SPOKEN_FORMS` (eval repo) | pt de en | each entry seen as a substitution in the 24 | added de "hab'/habe", "sag/sage", en "ok/okay"; removed never-seen es "pa", en "gonna"/"wanna", pt "tavam"/"cê"/"cês" |
+| bracketed-note rule (eval repo) | all | notes in every reference set | added |
+
 ## Where each decision is recorded
 
 | decision | file | field |
@@ -246,7 +258,7 @@ each with a human reference and its tags.
 
 The large whole-episode figures are tape; on main voices every language sits near English's band.
 
-**Gate B, first result (2026-10-11): every show passes; Senado by 0.0001.** English was
+**Gate B, first result (2026-10-11): five shows pass; Senado sits on its bar (inconclusive).** English was
 measured on the two kinds of show the six non-English shows are: read news (NPR Up First) and
 narrative journalism with tape (NPR Throughline), 3 episodes each, with hand tags (eval dataset
 `asr_publisher_ref_en_v1`). Each non-English show got a third episode
@@ -257,27 +269,30 @@ that kind.
 
 | English, main-voice adjusted | episodes | median | range |
 | --- | --- | --- | --- |
-| read news (Up First) | 0.0225 / 0.0256 / 0.0281 | 0.0256 | 0.0056 |
-| narrative (Throughline) | 0.0224 / 0.0232 / 0.0389 | 0.0232 | 0.0165 |
+| read news (Up First) | 0.0217 / 0.0247 / 0.0281 | 0.0247 | 0.0064 |
+| narrative (Throughline) | 0.0224 / 0.0232 / 0.0382 | 0.0232 | 0.0158 |
 | interview (80,000 Hours, for reference; no non-English show is this kind) | 0.028-0.034 | | |
 
 | show | language, ratio | kind | episodes | median | bar | margin |
 | --- | --- | --- | --- | --- | --- | --- |
-| El Hilo | es, 1.0 | narrative | 0.060 / 0.016 / 0.038 | 0.0377 | 0.0397 | 0.0020 |
-| Radio Ambulante | es, 1.0 | narrative | 0.034 / 0.011 / 0.048 | 0.0339 | 0.0397 | 0.0058 |
-| Rádio Novelo | pt, 1.02 | narrative | 0.035 / 0.029 / 0.060 | 0.0351 | 0.0406 | 0.0055 |
-| SWR Wissen | de, 1.07 | narrative | 0.037 / 0.038 / 0.045 | 0.0378 | 0.0425 | 0.0047 |
-| RFI Journal en français facile | fr, 1.98 | news | 0.048 / 0.043 / 0.034 | 0.0427 | 0.0617 | 0.0190 |
-| Senado | pt, 1.02 | news | 0.053 / 0.023 / 0.032 | 0.0318 | 0.0319 | 0.0001 |
+| El Hilo | es, 1.0 | narrative | 0.060 / 0.016 / 0.038 | 0.0377 | 0.0390 | 0.0013 |
+| Radio Ambulante | es, 1.0 | narrative | 0.034 / 0.011 / 0.048 | 0.0339 | 0.0390 | 0.0051 |
+| Rádio Novelo | pt, 1.02 | narrative | 0.035 / 0.029 / 0.060 | 0.0351 | 0.0399 | 0.0048 |
+| SWR Wissen | de, 1.07 | narrative | 0.037 / 0.038 / 0.045 | 0.0378 | 0.0418 | 0.0040 |
+| RFI Journal en français facile | fr, 1.98 | news | 0.048 / 0.043 / 0.034 | 0.0427 | 0.0615 | 0.0188 |
+| Senado | pt, 1.02 | news | 0.053 / 0.023 / 0.032 | 0.0318 | 0.0318 | 0.00004 |
 
-Scored with the spoken-contraction rule and the bracketed notes dropped. Dropping the notes
-helped English narrative most (Throughline 09-24: 0.0254 -> 0.0224), so the bars fell and
-Senado's margin with them (0.0012 -> 0.0001).
+Scored with the spoken and variant forms sourced from the data and the bracketed notes dropped.
+Each ruler fix helped English too (notes: Throughline 09-24 0.0254 -> 0.0224; "ok/okay": Up
+First), so the bars fell with every one and Senado's margin went 0.0012 -> 0.0001 -> 0.00004.
+That last margin is inside the 4-decimal rounding of the stored WERs: Senado is ON its bar, not
+over or under it. These are the runs before the silent-gap trigger and the punctuation fix; the
+one-version re-run of all 24 decides it.
 
 What this result does not show:
 
-- **The margins are inside the noise of 3 episodes.** Senado passes by 0.0001, El Hilo by
-  0.0020. One more English or non-English episode can move a median by more than that.
+- **The margins are inside the noise of 3 episodes.** Senado is on its bar, El Hilo 0.0013
+  under. One more English or non-English episode can move a median by more than that.
   The bar is as wide as English's own spread over 3 episodes, nothing more.
 - **Rádio Novelo passed only after the spoken-contraction rule.** Before it Novelo's median was
   0.049 against 0.041. The rule was written after reading Novelo's errors (pra/para 43, tá/tava/tô
