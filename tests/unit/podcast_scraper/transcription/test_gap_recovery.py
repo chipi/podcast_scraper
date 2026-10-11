@@ -377,3 +377,50 @@ class TestAFailedCallStopsTheRest:
         out = G.recover_untranscribed_speech(self.RESULT, self.GAPS, "a.mp3", empty)
         assert [e["status"] for e in out["asr_speech_recovery"]] == ["failed", "empty", "empty"]
         assert len(calls) == 2
+
+
+class TestRecoverSilentGaps:
+    """A gap the diarizer heard no voice in (a voice over a music bed) is recovered only when it
+    holds real speech: 3+ words that are not fillers. On 24 reference episodes (2026-10-11) the
+    1-2 word decodes of music gaps ("for", "Hmm.", "Episodio") were the only additions that made
+    an episode worse."""
+
+    RESULT = TestRecoverUntranscribedSpeech.RESULT
+    GAP = [{"start": 99.5, "end": 105.0, "duration_s": 5.5, "speaker": None}]
+
+    def _clip(self, text: str) -> Dict[str, Any]:
+        return {
+            "segments": [
+                {"start": 1.2, "end": 5.0, "text": text, "avg_logprob": -0.3},
+            ]
+        }
+
+    def test_an_intro_over_music_is_spliced_in(self, no_ffmpeg: List[tuple]) -> None:
+        out = G.recover_silent_gaps(
+            self.RESULT,
+            self.GAP,
+            "a.mp3",
+            lambda p: self._clip("Die Kriminellen. Von Beate Kroll."),
+        )
+        assert [s["text"] for s in out["segments"]] == [
+            "Before the gap.",
+            "Die Kriminellen. Von Beate Kroll.",
+            "After the gap.",
+        ]
+        assert out["asr_silent_gap_recovery"][0]["status"] == "recovered"
+        assert "asr_speech_recovery" not in out
+
+    @pytest.mark.parametrize("text", ["for", "Hmm. Episodio", "uh um the"])
+    def test_an_echo_or_fillers_are_not(self, no_ffmpeg: List[tuple], text: str) -> None:
+        out = G.recover_silent_gaps(self.RESULT, self.GAP, "a.mp3", lambda p: self._clip(text))
+        assert [s["text"] for s in out["segments"]] == ["Before the gap.", "After the gap."]
+        assert out["asr_silent_gap_recovery"][0]["status"] == "too_few_words"
+
+    def test_the_word_floor_is_the_d16_rule(self) -> None:
+        assert G.SILENT_GAP_MIN_WORDS == G.STRETCHED_MIN_EXTRA_WORDS == 3
+
+    def test_diarized_gaps_keep_short_speech(self, no_ffmpeg: List[tuple]) -> None:
+        """The floor is for gaps with no voice; a diarized turn already says the gap is speech."""
+        gap = [{**self.GAP[0], "speaker": "SPEAKER_01"}]
+        out = G.recover_untranscribed_speech(self.RESULT, gap, "a.mp3", lambda p: self._clip("Sí."))
+        assert out["asr_speech_recovery"][0]["status"] == "recovered"

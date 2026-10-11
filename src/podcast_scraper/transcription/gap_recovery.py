@@ -21,6 +21,12 @@ What a recovered clip must pass, because a short clip is where Whisper invents t
 ``no_speech_prob`` is NOT used: the DGX faster-whisper server returns 0.0 for every segment (all
 six 80k A/B responses, 2026-10-08), so it cannot tell speech from silence there. The diarizer's
 speaker turn is what says the gap is speech.
+
+The diarizer misses a voice over a music bed: show intros, headlines, sign-offs ("Die Kriminellen.
+Von Beate Kroll.", "Le journal en français facile", "Es 25 de septiembre de 2026."). Those gaps
+have no speaker turn, so ``recover_silent_gaps`` cuts every transcript gap instead and, with no
+turn to say it is speech, keeps a gap's text only when it holds ``SILENT_GAP_MIN_WORDS`` words that
+are not fillers: a music gap decodes to an echo of the next word ("for", "Hmm.", "Episodio").
 """
 
 from __future__ import annotations
@@ -44,6 +50,13 @@ RECOVERY_PAD_S = 1.0
 RECOVERY_MIN_AVG_LOGPROB = -1.0
 #: Whisper's own loop threshold (``compression_ratio_threshold`` in openai-whisper).
 RECOVERY_MAX_COMPRESSION_RATIO = 2.4
+
+#: A gap with no diarized speech keeps its text only from this many words, not fillers (the D16
+#: rule, ``STRETCHED_MIN_EXTRA_WORDS``). Measured 2026-10-11 on 24 reference episodes (6 English,
+#: 18 non-English), every transcript gap of 3 s+ cut and decoded: main-voice adjusted errors
+#: 2861 -> 2780 keeping every gap, 2861 -> 2761 at 3 words, and the 1-2 word gaps were the only
+#: ones that made an episode worse (Throughline 09-29 +3, Radio Ambulante 09-10 +4).
+SILENT_GAP_MIN_WORDS = 3
 
 ClipTranscriber = Callable[[str], Mapping[str, Any]]
 
@@ -196,6 +209,42 @@ def recover_untranscribed_speech(
 
     With no gaps the input is returned unchanged — no key added, no call made.
     """
+    return _recover_gaps(
+        result, gaps, audio_path, transcribe_clip, min_words=0, report_key="asr_speech_recovery"
+    )
+
+
+def recover_silent_gaps(
+    result: Dict[str, Any],
+    gaps: Sequence[Mapping[str, Any]],
+    audio_path: str,
+    transcribe_clip: ClipTranscriber,
+) -> Dict[str, Any]:
+    """Like ``recover_untranscribed_speech`` for transcript gaps the diarizer heard no voice in.
+
+    A gap's text is spliced in only when it holds ``SILENT_GAP_MIN_WORDS`` words that are not
+    fillers; otherwise the gap is reported ``too_few_words``. Reported in
+    ``asr_silent_gap_recovery``.
+    """
+    return _recover_gaps(
+        result,
+        gaps,
+        audio_path,
+        transcribe_clip,
+        min_words=SILENT_GAP_MIN_WORDS,
+        report_key="asr_silent_gap_recovery",
+    )
+
+
+def _recover_gaps(
+    result: Dict[str, Any],
+    gaps: Sequence[Mapping[str, Any]],
+    audio_path: str,
+    transcribe_clip: ClipTranscriber,
+    *,
+    min_words: int,
+    report_key: str,
+) -> Dict[str, Any]:
     if not gaps:
         return result
     segments = [s for s in (result.get("segments") or []) if isinstance(s, Mapping)]
@@ -247,6 +296,12 @@ def recover_untranscribed_speech(
                 gap_end=gap_end,
             )
             words = sum(len(_WORD.findall(s["text"])) for s in kept)
+            content = [t for s in kept for t in _tokens(s["text"]) if t not in _FILLERS]
+            if kept and len(content) < min_words:
+                report.append(
+                    {**entry, "status": "too_few_words", "words": 0, "rejected": rejected}
+                )
+                continue
             status = "recovered" if kept else ("rejected" if rejected else "empty")
             report.append({**entry, "status": status, "words": words, "rejected": rejected})
             added.extend(kept)
@@ -254,14 +309,15 @@ def recover_untranscribed_speech(
         shutil.rmtree(work_dir, ignore_errors=True)
 
     out = dict(result)
-    out["asr_speech_recovery"] = report
+    out[report_key] = report
     if added:
         merged = sorted([*segments, *added], key=lambda s: float(s.get("start", 0.0)))
         out["segments"] = merged
         out["text"] = " ".join(str(s.get("text", "")).strip() for s in merged if s.get("text"))
     recovered = sum(1 for r in report if r["status"] == "recovered")
     logger.info(
-        "gap recovery: %d of %d untranscribed stretch(es) recovered, %d word(s) added",
+        "gap recovery (%s): %d of %d stretch(es) recovered, %d word(s) added",
+        report_key,
         recovered,
         len(report),
         sum(int(r.get("words", 0)) for r in report),

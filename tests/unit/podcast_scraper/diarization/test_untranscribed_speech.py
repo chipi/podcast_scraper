@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from podcast_scraper.providers.ml.diarization.pipeline import (
+    silent_transcript_gaps,
     stretched_words_over_speech,
     untranscribed_speech,
     UNTRANSCRIBED_SPEECH_MIN_S,
@@ -129,3 +130,30 @@ class TestStretchedWordsAreEvidenceNotGaps:
         got = stretched_words_over_speech([_turn(0, 10, "A")], [seg])
         assert [(g["start"], g["end"], g["word"]) for g in got] == [(2.0, 9.0, "so")]
         assert untranscribed_speech([_turn(0, 10, "A")], [seg]) == []
+
+
+class TestSilentTranscriptGaps:
+    """Transcript gaps the diarizer may not have heard a voice in (SWR's intro over music,
+    2026-10-11): every gap of UNTRANSCRIBED_SPEECH_MIN_S or more between segments."""
+
+    def test_gaps_between_segments_from_the_floor_up(self) -> None:
+        segs = [_seg(0.0, 19.19), _seg(24.18, 28.2), _seg(30.0, 74.02), _seg(81.24, 85.5)]
+        assert [(g["start"], g["end"], g["speaker"]) for g in silent_transcript_gaps(segs)] == [
+            (19.19, 24.18, None),
+            (74.02, 81.24, None),
+        ]
+        assert UNTRANSCRIBED_SPEECH_MIN_S == 3.0
+
+    def test_before_the_first_and_after_the_last_segment_are_not_gaps(self) -> None:
+        assert silent_transcript_gaps([_seg(10.0, 20.0)]) == []
+
+    def test_an_overlapping_segment_extends_the_reach(self) -> None:
+        segs = [_seg(0.0, 30.0), _seg(5.0, 10.0), _seg(31.0, 40.0)]
+        assert silent_transcript_gaps(segs) == []
+
+    def test_a_gap_already_retried_is_not_retried(self) -> None:
+        segs = [_seg(0.0, 10.0), _seg(20.0, 30.0), _seg(40.0, 50.0)]
+        tried = [{"start": 12.0, "end": 18.0, "status": "rejected"}]
+        assert [(g["start"], g["end"]) for g in silent_transcript_gaps(segs, tried)] == [
+            (30.0, 40.0)
+        ]

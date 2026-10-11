@@ -1485,6 +1485,18 @@ class Config(BaseModel):
             "only (untranscribed_speech in .asr.json), never re-transcribe."
         ),
     )
+    transcription_recover_silent_gaps: bool = Field(
+        default=True,
+        alias="transcription_recover_silent_gaps",
+        description=(
+            "#2187 -- with transcription_recover_untranscribed_speech, also re-transcribe every "
+            "gap of 3 s or more between transcript segments that the diarizer heard no voice in "
+            "(a voice over a music bed: intros, headlines, sign-offs), keeping a gap's text only "
+            "when it holds 3+ words that are not fillers (asr_silent_gap_recovery in .asr.json). "
+            "One extra ASR call per such gap. Measured on 24 reference episodes: main-voice "
+            "adjusted errors 2861 -> 2761, no episode of the 6 English worse."
+        ),
+    )
     transcription_repair_unpunctuated_windows: bool = Field(
         default=True,
         alias="transcription_repair_unpunctuated_windows",

@@ -671,3 +671,45 @@ class TestBrokenPunctuationIsRepaired:
             "Sous-titrage Société Radio-Canada",
         ]
         assert "Sous-titrage" not in out["text"]
+
+
+class TestSilentGapRecoveryIsRecorded:
+    """Gaps with no diarized voice recovered by the second trigger land beside the diarized ones:
+    their own list in .asr.json, and in the same manifest flag and counts."""
+
+    SILENT = [
+        {"start": 19.19, "end": 24.18, "speaker": None, "status": "recovered", "words": 8},
+        {"start": 40.0, "end": 44.0, "speaker": None, "status": "too_few_words", "words": 0},
+    ]
+
+    def test_asr_json_and_manifest(self) -> None:
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        rel = "transcripts/0007 - Y.txt"
+        open(os.path.join(d, rel), "w").close()
+        result = {"speech_audio_ratio": 0.93, "asr_silent_gap_recovery": self.SILENT}
+        episode_processor._save_asr_provenance_file(result, _cfg(), rel, d)
+        rec = json.load(open(os.path.join(d, "transcripts", "0007 - Y.asr.json")))
+        assert rec["silent_gap_recovery"] == self.SILENT
+        job = TranscriptionJob(idx=7, ep_title="Y", ep_title_safe="Y", temp_media="", episode=None)
+        episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        assert "asr_speech_recovered" in data["quality_flags"]
+        assert data["stages"]["asr"]["metrics"]["recovered_speech_count"] == 1
+        assert data["stages"]["asr"]["metrics"]["recovered_words"] == 8
+
+    def test_no_recovery_at_all_stays_none(self) -> None:
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        rel = "transcripts/0008 - Z.txt"
+        open(os.path.join(d, rel), "w").close()
+        job = TranscriptionJob(idx=8, ep_title="Z", ep_title_safe="Z", temp_media="", episode=None)
+        episode_processor._write_processing_manifest(
+            {"speech_audio_ratio": 0.93}, _cfg(), job, rel, d
+        )
+        data = json.load(open(pm.manifest_path(d, rel)))
+        assert "recovered_speech_count" not in data["stages"]["asr"]["metrics"]

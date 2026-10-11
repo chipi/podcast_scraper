@@ -941,6 +941,10 @@ def _save_asr_provenance_file(
     if recovery is not None:
         # #2187 A2: each stretch that was re-transcribed, and what came of it.
         provenance["speech_recovery"] = recovery
+    silent_recovery = result.get("asr_silent_gap_recovery")
+    if silent_recovery is not None:
+        # #2187: each transcript gap with no diarized voice that was re-transcribed.
+        provenance["silent_gap_recovery"] = silent_recovery
     stretched_recovery = result.get("asr_stretched_word_recovery")
     if stretched_recovery is not None:
         # D16: each stretched word re-transcribed alone, and whether it was replaced.
@@ -1040,7 +1044,16 @@ def _write_processing_manifest(
         if _untranscribed:
             # #2187: the diarizer heard speech the transcript has no words for.
             asr_flags.append("asr_untranscribed_speech")
-        _recovery = result.get("asr_speech_recovery")
+        _diarized, _silent = (
+            result.get("asr_speech_recovery"),
+            result.get("asr_silent_gap_recovery"),
+        )
+        # None = no recovery ran; the metrics below keep that apart from 0.
+        _recovery = (
+            None
+            if _diarized is None and _silent is None
+            else [*(_diarized or []), *(_silent or [])]
+        )
         if _recovery and any(r.get("status") == "recovered" for r in _recovery):
             # #2187 A2: the transcript carries re-transcribed segments (tagged ``recovered``).
             asr_flags.append("asr_speech_recovered")
@@ -4624,6 +4637,7 @@ def transcribe_media_to_text(
                         if cfg.transcription_recover_untranscribed_speech
                         else None
                     ),
+                    recover_silent_gaps=cfg.transcription_recover_silent_gaps,
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
