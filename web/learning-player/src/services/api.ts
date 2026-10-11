@@ -755,6 +755,31 @@ export function getTrending(
   return entry.p
 }
 
+/** One page of a kind's trends, ordered on the server (operator 2026-10-11: "Show more" is the
+ *  next page). `total` is how many there are in all. */
+export interface TrendingPage {
+  items: TrendingEntity[]
+  total: number
+}
+export async function getTrendingPage(
+  kind: string,
+  query: {
+    scope: "corpus" | "mine"
+    window: TrendWindow
+    sort: "score" | "rising" | "trending"
+    offset: number
+    limit: number
+  }
+): Promise<TrendingPage> {
+  const r = await getJSON<{ items: TrendingEntity[]; total: number }>("/trending", { kind, ...query })
+  return {
+    total: r.total,
+    items: r.items.map((e) =>
+      e.image_url ? { ...e, image_url: resolveMediaUrl(e.image_url) ?? e.image_url } : e
+    ),
+  }
+}
+
 /** Test seam: forget every shared trending answer. */
 export function _resetTrendingForTests(): void {
   _trending.clear()

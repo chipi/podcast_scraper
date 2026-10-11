@@ -397,8 +397,8 @@ piece to its design home:
   `px-4` gutter, spaced it `mt-4` against Home's `mt-7`, put search above Trends where Home put it
   below, showed 10 rows against 3, and gave only Home the chips) — so each section owns its own
   spacing. `SearchSection`: the "Find any moment you've heard" box and two trending-topic chips.
-  `TrendsSection`: Trends at **3 rows on a phone and 5 on desktop**, more rows expanding in place from
-  the header's "all ›" on both. The page decides only what a Trends tap opens (Home: overlay card;
+  `TrendsSection`: Trends at **3 rows on a phone and 5 on desktop**, then "Show more (N)", which
+  fetches the next page from the server (2026-10-11; the header's "all ›" reveal is gone). The page decides only what a Trends tap opens (Home: overlay card;
   Discover: the page).
 - **`TrendingScopeButton`** — the ONE Mine ⇄ Everyone switch (`discover-scope`, operator
   2026-10-09), an icon circle in Discover's header (accent = Mine, the default for a signed-in
@@ -475,7 +475,8 @@ piece to its design home:
 - **`ExploreView`** — **Explore** (`/explore`, ADR-163 §1, 2026-10-11): for looking around, so
   Discover keeps one job.
   - **Trends:** the shared `DiscoveryExplorer` in the shared scope; `?trends=<kind>` selects a kind
-    and scrolls to it.
+    and scrolls to it. A taste: the first page (3 / 5 rows), then "Show more (N)" pages on from the
+    server in the active sort (`GET /trending?sort&offset&limit` → `total`).
   - **Catalog:** Episodes · Shows tabs at `#catalog` (`?tab=`, `?from=&state=`; trending shows'
     "See all" arrives as `?tab=shows&sort=trending&view=list`).
   - **Old links:** `/browse` links to Trends or the catalog redirect here.
@@ -499,7 +500,7 @@ piece to its design home:
   shell's gutter (`page-gutters.spec.ts`). A theme row shows how many topics the theme holds
   ("(N)"), can be followed with the row's + (a `tc:` interest token), and opens the theme sheet on
   Home and the theme page on Discover, by the theme's own `tc:` id. Used by BOTH Home and Discover through `TrendsSection`
-  (3 rows on a phone, 5 on desktop, expanding in place via `discovery-see-all`); `/browse?trends={kind}`
+  (3 rows on a phone, 5 on desktop, then `show-all-toggle` paging from the server); `/browse?trends={kind}`
   selects that kind in this same explorer and scrolls it into view. Extracted from
   HomeView so Home and Discover cannot drift (operator 2026-09-14, replaced the top-3
   `DiscoveryDashboard`).

@@ -173,6 +173,10 @@ async def interest_search(
 _TRENDING_NS = "app_trending_corpus"
 
 
+#: Every trending entity of a kind is ranked once; pages are slices of that list.
+_TRENDING_ALL = 10_000
+
+
 @router.get("/trending", response_model=AppTrendingResponse)
 def app_trending(
     request: Request,
@@ -180,6 +184,11 @@ def app_trending(
     scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
     window: str = Query(default="3m", description="Trend window: 1m | 3m | 6m | 1y (RFC-103 R2)."),
     limit: int = Query(default=12, ge=1, le=50),
+    offset: int = Query(default=0, ge=0, le=10_000),
+    sort: Literal["score", "rising", "trending"] = Query(
+        default="score",
+        description="score (velocity × volume) | rising (velocity) | trending (volume).",
+    ),
     user: User = Depends(get_current_user),
 ) -> AppTrendingResponse:
     """Trending entities of ``kind`` — monthly momentum over the selected ``window`` (RFC-103 R2).
@@ -188,6 +197,9 @@ def app_trending(
     month; the list is floored at ``min_total`` and ranked by velocity × volume. Blends corpus
     content (mentions) with engagement (saves/plays/opens/follows); ``scope=mine`` ranks the
     signed-in user's own engagement.
+
+    Paged on the server (operator 2026-10-11: "Show more" is the next page, never a reveal):
+    ``sort`` orders the whole list, ``offset``/``limit`` slice it, ``total`` is its length.
     """
     if kind not in _TRENDING_KINDS:
         raise HTTPException(status_code=400, detail=f"kind must be one of {_TRENDING_KINDS}.")
@@ -215,7 +227,7 @@ def app_trending(
             kind=kind,
             scope=eff_scope,
             user_id=uid,
-            limit=limit,
+            limit=_TRENDING_ALL,
             window=window,
             config=config,
             restrict_to=mine,
@@ -227,10 +239,15 @@ def app_trending(
         # Profile → Interests (measured 2026-10-08). Cached until the corpus changes or 5 minutes
         # pass, whichever is first — engagement moves without the corpus changing.
         token = float(hash((perf_cache.corpus_mtime(root), int(time.time() // 300))))
-        key = (str(root), kind, window, limit, repr(config))
-        rows = perf_cache.get_or_compute(_TRENDING_NS, key, token, compute)
+        key = (str(root), kind, window, repr(config))
+        ranked = perf_cache.get_or_compute(_TRENDING_NS, key, token, compute)
     else:
-        rows = compute()
+        ranked = compute()
+    if sort == "rising":
+        ranked = sorted(ranked, key=lambda r: -r.velocity)
+    elif sort == "trending":
+        ranked = sorted(ranked, key=lambda r: -r.volume)
+    rows = ranked[offset : offset + limit]
     items = [AppTrendingEntity(**vars(r)) for r in rows]
     if kind == "person":
         # Hydrate the person avatar so the people-browse chips can show a face (value + space).
@@ -249,6 +266,7 @@ def app_trending(
         as_of_week=resolve_as_of_week(),
         window=window,
         items=items,
+        total=len(ranked),
     )
 
 

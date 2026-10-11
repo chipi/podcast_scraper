@@ -92,6 +92,8 @@ superseded 2026-10-11), and no rail offers an episode they already heard, captur
 
 Each rail shows two cards. "Show more (N)" fetches the next page from the server; N is what the
 server says is left. An episode appears once on the page: the highest rail keeps it (ADR-164).
+Explore's Trends work the same way: three rows on a phone and five on desktop, then the next page
+from the server, ordered there by the active sort.
 
 ### FR4: Cold start
 

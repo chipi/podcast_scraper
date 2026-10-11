@@ -1273,6 +1273,7 @@ class AppTrendingResponse(BaseModel):
     as_of_week: str = Field(description="ISO reference week the momentum is anchored to.")
     window: str = Field(default="3m", description="Trend window applied (1m|3m|6m|1y).")
     items: list[AppTrendingEntity] = Field(default_factory=list)
+    total: int = Field(default=0, description="How many there are in all; items is one page.")
 
 
 class AppCorpusTrendingResponse(BaseModel):

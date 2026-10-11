@@ -203,15 +203,21 @@ for (const viewport of [
     await page.goto('/browse')
     await expect(page.getByTestId('browse-search-section').getByTestId('home-topic-chip')).toHaveCount(2)
     await expect(page.getByTestId('browse-discovery')).toHaveCount(0) // Trends moved to Explore
-    // Explore holds Trends: 3 rows on a phone, 5 on desktop, "all ›" expanding in place.
+    // Explore holds Trends: 3 rows on a phone, 5 on desktop, then "Show more" asks the SERVER for
+    // the next page (operator 2026-10-11) — never a reveal of rows already loaded.
     await page.goto('/explore')
     await showEveryonesTrends(page)
     const block = page.getByTestId('browse-discovery')
     const rows = block.getByTestId('discovery-list-topic').getByTestId('discovery-row')
     await expect(rows).toHaveCount(viewport.rows)
-    await block.getByTestId('discovery-see-all').click()
+    await expect(block.getByTestId('discovery-see-all')).toHaveCount(0)
+    const next = page.waitForResponse(
+      (r) => r.url().includes('/api/app/trending') && r.url().includes(`offset=${viewport.rows}`),
+    )
+    await block.getByTestId('show-all-toggle').click()
+    const { total } = (await (await next).json()) as { total: number }
     await expect(page).toHaveURL(/\/explore/)
-    expect(await rows.count()).toBeGreaterThan(viewport.rows)
+    await expect(rows).toHaveCount(Math.min(total, viewport.rows + 5))
 
     // Home keeps the search half, and has no Trends (operator 2026-10-07).
     await page.goto('/')

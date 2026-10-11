@@ -6,12 +6,12 @@
  * optional subtitle · colour-pulsed sparkline · trailing metric (follows the active sort) · follow —
  * so the tabs are identical by construction rather than by hand-matched CSS that drifts.
  *
- * All three kinds come from one endpoint (`GET /api/app/trending`), which carries BOTH `velocity`
- * and `volume` per entity — so Rising vs Trending is a client-side re-sort, not a second fetch.
- * Storylines are the one exception, and only for DECORATION now: `anchor_topic_id` — what the row
- * opens on — arrives on the trending row itself, because deriving it client-side from
- * `getStorylines` could not work (the two lists cover different sets; see `fetchRows`). Only the
- * "N topics" subtitle still comes from that join, and a missing count simply renders nothing.
+ * Every kind comes from one endpoint (`GET /api/app/trending`), PAGED ON THE SERVER (operator
+ * 2026-10-11): the server orders the whole list by the active sort (Rising = velocity, Trending =
+ * volume), the list shows its first `collapsed` rows, and "Show more (N)" asks for the next page —
+ * never a reveal of rows already loaded. Storylines carry `anchor_topic_id` (what the row opens on)
+ * on the trending row itself; only the "(N)" size decoration comes from a second list, and a miss
+ * renders nothing.
  *
  * Controls (kind tabs, sort/scope toggles, window) live in the parent (HomeView); this is a
  * controlled presentational list. It emits `open` with the kind + the id to open.
@@ -19,13 +19,13 @@
 import { computed, onActivated, onDeactivated, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { useI18n } from "vue-i18n"
-import { getStorylines, getTopClusters, getTrending, type TrendWindow } from "../services/api"
-import type { Storyline } from "../services/types"
+import { getStorylines, getTopClusters, getTrendingPage, type TrendWindow } from "../services/api"
+import type { Storyline, TrendingEntity } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useSectionState } from "../composables/useSectionState"
 import SectionStatus from "./SectionStatus.vue"
-import { RouterLink } from "vue-router"
+import ShowAllToggle from "./ShowAllToggle.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import Sparkline from "./Sparkline.vue"
 import TrendWindowTabs from "./TrendWindowTabs.vue"
@@ -53,23 +53,13 @@ const props = withDefaults(
     kind: Kind
     sort: Sort
     scope?: "corpus" | "mine"
-    limit?: number
-    // Rows shown before the inline "show more" (operator 2026-09-14: Home caps at 5, Discover at 10).
+    // The first page: rows shown before "Show more" (3 on a phone, 5 on desktop on Explore).
     collapsed?: number
-    // Suppress the inline "show more" entirely — Discover surfaces a "See all →" in the section
-    // header instead (in DiscoveryExplorer), so a bottom affordance would be redundant.
-    hideMore?: boolean
-    // Show every row rather than the first `collapsed`. Owned by the PARENT because on Discover the
-    // control that flips it lives in the section header, a component up (operator 2026-09-19).
-    expanded?: boolean
   }>(),
-  { scope: "corpus", limit: 20, collapsed: 5, hideMore: false, expanded: false }
+  { scope: "corpus", collapsed: 5 }
 )
 const emit = defineEmits<{
   (e: "open", payload: { kind: Kind; id: string; rank: number }): void
-  // How many rows this kind actually has. The header's expand control needs it: a control that
-  // toggles when there is nothing hidden is the bug this whole change is fixing.
-  (e: "count", total: number): void
   // "Mine" had nothing to rank and the reader asked for everyone's trends instead.
   (e: "show-everyone"): void
 }>()
@@ -88,16 +78,27 @@ const canFollow = (id: string): boolean => auth.isAuthenticated && _FOLLOWABLE.t
 const isFollowed = (id: string): boolean => followedIds.value.includes(id)
 const onFollow = (id: string): void => void interests.toggle(id)
 
-const section = useSectionState<Row[]>([])
-async function fetchRows(): Promise<Row[]> {
-  const trending = await getTrending(props.kind, props.scope, props.limit, window.value)
+/** Rows each "Show more" asks the server for. */
+const MORE = 5
+/** Rows and the server's total travel TOGETHER, so a stale answer (a Mine request finishing after
+ *  the Everyone one) can never pair one list's rows with another list's count. */
+interface Listing {
+  rows: Row[]
+  total: number
+}
+const section = useSectionState<Listing>({ rows: [], total: 0 })
+const loadingMore = ref(false)
+/** Bumped on every first-page load, so a "Show more" answer for an older list is dropped. */
+let generation = 0
+
+async function decorate(items: TrendingEntity[]): Promise<Row[]> {
   if (props.kind === "theme") {
     // A theme opens by its OWN `tc:` id — it has a card and a page of its own, unlike a storyline,
     // which is read through an anchor topic. Its size rides at the end as "(N)", the same
     // decoration a storyline row carries; a miss in the top-themes list just renders no count.
     const themes = await getTopClusters(50).catch(() => [])
     const sizeById = new Map(themes.map((c) => [c.id, c.size]))
-    return trending.map((e) => ({
+    return items.map((e) => ({
       id: e.entity_id,
       openId: e.entity_id,
       label: e.label,
@@ -108,7 +109,7 @@ async function fetchRows(): Promise<Row[]> {
     }))
   }
   if (props.kind !== "storyline") {
-    return trending.map((e) => ({
+    return items.map((e) => ({
       id: e.entity_id,
       openId: e.entity_id,
       label: e.label,
@@ -118,21 +119,14 @@ async function fetchRows(): Promise<Row[]> {
       series: e.series,
     }))
   }
-  // Storyline: the anchor topic — what the row OPENS — now arrives on the trending row itself.
-  //
-  // It used to be joined here against GET /storylines on `thc:` id, with `?? e.entity_id` when the
-  // join missed. The two lists never covered the same set (/storylines floors at 4 members and
-  // returns the top-N by size; trending ranks every cluster by momentum), so misses were routine,
-  // and the fallback handed a `thc:` id to a consumer that resolves a TOPIC. Nothing resolved and
-  // the tap did nothing — "storylines do open directly from the topic, but not from the trends"
-  // (operator 2026-09-19).
-  //
-  // No fallback now: a row whose anchor the server could not resolve is genuinely not openable, and
-  // pretending otherwise is what produced a dead tap instead of a visibly inert row. `size` still
-  // comes from /storylines, which is fine — it is decoration, and a missing count renders nothing.
-  const stories = await getStorylines(props.limit).catch(() => [] as Storyline[])
+  // Storyline: the anchor topic — what the row OPENS — arrives on the trending row itself. It used
+  // to be joined against GET /storylines, whose set differs from trending's, so misses were routine
+  // and the fallback handed a `thc:` id to a consumer that resolves a TOPIC ("storylines do open
+  // directly from the topic, but not from the trends", operator 2026-09-19). No fallback: a row
+  // whose anchor the server could not resolve is genuinely not openable, and renders inert.
+  const stories = await getStorylines(50).catch(() => [] as Storyline[])
   const sizeById = new Map(stories.map((s) => [s.id, s.size]))
-  return trending.map((e) => ({
+  return items.map((e) => ({
     id: e.entity_id,
     openId: e.anchor_topic_id ?? null,
     label: e.label,
@@ -141,6 +135,20 @@ async function fetchRows(): Promise<Row[]> {
     volume: e.volume,
     series: e.series,
   }))
+}
+async function fetchPage(offset: number, limit: number): Promise<Listing> {
+  const page = await getTrendingPage(props.kind, {
+    scope: props.scope,
+    window: window.value,
+    sort: props.sort,
+    offset,
+    limit,
+  })
+  return { rows: await decorate(page.items), total: page.total }
+}
+function fetchRows(): Promise<Listing> {
+  generation += 1
+  return fetchPage(0, props.collapsed)
 }
 function load(): Promise<void> {
   return section.load(fetchRows)
@@ -160,22 +168,20 @@ onDeactivated(() => {
 onActivated(() => {
   if (leftOnce && props.scope === "mine") void load()
 })
-// Re-fetch on kind/scope/window; sort is client-side (no refetch).
+// Re-fetch on kind/scope/window/sort: the server orders and pages the list.
 watch(
-  () => [props.kind, props.scope, window.value] as const,
+  () => [props.kind, props.scope, window.value, props.sort] as const,
   (next, prev) => {
     // A KIND change makes the rows on screen answer a DIFFERENT QUESTION — see `section.reset`.
-    // Scope and window are the same question over different data, so those revalidate in place.
+    // Scope, window and sort are the same question over different data or order, so those
+    // revalidate in place.
     if (prev && next[0] !== prev[0]) section.reset()
     return load()
   }
 )
 
-const rows = computed<Row[]>(() =>
-  [...section.data.value].sort((a, b) =>
-    props.sort === "rising" ? b.velocity - a.velocity : b.volume - a.volume
-  )
-)
+const rows = computed<Row[]>(() => section.data.value.rows)
+const total = computed(() => section.data.value.total)
 const hasAny = computed(() => rows.value.length > 0)
 /**
  * Every row inert — not one of them openable.
@@ -187,15 +193,30 @@ const hasAny = computed(() => rows.value.length > 0)
  */
 const allInert = computed(() => hasAny.value && rows.value.every((r) => !r.openId))
 
-const visible = computed(() =>
-  props.expanded ? rows.value : rows.value.slice(0, props.collapsed)
-)
-// Watches `rows` itself, NOT `rows.value.length`. The parent clears its copy of the count on a
-// kind change (so a stale count cannot lend its control to the new tab), and a length watcher does
-// not re-fire when the new kind happens to have the SAME number of rows — leaving the parent at
-// zero permanently and the expand control gone for good. `rows` is a fresh array per evaluation,
-// so this fires on every load; emitting the same number twice costs nothing.
-watch(rows, (r) => emit("count", r.length), { immediate: true })
+const remaining = computed(() => Math.max(0, total.value - rows.value.length))
+/** "Show more" fetches the next page from the server; "Show less" goes back to the first page. */
+async function showMoreOrLess(): Promise<void> {
+  if (remaining.value === 0) {
+    section.data.value = { rows: rows.value.slice(0, props.collapsed), total: total.value }
+    return
+  }
+  if (loadingMore.value) return
+  loadingMore.value = true
+  const asked = generation
+  try {
+    const next = await fetchPage(rows.value.length, MORE)
+    if (asked !== generation) return // the list changed (kind, scope, window, sort) meanwhile
+    const have = new Set(rows.value.map((r) => r.id))
+    section.data.value = {
+      rows: [...rows.value, ...next.rows.filter((r) => !have.has(r.id))],
+      total: next.total,
+    }
+  } catch {
+    // Nothing more arrived: keep what is shown rather than pretend.
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 const vFmt = (v: number): number => Math.round(v * 10) / 10
 function rowLabel(r: Row): string {
@@ -253,7 +274,7 @@ function rowLabel(r: Row): string {
     </p>
     <ul v-if="hasAny" class="flex flex-col">
       <li
-        v-for="(r, i) in visible"
+        v-for="(r, i) in rows"
         :key="r.id"
         class="flex items-center gap-1 rounded-lg transition"
         :class="r.openId ? 'hover:bg-overlay' : ''"
@@ -331,28 +352,12 @@ function rowLabel(r: Row): string {
         />
       </li>
     </ul>
-    <!-- "Show N more" NAVIGATES to the full trends page (operator 2026-09-16) rather than growing
-         the rail in place. Home is a summary surface: expanding inline pushed everything below the
-         rail down the page and still left the reader on a capped list, somewhere they had not
-         chosen to be. The trends page is the surface built for the full list, and carrying `tab`
-         lands them on the kind they were already reading rather than resetting to Topics.
-         Discover sets `hideMore` and offers its own "See all →" in the section header.
-
-         Shown on EVERY tab, not only when rows are hidden (operator 2026-09-16): a tab that happens
-         to fit its rows is still a summary of a bigger list, and a link that appears and disappears
-         by tab reads as a bug rather than as a rule. "See all" also says what it does now — the old
-         "Show N more" promised an inline expansion this no longer performs.
-
-         Lands on DISCOVER's trends section with this kind selected, not on the standalone /trends
-         page (operator 2026-09-17). `?trends=` and not `?tab=`: the latter drives Discover's own
-         Episodes/Shows tabs, so it would both miss the kind and reset the page. -->
-    <RouterLink
-      v-if="!hideMore && hasAny"
-      :to="{ name: 'explore', query: { trends: kind }, hash: '#trends' }"
-      class="mt-2 inline-block text-sm font-bold text-accent no-underline"
-      data-testid="discovery-expand"
-    >
-      {{ t("home.seeAllTrends") }} →
-    </RouterLink>
+    <ShowAllToggle
+      v-if="hasAny && total > collapsed"
+      :expanded="remaining === 0"
+      :count="total"
+      :remaining="remaining"
+      @toggle="showMoreOrLess"
+    />
   </section>
 </template>

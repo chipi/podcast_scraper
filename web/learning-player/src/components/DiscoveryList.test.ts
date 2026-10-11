@@ -45,9 +45,13 @@ function row(id: string, anchor: string | null): TrendingEntity {
   }
 }
 
+function page(rows: TrendingEntity[], total = rows.length): api.TrendingPage {
+  return { items: rows, total }
+}
+
 function mountList(rows: TrendingEntity[], stories: Storyline[] = []) {
   setActivePinia(createPinia())
-  vi.spyOn(api, "getTrending").mockResolvedValue(rows)
+  vi.spyOn(api, "getTrendingPage").mockResolvedValue(page(rows))
   vi.spyOn(api, "getStorylines").mockResolvedValue(stories)
   return mount(DiscoveryList, {
     props: { kind: "storyline" as const, sort: "rising" as const },
@@ -111,9 +115,9 @@ describe("DiscoveryList — a storyline row that cannot be opened", () => {
 
   it("a non-storyline kind opens on its own id and is never inert", async () => {
     setActivePinia(createPinia())
-    vi.spyOn(api, "getTrending").mockResolvedValue([
-      { ...row("topic:ai", null), kind: "topic", label: "AI" },
-    ])
+    vi.spyOn(api, "getTrendingPage").mockResolvedValue(
+      page([{ ...row("topic:ai", null), kind: "topic", label: "AI" }])
+    )
     vi.spyOn(api, "getStorylines").mockResolvedValue([])
     const w = mount(DiscoveryList, {
       props: { kind: "topic" as const, sort: "rising" as const },
@@ -134,7 +138,7 @@ describe("DiscoveryList — an empty Mine says why and offers everyone (operator
   afterEach(() => vi.restoreAllMocks())
 
   function mountScoped(rows: TrendingEntity[], scope: "mine" | "corpus") {
-    vi.spyOn(api, "getTrending").mockResolvedValue(rows)
+    vi.spyOn(api, "getTrendingPage").mockResolvedValue(page(rows))
     vi.spyOn(api, "getStorylines").mockResolvedValue([])
     return mount(DiscoveryList, {
       props: { kind: "topic", sort: "rising", scope },
@@ -163,7 +167,7 @@ describe("DiscoveryList — an empty Mine says why and offers everyone (operator
 describe("DiscoveryList — a return to Discover re-reads YOUR trends (2026-10-09)", () => {
   async function cycle(scope: "mine" | "corpus", late: boolean) {
     setActivePinia(createPinia())
-    const spy = vi.spyOn(api, "getTrending").mockResolvedValue([])
+    const spy = vi.spyOn(api, "getTrendingPage").mockResolvedValue(page([]))
     vi.spyOn(api, "getStorylines").mockResolvedValue([])
     const tab = await keptAlive(DiscoveryList, {
       plugins: [i18n, router, createPinia()],
@@ -184,5 +188,70 @@ describe("DiscoveryList — a return to Discover re-reads YOUR trends (2026-10-0
 
   it.each([false, true])("everyone: does not — nothing you did changes it (late=%s)", async (late) => {
     expect(await cycle("corpus", late)).toBe(0)
+  })
+})
+
+describe("DiscoveryList — paged on the server (operator 2026-10-11)", () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  const topic = (i: number): TrendingEntity => ({ ...row(`topic:t${i}`, null), kind: "topic", label: `T${i}` })
+
+  it("asks for the first page in the chosen order, then the next page on Show more, then back", async () => {
+    setActivePinia(createPinia())
+    const spy = vi
+      .spyOn(api, "getTrendingPage")
+      .mockResolvedValueOnce(page([topic(1), topic(2), topic(3)], 9))
+      .mockResolvedValueOnce(page([topic(4), topic(5), topic(6), topic(7), topic(8)], 9))
+    const w = mount(DiscoveryList, {
+      props: { kind: "topic" as const, sort: "trending" as const, collapsed: 3 },
+      global: { plugins: [i18n, router, createPinia()] },
+    })
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith("topic", { scope: "corpus", window: "3m", sort: "trending", offset: 0, limit: 3 })
+    expect(w.findAll('[data-testid="discovery-row"]')).toHaveLength(3)
+    const more = w.get('[data-testid="show-all-toggle"]')
+    expect(more.text()).toBe("Show more (6)")
+
+    await more.trigger("click")
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith("topic", { scope: "corpus", window: "3m", sort: "trending", offset: 3, limit: 5 })
+    expect(w.findAll('[data-testid="discovery-row"]')).toHaveLength(8)
+    expect(w.get('[data-testid="show-all-toggle"]').text()).toBe("Show more (1)")
+  })
+
+  it("a late Mine answer never pairs Everyone's rows with Mine's count", async () => {
+    // Seen in e2e: switching Mine off asked twice; Mine's 0-row answer landed second and left
+    // Everyone's rows on screen with total 0 — no "Show more".
+    setActivePinia(createPinia())
+    let releaseMine: (p: api.TrendingPage) => void = () => {}
+    vi.spyOn(api, "getTrendingPage").mockImplementation((_kind, q) =>
+      q.scope === "mine"
+        ? new Promise((r) => (releaseMine = r))
+        : Promise.resolve(page([topic(1), topic(2), topic(3)], 9))
+    )
+    const w = mount(DiscoveryList, {
+      props: { kind: "topic" as const, sort: "rising" as const, scope: "mine" as const, collapsed: 3 },
+      global: { plugins: [i18n, router, createPinia()] },
+    })
+    await w.setProps({ scope: "corpus" })
+    await flushPromises()
+    releaseMine(page([], 0))
+    await flushPromises()
+    expect(w.findAll('[data-testid="discovery-row"]')).toHaveLength(3)
+    expect(w.get('[data-testid="show-all-toggle"]').text()).toBe("Show more (6)")
+  })
+
+  it("re-asks the server when the sort changes, rather than re-sorting what it holds", async () => {
+    setActivePinia(createPinia())
+    const spy = vi.spyOn(api, "getTrendingPage").mockResolvedValue(page([topic(1)], 1))
+    const w = mount(DiscoveryList, {
+      props: { kind: "topic" as const, sort: "rising" as const, collapsed: 3 },
+      global: { plugins: [i18n, router, createPinia()] },
+    })
+    await flushPromises()
+    await w.setProps({ sort: "trending" })
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith("topic", expect.objectContaining({ sort: "trending", offset: 0 }))
+    expect(w.find('[data-testid="show-all-toggle"]').exists()).toBe(false) // everything fits
   })
 })

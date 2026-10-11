@@ -5,10 +5,8 @@
  * (Rising = velocity, Trending = volume) and scope (Corpus ⇄ Mine). Extracted from HomeView so the
  * two surfaces cannot drift.
  *
- * `collapsed` caps the rows (Home 5, Discover 10). `seeAll` swaps the list's inline "show more" —
- * which links OUT to Discover's trends section — for an in-place expand control in the section
- * header, because on Discover that link would point at the page you are already on. Opening a row is
- * the PARENT's call (Home opens overlays, Discover navigates), so it is emitted.
+ * `collapsed` is the list's first page; "Show more (N)" under the list pages on from the server
+ * (operator 2026-10-11), as every rail does. Opening a row is the PARENT's call, so it is emitted.
  */
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
@@ -23,7 +21,6 @@ type Kind = "topic" | "theme" | "storyline" | "person"
 const props = withDefaults(
   defineProps<{
     collapsed?: number
-    seeAll?: boolean
     title?: string
     /**
      * Which kind tab to open on. Arrives from the route so Home's "See all →" can land on Discover
@@ -32,7 +29,7 @@ const props = withDefaults(
      */
     kind?: Kind
   }>(),
-  { collapsed: 5, seeAll: false, title: "", kind: undefined }
+  { collapsed: 5, title: "", kind: undefined }
 )
 // `rank` rides through to the opener (#2267): only the list knows which position was tapped,
 // and only the view knows which rail it is, so the payload has to carry it across.
@@ -62,18 +59,6 @@ watch(
     if (k) discoveryTab.value = k
   }
 )
-// Collapse on every tab change. Expanding People and landing on a 30-row Topics list you never
-// asked to open would be its own surprise, and the control's label would be describing a state you
-// did not choose.
-const expandedAll = ref(false)
-const total = ref(0)
-watch(discoveryTab, () => {
-  expandedAll.value = false
-  // Also clear the COUNT. It is the previous tab's until the new fetch emits, so a tab with more
-  // than `collapsed` rows briefly lent its control to a tab that fits — a button appearing and
-  // then vanishing on its own.
-  total.value = 0
-})
 
 const discoverySort = ref<"rising" | "trending">("rising")
 /**
@@ -94,31 +79,10 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
 
 <template>
   <div data-testid="discovery-explorer">
-    <!-- Optional section header (Discover): a "Trends" title with the expand control on the same
-         row, mirroring the trending-shows header (operator 2026-09-14). Home passes no title, so
-         this row is absent.
-
-         It used to be a RouterLink to `{ name: 'browse', query: { trends: discoveryTab } }`. The
-         only surface that renders this header IS Browse — "Discover" in the tab bar is the `browse`
-         route — so the link pointed at the page you were already on, carrying the kind you were
-         already reading. Vue Router navigated, the query changed, and nothing moved. "I click all,
-         and nothing really happens" (operator 2026-09-19) was exactly right.
-
-         The list beneath is capped at `collapsed` (10 here) with the remainder unreachable, so
-         uncapping it is what this control should always have done. A button, not a link, because it
-         does not go anywhere. It renders only when rows are genuinely hidden: this replaces a
-         control that did nothing, so one that sometimes does nothing would miss the point. -->
-    <div v-if="title" class="mb-3 flex items-center justify-between gap-2">
+    <!-- Optional section header: the title. "More" is the list's own "Show more (N)", paged from
+         the server (operator 2026-10-11) — the old header "all ›" revealed rows already loaded. -->
+    <div v-if="title" class="mb-3">
       <h2 class="lp-section">{{ title }}</h2>
-      <button
-        v-if="seeAll && total > collapsed"
-        type="button"
-        class="lp-tap shrink-0 whitespace-nowrap text-sm font-bold text-accent"
-        :aria-expanded="expandedAll"
-        :aria-controls="panelAttrs('discovery', discoveryTab).id"
-        data-testid="discovery-see-all"
-        @click="expandedAll = !expandedAll"
-      >{{ expandedAll ? t("home.showLess") : t("home.seeAll") }} {{ expandedAll ? "‹" : "›" }}</button>
     </div>
 
     <!-- Kind pills + the sort/scope icon cluster on ONE row (operator). -->
@@ -133,7 +97,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         class="min-w-0"
       />
       <div class="ml-auto flex shrink-0 items-center gap-1.5">
-        <!-- Rising ⇄ Trending — the glyph IS the active sort; tap re-sorts client-side. -->
+        <!-- Rising ⇄ Trending — the glyph IS the active sort; the server re-orders the list. -->
         <button
           type="button"
           data-testid="discovery-sort"
@@ -162,9 +126,6 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
       {{ stateHint }}
     </p>
 
-    <!-- `panelAttrs` already mints this panel's id; the header's expand control points
-         `aria-controls` at THAT one. A second hardcoded id here would be dropped by Vue (duplicate
-         attribute) and the control would reference an element that does not exist. -->
     <div v-bind="panelAttrs('discovery', discoveryTab)">
       <DiscoveryList
         :key="discoveryTab"
@@ -172,10 +133,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         :sort="discoverySort"
         :scope="trendingScope"
         :collapsed="collapsed"
-        :hide-more="seeAll"
-        :expanded="expandedAll"
         @open="emit('open', $event)"
-        @count="total = $event"
         @show-everyone="setTrendingScope('corpus')"
       />
     </div>

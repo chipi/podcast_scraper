@@ -237,12 +237,12 @@ test('home: the queue is reachable beside Resume', async ({ page }) => {
 
 // --- Discover ------------------------------------------------------------------------------- //
 
-test('discover: "all" expands the trends list in place', async ({ page }) => {
+test('explore: "Show more" pages the trends list on from the server', async ({ page }) => {
   await signIn(page)
-  await page.goto('/browse')
-  const seeAll = page.locator('[data-testid="discovery-see-all"]')
+  await page.goto('/explore')
+  const seeAll = page.locator('[data-testid="discovery-explorer"] [data-testid="show-all-toggle"]')
   if (!(await seeAll.count())) {
-    test.skip(true, 'fewer trend rows than the cap — the expand control correctly does not render')
+    test.skip(true, 'fewer trend rows than the first page — the control correctly does not render')
   }
   await shootNear(page, page.locator('[data-testid="discovery-explorer"]'), 'trends-all-collapsed')
   await seeAll.click()

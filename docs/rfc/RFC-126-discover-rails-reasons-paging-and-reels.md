@@ -98,6 +98,12 @@ shown by the rails above; a rail with nothing left is omitted. A later page pass
 slugs the rails above showed first, so `offset` counts within the same deduplicated list. The
 contract is tested as "first page + next page == the same rail asked from the top".
 
+Explore's Trends page the same way (2026-10-11): `GET /trending?kind&scope&window&sort&offset&limit`
+→ `{items, total}`. The server ranks the whole list once (cached for Everyone), orders it by `sort`
+(`score` = velocity × volume, `rising` = velocity, `trending` = volume) and slices it; the client
+keeps rows and `total` together so a late answer for another scope cannot pair one list's rows with
+the other's count.
+
 ### 4. Topic reels (`app_goal_reel`)
 
 For a topic, every episode carrying it (search sidecar), the Moments candidates

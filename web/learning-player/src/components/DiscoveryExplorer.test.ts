@@ -9,15 +9,9 @@ import DiscoveryExplorer from "./DiscoveryExplorer.vue"
 import type { TrendingEntity } from "../services/types"
 
 /**
- * The Discover "all ›" control (operator 2026-09-19).
- *
- * It was a `RouterLink` to `{ name: 'browse', query: { trends: kind } }`. The only surface that
- * renders this header IS Browse — "Discover" in the tab bar is the `browse` route — so it pointed
- * at the page you were already on, carrying the kind you were already reading. Vue Router
- * navigated, the query changed, and nothing moved: "I click all, and nothing really happens".
- *
- * These pin the three things that make the replacement not-that: it expands IN PLACE, it appears
- * only when rows are genuinely hidden, and it collapses when you switch kind.
+ * Trends on Explore: one tabbed list over four kinds, its first page and then "Show more (N)", paged
+ * from the server (operator 2026-10-11). The old header "all ›" revealed rows already loaded; it is
+ * gone, and nothing in the header expands or navigates.
  */
 const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
@@ -41,88 +35,59 @@ function trending(n: number, prefix = "topic"): TrendingEntity[] {
   }))
 }
 
+function page(rows: TrendingEntity[], total = rows.length): api.TrendingPage {
+  return { items: rows, total }
+}
+
 function mountExplorer() {
   setActivePinia(createPinia())
   return mount(DiscoveryExplorer, {
-    props: { collapsed: 10, seeAll: true, title: "Trends" },
+    props: { collapsed: 3, title: "Trends" },
     global: { plugins: [i18n, router, createPinia()] },
   })
 }
 
 const rows = (w: ReturnType<typeof mountExplorer>) => w.findAll('[data-testid="discovery-row"]')
-const allBtn = (w: ReturnType<typeof mountExplorer>) => w.find('[data-testid="discovery-see-all"]')
 
 afterEach(() => vi.restoreAllMocks())
 
-describe("DiscoveryExplorer — the Trends expand control", () => {
-  it("expands the list IN PLACE rather than navigating anywhere", async () => {
-    vi.spyOn(api, "getTrending").mockResolvedValue(trending(18))
+describe("DiscoveryExplorer — a taste, paged from the server", () => {
+  it("shows the first page, has no header expand control, and pages on with Show more", async () => {
+    const spy = vi
+      .spyOn(api, "getTrendingPage")
+      .mockResolvedValueOnce(page(trending(3), 18))
+      .mockResolvedValueOnce(page(trending(5).map((r, i) => ({ ...r, entity_id: `topic:m${i}` })), 18))
     vi.spyOn(api, "getStorylines").mockResolvedValue([])
     const push = vi.spyOn(router, "push")
     const w = mountExplorer()
     await flushPromises()
 
-    expect(rows(w)).toHaveLength(10)
-    await allBtn(w).trigger("click")
+    expect(rows(w)).toHaveLength(3)
+    expect(w.find('[data-testid="discovery-see-all"]').exists()).toBe(false)
+    await w.get('[data-testid="show-all-toggle"]').trigger("click")
     await flushPromises()
-
-    expect(rows(w)).toHaveLength(18)
-    // The whole point: it is not a link. A navigation here is the bug coming back.
+    expect(rows(w)).toHaveLength(8)
+    expect(spy).toHaveBeenLastCalledWith("topic", expect.objectContaining({ offset: 3, limit: 5 }))
     expect(push).not.toHaveBeenCalled()
   })
 
-  it("is a button, and reports its expanded state to assistive tech", async () => {
-    vi.spyOn(api, "getTrending").mockResolvedValue(trending(18))
+  it("a kind switch starts that kind at its first page", async () => {
+    const spy = vi
+      .spyOn(api, "getTrendingPage")
+      .mockImplementation(async (kind: string) => page(trending(3, kind), 18))
     vi.spyOn(api, "getStorylines").mockResolvedValue([])
     const w = mountExplorer()
     await flushPromises()
-
-    const btn = allBtn(w)
-    expect(btn.element.tagName).toBe("BUTTON")
-    expect(btn.attributes("aria-expanded")).toBe("false")
-    // And it names the region it controls — otherwise it announces a state with no way to reach it.
-    const controls = btn.attributes("aria-controls")
-    expect(controls).toBeTruthy()
-    expect(w.find(`#${controls}`).exists()).toBe(true)
-
-    await btn.trigger("click")
-    expect(allBtn(w).attributes("aria-expanded")).toBe("true")
-  })
-
-  it("does not render when the list already fits — a control that does nothing IS the bug", async () => {
-    vi.spyOn(api, "getTrending").mockResolvedValue(trending(6))
-    vi.spyOn(api, "getStorylines").mockResolvedValue([])
-    const w = mountExplorer()
-    await flushPromises()
-
-    expect(rows(w)).toHaveLength(6)
-    expect(allBtn(w).exists()).toBe(false)
-  })
-
-  it("collapses again when you switch kind", async () => {
-    vi.spyOn(api, "getTrending").mockImplementation(async (kind: string) =>
-      trending(18, kind === "person" ? "person" : "topic"),
-    )
-    vi.spyOn(api, "getStorylines").mockResolvedValue([])
-    const w = mountExplorer()
-    await flushPromises()
-
-    await allBtn(w).trigger("click")
-    await flushPromises()
-    expect(rows(w)).toHaveLength(18)
-
     await w.find('[data-testid="discovery-tab-person"]').trigger("click")
     await flushPromises()
-    // Landing on a 30-row list you never asked to open would be its own surprise, and the label
-    // would be describing a state you did not choose.
-    expect(rows(w)).toHaveLength(10)
-    expect(allBtn(w).attributes("aria-expanded")).toBe("false")
+    expect(spy).toHaveBeenLastCalledWith("person", expect.objectContaining({ offset: 0, limit: 3 }))
+    expect(rows(w)).toHaveLength(3)
   })
 })
 
 describe("DiscoveryExplorer — the icon toggles say what they are set to (operator 2026-10-08)", () => {
   it("keeps the icons on the pills' row and states sort (and scope, signed in) in a caption", async () => {
-    vi.spyOn(api, "getTrending").mockResolvedValue(trending(3))
+    vi.spyOn(api, "getTrendingPage").mockResolvedValue(page(trending(3)))
     vi.spyOn(api, "getStorylines").mockResolvedValue([])
     const w = mountExplorer()
     await flushPromises()
