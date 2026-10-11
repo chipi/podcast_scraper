@@ -77,7 +77,8 @@ QUALITY_FLAGS = frozenset(
         "asr_unpunctuated",  # #2284 — emitted since then, missing from this vocabulary until now
         "asr_language_mismatch",  # #2187
         "asr_untranscribed_speech",  # #2187
-        "asr_speech_recovered",  # #2187 A2
+        "asr_speech_recovered",  # #2187 A2 (diarized and silent gaps)
+        "asr_stretched_words_replaced",  # D16
         "asr_invented_lines_removed",  # #2187
         "asr_partly_unpunctuated",  # #2187
         "asr_punctuation_repaired",  # #2187
