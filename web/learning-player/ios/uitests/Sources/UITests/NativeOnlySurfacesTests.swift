@@ -122,9 +122,15 @@ final class NativeOnlySurfacesTests: UITestCase {
     // item ALREADY queued passed in 62s. Same build, same code — the difference was the fetch. That
     // is also why this must not be left alone: it would then pass only on a queue populated by some
     // earlier run, which is exactly the residue this test was just rescued from.
+    //
+    // ANY ROW, by the control every rendered row carries ("Move up"), not the seeded episode's title
+    // (2026-10-11). The step above queues Home's FIRST "Add to queue" row, and which episode that is
+    // follows Home's ranking — on the Discover-arc branch it is "Risk Is a Systems Property", and the
+    // title wait failed on a queue that held exactly what was queued.
+    // The Android twin never named an episode here.
     XCTAssertNotNil(
-      Journey.scrollTo(app, labels: [seeded.title], contains: true, maxSwipes: 10),
-      "the queued episode never appeared in Up next")
+      Journey.find(app, labels: ["Move up"], contains: false, timeout: 20),
+      "no queued row appeared in Up next")
 
     // The claim: the download control is in the ROW, reachable without opening the ⋯.
     let downloadNames = ["Downloaded — tap to remove", "Download for offline"]
