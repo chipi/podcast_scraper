@@ -103,8 +103,19 @@ test('a search from Explore runs in the same switch, and the results flip it bac
   await expect(page).toHaveURL(/scope=mine/)
   const scope = page.getByTestId('search-scope')
   await expect(scope).toHaveAttribute('aria-pressed', 'true')
+  // Wait for the switch to be SAVED before reloading: a reload a few ms after the tap can read the
+  // preferences before the save lands (flaked once under full-suite load, 2026-10-12, now that a
+  // search also saves its recent terms in the same moment). A person cannot reload that fast.
+  const saved = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/app/preferences') &&
+      r.request().method() === 'PATCH' &&
+      (r.request().postData() ?? '').includes('lp.trendingScope') &&
+      r.ok(),
+  )
   await scope.click()
   await expect(page).toHaveURL(/scope=all/)
+  await saved
   await page.goto('/browse')
   await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'false')
 })

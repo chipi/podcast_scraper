@@ -95,7 +95,9 @@ export async function navTo(
     search: (u) => u.pathname.startsWith('/search'),
     library: (u) => u.pathname.startsWith('/library'),
     profile: (u) => u.pathname.startsWith('/profile'),
-    catalog: (u) => u.pathname.startsWith('/catalog'),
+    // The full episode list: `/catalog` on a phone (Home's "Browse all"), Explore's Episodes tab on
+    // desktop — Explore embeds the full list again since 2026-10-11.
+    catalog: (u) => u.pathname.startsWith('/catalog') || u.pathname.startsWith('/explore'),
     explore: (u) => u.pathname.startsWith('/explore'),
   }
   await page.waitForURL(at[dest])
@@ -105,9 +107,9 @@ async function tapTo(
   page: Page,
   dest: 'home' | 'search' | 'library' | 'profile' | 'catalog' | 'explore',
 ): Promise<void> {
-  // `explore` is Explore (Trends + a taste of the catalog, ADR-163 §1): its own bottom tab on a
-  // phone, the masthead icon on desktop. `catalog` is the full episode list behind it (2026-10-11):
-  // on a phone Home's "Browse all", on desktop Explore's Episodes tab (the full list).
+  // `explore` is Explore (Trends + Browse, ADR-163 §1): its own bottom tab on a phone, the masthead
+  // icon on desktop. `catalog` is the full episode list: on a phone Home's "Browse all" (`/catalog`),
+  // on desktop Explore's Episodes tab, which embeds the same list.
   if (dest === 'explore' || dest === 'catalog') {
     const tab = page.getByTestId('bottom-nav-explore')
     const phone = await tab.isVisible().catch(() => false)

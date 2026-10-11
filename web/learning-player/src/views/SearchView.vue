@@ -315,20 +315,7 @@ function rowKey(row: CollapsedRow, i: number): string {
 // Group passages under their source episode, preserving rank order (results arrive best-first,
 // so an episode's rank is its first appearance).
 /**
- * Storyline hits, split OUT of the passage results.
- *
- * A storyline row is corpus-level: it carries no `episode_id`, so the episode grouping below would
- * key it as `doc:<id>` and render a card titled "Not found" — an episode that does not exist
- * (operator 2026-09-17). It is not a passage and must not be grouped as one.
- *
- * These come from the INDEX, so unlike the name resolver they match partially and by member topic:
- * "risk" reaches "Managing risk across domains" through its members.
- */
-const storylineHits = computed(() =>
-  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type === "storyline")
-)
-/**
- * A topic or a person hit names something ACROSS episodes, not a passage of one (operator
+ * A storyline, topic or person hit names something ACROSS episodes, not a passage of one (operator
  * 2026-10-11): grouped under the episode it was indexed from, "TOPIC · systems thinking
  * integration" read as a fact about that episode. They are lifted out, like storylines, into their
  * own lists at the top. Organizations stay where they were (they have no page or list here).
@@ -343,50 +330,61 @@ const passageResults = computed(() =>
   results.value.filter((h) => md(h).doc_type !== "storyline" && !isLiftedEntityHit(h))
 )
 
-type EntityRow = { key: string; id: string; label: string }
+type SubjectKind = "person" | "topic" | "theme" | "storyline"
+type EntityRow = { key: string; id: string; label: string; routeId: string }
+
 /**
- * The topics or people the query reached: the resolver's exact-name answer first, then the index
- * hits in rank order, one row per id however many episodes it was found in.
+ * The subjects at the top are matched BY NAME, on the words typed (operator 2026-10-12: "I want a
+ * word match … exact matches"). They used to come from the passage search's own hits, which rank by
+ * meaning as well as words, so "safety" listed "Second-order effects" and "incident prevention" —
+ * close in meaning, without the word. Episodes keep word + meaning; this section is names you open,
+ * and a name either has the word or it does not.
+ *
+ * Rule: every word typed starts a word of the name ("risk" finds "risk management" and "discounted
+ * risks"; "art" does not find "start"). Fetched per kind from the followables' name search
+ * (`/interests/search`), corpus-wide in both scopes.
  */
-function entityRows(kind: "topic" | "person"): EntityRow[] {
+const nameMatches = ref<Record<SubjectKind, { id: string; label: string; anchor_topic_id?: string | null }[]>>({
+  person: [],
+  topic: [],
+  theme: [],
+  storyline: [],
+})
+function words(text: string): string[] {
+  return text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+}
+function nameHasWords(label: string, typed: string[]): boolean {
+  const own = words(label)
+  return typed.length > 0 && typed.every((w) => own.some((o) => o.startsWith(w)))
+}
+/** One kind's rows: the resolver's exact-name answer first, then the name matches, one per subject. */
+function subjectRows(kind: SubjectKind): EntityRow[] {
+  const typed = words(ranTerm.value)
   const out: EntityRow[] = []
   const seen = new Set<string>()
-  const e = entity.value
-  if (e?.kind === kind) {
-    seen.add(e.id)
-    out.push({ key: e.id, id: e.id, label: e.label })
-  }
-  for (const h of results.value) {
-    if (!isLiftedEntityHit(h)) continue
-    const id = String(md(h).source_id ?? "")
-    if (!id.startsWith(`${kind}:`) || seen.has(id)) continue
-    const label = (h.text ?? "").trim()
-    if (!label) continue
+  const add = (id: string, label: string, routeId: string): void => {
+    const k = label.trim().toLowerCase()
+    if (!label.trim() || seen.has(id) || seen.has(k)) return
     seen.add(id)
-    out.push({ key: id, id, label })
+    seen.add(k)
+    out.push({ key: id, id, label: label.trim(), routeId })
+  }
+  const e = entity.value
+  // The resolver answers a storyline with its ANCHOR topic id, which is what the storyline page routes on.
+  if (e?.kind === kind) add(e.id, e.label, e.id)
+  for (const m of nameMatches.value[kind]) {
+    if (!nameHasWords(m.label, typed)) continue
+    // A storyline routes on its anchor topic (there is no `thc:` page); without one it cannot open.
+    const routeId = kind === "storyline" ? String(m.anchor_topic_id ?? "") : m.id
+    if (!routeId) continue
+    add(m.id, m.label, routeId)
   }
   return out
 }
-const topicResults = computed(() => entityRows("topic"))
-/** Themes whose name contains the query (`searchInterests`), set per run. */
-const themeMatches = ref<{ id: string; label: string }[]>([])
-/** The exact-name theme first, then the partial matches, one per id. */
-const themeResults = computed<EntityRow[]>(() => {
-  const out: EntityRow[] = []
-  const seen = new Set<string>()
-  const e = entity.value
-  if (e?.kind === "theme") {
-    seen.add(e.id)
-    out.push({ key: e.id, id: e.id, label: e.label })
-  }
-  for (const m of themeMatches.value) {
-    if (seen.has(m.id)) continue
-    seen.add(m.id)
-    out.push({ key: m.id, id: m.id, label: m.label })
-  }
-  return out
-})
-const peopleResults = computed(() => entityRows("person"))
+const peopleResults = computed(() => subjectRows("person"))
+const topicResults = computed(() => subjectRows("topic"))
+const themeResults = computed(() => subjectRows("theme"))
+const storylineResults = computed(() => subjectRows("storyline"))
 /** A long list folds behind "Show all" (a broad word like "risk" reaches twenty topics). */
 const ENTITY_ROWS_SHOWN = 8
 const expandedEntityLists = ref(new Set<string>())
@@ -400,18 +398,16 @@ function toggleEntityList(key: string): void {
   expandedEntityLists.value = next
 }
 /**
- * Every subject the query reached, ONE way (operator 2026-10-11: "topics, themes, people and
- * storylines in search results in one way"): a section per kind — People, Topics, Themes,
- * Storylines — each a list of the same kind-coloured pills. A person or topic opens its card; a
- * theme or storyline opens its page (neither has a card). Empty kinds are left out.
+ * Every subject shown ONE way (operator 2026-10-11): a section per kind — People, Topics, Themes,
+ * Storylines — each the same kind-coloured pills. A person or topic opens its card; a theme or
+ * storyline its page (neither has a card). Empty kinds are left out.
  */
-type SubjectKind = "person" | "topic" | "theme" | "storyline"
 type SubjectPill = { key: string; label: string; open: { card: { kind: "person" | "topic"; id: string } } | { to: { name: string; params: { id: string } } } }
 const subjectSections = computed<{ key: string; kind: SubjectKind; rows: SubjectPill[] }[]>(() => {
   return [
     { key: "people", kind: "person" as const, rows: peopleResults.value.map((r) => ({ key: r.key, label: r.label, open: { card: { kind: "person" as const, id: r.id } } })) },
     { key: "topics", kind: "topic" as const, rows: topicResults.value.map((r) => ({ key: r.key, label: r.label, open: { card: { kind: "topic" as const, id: r.id } } })) },
-    { key: "themes", kind: "theme" as const, rows: themeResults.value.map((r) => ({ key: r.key, label: r.label, open: { to: { name: "theme", params: { id: r.id } } } })) },
+    { key: "themes", kind: "theme" as const, rows: themeResults.value.map((r) => ({ key: r.key, label: r.label, open: { to: { name: "theme", params: { id: r.routeId } } } })) },
     { key: "storylines", kind: "storyline" as const, rows: storylineResults.value.map((r) => ({ key: r.key, label: r.label, open: { to: { name: "storyline", params: { id: r.routeId } } } })) },
   ].filter((sec) => sec.rows.length > 0)
 })
@@ -423,41 +419,6 @@ function openEntityRow(kind: "topic" | "person", id: string): void {
   track("entity_open", { kind, presentation: "card", source: "search" })
   cardTarget.value = { kind, id }
 }
-/**
- * The storylines to show: index hits first, plus the resolver's exact-name answer when it found one
- * the index did not return. Two paths, one list, de-duplicated by id — a listener must never see the
- * same storyline twice because two mechanisms found it.
- */
-const storylineResults = computed<
-  { key: string; routeId: string; label: string; size: number | null }[]
->(() => {
-  const out: { key: string; routeId: string; label: string; size: number | null }[] = []
-  const seen = new Set<string>()
-  for (const h of storylineHits.value) {
-    const m = h.metadata as Record<string, unknown>
-    // `routeId` is the ANCHOR TOPIC id, never the `thc:` id: there is no storyline endpoint — the
-    // anchor topic's card IS the storyline — so routing with `thc:…` 404s (review, 2026-09-17).
-    // Both fields arrive from the server's query-time join, because the indexed row cannot carry
-    // them: the aux schema has no such columns and the read path rebuilds metadata from a fixed
-    // field list. A hit without them is unusable, so it is skipped rather than rendered as a slug.
-    const anchor = String(m.anchor_topic_id ?? "")
-    const label = String(m.storyline_label ?? "")
-    const sid = String(m.source_id ?? "")
-    if (!anchor || !label || seen.has(sid)) continue
-    seen.add(sid)
-    out.push({
-      key: sid,
-      routeId: anchor,
-      label,
-      size: typeof m.storyline_size === "number" ? m.storyline_size : null,
-    })
-  }
-  // The resolver already answers with the anchor id, so its entry routes the same way.
-  const e = entity.value
-  if (e?.kind === "storyline" && !seen.has(e.id))
-    out.push({ key: e.id, routeId: e.id, label: e.label, size: null })
-  return out
-})
 
 const groups = computed<EpisodeGroup[]>(() => {
   const byKey = new Map<string, EpisodeGroup>()
@@ -533,7 +494,7 @@ async function run(q: string): Promise<void> {
     lastRunTerm = ""
     results.value = []
     entity.value = null
-    themeMatches.value = []
+    nameMatches.value = { person: [], topic: [], theme: [], storyline: [] }
     ran.value = false
     lastRunSig.value = ""
     ranTerm.value = ""
@@ -574,18 +535,17 @@ async function run(q: string): Promise<void> {
           if (current()) entity.value = null
         }
       )
-  // THEMES by name, partially ("safety" → "safety practices"): themes are not indexed rows, so the
-  // passage search never returns one and the resolver above needs the whole name (operator
-  // 2026-10-11: searching "safety" found nothing). Both scopes, like the topics and storylines the
-  // index returns. A failure leaves the list empty; it never fails the search.
-  void searchInterests("theme", term, 8).then(
-    (items) => {
-      if (current()) themeMatches.value = items
-    },
-    () => {
-      if (current()) themeMatches.value = []
-    }
-  )
+  // The subjects at the top, BY NAME (see `nameMatches`): each kind's name search, in both scopes.
+  // A failure leaves that kind empty; it never fails the search.
+  nameMatches.value = { person: [], topic: [], theme: [], storyline: [] }
+  for (const kind of ["person", "topic", "theme", "storyline"] as const) {
+    void searchInterests(kind, term, 50).then(
+      (items) => {
+        if (current()) nameMatches.value = { ...nameMatches.value, [kind]: items }
+      },
+      () => undefined
+    )
+  }
   try {
     // #1261-1: always ask the server for related-topic decoration; a broken
     // enricher chain degrades to plain hits and the chip row simply disappears.
@@ -756,6 +716,20 @@ const showEmpty = computed(
     peopleResults.value.length === 0 &&
     themeResults.value.length === 0 &&
     entity.value === null
+)
+/**
+ * Mine found no EPISODES. Said whatever the subjects at the top show: those are matched by name
+ * across the library (2026-10-12), so a new listener searching "index" still sees a topic named so,
+ * and that must not hide "nothing in your listening" or the way to everyone's.
+ */
+const showMineEmpty = computed(
+  () =>
+    scope.value === "mine" &&
+    ran.value &&
+    !searching.value &&
+    !error.value &&
+    passageResults.value.length === 0 &&
+    noteMatches.value.length === 0
 )
 </script>
 
@@ -1013,7 +987,7 @@ const showEmpty = computed(
     />
     <!-- An empty Mine says so AND offers everyone's (ADR-162): Mine is the default, so this is a
          new listener's first search — it must not end on an empty page. -->
-    <div v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted" data-testid="search-mine-empty">
+    <div v-else-if="showMineEmpty" class="mt-4 text-muted" data-testid="search-mine-empty">
       <p>{{ t("search.recallEmpty") }}</p>
       <button
         type="button"

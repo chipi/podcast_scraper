@@ -379,9 +379,10 @@ describe("SearchView", () => {
     expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 
-  it("lifts topic and person hits OUT of the episodes into lists at the top, one row per id", async () => {
-    // Operator 2026-10-11: a topic connects episodes, so "TOPIC · systems thinking" under one
-    // episode read as a fact about that episode. Topics and people are listed once, up top.
+  it("the top lists subjects whose NAME has the word; meaning-only hits are neither listed nor under episodes", async () => {
+    // Operator 2026-10-12: "I want a word match … exact matches". "safety" used to list
+    // "Second-order effects" and "incident prevention" — near in meaning, without the word. And a
+    // topic connects episodes, so it is never a row under one (2026-10-11).
     const hit = (doc_id: string, doc_type: string, source_id: string, text: string, slug: string) => ({
       doc_id,
       score: 1,
@@ -389,27 +390,39 @@ describe("SearchView", () => {
       metadata: { doc_type, source_id, episode_slug: slug, episode_title: `Episode ${slug}`, podcast_title: "Show" },
     })
     vi.spyOn(api, "searchCorpus").mockResolvedValue({
-      query: "systems",
+      query: "safety",
       error: null,
       results: [
-        hit("t1", "kg_topic", "topic:systems-thinking", "systems thinking", "e1"),
-        hit("t2", "kg_topic", "topic:systems-thinking", "systems thinking", "e2"),
-        hit("t3", "kg_topic", "topic:systems-problem", "systems problem", "e2"),
+        hit("t1", "kg_topic", "topic:incident-prevention", "incident prevention", "e1"),
+        hit("t2", "kg_topic", "topic:safety-practices", "safety practices", "e2"),
         hit("p1", "kg_entity", "person:dr-elena-fischer", "Dr. Elena Fischer", "e1"),
-        hit("i1", "insight", "insight:1", "Systems fail at the couplings.", "e1"),
+        hit("i1", "insight", "insight:1", "Safety lives in the couplings.", "e1"),
       ],
     } as never)
-    const { w } = await mountAt("systems")
-    const topics = w.findAll('[data-testid="search-topic-result"]').map((b) => b.text())
-    expect(topics).toEqual(["systems thinking", "systems problem"])
-    expect(w.findAll('[data-testid="search-person-result"]').map((b) => b.text())).toEqual(["Dr. Elena Fischer"])
-    // ...and none of them is a row under an episode any more; the insight still is.
-    const groups = w.findAll('[data-testid="episode-group"]')
-    expect(groups.length).toBeGreaterThan(0)
-    const episodes = groups.map((g) => g.text()).join(" | ")
-    expect(episodes).not.toContain("systems problem")
+    vi.spyOn(api, "searchInterests").mockImplementation(async (kind) => {
+      if (kind === "topic")
+        return [
+          { id: "topic:safety-practices", kind: "topic", label: "safety practices" },
+          { id: "topic:dan-safety-stops", kind: "topic", label: "dan safety stops" },
+          // A substring, not a word: the server's name search contains it, the word rule does not.
+          { id: "topic:unsafety", kind: "topic", label: "unsafety" },
+        ]
+      if (kind === "storyline")
+        return [{ id: "thc:second-order-effects", kind: "storyline", label: "Second-order effects", anchor_topic_id: "topic:second-order-effects" }]
+      return []
+    })
+    const { w } = await mountAt("safety")
+    expect(w.findAll('[data-testid="search-topic-result"]').map((b) => b.text())).toEqual([
+      "safety practices",
+      "dan safety stops",
+    ])
+    expect(w.find('[data-testid="search-storylines"]').exists()).toBe(false)
+    expect(w.find('[data-testid="search-people"]').exists()).toBe(false)
+    // Under the episodes: the insight, and no topic or person row.
+    const episodes = w.findAll('[data-testid="episode-group"]').map((g) => g.text()).join(" | ")
+    expect(episodes).toContain("Safety lives in the couplings.")
+    expect(episodes).not.toContain("incident prevention")
     expect(episodes).not.toContain("Dr. Elena Fischer")
-    expect(episodes).toContain("Systems fail at the couplings.")
   })
 
   it("lists THEMES that contain the query, as pills like every other kind (\"safety\" → safety practices)", async () => {
@@ -418,9 +431,11 @@ describe("SearchView", () => {
     vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "safety", error: null, results: [] })
     const themes = vi
       .spyOn(api, "searchInterests")
-      .mockResolvedValue([{ id: "tc:safety-practices", kind: "theme", label: "safety practices" }])
+      .mockImplementation(async (kind) =>
+        kind === "theme" ? [{ id: "tc:safety-practices", kind: "theme", label: "safety practices" }] : []
+      )
     const { w } = await mountAt("safety")
-    expect(themes).toHaveBeenCalledWith("theme", "safety", 8)
+    expect(themes).toHaveBeenCalledWith("theme", "safety", 50)
     expect(w.get('[data-testid="search-section-themes"]').text()).toBe("Themes")
     const pill = w.get('[data-testid="search-theme-result"]')
     expect(pill.text()).toBe("safety practices")
@@ -506,9 +521,16 @@ describe("SearchView", () => {
         },
       ],
     })
+    // The section is matched BY NAME (2026-10-12), from the name search, not from this hit.
+    vi.spyOn(api, "searchInterests").mockImplementation(async (kind) =>
+      kind === "storyline"
+        ? [{ id: "thc:managing-risk", kind: "storyline", label: "Managing risk across domains", anchor_topic_id: "topic:risk-management" }]
+        : []
+    )
     const { w } = await mountAt("risk")
     await flushPromises()
     expect(w.find('[data-testid="search-storylines"]').exists()).toBe(true)
+    expect(w.get('[data-testid="search-storyline-result"]').attributes("href")).toBe("/storyline/topic:risk-management")
     expect(w.text()).toContain("Managing risk across domains")
     expect(w.find('[data-testid="episode-group"]').exists(), "storyline became an episode").toBe(
       false

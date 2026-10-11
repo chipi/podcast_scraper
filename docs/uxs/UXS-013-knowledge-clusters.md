@@ -143,10 +143,15 @@ This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in 
 Every subject a query reaches is shown **one way**, **above** the grouped passage results (UXS-012
 search; operator 2026-10-11): a section per kind — **People**, **Topics**, **Themes**,
 **Storylines** — each the same compact kind-coloured pills, one per subject however many episodes it
-was found in (eight, then "Show all (N)"). The exact/near-exact name match leads its kind. People and
-topics come from the index's hits; themes by partial name (they are not indexed rows, so "safety"
-reaches "safety practices" through `/interests/search?kind=theme`); storylines from the index. A
-person or topic pill opens the §Entity-cards overlay; a theme or storyline pill opens its page. None
+was found in (eight, then "Show all (N)"). Matched **by name, on the words typed** (operator
+2026-10-12: "a word match … exact matches"): every typed word must start a word of the subject's name
+("risk" finds "risk management" and "discounted risks"; "art" does not find "start"), from each kind's
+name search (`/interests/search`), across the library in both scopes. Meaning-only matches — "safety"
+used to list "Second-order effects" and "incident prevention" — are not shown here; the **episode**
+results keep word + meaning, so a passage that says "avoiding injury" is still found. The exact name
+match leads its kind. A person or topic pill opens the §Entity-cards overlay; a theme or storyline
+pill opens its page. Under Mine, "nothing in your listening" still shows when no episode matched,
+whatever subjects are listed. None
 of them is a row under an episode: a subject connects episodes, and under one it read as a fact
 about that episode. The "no grounded passages" line is suppressed when any of these matched (we
 *did* find something). Resolved in parallel with the passage search, so a miss never delays
