@@ -215,8 +215,8 @@ def silent_transcript_gaps(
     attempted: Sequence[Mapping[str, Any]] = (),
     min_gap_s: float = UNTRANSCRIBED_SPEECH_MIN_S,
 ) -> List[Dict[str, Any]]:
-    """Gaps of at least ``min_gap_s`` between consecutive transcript segments, minus any that
-    overlap a stretch already re-transcribed (``attempted``).
+    """Gaps between consecutive transcript segments, minus the stretches already re-transcribed
+    (``attempted``); every piece left of at least ``min_gap_s``.
 
     ``untranscribed_speech`` sees only gaps under a diarized speaker turn, and the diarizer misses a
     voice over a music bed: SWR's intro ("Die Kriminellen. Von Beate Kroll."), RFI's ("Le journal
@@ -231,17 +231,29 @@ def silent_transcript_gaps(
     reach: Optional[float] = None
     for start, end in bounds:
         if reach is not None and start - reach >= min_gap_s:
-            if not any(a < start and b > reach for a, b in tried):
-                out.append(
-                    {
-                        "start": round(reach, 3),
-                        "end": round(start, 3),
-                        "duration_s": round(start - reach, 3),
-                        "speaker": None,
-                    }
-                )
+            # A retried stretch can cover part of a gap only (SWR 10-07: 70.6-74.2 s retried, the
+            # intro at 74.2-81.2 s not), so it is subtracted, not a reason to skip the gap.
+            for a, b in _subtract((reach, start), tried):
+                if b - a >= min_gap_s:
+                    out.append(
+                        {
+                            "start": round(a, 3),
+                            "end": round(b, 3),
+                            "duration_s": round(b - a, 3),
+                            "speaker": None,
+                        }
+                    )
         reach = end if reach is None else max(reach, end)
     return out
+
+
+def _subtract(
+    span: Tuple[float, float], holes: Sequence[Tuple[float, float]]
+) -> List[Tuple[float, float]]:
+    pieces = [span]
+    for h0, h1 in holes:
+        pieces = [p for a, b in pieces for p in ((a, min(b, h0)), (max(a, h1), b)) if p[1] > p[0]]
+    return pieces
 
 
 def _speaker(s: Any) -> Optional[str]:

@@ -153,7 +153,21 @@ class TestSilentTranscriptGaps:
 
     def test_a_gap_already_retried_is_not_retried(self) -> None:
         segs = [_seg(0.0, 10.0), _seg(20.0, 30.0), _seg(40.0, 50.0)]
-        tried = [{"start": 12.0, "end": 18.0, "status": "rejected"}]
+        tried = [{"start": 10.0, "end": 20.0, "status": "rejected"}]
         assert [(g["start"], g["end"]) for g in silent_transcript_gaps(segs, tried)] == [
             (30.0, 40.0)
         ]
+
+    def test_only_the_retried_part_of_a_gap_is_skipped(self) -> None:
+        """SWR 10-07 on the DGX: the diarized retry covered 70.64-74.18 s of the 74.02-81.24 s gap;
+        skipping the whole gap lost the intro "Die Kriminellen. Von Beate Kroll." at 74.3-77 s."""
+        segs = [_seg(70.62, 74.02), _seg(81.24, 85.54)]
+        tried = [{"start": 70.636, "end": 74.18, "status": "recovered"}]
+        assert [(g["start"], g["end"]) for g in silent_transcript_gaps(segs, tried)] == [
+            (74.18, 81.24)
+        ]
+
+    def test_a_remainder_below_the_floor_is_dropped(self) -> None:
+        segs = [_seg(0.0, 10.0), _seg(15.0, 20.0)]
+        tried = [{"start": 9.0, "end": 13.0}]
+        assert silent_transcript_gaps(segs, tried) == []
