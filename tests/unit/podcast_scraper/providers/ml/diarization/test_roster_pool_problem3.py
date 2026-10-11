@@ -231,3 +231,28 @@ def test_a_small_sponsor_read_never_takes_the_introduced_name() -> None:
     assert _is_a_small_sponsor_read("AD", {"AD": ad, "G": guest})
     # A guest who mentions a sponsor once is not a sponsor read: the voice is not small.
     assert not _is_a_small_sponsor_read("G", {"G": guest + ad, "H": "Welcome."})
+
+
+def test_the_titled_guest_is_declared_only_when_the_metadata_states_them() -> None:
+    # F2 (prod 2026-10-11): ~40 episodes name their guest only in the title.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "Neil Kinnock: Trump, Thatcher, and Why Labour Won. The former leader joins us."
+    hosts = ["Alastair Campbell", "Rory Stewart"]
+    assert _title_subject_guest(text, ["Neil Kinnock"], hosts, True) == "Neil Kinnock"
+    assert _title_subject_guest(text, [], hosts, True) is None  # the metadata does not state him
+    assert _title_subject_guest(text, ["Neil Kinnock"], hosts, False) is None  # no host seated
+    assert (
+        _title_subject_guest("Rory Stewart: on leadership", ["Rory Stewart"], hosts, True) is None
+    )
+
+
+def test_a_place_the_show_or_a_title_phrase_is_not_a_person_heard() -> None:
+    # F12 (prod 2026-10-11): "Planet Money", "New York City", "Consumer AI Ads" named voices.
+    from podcast_scraper.providers.ml.diarization.roster import _not_a_person_heard
+
+    assert _not_a_person_heard("Planet Money", "Planet Money")
+    assert _not_a_person_heard("New York City", None)
+    assert _not_a_person_heard("Consumer AI Ads", None)
+    assert not _not_a_person_heard("Sapna Maheshwari", None)
+    assert not _not_a_person_heard("Anna Money", None)

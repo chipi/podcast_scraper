@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 13 |
+| Doc version | 14 |
 | Last updated | 2026-10-11 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
-| Code content hash | `b421a1ca6c8b` (see below) |
+| Code content hash | `a8dfd41a5f6b` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,11 @@
 
 **Changelog**
 
+- **v14, 2026-10-11.** Two rules changed (#2304): `guest_pool` adds the person the episode title
+  opens with ("Neil Kinnock: ...", "Brett Wilson on ...") when the metadata states that same person
+  and a host is seated on evidence (`title_subject` name step, F2); `intro_reader` skips (reason
+  `not_a_person`) a heard name that is the show or ends in a word no surname is ("New York City",
+  "Consumer AI Ads", F12).
 - **v13, 2026-10-11.** One rule changed (#2304, F12): `intro_reader` skips (reason `sponsor_read`)
   a voice under 5% of the words whose own text is a sponsor read ("Today's episode is brought to you
   by", "sponsored by", "promo code"): the next speaker after "my guest today is X" was the ad.
@@ -267,7 +272,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `guest_naming` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest` (+39) |
 | `guest_naming_forced` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest` (+47) |
 | `guest_pool` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest` (+47) |
-| `host_introduction_harvest` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `introduced_spelling_nobody_stated_is_refused`, `llm_puts_the_guests_name_on_the_hosts_voice`, `the_hosts_bled_close_does_not_unname_the_guest` |
+| `host_introduction_harvest` | `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `introduced_spelling_nobody_stated_is_refused` |
 | `host_naming` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest` (+47) |
 | `host_naming_forced_gates` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest` (+47) |
 | `host_naming_pair` | `two_hosts_address_each_other` |
@@ -283,7 +288,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `intro_reader` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `feed_lists_interviewees_not_hosts` (+8) |
 | `llm_merge` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)` (+8) |
 | `nameable` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest` (+47) |
-| `non_regression` | `wrong_llm_host_name_on_the_guest_is_not_published` |
+| `non_regression` | `lecture_episode_guest_in_title (xfail)`, `wrong_llm_host_name_on_the_guest_is_not_published` |
 | `one_name_per_person` | `credential_written_without_comma`, `stated_spelling_wins_over_self_intro_spelling` |
 | `presenter_evidence` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person`, `ad_read_is_not_a_guest` (+47) |
 | `publish_gate` | `opener_laden_name_is_refused_at_publish` |

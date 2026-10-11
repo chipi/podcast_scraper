@@ -533,6 +533,56 @@ def _is_a_small_sponsor_read(v: str, voice_texts: Mapping[str, str]) -> bool:
     return len(text) / total < 0.05 and bool(_SPONSOR_READ.search(text))
 
 
+#: The episode title OPENS with a person: "Steven Pinker on Coordination", "Neil Kinnock: Trump,
+#: Thatcher...", "Sarah Paine — How Russia...". `episode_text` is the title, then the description.
+_TITLE_SUBJECT = re.compile(
+    r"^\s*(?:\d+\.\s*)?(?P<name>[A-Z][\w'’.\-]+(?:\s+[A-Z][\w'’.\-]+){1,2})"
+    r"(?:\s+on\s|\s*[—–:|]\s|\s-\s)"
+)
+
+
+def _title_subject_guest(
+    episode_text: Optional[str],
+    metadata_named: Optional[Sequence[str]],
+    known_hosts: Sequence[str],
+    host_seated: bool,
+) -> Optional[str]:
+    """The guest the episode title opens with, when the metadata states that same person and a host
+    voice is already seated: a declared guest for the guest pool (F2, #2304).
+
+    ~40 served episodes name their guest only there ("Marc Andreessen on AI", "Neil Kinnock: ...")
+    and nobody introduces them on air, so the guest voice stayed unnamed (prod 2026-10-11). Both the
+    title AND the metadata must name the person, and a host must be seated elsewhere: a title about
+    a person ("John D. Rockefeller: The Principles...") on a solo episode has no spare voice for the
+    name, and the pool's one-name-one-voice and third-person guards still decide the placement.
+    """
+    if not host_seated or not episode_text:
+        return None
+    m = _TITLE_SUBJECT.match(episode_text)
+    if not m:
+        return None
+    name = m.group("name")
+    hosts_lower = {h.lower() for h in known_hosts}
+    for stated in metadata_named or ():
+        if stated.lower() == name.lower() and stated.lower() not in hosts_lower:
+            return stated
+    return None
+
+
+#: Last words no person's name ends with. Heard after an introduction cue they named voices
+#: "New York City", "Consumer AI Ads" (prod replay 2026-10-11, inventory F12).
+_NOT_A_SURNAME = frozenset({"city", "county", "state", "ads", "apps", "show", "podcast", "news"})
+
+
+def _not_a_person_heard(name: str, feed_title: Optional[str]) -> bool:
+    """An introduced "name" that is the show itself ("Planet Money") or ends in a word no surname
+    is."""
+    if feed_title and names_the_show(name, feed_title):
+        return True
+    toks = name.split()
+    return bool(toks) and toks[-1].lower().strip(".,'’") in _NOT_A_SURNAME
+
+
 def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
@@ -3837,6 +3887,7 @@ def _intro_reader_voice_names(
     refused_out: Optional[Set[str]] = None,
     trace: Optional[NamingTrace] = None,
     language: Optional[str] = TARGET_LANGUAGE,
+    feed_title: Optional[str] = None,
 ) -> Dict[str, str]:
     """``{voice: canonical name}`` for voices a host introduced by name — "and now, Bobby Allen" —
     since the person a host introduces is the one who speaks next. Complements the self-intro:
@@ -3878,6 +3929,9 @@ def _intro_reader_voice_names(
             continue
         if _is_a_small_sponsor_read(v, voice_texts or {}):
             tr.voice(v, "intro_reader", "skipped", heard=n, reason="sponsor_read")
+            continue
+        if _not_a_person_heard(n, feed_title):
+            tr.voice(v, "intro_reader", "skipped", heard=n, reason="not_a_person")
             continue
         # F3 (advisor): the host-ward snap (nickname-as-exact + surname edit ≤ 3) can rename a GUEST
         # whose introduced name merely shares a nickname with a known host ("Rich Perkins" → host
@@ -5380,6 +5434,7 @@ def resolve_speaker_roster(
             voice_texts=voice_texts or {},
             trace=tr,
             language=language,
+            feed_title=feed_title,
         )
     )
     tr.diff_names("intro_reader", _vi_before, voice_intro)
@@ -5570,6 +5625,17 @@ def resolve_speaker_roster(
     # (which the corroboration gate may have had to drop for want of an interview cue).
     intro_names_lower = {n.lower() for n in voice_intro.values()}
     declared = list(_clean_person_names(detected_guests))
+    # Only beside a host seated on EVIDENCE: where the model's verdict alone put the host's name on
+    # the guest's voice (Dwarkesh, F3), the spare title name went onto the real host's voice.
+    titled = _title_subject_guest(
+        episode_text,
+        metadata_named,
+        known_hosts,
+        any(v not in llm_named for v in host_voices),
+    )
+    if titled and titled.lower() not in {d.lower() for d in declared}:
+        declared.append(titled)
+        tr.name(titled, "title_subject", "added")
     # The HOST introduces the guest, so only the resolved HOST voices' turns are trusted here.
     # Scanning EVERY voice let a guest who merely QUOTES a greeting ("...and then Sarah Chen, thanks
     # so much for coming to my defense...") harvest that name into the guest pool, where the forced
