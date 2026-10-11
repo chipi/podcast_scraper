@@ -268,7 +268,14 @@ def podcasts_list(
         velocity = {
             t.entity_id: t.velocity or 0.0
             for t in app_trending(
-                request, kind="show", scope="corpus", window="3m", limit=50, user=_user
+                request,
+                kind="show",
+                scope="corpus",
+                window="3m",
+                limit=50,
+                offset=0,
+                sort="score",
+                user=_user,
             ).items
         }
         selected.sort(key=lambda f: (-velocity.get(f["feed_id"], 0.0), title(f)))

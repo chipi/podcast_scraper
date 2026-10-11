@@ -70,3 +70,14 @@ def test_pages_are_slices_of_one_list_in_the_servers_order(
 def test_an_unknown_sort_is_refused(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/api/app/trending", params={"kind": "topic", "sort": "loud"})
     assert r.status_code == 422
+
+
+def test_the_shows_trending_sort_still_reads_trends(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``/podcasts?sort=trending`` calls the trending route as a function: its paging parameters
+    must arrive as values, not as FastAPI ``Query`` defaults (a 500 when they did)."""
+    monkeypatch.setenv("APP_TRENDING_NOW", "2026-07-20")
+    r = _client(tmp_path).get("/api/app/podcasts", params={"limit": 5, "sort": "trending"})
+    assert r.status_code == 200, r.text
+    assert r.json()["items"]
