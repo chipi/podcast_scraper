@@ -743,6 +743,9 @@ export interface BoardBrief {
   board_id: string
   name: string
   /** `episodes` = saved episodes plus those of saved moments; a saved show adds none. */
+  /** One paragraph on the whole board, written in the background (RFC-127); null until one is.
+   *  `stale`: the board's episodes or saved moments changed since it was written. */
+  summary: { text: string; created_at: number; stale: boolean } | null
   holds: {
     episodes: number
     moments: number

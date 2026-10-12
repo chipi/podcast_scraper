@@ -56,6 +56,7 @@ function brief(over: Partial<Brief> = {}): Brief {
   return {
     board_id: 'col_a',
     name: 'Deep dive',
+    summary: null,
     holds: { episodes: 3, moments: 1, shows: 1, subjects: 0, searches: 0, links: 2 },
     voices: [
       { id: 'person:maya', name: 'Maya', episodes: 3, image_url: null, saved: false },
@@ -158,6 +159,34 @@ describe('BoardBrief', () => {
     expect(router.currentRoute.value.fullPath).toBe('/listen/topic/board:col_a?minutes=15')
     expect(tracked.at(-1)).toEqual({ name: 'reel_open', props: { source: 'board', kind: 'board' } })
     expect(w.emitted('close')).toBeTruthy()
+    w.unmount()
+  })
+
+  it('leads with the summary written in the background, and says when the board changed since', async () => {
+    const at = Math.floor(new Date(new Date().getFullYear(), 9, 13, 12).getTime() / 1000)
+    api.getBoardBrief.mockResolvedValue(
+      brief({ summary: { text: 'A board about risk, told by three voices.', created_at: at, stale: false } }),
+    )
+    const w = await mountBrief()
+    const s = w.get('[data-testid="board-brief-summary"]')
+    expect(s.text()).toContain('A board about risk, told by three voices.')
+    expect(w.get('[data-testid="board-brief-summary-when"]').text()).toBe('Summarised Oct 13')
+    w.unmount()
+
+    api.getBoardBrief.mockResolvedValue(
+      brief({ summary: { text: 'Old words.', created_at: at, stale: true } }),
+    )
+    const stale = await mountBrief()
+    expect(stale.get('[data-testid="board-brief-summary-when"]').text()).toBe(
+      'Summarised Oct 13 · the board changed since, an update follows within a day',
+    )
+    stale.unmount()
+  })
+
+  it('has no summary section until one is written', async () => {
+    api.getBoardBrief.mockResolvedValue(brief())
+    const w = await mountBrief()
+    expect(w.find('[data-testid="board-brief-summary"]').exists()).toBe(false)
     w.unmount()
   })
 

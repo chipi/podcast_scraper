@@ -31,7 +31,7 @@ import { kindPill } from '../utils/interests'
 const props = defineProps<{ open: boolean; boardId: string; boardName: string; version?: number }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const el = ref<HTMLDialogElement | null>(null)
 const panelEl = ref<HTMLElement | null>(null)
@@ -107,6 +107,19 @@ const holdsLine = computed(() => {
     .filter(([n]) => n > 0)
     .map(([n, key]) => t(`boardBrief.${key}`, { count: n }, n))
     .join(' · ')
+})
+
+/** "Oct 13", the year only when it is not this one — the board header's own date style. */
+const summaryDate = computed(() => {
+  const at = brief.value?.summary?.created_at
+  if (!at) return ''
+  const d = new Date(at * 1000)
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return new Intl.DateTimeFormat(locale.value, {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  }).format(d)
 })
 
 const points = computed(() => brief.value?.points ?? [])
@@ -185,6 +198,16 @@ function playMoments(): void {
           <p class="lp-kicker mb-0.5 text-muted">{{ t('ec.board') }}</p>
           <h2 class="font-display text-xl font-bold leading-tight text-canvas-foreground">{{ boardName }}</h2>
           <p v-if="holdsLine" class="mt-1 text-sm text-muted" data-testid="board-brief-holds">{{ holdsLine }}</p>
+        </section>
+
+        <!-- The board's summary (RFC-127), first as the episode Brief's Summary is: one paragraph,
+             written in the background from its episodes' Briefs — never on opening this. -->
+        <section v-if="brief?.summary" class="mb-5" data-testid="board-brief-summary">
+          <h3 class="lp-section mb-1">{{ t('kp.summary') }}</h3>
+          <p class="text-sm leading-relaxed text-surface-foreground">{{ brief.summary.text }}</p>
+          <p class="mt-1 text-xs text-muted" data-testid="board-brief-summary-when">
+            {{ t('boardBrief.summarisedOn', { date: summaryDate }) }}<template v-if="brief.summary.stale"> · {{ t('boardBrief.summaryStale') }}</template>
+          </p>
         </section>
 
         <p v-if="failed" class="text-sm text-muted" data-testid="board-brief-failed">{{ t('boardBrief.unavailable') }}</p>

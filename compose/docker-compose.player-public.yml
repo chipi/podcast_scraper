@@ -459,6 +459,59 @@ services:
       api:
         condition: service_started
 
+  # Board summarizer sidecar (RFC-127): one paragraph per board, written in the background. The
+  # first LLM call outside the pipeline lives HERE, not in the api: nothing that serves a request
+  # may be able to call a model — the api only reads what this loop wrote. It wakes each interval,
+  # reads the kill switch (appdata/board_summaries_settings.json, on unless {"enabled": false}),
+  # builds the provider from the profile exactly as the pipeline does, and summarises only boards
+  # that changed, have been quiet, and were not summarised in the last day, within per-user and
+  # per-sweep caps and a budget of $0 (the DGX profile costs nothing; a paid profile stops it).
+  # The pipeline-llm image, because it carries the [llm] SDKs and the profiles; the api image
+  # deliberately does not.
+  board-summarizer:
+    image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
+    restart: unless-stopped
+    user: "1000:1000"
+    entrypoint: ["python", "/app/board_summarizer.py"]
+    environment:
+      APP_DATA_DIR: /app/appdata
+      BOARD_SUMMARY_CORPUS_ROOT: /app/output
+      BOARD_SUMMARY_PROFILE: prod_dgx_full
+      BOARD_SUMMARY_INTERVAL_SECONDS: "3600"
+      BOARD_SUMMARY_DAILY_BUDGET_USD: "0"
+      BOARD_SUMMARY_HEARTBEAT_FILE: /heartbeat/tick
+      # The DGX vLLM's bearer, when it has one — the same variable the pipeline reads.
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+    # The DGX by its tailnet IP, resolved fresh at each deploy by deploy-player.sh (Docker's DNS
+    # cannot resolve MagicDNS). Loopback by default, so an unresolved name fails closed: the
+    # sidecar logs model_unreachable and summarises nothing.
+    extra_hosts:
+      - "dgx-llm-1:${DGX_TAILNET_IP:-127.0.0.1}"
+    volumes:
+      - corpus_data:/app/output:ro
+      - ${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}:/app/appdata
+      - ../infra/deploy/board_summarizer.py:/app/board_summarizer.py:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /heartbeat:uid=1000,gid=1000,mode=0755
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1g
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD-SHELL", "test $(( $(date +%s) - $(stat -c %Y /heartbeat/tick 2>/dev/null || echo 0) )) -lt 7200"]
+      interval: 5m
+      timeout: 10s
+      start_period: 5m
+      retries: 2
+    depends_on:
+      api:
+        condition: service_started
+
 volumes:
   # Shared read-only with the operator stack. Set PODCAST_CORPUS_VOLUME to that stack's
   # external volume name on the VPS (e.g. compose_corpus_data).

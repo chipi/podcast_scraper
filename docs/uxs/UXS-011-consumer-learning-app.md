@@ -1112,7 +1112,9 @@ signed out). Own first-class Library tab.
 shown by default: each board's header carries a small **Brief** button (beside its cover and drag
 handle), and the Brief opens in a sheet laid out exactly as the episode's — grab handle, "Brief"
 with ✕, the board's name with one line of what it holds ("3 episodes · 1 saved moment · 1 show"),
-**▶ Play N moments** into the board's own short listen, **Top voices** (who speaks across its
+its **Summary** when one has been written (one paragraph on the whole board, made in the background
+by a model on our own servers, RFC-127; "Summarised Oct 13", and "the board changed since" until
+the next one), **▶ Play N moments** into the board's own short listen, **Top voices** (who speaks across its
 episodes, the topic page's grid — a board has no host or guest of its own), **Key points** (each
 episode's, opening the episode where it is said), and **What this board’s about**, the show page's
 band: a row each for storylines, themes and topics, most episodes first, no numbers on the pills.

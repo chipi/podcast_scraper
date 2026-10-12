@@ -1,6 +1,6 @@
 # RFC-127: Board Summaries — the first LLM call outside the pipeline
 
-- **Status**: Draft
+- **Status**: Implemented in part (phase 1 built, not yet deployed)
 - **Authors**: Marko, Claude (Opus 5.5)
 - **Stakeholders**: Consumer App, Server API, Infra (player stack, DGX vLLM)
 - **Related RFCs**:
@@ -77,9 +77,14 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
 - **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 3600), does one sweep, sleeps.
 - **DGX availability**: the `:8003` slot is up only in the GPU's research mode. A sweep that cannot
   reach it skips every board, counts `model_unreachable`, and the next sweep tries again.
-- **Kill switch**: `board_summaries.json` in the player appdata, read at the start of every sweep,
-  as the API reads `access_policy.json`. Absent or `{"enabled": true}` runs; `{"enabled": false}`
-  stops new summaries from the next sweep on (within the hour). Summaries already made stay.
+- **Kill switch**: `board_summaries_settings.json` in the player appdata root, read at the start
+  of every sweep, as the API reads `access_policy.json`. Absent, unreadable or `{"enabled": true}`
+  runs; `{"enabled": false}` stops new summaries from the next sweep on (within the hour) — the
+  model is not even built. Summaries already made stay. To stop it:
+  `echo '{"enabled": false}' > /srv/podcast-scraper/player-appdata/board_summaries_settings.json`
+- **The DGX's address**: Docker cannot resolve MagicDNS, so `deploy-player.sh` resolves
+  `dgx-llm-1` on every deploy (`tailscale ip -4`) into `DGX_TAILNET_IP`, as it does `homelab`.
+  Unresolved, the name points at loopback and the sidecar summarises nothing.
 
 The API keeps no keys and gains nothing that can call a model. The worst a UI or API bug can do is
 mark a board as changed; the sidecar decides what runs and when.
@@ -138,13 +143,21 @@ def complete_prose(self, prompt: str, *, stage: str, max_tokens: int) -> str: ..
 ```
 
 It exists because `complete_text` is JSON-only, 800 tokens and tagged `speaker_detection`. The new
-method tags cost and traces as `stage="board_summary"`, runs `check_chat_response`, and goes
-through the existing `retry_with_metrics` and `llm_call_fuse`.
+method tags cost and traces as `stage="board_summary"`, and runs `check_chat_response` with the
+reply's stop reason, so a summary cut off at the token limit is re-rolled once and never stored.
+
+It **never fails over** (`_NEVER_WRAPPED` in `summarization/fallback.py`). Every call is priced
+against the primary provider before it is made; failing over would make it on a provider nobody
+priced, a free DGX call quietly becoming a paid cloud one. A summary that cannot be made now is
+made on a later sweep. Only the OpenAI-compatible providers (vLLM, LiteLLM, OpenAI) have it; on
+another profile the sidecar logs `unsupported_provider` and summarises nothing.
 
 ### 5. What it writes, and what the Brief shows
 
 `users/<id>/board_summaries.json`, under a FileLock as the board store uses:
-`{board_id: {text, fingerprint, model, prompt_version, created_at}}`.
+`{board_id: {text, fingerprint, model, prompt_version, created_at}}`. The day's spend is a ledger
+in the appdata root, `board_summaries_ledger.json`. An answer over 1,200 characters is not the
+paragraph asked for and is not stored.
 
 `GET /collections/{id}/brief` adds `summary: {text, created_at, stale}`. `stale` is true when the
 board changed since. The sheet shows it first, as the episode Brief shows its Summary, with
@@ -204,6 +217,19 @@ the section is absent. A failed or skipped run leaves the last good summary in p
 
 Decided 2026-10-13: the DGX profile; a zero budget; every user; the kill switch on by default; the
 per-user, per-sweep, quiet and once-a-day numbers as in the table.
+
+## Built (2026-10-13)
+
+- `src/podcast_scraper/server/board_summaries.py` — the rules, the prompt, the store, one sweep.
+  It takes the model call as a function and imports no SDK; the API imports it only to read.
+- `infra/deploy/board_summarizer.py` — the sidecar loop; `board-summarizer` in
+  `compose/docker-compose.player-public.yml`; the DGX address in `infra/deploy/deploy-player.sh`.
+- `OpenAICompatibleProvider.complete_prose`; `/collections/{id}/brief` carries `summary`; the
+  Brief sheet shows it first, with its date and a note when the board changed since.
+- The privacy policy says boards are summarised by a model on our own servers.
+
+Not done, and needed before it runs in prod: confirm the player host reaches `dgx-llm-1:8003`; put
+`VLLM_API_KEY` in the player stack's env if the DGX vLLM requires one; the first live sweep.
 
 ## References
 

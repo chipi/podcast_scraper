@@ -101,6 +101,22 @@ else
   echo "WARN: could not resolve 'homelab' tailnet IP; player OTEL traces will not reach VictoriaTraces" >&2
 fi
 
+# Board summaries (RFC-127): the board-summarizer sidecar calls the DGX vLLM (`prod_dgx_full`,
+# http://dgx-llm-1:8003/v1). Docker's DNS cannot resolve MagicDNS names, so the IP is resolved
+# here, fresh on every deploy, as for `homelab` above. Unresolved → the sidecar logs
+# model_unreachable each cycle and summarises nothing; the app is unaffected.
+DGX_IP="$(tailscale ip -4 dgx-llm-1 2>/dev/null | head -1 || true)"
+if [ -n "$DGX_IP" ]; then
+  if grep -qE '^DGX_TAILNET_IP=' "$PLAYER_ENV"; then
+    sed -i "s#^DGX_TAILNET_IP=.*#DGX_TAILNET_IP=$DGX_IP#" "$PLAYER_ENV"
+  else
+    echo "DGX_TAILNET_IP=$DGX_IP" >>"$PLAYER_ENV"
+  fi
+  echo "[$(date -u +%FT%TZ)] resolved dgx-llm-1 tailnet IP for board summaries: $DGX_IP"
+else
+  echo "WARN: could not resolve 'dgx-llm-1' tailnet IP; board summaries will not be written" >&2
+fi
+
 # Delivery seam (#1412 / ADR-145): the homelab delivery worker polls this player-api's
 # /internal/outbox/* over the tailnet (token-gated). Publish the low-privilege player-api on
 # the BOX'S OWN tailnet IP so the worker can reach it — tailnet-only, NOT the public edge.

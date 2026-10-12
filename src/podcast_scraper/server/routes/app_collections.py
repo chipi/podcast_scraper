@@ -15,7 +15,12 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
-from podcast_scraper.server import app_board_view, app_collections_store, app_user_state
+from podcast_scraper.server import (
+    app_board_view,
+    app_collections_store,
+    app_user_state,
+    board_summaries,
+)
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -26,6 +31,7 @@ from podcast_scraper.server.corpus_catalog import aggregate_feeds
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppBoardBrief,
+    AppBoardSummary,
     AppReelClip,
     AppTopicReelResponse,
     Collection,
@@ -384,11 +390,18 @@ def collection_detail(
 def collection_brief(
     request: Request, collection_id: str, user: User = Depends(get_current_user)
 ) -> AppBoardBrief:
-    """A board's Brief (RFC-119 amendment 2026-10-12, #2340), from what is saved on it only."""
-    board = app_board_view.load_board(_data_dir(request), user.user_id, collection_id)
+    """A board's Brief (RFC-119 amendment 2026-10-12, #2340), from what is saved on it only, with
+    its summary when the background job has written one (RFC-127). Reading it never calls a
+    model: this process has no model to call."""
+    data_dir = _data_dir(request)
+    board = app_board_view.load_board(data_dir, user.user_id, collection_id)
     if board is None:
         raise HTTPException(status_code=404, detail="collection not found")
-    return app_board_view.build_board_brief(corpus_root_or_503(request), board)
+    brief = app_board_view.build_board_brief(corpus_root_or_503(request), board)
+    summary = board_summaries.summary_for_brief(data_dir, user.user_id, board)
+    if summary is not None:
+        brief.summary = AppBoardSummary(**summary)
+    return brief
 
 
 @router.get("/collections/{collection_id}/reel", response_model=AppTopicReelResponse)

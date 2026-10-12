@@ -16,7 +16,7 @@ const DRAFT_OPEN = [
   'The company responsible for your data (the "controller") is being registered; its legal name and address will be added here before public release.',
   'How long backups are kept is being set; until then, deleted data can remain in backups.',
 ]
-const UPDATED = '4 October 2026'
+const UPDATED = '13 October 2026'
 </script>
 
 <template>
@@ -93,6 +93,10 @@ const UPDATED = '4 October 2026'
       <ul class="list-disc space-y-1 pl-5">
         <li>To run the app and your account — signing you in, keeping your library, highlights and notes, resuming where you left off.</li>
         <li>To personalise it — recommendations, "Your week" and new-episode alerts come from what you listen to and follow.</li>
+        <!-- RFC-127. True while the summariser's profile is the DGX one (our own hardware). A profile
+             on a cloud model would make that provider a processor: it must then be named under
+             "Who else handles it", in the same change. -->
+        <li>To summarise your boards — a short summary of each board is written automatically by a language model that runs on our own servers, from the episodes and moments saved on it. Your board's name, links and notes are not used for it, and nothing is sent to an outside AI provider.</li>
         <li>To send you what you asked for — sign-in links, digests and notifications, each of which you control in Profile.</li>
         <li>To keep it working — crash reports and diagnostics to find and fix problems; usage statistics to see what is used.</li>
       </ul>

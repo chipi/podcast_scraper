@@ -1380,6 +1380,8 @@
     "close": "Close brief",
     "empty": "Nothing to brief yet. Save an episode or a moment to this board.",
     "playHint": "{length} · this board's moments, in order",
-    "about": "What this board’s about"
+    "about": "What this board’s about",
+    "summarisedOn": "Summarised {date}",
+    "summaryStale": "the board changed since, an update follows within a day"
   }
 }

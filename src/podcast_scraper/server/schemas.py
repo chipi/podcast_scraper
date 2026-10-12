@@ -2379,6 +2379,14 @@ class AppBoardSubject(BaseModel):
     saved: bool = Field(description="Also saved on the board itself.")
 
 
+class AppBoardSummary(BaseModel):
+    """One paragraph on what a board is about, made by the board-summarizer sidecar (RFC-127)."""
+
+    text: str
+    created_at: int = Field(description="When it was written (unix seconds).")
+    stale: bool = Field(description="The board's episodes or saved moments changed since.")
+
+
 class AppBoardVoice(BaseModel):
     """Someone who speaks (host or guest) in a board's episodes: its Top voices."""
 
@@ -2421,6 +2429,10 @@ class AppBoardBrief(BaseModel):
     board_id: str
     name: str
     holds: AppBoardHolds
+    summary: AppBoardSummary | None = Field(
+        default=None,
+        description="The board's summary, written in the background (RFC-127); null until one is.",
+    )
     voices: list[AppBoardVoice] = Field(
         default_factory=list, description="Top voices: who speaks in most of its episodes."
     )

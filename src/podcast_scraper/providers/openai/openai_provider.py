@@ -2830,6 +2830,48 @@ class OpenAICompatibleProvider:
         )
         return _insight_salvage.strip_json_fence(content)
 
+    def complete_prose(self, prompt: str, *, stage: str, max_tokens: int = 400) -> str:
+        """One prompt in, plain text out, costed under ``stage`` (RFC-127: board summaries).
+
+        ``complete_text`` is the resolver's call: JSON only, 800 tokens, and costed as
+        ``speaker_detection``. A summary is prose, and its cost belongs to its own stage, so a call
+        made outside the pipeline is never counted as pipeline work.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("OpenAI summarization not initialized for complete_prose")
+        # A summary cut off at the token limit is not a summary: the stop reason goes to the
+        # guardrail with the text, so a truncated answer is re-rolled, never stored.
+        finish: Dict[str, Optional[str]] = {"reason": None}
+
+        def _call() -> str:
+            response = self._chat_create(
+                model=self.summary_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                **self._token_kwarg(max_tokens),
+            )
+            self._emit_stage_cost(
+                stage=stage,
+                capability="summarization",
+                model=self.summary_model,
+                response=response,
+            )
+            choice = response.choices[0]
+            finish["reason"] = getattr(choice, "finish_reason", None)
+            return (choice.message.content or "").strip()
+
+        def _validate(content: str) -> None:
+            _guardrails.check_chat_response(
+                content,
+                service=self._TELEMETRY_PROVIDER,
+                finish_reason=finish["reason"],
+                expect_json=False,
+            )
+
+        return _guardrails.structured_call_with_reroll(
+            _call, _validate, service=self._TELEMETRY_PROVIDER, max_reroll=1
+        )
+
     def extract_kg_graph(
         self,
         text: str,
