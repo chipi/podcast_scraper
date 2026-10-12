@@ -41,10 +41,17 @@ const store = useCollectionsStore()
 const { t, locale } = useI18n()
 const route = useRoute()
 
-/** "Last modified" date for a collection (CO.2), or null when unknown. */
-function modifiedLabel(c: Collection): string | null {
+/** When a board last changed (CO.2), as "Oct 12" — the year only when it is not this one. The board header's second line holds the
+ * count and this date and nothing else, so it has to stay short (operator 2026-10-12). */
+function changedShort(c: Collection): string | null {
   if (!c.updated_at) return null
-  return formatPublishDate(new Date(c.updated_at * 1000).toISOString(), locale.value)
+  const d = new Date(c.updated_at * 1000)
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return new Intl.DateTimeFormat(locale.value, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  }).format(d)
 }
 const { gated } = useSignInGate()
 const capture = useCaptureStore()
@@ -724,15 +731,43 @@ onMounted(() => {
         :data-board-row="c.id"
       >
         <div class="flex items-center justify-between gap-2 p-3">
+          <!-- The header is the cover, then TWO lines of text, whatever the name (operator
+               2026-10-12): the name on one line, bigger, cut with "…" when it is long; under it what
+               the board holds and when it changed. The name, the count and the date used to wrap
+               onto three lines once the Brief button took its space. The cover leads, at the left
+               edge, as the board rows of the grid and Home's teaser show it; a board with no cover
+               keeps the square so every name starts at the same place. The whole block opens the
+               board in place; the chevron says so. -->
           <button
             type="button"
-            class="flex min-w-0 flex-1 items-center gap-2 text-left"
+            class="flex min-w-0 flex-1 items-center gap-3 text-left"
             data-testid="collection-open"
             :aria-expanded="open?.collection.id === c.id"
             @click="openCollection(c.id)"
           >
-            <!-- The chevron is the affordance that says this opens in place rather than navigating
-                 somewhere — which is what the old "Back" link implied it had done. -->
+            <img
+              v-if="c.cover_url && !brokenCovers.has(c.id)"
+              :src="c.cover_url"
+              alt=""
+              loading="lazy"
+              class="h-12 w-12 shrink-0 rounded-lg bg-elevated object-cover"
+              data-testid="collection-thumb"
+              @error="brokenCovers.add(c.id)"
+            />
+            <span v-else class="h-12 w-12 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-base font-semibold leading-snug" data-testid="collection-name">{{
+                c.name
+              }}</span>
+              <span class="block truncate text-xs text-muted" data-testid="collection-meta">{{
+                [
+                  t("collections.count", c.count, { named: { count: c.count } }),
+                  changedShort(c),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              }}</span>
+            </span>
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -740,40 +775,19 @@ onMounted(() => {
               stroke-width="2.5"
               stroke-linecap="round"
               stroke-linejoin="round"
-              class="h-3 w-3 shrink-0 text-muted transition-transform"
+              class="h-3.5 w-3.5 shrink-0 text-muted transition-transform"
               :class="open?.collection.id === c.id ? 'rotate-90' : ''"
               aria-hidden="true"
             >
               <path d="m9 6 6 6-6 6" />
             </svg>
-            <span class="min-w-0">
-              <span class="font-semibold">{{ c.name }}</span>
-              <span class="ml-2 text-xs text-muted">{{
-                t("collections.count", c.count, { named: { count: c.count } })
-              }}</span>
-              <span v-if="modifiedLabel(c)" class="block text-xs text-muted">
-                {{ t("collections.updated", { date: modifiedLabel(c) }) }}
-              </span>
-            </span>
           </button>
-          <!-- Cover thumbnail, before the ✕ (operator 2026-09-17) — the same artwork the grid view
-               shows, so a board is recognisable by its cover in either layout rather than only in
-               one. `cover_url` is already derived server-side (CO.6); nothing new is fetched. -->
-          <img
-            v-if="c.cover_url && !brokenCovers.has(c.id)"
-            :src="c.cover_url"
-            alt=""
-            loading="lazy"
-            class="h-9 w-9 shrink-0 rounded-md bg-elevated object-cover"
-            data-testid="collection-thumb"
-            @error="brokenCovers.add(c.id)"
-          />
           <!-- The board's Brief (#2340), behind a button as the episode's is (operator 2026-10-12):
                it opens in a sheet. Only for a board that holds something. -->
           <button
             v-if="c.count > 0"
             type="button"
-            class="lp-tap shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
+            class="lp-tap shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
             data-testid="collection-brief"
             @click="briefFor = { id: c.id, name: c.name }"
           >
