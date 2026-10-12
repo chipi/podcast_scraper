@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 18 |
+| Doc version | 19 |
 | Last updated | 2026-10-12 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
-| Code content hash | `d950e4e345a7` (see below) |
+| Code content hash | `24b796863cea` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,10 @@
 
 **Changelog**
 
+- **v19, 2026-10-12.** One rule changed (#2304): `self_intro` replaces a voice's unpublishable
+  self-introduction ("I'm Apple just announced...") with the same voice's next publishable one
+  ("I'm Ryan Knutson") (`_publishable_intros`). Never dropped when there is none: a lone first
+  name ("Hi, it's Kenny") is still evidence for the host snap and the guest role.
 - **v18, 2026-10-12.** One rule changed (#2304): the forced guest name's third-person refusal
   (`says_that_name_in_the_third_person`) no longer fires when every mention of the surname follows
   a clearly DIFFERENT given name (`_surname_only_of_someone_else`): The Living Philosophy's Layman

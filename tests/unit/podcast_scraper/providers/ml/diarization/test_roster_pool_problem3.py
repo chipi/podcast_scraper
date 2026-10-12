@@ -478,3 +478,19 @@ def test_a_surname_after_a_different_given_name_is_someone_else(text: str, expec
     from podcast_scraper.providers.ml.diarization.roster import _surname_only_of_someone_else
 
     assert _surname_only_of_someone_else(text, "Layman Pascal") is expected
+
+
+def test_a_junk_self_introduction_does_not_claim_its_voice() -> None:
+    # The Journal (prod 2026-10-12): "Apple" held the host seat; the voice also says its name.
+    from podcast_scraper.providers.ml.diarization.roster import _publishable_intros
+
+    texts = {
+        "A": "I'm your host, Tribune co-founder, Andrew Polk, and today I'm very excited",
+        "B": "I'm Apple just announced they are doubling. Welcome to the journal. I'm Ryan Knutson",
+        "C": "Welcome to the show. I'm Lenny Rachitsky. Later: I'm Kevin Roose, he said.",
+    }
+    texts["D"] = "Hi, it's Kenny. Don't skip ahead just yet."
+    intros = {"A": "Tribune", "B": "Apple", "C": "Lenny Rachitsky", "D": "Kenny"}
+    _publishable_intros(intros, texts, "en")
+    # replaced only by the voice's own publishable intro; a lone first name stays as evidence
+    assert intros == {"A": "Tribune", "B": "Ryan Knutson", "C": "Lenny Rachitsky", "D": "Kenny"}

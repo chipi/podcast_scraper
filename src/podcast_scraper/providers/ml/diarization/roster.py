@@ -3970,6 +3970,35 @@ def _snap_near_identical_host(
     return name
 
 
+def _publishable_intros(
+    intros: Dict[str, str], texts: Mapping[str, str], language: Optional[str]
+) -> None:
+    """A self-introduction that is no publishable name yields to the voice's next one (in place).
+
+    A garbled "I'm Apple just announced" read as "Apple" while the same voice says "I'm Ryan
+    Knutson" a minute later: the junk name was never published, but it held the seat, so the stated
+    host was never placed (The Journal; prod 2026-10-12).
+
+    Only REPLACED, never dropped: a lone first name is unpublishable too, and it is still evidence
+    -- "Hi, it's Kenny" snaps to the host Kenny Malone, and "I'm Kevin" marks a guest voice.
+    Dropping them unnamed Planet Money's host and took the guest role from a dozen real guest
+    voices in the replay.
+    """
+    for v, n in list(intros.items()):
+        if is_publishable_speaker_name(n, language=language):
+            continue
+        alt = next(
+            (
+                x
+                for x in distinct_self_introductions(texts.get(v, ""), intro_chars=5000)
+                if x != n and is_publishable_speaker_name(x, language=language)
+            ),
+            None,
+        )
+        if alt:
+            intros[v] = alt
+
+
 def _self_intro_voice_names(
     diarization: DiarizationResult,
     voice_texts: Optional[Dict[str, str]],
@@ -4008,6 +4037,7 @@ def _self_intro_voice_names(
     intros = _self_intros_by_voice(
         voice_texts, intro_sources, case_blind=case_blind, language=language
     )
+    _publishable_intros(intros, texts, language)
     # A SHORT cluster with 2+ self-intros is a cold-open montage clip (#1330). A LONG one with 2+
     # self-intros that map to DIFFERENT stated people is a diarization MERGE of multiple named
     # speakers (flightcast "I'm Lucas and I'm Axel" in the host cluster) — also suppressed, so the
