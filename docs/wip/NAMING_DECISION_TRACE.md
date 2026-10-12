@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 19 |
+| Doc version | 20 |
 | Last updated | 2026-10-12 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
-| Code content hash | `24b796863cea` (see below) |
+| Code content hash | `62b575b2d8d8` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,11 @@
 
 **Changelog**
 
+- **v20, 2026-10-12.** One rule widened (#2304, F2d): `title_subject` accepts a title's person
+  (opening or tail, now also "ft. / feat. / featuring" tails) when a host voice seated on its own
+  evidence says the name IN FULL and also ADDRESSES them by first name ("...with me, Tim."), with no
+  all-caps token ("Surge AI", "NVIDIA AI"). Before, only the metadata, the description ("speaks
+  with") or a first-name greeting vouched.
 - **v19, 2026-10-12.** One rule changed (#2304): `self_intro` replaces a voice's unpublishable
   self-introduction ("I'm Apple just announced...") with the same voice's next publishable one
   ("I'm Ryan Knutson") (`_publishable_intros`). Never dropped when there is none: a lone first

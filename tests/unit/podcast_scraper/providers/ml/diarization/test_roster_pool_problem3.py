@@ -494,3 +494,75 @@ def test_a_junk_self_introduction_does_not_claim_its_voice() -> None:
     _publishable_intros(intros, texts, "en")
     # replaced only by the voice's own publishable intro; a lone first name stays as evidence
     assert intros == {"A": "Tribune", "B": "Ryan Knutson", "C": "Lenny Rachitsky", "D": "Kenny"}
+
+
+@pytest.mark.parametrize(
+    ("text", "host_text", "expected"),
+    [
+        # opening-name titles: the host saying the full name vouches as the metadata would
+        (
+            "Alan Waxman - Private Credit and the Modern Financial System. A conversation.",
+            "My guest today is Alan Waxman, co-founder of Sixth Street. Alan, thank you.",
+            "Alan Waxman",
+        ),
+        (
+            "Steven Sinofsky: AI Doesn't Need New Rules Yet. Erik talks to Steven.",
+            "Steven, welcome to the show.",
+            "Steven Sinofsky",
+        ),
+        ("Alan Waxman - Private Credit. A conversation.", "We talk about private credit.", None),
+        # "ft." tails (Capitalisn't)
+        (
+            "Is The College Promise Broken? - ft. Noam Scheiber In this episode",
+            "Our guest is Noam Scheiber of the New York Times. So, Noam, why?",
+            "Noam Scheiber",
+        ),
+        ("The Real Cause Of Wage Stagnation - ft. Arin Dube This week", "We talk wages.", None),
+        # "with Name" tail vouched by the full name alone
+        (
+            "Trump's Great Private Equity Bailout, with Dan Rasmussen This week",
+            "I'm joined by Dan Rasmussen of Verdad. Dan, tell us.",
+            "Dan Rasmussen",
+        ),
+        (
+            "Are Big Tech's Regulators Cowards? ft. Tim Wu This week",
+            "Our guest, Tim Wu, is an author. That resonated with me, Tim.",
+            "Tim Wu",
+        ),
+        # a full name alone is not a person: products and segments are said in full too
+        (
+            "Project Astra: Exploring a Universal AI Assistant with Greg Wayne. Hannah talks.",
+            "Project Astra is a research prototype. Project Mariner, too. Project Astra can see.",
+            None,
+        ),
+        (
+            "Harrison Chase of LangChain on Deep Agents | NVIDIA AI Podcast",
+            "Welcome to the NVIDIA AI podcast. NVIDIA AI is great.",
+            None,
+        ),
+    ],
+)
+def test_a_host_saying_the_titled_name_in_full_vouches_for_it(
+    text: str, host_text: str, expected: object
+) -> None:
+    # F2d (gold atlas 2026-10-12): 23 title-only guests, 18 named in full by another voice.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    assert (
+        _title_subject_guest(text, [], ["Luigi Zingales"], True, host_texts=[host_text]) == expected
+    )
+
+
+def test_the_on_air_vouch_needs_a_person_and_an_evidence_host() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    # "(Surge AI)" is said in full and even addressed; an all-caps token is not a person's name
+    surge = "The 100-person AI lab | Edwin Chen (Surge AI) Lenny talks to Edwin."
+    host = ["Edwin is the founder of Surge AI. Surge, the company, grew fast."]
+    assert _title_subject_guest(surge, [], ["Lenny Rachitsky"], True, host_texts=host) is None
+    # the opening-title vouch on air needs a host seated on evidence, like the tail
+    alan = "Alan Waxman - Private Credit and the Modern Financial System. A conversation."
+    said = ["My guest today is Alan Waxman. Alan, thank you."]
+    hosts = ["Patrick O'Shaughnessy"]
+    assert _title_subject_guest(alan, [], hosts, True, host_texts=said) == "Alan Waxman"
+    assert _title_subject_guest(alan, [], hosts, True, host_texts=said, tail_allowed=False) is None

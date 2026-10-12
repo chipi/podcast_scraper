@@ -553,6 +553,8 @@ _TITLE_TAIL = (
     re.compile(r"\[\s*" + _TITLE_TAIL_NAME + r"\s*\]"),
     re.compile(r"\(\s*" + _TITLE_TAIL_NAME + r"\s*\)"),
     re.compile(r"\s[—–|]\s+" + _TITLE_TAIL_NAME + r"\b"),
+    # Capitalisn't: "Is The College Promise Broken? - ft. Noam Scheiber" (F2d).
+    re.compile(r"\b(?:[Ff]t\.|[Ff]eat\.|[Ff]eaturing)\s+" + _TITLE_TAIL_NAME + r"\b"),
     re.compile(
         r"\bwith\s+(?:(?:[A-Z][\w&]*\s+)?(?:CEO|CTO|[Cc]o-?[Ff]ounder|[Ff]ounder)\s+)?"
         + _TITLE_TAIL_NAME
@@ -618,11 +620,42 @@ def _title_tail_guest(
                 for stated in metadata_named:
                     if re.sub(r"^(?:Dr|Prof|Sir)\.?\s+", "", stated).lower() == r.lower():
                         return stated
+            # A host voice saying a reading in FULL vouches for exactly that reading (F2d).
+            for r in readings:
+                if _says_in_full(texts, r):
+                    return r
             # Unvouched by the metadata, a three-word reading needs the episode to say it again.
             name = next((r for r in readings[:-1] if episode_text.count(r) >= 2), readings[-1])
             if _greets_by_given_name(texts, name):
                 return name
     return None
+
+
+def _says_in_full(texts: Sequence[str], name: str) -> bool:
+    """A host voice says ``name`` in full AND talks to or about the person by first name alone.
+
+    The full name alone is not a person: hosts say "Surge AI", "the NVIDIA AI podcast", "Project
+    Astra", "Cosmic Queries" in full, and in the first replay those title tails entered the guest
+    pool, competed with the real guest's name and lost it (Edwin Chen, Harrison Chase) or named a
+    voice after a product. A person is also called by first name ("That resonated with me, Tim");
+    a product is not called "Project". No all-caps token either ("AI", "NVIDIA").
+
+    "By first name" means ADDRESSED: set off by punctuation on both sides, as written ("...with me,
+    Tim.", "So, Noam, why?"). A bare first word recurring ("Project Mariner", "Cosmic rays") is
+    not address, and in the second replay it let "Project Astra" and "Cosmic Queries" through.
+    """
+    toks = name.split()
+    if len(toks) < 2 or any(len(t) >= 2 and t.isupper() for t in toks):
+        return False
+    first = re.escape(toks[0])
+    full = any(re.search(rf"\b{re.escape(name)}\b", t or "", re.IGNORECASE) for t in texts)
+    addressed = any(re.search(rf"(?:^|[,.!?;:]\s*){first}[,!?.]", t or "") for t in texts)
+    return full and addressed
+
+
+def _vouched_on_air(texts: Sequence[str], name: str) -> bool:
+    """A host voice names the person in full, or welcomes them by first name (F2c/F2d)."""
+    return _says_in_full(texts, name) or _greets_by_given_name(texts, name)
 
 
 def _title_subject_guest(
@@ -671,6 +704,10 @@ def _title_subject_guest(
         + r"\b",
         rest,
     ):
+        return name
+    # ...or a host voice says that same person out loud, beside a host seated on its own evidence
+    # (F2d): "My guest today is Alan Waxman" for "Alan Waxman - Private Credit...".
+    if tail_allowed and _vouched_on_air(list(host_texts), name):
         return name
     return None
 
