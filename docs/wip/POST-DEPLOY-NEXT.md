@@ -48,9 +48,16 @@ untracked; that deploy is done).
     "Code Complete" Steve McConnell; Talk Eastern Europe Alexandra Karppi; No Priors Chess.com
     Erik Allebest on SPEAKER_00) -> coverage again (`naming_coverage.py`, before/after).
   - Undo: `upgrade undo 0029` restores from `.podcast_scraper/upgrade-backups/0029/`.
-- **N3 stale index rows (#2334).** 28 episodes serve superseded insight rows (the prune guard
-  refused correct prunes from 2026-10-03 until `6551cecf9`). Re-index those 28 with the operator's
-  OK; the list is in this file once prepared.
+- **N3 stale index rows (#2334).** Episodes serve superseded insight rows because the deployed
+  prune guard refuses a reprocess that came out slightly smaller (fixed in #2337). The count GROWS
+  with every backfill batch until the deploy: 28 on 2026-10-11, **34 distinct episodes** by
+  2026-10-12 10:11 UTC (38 refusal lines). So the list is built right before the re-index, not now:
+  - VictoriaLogs on the mini: `_time:[2026-10-03T00:00:00Z, now] "REFUSING to prune"`; take each
+    `episode_id=`; drop the two TRUE partials the fixed guard still refuses (BBC `m002w616`
+    insights 31 vs 86, `m002vyjt` 39 vs 79) unless their artifacts were since rebuilt.
+  - Re-index exactly those episodes with the deployed (fixed) code, with the operator's OK; then
+    check one by text (e.g. `257da0ba-a334-11f1-8c3b-0feea6ade97e`: 111 insight rows, 55 match the
+    served run, 56 superseded, before; 55 after).
 - **N4 first nightly after the deploy.** Naming on new episodes looks sane (read the rosters of
   every new episode); `decision_trace` present in new `.speakers.diagnostics.json`.
 - **N5 guardrail (S8).** The nightly's batch finalize writes
