@@ -106,6 +106,8 @@ const linkLabel = computed(() => {
   ]
   return parts.join(', ')
 })
+/** The tallest day reaches this share of the card: a backdrop, under the words, not over them. */
+const BAR_MAX = 0.45
 const dayBars = computed<number[]>(() => {
   const days = Object.keys(recap.value?.by_day ?? {}).sort()
   // Both kinds of listening, as on Profile's chart.
@@ -113,7 +115,9 @@ const dayBars = computed<number[]>(() => {
     (d) => (recap.value?.by_day[d] ?? 0) + (recap.value?.moments_by_day?.[d] ?? 0),
   )
   const peak = Math.max(...values, 0)
-  if (!peak) return []
+  // A shape needs two days (operator 2026-10-12): with one day heard, that day was the peak, drawn
+  // the card's full height — a dark block down the right side rather than a week.
+  if (!peak || values.filter((v) => v > 0).length < 2) return []
   return values.map((v) => Math.max(0.04, v / peak))
 })
 </script>
@@ -137,7 +141,7 @@ const dayBars = computed<number[]>(() => {
         v-for="(h, i) in dayBars"
         :key="i"
         class="flex-1 rounded-t-sm bg-accent"
-        :style="{ height: `${Math.round(h * 100)}%` }"
+        :style="{ height: `${Math.round(h * BAR_MAX * 100)}%` }"
       />
     </div>
     <div class="relative min-w-0">

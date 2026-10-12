@@ -240,3 +240,27 @@ describe('RecapPrompt: moments and learning', () => {
     expect(pill.classes()).toContain('text-storyline')
   })
 })
+
+/** The week behind the card (operator 2026-10-12: one day drew a dark block down the side). */
+describe('RecapPrompt: the week behind it', () => {
+  const week = (vals: number[]) =>
+    Object.fromEntries(vals.map((v, i) => [`2026-10-0${i + 1}`, v]))
+
+  it('draws nothing for a week with one day heard', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ by_day: week([0, 0, 0, 0, 0, 0, 900]) }))
+    const w = mountPrompt()
+    await flushPromises()
+    expect(w.findAll('[aria-hidden="true"] > span.bg-accent')).toHaveLength(0)
+  })
+
+  it('draws the week low, under the words, once two days were heard', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ by_day: week([0, 300, 0, 0, 0, 0, 900]) }))
+    const w = mountPrompt()
+    await flushPromises()
+    const bars = w.findAll('[aria-hidden="true"] > span.bg-accent')
+    expect(bars).toHaveLength(7)
+    expect(bars[6].attributes('style')).toContain('height: 45%')
+  })
+})
