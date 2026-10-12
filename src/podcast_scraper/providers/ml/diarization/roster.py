@@ -31,6 +31,7 @@ from typing import (
     Callable,
     Dict,
     FrozenSet,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -541,11 +542,97 @@ _TITLE_SUBJECT = re.compile(
 )
 
 
+_TITLE_TAIL_NAME = (
+    r"(?:(?:Dr|Prof|Sir)\.?\s+)?(?P<name>[A-Z][\w'’\-]+(?:\s+[A-Z]\.)?(?:\s+[A-Z][\w'’\-]+){1,2})"
+)
+#: The title ENDS with its guest: "VAEs Are Energy-Based Models? [Dr. Jeff Beck]",
+#: "Superintelligence Strategy (Dan Hendrycks)", "... | Josh Elman", "... — Brad Carson", "Code
+#: Complete with Steve McConnell". The title and description are joined by a space, so the end is
+#: not anchored; the shapes are only read in the opening `_TITLE_TAIL_SPAN` characters.
+_TITLE_TAIL = (
+    re.compile(r"\[\s*" + _TITLE_TAIL_NAME + r"\s*\]"),
+    re.compile(r"\(\s*" + _TITLE_TAIL_NAME + r"\s*\)"),
+    re.compile(r"\s[—–|]\s+" + _TITLE_TAIL_NAME + r"\b"),
+    re.compile(
+        r"\bwith\s+(?:(?:[A-Z][\w&]*\s+)?(?:CEO|CTO|[Cc]o-?[Ff]ounder|[Ff]ounder)\s+)?"
+        + _TITLE_TAIL_NAME
+        + r"\b"
+    ),
+)
+_TITLE_TAIL_SPAN = 160
+
+
+def _greets_by_given_name(texts: Iterable[str], name: str) -> bool:
+    """A host voice welcomes the person by first name: "Steve, welcome to the podcast"."""
+    first = re.escape(name.split()[0])
+    pat = re.compile(
+        r"\b"
+        + first
+        + r",?\s+(?:welcome|thanks?\s+(?:you\s+)?(?:so\s+much\s+)?for\s+(?:coming|joining|being))"
+        r"|\bwelcome(?:\s+(?:back\s+)?to\s+the\s+(?:show|podcast))?,\s+" + first + r"\b"
+    )
+    return any(pat.search(t or "") for t in texts)
+
+
+def _short_form_of_a_carried_name(given: str, carried_names: Sequence[str]) -> bool:
+    g = given.lower()
+    for n in carried_names:
+        c = n.split()[0].lower() if n.split() else ""
+        if len(min(g, c, key=len)) >= 4 and g != c and (c.startswith(g) or g.startswith(c)):
+            return True
+    return False
+
+
+def _title_tail_guest(
+    episode_text: str,
+    metadata_named: Sequence[str],
+    known_hosts: Sequence[str],
+    host_texts: Iterable[str],
+    carried_names: Sequence[str] = (),
+) -> Optional[str]:
+    """The person the title ENDS with, vouched for by the metadata or the host's greeting (F2c).
+
+    Not a person whose given name is a short form of one a voice already carries: the NdB Sunday
+    Show's "Chris Steyn" is its presenter, "with me, Christine".
+
+    ~17 nameless served episodes carry their guest only there ("[Dr. Jeff Beck]", "with Scott
+    Guthrie"; prod 2026-10-12). Title shapes alone also catch "Applied Intuition", "Summer School",
+    "Building Reddit", so a second, independent place must name the same person: the metadata
+    states them, or a host voice welcomes them by first name.
+    """
+    head = episode_text[:_TITLE_TAIL_SPAN]
+    hosts_lower = {h.lower() for h in known_hosts}
+    texts = list(host_texts)
+    for pat in _TITLE_TAIL:
+        for m in pat.finditer(head):
+            toks = m.group("name").split()
+            # The description follows the title with only a space, so the match may have taken its
+            # first word too ("Josh Elman Josh joins"): try the longest reading first.
+            readings = [" ".join(toks[:n]) for n in range(len(toks), 1, -1)]
+            if any(
+                r.lower() in hosts_lower or any(_loosely_same_person(r, h) for h in known_hosts)
+                for r in readings
+            ) or _short_form_of_a_carried_name(toks[0], carried_names):
+                continue
+            for r in readings:
+                for stated in metadata_named:
+                    if re.sub(r"^(?:Dr|Prof|Sir)\.?\s+", "", stated).lower() == r.lower():
+                        return stated
+            # Unvouched by the metadata, a three-word reading needs the episode to say it again.
+            name = next((r for r in readings[:-1] if episode_text.count(r) >= 2), readings[-1])
+            if _greets_by_given_name(texts, name):
+                return name
+    return None
+
+
 def _title_subject_guest(
     episode_text: Optional[str],
     metadata_named: Optional[Sequence[str]],
     known_hosts: Sequence[str],
     host_seated: bool,
+    host_texts: Iterable[str] = (),
+    tail_allowed: bool = True,
+    carried_names: Sequence[str] = (),
 ) -> Optional[str]:
     """The guest the episode title opens with, when the metadata states that same person and a host
     voice is already seated: a declared guest for the guest pool (F2, #2304).
@@ -560,7 +647,11 @@ def _title_subject_guest(
         return None
     m = _TITLE_SUBJECT.match(episode_text)
     if not m:
-        return None
+        if not tail_allowed:
+            return None
+        return _title_tail_guest(
+            episode_text, metadata_named or (), known_hosts, host_texts, carried_names
+        )
     name = m.group("name")
     hosts_lower = {h.lower() for h in known_hosts}
     if name.lower() in hosts_lower:
@@ -606,14 +697,32 @@ def _declare_the_title_guest(
     host_voices: Sequence[str],
     llm_named: AbstractSet[str],
     tr: Any,
+    voice_texts: Optional[Mapping[str, str]] = None,
+    evidence_hosts: Sequence[str] = (),
+    talk_share: Optional[Mapping[str, float]] = None,
+    carried_names: Sequence[str] = (),
 ) -> None:
     """Append the title's stated guest to ``declared`` (in place); see `_title_subject_guest`.
 
     Only beside a host seated on EVIDENCE: where the model's verdict alone put the host's name on
     the guest's voice (Dwarkesh, F3), the spare title name went onto the real host's voice.
+
+    The title's TAIL (F2c) also needs a host seated on its own evidence (``evidence_hosts``) that
+    does not own the conversation: an 84% host cluster holds the guest too (a16z "Josh Elman
+    Joins", Latent Space "Vibe Physics"), and the name went onto a sliver.
     """
+    share = talk_share or {}
+    tail_ok = bool([v for v in evidence_hosts if v not in llm_named]) and not any(
+        share.get(v, 0.0) > _DOMINANT_SHARE for v in host_voices
+    )
     titled = _title_subject_guest(
-        episode_text, metadata_named, known_hosts, any(v not in llm_named for v in host_voices)
+        episode_text,
+        metadata_named,
+        known_hosts,
+        any(v not in llm_named for v in host_voices),
+        host_texts=[(voice_texts or {}).get(v, "") for v in host_voices],
+        tail_allowed=tail_ok,
+        carried_names=carried_names,
     )
     if titled and titled.lower() not in {d.lower() for d in declared}:
         declared.append(titled)
@@ -5732,7 +5841,26 @@ def resolve_speaker_roster(
     intro_names_lower = {n.lower() for n in voice_intro.values()}
     declared = list(_clean_person_names(detected_guests))
     _declare_the_title_guest(
-        declared, episode_text, metadata_named, known_hosts, host_voices, llm_named, tr
+        declared,
+        episode_text,
+        metadata_named,
+        known_hosts,
+        host_voices,
+        llm_named,
+        tr,
+        voice_texts=voice_texts,
+        # The title's TAIL needs a host seated on its own evidence, not by opening the episode: on
+        # MLST the opener was the guest, and the tail name went onto the interviewer (F2c).
+        evidence_hosts=[
+            v
+            for v in host_voices
+            if voice_intro.get(v)
+            or v in presenter_voices
+            or v in conv_host_voices
+            or v in _introducer_voices
+        ],
+        talk_share=_share_now,
+        carried_names=[n for n in voice_intro.values() if n],
     )
     # The HOST introduces the guest, so only the resolved HOST voices' turns are trusted here.
     # Scanning EVERY voice let a guest who merely QUOTES a greeting ("...and then Sarah Chen, thanks
@@ -5744,7 +5872,13 @@ def resolve_speaker_roster(
     # was still picked up here, entered the guest pool as a person, and the forced one-name-one
     # -voice match painted it onto a 13s cameo. Snap toward the stated spelling first, and drop what
     # remains unstated but resembles an unbound stated non-host (#2095).
-    stated_for_harvest = list(detected_guests or ()) + list(metadata_named or ())
+    # ...and the title's own spelling of its guest is stated too: the heard "Matt McGinnis" snaps to
+    # the title's "Matt MacInnis" instead of competing with it for the one voice.
+    stated_for_harvest = (
+        list(detected_guests or ())
+        + list(metadata_named or ())
+        + [d for d in declared if d not in (detected_guests or ())]
+    )
     host_voice_texts = {v: (voice_texts or {}).get(v, "") for v in host_voices}
     for n in sorted(guests_introduced_by_the_host(host_voice_texts)):
         if _not_a_person_heard(n, feed_title):

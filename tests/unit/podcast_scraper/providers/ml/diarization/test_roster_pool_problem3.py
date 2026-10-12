@@ -343,3 +343,119 @@ def test_the_description_can_state_the_title_guest() -> None:
     assert _title_subject_guest(text, [], ["Erik Torenberg"], True) == "Samo Burja"
     about = "John D. Rockefeller: His Principles. Shane Parrish explores the life of John D."
     assert _title_subject_guest(about, [], ["Shane Parrish"], True) is None
+
+
+@pytest.mark.parametrize(
+    ("text", "stated", "expected"),
+    [
+        (
+            "VAEs Are Energy-Based Models? [Dr. Jeff Beck] Tim talks to Jeff.",
+            ["Dr. Jeff Beck"],
+            "Dr. Jeff Beck",
+        ),
+        ("Superintelligence Strategy (Dan Hendrycks) A talk.", ["Dan Hendrycks"], "Dan Hendrycks"),
+        (
+            "What Makes a Consumer AI Product Stick? | Josh Elman Josh joins.",
+            ["Josh Elman"],
+            "Josh Elman",
+        ),
+        (
+            "When AI Decides You're a Threat — Brad Carson In this episode",
+            ["Brad Carson"],
+            "Brad Carson",
+        ),
+        (
+            "WarTalk: GWOT at 25 with Wesley Morgan Wesley is a reporter",
+            ["Wesley Morgan"],
+            "Wesley Morgan",
+        ),
+        # the title shape alone is not a person: nothing else names "Applied Intuition"
+        ("Why Physical AI Is the Next Frontier | Applied Intuition", [], None),
+        ("Getting entrepreneurial in Korea (Summer School) The first lesson", [], None),
+    ],
+)
+def test_the_guest_the_title_ends_with_is_declared_when_the_metadata_states_them(
+    text: str, stated: list, expected: object
+) -> None:
+    # F2c (prod 2026-10-12): 17 nameless episodes carry their guest only at the END of the title.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    assert _title_subject_guest(text, stated, ["Tim Scarfe"], True) == expected
+    assert _title_subject_guest(text, stated, ["Tim Scarfe"], False) is None  # no host seated
+
+
+def test_a_title_tail_with_no_metadata_needs_the_host_to_greet_that_person() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "Code Complete with Steve McConnell Gergely talks to the author of the classic book."
+    greet = ["Steve, welcome to the podcast. It's so good to meet you in person."]
+    assert (
+        _title_subject_guest(text, [], ["Gergely Orosz"], True, host_texts=greet)
+        == "Steve McConnell"
+    )
+    assert (
+        _title_subject_guest(text, [], ["Gergely Orosz"], True, host_texts=["So, Steve wrote it."])
+        is None
+    )
+    assert _title_subject_guest(text, [], ["Gergely Orosz"], True) is None
+    # the host the title ends with is never the guest
+    lenny = "How I built a newsletter | Lenny Rachitsky Michelle interviews Lenny"
+    assert _title_subject_guest(lenny, ["Lenny Rachitsky"], ["Lenny Rachitsky"], True) is None
+
+
+def test_the_title_tail_is_not_read_without_a_host_seated_on_evidence() -> None:
+    # MLST (prod 2026-10-12): the opener was the guest; the tail name went onto the interviewer.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "VAEs Are Energy-Based Models? [Dr. Jeff Beck] Tim talks to Jeff."
+    assert (
+        _title_subject_guest(text, ["Dr. Jeff Beck"], ["Tim Scarfe"], True, tail_allowed=False)
+        is None
+    )
+
+
+def test_the_title_tail_is_not_the_presenter_under_a_short_given_name() -> None:
+    # NdB Sunday Show: "Chris Steyn" is the presenter, "with me, Christine".
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "The NdB Sunday Show: Pre-election instability — Chris Steyn and Jasmine Opperman talk"
+    assert (
+        _title_subject_guest(text, ["Chris Steyn"], [], True, carried_names=["Christine"]) is None
+    )
+    assert _title_subject_guest(text, ["Chris Steyn"], [], True) == "Chris Steyn"
+
+
+class _NoTrace:
+    def name(self, *a: object, **k: object) -> None:
+        pass
+
+
+def _declared(**kw: object) -> list:
+    from podcast_scraper.providers.ml.diarization.roster import _declare_the_title_guest
+
+    out: list = []
+    args = dict(
+        episode_text="Code Complete with Steve McConnell Gergely talks to the author.",
+        metadata_named=["Steve McConnell"],
+        known_hosts=["Gergely Orosz"],
+        host_voices=["H"],
+        llm_named=set(),
+        tr=_NoTrace(),
+        evidence_hosts=["H"],
+        talk_share={"H": 0.4, "G": 0.6},
+    )
+    args.update(kw)
+    _declare_the_title_guest(out, **args)  # type: ignore[arg-type]
+    return out
+
+
+def test_the_title_tail_needs_an_evidence_host_that_does_not_own_the_talk() -> None:
+    assert _declared() == ["Steve McConnell"]
+    # seated only by opening the episode (MLST): no evidence host
+    assert _declared(evidence_hosts=[]) == []
+    # the evidence host is the model's verdict alone
+    assert _declared(llm_named={"H"}) == []
+    # ...also beside a second seat held by position only: the model-named host is not evidence
+    assert _declared(host_voices=["H", "O"], llm_named={"H"}) == []
+    # an 84% host cluster holds the guest too (a16z "Josh Elman Joins")
+    assert _declared(talk_share={"H": 0.84, "G": 0.16}) == []
