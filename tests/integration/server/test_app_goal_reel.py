@@ -35,7 +35,11 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
     Re-pinned the same day: p02's and p07-a5eb's second clips played seconds of their first, and
     are gone (an episode never plays the same seconds, or the same claim, twice). Then p09-a4bbb
     rose: "Systems thinking and risk management are one discipline" became about risk management
-    too, and an insight about more topics scores higher (centrality)."""
+    too, and an insight about more topics scores higher (centrality).
+
+    2026-10-12, a short listen never plays an ad: p05-693e's clip ran on into "We'll be right back
+    after a quick word from our sponsors." and now ends at its point (108-114 s, not 120); a
+    clip's length is part of its score, so it plays later in the reel."""
     reel = goal_reel(ROOT, "topic:systems-thinking", minutes=15)
     assert [(c.episode_slug, c.moment.speaker) for c in reel] == [
         ("p02-8fdd7b7f79", "Priya Nair"),
@@ -43,9 +47,9 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
         ("p07-769d04686d", "Dr. Elena Fischer"),
         ("p07-a5eb82076a", "Dr. Elena Fischer"),
         ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
-        ("p05-693ecaa09e", "Scott Bessent"),
         ("p09-db2d39ef2e", "Dr. Elena Fischer"),
         ("p07-2aceab172c", "Skanda Amarnath"),
+        ("p05-693ecaa09e", "Scott Bessent"),
         ("p05-25cb576153", "Scott Bessent"),
     ]
     # Breadth first: every episode's first clip comes before any episode's second.
@@ -149,7 +153,9 @@ def test_the_route_reports_what_the_reel_actually_runs(tmp_path: Path) -> None:
     ).json()
     assert (body["subject_label"], body["subject_kind"]) == ("systems thinking", "topic")
     assert body["minutes"] == 15
-    assert body["total_seconds"] == 108.0  # the small fixture: far less than the budget
+    # The small fixture: far less than the budget. 102, not 108, since p05-693e's clip stops
+    # before the ad break it used to run into (2026-10-12).
+    assert body["total_seconds"] == 102.0
     first = body["clips"][0]
     assert first["episode"]["slug"] == "p02-8fdd7b7f79" and first["end_ms"] > first["start_ms"]
     assert client.get("/api/app/discover/reel", params={"subject": "person:x"}).status_code == 422

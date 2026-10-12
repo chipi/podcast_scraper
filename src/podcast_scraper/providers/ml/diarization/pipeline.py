@@ -351,38 +351,9 @@ def _ad_intervals(segments: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
 
     Returns ``[]`` when no ads are detected, which restores the previous (ad-blind) behaviour.
     """
-    from ....gi.ad_regions import excise_ad_regions
+    from ....gi.ad_regions import ad_time_intervals
 
-    spans: List[Tuple[int, int, Dict[str, Any]]] = []
-    parts: List[str] = []
-    cursor = 0
-    for seg in segments:
-        if not isinstance(seg, dict):
-            continue
-        text = str(seg.get("text", "") or "")
-        parts.append(text)
-        spans.append((cursor, cursor + len(text), seg))
-        cursor += len(text) + 1  # the space " ".join puts between segments
-
-    try:
-        _, _, meta = excise_ad_regions(" ".join(parts))
-    except Exception as exc:  # noqa: BLE001 — ad detection must never break diarization
-        logger.warning("Ad-region detection failed; diarizing without ad intervals: %s", exc)
-        return []
-
-    intervals: List[Tuple[float, float]] = []
-    for char_start, char_end in meta.excised_ranges:
-        covered = [
-            seg
-            for start, end, seg in spans
-            if not (end <= char_start or start >= char_end)  # overlaps the ad span
-        ]
-        if not covered:
-            continue
-        intervals.append(
-            (float(covered[0].get("start") or 0.0), float(covered[-1].get("end") or 0.0))
-        )
-    return intervals
+    return ad_time_intervals(segments)
 
 
 def _enriched_segments(aligned: List[Any], roster: Any) -> List[Dict[str, Any]]:

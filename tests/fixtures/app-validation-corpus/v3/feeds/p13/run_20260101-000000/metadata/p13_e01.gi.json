@@ -2,7 +2,7 @@
   "edges": [
     {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:3206e1eb1af18ccd",
+      "to": "insight:53d9680cca072273",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,18 +36,18 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:a8f4238b8f9e146c",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "quote:be014c3cb0b233e8",
       "to": "person:stefan-brandt",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:eb01c6c2ba6da699",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:3206e1eb1af18ccd",
-      "to": "quote:eb01c6c2ba6da699",
+      "from": "insight:53d9680cca072273",
+      "to": "quote:a8f4238b8f9e146c",
       "type": "SUPPORTED_BY"
     },
     {
@@ -153,20 +153,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:3206e1eb1af18ccd",
-      "properties": {
-        "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Wir sind gleich zur\u00fcck, nach einer kurzen Werbepause.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:be014c3cb0b233e8",
       "properties": {
         "char_end": 1059,
@@ -181,15 +167,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:eb01c6c2ba6da699",
+      "id": "insight:53d9680cca072273",
       "properties": {
-        "char_end": 2818,
-        "char_start": 2765,
+        "episode_id": "ep-c0ab3bfb1ebdab6d",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Wechseln wir das Thema \u2014 ich m\u00f6chte den letzten Abschnitt der Landpflege widmen.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:a8f4238b8f9e146c",
+      "properties": {
+        "char_end": 5578,
+        "char_start": 5498,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:katrin-vogel",
-        "text": "Wir sind gleich zur\u00fcck, nach einer kurzen Werbepause.",
-        "timestamp_end_ms": 120000,
-        "timestamp_start_ms": 114000,
+        "text": "Wechseln wir das Thema \u2014 ich m\u00f6chte den letzten Abschnitt der Landpflege widmen.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
         "transcript_ref": "transcripts/p13_e01.txt"
       },
       "type": "Quote"

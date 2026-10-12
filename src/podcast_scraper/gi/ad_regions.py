@@ -437,6 +437,43 @@ def excise_ad_regions(
     return cleaned_text, cleaned_segments, meta
 
 
+def ad_time_intervals(segments: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
+    """Ad regions of an episode as ``(start_s, end_s)`` intervals over its timed segments.
+
+    The detector works in *character* space over the transcript; diarization and the player work in
+    *time*. This runs :func:`excise_ad_regions` over the segments' text, joined with one space, and
+    maps every excised range back to the first and last segment it overlaps. ``[]`` when nothing is
+    detected. Never raises: a caller that loses its ads keeps working, just ad-blind.
+    """
+    spans: List[Tuple[int, int, Dict[str, Any]]] = []
+    parts: List[str] = []
+    cursor = 0
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        text = str(seg.get("text", "") or "")
+        parts.append(text)
+        spans.append((cursor, cursor + len(text), seg))
+        cursor += len(text) + 1  # the space " ".join puts between segments
+    try:
+        _, _, meta = excise_ad_regions(" ".join(parts))
+    except Exception as exc:  # noqa: BLE001 — ad detection must never break its caller
+        logger.warning("Ad-region detection failed; continuing without ad intervals: %s", exc)
+        return []
+    intervals: List[Tuple[float, float]] = []
+    for char_start, char_end in meta.excised_ranges:
+        covered = [
+            seg
+            for start, end, seg in spans
+            if not (end <= char_start or start >= char_end)  # overlaps the ad span
+        ]
+        if covered:
+            intervals.append(
+                (float(covered[0].get("start") or 0.0), float(covered[-1].get("end") or 0.0))
+            )
+    return intervals
+
+
 def _shift_for(pos: int, ranges: List[Tuple[int, int]]) -> int:
     """Total chars excised strictly before ``pos`` (how far ``pos`` moves left)."""
     return sum(hi - lo for lo, hi in ranges if hi <= pos)

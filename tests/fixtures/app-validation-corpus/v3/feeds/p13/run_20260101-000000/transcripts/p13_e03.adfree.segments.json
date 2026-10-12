@@ -1,7 +1,7 @@
 [
 {
-"start": 15.84,
-"end": 19.74,
+"start": 13.89,
+"end": 16.89,
 "speaker_label": "Katrin Vogel",
 "text": "Notion replaces the dozen tools your team only half uses.",
 "char_start": 14,
@@ -10,8 +10,8 @@
 "sent_id": "t0002.s02"
 },
 {
-"start": 19.8,
-"end": 21.6,
+"start": 16.89,
+"end": 18.0,
 "speaker_label": "Katrin Vogel",
 "text": "Try notion.com today.",
 "char_start": 72,
@@ -20,8 +20,8 @@
 "sent_id": "t0002.s03"
 },
 {
-"start": 21.6,
-"end": 29.52,
+"start": 18.0,
+"end": 24.0,
 "speaker_label": "Katrin Vogel",
 "text": "Before we get started, Lena Hofmann was on the last episode and said that tire pressure is more important than suspension adjustments.",
 "char_start": 94,
@@ -30,8 +30,8 @@
 "sent_id": "t0002.s04"
 },
 {
-"start": 29.52,
-"end": 30.12,
+"start": 24.0,
+"end": 25.24,
 "speaker_label": "Jonas Richter",
 "text": "Yes, exactly.",
 "char_start": 244,
@@ -40,8 +40,8 @@
 "sent_id": "t0003.s01"
 },
 {
-"start": 30.18,
-"end": 33.18,
+"start": 25.24,
+"end": 30.0,
 "speaker_label": "Jonas Richter",
 "text": "And that connects to what we are discussing today.",
 "char_start": 258,
@@ -50,8 +50,8 @@
 "sent_id": "t0003.s02"
 },
 {
-"start": 33.18,
-"end": 38.58,
+"start": 30.0,
+"end": 36.0,
 "speaker_label": "Katrin Vogel",
 "text": "I'd like to point something out \u2013 Lena Hofmann mentioned the same dynamic a few episodes ago.",
 "char_start": 323,
@@ -60,8 +60,8 @@
 "sent_id": "t0004.s01"
 },
 {
-"start": 38.58,
-"end": 44.04,
+"start": 36.0,
+"end": 42.0,
 "speaker_label": "Katrin Vogel",
 "text": "I'd like to point something out \u2013 Stefan Brandt mentioned the same dynamic a few episodes ago.",
 "char_start": 417,
@@ -70,8 +70,8 @@
 "sent_id": "t0004.s02"
 },
 {
-"start": 210.0,
-"end": 211.44,
+"start": 42.0,
+"end": 43.77,
 "speaker_label": "Katrin Vogel",
 "text": "I want to delve deeper into that.",
 "char_start": 512,
@@ -80,8 +80,8 @@
 "sent_id": "t0004.s03"
 },
 {
-"start": 211.5,
-"end": 215.16,
+"start": 43.77,
+"end": 48.0,
 "speaker_label": "Katrin Vogel",
 "text": "What did you believe about it previously, and what have you revised since then?",
 "char_start": 546,
@@ -90,8 +90,8 @@
 "sent_id": "t0004.s04"
 },
 {
-"start": 215.16,
-"end": 224.52,
+"start": 48.0,
+"end": 51.05,
 "speaker_label": "Jonas Richter",
 "text": "In most cases, the mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening them to the specified torque.",
 "char_start": 641,
@@ -100,8 +100,8 @@
 "sent_id": "t0005.s01"
 },
 {
-"start": 224.58,
-"end": 228.12,
+"start": 51.05,
+"end": 52.29,
 "speaker_label": "Jonas Richter",
 "text": "We've seen this work with teams that use Spoke & Wrench.",
 "char_start": 781,
@@ -110,8 +110,8 @@
 "sent_id": "t0005.s02"
 },
 {
-"start": 228.18,
-"end": 232.32,
+"start": 52.29,
+"end": 54.0,
 "speaker_label": "Jonas Richter",
 "text": "The framing is important because it tells you what compromises you are making.",
 "char_start": 838,
@@ -120,8 +120,8 @@
 "sent_id": "t0005.s03"
 },
 {
-"start": 232.32,
-"end": 234.18,
+"start": 54.0,
+"end": 56.02,
 "speaker_label": "Katrin Vogel",
 "text": "This is a useful framework.",
 "char_start": 931,
@@ -130,8 +130,8 @@
 "sent_id": "t0006.s01"
 },
 {
-"start": 234.24,
-"end": 237.3,
+"start": 56.02,
+"end": 60.0,
 "speaker_label": "Katrin Vogel",
 "text": "Where do maintenance and the drive mechanism overlap?",
 "char_start": 959,
@@ -140,8 +140,8 @@
 "sent_id": "t0006.s02"
 },
 {
-"start": 237.3,
-"end": 238.26,
+"start": 60.0,
+"end": 60.73,
 "speaker_label": "Jonas Richter",
 "text": "That's my perspective.",
 "char_start": 1028,
@@ -150,8 +150,8 @@
 "sent_id": "t0007.s01"
 },
 {
-"start": 238.32,
-"end": 244.44,
+"start": 60.73,
+"end": 63.82,
 "speaker_label": "Jonas Richter",
 "text": "A bike should feel quiet and predictable, so that your attention remains focused on the trail.",
 "char_start": 1051,
@@ -160,8 +160,8 @@
 "sent_id": "t0007.s02"
 },
 {
-"start": 244.5,
-"end": 248.76,
+"start": 63.82,
+"end": 66.0,
 "speaker_label": "Jonas Richter",
 "text": "And the second-order effect is the part that most people overlook.",
 "char_start": 1146,
@@ -170,8 +170,8 @@
 "sent_id": "t0007.s03"
 },
 {
-"start": 248.76,
-"end": 250.2,
+"start": 66.0,
+"end": 67.82,
 "speaker_label": "Katrin Vogel",
 "text": "I want to delve deeper into that.",
 "char_start": 1227,
@@ -180,8 +180,8 @@
 "sent_id": "t0008.s01"
 },
 {
-"start": 250.26,
-"end": 255.24,
+"start": 67.82,
+"end": 72.0,
 "speaker_label": "Katrin Vogel",
 "text": "What is the structural perspective that most listeners don't have access to?",
 "char_start": 1261,
@@ -190,8 +190,8 @@
 "sent_id": "t0008.s02"
 },
 {
-"start": 255.24,
-"end": 255.54,
+"start": 72.0,
+"end": 72.27,
 "speaker_label": "Jonas Richter",
 "text": "Certainly.",
 "char_start": 1353,
@@ -200,8 +200,8 @@
 "sent_id": "t0009.s01"
 },
 {
-"start": 255.6,
-"end": 260.7,
+"start": 72.27,
+"end": 74.49,
 "speaker_label": "Jonas Richter",
 "text": "Chain wear is the best early indicator of when you need to replace your cassette.",
 "char_start": 1364,
@@ -210,8 +210,8 @@
 "sent_id": "t0009.s02"
 },
 {
-"start": 260.76,
-"end": 264.3,
+"start": 74.49,
+"end": 75.89,
 "speaker_label": "Jonas Richter",
 "text": "We've seen this with teams that use Spoke & Wrench.",
 "char_start": 1446,
@@ -220,8 +220,8 @@
 "sent_id": "t0009.s03"
 },
 {
-"start": 264.36,
-"end": 268.5,
+"start": 75.89,
+"end": 78.0,
 "speaker_label": "Jonas Richter",
 "text": "The framing is important because it tells you what compromises you're making.",
 "char_start": 1498,
@@ -230,8 +230,8 @@
 "sent_id": "t0009.s04"
 },
 {
-"start": 268.5,
-"end": 270.0,
+"start": 78.0,
+"end": 84.0,
 "speaker_label": "Katrin Vogel",
 "text": "Tell me more about it.",
 "char_start": 1590,
@@ -240,8 +240,8 @@
 "sent_id": "t0010.s01"
 },
 {
-"start": 270.0,
-"end": 274.02,
+"start": 84.0,
+"end": 87.47,
 "speaker_label": "Jonas Richter",
 "text": "Spoke & Wrench is one of the platforms where this becomes clearly visible.",
 "char_start": 1628,
@@ -250,8 +250,8 @@
 "sent_id": "t0011.s01"
 },
 {
-"start": 274.08,
-"end": 277.8,
+"start": 87.47,
+"end": 90.0,
 "speaker_label": "Jonas Richter",
 "text": "I have observed this pattern in three different teams.",
 "char_start": 1703,
@@ -260,8 +260,8 @@
 "sent_id": "t0011.s02"
 },
 {
-"start": 277.8,
-"end": 279.96,
+"start": 90.0,
+"end": 92.8,
 "speaker_label": "Katrin Vogel",
 "text": "Tell me how you made your decision.",
 "char_start": 1772,
@@ -270,8 +270,8 @@
 "sent_id": "t0012.s01"
 },
 {
-"start": 280.02,
-"end": 282.06,
+"start": 92.8,
+"end": 96.0,
 "speaker_label": "Katrin Vogel",
 "text": "How does RockShox fit into this picture?",
 "char_start": 1808,
@@ -280,8 +280,8 @@
 "sent_id": "t0012.s02"
 },
 {
-"start": 282.06,
-"end": 282.36,
+"start": 96.0,
+"end": 96.19,
 "speaker_label": "Jonas Richter",
 "text": "Sure.",
 "char_start": 1864,
@@ -290,8 +290,8 @@
 "sent_id": "t0013.s01"
 },
 {
-"start": 282.42,
-"end": 286.98,
+"start": 96.19,
+"end": 99.33,
 "speaker_label": "Jonas Richter",
 "text": "Service intervals for the suspension are a decision made by the risk management team.",
 "char_start": 1870,
@@ -300,8 +300,8 @@
 "sent_id": "t0013.s02"
 },
 {
-"start": 287.04,
-"end": 291.36,
+"start": 99.33,
+"end": 102.0,
 "speaker_label": "Jonas Richter",
 "text": "If you ignore that, you'll have to rebuild it from scratch a year later.",
 "char_start": 1956,
@@ -310,8 +310,8 @@
 "sent_id": "t0013.s03"
 },
 {
-"start": 291.36,
-"end": 292.14,
+"start": 102.0,
+"end": 102.37,
 "speaker_label": "Katrin Vogel",
 "text": "Guess what?",
 "char_start": 2043,
@@ -320,8 +320,8 @@
 "sent_id": "t0014.s01"
 },
 {
-"start": 292.2,
-"end": 296.4,
+"start": 102.37,
+"end": 104.57,
 "speaker_label": "Katrin Vogel",
 "text": "I'll just say it: Linear manages my entire engineering operations.",
 "char_start": 2055,
@@ -330,8 +330,8 @@
 "sent_id": "t0014.s02"
 },
 {
-"start": 296.46,
-"end": 301.98,
+"start": 104.57,
+"end": 106.97,
 "speaker_label": "Katrin Vogel",
 "text": "Linear is the issue tracker built for speed \u2013 designed for keyboard use.",
 "char_start": 2122,
@@ -340,8 +340,8 @@
 "sent_id": "t0014.s03"
 },
 {
-"start": 302.04,
-"end": 303.96,
+"start": 106.97,
+"end": 108.0,
 "speaker_label": "Katrin Vogel",
 "text": "Use the link in the show notes.",
 "char_start": 2195,
@@ -350,8 +350,8 @@
 "sent_id": "t0014.s04"
 },
 {
-"start": 840.0,
-"end": 841.86,
+"start": 126.0,
+"end": 128.03,
 "speaker_label": "Katrin Vogel",
 "text": "That's a helpful framework.",
 "char_start": 2227,
@@ -360,8 +360,8 @@
 "sent_id": "t0016.s02"
 },
 {
-"start": 841.92,
-"end": 844.98,
+"start": 128.03,
+"end": 132.0,
 "speaker_label": "Katrin Vogel",
 "text": "Where do maintenance and the drive mechanism overlap?",
 "char_start": 2255,
@@ -370,8 +370,8 @@
 "sent_id": "t0016.s03"
 },
 {
-"start": 844.98,
-"end": 845.94,
+"start": 132.0,
+"end": 132.55,
 "speaker_label": "Jonas Richter",
 "text": "That's my understanding.",
 "char_start": 2324,
@@ -380,8 +380,8 @@
 "sent_id": "t0017.s01"
 },
 {
-"start": 846.0,
-"end": 853.92,
+"start": 132.55,
+"end": 135.4,
 "speaker_label": "Jonas Richter",
 "text": "Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening them to the specified torque.",
 "char_start": 2349,
@@ -390,8 +390,8 @@
 "sent_id": "t0017.s02"
 },
 {
-"start": 853.98,
-"end": 857.1,
+"start": 135.4,
+"end": 136.81,
 "speaker_label": "Jonas Richter",
 "text": "We've seen this happen with teams that use Shimano components.",
 "char_start": 2475,
@@ -400,8 +400,8 @@
 "sent_id": "t0017.s03"
 },
 {
-"start": 857.16,
-"end": 860.88,
+"start": 136.81,
+"end": 138.0,
 "speaker_label": "Jonas Richter",
 "text": "I've observed this pattern in three different teams.",
 "char_start": 2538,
@@ -410,8 +410,8 @@
 "sent_id": "t0017.s04"
 },
 {
-"start": 860.88,
-"end": 862.74,
+"start": 138.0,
+"end": 139.36,
 "speaker_label": "Katrin Vogel",
 "text": "Give me a specific example.",
 "char_start": 2605,
@@ -420,8 +420,8 @@
 "sent_id": "t0018.s01"
 },
 {
-"start": 862.8,
-"end": 866.46,
+"start": 139.36,
+"end": 144.0,
 "speaker_label": "Katrin Vogel",
 "text": "What did you used to believe about that, and what have you revised your views on since then?",
 "char_start": 2633,
@@ -430,8 +430,8 @@
 "sent_id": "t0018.s02"
 },
 {
-"start": 866.46,
-"end": 873.24,
+"start": 144.0,
+"end": 147.69,
 "speaker_label": "Jonas Richter",
 "text": "Yes, so \u2013 a bike should feel quiet and predictable, so that your attention remains focused on the trail.",
 "char_start": 2741,
@@ -440,8 +440,8 @@
 "sent_id": "t0019.s01"
 },
 {
-"start": 873.3,
-"end": 878.22,
+"start": 147.69,
+"end": 150.0,
 "speaker_label": "Jonas Richter",
 "text": "Once you understand that, the other decisions will become easier.",
 "char_start": 2846,
@@ -450,8 +450,8 @@
 "sent_id": "t0019.s02"
 },
 {
-"start": 878.22,
-"end": 879.24,
+"start": 150.0,
+"end": 150.98,
 "speaker_label": "Katrin Vogel",
 "text": "Let's start there.",
 "char_start": 2926,
@@ -460,8 +460,8 @@
 "sent_id": "t0020.s01"
 },
 {
-"start": 879.3,
-"end": 882.96,
+"start": 150.98,
+"end": 156.0,
 "speaker_label": "Katrin Vogel",
 "text": "What did you used to believe about that, and what have you revised your views on since then?",
 "char_start": 2945,
@@ -470,8 +470,8 @@
 "sent_id": "t0020.s02"
 },
 {
-"start": 882.96,
-"end": 883.92,
+"start": 156.0,
+"end": 156.61,
 "speaker_label": "Jonas Richter",
 "text": "That's my perspective.",
 "char_start": 3053,
@@ -480,8 +480,8 @@
 "sent_id": "t0021.s01"
 },
 {
-"start": 883.98,
-"end": 889.08,
+"start": 156.61,
+"end": 158.83,
 "speaker_label": "Jonas Richter",
 "text": "Chain wear is the best early indicator of when you need to replace your cassette.",
 "char_start": 3076,
@@ -490,8 +490,8 @@
 "sent_id": "t0021.s02"
 },
 {
-"start": 889.14,
-"end": 892.26,
+"start": 158.83,
+"end": 160.35,
 "speaker_label": "Jonas Richter",
 "text": "We've seen this with teams that use Shimano components.",
 "char_start": 3158,
@@ -500,8 +500,8 @@
 "sent_id": "t0021.s03"
 },
 {
-"start": 892.32,
-"end": 897.24,
+"start": 160.35,
+"end": 162.0,
 "speaker_label": "Jonas Richter",
 "text": "Once you understand that, the other decisions become easier.",
 "char_start": 3214,
@@ -510,8 +510,8 @@
 "sent_id": "t0021.s04"
 },
 {
-"start": 897.24,
-"end": 898.74,
+"start": 162.0,
+"end": 168.0,
 "speaker_label": "Katrin Vogel",
 "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
 "char_start": 3289,
@@ -520,8 +520,8 @@
 "sent_id": "t0022.s01"
 },
 {
-"start": 898.74,
-"end": 908.46,
+"start": 168.0,
+"end": 174.0,
 "speaker_label": "Jonas Richter",
 "text": "And when teams adopt the Spoke & Wrench process, the compromises become apparent. If you ignore these compromises, you'll end up having to rebuild everything from scratch a year later.",
 "char_start": 3376,
@@ -530,8 +530,8 @@
 "sent_id": "t0023.s01"
 },
 {
-"start": 908.46,
-"end": 909.48,
+"start": 174.0,
+"end": 175.14,
 "speaker_label": "Katrin Vogel",
 "text": "Let's start there.",
 "char_start": 3575,
@@ -540,8 +540,8 @@
 "sent_id": "t0024.s01"
 },
 {
-"start": 909.54,
-"end": 914.34,
+"start": 175.14,
+"end": 180.0,
 "speaker_label": "Katrin Vogel",
 "text": "What is the operational perspective that most listeners don't have access to?",
 "char_start": 3594,
@@ -550,8 +550,8 @@
 "sent_id": "t0024.s02"
 },
 {
-"start": 914.34,
-"end": 915.3,
+"start": 180.0,
+"end": 180.74,
 "speaker_label": "Jonas Richter",
 "text": "That's how I see it.",
 "char_start": 3687,
@@ -560,8 +560,8 @@
 "sent_id": "t0025.s01"
 },
 {
-"start": 915.36,
-"end": 919.92,
+"start": 180.74,
+"end": 184.01,
 "speaker_label": "Jonas Richter",
 "text": "The service intervals for the suspension are a decision made by the risk management team.",
 "char_start": 3708,
@@ -570,8 +570,8 @@
 "sent_id": "t0025.s02"
 },
 {
-"start": 919.98,
-"end": 923.7,
+"start": 184.01,
+"end": 186.0,
 "speaker_label": "Jonas Richter",
 "text": "I have observed this pattern in three different teams.",
 "char_start": 3798,
@@ -580,8 +580,8 @@
 "sent_id": "t0025.s03"
 },
 {
-"start": 1320.0,
-"end": 1325.04,
+"start": 186.0,
+"end": 192.0,
 "speaker_label": "Katrin Vogel",
 "text": "Let's change the subject \u2013 I want to dedicate the final section to risk management.",
 "char_start": 3867,
@@ -590,8 +590,8 @@
 "sent_id": "t0026.s01"
 },
 {
-"start": 1325.04,
-"end": 1332.42,
+"start": 192.0,
+"end": 198.0,
 "speaker_label": "Jonas Richter",
 "text": "That's where the conversation becomes interesting, because the compromises regarding risk management permeate everything we've discussed.",
 "char_start": 3966,
@@ -600,8 +600,8 @@
 "sent_id": "t0027.s01"
 },
 {
-"start": 1332.42,
-"end": 1334.28,
+"start": 198.0,
+"end": 199.86,
 "speaker_label": "Katrin Vogel",
 "text": "Give me a specific example.",
 "char_start": 4118,
@@ -610,8 +610,8 @@
 "sent_id": "t0028.s01"
 },
 {
-"start": 1334.34,
-"end": 1338.12,
+"start": 199.86,
+"end": 204.0,
 "speaker_label": "Katrin Vogel",
 "text": "What is the most underestimated part of the drive mechanism?",
 "char_start": 4146,
@@ -620,8 +620,8 @@
 "sent_id": "t0028.s02"
 },
 {
-"start": 1338.12,
-"end": 1338.42,
+"start": 204.0,
+"end": 204.24,
 "speaker_label": "Jonas Richter",
 "text": "Certainly.",
 "char_start": 4222,
@@ -630,8 +630,8 @@
 "sent_id": "t0029.s01"
 },
 {
-"start": 1338.48,
-"end": 1346.4,
+"start": 204.24,
+"end": 207.31,
 "speaker_label": "Jonas Richter",
 "text": "Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening them to the specified torque.",
 "char_start": 4233,
@@ -640,8 +640,8 @@
 "sent_id": "t0029.s02"
 },
 {
-"start": 1346.46,
-"end": 1350.0,
+"start": 207.31,
+"end": 208.73,
 "speaker_label": "Jonas Richter",
 "text": "We've seen this happen with teams that use Spoke & Wrench.",
 "char_start": 4359,
@@ -650,8 +650,8 @@
 "sent_id": "t0029.s03"
 },
 {
-"start": 1350.06,
-"end": 1353.78,
+"start": 208.73,
+"end": 210.0,
 "speaker_label": "Jonas Richter",
 "text": "I've observed this pattern in three different teams.",
 "char_start": 4418,
@@ -660,8 +660,8 @@
 "sent_id": "t0029.s04"
 },
 {
-"start": 1353.78,
-"end": 1355.64,
+"start": 210.0,
+"end": 211.6,
 "speaker_label": "Katrin Vogel",
 "text": "This is a useful framework.",
 "char_start": 4485,
@@ -670,8 +670,8 @@
 "sent_id": "t0030.s01"
 },
 {
-"start": 1355.7,
-"end": 1360.44,
+"start": 211.6,
+"end": 216.0,
 "speaker_label": "Katrin Vogel",
 "text": "What is the opposing perspective that most listeners are unable to access?",
 "char_start": 4513,
@@ -680,8 +680,8 @@
 "sent_id": "t0030.s02"
 },
 {
-"start": 1360.44,
-"end": 1368.0,
+"start": 216.0,
+"end": 219.49,
 "speaker_label": "Jonas Richter",
 "text": "Ultimately, a bike should feel quiet and predictable, so that your attention remains focused on the trail.",
 "char_start": 4603,
@@ -690,8 +690,8 @@
 "sent_id": "t0031.s01"
 },
 {
-"start": 1368.06,
-"end": 1372.2,
+"start": 219.49,
+"end": 222.0,
 "speaker_label": "Jonas Richter",
 "text": "The frame is important because it tells you what compromises you are making.",
 "char_start": 4710,
@@ -700,8 +700,8 @@
 "sent_id": "t0031.s02"
 },
 {
-"start": 1372.2,
-"end": 1373.94,
+"start": 222.0,
+"end": 224.36,
 "speaker_label": "Katrin Vogel",
 "text": "What does the error scenario look like?",
 "char_start": 4801,
@@ -710,8 +710,8 @@
 "sent_id": "t0032.s01"
 },
 {
-"start": 1374.0,
-"end": 1377.78,
+"start": 224.36,
+"end": 228.0,
 "speaker_label": "Katrin Vogel",
 "text": "What is the most underestimated part of the drive mechanism?",
 "char_start": 4841,
@@ -720,8 +720,8 @@
 "sent_id": "t0032.s02"
 },
 {
-"start": 1377.78,
-"end": 1383.84,
+"start": 228.0,
+"end": 230.82,
 "speaker_label": "Jonas Richter",
 "text": "To be honest, chain wear is the best early indicator of when you need to replace your cassette.",
 "char_start": 4917,
@@ -730,8 +730,8 @@
 "sent_id": "t0033.s01"
 },
 {
-"start": 1383.9,
-"end": 1387.02,
+"start": 230.82,
+"end": 232.46,
 "speaker_label": "Jonas Richter",
 "text": "We've seen this with teams that use Shimano components.",
 "char_start": 5013,
@@ -740,8 +740,8 @@
 "sent_id": "t0033.s02"
 },
 {
-"start": 1387.08,
-"end": 1390.8,
+"start": 232.46,
+"end": 234.0,
 "speaker_label": "Jonas Richter",
 "text": "I've observed this pattern in three different teams.",
 "char_start": 5069,
@@ -750,8 +750,8 @@
 "sent_id": "t0033.s03"
 },
 {
-"start": 1390.8,
-"end": 1392.3,
+"start": 234.0,
+"end": 240.0,
 "speaker_label": "Katrin Vogel",
 "text": "Where does it break down?",
 "char_start": 5136,
@@ -760,8 +760,8 @@
 "sent_id": "t0034.s01"
 },
 {
-"start": 1392.3,
-"end": 1401.0,
+"start": 240.0,
+"end": 246.0,
 "speaker_label": "Jonas Richter",
 "text": "And when teams adopt this process from Shimano, the compromise becomes apparent \u2013 I've observed this pattern in three different teams.",
 "char_start": 5177,
@@ -770,8 +770,8 @@
 "sent_id": "t0035.s01"
 },
 {
-"start": 1401.0,
-"end": 1404.12,
+"start": 246.0,
+"end": 248.94,
 "speaker_label": "Katrin Vogel",
 "text": "What is the heuristic that you always fall back on?",
 "char_start": 5326,
@@ -780,8 +780,8 @@
 "sent_id": "t0036.s01"
 },
 {
-"start": 1404.18,
-"end": 1407.24,
+"start": 248.94,
+"end": 252.0,
 "speaker_label": "Katrin Vogel",
 "text": "Where do maintenance and the drive mechanism overlap?",
 "char_start": 5378,
@@ -790,8 +790,8 @@
 "sent_id": "t0036.s02"
 },
 {
-"start": 1407.24,
-"end": 1412.76,
+"start": 252.0,
+"end": 255.6,
 "speaker_label": "Jonas Richter",
 "text": "To be honest, service intervals for the suspension are a decision made by the risk management team.",
 "char_start": 5447,
@@ -800,8 +800,8 @@
 "sent_id": "t0037.s01"
 },
 {
-"start": 1412.82,
-"end": 1417.08,
+"start": 255.6,
+"end": 258.0,
 "speaker_label": "Jonas Richter",
 "text": "And the second-order effect is the part that most people overlook.",
 "char_start": 5547,
@@ -810,8 +810,8 @@
 "sent_id": "t0037.s02"
 },
 {
-"start": 1680.0,
-"end": 1684.98,
+"start": 258.0,
+"end": 264.0,
 "speaker_label": "Katrin Vogel",
 "text": "Before we wrap up, is there one thing that listeners can try out this week?",
 "char_start": 5628,
@@ -820,8 +820,8 @@
 "sent_id": "t0038.s01"
 },
 {
-"start": 1684.98,
-"end": 1689.78,
+"start": 264.0,
+"end": 268.53,
 "speaker_label": "Jonas Richter",
 "text": "Choose one of the ideas we discussed and implement it for two weeks.",
 "char_start": 5719,
@@ -830,8 +830,8 @@
 "sent_id": "t0039.s01"
 },
 {
-"start": 1689.84,
-"end": 1691.22,
+"start": 268.53,
+"end": 270.0,
 "speaker_label": "Jonas Richter",
 "text": "The rest is iteration.",
 "char_start": 5788,
@@ -840,8 +840,8 @@
 "sent_id": "t0039.s02"
 },
 {
-"start": 1691.22,
-"end": 1695.3,
+"start": 270.0,
+"end": 272.87,
 "speaker_label": "Katrin Vogel",
 "text": "Before we close, I'd like to thank our friends at Linear once again.",
 "char_start": 5825,
@@ -850,8 +850,8 @@
 "sent_id": "t0040.s01"
 },
 {
-"start": 1695.36,
-"end": 1700.88,
+"start": 272.87,
+"end": 276.0,
 "speaker_label": "Katrin Vogel",
 "text": "Linear is the issue tracker built for speed \u2013 designed for keyboard users.",
 "char_start": 5894,
@@ -860,8 +860,8 @@
 "sent_id": "t0040.s02"
 },
 {
-"start": 1700.88,
-"end": 1703.16,
+"start": 276.0,
+"end": 282.0,
 "speaker_label": "Katrin Vogel",
 "text": "Jonas Richter, thank you for the conversation.",
 "char_start": 5969,
@@ -870,8 +870,8 @@
 "sent_id": "t0040.s03"
 },
 {
-"start": 1703.16,
-"end": 1704.66,
+"start": 282.0,
+"end": 288.0,
 "speaker_label": "Jonas Richter",
 "text": "Thank you, Katrin.",
 "char_start": 6031,
@@ -880,8 +880,8 @@
 "sent_id": "t0041.s01"
 },
 {
-"start": 1704.66,
-"end": 1707.78,
+"start": 288.0,
+"end": 292.65,
 "speaker_label": "Katrin Vogel",
 "text": "That's all for today's episode of \"Path Conversations.\"",
 "char_start": 6064,
@@ -890,8 +890,8 @@
 "sent_id": "t0042.s01"
 },
 {
-"start": 1707.84,
-"end": 1709.1,
+"start": 292.65,
+"end": 294.0,
 "speaker_label": "Katrin Vogel",
 "text": "Until next time.",
 "char_start": 6120,

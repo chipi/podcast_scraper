@@ -292,6 +292,119 @@ def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segmen
     return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
 
 
+def _segment_dicts(path: Path) -> List[Dict[str, Any]]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    segs = raw.get("segments", raw) if isinstance(raw, dict) else raw
+    return [s for s in segs if isinstance(s, dict)] if isinstance(segs, list) else []
+
+
+def _merge_spans(spans: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    out: List[Tuple[int, int]] = []
+    for lo, hi in sorted(spans):
+        if out and lo <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], hi))
+        elif hi > lo:
+            out.append((lo, hi))
+    return out
+
+
+def _detected_ad_reads(raw: List[Dict[str, Any]]) -> List[Tuple[int, int]]:
+    """The ad READS inside the detector's ranges, not the ranges themselves.
+
+    A detected range is the stretch the pipeline would cut, and it can sweep in content: in a
+    fixture episode with a pre-roll at 12 s and a break at 42 s it ran 0-54 s, over two real
+    points. A clip only needs to never play an ad, so here a segment is an ad when it lies in a
+    range AND its own text reads as one, in any language the ad patterns cover
+    (``gi.filters.AD_PATTERNS_BY_LANGUAGE``). Reads one line apart in the
+    same range join up, so a sponsor read split across three segments is one span."""
+    from podcast_scraper.gi.ad_regions import ad_time_intervals
+    from podcast_scraper.gi.filters import AD_PATTERNS_BY_LANGUAGE
+
+    ranges = ad_time_intervals(raw)
+    if not ranges:
+        return []
+    patterns = [p for group in AD_PATTERNS_BY_LANGUAGE.values() for p in group]
+
+    def range_of(seg: Dict[str, Any]) -> Optional[int]:
+        mid = (float(seg.get("start") or 0.0) + float(seg.get("end") or 0.0)) / 2.0
+        return next((i for i, (a, b) in enumerate(ranges) if a <= mid <= b), None)
+
+    reads: List[Tuple[int, int]] = []  # (index in raw, which range)
+    for i, seg in enumerate(raw):
+        r = range_of(seg)
+        if r is not None and any(p.search(str(seg.get("text") or "")) for p in patterns):
+            reads.append((i, r))
+    spans: List[Tuple[int, int]] = []
+    prev: Optional[Tuple[int, int]] = None
+    for i, r in reads:
+        lo = int(float(raw[i].get("start") or 0.0) * 1000)
+        hi = int(float(raw[i].get("end") or 0.0) * 1000)
+        if prev is not None and prev[1] == r and i - prev[0] <= 2:
+            spans[-1] = (spans[-1][0], hi)
+        else:
+            spans.append((lo, hi))
+        prev = (i, r)
+    return spans
+
+
+def ad_spans_from_segments(
+    raw: List[Dict[str, Any]], adfree: Optional[List[Dict[str, Any]]]
+) -> List[Tuple[int, int]]:
+    """Ad stretches of the raw timeline as ``(start_ms, end_ms)``, merged and sorted.
+
+    From what is already on disk, in this order of evidence: with the ad-free segments the
+    pipeline wrote, the raw segments it left out (the ad-free file keeps raw start times, so a
+    missing start is a cut) — the very cut every insight was extracted after. Without that file
+    (or with an empty one), the ad reads the same detector finds (:func:`_detected_ad_reads`).
+    Either way, any segment diarization voiced as ``commercial``.
+    """
+    spans: List[Tuple[int, int]] = []
+    if adfree:
+        kept = {round(float(s.get("start") or 0.0), 2) for s in adfree}
+        spans += [
+            (int(float(s.get("start") or 0.0) * 1000), int(float(s.get("end") or 0.0) * 1000))
+            for s in raw
+            if round(float(s.get("start") or 0.0), 2) not in kept
+        ]
+    else:
+        spans += _detected_ad_reads(raw)
+    spans += [
+        (int(float(s.get("start") or 0.0) * 1000), int(float(s.get("end") or 0.0) * 1000))
+        for s in raw
+        if s.get("voice_type") == "commercial"
+    ]
+    return _merge_spans(spans)
+
+
+def episode_ad_spans(root: Path, row: CatalogEpisodeRow) -> List[Tuple[int, int]]:
+    """:func:`ad_spans_from_segments` for an episode's raw canonical segments, cached until the
+    file changes. ``[]`` when the episode has no raw segments (an ad-free file alone has no ads to
+    find, and its timeline is the one the clips would then use)."""
+    from podcast_scraper import perf_cache
+
+    safe = episode_segments_relpath(root, row)
+    if safe is None or safe.endswith(".adfree.segments.json"):
+        return []
+    path = root / safe
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return []
+
+    def build() -> List[Tuple[int, int]]:
+        adfree_path = path.with_name(path.name[: -len(".segments.json")] + ".adfree.segments.json")
+        adfree = _segment_dicts(adfree_path) if adfree_path.is_file() else None
+        return ad_spans_from_segments(_segment_dicts(path), adfree)
+
+    spans: List[Tuple[int, int]] = perf_cache.get_or_compute(
+        "app_episode_ad_spans", str(path), mtime, build
+    )
+    return spans
+
+
 def time_hits_by_episode(root: Path, results: List[Any], rows: Iterable[CatalogEpisodeRow]) -> None:
     """:func:`time_transcript_hits` for results from many episodes (global search, Mine).
 

@@ -233,7 +233,8 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('systems thinking')
   // The small fixture: the page says what the reel runs, not the fifteen minutes asked for.
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('1:48 · 9 clips · 9 episodes')
+  // 1:42, not 1:48, since a clip stops before the ad break it used to run into (2026-10-12).
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('1:42 · 9 clips · 9 episodes')
 
   // Started by the chip's tap: clip 1, playing, with the eight to come listed.
   const current = page.getByTestId('topic-reel-current')
@@ -296,7 +297,8 @@ test('a short listen from a storyline and a theme: clips about any member topic;
   await page.getByTestId('reel-door').click()
   await expect(page).toHaveURL(/\/listen\/topic\/thc(:|%3A)managing-risk\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('Managing risk across domains')
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('4:24 · 22 clips · 16 episodes')
+  // 4:12, not 4:24: two clips stop before the ad break they used to run into (2026-10-12).
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('4:12 · 22 clips · 16 episodes')
 
   await page.goto(`/theme/${encodeURIComponent('tc:reliability')}`)
   await page.getByTestId('reel-door').click()

@@ -1,7 +1,7 @@
 [
 {
 "start": 0.0,
-"end": 2.4,
+"end": 1.02,
 "speaker_label": "Beatriz Antunes",
 "text": "Welcome back to Trail Sessions.",
 "char_start": 17,
@@ -10,8 +10,8 @@
 "sent_id": "t0000.s01"
 },
 {
-"start": 2.46,
-"end": 8.28,
+"start": 1.02,
+"end": 4.68,
 "speaker_label": "Beatriz Antunes",
 "text": "Today, we're talking about drivetrain mechanics, and I'm joined by Tiago Moreira, a mechanic at Spoke & Wrench.",
 "char_start": 49,
@@ -20,8 +20,8 @@
 "sent_id": "t0000.s02"
 },
 {
-"start": 8.34,
-"end": 10.8,
+"start": 4.68,
+"end": 6.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Tiago Moreira, thank you for being here.",
 "char_start": 161,
@@ -30,8 +30,8 @@
 "sent_id": "t0000.s03"
 },
 {
-"start": 10.8,
-"end": 11.88,
+"start": 6.0,
+"end": 9.26,
 "speaker_label": "Tiago Moreira",
 "text": "Thank you, Beatriz.",
 "char_start": 217,
@@ -40,8 +40,8 @@
 "sent_id": "t0001.s01"
 },
 {
-"start": 11.94,
-"end": 13.56,
+"start": 9.26,
+"end": 12.0,
 "speaker_label": "Tiago Moreira",
 "text": "Glad to be back.",
 "char_start": 237,
@@ -50,8 +50,8 @@
 "sent_id": "t0001.s02"
 },
 {
-"start": 13.56,
-"end": 16.26,
+"start": 12.0,
+"end": 14.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Today's episode is sponsored by Notion.",
 "char_start": 271,
@@ -60,8 +60,8 @@
 "sent_id": "t0002.s01"
 },
 {
-"start": 16.32,
-"end": 20.52,
+"start": 14.0,
+"end": 16.92,
 "speaker_label": "Beatriz Antunes",
 "text": "Notion replaces the dozen tools your team uses every day.",
 "char_start": 311,
@@ -70,8 +70,8 @@
 "sent_id": "t0002.s02"
 },
 {
-"start": 20.58,
-"end": 22.26,
+"start": 16.92,
+"end": 18.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Try notion.com today.",
 "char_start": 369,
@@ -80,8 +80,8 @@
 "sent_id": "t0002.s03"
 },
 {
-"start": 22.26,
-"end": 31.26,
+"start": 18.0,
+"end": 24.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Before we get into the topic, Inês Carvalho was on the previous episode and said that tire pressure is more important than suspension adjustments.",
 "char_start": 391,
@@ -90,8 +90,8 @@
 "sent_id": "t0002.s04"
 },
 {
-"start": 31.26,
-"end": 32.22,
+"start": 24.0,
+"end": 25.18,
 "speaker_label": "Tiago Moreira",
 "text": "Yes, exactly.",
 "char_start": 553,
@@ -100,8 +100,8 @@
 "sent_id": "t0003.s01"
 },
 {
-"start": 32.28,
-"end": 34.38,
+"start": 25.18,
+"end": 30.0,
 "speaker_label": "Tiago Moreira",
 "text": "And it connects to what we're going to discuss today.",
 "char_start": 567,
@@ -110,8 +110,8 @@
 "sent_id": "t0003.s02"
 },
 {
-"start": 34.38,
-"end": 40.02,
+"start": 30.0,
+"end": 36.0,
 "speaker_label": "Beatriz Antunes",
 "text": "I want to point something out – Inês Carvalho mentioned this same dynamic a few episodes ago.",
 "char_start": 638,
@@ -120,8 +120,8 @@
 "sent_id": "t0004.s01"
 },
 {
-"start": 40.02,
-"end": 45.96,
+"start": 36.0,
+"end": 42.0,
 "speaker_label": "Beatriz Antunes",
 "text": "I want to point something out – Rafael Vasconcelos mentioned this same dynamic a few episodes ago.",
 "char_start": 732,
@@ -130,8 +130,8 @@
 "sent_id": "t0004.s02"
 },
 {
-"start": 210.0,
-"end": 211.32,
+"start": 42.0,
+"end": 44.15,
 "speaker_label": "Beatriz Antunes",
 "text": "I want to delve deeper into that.",
 "char_start": 831,
@@ -140,8 +140,8 @@
 "sent_id": "t0004.s03"
 },
 {
-"start": 211.38,
-"end": 214.32,
+"start": 44.15,
+"end": 48.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What did you believe about this, and have you revisited it?",
 "char_start": 865,
@@ -150,8 +150,8 @@
 "sent_id": "t0004.s04"
 },
 {
-"start": 214.32,
-"end": 222.36,
+"start": 48.0,
+"end": 51.08,
 "speaker_label": "Tiago Moreira",
 "text": "In short, most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.",
 "char_start": 940,
@@ -160,8 +160,8 @@
 "sent_id": "t0005.s01"
 },
 {
-"start": 222.42,
-"end": 225.18,
+"start": 51.08,
+"end": 52.38,
 "speaker_label": "Tiago Moreira",
 "text": "We've seen this happen with teams that use Spoke & Wrench.",
 "char_start": 1078,
@@ -170,8 +170,8 @@
 "sent_id": "t0005.s02"
 },
 {
-"start": 225.24,
-"end": 229.26,
+"start": 52.38,
+"end": 54.0,
 "speaker_label": "Tiago Moreira",
 "text": "The context matters because it tells you what compromises you're making.",
 "char_start": 1137,
@@ -180,8 +180,8 @@
 "sent_id": "t0005.s03"
 },
 {
-"start": 229.26,
-"end": 230.7,
+"start": 54.0,
+"end": 55.76,
 "speaker_label": "Beatriz Antunes",
 "text": "It's a useful framework.",
 "char_start": 1227,
@@ -190,8 +190,8 @@
 "sent_id": "t0006.s01"
 },
 {
-"start": 230.76,
-"end": 234.12,
+"start": 55.76,
+"end": 60.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Where do maintenance and transmission mechanics intersect?",
 "char_start": 1252,
@@ -200,8 +200,8 @@
 "sent_id": "t0006.s02"
 },
 {
-"start": 234.12,
-"end": 234.78,
+"start": 60.0,
+"end": 60.64,
 "speaker_label": "Tiago Moreira",
 "text": "That's how I see it.",
 "char_start": 1326,
@@ -210,8 +210,8 @@
 "sent_id": "t0007.s01"
 },
 {
-"start": 234.84,
-"end": 240.42,
+"start": 60.64,
+"end": 63.82,
 "speaker_label": "Tiago Moreira",
 "text": "A bicycle should feel quiet and predictable so that your attention can remain focused on the trail.",
 "char_start": 1347,
@@ -220,8 +220,8 @@
 "sent_id": "t0007.s02"
 },
 {
-"start": 240.48,
-"end": 244.56,
+"start": 63.82,
+"end": 66.0,
 "speaker_label": "Tiago Moreira",
 "text": "And the secondary effect is the part that almost everyone overlooks.",
 "char_start": 1447,
@@ -230,8 +230,8 @@
 "sent_id": "t0007.s03"
 },
 {
-"start": 244.56,
-"end": 245.88,
+"start": 66.0,
+"end": 67.9,
 "speaker_label": "Beatriz Antunes",
 "text": "I want to delve deeper into that.",
 "char_start": 1533,
@@ -240,8 +240,8 @@
 "sent_id": "t0008.s01"
 },
 {
-"start": 245.94,
-"end": 250.2,
+"start": 67.9,
+"end": 72.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the structural aspect that most listeners don't have access to?",
 "char_start": 1567,
@@ -250,8 +250,8 @@
 "sent_id": "t0008.s02"
 },
 {
-"start": 250.2,
-"end": 250.56,
+"start": 72.0,
+"end": 72.25,
 "speaker_label": "Tiago Moreira",
 "text": "Certainly.",
 "char_start": 1654,
@@ -260,8 +260,8 @@
 "sent_id": "t0009.s01"
 },
 {
-"start": 250.62,
-"end": 256.5,
+"start": 72.25,
+"end": 74.91,
 "speaker_label": "Tiago Moreira",
 "text": "The wear and tear on the chain is the best early indicator of when you will need to replace the cassette.",
 "char_start": 1665,
@@ -270,8 +270,8 @@
 "sent_id": "t0009.s02"
 },
 {
-"start": 256.56,
-"end": 259.32,
+"start": 74.91,
+"end": 76.15,
 "speaker_label": "Tiago Moreira",
 "text": "We've seen this in teams that use Spoke & Wrench.",
 "char_start": 1771,
@@ -280,8 +280,8 @@
 "sent_id": "t0009.s03"
 },
 {
-"start": 259.38,
-"end": 263.4,
+"start": 76.15,
+"end": 78.0,
 "speaker_label": "Tiago Moreira",
 "text": "The context matters because it tells you what compromises you are making.",
 "char_start": 1821,
@@ -290,8 +290,8 @@
 "sent_id": "t0009.s04"
 },
 {
-"start": 263.4,
-"end": 264.9,
+"start": 78.0,
+"end": 84.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Tell me more about it.",
 "char_start": 1912,
@@ -300,8 +300,8 @@
 "sent_id": "t0010.s01"
 },
 {
-"start": 264.9,
-"end": 269.04,
+"start": 84.0,
+"end": 87.07,
 "speaker_label": "Tiago Moreira",
 "text": "Spoke & Wrench is one of the platforms where this is clearly evident.",
 "char_start": 1950,
@@ -310,8 +310,8 @@
 "sent_id": "t0011.s01"
 },
 {
-"start": 269.1,
-"end": 272.28,
+"start": 87.07,
+"end": 90.0,
 "speaker_label": "Tiago Moreira",
 "text": "I observed this pattern repeating itself in three different teams.",
 "char_start": 2020,
@@ -320,8 +320,8 @@
 "sent_id": "t0011.s02"
 },
 {
-"start": 272.28,
-"end": 274.2,
+"start": 90.0,
+"end": 92.17,
 "speaker_label": "Beatriz Antunes",
 "text": "Tell me how you made the decision.",
 "char_start": 2104,
@@ -330,8 +330,8 @@
 "sent_id": "t0012.s01"
 },
 {
-"start": 274.26,
-"end": 276.84,
+"start": 92.17,
+"end": 96.0,
 "speaker_label": "Beatriz Antunes",
 "text": "How does the RockShox suspension system fit into this frame?",
 "char_start": 2139,
@@ -340,8 +340,8 @@
 "sent_id": "t0012.s02"
 },
 {
-"start": 276.84,
-"end": 277.2,
+"start": 96.0,
+"end": 96.34,
 "speaker_label": "Tiago Moreira",
 "text": "Certainly.",
 "char_start": 2215,
@@ -350,8 +350,8 @@
 "sent_id": "t0013.s01"
 },
 {
-"start": 277.26,
-"end": 281.82,
+"start": 96.34,
+"end": 98.95,
 "speaker_label": "Tiago Moreira",
 "text": "The maintenance intervals for the suspension are a risk management decision.",
 "char_start": 2226,
@@ -360,8 +360,8 @@
 "sent_id": "t0013.s02"
 },
 {
-"start": 281.88,
-"end": 285.9,
+"start": 98.95,
+"end": 102.0,
 "speaker_label": "Tiago Moreira",
 "text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
 "char_start": 2303,
@@ -370,8 +370,8 @@
 "sent_id": "t0013.s03"
 },
 {
-"start": 285.9,
-"end": 286.8,
+"start": 102.0,
+"end": 102.58,
 "speaker_label": "Beatriz Antunes",
 "text": "You know what else?",
 "char_start": 2410,
@@ -380,8 +380,8 @@
 "sent_id": "t0014.s01"
 },
 {
-"start": 286.86,
-"end": 291.06,
+"start": 102.58,
+"end": 104.68,
 "speaker_label": "Beatriz Antunes",
 "text": "I'll say it plainly: Linear manages my entire engineering operation.",
 "char_start": 2430,
@@ -390,8 +390,8 @@
 "sent_id": "t0014.s02"
 },
 {
-"start": 291.12,
-"end": 295.92,
+"start": 104.68,
+"end": 106.95,
 "speaker_label": "Beatriz Antunes",
 "text": "Linear is a task manager designed for speed – it's built for keyboard use.",
 "char_start": 2499,
@@ -400,8 +400,8 @@
 "sent_id": "t0014.s03"
 },
 {
-"start": 295.98,
-"end": 297.96,
+"start": 106.95,
+"end": 108.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Use the link in the episode notes.",
 "char_start": 2574,
@@ -410,8 +410,8 @@
 "sent_id": "t0014.s04"
 },
 {
-"start": 720.0,
-"end": 723.12,
+"start": 108.0,
+"end": 114.0,
 "speaker_label": "Beatriz Antunes",
 "text": "We'll be right back, after a short commercial break.",
 "char_start": 2609,
@@ -420,8 +420,8 @@
 "sent_id": "t0014.s05"
 },
 {
-"start": 723.12,
-"end": 725.82,
+"start": 114.0,
+"end": 115.34,
 "speaker_label": "SPEAKER_02",
 "text": "Today's episode is sponsored by Stripe.",
 "char_start": 2674,
@@ -430,8 +430,8 @@
 "sent_id": "t0015.s01"
 },
 {
-"start": 725.88,
-"end": 731.4,
+"start": 115.34,
+"end": 118.56,
 "speaker_label": "SPEAKER_02",
 "text": "Stripe makes payments simple, whether you're running a marketplace or a subscription business.",
 "char_start": 2714,
@@ -440,8 +440,8 @@
 "sent_id": "t0015.s02"
 },
 {
-"start": 731.46,
-"end": 734.4,
+"start": 118.56,
+"end": 120.0,
 "speaker_label": "SPEAKER_02",
 "text": "Visit stripe.com/podcast for a free trial.",
 "char_start": 2809,
@@ -450,8 +450,8 @@
 "sent_id": "t0015.s03"
 },
 {
-"start": 734.4,
-"end": 736.26,
+"start": 120.0,
+"end": 126.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Welcome back to the program.",
 "char_start": 2869,
@@ -460,8 +460,8 @@
 "sent_id": "t0016.s01"
 },
 {
-"start": 840.0,
-"end": 841.44,
+"start": 126.0,
+"end": 127.81,
 "speaker_label": "Beatriz Antunes",
 "text": "That's a helpful context.",
 "char_start": 2898,
@@ -470,8 +470,8 @@
 "sent_id": "t0016.s02"
 },
 {
-"start": 841.5,
-"end": 844.86,
+"start": 127.81,
+"end": 132.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Where do maintenance and transmission mechanics intersect?",
 "char_start": 2924,
@@ -480,8 +480,8 @@
 "sent_id": "t0016.s03"
 },
 {
-"start": 844.86,
-"end": 845.52,
+"start": 132.0,
+"end": 132.43,
 "speaker_label": "Tiago Moreira",
 "text": "That's how I see it.",
 "char_start": 2998,
@@ -490,8 +490,8 @@
 "sent_id": "t0017.s01"
 },
 {
-"start": 845.58,
-"end": 852.54,
+"start": 132.43,
+"end": 135.15,
 "speaker_label": "Tiago Moreira",
 "text": "Most mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque.",
 "char_start": 3019,
@@ -500,8 +500,8 @@
 "sent_id": "t0017.s02"
 },
 {
-"start": 852.6,
-"end": 854.94,
+"start": 135.15,
+"end": 136.5,
 "speaker_label": "Tiago Moreira",
 "text": "We've seen this happen with teams that use Shimano components.",
 "char_start": 3145,
@@ -510,8 +510,8 @@
 "sent_id": "t0017.s03"
 },
 {
-"start": 855.0,
-"end": 858.18,
+"start": 136.5,
+"end": 138.0,
 "speaker_label": "Tiago Moreira",
 "text": "I've observed this pattern repeating itself in three different teams.",
 "char_start": 3208,
@@ -520,8 +520,8 @@
 "sent_id": "t0017.s04"
 },
 {
-"start": 858.18,
-"end": 859.74,
+"start": 138.0,
+"end": 139.5,
 "speaker_label": "Beatriz Antunes",
 "text": "Give me a concrete example.",
 "char_start": 3295,
@@ -530,8 +530,8 @@
 "sent_id": "t0018.s01"
 },
 {
-"start": 859.8,
-"end": 862.74,
+"start": 139.5,
+"end": 144.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What did you previously believe about this, and have you since changed your mind?",
 "char_start": 3323,
@@ -540,8 +540,8 @@
 "sent_id": "t0018.s02"
 },
 {
-"start": 862.74,
-"end": 869.1,
+"start": 144.0,
+"end": 147.72,
 "speaker_label": "Tiago Moreira",
 "text": "Yes, so – a bicycle should feel quiet and predictable so that your attention can remain focused on the trail.",
 "char_start": 3420,
@@ -550,8 +550,8 @@
 "sent_id": "t0019.s01"
 },
 {
-"start": 869.16,
-"end": 873.48,
+"start": 147.72,
+"end": 150.0,
 "speaker_label": "Tiago Moreira",
 "text": "Once you internalize that, the rest of the decisions become easier.",
 "char_start": 3530,
@@ -560,8 +560,8 @@
 "sent_id": "t0019.s02"
 },
 {
-"start": 873.48,
-"end": 874.5,
+"start": 150.0,
+"end": 151.28,
 "speaker_label": "Beatriz Antunes",
 "text": "Let's start with that.",
 "char_start": 3615,
@@ -570,8 +570,8 @@
 "sent_id": "t0020.s01"
 },
 {
-"start": 874.56,
-"end": 877.5,
+"start": 151.28,
+"end": 156.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What did you believe about this, and what have you since learned or reconsidered?",
 "char_start": 3638,
@@ -580,8 +580,8 @@
 "sent_id": "t0020.s02"
 },
 {
-"start": 877.5,
-"end": 878.16,
+"start": 156.0,
+"end": 156.51,
 "speaker_label": "Tiago Moreira",
 "text": "That's how I see it.",
 "char_start": 3735,
@@ -590,8 +590,8 @@
 "sent_id": "t0021.s01"
 },
 {
-"start": 878.22,
-"end": 884.1,
+"start": 156.51,
+"end": 158.91,
 "speaker_label": "Tiago Moreira",
 "text": "The wear on the chain is the best early indicator of when you'll need to replace the cassette.",
 "char_start": 3756,
@@ -600,8 +600,8 @@
 "sent_id": "t0021.s02"
 },
 {
-"start": 884.16,
-"end": 886.5,
+"start": 158.91,
+"end": 160.31,
 "speaker_label": "Tiago Moreira",
 "text": "We've seen this with teams that use Shimano components.",
 "char_start": 3851,
@@ -610,8 +610,8 @@
 "sent_id": "t0021.s03"
 },
 {
-"start": 886.56,
-"end": 890.88,
+"start": 160.31,
+"end": 162.0,
 "speaker_label": "Tiago Moreira",
 "text": "Once you understand that, the rest of the decisions become easier.",
 "char_start": 3907,
@@ -620,8 +620,8 @@
 "sent_id": "t0021.s04"
 },
 {
-"start": 890.88,
-"end": 892.38,
+"start": 162.0,
+"end": 168.0,
 "speaker_label": "Beatriz Antunes",
 "text": "That makes sense.",
 "char_start": 3991,
@@ -630,8 +630,8 @@
 "sent_id": "t0022.s01"
 },
 {
-"start": 892.38,
-"end": 901.8,
+"start": 168.0,
+"end": 174.0,
 "speaker_label": "Tiago Moreira",
 "text": "And when teams adopt Spoke & Wrench within that workflow, the commitment becomes evident. If you ignore that, you end up having to rebuild everything from scratch a year later.",
 "char_start": 4024,
@@ -640,8 +640,8 @@
 "sent_id": "t0023.s01"
 },
 {
-"start": 901.8,
-"end": 902.82,
+"start": 174.0,
+"end": 175.14,
 "speaker_label": "Beatriz Antunes",
 "text": "Let's start there.",
 "char_start": 4218,
@@ -650,8 +650,8 @@
 "sent_id": "t0024.s01"
 },
 {
-"start": 902.88,
-"end": 907.2,
+"start": 175.14,
+"end": 180.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the operational perspective that most listeners don't have access to?",
 "char_start": 4237,
@@ -660,8 +660,8 @@
 "sent_id": "t0024.s02"
 },
 {
-"start": 907.2,
-"end": 907.86,
+"start": 180.0,
+"end": 180.74,
 "speaker_label": "Tiago Moreira",
 "text": "That's how I see it.",
 "char_start": 4330,
@@ -670,8 +670,8 @@
 "sent_id": "t0025.s01"
 },
 {
-"start": 907.92,
-"end": 912.48,
+"start": 180.74,
+"end": 183.56,
 "speaker_label": "Tiago Moreira",
 "text": "The maintenance intervals for the suspension are a risk management decision.",
 "char_start": 4351,
@@ -680,8 +680,8 @@
 "sent_id": "t0025.s02"
 },
 {
-"start": 912.54,
-"end": 915.72,
+"start": 183.56,
+"end": 186.0,
 "speaker_label": "Tiago Moreira",
 "text": "I observed this pattern repeating itself in three different teams.",
 "char_start": 4428,
@@ -690,8 +690,8 @@
 "sent_id": "t0025.s03"
 },
 {
-"start": 1320.0,
-"end": 1323.96,
+"start": 186.0,
+"end": 192.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Let's change the subject – I want to dedicate the final section to risk management.",
 "char_start": 4512,
@@ -700,8 +700,8 @@
 "sent_id": "t0026.s01"
 },
 {
-"start": 1323.96,
-"end": 1331.22,
+"start": 192.0,
+"end": 198.0,
 "speaker_label": "Tiago Moreira",
 "text": "That's where the conversation gets interesting, because the considerations surrounding risk management are relevant to everything we've discussed.",
 "char_start": 4611,
@@ -710,8 +710,8 @@
 "sent_id": "t0027.s01"
 },
 {
-"start": 1331.22,
-"end": 1332.78,
+"start": 198.0,
+"end": 199.76,
 "speaker_label": "Beatriz Antunes",
 "text": "Give me a concrete example.",
 "char_start": 4775,
@@ -720,8 +720,8 @@
 "sent_id": "t0028.s01"
 },
 {
-"start": 1332.84,
-"end": 1336.44,
+"start": 199.76,
+"end": 204.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the most underestimated aspect of transmission mechanics?",
 "char_start": 4803,
@@ -730,8 +730,8 @@
 "sent_id": "t0028.s02"
 },
 {
-"start": 1336.44,
-"end": 1336.8,
+"start": 204.0,
+"end": 204.22,
 "speaker_label": "Tiago Moreira",
 "text": "Certainly.",
 "char_start": 4884,
@@ -740,8 +740,8 @@
 "sent_id": "t0029.s01"
 },
 {
-"start": 1336.86,
-"end": 1343.82,
+"start": 204.22,
+"end": 207.18,
 "speaker_label": "Tiago Moreira",
 "text": "Most mysterious creaking noises can be resolved by cleaning the contact surfaces and re-tightening the bolts to the specified torque.",
 "char_start": 4895,
@@ -750,8 +750,8 @@
 "sent_id": "t0029.s02"
 },
 {
-"start": 1343.88,
-"end": 1346.64,
+"start": 207.18,
+"end": 208.47,
 "speaker_label": "Tiago Moreira",
 "text": "We've seen this happen with teams that use Spoke & Wrench.",
 "char_start": 5029,
@@ -760,8 +760,8 @@
 "sent_id": "t0029.s03"
 },
 {
-"start": 1346.7,
-"end": 1349.88,
+"start": 208.47,
+"end": 210.0,
 "speaker_label": "Tiago Moreira",
 "text": "I've observed this pattern repeating itself in three different teams.",
 "char_start": 5088,
@@ -770,8 +770,8 @@
 "sent_id": "t0029.s04"
 },
 {
-"start": 1349.88,
-"end": 1351.32,
+"start": 210.0,
+"end": 211.59,
 "speaker_label": "Beatriz Antunes",
 "text": "It's a useful perspective.",
 "char_start": 5175,
@@ -780,8 +780,8 @@
 "sent_id": "t0030.s01"
 },
 {
-"start": 1351.38,
-"end": 1355.58,
+"start": 211.59,
+"end": 216.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the opposing viewpoint that most listeners don't have access to?",
 "char_start": 5202,
@@ -790,8 +790,8 @@
 "sent_id": "t0030.s02"
 },
 {
-"start": 1355.58,
-"end": 1362.24,
+"start": 216.0,
+"end": 219.29,
 "speaker_label": "Tiago Moreira",
 "text": "In essence, a bicycle should feel quiet and predictable so that your focus remains on the trail.",
 "char_start": 5290,
@@ -800,8 +800,8 @@
 "sent_id": "t0031.s01"
 },
 {
-"start": 1362.3,
-"end": 1366.32,
+"start": 219.29,
+"end": 222.0,
 "speaker_label": "Tiago Moreira",
 "text": "The frame matters because it tells you what kind of performance you can expect.",
 "char_start": 5387,
@@ -810,8 +810,8 @@
 "sent_id": "t0031.s02"
 },
 {
-"start": 1366.32,
-"end": 1367.7,
+"start": 222.0,
+"end": 223.67,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the failure mode?",
 "char_start": 5484,
@@ -820,8 +820,8 @@
 "sent_id": "t0032.s01"
 },
 {
-"start": 1367.76,
-"end": 1371.36,
+"start": 223.67,
+"end": 228.0,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the most underestimated aspect of transmission mechanics?",
 "char_start": 5510,
@@ -830,8 +830,8 @@
 "sent_id": "t0032.s02"
 },
 {
-"start": 1371.36,
-"end": 1378.08,
+"start": 228.0,
+"end": 230.76,
 "speaker_label": "Tiago Moreira",
 "text": "Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette.",
 "char_start": 5591,
@@ -840,8 +840,8 @@
 "sent_id": "t0033.s01"
 },
 {
-"start": 1378.14,
-"end": 1380.48,
+"start": 230.76,
+"end": 232.17,
 "speaker_label": "Tiago Moreira",
 "text": "We've seen this in teams that use Shimano components.",
 "char_start": 5696,
@@ -850,8 +850,8 @@
 "sent_id": "t0033.s02"
 },
 {
-"start": 1380.54,
-"end": 1383.72,
+"start": 232.17,
+"end": 234.0,
 "speaker_label": "Tiago Moreira",
 "text": "I've observed this pattern repeating itself in three different teams.",
 "char_start": 5750,
@@ -860,8 +860,8 @@
 "sent_id": "t0033.s03"
 },
 {
-"start": 1383.72,
-"end": 1385.82,
+"start": 234.0,
+"end": 240.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Where does it stop working?",
 "char_start": 5837,
@@ -870,8 +870,8 @@
 "sent_id": "t0034.s01"
 },
 {
-"start": 1385.82,
-"end": 1393.98,
+"start": 240.0,
+"end": 246.0,
 "speaker_label": "Tiago Moreira",
 "text": "And when teams embrace Shimano in that way, the commitment becomes evident – I saw this pattern repeat itself in three different teams.",
 "char_start": 5880,
@@ -880,8 +880,8 @@
 "sent_id": "t0035.s01"
 },
 {
-"start": 1393.98,
-"end": 1396.38,
+"start": 246.0,
+"end": 248.45,
 "speaker_label": "Beatriz Antunes",
 "text": "What heuristic do you always go back to?",
 "char_start": 6033,
@@ -890,8 +890,8 @@
 "sent_id": "t0036.s01"
 },
 {
-"start": 1396.44,
-"end": 1399.8,
+"start": 248.45,
+"end": 252.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Where do maintenance and transmission mechanics intersect?",
 "char_start": 6074,
@@ -900,8 +900,8 @@
 "sent_id": "t0036.s02"
 },
 {
-"start": 1399.8,
-"end": 1405.2,
+"start": 252.0,
+"end": 255.35,
 "speaker_label": "Tiago Moreira",
 "text": "Honestly, the maintenance intervals for the suspension are a risk management decision.",
 "char_start": 6148,
@@ -910,8 +910,8 @@
 "sent_id": "t0037.s01"
 },
 {
-"start": 1405.26,
-"end": 1409.34,
+"start": 255.35,
+"end": 258.0,
 "speaker_label": "Tiago Moreira",
 "text": "And the secondary effect is the part that almost everyone overlooks.",
 "char_start": 6235,
@@ -920,8 +920,8 @@
 "sent_id": "t0037.s02"
 },
 {
-"start": 1680.0,
-"end": 1685.16,
+"start": 258.0,
+"end": 264.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Before we finish, what's one thing listeners can try out this week?",
 "char_start": 6321,
@@ -930,8 +930,8 @@
 "sent_id": "t0038.s01"
 },
 {
-"start": 1685.16,
-"end": 1689.24,
+"start": 264.0,
+"end": 268.13,
 "speaker_label": "Tiago Moreira",
 "text": "Choose one of the ideas we discussed and apply it for two weeks.",
 "char_start": 6404,
@@ -940,8 +940,8 @@
 "sent_id": "t0039.s01"
 },
 {
-"start": 1689.3,
-"end": 1690.44,
+"start": 268.13,
+"end": 270.0,
 "speaker_label": "Tiago Moreira",
 "text": "Everything else is iteration.",
 "char_start": 6469,
@@ -950,8 +950,8 @@
 "sent_id": "t0039.s02"
 },
 {
-"start": 1690.44,
-"end": 1694.34,
+"start": 270.0,
+"end": 272.42,
 "speaker_label": "Beatriz Antunes",
 "text": "Before we close, thank you again to our friends at Linear.",
 "char_start": 6516,
@@ -960,8 +960,8 @@
 "sent_id": "t0040.s01"
 },
 {
-"start": 1694.4,
-"end": 1699.2,
+"start": 272.42,
+"end": 276.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Linear is a task management tool designed for speed – it's optimized for keyboard use.",
 "char_start": 6575,
@@ -970,8 +970,8 @@
 "sent_id": "t0040.s02"
 },
 {
-"start": 1699.2,
-"end": 1701.48,
+"start": 276.0,
+"end": 282.0,
 "speaker_label": "Beatriz Antunes",
 "text": "Tiago Moreira, thank you for the conversation.",
 "char_start": 6662,
@@ -980,8 +980,8 @@
 "sent_id": "t0040.s03"
 },
 {
-"start": 1701.48,
-"end": 1702.98,
+"start": 282.0,
+"end": 288.0,
 "speaker_label": "Tiago Moreira",
 "text": "Thank you, Beatriz.",
 "char_start": 6724,
@@ -990,8 +990,8 @@
 "sent_id": "t0041.s01"
 },
 {
-"start": 1702.98,
-"end": 1705.26,
+"start": 288.0,
+"end": 292.07,
 "speaker_label": "Beatriz Antunes",
 "text": "That's all for today's Trail Sessions.",
 "char_start": 6761,
@@ -1000,8 +1000,8 @@
 "sent_id": "t0042.s01"
 },
 {
-"start": 1705.32,
-"end": 1706.16,
+"start": 292.07,
+"end": 294.0,
 "speaker_label": "Beatriz Antunes",
 "text": "See you next time.",
 "char_start": 6800,

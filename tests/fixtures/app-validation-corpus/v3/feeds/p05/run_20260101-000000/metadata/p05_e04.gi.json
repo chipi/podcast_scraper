@@ -12,6 +12,11 @@
     },
     {
       "from": "insight:authored-p05_e04-1",
+      "to": "topic:correlated-bets",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
       "to": "topic:systems-thinking",
       "type": "ABOUT"
     },
@@ -390,6 +395,13 @@
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:correlated-bets",
+      "properties": {
+        "label": "correlated bets"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

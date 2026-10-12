@@ -40,13 +40,16 @@ def test_the_path_is_pinned_oldest_first_each_step_saying_what_its_insight_says(
     path = build_path(ROOT, "thc:managing-risk")
     assert [(s.episode_slug, s.speaker) for s in path] == [
         ("p01-74565a3a19", "Sophie Laurent"),
-        ("p02-4487cfb778", "Jonas Weisenthal"),
         ("p01-3cad86824c", "Noah Brier"),
         ("p05-fa4fd4b684", "Richard Clarida"),
         ("p02-8fdd7b7f79", "Priya Nair"),
         ("p05-25cb576153", "Daniel Cho"),
         ("p03-5b8ca67393", "Marco Silva"),
+        ("p07-2aceab172c", "Skanda Amarnath"),
     ]  # p01-f2b497cfa3 (Sophie Laurent, p01's third day) gave way to the variety rule
+    # 2026-10-12: p02-4487 (Jonas Weisenthal) was the day whose clip ran on into "We'll be right
+    # back after a quick word from our sponsors."; without the ad it is 6 s, a clip's length is
+    # part of its score, and p07-2ace's "Macro is risk management at scale" now ranks above it.
     assert len(path) == PATH_DAYS and len({s.episode_slug for s in path}) == PATH_DAYS
     dates = []
     for s in path:

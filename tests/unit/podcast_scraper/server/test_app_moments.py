@@ -251,6 +251,63 @@ class TestClip:
         assert build_clip([AppQuote(text="x")], self.SEGS, MomentsConfig()) is None
 
 
+class TestClipNeverPlaysAnAd:
+    """A short listen ran on into "we'll be right back after a word from our sponsors" (operator
+    2026-10-12): the extension to the minimum length took the next segment, which was the break."""
+
+    SEGS = [
+        (90_000, 100_000, "Before."),
+        (100_000, 104_000, "So here is the thing."),
+        (104_000, 109_000, "Risk is about surviving."),
+        (109_000, 115_000, "We'll be right back after a quick word from our sponsors."),
+        (115_000, 125_000, "Today's episode is sponsored by Linear."),
+        (125_000, 140_000, "And we're back."),
+    ]
+    BREAK = [(109_000, 125_000)]
+
+    def test_the_extension_stops_at_the_break(self) -> None:
+        start, end, text = _clip_ads([_q(102, 106)], self.SEGS, self.BREAK)
+        assert (start, end) == (100_000, 109_000)
+        assert text == "So here is the thing. Risk is about surviving."
+        # Without the ads it is the old leak, which is what this guards.
+        old = build_clip([_q(102, 106)], self.SEGS, MomentsConfig())
+        assert old is not None and old[1] == 115_000
+
+    def test_the_lead_in_does_not_reach_back_into_an_ad(self) -> None:
+        segs = [
+            (0, 18_000, "This episode is brought to you by Strava."),
+            (18_000, 40_000, "Point."),
+        ]
+        start, _, text = _clip_ads([_q(16, 22)], segs, [(0, 18_000)])
+        assert start == 18_000 and "Strava" not in text
+
+    def test_a_quote_inside_an_ad_is_no_moment(self) -> None:
+        assert build_clip([_q(110, 114)], self.SEGS, MomentsConfig(), self.BREAK) is None
+
+    def test_an_ad_inside_the_clip_leaves_no_clip(self) -> None:
+        quotes = [_q(100, 105, "one"), _q(112, 118, "two")]  # 7 s apart: joined into one clip
+        ads = [(106_000, 110_000)]
+        assert build_clip(quotes, None, MomentsConfig(), ads) is None
+
+    def test_the_first_quote_rule_is_cut_clear_too(self) -> None:
+        cfg = MomentsConfig(clip_rule="first_quote")
+        start, end, _ = _clip_ads([_q(100, 112)], self.SEGS, self.BREAK, cfg)
+        assert (start, end) == (100_000, 109_000)
+
+    def test_no_ads_is_the_old_clip(self) -> None:
+        assert build_clip([_q(102, 106)], self.SEGS, MomentsConfig(), ()) == build_clip(
+            [_q(102, 106)], self.SEGS, MomentsConfig()
+        )
+
+
+def _clip_ads(
+    quotes: list[AppQuote], segs: Any, ads: Any, cfg: MomentsConfig | None = None
+) -> tuple[int, int, str]:
+    out = build_clip(quotes, segs, cfg or MomentsConfig(), ads)
+    assert out is not None
+    return out
+
+
 class TestRanking:
     def test_default_is_the_player_order_and_score_is_opt_in(self) -> None:
         gi = (

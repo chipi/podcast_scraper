@@ -165,14 +165,21 @@ def _segments_relpath(root: Path, row: Any) -> Optional[str]:
 
 
 def _episode_token(root: Path, row: Any) -> float:
-    """What one episode's clips derive from: its GI, its metadata and its segments file."""
+    """What one episode's clips derive from: its GI, its metadata, its segments file, and the
+    ad-free segments beside it (the ad stretches a clip stops at, ``episode_ad_spans``)."""
     seg = _segments_relpath(root, row)
+    adfree = (
+        seg[: -len(".segments.json")] + ".adfree.segments.json"
+        if seg and not seg.endswith(".adfree.segments.json")
+        else ""
+    )
     return float(
         hash(
             (
                 _mtime_rel(root, row.gi_relative_path),
                 _mtime_rel(root, row.metadata_relative_path),
                 _mtime(seg) if seg else 0.0,
+                _mtime(adfree) if adfree else 0.0,
             )
         )
     )
@@ -204,7 +211,7 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
     import sys
 
     from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_episode_search import episode_segments
+    from podcast_scraper.server.app_episode_search import episode_ad_spans, episode_segments
     from podcast_scraper.server.app_moments import _topic_links
 
     artifact = load_json_artifact(root, row.gi_relative_path)
@@ -215,7 +222,9 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
         return ()
     scored = [
         m
-        for m in score_candidates(artifact, cfg, episode_segments(root, row))
+        for m in score_candidates(
+            artifact, cfg, episode_segments(root, row), episode_ad_spans(root, row)
+        )
         if links.get(m.insight_id) and quote_support(m.quote_text, m.text) >= MIN_SUPPORT
     ]
     ranked = rank_moments(scored, cfg)
@@ -350,13 +359,18 @@ def hydrate(
     """The full moments (text, quote, speaker, clip) for ``refs``, all from one episode, in
     their order. A ref whose insight is gone from the episode's files is left out."""
     from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_episode_search import episode_segments
+    from podcast_scraper.server.app_episode_search import episode_ad_spans, episode_segments
 
     cfg = config or MomentsConfig.from_env()
     artifact = load_json_artifact(root, row.gi_relative_path)
     if not isinstance(artifact, dict) or not refs:
         return []
-    by_id = {m.insight_id: m for m in score_candidates(artifact, cfg, episode_segments(root, row))}
+    by_id = {
+        m.insight_id: m
+        for m in score_candidates(
+            artifact, cfg, episode_segments(root, row), episode_ad_spans(root, row)
+        )
+    }
     return [by_id[r.insight_id] for r in refs if r.insight_id in by_id]
 
 

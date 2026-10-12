@@ -656,6 +656,122 @@ def _attach_captured_provenance(
     return attach_translation_provenance(gi, doc, _english_analysis_segments(captured))
 
 
+def _segments_of(doc: Any) -> list[dict[str, Any]]:
+    segs = doc.get("segments", doc) if isinstance(doc, dict) else doc
+    return [x for x in segs if isinstance(x, dict)] if isinstance(segs, list) else []
+
+
+def _dump_like(raw: str, doc: Any) -> str:
+    """``doc`` serialised the way ``raw`` was, so a rewrite changes values, never the layout."""
+    for indent in (2, 0, None):
+        for ascii_only in (False, True):
+            for tail in ("\n", ""):
+                if (
+                    json.dumps(json.loads(raw), indent=indent, ensure_ascii=ascii_only) + tail
+                    == raw
+                ):
+                    return json.dumps(doc, indent=indent, ensure_ascii=ascii_only) + tail
+    return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+
+
+def english_render_times(run_tr_dir: Path, ep_label: str) -> dict[str, tuple[float, float]]:
+    """``sent_id`` -> ``(start, end)`` for a translated episode's English render, on the SOURCE
+    timeline; ``{}`` when there is no render or it cannot be aligned.
+
+    The captured English renders carry the timings of the pipeline run they were captured from —
+    a 1,710 s timeline with minutes-long gaps — while this corpus's source segments and its GI
+    quotes run on the builder's own grid (p10_e01: 294 s). A short listen cuts its clip from the
+    English render at the quote's time, so it played the wrong line: "Start at strava.com/podcast"
+    for a point about drainage (operator 2026-10-12). The text is captured and stays verbatim;
+    only its timing is put on the timeline everything else in the episode uses, as a pipeline run
+    produces it.
+
+    Alignment, all from files beside the render: each source segment lies inside one source TURN
+    (a line of ``<ep>.<lang>.txt``), in order; ``translation.json``'s units are those turns, in the
+    same order, and list each turn's English sentences. A sentence goes to the source segment at
+    the same relative position in its turn (by characters), and each source segment's time is
+    shared among its sentences by length.
+    """
+    tr_path = run_tr_dir / f"{ep_label}.translation.json"
+    if not tr_path.is_file():
+        return {}
+    tr = json.loads(tr_path.read_text("utf-8"))
+    lang = str(tr.get("source_language") or "")
+    src_path = run_tr_dir / f"{ep_label}.{lang}.segments.json"
+    turns_path = run_tr_dir / f"{ep_label}.{lang}.txt"
+    units = tr.get("units") or []
+    if not (lang and src_path.is_file() and turns_path.is_file()):
+        return {}
+    turns = turns_path.read_text("utf-8").splitlines()
+    source = _segments_of(json.loads(src_path.read_text("utf-8")))
+    if len(turns) != len(units):
+        return {}
+    by_turn: list[list[dict[str, Any]]] = [[] for _ in turns]
+    ti = 0
+    for seg in source:
+        text = str(seg.get("text") or "").strip()
+        while ti < len(turns) and text not in turns[ti]:
+            ti += 1
+        if ti == len(turns):
+            return {}
+        by_turn[ti].append(seg)
+
+    times: dict[str, tuple[float, float]] = {}
+    for unit, segs in zip(units, by_turn):
+        sentences = [x for x in unit.get("sentences") or [] if x.get("sent_id")]
+        if not segs or not sentences:
+            continue
+        seg_chars = [max(len(str(x.get("text") or "")), 1) for x in segs]
+        sent_chars = [max(len(str(x.get("en_text") or "")), 1) for x in sentences]
+        total_seg, total_sent = sum(seg_chars), sum(sent_chars)
+        owner: list[int] = []
+        done = 0
+        for n in sent_chars:
+            pos = (done + n / 2) / total_sent * total_seg
+            acc, k = 0, 0
+            while k < len(segs) - 1 and acc + seg_chars[k] <= pos:
+                acc += seg_chars[k]
+                k += 1
+            owner.append(k)
+            done += n
+        for k, seg in enumerate(segs):
+            mine = [i for i, o in enumerate(owner) if o == k]
+            if not mine:
+                continue
+            start, end = float(seg.get("start") or 0.0), float(seg.get("end") or 0.0)
+            share = sum(sent_chars[i] for i in mine)
+            t = start
+            for i in mine:
+                t_end = t + (end - start) * sent_chars[i] / share
+                times[str(sentences[i]["sent_id"])] = (round(t, 2), round(t_end, 2))
+                t = t_end
+    return times
+
+
+def retime_english_render(run_tr_dir: Path, ep_label: str, *, apply: bool = True) -> int:
+    """Put a translated episode's English render (``.segments.json`` and its ad-free sibling) on
+    the source timeline (:func:`english_render_times`). Returns how many segments move; writes
+    only with ``apply``. Idempotent."""
+    times = english_render_times(run_tr_dir, ep_label)
+    moved = 0
+    for name in (f"{ep_label}.segments.json", f"{ep_label}.adfree.segments.json"):
+        path = run_tr_dir / name
+        if not times or not path.is_file():
+            continue
+        raw = path.read_text("utf-8")
+        doc = json.loads(raw)
+        changed = False
+        for seg in _segments_of(doc):
+            new = times.get(str(seg.get("sent_id") or ""))
+            if new and (seg.get("start"), seg.get("end")) != new:
+                seg["start"], seg["end"] = new
+                changed = True
+                moved += 1
+        if changed and apply:
+            path.write_text(_dump_like(raw, doc), "utf-8")
+    return moved
+
+
 def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
     """Write this episode's captured `.en.*` stack beside its source transcript. Returns a count.
 
@@ -702,6 +818,7 @@ def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
 
     for stack_suffix, body in sorted(stack.items()):
         (run_tr_dir / f"{ep_label}.{stack_suffix}").write_text(body, encoding="utf-8")
+    retime_english_render(run_tr_dir, ep_label)
     return len(stack)
 
 
@@ -1495,7 +1612,11 @@ _AD_COPY = re.compile(
     r"sponsor|patrocin|brought to you by|use code|promo code|not an ad|backing the show"
     r"|thanks again to our friends at|thank you to our partners at|link's in the show notes"
     r"|special deal for our listeners|use the link in show notes"
-    r"|for supporting the show|is supported by|see you next time|that's it for today's episode",
+    r"|for supporting the show|is supported by|see you next time|that's it for today's episode"
+    # The break lead-in, in each language the corpus has: "We'll be right back after a short ad
+    # break" was an insight in all five translated shows (operator 2026-10-12, short listens).
+    r"|right back after|pausa publicitaria|pausa pubblicitaria|pause publicitaire|werbepause"
+    r"|pausa publicit[áa]ria",
     re.I,
 )
 

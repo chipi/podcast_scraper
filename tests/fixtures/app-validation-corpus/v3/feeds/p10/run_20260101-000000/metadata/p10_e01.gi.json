@@ -7,12 +7,12 @@
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:85088630cd6e24a9",
+      "to": "insight:3b4d0787ab27ba22",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:aec7a8fb35594b66",
+      "to": "insight:85088630cd6e24a9",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,7 +36,7 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:268e8542ca67f4c6",
+      "from": "quote:6ec2a01a31171184",
       "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
@@ -51,13 +51,13 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:85088630cd6e24a9",
-      "to": "quote:9d19487f716ed0fd",
+      "from": "insight:3b4d0787ab27ba22",
+      "to": "quote:6ec2a01a31171184",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:aec7a8fb35594b66",
-      "to": "quote:268e8542ca67f4c6",
+      "from": "insight:85088630cd6e24a9",
+      "to": "quote:9d19487f716ed0fd",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -153,20 +153,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:aec7a8fb35594b66",
-      "properties": {
-        "episode_id": "ep-7072d2e85dcd5233",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Volvemos enseguida, despu\u00e9s de una breve pausa publicitaria.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:9d19487f716ed0fd",
       "properties": {
         "char_end": 1060,
@@ -181,15 +167,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:268e8542ca67f4c6",
+      "id": "insight:3b4d0787ab27ba22",
       "properties": {
-        "char_end": 2861,
-        "char_start": 2801,
+        "episode_id": "ep-7072d2e85dcd5233",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Cambiemos de tema \u2014 quiero dedicar el \u00faltimo tramo a la gesti\u00f3n del territorio.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:6ec2a01a31171184",
+      "properties": {
+        "char_end": 5608,
+        "char_start": 5529,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:lucia-herrera",
-        "text": "Volvemos enseguida, despu\u00e9s de una breve pausa publicitaria.",
-        "timestamp_end_ms": 120000,
-        "timestamp_start_ms": 114000,
+        "text": "Cambiemos de tema \u2014 quiero dedicar el \u00faltimo tramo a la gesti\u00f3n del territorio.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
         "transcript_ref": "transcripts/p10_e01.txt"
       },
       "type": "Quote"

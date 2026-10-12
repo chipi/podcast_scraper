@@ -47,6 +47,7 @@ from podcast_scraper.server.app_episode_notes import (
     render_episode_notes_markdown,
 )
 from podcast_scraper.server.app_episode_search import (
+    episode_ad_spans,
     episode_segments as _raw_segment_tuples,
     exact_passages,
     word_matches,
@@ -865,6 +866,7 @@ def episode_moments(
         row.duration_seconds,
         config,
         _raw_segment_tuples(root, row),
+        episode_ad_spans(root, row),
     )
     return AppMomentsResponse(
         episode_slug=slug,

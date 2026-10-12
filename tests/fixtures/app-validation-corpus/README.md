@@ -167,6 +167,28 @@ insights are claims (no questions, greetings, sponsor reads, connective template
 prompts), chosen speaker-balanced and topical first; non-English episodes are grounded in their
 source-language segments. It is idempotent — a second `--apply` changes nothing.
 
+**No ad in a short listen** (2026-10-12). Two fixture faults made clips play ads, both fixed:
+
+- The translated shows' (p10-p14) English renders were captured from a pipeline run on other
+  audio, so their timings (a 1,710 s timeline) disagreed with the episode's source segments and GI
+  quotes (a 294 s grid). A clip cut from the render at a quote's time played the wrong line —
+  "Start at strava.com/podcast" for a point about drainage. The builder now puts a replayed render
+  on the source timeline (`retime_english_render`: sentence -> source segment through
+  `translation.json`'s turns; text untouched), and the committed corpus was migrated:
+
+  ```sh
+  .venv/bin/python scripts/tools/retime_fixture_english_renders.py          # dry run
+  .venv/bin/python scripts/tools/retime_fixture_english_renders.py --apply  # start/end only
+  ```
+
+- The break lead-in ("We'll be right back after a short ad break") was an insight in all five
+  translated shows: the builder's ad filter was English-only. `is_ad_copy` now knows it in each
+  language here, and `realign_fixture_gi.py --apply` replaced those five with the episode's next
+  claim.
+
+The app side (clips stop at an ad wherever the corpus comes from) is
+`server/app_moments.build_clip` with `app_episode_search.episode_ad_spans`.
+
 **Topics are natural** (2026-10-12). An episode carries its ground-truth topics and the topics a
 real pipeline run extracted from its transcript — nothing else. The builder used to STAMP two
 "shared umbrella" topics (lifelong learning, expert interviews) on every episode and two

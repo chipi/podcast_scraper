@@ -102,6 +102,13 @@ fixes those answers so every later rail is built against the same rules.
    - Like Moments, it never moves a resume point or counts as a listen until "Keep listening to
      this episode" makes it one.
    - A clip must say what its insight says, so no greetings or ad reads.
+   - **A clip never plays an ad** (2026-10-12), in a reel or in Moments: it does not start inside
+     one, and its lead-in and its extension to the minimum length stop at one. The ads are the
+     stretches the pipeline cut before extracting insights (raw segments missing from the ad-free
+     ones), else the ad reads the same detector finds, and any voice diarization called
+     commercial. Measured on 40 prod episodes with ads: no clip of 367 played an ad (one ran into a
+     guest line diarization had voiced as commercial, now trimmed); on the fixture, whose breaks
+     follow points closely, 14 of 112 carried ad content.
    - The page states what the reel actually runs, never the budget.
 9. **No curation for now.** No editorial lists, no creator Podroll, no social graph. Revisit when
    there are listeners and curators to serve.
