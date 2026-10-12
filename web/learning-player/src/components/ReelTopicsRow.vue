@@ -11,6 +11,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getReelTopics, type ReelTopic } from '../services/api'
 import { kindPill } from '../utils/interests'
+import KindWord from './KindWord.vue'
 import { reelMinutes } from '../utils/reelLength'
 import { track } from '../services/analytics'
 
@@ -43,7 +44,7 @@ watch(() => props.scope, load, { immediate: true })
           :aria-label="t('reel.chipLabel', { minutes: reelMinutes(topic.total_seconds), topic: topic.subject_label }, reelMinutes(topic.total_seconds))"
           data-testid="reel-topic-chip"
           @click="track('reel_open', { source: 'discover_row', kind: topic.subject_kind })"
-        ><span aria-hidden="true">▶ {{ topic.subject_label }}</span></RouterLink>
+        ><span aria-hidden="true">▶ <KindWord :kind="topic.subject_kind" />{{ topic.subject_label }}</span></RouterLink>
       </li>
     </ul>
   </section>

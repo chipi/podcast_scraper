@@ -165,7 +165,9 @@ const dayBars = computed<number[]>(() => {
           :key="topic.label"
           class="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-canvas/60 py-1 pl-2.5 pr-1.5 text-xs"
         >
-          <span class="truncate text-muted">{{ topic.label }}</span>
+          <!-- In the topic colour (operator 2026-10-12): every pill here is a topic, so no kind word,
+               but grey made them read as plain tags rather than the topics they are elsewhere. -->
+          <span class="truncate text-topic">{{ topic.label }}</span>
           <!-- NEW is a filled accent badge; a delta is a quieter outlined one. "Appeared this week"
                and "moved two places" are different kinds of news and should not look identical. -->
           <span

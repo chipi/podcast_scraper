@@ -78,7 +78,9 @@ describe('LearnThisWeek', () => {
     expect(api.getLearn).toHaveBeenCalledWith('mine')
     expect(w.get('[data-testid="learn-title"]').text()).toBe('Learn something this week')
     const chip = w.get('[data-testid="learn-subject"]')
-    expect(chip.text()).toBe('Managing risk') // every path is seven days, so the pill does not repeat it
+    // Its kind named first, as in every mixed row (operator 2026-10-12); every path is seven days,
+    // so the pill does not repeat it.
+    expect(chip.text()).toBe('Storyline Managing risk')
     expect(chip.classes()).toContain('text-storyline')
     await chip.trigger('click')
     await flushPromises()
@@ -94,7 +96,10 @@ describe('LearnThisWeek', () => {
     const w = mountIt()
     await flushPromises()
     const current = w.findAll('[data-testid="learn-current"]')
-    expect(current.map((c) => c.text())).toEqual(['Managing risk · day 3 of 7 ›', 'B · day 1 of 7 ›'])
+    expect(current.map((c) => c.text())).toEqual([
+      'Storyline Managing risk · day 3 of 7 ›',
+      'Storyline B · day 1 of 7 ›',
+    ])
     expect(current[0].attributes('href')).toBe('/learn?subject=thc:risk')
     expect(w.text()).toContain('Learning now')
 

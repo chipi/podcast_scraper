@@ -463,7 +463,9 @@ piece to its design home:
   the listener's own (top topics; the themes and storylines of their world), under Everyone the
   rising ones — each offered only when its reel has at least two clips, and two subjects whose reels
   are the same clips offered once. Each chip wears its kind's colours (`kindPill`: topic, theme,
-  storyline), as on episode notes. Hidden when there are none.
+  storyline), as on episode notes, and starts with its kind word (`KindWord`: "▶ TOPIC risk
+  management"; operator 2026-10-12), since the row mixes kinds and colour is not a label. Hidden
+  when there are none.
 - **The subject pages' top** (topic, theme, storyline; operator 2026-10-11) is identical on all
   three: "‹ Back" on its own row (standalone pages), the kind in its colour (TOPIC / THEME /
   STORYLINE), the title, the actions row — **Follow** ("Follow" / "Following", the same words on
@@ -500,6 +502,8 @@ piece to its design home:
     colours — "Managing risk across domains · 7 days" — themes and storylines with a path of three
     to seven days, in the page scope, none already being learned. One tap starts it and opens its
     week.
+  - **Kind word** (`KindWord`, operator 2026-10-12): every offer and every Learning now pill starts
+    with its subject's kind (THEME / STORYLINE), as on the Short listens row above.
   - **Learning now:** the paths already on, as `learn` pills "Second-order effects · day 3 of 7 ›"
     to their weeks (at three, under "What you are learning", with no offers). The day to do is on
     Home's In progress.

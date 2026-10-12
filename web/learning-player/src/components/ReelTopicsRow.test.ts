@@ -44,7 +44,7 @@ describe('ReelTopicsRow', () => {
     const chip = w.get('[data-testid="reel-topic-chip"]')
     // The pill names the subject only (operator 2026-10-11: shorter pills); the length stays in its
     // accessible name — 40 s rounds up to one minute, never zero.
-    expect(chip.text()).toBe('▶ alpha')
+    expect(chip.text()).toBe('▶ Topic alpha') // its kind named, as in every mixed row (2026-10-12)
     expect(chip.attributes('aria-label')).toBe('Play 1 minute on alpha')
     expect(w.get('h2').text()).toBe('Short listens')
     expect(chip.attributes('href')).toBe('/listen/topic/topic:a?minutes=15')

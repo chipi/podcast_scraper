@@ -13,6 +13,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { ApiError, getLearn, startLearn, type LearningPath, type LearnSubject } from '../services/api'
 import { track } from '../services/analytics'
 import { kindPill } from '../utils/interests'
+import KindWord from './KindWord.vue'
 
 const props = defineProps<{ scope: 'mine' | 'corpus' }>()
 const { t } = useI18n()
@@ -73,7 +74,7 @@ async function start(subject: LearnSubject): Promise<void> {
             :disabled="busy"
             data-testid="learn-subject"
             @click="start(c)"
-          >{{ c.subject_label }}</button>
+          ><KindWord :kind="c.subject_kind" />{{ c.subject_label }}</button>
         </li>
       </ul>
     </template>
@@ -87,7 +88,7 @@ async function start(subject: LearnSubject): Promise<void> {
             class="lp-tap inline-flex items-center rounded-full bg-learn/15 px-3 py-1.5 text-xs font-semibold text-learn no-underline ring-1 ring-inset ring-learn/40"
             data-testid="learn-current"
             @click="track('learn_path', { action: 'open', kind: p.subject_kind, source: 'discover' })"
-          >{{ t('learn.current', { subject: p.subject_label, n: p.day, total: p.steps.length }) }} ›</RouterLink>
+          ><KindWord :kind="p.subject_kind" />{{ t('learn.current', { subject: p.subject_label, n: p.day, total: p.steps.length }) }} ›</RouterLink>
         </li>
       </ul>
     </div>
