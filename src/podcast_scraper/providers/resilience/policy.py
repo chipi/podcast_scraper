@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Sequence, TypeVar
 
+from ..guardrails.exceptions import GuardrailViolation
 from .breakers import CircuitBreaker
 from .deadlines import run_with_watchdog, WATCHDOG_GRACE_SEC
 
@@ -161,6 +162,8 @@ class ResiliencePolicy:
         if self.breaker.state == "closed":
             try:
                 return self._attempt_with_backoff(call, timeout_sec, sleep)
+            except GuardrailViolation:
+                raise
             except Exception as exc:  # noqa: BLE001 - retries exhausted; breaker now open
                 logger.warning(
                     "%s: retries exhausted (%d attempts); holding and probing rather than "
@@ -183,6 +186,12 @@ class ResiliencePolicy:
         for attempt in range(self.retries_before_trip):
             try:
                 result = run_with_watchdog(call, timeout_sec + WATCHDOG_GRACE_SEC, label=self.name)
+            except GuardrailViolation:
+                # The endpoint answered; the answer failed a content check (ADR-099: no retry
+                # against the same endpoint). Not an outage, so neither a retry nor a breaker
+                # failure: Camera seduta 717 (2026-10-12) returned the same 417 words for 66
+                # minutes on every attempt and probe, and the hold blocked the episodes behind it.
+                raise
             except Exception as exc:  # noqa: BLE001 - retried below; re-raised once exhausted
                 last_exc = exc
                 logger.warning(
@@ -214,6 +223,10 @@ class ResiliencePolicy:
                     result = run_with_watchdog(
                         call, timeout_sec + WATCHDOG_GRACE_SEC, label=self.name
                     )
+                except GuardrailViolation:
+                    # An answer, so the endpoint is back; its content is the caller's problem.
+                    self.breaker.record_success()
+                    raise
                 except Exception as exc:  # noqa: BLE001 - keep probing until max-wait
                     logger.warning("%s: probe failed (%s); still holding", self.name, exc)
                     self.breaker.record_failure(hard=True)
