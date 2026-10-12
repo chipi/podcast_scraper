@@ -131,21 +131,25 @@ title or transcript.
 - **Why:** capitalisation is the only name signal left in a self-introduction; names stated
   elsewhere are still read case-blind (scenario `lowercase_transcript_with_stated_names`).
 
-### K13. An announcer seated as the host; a cross-posted show's host given the guest role
+### K13. Errors the merged ladder introduced, found by the Track B audit (2026-10-12)
 
-- **Examples (prod, 2026-10-12, from the code merged in #2337):** People I (Mostly) Admire, where
-  the feed now states Steve Levitt as host and his name lands on a 1% announcer voice ("you're
-  listening to people i mostly admire with steve levitt") while his 49% voice stays unnamed; two
-  a16z cross-posts where the guest named in the title leaves a spare name and the show's own host
-  voice is painted "guest" ("a very special returning guest, Marc Andreessen"; "We are live with
-  Sriram Krishnan").
-- **Why not fixed:** a host-name veto for a seat that says the host's FULL name in the third person
-  unnamed dozens of real hosts (hosts say their own name in many forms: "with me, your host,
-  Professor Hannah Fry", "hello it's eric topol", sponsor reads naming Tyler Cowen) and emptied 6
-  episodes; skipping the guest role for a voice that names the spare guest took the role from real
-  guests (Benedict Evans, Keith Rabois, Arthur Brooks), whose clusters carry the host's bled
-  introduction of them. Both replayed on all served episodes and reverted. A narrower signal is
-  needed (for the announcer: its share of the talk).
+- **How found:** every one of the 167 voices the merged code (#2337) names differently from the
+  deployed code was read against its own words (100 for the record repair, 67 in the audit).
+  6 were wrong: People I (Mostly) Admire's 1% announcer took the stated host Steve Levitt's name; two
+  a16z cross-posts painted their own host "guest" (and a Garry Tan interviewer voice the same way);
+  The Rest Is Politics' Yanis Varoufakis episode put his name on an ad read and named his own voice
+  after the spare co-host; Open Africa's co-host voice went from host to guest.
+- **Fixed (Track B):** the title's OPENING guest is not declared while a host seat holds over half
+  the talk (Varoufakis, the cross-posts, Garry Tan: the same guard the title tail had), and a seat
+  under 5% of the talk does not take the forced host name beside a voice of 20% or more (Levitt).
+  Replay: exactly those 6 voices change, nothing else; gold gates 0 / 0.
+- **Left:** Open Africa's co-host stays "guest". The deployed code seated it as host only through
+  an idiom ("employees are welcome to join") that F4b1 rightly ignores; the generic "a guest was
+  introduced in this episode" painting then calls it guest. Role of an unnamed voice only.
+- **Tried and reverted:** a full-name third-person host veto (unnamed dozens of real hosts, emptied
+  6 episodes); no guest role for a voice that names the spare guest (real guests lost the role);
+  no forced guest name on a voice that reads an ad (real guests' clusters carry merged mid-roll ads:
+  Simon Willison, Kent Beck, Fiona Fung lost their names).
 
 ## Changes tried and rejected (so they are not tried again blind)
 
@@ -159,6 +163,7 @@ title or transcript.
 | Drop unpublishable self-introductions | lost Kenny Malone, ~12 guest roles |
 | Host veto for a seat saying the host's full name in the third person | lost dozens of real hosts, 6 episodes emptied |
 | No guest role for a voice that names the spare guest | real guests lost the role (bled host introductions) |
+| No forced guest name on a voice that reads an ad | 6 real guests lost their names (merged mid-roll ads) |
 | Title vouched by a full name said on air alone | named "Project Astra", "Cosmic Queries"; lost 4 correct names |
 
 ## Measurement caveats

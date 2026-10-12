@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 20 |
+| Doc version | 21 |
 | Last updated | 2026-10-12 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `62b575b2d8d8` (see below) |
+| Code content hash | `42ced70ceecd` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -27,6 +27,10 @@
 
 **Changelog**
 
+- **v21, 2026-10-12.** Two guards (#2304 Track B audit, K13): `title_subject` does not declare the
+  title's OPENING guest while a host seat holds over half the talk (as the tail already did), and the
+  forced host name skips a seat under 5% of the talk beside a voice of 20% or more
+  (`_is_a_sliver_seat`).
 - **v20, 2026-10-12.** One rule widened (#2304, F2d): `title_subject` accepts a title's person
   (opening or tail, now also "ft. / feat. / featuring" tails) when a host voice seated on its own
   evidence says the name IN FULL and also ADDRESSES them by first name ("...with me, Tim."), with no
@@ -320,7 +324,7 @@ list, so this document and the library cannot drift apart. Known-wrong outcomes 
 | `intro_reader` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_place_after_an_introduction_cue_names_nobody`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice` (+9) |
 | `llm_merge` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_stated_name_stays_on_one_voice`, `an_introduced_stated_guest_keeps_their_voice`, `guest_saying_welcome_to_my_country_is_not_a_host (xfail)`, `guest_saying_you_are_welcome_to_share_is_not_a_host (xfail)` (+9) |
 | `nameable` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_place_after_an_introduction_cue_names_nobody`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person` (+51) |
-| `non_regression` | `lecture_episode_guest_in_title (xfail)`, `the_title_guest_never_lands_on_the_hosts_voice`, `wrong_llm_host_name_on_the_guest_is_not_published` |
+| `non_regression` | `wrong_llm_host_name_on_the_guest_is_not_published` |
 | `one_name_per_person` | `credential_written_without_comma`, `stated_spelling_wins_over_self_intro_spelling` |
 | `presenter_evidence` | `a_cohost_introduced_in_the_asr_spelling_is_the_cohost`, `a_mid_interview_mention_is_not_the_guests_name`, `a_place_after_an_introduction_cue_names_nobody`, `a_sponsor_read_after_the_introduction_is_not_the_guest`, `a_stated_name_stays_on_one_voice`, `ad_narrator_saying_its_name_is_not_a_person` (+51) |
 | `publish_gate` | `opener_laden_name_is_refused_at_publish` |
