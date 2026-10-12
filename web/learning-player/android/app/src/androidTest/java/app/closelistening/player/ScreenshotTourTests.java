@@ -101,9 +101,12 @@ public class ScreenshotTourTests extends UITestCase {
         settle(5_000);
         Journey.tap("Brief", false, 10_000);
         settle(2_000);
-        List<String> topics = Arrays.asList("Open risk management", "Open systems thinking");
-        Journey.scrollTo(topics, true, 10);
-        boolean opened = Journey.tap(topics, true, 6_000);
+        // "reliability": its own chip in the episode's Brief and a member of a storyline. Risk management
+        // and systems thinking are grouped into their storyline's chip since 2026-10-12. EXACT match:
+        // "Open reliability" must not match "Open reliability trade offs".
+        List<String> topics = Arrays.asList("Open reliability");
+        Journey.scrollTo(topics, false, 10);
+        boolean opened = Journey.tap(topics, false, 6_000);
         if (opened) settle(4_000);
         return opened;
     }
@@ -121,10 +124,11 @@ public class ScreenshotTourTests extends UITestCase {
         if (Journey.openTab("Discover")) {
             settle(5_000);
             frame("t02-discover");
-            // Search from Discover's own box: phones have no Search tab and no header magnifier,
+            // Search from Explore's box (it left Discover with the Discover arc): phones have no
+            // Search tab and no header magnifier,
             // so this is the route a person actually takes. With a query — Search on an empty box
             // does nothing, and t03 came back identical to t02.
-            if (Journey.searchFromDiscover("risk")) {
+            if (Journey.searchFromExplore("risk")) {
                 settle(4_000);
                 frame("t03-search");
             }

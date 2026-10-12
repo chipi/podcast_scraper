@@ -48,7 +48,11 @@ final class ScreenshotTourTests: UITestCase {
     // roots, and a regression can hit one without touching the other.
     "t22a-topic-sheet", "t22b-person-over-topic", "t22c-storyline-over-topic",
     "t22d-person-over-storyline-over-topic",
-    "t23-saved-row", "t24-colour-popover", "t25-home-offline", "t26-home-final",
+    "t23-saved-row", "t24-colour-popover",
+    // The lists an episode row's controls live on, and a short listen (2026-10-12): an extra
+    // control wrapped every row onto a second line and no frame showed it.
+    "t27-queue", "t28-explore", "t29-explore-lower", "t30-short-listen",
+    "t25-home-offline", "t26-home-final",
   ]
 
   /// People who appear as top-voice chips in the fixture corpus. Named explicitly because those
@@ -61,13 +65,22 @@ final class ScreenshotTourTests: UITestCase {
   /// open by default and REMEMBERS being closed, so: scroll to the chip; only if it is not there,
   /// open the header and look again. Tapping the header first is what closed it (2026-10-08).
   private static func openFromTopicsAndPeople(_ app: XCUIApplication, _ labels: [String]) -> Bool {
-    _ = Journey.scrollTo(app, labels: labels, maxSwipes: 10)
-    if Journey.tap(app, labels: labels, contains: true, timeout: 4) { return true }
+    // EXACT: "Open reliability" must not match "Open reliability trade offs".
+    _ = Journey.scrollTo(app, labels: labels, contains: false, maxSwipes: 10)
+    if Journey.tap(app, labels: labels, contains: false, timeout: 4) { return true }
     _ = Journey.scrollTo(app, labels: ["Topics & People"], maxSwipes: 10)
     _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 4)
     sleep(2)
-    _ = Journey.scrollTo(app, labels: labels, maxSwipes: 10)
-    return Journey.tap(app, labels: labels, contains: true, timeout: 6)
+    // The section shows five chips and folds the rest behind "+N more" (2026-10-07); a topic past
+    // the fifth — themes and storylines lead since 2026-10-12 — is not on screen until it unfolds.
+    let more = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '+' AND label ENDSWITH 'more'"))
+      .firstMatch
+    if more.waitForExistence(timeout: 3) && more.isHittable {
+      more.tap()
+      sleep(1)
+    }
+    _ = Journey.scrollTo(app, labels: labels, contains: false, maxSwipes: 10)
+    return Journey.tap(app, labels: labels, contains: false, timeout: 6)
   }
 
   private var shotFrames: Set<String> = []
@@ -102,8 +115,9 @@ final class ScreenshotTourTests: UITestCase {
     frame("t01-home")
 
     if Journey.openTab(app, "Discover") { sleep(5); frame("t02-discover") }
-    // Search from Discover's box: phones have no Search tab and no header magnifier (2026-09-30).
-    if Journey.searchFromDiscover(app, "risk") { sleep(4); frame("t03-search") }
+    // Search from Explore's box: phones have no Search tab and no header magnifier (2026-09-30),
+    // and the box left Discover for Explore with the Discover arc.
+    if Journey.searchFromExplore(app, "risk") { sleep(4); frame("t03-search") }
 
     // --- library, every tab -------------------------------------------------------------------
     if Journey.openTab(app, "Library") {
@@ -246,7 +260,10 @@ final class ScreenshotTourTests: UITestCase {
       sleep(5)
       _ = Journey.tap(app, labels: ["Brief"], contains: false, timeout: 10)
       sleep(2)
-      let opened = Self.openFromTopicsAndPeople(app, ["Open risk management", "Open systems thinking"])
+      // "reliability": a topic chip of its own in this episode's Brief, and a member of the
+      // "Second-order effects" storyline the sheets stack. Risk management and systems thinking
+      // are not chips since 2026-10-12: the Brief groups them into their storyline's chip.
+      let opened = Self.openFromTopicsAndPeople(app, ["Open reliability"])
       if opened { sleep(4) }
       return opened
     }
@@ -293,6 +310,37 @@ final class ScreenshotTourTests: UITestCase {
       if Journey.tap(app, labels: ["Colour", "Color"], contains: false, timeout: 8) {
         sleep(3); frame("t24-colour-popover")
       }
+    }
+
+    // --- Queue, Explore and a short listen (2026-10-12) --------------------------------------------
+    // Every list of episode rows gets a frame: a download button added to every row (2026-10-11)
+    // wrapped them all onto a second line on a device, and the tour photographed none of them.
+    Journey.dismissSheets(app)
+    Journey.openTab(app, "Home")
+    sleep(3)
+    // "Queue (2)": the badge's count is part of the icon's name (#1592), so match its start.
+    if Journey.tap(app, labels: ["Queue ("], contains: true, timeout: 10)
+      || Journey.tap(app, labels: ["Queue"], contains: false, timeout: 4) {
+      sleep(4)
+      frame("t27-queue")
+    }
+    Journey.dismissSheets(app)
+    if Journey.openTab(app, "Explore") {
+      sleep(5)
+      frame("t28-explore")
+      for _ in 0..<3 {
+        app.swipeUp()
+        sleep(1)
+      }
+      sleep(2)
+      frame("t29-explore-lower")
+    }
+    Journey.openTab(app, "Discover")
+    sleep(5)
+    _ = Journey.scrollTo(app, labels: ["minute on", "minutes on"], maxSwipes: 6)
+    if Journey.tap(app, labels: ["minute on", "minutes on"], contains: true, timeout: 8) {
+      sleep(5)
+      frame("t30-short-listen")
     }
 
     // --- offline, with the cache already warmed by everything above ----------------------------

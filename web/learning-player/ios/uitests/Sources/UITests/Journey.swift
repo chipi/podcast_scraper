@@ -346,15 +346,32 @@ enum Journey {
     // ONE read each: every property access re-resolves the query, and a query that has stopped
     // matching raises an XCTest failure rather than returning nil.
     let f = el.frame
-    guard screen.width > 0, f.width > 0, f.height > 0 else { el.tap(); return }
-    if screen.contains(CGPoint(x: f.midX, y: f.midY)) { el.tap(); return }
+    guard screen.width > 0, f.width > 0, f.height > 0 else {
+      if el.isHittable { el.tap() } else { print("=====TAP_SKIPPED \(labels) — no frame, not hittable=====") }
+      return
+    }
+    if screen.contains(CGPoint(x: f.midX, y: f.midY)) {
+      // A covered control (`isHittable` false) makes `el.tap()` raise an XCTest failure Swift
+      // cannot catch, which ended the whole tour on one chip under a sheet (2026-10-12). A
+      // coordinate tap lands on whatever is on top and never raises; the caller sees the page did
+      // not change and carries on, which is the best-effort contract.
+      if el.isHittable {
+        el.tap()
+      } else {
+        print("=====TAP_COVERED \(labels) frame=\(f) — tapping its centre=====")
+        el.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+      }
+      return
+    }
 
     let visible = f.intersection(screen)
     guard !visible.isNull, visible.width > 1, visible.height > 1 else {
       // Nothing to aim at. Tap anyway so behaviour is unchanged, but NAME it — silence here is
       // exactly what made this class of bug invisible.
       print("=====TAP_OFFSCREEN \(labels) frame=\(f) screen=\(screen) — no visible part=====")
-      el.tap()
+      // Only a hittable one: `tap()` on a covered or off-screen control raises an XCTest failure
+      // Swift cannot catch, and that ended the tour on a person chip under a sheet (2026-10-12).
+      if el.isHittable { el.tap() }
       return
     }
     let dx = (visible.midX - f.minX) / f.width
@@ -512,14 +529,15 @@ enum Journey {
     tap(app, labels: [name], timeout: 20)
   }
 
-  /// Run a search the way a phone does: from Discover's own search box.
+  /// Run a search the way a phone does: from Explore's own search box.
   ///
   /// There is no "Search" tab and, since 2026-09-30, no magnifier in the phone header (no room for
   /// it). `openTab(app, "Search")` therefore matches nothing and returns false — a tour that used it
-  /// silently lost its search frame. The box is labelled by its sr-only `<label>` ("Ask across every
-  /// episode"); `searchFields` is the fallback because the input is `type="search"`.
-  static func searchFromDiscover(_ app: XCUIApplication, _ query: String) -> Bool {
-    guard openTab(app, "Discover") else { return false }
+  /// silently lost its search frame. The box moved from Discover to Explore with the Discover arc
+  /// (ADR-163), and a helper still opening Discover found no field and lost the frame the same way
+  /// (2026-10-12). The input is `type="search"`, so `searchFields` finds it.
+  static func searchFromExplore(_ app: XCUIApplication, _ query: String) -> Bool {
+    guard openTab(app, "Explore") else { return false }
 
     // FIND THE INPUT BY TYPE, NOT BY LABEL (2026-10-03, measured).
     //

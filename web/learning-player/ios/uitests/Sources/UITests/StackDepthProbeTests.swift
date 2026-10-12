@@ -28,7 +28,7 @@ final class StackDepthProbeTests: UITestCase {
     sleep(3)
 
     let topicPre = NSPredicate(
-      format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'"
+      format: "label == 'Open reliability'"
     )
     if !app.buttons.matching(topicPre).firstMatch.waitForExistence(timeout: 4) {
       _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 12)

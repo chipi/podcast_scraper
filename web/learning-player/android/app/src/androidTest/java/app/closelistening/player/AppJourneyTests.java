@@ -558,8 +558,11 @@ public class AppJourneyTests extends UITestCase {
 
         // Accordion state is preserved between tests — tap only when the topic controls are not
         // already reachable, and re-tap once if the first tap collapsed a section.
-        List<String> topicNames = Arrays.asList("Open systems thinking", "Open risk management");
-        if (Journey.find(topicNames, true, 4_000) == null) {
+        // "reliability": its own chip in the episode's Brief and a member of a storyline. Risk management
+        // and systems thinking are grouped into their storyline's chip since 2026-10-12. EXACT match:
+        // "Open reliability" must not match "Open reliability trade offs".
+        List<String> topicNames = Arrays.asList("Open reliability");
+        if (Journey.find(topicNames, false, 4_000) == null) {
             // SCROLL to the section first — this is a real iOS/Android difference, not a port slip.
             // Android's accessibility tree contains only ON-SCREEN nodes, where iOS keeps off-screen
             // ones with negative coordinates. So `find` cannot see "Topics & People" while the panel
@@ -572,12 +575,12 @@ public class AppJourneyTests extends UITestCase {
             }
             Journey.tap("Topics & People", true, 12_000);
             Journey.sleep(3_000);
-            if (Journey.find(topicNames, true, 6_000) == null) {
+            if (Journey.find(topicNames, false, 6_000) == null) {
                 Journey.tap("Topics & People", true, 10_000);
                 Journey.sleep(3_000);
             }
         }
-        if (Journey.find(topicNames, true, 20_000) == null) {
+        if (Journey.find(topicNames, false, 20_000) == null) {
             // 20 was not enough to reach the Topics & People section at all — the dump ended in the
             // key-points list and said nothing about the controls under test (2026-09-26). A
             // diagnostic that stops before the thing it is diagnosing is worse than none: it looks
@@ -587,7 +590,7 @@ public class AppJourneyTests extends UITestCase {
         }
 
         // L1 — drill into a topic IN THE PANEL.
-        Journey.tap(topicNames, true, 15_000);
+        Journey.tap(topicNames, false, 15_000);
         Journey.sleep(4_000);
 
         // The topic card inside the panel offers its storyline: a link card with no heading since
@@ -620,7 +623,7 @@ public class AppJourneyTests extends UITestCase {
                 "the topic is gone — the storyline replaced it instead of stacking over it. "
                         + "On screen: " + Journey.labelledInventory(80),
                 Journey.find(
-                        Arrays.asList("systems thinking", "risk management"), true, 8_000));
+                        Arrays.asList("reliability"), true, 8_000));
     }
 
     // ------------------------------------------------------------------ helpers

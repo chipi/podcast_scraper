@@ -55,7 +55,10 @@ public class StackDepthProbeTests extends UITestCase {
 
         // Expand "Topics & People" accordion — tap only when the topic controls are not
         // already reachable, to avoid collapsing a section a previous test left open.
-        List<String> topicNames = Arrays.asList("Open systems thinking", "Open risk management");
+        // "reliability": its own chip in the episode's Brief and a member of a storyline. Risk management
+        // and systems thinking are grouped into their storyline's chip since 2026-10-12. EXACT match:
+        // "Open reliability" must not match "Open reliability trade offs".
+        List<String> topicNames = Arrays.asList("Open reliability");
         // THE SAME SEQUENCE AS `AppJourneyTests.test11`, deliberately, because that one passes and
         // four variations of my own did not (2026-09-26). Three things in it are load-bearing and
         // none is obvious:
@@ -67,27 +70,27 @@ public class StackDepthProbeTests extends UITestCase {
         //   3. A LONG final wait. The accordion's contents render lazily; `scrollTo`'s internal
         //      probes are ~1.5s and give up too early, which is what my version got wrong. This is
         //      the whole difference between the two tests.
-        if (Journey.find(topicNames, true, 4_000) == null) {
+        if (Journey.find(topicNames, false, 4_000) == null) {
             if (Journey.scrollTo("Topics & People", true) == null) {
                 fail("the Topics & People section is not in the insights panel at all. On screen: "
                         + Journey.labelledInventory(80));
             }
             Journey.tap("Topics & People", true, 12_000);
             Journey.sleep(3_000);
-            if (Journey.find(topicNames, true, 6_000) == null) {
+            if (Journey.find(topicNames, false, 6_000) == null) {
                 Journey.tap("Topics & People", true, 10_000);
                 Journey.sleep(3_000);
             }
         }
         {
-            if (Journey.find(topicNames, true, 20_000) == null) {
+            if (Journey.find(topicNames, false, 20_000) == null) {
                 fail("no topic control in the insights panel. On screen: "
                         + Journey.labelledInventory(80));
             }
         }
 
         // L1 — the topic, in the panel.
-        Journey.tap(topicNames, true, 15_000);
+        Journey.tap(topicNames, false, 15_000);
         Journey.sleep(4_000);
         System.out.println("=====STACK_L1_TOPIC :: " + Journey.labelledInventory(12) + "=====");
 

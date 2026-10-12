@@ -701,7 +701,7 @@ final class Journey {
 
     /**
      * Discover's search box → a results page, the route a phone takes (no Search tab, no header
-     * magnifier). The twin of iOS `searchFromDiscover`, and like it the field is found by CLASS, not
+     * magnifier). The twin of iOS `searchFromExplore`, and like it the field is found by CLASS, not
      * by label: the label is an sr-only text node, and typing into it does nothing. Tapping Search
      * with the box empty also does nothing — the tour's t03 came back as a copy of t02 (2026-10-08).
      *
@@ -709,8 +709,9 @@ final class Journey {
      * frame showed the query typed on Discover), while Enter did, by hand over adb. The button is
      * the fallback. True only once Discover's heading is gone, i.e. the results page is showing.
      */
-    static boolean searchFromDiscover(String query) {
-        if (!openTab("Discover")) return false;
+    static boolean searchFromExplore(String query) {
+        // Explore, not Discover: the search box moved with the Discover arc (ADR-163, 2026-10-12).
+        if (!openTab("Explore")) return false;
         UiObject2 field = device().wait(
                 Until.findObject(By.clazz("android.widget.EditText")), 10_000);
         if (field == null) {

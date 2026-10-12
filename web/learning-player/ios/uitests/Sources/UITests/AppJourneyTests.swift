@@ -446,7 +446,7 @@ final class AppJourneyTests: UITestCase {
     sleep(3)
     // The accordion remembers its state, so tap only when the topic controls are not already there
     // (a blind tap would COLLAPSE a section a previous test left open) — same trap as test04.
-    let topicPre = NSPredicate(format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'")
+    let topicPre = NSPredicate(format: "label == 'Open reliability'")
     if !app.buttons.matching(topicPre).firstMatch.waitForExistence(timeout: 4) {
       _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 12)
       sleep(3)
@@ -457,7 +457,7 @@ final class AppJourneyTests: UITestCase {
     }
 
     // Drill into a topic IN THE PANEL — it must replace in place, not open a sheet.
-    let topicPredicate = NSPredicate(format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'")
+    let topicPredicate = NSPredicate(format: "label == 'Open reliability'")
     let topicButton = app.buttons.matching(topicPredicate).firstMatch
     guard topicButton.waitForExistence(timeout: 20) else {
       Journey.inventory(app, "panel-no-topic")
@@ -508,7 +508,7 @@ final class AppJourneyTests: UITestCase {
     // And the topic underneath must STILL be identifiable by its title. That is the contract —
     // stacking keeps it, routing away destroys it.
     XCTAssertNotNil(
-      Journey.find(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 8),
+      Journey.find(app, labels: ["reliability"], contains: true, timeout: 8),
       "the topic is gone — the storyline replaced it instead of stacking over it"
     )
     Journey.shot(self, "11-d-storyline-stacked-over-topic")
