@@ -1,6 +1,16 @@
 {
   "edges": [
     {
+      "from": "insight:1d60d05c768c1c43",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1d60d05c768c1c43",
+      "to": "topic:second-order-effects",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:62579f0bc62a88da",
       "to": "topic:frame",
       "type": "ABOUT"
@@ -12,12 +22,12 @@
     },
     {
       "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:62579f0bc62a88da",
+      "to": "insight:1d60d05c768c1c43",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:6d1a9cda459df713",
+      "to": "insight:62579f0bc62a88da",
       "type": "HAS_INSIGHT"
     },
     {
@@ -46,13 +56,13 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:2bcc526eee9d15b7",
+      "from": "quote:03ce8f6c553e90e3",
       "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:377f0d6d329025f4",
-      "to": "person:ethan",
+      "from": "quote:2bcc526eee9d15b7",
+      "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
@@ -66,13 +76,13 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:62579f0bc62a88da",
-      "to": "quote:d1556fd9ec2fd9a0",
+      "from": "insight:1d60d05c768c1c43",
+      "to": "quote:03ce8f6c553e90e3",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:6d1a9cda459df713",
-      "to": "quote:377f0d6d329025f4",
+      "from": "insight:62579f0bc62a88da",
+      "to": "quote:d1556fd9ec2fd9a0",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -175,20 +185,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:6d1a9cda459df713",
-      "properties": {
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Priya Nair, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:d1556fd9ec2fd9a0",
       "properties": {
         "char_end": 1245,
@@ -203,18 +199,39 @@
       "type": "Quote"
     },
     {
-      "id": "quote:377f0d6d329025f4",
+      "id": "insight:1d60d05c768c1c43",
       "properties": {
-        "char_end": 6506,
-        "char_start": 6466,
         "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:ethan",
-        "text": "Priya Nair, thanks for the conversation.",
-        "timestamp_end_ms": 318000,
-        "timestamp_start_ms": 312000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It comes down to this: Security incidents are reliability incidents. We've seen this play out at teams using Sentry. And the second-order effect is the part most people miss.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:03ce8f6c553e90e3",
+      "properties": {
+        "char_end": 1820,
+        "char_start": 1646,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:priya-nair",
+        "text": "It comes down to this: Security incidents are reliability incidents. We've seen this play out at teams using Sentry. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 84000,
+        "timestamp_start_ms": 78000,
         "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second-order effects"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

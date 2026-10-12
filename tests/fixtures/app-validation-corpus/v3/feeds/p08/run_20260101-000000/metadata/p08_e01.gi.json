@@ -1,6 +1,11 @@
 {
   "edges": [
     {
+      "from": "insight:2d38e58131eeeab4",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:3be44d7d620fad29",
       "to": "topic:public-radio",
       "type": "ABOUT"
@@ -12,17 +17,17 @@
     },
     {
       "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:2d38e58131eeeab4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
       "to": "insight:3be44d7d620fad29",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-efc13989b676df9d",
       "to": "insight:7e8bebf1c1c40238",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "insight:98184194cba1e9e8",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,12 +56,12 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:8d81de8481f85067",
-      "to": "person:a-correspondent",
+      "from": "quote:9f384a3458c7d964",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:9f384a3458c7d964",
+      "from": "quote:b233befe7331d61f",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
@@ -66,6 +71,11 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:2d38e58131eeeab4",
+      "to": "quote:b233befe7331d61f",
+      "type": "SUPPORTED_BY"
+    },
+    {
       "from": "insight:3be44d7d620fad29",
       "to": "quote:d37f36da6d7a07dd",
       "type": "SUPPORTED_BY"
@@ -73,11 +83,6 @@
     {
       "from": "insight:7e8bebf1c1c40238",
       "to": "quote:9f384a3458c7d964",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:98184194cba1e9e8",
-      "to": "quote:8d81de8481f85067",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -194,7 +199,7 @@
       "type": "Insight"
     },
     {
-      "id": "insight:98184194cba1e9e8",
+      "id": "insight:2d38e58131eeeab4",
       "properties": {
         "episode_id": "ep-efc13989b676df9d",
         "grounded": true,
@@ -202,21 +207,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Renee Montagne-Park, thanks for the conversation.",
+        "text": "It comes down to this: Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. Once you internalize that, the rest of the decisions get easier.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:8d81de8481f85067",
+      "id": "quote:b233befe7331d61f",
       "properties": {
-        "char_end": 4706,
-        "char_start": 4657,
+        "char_end": 2138,
+        "char_start": 1947,
         "episode_id": "ep-efc13989b676df9d",
-        "speaker_id": "person:a-correspondent",
-        "text": "Renee Montagne-Park, thanks for the conversation.",
-        "timestamp_end_ms": 216000,
-        "timestamp_start_ms": 210000,
+        "speaker_id": "person:renee-montagne-park",
+        "text": "It comes down to this: Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 96000,
+        "timestamp_start_ms": 90000,
         "transcript_ref": "transcripts/p08_e01.txt"
       },
       "type": "Quote"

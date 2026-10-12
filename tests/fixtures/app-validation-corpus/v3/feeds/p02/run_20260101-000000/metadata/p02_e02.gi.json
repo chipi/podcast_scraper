@@ -6,6 +6,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:f55d24a873ff55f7",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:fb4dbba05e6b88fc",
       "to": "topic:risk-management",
       "type": "ABOUT"
@@ -17,7 +22,7 @@
     },
     {
       "from": "episode:ep-35f04bce441bf827",
-      "to": "insight:da174023cbfc2f7d",
+      "to": "insight:f55d24a873ff55f7",
       "type": "HAS_INSIGHT"
     },
     {
@@ -56,8 +61,8 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:691a310a34c0f51c",
-      "to": "person:ethan",
+      "from": "quote:c5b68453499cea28",
+      "to": "person:jonas-weisenthal",
       "type": "SPOKEN_BY"
     },
     {
@@ -66,8 +71,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:da174023cbfc2f7d",
-      "to": "quote:691a310a34c0f51c",
+      "from": "insight:f55d24a873ff55f7",
+      "to": "quote:c5b68453499cea28",
       "type": "SUPPORTED_BY"
     },
     {
@@ -161,20 +166,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:da174023cbfc2f7d",
-      "properties": {
-        "episode_id": "ep-35f04bce441bf827",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Joll Wisenthal, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:0f4f3aab94efec5d",
       "properties": {
         "char_end": 2254,
@@ -203,15 +194,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:691a310a34c0f51c",
+      "id": "insight:f55d24a873ff55f7",
       "properties": {
-        "char_end": 6405,
-        "char_start": 6361,
         "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:ethan",
-        "text": "Joll Wisenthal, thanks for the conversation.",
-        "timestamp_end_ms": 306000,
-        "timestamp_start_ms": 300000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It comes down to this: Risk management is a communication problem. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:c5b68453499cea28",
+      "properties": {
+        "char_end": 6061,
+        "char_start": 5882,
+        "episode_id": "ep-35f04bce441bf827",
+        "speaker_id": "person:jonas-weisenthal",
+        "text": "It comes down to this: Risk management is a communication problem. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 282000,
+        "timestamp_start_ms": 276000,
         "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"

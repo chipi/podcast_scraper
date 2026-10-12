@@ -228,17 +228,19 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   // The pill names the subject and its kind (operator 2026-10-11, kind word 2026-10-12); its
   // length is in the accessible name.
   await expect(chip).toHaveText('▶ Topic systems thinking')
-  await expect(chip).toHaveAttribute('aria-label', 'Play 2 minutes on systems thinking')
+  // 1 minute since 2026-10-12: its clips stop before an ad break and where their speaker does.
+  await expect(chip).toHaveAttribute('aria-label', 'Play 1 minute on systems thinking')
   await chip.click()
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('systems thinking')
   // The small fixture: the page says what the reel runs, not the fifteen minutes asked for.
-  // 1:42, not 1:48, since a clip stops before the ad break it used to run into (2026-10-12).
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('1:42 · 9 clips · 9 episodes')
+  // 1:18 since 2026-10-12: clips stop before an ad break and where their speaker does, and a
+  // tenth clip (a second from p07-3f15) fits.
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('1:18 · 10 clips · 9 episodes')
 
-  // Started by the chip's tap: clip 1, playing, with the eight to come listed.
+  // Started by the chip's tap: clip 1, playing, with the nine to come listed.
   const current = page.getByTestId('topic-reel-current')
-  await expect(current).toContainText('Clip 1 of 9')
+  await expect(current).toContainText('Clip 1 of 10')
   await expect(page.getByTestId('topic-reel-pause')).toBeVisible()
   // The transport sits centred in its card (operator 2026-10-11): equal room left and right.
   const row = (await page.getByTestId('topic-reel-transport').boundingBox())!
@@ -247,21 +249,21 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   const leftRoom = prevBox.x - row.x
   const rightRoom = row.x + row.width - (nextBox.x + nextBox.width)
   expect(Math.abs(leftRoom - rightRoom)).toBeLessThan(2)
-  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(8)
+  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(9)
   // The clip's episode loads asynchronously (resolve, then load): wait for it before comparing.
   const audioSrc = () => page.evaluate(() => document.querySelector('audio')?.src ?? '')
   await expect.poll(audioSrc).toContain('/audio/')
   const first = await audioSrc()
   await page.getByTestId('topic-reel-next').click()
-  await expect(current).toContainText('Clip 2 of 9')
-  await expect(page.getByTestId('topic-reel-quote')).toContainText('Systems thinking in macro means watching feedback loops')
+  await expect(current).toContainText('Clip 2 of 10')
+  await expect(page.getByTestId('topic-reel-quote')).toContainText('Sustainability is a systems problem')
   await expect.poll(audioSrc).not.toBe(first) // the next clip's episode was loaded
-  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(7)
+  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(8)
 
   // Any clip to come is a jump.
   await page.getByTestId('topic-reel-up-next').nth(2).click() // clip 5
-  await expect(current).toContainText('Clip 5 of 9')
-  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(4)
+  await expect(current).toContainText('Clip 5 of 10')
+  await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(5)
 
   // Left unfinished, Home's "In progress" resumes it at clip 5 (the place is kept on the server).
   await expect
@@ -269,10 +271,10 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
     .toBe(4)
   await page.goto('/')
   const resume = page.getByTestId('in-progress-reel')
-  await expect(resume).toContainText('Short listen · clip 5 of 9')
+  await expect(resume).toContainText('Short listen · clip 5 of 10')
   await resume.getByTestId('in-progress-reel-resume').click()
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15&at=5/)
-  await expect(current).toContainText('Clip 5 of 9')
+  await expect(current).toContainText('Clip 5 of 10')
 
   await page.getByTestId('topic-reel-keep').click()
   await expect(page).toHaveURL(/\/episode\/p09-a4bbb5dde3/)
@@ -297,8 +299,9 @@ test('a short listen from a storyline and a theme: clips about any member topic;
   await page.getByTestId('reel-door').click()
   await expect(page).toHaveURL(/\/listen\/topic\/thc(:|%3A)managing-risk\?minutes=15/)
   await expect(page.getByTestId('topic-reel-title')).toHaveText('Managing risk across domains')
-  // 4:12, not 4:24: two clips stop before the ad break they used to run into (2026-10-12).
-  await expect(page.getByTestId('topic-reel-length')).toHaveText('4:12 · 22 clips · 16 episodes')
+  // 4:48 · 39 clips · 27 episodes since 2026-10-12: clips stop before an ad break and where their
+  // speaker does, and the translated shows' guests' risk-management lines are insights now.
+  await expect(page.getByTestId('topic-reel-length')).toHaveText('4:48 · 39 clips · 27 episodes')
 
   await page.goto(`/theme/${encodeURIComponent('tc:reliability')}`)
   await page.getByTestId('reel-door').click()

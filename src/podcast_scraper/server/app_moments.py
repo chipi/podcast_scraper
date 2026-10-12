@@ -29,7 +29,7 @@ import json
 import os
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
-from typing import Any, Sequence, TYPE_CHECKING
+from typing import AbstractSet, Any, Sequence, TYPE_CHECKING
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -177,8 +177,13 @@ def build_clip(
     segments: Sequence[Segment] | None,
     config: MomentsConfig,
     ads: Sequence[tuple[int, int]] = (),
+    turn_starts: AbstractSet[int] = frozenset(),
 ) -> tuple[int, int, str] | None:
     """The clip for one insight: ``(start_ms, end_ms, text)``, or None with no timed quote.
+
+    ``turn_starts`` are where a different speaker begins (``episode_turn_starts``): the extension
+    to the target length never crosses one, so the clip is the person making the point — the next
+    voice was a sponsor credit or a host-read ad as often as a question (2026-10-12).
 
     ``ads`` are the episode's ad stretches (``app_episode_search.episode_ad_spans``). A short
     listen never plays one (operator 2026-10-12: a clip ran on into "we'll be right back after a
@@ -222,8 +227,8 @@ def build_clip(
         if end - start >= target:
             break
         if s[0] >= end - 1 and s[1] - start <= cap:
-            if _overlaps(end, s[1], ads):
-                break  # the next stretch is an ad: the clip ends where the point does
+            if _overlaps(end, s[1], ads) or s[0] in turn_starts:
+                break  # an ad, or someone else: the clip ends where the point does
             end = s[1]
     cleared = _clear_of_ads(start, min(end, start + cap), ads)
     if cleared is None:
@@ -256,6 +261,7 @@ def score_candidates(
     config: MomentsConfig,
     segments: Sequence[Segment] | None = None,
     ads: Sequence[tuple[int, int]] = (),
+    turn_starts: AbstractSet[int] = frozenset(),
 ) -> list[Moment]:
     """Every insight that could be a moment, in the player's order, with its clip and score.
     Candidates are exactly the insights the Brief shows (``insights_from_gi`` with the episode
@@ -265,7 +271,7 @@ def score_candidates(
         return []
     insights: list[AppInsight] = insights_from_gi(artifact, unattributed_fallback=True)
     links = _topic_links(artifact)
-    clips = {ins.id: build_clip(ins.quotes, segments, config, ads) for ins in insights}
+    clips = {ins.id: build_clip(ins.quotes, segments, config, ads, turn_starts) for ins in insights}
     candidates = [ins for ins in insights if clips[ins.id] is not None]
 
     # Centrality: how many CANDIDATES share each topic, normalised by the most-shared topic.
@@ -348,11 +354,12 @@ def pick_moments(
     config: MomentsConfig | None = None,
     segments: Sequence[Segment] | None = None,
     ads: Sequence[tuple[int, int]] = (),
+    turn_starts: AbstractSet[int] = frozenset(),
 ) -> list[Moment]:
     """The episode's moments, in timeline order. ``duration_seconds`` unknown (None or 0) falls
     back to the end of the last clip, which under-counts a long tail but never invents length."""
     cfg = config or MomentsConfig()
-    scored = score_candidates(artifact, cfg, segments, ads)
+    scored = score_candidates(artifact, cfg, segments, ads, turn_starts)
     if not scored:
         return []
     duration = duration_seconds or max(m.end_ms for m in scored) / 1000.0

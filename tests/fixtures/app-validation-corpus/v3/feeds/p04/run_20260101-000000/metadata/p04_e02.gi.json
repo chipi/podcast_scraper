@@ -1,6 +1,11 @@
 {
   "edges": [
     {
+      "from": "insight:a6e8f00671f19f16",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:c238fd416f3f4baf",
       "to": "topic:frame",
       "type": "ABOUT"
@@ -12,12 +17,12 @@
     },
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
-      "to": "insight:c238fd416f3f4baf",
+      "to": "insight:a6e8f00671f19f16",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
-      "to": "insight:fba4837d2a3d7f8c",
+      "to": "insight:c238fd416f3f4baf",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,8 +41,8 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:696f4ba092911526",
-      "to": "person:leo",
+      "from": "quote:8bddf53c6aaf0b33",
+      "to": "person:tariq-hassan",
       "type": "SPOKEN_BY"
     },
     {
@@ -56,13 +61,13 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:c238fd416f3f4baf",
-      "to": "quote:93390964c84df3ba",
+      "from": "insight:a6e8f00671f19f16",
+      "to": "quote:8bddf53c6aaf0b33",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:fba4837d2a3d7f8c",
-      "to": "quote:696f4ba092911526",
+      "from": "insight:c238fd416f3f4baf",
+      "to": "quote:93390964c84df3ba",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -172,7 +177,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:fba4837d2a3d7f8c",
+      "id": "insight:a6e8f00671f19f16",
       "properties": {
         "episode_id": "ep-fb2bb5f0f4044f1d",
         "grounded": true,
@@ -180,21 +185,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Tarek Hassan, thanks for the conversation.",
+        "text": "Let me give you the version I actually believe. Documentary frames carry the most weight when the photographer is closer than feels comfortable. We've seen this play out at teams using Profoto. And\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:696f4ba092911526",
+      "id": "quote:8bddf53c6aaf0b33",
       "properties": {
-        "char_end": 5625,
-        "char_start": 5583,
+        "char_end": 2604,
+        "char_start": 2353,
         "episode_id": "ep-fb2bb5f0f4044f1d",
-        "speaker_id": "person:leo",
-        "text": "Tarek Hassan, thanks for the conversation.",
-        "timestamp_end_ms": 270000,
-        "timestamp_start_ms": 264000,
+        "speaker_id": "person:tariq-hassan",
+        "text": "Let me give you the version I actually believe. Documentary frames carry the most weight when the photographer is closer than feels comfortable. We've seen this play out at teams using Profoto. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 126000,
+        "timestamp_start_ms": 120000,
         "transcript_ref": "transcripts/p04_e02.txt"
       },
       "type": "Quote"

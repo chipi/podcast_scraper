@@ -7,7 +7,7 @@
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:3b4d0787ab27ba22",
+      "to": "insight:5a8f047850c0255f",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,8 +36,8 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:6ec2a01a31171184",
-      "to": "person:lucia-herrera",
+      "from": "quote:0e96264921302585",
+      "to": "person:javier-benavides",
       "type": "SPOKEN_BY"
     },
     {
@@ -51,8 +51,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:3b4d0787ab27ba22",
-      "to": "quote:6ec2a01a31171184",
+      "from": "insight:5a8f047850c0255f",
+      "to": "quote:0e96264921302585",
       "type": "SUPPORTED_BY"
     },
     {
@@ -167,7 +167,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:3b4d0787ab27ba22",
+      "id": "insight:5a8f047850c0255f",
       "properties": {
         "episode_id": "ep-7072d2e85dcd5233",
         "grounded": true,
@@ -175,21 +175,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Cambiemos de tema \u2014 quiero dedicar el \u00faltimo tramo a la gesti\u00f3n del territorio.",
+        "text": "Claro. Las conversaciones sobre gesti\u00f3n del territorio tienen que ocurrir antes de la primera excavaci\u00f3n. Lo hemos visto en equipos que usan RockShox. El marco importa porque te dice qu\u00e9 concesione\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:6ec2a01a31171184",
+      "id": "quote:0e96264921302585",
       "properties": {
-        "char_end": 5608,
-        "char_start": 5529,
+        "char_end": 1404,
+        "char_start": 1190,
         "episode_id": "ep-7072d2e85dcd5233",
-        "speaker_id": "person:lucia-herrera",
-        "text": "Cambiemos de tema \u2014 quiero dedicar el \u00faltimo tramo a la gesti\u00f3n del territorio.",
-        "timestamp_end_ms": 228000,
-        "timestamp_start_ms": 222000,
+        "speaker_id": "person:javier-benavides",
+        "text": "Claro. Las conversaciones sobre gesti\u00f3n del territorio tienen que ocurrir antes de la primera excavaci\u00f3n. Lo hemos visto en equipos que usan RockShox. El marco importa porque te dice qu\u00e9 concesiones est\u00e1s haciendo.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p10_e01.txt"
       },
       "type": "Quote"

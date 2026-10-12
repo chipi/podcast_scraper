@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:0dfa6ec034ba6922",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1ae52a0b39684064",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d3866bb873848a8e",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "insight:3a41ad78846c2902",
+      "to": "insight:0dfa6ec034ba6922",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "insight:665b2c9146b37e1f",
+      "to": "insight:1ae52a0b39684064",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "insight:fb58342b50af75cc",
+      "to": "insight:d3866bb873848a8e",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,33 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:1e20540f93b6e267",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:23de01944ceaf9fb",
+      "from": "quote:27781e65b1286051",
       "to": "person:marta-solis",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:d4251e3693fd8c5a",
-      "to": "person:lucia-herrera",
+      "from": "quote:2fe7157c215c4ad3",
+      "to": "person:marta-solis",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:3a41ad78846c2902",
-      "to": "quote:d4251e3693fd8c5a",
+      "from": "quote:b5adcc0f0a7117c6",
+      "to": "person:marta-solis",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0dfa6ec034ba6922",
+      "to": "quote:27781e65b1286051",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:665b2c9146b37e1f",
-      "to": "quote:23de01944ceaf9fb",
+      "from": "insight:1ae52a0b39684064",
+      "to": "quote:b5adcc0f0a7117c6",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:fb58342b50af75cc",
-      "to": "quote:1e20540f93b6e267",
+      "from": "insight:d3866bb873848a8e",
+      "to": "quote:2fe7157c215c4ad3",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -87,49 +102,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:1e20540f93b6e267",
-      "properties": {
-        "char_end": 554,
-        "char_start": 421,
-        "episode_id": "ep-7fd3ec879c8c2b44",
-        "speaker_id": "person:speaker-01",
-        "text": "Antes de entrar en materia \u2014 Javier Benavides estuvo en el programa contando que el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p10_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:23de01944ceaf9fb",
-      "properties": {
-        "char_end": 623,
-        "char_start": 568,
-        "episode_id": "ep-7fd3ec879c8c2b44",
-        "speaker_id": "person:speaker-02",
-        "text": "S\u00ed, exacto. Y se conecta con lo que vamos a cubrir hoy.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p10_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d4251e3693fd8c5a",
-      "properties": {
-        "char_end": 732,
-        "char_start": 639,
-        "episode_id": "ep-7fd3ec879c8c2b44",
-        "speaker_id": "person:speaker-01",
-        "text": "Quiero se\u00f1alar algo \u2014 Javier Benavides mencion\u00f3 esta misma din\u00e1mica hace un par de episodios.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p10_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:fb58342b50af75cc",
+      "id": "insight:d3866bb873848a8e",
       "properties": {
         "episode_id": "ep-7fd3ec879c8c2b44",
         "grounded": true,
@@ -137,13 +110,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Antes de entrar en materia \u2014 Javier Benavides estuvo en el programa contando que el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto.",
+        "text": "Sinceramente, la gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan Shimano. Si ignoras eso, acabas reconstruy\u00e9ndolo\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:665b2c9146b37e1f",
+      "id": "insight:1ae52a0b39684064",
       "properties": {
         "episode_id": "ep-7fd3ec879c8c2b44",
         "grounded": true,
@@ -151,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "S\u00ed, exacto. Y se conecta con lo que vamos a cubrir hoy.",
+        "text": "S\u00ed, mira \u2014 la gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan RockShox. He visto este patr\u00f3n repetirse en tres equ\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:3a41ad78846c2902",
+      "id": "insight:0dfa6ec034ba6922",
       "properties": {
         "episode_id": "ep-7fd3ec879c8c2b44",
         "grounded": true,
@@ -165,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Quiero se\u00f1alar algo \u2014 Javier Benavides mencion\u00f3 esta misma din\u00e1mica hace un par de episodios.",
+        "text": "D\u00e9jame darte la versi\u00f3n que de verdad creo. La gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan Spoke & Wrench. He\u2026",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:2fe7157c215c4ad3",
+      "properties": {
+        "char_end": 1670,
+        "char_start": 1447,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:marta-solis",
+        "text": "Sinceramente, la gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan Shimano. Si ignoras eso, acabas reconstruy\u00e9ndolo desde cero un a\u00f1o despu\u00e9s.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b5adcc0f0a7117c6",
+      "properties": {
+        "char_end": 3622,
+        "char_start": 3410,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:marta-solis",
+        "text": "S\u00ed, mira \u2014 la gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan RockShox. He visto este patr\u00f3n repetirse en tres equipos distintos.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:27781e65b1286051",
+      "properties": {
+        "char_end": 5387,
+        "char_start": 5136,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:marta-solis",
+        "text": "D\u00e9jame darte la versi\u00f3n que de verdad creo. La gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patr\u00f3n repetirse en tres equipos distintos.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

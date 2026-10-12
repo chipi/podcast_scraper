@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:619a8d4863958b56",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8c44e103da62b753",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:95784df1ce380437",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:49783bdf4399b23d",
+      "to": "insight:619a8d4863958b56",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:49b97f4477d8c96b",
+      "to": "insight:8c44e103da62b753",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:c20c5f6a486777e3",
+      "to": "insight:95784df1ce380437",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,33 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:83829d03f504b577",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:f1ad7ff72a9d36b6",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:fe5e57c46e5420c3",
+      "from": "quote:0418f60317a71647",
       "to": "person:jonas-richter",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:49783bdf4399b23d",
-      "to": "quote:fe5e57c46e5420c3",
+      "from": "quote:42c3614f0d8f029d",
+      "to": "person:jonas-richter",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:ef655ee792c3b5c2",
+      "to": "person:jonas-richter",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:619a8d4863958b56",
+      "to": "quote:0418f60317a71647",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:49b97f4477d8c96b",
-      "to": "quote:f1ad7ff72a9d36b6",
+      "from": "insight:8c44e103da62b753",
+      "to": "quote:ef655ee792c3b5c2",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:c20c5f6a486777e3",
-      "to": "quote:83829d03f504b577",
+      "from": "insight:95784df1ce380437",
+      "to": "quote:42c3614f0d8f029d",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -87,49 +102,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:83829d03f504b577",
-      "properties": {
-        "char_end": 537,
-        "char_start": 405,
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:speaker-01",
-        "text": "Bevor wir einsteigen \u2014 Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr z\u00e4hlt als Fahrwerksabstimmungen.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p13_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:fe5e57c46e5420c3",
-      "properties": {
-        "char_end": 614,
-        "char_start": 553,
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:speaker-02",
-        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p13_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f1ad7ff72a9d36b6",
-      "properties": {
-        "char_end": 719,
-        "char_start": 629,
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:speaker-01",
-        "text": "Ich m\u00f6chte etwas anmerken \u2014 Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p13_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:c20c5f6a486777e3",
+      "id": "insight:95784df1ce380437",
       "properties": {
         "episode_id": "ep-d005b87f4d3b1c0e",
         "grounded": true,
@@ -137,13 +110,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Bevor wir einsteigen \u2014 Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr z\u00e4hlt als Fahrwerksabstimmungen.",
+        "text": "Klar. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:49783bdf4399b23d",
+      "id": "insight:619a8d4863958b56",
       "properties": {
         "episode_id": "ep-d005b87f4d3b1c0e",
         "grounded": true,
@@ -151,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "text": "So sehe ich das. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:49b97f4477d8c96b",
+      "id": "insight:8c44e103da62b753",
       "properties": {
         "episode_id": "ep-d005b87f4d3b1c0e",
         "grounded": true,
@@ -165,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Ich m\u00f6chte etwas anmerken \u2014 Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "text": "Ehrlich gesagt, Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen.",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:42c3614f0d8f029d",
+      "properties": {
+        "char_end": 2305,
+        "char_start": 2150,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:jonas-richter",
+        "text": "Klar. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf.",
+        "timestamp_end_ms": 102000,
+        "timestamp_start_ms": 96000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0418f60317a71647",
+      "properties": {
+        "char_end": 4343,
+        "char_start": 4187,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:jonas-richter",
+        "text": "So sehe ich das. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
+        "timestamp_end_ms": 186000,
+        "timestamp_start_ms": 180000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ef655ee792c3b5c2",
+      "properties": {
+        "char_end": 6145,
+        "char_start": 5981,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:jonas-richter",
+        "text": "Ehrlich gesagt, Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

@@ -39,18 +39,23 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
 
     2026-10-12, a short listen never plays an ad: p05-693e's clip ran on into "We'll be right back
     after a quick word from our sponsors." and now ends at its point (108-114 s, not 120); a
-    clip's length is part of its score, so it plays later in the reel."""
+    clip's length is part of its score, so it plays later in the reel.
+
+    2026-10-12, later: a clip ends where its speaker does (the next voice was a host's native ad or a
+    sponsor credit as often as a question), and 62 connective templates stopped being insights, so
+    the translated shows' guests now speak on these subjects."""
     reel = goal_reel(ROOT, "topic:systems-thinking", minutes=15)
     assert [(c.episode_slug, c.moment.speaker) for c in reel] == [
         ("p02-8fdd7b7f79", "Priya Nair"),
+        ("p07-a5eb82076a", "Dr. Elena Fischer"),
         ("p07-3f1584920f", "Skanda Amarnath"),
         ("p07-769d04686d", "Dr. Elena Fischer"),
-        ("p07-a5eb82076a", "Dr. Elena Fischer"),
         ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p09-db2d39ef2e", "Dr. Elena Fischer"),
         ("p07-2aceab172c", "Skanda Amarnath"),
-        ("p05-693ecaa09e", "Scott Bessent"),
         ("p05-25cb576153", "Scott Bessent"),
+        ("p05-693ecaa09e", "Scott Bessent"),
+        ("p07-3f1584920f", "Skanda Amarnath"),
     ]
     # Breadth first: every episode's first clip comes before any episode's second.
     episodes = [c.episode_slug for c in reel]
@@ -104,7 +109,9 @@ def test_a_storyline_reel_is_clips_about_any_of_its_member_topics() -> None:
         "topic:systems-thinking",
     }
     reel = goal_reel(ROOT, "thc:managing-risk", minutes=15)
-    assert len(reel) == 22 and len({c.episode_slug for c in reel}) == 16
+    # 39 clips from 27 episodes since 2026-10-12: the translated shows' guests' risk-management
+    # lines are insights now (they were connective templates), and clips are shorter.
+    assert len(reel) == 39 and len({c.episode_slug for c in reel}) == 27
     assert_no_repeats(reel)
     one_member = {c.episode_slug for c in goal_reel(ROOT, "topic:risk-management", minutes=15)}
     assert len({c.episode_slug for c in reel}) > len(one_member)
@@ -131,7 +138,7 @@ def test_the_route_names_a_storyline_reel_by_its_storyline(tmp_path: Path) -> No
         "storyline",
         "Managing risk across domains",
     )
-    assert len(body["clips"]) == 22
+    assert len(body["clips"]) == 39
 
 
 def _client(data_dir: Path) -> tuple[TestClient, str]:
@@ -153,9 +160,9 @@ def test_the_route_reports_what_the_reel_actually_runs(tmp_path: Path) -> None:
     ).json()
     assert (body["subject_label"], body["subject_kind"]) == ("systems thinking", "topic")
     assert body["minutes"] == 15
-    # The small fixture: far less than the budget. 102, not 108, since p05-693e's clip stops
-    # before the ad break it used to run into (2026-10-12).
-    assert body["total_seconds"] == 102.0
+    # The small fixture: far less than the budget. 78 since 2026-10-12: clips stop before an ad
+    # break and where their speaker does (in this fixture a turn is often one 6 s line).
+    assert body["total_seconds"] == 78.0
     first = body["clips"][0]
     assert first["episode"]["slug"] == "p02-8fdd7b7f79" and first["end_ms"] > first["start_ms"]
     assert client.get("/api/app/discover/reel", params={"subject": "person:x"}).status_code == 422
@@ -175,10 +182,10 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
     # it took the first 8 and stopped, this was the two storylines alone. tc:reliability's reel is
     # topic:reliability's, so it is the same offer and appears once.
     assert [(i["subject_id"], i["subject_kind"], i["clips"]) for i in everyone["items"]] == [
-        ("topic:reliability", "topic", 12),
-        ("tc:risk-management", "theme", 16),
-        ("thc:managing-risk", "storyline", 22),
-        ("topic:systems-thinking", "topic", 9),
+        ("topic:reliability", "topic", 15),
+        ("tc:risk-management", "theme", 33),
+        ("thc:managing-risk", "storyline", 39),
+        ("topic:systems-thinking", "topic", 10),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(
@@ -350,10 +357,15 @@ def test_a_storyline_anchor_has_clips_of_its_own() -> None:
     """ "Second-order effects" was on 21 episodes and no insight was about it, so its reel was its
     other members' (2026-10-11). Insights that name it now link to it."""
     own = goal_reel(ROOT, "topic:second-order-effects", minutes=15)
+    # Seven since 2026-10-12, when filler stopped being insights and real lines took their places.
     assert sorted((c.episode_slug, c.moment.speaker) for c in own) == [
+        ("p02-5f961d7e1c", "Priya Nair"),
+        ("p05-693ecaa09e", "Scott Bessent"),
         ("p05-693ecaa09e", "Scott Bessent"),
         ("p05-ee8e47b94b", "Daniel Cho"),
         ("p05-fa4fd4b684", "Richard Clarida"),
+        ("p05-fa4fd4b684", "Richard Clarida"),
+        ("p08-72169222b1", "Renee Montagne-Park"),
     ]
     storyline = {
         c.moment.insight_id for c in goal_reel(ROOT, "thc:second-order-effects", minutes=15)

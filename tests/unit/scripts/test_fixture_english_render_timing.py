@@ -67,3 +67,51 @@ def test_the_break_lead_in_is_ad_copy_in_every_language(line: str) -> None:
 
 def test_a_point_is_not_ad_copy() -> None:
     assert not builder.is_ad_copy("Honestly, drainage is the design decision with the most impact.")
+
+
+# --- The claim test sees every translated line's English (2026-10-12) ------------------------
+#
+# The translated shows' later episodes kept only connective templates as insights: their English
+# was known only for an opening stretch, and the translations paraphrase the English templates.
+
+
+@pytest.mark.parametrize(
+    "english",
+    [
+        "Before we get started, Javier Benavides was on the show discussing how drainage matters.",
+        "Before we get into the details, Julien Mercier was on the show and explained that.",
+        "Yes, exactly. And that ties in with what we're discussing today.",
+        "Yes, exactly. And it connects to what we're going to be discussing today.",
+        "I want to point something out – Marta Solís mentioned this same dynamic.",
+        "I'd like to point something out – Stefan Brandt mentioned a similar dynamic.",
+        "Let's change the subject – I want to dedicate the final part to land management.",
+        "That's all for today's episode of Path Conversations. Until next time.",
+        "Before we close, thank you again to our friends at Linear.",
+        "Sophie Lorenz, thanks for the conversation.",
+        "Julien Mercier, thank you for this conversation.",
+        "That's it for this Long View. Until next time.",
+    ],
+)
+def test_a_connective_template_is_not_a_claim_in_any_wording(english: str) -> None:
+    sys.path.insert(0, str(ROOT / "scripts" / "tools"))
+    import realign_fixture_gi as realign  # noqa: E402
+
+    assert realign.is_not_a_claim("(source-language line)", english)
+
+
+def test_a_point_is_still_a_claim() -> None:
+    sys.path.insert(0, str(ROOT / "scripts" / "tools"))
+    import realign_fixture_gi as realign  # noqa: E402
+
+    point = "Honestly, drainage is the design decision that has the biggest impact on any trail."
+    assert not realign.is_not_a_claim("Sinceramente, el drenaje es la decisión.", point)
+
+
+def test_every_translated_line_has_its_english() -> None:
+    sys.path.insert(0, str(ROOT / "scripts" / "tools"))
+    import realign_fixture_gi as realign  # noqa: E402
+
+    gi = TRANSCRIPTS.parent / "metadata" / "p10_e02.gi.json"
+    segments, _, _, english = realign._episode_inputs(gi)
+    assert english is not None and len(english) == len(segments)
+    assert all(english), "a source line with no English would skip the claim test"

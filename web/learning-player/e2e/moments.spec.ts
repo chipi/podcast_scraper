@@ -81,12 +81,13 @@ test('the Episode door returns to where the listener was, paused', async ({ page
 test('Step: › in the episode view jumps to the next insight', async ({ page }, testInfo) => {
   await openEpisode(page, testInfo, 'step')
   await page.getByTestId('player-step-next-rest').click()
-  // The Bessent Tape's first insight is at 1:24 since the fixture grounds insights in what is said
-  // (ADR-165, 2026-10-11) — the 0:06 one was a guest's greeting.
-  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(83.5)
-  await expect.poll(() => audioTime(page)).toBeLessThan(90)
-  // The jump is never unexplained: "› Jumped to 1:24" for a moment.
-  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 1:2\d/)
+  // The Bessent Tape's first insight is at 1:00 (2026-10-12): the host's closing "thanks for the
+  // conversation" stopped being an insight and the episode's next claim, at 1:00, took its place.
+  // (1:24 since ADR-165, 2026-10-11 — the 0:06 one was a guest's greeting.)
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(59.5)
+  await expect.poll(() => audioTime(page)).toBeLessThan(66)
+  // The jump is never unexplained: "› Jumped to 1:00" for a moment.
+  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 1:0\d/)
 })
 
 test('Step: a left swipe on the insight card is next, a right swipe previous', async ({ page }, testInfo) => {

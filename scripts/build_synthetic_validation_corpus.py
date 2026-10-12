@@ -463,6 +463,29 @@ _FILLER_MARKERS = (
     "i want to flag something —",
     "let's pivot —",
     "that's where the conversation gets interesting, because the trade-offs around",
+    # The same templates in the translated shows, as their English renders word them (a non-English
+    # line is judged through its translation, ``realign_fixture_gi``). Translation paraphrases, so
+    # these are the renders' own phrasings, not the English templates' (2026-10-12).
+    "before we get started",
+    "before we get into the",
+    "ties in with what we",
+    "connects to what we",
+    "i want to point something out",
+    "i want to point out something",
+    "i'd like to point something out",
+    "let's change the subject",
+    "that's all for today's episode",
+    "that's it for this",
+    "thank you again to our friends at",
+    "right back, after",
+    "that's where the conversation gets interesting",
+    "that's where the conversation becomes interesting",
+    "thank our friends at",
+    # The host's closing thanks — "<guest>, thanks for the conversation." — in every show. It
+    # opens with the guest's name, so the "thanks," prefix never saw it, and it was a moment.
+    "thanks for the conversation",
+    "thank you for the conversation",
+    "thank you for this conversation",
     # Host prompts that end in a full stop rather than a question mark — the generator's
     # HOST_TRANSITIONS and two authored ones. A prompt asks; it is not a take.
     "let's start there.",

@@ -6,18 +6,23 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:97022a591e10b5b6",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:aab36db87df1f001",
       "to": "topic:frame",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-9f97daef33906cf6",
-      "to": "insight:31236112e8d093ae",
+      "to": "insight:51ade54b94b5adfb",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-9f97daef33906cf6",
-      "to": "insight:51ade54b94b5adfb",
+      "to": "insight:97022a591e10b5b6",
       "type": "HAS_INSIGHT"
     },
     {
@@ -41,6 +46,11 @@
       "type": "MENTIONS"
     },
     {
+      "from": "quote:0cf5f4be2c2a6c34",
+      "to": "person:daniel-olufemi",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "quote:76b8d8b8582cbe7e",
       "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
@@ -51,18 +61,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:b8469ab3e56deb9b",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:31236112e8d093ae",
-      "to": "quote:b8469ab3e56deb9b",
+      "from": "insight:51ade54b94b5adfb",
+      "to": "quote:92b5161d5f008c22",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:51ade54b94b5adfb",
-      "to": "quote:92b5161d5f008c22",
+      "from": "insight:97022a591e10b5b6",
+      "to": "quote:0cf5f4be2c2a6c34",
       "type": "SUPPORTED_BY"
     },
     {
@@ -177,7 +182,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:31236112e8d093ae",
+      "id": "insight:97022a591e10b5b6",
       "properties": {
         "episode_id": "ep-9f97daef33906cf6",
         "grounded": true,
@@ -185,21 +190,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Daniel Olufemi, thanks for the conversation.",
+        "text": "Sure. Frame and light are inseparable. We've seen this play out at teams using Peak Design. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:b8469ab3e56deb9b",
+      "id": "quote:0cf5f4be2c2a6c34",
       "properties": {
-        "char_end": 5183,
-        "char_start": 5139,
+        "char_end": 4356,
+        "char_start": 4192,
         "episode_id": "ep-9f97daef33906cf6",
-        "speaker_id": "person:leo",
-        "text": "Daniel Olufemi, thanks for the conversation.",
-        "timestamp_end_ms": 252000,
-        "timestamp_start_ms": 246000,
+        "speaker_id": "person:daniel-olufemi",
+        "text": "Sure. Frame and light are inseparable. We've seen this play out at teams using Peak Design. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 204000,
+        "timestamp_start_ms": 198000,
         "transcript_ref": "transcripts/p04_e03.txt"
       },
       "type": "Quote"

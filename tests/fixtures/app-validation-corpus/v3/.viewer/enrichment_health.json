@@ -8,8 +8,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-10-11T14:38:18Z",
-      "last_run_id": "aa40975c-8891-4d78-8984-335b6483189b",
+      "last_run_at": "2026-10-12T13:47:20Z",
+      "last_run_id": "568e46f4-fdca-489f-b5b1-7081fa487a68",
       "last_status": "ok"
     },
     "guest_coappearance": {
@@ -20,8 +20,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-10-11T14:38:18Z",
-      "last_run_id": "aa40975c-8891-4d78-8984-335b6483189b",
+      "last_run_at": "2026-10-12T13:47:20Z",
+      "last_run_id": "568e46f4-fdca-489f-b5b1-7081fa487a68",
       "last_status": "ok"
     },
     "temporal_velocity": {

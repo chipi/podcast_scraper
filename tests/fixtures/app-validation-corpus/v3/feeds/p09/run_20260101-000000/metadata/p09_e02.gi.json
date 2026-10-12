@@ -6,6 +6,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:b39864ca42f543aa",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:c51f06353ae883fb",
       "to": "topic:reliability",
       "type": "ABOUT"
@@ -17,7 +22,7 @@
     },
     {
       "from": "episode:ep-a1342cd495b1165b",
-      "to": "insight:563219ed8063370c",
+      "to": "insight:b39864ca42f543aa",
       "type": "HAS_INSIGHT"
     },
     {
@@ -46,8 +51,8 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:7066e17a590befa1",
-      "to": "person:sam",
+      "from": "quote:e9aa48c742ef44e6",
+      "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
@@ -61,8 +66,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:563219ed8063370c",
-      "to": "quote:7066e17a590befa1",
+      "from": "insight:b39864ca42f543aa",
+      "to": "quote:e9aa48c742ef44e6",
       "type": "SUPPORTED_BY"
     },
     {
@@ -149,20 +154,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:563219ed8063370c",
-      "properties": {
-        "episode_id": "ep-a1342cd495b1165b",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Skanda Amarnauth, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:fbbde1792f770162",
       "properties": {
         "char_end": 1367,
@@ -191,15 +182,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7066e17a590befa1",
+      "id": "insight:b39864ca42f543aa",
       "properties": {
-        "char_end": 3315,
-        "char_start": 3269,
         "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:sam",
-        "text": "Skanda Amarnauth, thanks for the conversation.",
-        "timestamp_end_ms": 168000,
-        "timestamp_start_ms": 162000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yeah, so \u2014 Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:e9aa48c742ef44e6",
+      "properties": {
+        "char_end": 2985,
+        "char_start": 2854,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:skanda-amarnath",
+        "text": "Yeah, so \u2014 Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 144000,
+        "timestamp_start_ms": 138000,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"

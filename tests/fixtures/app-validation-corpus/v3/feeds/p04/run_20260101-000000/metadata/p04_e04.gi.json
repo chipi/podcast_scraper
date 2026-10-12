@@ -11,9 +11,9 @@
       "type": "ABOUT"
     },
     {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "insight:2d2489d72d5b201a",
-      "type": "HAS_INSIGHT"
+      "from": "insight:bfb716eef9159918",
+      "to": "topic:frame",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-9b36e2e3b959298d",
@@ -23,6 +23,11 @@
     {
       "from": "episode:ep-9b36e2e3b959298d",
       "to": "insight:b016febad91803c7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "insight:bfb716eef9159918",
       "type": "HAS_INSIGHT"
     },
     {
@@ -41,8 +46,8 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:44dd4d1d8a12f259",
-      "to": "person:leo",
+      "from": "quote:b679f3d43ac108b2",
+      "to": "person:ava-lemoine",
       "type": "SPOKEN_BY"
     },
     {
@@ -56,11 +61,6 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:2d2489d72d5b201a",
-      "to": "quote:44dd4d1d8a12f259",
-      "type": "SUPPORTED_BY"
-    },
-    {
       "from": "insight:4cfb4432e8e1fa37",
       "to": "quote:b886f0df5d377820",
       "type": "SUPPORTED_BY"
@@ -68,6 +68,11 @@
     {
       "from": "insight:b016febad91803c7",
       "to": "quote:c6ac109660ca7dda",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:bfb716eef9159918",
+      "to": "quote:b679f3d43ac108b2",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -177,7 +182,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:2d2489d72d5b201a",
+      "id": "insight:bfb716eef9159918",
       "properties": {
         "episode_id": "ep-9b36e2e3b959298d",
         "grounded": true,
@@ -185,21 +190,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Ava Lemoine, thanks for the conversation.",
+        "text": "It comes down to this: Frame and light decisions converge across genres. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:44dd4d1d8a12f259",
+      "id": "quote:b679f3d43ac108b2",
       "properties": {
-        "char_end": 4953,
-        "char_start": 4912,
+        "char_end": 4130,
+        "char_start": 3985,
         "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:leo",
-        "text": "Ava Lemoine, thanks for the conversation.",
-        "timestamp_end_ms": 252000,
-        "timestamp_start_ms": 246000,
+        "speaker_id": "person:ava-lemoine",
+        "text": "It comes down to this: Frame and light decisions converge across genres. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 204000,
+        "timestamp_start_ms": 198000,
         "transcript_ref": "transcripts/p04_e04.txt"
       },
       "type": "Quote"

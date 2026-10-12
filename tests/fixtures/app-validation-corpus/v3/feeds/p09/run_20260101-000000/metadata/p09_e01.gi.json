@@ -1,13 +1,23 @@
 {
   "edges": [
     {
+      "from": "insight:1cfcc1789448e217",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1cfcc1789448e217",
+      "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:c466751e0792324f",
       "to": "topic:systems-thinking",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-1abf911df5bea2c3",
-      "to": "insight:1f7c9ff625f76824",
+      "to": "insight:1cfcc1789448e217",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,13 +61,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:c7a905692bdd1698",
-      "to": "person:sam",
+      "from": "quote:ac7d39752bf188ba",
+      "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:1f7c9ff625f76824",
-      "to": "quote:c7a905692bdd1698",
+      "from": "insight:1cfcc1789448e217",
+      "to": "quote:ac7d39752bf188ba",
       "type": "SUPPORTED_BY"
     },
     {
@@ -177,7 +187,7 @@
       "type": "Insight"
     },
     {
-      "id": "insight:1f7c9ff625f76824",
+      "id": "insight:1cfcc1789448e217",
       "properties": {
         "episode_id": "ep-1abf911df5bea2c3",
         "grounded": true,
@@ -185,21 +195,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Dr. Elena Fischer, thanks for the conversation.",
+        "text": "It comes down to this: Reliability and sustainability share more vocabulary than I used to admit. Once you internalize that, the rest of the decisions get easier.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:c7a905692bdd1698",
+      "id": "quote:ac7d39752bf188ba",
       "properties": {
-        "char_end": 3333,
-        "char_start": 3286,
+        "char_end": 1231,
+        "char_start": 1069,
         "episode_id": "ep-1abf911df5bea2c3",
-        "speaker_id": "person:sam",
-        "text": "Dr. Elena Fischer, thanks for the conversation.",
-        "timestamp_end_ms": 156000,
-        "timestamp_start_ms": 150000,
+        "speaker_id": "person:dr-elena-fischer",
+        "text": "It comes down to this: Reliability and sustainability share more vocabulary than I used to admit. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p09_e01.txt"
       },
       "type": "Quote"

@@ -1,6 +1,11 @@
 {
   "edges": [
     {
+      "from": "insight:8b3f1e28aa50a40e",
+      "to": "topic:labor-markets",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:90ae1acc06309c16",
       "to": "topic:labor-markets",
       "type": "ABOUT"
@@ -12,12 +17,12 @@
     },
     {
       "from": "episode:ep-919c77e84ad37664",
-      "to": "insight:90ae1acc06309c16",
+      "to": "insight:8b3f1e28aa50a40e",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-919c77e84ad37664",
-      "to": "insight:f0ec2dfad28a4f80",
+      "to": "insight:90ae1acc06309c16",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,8 +56,8 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:a9e1bee90a7a9e99",
-      "to": "person:sam",
+      "from": "quote:a2a24d8ed3e94fde",
+      "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
@@ -61,13 +66,13 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:90ae1acc06309c16",
-      "to": "quote:4a847efb125f2fa5",
+      "from": "insight:8b3f1e28aa50a40e",
+      "to": "quote:a2a24d8ed3e94fde",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:f0ec2dfad28a4f80",
-      "to": "quote:a9e1bee90a7a9e99",
+      "from": "insight:90ae1acc06309c16",
+      "to": "quote:4a847efb125f2fa5",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -163,20 +168,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:f0ec2dfad28a4f80",
-      "properties": {
-        "episode_id": "ep-919c77e84ad37664",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Skanda Amarnath, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:4a847efb125f2fa5",
       "properties": {
         "char_end": 1107,
@@ -191,15 +182,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a9e1bee90a7a9e99",
+      "id": "insight:8b3f1e28aa50a40e",
       "properties": {
-        "char_end": 3327,
-        "char_start": 3282,
         "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:sam",
-        "text": "Skanda Amarnath, thanks for the conversation.",
-        "timestamp_end_ms": 174000,
-        "timestamp_start_ms": 168000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:a2a24d8ed3e94fde",
+      "properties": {
+        "char_end": 1912,
+        "char_start": 1732,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:skanda-amarnath",
+        "text": "Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 102000,
+        "timestamp_start_ms": 96000,
         "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"

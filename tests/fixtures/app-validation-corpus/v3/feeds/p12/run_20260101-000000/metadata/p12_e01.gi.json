@@ -2,12 +2,12 @@
   "edges": [
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:6df483410ee7f431",
+      "to": "insight:1463dcac5efa2026",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:c7b6210ad551d13f",
+      "to": "insight:6df483410ee7f431",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,23 +36,23 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:b2d193588d93e27c",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "quote:ddc4d35da9cf4460",
       "to": "person:julien-mercier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6df483410ee7f431",
-      "to": "quote:1888bdb1bd495f0d",
+      "from": "quote:f386d7d97f90fcba",
+      "to": "person:julien-mercier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1463dcac5efa2026",
+      "to": "quote:f386d7d97f90fcba",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:c7b6210ad551d13f",
-      "to": "quote:b2d193588d93e27c",
+      "from": "insight:6df483410ee7f431",
+      "to": "quote:1888bdb1bd495f0d",
       "type": "SUPPORTED_BY"
     },
     {
@@ -167,7 +167,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:c7b6210ad551d13f",
+      "id": "insight:1463dcac5efa2026",
       "properties": {
         "episode_id": "ep-8dce4ec000757097",
         "grounded": true,
@@ -175,21 +175,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Changeons de sujet \u2014 je veux consacrer la derni\u00e8re ligne droite \u00e0 la gestion du territoire.",
+        "text": "Bien s\u00fbr. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des \u00e9quipes qui utilisent RockShox. Le cadre compte parce qu'il te dit que\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:b2d193588d93e27c",
+      "id": "quote:f386d7d97f90fcba",
       "properties": {
-        "char_end": 6009,
-        "char_start": 5918,
+        "char_end": 1473,
+        "char_start": 1255,
         "episode_id": "ep-8dce4ec000757097",
-        "speaker_id": "person:camille-dubois",
-        "text": "Changeons de sujet \u2014 je veux consacrer la derni\u00e8re ligne droite \u00e0 la gestion du territoire.",
-        "timestamp_end_ms": 228000,
-        "timestamp_start_ms": 222000,
+        "speaker_id": "person:julien-mercier",
+        "text": "Bien s\u00fbr. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des \u00e9quipes qui utilisent RockShox. Le cadre compte parce qu'il te dit quels compromis tu fais.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p12_e01.txt"
       },
       "type": "Quote"

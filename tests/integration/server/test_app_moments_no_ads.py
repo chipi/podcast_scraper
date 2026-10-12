@@ -33,12 +33,25 @@ pytestmark = [pytest.mark.integration]
 
 CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 #: What an ad read or break says in this corpus, in each of its languages — the measurement, not
-#: the product's rule.
+#: the product's rule. The generator's own ad-copy list (`is_ad_copy`: sponsor reads, host-read
+#: native ads, credits) plus the breaks and spoken URLs; the first version of this check knew only
+#: the sponsor wording and missed a native ad and a "thanks to X for supporting the show".
 AD = re.compile(
     r"sponsor|brought to you|right back after|\.com/podcast|free trial|our partners"
-    r"|publicitari|pubblicitari|publicitaire|werbepause",
+    r"|publicitari|pubblicitari|publicitaire|werbepause|show notes|supporting the show",
     re.I,
 )
+
+
+def _is_ad(text: str) -> bool:
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+    from build_app_validation_corpus import is_ad_copy
+
+    return bool(AD.search(text)) or is_ad_copy(text)
+
+
 #: The four clips that leaked, by episode, with where their point ends.
 WERE_LEAKING = {"p02_e02": 108_000, "p04_e01": 84_000, "p08_e02": 54_000, "p09_e02": 66_000}
 
@@ -81,7 +94,7 @@ def test_no_clip_plays_an_ad_read(corpus: Path) -> None:
         reads = [(s["start"] * 1000, s["end"] * 1000) for s in segs if AD.search(s["text"])]
         for m in moments:
             said = m["clip_text"] + " " + m["text"]
-            if any(a < m["end_ms"] and b > m["start_ms"] for a, b in reads) or AD.search(said):
+            if any(a < m["end_ms"] and b > m["start_ms"] for a, b in reads) or _is_ad(said):
                 leaks.append((label, m["start_ms"], m["clip_text"][:80]))
     assert leaks == []
 
@@ -93,3 +106,23 @@ def test_the_clips_that_ran_into_a_break_still_play_and_end_before_it(corpus: Pa
         clip = next(m for m in moments if m["start_ms"] < end_ms <= m["start_ms"] + 30_000)
         assert clip["end_ms"] == end_ms, label
         assert clip["clip_text"] and not AD.search(clip["clip_text"]), label
+
+
+def test_no_reel_clip_plays_an_ad(corpus: Path) -> None:
+    """Every subject's reel: a clip ran on into the host's native ad ("Linear runs my whole
+    engineering ops … use the link in show notes") and another into a sponsor credit, both the
+    next speaker's line. A clip now ends where its speaker does."""
+    from podcast_scraper.server.app_goal_reel import goal_reel
+
+    subjects = {"topic:risk-management", "topic:systems-thinking", "topic:reliability"}
+    for name in ("search/topic_clusters.json", "enrichments/topic_theme_clusters.json"):
+        doc = json.loads((corpus / name).read_text("utf-8"))
+        clusters = doc["clusters"] if "clusters" in doc else doc["data"]["clusters"]
+        subjects |= {str(c["graph_compound_parent_id"]) for c in clusters}
+    leaks = [
+        (s, c.episode_slug, c.moment.clip_text[:80])
+        for s in sorted(subjects)
+        for c in goal_reel(corpus, s, minutes=15)
+        if _is_ad(c.moment.clip_text + " " + c.moment.text)
+    ]
+    assert leaks == []

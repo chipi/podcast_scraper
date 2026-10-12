@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:67b256dbbd7b2be4",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:73376977b5ea92fc",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:add62aad09f48841",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-ec0bf35da3719170",
-      "to": "insight:36e4b2f26ea60e12",
+      "to": "insight:67b256dbbd7b2be4",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-ec0bf35da3719170",
-      "to": "insight:6d201fc9c55cf2fd",
+      "to": "insight:73376977b5ea92fc",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-ec0bf35da3719170",
-      "to": "insight:8a62298d1998170c",
+      "to": "insight:add62aad09f48841",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,38 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "insight:36e4b2f26ea60e12",
-      "to": "person:giulia-ferrara",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "quote:16bdec6df8bdb279",
+      "from": "quote:ad671653fb61d506",
       "to": "person:luca-moretti",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:869a7f49ef22f865",
-      "to": "person:giulia-ferrara",
+      "from": "quote:b42de091c477d0bb",
+      "to": "person:luca-moretti",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:8e5fecf6d2e1c996",
-      "to": "person:giulia-ferrara",
+      "from": "quote:ca69953e978f672e",
+      "to": "person:luca-moretti",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:36e4b2f26ea60e12",
-      "to": "quote:8e5fecf6d2e1c996",
+      "from": "insight:67b256dbbd7b2be4",
+      "to": "quote:ca69953e978f672e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:6d201fc9c55cf2fd",
-      "to": "quote:869a7f49ef22f865",
+      "from": "insight:73376977b5ea92fc",
+      "to": "quote:ad671653fb61d506",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:8a62298d1998170c",
-      "to": "quote:16bdec6df8bdb279",
+      "from": "insight:add62aad09f48841",
+      "to": "quote:b42de091c477d0bb",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -78,20 +88,6 @@
       "type": "Topic"
     },
     {
-      "id": "insight:36e4b2f26ea60e12",
-      "properties": {
-        "episode_id": "ep-ec0bf35da3719170",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Prima di entrare nel merito \u2014 Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta pi\u00f9 delle regolazioni delle sospensioni.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "person:giulia-ferrara",
       "properties": {
         "name": "Giulia Ferrara"
@@ -106,49 +102,21 @@
       "type": "Person"
     },
     {
-      "id": "quote:8e5fecf6d2e1c996",
+      "id": "insight:73376977b5ea92fc",
       "properties": {
-        "char_end": 560,
-        "char_start": 401,
         "episode_id": "ep-ec0bf35da3719170",
-        "speaker_id": "person:speaker-01",
-        "text": "Prima di entrare nel merito \u2014 Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta pi\u00f9 delle regolazioni delle sospensioni.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p11_e03.txt"
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Certo. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:16bdec6df8bdb279",
-      "properties": {
-        "char_end": 627,
-        "char_start": 575,
-        "episode_id": "ep-ec0bf35da3719170",
-        "speaker_id": "person:speaker-02",
-        "text": "S\u00ec, esatto. E si collega a quello che copriamo oggi.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p11_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:869a7f49ef22f865",
-      "properties": {
-        "char_end": 740,
-        "char_start": 644,
-        "episode_id": "ep-ec0bf35da3719170",
-        "speaker_id": "person:speaker-01",
-        "text": "Voglio segnalare una cosa \u2014 Chiara Ricci ha menzionato la stessa dinamica un paio di episodi fa.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p11_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:8a62298d1998170c",
+      "id": "insight:67b256dbbd7b2be4",
       "properties": {
         "episode_id": "ep-ec0bf35da3719170",
         "grounded": true,
@@ -156,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "S\u00ec, esatto. E si collega a quello che copriamo oggi.",
+        "text": "Io la vedo cos\u00ec. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Ho visto questo schema ripetersi in tre team diversi.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:6d201fc9c55cf2fd",
+      "id": "insight:add62aad09f48841",
       "properties": {
         "episode_id": "ep-ec0bf35da3719170",
         "grounded": true,
@@ -170,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Voglio segnalare una cosa \u2014 Chiara Ricci ha menzionato la stessa dinamica un paio di episodi fa.",
+        "text": "Sinceramente, gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti si perdono.",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:ad671653fb61d506",
+      "properties": {
+        "char_end": 2284,
+        "char_start": 2119,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:luca-moretti",
+        "text": "Certo. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo.",
+        "timestamp_end_ms": 102000,
+        "timestamp_start_ms": 96000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ca69953e978f672e",
+      "properties": {
+        "char_end": 4224,
+        "char_start": 4061,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:luca-moretti",
+        "text": "Io la vedo cos\u00ec. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Ho visto questo schema ripetersi in tre team diversi.",
+        "timestamp_end_ms": 186000,
+        "timestamp_start_ms": 180000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b42de091c477d0bb",
+      "properties": {
+        "char_end": 6022,
+        "char_start": 5847,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:luca-moretti",
+        "text": "Sinceramente, gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti si perdono.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

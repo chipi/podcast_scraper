@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:53f2f45fbdf52795",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:e67849302f98f7ee",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ea39303c751e4856",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-a341174daaf88193",
-      "to": "insight:4f2dcd7f8e195b6d",
+      "to": "insight:53f2f45fbdf52795",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-a341174daaf88193",
-      "to": "insight:665b2c9146b37e1f",
+      "to": "insight:e67849302f98f7ee",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-a341174daaf88193",
-      "to": "insight:c98a12f833fafb7e",
+      "to": "insight:ea39303c751e4856",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,33 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:3799531b47175d72",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:7f547e0be1da5d69",
+      "from": "quote:7130d990459a3088",
       "to": "person:diego-ferrer",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:fe2bbc4efd781da7",
-      "to": "person:lucia-herrera",
+      "from": "quote:813427837c86cebc",
+      "to": "person:diego-ferrer",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:4f2dcd7f8e195b6d",
-      "to": "quote:fe2bbc4efd781da7",
+      "from": "quote:d91dbbad36d040e1",
+      "to": "person:diego-ferrer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:53f2f45fbdf52795",
+      "to": "quote:7130d990459a3088",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:665b2c9146b37e1f",
-      "to": "quote:7f547e0be1da5d69",
+      "from": "insight:e67849302f98f7ee",
+      "to": "quote:813427837c86cebc",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:c98a12f833fafb7e",
-      "to": "quote:3799531b47175d72",
+      "from": "insight:ea39303c751e4856",
+      "to": "quote:d91dbbad36d040e1",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -87,49 +102,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:3799531b47175d72",
-      "properties": {
-        "char_end": 563,
-        "char_start": 407,
-        "episode_id": "ep-a341174daaf88193",
-        "speaker_id": "person:speaker-01",
-        "text": "Antes de entrar en materia \u2014 Marta Sol\u00eds estuvo en el episodio anterior contando que la presi\u00f3n de los neum\u00e1ticos importa m\u00e1s que los ajustes de suspensi\u00f3n.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p10_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:7f547e0be1da5d69",
-      "properties": {
-        "char_end": 633,
-        "char_start": 578,
-        "episode_id": "ep-a341174daaf88193",
-        "speaker_id": "person:speaker-02",
-        "text": "S\u00ed, exacto. Y se conecta con lo que vamos a cubrir hoy.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p10_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:fe2bbc4efd781da7",
-      "properties": {
-        "char_end": 737,
-        "char_start": 649,
-        "episode_id": "ep-a341174daaf88193",
-        "speaker_id": "person:speaker-01",
-        "text": "Quiero se\u00f1alar algo \u2014 Marta Sol\u00eds mencion\u00f3 esta misma din\u00e1mica hace un par de episodios.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p10_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:c98a12f833fafb7e",
+      "id": "insight:ea39303c751e4856",
       "properties": {
         "episode_id": "ep-a341174daaf88193",
         "grounded": true,
@@ -137,13 +110,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Antes de entrar en materia \u2014 Marta Sol\u00eds estuvo en el episodio anterior contando que la presi\u00f3n de los neum\u00e1ticos importa m\u00e1s que los ajustes de suspensi\u00f3n.",
+        "text": "Claro. Los intervalos de servicio de la suspensi\u00f3n son una decisi\u00f3n de gesti\u00f3n del riesgo. Si ignoras eso, acabas reconstruy\u00e9ndolo desde cero un a\u00f1o despu\u00e9s.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:665b2c9146b37e1f",
+      "id": "insight:e67849302f98f7ee",
       "properties": {
         "episode_id": "ep-a341174daaf88193",
         "grounded": true,
@@ -151,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "S\u00ed, exacto. Y se conecta con lo que vamos a cubrir hoy.",
+        "text": "As\u00ed lo veo yo. Los intervalos de servicio de la suspensi\u00f3n son una decisi\u00f3n de gesti\u00f3n del riesgo. He visto este patr\u00f3n repetirse en tres equipos distintos.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:4f2dcd7f8e195b6d",
+      "id": "insight:53f2f45fbdf52795",
       "properties": {
         "episode_id": "ep-a341174daaf88193",
         "grounded": true,
@@ -165,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Quiero se\u00f1alar algo \u2014 Marta Sol\u00eds mencion\u00f3 esta misma din\u00e1mica hace un par de episodios.",
+        "text": "Sinceramente, los intervalos de servicio de la suspensi\u00f3n son una decisi\u00f3n de gesti\u00f3n del riesgo. Y el efecto de segundo orden es la parte que casi todos pasan por alto.",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:d91dbbad36d040e1",
+      "properties": {
+        "char_end": 2301,
+        "char_start": 2144,
+        "episode_id": "ep-a341174daaf88193",
+        "speaker_id": "person:diego-ferrer",
+        "text": "Claro. Los intervalos de servicio de la suspensi\u00f3n son una decisi\u00f3n de gesti\u00f3n del riesgo. Si ignoras eso, acabas reconstruy\u00e9ndolo desde cero un a\u00f1o despu\u00e9s.",
+        "timestamp_end_ms": 102000,
+        "timestamp_start_ms": 96000,
+        "transcript_ref": "transcripts/p10_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:813427837c86cebc",
+      "properties": {
+        "char_end": 4325,
+        "char_start": 4169,
+        "episode_id": "ep-a341174daaf88193",
+        "speaker_id": "person:diego-ferrer",
+        "text": "As\u00ed lo veo yo. Los intervalos de servicio de la suspensi\u00f3n son una decisi\u00f3n de gesti\u00f3n del riesgo. He visto este patr\u00f3n repetirse en tres equipos distintos.",
+        "timestamp_end_ms": 186000,
+        "timestamp_start_ms": 180000,
+        "transcript_ref": "transcripts/p10_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7130d990459a3088",
+      "properties": {
+        "char_end": 6117,
+        "char_start": 5948,
+        "episode_id": "ep-a341174daaf88193",
+        "speaker_id": "person:diego-ferrer",
+        "text": "Sinceramente, los intervalos de servicio de la suspensi\u00f3n son una decisi\u00f3n de gesti\u00f3n del riesgo. Y el efecto de segundo orden es la parte que casi todos pasan por alto.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
+        "transcript_ref": "transcripts/p10_e03.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

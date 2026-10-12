@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:04a5c0e684f7614a",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:06e5ab95a40575ff",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:2f37e677d756ccb3",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-16fcdef77d624069",
-      "to": "insight:65f2d2aac09f5c76",
+      "to": "insight:04a5c0e684f7614a",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-16fcdef77d624069",
-      "to": "insight:83af90ed0e3d819b",
+      "to": "insight:06e5ab95a40575ff",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-16fcdef77d624069",
-      "to": "insight:92ccd9d2972f8bd6",
+      "to": "insight:2f37e677d756ccb3",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,38 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "insight:83af90ed0e3d819b",
-      "to": "person:camille-dubois",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "quote:6fe5d085e1460f53",
+      "from": "quote:3ff7e86fa527d5b1",
       "to": "person:elodie-chevalier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:e3cbf0fde763fc16",
-      "to": "person:camille-dubois",
+      "from": "quote:8c1bd4bf90d22b02",
+      "to": "person:elodie-chevalier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:fc7497c4f677c667",
-      "to": "person:camille-dubois",
+      "from": "quote:b098048c06825b72",
+      "to": "person:elodie-chevalier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:65f2d2aac09f5c76",
-      "to": "quote:6fe5d085e1460f53",
+      "from": "insight:04a5c0e684f7614a",
+      "to": "quote:3ff7e86fa527d5b1",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:83af90ed0e3d819b",
-      "to": "quote:e3cbf0fde763fc16",
+      "from": "insight:06e5ab95a40575ff",
+      "to": "quote:b098048c06825b72",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:92ccd9d2972f8bd6",
-      "to": "quote:fc7497c4f677c667",
+      "from": "insight:2f37e677d756ccb3",
+      "to": "quote:8c1bd4bf90d22b02",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -78,20 +88,6 @@
       "type": "Topic"
     },
     {
-      "id": "insight:83af90ed0e3d819b",
-      "properties": {
-        "episode_id": "ep-16fcdef77d624069",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Avant d'entrer dans le vif \u2014 Julien Mercier \u00e9tait dans l'\u00e9mission et expliquait que le drainage est le choix de conception le plus d\u00e9terminant.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "person:camille-dubois",
       "properties": {
         "name": "Camille Dubois"
@@ -106,49 +102,21 @@
       "type": "Person"
     },
     {
-      "id": "quote:e3cbf0fde763fc16",
+      "id": "insight:04a5c0e684f7614a",
       "properties": {
-        "char_end": 578,
-        "char_start": 435,
         "episode_id": "ep-16fcdef77d624069",
-        "speaker_id": "person:speaker-01",
-        "text": "Avant d'entrer dans le vif \u2014 Julien Mercier \u00e9tait dans l'\u00e9mission et expliquait que le drainage est le choix de conception le plus d\u00e9terminant.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p12_e02.txt"
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honn\u00eatement, la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent Shimano. Si tu ignores \u00e7a, tu\u2026",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "quote:6fe5d085e1460f53",
-      "properties": {
-        "char_end": 656,
-        "char_start": 597,
-        "episode_id": "ep-16fcdef77d624069",
-        "speaker_id": "person:speaker-02",
-        "text": "Oui, exactement. Et \u00e7a rejoint ce qu'on couvre aujourd'hui.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p12_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:fc7497c4f677c667",
-      "properties": {
-        "char_end": 775,
-        "char_start": 673,
-        "episode_id": "ep-16fcdef77d624069",
-        "speaker_id": "person:speaker-01",
-        "text": "Je veux signaler une chose \u2014 Julien Mercier a mentionn\u00e9 cette m\u00eame dynamique il y a quelques \u00e9pisodes.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p12_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:65f2d2aac09f5c76",
+      "id": "insight:06e5ab95a40575ff",
       "properties": {
         "episode_id": "ep-16fcdef77d624069",
         "grounded": true,
@@ -156,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Oui, exactement. Et \u00e7a rejoint ce qu'on couvre aujourd'hui.",
+        "text": "Oui, alors \u2014 la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent RockShox. J'ai vu ce sch\u00e9ma se\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:92ccd9d2972f8bd6",
+      "id": "insight:2f37e677d756ccb3",
       "properties": {
         "episode_id": "ep-16fcdef77d624069",
         "grounded": true,
@@ -170,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Je veux signaler une chose \u2014 Julien Mercier a mentionn\u00e9 cette m\u00eame dynamique il y a quelques \u00e9pisodes.",
+        "text": "Je te donne la version \u00e0 laquelle je crois vraiment. La gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui\u2026",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:3ff7e86fa527d5b1",
+      "properties": {
+        "char_end": 1753,
+        "char_start": 1504,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:elodie-chevalier",
+        "text": "Honn\u00eatement, la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent Shimano. Si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b098048c06825b72",
+      "properties": {
+        "char_end": 3816,
+        "char_start": 3579,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:elodie-chevalier",
+        "text": "Oui, alors \u2014 la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent RockShox. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8c1bd4bf90d22b02",
+      "properties": {
+        "char_end": 5685,
+        "char_start": 5402,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:elodie-chevalier",
+        "text": "Je te donne la version \u00e0 laquelle je crois vraiment. La gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent Spoke & Wrench. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

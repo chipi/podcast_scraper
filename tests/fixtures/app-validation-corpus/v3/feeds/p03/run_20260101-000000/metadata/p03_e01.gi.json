@@ -2,12 +2,12 @@
   "edges": [
     {
       "from": "episode:ep-2a703b6f57d9020f",
-      "to": "insight:22aeaf7db7d9f27b",
+      "to": "insight:7eef2b7f4b64517f",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-2a703b6f57d9020f",
-      "to": "insight:7eef2b7f4b64517f",
+      "to": "insight:99f6f11e1d75bbca",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,12 +36,12 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:23712c04db1a7092",
-      "to": "person:rina",
+      "from": "quote:6a1c0157da2802e9",
+      "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:6a1c0157da2802e9",
+      "from": "quote:bd115d937f7c2e3f",
       "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
@@ -51,13 +51,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:22aeaf7db7d9f27b",
-      "to": "quote:23712c04db1a7092",
+      "from": "insight:7eef2b7f4b64517f",
+      "to": "quote:f25961fa20c48a14",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:7eef2b7f4b64517f",
-      "to": "quote:f25961fa20c48a14",
+      "from": "insight:99f6f11e1d75bbca",
+      "to": "quote:bd115d937f7c2e3f",
       "type": "SUPPORTED_BY"
     },
     {
@@ -172,7 +172,7 @@
       "type": "Insight"
     },
     {
-      "id": "insight:22aeaf7db7d9f27b",
+      "id": "insight:99f6f11e1d75bbca",
       "properties": {
         "episode_id": "ep-2a703b6f57d9020f",
         "grounded": true,
@@ -180,21 +180,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Marco Sylva, thanks for the conversation.",
+        "text": "Yeah, so \u2014 Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:23712c04db1a7092",
+      "id": "quote:bd115d937f7c2e3f",
       "properties": {
-        "char_end": 5097,
-        "char_start": 5056,
+        "char_end": 1356,
+        "char_start": 1170,
         "episode_id": "ep-2a703b6f57d9020f",
-        "speaker_id": "person:rina",
-        "text": "Marco Sylva, thanks for the conversation.",
-        "timestamp_end_ms": 258000,
-        "timestamp_start_ms": 252000,
+        "speaker_id": "person:marco-silva",
+        "text": "Yeah, so \u2014 Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p03_e01.txt"
       },
       "type": "Quote"

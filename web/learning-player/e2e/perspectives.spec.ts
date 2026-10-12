@@ -42,18 +42,20 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   const section = page.getByTestId('topic-perspectives')
   await expect(section).toBeVisible()
   // The heading names the topic (operator 2026-10-05).
-  // 11 since the fixture grounds every insight in the line that says it (ADR-165, 2026-10-11).
-  await expect(section.getByText('11 perspectives on risk management', { exact: true })).toBeVisible()
+  // 11 since the fixture grounds every insight in the line that says it (ADR-165, 2026-10-11); 21
+  // since 2026-10-12, when the translated shows' ten guests' own lines on it stopped being hidden
+  // behind connective templates.
+  await expect(section.getByText('21 perspectives on risk management', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
-  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 11th of 11, so he
-  // appears on the third "Show more voices".
+  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 21st of 21, so he
+  // appears on the sixth "Show more voices".
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
   const moreVoices = section.getByTestId('perspectives-more-speakers')
-  await expect(moreVoices).toHaveText('Show more voices (8)')
-  await moreVoices.click()
-  await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
-  await moreVoices.click()
-  await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
+  await expect(moreVoices).toHaveText('Show more voices (18)')
+  for (let page = 1; page < 6; page++) {
+    await moreVoices.click()
+    await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
+  }
   await moreVoices.click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toBeVisible()
   // The engineered opposition surfaces verbatim as a grounded claim. It is Daniel Cho's third take

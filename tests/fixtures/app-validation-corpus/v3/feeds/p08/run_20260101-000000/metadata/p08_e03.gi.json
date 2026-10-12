@@ -6,6 +6,16 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:4c16af5d407280a4",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:4c16af5d407280a4",
+      "to": "topic:second-order-effects",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:641561d0d2786ae5",
       "to": "topic:reliability",
       "type": "ABOUT"
@@ -17,12 +27,12 @@
     },
     {
       "from": "episode:ep-b3570c1ceb5eca41",
-      "to": "insight:641561d0d2786ae5",
+      "to": "insight:4c16af5d407280a4",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-b3570c1ceb5eca41",
-      "to": "insight:98184194cba1e9e8",
+      "to": "insight:641561d0d2786ae5",
       "type": "HAS_INSIGHT"
     },
     {
@@ -61,8 +71,8 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:acc45bb9dc33ceae",
-      "to": "person:a-correspondent",
+      "from": "quote:9c50a7c9be05b99d",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -71,13 +81,13 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:641561d0d2786ae5",
-      "to": "quote:3c8cedfe192d75b5",
+      "from": "insight:4c16af5d407280a4",
+      "to": "quote:9c50a7c9be05b99d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:98184194cba1e9e8",
-      "to": "quote:acc45bb9dc33ceae",
+      "from": "insight:641561d0d2786ae5",
+      "to": "quote:3c8cedfe192d75b5",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -180,20 +190,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:98184194cba1e9e8",
-      "properties": {
-        "episode_id": "ep-b3570c1ceb5eca41",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Renee Montagne-Park, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:3dfe9d701a07b0d9",
       "properties": {
         "char_end": 1570,
@@ -208,18 +204,39 @@
       "type": "Quote"
     },
     {
-      "id": "quote:acc45bb9dc33ceae",
+      "id": "insight:4c16af5d407280a4",
       "properties": {
-        "char_end": 3116,
-        "char_start": 3067,
         "episode_id": "ep-b3570c1ceb5eca41",
-        "speaker_id": "person:a-correspondent",
-        "text": "Renee Montagne-Park, thanks for the conversation.",
-        "timestamp_end_ms": 144000,
-        "timestamp_start_ms": 138000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It comes down to this: A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. And the second-order effect is the part most people miss.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:9c50a7c9be05b99d",
+      "properties": {
+        "char_end": 2394,
+        "char_start": 2217,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:renee-montagne-park",
+        "text": "It comes down to this: A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 108000,
+        "timestamp_start_ms": 102000,
         "transcript_ref": "transcripts/p08_e03.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second-order effects"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

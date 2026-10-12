@@ -405,6 +405,43 @@ def episode_ad_spans(root: Path, row: CatalogEpisodeRow) -> List[Tuple[int, int]
     return spans
 
 
+def episode_turn_starts(root: Path, row: CatalogEpisodeRow) -> frozenset[int]:
+    """Start (ms) of every segment whose speaker differs from the one before it: where one person
+    stops and another starts. Unknown speakers are never a change. Cached until the file changes.
+
+    A short listen is a clip of the person making the point, so it ends where they do — the next
+    voice was a host's sponsor credit or native ad as often as a question (2026-10-12)."""
+    from podcast_scraper import perf_cache
+
+    safe = episode_segments_relpath(root, row)
+    if safe is None:
+        return frozenset()
+    path = root / safe
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return frozenset()
+
+    def build() -> frozenset[int]:
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return frozenset()
+        starts: set[int] = set()
+        prev: Optional[str] = None
+        for seg in to_contract_segments(raw):
+            if seg.speaker and prev and seg.speaker != prev:
+                starts.add(int(seg.start * 1000))
+            if seg.speaker:
+                prev = seg.speaker
+        return frozenset(starts)
+
+    turns: frozenset[int] = perf_cache.get_or_compute(
+        "app_episode_turn_starts", str(path), mtime, build
+    )
+    return turns
+
+
 def time_hits_by_episode(root: Path, results: List[Any], rows: Iterable[CatalogEpisodeRow]) -> None:
     """:func:`time_transcript_hits` for results from many episodes (global search, Mine).
 

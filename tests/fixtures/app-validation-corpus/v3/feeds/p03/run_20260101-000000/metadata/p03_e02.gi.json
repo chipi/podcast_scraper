@@ -7,7 +7,7 @@
     },
     {
       "from": "episode:ep-a0a7f86b34a4de26",
-      "to": "insight:882c7ffb0eaa5e63",
+      "to": "insight:8e7b63ae8b5204cb",
       "type": "HAS_INSIGHT"
     },
     {
@@ -31,6 +31,11 @@
       "type": "MENTIONS"
     },
     {
+      "from": "quote:1582f0da1fe3b3ed",
+      "to": "person:hanna-crebo-rediker",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "quote:19f5aa7eeb80abf9",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
@@ -41,18 +46,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:f468da529c4f4861",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:6874463f5b7f4934",
       "to": "quote:656c6b3c411f064b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:882c7ffb0eaa5e63",
-      "to": "quote:f468da529c4f4861",
+      "from": "insight:8e7b63ae8b5204cb",
+      "to": "quote:1582f0da1fe3b3ed",
       "type": "SUPPORTED_BY"
     },
     {
@@ -153,20 +153,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:882c7ffb0eaa5e63",
-      "properties": {
-        "episode_id": "ep-a0a7f86b34a4de26",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Hanna Crebo Rediker, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:656c6b3c411f064b",
       "properties": {
         "char_end": 1126,
@@ -181,15 +167,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:f468da529c4f4861",
+      "id": "insight:8e7b63ae8b5204cb",
       "properties": {
-        "char_end": 5249,
-        "char_start": 5200,
         "episode_id": "ep-a0a7f86b34a4de26",
-        "speaker_id": "person:rina",
-        "text": "Hanna Crebo Rediker, thanks for the conversation.",
-        "timestamp_end_ms": 270000,
-        "timestamp_start_ms": 264000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yeah, so \u2014 Most reef damage from divers isn't fin contact \u2014 it's anchor strikes. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:1582f0da1fe3b3ed",
+      "properties": {
+        "char_end": 1445,
+        "char_start": 1257,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:hanna-crebo-rediker",
+        "text": "Yeah, so \u2014 Most reef damage from divers isn't fin contact \u2014 it's anchor strikes. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
         "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"

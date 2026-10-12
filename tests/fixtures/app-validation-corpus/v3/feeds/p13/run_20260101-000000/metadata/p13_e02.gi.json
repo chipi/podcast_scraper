@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:6df31acd393e3ea5",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:78fb55efafea3d8a",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8bdc0f256f6d3369",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:3ed6ad51398a71fa",
+      "to": "insight:6df31acd393e3ea5",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:49783bdf4399b23d",
+      "to": "insight:78fb55efafea3d8a",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:c0198740ec0bd56a",
+      "to": "insight:8bdc0f256f6d3369",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,33 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:135c32d89f353e17",
+      "from": "quote:7cb7056014a70398",
       "to": "person:lena-hofmann",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:9118e4bf926afe79",
-      "to": "person:katrin-vogel",
+      "from": "quote:90f0693846002f8d",
+      "to": "person:lena-hofmann",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:af7b45d31947527a",
-      "to": "person:katrin-vogel",
+      "from": "quote:a4b00fdc9ad80706",
+      "to": "person:lena-hofmann",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:3ed6ad51398a71fa",
-      "to": "quote:9118e4bf926afe79",
+      "from": "insight:6df31acd393e3ea5",
+      "to": "quote:a4b00fdc9ad80706",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:49783bdf4399b23d",
-      "to": "quote:135c32d89f353e17",
+      "from": "insight:78fb55efafea3d8a",
+      "to": "quote:7cb7056014a70398",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:c0198740ec0bd56a",
-      "to": "quote:af7b45d31947527a",
+      "from": "insight:8bdc0f256f6d3369",
+      "to": "quote:90f0693846002f8d",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -87,49 +102,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:9118e4bf926afe79",
-      "properties": {
-        "char_end": 568,
-        "char_start": 426,
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "Bevor wir einsteigen \u2014 Stefan Brandt war in der Sendung und hat erz\u00e4hlt, dass Entw\u00e4sserung die Designentscheidung mit der gr\u00f6\u00dften Wirkung ist.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p13_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:135c32d89f353e17",
-      "properties": {
-        "char_end": 644,
-        "char_start": 583,
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-02",
-        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p13_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:af7b45d31947527a",
-      "properties": {
-        "char_end": 750,
-        "char_start": 659,
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "Ich m\u00f6chte etwas anmerken \u2014 Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p13_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:3ed6ad51398a71fa",
+      "id": "insight:6df31acd393e3ea5",
       "properties": {
         "episode_id": "ep-ca65ab78f4c50f2a",
         "grounded": true,
@@ -137,13 +110,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Bevor wir einsteigen \u2014 Stefan Brandt war in der Sendung und hat erz\u00e4hlt, dass Entw\u00e4sserung die Designentscheidung mit der gr\u00f6\u00dften Wirkung ist.",
+        "text": "Ehrlich gesagt, Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das ig\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:49783bdf4399b23d",
+      "id": "insight:78fb55efafea3d8a",
       "properties": {
         "episode_id": "ep-ca65ab78f4c50f2a",
         "grounded": true,
@@ -151,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "text": "Ja, also \u2014 Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die RockShox nutzen. Ich habe dieses Mu\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:c0198740ec0bd56a",
+      "id": "insight:8bdc0f256f6d3369",
       "properties": {
         "episode_id": "ep-ca65ab78f4c50f2a",
         "grounded": true,
@@ -165,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Ich m\u00f6chte etwas anmerken \u2014 Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "text": "Ich gebe dir die Version, an die ich wirklich glaube. Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams geseh\u2026",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:a4b00fdc9ad80706",
+      "properties": {
+        "char_end": 1715,
+        "char_start": 1460,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:lena-hofmann",
+        "text": "Ehrlich gesagt, Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7cb7056014a70398",
+      "properties": {
+        "char_end": 3683,
+        "char_start": 3442,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:lena-hofmann",
+        "text": "Ja, also \u2014 Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die RockShox nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:90f0693846002f8d",
+      "properties": {
+        "char_end": 5471,
+        "char_start": 5181,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:lena-hofmann",
+        "text": "Ich gebe dir die Version, an die ich wirklich glaube. Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

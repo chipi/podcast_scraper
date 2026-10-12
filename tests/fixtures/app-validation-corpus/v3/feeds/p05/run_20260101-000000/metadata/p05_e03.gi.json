@@ -11,18 +11,23 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:b21aec04b8f02bf6",
+      "to": "topic:second-order-effects",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:be774a32be7c6c0f",
       "to": "topic:systems-thinking",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "insight:2d4bca24d1a64828",
+      "to": "insight:8f15068b7064df00",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "insight:8f15068b7064df00",
+      "to": "insight:b21aec04b8f02bf6",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,8 +56,8 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:5a404027bfca42cb",
-      "to": "person:nora",
+      "from": "quote:591901461f00073d",
+      "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
@@ -66,13 +71,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:2d4bca24d1a64828",
-      "to": "quote:5a404027bfca42cb",
+      "from": "insight:8f15068b7064df00",
+      "to": "quote:7ad50444fc3fd1a4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:8f15068b7064df00",
-      "to": "quote:7ad50444fc3fd1a4",
+      "from": "insight:b21aec04b8f02bf6",
+      "to": "quote:591901461f00073d",
       "type": "SUPPORTED_BY"
     },
     {
@@ -166,20 +171,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:2d4bca24d1a64828",
-      "properties": {
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Scott Bessett, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:7ad50444fc3fd1a4",
       "properties": {
         "char_end": 1805,
@@ -208,25 +199,39 @@
       "type": "Quote"
     },
     {
-      "id": "quote:5a404027bfca42cb",
-      "properties": {
-        "char_end": 5692,
-        "char_start": 5649,
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:nora",
-        "text": "Scott Bessett, thanks for the conversation.",
-        "timestamp_end_ms": 288000,
-        "timestamp_start_ms": 282000,
-        "transcript_ref": "transcripts/p05_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "topic:second-order-effects",
       "properties": {
         "label": "second-order effects"
       },
       "type": "Topic"
+    },
+    {
+      "id": "insight:b21aec04b8f02bf6",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's how I think about it. Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most pe\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:591901461f00073d",
+      "properties": {
+        "char_end": 1301,
+        "char_start": 1094,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:scott-bessent",
+        "text": "Here's how I think about it. Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

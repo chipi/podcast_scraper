@@ -232,10 +232,12 @@ def test_topic_perspectives_about_edges_are_not_fanned_out() -> None:
     # ABOUT contract yields exactly the cross-show risk-management speakers. 11 since 2026-10-11
     # (ADR-165): every insight is now grounded in the line that says it, so three hosts whose
     # "risk management" lines were prompts or misattributed quotes left, and four guests whose
-    # real lines on it had never been insights arrived.
+    # real lines on it had never been insights arrived. 21 since 2026-10-12: the translated shows'
+    # ten guests say it in their own language ("gestión del riesgo", "Risikomanagement" ...); their
+    # lines were hidden behind connective templates. Still well under the fan-out's 27.
     assert (
-        len(persp) == 11
-    ), f"expected 11 risk-management speakers, got {len(persp)}: {sorted(names)}"
+        len(persp) == 21
+    ), f"expected 21 risk-management speakers, got {len(persp)}: {sorted(names)}"
     assert {
         "Daniel Cho",
         "Scott Bessent",

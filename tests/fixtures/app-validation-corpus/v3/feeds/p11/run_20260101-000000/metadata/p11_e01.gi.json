@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "insight:08fe92b94327a643",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-e2231244311ca964",
       "to": "insight:a4efd1647a8a49ef",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-e2231244311ca964",
       "to": "insight:a6210765a88b7d1a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-e2231244311ca964",
+      "to": "insight:f4836ac7d6d1c79c",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,19 +36,14 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:8fb5b92506b9dd1c",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "quote:a4338b44ed0d2556",
       "to": "person:marco-bellini",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:08fe92b94327a643",
-      "to": "quote:8fb5b92506b9dd1c",
-      "type": "SUPPORTED_BY"
+      "from": "quote:b67ae0ec49ba8c07",
+      "to": "person:marco-bellini",
+      "type": "SPOKEN_BY"
     },
     {
       "from": "insight:a4efd1647a8a49ef",
@@ -58,6 +53,11 @@
     {
       "from": "insight:a6210765a88b7d1a",
       "to": "quote:619c4a4f78e5851b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:f4836ac7d6d1c79c",
+      "to": "quote:b67ae0ec49ba8c07",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -167,7 +167,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:08fe92b94327a643",
+      "id": "insight:f4836ac7d6d1c79c",
       "properties": {
         "episode_id": "ep-e2231244311ca964",
         "grounded": true,
@@ -175,21 +175,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Cambiamo argomento \u2014 voglio dedicare l'ultimo tratto alla gestione del territorio.",
+        "text": "Certo. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano RockShox. Il quadro conta perch\u00e9 ti dice quali compromessi stai fac\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:8fb5b92506b9dd1c",
+      "id": "quote:b67ae0ec49ba8c07",
       "properties": {
-        "char_end": 5548,
-        "char_start": 5466,
+        "char_end": 1379,
+        "char_start": 1177,
         "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:giulia-ferrara",
-        "text": "Cambiamo argomento \u2014 voglio dedicare l'ultimo tratto alla gestione del territorio.",
-        "timestamp_end_ms": 228000,
-        "timestamp_start_ms": 222000,
+        "speaker_id": "person:marco-bellini",
+        "text": "Certo. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano RockShox. Il quadro conta perch\u00e9 ti dice quali compromessi stai facendo.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p11_e01.txt"
       },
       "type": "Quote"

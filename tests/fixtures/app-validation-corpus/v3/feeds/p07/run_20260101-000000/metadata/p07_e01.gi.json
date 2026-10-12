@@ -11,6 +11,16 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:328bdd59df1c1805",
+      "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:328bdd59df1c1805",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:a87530f08fec3a5f",
       "to": "topic:reliability",
       "type": "ABOUT"
@@ -27,7 +37,7 @@
     },
     {
       "from": "episode:ep-1979e93514355ea6",
-      "to": "insight:1f7c9ff625f76824",
+      "to": "insight:328bdd59df1c1805",
       "type": "HAS_INSIGHT"
     },
     {
@@ -66,13 +76,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:4bc6491b07ea2c5e",
+      "from": "quote:0f20007e54b3fbba",
       "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:e0010f131b7db8ba",
-      "to": "person:alex-morgan",
+      "from": "quote:4bc6491b07ea2c5e",
+      "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
@@ -81,8 +91,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:1f7c9ff625f76824",
-      "to": "quote:e0010f131b7db8ba",
+      "from": "insight:328bdd59df1c1805",
+      "to": "quote:0f20007e54b3fbba",
       "type": "SUPPORTED_BY"
     },
     {
@@ -204,7 +214,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:1f7c9ff625f76824",
+      "id": "insight:328bdd59df1c1805",
       "properties": {
         "episode_id": "ep-1979e93514355ea6",
         "grounded": true,
@@ -212,21 +222,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Dr. Elena Fischer, thanks for the conversation.",
+        "text": "Yeah, so \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using IEA. Once you internalize that, the rest of the decisions get e\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:e0010f131b7db8ba",
+      "id": "quote:0f20007e54b3fbba",
       "properties": {
-        "char_end": 5717,
-        "char_start": 5670,
+        "char_end": 2465,
+        "char_start": 2262,
         "episode_id": "ep-1979e93514355ea6",
-        "speaker_id": "person:alex-morgan",
-        "text": "Dr. Elena Fischer, thanks for the conversation.",
-        "timestamp_end_ms": 252000,
-        "timestamp_start_ms": 246000,
+        "speaker_id": "person:dr-elena-fischer",
+        "text": "Yeah, so \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using IEA. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 108000,
+        "timestamp_start_ms": 102000,
         "transcript_ref": "transcripts/p07_e01.txt"
       },
       "type": "Quote"

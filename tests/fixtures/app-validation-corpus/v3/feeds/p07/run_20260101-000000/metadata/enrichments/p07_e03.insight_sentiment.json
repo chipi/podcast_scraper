@@ -3,8 +3,8 @@
   "computed_at": "2026-01-01T00:00:00Z",
   "data": {
     "counts": {
-      "negative": 4,
-      "neutral": 1,
+      "negative": 5,
+      "neutral": 0,
       "positive": 0
     },
     "episode_id": "ep-a86da8f148d3bf29",
@@ -30,9 +30,9 @@
         "label": "negative"
       },
       {
-        "compound": 0.0,
-        "insight_id": "insight:ac4db52689f9b723",
-        "label": "neutral"
+        "compound": -0.7845,
+        "insight_id": "insight:5932fe62e5b1fd58",
+        "label": "negative"
       }
     ],
     "total_insights": 5

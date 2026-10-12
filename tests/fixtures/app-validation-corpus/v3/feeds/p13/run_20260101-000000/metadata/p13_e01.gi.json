@@ -2,7 +2,7 @@
   "edges": [
     {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:53d9680cca072273",
+      "to": "insight:0c23da46860be896",
       "type": "HAS_INSIGHT"
     },
     {
@@ -36,18 +36,18 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:a8f4238b8f9e146c",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "quote:be014c3cb0b233e8",
       "to": "person:stefan-brandt",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:53d9680cca072273",
-      "to": "quote:a8f4238b8f9e146c",
+      "from": "quote:ce6b0e46b2e87752",
+      "to": "person:stefan-brandt",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0c23da46860be896",
+      "to": "quote:ce6b0e46b2e87752",
       "type": "SUPPORTED_BY"
     },
     {
@@ -167,7 +167,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:53d9680cca072273",
+      "id": "insight:0c23da46860be896",
       "properties": {
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "grounded": true,
@@ -175,21 +175,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Wechseln wir das Thema \u2014 ich m\u00f6chte den letzten Abschnitt der Landpflege widmen.",
+        "text": "Klar. Die Gespr\u00e4che \u00fcber Landpflege m\u00fcssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die RockShox nutzen. Der Rahmen z\u00e4hlt, weil er dir sagt, welche Abw\u00e4gungen du tri\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:a8f4238b8f9e146c",
+      "id": "quote:ce6b0e46b2e87752",
       "properties": {
-        "char_end": 5578,
-        "char_start": 5498,
+        "char_end": 1365,
+        "char_start": 1163,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "speaker_id": "person:katrin-vogel",
-        "text": "Wechseln wir das Thema \u2014 ich m\u00f6chte den letzten Abschnitt der Landpflege widmen.",
-        "timestamp_end_ms": 228000,
-        "timestamp_start_ms": 222000,
+        "speaker_id": "person:stefan-brandt",
+        "text": "Klar. Die Gespr\u00e4che \u00fcber Landpflege m\u00fcssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die RockShox nutzen. Der Rahmen z\u00e4hlt, weil er dir sagt, welche Abw\u00e4gungen du triffst.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p13_e01.txt"
       },
       "type": "Quote"

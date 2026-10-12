@@ -6,18 +6,23 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:b6e485c825f94b1a",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:e1cac8889a8e10d6",
       "to": "topic:frame",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-febd9a8f53bf3a3a",
-      "to": "insight:2d2489d72d5b201a",
+      "to": "insight:31287a748fde62be",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-febd9a8f53bf3a3a",
-      "to": "insight:31287a748fde62be",
+      "to": "insight:b6e485c825f94b1a",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,8 +56,8 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:a3ad3a1901ce7ea8",
-      "to": "person:leo",
+      "from": "quote:ca751c23855e5045",
+      "to": "person:ava-lemoine",
       "type": "SPOKEN_BY"
     },
     {
@@ -61,13 +66,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:2d2489d72d5b201a",
-      "to": "quote:a3ad3a1901ce7ea8",
+      "from": "insight:31287a748fde62be",
+      "to": "quote:f03920dc907d186e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:31287a748fde62be",
-      "to": "quote:f03920dc907d186e",
+      "from": "insight:b6e485c825f94b1a",
+      "to": "quote:ca751c23855e5045",
       "type": "SUPPORTED_BY"
     },
     {
@@ -182,7 +187,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:2d2489d72d5b201a",
+      "id": "insight:b6e485c825f94b1a",
       "properties": {
         "episode_id": "ep-febd9a8f53bf3a3a",
         "grounded": true,
@@ -190,21 +195,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Ava Lemoine, thanks for the conversation.",
+        "text": "Honestly, An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. Once you internalize that, the rest of the decisions get easier.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:a3ad3a1901ce7ea8",
+      "id": "quote:ca751c23855e5045",
       "properties": {
-        "char_end": 5476,
-        "char_start": 5435,
+        "char_end": 2467,
+        "char_start": 2267,
         "episode_id": "ep-febd9a8f53bf3a3a",
-        "speaker_id": "person:leo",
-        "text": "Ava Lemoine, thanks for the conversation.",
-        "timestamp_end_ms": 258000,
-        "timestamp_start_ms": 252000,
+        "speaker_id": "person:ava-lemoine",
+        "text": "Honestly, An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 114000,
+        "timestamp_start_ms": 108000,
         "transcript_ref": "transcripts/p04_e01.txt"
       },
       "type": "Quote"

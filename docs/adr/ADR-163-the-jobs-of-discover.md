@@ -106,9 +106,13 @@ fixes those answers so every later rail is built against the same rules.
      one, and its lead-in and its extension to the minimum length stop at one. The ads are the
      stretches the pipeline cut before extracting insights (raw segments missing from the ad-free
      ones), else the ad reads the same detector finds, and any voice diarization called
-     commercial. Measured on 40 prod episodes with ads: no clip of 367 played an ad (one ran into a
-     guest line diarization had voiced as commercial, now trimmed); on the fixture, whose breaks
-     follow points closely, 14 of 112 carried ad content.
+     commercial.
+   - **A clip is the speaker making the point**: its extension stops where another speaker
+     begins. A host-read native ad or a sponsor credit is no ad to the detector, and it was the
+     next voice after a point as often as a question. On 40 prod episodes this shortened 22 of
+     367 clips (median 19.2 s to 19.0 s); on the fixture, where a turn is often one 6 s line, far
+     more. Before both rules the fixture's moments and reels carried ad content (14 of 112
+     moments, and reel clips besides); after, none of 118 moments or 216 reel clips does.
    - The page states what the reel actually runs, never the budget.
 9. **No curation for now.** No editorial lists, no creator Podroll, no social graph. Revisit when
    there are listeners and curators to serve.

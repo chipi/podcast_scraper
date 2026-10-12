@@ -119,11 +119,13 @@ class _Episode:
         segments: list[dict[str, Any]],
         transcript: str,
         turns: Optional[dict[str, list[str]]],
+        english: Optional[list[str]] = None,
     ) -> None:
         self.gi = gi
         self.segments = segments
         self.transcript = transcript
         self.turns = turns
+        self.english = english
         self.trusted = trusted_prefix(segments, turns) if turns else 0
         self.stats = dict.fromkeys(
             (
@@ -168,6 +170,15 @@ class _Episode:
         )
 
     def english_at(self, index: Optional[int]) -> Optional[str]:
+        # Every source line's English, when the render is on the source timeline: the English
+        # sentences inside the line's time span (``_english_by_segment``). Name pairing over an
+        # opening stretch is the fallback; past that stretch the English filler rules never
+        # applied, and the translated shows' later episodes kept only connective templates as
+        # insights ("Before we get into it —", "And it ties into what we cover today", 2026-10-12).
+        if self.english is not None:
+            if index is None or index >= len(self.english):
+                return None
+            return self.english[index] or None
         if not self.turns or index is None or index >= self.trusted:
             return None
         return paired_english(index, str(self.segments[index].get("text") or ""), self.turns)
@@ -430,9 +441,11 @@ def realign(
     turns: Optional[dict[str, list[str]]] = None,
     low_grounding: bool = False,
     extra_topics: Optional[list[tuple[str, str]]] = None,
+    english: Optional[list[str]] = None,
 ) -> dict[str, int]:
     """Re-ground one episode's GI in place (the module docstring's steps)."""
-    return _Episode(gi, segments, transcript, turns).realign(low_grounding, extra_topics)
+    episode = _Episode(gi, segments, transcript, turns, english)
+    return episode.realign(low_grounding, extra_topics)
 
 
 def storyline_members_on(kg_path: Path) -> list[tuple[str, str]]:
@@ -452,16 +465,40 @@ def storyline_members_on(kg_path: Path) -> list[tuple[str, str]]:
     ]
 
 
+def _english_by_segment(
+    segments: list[dict[str, Any]], render: list[dict[str, Any]]
+) -> Optional[list[str]]:
+    """Each source segment's English: the render's sentences inside its time span. None when the
+    render is not on the source timeline (a sentence outside every segment), so pairing falls back
+    to names. ``build_app_validation_corpus.retime_english_render`` puts it there."""
+    out: list[list[str]] = [[] for _ in segments]
+    for sent in render:
+        s, e = float(sent.get("start") or 0.0), float(sent.get("end") or 0.0)
+        k = next(
+            (
+                i
+                for i, seg in enumerate(segments)
+                if float(seg.get("start") or 0.0) - 0.01 <= s
+                and e <= float(seg.get("end") or 0.0) + 0.01
+            ),
+            None,
+        )
+        if k is None:
+            return None
+        out[k].append(str(sent.get("text") or ""))
+    return [" ".join(x) for x in out]
+
+
 def _episode_inputs(
     gi_path: Path,
-) -> tuple[list[dict[str, Any]], str, Optional[dict[str, list[str]]]]:
+) -> tuple[list[dict[str, Any]], str, Optional[dict[str, list[str]]], Optional[list[str]]]:
     """The segments and transcript an episode's insights are written in, and its translation."""
     tdir = gi_path.parent.parent / "transcripts"
     stem = gi_path.name[: -len(".gi.json")]
     translation = tdir / f"{stem}.translation.json"
     if not translation.is_file():
         segments = json.loads((tdir / f"{stem}.segments.json").read_text("utf-8"))
-        return segments, (tdir / f"{stem}.txt").read_text(encoding="utf-8"), None
+        return segments, (tdir / f"{stem}.txt").read_text(encoding="utf-8"), None, None
     tr = json.loads(translation.read_text("utf-8"))
     lang = str(tr.get("source_language") or "")
     turns: dict[str, list[str]] = {}
@@ -470,7 +507,9 @@ def _episode_inputs(
             str(x.get("en_text") or "") for x in u.get("sentences") or []
         )
     segments = json.loads((tdir / f"{stem}.{lang}.segments.json").read_text("utf-8"))
-    return segments, (tdir / f"{stem}.{lang}.txt").read_text(encoding="utf-8"), turns
+    render = json.loads((tdir / f"{stem}.segments.json").read_text("utf-8"))
+    english = _english_by_segment(segments, render if isinstance(render, list) else [])
+    return segments, (tdir / f"{stem}.{lang}.txt").read_text(encoding="utf-8"), turns, english
 
 
 def rederive_episode_enrichments(gi_path: Path, gi: dict[str, Any]) -> list[Path]:
@@ -508,12 +547,12 @@ def main() -> int:
     for gi_path in sorted((args.corpus / "feeds").rglob("*.gi.json")):
         gi = json.loads(gi_path.read_text(encoding="utf-8"))
         before = json.dumps(gi, sort_keys=True)
-        segments, transcript, turns = _episode_inputs(gi_path)
+        segments, transcript, turns, english = _episode_inputs(gi_path)
         low = has_failure_mode(gi_path.name[: -len(".gi.json")], gt_dir, "low_grounding_dialogue")
         extra = storyline_members_on(
             gi_path.with_name(gi_path.name.replace(".gi.json", ".kg.json"))
         )
-        for k, v in realign(gi, segments, transcript, turns, low, extra).items():
+        for k, v in realign(gi, segments, transcript, turns, low, extra, english).items():
             total[k] = total.get(k, 0) + v
         if json.dumps(gi, sort_keys=True) != before:
             changed += 1

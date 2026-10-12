@@ -6,6 +6,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:5932fe62e5b1fd58",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:authored-p07_e03-0",
       "to": "topic:sustainability",
       "type": "ABOUT"
@@ -32,7 +37,7 @@
     },
     {
       "from": "episode:ep-a86da8f148d3bf29",
-      "to": "insight:ac4db52689f9b723",
+      "to": "insight:5932fe62e5b1fd58",
       "type": "HAS_INSIGHT"
     },
     {
@@ -81,6 +86,11 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:5b5e8d6a2e86fb29",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "quote:authored-p07_e03-0",
       "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
@@ -88,11 +98,6 @@
     {
       "from": "quote:authored-p07_e03-1",
       "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:b19a4f4bf3b0c405",
-      "to": "person:alex-morgan",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,8 +111,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:ac4db52689f9b723",
-      "to": "quote:b19a4f4bf3b0c405",
+      "from": "insight:5932fe62e5b1fd58",
+      "to": "quote:5b5e8d6a2e86fb29",
       "type": "SUPPORTED_BY"
     },
     {
@@ -288,7 +293,7 @@
       "type": "Quote"
     },
     {
-      "id": "insight:ac4db52689f9b723",
+      "id": "insight:5932fe62e5b1fd58",
       "properties": {
         "episode_id": "ep-a86da8f148d3bf29",
         "grounded": true,
@@ -296,21 +301,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "That's it for this Long View. Until next time.",
+        "text": "The dangerous risks are the slow ones you can name but discount. Risk management here is the same discipline as anywhere \u2014 a portfolio, a power grid, a reef \u2014 name the risk before it names you, and\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:b19a4f4bf3b0c405",
+      "id": "quote:5b5e8d6a2e86fb29",
       "properties": {
-        "char_end": 1394,
-        "char_start": 1348,
+        "char_end": 1163,
+        "char_start": 940,
         "episode_id": "ep-a86da8f148d3bf29",
-        "speaker_id": "person:alex-morgan",
-        "text": "That's it for this Long View. Until next time.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
+        "speaker_id": "person:dr-elena-fischer",
+        "text": "The dangerous risks are the slow ones you can name but discount. Risk management here is the same discipline as anywhere \u2014 a portfolio, a power grid, a reef \u2014 name the risk before it names you, and respect the correlations.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p07_e03.txt"
       },
       "type": "Quote"

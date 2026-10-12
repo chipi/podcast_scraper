@@ -211,7 +211,11 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
     import sys
 
     from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_episode_search import episode_ad_spans, episode_segments
+    from podcast_scraper.server.app_episode_search import (
+        episode_ad_spans,
+        episode_segments,
+        episode_turn_starts,
+    )
     from podcast_scraper.server.app_moments import _topic_links
 
     artifact = load_json_artifact(root, row.gi_relative_path)
@@ -223,7 +227,11 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
     scored = [
         m
         for m in score_candidates(
-            artifact, cfg, episode_segments(root, row), episode_ad_spans(root, row)
+            artifact,
+            cfg,
+            episode_segments(root, row),
+            episode_ad_spans(root, row),
+            episode_turn_starts(root, row),
         )
         if links.get(m.insight_id) and quote_support(m.quote_text, m.text) >= MIN_SUPPORT
     ]
@@ -359,7 +367,11 @@ def hydrate(
     """The full moments (text, quote, speaker, clip) for ``refs``, all from one episode, in
     their order. A ref whose insight is gone from the episode's files is left out."""
     from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_episode_search import episode_ad_spans, episode_segments
+    from podcast_scraper.server.app_episode_search import (
+        episode_ad_spans,
+        episode_segments,
+        episode_turn_starts,
+    )
 
     cfg = config or MomentsConfig.from_env()
     artifact = load_json_artifact(root, row.gi_relative_path)
@@ -368,7 +380,11 @@ def hydrate(
     by_id = {
         m.insight_id: m
         for m in score_candidates(
-            artifact, cfg, episode_segments(root, row), episode_ad_spans(root, row)
+            artifact,
+            cfg,
+            episode_segments(root, row),
+            episode_ad_spans(root, row),
+            episode_turn_starts(root, row),
         )
     }
     return [by_id[r.insight_id] for r in refs if r.insight_id in by_id]

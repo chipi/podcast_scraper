@@ -1,6 +1,11 @@
 {
   "edges": [
     {
+      "from": "insight:1677c578da3fecdd",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:4a9a3e0ba970e2c5",
       "to": "topic:risk-management",
       "type": "ABOUT"
@@ -12,12 +17,12 @@
     },
     {
       "from": "episode:ep-0d9100843ee555f8",
-      "to": "insight:4a9a3e0ba970e2c5",
+      "to": "insight:1677c578da3fecdd",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-0d9100843ee555f8",
-      "to": "insight:79e1c458f38f1d14",
+      "to": "insight:4a9a3e0ba970e2c5",
       "type": "HAS_INSIGHT"
     },
     {
@@ -46,23 +51,23 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:de7d6ee2922832cf",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "quote:e09ab66ef87aa560",
       "to": "person:noah-brier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:4a9a3e0ba970e2c5",
-      "to": "quote:e09ab66ef87aa560",
+      "from": "quote:f634809a70eaea92",
+      "to": "person:noah-brier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1677c578da3fecdd",
+      "to": "quote:f634809a70eaea92",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:79e1c458f38f1d14",
-      "to": "quote:de7d6ee2922832cf",
+      "from": "insight:4a9a3e0ba970e2c5",
+      "to": "quote:e09ab66ef87aa560",
       "type": "SUPPORTED_BY"
     },
     {
@@ -149,20 +154,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:79e1c458f38f1d14",
-      "properties": {
-        "episode_id": "ep-0d9100843ee555f8",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Noah Bryer, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:38a66d1c2280fc8e",
       "properties": {
         "char_end": 2079,
@@ -191,15 +182,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:de7d6ee2922832cf",
+      "id": "insight:1677c578da3fecdd",
       "properties": {
-        "char_end": 5799,
-        "char_start": 5759,
         "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:maya",
-        "text": "Noah Bryer, thanks for the conversation.",
-        "timestamp_end_ms": 282000,
-        "timestamp_start_ms": 276000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, Suspension service intervals are a risk-management decision. And the second-order effect is the part most people miss.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:f634809a70eaea92",
+      "properties": {
+        "char_end": 5474,
+        "char_start": 5346,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:noah-brier",
+        "text": "Honestly, Suspension service intervals are a risk-management decision. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
         "transcript_ref": "transcripts/p01_e03.txt"
       },
       "type": "Quote"

@@ -294,6 +294,20 @@ class TestClipNeverPlaysAnAd:
         start, end, _ = _clip_ads([_q(100, 112)], self.SEGS, self.BREAK, cfg)
         assert (start, end) == (100_000, 109_000)
 
+    def test_the_extension_stops_where_the_speaker_changes(self) -> None:
+        """The next voice was a host's sponsor credit or native ad as often as a question."""
+        segs = [
+            (96_000, 102_000, "Suspension service intervals are a risk-management decision."),
+            (
+                102_000,
+                108_000,
+                "Y'know what, I'll just say it: Linear runs my whole engineering ops.",
+            ),
+        ]
+        start, end, text = _clip_ads([_q(96, 100)], segs, (), turn_starts=frozenset({102_000}))
+        assert (start, end) == (96_000, 102_000) and "Linear" not in text
+        assert build_clip([_q(96, 100)], segs, MomentsConfig())[1] == 108_000  # type: ignore[index]
+
     def test_no_ads_is_the_old_clip(self) -> None:
         assert build_clip([_q(102, 106)], self.SEGS, MomentsConfig(), ()) == build_clip(
             [_q(102, 106)], self.SEGS, MomentsConfig()
@@ -301,9 +315,13 @@ class TestClipNeverPlaysAnAd:
 
 
 def _clip_ads(
-    quotes: list[AppQuote], segs: Any, ads: Any, cfg: MomentsConfig | None = None
+    quotes: list[AppQuote],
+    segs: Any,
+    ads: Any,
+    cfg: MomentsConfig | None = None,
+    turn_starts: frozenset[int] = frozenset(),
 ) -> tuple[int, int, str]:
-    out = build_clip(quotes, segs, cfg or MomentsConfig(), ads)
+    out = build_clip(quotes, segs, cfg or MomentsConfig(), ads, turn_starts)
     assert out is not None
     return out
 

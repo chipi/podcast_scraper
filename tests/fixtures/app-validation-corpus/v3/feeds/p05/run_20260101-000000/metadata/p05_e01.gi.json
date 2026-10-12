@@ -11,6 +11,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:bb22f9e4540eef0f",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "insight:058777af848d6ae8",
       "type": "HAS_INSIGHT"
@@ -22,7 +27,7 @@
     },
     {
       "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:9afa059c5a93e54c",
+      "to": "insight:bb22f9e4540eef0f",
       "type": "HAS_INSIGHT"
     },
     {
@@ -56,13 +61,13 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:e7f46d03b3ca9b22",
+      "from": "quote:de55dda648cc6fbb",
       "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:ebf24ac0814586c4",
-      "to": "person:nora",
+      "from": "quote:e7f46d03b3ca9b22",
+      "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
@@ -76,8 +81,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:9afa059c5a93e54c",
-      "to": "quote:ebf24ac0814586c4",
+      "from": "insight:bb22f9e4540eef0f",
+      "to": "quote:de55dda648cc6fbb",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -180,20 +185,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:9afa059c5a93e54c",
-      "properties": {
-        "episode_id": "ep-bccfce5798a83a6e",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Daniel Cho, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:b05d1d1efa059547",
       "properties": {
         "char_end": 1292,
@@ -208,25 +199,39 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ebf24ac0814586c4",
-      "properties": {
-        "char_end": 5966,
-        "char_start": 5926,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:nora",
-        "text": "Daniel Cho, thanks for the conversation.",
-        "timestamp_end_ms": 288000,
-        "timestamp_start_ms": 282000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "topic:second-order-effects",
       "properties": {
         "label": "second-order effects"
       },
       "type": "Topic"
+    },
+    {
+      "id": "insight:bb22f9e4540eef0f",
+      "properties": {
+        "episode_id": "ep-bccfce5798a83a6e",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:de55dda648cc6fbb",
+      "properties": {
+        "char_end": 1725,
+        "char_start": 1588,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:daniel-cho",
+        "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

@@ -22,7 +22,7 @@
     },
     {
       "from": "episode:ep-d428e906f5affc60",
-      "to": "insight:98184194cba1e9e8",
+      "to": "insight:fbdf3c7d7786a0b4",
       "type": "HAS_INSIGHT"
     },
     {
@@ -56,12 +56,12 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:2d90d4532ab1ea5b",
-      "to": "person:a-correspondent",
+      "from": "quote:8d09cd871d3448e6",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:8d09cd871d3448e6",
+      "from": "quote:ab060b2a71127a53",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
@@ -76,8 +76,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:98184194cba1e9e8",
-      "to": "quote:2d90d4532ab1ea5b",
+      "from": "insight:fbdf3c7d7786a0b4",
+      "to": "quote:ab060b2a71127a53",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -180,20 +180,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:98184194cba1e9e8",
-      "properties": {
-        "episode_id": "ep-d428e906f5affc60",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Renee Montagne-Park, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:8d09cd871d3448e6",
       "properties": {
         "char_end": 2369,
@@ -208,15 +194,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:2d90d4532ab1ea5b",
+      "id": "insight:fbdf3c7d7786a0b4",
       "properties": {
-        "char_end": 3094,
-        "char_start": 3045,
         "episode_id": "ep-d428e906f5affc60",
-        "speaker_id": "person:a-correspondent",
-        "text": "Renee Montagne-Park, thanks for the conversation.",
-        "timestamp_end_ms": 144000,
-        "timestamp_start_ms": 138000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:ab060b2a71127a53",
+      "properties": {
+        "char_end": 1010,
+        "char_start": 836,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:renee-montagne-park",
+        "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p08_e04.txt"
       },
       "type": "Quote"

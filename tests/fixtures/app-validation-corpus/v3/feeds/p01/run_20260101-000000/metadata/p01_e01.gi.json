@@ -11,18 +11,23 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:da13e5ed0b7b2430",
+      "to": "topic:drainage-design",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-db8f44d2e07a22bd",
       "to": "insight:0bc0138cbf4d6eb4",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-db8f44d2e07a22bd",
-      "to": "insight:7b15d8be8d0c548d",
+      "to": "insight:bf9b3bf4a21ee6f8",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-db8f44d2e07a22bd",
-      "to": "insight:bf9b3bf4a21ee6f8",
+      "to": "insight:da13e5ed0b7b2430",
       "type": "HAS_INSIGHT"
     },
     {
@@ -46,11 +51,6 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:31cab6541ecdf79f",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "quote:56bcd9448a3ad1fd",
       "to": "person:liam-verbeek",
       "type": "SPOKEN_BY"
@@ -61,18 +61,23 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:c7c26c6d01b85485",
+      "to": "person:liam-verbeek",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:0bc0138cbf4d6eb4",
       "to": "quote:56bcd9448a3ad1fd",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:7b15d8be8d0c548d",
-      "to": "quote:31cab6541ecdf79f",
+      "from": "insight:bf9b3bf4a21ee6f8",
+      "to": "quote:b8821d2b4ae83802",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:bf9b3bf4a21ee6f8",
-      "to": "quote:b8821d2b4ae83802",
+      "from": "insight:da13e5ed0b7b2430",
+      "to": "quote:c7c26c6d01b85485",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -168,20 +173,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:7b15d8be8d0c548d",
-      "properties": {
-        "episode_id": "ep-db8f44d2e07a22bd",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Liam Verbeek, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:b8821d2b4ae83802",
       "properties": {
         "char_end": 1253,
@@ -196,25 +187,39 @@
       "type": "Quote"
     },
     {
-      "id": "quote:31cab6541ecdf79f",
-      "properties": {
-        "char_end": 7642,
-        "char_start": 7600,
-        "episode_id": "ep-db8f44d2e07a22bd",
-        "speaker_id": "person:maya",
-        "text": "Liam Verbeek, thanks for the conversation.",
-        "timestamp_end_ms": 360000,
-        "timestamp_start_ms": 354000,
-        "transcript_ref": "transcripts/p01_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "topic:drainage-design",
       "properties": {
         "label": "drainage design"
       },
       "type": "Topic"
+    },
+    {
+      "id": "insight:da13e5ed0b7b2430",
+      "properties": {
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's how I think about it. Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from s\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:c7c26c6d01b85485",
+      "properties": {
+        "char_end": 3080,
+        "char_start": 2863,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:liam-verbeek",
+        "text": "Here's how I think about it. Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 144000,
+        "timestamp_start_ms": 138000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

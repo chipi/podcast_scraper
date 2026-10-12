@@ -11,9 +11,9 @@
       "type": "ABOUT"
     },
     {
-      "from": "episode:ep-64ef09a7ee543045",
-      "to": "insight:1bc078968b326d0c",
-      "type": "HAS_INSIGHT"
+      "from": "insight:95e0327e57d72641",
+      "to": "topic:reliability",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-64ef09a7ee543045",
@@ -23,6 +23,11 @@
     {
       "from": "episode:ep-64ef09a7ee543045",
       "to": "insight:9432ab8e8bcff3a7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "insight:95e0327e57d72641",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,19 +56,14 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:de66527ddd96f06c",
+      "from": "quote:c2777a06a7115a78",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:e5de809e0c903e14",
-      "to": "person:a-correspondent",
+      "from": "quote:de66527ddd96f06c",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1bc078968b326d0c",
-      "to": "quote:e5de809e0c903e14",
-      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:52b96ce237a68ec2",
@@ -73,6 +73,11 @@
     {
       "from": "insight:9432ab8e8bcff3a7",
       "to": "quote:de66527ddd96f06c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:95e0327e57d72641",
+      "to": "quote:c2777a06a7115a78",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -161,20 +166,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:1bc078968b326d0c",
-      "properties": {
-        "episode_id": "ep-64ef09a7ee543045",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Renee Montague-Park, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:781d99a753e8d643",
       "properties": {
         "char_end": 1260,
@@ -203,15 +194,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e5de809e0c903e14",
+      "id": "insight:95e0327e57d72641",
       "properties": {
-        "char_end": 3349,
-        "char_start": 3300,
         "episode_id": "ep-64ef09a7ee543045",
-        "speaker_id": "person:a-correspondent",
-        "text": "Renee Montague-Park, thanks for the conversation.",
-        "timestamp_end_ms": 156000,
-        "timestamp_start_ms": 150000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, Reliability of voice is partly preparation, partly humility. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:c2777a06a7115a78",
+      "properties": {
+        "char_end": 2987,
+        "char_start": 2845,
+        "episode_id": "ep-64ef09a7ee543045",
+        "speaker_id": "person:renee-montagne-park",
+        "text": "Honestly, Reliability of voice is partly preparation, partly humility. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 132000,
+        "timestamp_start_ms": 126000,
         "transcript_ref": "transcripts/p08_e02.txt"
       },
       "type": "Quote"

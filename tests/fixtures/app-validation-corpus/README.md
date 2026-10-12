@@ -167,6 +167,14 @@ insights are claims (no questions, greetings, sponsor reads, connective template
 prompts), chosen speaker-balanced and topical first; non-English episodes are grounded in their
 source-language segments. It is idempotent — a second `--apply` changes nothing.
 
+A translated line is judged through its English: the English render's sentences inside the line's
+time span (the renders are on the source timeline, below). Until 2026-10-12 only an opening stretch
+was paired, so the translated shows' later episodes kept nothing but connective templates as
+insights ("Before we get into it —", "And it ties into what we cover today"); the filler rules
+(`build_synthetic_validation_corpus._FILLER_MARKERS`) also carry the renders' paraphrases of those
+templates, and the host's closing "<guest>, thanks for the conversation." in every show. 62
+insights in 42 episodes were replaced with the episode's next claims.
+
 **No ad in a short listen** (2026-10-12). Two fixture faults made clips play ads, both fixed:
 
 - The translated shows' (p10-p14) English renders were captured from a pipeline run on other

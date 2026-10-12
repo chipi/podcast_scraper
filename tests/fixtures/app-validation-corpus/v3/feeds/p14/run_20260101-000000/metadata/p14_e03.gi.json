@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:2d649c0978f260ed",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:cc066d39b209017b",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d072d60e999ba251",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:a9c6c40a996350ce",
+      "to": "insight:2d649c0978f260ed",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:d02d05322aba037c",
+      "to": "insight:cc066d39b209017b",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:d65420f8fadc4479",
+      "to": "insight:d072d60e999ba251",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,33 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:9afb39f257a45495",
-      "to": "person:beatriz-antunes",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:bfd3e00bb0941da1",
-      "to": "person:beatriz-antunes",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:f969a4848c03d611",
+      "from": "quote:21688a51b3c91243",
       "to": "person:tiago-moreira",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:a9c6c40a996350ce",
-      "to": "quote:bfd3e00bb0941da1",
+      "from": "quote:8c907ba3149140f1",
+      "to": "person:tiago-moreira",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:c8144b603b04e917",
+      "to": "person:tiago-moreira",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2d649c0978f260ed",
+      "to": "quote:21688a51b3c91243",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:d02d05322aba037c",
-      "to": "quote:f969a4848c03d611",
+      "from": "insight:cc066d39b209017b",
+      "to": "quote:c8144b603b04e917",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:d65420f8fadc4479",
-      "to": "quote:9afb39f257a45495",
+      "from": "insight:d072d60e999ba251",
+      "to": "quote:8c907ba3149140f1",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -87,49 +102,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:9afb39f257a45495",
-      "properties": {
-        "char_end": 572,
-        "char_start": 422,
-        "episode_id": "ep-1d733f650ad9bff9",
-        "speaker_id": "person:speaker-01",
-        "text": "Antes de entrarmos no assunto \u2014 a In\u00eas Carvalho esteve no epis\u00f3dio anterior a dizer que a press\u00e3o dos pneus conta mais do que os ajustes de suspens\u00e3o.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p14_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f969a4848c03d611",
-      "properties": {
-        "char_end": 640,
-        "char_start": 588,
-        "episode_id": "ep-1d733f650ad9bff9",
-        "speaker_id": "person:speaker-02",
-        "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p14_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:bfd3e00bb0941da1",
-      "properties": {
-        "char_end": 752,
-        "char_start": 658,
-        "episode_id": "ep-1d733f650ad9bff9",
-        "speaker_id": "person:speaker-01",
-        "text": "Quero assinalar uma coisa \u2014 a In\u00eas Carvalho mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p14_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:d65420f8fadc4479",
+      "id": "insight:2d649c0978f260ed",
       "properties": {
         "episode_id": "ep-1d733f650ad9bff9",
         "grounded": true,
@@ -137,13 +110,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Antes de entrarmos no assunto \u2014 a In\u00eas Carvalho esteve no epis\u00f3dio anterior a dizer que a press\u00e3o dos pneus conta mais do que os ajustes de suspens\u00e3o.",
+        "text": "Claro. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Se ignorares isso, acabas a reconstruir tudo de zero um ano depois.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:d02d05322aba037c",
+      "id": "insight:cc066d39b209017b",
       "properties": {
         "episode_id": "ep-1d733f650ad9bff9",
         "grounded": true,
@@ -151,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje.",
+        "text": "Vejo assim. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:a9c6c40a996350ce",
+      "id": "insight:d072d60e999ba251",
       "properties": {
         "episode_id": "ep-1d733f650ad9bff9",
         "grounded": true,
@@ -165,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Quero assinalar uma coisa \u2014 a In\u00eas Carvalho mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios.",
+        "text": "Sinceramente, os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. E o efeito de segunda ordem \u00e9 a parte que quase todos deixam passar.",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:21688a51b3c91243",
+      "properties": {
+        "char_end": 2268,
+        "char_start": 2117,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:tiago-moreira",
+        "text": "Claro. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Se ignorares isso, acabas a reconstruir tudo de zero um ano depois.",
+        "timestamp_end_ms": 102000,
+        "timestamp_start_ms": 96000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c8144b603b04e917",
+      "properties": {
+        "char_end": 4183,
+        "char_start": 4041,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:tiago-moreira",
+        "text": "Vejo assim. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
+        "timestamp_end_ms": 186000,
+        "timestamp_start_ms": 180000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8c907ba3149140f1",
+      "properties": {
+        "char_end": 5876,
+        "char_start": 5717,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:tiago-moreira",
+        "text": "Sinceramente, os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. E o efeito de segunda ordem \u00e9 a parte que quase todos deixam passar.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

@@ -1,13 +1,18 @@
 {
   "edges": [
     {
+      "from": "insight:61c68e947c8c6a07",
+      "to": "topic:incident-response",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:dba054cca66abc24",
       "to": "topic:on-call-rotation",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-4a1a673a7005a6b5",
-      "to": "insight:6d1a9cda459df713",
+      "to": "insight:61c68e947c8c6a07",
       "type": "HAS_INSIGHT"
     },
     {
@@ -46,8 +51,8 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:793f9c431669b831",
-      "to": "person:ethan",
+      "from": "quote:7d0facbcc98a71bc",
+      "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
@@ -61,8 +66,8 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6d1a9cda459df713",
-      "to": "quote:793f9c431669b831",
+      "from": "insight:61c68e947c8c6a07",
+      "to": "quote:7d0facbcc98a71bc",
       "type": "SUPPORTED_BY"
     },
     {
@@ -189,7 +194,7 @@
       "type": "Insight"
     },
     {
-      "id": "insight:6d1a9cda459df713",
+      "id": "insight:61c68e947c8c6a07",
       "properties": {
         "episode_id": "ep-4a1a673a7005a6b5",
         "grounded": true,
@@ -197,21 +202,21 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Priya Nair, thanks for the conversation.",
+        "text": "Yeah, so \u2014 PagerDuty's incident response model assumes someone owns the page. And the second-order effect is the part most people miss.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "quote:793f9c431669b831",
+      "id": "quote:7d0facbcc98a71bc",
       "properties": {
-        "char_end": 5279,
-        "char_start": 5239,
+        "char_end": 1934,
+        "char_start": 1799,
         "episode_id": "ep-4a1a673a7005a6b5",
-        "speaker_id": "person:ethan",
-        "text": "Priya Nair, thanks for the conversation.",
-        "timestamp_end_ms": 264000,
-        "timestamp_start_ms": 258000,
+        "speaker_id": "person:priya-nair",
+        "text": "Yeah, so \u2014 PagerDuty's incident response model assumes someone owns the page. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 90000,
+        "timestamp_start_ms": 84000,
         "transcript_ref": "transcripts/p02_e01.txt"
       },
       "type": "Quote"

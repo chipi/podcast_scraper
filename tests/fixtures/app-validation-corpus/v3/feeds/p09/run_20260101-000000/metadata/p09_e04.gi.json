@@ -6,6 +6,11 @@
       "type": "ABOUT"
     },
     {
+      "from": "insight:8c2fc2a6f39c0ae1",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
       "from": "insight:authored-p09_e04-0",
       "to": "topic:risk-management",
       "type": "ABOUT"
@@ -32,7 +37,7 @@
     },
     {
       "from": "episode:ep-4d94c63887afbd1a",
-      "to": "insight:1f7c9ff625f76824",
+      "to": "insight:8c2fc2a6f39c0ae1",
       "type": "HAS_INSIGHT"
     },
     {
@@ -71,6 +76,11 @@
       "type": "MENTIONS_PERSON"
     },
     {
+      "from": "quote:3f03774a004773b7",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "quote:5223b9e044db64d0",
       "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
@@ -78,11 +88,6 @@
     {
       "from": "quote:882e2d513d26de39",
       "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:9713ca11ddedf1cd",
-      "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
@@ -101,8 +106,8 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:1f7c9ff625f76824",
-      "to": "quote:9713ca11ddedf1cd",
+      "from": "insight:8c2fc2a6f39c0ae1",
+      "to": "quote:3f03774a004773b7",
       "type": "SUPPORTED_BY"
     },
     {
@@ -269,20 +274,6 @@
       "type": "Insight"
     },
     {
-      "id": "insight:1f7c9ff625f76824",
-      "properties": {
-        "episode_id": "ep-4d94c63887afbd1a",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Dr. Elena Fischer, thanks for the conversation.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
       "id": "quote:5223b9e044db64d0",
       "properties": {
         "char_end": 1531,
@@ -297,15 +288,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:9713ca11ddedf1cd",
+      "id": "insight:8c2fc2a6f39c0ae1",
       "properties": {
-        "char_end": 3419,
-        "char_start": 3372,
         "episode_id": "ep-4d94c63887afbd1a",
-        "speaker_id": "person:sam",
-        "text": "Dr. Elena Fischer, thanks for the conversation.",
-        "timestamp_end_ms": 180000,
-        "timestamp_start_ms": 174000,
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from s\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:3f03774a004773b7",
+      "properties": {
+        "char_end": 2400,
+        "char_start": 2183,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:dr-elena-fischer",
+        "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 108000,
+        "timestamp_start_ms": 102000,
         "transcript_ref": "transcripts/p09_e04.txt"
       },
       "type": "Quote"

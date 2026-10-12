@@ -1,18 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:4fc9e6a8e0689820",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:9e73e151c485f6f0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:e6dd186955cada1f",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-88fec846e9003e86",
-      "to": "insight:6d6a4766ba20c4d9",
+      "to": "insight:4fc9e6a8e0689820",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-88fec846e9003e86",
-      "to": "insight:7f0ee7bf61ec9f2a",
+      "to": "insight:9e73e151c485f6f0",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-88fec846e9003e86",
-      "to": "insight:d02d05322aba037c",
+      "to": "insight:e6dd186955cada1f",
       "type": "HAS_INSIGHT"
     },
     {
@@ -21,33 +36,33 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:1b0309d7fa1b1d11",
-      "to": "person:beatriz-antunes",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:52d3727e6989cd56",
-      "to": "person:beatriz-antunes",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:b332ea51aad8b266",
+      "from": "quote:23cb297958304d0b",
       "to": "person:ines-carvalho",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6d6a4766ba20c4d9",
-      "to": "quote:52d3727e6989cd56",
+      "from": "quote:b6490d29311e7b40",
+      "to": "person:ines-carvalho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:be204722b7fa0417",
+      "to": "person:ines-carvalho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4fc9e6a8e0689820",
+      "to": "quote:b6490d29311e7b40",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:7f0ee7bf61ec9f2a",
-      "to": "quote:1b0309d7fa1b1d11",
+      "from": "insight:9e73e151c485f6f0",
+      "to": "quote:be204722b7fa0417",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:d02d05322aba037c",
-      "to": "quote:b332ea51aad8b266",
+      "from": "insight:e6dd186955cada1f",
+      "to": "quote:23cb297958304d0b",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -87,49 +102,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:52d3727e6989cd56",
-      "properties": {
-        "char_end": 566,
-        "char_start": 430,
-        "episode_id": "ep-88fec846e9003e86",
-        "speaker_id": "person:speaker-01",
-        "text": "Antes de entrarmos no assunto \u2014 o Rafael Vasconcelos esteve no programa a contar que a drenagem \u00e9 a decis\u00e3o de projeto com mais impacto.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p14_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:b332ea51aad8b266",
-      "properties": {
-        "char_end": 634,
-        "char_start": 582,
-        "episode_id": "ep-88fec846e9003e86",
-        "speaker_id": "person:speaker-02",
-        "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p14_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:1b0309d7fa1b1d11",
-      "properties": {
-        "char_end": 751,
-        "char_start": 652,
-        "episode_id": "ep-88fec846e9003e86",
-        "speaker_id": "person:speaker-01",
-        "text": "Quero assinalar uma coisa \u2014 o Rafael Vasconcelos mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p14_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:6d6a4766ba20c4d9",
+      "id": "insight:e6dd186955cada1f",
       "properties": {
         "episode_id": "ep-88fec846e9003e86",
         "grounded": true,
@@ -137,13 +110,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Antes de entrarmos no assunto \u2014 o Rafael Vasconcelos esteve no programa a contar que a drenagem \u00e9 a decis\u00e3o de projeto com mais impacto.",
+        "text": "Sinceramente, a gest\u00e3o de risco em corrida n\u00e3o \u00e9 evitar as quedas \u2014 \u00e9 escolher que quedas s\u00e3o sobreviv\u00e1veis. Vimos isso em equipas que usam Shimano. Se ignorares isso, acabas a reconstruir tudo de\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:d02d05322aba037c",
+      "id": "insight:4fc9e6a8e0689820",
       "properties": {
         "episode_id": "ep-88fec846e9003e86",
         "grounded": true,
@@ -151,13 +124,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje.",
+        "text": "Sim, ent\u00e3o \u2014 a gest\u00e3o de risco em corrida n\u00e3o \u00e9 evitar as quedas \u2014 \u00e9 escolher que quedas s\u00e3o sobreviv\u00e1veis. Vimos isso em equipas que usam RockShox. Vi este padr\u00e3o repetir-se em tr\u00eas equipas difere\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:7f0ee7bf61ec9f2a",
+      "id": "insight:9e73e151c485f6f0",
       "properties": {
         "episode_id": "ep-88fec846e9003e86",
         "grounded": true,
@@ -165,10 +138,52 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Quero assinalar uma coisa \u2014 o Rafael Vasconcelos mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios.",
+        "text": "Dou-te a vers\u00e3o em que realmente acredito. A gest\u00e3o de risco em corrida n\u00e3o \u00e9 evitar as quedas \u2014 \u00e9 escolher que quedas s\u00e3o sobreviv\u00e1veis. Vimos isso em equipas que usam Spoke & Wrench. Vi este padr\u2026",
         "tier": 2
       },
       "type": "Insight"
+    },
+    {
+      "id": "quote:23cb297958304d0b",
+      "properties": {
+        "char_end": 1656,
+        "char_start": 1440,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:ines-carvalho",
+        "text": "Sinceramente, a gest\u00e3o de risco em corrida n\u00e3o \u00e9 evitar as quedas \u2014 \u00e9 escolher que quedas s\u00e3o sobreviv\u00e1veis. Vimos isso em equipas que usam Shimano. Se ignorares isso, acabas a reconstruir tudo de zero um ano depois.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b6490d29311e7b40",
+      "properties": {
+        "char_end": 3538,
+        "char_start": 3336,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:ines-carvalho",
+        "text": "Sim, ent\u00e3o \u2014 a gest\u00e3o de risco em corrida n\u00e3o \u00e9 evitar as quedas \u2014 \u00e9 escolher que quedas s\u00e3o sobreviv\u00e1veis. Vimos isso em equipas que usam RockShox. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:be204722b7fa0417",
+      "properties": {
+        "char_end": 5200,
+        "char_start": 4962,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:ines-carvalho",
+        "text": "Dou-te a vers\u00e3o em que realmente acredito. A gest\u00e3o de risco em corrida n\u00e3o \u00e9 evitar as quedas \u2014 \u00e9 escolher que quedas s\u00e3o sobreviv\u00e1veis. Vimos isso em equipas que usam Spoke & Wrench. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",
