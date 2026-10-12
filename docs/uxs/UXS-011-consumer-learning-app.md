@@ -508,11 +508,12 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`): it searches only this episode, and its results come
   in two groups — **In the transcript** (the words verbatim first, then the words in any order or
   form; each result cut to the sentence holding the words, the words marked, "Play from" where it
-  was said, and **Highlight**, which saves that sentence) and **Insights**. The episode's own
+  was said, and the bookmark, the app's highlight control, which saves that sentence) and **Insights**. The episode's own
   summary, description and title are left out of the results; the Brief already shows them. It is a
   **word search** (operator 2026-10-12): a result without every typed word, in some form
-  ("interventions" for "intervention"), is not shown, however close its meaning. Each group folds
-  like the Brief's other sections, its count in the header.
+  ("interventions" for "intervention"), is not shown, however close its meaning. The results sit in
+  one **Search results** section that folds like the Brief's other sections, its count in the
+  header; the two groups inside it are headings, always shown.
 - **Episode description** (operator 2026-10-10): the obi's About door opens
   `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
   text, and the player had no way to read it. The sheet is a native `<dialog>`: a bottom sheet on

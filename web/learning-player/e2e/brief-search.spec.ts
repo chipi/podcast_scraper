@@ -51,9 +51,12 @@ test('a word search: every result holds a typed word, and each group folds', asy
     await expect(t).toContainText(/credib/i)
   }
 
-  // Each group folds like the Brief's other sections, its count still in the header.
-  const toggle = page.getByTestId('kp-section-toggle-search-transcript')
-  await expect(toggle).toContainText(/In the transcript · \d+/)
+  // One "Search results" section folds (operator 2026-10-12), its count in the header; inside it
+  // the two groups are headings, always shown.
+  await expect(results.getByTestId('kp-search-transcript')).toContainText('In the transcript')
+  await expect(page.getByTestId('kp-section-toggle-search-transcript')).toHaveCount(0)
+  const toggle = page.getByTestId('kp-section-toggle-search-results')
+  await expect(toggle).toContainText(/Search results · \d+/)
   await toggle.click()
   await expect(pieces.first()).toBeHidden()
   await toggle.click()

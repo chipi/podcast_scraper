@@ -83,15 +83,22 @@ function piece(hit: SearchHit, segments: Segment[], terms: string[]): BriefPiece
   const md = (hit.metadata ?? {}) as Record<string, unknown>
   const match = md.match === 'phrase' || md.match === 'words' ? md.match : null
   const marks = Array.isArray(md.marks) ? md.marks.filter((m): m is string => typeof m === 'string') : []
+  // The words to cut around: as typed, and as the server found them ("interventions" for a typed
+  // "intervention"). With the typed words alone, a passage holding only another form was cut to its
+  // FIRST segment, which did not have the word at all (operator's "Intervention" screenshot,
+  // 2026-10-12).
+  const find = [...new Set([...terms, ...marks.map((m) => m.toLowerCase())])]
   const s = startMs(hit)
   if (s != null && segments.length) {
     const e = endMs(hit, s)
     const inRange = segments
       .map((seg, i) => ({ seg, i }))
       .filter(({ seg }) => seg.start * 1000 < e && seg.end * 1000 > s)
-    if (inRange.length) {
-      const hitAt = inRange.find(({ seg }) => terms.some((term) => words(seg.text).includes(term)))
-      const first = hitAt ?? inRange[0]
+    const hitAt = inRange.find(({ seg }) => find.some((term) => words(seg.text).includes(term)))
+    // No segment in the range says the words: the first one only when the server named none.
+    // Otherwise the piece is cut from the result's own text, which does say them.
+    const first = hitAt ?? (marks.length ? undefined : inRange[0])
+    if (first) {
       const segs = [first.seg]
       const next = segments[first.i + 1]
       if (next && words(first.seg.text).length < SHORT_WORDS) segs.push(next)
@@ -107,7 +114,7 @@ function piece(hit: SearchHit, segments: Segment[], terms: string[]): BriefPiece
   }
   return {
     key: `hit:${hit.doc_id}`,
-    text: snippetAround(hit.text ?? '', terms),
+    text: snippetAround(hit.text ?? '', find),
     start: s != null ? s / 1000 : null,
     segments: [],
     match,

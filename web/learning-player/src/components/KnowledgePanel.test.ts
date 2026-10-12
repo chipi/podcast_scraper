@@ -1311,11 +1311,15 @@ describe("the Brief's search, for what a listener remembers (operator 2026-10-10
     expect(w.emitted("play-from")?.at(-1)).toEqual([5])
   })
 
-  it("Highlight saves exactly the sentence's segments", async () => {
+  it("the bookmark saves exactly the sentence's segments", async () => {
     const w = await searchFor("free lunch", [
       { doc_id: "c1", score: 1, text: "x", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
     ])
-    await w.get('[data-testid="kp-search-highlight"]').trigger("click")
+    // The app's one highlight control (operator 2026-10-12), not the word "Highlight".
+    const save = w.get('[data-testid="kp-search-highlight"]')
+    expect(save.find("svg").exists()).toBe(true)
+    expect(save.text()).not.toBe("Highlight")
+    await save.trigger("click")
     const [span] = w.emitted("capture-span")!.at(-1) as [{ segment_ids: string[]; start_ms: number }]
     expect(span.segment_ids).toEqual(["s1"])
     expect(span.start_ms).toBe(5_000)
