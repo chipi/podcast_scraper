@@ -24,7 +24,6 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from podcast_scraper.languages import primary_language
 from podcast_scraper.rss.licence import LicenceRecord, summary_label
-from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.storylines import storyline_map_by_topic
@@ -50,7 +49,6 @@ from podcast_scraper.server.app_episode_notes import (
 from podcast_scraper.server.app_episode_search import (
     episode_segments as _raw_segment_tuples,
     exact_passages,
-    time_transcript_hits,
     word_matches,
 )
 from podcast_scraper.server.app_gi_view import insights_from_gi
@@ -64,7 +62,6 @@ from podcast_scraper.server.app_moments import episode_has_moments, MomentsConfi
 from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, with_photos
-from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import (
@@ -1048,55 +1045,47 @@ def episode_audio_source(
     )
 
 
-#: Index results the Brief's word search looks through: about one episode's rows in full.
-_WORD_POOL = 100
-
-
 @router.get("/episodes/{slug}/search", response_model=CorpusSearchApiResponse)
 async def episode_search(
     request: Request,
     slug: str,
     q: str = Query(min_length=1, description="The words to find."),
-    top_k: int = Query(default=10, ge=1, le=100),
     _user: User = Depends(get_current_user),
 ) -> CorpusSearchApiResponse:
-    """Word search within one episode (extractive grounded passages; no LLM, D6).
+    """Word search within one episode, over all of it (operator 2026-10-12).
 
-    The episode is part of the QUERY (operator 2026-10-10): only this episode's rows are ranked,
-    so nothing from another episode can come back or crowd this one's matches out. It used to
-    rank the corpus, keep the top few hundred, and narrow afterwards, which found nothing in an
-    episode whose matches did not make that cut.
+    Filtered at the source, not ranked and then cut: every passage of the episode's timed
+    transcript that holds the typed words (:func:`exact_passages`, verbatim first), and every
+    insight the Brief shows whose text holds them (:func:`word_matches`). No index, no meaning
+    ranking, no cap — it used to ask the index for the top rows by meaning and keep the ones with
+    the words, which could miss a word match the ranking placed below the cut.
     """
     root, row = _resolve(request, slug)
-    # Offload off the event loop (see the /related + /search notes) — safe via the warm index_pool.
-    outcome = await asyncio.to_thread(
-        structured_corpus_search,
-        root,
-        q,
-        feed=row.feed_id or None,
-        episode_id=row.episode_id or None,
-        top_k=_WORD_POOL,
-    )
-    if not outcome.get("error"):
-        append_query_event(root, str(outcome.get("query_type") or ""))
-    scoped = filter_outcome_to_episode(outcome, row.episode_id, _WORD_POOL)
-    resp = build_search_response(q, scoped)
-    # Words, not meaning (operator 2026-10-12): only results holding the typed words stay. Ranked
-    # from a deeper pool, so a word match the index placed below a meaning match is not cut off.
-    resp.results = word_matches(resp.results, q)[:top_k]
-    # What a listener remembers (operator 2026-10-10): passages with the words verbatim first,
-    # and a real time on every transcript result — both from the episode's timed transcript.
+    episode_id = row.episode_id or slug
     segments = await asyncio.to_thread(_raw_segment_tuples, root, row)
+    results: list[SearchHitModel] = []
     if segments:
-        time_transcript_hits(resp.results, segments)
-        exact = [
+        results.extend(
             SearchHitModel(**hit)
-            for hit in exact_passages(segments, q, episode_id=row.episode_id or slug)
+            for hit in exact_passages(segments, q, episode_id=episode_id, limit=None)
+        )
+    if row.has_gi and row.gi_relative_path:
+        artifact = load_json_artifact(root, row.gi_relative_path)
+        insights = [
+            SearchHitModel(
+                doc_id=f"insight:{ins.id}",
+                score=1.0,
+                text=ins.text,
+                source_tier="insight",
+                metadata={"doc_type": "insight", "episode_id": episode_id},
+                supporting_quotes=[
+                    {"start_ms": qt.start_ms, "end_ms": qt.end_ms, "text": qt.text}
+                    for qt in ins.quotes
+                ],
+            )
+            # The same insights the Brief's own panel lists (#2198), in its order.
+            for ins in insights_from_gi(artifact, unattributed_fallback=True)
         ]
-        if exact:
-            resp.results = [*exact, *resp.results]
-            # The verbatim passages need no index: an index that cannot answer (none built yet,
-            # or the query model offline) no longer hides what the transcript plainly says.
-            resp.error = None
-            resp.detail = None
-    return resp
+        results.extend(word_matches(insights, q))
+    append_query_event(root, "episode_words")
+    return CorpusSearchApiResponse(query=q, results=results)

@@ -360,11 +360,10 @@ export async function getEntities(slug: string): Promise<EntitiesResponse> {
 }
 
 /** Episode-scoped grounded search — extractive passages, no request-time LLM (D6). */
-export function searchEpisode(slug: string, q: string, topK = 8): Promise<SearchResponse> {
-  return getJSON<SearchResponse>(`/episodes/${encodeURIComponent(slug)}/search`, {
-    q,
-    top_k: topK,
-  })
+/** Word search within one episode: every passage and insight with the words, not limited
+ *  (operator 2026-10-12). */
+export function searchEpisode(slug: string, q: string): Promise<SearchResponse> {
+  return getJSON<SearchResponse>(`/episodes/${encodeURIComponent(slug)}/search`, { q })
 }
 
 /** "More like this" — semantic peer episodes; empty page when the index is unavailable. */

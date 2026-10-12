@@ -52,19 +52,3 @@ def build_search_response(query: str, outcome: dict[str, Any]) -> CorpusSearchAp
         query_type=str(outcome.get("query_type") or ""),
         lift_stats=_lift_stats(outcome.get("lift_stats")),
     )
-
-
-def filter_outcome_to_episode(
-    outcome: dict[str, Any], episode_id: str | None, top_k: int
-) -> dict[str, Any]:
-    """Return a copy of ``outcome`` with results filtered to one episode and capped to top_k.
-
-    Used for episode-scoped search: the retrieval layer has no episode filter, so we
-    over-fetch by feed then narrow by ``metadata.episode_id`` here.
-    """
-    results = outcome.get("results") or []
-    if episode_id:
-        results = [r for r in results if (r.get("metadata") or {}).get("episode_id") == episode_id]
-    narrowed = dict(outcome)
-    narrowed["results"] = results[: max(0, top_k)]
-    return narrowed

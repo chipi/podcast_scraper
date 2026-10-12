@@ -511,7 +511,9 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   was said, and the bookmark, the app's highlight control, which saves that sentence) and **Insights**. The episode's own
   summary, description and title are left out of the results; the Brief already shows them. It is a
   **word search** (operator 2026-10-12): a result without every typed word, in some form
-  ("interventions" for "intervention"), is not shown, however close its meaning. The results sit in
+  ("interventions" for "intervention"), is not shown, however close its meaning. It reads the
+  episode's own files — every passage of its timed transcript and every insight the Brief lists —
+  with no search index and **no limit**: filtered at the source, not ranked by meaning and cut. The results sit in
   one **Search results** section that folds like the Brief's other sections, its count in the
   header; the two groups inside it are headings, always shown.
 - **Episode description** (operator 2026-10-10): the obi's About door opens

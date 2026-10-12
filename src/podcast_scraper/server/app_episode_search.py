@@ -109,7 +109,7 @@ def _hit(
 
 
 def exact_passages(
-    segments: Sequence[Segment], query: str, *, episode_id: str, limit: int = 20
+    segments: Sequence[Segment], query: str, *, episode_id: str, limit: Optional[int] = 20
 ) -> List[Dict[str, Any]]:
     """Passages holding the remembered words verbatim (case-insensitive, whole words).
 
@@ -120,7 +120,8 @@ def exact_passages(
     misremembered, was found by these exact tiers 1-5% of the time): every word in some form
     (``forms``: "invested" finds "investing"), and, for three or more words, all but one of them
     (``most``). Each group in episode order; a passage is listed once, and carries the transcript
-    words it matched (``marks``) so the reader can see why.
+    words it matched (``marks``) so the reader can see why. ``limit=None`` returns every passage
+    (the Brief's word search, operator 2026-10-12: not limited).
     """
     typed = _words(query)
     terms = _terms(query)
