@@ -56,7 +56,7 @@ its reference set the same day (below) and is checked on the next run:
 | --- | --- | --- | --- |
 | `INVENTED_LINES` | en es pt fr de it | entries seen on our runs or standard subtitle credits; 0 hits in 303 gap decodes | none |
 | `_FILLERS` | hesitations for en de fr pt; es and pt discourse words ("né", "o sea", "pues") left out on purpose | Whisper writes no hesitations in any of the 24; adding the es/pt discourse words to the silent-gap floor changed nothing (-100 errors either way) | none |
-| punctuation prompts | en es pt fr de it | window repairs ran on es and pt; the whole-transcript retry had only the English prompt, so RFI 10-09 (French, 2.0 sentence ends per 1,000 words) was never retried | the retry now uses the language's prompt; unmeasured on the DGX until the re-run |
+| punctuation prompts | en es pt fr de it | window repairs ran on es and pt; the whole-transcript retry had only the English prompt, so RFI 10-09 (French, 2.0 sentence ends per 1,000 words) was never retried | the retry now uses the language's prompt; on the 2026-10-12 re-run it fired on 2 of 30 (RFI 10-09: 2.0 -> 70.0, +16 adjusted errors from two names) |
 | ad-signature function words | en de es pt fr it nl | unique-per-language rule measured on prod 2026-10-02 | none |
 | `SPOKEN_FORMS` (eval repo) | pt de en | each entry seen as a substitution in the 24 | added de "hab'/habe", "sag/sage", en "ok/okay"; removed never-seen es "pa", en "gonna"/"wanna", pt "tavam"/"cê"/"cês" |
 | bracketed-note rule (eval repo) | all | notes in every reference set | added |
@@ -354,6 +354,102 @@ What this result does not show:
   recording inside a Portuguese episode, decoded in Portuguese, which the diarizer had merged into
   a main voice. Tape. Gate A passes on the whole first set (2026-10-10).
 
+**Gate B, re-run of all 30 (2026-10-12): six shows pass; El Hilo and Camera are over.** All 30
+reference episodes (English 6, Spanish, Portuguese, French and German 24, Italian 6) re-run on the
+branch (two builds, below), scored with `asr_publisher_reference_wer_v1.py`, gated with `asr_gate_report_v1.py`
+against the earlier runs re-scored with the same scorer.
+
+| English, main-voice adjusted | episodes | median | range |
+| --- | --- | --- | --- |
+| read news (Up First) | 0.0217 / 0.0271 / 0.0281 | 0.0271 | 0.0064 |
+| narrative (Throughline) | 0.0224 / 0.0232 / 0.0346 | 0.0232 | 0.0122 |
+
+| show | language, ratio | kind | episodes | median | bar | result |
+| --- | --- | --- | --- | --- | --- | --- |
+| Italiano ON-Air | it, 1.0 | news | 0.0074 / 0.0119 / 0.0113 | 0.0113 | 0.0335 | pass |
+| Radio Ambulante | es, 1.0 | narrative | 0.0271 / 0.0109 / 0.0475 | 0.0271 | 0.0354 | pass |
+| RFI Journal en français facile | fr, 1.98 | news | 0.0476 / 0.0427 / 0.0454 | 0.0454 | 0.0662 | pass |
+| SWR Wissen | de, 1.07 | narrative | 0.0287 / 0.0346 / 0.0402 | 0.0346 | 0.0379 | pass |
+| Senado | pt, 1.02 | news | 0.0534 / 0.0230 / 0.0318 | 0.0318 | 0.0343 | pass |
+| Rádio Novelo | pt, 1.02 | narrative | 0.0357 / 0.0289 / 0.0575 | 0.0357 | 0.0362 | pass by 0.0005: on the bar |
+| El Hilo | es, 1.0 | narrative | 0.0588 / 0.0157 / 0.0373 | 0.0373 | 0.0354 | over by 0.0019 |
+| Camera, Question Time | it, 1.0 | news | 0.0896 / 0.0808 / 0.0919 | 0.0896 | 0.0335 | over |
+
+Against the earlier runs, main voices: 21 of 24 episodes equal or better (Radio Ambulante 07-21
+0.0339 -> 0.0271 and SWR 0.0371 -> 0.0287 from stretched-word recovery). Worse: RFI 10-09
+(0.0344 -> 0.0454, the punctuation retry below), Up First 10-09 (53 -> 58 errors) and Novelo
+09-24 (262 -> 267), the last two not separated from decode variance.
+
+Reading the two over:
+
+- **El Hilo** is over on one episode: 09-25 (0.0588; Rioplatense voseo written as standard
+  Spanish, brand names, fillers, as read on the first set). The other two are 0.0157 and 0.0373.
+  A margin of 0.0019 on three episodes is inside the noise described above.
+- **Camera** is over by a factor of 2.7 and most of it is the reference. The stenographic record
+  is an edited record, not a verbatim transcript: the chair's spoken "prego, onorevole" and
+  "grazie, grazie ministro" are recorded as "ha facoltà di replicare"; spoken fillers ("appunto",
+  "allora", "prego": 13 insertions on one sitting) are not recorded; the record normalises
+  euphony (a / ad, e / ed). The scorer adds to it: Whisper writes "54,3%", the digits are
+  classed as a number difference, but the reference's "per cento" is left unmatched and counted
+  (13-26 errors per sitting); "1.000" against "mila" likewise. Real ASR errors remain: names
+  ("Aspides" -> "a spides"), compounds ("superbonus" -> "super bonus"). Camera stays in gate B and
+  is reported over; whether the scorer should read "%" as the language's spoken word is a ruler
+  change for every language and baseline at once, not made here.
+
+What this result does not show:
+
+- **Two builds.** English and the 24 Spanish, Portuguese, French and German episodes ran on one
+  build; the Italian set ran on the next, which adds the digital-silence cut (below). Between the
+  two, the only changes on the ASR path are that cut (it fires on the three Camera sittings only:
+  checked on all 30 preprocessed files) and the punctuation repair's tail rule (punctuation only;
+  WER is scored without punctuation). The recovered-word join fix (below) was measured by replay
+  on the stored word lists, not by a run: 11 recovered segments change, and only Camera 09-23's
+  figure moves (0.0896 -> 0.0882).
+- **The punctuation retry costs one French episode.** RFI 10-09 came out unpunctuated (2.0
+  sentence ends per 1,000 words); the retry with the French prompt now runs and punctuates it
+  (70.0), and its decode spells "Pillay" as "pile" (5) and "Wembanyama" as "wambanyama" (4):
+  +16 adjusted errors. The retry fired on 2 of 30 episodes.
+- **Foreign tape is decoded in the declared language** (operator's rule, no language detection).
+  Words of another language under a voice-over are not transcribed as that language: SWR 10-07's stretched "einige" hid 13 English
+  words ("We have maybe a few cases ... you have to be very reactive"); the clip, decoded in
+  German, returned "einige" and recovery correctly declined. RFI 10-09's English Nobel
+  announcement (18 words) was recovered and scores as an insertion the reference does not hold.
+
+Found and fixed on this run (each with a failing test first):
+
+- **Digital silence at either end is cut off before ASR.** Camera 09-30 opens with 103 s of true
+  zeros: Whisper wrote "Grazie a tutti." over the whole 66-minute sitting (417 words, on three
+  attempts and three probes). With the silence cut the same audio gave 8,980 words against a
+  reference of 8,836. The cut is for a -70 dB peak held 10 s at an end (MP3 coding noise inside
+  true zeros peaks above -90 dB, so -90 found nothing), keeps 1 s of margin, shifts the result
+  back to episode time, and keeps gap recovery out of the cut (on 10-07 silent-gap recovery had
+  added invented words in 70 s of zeros at the end). Only the three Camera sittings are cut.
+- **A failed transcription counts as failed.** 09-30's failure left the episode "ok" from
+  queueing (`episodes=3 ok=3 failed=0`). The transcription-failure paths now write the episode
+  ledger row; the guard test no longer accepts only a literal `0` as the refusal's third value.
+- **A guardrail violation is raised at once.** The endpoint answered; the answer failed a
+  content check. The reprocess policy retried it three times, opened the breaker, held 900 s and
+  reported "endpoint did not recover", blocking the episodes behind it.
+- **Recovered words are joined as Whisper wrote them.** Re-spacing stripped tokens split every
+  elision ("l 'ordine", "l 'intégralité").
+- **A punctuation repair is judged on the text it would splice in.** Up First 10-09's window
+  (602-768 s) was refused as repetitive: over the clip's silent end Whisper re-emitted lines the
+  credits had said, and its reported ratio counts text it never put in a segment. Lines an earlier
+  decode window holds are dropped from the clip's last window and recorded; a window is repetitive
+  only when both the reported ratio and its segments' own text pass 2.4. On the re-run the window
+  was repaired.
+
+Known and not fixed: **invented lines at the end of a first-pass transcript.** Up First 10-08
+ended "and we'll see you next time" 13 times in one segment (85 words in 6.3 s); RFI 10-09
+repeated a line twice at 0.08 s each; SWR 10-07 a line twice. No rule built on text and timing
+alone separates these from real speech: checked on the restored prod corpus (2,628 transcripts),
+"a segment repeating the one before it, faster than 8 words/s" matched 829 segments in 337
+episodes, both invented outro and ad lines ("Godspeed, keep going and God bless." at 150 words/s)
+and real repeated short replies ("Yeah.", "right,"); a phrase repeated three times inside a
+segment matched rhetorical repetition as well as loops. The signal that generalises is the audio
+(an invented line sits where diarization hears no voice); not built. Long insertions are already
+out of the adjusted figures.
+
 ## 5. Naming
 
 - `relabel` at the fix commit against the run it copied, scored with
@@ -459,6 +555,22 @@ What this result does not show:
    main-voice adequacy against 3.52 / 3.95 on its own units, and the capped run's English 3.82 /
    4.24, about 0.2 BELOW the baseline on the same ruler. Splitting a turn costs the model
    context. Context and name protection do not change units, so their comparisons stand.
+9. **Italian, first judgement (2026-10-13)**, on the re-run of 2026-10-12, the first two episodes
+   each show lists in the dataset, as for the other languages (2 per show): main-voice adequacy /
+   fluency / low units: Italiano ON-Air 10-07 4.68 / 4.93 / 4 of 25, 07-01 4.24 / 4.77 / 4 of 35;
+   Camera seduta 717 3.64 / 4.56 / 12 of 56, seduta 722 3.42 / 4.50 / 29 of 62. Every unit
+   parsed, none cut; 114,301 + 43,436 tokens. Scripted studio speech is among the best of any
+   language; the parliament is at the bottom with El Hilo 09-25. Camera's low units are the
+   translator's, read on the source: invented acronym expansions ("PEFE" as an environmental
+   assessment; it is the economic-financial plan; "iter" treated as an acronym; CIPES), the
+   chamber's formulas taken literally ("ha facoltà di replicare" as "replicate statements",
+   "Prego" as "you're welcome" for "please go ahead"), the formal "lei" as "she". The model's, as
+   in item 7. The translation code judged on 2026-10-10 is the code that ran on 2026-10-12: every
+   later translation change is behind a switch that is off in the profiles, so the other
+   languages' judgements stand. Outcome on the re-run: all 24 translated episodes complete
+   (`units_failed: 0`). 6 units needed a retry and all passed: 3 refused as commentary ("here's
+   the translation"; El Hilo x2, Radio Ambulante), passed on the numbered retry; 3 returned fewer
+   lines than sentences (SWR x2, Rádio Novelo), passed on the third attempt.
 
 ## 7. Anything that changes English output
 
