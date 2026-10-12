@@ -114,7 +114,7 @@ title or transcript.
   (`test_a_mention_without_an_introduction_names_nobody`,
   `test_a_third_substantial_voice_names_nobody`): a surname the host merely mentions passes the
   floor. The Qasar test stays green. Shipping it needs both a guard for the cross-post shape and
-  the operator's decision on those two tests.
+  the operator's decision on those two tests. Issue #2338; the code is `docs/wip/K8-stated-guest-owns-talk-2026-10-12.patch`.
 
 ### K9. An unpublishable self-introduction with no alternative holds the host seat
 
