@@ -164,8 +164,9 @@ final class NativeOnlySurfacesTests: UITestCase {
       "no download control on the queue row — it is still behind the ⋯, which is the bug this change fixed")
 
     // ...and the ⋯ is still there, because promoting download must not have REPLACED the overflow.
-    XCTAssertTrue(
-      Journey.control(app, label: "More actions").exists,
+    // Contains: the row's ⋯ names its episode too ("More actions: <title>", 2026-10-12).
+    XCTAssertNotNil(
+      Journey.find(app, labels: ["More actions"], contains: true, timeout: 4),
       "the overflow disappeared — download was meant to join the row, not take the ⋯'s place")
   }
 

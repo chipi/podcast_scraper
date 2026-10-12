@@ -295,7 +295,10 @@ function searchLibrary(): void {
   <div data-testid="ec-topic-related-left">
   <!-- No section heading (operator 2026-10-05): the count rides IN the pill row as a small kicker
        label — the label-then-pills style of the show page's "What this show's about" groups. -->
-  <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
+  <!-- Only without a theme link (operator 2026-10-12): the similar topics ARE the theme's other
+       members (`theme_siblings_by_topic` reads the same cluster), and the theme's page lists them,
+       so beside its link the chips said the same thing twice. -->
+  <section v-if="siblings.length && !(themeLabel && themeId)" class="mb-4" data-testid="ec-similar-topics">
     <div class="flex flex-wrap items-center gap-1.5">
       <span class="lp-kicker mr-1" data-testid="ec-similar-label">{{
         t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } })

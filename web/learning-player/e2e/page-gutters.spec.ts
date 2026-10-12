@@ -176,7 +176,7 @@ for (const viewport of [
       }
     }
     const topic = `/topic/${encodeURIComponent('topic:risk-management')}`
-    await pair(topic, 'topic-view', 'ec-similar-topics', 'ec-top-voices')
+    await pair(topic, 'topic-view', 'ec-theme', 'ec-top-voices')
     // The storyline link stacks under the theme link at every width (both in the left column).
     await page.goto(topic)
     const tv = page.getByTestId('topic-view')

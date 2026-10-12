@@ -140,7 +140,8 @@ public class NativeOnlySurfacesTests extends UITestCase {
         // ...and the ⋯ is still there: promoting download must not have REPLACED the overflow.
         assertNotNull("the overflow disappeared — download was meant to join the row, not take the "
                         + "⋯'s place. On screen: " + Journey.labelledInventory(24),
-                Journey.find("More actions", false, 8_000));
+                // Contains: the row's ⋯ names its episode ("More actions: <title>", 2026-10-12).
+                Journey.find("More actions", true, 8_000));
     }
 
     @Test

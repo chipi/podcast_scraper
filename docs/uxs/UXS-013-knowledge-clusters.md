@@ -47,7 +47,7 @@ person↔topic↔organization walk in a single panel:
   pages (2026-10-05).
 - **Topic card:** a "Topic" kicker + label; "{n} similar topics" as a kicker label at the start of
   the sibling pill row (the semantic siblings — NOT the topic you are reading, which is not similar
-  to itself); the theme and storyline as link cards whose caption names the kind ("THEME · 3
+  to itself), shown only when there is no theme link, whose page lists the same topics; the theme and storyline as link cards whose caption names the kind ("THEME · 3
   TOPICS", "STORYLINE · 4 TOPICS"), with no section heading over them; Top voices; "{n}
   perspectives on {topic}"; a "Discussed in {n} episodes" list paged by 10. Data: `GET
   /api/app/topics/{id}`. Desktop page layout: UXS-011 §Entity pages.

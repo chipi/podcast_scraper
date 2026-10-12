@@ -51,6 +51,7 @@ from podcast_scraper.server.app_episode_search import (
     episode_segments as _raw_segment_tuples,
     exact_passages,
     time_transcript_hits,
+    word_matches,
 )
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_guided_shows import (
@@ -1046,15 +1047,19 @@ def episode_audio_source(
     )
 
 
+#: Index results the Brief's word search looks through: about one episode's rows in full.
+_WORD_POOL = 100
+
+
 @router.get("/episodes/{slug}/search", response_model=CorpusSearchApiResponse)
 async def episode_search(
     request: Request,
     slug: str,
-    q: str = Query(min_length=1, description="Natural-language query."),
+    q: str = Query(min_length=1, description="The words to find."),
     top_k: int = Query(default=10, ge=1, le=100),
     _user: User = Depends(get_current_user),
 ) -> CorpusSearchApiResponse:
-    """Grounded search within one episode (extractive grounded passages; no LLM, D6).
+    """Word search within one episode (extractive grounded passages; no LLM, D6).
 
     The episode is part of the QUERY (operator 2026-10-10): only this episode's rows are ranked,
     so nothing from another episode can come back or crowd this one's matches out. It used to
@@ -1069,12 +1074,15 @@ async def episode_search(
         q,
         feed=row.feed_id or None,
         episode_id=row.episode_id or None,
-        top_k=top_k,
+        top_k=_WORD_POOL,
     )
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))
-    scoped = filter_outcome_to_episode(outcome, row.episode_id, top_k)
+    scoped = filter_outcome_to_episode(outcome, row.episode_id, _WORD_POOL)
     resp = build_search_response(q, scoped)
+    # Words, not meaning (operator 2026-10-12): only results holding the typed words stay. Ranked
+    # from a deeper pool, so a word match the index placed below a meaning match is not cut off.
+    resp.results = word_matches(resp.results, q)[:top_k]
     # What a listener remembers (operator 2026-10-10): passages with the words verbatim first,
     # and a real time on every transcript result — both from the episode's timed transcript.
     segments = await asyncio.to_thread(_raw_segment_tuples, root, row)

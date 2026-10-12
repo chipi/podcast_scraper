@@ -273,14 +273,6 @@ test('topic: the conversation arc sits under the activity sparkline', async ({ p
   await shootSpan(page, spark, arc, 'topic-charts-stacked')
 })
 
-test('topic: similar topics excludes the topic you are on', async ({ page }) => {
-  await signIn(page)
-  await openTopicCard(page)
-  const chips = page.locator('[data-testid="ec-similar-topic"]')
-  if (!(await chips.count())) test.skip(true, 'this topic has no siblings')
-  await shootNear(page, chips.first().locator('xpath=../..'), 'similar-topics-no-self')
-})
-
 test('topic: strongest shows carry artwork', async ({ page }) => {
   await signIn(page)
   await openTopicCard(page)

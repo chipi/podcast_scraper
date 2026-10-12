@@ -864,8 +864,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
             class="mt-3 flex flex-col gap-4"
             data-testid="kp-search-results"
           >
-            <section v-if="grouped.transcript.length" data-testid="kp-search-transcript">
-              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInTranscript") }}</h4>
+            <!-- Each group folds like the panel's other sections (operator 2026-10-12), its count in
+                 the header so a folded group still says what it holds. -->
+            <CollapsibleSection
+              v-if="grouped.transcript.length"
+              :title="t('kp.searchInTranscript')"
+              :count="grouped.transcript.length"
+              section-key="search-transcript"
+              data-testid="kp-search-transcript"
+            >
               <ul class="flex flex-col gap-2">
                 <li
                   v-for="p in grouped.transcript"
@@ -894,9 +901,14 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   </div>
                 </li>
               </ul>
-            </section>
-            <section v-if="grouped.insights.length" data-testid="kp-search-insights">
-              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInsights") }}</h4>
+            </CollapsibleSection>
+            <CollapsibleSection
+              v-if="grouped.insights.length"
+              :title="t('kp.searchInsights')"
+              :count="grouped.insights.length"
+              section-key="search-insights"
+              data-testid="kp-search-insights"
+            >
               <ul class="flex flex-col gap-2">
                 <li
                   v-for="hit in grouped.insights"
@@ -912,7 +924,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   />
                 </li>
               </ul>
-            </section>
+            </CollapsibleSection>
           </div>
           <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
             {{ t("kp.noResults") }}

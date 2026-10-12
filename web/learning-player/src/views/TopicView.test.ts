@@ -101,6 +101,9 @@ describe("TopicView (#1261-6)", () => {
 
 
   it("renders the sibling-topics chip section from the topic card payload", async () => {
+    // Without a theme: beside a theme link the chips are its members again (operator 2026-10-12).
+    const card = await api.getTopicCard("topic:ai")
+    vi.spyOn(api, "getTopicCard").mockResolvedValue({ ...card, cluster_id: null, cluster_label: null })
     const { w } = await mountTopic()
     // "2 similar topics" — the two siblings, and NOT the topic being read. It counted 3 while
     // leading the list with the current topic as a ringed chip, which made the heading describe

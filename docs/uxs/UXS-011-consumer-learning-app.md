@@ -336,7 +336,9 @@ start. (A serif was tried and rejected during the earlier design phase.)
     N episodes" at full width, then notes.
 - **Topic page sections:**
   - **Similar topics** have no section heading: "N similar topics" is a small kicker label at the
-    start of the pill row (the label-then-pills style of the show page's topic groups).
+    start of the pill row (the label-then-pills style of the show page's topic groups). They show
+    only when the topic has **no theme link** (operator 2026-10-12): they are the theme's other
+    topics, and the theme lists them.
   - **Theme and storyline links** have no "Part of a theme / storyline" heading — the link card is
     the section, and its caption names the kind ("THEME · 3 TOPICS", "STORYLINE · 4 TOPICS") so the
     two are not told apart by colour alone. "Not part of a storyline yet" when there is none.
@@ -504,10 +506,13 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
   **Search this episode is for what a listener remembers** (operator 2026-10-10; eval
   `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`): it searches only this episode, and its results come
-  in two groups — **In the transcript** (the words verbatim first, then by meaning; each result cut
-  to the sentence holding the words, the words marked, "Play from" where it was said, and
-  **Highlight**, which saves that sentence) and **Insights**. The episode's own summary,
-  description and title are left out of the results; the Brief already shows them.
+  in two groups — **In the transcript** (the words verbatim first, then the words in any order or
+  form; each result cut to the sentence holding the words, the words marked, "Play from" where it
+  was said, and **Highlight**, which saves that sentence) and **Insights**. The episode's own
+  summary, description and title are left out of the results; the Brief already shows them. It is a
+  **word search** (operator 2026-10-12): a result without every typed word, in some form
+  ("interventions" for "intervention"), is not shown, however close its meaning. Each group folds
+  like the Brief's other sections, its count in the header.
 - **Episode description** (operator 2026-10-10): the obi's About door opens
   `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
   text, and the player had no way to read it. The sheet is a native `<dialog>`: a bottom sheet on

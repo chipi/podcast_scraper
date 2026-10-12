@@ -72,6 +72,8 @@ function personCard(over: Partial<PersonCard> = {}): PersonCard {
   }
 }
 
+const NO_THEME: Partial<TopicCard> = { cluster_id: null, cluster_label: null, cluster_size: 0 }
+
 function topicCard(over: Partial<TopicCard> = {}): TopicCard {
   return {
     id: "topic:ai",
@@ -134,8 +136,9 @@ describe("EntityCard", () => {
 
   it("renders a topic card: similar topics + episode-about count", async () => {
     // The topic-first restructure dropped the "Similar · <cluster>" caption line under the title;
-    // the semantic siblings still render as the "N similar topics" chip section.
-    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    // the semantic siblings still render as the "N similar topics" chip section — when there is no
+    // theme: beside a theme link they are its members again (operator 2026-10-12).
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard(NO_THEME))
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
     // ONE sibling, so the count is 1 and the copy is singular. It used to say 2, because the
@@ -149,7 +152,7 @@ describe("EntityCard", () => {
   it("the similar-topics list excludes the topic you are already reading", async () => {
     // The heading says "N similar topics"; a topic is not similar to itself, and listing it first
     // made the count disagree with what a reader could see (operator 2026-09-19).
-    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard(NO_THEME))
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
 
@@ -218,7 +221,7 @@ describe("EntityCard", () => {
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:ai", undefined, { limit: 5 })
-    expect(w.text()).toContain("1 similar topic") // topic view now shown
+    expect(w.text()).toContain("Discussed in 3 episodes") // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger("click")
     await flushPromises()

@@ -521,7 +521,7 @@ piece to its design home:
 - **`LearnPathView`** — **one path's week** (`/learn?subject=`; with none named, the one path, or
   with several "What you are learning" and a link each), "‹ Back" like every page: the subject, "Day N
   of 7", every day as a `LearnStep`, only today's open (operator 2026-10-11: "focus on where we
-  are"). An earlier day is a closed card; tapping it opens it to replay that day. Then "Stop this path", confirmed in place ("Stop learning this?" Stop / Keep going),
+  are"). An earlier day is a closed card; tapping it opens it to replay that day. Then "Leave this path", a button on the right, confirmed in place ("Leave this path?" Leave / Keep going),
   then back to Discover. Without a path: "You are not learning anything this week." and a link to
   Discover.
 - **`TopicReelView`** — **a short listen on a topic, theme or storyline** (`/listen/topic/:id?minutes=`,

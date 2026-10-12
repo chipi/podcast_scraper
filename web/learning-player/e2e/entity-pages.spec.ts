@@ -32,17 +32,15 @@ async function boxes(page: Page, view: string, ids: string[]): Promise<Record<st
 }
 
 test.describe('topic page', () => {
-  test('similar topics are an inline label; theme and storyline are link cards that name their kind', async ({
+  test('theme and storyline are link cards that name their kind; no similar topics beside the theme', async ({
     page,
   }, testInfo) => {
     await signInIsolated(page, 'entity-topic-sections', testInfo)
     await page.goto(TOPIC)
     const v = page.getByTestId('topic-view')
-    const similar = v.getByTestId('ec-similar-topics')
-    await expect(similar).toBeVisible()
-    // No heading over the similar topics: the count is a kicker label in the pill row.
-    await expect(similar.locator('h2, h3')).toHaveCount(0)
-    await expect(similar.getByTestId('ec-similar-label')).toHaveText(/^\d+ similar topics?$/)
+    await expect(v.getByTestId('ec-theme')).toBeVisible()
+    // The similar topics are the theme's own members, which its page lists (operator 2026-10-12).
+    await expect(v.getByTestId('ec-similar-topics')).toHaveCount(0)
     // No "Part of a theme / storyline" headings: the link card is the section, captioned by kind.
     await expect(v.getByText('Part of a theme')).toHaveCount(0)
     await expect(v.getByText('Part of a storyline')).toHaveCount(0)
@@ -63,7 +61,6 @@ test.describe('topic page', () => {
     const b = await boxes(page, 'topic-view', [
       '[data-testid="ec-topic-activity"] svg',
       'tca-bars',
-      'ec-similar-topics',
       'ec-theme',
       'ec-storyline',
       'ec-top-voices',
@@ -73,11 +70,10 @@ test.describe('topic page', () => {
     expect(Math.abs(spark.y - bars.y), 'charts start on one line').toBeLessThanOrEqual(2)
     expect(Math.abs(spark.height - bars.height), 'charts are one height').toBeLessThanOrEqual(2)
     expect(bars.x, 'arc to the right').toBeGreaterThan(spark.x + spark.width)
-    // Left column: similar → theme → storyline, stacked. Right column: Top voices alone.
-    const [sim, th, sl, tv] = [b['ec-similar-topics']!, b['ec-theme']!, b['ec-storyline']!, b['ec-top-voices']!]
-    expect(th.y).toBeGreaterThanOrEqual(sim.y + sim.height)
+    // Left column: theme → storyline, stacked. Right column: Top voices alone.
+    const [th, sl, tv] = [b['ec-theme']!, b['ec-storyline']!, b['ec-top-voices']!]
     expect(sl.y).toBeGreaterThanOrEqual(th.y + th.height)
-    expect(Math.abs(tv.y - sim.y), 'Top voices starts beside similar topics').toBeLessThanOrEqual(2)
+    expect(Math.abs(tv.y - th.y), 'Top voices starts beside the theme').toBeLessThanOrEqual(2)
     expect(tv.x).toBeGreaterThan(sl.x + sl.width)
   })
 

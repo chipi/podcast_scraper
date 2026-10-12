@@ -31,3 +31,31 @@ test('a few remembered words find their sentence: marked, playable, and saved as
   await first.getByTestId('kp-search-highlight').click()
   await expect(page.getByText('Highlight saved')).toBeAttached()
 })
+
+test('a word search: every result holds a typed word, and each group folds', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'brief-search-words', testInfo)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Bessent Tape').first().click()
+  await page.getByTestId('player-open-insights').click()
+
+  await page.locator('#kp-ask').fill('credibility')
+  await page.locator('#kp-ask').press('Enter')
+  const results = page.getByTestId('kp-search-results')
+  await expect(results).toBeVisible()
+  // Words, not meaning (operator 2026-10-12): a result found by meaning alone is not shown, so every
+  // transcript piece and every insight has the word marked in it.
+  const pieces = results.getByTestId('kp-search-piece')
+  await expect(pieces.first()).toBeVisible()
+  for (const p of await pieces.all()) await expect(p.locator('mark').first()).toBeVisible()
+  for (const t of await results.getByTestId('kp-search-insights').locator('li').all()) {
+    await expect(t).toContainText(/credib/i)
+  }
+
+  // Each group folds like the Brief's other sections, its count still in the header.
+  const toggle = page.getByTestId('kp-section-toggle-search-transcript')
+  await expect(toggle).toContainText(/In the transcript · \d+/)
+  await toggle.click()
+  await expect(pieces.first()).toBeHidden()
+  await toggle.click()
+  await expect(pieces.first()).toBeVisible()
+})

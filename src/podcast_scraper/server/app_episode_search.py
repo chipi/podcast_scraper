@@ -178,6 +178,31 @@ def exact_passages(
     return found[:limit]
 
 
+def word_matches(results: List[Any], query: str) -> List[Any]:
+    """The results that hold every remembered word, in some form; the rest are dropped.
+
+    The Brief's search is a word search (operator 2026-10-12): a result found only by meaning, with
+    none of the typed words in it, read as a wrong answer ("Intervention" returned a welcome line).
+    The index ranks by words and meaning together, so its results are kept only when their own text
+    has each content word in some form (:func:`_form`: "interventions" for "intervention"), and they
+    carry the words they matched (``marks``) like the verbatim passages do. In place on each kept
+    hit's metadata; the order is the index's.
+    """
+    forms = {_form(t) for t in _terms(query)}
+    if not forms:
+        return []
+    kept: List[Any] = []
+    for hit in results:
+        ws = _words(hit.text or "")
+        if not forms <= {_form(w) for w in ws}:
+            continue
+        md = dict(hit.metadata) if isinstance(hit.metadata, dict) else {}
+        md["marks"] = sorted({w for w in ws if _form(w) in forms})
+        hit.metadata = md
+        kept.append(hit)
+    return kept
+
+
 def _locate(
     hit_words: Sequence[str], index: Dict[Tuple[str, ...], int], from_end: bool
 ) -> Optional[int]:

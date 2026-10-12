@@ -2,7 +2,7 @@
 /**
  * The whole week of a "Learn X this week" path (`/learn?subject=`, operator 2026-10-11): every day
  * in order, today's open (playable, markable), earlier ones closed with whether they were done (tap
- * to open and replay), later ones saying when they open; "Stop this path" (confirmed in place).
+ * to open and replay), later ones saying when they open; "Leave this path" (confirmed in place).
  * With no subject named: the one path straight away, or with several (up to three) a list of them.
  * Without a path, it says so and points back to Discover.
  */
@@ -124,15 +124,17 @@ function goBack(): void {
             @toggle="toggle(s.day)"
           /></li>
       </ol>
-      <div class="mt-8">
+      <!-- A button on the right (operator 2026-10-12): it was plain grey text on the left and read
+           as a caption, not as something to press. -->
+      <div class="mt-8 flex justify-end">
         <button
           v-if="!confirming"
           type="button"
-          class="lp-tap min-h-[44px] text-sm font-bold text-muted"
+          class="min-h-[44px] rounded-full border border-border px-4 text-sm font-bold text-muted transition hover:text-canvas-foreground"
           data-testid="learn-stop"
           @click="confirming = true"
         >{{ t('learn.stop') }}</button>
-        <p v-else class="flex flex-wrap items-center gap-4 text-sm">
+        <p v-else class="flex flex-wrap items-center justify-end gap-4 text-sm">
           <span>{{ t('learn.stopConfirm') }}</span>
           <button type="button" class="lp-tap min-h-[44px] font-bold text-accent" data-testid="learn-stop-yes" @click="stop">{{ t('learn.stopYes') }}</button>
           <button type="button" class="lp-tap min-h-[44px] font-bold" data-testid="learn-stop-no" @click="confirming = false">{{ t('learn.stopNo') }}</button>

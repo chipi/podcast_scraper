@@ -596,13 +596,13 @@ def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.M
                     "doc_id": "a",
                     "score": 0.9,
                     "metadata": {"doc_type": "insight", "episode_id": "ep1"},
-                    "text": "mine",
+                    "text": "mine, about foo",
                 },
                 {
                     "doc_id": "b",
                     "score": 0.8,
                     "metadata": {"doc_type": "insight", "episode_id": "other"},
-                    "text": "theirs",
+                    "text": "theirs, about foo",
                 },
             ]
         )
@@ -611,9 +611,9 @@ def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.M
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "foo"}).json()
     assert captured["feed"] == "myfeed"
     # The episode is part of the QUERY (operator 2026-10-10): the search ranks only this episode's
-    # rows, so no over-fetch — it asks for exactly the page it returns.
+    # rows. It reads about the episode's rows in full (100), since the word filter keeps fewer.
     assert captured["episode_id"] == "ep1"
-    assert captured["top_k"] == 10
+    assert captured["top_k"] == 100
     assert [r["doc_id"] for r in body["results"]] == ["a"]  # and nothing from another episode
 
 
@@ -647,15 +647,44 @@ def test_episode_search_puts_verbatim_passages_first_with_their_real_time(
     )
     body = (
         _client(tmp_path)
-        .get(f"/api/app/episodes/{slug}/search", params={"q": "worst week is survivable"})
+        .get(f"/api/app/episodes/{slug}/search", params={"q": "the only free lunch"})
         .json()
     )
     first, second = body["results"][0], body["results"][1]
     assert first["metadata"]["match"] == "phrase"
-    assert first["metadata"]["timestamp_start_ms"] == 9_000
+    assert first["metadata"]["timestamp_start_ms"] == 14_000
     # The index's result keeps its place after the verbatim one, now with the time it was said.
     assert second["doc_id"] == "chunk:ep1:0"
     assert second["metadata"]["timestamp_start_ms"] == 14_000
+
+
+def test_episode_search_keeps_only_results_with_the_words(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Words, not meaning (operator 2026-10-12): a result without the typed words is dropped."""
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+
+    def hit(doc_id: str, text: str) -> dict[str, Any]:
+        md = {"doc_type": "insight", "episode_id": "ep1"}
+        return {"doc_id": doc_id, "score": 0.5, "metadata": md, "text": text}
+
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        lambda output_dir, query, **kw: CorpusSearchOutcome(
+            results=[
+                hit("meaning", "Systems change from the edges, not from the top."),
+                hit("word", "Top-down interventions rarely hold."),
+            ]
+        ),
+    )
+    body = (
+        _client(tmp_path)
+        .get(f"/api/app/episodes/{slug}/search", params={"q": "Intervention"})
+        .json()
+    )
+    assert [r["doc_id"] for r in body["results"]] == ["word"]
+    assert body["results"][0]["metadata"]["marks"] == ["interventions"]
 
 
 def test_episode_search_finds_the_words_even_when_the_index_cannot_answer(

@@ -83,7 +83,9 @@ def test_reference_client_walks_full_spine(tmp_path: Path, monkeypatch: pytest.M
                     "doc_id": "insight:1",
                     "score": 0.9,
                     "metadata": {"doc_type": "insight", "episode_id": "ep1"},
-                    "text": "hit",
+                    # Holds the walker's word ("the"): the Brief's search keeps only results
+                    # with the typed words in them (operator 2026-10-12).
+                    "text": "the hit",
                 }
             ]
         ),
