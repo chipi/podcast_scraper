@@ -28,9 +28,16 @@ untracked; that deploy is done).
   stored diagnostics and rewrite its speaker record (text files only: no audio, no ASR, no LLM, no
   DGX).
   - Before: `scripts/measure/naming_coverage.py --corpus /app/output` (baseline).
-  - Dry-run first, read the list of changed voices (the replay comparison of 2026-10-12 is the
-    expectation: about 108 voices on the old main, more with today's commits).
-  - Apply with the operator's OK, then `verify`, then coverage again (after).
+  - **Scope = exactly what this deploy changes, not "re-run naming".** Measured 2026-10-12: stored
+    records vs a replay of the merged code differ on 994 voices in 775 episodes, and 486 of those
+    are names the replay REMOVES (282 stored from the feed's hosts, 137 self-intros, 43 forced; runs
+    from Aug-Sep). Those are older code's arithmetic names that today's rules withhold on purpose,
+    many of them correct (Gergely Orosz, Lenny Rachitsky); a blanket re-run would delete them. The
+    repair touches a voice only when its stored record still equals what the DEPLOYED code
+    (`sha-3e06151`) produces AND the merged code produces something else: the changes the arc
+    replayed and read.
+  - Dry-run first, read every changed voice. Apply with the operator's OK, then `verify`, then
+    coverage again (after).
 - **N3 stale index rows (#2334).** 28 episodes serve superseded insight rows (the prune guard
   refused correct prunes from 2026-10-03 until `6551cecf9`). Re-index those 28 with the operator's
   OK; the list is in this file once prepared.

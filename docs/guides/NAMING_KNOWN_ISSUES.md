@@ -131,6 +131,22 @@ title or transcript.
 - **Why:** capitalisation is the only name signal left in a self-introduction; names stated
   elsewhere are still read case-blind (scenario `lowercase_transcript_with_stated_names`).
 
+### K13. An announcer seated as the host; a cross-posted show's host given the guest role
+
+- **Examples (prod, 2026-10-12, from the code merged in #2337):** People I (Mostly) Admire, where
+  the feed now states Steve Levitt as host and his name lands on a 1% announcer voice ("you're
+  listening to people i mostly admire with steve levitt") while his 49% voice stays unnamed; two
+  a16z cross-posts where the guest named in the title leaves a spare name and the show's own host
+  voice is painted "guest" ("a very special returning guest, Marc Andreessen"; "We are live with
+  Sriram Krishnan").
+- **Why not fixed:** a host-name veto for a seat that says the host's FULL name in the third person
+  unnamed dozens of real hosts (hosts say their own name in many forms: "with me, your host,
+  Professor Hannah Fry", "hello it's eric topol", sponsor reads naming Tyler Cowen) and emptied 6
+  episodes; skipping the guest role for a voice that names the spare guest took the role from real
+  guests (Benedict Evans, Keith Rabois, Arthur Brooks), whose clusters carry the host's bled
+  introduction of them. Both replayed on all served episodes and reverted. A narrower signal is
+  needed (for the announcer: its share of the talk).
+
 ## Changes tried and rejected (so they are not tried again blind)
 
 | Change | What the replay showed |
@@ -141,6 +157,8 @@ title or transcript.
 | Ownership guard off for host-performing seats | 8 of 8 changed voices wrong |
 | Swap pairs by address evidence | more correct pairs broken than fixed |
 | Drop unpublishable self-introductions | lost Kenny Malone, ~12 guest roles |
+| Host veto for a seat saying the host's full name in the third person | lost dozens of real hosts, 6 episodes emptied |
+| No guest role for a voice that names the spare guest | real guests lost the role (bled host introductions) |
 | Title vouched by a full name said on air alone | named "Project Astra", "Cosmic Queries"; lost 4 correct names |
 
 ## Measurement caveats
