@@ -10,7 +10,7 @@ from typing import Optional
 
 from .... import config
 from ....utils.log_redaction import format_exception_for_log
-from .base import DiarizationResult, DiarizationSegment
+from .base import clean_embeddings, DiarizationResult, DiarizationSegment
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +116,7 @@ def load_cached_diarization(cache_path: str) -> Optional[DiarizationResult]:
             segments=segments,
             num_speakers=int(payload.get("num_speakers") or len({s.speaker for s in segments})),
             model_name=str(payload.get("model_name") or ""),
+            speaker_embeddings=clean_embeddings(payload.get("speaker_embeddings")),
         )
     except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         logger.warning(
@@ -135,6 +136,7 @@ def save_diarization_cache(cache_path: str, result: DiarizationResult) -> None:
         ],
         "num_speakers": result.num_speakers,
         "model_name": result.model_name,
+        "speaker_embeddings": result.speaker_embeddings,
     }
     try:
         with open(cache_path, "w", encoding="utf-8") as handle:

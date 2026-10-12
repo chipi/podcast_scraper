@@ -146,3 +146,21 @@ def test_an_unreadable_registry_does_not_break_the_scrape(tmp_path: Path, monkey
     vdir.mkdir(parents=True, exist_ok=True)
     (vdir / "jobs.jsonl").write_bytes(b"\xff\xfe not json at all\n")
     assert _collected(reg)["podcast_pipeline_last_success_age_seconds"] == []
+
+
+def test_naming_coverage_gauges_serve_the_batch_snapshot(tmp_path: Path, monkeypatch) -> None:
+    # #2304 S8: the batch finalize writes the snapshot; /metrics serves it, never zero when absent.
+    from podcast_scraper.quality import naming_coverage as nc
+
+    app, reg = _build(tmp_path, monkeypatch, jobs=[])
+    assert "podcast_corpus_episodes_no_named_voice" not in _collected(reg)
+    nc.write_snapshot(
+        tmp_path / "output",
+        {"episodes": 2604, "episodes_no_named_voice": 221, "quotes": 10, "named_quotes": 7},
+        lang="en",
+    )
+    got = _collected(reg)
+    sample = got["podcast_corpus_episodes_no_named_voice"][0]
+    assert sample.value == 221 and sample.labels == {"language": "en"}
+    assert got["podcast_corpus_naming_episodes"][0].value == 2604
+    assert got["podcast_corpus_naming_coverage_age_seconds"][0].value < 60

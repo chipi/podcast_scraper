@@ -28,7 +28,8 @@ Service contract (DGX-side, deploy.py / infra/dgx/pyannote-server/app.py):
 - ``POST /v1/diarize`` — multipart form ``file=<audio>`` plus optional
   ``num_speakers`` / ``min_speakers`` / ``max_speakers`` form fields. Returns
   ``{"model_name": str, "num_speakers": int, "segments": [{"start", "end",
-  "speaker"}, ...]}``.
+  "speaker"}, ...], "speaker_embeddings": {speaker: [float, ...]}}``
+  (``speaker_embeddings`` optional; older servers omit it).
 - ``GET /health`` — 200 when pipeline is loaded.
 - ``GET /v1/models`` — OpenAI-style envelope so the existing
   ``check_*_health`` helpers can probe it consistently.
@@ -52,6 +53,7 @@ except ImportError:  # pragma: no cover - non-POSIX
 
 from ... import config
 from ...providers.ml.diarization.base import (
+    clean_embeddings,
     DiarizationResult,
     DiarizationSegment,
 )
@@ -429,8 +431,15 @@ class TailnetDgxDiarizationProvider:
         # cases of this failure mode in production yet.
         audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
         guardrails.check_pyannote_response(segments, audio_duration_sec=audio_duration_sec)
+        speakers = {s.speaker for s in segments}
         return DiarizationResult(
             segments=segments,
-            num_speakers=int(payload.get("num_speakers") or len({s.speaker for s in segments})),
+            num_speakers=int(payload.get("num_speakers") or len(speakers)),
             model_name=str(payload.get("model_name") or self._model),
+            # Optional: a DGX server deployed before capture sends none.
+            speaker_embeddings={
+                k: v
+                for k, v in clean_embeddings(payload.get("speaker_embeddings")).items()
+                if k in speakers
+            },
         )

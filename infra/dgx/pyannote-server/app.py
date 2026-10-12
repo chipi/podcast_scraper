@@ -33,6 +33,7 @@ Run via Docker (production path):
 from __future__ import annotations
 
 import logging
+import math
 import os
 import tempfile
 from contextlib import asynccontextmanager
@@ -235,6 +236,26 @@ def list_models() -> dict[str, Any]:
     }
 
 
+def _speaker_embeddings(result: Any, annotation: Any) -> dict[str, list[float]]:
+    """One embedding per speaker, keyed by label (pyannote 4.x ``speaker_embeddings``).
+
+    The rows are in ``annotation.labels()`` order. Non-finite rows (pyannote leaves NaN for a
+    speaker it could not embed) are skipped; values are rounded to 5 decimals to keep the response
+    small. Empty for pyannote 3.x, which returns no embeddings. Mirrors
+    ``podcast_scraper.providers.ml.diarization.base.speaker_embeddings_from_output``, which this
+    container cannot import.
+    """
+    matrix = getattr(result, "speaker_embeddings", None)
+    if matrix is None:
+        return {}
+    out: dict[str, list[float]] = {}
+    for label, row in zip(annotation.labels(), list(matrix)):
+        values = [float(x) for x in row]
+        if values and all(math.isfinite(x) for x in values):
+            out[str(label)] = [round(x, 5) for x in values]
+    return out
+
+
 @app.post("/v1/diarize")
 async def diarize(
     file: UploadFile = File(..., description="Audio file (wav / mp3 / flac / m4a)"),
@@ -280,6 +301,7 @@ async def diarize(
             {"start": float(turn.start), "end": float(turn.end), "speaker": str(speaker)}
             for turn, _, speaker in annotation.itertracks(yield_label=True)
         ]
+        embeddings = _speaker_embeddings(result, annotation)
     finally:
         try:
             os.unlink(tmp_path)
@@ -293,4 +315,5 @@ async def diarize(
         "model_name": _MODEL_NAME,
         "num_speakers": len({s["speaker"] for s in segments}),
         "segments": segments,
+        "speaker_embeddings": embeddings,
     }

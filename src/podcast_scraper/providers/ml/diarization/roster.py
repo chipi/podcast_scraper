@@ -749,14 +749,16 @@ def _declare_the_title_guest(
     Joins", Latent Space "Vibe Physics"), and the name went onto a sliver.
     """
     share = talk_share or {}
-    tail_ok = bool([v for v in evidence_hosts if v not in llm_named]) and not any(
-        share.get(v, 0.0) > _DOMINANT_SHARE for v in host_voices
-    )
+    # A host seat holding over half the talk holds the guest too, for the title's OPENING name as
+    # well: Yanis Varoufakis's own 66% voice was a host seat, so his name went onto an ad read
+    # (#2304 Track B audit).
+    host_owns_talk = any(share.get(v, 0.0) > _DOMINANT_SHARE for v in host_voices)
+    tail_ok = bool([v for v in evidence_hosts if v not in llm_named]) and not host_owns_talk
     titled = _title_subject_guest(
         episode_text,
         metadata_named,
         known_hosts,
-        any(v not in llm_named for v in host_voices),
+        any(v not in llm_named for v in host_voices) and not host_owns_talk,
         host_texts=[(voice_texts or {}).get(v, "") for v in host_voices],
         tail_allowed=tail_ok,
         carried_names=carried_names,
@@ -882,6 +884,17 @@ def _better_presenter_elsewhere(
         return False
     pat = rf"\b{re.escape(toks[0])}\s+{re.escape(toks[-1])}\b"
     return any(re.search(pat, voice_texts.get(v) or "", re.IGNORECASE) for v in others)
+
+
+def _is_a_sliver_seat(seat: str, talk_share: Mapping[str, float]) -> bool:
+    """A seat under 5% of the talk while another voice holds at least 20%: not the host.
+
+    People I (Mostly) Admire's 1% announcer ("you're listening to ... with steve levitt") took the
+    stated host's forced name while his own 49% voice stayed unnamed (#2304 Track B, K13).
+    """
+    return talk_share.get(seat, 0.0) < 0.05 and any(
+        s >= 0.20 for v, s in talk_share.items() if v != seat
+    )
 
 
 def _owns_the_conversation(seat: str, talk_share: Mapping[str, float], seats: int) -> bool:
@@ -2706,7 +2719,13 @@ def _name_host_voices(
         seat_owns_the_talk=seat_owns_talk,
         better_presenter_elsewhere=presenter_elsewhere,
     )
-    if one_name_one_seat and not seat_owns_talk and not presenter_elsewhere:
+    seat_is_a_sliver = one_name_one_seat and _is_a_sliver_seat(unnamed_seats[0], talk_share or {})
+    if (
+        one_name_one_seat
+        and not seat_owns_talk
+        and not presenter_elsewhere
+        and not seat_is_a_sliver
+    ):
         seat = unnamed_seats[0]
         text = (voice_texts or {}).get(seat, "")
         # THE ONE VETO THAT IS EVIDENCE-BACKED: a voice that says "thanks for having me" is not the

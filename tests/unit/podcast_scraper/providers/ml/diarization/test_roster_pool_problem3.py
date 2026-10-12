@@ -566,3 +566,24 @@ def test_the_on_air_vouch_needs_a_person_and_an_evidence_host() -> None:
     hosts = ["Patrick O'Shaughnessy"]
     assert _title_subject_guest(alan, [], hosts, True, host_texts=said) == "Alan Waxman"
     assert _title_subject_guest(alan, [], hosts, True, host_texts=said, tail_allowed=False) is None
+
+
+def test_the_titles_opening_guest_is_not_declared_while_a_host_seat_owns_the_talk() -> None:
+    # Track B audit: Yanis Varoufakis's own 66% voice was a host seat, so his title name went onto
+    # a 16% ad read and his voice was named after the spare co-host.
+    text = "Yanis Varoufakis: How The 2008 Crisis Revived Far-Right Populism. A conversation."
+    kw = dict(
+        episode_text=text,
+        metadata_named=["Yanis Varoufakis"],
+        known_hosts=["Alastair Campbell", "Rory Stewart"],
+    )
+    assert _declared(**kw, talk_share={"H": 0.30, "G": 0.70}) == ["Yanis Varoufakis"]
+    assert _declared(**kw, talk_share={"H": 0.66, "G": 0.16}) == []
+
+
+def test_a_sliver_seat_beside_a_large_voice_is_not_the_host() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _is_a_sliver_seat
+
+    assert _is_a_sliver_seat("A", {"A": 0.01, "G": 0.49, "L": 0.48})  # the announcer
+    assert not _is_a_sliver_seat("A", {"A": 0.30, "G": 0.70})  # a real host
+    assert not _is_a_sliver_seat("A", {"A": 0.04, "B": 0.10, "C": 0.12})  # nobody large

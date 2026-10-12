@@ -48,6 +48,7 @@ from .migrations.m0025_one_person_one_entry import OnePersonOneEntryMigration
 from .migrations.m0026_artwork_medium import ArtworkMediumMigration
 from .migrations.m0027_missing_covers_stored import MissingCoversStoredMigration
 from .migrations.m0028_transcript_chunk_times import TranscriptChunkTimesMigration
+from .migrations.m0029_naming_arc_voices_repaired import NamingArcVoicesRepairedMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -110,6 +111,7 @@ _MIGRATIONS: List[Migration] = [
     MissingCoversStoredMigration(),
     # 0028 times the transcript passages already in the search index (all at 0 ms), in place.
     TranscriptChunkTimesMigration(),
+    NamingArcVoicesRepairedMigration(),
 ]
 
 

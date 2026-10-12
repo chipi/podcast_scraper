@@ -103,6 +103,18 @@ title or transcript.
   a man who died in 1956, and `test_a_stated_name_we_failed_to_place_is_our_DEFECT` pins that.
   If picked up: require the surname spoken in the episode, read every new name for "did this
   person speak", keep that test binding.
+- **Built and measured 2026-10-12, not shipped.** A last forced-guest rung with that surname floor
+  (one stated full name unplaced, its surname spoken, no roster name sharing it, exactly one unnamed
+  non-host voice at `_DOMINANT_SHARE` or more). Replay over 2,616 served episodes: +11 named voices,
+  2 episodes newly named, 0 lose a name; all 11 read and right on the text (two are mixed voices
+  where the guest holds the majority; one, ChinaTalk's Unitree episode, fired only because the
+  metadata list missed the second guest). Gold gates: dev +1/0, val_v1 +2/-1, val_v2 +1/0. The -1
+  is the BRAVE episode where the feed's own host is the guest on another show: the interviewer is
+  the one spare stated name and lands on the host's 88% voice. It also fails two pinned tests
+  (`test_a_mention_without_an_introduction_names_nobody`,
+  `test_a_third_substantial_voice_names_nobody`): a surname the host merely mentions passes the
+  floor. The Qasar test stays green. Shipping it needs both a guard for the cross-post shape and
+  the operator's decision on those two tests. Issue #2338; the code is `docs/wip/K8-stated-guest-owns-talk-2026-10-12.patch`.
 
 ### K9. An unpublishable self-introduction with no alternative holds the host seat
 
@@ -131,6 +143,26 @@ title or transcript.
 - **Why:** capitalisation is the only name signal left in a self-introduction; names stated
   elsewhere are still read case-blind (scenario `lowercase_transcript_with_stated_names`).
 
+### K13. Errors the merged ladder introduced, found by the Track B audit (2026-10-12)
+
+- **How found:** every one of the 167 voices the merged code (#2337) names differently from the
+  deployed code was read against its own words (100 for the record repair, 67 in the audit).
+  6 were wrong: People I (Mostly) Admire's 1% announcer took the stated host Steve Levitt's name; two
+  a16z cross-posts painted their own host "guest" (and a Garry Tan interviewer voice the same way);
+  The Rest Is Politics' Yanis Varoufakis episode put his name on an ad read and named his own voice
+  after the spare co-host; Open Africa's co-host voice went from host to guest.
+- **Fixed (Track B):** the title's OPENING guest is not declared while a host seat holds over half
+  the talk (Varoufakis, the cross-posts, Garry Tan: the same guard the title tail had), and a seat
+  under 5% of the talk does not take the forced host name beside a voice of 20% or more (Levitt).
+  Replay: exactly those 6 voices change, nothing else; gold gates 0 / 0.
+- **Left:** Open Africa's co-host stays "guest". The deployed code seated it as host only through
+  an idiom ("employees are welcome to join") that F4b1 rightly ignores; the generic "a guest was
+  introduced in this episode" painting then calls it guest. Role of an unnamed voice only.
+- **Tried and reverted:** a full-name third-person host veto (unnamed dozens of real hosts, emptied
+  6 episodes); no guest role for a voice that names the spare guest (real guests lost the role);
+  no forced guest name on a voice that reads an ad (real guests' clusters carry merged mid-roll ads:
+  Simon Willison, Kent Beck, Fiona Fung lost their names).
+
 ## Changes tried and rejected (so they are not tried again blind)
 
 | Change | What the replay showed |
@@ -141,6 +173,9 @@ title or transcript.
 | Ownership guard off for host-performing seats | 8 of 8 changed voices wrong |
 | Swap pairs by address evidence | more correct pairs broken than fixed |
 | Drop unpublishable self-introductions | lost Kenny Malone, ~12 guest roles |
+| Host veto for a seat saying the host's full name in the third person | lost dozens of real hosts, 6 episodes emptied |
+| No guest role for a voice that names the spare guest | real guests lost the role (bled host introductions) |
+| No forced guest name on a voice that reads an ad | 6 real guests lost their names (merged mid-roll ads) |
 | Title vouched by a full name said on air alone | named "Project Astra", "Cosmic Queries"; lost 4 correct names |
 
 ## Measurement caveats

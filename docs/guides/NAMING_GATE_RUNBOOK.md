@@ -59,7 +59,11 @@ shows are `promo`, a name the text contradicts is null, no names from ASR artifa
 
 1. **Select** episodes read-only on the box (newest run per episode, diarized, at least two
    voices), seeded so the selection is reproducible. Validation must exclude every development
-   episode. Write blind case files.
+   episode. Write blind case files with `scripts/measure/naming_gold_cases.py`; `--exclude` takes
+   the existing sets' `cases` folders and matches episodes by feed and episode id, so a reprocessed
+   episode (new run folder) is still excluded. The script rebuilds all 601 dev_v1/val_v1 cases
+   byte for byte (checked 2026-10-12). Fresh sets: `val_v2` (150 episodes, seed 20261012, case ids
+   `w001`…), built after val_v1 was read while tuning.
 2. **Label** with agents, about 25 episodes each, every agent with its own helper folder (agents
    sharing one folder overwrote each other's scripts in the first round). Each agent self-checks:
    every voice covered, valid values, evidence whenever a name is set.

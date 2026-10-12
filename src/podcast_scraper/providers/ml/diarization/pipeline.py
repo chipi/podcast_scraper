@@ -702,6 +702,26 @@ def _apply_speaker_renames(roster: Any, renames: Optional[Mapping[str, str]]) ->
     return dataclasses.replace(roster, by_voice=by_voice)
 
 
+def voice_embeddings_block(diarization: Any) -> Optional[Dict[str, Any]]:
+    """The sidecar's ``voice_embeddings``: one vector per diarized voice, keyed like ``voices``.
+
+    Stored for cross-episode voice identity (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md): the
+    diarizer already computes these and nothing else keeps them. The model name travels with
+    them because vectors from different diarization models are not comparable. ``None`` when the
+    diarizer gave none, so the key is absent rather than empty.
+    """
+    vectors = dict(getattr(diarization, "speaker_embeddings", None) or {})
+    if not vectors:
+        return None
+    return {
+        "model_name": getattr(diarization, "speaker_embeddings_model", "")
+        or getattr(diarization, "model_name", "")
+        or "",
+        "dimension": len(next(iter(vectors.values()))),
+        "by_voice": vectors,
+    }
+
+
 def apply_diarization_to_result(
     result: dict,
     audio_path: str,
@@ -1031,6 +1051,9 @@ def apply_diarization_to_result(
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["speaker_diagnostics"]["decision_trace"] = naming_trace.to_dict()
+    voice_embeddings = voice_embeddings_block(diarization)
+    if voice_embeddings:
+        enriched_result["speaker_diagnostics"]["voice_embeddings"] = voice_embeddings
     enriched_result["diarization_num_speakers"] = roster.num_speakers
     # ADR-132 provenance: the ACTUAL diarization model served (e.g. pyannote/speaker-diarization-
     # community-1), so the processing manifest records which model produced the speaker turns — the

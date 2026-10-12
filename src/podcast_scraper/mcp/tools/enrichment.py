@@ -127,6 +127,10 @@ def _roster_from_record(content: Any, diag: Any) -> List[Dict[str, Any]]:
     return out
 
 
+#: Sidecar blocks this tool never returns (reasons in the tool's docstring).
+_DIAGNOSTICS_NOT_SERVED = frozenset({"tried", "voice_embeddings"})
+
+
 def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, Any]:
     """Speaker roster + talk-share for one episode — who spoke, %, host/guest.
 
@@ -139,6 +143,9 @@ def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, 
     exposed metrics), read from ``.speakers.diagnostics.json``. Its ``tried`` block is omitted: it
     holds the raw candidate lists the roster was given, including the pre-listening guess, and
     returning it here put a second, contradictory answer to "who spoke" in front of the caller.
+    ``voice_embeddings`` is omitted too: a voiceprint is biometric data, stored for cross-episode
+    voice identity inside the corpus and never served
+    (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md).
     Distinct from ``who_said_about_topic`` / ``person_positions`` (knowledge-graph person queries).
     """
     from ...server.app_content_source import transcript_corpus_relpath, transcript_relpath
@@ -162,7 +169,9 @@ def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, 
         "" if diag else "no persisted speaker diagnostics (diarization off or pre-diagnostics run)"
     )
     explanation = (
-        {k: v for k, v in diag.items() if k != "tried"} if isinstance(diag, dict) else diag
+        {k: v for k, v in diag.items() if k not in _DIAGNOSTICS_NOT_SERVED}
+        if isinstance(diag, dict)
+        else diag
     )
     return {
         "episode": metadata_path,
