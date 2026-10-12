@@ -461,3 +461,25 @@ class TestSpeakingRate:
             [self._seg("one two three four", 1.5, 2.0)], clip_start=0.0, gap_start=1.0, gap_end=4.0
         )
         assert len(at_cap) == 1
+
+
+def test_recovered_words_are_joined_as_whisper_wrote_them() -> None:
+    """Whisper's word tokens carry their own leading space; an elision's second half has none.
+
+    Joining stripped words with spaces split every elision: Camera seduta 714 (2026-10-12) read
+    "l 'ordine del giorno", "dell 'economia"; RFI "l 'intégralité". Each split elision scores as
+    errors against the reference and reads wrong.
+    """
+    from podcast_scraper.transcription.gap_recovery import segments_inside_gap
+
+    words = [
+        {"start": 0.1, "end": 0.3, "word": " la"},
+        {"start": 0.3, "end": 0.6, "word": " seduta,"},
+        {"start": 0.6, "end": 0.7, "word": " l"},
+        {"start": 0.7, "end": 1.1, "word": "'ordine"},
+        {"start": 1.1, "end": 1.3, "word": " del"},
+        {"start": 1.3, "end": 1.6, "word": " giorno"},
+    ]
+    seg = {"start": 0.1, "end": 1.6, "text": " la seduta, l'ordine del giorno", "words": words}
+    kept, _ = segments_inside_gap([seg], clip_start=100.0, gap_start=100.0, gap_end=102.0)
+    assert [s["text"] for s in kept] == ["la seduta, l'ordine del giorno"]

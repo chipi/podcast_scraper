@@ -140,6 +140,27 @@ def _rejection(seg: Mapping[str, Any], text: str) -> Optional[str]:
     return None
 
 
+#: A token starting with one of these attaches to the word before it ("l" + "'ordine").
+_ATTACHES = "'\u2019-.,;:!?)\u00bb%"
+
+
+def join_words(words: Sequence[Mapping[str, Any]]) -> str:
+    """Words as Whisper wrote them: a token's own leading space separates it, an elision's second
+    half has none. Stripping every token and re-spacing split each elision: Camera seduta 714
+    (2026-10-12) read "l 'ordine del giorno", RFI "l 'intégralité". A token with no leading space
+    from a provider that does not write one is still separated, unless it attaches.
+    """
+    out = ""
+    for w in words:
+        token = str(w.get("word", ""))
+        if not token.strip():
+            continue
+        if out and not token[0].isspace() and token[0] not in _ATTACHES:
+            out += " "
+        out += token
+    return " ".join(out.split())
+
+
 def segments_inside_gap(
     clip_segments: Sequence[Mapping[str, Any]],
     *,
@@ -177,7 +198,7 @@ def segments_inside_gap(
             ]
             if not inside:
                 continue
-            text = " ".join(str(w.get("word", "")).strip() for w in inside).strip()
+            text = join_words(inside)
             start, end = inside[0]["start"], inside[-1]["end"]
         else:
             if not _inside(s, e, gap_start - clip_start, gap_end - clip_start):
