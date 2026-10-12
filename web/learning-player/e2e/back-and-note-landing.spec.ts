@@ -232,7 +232,7 @@ test("a note's Open lands on the notes — a page's section, an episode's panel"
 
   const openFromLibrary = async (text: string) => {
     await page.goto('/library')
-    await page.getByRole('tab', { name: 'Boards' }).click()
+    await page.getByRole('tab', { name: 'Collections' }).click()
     const row = page.getByTestId('collections-note').filter({ hasText: text })
     await row.getByRole('link', { name: 'Open' }).click()
   }
@@ -250,7 +250,7 @@ test("a note's Open lands on the notes — a page's section, an episode's panel"
 
   // Leave no trace.
   await page.goto('/library')
-  await page.getByRole('tab', { name: 'Boards' }).click()
+  await page.getByRole('tab', { name: 'Collections' }).click()
   for (const text of [pageNote, episodeNote]) {
     const row = page.getByTestId('collections-note').filter({ hasText: text })
     await row.getByRole('button', { name: 'Remove' }).click()

@@ -42,7 +42,7 @@ test('notes on Boards filter by the entity kind they are attached to', async ({
 
   // Both notes now live in the Boards tab's notes section.
   await page.goto('/library')
-  await page.getByRole('tab', { name: 'Boards' }).click()
+  await page.getByRole('tab', { name: 'Collections' }).click()
   const notes = page.getByTestId('collections-notes')
   await expect(notes).toBeVisible()
   await expect(notes.getByTestId('collections-note').filter({ hasText: showText })).toBeVisible()

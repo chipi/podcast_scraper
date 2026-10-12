@@ -760,7 +760,7 @@
     "offlineDisabled": "Reordering needs a connection"
   },
   "collections": {
-    "sectionTitle": "Your boards",
+    "sectionTitle": "Boards",
     "namePlaceholder": "Board name",
     "create": "Create",
     "searchPlaceholder": "Filter boards and notes…",
@@ -987,7 +987,7 @@
     "unfollow": "Unfollow {label}",
     "saved": "Saved",
     "highlights": "Highlights",
-    "collections": "Boards",
+    "collections": "Collections",
     "revisit": "Revisit",
     "queue": "Queue",
     "recent": "Recent",
@@ -1184,7 +1184,7 @@
     "gb": "{n} GB"
   },
   "notes": {
-    "title": "Your notes",
+    "title": "Notes",
     "placeholder": "Add a note…",
     "add": "Add",
     "remove": "Remove",

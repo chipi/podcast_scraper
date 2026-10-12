@@ -145,7 +145,7 @@ describe('LibraryView', () => {
     // moved to the player surface (#1838), so neither is a Library tab any more.
     expect(labels).toContain('Following') // was "Shows" — now covers shows + topics/people/storylines
     expect(labels).toContain('Saved')
-    expect(labels).toContain('Boards') // the collections tab, renamed (CO.7)
+    expect(labels).toContain('Collections') // boards and notes (CO.7; named Collections 2026-10-13)
     expect(labels).toContain('Revisit')
     expect(labels).not.toContain('Queue')
     expect(labels).not.toContain('Recent')

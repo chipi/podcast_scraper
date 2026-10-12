@@ -680,8 +680,9 @@ the player surface** — see "Player-surface Queue & Recent" below):
 - **Following** — the shows and interest tokens (`topic:`/`tc:`/`thc:`/`person:`) the user
   follows. All four are followable; `tc:` is a Theme and `thc:` a Storyline — see UXS-013
   §Vocabulary, because the wire names invert against the reader-facing ones.
-- **Collections** ("Boards") — its own first-class tab (was nested under Saved); see "Collections"
-  below. It also holds **Your notes**: every note the user has written, beside their boards. The
+- **Collections** — its own first-class tab (was nested under Saved; called "Boards" until
+  2026-10-13); see "Collections" below. Its two sections are headed **Boards** and **Notes** — no
+  "Your", the tab already says whose: every note the user has written, beside their boards. The
   section is topped by the shared kind-filter strip (UXS-014) whose chips are the **entity each note
   is attached to** — Highlight / Insight / Episode / Show / Topic / Person / Storyline — with a chip
   only for kinds that actually have notes, and each row labelled `KIND · DATE` in the same words as
