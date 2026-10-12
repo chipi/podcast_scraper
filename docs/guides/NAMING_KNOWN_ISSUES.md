@@ -103,6 +103,18 @@ title or transcript.
   a man who died in 1956, and `test_a_stated_name_we_failed_to_place_is_our_DEFECT` pins that.
   If picked up: require the surname spoken in the episode, read every new name for "did this
   person speak", keep that test binding.
+- **Built and measured 2026-10-12, not shipped.** A last forced-guest rung with that surname floor
+  (one stated full name unplaced, its surname spoken, no roster name sharing it, exactly one unnamed
+  non-host voice at `_DOMINANT_SHARE` or more). Replay over 2,616 served episodes: +11 named voices,
+  2 episodes newly named, 0 lose a name; all 11 read and right on the text (two are mixed voices
+  where the guest holds the majority; one, ChinaTalk's Unitree episode, fired only because the
+  metadata list missed the second guest). Gold gates: dev +1/0, val_v1 +2/-1, val_v2 +1/0. The -1
+  is the BRAVE episode where the feed's own host is the guest on another show: the interviewer is
+  the one spare stated name and lands on the host's 88% voice. It also fails two pinned tests
+  (`test_a_mention_without_an_introduction_names_nobody`,
+  `test_a_third_substantial_voice_names_nobody`): a surname the host merely mentions passes the
+  floor. The Qasar test stays green. Shipping it needs both a guard for the cross-post shape and
+  the operator's decision on those two tests.
 
 ### K9. An unpublishable self-introduction with no alternative holds the host seat
 
