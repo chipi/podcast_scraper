@@ -53,7 +53,8 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   // DELETE while this spec sat waiting for a POST that would never come, and burned the full
   // 60-second timeout. It looked like the api was too slow to answer. Nothing was slow — the click
   // did the opposite of what the branch had decided.
-  if ((await queueBtn.getAttribute('aria-label')) === 'Add to queue') {
+  // Starts with: a card's controls name their episode ("Add to queue: <title>", 2026-10-12).
+  if ((await queueBtn.getAttribute('aria-label'))?.startsWith('Add to queue')) {
     // The button flips optimistically (store state), so it does NOT prove the write landed.
     // Wait for the write to actually persist (2xx) before reading the queue view — otherwise,
     // under load, the GET can race ahead of the write ("empty").

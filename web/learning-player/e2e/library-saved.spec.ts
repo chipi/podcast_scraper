@@ -41,7 +41,7 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   await page.getByText('Index Investing Without the Myths').first().click()
   await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
-  const epFav = page.getByRole('button', { name: 'Save', exact: true }).first()
+  const epFav = page.getByRole('button', { name: /^Save(: |$)/ }).first()
   if (await epFav.isVisible().catch(() => false)) await epFav.click()
   await expect(page.getByRole('button', { name: 'Remove from Saved' }).first()).toBeVisible()
 

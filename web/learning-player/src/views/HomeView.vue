@@ -635,7 +635,7 @@ async function loadContinue(): Promise<void> {
           <!-- Shared EpisodeActions row (favourite/queue/download/collect) in the artwork's upper-right;
            sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
            four icons fit without wrapping. -->
-          <EpisodeActions :slug="wnFeatured.slug" :moments="!!wnFeatured.has_moments" overlay class="absolute right-3 top-3 z-30" />
+          <EpisodeActions :slug="wnFeatured.slug" :episode-title="wnFeatured.title" :moments="!!wnFeatured.has_moments" overlay class="absolute right-3 top-3 z-30" />
           <!-- Tapping the card OPENS the episode, paused, like every episode card. Only Resume starts
                playback (operator 2026-10-05). -->
           <RouterLink
@@ -711,7 +711,7 @@ async function loadContinue(): Promise<void> {
                  Resume plays). Outside the link — never an interactive inside an interactive. A
                  vertical stack costs height, not width, so the title keeps the row's width; side by
                  side, a cluster like this once crushed it to one word per line. -->
-            <EpisodeActions :slug="ep.slug" :moments="!!ep.has_moments" hide-favorite class="shrink-0 flex-col" />
+            <EpisodeActions :slug="ep.slug" :episode-title="ep.title" :moments="!!ep.has_moments" hide-favorite class="shrink-0 flex-col" />
           </li>
         </ul>
       </template>

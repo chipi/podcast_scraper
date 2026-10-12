@@ -143,7 +143,8 @@ describe("SearchView", () => {
     // circles under the artwork were most of the header's height). Favourite and queue are inside it.
     const actions = w.get('[data-testid="episode-actions"]')
     expect(actions.findAll("button")).toHaveLength(1)
-    expect(actions.get("button").attributes("aria-label")).toBe("More actions")
+    // Named for its episode (2026-10-12): every result has a ⋯, so "More actions" alone was ambiguous.
+    expect(actions.get("button").attributes("aria-label")).toBe("More actions: Ep X")
   })
 
   it("labels each episode result with its language — from a source-layer hit, else the show (V2-C.1)", async () => {

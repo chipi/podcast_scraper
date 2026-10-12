@@ -20,7 +20,15 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAnchoredMenu } from '../composables/useAnchoredMenu'
 
-const props = withDefaults(defineProps<{ label?: string }>(), { label: '' })
+const props = withDefaults(
+  defineProps<{
+    label?: string
+    /** The trigger's accessible name when it should say more than `label` (a card's ⋯ names its
+     *  episode); the visible tooltip and the hidden text keep the short `label`. */
+    name?: string
+  }>(),
+  { label: '', name: '' },
+)
 const { t } = useI18n()
 
 const triggerEl = ref<HTMLElement | null>(null)
@@ -71,7 +79,7 @@ defineExpose({ close: () => close(false) })
     :class="{ 'text-canvas-foreground': open }"
     aria-haspopup="menu"
     :aria-expanded="open"
-    :aria-label="label || t('common.moreActions')"
+    :aria-label="name || label || t('common.moreActions')"
     :title="label || t('common.moreActions')"
     data-testid="overflow-trigger"
     @click.stop.prevent="toggle"

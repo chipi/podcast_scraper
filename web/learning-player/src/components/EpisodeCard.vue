@@ -212,6 +212,7 @@ const { badgeShown } = useCorpusLanguages()
       <EpisodeActions
         v-if="!hideActions"
         :slug="episode.slug"
+        :episode-title="episode.title"
         :moments="!!episode.has_moments"
         :hide-favorite="hideFavorite"
         :hide-queue="hideQueue"

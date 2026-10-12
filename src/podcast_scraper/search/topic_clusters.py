@@ -30,6 +30,7 @@ from typing import Any, cast, Dict, List, Mapping, MutableMapping, Optional, Seq
 import numpy as np
 import yaml
 
+from podcast_scraper import perf_cache
 from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
 from podcast_scraper.search.corpus_scope import (
@@ -108,8 +109,18 @@ def theme_enrichment_by_topic_id(
     return out
 
 
+#: Cache namespace for the parsed theme artifact. See :func:`_load_theme_payload`.
+_THEME_PAYLOAD_NS = "theme_clusters_payload"
+
+
 def _load_theme_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
-    """Path-safe load of ``search/topic_clusters.json`` → payload dict (None if missing/invalid)."""
+    """Path-safe load of ``search/topic_clusters.json`` → payload dict (None if missing/invalid).
+
+    Cached on the FILE's own mtime through :mod:`podcast_scraper.perf_cache`, the same way the
+    storyline artifact is (``storylines._load_storylines_payload``). It was re-read and re-parsed on
+    every call — a short listen on a theme and every Home load with a saved theme reel paid for it
+    (review N1, 2026-10-11). The returned dict is SHARED; callers derive from it and none mutate it.
+    """
     root_p = safe_resolve_directory(corpus_root)
     if root_p is None:
         return None
@@ -121,6 +132,18 @@ def _load_theme_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
         return None
+    # codeql[py/path-injection] -- joined sanitized above.
+    token = os.stat(joined).st_mtime
+    return cast(
+        Optional[Dict[str, Any]],
+        perf_cache.get_or_compute(
+            _THEME_PAYLOAD_NS, joined, token, lambda: _read_theme_payload(joined)
+        ),
+    )
+
+
+def _read_theme_payload(joined: str) -> Optional[Dict[str, Any]]:
+    """Parse the already-path-validated theme artifact at ``joined``."""
     try:
         # codeql[py/path-injection] -- joined sanitized above.
         with open(joined, encoding="utf-8") as fh:

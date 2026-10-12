@@ -123,7 +123,9 @@ public class DownloadThroughUITests extends UITestCase {
             if (t == null) return null;
             for (UiObject2 o : all) {
                 String n = Journey.nameOf(o);
-                if (!QUEUE_ADD.equals(n) && !QUEUE_REMOVE.equals(n)) continue;
+                // A card's toggle is named "Add to queue: <title>" (2026-10-12); the WebView may report the
+                // short hidden text instead, so accept both.
+                if (!n.startsWith(QUEUE_ADD) && !n.startsWith(QUEUE_REMOVE)) continue;
                 if (!Boolean.TRUE.equals(Journey.attr(o, UiObject2::isClickable))) continue;
                 Rect b = Journey.attr(o, UiObject2::getVisibleBounds);
                 if (b == null) continue;
@@ -155,12 +157,12 @@ public class DownloadThroughUITests extends UITestCase {
             fail("no queue toggle in the row of " + title + ". On screen: "
                     + Journey.labelledInventory(80));
         }
-        if (QUEUE_ADD.equals(Journey.nameOf(toggle))) toggle.click();
+        if (Journey.nameOf(toggle).startsWith(QUEUE_ADD)) toggle.click();
         // THAT row's toggle, re-read: the store drives its label, so the flip is the write confirmed.
         boolean flipped = false;
         for (int i = 0; i < 20 && !flipped; i++) {
             UiObject2 now = queueToggle(title);
-            flipped = now != null && QUEUE_REMOVE.equals(Journey.nameOf(now));
+            flipped = now != null && Journey.nameOf(now).startsWith(QUEUE_REMOVE);
             if (!flipped) Journey.sleep(500);
         }
         assertTrue("queued " + title + " from its row and its toggle never read \"" + QUEUE_REMOVE

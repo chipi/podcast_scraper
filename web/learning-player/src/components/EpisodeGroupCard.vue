@@ -103,6 +103,7 @@ const { badgeShown } = useCorpusLanguages()
           <EpisodeActions
             :slug="episode.slug"
             :share-title="episode.title"
+            :episode-title="episode.title"
             :moments="moments"
             hide-favorite
             hide-queue

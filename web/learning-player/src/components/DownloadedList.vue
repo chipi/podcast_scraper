@@ -122,7 +122,7 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
         </RouterLink>
         <!-- The plane case (operator 2026-10-10): a downloaded episode's reel plays from the file. -->
         <MomentsLink v-if="!noMoments.has(e.slug)" :slug="e.slug" class="self-center" />
-        <DownloadButton class="relative z-30" :slug="e.slug" />
+        <DownloadButton class="relative z-30" :slug="e.slug" :subject="e.title ?? undefined" />
       </li>
     </ul>
 

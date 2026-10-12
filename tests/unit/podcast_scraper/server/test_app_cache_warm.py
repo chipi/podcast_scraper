@@ -27,7 +27,7 @@ def _clean():
 
 def test_warm_loop_rewarms_only_when_the_corpus_mtime_moves(monkeypatch) -> None:
     calls: list[int] = []
-    monkeypatch.setattr(app_cache_warm, "warm_caches", lambda root: calls.append(1))
+    monkeypatch.setattr(app_cache_warm, "warm_caches", lambda root, **kw: calls.append(1))
 
     stop = threading.Event()
     # tokens: 1.0 (warm), 1.0 (unchanged → skip), 2.0 (warm), then stop the loop.
@@ -141,6 +141,31 @@ def test_reel_clips_are_warmed_last(monkeypatch, tmp_path) -> None:
     order: list[str] = []
     monkeypatch.setattr(app_cache_warm, "_warm_corpus_digest", lambda root: order.append("digest"))
     monkeypatch.setattr(app_cache_warm, "_warm_entity_id_map", lambda root: order.append("entity"))
-    monkeypatch.setattr(app_cache_warm, "_warm_reel_clips", lambda root: order.append("reels"))
+    monkeypatch.setattr(
+        app_cache_warm, "_warm_reel_clips", lambda root, cfg=None: order.append("reels")
+    )
     app_cache_warm.warm_caches(tmp_path)
     assert order == ["digest", "entity", "reels"]
+
+
+def test_reel_clips_are_warmed_with_the_apps_moments_config(monkeypatch, tmp_path) -> None:
+    """Review N8 (2026-10-11): the clip cache key includes ``repr(cfg)``. A warmer that built its
+    own config from the environment filled entries the request path never read the moment the two
+    differed. It now scores with the config the app passes in."""
+    from types import SimpleNamespace
+
+    from podcast_scraper.server import app_catalog_cache, app_goal_reel, app_moments
+
+    app_cfg = app_moments.MomentsConfig.from_env()
+    row = SimpleNamespace(has_gi=True)
+    monkeypatch.setattr(app_catalog_cache, "cached_catalog", lambda root: [row])
+    used: list[object] = []
+    monkeypatch.setattr(app_goal_reel, "episode_clips", lambda root, r, cfg: used.append(cfg))
+
+    # A different environment config: had the warmer built its own, this is what it would use.
+    def _built_its_own(cls):
+        raise AssertionError("the warmer built its own config")
+
+    monkeypatch.setattr(app_moments.MomentsConfig, "from_env", classmethod(_built_its_own))
+    app_cache_warm._warm_reel_clips(tmp_path, app_cfg)
+    assert used == [app_cfg]

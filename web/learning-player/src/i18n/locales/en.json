@@ -1182,6 +1182,7 @@
     "kind_theme": "Theme"
   },
   "common": {
+    "forItem": "{action}: {subject}",
     "cancel": "Cancel",
     "moreActions": "More actions",
     "retry": "Try again"

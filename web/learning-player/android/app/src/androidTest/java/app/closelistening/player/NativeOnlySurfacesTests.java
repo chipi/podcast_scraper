@@ -105,12 +105,13 @@ public class NativeOnlySurfacesTests extends UITestCase {
         // Porting that step faithfully would mean copying a test that verifies nothing.
         assertTrue("Home was not reachable", Journey.openTab("Home"));
         for (int i = 0; i < 6; i++) Journey.swipeDown();
-        boolean queued = Journey.scrollTo(java.util.Arrays.asList("Add to queue"), false, 25) != null
-                && Journey.tap("Add to queue", false, 10_000);
+        // CONTAINS: a card's controls name their episode ("Add to queue: <title>", 2026-10-12).
+        boolean queued = Journey.scrollTo(java.util.Arrays.asList("Add to queue"), true, 25) != null
+                && Journey.tap("Add to queue", true, 10_000);
         if (!queued) {
             // Already queued on the shared account is a legitimate state — assert the OTHER
             // control rather than assuming it.
-            queued = Journey.find("Remove from queue", false, 5_000) != null;
+            queued = Journey.find("Remove from queue", true, 5_000) != null;
         }
         assertTrue("no queue control on any Home list row, so nothing can reach Up next. On screen: "
                 + Journey.labelledInventory(30), queued);
@@ -134,7 +135,7 @@ public class NativeOnlySurfacesTests extends UITestCase {
         assertNotNull(
                 "no download control on the queue row — it is still behind the ⋯, which is the bug "
                         + "this change fixed. On screen: " + Journey.labelledInventory(24),
-                Journey.scrollTo(Arrays.asList(DOWNLOADED, DOWNLOAD), false, 20));
+                Journey.scrollTo(Arrays.asList(DOWNLOADED, DOWNLOAD), true, 20));
 
         // ...and the ⋯ is still there: promoting download must not have REPLACED the overflow.
         assertNotNull("the overflow disappeared — download was meant to join the row, not take the "

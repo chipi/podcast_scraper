@@ -36,7 +36,7 @@ test('reorder the queue with the ↑/↓ chevrons', async ({ page }, testInfo) =
     const card = page.locator('article').filter({ hasText: title }).first()
     const btn = card.getByRole('button', { name: /queue/i }).first()
     await expect(btn).toBeVisible()
-    if ((await btn.getAttribute('aria-label')) === 'Add to queue') {
+    if ((await btn.getAttribute('aria-label'))?.startsWith('Add to queue')) {
       // Wait for the write to land before the next full-page goto, which would otherwise reset the
       // store and abort the in-flight persist → the episode silently drops from the queue.
       //

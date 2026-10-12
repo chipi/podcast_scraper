@@ -288,25 +288,14 @@ final class DownloadThroughUITests: UITestCase {
     sleep(4)
   }
 
-  /// The queue toggle of THIS title's row. An EpisodeCard puts its actions under the artwork, LEFT
-  /// of the title and below the title's top edge, so the row's toggle is the nearest one below the
-  /// title on that side. The previous card's toggle sits above the title, the next card's further
-  /// down, so "nearest below" cannot pick a neighbour.
+  /// The queue toggle of THIS title's row, by its name: a card's controls name their episode
+  /// ("Add to queue: <title>", 2026-10-12), so the row's toggle is the one named for it. (Before,
+  /// every card's toggle was just "Add to queue" and the row had to be found by position.)
   private func queueToggle(_ app: XCUIApplication, rowOf title: String) -> XCUIElement? {
-    let t = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", title)).firstMatch
-    guard t.exists else { return nil }
-    let top = t.frame.minY, left = t.frame.minX
-    let toggles = app.descendants(matching: .any).matching(
-      NSPredicate(format: "label == %@ OR label == %@", "Add to queue", "Remove from queue"))
-    var best: XCUIElement?
-    var bestY = CGFloat.greatestFiniteMagnitude
-    for i in 0..<min(toggles.count, 80) {
-      let e = toggles.element(boundBy: i)
-      guard e.exists else { continue }
-      let f = e.frame
-      if f.midY > top && f.midX < left && f.midY < bestY { best = e; bestY = f.midY }
-    }
-    return best
+    let named = app.descendants(matching: .any).matching(NSPredicate(
+      format: "label == %@ OR label == %@", "Add to queue: \(title)", "Remove from queue: \(title)"
+    )).firstMatch
+    return named.exists ? named : nil
   }
 
   private func queueFromItsRow(_ app: XCUIApplication, title: String) {
@@ -328,11 +317,11 @@ final class DownloadThroughUITests: UITestCase {
       }
       target = again
     }
-    if target.label == "Add to queue" { target.tap() }
+    if target.label.hasPrefix("Add to queue") { target.tap() }
     // THAT row's toggle, re-read: the store drives its label, so the flip is the write confirmed.
     var flipped = false
     for _ in 0..<20 where !flipped {
-      flipped = queueToggle(app, rowOf: title)?.label == "Remove from queue"
+      flipped = queueToggle(app, rowOf: title)?.label.hasPrefix("Remove from queue") == true
       if !flipped { usleep(500_000) }
     }
     XCTAssertTrue(flipped, "queued \(title) from its row and its toggle never read \"Remove from "

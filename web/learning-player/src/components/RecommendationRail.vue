@@ -165,7 +165,7 @@ async function undoLess(): Promise<void> {
           <!-- The standard episode actions, as on every episode card (UXS-014): save, queue, and ⋯ —
                which leads with "Play moments" when the episode has them. -->
           <div class="mt-auto flex flex-wrap items-center justify-between gap-x-4">
-            <EpisodeActions class="relative z-30" :slug="c.episode.slug" :moments="!!c.episode.has_moments" />
+            <EpisodeActions class="relative z-30" :slug="c.episode.slug" :episode-title="c.episode.title" :moments="!!c.episode.has_moments" />
             <button
               v-if="c.why.subject && !usingFallback"
               type="button"
