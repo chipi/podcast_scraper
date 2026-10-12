@@ -153,6 +153,28 @@ def test_notices_and_licence_links_in_the_description_are_kept_for_review() -> N
     assert rec.documents_for_review == ["https://example.com/terms-of-use"]
 
 
+@pytest.mark.parametrize("where", ["channel", "episode"])
+def test_a_malformed_link_in_show_notes_is_skipped_not_fatal(where: str) -> None:
+    """Prod 2026-10-12: one anchor.fm episode's notes held an unclosed bracketed host, and
+    ``urljoin`` raised "Invalid IPv6 URL". The backfill stopped on it, and the same parse runs
+    during ingest, so a feed or episode would have failed. A link that cannot be parsed is not a
+    licence document; the good links around it are still kept."""
+    notes = (
+        "<description><![CDATA[Notes. https://[oops broken link "
+        "<a href='/terms-of-use'>Terms</a>]]></description>"
+    )
+    if where == "channel":
+        rec = L.channel_licence(_channel(notes), BASE)
+    else:
+        xml = f"<rss><channel><title>T</title><item><title>E</title>{notes}</item></channel></rss>"
+        channel: ET.Element | None = safe_fromstring(xml).find("channel")
+        assert channel is not None
+        item = channel.find("item")
+        assert item is not None
+        rec = L.episode_licence(item, BASE, channel=L.channel_licence(channel, BASE))
+    assert rec.documents_for_review == ["https://example.com/terms-of-use"]
+
+
 def test_an_episode_keeps_its_own_declarations_apart_from_the_channel() -> None:
     xml = (
         f"<rss {P}><channel><title>T</title><podcast:license>cc-by-4.0</podcast:license>"

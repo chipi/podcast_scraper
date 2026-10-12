@@ -190,7 +190,13 @@ def _notices_and_links(
     seen = set()
     for raw_html in parts:
         for href in _HREF.findall(raw_html) + _BARE_URL.findall(raw_html):
-            url = urljoin(base_url, html.unescape(href.strip()))
+            try:
+                url = urljoin(base_url, html.unescape(href.strip()))
+            except ValueError:
+                # Show notes are publisher free text: "https://[oops" makes urljoin raise
+                # "Invalid IPv6 URL" (prod 2026-10-12). Not a licence document; skip it, or one
+                # bad link fails the whole feed at scraping or the episode at metadata.
+                continue
             if _LICENCE_LINK.search(url) and url not in links:
                 links.append(url)
         text = _collapse(html.unescape(_TAG.sub(" ", raw_html)))
