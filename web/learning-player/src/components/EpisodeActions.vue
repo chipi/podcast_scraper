@@ -8,12 +8,15 @@
  * Scope + order (kept identical everywhere so grid and list never differ — the action count must
  * NOT change with the type of view, operator 2026-09-13):
  *  - **Favorite** (heart) and **Queue** — primary, always inline.
- *  - **Add-to-collection**, Play moments, Share — behind a **⋯ overflow**.
- *  - **Download** — inline, the fourth control, after the ⋯ (operator 2026-10-11: download is a
- *    first-tier action on every episode). It was behind the ⋯ since 2026-09-13 because four inline
- *    controls (176px of 44px targets) wrap under the artwork-width column; placed after the ⋯ the
- *    wrap reads as a second row (`♡ ⧉ ⋯` above `⬇`), as Up next has done since 2026-09-23.
- *    Native-only: `DownloadButton` self-hides on web, so a browser row stays at three.
+ *  - **Download** and **Add-to-collection** — secondary, collapsed behind a **⋯ overflow**.
+ *
+ * Why the ⋯ (operator 2026-09-13): four inline controls are 176px of 44px targets, which wraps to a
+ * second row under the artwork-width column of the list/grid card (the reported "fourth option on a
+ * new row"). Shrinking the targets to fit is barred by the 44px floor (#1594) + the pitch guard, so
+ * the fix is to collapse, not shrink. Two inline + ⋯ is 120px and fits one row. This also makes the
+ * top-level count uniform at three across web AND native (download self-hides on web via
+ * `DownloadButton`'s `v-if="native"`, so on web the ⋯ carries collection alone), rather than the old
+ * web-3 / native-4 split — and it mirrors the player masthead's ⋯.
  *
  * `gap-[12px]` (NOT `gap-3`) holds the 32px targets at a 44px pitch exactly — the app root is not
  * 16px, so `gap-3` measured 11.4px on a Pixel 7 and the invisible tap boxes overlapped by 0.6px
@@ -79,6 +82,15 @@ defineProps<{
    * own line under the artwork.
    */
   hideQueue?: boolean
+  /**
+   * Promote download OUT of the ⋯ and into the visible row.
+   *
+   * Set by **Up next**, where "is this on the device?" is the question you are asking — you are
+   * looking at what you are about to play, possibly before losing signal. It was two taps and a
+   * menu away, so the answer was invisible (operator 2026-09-23). Native-only by construction:
+   * `DownloadButton` self-hides on web, so this adds nothing to a browser row.
+   */
+  showDownload?: boolean
   /**
    * Offer "Share" in the ⋯, sending the episode's public link (operator 2026-10-08: Saved's
    * episode groups had no way to share the episode). The title heads the share sheet. Opt-in, so the
@@ -149,6 +161,9 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
             isOnline || downloads.isDownloaded(slug) ? t('moments.play_moments_hint') : t('moments.needsConnection')
           }}</span>
         </button>
+        <!-- Download self-hides on web, so on web this menu carries collection alone. Omitted when
+             it is already inline — never offer the same control in two places. -->
+        <DownloadButton v-if="!showDownload" :slug="slug" variant="menuitem" @activated="close" />
         <AddToCollectionButton :item="{ kind: 'episode', ref: slug }" variant="menuitem" />
         <!-- Only when it is NOT in the row above — never offer the same toggle in two places. -->
         <FavoriteButton
@@ -172,10 +187,10 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
     </OverflowMenu>
     <!-- Extra, surface-specific controls in the same row (e.g. the queue's reorder ↑/↓). -->
     <slot />
-    <!-- Download, inline and LAST on every episode (operator 2026-10-11; Up next since 2026-09-23),
-         so the two rows the artwork-width column wraps into read as a grid rather than as a row that
-         overflowed: `♡ ⧉ ⋯` above `↑ ↓ ⬇`. Placed before the ⋯ it pushed the overflow onto the
-         second line and left the first ending on a control that is not the "more" affordance. -->
-    <DownloadButton :slug="slug" :subject="episodeTitle" />
+    <!-- Inline download LAST, and only where it is asked for: Up next (operator 2026-09-23), so
+         the two rows the artwork-width column wraps into read as a grid: `♡ ⧉ ⋯` above `↑ ↓ ⬇`.
+         Every other list keeps it in the ⋯ (operator 2026-10-12; inline on
+         every episode, 2026-10-11, wrapped every row onto a second line). -->
+    <DownloadButton v-if="showDownload" :slug="slug" :subject="episodeTitle" />
   </div>
 </template>

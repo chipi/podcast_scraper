@@ -129,7 +129,10 @@ watch(() => visibleSlugs.value.join('|'), hydrateSafely)
          row (via its #actions slot), consistent small rounded buttons — no layout-shifting side rail. -->
     <div v-else class="flex flex-col">
       <template v-for="(slug, i) in visibleSlugs" :key="slug">
-        <EpisodeCard v-if="details[slug]" :episode="summaryFromDetail(details[slug])">
+        <!-- `show-download`: in Up next the question you are asking is "is this on the device?",
+             usually right before losing signal. It was behind the ⋯, so the answer was invisible
+             (operator 2026-09-23). Native-only — DownloadButton self-hides on web. -->
+        <EpisodeCard v-if="details[slug]" show-download :episode="summaryFromDetail(details[slug])">
           <template #actions>
             <button
               type="button"

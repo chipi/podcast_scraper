@@ -69,6 +69,8 @@ const props = defineProps<{
   hideFavorite?: boolean
   /** Forwarded to `EpisodeActions`: demote the queue toggle into the ⋯ (Recently played). */
   hideQueue?: boolean
+  /** Forwarded to `EpisodeActions`: promote download into the visible row (Up next). */
+  showDownload?: boolean
   /**
    * Drop the played marker.
    *
@@ -216,6 +218,7 @@ const { badgeShown } = useCorpusLanguages()
         :moments="!!episode.has_moments"
         :hide-favorite="hideFavorite"
         :hide-queue="hideQueue"
+        :show-download="showDownload"
         :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 w-32'"
       >
         <template #lead><slot name="lead-action" /></template>

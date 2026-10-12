@@ -16,9 +16,9 @@ const EpisodeActions = (await import('./EpisodeActions.vue')).default
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }] })
 
-function mountActions(episodeTitle?: string) {
+function mountActions(episodeTitle?: string, showDownload = false) {
   return mount(EpisodeActions, {
-    props: { slug: 'p09-a4bbb5dde3', episodeTitle },
+    props: { slug: 'p09-a4bbb5dde3', episodeTitle, showDownload },
     global: { plugins: [i18n, router], stubs: { teleport: true } },
   })
 }
@@ -35,7 +35,9 @@ describe('EpisodeActions: the controls name their episode', () => {
   })
 
   it('with the episode title, every control says which episode it acts on', () => {
-    const w = mountActions('Risk Is a Systems Property')
+    // Download is inline only where it is promoted (Up next); elsewhere it is in the ⋯ (operator
+    // 2026-10-12), so it is checked on a promoted row.
+    const w = mountActions('Risk Is a Systems Property', true)
     const names = w.findAll('button').map((b) => b.attributes('aria-label') ?? '')
     for (const action of [en.fav.add, en.queue.add, en.common.moreActions, en.downloads.download]) {
       const name = names.find((n) => n.startsWith(action))
@@ -45,6 +47,12 @@ describe('EpisodeActions: the controls name their episode', () => {
     // ...and the title is NOT in the page's text: hidden copies of it made every "find the
     // episode by its title" land on a control's label instead of the episode.
     expect(w.text()).not.toContain('Risk Is a Systems Property')
+  })
+
+  it('a row keeps download in the ⋯ unless it is promoted (operator 2026-10-12)', () => {
+    const names = mountActions('Risk Is a Systems Property').findAll('button').map((b) => b.attributes('aria-label') ?? '')
+    expect(names.some((n) => n.startsWith(en.downloads.download))).toBe(false)
+    expect(names.filter((n) => n.startsWith(en.common.moreActions))).toHaveLength(1)
   })
 
   it('without one, the names stay plain (the player page is about one episode already)', () => {
