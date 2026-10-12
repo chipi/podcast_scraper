@@ -636,8 +636,8 @@ const mainBottomPadding = computed(() =>
           data-testid="masthead-explore"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+            <path d="m3.5 13.5 11-5.5 2 4-11 5.5z" /><path d="m16.5 7.5 3-1.5 2 4-3 1.5" />
+            <path d="m10 14.5-3 6.5" /><path d="m10 14.5 3 6.5" />
           </svg>
         </NavIconLink>
         <template v-if="auth.hasSession">

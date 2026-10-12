@@ -128,8 +128,8 @@ const isActive = (name: string): boolean => ownsRoute(name, route.name as string
               <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
             </template>
             <template v-else-if="tab.name === 'explore'">
-              <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+              <path d="m3.5 13.5 11-5.5 2 4-11 5.5z" /><path d="m16.5 7.5 3-1.5 2 4-3 1.5" />
+              <path d="m10 14.5-3 6.5" /><path d="m10 14.5 3 6.5" />
             </template>
             <template v-else-if="tab.name === 'library'">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />
