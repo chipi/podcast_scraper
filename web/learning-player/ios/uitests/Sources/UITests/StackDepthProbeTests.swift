@@ -45,8 +45,8 @@ final class StackDepthProbeTests: UITestCase {
     Journey.shot(self, "s1-topic")
 
     // L2 — its storyline, stacked on the topic.
-    _ = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 8)
-    guard Journey.tap(app, labels: ["Managing risk across domains"], contains: true, timeout: 12)
+    _ = Journey.scrollTo(app, labels: ["Second-order effects"], maxSwipes: 8)
+    guard Journey.tap(app, labels: ["Second-order effects"], contains: true, timeout: 12)
     else {
       Journey.inventory(app, "probe-no-storyline")
       XCTFail("storyline row not tappable"); return

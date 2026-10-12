@@ -525,12 +525,19 @@ final class Journey {
      * form's own submit "Sign in" below it. Both names are correct; the markup is not the problem.
      * Taking the first match silently clicks the masthead, which navigates to the page you are
      * already on, so the form is never submitted and nothing reports an error.
+     *
+     * The anchor's position is re-read on every attempt. Typing into it raises the keyboard and the
+     * page shifts up, so a position read once, before that, can sit below the submit's new place:
+     * the submit then never counts as "below", and the form is never sent (2026-10-12, sign-in).
+     * The last position read is kept for when the node goes stale in a re-render.
      */
     static boolean tapBelow(String name, UiObject2 anchor, long timeoutMs) {
         Rect a = attr(anchor, UiObject2::getVisibleBounds);
         if (a == null) return false;
         long deadline = System.currentTimeMillis() + timeoutMs;
         do {
+            Rect now = attr(anchor, UiObject2::getVisibleBounds);
+            if (now != null) a = now;
             for (BySelector sel : selectorsFor(name, false)) {
                 List<UiObject2> hits;
                 try {

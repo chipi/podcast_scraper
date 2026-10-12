@@ -265,7 +265,7 @@ public class ScreenshotTourTests extends UITestCase {
         }
         Journey.dismissCards();
         if (openTopicSheet()) {
-            List<String> storyline = Arrays.asList("Managing risk across domains");
+            List<String> storyline = Arrays.asList("Second-order effects");
             Journey.scrollTo(storyline, true, 6);
             if (Journey.tap(storyline, true, 10_000)) {
                 settle(5_000);

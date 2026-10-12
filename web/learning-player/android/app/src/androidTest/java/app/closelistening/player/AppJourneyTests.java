@@ -595,9 +595,9 @@ public class AppJourneyTests extends UITestCase {
 
         // The topic card inside the panel offers its storyline: a link card with no heading since
         // 2026-10-05 ("Part of a storyline" is gone) — scroll to the storyline's own name, then open it.
-        Journey.scrollTo("Managing risk across domains", true);
+        Journey.scrollTo("Second-order effects", true);
         boolean storylineTapped = Journey.tap(
-                Arrays.asList("Managing risk across domains"), true, 12_000);
+                Arrays.asList("Second-order effects"), true, 12_000);
         if (!storylineTapped) {
             fail("storyline row not tappable in the panel. On screen: "
                     + Journey.labelledInventory(80));

@@ -469,7 +469,7 @@ final class AppJourneyTests: UITestCase {
 
     // The topic card inside the panel offers its storyline. Tapping it must NAVIGATE. The link card
     // has no "Part of a storyline" heading since 2026-10-05 — scroll to the storyline's own name.
-    guard let storyline = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 8) else {
+    guard let storyline = Journey.scrollTo(app, labels: ["Second-order effects"], maxSwipes: 8) else {
       Journey.inventory(app, "panel-topic-no-storyline")
       Journey.shot(self, "11-b-no-storyline-link")
       XCTFail("the in-panel topic card offered no storyline"); return
@@ -480,7 +480,7 @@ final class AppJourneyTests: UITestCase {
     // opens (2026-10-11: the same steps in a browser open the storyline over the topic). The topic
     // card is the top layer, so its link is the later one.
     let storylineLinks = app.descendants(matching: .any)
-      .matching(NSPredicate(format: "label CONTAINS %@", "Managing risk across domains"))
+      .matching(NSPredicate(format: "label CONTAINS %@", "Second-order effects"))
       .allElementsBoundByIndex
       .filter { $0.exists && $0.isHittable }
     guard let onTop = storylineLinks.last else {

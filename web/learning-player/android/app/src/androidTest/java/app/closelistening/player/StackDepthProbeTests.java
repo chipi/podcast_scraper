@@ -96,10 +96,10 @@ public class StackDepthProbeTests extends UITestCase {
 
         // L2 — its storyline, stacked on the topic.
         // The storyline link card inside the topic card (no heading since 2026-10-05).
-        Journey.scrollTo("Managing risk across domains", true);
+        Journey.scrollTo("Second-order effects", true);
         // kp.openStoryline = 'Open the {label} storyline' — contains match on the storyline name.
         boolean storylineTapped = Journey.tap(
-                Arrays.asList("Managing risk across domains"), true, 12_000);
+                Arrays.asList("Second-order effects"), true, 12_000);
         if (!storylineTapped) {
             fail("storyline row not tappable. On screen: " + Journey.labelledInventory(80));
         }

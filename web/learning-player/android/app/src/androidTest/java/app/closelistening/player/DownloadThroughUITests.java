@@ -107,44 +107,53 @@ public class DownloadThroughUITests extends UITestCase {
      * of the title and below the title's top edge, so the row's toggle is the nearest one below the
      * title on that side. The previous card's toggle sits above the title and the next card's
      * further down, so "nearest below" cannot pick a neighbour.
+     *
+     * EVERY copy of the title is tried. The episode the test just downloaded is loaded in the docked
+     * mini-player, which shows the same title at the bottom of the screen with nothing below it
+     * (2026-10-12: taking the first copy found the mini-player's, and failed on a healthy row).
      */
     private static UiObject2 queueToggle(String title) {
-        Rect t = null;
-        UiObject2 best = null;
-        int bestY = Integer.MAX_VALUE;
         try {
             List<UiObject2> all = Journey.device().findObjects(By.pkg(Journey.PKG));
             for (UiObject2 o : all) {
-                if (title.equals(Journey.nameOf(o))) {
-                    t = Journey.attr(o, UiObject2::getVisibleBounds);
-                    if (t != null) break;
+                if (!title.equals(Journey.nameOf(o))) continue;
+                Rect t = Journey.attr(o, UiObject2::getVisibleBounds);
+                if (t == null) continue;
+                UiObject2 best = null;
+                int bestY = Integer.MAX_VALUE;
+                for (UiObject2 c : all) {
+                    String n = Journey.nameOf(c);
+                    // A card's toggle is named "Add to queue: <title>" (2026-10-12); the WebView may
+                    // report the short hidden text instead, so accept both.
+                    if (!n.startsWith(QUEUE_ADD) && !n.startsWith(QUEUE_REMOVE)) continue;
+                    if (!Boolean.TRUE.equals(Journey.attr(c, UiObject2::isClickable))) continue;
+                    Rect b = Journey.attr(c, UiObject2::getVisibleBounds);
+                    if (b == null) continue;
+                    if (b.centerY() > t.top && b.centerX() < t.left && b.centerY() < bestY) {
+                        best = c;
+                        bestY = b.centerY();
+                    }
                 }
-            }
-            if (t == null) return null;
-            for (UiObject2 o : all) {
-                String n = Journey.nameOf(o);
-                // A card's toggle is named "Add to queue: <title>" (2026-10-12); the WebView may report the
-                // short hidden text instead, so accept both.
-                if (!n.startsWith(QUEUE_ADD) && !n.startsWith(QUEUE_REMOVE)) continue;
-                if (!Boolean.TRUE.equals(Journey.attr(o, UiObject2::isClickable))) continue;
-                Rect b = Journey.attr(o, UiObject2::getVisibleBounds);
-                if (b == null) continue;
-                if (b.centerY() > t.top && b.centerX() < t.left && b.centerY() < bestY) {
-                    best = o;
-                    bestY = b.centerY();
-                }
+                if (best != null) return best;
             }
         } catch (Throwable ignored) {
             // A tree that changed mid-read; the caller looks again.
         }
-        return best;
+        return null;
     }
 
     private void queueFromItsRow(String title) {
         if (Journey.scrollTo(title, false) == null) {
             fail(title + " is not on the show page. On screen: " + Journey.labelledInventory(80));
         }
+        // `scrollTo` stops at the first copy of the title, which can be the mini-player's while the
+        // row is still further down the page: keep scrolling until a row's copy is on screen.
         UiObject2 toggle = queueToggle(title);
+        for (int i = 0; i < 10 && toggle == null; i++) {
+            Journey.swipeUp();
+            Journey.sleep(800);
+            toggle = queueToggle(title);
+        }
         // Clear of the tab bar and a docked mini-player: the toggle sits a card's artwork below the
         // title, so a title just in view can leave its toggle under them.
         Rect b = toggle == null ? null : Journey.attr(toggle, UiObject2::getVisibleBounds);

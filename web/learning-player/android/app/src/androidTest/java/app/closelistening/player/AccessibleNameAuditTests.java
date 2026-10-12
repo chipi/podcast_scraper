@@ -312,7 +312,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // check could never pass, the surface was never audited once, and the suite failed on its
         // own "NOT AUDITED — the surface would not open" finding every time it ran. The tab's title
         // is `profile.interests` = "Interests" (i18n/locales/en.json:692) — the same relationship
-        // Stats has to `stats.title` = "Your activity" (en.json:895), which is why that one works.
+        // Stats has to `stats.title` = "Your listening" (en.json:1078; was "Your activity").
         //
         // 2026-10-04: the tab itself is now CALLED "Interests" and the panel heading is gone, so
         // waiting for "Interests" would match the tab label and "arrive" before the panel had. The
@@ -323,7 +323,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // sat on top of the ACTUAL defect this suite was parked for: with the surface finally
         // audited, Settings reports zero findings, so the two nameless switches of P1 are fixed.
         audit("Profile ▸ Interests", openProfileTab("Interests", "Add a topic"), findings);
-        audit("Profile ▸ Stats", openProfileTab("Stats", "Your activity"), findings);
+        audit("Profile ▸ Stats", openProfileTab("Stats", "Your listening"), findings);
 
         // Settings verifies by ARRIVING (Journey.openSettings), not by the tap returning true.
         // This is where both findings were, and where the fix for them has to be proven.
