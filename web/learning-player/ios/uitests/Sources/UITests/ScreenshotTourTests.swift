@@ -64,23 +64,51 @@ final class ScreenshotTourTests: UITestCase {
   /// Tap a chip in the Brief' "Topics & People" section. The section is a <details> that is
   /// open by default and REMEMBERS being closed, so: scroll to the chip; only if it is not there,
   /// open the header and look again. Tapping the header first is what closed it (2026-10-08).
+  /// Tap the first HITTABLE button whose label matches, scrolling the top sheet until one is.
+  ///
+  /// Two traps the stacking frames hit (2026-10-12): iOS keeps off-screen nodes in the tree, so
+  /// "exists" is not "on screen"; and the layers under a sheet (the episode page, the Brief) carry
+  /// buttons with the SAME names, so `firstMatch` picked one of those — a person chip at y=-1096 —
+  /// the tap landed on nothing, and four "stacked over the topic" frames were all the Brief.
+  private static func tapReachable(
+    _ app: XCUIApplication, _ predicate: NSPredicate, swipes: Int = 8
+  ) -> Bool {
+    for attempt in 0...swipes {
+      let matches = app.buttons.matching(predicate)
+      for k in 0..<min(matches.count, 24) {
+        let el = matches.element(boundBy: k)
+        if el.exists && el.isHittable {
+          el.tap()
+          return true
+        }
+      }
+      if attempt < swipes {
+        app.swipeUp()
+        sleep(1)
+      }
+    }
+    print("=====UNREACHABLE \(predicate.predicateFormat)=====")
+    return false
+  }
+
+  private static func exactly(_ labels: [String]) -> NSPredicate {
+    NSPredicate(format: "label IN %@", labels)
+  }
+
   private static func openFromTopicsAndPeople(_ app: XCUIApplication, _ labels: [String]) -> Bool {
-    // EXACT: "Open reliability" must not match "Open reliability trade offs".
-    _ = Journey.scrollTo(app, labels: labels, contains: false, maxSwipes: 10)
-    if Journey.tap(app, labels: labels, contains: false, timeout: 4) { return true }
-    _ = Journey.scrollTo(app, labels: ["Topics & People"], maxSwipes: 10)
-    _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 4)
-    sleep(2)
-    // The section shows five chips and folds the rest behind "+N more" (2026-10-07); a topic past
-    // the fifth — themes and storylines lead since 2026-10-12 — is not on screen until it unfolds.
-    let more = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '+' AND label ENDSWITH 'more'"))
-      .firstMatch
-    if more.waitForExistence(timeout: 3) && more.isHittable {
-      more.tap()
+    // EXACT names: "Open reliability" must not match "Open reliability trade offs".
+    if !app.buttons.matching(exactly(labels)).firstMatch.waitForExistence(timeout: 4) {
+      _ = Journey.scrollTo(app, labels: ["Topics & People"], maxSwipes: 10)
+      _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 4)
+      sleep(2)
+    }
+    // The section shows five chips and folds the rest behind "+N more" (2026-10-07).
+    if !app.buttons.matching(exactly(labels)).firstMatch.exists {
+      _ = tapReachable(
+        app, NSPredicate(format: "label BEGINSWITH '+' AND label ENDSWITH 'more'"), swipes: 4)
       sleep(1)
     }
-    _ = Journey.scrollTo(app, labels: labels, contains: false, maxSwipes: 10)
-    return Journey.tap(app, labels: labels, contains: false, timeout: 6)
+    return tapReachable(app, exactly(labels))
   }
 
   private var shotFrames: Set<String> = []
@@ -272,8 +300,9 @@ final class ScreenshotTourTests: UITestCase {
       frame("t22a-topic-sheet")
       // Top-voice chips are BUTTONS labelled with the bare person name (`:aria-label="p.name"`) —
       // no "Open " prefix, unlike the insights panel's rows.
-      _ = Journey.scrollTo(app, labels: ["Top voices"], maxSwipes: 6)
-      if Journey.tap(app, labels: Self.fixturePeople, contains: false, timeout: 8) {
+      // reliability's own top voices first: the fixture people are also names on the layers
+      // under the sheet, so matching only them tapped one of those and nothing opened.
+      if Self.tapReachable(app, Self.exactly(["Ethan", "Nora", "Renee Montagne-Park"] + Self.fixturePeople)) {
         sleep(5)
         frame("t22b-person-over-topic")
       }
@@ -281,16 +310,14 @@ final class ScreenshotTourTests: UITestCase {
     Journey.dismissSheets(app)
 
     if openTopicSheet() {
-      _ = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 6)
-      if Journey.tap(app, labels: ["Managing risk across domains"], contains: true, timeout: 10) {
+      // reliability's storyline (since 2026-10-12; the tour used to open risk management's).
+      if Self.tapReachable(app, NSPredicate(format: "label CONTAINS[c] 'Second-order effects'")) {
         sleep(5)
         frame("t22c-storyline-over-topic")
 
         // Three deep, and the point of the whole exercise: a boolean "is nested" flag can express
         // level 1 and nothing beyond it. Each card below has to keep its title on screen.
-        _ = Journey.scrollTo(app, labels: ["Topics discussed together", "Related people"],
-                             maxSwipes: 6)
-        if Journey.tap(app, labels: Self.fixturePeople, contains: false, timeout: 8) {
+        if Self.tapReachable(app, Self.exactly(Self.fixturePeople)) {
           sleep(5)
           frame("t22d-person-over-storyline-over-topic")
         }
