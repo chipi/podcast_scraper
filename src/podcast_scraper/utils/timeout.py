@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -27,6 +28,8 @@ class TimeoutError(Exception):
 @dataclass
 class _ObservedDeadline:
     credit_s: float = 0.0
+    # monotonic start of the `excluded_from_deadline` block running now, else None
+    excluded_since: Optional[float] = None
     timer: Optional[threading.Timer] = None
     lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -35,22 +38,37 @@ _ACTIVE_DEADLINE: ContextVar[Optional[_ObservedDeadline]] = ContextVar(
     "active_deadline", default=None
 )
 
+# While an exclusion is open the deadline is paused; the timer re-checks at least this far apart,
+# so an exclusion that opened a moment before the deadline cannot spin the timer on microseconds.
+EXCLUSION_REARM_FLOOR_S = 10.0
 
-def credit_deadline(seconds: float) -> None:
-    """Exclude *seconds* of work already done from the innermost observed deadline.
 
-    For work that runs inside a deadline's block but is not what the deadline is about. The
-    metadata deadline means "summary + GI + KG were slow", and translation runs inside it (it has
-    to: every later stage reads its English). Without a credit, a 41-minute Spanish episode with
-    summary, GI and KG all OFF still logged "DEADLINE EXCEEDED: metadata generation" at 1200 s
-    (El Hilo, 2026-10-09; #2230). A credit received after the alarm already fired changes
-    nothing — the line is out — and outside any observed block this is a no-op.
+@contextmanager
+def excluded_from_deadline():
+    """Exclude the wall time of this block from the innermost observed deadline, as it runs.
+
+    A credit applied once the work is over (the first version of this, until 2026-10-12) is too
+    late for work longer than the deadline itself: a 70-minute Italian session's translation fired
+    "DEADLINE EXCEEDED: metadata generation" at 1200 s with summary, GI and KG all off. Here the
+    deadline is paused while the block runs. Nested exclusions count once; outside any observed
+    block this is a no-op.
     """
     active = _ACTIVE_DEADLINE.get()
-    if active is None or seconds <= 0:
+    if active is None:
+        yield
         return
     with active.lock:
-        active.credit_s += seconds
+        outermost = active.excluded_since is None
+        if outermost:
+            active.excluded_since = time.monotonic()
+    try:
+        yield
+    finally:
+        if outermost:
+            with active.lock:
+                if active.excluded_since is not None:
+                    active.credit_s += time.monotonic() - active.excluded_since
+                active.excluded_since = None
 
 
 @contextmanager
@@ -106,10 +124,18 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
     deadline = _ObservedDeadline()
 
     def timeout_handler():
-        # Time credited by `credit_deadline` while we waited moves the deadline out by that much:
-        # re-arm for the credit instead of alerting.
+        # Time spent in a finished `excluded_from_deadline` block while we waited moves the
+        # deadline out by that much: re-arm for it instead of alerting. An exclusion still open is
+        # credited up to now and keeps the deadline paused.
         with deadline.lock:
+            excluding = deadline.excluded_since is not None
+            if excluding:
+                now = time.monotonic()
+                deadline.credit_s += now - deadline.excluded_since
+                deadline.excluded_since = now
             credit, deadline.credit_s = deadline.credit_s, 0.0
+            if excluding:
+                credit = max(credit, EXCLUSION_REARM_FLOOR_S)
             if credit > 0 and not timeout_occurred.is_set():
                 deadline.timer = threading.Timer(credit, timeout_handler)
                 deadline.timer.daemon = True

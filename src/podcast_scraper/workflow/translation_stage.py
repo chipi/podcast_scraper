@@ -54,7 +54,7 @@ from typing import Any, Dict, List, Optional
 
 from ..languages import primary_language, resolve_config_language
 from ..translation.factory import is_translation_configured
-from ..utils.timeout import credit_deadline
+from ..utils.timeout import excluded_from_deadline
 
 logger = logging.getLogger(__name__)
 
@@ -206,60 +206,64 @@ def run_translation_stage(
     """Decide, translate, and record. Never raises into metadata generation.
 
     THE DEADLINE CREDIT (#2230). The seam sits inside the block ``processing.py`` observes under
-    the ``summarization_timeout`` key, so translation's wall time is credited back
-    (``utils.timeout.credit_deadline``) and an overrun alert keeps meaning "summary + GI + KG
-    were slow". Until 2026-10-09 the credit was designed but never built, and a 41-minute Spanish
-    episode with summary, GI and KG all off logged DEADLINE EXCEEDED on translation alone.
+    the ``summarization_timeout`` key, so translation's wall time is excluded from it as it runs
+    (``utils.timeout.excluded_from_deadline``) and an overrun alert keeps meaning "summary + GI +
+    KG were slow". Until 2026-10-09 the credit was designed but never built, and a 41-minute
+    Spanish episode with summary, GI and KG all off logged DEADLINE EXCEEDED on translation alone;
+    the first credit landed only when translation ended, too late for one longer than the deadline.
     """
-    started = time.monotonic()
-    try:
-        outcome = decide_translation(
-            cfg,
-            feed_language=feed_language,
-            transcript_relpath=transcript_relpath,
-        )
-    except Exception:  # noqa: BLE001 - a stage that produces nothing must not lose the episode
-        logger.warning("translation: decision failed for %s", transcript_relpath, exc_info=True)
-        outcome = TranslationOutcome(status=STATUS_SKIPPED, reason=REASON_NO_LANGUAGE)
-
-    # THE WORK HAPPENS BEFORE THE CLOCK IS READ. An earlier version measured `duration_s` and
-    # credited the deadline HERE, above the translation call — so it credited the decision's
-    # microseconds, the manifest recorded ~0 for an episode that took minutes, and the whole
-    # translation was charged to the `summarization_timeout` block it was supposed to be
-    # excluded from. Every long translated episode would have logged "METADATA GENERATION
-    # OVERRAN", bumped `summarization_deadline_overruns` and filed an incident — precisely the
-    # misattribution this seam exists to prevent, reintroduced by measuring in the wrong order.
-    if outcome.status == STATUS_PENDING and effective_output_dir and transcript_relpath:
+    # Excluded WHILE it runs, not credited afterwards: a credit that lands after the alarm
+    # changes nothing, and a 70-minute Italian session's translation outlasts the 1200 s
+    # deadline on its own (2026-10-12).
+    with excluded_from_deadline():
+        started = time.monotonic()
         try:
-            outcome = _translate_episode(
+            outcome = decide_translation(
                 cfg,
-                outcome,
+                feed_language=feed_language,
                 transcript_relpath=transcript_relpath,
-                effective_output_dir=effective_output_dir,
-                episode_title=episode_title,
-                episode_description=episode_description,
-                feed_title=feed_title,
             )
-        except Exception as exc:  # noqa: BLE001 - see the docstring: never raise into metadata
-            # "Never raises into metadata generation" was false: `create_translation_provider`
-            # raises on an unknown provider id and `initialize()` raises on a served-model
-            # mismatch, both of which escaped into processing.py's generic handler — episode
-            # counted as an error, NO `metadata.json` written, backlog invisible. A translation
-            # that cannot run is a recorded outcome, not a lost episode.
-            # exc_info: without it a code bug (AttributeError, TypeError) becomes a one-line
-            # `stage_error:AttributeError` in the manifest with no stack to debug from.
-            logger.error(
-                "translation: the stage failed for %s (%s): %s",
-                transcript_relpath,
-                type(exc).__name__,
-                exc,
-                exc_info=True,
-            )
-            outcome.status = STATUS_FAILED
-            outcome.reason = f"stage_error:{type(exc).__name__}"
+        except Exception:  # noqa: BLE001 - a stage that produces nothing must not lose the episode
+            logger.warning("translation: decision failed for %s", transcript_relpath, exc_info=True)
+            outcome = TranslationOutcome(status=STATUS_SKIPPED, reason=REASON_NO_LANGUAGE)
 
-    outcome.duration_s = time.monotonic() - started
-    credit_deadline(outcome.duration_s)
+        # THE WORK HAPPENS BEFORE THE CLOCK IS READ. An earlier version measured `duration_s` and
+        # credited the deadline HERE, above the translation call — so it credited the decision's
+        # microseconds, the manifest recorded ~0 for an episode that took minutes, and the whole
+        # translation was charged to the `summarization_timeout` block it was supposed to be
+        # excluded from. Every long translated episode would have logged "METADATA GENERATION
+        # OVERRAN", bumped `summarization_deadline_overruns` and filed an incident — precisely the
+        # misattribution this seam exists to prevent, reintroduced by measuring in the wrong order.
+        if outcome.status == STATUS_PENDING and effective_output_dir and transcript_relpath:
+            try:
+                outcome = _translate_episode(
+                    cfg,
+                    outcome,
+                    transcript_relpath=transcript_relpath,
+                    effective_output_dir=effective_output_dir,
+                    episode_title=episode_title,
+                    episode_description=episode_description,
+                    feed_title=feed_title,
+                )
+            except Exception as exc:  # noqa: BLE001 - see the docstring: never raise into metadata
+                # "Never raises into metadata generation" was false: `create_translation_provider`
+                # raises on an unknown provider id and `initialize()` raises on a served-model
+                # mismatch, both of which escaped into processing.py's generic handler — episode
+                # counted as an error, NO `metadata.json` written, backlog invisible. A translation
+                # that cannot run is a recorded outcome, not a lost episode.
+                # exc_info: without it a code bug (AttributeError, TypeError) becomes a one-line
+                # `stage_error:AttributeError` in the manifest with no stack to debug from.
+                logger.error(
+                    "translation: the stage failed for %s (%s): %s",
+                    transcript_relpath,
+                    type(exc).__name__,
+                    exc,
+                    exc_info=True,
+                )
+                outcome.status = STATUS_FAILED
+                outcome.reason = f"stage_error:{type(exc).__name__}"
+
+        outcome.duration_s = time.monotonic() - started
 
     if effective_output_dir and transcript_relpath:
         _record(
