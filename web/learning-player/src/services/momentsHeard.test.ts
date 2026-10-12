@@ -2,8 +2,8 @@ import { nextTick, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MomentEvent } from '../stores/player'
 
-const post = vi.fn(async () => undefined)
-vi.mock('./api', () => ({ postMomentHeard: (...a: unknown[]) => post(...(a as [])) }))
+const post = vi.fn(async (_body: Record<string, unknown>) => undefined)
+vi.mock('./api', () => ({ postMomentHeard: (body: Record<string, unknown>) => post(body) }))
 const { watchMomentsHeard } = await import('./momentsHeard')
 
 describe('watchMomentsHeard (operator 2026-10-12)', () => {
