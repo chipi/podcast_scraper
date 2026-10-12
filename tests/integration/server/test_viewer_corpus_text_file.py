@@ -55,6 +55,18 @@ def test_corpus_text_file_returns_json(tmp_path: Path) -> None:
     assert "application/json" in r.headers.get("content-type", "")
 
 
+def test_corpus_text_file_never_serves_the_speakers_diagnostics(tmp_path: Path) -> None:
+    """The sidecar holds per-voice embeddings (voiceprints); it is a .json but never served."""
+    p = tmp_path / "01 - ep.speakers.diagnostics.json"
+    p.write_text('{"voice_embeddings": {"by_voice": {"SPEAKER_00": [0.1]}}}', encoding="utf-8")
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    for relpath in ("01 - ep.speakers.diagnostics.json", "01 - ep.Speakers.Diagnostics.JSON"):
+        r = client.get("/api/corpus/text-file", params={"path": str(tmp_path), "relpath": relpath})
+        assert r.status_code == 400, relpath
+        assert "0.1" not in r.text
+
+
 def test_corpus_text_file_blocks_traversal(tmp_path: Path) -> None:
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)

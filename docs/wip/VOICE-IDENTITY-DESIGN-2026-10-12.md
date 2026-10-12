@@ -1,7 +1,8 @@
 # Cross-episode voice identity — design and cost (2026-10-12, #2304 Track B step 6)
 
-Design only. Nothing here is built. Every step that costs DGX time or changes prod is the
-operator's decision.
+Stage 1 (capture) is built on `fix/naming-track-b-2304` after the operator's yes (2026-10-12).
+Stages 2 and 3 are design only. Every step that costs DGX time or changes prod is the operator's
+decision.
 
 ## What it would fix
 
@@ -46,6 +47,28 @@ not kept); how long diarization alone takes per audio-hour on the DGX.
 
 The threshold is chosen on the gold sets (dev to tune, val_v2 scored once), and the rule ships only
 with 0 worse on the gates and every changed voice read, as for any rung.
+
+## Stage 1 as built (2026-10-12)
+
+- `DiarizationResult.speaker_embeddings` (`base.py`); filled by the local pyannote provider and
+  by the DGX client from a new optional `speaker_embeddings` field of the DGX server's response
+  (`infra/dgx/pyannote-server/app.py`). A server not yet redeployed sends none; nothing fails.
+- Stored in the speakers diagnostics sidecar as `voice_embeddings` = `{model_name, dimension,
+  by_voice}`, keyed like the sidecar's `voices`. Values rounded to 5 decimals; non-finite rows
+  dropped. The diarization cache keeps them; a relabel carries them over to the renumbered voices.
+- Never served: the MCP `episode_speaker_roster` tool omits the block, and
+  `/api/corpus/text-file` refuses `*.speakers.diagnostics.json`.
+- Takes effect for prod only after BOTH the app deploy and a redeploy of the DGX pyannote server
+  (operator OK each). A diarization served from the cache made before capture has no vectors.
+
+## Episodes already processed
+
+Prod keeps very little audio: 147 audio files under `/app/output` against ~2,619 served episodes
+(2026-10-12). Rebuilding vectors for the rest needs the audio again (re-download from each
+enclosure URL). It does NOT need a new diarization: compute one embedding per STORED voice from
+that voice's own segment times with pyannote's embedding model alone, so the vectors land on the
+stored `SPEAKER_NN` ids with no relabelling. Cheaper than diarization; not measured. Episodes the
+backfill reprocesses after capture is deployed get vectors for free.
 
 ## Cost
 

@@ -3337,6 +3337,34 @@ def _existing_transcript_for(
     return matches[0]
 
 
+def _embeddings_carried_over(
+    txt_path: Path, cluster_ids: Mapping[str, str]
+) -> Tuple[Dict[str, List[float]], str]:
+    """The stored voice embeddings, re-keyed to the voice ids a relabel assigns.
+
+    A relabel rewrites the diagnostics sidecar from a fresh roster, and it renumbers the voices
+    (``_anon``: first appearance order), so without this it would silently drop the embeddings
+    the original diarization stored. Only a voice whose stored id is in ``cluster_ids`` keeps its
+    vector; a corpus whose segments carry names instead of raw ids never had any. Returns the
+    vectors and the model that made them (vectors of different models are not comparable).
+    """
+    import json as _json
+
+    from ..providers.ml.diarization.base import clean_embeddings
+
+    sidecar = txt_path.with_name(txt_path.name[: -len(".txt")] + ".speakers.diagnostics.json")
+    try:
+        stored = _json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}, ""
+    block = stored.get("voice_embeddings") if isinstance(stored, dict) else None
+    if not isinstance(block, dict):
+        return {}, ""
+    vectors = clean_embeddings(block.get("by_voice"))
+    carried = {cluster_ids[v]: vec for v, vec in vectors.items() if v in cluster_ids}
+    return carried, str(block.get("model_name") or "") if carried else ""
+
+
 def _relabel_existing_transcript(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -3414,7 +3442,13 @@ def _relabel_existing_transcript(
             detail="segments carry no speaker identity; nothing to relabel",
         )
         return False, None, 0
-    diar = DiarizationResult(segments=dsegs, num_speakers=len(_cluster_ids))
+    _carried, _carried_model = _embeddings_carried_over(txt_path, _cluster_ids)
+    diar = DiarizationResult(
+        segments=dsegs,
+        num_speakers=len(_cluster_ids),
+        speaker_embeddings=_carried,
+        speaker_embeddings_model=_carried_model,
+    )
 
     # THE PUBLISHER'S LABELS SURVIVE A RELABEL. `_anon` above deliberately strips every identity
     # so names are re-resolved from evidence — correct for names WE inferred, wrong for names the

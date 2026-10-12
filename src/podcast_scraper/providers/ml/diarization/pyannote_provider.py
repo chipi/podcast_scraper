@@ -7,7 +7,7 @@ import logging
 from typing import Any, Optional
 
 from ....exceptions import ProviderDependencyError
-from .base import DiarizationResult, DiarizationSegment
+from .base import DiarizationResult, DiarizationSegment, speaker_embeddings_from_output
 
 logger = logging.getLogger(__name__)
 
@@ -248,8 +248,10 @@ class PyAnnoteDiarizationProvider:
             )
         segments = _apply_segment_squelch(segments, self._min_segment_ms)
         unique_speakers = {segment.speaker for segment in segments}
+        embeddings = speaker_embeddings_from_output(diarization)
         return DiarizationResult(
             segments=segments,
             num_speakers=len(unique_speakers),
             model_name=self.model_name,
+            speaker_embeddings={k: v for k, v in embeddings.items() if k in unique_speakers},
         )

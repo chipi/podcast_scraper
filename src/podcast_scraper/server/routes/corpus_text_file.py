@@ -28,8 +28,17 @@ router = APIRouter(tags=["corpus"])
 _ALLOWED_SUFFIXES = (".txt", ".md", ".vtt", ".srt", ".json")
 
 
+#: Never served: the speakers diagnostics sidecar holds per-voice embeddings (voiceprints,
+#: biometric data kept for cross-episode voice identity,
+#: docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md) and the roster's raw candidate lists. Nothing in
+#: the viewer or the player reads it from here.
+_NEVER_SERVED_SUFFIXES = (".speakers.diagnostics.json",)
+
+
 def _suffix_allowed(name: str) -> bool:
     lower = name.lower()
+    if any(lower.endswith(s) for s in _NEVER_SERVED_SUFFIXES):
+        return False
     return any(lower.endswith(s) for s in _ALLOWED_SUFFIXES)
 
 

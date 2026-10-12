@@ -49,6 +49,7 @@ DIAG = {
     ],
     "summary": {"num_speakers": 3},
     "tried": {"known_hosts": ["Michael Barbaro", "Natalie Kitroeff", "Rachel Abrams"]},
+    "voice_embeddings": {"model_name": "m", "dimension": 2, "by_voice": {"SPEAKER_01": [0.1, 0.2]}},
 }
 
 
@@ -113,6 +114,12 @@ class TestTheRosterIsTheRecord:
         out = enrichment.episode_speaker_roster(_corpus(tmp_path, RECORD), META)
         assert "tried" not in out["diagnostics"]
         assert out["diagnostics"]["voices"], "the explanation itself is still returned"
+
+    def test_voiceprints_are_never_served(self, tmp_path: Path) -> None:
+        """The per-voice embeddings are biometric data kept for voice identity inside the corpus."""
+        out = enrichment.episode_speaker_roster(_corpus(tmp_path, RECORD), META)
+        assert "voice_embeddings" not in out["diagnostics"]
+        assert "0.1" not in str(out)
 
     def test_a_pre_record_artifact_matches_voices_by_name(self, tmp_path: Path) -> None:
         legacy = [{"id": "host", "name": "Michael Barbaro", "role": "host"}]
