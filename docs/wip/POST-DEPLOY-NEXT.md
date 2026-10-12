@@ -36,8 +36,18 @@ untracked; that deploy is done).
     repair touches a voice only when its stored record still equals what the DEPLOYED code
     (`sha-3e06151`) produces AND the merged code produces something else: the changes the arc
     replayed and read.
-  - Dry-run first, read every changed voice. Apply with the operator's OK, then `verify`, then
-    coverage again (after).
+  - **It is migration 0029** `naming_arc_voices_repaired` (to 2.7.23), a frozen list of 83 voices
+    (`NAMING_ARC_VOICES`, each read). Prod is at 2.7.21: **0028 runs first** (strict id order; it is
+    the player 1.0.4 deploy's, check its own post-deploy notes), then 0029.
+  - Dry-run measured on prod 2026-10-12 with the module loaded from a temp file (read-only): would
+    rewrite **76 episodes, 83 of 83 voices, 0 refused**, in 10 s (quotes_moved 5,633, transcripts
+    re-rendered 138, voices_named 56, roster_entries_unnamed 7). Expect the same at deploy unless
+    those episodes are reprocessed in between (the backfill): a moved record REFUSES, untouched.
+  - Steps: `upgrade status` -> `upgrade run --to 2.7.23 --dry-run` (read the per-episode list;
+    refusals listed) -> operator OK -> apply -> `verify` -> spot-check 3 (Pragmatic Engineer
+    "Code Complete" Steve McConnell; Talk Eastern Europe Alexandra Karppi; No Priors Chess.com
+    Erik Allebest on SPEAKER_00) -> coverage again (`naming_coverage.py`, before/after).
+  - Undo: `upgrade undo 0029` restores from `.podcast_scraper/upgrade-backups/0029/`.
 - **N3 stale index rows (#2334).** 28 episodes serve superseded insight rows (the prune guard
   refused correct prunes from 2026-10-03 until `6551cecf9`). Re-index those 28 with the operator's
   OK; the list is in this file once prepared.
