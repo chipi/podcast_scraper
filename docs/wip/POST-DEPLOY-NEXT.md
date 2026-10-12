@@ -185,3 +185,50 @@ episodes (needs re-downloaded audio; prod keeps 147 audio files); the 96 publish
 episodes (S5, #2332) and The Rest Is History's 30 (F7), parked.
 
 ## Progress log
+
+### 2026-10-12 (the deploy moved up to today, operator's call)
+
+- 18:15 batch 12 stopped (operator OK; 1 of 3 eps done, the other 2 back in the pool). Its kill left
+  one run with transcripts and no metadata (libsyn "Migraine, cluster headache", `run_20261012-173153`);
+  readers go through metadata, so it is not served. Chain stopped.
+- 18:20 DEPLOYED `sha-29f692d` (deploy-all-prod 38289686748, operator approved). All containers on it;
+  every smoke green on the first try.
+- 0028 dry-run with the new image, corpus mounted read-only: 92,287 of 92,329 rows timeable, 42 no
+  segments, 0 changed since indexing, 0 no char span. APPLIED 18:22-18:26 (operator OK), 2.7.22.
+  Spot-check: Round Table China transcript hits at 899 / 101,780 / 187,220 ms.
+- Coverage before 0029: 289 of 2,619 nameless; named quotes 155,447 of 217,882.
+- 0029 APPLIED 18:43-18:45 (operator OK): 76 episodes, 83 voices, 0 refused, 2.7.23. Coverage after:
+  **274** nameless, named quotes **159,366**. Spot-checks: No Priors Erik Allebest and Talk Eastern
+  Europe Alexandra Karppi as listed. CORRECTION: "Code Complete" (Steve McConnell) is NOT in 0029's
+  list; its guest stays unnamed (title-only name, old Aug-14 run). The plan named the wrong episode.
+- Full verify after 0029: 26 OK, 3 FAIL, all on records the old code wrote on 10-10:
+  - 0010 "Paul Hoffman SC" (BizNews). Fixed by re-running 0010's apply (operator OK): 1 name.
+  - 0017/0020 on 2 episodes: one byte-identical duplicate MENTIONS edge each (Meduza, Jade McGlynn;
+    "Is Jesus the only God?", Andy Bannister). verify uses the frozen map, plan/apply the live one, so
+    re-applying did nothing; `scripts/ops/dedupe_graph_edges.py --apply` dropped the 2 edges (operator OK).
+  - Cause fixed in code: the KG builder deduped entities by name key while ids key on the slug, so a
+    titled variant added a second edge; `5c07fb06f` drops byte-identical edges in the final pass.
+  - Verify again: **29 of 29 OK**. Both snapshots deleted (operator OK); 88 GB free.
+- Step 5: milestone dedupe APPLIED (operator OK): 75 rows, 4 users, 0 left.
+- Step 6: the 32 episodes' entries removed from `search/episode_fingerprints.json` (operator OK;
+  backup `episode_fingerprints.json.bak-stale-rows-20261012T200810Z`); the nightly's index update
+  re-embeds exactly those and prunes. Full blogger id: `tag:blogger.com,1999:blog-1793063735579568706.post-1564919621168009314`.
+- Step 7: Moments examples 5 of 6 as the handover said; Dylan Patel now has moments because its 89
+  insights are tier 3 (not tier 0 as the handover's copy had). Checked in-process, read-only.
+- Step 4 licence: `python -m podcast_scraper.cli refresh-feed-metadata` does NOT run in the api
+  container (the CLI stops on its ffmpeg check first); call
+  `podcast_scraper.workflow.backfill.refresh_feed_metadata(Path("/app/output"))` instead. The first
+  all-feeds run crashed after 167 files: one anchor.fm episode's notes held "https://[...", and
+  urljoin raised "Invalid IPv6 URL" — the same parse runs in ingest. Fixed in `c6cdc5d82`; probe of
+  all 80 feeds with the fix found no other crash.
+- 21:30 REDEPLOYED `sha-c6cdc5d` (both fixes; deploy-all-prod 38310834748, operator approved), smokes
+  green. Licence backfill for all feeds: 80 feeds, 75 refreshed, 2,896 files, 0 skipped. All 3,051
+  files carry `feed.licence` (3,006 declared, 45 none found); 3,050 carry `episode.licence` (the one
+  without is an In Our Time cross-post whose guid is no longer in the feed).
+- Step 8 DGX: pyannote only (operator: embeddings change only). DGX `app.py` = the July version + the
+  embeddings (backup `app.py.bak-20261012-pre-embeddings`). The repo's /dev/shm sharing-strategy fix
+  (#1397) is NOT deployed there; a full `make dgx-deploy` would ship it and also restart ASR and MOSS
+  (its dry plan rewrites all three compose files: drift not inspected). Verified: a fixture diarize
+  returns 256-dim `speaker_embeddings` for each speaker, keys = segment speakers.
+- Step 10: the two alert rules are drafted (`scratchpad/homelab-naming-alerts.diff`); install after
+  the first nightly writes the coverage metric, or the stale rule fires at once.
