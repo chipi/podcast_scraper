@@ -510,6 +510,7 @@ def _without_names_the_voice_introduces(
     llm_voice_names: Optional[Mapping[str, str]],
     voice_texts: Optional[Mapping[str, str]],
     tr: Any,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, str]:
     """The model's names, minus each one the voice itself INTRODUCES ("Today, my guest is Jacob
     Warwick", "I'm here with Eric Alabest"): a voice that introduces a person is not that person.
@@ -522,7 +523,7 @@ def _without_names_the_voice_introduces(
     texts = voice_texts or {}
     out: Dict[str, str] = {}
     for v, n in (llm_voice_names or {}).items():
-        said = guests_introduced_by_the_host({v: texts.get(v, "")}) if n else set()
+        said = guests_introduced_by_the_host({v: texts.get(v, "")}, language) if n else set()
         hit = next((x for x in said if _canonicalize_to_stated_name(x, [n]) == n), None)
         if hit:
             tr.voice(v, "llm_merge", "skipped", proposed=n, reason="introduced_by_this_voice")
@@ -735,10 +736,12 @@ def _title_subject_guest(
 _NOT_A_SURNAME = frozenset({"city", "county", "state", "ads", "apps", "show", "podcast", "news"})
 
 
-def _not_a_person_heard(name: str, feed_title: Optional[str]) -> bool:
+def _not_a_person_heard(
+    name: str, feed_title: Optional[str], language: Optional[str] = TARGET_LANGUAGE
+) -> bool:
     """An introduced "name" that is the show itself ("Planet Money") or ends in a word no surname
     is."""
-    if feed_title and names_the_show(name, feed_title):
+    if feed_title and names_the_show(name, feed_title, language=language):
         return True
     toks = name.split()
     return bool(toks) and toks[-1].lower().strip(".,'’") in _NOT_A_SURNAME
@@ -4140,7 +4143,9 @@ def _publishable_intros(
         alt = next(
             (
                 x
-                for x in distinct_self_introductions(texts.get(v, ""), intro_chars=5000)
+                for x in distinct_self_introductions(
+                    texts.get(v, ""), intro_chars=5000, language=language
+                )
                 if x != n and is_publishable_speaker_name(x, language=language)
             ),
             None,
@@ -4356,7 +4361,7 @@ def _intro_reader_voice_names(
         if _is_a_small_sponsor_read(v, voice_texts or {}):
             tr.voice(v, "intro_reader", "skipped", heard=n, reason="sponsor_read")
             continue
-        if _not_a_person_heard(n, feed_title):
+        if _not_a_person_heard(n, feed_title, language):
             tr.voice(v, "intro_reader", "skipped", heard=n, reason="not_a_person")
             continue
         # F3 (advisor): the host-ward snap (nickname-as-exact + surname edit ≤ 3) can rename a GUEST
@@ -5889,7 +5894,9 @@ def resolve_speaker_roster(
     # It can only ever MATCH a name the metadata already stated (the resolver enforces the closed
     # list), so it cannot invent a speaker here; the worst it can do is misplace a real one.
     llm_named: set = set()
-    llm_voice_names = _without_names_the_voice_introduces(llm_voice_names, voice_texts, tr)
+    llm_voice_names = _without_names_the_voice_introduces(
+        llm_voice_names, voice_texts, tr, language
+    )
     _yield_unstated_introductions(
         voice_intro,
         introduced_named,
@@ -6110,7 +6117,7 @@ def resolve_speaker_roster(
     )
     host_voice_texts = {v: (voice_texts or {}).get(v, "") for v in host_voices}
     for n in sorted(guests_introduced_by_the_host(host_voice_texts, language)):
-        if _not_a_person_heard(n, feed_title):
+        if _not_a_person_heard(n, feed_title, language):
             tr.name(n, "host_introduction_harvest", "refused", reason="not_a_person")
             continue
         snapped = _canonicalize_to_stated_name(n, stated_for_harvest)
