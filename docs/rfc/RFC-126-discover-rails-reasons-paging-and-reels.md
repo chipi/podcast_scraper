@@ -136,7 +136,9 @@ at most `PATH_DAYS` (7), at least `MIN_STEPS` (3), and orders them by publish da
 `start_path` freezes the steps into `learning_paths.json` with `started_at`; step `k` opens when
 `k` whole days (UTC) have passed, or earlier when the listener asks: once the newest open day is
 done, "Next day now" opens the next (`ahead` counts days opened early; operator 2026-10-11, "a day a
-day is the rhythm, not a wall"). Up to `MAX_PATHS` (3) at once, one per subject; a fourth is
+day is the rhythm, not a wall"). Days opened early **carry forward** (operator 2026-10-12, review N6):
+several days can be done in one sitting and the next day continues from there, so opening three early
+on day 1 leaves day 5 open on day 2 (`test_learning_path_days.py`). Up to `MAX_PATHS` (3) at once, one per subject; a fourth is
 refused (409 `at_cap`) unless the request names one to `replace`. Variety
 (operator 2026-10-11): at most two days per speaker and two per show, the next-best episodes filling
 the gaps (`MAX_PER_SPEAKER`, `MAX_PER_SHOW`).
