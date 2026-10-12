@@ -14,9 +14,11 @@ from podcast_scraper.speaker_detectors.hosts import (
     _HOST_SPEECH_ACTS,
     compose_episode_hosts,
     detect_hosts_from_feed,
+    host_speech_act_starts,
     hosts_from_episode_description,
     hosts_from_feed_statement,
     names_the_show,
+    roles_from_conversation,
 )
 
 
@@ -266,3 +268,96 @@ class TestHostActs:
     )
     def test_the_singular_close_that_bleeds_into_the_guest_is_not(self, line: str) -> None:
         assert not any(p.search(line) for p in _HOST_SPEECH_ACTS)
+
+
+class TestWelcomeIdiomsAreNotHostActs:
+    """F4b1 (prod 2026-10-11): guests' "welcome to" idioms made 7 guests perform the host role."""
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "You've seen some of the photos. You're welcome to share them too.",
+            "You are more than welcome to contact me and ask for a demo.",
+            "So any listeners are welcome to come chat to us about that.",
+            "you're welcome to do so, but I intend to leave it as convoluted as that.",
+            "So struggling with mindfulness? Well, welcome to the club.",
+        ],
+    )
+    def test_a_permission_or_idiom_is_not_a_welcome(self, line: str) -> None:
+        assert host_speech_act_starts(line) == []
+        assert roles_from_conversation({"G": line}) == {}
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Hello and welcome to Big Ideas.",
+            "Hi, it's Tracy, welcome to Odd Lots.",
+            "Kelsey, welcome to the podcast.",
+            "Welcome back to No Priors.",
+        ],
+    )
+    def test_a_host_welcome_still_is(self, line: str) -> None:
+        assert host_speech_act_starts(line)
+        assert roles_from_conversation({"H": line}) == {"H": "host"}
+
+    def test_an_idiom_does_not_hide_a_real_welcome_in_the_same_text(self) -> None:
+        text = "Welcome to Big Ideas. You're welcome to write in, by the way."
+        assert host_speech_act_starts(text) == [0]
+
+    def test_only_the_welcome_is_filtered_not_every_act_after_a_be_verb(self) -> None:
+        line = "The person who is joining us today is Jane Doe."
+        assert roles_from_conversation({"H": line}) == {"H": "host"}
+
+
+class TestFeedWordingsF8:
+    """F8 (all 80 prod feeds, 2026-10-11): two real wordings named nobody; nothing else moved."""
+
+    def test_a_dash_set_team_list_names_the_presenters(self) -> None:
+        desc = (
+            "The Unexplainable team — Noam Hassenfeld, Julia Longoria, Byrd Pinkerton, and"
+            " Meradith Hoddinott — tackles scientific mysteries."
+        )
+        assert detect_hosts_from_feed("Unexplainable", desc, ["Vox"]) == {
+            "Noam Hassenfeld",
+            "Julia Longoria",
+            "Byrd Pinkerton",
+            "Meradith Hoddinott",
+        }
+
+    def test_tracks_down_is_a_presenting_verb(self) -> None:
+        desc = "Freakonomics co-author Steve Levitt tracks down other high achievers."
+        assert detect_hosts_from_feed("People I (Mostly) Admire", desc, []) == {"Steve Levitt"}
+
+    def test_interviewees_listed_in_parentheses_are_not_hosts(self) -> None:
+        desc = (
+            "Exclusive interviews from Meta (Soumith Chintala), Sierra (Bret Taylor),"
+            " tiny (George Hotz)."
+        )
+        assert detect_hosts_from_feed("Latent Space", desc, ["Latent.Space"]) == set()
+
+
+class TestDelightedToBeChattingWithIsAnIntroduction:
+    """F2/F4a (Conversations with Tyler, 2026-10-11): the show's opening introduced nobody."""
+
+    @pytest.mark.parametrize(
+        ("line", "name"),
+        [
+            (
+                "Today, I'm delighted to be chatting with Stephen Pinker. Stephen needs none.",
+                "Stephen Pinker",
+            ),
+            (
+                "Today, I'm very happy to be chatting with, in person, Julia Yoffe. We talk.",
+                "Julia Yoffe",
+            ),
+        ],
+    )
+    def test_the_guest_is_read(self, line: str, name: str) -> None:
+        from podcast_scraper.speaker_detectors.hosts import guests_introduced_by_the_host
+
+        assert guests_introduced_by_the_host({"H": line}) == {name}
+
+    def test_no_name_no_introduction(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import guests_introduced_by_the_host
+
+        assert guests_introduced_by_the_host({"H": "I'm happy to be talking with you."}) == set()

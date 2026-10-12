@@ -1,0 +1,70 @@
+{
+ "why": "Guard for the mention rule: the model's stated name never moves onto a second voice. Here the stated guest introduced himself on his own voice, a mention names another voice, and the model (wrongly) put the stated guest on that other voice too: the stated name stays on one voice only.",
+ "feed": {
+  "title": "The Rest Is Politics: Leading",
+  "description": "Alastair Campbell and Rory Stewart interview the world's leaders."
+ },
+ "episode": {
+  "title": "Faith and Calm (Professor Mark Williams)"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Mark Williams"
+  ]
+ },
+ "llm": {
+  "X": [
+   "Mark Williams",
+   "guest"
+  ]
+ },
+ "turns": [
+  [
+   "A",
+   30,
+   "Welcome to The Rest Is Politics Leading with me, Alastair Campbell."
+  ],
+  [
+   "R",
+   20,
+   "And with me, Rory Stewart."
+  ],
+  [
+   "G",
+   300,
+   "Thanks for having me. I'm Mark Williams. The point about mindfulness keeps changing over the years, part 0. The point about mindfulness keeps changing over the years, part 1. The point about mindfulness keeps changing over the years, part 2. The point about mindfulness keeps changing over the years, part 3. The point about mindfulness keeps changing over the years, part 4. The point about mindfulness keeps changing over the years, part 5. The point about mindfulness keeps changing over the years, part 6. The point about mindfulness keeps changing over the years, part 7. The point about mindfulness keeps changing over the years, part 8. The point about mindfulness keeps changing over the years, part 9. The point about mindfulness keeps changing over the years, part 10. The point about mindfulness keeps changing over the years, part 11. The point about mindfulness keeps changing over the years, part 12. The point about mindfulness keeps changing over the years, part 13. The point about mindfulness keeps changing over the years, part 14. The point about mindfulness keeps changing over the years, part 15. The point about mindfulness keeps changing over the years, part 16. The point about mindfulness keeps changing over the years, part 17. The point about mindfulness keeps changing over the years, part 18. The point about mindfulness keeps changing over the years, part 19. The point about mindfulness keeps changing over the years, part 20. The point about mindfulness keeps changing over the years, part 21. The point about mindfulness keeps changing over the years, part 22. The point about mindfulness keeps changing over the years, part 23. The point about mindfulness keeps changing over the years, part 24. The point about mindfulness keeps changing over the years, part 25. The point about mindfulness keeps changing over the years, part 26. The point about mindfulness keeps changing over the years, part 27. The point about mindfulness keeps changing over the years, part 28. The point about mindfulness keeps changing over the years, part 29."
+  ],
+  [
+   "R",
+   30,
+   "I'm talking to Justin Welber, the former archbishop, about this."
+  ],
+  [
+   "X",
+   60,
+   "Oh, plenty. The point about faith keeps changing over the years, part 0. The point about faith keeps changing over the years, part 1. The point about faith keeps changing over the years, part 2. The point about faith keeps changing over the years, part 3. The point about faith keeps changing over the years, part 4. The point about faith keeps changing over the years, part 5."
+  ],
+  [
+   "G",
+   300,
+   "The point about calm keeps changing over the years, part 0. The point about calm keeps changing over the years, part 1. The point about calm keeps changing over the years, part 2. The point about calm keeps changing over the years, part 3. The point about calm keeps changing over the years, part 4. The point about calm keeps changing over the years, part 5. The point about calm keeps changing over the years, part 6. The point about calm keeps changing over the years, part 7. The point about calm keeps changing over the years, part 8. The point about calm keeps changing over the years, part 9. The point about calm keeps changing over the years, part 10. The point about calm keeps changing over the years, part 11. The point about calm keeps changing over the years, part 12. The point about calm keeps changing over the years, part 13. The point about calm keeps changing over the years, part 14. The point about calm keeps changing over the years, part 15. The point about calm keeps changing over the years, part 16. The point about calm keeps changing over the years, part 17. The point about calm keeps changing over the years, part 18. The point about calm keeps changing over the years, part 19. The point about calm keeps changing over the years, part 20. The point about calm keeps changing over the years, part 21. The point about calm keeps changing over the years, part 22. The point about calm keeps changing over the years, part 23. The point about calm keeps changing over the years, part 24. The point about calm keeps changing over the years, part 25. The point about calm keeps changing over the years, part 26. The point about calm keeps changing over the years, part 27. The point about calm keeps changing over the years, part 28. The point about calm keeps changing over the years, part 29."
+  ],
+  [
+   "A",
+   120,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10. The point about questions keeps changing over the years, part 11."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Mark Williams",
+   "role": "guest"
+  },
+  "X": {
+   "name_not": [
+    "Mark Williams"
+   ]
+  }
+ }
+}

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+import pytest
+
 from podcast_scraper.providers.ml.diarization.roster import (
     _better_presenter_elsewhere,
     _is_show_mononym,
@@ -183,3 +185,384 @@ def test_as_guest_host_names_the_guest_host() -> None:
     assert _guest_hosts_named(
         "This week on Sinica, I'm delighted to have Iza Ding as guest host."
     ) == ["Iza Ding"]
+
+
+def test_being_invited_is_the_visitors_reply() -> None:
+    # F4c (prod 2026-10-11): read only by the no-pool LLM-host step, never as a general guest act.
+    from podcast_scraper.providers.ml.diarization.roster import _INVITED_REPLY
+
+    for line in (
+        "Thank you for inviting me. It's a pleasure.",
+        "Well, thank you for the invitation and welcome to Moldova.",
+        "Thanks so much for the invite!",
+    ):
+        assert _INVITED_REPLY.search(line), line
+    assert not _INVITED_REPLY.search("We sent the invitation to him last week.")
+
+
+def test_a_declared_guest_that_is_a_host_in_the_asr_spelling_is_not_a_guest() -> None:
+    # F5 (Latent Space, 2026-10-11): "I'm joined by RJ Hanaki" is the co-host RJ Honicky.
+    from podcast_scraper.providers.ml.diarization.roster import _declared_guests_not_hosts
+
+    hosts = ["RJ Honicky"]
+    lower = {"rj honicky"}
+    assert _declared_guests_not_hosts(["RJ Hanaki", "Carina Hong"], hosts, lower) == ["Carina Hong"]
+    # A guest who merely shares the host's first name stays a guest.
+    assert _declared_guests_not_hosts(["RJ Smith"], hosts, lower) == ["RJ Smith"]
+
+
+def test_the_model_never_names_a_voice_after_the_person_it_introduces() -> None:
+    # F4a (prod 2026-10-11): the host's voice carried the guest's name on 10 served episodes.
+    from podcast_scraper.providers.ml.diarization.naming_trace import NamingTrace
+    from podcast_scraper.providers.ml.diarization.roster import _without_names_the_voice_introduces
+
+    texts = {
+        "H": "Hi, listeners. Welcome back to No Priors. Today, I'm here with Eric Alabest.",
+        "G": "Thanks for having me.",
+    }
+    names = {"H": "Erik Allebest", "G": "Sarah Guo"}
+    assert _without_names_the_voice_introduces(names, texts, NamingTrace()) == {"G": "Sarah Guo"}
+
+
+def test_a_small_sponsor_read_never_takes_the_introduced_name() -> None:
+    # F12 (Lenny's Podcast, prod 2026-10-11): the ad after "my guest today is X" took X's name.
+    from podcast_scraper.providers.ml.diarization.roster import _is_a_small_sponsor_read
+
+    guest = "We grew fast because we listened to users. " * 60
+    ad = "Today's episode is brought to you by DX, the developer intelligence platform."
+    assert _is_a_small_sponsor_read("AD", {"AD": ad, "G": guest})
+    # A guest who mentions a sponsor once is not a sponsor read: the voice is not small.
+    assert not _is_a_small_sponsor_read("G", {"G": guest + ad, "H": "Welcome."})
+
+
+def test_the_titled_guest_is_declared_only_when_the_metadata_states_them() -> None:
+    # F2 (prod 2026-10-11): ~40 episodes name their guest only in the title.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "Neil Kinnock: Trump, Thatcher, and Why Labour Won. The former leader joins us."
+    hosts = ["Alastair Campbell", "Rory Stewart"]
+    assert _title_subject_guest(text, ["Neil Kinnock"], hosts, True) == "Neil Kinnock"
+    assert _title_subject_guest(text, [], hosts, True) is None  # the metadata does not state him
+    assert _title_subject_guest(text, ["Neil Kinnock"], hosts, False) is None  # no host seated
+    assert (
+        _title_subject_guest("Rory Stewart: on leadership", ["Rory Stewart"], hosts, True) is None
+    )
+
+
+def test_a_place_the_show_or_a_title_phrase_is_not_a_person_heard() -> None:
+    # F12 (prod 2026-10-11): "Planet Money", "New York City", "Consumer AI Ads" named voices.
+    from podcast_scraper.providers.ml.diarization.roster import _not_a_person_heard
+
+    assert _not_a_person_heard("Planet Money", "Planet Money")
+    assert _not_a_person_heard("New York City", None)
+    assert _not_a_person_heard("Consumer AI Ads", None)
+    assert not _not_a_person_heard("Sapna Maheshwari", None)
+    assert not _not_a_person_heard("Anna Money", None)
+
+
+@pytest.mark.parametrize(
+    ("name", "text", "hosts", "expected"),
+    [
+        (
+            "Alexander Carpi",
+            "news roundup. My name is Alexander Carpi, and I'm joined by Adam Reichardt",
+            ["Alexandra Karppi", "Adam Reichardt"],
+            "Alexandra Karppi",
+        ),
+        (
+            "Brennan Leung",
+            "Welcome to Analyze Podcast, the premier podcast. I'm Brennan Leung and today",
+            ["Bernard Leong"],
+            "Bernard Leong",
+        ),
+        (
+            "Jill Weisenthal",
+            "Let's leave it there. And I'm Jill Weisenthal. You can follow me at the stalwart.",
+            ["Joe Weisenthal", "Tracy Alloway"],
+            "Joe Weisenthal",
+        ),
+        # Outside the host's formula the strict rules stand: different people stay apart.
+        (
+            "James Holland",
+            "Thanks for having me. I'm James Holland, I write about the war.",
+            ["Tom Holland", "Dominic Sandbrook"],
+            "James Holland",
+        ),
+        (
+            "Kevin Ross",
+            "Hi, I'm Kevin Ross from Acme.",
+            ["Kevin Roose", "Casey Newton"],
+            "Kevin Ross",
+        ),
+        (
+            "Anna Weisenthal",
+            "Thanks for having me, Joe. I'm Anna Weisenthal.",
+            ["Joe Weisenthal"],
+            "Anna Weisenthal",
+        ),
+    ],
+)
+def test_a_self_intro_inside_the_host_formula_is_that_host(name, text, hosts, expected) -> None:
+    # F5 (prod 2026-10-11): hosts published as guests of their own shows under the ASR's spelling.
+    from podcast_scraper.providers.ml.diarization.roster import _snap_hosts_by_their_formula
+
+    out = {"A": name}
+    _snap_hosts_by_their_formula(out, {"A": text}, hosts)
+    assert out["A"] == expected
+
+
+def test_the_formula_never_takes_a_host_another_voice_already_carries() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _snap_hosts_by_their_formula
+
+    out = {"A": "Jill Weisenthal", "B": "Joe Weisenthal"}
+    texts = {"A": "And I'm Jill Weisenthal. You can follow me at the stalwart.", "B": "I'm Joe."}
+    _snap_hosts_by_their_formula(out, texts, ["Joe Weisenthal", "Tracy Alloway"])
+    assert out["A"] == "Jill Weisenthal"
+
+
+def test_a_promo_sliver_or_a_short_unlike_surname_is_not_snapped() -> None:
+    # Prod replay 2026-10-11: "And I'm James Holland from Goalhangers" was a 0.5% cross-promo ad;
+    # "Michael Wong" is not the host Zhao Yang (two edits on four-letter surnames).
+    from podcast_scraper.providers.ml.diarization.roster import _snap_hosts_by_their_formula
+
+    out = {"A": "James Holland"}
+    texts = {"A": "And I'm James Holland from Goalhangers. We have ways of making you talk."}
+    _snap_hosts_by_their_formula(out, texts, ["Tom Holland", "Dominic Sandbrook"], {"A": 0.005})
+    assert out["A"] == "James Holland"
+    out = {"A": "Michael Wong"}
+    texts = {"A": "Welcome to Biz Talk. I'm Michael Wong and today"}
+    _snap_hosts_by_their_formula(out, texts, ["Zhao Yang"], {"A": 0.4})
+    assert out["A"] == "Michael Wong"
+
+
+def test_the_description_can_state_the_title_guest() -> None:
+    # F2 (The a16z Show, prod 2026-10-11): the metadata stated nobody, the description did.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "Samo Burja on Growth, Energy, and AI. Erik Torenberg speaks with Samo Burja, founder."
+    assert _title_subject_guest(text, [], ["Erik Torenberg"], True) == "Samo Burja"
+    about = "John D. Rockefeller: His Principles. Shane Parrish explores the life of John D."
+    assert _title_subject_guest(about, [], ["Shane Parrish"], True) is None
+
+
+@pytest.mark.parametrize(
+    ("text", "stated", "expected"),
+    [
+        (
+            "VAEs Are Energy-Based Models? [Dr. Jeff Beck] Tim talks to Jeff.",
+            ["Dr. Jeff Beck"],
+            "Dr. Jeff Beck",
+        ),
+        ("Superintelligence Strategy (Dan Hendrycks) A talk.", ["Dan Hendrycks"], "Dan Hendrycks"),
+        (
+            "What Makes a Consumer AI Product Stick? | Josh Elman Josh joins.",
+            ["Josh Elman"],
+            "Josh Elman",
+        ),
+        (
+            "When AI Decides You're a Threat — Brad Carson In this episode",
+            ["Brad Carson"],
+            "Brad Carson",
+        ),
+        (
+            "WarTalk: GWOT at 25 with Wesley Morgan Wesley is a reporter",
+            ["Wesley Morgan"],
+            "Wesley Morgan",
+        ),
+        # the title shape alone is not a person: nothing else names "Applied Intuition"
+        ("Why Physical AI Is the Next Frontier | Applied Intuition", [], None),
+        ("Getting entrepreneurial in Korea (Summer School) The first lesson", [], None),
+    ],
+)
+def test_the_guest_the_title_ends_with_is_declared_when_the_metadata_states_them(
+    text: str, stated: list, expected: object
+) -> None:
+    # F2c (prod 2026-10-12): 17 nameless episodes carry their guest only at the END of the title.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    assert _title_subject_guest(text, stated, ["Tim Scarfe"], True) == expected
+    assert _title_subject_guest(text, stated, ["Tim Scarfe"], False) is None  # no host seated
+
+
+def test_a_title_tail_with_no_metadata_needs_the_host_to_greet_that_person() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "Code Complete with Steve McConnell Gergely talks to the author of the classic book."
+    greet = ["Steve, welcome to the podcast. It's so good to meet you in person."]
+    assert (
+        _title_subject_guest(text, [], ["Gergely Orosz"], True, host_texts=greet)
+        == "Steve McConnell"
+    )
+    assert (
+        _title_subject_guest(text, [], ["Gergely Orosz"], True, host_texts=["So, Steve wrote it."])
+        is None
+    )
+    assert _title_subject_guest(text, [], ["Gergely Orosz"], True) is None
+    # the host the title ends with is never the guest
+    lenny = "How I built a newsletter | Lenny Rachitsky Michelle interviews Lenny"
+    assert _title_subject_guest(lenny, ["Lenny Rachitsky"], ["Lenny Rachitsky"], True) is None
+
+
+def test_the_title_tail_is_not_read_without_a_host_seated_on_evidence() -> None:
+    # MLST (prod 2026-10-12): the opener was the guest; the tail name went onto the interviewer.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "VAEs Are Energy-Based Models? [Dr. Jeff Beck] Tim talks to Jeff."
+    assert (
+        _title_subject_guest(text, ["Dr. Jeff Beck"], ["Tim Scarfe"], True, tail_allowed=False)
+        is None
+    )
+
+
+def test_the_title_tail_is_not_the_presenter_under_a_short_given_name() -> None:
+    # NdB Sunday Show: "Chris Steyn" is the presenter, "with me, Christine".
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    text = "The NdB Sunday Show: Pre-election instability — Chris Steyn and Jasmine Opperman talk"
+    assert (
+        _title_subject_guest(text, ["Chris Steyn"], [], True, carried_names=["Christine"]) is None
+    )
+    assert _title_subject_guest(text, ["Chris Steyn"], [], True) == "Chris Steyn"
+
+
+class _NoTrace:
+    def name(self, *a: object, **k: object) -> None:
+        pass
+
+
+def _declared(**kw: object) -> list:
+    from podcast_scraper.providers.ml.diarization.roster import _declare_the_title_guest
+
+    out: list = []
+    args = dict(
+        episode_text="Code Complete with Steve McConnell Gergely talks to the author.",
+        metadata_named=["Steve McConnell"],
+        known_hosts=["Gergely Orosz"],
+        host_voices=["H"],
+        llm_named=set(),
+        tr=_NoTrace(),
+        evidence_hosts=["H"],
+        talk_share={"H": 0.4, "G": 0.6},
+    )
+    args.update(kw)
+    _declare_the_title_guest(out, **args)  # type: ignore[arg-type]
+    return out
+
+
+def test_the_title_tail_needs_an_evidence_host_that_does_not_own_the_talk() -> None:
+    assert _declared() == ["Steve McConnell"]
+    # seated only by opening the episode (MLST): no evidence host
+    assert _declared(evidence_hosts=[]) == []
+    # the evidence host is the model's verdict alone
+    assert _declared(llm_named={"H"}) == []
+    # ...also beside a second seat held by position only: the model-named host is not evidence
+    assert _declared(host_voices=["H", "O"], llm_named={"H"}) == []
+    # an 84% host cluster holds the guest too (a16z "Josh Elman Joins")
+    assert _declared(talk_share={"H": 0.84, "G": 0.16}) == []
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # The Living Philosophy #9: the guest talks about Blaise Pascal, not himself
+        ("My two favorite things about Blaise Pascal are, one, when he died", True),
+        # a near spelling of the given name is the same person
+        ("So I'm here with Laman Pascal, a feral philosopher.", False),
+        ("Pascal brings both rigor and irreverence.", False),  # bare surname still refutes
+        ("Layman Pascal is a Canadian philosopher.", False),  # the full name still refutes
+        ("Dr. Pascal will tell you more.", False),
+        ("I never said that.", False),  # no mention at all: nothing to excuse
+    ],
+)
+def test_a_surname_after_a_different_given_name_is_someone_else(text: str, expected: bool) -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _surname_only_of_someone_else
+
+    assert _surname_only_of_someone_else(text, "Layman Pascal") is expected
+
+
+def test_a_junk_self_introduction_does_not_claim_its_voice() -> None:
+    # The Journal (prod 2026-10-12): "Apple" held the host seat; the voice also says its name.
+    from podcast_scraper.providers.ml.diarization.roster import _publishable_intros
+
+    texts = {
+        "A": "I'm your host, Tribune co-founder, Andrew Polk, and today I'm very excited",
+        "B": "I'm Apple just announced they are doubling. Welcome to the journal. I'm Ryan Knutson",
+        "C": "Welcome to the show. I'm Lenny Rachitsky. Later: I'm Kevin Roose, he said.",
+    }
+    texts["D"] = "Hi, it's Kenny. Don't skip ahead just yet."
+    intros = {"A": "Tribune", "B": "Apple", "C": "Lenny Rachitsky", "D": "Kenny"}
+    _publishable_intros(intros, texts, "en")
+    # replaced only by the voice's own publishable intro; a lone first name stays as evidence
+    assert intros == {"A": "Tribune", "B": "Ryan Knutson", "C": "Lenny Rachitsky", "D": "Kenny"}
+
+
+@pytest.mark.parametrize(
+    ("text", "host_text", "expected"),
+    [
+        # opening-name titles: the host saying the full name vouches as the metadata would
+        (
+            "Alan Waxman - Private Credit and the Modern Financial System. A conversation.",
+            "My guest today is Alan Waxman, co-founder of Sixth Street. Alan, thank you.",
+            "Alan Waxman",
+        ),
+        (
+            "Steven Sinofsky: AI Doesn't Need New Rules Yet. Erik talks to Steven.",
+            "Steven, welcome to the show.",
+            "Steven Sinofsky",
+        ),
+        ("Alan Waxman - Private Credit. A conversation.", "We talk about private credit.", None),
+        # "ft." tails (Capitalisn't)
+        (
+            "Is The College Promise Broken? - ft. Noam Scheiber In this episode",
+            "Our guest is Noam Scheiber of the New York Times. So, Noam, why?",
+            "Noam Scheiber",
+        ),
+        ("The Real Cause Of Wage Stagnation - ft. Arin Dube This week", "We talk wages.", None),
+        # "with Name" tail vouched by the full name alone
+        (
+            "Trump's Great Private Equity Bailout, with Dan Rasmussen This week",
+            "I'm joined by Dan Rasmussen of Verdad. Dan, tell us.",
+            "Dan Rasmussen",
+        ),
+        (
+            "Are Big Tech's Regulators Cowards? ft. Tim Wu This week",
+            "Our guest, Tim Wu, is an author. That resonated with me, Tim.",
+            "Tim Wu",
+        ),
+        # a full name alone is not a person: products and segments are said in full too
+        (
+            "Project Astra: Exploring a Universal AI Assistant with Greg Wayne. Hannah talks.",
+            "Project Astra is a research prototype. Project Mariner, too. Project Astra can see.",
+            None,
+        ),
+        (
+            "Harrison Chase of LangChain on Deep Agents | NVIDIA AI Podcast",
+            "Welcome to the NVIDIA AI podcast. NVIDIA AI is great.",
+            None,
+        ),
+    ],
+)
+def test_a_host_saying_the_titled_name_in_full_vouches_for_it(
+    text: str, host_text: str, expected: object
+) -> None:
+    # F2d (gold atlas 2026-10-12): 23 title-only guests, 18 named in full by another voice.
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    assert (
+        _title_subject_guest(text, [], ["Luigi Zingales"], True, host_texts=[host_text]) == expected
+    )
+
+
+def test_the_on_air_vouch_needs_a_person_and_an_evidence_host() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _title_subject_guest
+
+    # "(Surge AI)" is said in full and even addressed; an all-caps token is not a person's name
+    surge = "The 100-person AI lab | Edwin Chen (Surge AI) Lenny talks to Edwin."
+    host = ["Edwin is the founder of Surge AI. Surge, the company, grew fast."]
+    assert _title_subject_guest(surge, [], ["Lenny Rachitsky"], True, host_texts=host) is None
+    # the opening-title vouch on air needs a host seated on evidence, like the tail
+    alan = "Alan Waxman - Private Credit and the Modern Financial System. A conversation."
+    said = ["My guest today is Alan Waxman. Alan, thank you."]
+    hosts = ["Patrick O'Shaughnessy"]
+    assert _title_subject_guest(alan, [], hosts, True, host_texts=said) == "Alan Waxman"
+    assert _title_subject_guest(alan, [], hosts, True, host_texts=said, tail_allowed=False) is None

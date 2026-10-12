@@ -1,6 +1,6 @@
 """The ladder document and the scenario library describe the same ladder (#2304, segment L).
 
-Every rung listed in ``docs/wip/NAMING_DECISION_TRACE.md`` ("Rungs recorded, in ladder order") must
+Every rung listed in ``docs/guides/NAMING_LADDER.md`` ("Rungs recorded, in ladder order") must
 be exercised by at least one scenario's trace, or appear in ``NOT_YET_EXERCISED`` with the reason.
 A rung added to the document without a scenario, or a scenario run that stops reaching a rung,
 fails here, so the two cannot drift apart unnoticed.
@@ -18,7 +18,7 @@ from . import harness
 
 pytestmark = pytest.mark.integration
 
-DOC = Path(__file__).resolve().parents[3] / "docs" / "wip" / "NAMING_DECISION_TRACE.md"
+DOC = Path(__file__).resolve().parents[3] / "docs" / "guides" / "NAMING_LADDER.md"
 
 #: Rungs the library does not reach yet, each with why. Shrinks as scenarios are added; a rung that
 #: becomes reached must leave this list (the test below says so).

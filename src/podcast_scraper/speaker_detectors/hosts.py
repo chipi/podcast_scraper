@@ -752,6 +752,17 @@ _HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE: Dict[str, List["re.Pattern[str]"]] =
     ]
     for lang, verb in _PRESENTS_BY_LANGUAGE.items()
 }
+#: "The Unexplainable team — Noam Hassenfeld, Julia Longoria, Byrd Pinkerton, and Meradith Hoddinott
+#: — tackles scientific mysteries": the presenters as a list set off by dashes after "team"/"hosts",
+#: then the presenting verb (Unexplainable, prod 2026-10-11: the feed named nobody, and its
+#: presenter was published under the ASR's spelling as a guest). English only, measured there.
+_HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE[TARGET_LANGUAGE].append(
+    re.compile(
+        rf"\b(?:team|hosts?|presenters?)\s*[—–-]\s*(?P<names>{_stated_names(TARGET_LANGUAGE)})"
+        rf"\s*[—–-]\s*{_PRESENTS_BY_LANGUAGE[TARGET_LANGUAGE]}",
+        re.IGNORECASE,
+    )
+)
 _HOST_PHRASES_DESCRIPTION_ONLY = _HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE[TARGET_LANGUAGE]
 _NAME_RE = re.compile(_NAME)
 _STATED_NAME_RE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
@@ -1144,6 +1155,77 @@ _HOST_SPEECH_ACTS_BY_LANGUAGE: Dict[str, Tuple["re.Pattern[str]", ...]] = {
 }
 
 _HOST_SPEECH_ACTS = _HOST_SPEECH_ACTS_BY_LANGUAGE[TARGET_LANGUAGE]
+
+#: "Welcome to" said as a PERMISSION or an idiom, not a host welcoming anybody: "you're welcome to
+#: share them", "you are more than welcome to contact me", "listeners are welcome to come chat",
+#: "welcome to the club". Guests say these; on prod (2026-10-11) they made 7 guests perform the host
+#: role, and with the LLM's "host" each took the host seat (Ian Cameron on BizNews, Peter Hitchens,
+#: Walden Yan, Mark Williams...). English only: the rows above are the measured ones.
+_NOT_A_WELCOME_BEFORE = re.compile(
+    r"(?:'re|\bare|\bis|'s|\bam|\bbe|\bwere|\bwas)"
+    r"(?:\s+(?:more than|very|always|most|all|so|also|certainly|of course))*\s+$",
+    re.IGNORECASE,
+)
+_NOT_A_WELCOME_AT = re.compile(r"welcome to the club\b", re.IGNORECASE)
+
+
+#: How far a host act must sit from every guest act to count as the voice's OWN evidence rather
+#: than half of a bleed pair. Measured on the 92 seats the blunt version added: a bled pair is
+#: 20-200 characters apart ("welcome to the podcast. Thanks, KG. I'm very happy to be here"),
+#: because it is one exchange that diarization failed to split.
+BLEED_PAIR_CHARS = 200
+
+
+def _opens_its_sentence(text: str, pos: int, max_lead_words: int = 3) -> bool:
+    """Does the phrase at ``pos`` start its sentence (a few lead words allowed: "Yeah, I'm really")?
+
+    A bled guest reply is the OTHER speaker's turn, so it opens a sentence ("Welcome to the show.
+    Thank you for having me."). A host quoting a listener ("A listener wrote in to say thank you
+    very much for having me") carries the phrase deep inside the host's own sentence.
+    """
+    head = text[max(0, pos - 200) : pos]
+    cut = max(head.rfind(". "), head.rfind("? "), head.rfind("! "))
+    if cut >= 0:
+        lead = head[cut + 2 :]
+    elif pos <= 200:
+        lead = head
+    else:
+        return False
+    return len(lead.split()) <= max_lead_words
+
+
+def host_acts_are_all_bled(text: str) -> bool:
+    """Is every host act in ``text`` half of a BLED PAIR: within ``BLEED_PAIR_CHARS`` of a guest
+    reply that opens its own sentence ("Welcome to the show. Thank you for having me.")?
+
+    One exchange the diarizer did not split; the text alone cannot say whose cluster owns it.
+    """
+    host_at = host_speech_act_starts(text)
+    replies = [
+        m.start()
+        for p in _GUEST_SPEECH_ACTS
+        for m in p.finditer(text or "")
+        if _opens_its_sentence(text, m.start())
+    ]
+    return bool(host_at and replies) and all(
+        any(abs(h - g) <= BLEED_PAIR_CHARS for g in replies) for h in host_at
+    )
+
+
+def host_speech_act_starts(text: str) -> List[int]:
+    """Offsets in ``text`` where a host speech act starts, without the "welcome to" idioms."""
+    out: List[int] = []
+    for p in _HOST_SPEECH_ACTS:
+        for m in p.finditer(text or ""):
+            head = text[max(0, m.start() - 40) : m.start()]
+            if m.group(0).lower().startswith("welcome") and (
+                _NOT_A_WELCOME_BEFORE.search(head) or _NOT_A_WELCOME_AT.match(text, m.start())
+            ):
+                continue
+            out.append(m.start())
+    return out
+
+
 # NOTE (#1228) — a "floor-managing" host act (a co-host who only self-introduces on a no-host feed
 # but directs the show, "Let's get into this week's news") was TRIED as a recall lever and REVERTED.
 # On the prod-v2 corpus (90 eps, `relabel_corpus.py --llm none`) the tightened, nameability-gated
@@ -1679,7 +1761,7 @@ def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, 
     for voice, text in (voice_texts or {}).items():
         if not text:
             continue
-        if any(p.search(text) for p in _HOST_SPEECH_ACTS):
+        if host_speech_act_starts(text):
             out[voice] = "host"
         elif any(p.search(text) for p in _GUEST_SPEECH_ACTS):
             out[voice] = "guest"

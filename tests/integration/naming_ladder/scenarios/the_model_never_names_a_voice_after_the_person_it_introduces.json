@@ -1,0 +1,58 @@
+{
+ "why": "F4a (No Priors, 'What Chess.com Teaches Us About Superhuman Capabilities', prod replay 2026-10-11): the host says 'Today, I'm here with Eric Alabest' (the ASR's Erik Allebest) and the model put 'Erik Allebest' on the HOST's voice. A voice that introduces a person is not that person; the model's name is dropped for it (the stated-name snap matches the ASR spelling) and the guest's own voice can take the name.",
+ "feed": {
+  "title": "No Priors: Artificial Intelligence | Technology | Startups",
+  "description": "Hosted by Sarah Guo and Elad Gil."
+ },
+ "episode": {
+  "title": "What Chess.com Teaches Us About Superhuman Capabilities"
+ },
+ "detected": {
+  "speaker_names": [
+   "Erik Allebest"
+  ],
+  "metadata_named": [
+   "Erik Allebest"
+  ]
+ },
+ "llm": {
+  "H": [
+   "Erik Allebest",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   30,
+   "Hi, listeners. Welcome back to No Priors. Today, I'm here with Eric Alabest, who bought the chess.com domain out of a bankruptcy auction."
+  ],
+  [
+   "G",
+   400,
+   "Thanks for having me. The point about chess keeps changing over the years, part 0. The point about chess keeps changing over the years, part 1. The point about chess keeps changing over the years, part 2. The point about chess keeps changing over the years, part 3. The point about chess keeps changing over the years, part 4. The point about chess keeps changing over the years, part 5. The point about chess keeps changing over the years, part 6. The point about chess keeps changing over the years, part 7. The point about chess keeps changing over the years, part 8. The point about chess keeps changing over the years, part 9. The point about chess keeps changing over the years, part 10. The point about chess keeps changing over the years, part 11. The point about chess keeps changing over the years, part 12. The point about chess keeps changing over the years, part 13. The point about chess keeps changing over the years, part 14. The point about chess keeps changing over the years, part 15. The point about chess keeps changing over the years, part 16. The point about chess keeps changing over the years, part 17. The point about chess keeps changing over the years, part 18. The point about chess keeps changing over the years, part 19. The point about chess keeps changing over the years, part 20. The point about chess keeps changing over the years, part 21. The point about chess keeps changing over the years, part 22. The point about chess keeps changing over the years, part 23. The point about chess keeps changing over the years, part 24. The point about chess keeps changing over the years, part 25. The point about chess keeps changing over the years, part 26. The point about chess keeps changing over the years, part 27. The point about chess keeps changing over the years, part 28. The point about chess keeps changing over the years, part 29. The point about chess keeps changing over the years, part 30. The point about chess keeps changing over the years, part 31. The point about chess keeps changing over the years, part 32. The point about chess keeps changing over the years, part 33. The point about chess keeps changing over the years, part 34. The point about chess keeps changing over the years, part 35. The point about chess keeps changing over the years, part 36. The point about chess keeps changing over the years, part 37. The point about chess keeps changing over the years, part 38. The point about chess keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   120,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9. The point about questions keeps changing over the years, part 10. The point about questions keeps changing over the years, part 11."
+  ],
+  [
+   "G",
+   300,
+   "The point about ratings keeps changing over the years, part 0. The point about ratings keeps changing over the years, part 1. The point about ratings keeps changing over the years, part 2. The point about ratings keeps changing over the years, part 3. The point about ratings keeps changing over the years, part 4. The point about ratings keeps changing over the years, part 5. The point about ratings keeps changing over the years, part 6. The point about ratings keeps changing over the years, part 7. The point about ratings keeps changing over the years, part 8. The point about ratings keeps changing over the years, part 9. The point about ratings keeps changing over the years, part 10. The point about ratings keeps changing over the years, part 11. The point about ratings keeps changing over the years, part 12. The point about ratings keeps changing over the years, part 13. The point about ratings keeps changing over the years, part 14. The point about ratings keeps changing over the years, part 15. The point about ratings keeps changing over the years, part 16. The point about ratings keeps changing over the years, part 17. The point about ratings keeps changing over the years, part 18. The point about ratings keeps changing over the years, part 19. The point about ratings keeps changing over the years, part 20. The point about ratings keeps changing over the years, part 21. The point about ratings keeps changing over the years, part 22. The point about ratings keeps changing over the years, part 23. The point about ratings keeps changing over the years, part 24. The point about ratings keeps changing over the years, part 25. The point about ratings keeps changing over the years, part 26. The point about ratings keeps changing over the years, part 27. The point about ratings keeps changing over the years, part 28. The point about ratings keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name_not": [
+    "Erik Allebest"
+   ],
+   "role": "host"
+  },
+  "G": {
+   "name": "Erik Allebest",
+   "role": "guest"
+  }
+ }
+}

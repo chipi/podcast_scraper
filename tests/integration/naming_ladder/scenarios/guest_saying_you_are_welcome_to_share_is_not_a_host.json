@@ -1,6 +1,6 @@
 {
  "why": "F4b1 (BizNews Radio, Ian Cameron, prod replay 2026-10-11): the guest says 'you're welcome to share them too' and is seated as host from the 'welcome to' host act plus the LLM's 'host'. The feed states no host (as on prod), so no host cap stops step 2.",
- "xfail": "F4b1: 'you're welcome to' counts as a host speech act",
+ "xfail": "F4c: with the idiom fixed (F4b1) the guest no longer performs the host role, but on a feed that states no host the LLM's 'host' still seats him (5_llm_host_no_pool)",
  "feed": {
   "title": "BizNews Radio",
   "description": "Interviews and insights from South Africa's business and political leaders."

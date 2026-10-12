@@ -1,6 +1,5 @@
 {
- "why": "F4 as it is on prod (The Pragmatic Engineer, Kelsey Hightower, prod replay 2026-10-11 with main's roster): the guest's cluster (91% of the talk) opens with the host's 'Kelsey, welcome to the podcast', the host's own voice only reads the bio, speaker detection handed over NO guest, and the LLM said 'Kelsey Hightower, host'. Today's code seats the guest as host (step 2) and never places Gergely Orosz. `llm_host_role_for_the_titled_guest` passes only because it gives cleaner inputs than the real episode.",
- "xfail": "F4b2: a bled host welcome at the start of a merged guest cluster seats the guest as host",
+ "why": "F4 as it is on prod (The Pragmatic Engineer, Kelsey Hightower, prod replay 2026-10-11 with main's roster): the guest's cluster (91% of the talk) opens with the host's 'Kelsey, welcome to the podcast', the host's own voice only reads the bio, speaker detection handed over NO guest, and the LLM said 'Kelsey Hightower, host'. Today's code seats the guest as host (step 2) and never places Gergely Orosz. `llm_host_role_for_the_titled_guest` passes only because it gives cleaner inputs than the real episode. Fixed 2026-10-11 (F4b2): a host act that is half of a bled pair (within 200 characters of a guest reply that opens its own sentence) gives the voice no conversation role.",
  "feed": {
   "title": "The Pragmatic Engineer",
   "description": "Hosted by Gergely Orosz."

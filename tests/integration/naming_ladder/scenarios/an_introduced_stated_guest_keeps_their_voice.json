@@ -1,0 +1,59 @@
+{
+ "why": "Guard for the mention rule: an introduced name that IS a stated person keeps its voice even when the model put a different stated person there. Only an introduced name that resembles nobody stated yields to the model's stated name. The second stated guest is brought in without a name, so the model's 'Bob Ray' is unplaced: only the 'introduced name is a stated person' test keeps Anne Lee on her voice.",
+ "feed": {
+  "title": "Big Ideas",
+  "description": "Hosted by Tyler Moss."
+ },
+ "episode": {
+  "title": "Anne Lee and Bob Ray on cities"
+ },
+ "detected": {
+  "speaker_names": [
+   "Anne Lee",
+   "Bob Ray"
+  ],
+  "metadata_named": [
+   "Anne Lee",
+   "Bob Ray"
+  ]
+ },
+ "llm": {
+  "G1": [
+   "Bob Ray",
+   "guest"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   30,
+   "Welcome to Big Ideas. I'm Tyler Moss. And joining us now is Anne Lee."
+  ],
+  [
+   "G1",
+   300,
+   "Thanks for having me. The point about cities keeps changing over the years, part 0. The point about cities keeps changing over the years, part 1. The point about cities keeps changing over the years, part 2. The point about cities keeps changing over the years, part 3. The point about cities keeps changing over the years, part 4. The point about cities keeps changing over the years, part 5. The point about cities keeps changing over the years, part 6. The point about cities keeps changing over the years, part 7. The point about cities keeps changing over the years, part 8. The point about cities keeps changing over the years, part 9. The point about cities keeps changing over the years, part 10. The point about cities keeps changing over the years, part 11. The point about cities keeps changing over the years, part 12. The point about cities keeps changing over the years, part 13. The point about cities keeps changing over the years, part 14. The point about cities keeps changing over the years, part 15. The point about cities keeps changing over the years, part 16. The point about cities keeps changing over the years, part 17. The point about cities keeps changing over the years, part 18. The point about cities keeps changing over the years, part 19. The point about cities keeps changing over the years, part 20. The point about cities keeps changing over the years, part 21. The point about cities keeps changing over the years, part 22. The point about cities keeps changing over the years, part 23. The point about cities keeps changing over the years, part 24. The point about cities keeps changing over the years, part 25. The point about cities keeps changing over the years, part 26. The point about cities keeps changing over the years, part 27. The point about cities keeps changing over the years, part 28. The point about cities keeps changing over the years, part 29."
+  ],
+  [
+   "H",
+   30,
+   "Let's bring in our second guest."
+  ],
+  [
+   "G2",
+   300,
+   "Thanks for having me. The point about roads keeps changing over the years, part 0. The point about roads keeps changing over the years, part 1. The point about roads keeps changing over the years, part 2. The point about roads keeps changing over the years, part 3. The point about roads keeps changing over the years, part 4. The point about roads keeps changing over the years, part 5. The point about roads keeps changing over the years, part 6. The point about roads keeps changing over the years, part 7. The point about roads keeps changing over the years, part 8. The point about roads keeps changing over the years, part 9. The point about roads keeps changing over the years, part 10. The point about roads keeps changing over the years, part 11. The point about roads keeps changing over the years, part 12. The point about roads keeps changing over the years, part 13. The point about roads keeps changing over the years, part 14. The point about roads keeps changing over the years, part 15. The point about roads keeps changing over the years, part 16. The point about roads keeps changing over the years, part 17. The point about roads keeps changing over the years, part 18. The point about roads keeps changing over the years, part 19. The point about roads keeps changing over the years, part 20. The point about roads keeps changing over the years, part 21. The point about roads keeps changing over the years, part 22. The point about roads keeps changing over the years, part 23. The point about roads keeps changing over the years, part 24. The point about roads keeps changing over the years, part 25. The point about roads keeps changing over the years, part 26. The point about roads keeps changing over the years, part 27. The point about roads keeps changing over the years, part 28. The point about roads keeps changing over the years, part 29."
+  ],
+  [
+   "H",
+   60,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5."
+  ]
+ ],
+ "expect": {
+  "G1": {
+   "name": "Anne Lee",
+   "role": "guest"
+  }
+ }
+}

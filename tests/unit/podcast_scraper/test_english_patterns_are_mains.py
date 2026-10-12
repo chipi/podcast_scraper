@@ -53,6 +53,13 @@ _MOVED: Dict[Tuple[str, str], Tuple[str, str, Any]] = {
             "NAME_FIRST_TAIL",
         )
     },
+    # The roster stopped importing the host speech acts; it reads them through
+    # `hosts.host_speech_act_starts`, and the patterns themselves are unchanged in hosts.
+    ("podcast_scraper.providers.ml.diarization.roster", "_HOST_SPEECH_ACTS"): (
+        "podcast_scraper.speaker_detectors.hosts",
+        "_HOST_SPEECH_ACTS",
+        None,
+    ),
     # The stated-name possessive became the English row of a per-language map.
     ("podcast_scraper.speaker_detectors.hosts", "_STATED_POSSESSIVE_PREFIX"): (
         "podcast_scraper.speaker_detectors.hosts",

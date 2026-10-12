@@ -1,6 +1,5 @@
 {
- "why": "F8 (People I (Mostly) Admire, prod replay 2026-10-11 of '41. Dr. Bapu Jena on Why Freakonomics Is the Best Medicine'): the feed says 'Freakonomics co-author Steve Levitt tracks down other high achievers' — job title, name, verb, no host cue — so host detection finds nobody and no voice is named Steve Levitt. The real episode also shows F4a (the LLM put 'Dr. Bapu Jena' on the 48% voice that says 'my guest today bapu jenna', Levitt's own) on an all-lowercase transcript; this scenario isolates the feed wording.",
- "xfail": "F8: '<title> <Name> <verb>' in the feed description is not read as a host statement",
+ "why": "F8 (People I (Mostly) Admire, prod replay 2026-10-11 of '41. Dr. Bapu Jena on Why Freakonomics Is the Best Medicine'): the feed says 'Freakonomics co-author Steve Levitt tracks down other high achievers' — job title, name, verb, no host cue — so host detection finds nobody and no voice is named Steve Levitt. The real episode also shows F4a (the LLM put 'Dr. Bapu Jena' on the 48% voice that says 'my guest today bapu jenna', Levitt's own) on an all-lowercase transcript; this scenario isolates the feed wording. Fixed 2026-10-11 (F8): the presenting verbs read 'tracks down', and a dash-set presenter list after 'team'/'hosts' is a host statement.",
  "feed": {
   "title": "People I (Mostly) Admire",
   "description": "Freakonomics co-author Steve Levitt tracks down other high achievers for surprising, revealing conversations about their lives and obsessions.",

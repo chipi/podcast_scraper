@@ -1,0 +1,48 @@
+{
+ "why": "F2 (Turkey Book Talk 'Brett Wilson on the myth and reality...', prod replay + gold val_v1 v010, 2026-10-11): the title opens with the guest, the metadata states him, the host is seated, and nobody introduces him on air. The title's person joins the guest pool and the guest's voice is named.",
+ "feed": {
+  "title": "Turkey Book Talk",
+  "description": "Interviews with authors about Turkey. Hosted by William Armstrong."
+ },
+ "episode": {
+  "title": "Brett Wilson on the myth and reality of modern Turkey's religious reforms"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Brett Wilson"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "Hello and welcome to Turkey Book Talk. I'm William Armstrong. The point about the book keeps changing over the years, part 0. The point about the book keeps changing over the years, part 1."
+  ],
+  [
+   "G",
+   500,
+   "The point about religious reform keeps changing over the years, part 0. The point about religious reform keeps changing over the years, part 1. The point about religious reform keeps changing over the years, part 2. The point about religious reform keeps changing over the years, part 3. The point about religious reform keeps changing over the years, part 4. The point about religious reform keeps changing over the years, part 5. The point about religious reform keeps changing over the years, part 6. The point about religious reform keeps changing over the years, part 7. The point about religious reform keeps changing over the years, part 8. The point about religious reform keeps changing over the years, part 9. The point about religious reform keeps changing over the years, part 10. The point about religious reform keeps changing over the years, part 11. The point about religious reform keeps changing over the years, part 12. The point about religious reform keeps changing over the years, part 13. The point about religious reform keeps changing over the years, part 14. The point about religious reform keeps changing over the years, part 15. The point about religious reform keeps changing over the years, part 16. The point about religious reform keeps changing over the years, part 17. The point about religious reform keeps changing over the years, part 18. The point about religious reform keeps changing over the years, part 19. The point about religious reform keeps changing over the years, part 20. The point about religious reform keeps changing over the years, part 21. The point about religious reform keeps changing over the years, part 22. The point about religious reform keeps changing over the years, part 23. The point about religious reform keeps changing over the years, part 24. The point about religious reform keeps changing over the years, part 25. The point about religious reform keeps changing over the years, part 26. The point about religious reform keeps changing over the years, part 27. The point about religious reform keeps changing over the years, part 28. The point about religious reform keeps changing over the years, part 29. The point about religious reform keeps changing over the years, part 30. The point about religious reform keeps changing over the years, part 31. The point about religious reform keeps changing over the years, part 32. The point about religious reform keeps changing over the years, part 33. The point about religious reform keeps changing over the years, part 34. The point about religious reform keeps changing over the years, part 35. The point about religious reform keeps changing over the years, part 36. The point about religious reform keeps changing over the years, part 37. The point about religious reform keeps changing over the years, part 38. The point about religious reform keeps changing over the years, part 39. The point about religious reform keeps changing over the years, part 40. The point about religious reform keeps changing over the years, part 41. The point about religious reform keeps changing over the years, part 42. The point about religious reform keeps changing over the years, part 43. The point about religious reform keeps changing over the years, part 44. The point about religious reform keeps changing over the years, part 45. The point about religious reform keeps changing over the years, part 46. The point about religious reform keeps changing over the years, part 47. The point about religious reform keeps changing over the years, part 48. The point about religious reform keeps changing over the years, part 49."
+  ],
+  [
+   "H",
+   100,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9."
+  ],
+  [
+   "G",
+   400,
+   "The point about the republic keeps changing over the years, part 0. The point about the republic keeps changing over the years, part 1. The point about the republic keeps changing over the years, part 2. The point about the republic keeps changing over the years, part 3. The point about the republic keeps changing over the years, part 4. The point about the republic keeps changing over the years, part 5. The point about the republic keeps changing over the years, part 6. The point about the republic keeps changing over the years, part 7. The point about the republic keeps changing over the years, part 8. The point about the republic keeps changing over the years, part 9. The point about the republic keeps changing over the years, part 10. The point about the republic keeps changing over the years, part 11. The point about the republic keeps changing over the years, part 12. The point about the republic keeps changing over the years, part 13. The point about the republic keeps changing over the years, part 14. The point about the republic keeps changing over the years, part 15. The point about the republic keeps changing over the years, part 16. The point about the republic keeps changing over the years, part 17. The point about the republic keeps changing over the years, part 18. The point about the republic keeps changing over the years, part 19. The point about the republic keeps changing over the years, part 20. The point about the republic keeps changing over the years, part 21. The point about the republic keeps changing over the years, part 22. The point about the republic keeps changing over the years, part 23. The point about the republic keeps changing over the years, part 24. The point about the republic keeps changing over the years, part 25. The point about the republic keeps changing over the years, part 26. The point about the republic keeps changing over the years, part 27. The point about the republic keeps changing over the years, part 28. The point about the republic keeps changing over the years, part 29. The point about the republic keeps changing over the years, part 30. The point about the republic keeps changing over the years, part 31. The point about the republic keeps changing over the years, part 32. The point about the republic keeps changing over the years, part 33. The point about the republic keeps changing over the years, part 34. The point about the republic keeps changing over the years, part 35. The point about the republic keeps changing over the years, part 36. The point about the republic keeps changing over the years, part 37. The point about the republic keeps changing over the years, part 38. The point about the republic keeps changing over the years, part 39."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Brett Wilson",
+   "role": "guest"
+  },
+  "H": {
+   "name": "William Armstrong",
+   "role": "host"
+  }
+ }
+}

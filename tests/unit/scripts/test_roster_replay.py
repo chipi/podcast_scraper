@@ -83,3 +83,14 @@ def test_building_a_variant_leaves_the_installed_modules_in_place(tmp_path: Path
     before = {name: sys.modules.get(name) for name in rr.MODULES.values()}
     rr.load_variant({"roster": ROSTER_SRC})
     assert {name: sys.modules.get(name) for name in rr.MODULES.values()} == before
+
+
+def test_shards_partition_the_corpus_and_reject_bad_specs() -> None:
+    metas = [Path(f"/c/feeds/f/run_1/metadata/{i}.metadata.json") for i in range(200)]
+    seen = [sum(rr.in_shard(m, (k, 4)) for k in range(4)) for m in metas]
+    assert seen == [1] * 200  # every episode in exactly one shard
+    assert all(rr.in_shard(m, None) for m in metas)
+    assert rr._shard_arg("2/4") == (2, 4)
+    for bad in ("4/4", "x/4", "1", "-1/4"):
+        with pytest.raises(Exception):
+            rr._shard_arg(bad)

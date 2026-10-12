@@ -1,6 +1,5 @@
 {
- "why": "F4a (Conversations with Tyler, Julia Ioffe, prod replay 2026-10-11): the LLM matched the guest's name to the HOST's voice, the voice that says 'chatting with ... Julia Yoffe' (ASR spelling). The model's name is merged with no check of the voice's own words, the host is published as the guest, and the real guest voice is refused 'name_already_on_another_voice'. 10 served episodes have this shape.",
- "xfail": "F4a: the LLM merge does not check the voice's own words; an introduced name in an ASR spelling is not refuted",
+ "why": "F4a (Conversations with Tyler, Julia Ioffe, prod replay 2026-10-11): the LLM matched the guest's name to the HOST's voice, the voice that says 'chatting with ... Julia Yoffe' (ASR spelling). The model's name is merged with no check of the voice's own words, the host is published as the guest, and the real guest voice is refused 'name_already_on_another_voice'. 10 served episodes have this shape. Fixed 2026-10-11: the model's name is dropped for the voice that introduces that person (F4a), and the introduction reader reads Tyler's 'very happy to be chatting with, in person, X' (F2). metadata_named carries 'Julia Ioffe' as on prod (the model's closed list is built from it).",
  "feed": {
   "title": "Conversations with Tyler",
   "description": "Tyler Cowen engages with today's most underrated thinkers."
@@ -8,7 +7,12 @@
  "episode": {
   "title": "Julia Ioffe on Russian Women, Missing Men, and the Roots of Russian Culture"
  },
- "detected": {},
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Julia Ioffe"
+  ]
+ },
  "llm": {
   "H": [
    "Julia Ioffe",
