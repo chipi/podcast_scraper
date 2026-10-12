@@ -277,7 +277,7 @@ NAMING_ARC_VOICES: Dict[Tuple[str, str], Entry] = {
         "host",
         "Ivan Burazin",
         "guest",
-        "Latent Space: The AI Enginee 'Giving Agents Computers — Ivan Burazin, "
+        "Latent Space: The AI Engineer Podcast 'Giving Agents Computers — Ivan Burazin, "
         "Daytona': says 'you found like, we did you reach out or for Shift? Or I "
         "reached out to you. The reason was'",
     ),
@@ -286,7 +286,7 @@ NAMING_ARC_VOICES: Dict[Tuple[str, str], Entry] = {
         "host",
         "Walden Yan",
         "guest",
-        "Latent Space: The AI Enginee 'The Age of Async Agents — Cognition's Walden "
+        "Latent Space: The AI Engineer Podcast 'The Age of Async Agents — Cognition's Walden "
         "Yan': says 'one a coiner of context engineering? Yes. Yes. Although I I I "
         "think there are many people '",
     ),
@@ -295,7 +295,7 @@ NAMING_ARC_VOICES: Dict[Tuple[str, str], Entry] = {
         "host",
         "Carina Hong",
         "guest",
-        "Latent Space: The AI Enginee '🔬Scaling Past Informal AI - Carina Hong, Axiom "
+        "Latent Space: The AI Engineer Podcast '🔬Scaling Past Informal AI - Carina Hong, Axiom "
         "M': says 'But it's for the first time now, I think, verified AI is to open up "
         "collaboration.'",
     ),
@@ -304,7 +304,7 @@ NAMING_ARC_VOICES: Dict[Tuple[str, str], Entry] = {
         "guest",
         "Brandon Anderson",
         "host",
-        "Latent Space: The AI Enginee '🔬Scaling Past Informal AI - Carina Hong, Axiom "
+        "Latent Space: The AI Engineer Podcast '🔬Scaling Past Informal AI - Carina Hong, Axiom "
         "M': says 'He was already a really strong one, but verification helps him "
         "extend the brilliance, like'",
     ),
@@ -848,6 +848,7 @@ class NamingArcVoicesRepairedMigration(Migration):
         return write, refused, totals
 
     def plan(self, ctx: MigrationContext) -> str:
+        """Count what apply() would rewrite and what it refuses; pure read, no writes."""
         write, refused, totals = self._scan(ctx.corpus_root)
         return (
             f"naming arc voices plan: {len(write)} episode(s), {len(refused)} refused; "
@@ -855,6 +856,7 @@ class NamingArcVoicesRepairedMigration(Migration):
         )
 
     def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
+        """Pass when no listed voice is left to write and none was refused."""
         write, refused, _totals = self._scan(ctx.corpus_root)
         if write or refused:
             names = [ep.meta.name for ep in write + refused]
@@ -865,6 +867,7 @@ class NamingArcVoicesRepairedMigration(Migration):
         return True, "every listed voice carries the name the naming ladder gives it"
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Rewrite every episode with a listed voice still on its old name, with backups."""
         root = ctx.corpus_root
         write, refused, totals = self._scan(root)
         receipts: List[dict] = []

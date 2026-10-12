@@ -102,6 +102,7 @@ def scan_episode(meta: Path, lang: Optional[str]) -> Optional[Dict[str, Any]]:
 
 
 def summarise(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Totals over the scanned episodes: how many publish no named voice, by group and by feed."""
     groups = collections.Counter(r["group"] for r in rows)
     unnamed = [r for r in rows if r["group"] != "named"]
     return {
@@ -142,6 +143,7 @@ def write_snapshot(corpus: Path, summary: Dict[str, Any], *, lang: Optional[str]
 
 
 def read_snapshot(corpus: Path) -> Optional[Dict[str, Any]]:
+    """The last snapshot :func:`write_snapshot` left; ``None`` when absent or unreadable."""
     try:
         doc = json.loads((Path(corpus) / SNAPSHOT_RELPATH).read_text(encoding="utf-8"))
     except (OSError, ValueError):
