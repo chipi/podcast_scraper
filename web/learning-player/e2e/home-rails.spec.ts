@@ -131,7 +131,7 @@ test('browser Back closes the entity card and leaves the page under it alone', a
   await signInIsolated(page, 'home-entity-back', testInfo)
   await page.goto('/podcast/p05')
 
-  const chip = page.getByTestId('ps-distinctive-topic').first()
+  const chip = page.locator('[data-testid="ps-topic"][data-distinctive]').first()
   await expect(chip).toBeVisible()
   await chip.click()
 
@@ -155,7 +155,7 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
   await signInIsolated(page, 'home-entity-esc', testInfo)
   await page.goto('/podcast/p05')
 
-  const chip = page.getByTestId('ps-distinctive-topic').first()
+  const chip = page.locator('[data-testid="ps-topic"][data-distinctive]').first()
   await expect(chip).toBeVisible()
   await chip.click()
 

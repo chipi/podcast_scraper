@@ -435,10 +435,11 @@
     "activityBar": "{month}: no episodes | {month}: {count} episode | {month}: {count} episodes",
     "sigStorylines": "Storylines",
     "sigTopics": "Topics",
-    "sigDistinctive": "Distinctive to this show",
-    "sigDistinctiveHint": "Covered {factor}× more here than across the library",
     "sigPeople": "Key people",
-    "licenceLink": "Licence and copyright: {summary}"
+    "licenceLink": "Licence and copyright: {summary}",
+    "sigThemes": "Themes",
+    "sigLift": "{factor}×",
+    "sigLiftHint": "{factor}× more here than across the library"
   },
   "player": {
     "description": "Description",

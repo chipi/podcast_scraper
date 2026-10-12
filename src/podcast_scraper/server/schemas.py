@@ -3798,6 +3798,28 @@ class FeedSignalStoryline(BaseModel):
         default=None,
         description="A member topic present in this show — the click target for a topic card.",
     )
+    episode_count: int = Field(
+        default=0, ge=0, description="Episodes of this show touching any of its topics."
+    )
+    lift: float | None = Field(
+        default=None,
+        description=(
+            "Its share of this show's episodes over its share of the whole library's; None if "
+            "unknowable. Distinctiveness, as for topics (operator 2026-10-12)."
+        ),
+    )
+
+
+class FeedSignalTheme(BaseModel):
+    """A theme (``search/topic_clusters.json``, ``tc:``) the show's topics fall into."""
+
+    theme_id: str = Field(description="The theme's own id (tc:…); its page opens on it.")
+    label: str
+    topic_count: int = Field(ge=1, description="Show topics that are members of this theme.")
+    episode_count: int = Field(
+        default=0, ge=0, description="Episodes of this show touching any of its topics."
+    )
+    lift: float | None = Field(default=None, description="As for storylines and topics.")
 
 
 class FeedSignalTrend(BaseModel):
@@ -3885,6 +3907,7 @@ class CorpusFeedSignalsResponse(BaseModel):
         default_factory=list, description="People in ≥2 of this show's episodes."
     )
     dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
+    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
     grounding: FeedGroundingSummary | None = None
     connectivity: FeedConnectivity | None = None
@@ -3904,6 +3927,7 @@ class AppPodcastSignalsResponse(BaseModel):
     key_people: list[FeedSignalPerson] = Field(default_factory=list)
     recurring_guests: list[FeedSignalPerson] = Field(default_factory=list)
     dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
+    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
 
 

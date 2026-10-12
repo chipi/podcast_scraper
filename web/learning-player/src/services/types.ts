@@ -362,6 +362,17 @@ export interface PodcastSignals {
     label: string
     topic_count: number
     anchor_topic_id: string | null
+    /** Episodes of this show touching any of its topics, and how distinctive (2026-10-12). */
+    episode_count?: number
+    lift?: number | null
+  }>
+  /** Themes the show's topics fall into, each with its reach and distinctiveness (2026-10-12). */
+  dominant_themes?: Array<{
+    theme_id: string
+    label: string
+    topic_count: number
+    episode_count: number
+    lift: number | null
   }>
   trending_topics: Array<{
     topic_id: string

@@ -15,6 +15,7 @@ import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
 import StorylineCard from '../components/StorylineCard.vue'
+import ThemeCard from '../components/ThemeCard.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
 import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
@@ -192,7 +193,7 @@ const metaLine = computed<string[]>(() => {
   return out
 })
 
-const cardTarget = ref<{ kind: 'person' | 'topic' | 'storyline'; id: string } | null>(null)
+const cardTarget = ref<{ kind: 'person' | 'topic' | 'storyline' | 'theme'; id: string } | null>(null)
 
 
 const showArt = showArtwork
@@ -505,6 +506,12 @@ const { badgeShown } = useCorpusLanguages()
 
     <StorylineCard
       v-if="cardTarget?.kind === 'storyline'"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
+    <!-- A theme opens on top, like a storyline (the show page's Themes row, 2026-10-12). -->
+    <ThemeCard
+      v-else-if="cardTarget?.kind === 'theme'"
       :id="cardTarget.id"
       @close="cardTarget = null"
     />

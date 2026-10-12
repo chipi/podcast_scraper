@@ -225,8 +225,9 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   await page.goto('/browse')
   await showEveryonesTrends(page)
   const chip = page.getByTestId('reel-topic-chip').filter({ hasText: 'systems thinking' })
-  // The pill names the subject only (operator 2026-10-11); its length is in the accessible name.
-  await expect(chip).toHaveText('▶ systems thinking')
+  // The pill names the subject and its kind (operator 2026-10-11, kind word 2026-10-12); its
+  // length is in the accessible name.
+  await expect(chip).toHaveText('▶ Topic systems thinking')
   await expect(chip).toHaveAttribute('aria-label', 'Play 2 minutes on systems thinking')
   await chip.click()
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15/)
@@ -315,7 +316,9 @@ test('Learn X this week: start on Discover, do today, go ahead, find it on Home,
   const subject = section.locator('[data-testid="learn-subject"][data-kind="storyline"]').first()
   // The pill is the subject's name alone: every path is seven days, so it does not repeat that.
   await expect(subject).not.toContainText('days')
-  const label = ((await subject.textContent()) ?? '').trim()
+  // It starts with its kind word (a mixed row, 2026-10-12); the path's title is the name alone.
+  await expect(subject.getByTestId('kind-word')).toHaveText(/^Storyline\s*$/)
+  const label = ((await subject.textContent()) ?? '').replace(/^\s*Storyline\s*/, '').trim()
   await subject.click()
 
   // Starting opens its week, on day 1.

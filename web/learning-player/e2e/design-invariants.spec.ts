@@ -523,7 +523,7 @@ test.describe('design invariants', () => {
     // A show's signals band opens the entity card (Home's Trends did until 2026-10-07).
     await page.goto('/podcast/p05')
     await page.waitForLoadState('networkidle')
-    const chip = page.getByTestId('ps-distinctive-topic').first()
+    const chip = page.locator('[data-testid="ps-topic"][data-distinctive]').first()
     await expect(chip).toBeVisible()
     await chip.click()
 

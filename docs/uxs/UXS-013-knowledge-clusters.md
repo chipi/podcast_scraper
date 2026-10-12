@@ -182,10 +182,19 @@ precision the underlying data does not have.
 
 ### `PodcastSignalsBand` — what sets THIS show apart
 
-On a show page. Topics split deliberately into two groups: **distinctive** topics carry `lift`
-above the corpus base rate — the ones that make this show itself — and the remainder are listed
-plainly. The split exists because an alphabetical tiebreak once let a show's signature topic lose
-to wallpaper every show covers.
+On a show page. One row per kind — **Storylines**, **Themes**, **Topics**, **Key people** — and in
+each, the subjects **distinctive** to this show come first, marked "4×": `lift`, their share of
+this show's episodes over their share of the library's, at least 1.5, in at least two episodes
+(for a theme or storyline, episodes touching any of its topics; the library's count for that is
+one pass over every episode's topics, cached per corpus version). The rest follow plainly. The
+ordering exists because an alphabetical tiebreak once let a show's signature topic lose to
+wallpaper every show covers.
+
+Until 2026-10-12 this was a separate "Distinctive to this show" row of topics only: it read as a
+fifth kind, said nothing about themes or storylines, and kept "how many times more" in a hover
+tooltip that a phone never shows (operator: "let's be clear about it"). The mark is now on the pill,
+its spoken name "4× more here than across the library". Themes were not on the show page at all
+before; a theme pill opens the theme on top, as a storyline does.
 
 > The momentum bubble cloud was **removed** from this band: its `velocity` is corpus-wide, not
 > show-scoped, so it sized topics by a number that did not answer the band's own question.

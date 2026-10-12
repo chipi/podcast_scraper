@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import (
     is_unresolved_speaker_placeholder,
     node_label,
@@ -42,6 +43,7 @@ from podcast_scraper.server.schemas import (
     FeedRecurringPair,
     FeedSignalPerson,
     FeedSignalStoryline,
+    FeedSignalTheme,
     FeedSignalTopic,
     FeedSignalTrend,
 )
@@ -181,10 +183,63 @@ def _recurring_guests(
     return out[:top_k]
 
 
+_CORPUS_EPISODE_TOPICS_NS = "feed_signals_corpus_episode_topics"
+
+
+def _corpus_episode_topics(root: Path) -> list[frozenset[str]]:
+    """Every corpus episode's topic ids, one set per episode with a KG.
+
+    The library-wide base rate of a THEME or STORYLINE — episodes touching ANY of its topics — is
+    a union, so it cannot be summed from the per-topic counts ``topic_cooccurrence_corpus`` keeps
+    (operator 2026-10-12: distinctive themes and storylines). One pass over the episode KGs,
+    cached per corpus version like the catalog, so a show page pays for it once, not per request.
+    """
+
+    def build() -> list[frozenset[str]]:
+        out: list[frozenset[str]] = []
+        for r in cached_catalog(root):
+            if not r.has_kg or not r.kg_relative_path:
+                continue
+            art = _read_kg_artifact(str(root), r.kg_relative_path)
+            if art is None:
+                continue
+            out.append(
+                frozenset(str(n.get("id")) for n in nodes_of_type(art, "Topic") if n.get("id"))
+            )
+        return out
+
+    result: list[frozenset[str]] = perf_cache.get_or_compute(
+        _CORPUS_EPISODE_TOPICS_NS, str(root), perf_cache.corpus_mtime(root), build
+    )
+    return result
+
+
+def _group_reach(
+    members: set[str],
+    topic_eps: dict[str, tuple[str, set[str]]],
+    show_eps: int,
+    corpus: list[frozenset[str]],
+) -> tuple[int, float | None]:
+    """``(this show's episodes touching any member, lift)`` for a theme or storyline.
+
+    Lift as for a topic (:func:`_topic_lift`), with "touches any of its topics" for "mentions it".
+    """
+    reached: set[str] = set()
+    for tid in members:
+        if tid in topic_eps:
+            reached |= topic_eps[tid][1]
+    in_corpus = sum(1 for topics in corpus if topics & members)
+    return len(reached), _topic_lift(show_eps, len(reached), in_corpus, len(corpus))
+
+
 def _dominant_storylines(
-    root: str, show_topic_ids: set[str], top_k: int
+    root: str,
+    topic_eps: dict[str, tuple[str, set[str]]],
+    top_k: int,
+    show_eps: int = 0,
+    corpus: list[frozenset[str]] | None = None,
 ) -> list[FeedSignalStoryline]:
-    """Storylines the show's topics fall into, by overlap.
+    """Storylines the show's topics fall into, by overlap, each with its reach and lift.
 
     Reads the ``topic_theme_clusters`` artifact, whose FILENAME keeps the old spelling because
     renaming it would force a re-enrichment of every corpus including prod (UXS-013).
@@ -196,23 +251,78 @@ def _dominant_storylines(
     for c in data.get("clusters") or []:
         if not isinstance(c, dict):
             continue
+        members = {
+            str(m.get("topic_id") or "")
+            for m in (c.get("members") or [])
+            if isinstance(m, dict) and m.get("topic_id")
+        }
         matched_ids = [
             str(m.get("topic_id") or "")
             for m in (c.get("members") or [])
-            if isinstance(m, dict) and str(m.get("topic_id") or "") in show_topic_ids
+            if isinstance(m, dict) and str(m.get("topic_id") or "") in topic_eps
         ]
         tid = str(c.get("graph_compound_parent_id") or "")
         label = str(c.get("canonical_label") or "").strip()
         if matched_ids and tid and label:
+            eps, lift = _group_reach(members, topic_eps, show_eps, corpus or [])
             out.append(
                 FeedSignalStoryline(
                     storyline_id=tid,
                     label=label,
                     topic_count=len(matched_ids),
                     anchor_topic_id=matched_ids[0],
+                    episode_count=eps,
+                    lift=lift if corpus else None,
                 )
             )
     out.sort(key=lambda t: (-t.topic_count, t.label))
+    return out[:top_k]
+
+
+def _dominant_themes(
+    root: Path,
+    topic_eps: dict[str, tuple[str, set[str]]],
+    top_k: int,
+    show_eps: int,
+    corpus: list[frozenset[str]],
+) -> list[FeedSignalTheme]:
+    """Themes (``search/topic_clusters.json``) the show's topics fall into, with reach and lift.
+
+    The show page had no themes at all (operator 2026-10-12); a theme groups topics that MEAN the
+    same thing, so it is the show's subject at one level above its topics.
+    """
+    from podcast_scraper.search.topic_clusters import (
+        _graph_compound_parent_id,
+        _load_theme_payload,
+    )
+
+    payload = _load_theme_payload(root)
+    clusters = payload.get("clusters") if isinstance(payload, dict) else None
+    out: list[FeedSignalTheme] = []
+    for c in clusters if isinstance(clusters, list) else []:
+        if not isinstance(c, dict):
+            continue
+        gpid = _graph_compound_parent_id(c)
+        label = str(c.get("canonical_label") or "").strip()
+        members = {
+            str(m.get("topic_id") or "")
+            for m in (c.get("members") or [])
+            if isinstance(m, dict) and m.get("topic_id")
+        }
+        matched = members & set(topic_eps)
+        if not (gpid and label and matched):
+            continue
+        eps, lift = _group_reach(members, topic_eps, show_eps, corpus)
+        out.append(
+            FeedSignalTheme(
+                theme_id=gpid,
+                label=label,
+                topic_count=len(matched),
+                episode_count=eps,
+                lift=lift,
+            )
+        )
+    out.sort(key=lambda t: (-t.topic_count, -t.episode_count, t.label))
     return out[:top_k]
 
 
@@ -464,6 +574,7 @@ def compute_feed_signals(
     connectivity = _feed_connectivity(topic_eps, scanned, top_k) if scanned else None
 
     root_s = str(root)
+    corpus = _corpus_episode_topics(root) if scanned else []
     vel = _topic_velocity_map(root_s)
     corpus_df, corpus_eps = _topic_base_rate_map(root_s)
     # Selection stays "most-covered first" — that is what "top topics" means, and the operator
@@ -510,7 +621,8 @@ def compute_feed_signals(
         top_topics=top_topics,
         key_people=key_people,
         recurring_guests=_recurring_guests(person_eps, top_k),
-        dominant_storylines=_dominant_storylines(root_s, set(topic_eps.keys()), top_k),
+        dominant_storylines=_dominant_storylines(root_s, topic_eps, top_k, scanned, corpus),
+        dominant_themes=_dominant_themes(root, topic_eps, top_k, scanned, corpus),
         trending_topics=_trending_topics(vel, topic_eps, top_k),
         grounding=_show_grounding(root_s, show_episode_ids),
         connectivity=connectivity,
