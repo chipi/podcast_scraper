@@ -183,7 +183,9 @@ precision the underlying data does not have.
 ### `PodcastSignalsBand` — what sets THIS show apart
 
 On a show page. One row per kind — **Storylines**, **Themes**, **Topics**, **Key people** — and in
-each, the subjects **distinctive** to this show come first, marked "4×": `lift`, their share of
+each, the subjects **distinctive** to this show come first, drawn stronger with a small star (`DistinctiveMark`) —
+no number (operator 2026-10-12: "9×" was hard to read), and one note under the heading says what
+the mark means: `lift`, their share of
 this show's episodes over their share of the library's, at least 1.5, in at least two episodes
 (for a theme or storyline, episodes touching any of its topics; the library's count for that is
 one pass over every episode's topics, cached per corpus version). The rest follow plainly. The
@@ -193,7 +195,8 @@ wallpaper every show covers.
 Until 2026-10-12 this was a separate "Distinctive to this show" row of topics only: it read as a
 fifth kind, said nothing about themes or storylines, and kept "how many times more" in a hover
 tooltip that a phone never shows (operator: "let's be clear about it"). The mark is now on the pill,
-its spoken name "4× more here than across the library". Themes were not on the show page at all
+spoken as "distinctive to this show". People pills carry no episode count either. Themes were not
+on the show page at all
 before; a theme pill opens the theme on top, as a storyline does.
 
 > The momentum bubble cloud was **removed** from this band: its `velocity` is corpus-wide, not

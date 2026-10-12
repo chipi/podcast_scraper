@@ -72,17 +72,20 @@ describe('PodcastSignalsBand — distinctiveness', () => {
     // the distinctive one leads, with its multiplier ON the pill rather than in a hover tooltip.
     expect(w.find('[data-testid="ps-distinctive-heading"]').exists()).toBe(false)
     expect(labels(w, 'ps-topic')).toEqual([
-      'endurance sport9×',
+      'distinctive to this show: endurance sport',
       'expert interviews',
       'lifelong learning',
       'risk management', // 1.29 is above the base rate but below the bar — context, not a claim
     ])
-    const badge = w.get('[data-testid="ps-topic"] [data-testid="ps-lift"]')
-    expect(badge.attributes('aria-label')).toBe('9× more here than across the library')
+    // No number on the pill (operator 2026-10-12: "9×" was hard to read): a drawn star, its
+    // meaning in the pill's spoken name, and one note saying what the mark means.
+    expect(w.find('[data-testid="ps-topic"] [data-testid="ps-distinctive-mark"]').exists()).toBe(true)
+    expect(w.text()).not.toContain('×')
+    expect(w.get('[data-testid="ps-distinctive-note"]').text()).toContain('distinctive to this show')
     expect(w.get('[data-testid="ps-topics-heading"]').text()).toBe(en.podcast.sigTopics)
   })
 
-  it('orders several distinctive topics strongest-first, "9" not "9.0"', async () => {
+  it('orders several distinctive topics strongest-first', async () => {
     const w = await mountBand(
       signals({
         top_topics: [
@@ -91,7 +94,7 @@ describe('PodcastSignalsBand — distinctiveness', () => {
         ],
       }),
     )
-    expect(labels(w, 'ps-topic')).toEqual(['strong9×', 'mild1.8×'])
+    expect(labels(w, 'ps-topic')).toEqual(['distinctive to this show: strong', 'distinctive to this show: mild'])
   })
 
   it('marks distinctive themes and storylines the same way, in their own rows', async () => {
@@ -107,9 +110,9 @@ describe('PodcastSignalsBand — distinctiveness', () => {
         ],
       }),
     )
-    expect(labels(w, 'ps-theme')).toEqual(['Signature4×', 'Wallpaper'])
+    expect(labels(w, 'ps-theme')).toEqual(['distinctive to this show: Signature', 'Wallpaper'])
     // One episode is a passing mention, however high its lift: no mark.
-    expect(labels(w, 'ps-theme-cluster')).toEqual(['investing2.5×', 'once'])
+    expect(labels(w, 'ps-theme-cluster')).toEqual(['distinctive to this show: investing', 'once'])
     await w.get('[data-testid="ps-theme-cluster"]').trigger('click')
     expect(w.emitted('open')?.at(-1)).toEqual([{ kind: 'theme', id: 'tc:a' }])
   })
@@ -125,7 +128,8 @@ describe('PodcastSignalsBand — distinctiveness', () => {
       }),
     )
 
-    expect(w.find('[data-testid="ps-lift"]').exists()).toBe(false)
+    expect(w.find('[data-testid="ps-distinctive-mark"]').exists()).toBe(false)
+    expect(w.find('[data-testid="ps-distinctive-note"]').exists()).toBe(false)
     expect(labels(w, 'ps-topic')).toEqual(['one-off'])
   })
 

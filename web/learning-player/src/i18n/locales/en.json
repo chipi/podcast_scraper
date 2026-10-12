@@ -438,8 +438,8 @@
     "sigPeople": "Key people",
     "licenceLink": "Licence and copyright: {summary}",
     "sigThemes": "Themes",
-    "sigLift": "{factor}×",
-    "sigLiftHint": "{factor}× more here than across the library"
+    "sigDistinctiveNote": "Marked: distinctive to this show, far more here than across the library",
+    "sigDistinctiveName": "distinctive to this show: "
   },
   "player": {
     "description": "Description",
