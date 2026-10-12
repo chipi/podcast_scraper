@@ -73,6 +73,14 @@ untracked; that deploy is done).
     reload). Drafts:
     - `podcast-naming-coverage-rose`: `last_over_time(podcast_corpus_episodes_no_named_voice{instance="prod-podcast",language="en"}[1h]) - min_over_time(podcast_corpus_episodes_no_named_voice{instance="prod-podcast",language="en"}[3d]) > 10`, `for: 1h`, severity warning (model: `bugfix-mass-stuck`).
     - `podcast-naming-coverage-stale`: `max(podcast_corpus_naming_coverage_age_seconds{instance="prod-podcast"}) or vector(99999999) > 172800`, `noDataState: Alerting`, `for: 1h`, severity warning (model: `podcast-ingest-stalled`).
+- **N6 voice embeddings (voice identity stage 1, `0bad07b3b`).** Two steps, an OK each:
+  - The app deploy ships the client and the sidecar writer. On its own it stores vectors only for
+    a diarization that ran in-process (local fallback); the DGX server still sends none.
+  - Redeploy the DGX pyannote server (`infra/dgx/pyannote-server/app.py`) so its responses carry
+    `speaker_embeddings`. Check `gpu-mode` first; the server shares the GPU.
+  - Verify: the next diarized episode's `.speakers.diagnostics.json` has `voice_embeddings`
+    with `by_voice` keys equal to its `voices[].voice`; `/api/corpus/text-file` refuses that file
+    (400); the MCP `episode_speaker_roster` result has no `voice_embeddings`.
 
 ## Carried over
 
