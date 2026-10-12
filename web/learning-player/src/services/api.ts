@@ -127,6 +127,17 @@ export function setOnUnauthorized(fn: (() => void) | null): void {
   onUnauthorized = fn
 }
 
+/** The request's path without its query: `/api/app/me/recap?window=week` and `?window=month` are
+ * one route to the degraded-server signal. */
+function routeOf(input: RequestInfo | URL): string {
+  const raw = typeof Request !== "undefined" && input instanceof Request ? input.url : String(input)
+  try {
+    return new URL(raw, "http://local").pathname
+  } catch {
+    return raw.split("?")[0]
+  }
+}
+
 async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   // Fast-fail policy split by method (2026-09-15 RCA of #2034):
   //  - WRITES fast-fail on the full offline signal, so a mutation routes to the outbox for replay
@@ -156,14 +167,15 @@ async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promi
   // A transport failure (refused / DNS / timeout) and a 503 both mean "not usable right now"; a 503
   // specifically is how the API now reports that it cannot authenticate anyone (a lost signing
   // secret, incident 2026-09-16) rather than lying that the caller's credential is bad.
+  const route = routeOf(input)
   let resp: Response
   try {
     resp = await fetch(input, { ...init, headers })
   } catch (err) {
-    reportServerReachable(false)
+    reportServerReachable(false, route, "unreachable")
     throw err
   }
-  reportServerReachable(resp.status !== 503)
+  reportServerReachable(resp.status !== 503, route, "refused")
   if (resp.status === 401 && onUnauthorized) onUnauthorized()
   return resp
 }
