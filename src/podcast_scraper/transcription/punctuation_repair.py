@@ -28,8 +28,10 @@ import os
 import re
 import shutil
 import tempfile
+import zlib
 from collections import Counter
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from itertools import groupby
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, TypeVar
 
 from podcast_scraper.transcription import punctuation
 from podcast_scraper.transcription.gap_recovery import cut_clip, RECOVERY_MAX_COMPRESSION_RATIO
@@ -47,6 +49,8 @@ MAX_WORD_RATIO = 1.3
 MAX_NEW_WORDS_PER_S = 4.5
 
 _TOKEN = re.compile(r"[^\w]+", re.UNICODE)
+
+_Seg = TypeVar("_Seg", bound=Mapping[str, Any])
 
 #: ``(clip_path, prompt) -> {"text", "segments"}`` in clip-relative time.
 WindowTranscriber = Callable[[str, str], Mapping[str, Any]]
@@ -89,6 +93,79 @@ def _bag(text: str) -> Counter:
     return Counter(t for t in (_TOKEN.sub("", w.lower()) for w in text.split()) if t)
 
 
+def _decode_windows(segments: Sequence[_Seg]) -> Optional[List[List[_Seg]]]:
+    """Segments grouped by the 30-second decode they came from (Whisper's ``seek``), or None when
+    the response does not say."""
+    if not segments or any(_f(s.get("seek")) is None for s in segments):
+        return None
+    return [list(g) for _, g in groupby(segments, key=lambda s: _f(s.get("seek")))]
+
+
+def _text_ratio(segments: Sequence[Mapping[str, Any]]) -> float:
+    """Whisper's loop measure (gzip ratio) of the text these segments actually carry."""
+    raw = "".join(str(s.get("text", "")) for s in segments).encode("utf-8")
+    return len(raw) / len(zlib.compress(raw)) if raw else 0.0
+
+
+def _norm(text: str) -> str:
+    return " ".join(t for t in (_TOKEN.sub("", w.lower()) for w in text.split()) if t)
+
+
+def drop_tail_repeats(segments: Sequence[_Seg]) -> Tuple[List[_Seg], List[str]]:
+    """Drop, from the clip's last decode window, segments repeating an earlier window's text.
+
+    Over the near-silent end of a clip Whisper re-emits lines it already wrote: Up First 10-09's
+    repair window (2026-10-12) closed "I'm Steve Inskeep. We hope you'll join us again on Monday.
+    We hope you'll join us again on Monday. Bye." after the credits had said both. Only the last
+    window, only word-for-word repeats of a line an earlier window holds.
+    """
+    windows = _decode_windows(segments)
+    if not windows:
+        return list(segments), []
+    head = [s for w in windows[:-1] for s in w]
+    seen = {_norm(str(s.get("text", ""))) for s in head}
+    kept_tail: List[_Seg] = []
+    dropped: List[str] = []
+    for seg in windows[-1]:
+        key = _norm(str(seg.get("text", "")))
+        # Only repeats of an EARLIER window: a line looping within one window is a real loop,
+        # left for ``repetitive_window`` to refuse.
+        if key and key in seen:
+            dropped.append(str(seg.get("text", "")).strip())
+            continue
+        kept_tail.append(seg)
+    return head + kept_tail, dropped
+
+
+def repetitive_window(segments: Sequence[Mapping[str, Any]]) -> Optional[Dict[str, Any]]:
+    """The first decode window whose own text is over Whisper's loop threshold, else None.
+
+    Measured on the segments' text, not taken from the reported ``compression_ratio``: that one is
+    computed on everything the window decoded, including text Whisper never put in a segment. Up
+    First 10-09's last window reported 2.23 for segments whose text measures 1.47; a run where it
+    passed 2.4 refused 160 s of good repair (2026-10-12). A line looping within a window is in
+    the segments' text and still measures high. (A loop ACROSS windows, one line per window like
+    Camera seduta 717's "Grazie a tutti.", measures 0.65 on either count; the length guardrail is
+    what catches that.)
+    """
+    windows = _decode_windows(segments)
+    # Without ``seek`` the windows are unknown: each segment's reported ratio decides, as before.
+    for window in windows if windows is not None else [[s] for s in segments]:
+        reported = max((_f(s.get("compression_ratio")) or 0.0) for s in window)
+        if reported <= RECOVERY_MAX_COMPRESSION_RATIO:
+            continue
+        ratio = _text_ratio(window) if windows is not None else reported
+        if ratio > RECOVERY_MAX_COMPRESSION_RATIO:
+            text = " ".join(str(s.get("text", "")).strip() for s in window)
+            return {
+                "start": _f(window[0].get("start")),
+                "ratio": round(ratio, 2),
+                "reported_ratio": round(reported, 2),
+                "text": text[:300],
+            }
+    return None
+
+
 def _merged(intervals: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
     out: List[Tuple[float, float]] = []
     for a, b in sorted(intervals):
@@ -118,10 +195,8 @@ def _verdict(
     # Whisper's own loop measure only. The short-phrase rule gap recovery uses (``is_repetitive``)
     # vetoed two good V.6b Spanish windows over ONE ordinary filler run each ("bla, bla, bla,
     # bla" in 113 segments); a real loop over a window also inflates the counts below.
-    for seg in new_segments:
-        ratio = _f(seg.get("compression_ratio"))
-        if ratio is not None and ratio > RECOVERY_MAX_COMPRESSION_RATIO:
-            return "repetitive"
+    if repetitive_window(new_segments) is not None:
+        return "repetitive"
     old_bag, new_bag = _bag(old_text), _bag(new_text)
     old_n = sum(old_bag.values())
     if old_n and sum((old_bag & new_bag).values()) / old_n < MIN_RETAINED:
@@ -216,9 +291,23 @@ def repair_unpunctuated_windows(
                 and _f(s.get("start")) is not None
                 and _f(s.get("end")) is not None
             ]
+            new_segs, repeats = drop_tail_repeats(new_segs)
+            if repeats:
+                entry["tail_repeats_dropped"] = repeats
+                new_text = " ".join(str(s.get("text", "")).strip() for s in new_segs)
             refused = _verdict(inside, new_segs, new_text, (a, b), prompt)
             if refused is not None:
-                report.append({**entry, "status": "refused", "reason": refused})
+                refusal = {**entry, "status": "refused", "reason": refused}
+                if refused == "repetitive":
+                    refusal["repetitive_window"] = repetitive_window(new_segs)
+                report.append(refusal)
+                logger.info(
+                    "punctuation repair: %.0f-%.0fs refused (%s)%s",
+                    a,
+                    b,
+                    refused,
+                    f": {refusal['repetitive_window']}" if refused == "repetitive" else "",
+                )
                 continue
             replaced = {id(s) for s in inside}
             keep = [s for s in segments if id(s) not in replaced]
