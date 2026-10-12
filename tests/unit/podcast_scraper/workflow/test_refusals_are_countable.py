@@ -37,6 +37,9 @@ MODULE = (
 )
 
 RECORDER = "_record_unresolved_transcript"
+# A policy skip (provider payload limit) writes its row as "skipped", not "failed"; it is a ledger
+# write all the same.
+LEDGER_WRITERS = {RECORDER, "_mark_episode_skipped_policy"}
 
 # The refusal signature: these helpers report "I could not do this" as a 3-tuple.
 REFUSAL_RETURNS = {"(False, None, 0)", "False, None, 0"}
@@ -59,6 +62,10 @@ EXPECTED_ERROR_TYPES = {
     # #2187: the transcript does not read as the declared language — ASR echoes the request, so
     # only the text can show a wrong <language> tag.
     "TranscriptLanguageMismatch",
+    # Found by the guard once it stopped pinning the third element to 0: the transcription
+    # provider raising (Camera seduta 717, 2026-10-12, reported ok) and a validation failure.
+    "TranscriptionFailed",
+    "TranscriptionValidationFailed",
 }
 
 
@@ -72,14 +79,16 @@ def _is_refusal_return(node: ast.AST) -> bool:
     elts = node.value.elts
     if len(elts) != 3:
         return False
-    first, second, third = elts
+    # Any third element, not only the literal 0: a refusal after the download returns
+    # ``False, None, bytes_downloaded``, and pinning ``0`` let the transcription-failure path
+    # through. Camera seduta 717 (2026-10-12): Whisper failed, nothing was written, and the feed
+    # reported ``episodes=3 ok=3 failed=0``.
+    first, second, _third = elts
     return (
         isinstance(first, ast.Constant)
         and first.value is False
         and isinstance(second, ast.Constant)
         and second.value is None
-        and isinstance(third, ast.Constant)
-        and third.value == 0
     )
 
 
@@ -97,7 +106,7 @@ def _calls_recorder(stmts) -> bool:
             continue
         fn = stmt.value.func
         name = getattr(fn, "id", None) or getattr(fn, "attr", None)
-        if name == RECORDER:
+        if name in LEDGER_WRITERS:
             return True
     return False
 
@@ -154,7 +163,7 @@ def test_the_recorder_call_sites_are_not_silently_removed():
         and (getattr(n.func, "id", None) or getattr(n.func, "attr", None)) == RECORDER
         and not isinstance(n.func, ast.Attribute)
     ]
-    assert len(calls) >= 11, f"expected >= 11 {RECORDER} CALLS (not grep lines), found {len(calls)}"
+    assert len(calls) >= 13, f"expected >= 13 {RECORDER} CALLS (not grep lines), found {len(calls)}"
 
 
 @pytest.mark.parametrize("error_type", sorted(EXPECTED_ERROR_TYPES))

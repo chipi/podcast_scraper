@@ -8,6 +8,8 @@ import logging
 import os
 import queue
 import re
+import shutil
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -40,9 +42,11 @@ from ..exceptions import ProviderError, ProviderRuntimeError
 from ..languages import transcription_language
 from ..languages_guard import is_target_language, transcript_language_contradiction
 from ..preprocessing.audio.factory import preprocessing_fingerprint
+from ..providers.guardrails.exceptions import GuardrailViolation
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
 from ..transcript_formats import parse_srt, parse_webvtt
+from ..transcription import digital_silence
 from ..utils import audio_fingerprint, filesystem
 from ..utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ..utils.corpus_incidents import append_corpus_incident
@@ -965,6 +969,10 @@ def _save_asr_provenance_file(
     if repair:
         # #2187: each window re-transcribed for punctuation, and what came of it.
         provenance["punctuation_repair"] = repair
+    trimmed = result.get("asr_digital_silence_trimmed")
+    if trimmed:
+        # Digital silence cut off both ends before ASR, and the span ASR heard (episode time).
+        provenance["digital_silence_trimmed"] = trimmed
     full_path = os.path.join(effective_output_dir, rel_transcript_path)
     base, _ = os.path.splitext(full_path)
     asr_path = base + ".asr.json"
@@ -2843,45 +2851,53 @@ def _transcribe_with_segments_maybe_chunked(
             )
         return done["r"]
 
-    chunker = AudioChunker(
-        # Per-provider byte cap minus 1 MiB headroom (multipart/form overhead),
-        # rather than the OpenAI-specific constant for every provider (F1).
-        max_bytes=transcription_max_bytes(cfg) - (1024 * 1024),
-        max_duration_seconds=transcription_max_chunk_duration_seconds(cfg),
-    )
-    if _transcription_provider_supports_chunking(cfg) and chunker.needs_chunking(
-        media_for_transcription
-    ):
-        logger.info(
-            "[%s] Preprocessed audio exceeds API limit; transcribing in chunks",
-            job.idx,
+    # Long digital silence at either end is cut off before ASR and the result shifted back to
+    # episode time (see ``transcription.digital_silence``); everything after this reads the
+    # original file in episode time, so repairs and recoveries cut the clips they always did.
+    trim_dir = tempfile.mkdtemp(prefix="asr_trim_")
+    try:
+        trim = digital_silence.trim_for_asr(media_for_transcription, trim_dir)
+        asr_media = trim.path if trim else media_for_transcription
+        if trim:
+            logger.info(
+                "[%s] cut %.0fs of digital silence before and %.0fs after the audio for ASR",
+                job.idx,
+                trim.edges.lead_s,
+                trim.edges.tail_s,
+            )
+
+        chunker = AudioChunker(
+            # Per-provider byte cap minus 1 MiB headroom (multipart/form overhead),
+            # rather than the OpenAI-specific constant for every provider (F1).
+            max_bytes=transcription_max_bytes(cfg) - (1024 * 1024),
+            max_duration_seconds=transcription_max_chunk_duration_seconds(cfg),
         )
-        # D3: Deepgram numbers speakers per request, so chunking fragments speaker
-        # ids across chunk seams. The 2 GB cap means this only fires for extreme
-        # files; warn so a garbled multi-speaker screenplay isn't a silent mystery.
-        if str(getattr(cfg, "transcription_provider", "") or "").lower() == "deepgram":
-            logger.warning(
-                "[%s] Deepgram audio over the 2 GB single-request cap is being chunked; "
-                "diarization speaker ids are chunk-local and not reconciled across chunks.",
+        if _transcription_provider_supports_chunking(cfg) and chunker.needs_chunking(asr_media):
+            logger.info(
+                "[%s] Preprocessed audio exceeds API limit; transcribing in chunks",
                 job.idx,
             )
-        result, elapsed = transcribe_file_in_chunks(
-            media_for_transcription,
-            chunker=chunker,
-            transcribe_fn=_transcribe_one,
-        )
-        return _inspect_asr_result(
-            result,
-            elapsed,
-            media_path=media_for_transcription,
-            cfg=cfg,
-            provider=transcription_provider,
-        )
-
-    try:
-        result, elapsed = _transcribe_one(media_for_transcription)
-    except TimeoutError:
-        raise
+            # D3: Deepgram numbers speakers per request, so chunking fragments speaker
+            # ids across chunk seams. The 2 GB cap means this only fires for extreme
+            # files; warn so a garbled multi-speaker screenplay isn't a silent mystery.
+            if str(getattr(cfg, "transcription_provider", "") or "").lower() == "deepgram":
+                logger.warning(
+                    "[%s] Deepgram audio over the 2 GB single-request cap is being chunked; "
+                    "diarization speaker ids are chunk-local and not reconciled across chunks.",
+                    job.idx,
+                )
+            result, elapsed = transcribe_file_in_chunks(
+                asr_media,
+                chunker=chunker,
+                transcribe_fn=_transcribe_one,
+            )
+        else:
+            result, elapsed = _transcribe_one(asr_media)
+    finally:
+        shutil.rmtree(trim_dir, ignore_errors=True)
+    if trim:
+        result = digital_silence.shift_result(result, trim.kept_start_s)
+        result["asr_digital_silence_trimmed"] = trim.record()
     return _inspect_asr_result(
         result,
         elapsed,
@@ -4761,8 +4777,18 @@ def transcribe_media_to_text(
             message=str(exc),
             exception_type=type(exc).__name__,
         )
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "transcription",
+            error_type="TranscriptionValidationFailed",
+            detail=redact_for_log(str(exc)),
+        )
         return False, None, bytes_downloaded
-    except (RuntimeError, OSError, ProviderError) as exc:
+    # GuardrailViolation: the reprocess policy raises it at once rather than holding (ADR-099), and
+    # it is no RuntimeError, so without it here the episode escaped this handler unrecorded.
+    except (RuntimeError, OSError, ProviderError, GuardrailViolation) as exc:
         _append_transcription_incident(
             cfg,
             job,
@@ -4775,6 +4801,16 @@ def transcribe_media_to_text(
             format_exception_for_log(exc),
         )
         _capture_stage_exception(exc, stage="transcription")
+        # Without this the episode stays "ok" from queueing: Camera seduta 717 (2026-10-12) failed
+        # here, wrote nothing, and its feed reported ok=3 failed=0.
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "transcription",
+            error_type="TranscriptionFailed",
+            detail=redact_for_log(str(exc)),
+        )
         return False, None, bytes_downloaded
     finally:
         _cleanup_temp_media(temp_media, cfg)

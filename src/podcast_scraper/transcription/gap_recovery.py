@@ -41,6 +41,7 @@ import tempfile
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from podcast_scraper.preprocessing.audio.ffmpeg_processor import _run_text_subprocess
+from podcast_scraper.transcription.digital_silence import transcribed_span
 from podcast_scraper.transcription.invented_lines import is_invented_line
 
 logger = logging.getLogger(__name__)
@@ -264,21 +265,31 @@ def _recover_gaps(
     # own timeout while holding the DGX lock; the rest are skipped. A failed CUT is local to its
     # clip and says nothing about the endpoint.
     call_failed = False
+    # The digital silence cut off before ASR is not a gap to re-transcribe: Whisper invents a line
+    # there, and on Camera seduta 722 (2026-10-12) silent-gap recovery added two such lines in the
+    # 70 s of zeros at the end. Gaps are kept to the span ASR heard.
+    heard = transcribed_span(result)
+    lo, hi = heard if heard else (0.0, float("inf"))
     try:
         for i, gap in enumerate(gaps):
             gap_start, gap_end = float(gap["start"]), float(gap["end"])
-            clip_start = max(0.0, gap_start - RECOVERY_PAD_S)
             entry: Dict[str, Any] = {
                 "start": gap_start,
                 "end": gap_end,
                 "speaker": gap.get("speaker"),
             }
+            gap_start, gap_end = max(gap_start, lo), min(gap_end, hi)
+            if gap_end <= gap_start:
+                report.append({**entry, "status": "skipped", "reason": "digital_silence"})
+                continue
+            clip_start = max(lo, gap_start - RECOVERY_PAD_S)
+            clip_end = min(hi, gap_end + RECOVERY_PAD_S)
             if call_failed:
                 report.append({**entry, "status": "skipped", "reason": "earlier_call_failed"})
                 continue
             clip = os.path.join(work_dir, f"gap_{i:03d}.wav")
             try:
-                cut_clip(audio_path, clip_start, gap_end + RECOVERY_PAD_S, clip)
+                cut_clip(audio_path, clip_start, clip_end, clip)
             except Exception as exc:  # noqa: BLE001 - never lose the transcript to a recovery call
                 logger.warning(
                     "gap recovery: %.1f-%.1fs could not be cut: %s", gap_start, gap_end, exc
