@@ -17,32 +17,12 @@
     },
     {
       "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
       "to": "topic:on-call",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-a05e37624721d37c",
       "to": "topic:reliability",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:systems-thinking",
       "type": "MENTIONS"
     },
     {
@@ -111,34 +91,6 @@
       "id": "topic:on-call",
       "properties": {
         "label": "on call"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

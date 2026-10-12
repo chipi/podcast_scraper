@@ -46,25 +46,55 @@ def test_a_followed_topic_or_person_brings_in_its_episodes(tmp_path: Path) -> No
 
 
 def test_a_followed_theme_brings_in_its_member_topics_episodes(tmp_path: Path) -> None:
-    assert (
-        len(followed_interest_episodes(ROOT, _following(tmp_path, "tc:dive-planning"), "u1")) == 2
-    )
+    import json
+
+    clusters = json.loads((ROOT / "search" / "topic_clusters.json").read_text("utf-8"))["clusters"]
+    members = next(c for c in clusters if c["graph_compound_parent_id"] == "tc:dive-planning")
+    want = set().union(*(_episodes_of(m["topic_id"]) for m in members["members"]))
+    got = followed_interest_episodes(ROOT, _following(tmp_path, "tc:dive-planning"), "u1")
+    assert len(members["members"]) > 1 and got == want
 
 
-def test_an_umbrella_never_widens_mine(tmp_path: Path) -> None:
-    """Two fixture topics are in all 55 episodes, and the one storyline's members together cover all
-    55: following any of them would make Mine everyone's."""
+#: The natural corpus (2026-10-12) has no topic on 90% of episodes — the stamped umbrellas that
+#: were are gone, as real data has none (prod: 1.0% at most). The guard still needs proving, so
+#: these lower the share for this module: at 0.55, `risk management` (31 of 55 episodes) is an
+#: umbrella, `thc:second-order-effects` (34 across its members, none alone) is a storyline that
+#: covers too much, and `tc:risk-management` is a theme with an umbrella member and narrow ones.
+_TEST_SHARE = 0.55
+
+
+@pytest.fixture
+def umbrella_share(monkeypatch: pytest.MonkeyPatch) -> float:
+    from podcast_scraper.server import app_user_corpus
+
+    monkeypatch.setattr(app_user_corpus, "UMBRELLA_TOPIC_SHARE", _TEST_SHARE)
+    return _TEST_SHARE
+
+
+def test_an_umbrella_never_widens_mine(tmp_path: Path, umbrella_share: float) -> None:
+    """A topic on most episodes, and a storyline whose members together cover most: following
+    either would make Mine everyone's."""
     total = len(_slug_index(ROOT))
-    assert len(_episodes_of("topic:lifelong-learning")) >= UMBRELLA_TOPIC_SHARE * total
-    d = _following(tmp_path, "topic:lifelong-learning", "thc:managing-risk")
+    assert len(_episodes_of("topic:risk-management")) >= umbrella_share * total
+    d = _following(tmp_path, "topic:risk-management", "thc:second-order-effects")
     assert followed_interest_episodes(ROOT, d, "u1") == set()
 
 
-def test_a_theme_keeps_its_narrow_members_when_one_member_is_an_umbrella(tmp_path: Path) -> None:
-    """tc:lifelong-learning contains the umbrella topic of the same name; its narrower members still
+def test_a_theme_keeps_its_narrow_members_when_one_member_is_an_umbrella(
+    tmp_path: Path, umbrella_share: float
+) -> None:
+    """tc:risk-management contains the umbrella topic of the same name; its narrower members still
     count."""
-    got = followed_interest_episodes(ROOT, _following(tmp_path, "tc:lifelong-learning"), "u1")
-    assert 0 < len(got) < len(_slug_index(ROOT))
+    got = followed_interest_episodes(ROOT, _following(tmp_path, "tc:risk-management"), "u1")
+    assert 0 < len(got) < len(_episodes_of("topic:risk-management"))
+
+
+def test_the_packaged_share_still_leaves_real_subjects_followable(tmp_path: Path) -> None:
+    """At the packaged 0.9 nothing on the natural corpus is an umbrella: following risk management
+    widens Mine by its episodes, as following a subject should."""
+    assert UMBRELLA_TOPIC_SHARE == 0.9
+    got = followed_interest_episodes(ROOT, _following(tmp_path, "topic:risk-management"), "u1")
+    assert got == _episodes_of("topic:risk-management")
 
 
 def test_following_nothing_adds_nothing(tmp_path: Path) -> None:

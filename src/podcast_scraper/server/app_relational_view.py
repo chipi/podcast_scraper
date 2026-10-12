@@ -40,6 +40,7 @@ from podcast_scraper.server.app_kg_index import (
     normalize_label,
 )
 from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
@@ -313,7 +314,7 @@ def _theme_ref_by_norm_at(root: Path, _token: float) -> Mapping[str, AppEntityRe
     typed verbatim returned nothing.
 
     LAST in the precedence chain, deliberately. A label can name both a topic and a theme
-    (`Lifelong Learning` is `topic:lifelong-learning` AND `tc:lifelong-learning` in the v3 fixture),
+    (`risk management` is `topic:risk-management` AND `tc:risk-management` in the v3 fixture),
     and putting themes ahead of topics would silently change where every such query lands today.
     Going last makes this purely additive: a theme resolves only when nothing narrower claims the
     label. The cost is that an ambiguous label still opens the topic — the narrower thing wins —
@@ -497,6 +498,21 @@ def _person_shows(pairs: Sequence[tuple[CatalogEpisodeRow, str | None]]) -> list
     return shows
 
 
+def _related_topics(
+    root: Path,
+    topic_counts: Counter[str],
+    topics_by_id: dict[str, AppTopic],
+    cluster_map: ClusterMap,
+    storyline_map: ClusterMap,
+    top_k: int,
+) -> list[AppTopic]:
+    """The card's most-shared topics, leaving out umbrella subjects (``app_umbrellas``): a topic
+    on nearly every episode is shared with everyone and says nothing about this one."""
+    umbrellas = umbrella_tokens(root)
+    ranked = [i for i, _ in topic_counts.most_common() if i not in umbrellas][:top_k]
+    return [_enrich_topic(topics_by_id[i], cluster_map, storyline_map) for i in ranked]
+
+
 def build_person_card(
     root: Path,
     person_id: str,
@@ -555,10 +571,9 @@ def build_person_card(
         ],
         hosted_photo_urls(root),
     )
-    related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
-        for i, _ in topic_counts.most_common(top_k)
-    ]
+    related_topics = _related_topics(
+        root, topic_counts, topics_by_id, cluster_map, storyline_map, top_k
+    )
     return AppPersonCard(
         id=person_id,
         label=label or person_id.split(":", 1)[-1],
@@ -1089,10 +1104,9 @@ def build_org_card(
         [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
     )
     related_orgs = [orgs_by_id[i] for i, _ in org_counts.most_common(top_k)]
-    related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
-        for i, _ in topic_counts.most_common(top_k)
-    ]
+    related_topics = _related_topics(
+        root, topic_counts, topics_by_id, cluster_map, storyline_map, top_k
+    )
     return AppOrgCard(
         id=org_id,
         label=label or org_id.split(":", 1)[-1],

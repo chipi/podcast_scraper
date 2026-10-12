@@ -47,22 +47,7 @@
     },
     {
       "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
       "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:safety-practices",
       "type": "MENTIONS"
     },
     {
@@ -178,27 +163,6 @@
       "id": "topic:dive-planning",
       "properties": {
         "label": "dive planning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:safety-practices",
-      "properties": {
-        "label": "safety practices"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

@@ -167,9 +167,38 @@ insights are claims (no questions, greetings, sponsor reads, connective template
 prompts), chosen speaker-balanced and topical first; non-English episodes are grounded in their
 source-language segments. It is idempotent — a second `--apply` changes nothing.
 
+**Topics are natural** (2026-10-12). An episode carries its ground-truth topics and the topics a
+real pipeline run extracted from its transcript — nothing else. The builder used to STAMP two
+"shared umbrella" topics (lifelong learning, expert interviews) on every episode and two
+"cross-cutting" ones on every show (risk management on 12 of 14), so test themes would overlap;
+they made every count-ranked surface in the app lead with topics on 100% of episodes, which real
+data never has (prod, read-only 2026-10-12: the most common topic is on 1.0% of 3,528 episodes).
+The committed files were migrated, and the builder no longer stamps:
+
+```sh
+.venv/bin/python scripts/tools/drop_stamped_fixture_topics.py            # dry run
+.venv/bin/python scripts/tools/drop_stamped_fixture_topics.py --apply    # KG, GI, bridge + the
+                                                                          # builder's 4 enrichments
+HF_HUB_OFFLINE=1 .venv/bin/python -m podcast_scraper.cli enrich --output-dir \
+  tests/fixtures/app-validation-corpus/v3 --only topic_cooccurrence_corpus \
+  --corpus-only --force                                                   # the framework's one
+make build-app-validation-index && \
+  make build-validation-topic-clusters CORPUS=tests/fixtures/app-validation-corpus/v3  # themes
+```
+
+The tool re-authors the four enrichments the builder writes (`temporal_velocity`,
+`topic_theme_clusters`, `topic_similarity`, `topic_consensus`) with the builder's own functions,
+over every topic each episode's KG carries — ground truth and extracted, as production counts
+them. They stay deterministic (`computed_at` 2026-01-01; the framework's `temporal_velocity`
+embeds a wall-clock `now`, which is why the builder authors it). The builder now counts the
+same topics (it counted the ground truth alone before). Still 57 topics are shared by two or more shows; the
+themes (82) cluster them, none covering every episode.
+
 **Storylines** (`enrichments/topic_theme_clusters.json`, 2026-10-11) come from
 `build_app_validation_corpus.STORYLINES`: three DISJOINT storylines of four topics each (the app maps a
-topic to one storyline). *Managing risk across domains* and *Second-order effects* have grounded clips
+topic to one storyline). *Managing risk across domains* (since 2026-10-12: risk management, systems thinking, correlated
+bets, decision making under uncertainty — the last two replacing two stamped topics) and
+*Second-order effects* have grounded clips
 (a reel and a seven-day path each); *Building trails that last* has none, so the reel and Learn doors
 are proven to stay away. Regenerate the file from the committed graphs with the builder's own
 functions — it refuses if an existing storyline would change:

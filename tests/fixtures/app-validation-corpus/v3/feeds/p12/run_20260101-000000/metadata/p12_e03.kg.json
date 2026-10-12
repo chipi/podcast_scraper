@@ -2,32 +2,7 @@
   "edges": [
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:drivetrain-mechanics",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:maintenance",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2e3fcd5d8c418fb4",
       "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "topic:expert-interviews",
       "type": "MENTIONS"
     },
     {
@@ -88,7 +63,7 @@
   ],
   "episode_id": "ep-2e3fcd5d8c418fb4",
   "extraction": {
-    "extracted_at": "2025-06-29T00:00:00",
+    "extracted_at": "2025-12-24T00:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p12_e03.txt"
   },
@@ -97,56 +72,16 @@
       "id": "episode:ep-2e3fcd5d8c418fb4",
       "properties": {
         "podcast_id": "p12",
-        "publish_date": "2025-06-29T00:00:00",
+        "publish_date": "2025-12-24T00:00:00",
         "title": "La M\u00e9canique d'un V\u00e9lo Silencieux et Rapide"
       },
       "type": "Episode"
-    },
-    {
-      "id": "topic:drivetrain-mechanics",
-      "properties": {
-        "label": "drivetrain mechanics",
-        "slug": "drivetrain-mechanics"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:maintenance",
-      "properties": {
-        "label": "maintenance",
-        "slug": "maintenance"
-      },
-      "type": "Topic"
     },
     {
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management",
         "slug": "risk-management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport",
-        "slug": "endurance-sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

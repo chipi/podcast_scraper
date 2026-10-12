@@ -31,7 +31,7 @@ def ids() -> dict[str, str]:
         "show": row.feed_id,
         "episode": slug_for_row(row),
         # A theme (`tc:`) — a first-class kind like the chips (operator 2026-10-05).
-        "theme": "tc:broadcast-format",
+        "theme": "tc:public-radio",
     }
 
 
@@ -148,7 +148,7 @@ def test_theme_document_injects_its_own_card(client: TestClient, ids: dict[str, 
     # A shared theme link unfurls as the THEME card — not a topic's, not the generic site card.
     r = client.get(f"/theme/{ids['theme']}")
     assert r.status_code == 200
-    assert "/og/theme/tc%3Abroadcast-format.png" in r.text
+    assert "/og/theme/tc%3Apublic-radio.png" in r.text
 
 
 def test_non_entity_route_falls_back_to_index_without_injection(client: TestClient) -> None:
@@ -209,10 +209,10 @@ def test_theme_model_explains_itself(ids: dict[str, str]) -> None:
 
     m = build_og_model(_CORPUS, "theme", ids["theme"])
     assert m is not None
-    assert m.kicker == "Theme" and m.title == "broadcast format"
+    assert m.kicker == "Theme" and m.title == "public radio"
     assert m.byline == "Topics that mean the same thing"
-    assert m.blurb and "public radio" in m.blurb  # WHICH topics
-    assert m.stats == "2 topics · 4 episodes"
+    assert m.blurb and "broadcast format" in m.blurb  # WHICH topics
+    assert m.stats == "4 topics · 3 episodes"
     assert m.accent == accent_for_kind("theme")
 
 
@@ -222,7 +222,8 @@ def test_a_grouping_without_a_rising_trend_shows_its_shows(ids: dict[str, str], 
     # (operator 2026-10-05). The fixture has no rising trend for these, so the gallery must appear.
     from podcast_scraper.server.og.build import build_og_model
 
-    ident = ids["theme"] if kind == "theme" else "topic:risk-management"
+    # Systems thinking: no rising trend on the natural corpus (risk management has one now).
+    ident = ids["theme"] if kind == "theme" else "topic:systems-thinking"
     m = build_og_model(_CORPUS, kind, ident)
     assert m is not None and m.sparkline is None
     assert m.gallery, f"{kind} card has neither a trend nor any show artwork"

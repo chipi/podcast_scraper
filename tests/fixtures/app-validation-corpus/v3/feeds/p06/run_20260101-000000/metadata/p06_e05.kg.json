@@ -11,26 +11,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:long-form",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-0c46a67a56b05689",
       "target": "topic:edge-case-validation",
       "type": "MENTIONS"
@@ -80,38 +60,6 @@
       "properties": {
         "label": "stage directions",
         "slug": "stage-directions"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:long-form",
-      "properties": {
-        "label": "long-form",
-        "slug": "long-form"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking",
-        "slug": "systems-thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

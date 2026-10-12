@@ -16,21 +16,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:safety-practices",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-916dab1698f88aec",
       "target": "topic:ascent-control",
       "type": "MENTIONS"
@@ -108,30 +93,6 @@
       "properties": {
         "label": "dive planning",
         "slug": "dive-planning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:safety-practices",
-      "properties": {
-        "label": "safety practices",
-        "slug": "safety-practices"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

@@ -65,7 +65,7 @@ def test_no_speaker_or_show_takes_more_than_two_days() -> None:
 
     from podcast_scraper.server.app_learning_path import MAX_PER_SHOW, MAX_PER_SPEAKER
 
-    for subject in ("tc:reliability", "thc:managing-risk", "tc:safety-practices"):
+    for subject in ("tc:reliability", "thc:managing-risk", "tc:risk-management"):
         path = build_path(ROOT, subject)
         assert len(path) == PATH_DAYS, subject
         speakers = Counter(s.speaker for s in path)
@@ -103,7 +103,7 @@ def test_without_a_path_discover_offers_subjects_that_have_one(
     assert [(c["subject_id"], c["subject_kind"], c["steps"]) for c in body["candidates"]] == [
         ("tc:reliability", "theme", 7),
         ("thc:managing-risk", "storyline", 7),
-        ("tc:safety-practices", "theme", 7),
+        ("tc:risk-management", "theme", 7),
     ]
 
 
@@ -214,7 +214,7 @@ def test_up_to_three_paths_at_once_each_its_own(tmp_path: Path) -> None:
         "tc:reliability",
     ]
     assert body["candidates"] == []  # at the cap
-    fourth = client.post("/api/app/discover/learn", json={"subject_id": "tc:safety-practices"})
+    fourth = client.post("/api/app/discover/learn", json={"subject_id": "tc:risk-management"})
     assert (fourth.status_code, fourth.json()["detail"]) == (409, "at_cap")
 
     client.post(
@@ -225,11 +225,11 @@ def test_up_to_three_paths_at_once_each_its_own(tmp_path: Path) -> None:
 
     swapped = client.post(
         "/api/app/discover/learn",
-        json={"subject_id": "tc:safety-practices", "replace": "tc:reliability"},
+        json={"subject_id": "tc:risk-management", "replace": "tc:reliability"},
     )
     assert swapped.status_code == 200, swapped.text
     left = [p["subject_id"] for p in client.get("/api/app/discover/learn").json()["paths"]]
-    assert left == ["thc:managing-risk", "thc:second-order-effects", "tc:safety-practices"]
+    assert left == ["thc:managing-risk", "thc:second-order-effects", "tc:risk-management"]
     client.delete("/api/app/discover/learn/paths/thc:managing-risk")
     offered = client.get("/api/app/discover/learn").json()
     assert len(offered["paths"]) == 2

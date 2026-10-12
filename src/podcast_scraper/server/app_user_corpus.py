@@ -143,8 +143,9 @@ def world_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
 
 
 #: A followed interest reaching at least this share of episodes is an umbrella (#1669): following
-#: it must not pull the whole corpus into Mine.
-UMBRELLA_TOPIC_SHARE = 0.9
+#: it must not pull the whole corpus into Mine. ONE constant for the app — the same one the lists
+#: of what something is about use (``app_umbrellas``, 2026-10-12).
+from podcast_scraper.server.app_umbrellas import UMBRELLA_TOPIC_SHARE  # noqa: E402
 
 
 def followed_interest_episodes(root: Path, data_dir: Path, user_id: str) -> set[str]:

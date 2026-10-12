@@ -74,8 +74,7 @@ _EPISODE_RE = re.compile(r"^p(\d+)_e(\d+)$")
 # process what a feed advertises — which is the EXACT failure this script's own docstring was
 # written about, reappearing through the back door of a second list.
 #
-# One list, one truth. The import also runs the builder's umbrella guard, so a show missing from
-# `CROSS_CUTTING_TOPICS` fails here too rather than silently producing a thinner corpus.
+# One list, one truth.
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))

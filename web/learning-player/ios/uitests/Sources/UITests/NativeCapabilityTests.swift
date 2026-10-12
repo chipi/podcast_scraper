@@ -120,7 +120,8 @@ final class NativeCapabilityTests: UITestCase {
       Journey.inventory(app, "home-people-rail-empty")
       _ = Journey.tap(app, labels: ["Topics"], timeout: 10)
       sleep(2)
-      guard Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 12)
+      // The top Rising topics at the pinned trend date (natural corpus, 2026-10-12).
+      guard Journey.tap(app, labels: ["canonical labeling", "code switching", "coupling vs components"], contains: true, timeout: 12)
       else {
         XCTFail("neither a person nor a topic was reachable for the note composer")
         return

@@ -126,7 +126,8 @@ test.describe('Search — enriched-answer hero (#1235)', () => {
     const serverTopicIds = await liveRelatedTopicIds(page)
     expect(serverTopicIds.size).toBeGreaterThan(0)
 
-    const chips = page.getByTestId('enriched-answer-topics').locator('li')
+    // The chips, not every <li>: past 6 topics the list ends in a "+N more" item, which is not one.
+    const chips = page.getByTestId('enriched-answer-topics').locator('[data-testid^="enriched-answer-topic-"]')
     const shown = await chips.count()
     expect(shown).toBeGreaterThan(0)
     /* The hero caps at 6 chips (UXS-008), so it shows a subset — every chip it does show must be

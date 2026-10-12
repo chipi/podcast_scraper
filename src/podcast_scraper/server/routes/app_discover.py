@@ -58,6 +58,7 @@ from podcast_scraper.server.app_ranking_config import (
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.app_user_corpus import (
     derive_interests,
     personal_entity_ids,
@@ -132,7 +133,14 @@ def top_themes(
 ) -> AppInterestClustersResponse:
     """Top themes by corpus prevalence — the picker's choices (PRD-043 FR4)."""
     root = corpus_root_or_503(request)
-    items = [AppInterestCluster(**c) for c in top_themes_by_member_count(root, limit)]
+    # An umbrella is no choice at all (#1669/#2247): following it re-ranks nothing. Left out, and
+    # the next themes take their places.
+    umbrellas = umbrella_tokens(root)
+    items = [
+        AppInterestCluster(**c)
+        for c in top_themes_by_member_count(root, limit + len(umbrellas))
+        if c["id"] not in umbrellas
+    ][:limit]
     return AppInterestClustersResponse(items=items)
 
 
@@ -154,7 +162,12 @@ def top_storylines(
     the two cannot drift.
     """
     root = corpus_root_or_503(request)
-    items = [AppStoryline(**s) for s in top_storylines_by_member_count(root, limit)]
+    umbrellas = umbrella_tokens(root)  # as for /themes
+    items = [
+        AppStoryline(**s)
+        for s in top_storylines_by_member_count(root, limit + len(umbrellas))
+        if s["id"] not in umbrellas
+    ][:limit]
     return AppStorylinesResponse(items=items)
 
 
@@ -429,8 +442,14 @@ def app_discover_reel(
 
 
 #: Chips on Discover's "15 minutes on…" row, and how many candidates of each kind are tried.
+#:
+#: Tried, not taken: the row walks down each rising list until it has ``REEL_TOPICS`` subjects
+#: WITH a reel, up to this many. It took the first 8 and gave up, so a list led by topics too new
+#: to have two clips offered nothing of that kind — on the natural test corpus (2026-10-12) the
+#: rising topics and themes were all one-episode newcomers and the row showed storylines only,
+#: while subjects with full reels sat a few places further down. The cap bounds a cold cache.
 REEL_TOPICS = 4
-REEL_TOPIC_CANDIDATES = 8
+REEL_TOPIC_CANDIDATES = 48
 #: A reel of one clip is not "minutes on" anything.
 REEL_MIN_CLIPS = 2
 
@@ -495,7 +514,9 @@ def app_discover_reel_topics(
         """``(the reel's clips as a key, the chip)`` for each candidate with a real reel."""
         kept: list[tuple[str, AppReelTopic]] = []
         for sid, label in cands:
-            if sid in hidden or len(kept) >= REEL_TOPICS:
+            if len(kept) >= REEL_TOPICS:
+                break
+            if sid in hidden:
                 continue
             clips = reel_selection(root, sid, minutes=15, config=config)
             if len(clips) >= REEL_MIN_CLIPS:
@@ -525,9 +546,10 @@ def app_discover_reel_topics(
     return AppReelTopicsResponse(scope=eff, items=items)
 
 
-#: Subjects Discover offers a path through, and how many candidates of each kind are tried.
+#: Subjects Discover offers a path through, and how many candidates of each kind are tried —
+#: walked until ``LEARN_SUBJECTS`` with a path are found, as for the reel row above (2026-10-12).
 LEARN_SUBJECTS = 3
-LEARN_CANDIDATES = 6
+LEARN_CANDIDATES = 48
 
 
 def _gone_steps(root: Path, path: dict[str, Any]) -> frozenset[int]:
@@ -618,7 +640,9 @@ def app_discover_learn(
         found = found[:LEARN_CANDIDATES]
         out: list[AppLearnSubject] = []
         for t in found:
-            if t.entity_id in hidden or t.entity_id in learning or len(out) >= LEARN_SUBJECTS:
+            if len(out) >= LEARN_SUBJECTS:
+                break
+            if t.entity_id in hidden or t.entity_id in learning:
                 continue
             steps = path_plan(root, t.entity_id, config)
             if steps:

@@ -42,17 +42,7 @@
     },
     {
       "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-18ede6ffbd63f18f",
       "to": "topic:incident-response",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -180,20 +170,6 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

@@ -17,27 +17,7 @@
     },
     {
       "from": "episode:ep-28614332add8c2ae",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-28614332add8c2ae",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-28614332add8c2ae",
       "to": "topic:land-stewardship",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-28614332add8c2ae",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-28614332add8c2ae",
-      "to": "topic:risk-management",
       "type": "MENTIONS"
     },
     {
@@ -113,34 +93,6 @@
       "id": "topic:land-stewardship",
       "properties": {
         "label": "land stewardship"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

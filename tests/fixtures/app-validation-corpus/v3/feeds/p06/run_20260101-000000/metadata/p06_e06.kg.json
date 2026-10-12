@@ -11,26 +11,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-26eaa57651247221",
-      "to": "topic:long-form",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-26eaa57651247221",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-26eaa57651247221",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-26eaa57651247221",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-26eaa57651247221",
       "target": "topic:canonical-labeling",
       "type": "MENTIONS"
@@ -115,38 +95,6 @@
       "properties": {
         "label": "code switching",
         "slug": "code-switching"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:long-form",
-      "properties": {
-        "label": "long-form",
-        "slug": "long-form"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking",
-        "slug": "systems-thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

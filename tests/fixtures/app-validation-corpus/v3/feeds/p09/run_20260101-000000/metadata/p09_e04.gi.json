@@ -42,16 +42,6 @@
     },
     {
       "from": "episode:ep-4d94c63887afbd1a",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-4d94c63887afbd1a",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-4d94c63887afbd1a",
       "to": "topic:reliability",
       "type": "MENTIONS"
     },
@@ -163,20 +153,6 @@
       "id": "topic:reliability",
       "properties": {
         "label": "reliability"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

@@ -28,6 +28,7 @@ from typing import Any, Literal
 from podcast_scraper.server import app_corpus_strength, app_user_corpus, app_user_state
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 
 Window = Literal["week", "month", "year", "ytd"]
 
@@ -106,7 +107,9 @@ def _exposure_counts(
     return counts, labels
 
 
-def _themes_for(root: Path, slugs: set[str], top_n: int) -> dict[str, list[dict[str, Any]]]:
+def _themes_for(
+    root: Path, slugs: set[str], top_n: int, umbrellas: frozenset[str] = frozenset()
+) -> dict[str, list[dict[str, Any]]]:
     """Topics and people across the episodes heard in the window, most-recurring first.
 
     #1914 asks for the taste signal "with the 90-day decay disabled for a recap window". Rather
@@ -130,7 +133,7 @@ def _themes_for(root: Path, slugs: set[str], top_n: int) -> dict[str, list[dict[
         seen: set[tuple[str, str]] = set()
         for kind, ent_id, label in app_user_corpus._episode_entities(root, row):
             key = (kind, ent_id)
-            if key in seen:
+            if key in seen or ent_id in umbrellas:
                 continue
             seen.add(key)
             counts[key] += 1
@@ -240,6 +243,7 @@ def _moments_and_learning(
     exposure_prior: Counter[tuple[str, str]],
     exposure_labels: dict[tuple[str, str], str],
     top_n: int,
+    umbrellas: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     """Short listens and learning in the window, beside the listening (operator 2026-10-12).
 
@@ -308,7 +312,10 @@ def _moments_and_learning(
         if slug in first_heard and at is not None and at > first_heard[slug]:
             then_full.add(slug)
 
-    ranked = sorted(subj_now.items(), key=lambda kv: (-kv[1], kv[0][1]))[:top_n]
+    ranked = sorted(
+        ((k, n) for k, n in subj_now.items() if k[1] not in umbrellas),
+        key=lambda kv: (-kv[1], kv[0][1]),
+    )[:top_n]
     subjects = [
         {
             "id": k[1],
@@ -389,6 +396,9 @@ def build_recap(
     # it needs no corpus. The previous window of the same length gives every theme its trend.
     previous_keys = set(_day_range(today - timedelta(days=days), days))
     counts, labels = _exposure_counts(data_dir, user_id, in_window, tz_offset_minutes)
+    # Umbrella subjects say nothing about a week (``app_umbrellas``); they never enter the ranking.
+    umbrellas = umbrella_tokens(root) if root is not None else frozenset()
+    counts = Counter({k: n for k, n in counts.items() if k[1] not in umbrellas})
     prior: Counter[tuple[str, str]] = Counter()
     if counts:
         prior, _ = _exposure_counts(data_dir, user_id, previous_keys, tz_offset_minutes)
@@ -403,6 +413,7 @@ def build_recap(
         prior,
         labels,
         top_n,
+        umbrellas,
     )
 
     if root is not None:
@@ -411,7 +422,7 @@ def build_recap(
             # existed. No trend in that case: the previous window has nothing to compare against,
             # and inventing one would be worse than omitting it.
             if not counts:
-                themes = _themes_for(root, heard, top_n)
+                themes = _themes_for(root, heard, top_n, umbrellas)
             # Ranked by STRENGTH — heard-fraction, captures, favourites, relistens (RFC-114) —
             # rather than by starts. "The episode you kept coming back to" is a better sentence
             # than "the episode you pressed play on most", and it is the one this corpus can say.

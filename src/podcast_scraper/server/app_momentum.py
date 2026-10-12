@@ -403,6 +403,9 @@ class TrendingEntity:
     #: endpoint of its own. None for every other kind, and for a storyline whose members do not
     #: resolve, which means the row is genuinely not openable rather than openable-somewhere-wrong.
     anchor_topic_id: str | None = None
+    #: A theme's member-topic count, the "(N)" its row shows. Carried on the row because the
+    #: client used to look it up in the 50 widest themes, so every narrower rising theme had none.
+    size: int | None = None
     # RFC-103 R2 — the trend window this row was ranked under (1m|3m|6m|1y).
     window: str = "3m"
 
@@ -479,6 +482,13 @@ def _storyline_anchors(root: Path) -> dict[str, str]:
         if cid and anchor:
             out[cid] = anchor
     return out
+
+
+def _theme_sizes(root: Path) -> dict[str, int]:
+    """``tc:`` id → member-topic count, every theme: the same sizes the interests picker lists."""
+    from podcast_scraper.search.topic_clusters import top_themes_by_member_count
+
+    return {str(c["id"]): int(c["size"]) for c in top_themes_by_member_count(root, 1_000_000)}
 
 
 def _show_labels(root: Path) -> dict[str, str]:
@@ -570,6 +580,7 @@ def trending(
     labels = _entity_labels(root)
     # Only storylines have one; every other kind leaves the field None, exactly as `role` does.
     anchors = _storyline_anchors(root) if kind == "storyline" else {}
+    sizes = _theme_sizes(root) if kind == "theme" else {}
     roles = _person_roles(root) if kind == "person" else {}
 
     # Anchor to the corpus's latest content month/week — unless a test pins the reference via
@@ -638,6 +649,7 @@ def trending(
                 role=roles.get(eid),
                 window=win_key,
                 anchor_topic_id=anchors.get(eid),
+                size=sizes.get(eid),
             )
         )
     # R2: rank by velocity × volume (dampened) so big-and-rising outranks a tiny recent spike.

@@ -59,11 +59,13 @@ PALETTE = [
 ROLES = [
     ("systems thinking", "traces how failures propagate between coupled systems"),
     ("risk management", "argues that correlation, not component failure, is the real exposure"),
-    ("lifelong learning", "studies how people retain what they hear"),
-    ("safety practices", "works on the gap between written procedure and actual practice"),
-    ("expert interviews", "interviews practitioners about decisions made under uncertainty"),
-    ("endurance sport", "writes about pacing, recovery and long-horizon training"),
+    ("second-order effects", "follows what a decision changes two steps later"),
+    ("reliability", "works on the gap between written procedure and actual practice"),
+    ("decision making under uncertainty", "studies choices made before the facts are in"),
+    ("iteration practice", "writes about small changes tested often"),
 ]
+# Every topic above is one the corpus's episodes carry (2026-10-12): the old list named four
+# that were only ever stamped by the corpus builder, so bios pointed at subjects no episode has.
 
 
 def safe_stem(person_id: str) -> str:

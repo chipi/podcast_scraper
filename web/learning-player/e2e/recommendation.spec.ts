@@ -6,9 +6,9 @@ import { signInIsolated } from './helpers'
  * SAME committed corpus, the /discover feed is recency-ordered with NO influence, and re-ranks toward
  * a followed topic WITH influence — asserting *what* is recommended changes because of the lever.
  *
- * The fixture discriminates at the topic level: `topic:safety-practices` belongs only to the p03
- * dive episodes, while the newest episode (which tops recency) is the p05 finance one — so following
- * that topic visibly flips the top of the feed. Personalization needs APP_PERSONALIZED_RANKING (set
+ * The fixture discriminates at the topic level: `topic:dive-planning` belongs only to two p03 dive
+ * episodes (natural corpus, 2026-10-12; it was the stamped `topic:safety-practices` on all four),
+ * while the newest episode tops recency — so following that topic visibly flips the top of the feed. Personalization needs APP_PERSONALIZED_RANKING (set
  * in the e2e server env); with no interests the feed stays recency, so every other spec is unaffected.
  *
  * Lever scope: only EXPLICIT interests (followed topic/cluster/person tokens) feed discover ranking.
@@ -16,8 +16,8 @@ import { signInIsolated } from './helpers'
  * must follow a suggestion) — so the lever asserted end-to-end here is an explicit topic follow.
  */
 const NEWEST = 'Risk Is a Systems Property' // p09_e04 — newest on the #1148 2024→now schedule, leads recency
-const FOLLOW_TOPIC = 'topic:safety-practices' // p03-only → the dive episodes
-const FOLLOWED_EPISODES = ['Wreck Diving Fundamentals', 'Marine Biology for Divers', 'Calm Under Pressure', 'Plan the Dive, Manage the Risk'] // all p03 dive eps (#1148: p03 now has 4)
+const FOLLOW_TOPIC = 'topic:dive-planning' // p03-only → the two dive-planning episodes
+const FOLLOWED_EPISODES = ['Wreck Diving Fundamentals', 'Plan the Dive, Manage the Risk'] // the p03 episodes carrying it
 
 async function discoverTitles(page: import('@playwright/test').Page): Promise<string[]> {
   const res = await page.request.get('/api/app/discover?limit=8')

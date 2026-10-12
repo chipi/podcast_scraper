@@ -27,21 +27,6 @@
     },
     {
       "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "topic:long-form",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-3158b8ff3e943b1e",
       "to": "topic:systems-thinking",
       "type": "MENTIONS"
     },
@@ -113,27 +98,6 @@
       "id": "topic:systems-thinking",
       "properties": {
         "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:long-form",
-      "properties": {
-        "label": "long-form"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

@@ -21,21 +21,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-b3570c1ceb5eca41",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-b3570c1ceb5eca41",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-b3570c1ceb5eca41",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-b3570c1ceb5eca41",
       "target": "topic:deadline-pressure",
       "type": "MENTIONS"
@@ -121,30 +106,6 @@
       "properties": {
         "label": "reliability",
         "slug": "reliability"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management",
-        "slug": "risk-management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

@@ -94,9 +94,9 @@ def test_a_storyline_reel_is_clips_about_any_of_its_member_topics() -> None:
     subject = reel_subject(ROOT, "thc:managing-risk")
     assert (subject.kind, subject.label) == ("storyline", "Managing risk across domains")
     assert subject.topics == {
-        "topic:endurance-sport",
+        "topic:correlated-bets",
+        "topic:decision-making-under-uncertainty",
         "topic:risk-management",
-        "topic:safety-practices",
         "topic:systems-thinking",
     }
     reel = goal_reel(ROOT, "thc:managing-risk", minutes=15)
@@ -163,14 +163,16 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
     client, uid = _client(tmp_path)
     everyone = client.get("/api/app/discover/reel-topics").json()
     assert everyone["scope"] == "corpus"
-    # Rising topics, themes and storylines with a reel, taking turns; the rest (no clip says what
-    # its insight says) are not offered. topic:reliability's reel is tc:reliability's (its other
-    # member says nothing quotable), so it is the same offer and appears once.
+    # Rising topics, themes and storylines with a reel, taking turns; the rest are not offered.
+    # On the natural corpus (2026-10-12) every kind's rising list is LED by one-episode newcomers
+    # with no reel, so the row only fills because it walks past them (REEL_TOPIC_CANDIDATES); when
+    # it took the first 8 and stopped, this was the two storylines alone. tc:reliability's reel is
+    # topic:reliability's, so it is the same offer and appears once.
     assert [(i["subject_id"], i["subject_kind"], i["clips"]) for i in everyone["items"]] == [
-        ("topic:systems-thinking", "topic", 9),
-        ("tc:reliability", "theme", 12),
+        ("topic:reliability", "topic", 12),
+        ("tc:risk-management", "theme", 16),
         ("thc:managing-risk", "storyline", 22),
-        ("topic:risk-management", "topic", 16),
+        ("topic:systems-thinking", "topic", 9),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(

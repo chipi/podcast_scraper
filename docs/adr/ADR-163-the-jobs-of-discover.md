@@ -64,6 +64,16 @@ fixes those answers so every later rail is built against the same rules.
      the listener's world, and a followed theme or storyline brings its member topics' episodes
      (ADR-162 amendment). Umbrella topics are excepted, and so is any interest reaching ≥ 90% of
      episodes, so following one cannot make Mine everyone's.
+   - **An umbrella is left out of every list of what something is about** (2026-10-12): a topic,
+     or a theme or storyline whose members together, on ≥ 90% of episodes (in a corpus of 20 or
+     more) says nothing about any one episode, show or week, yet wins every ranking by count. The
+     picker's themes, Home's week and stats, a show's topics, themes and storylines, an episode's
+     topics and recap, a person's or organisation's related topics, search's "Also about", a
+     highlight's graph references and the digest's "heating up" all skip it;
+     `server/app_umbrellas.py` is the one list, its threshold the one "Mine" uses. Real data has
+     none (prod, 2026-10-12: widest topic on 1.0% of 3,528 episodes, widest theme 2.6%), so it is a
+     guard. 0.9 rather than a lower share: at 0.6 the fixture's two real storylines (62%) would
+     disappear.
    - **Cold start is an empty world, not an empty rail.** Only then does Mine's quote rail show
      Everyone's cards, labelled, with "Pick topics". A listener with history whose Mine is quiet
      sees it empty, never told their picks "begin once you listen".

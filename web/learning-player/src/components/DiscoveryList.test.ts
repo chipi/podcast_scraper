@@ -258,3 +258,22 @@ describe("DiscoveryList — paged on the server (operator 2026-10-11)", () => {
     expect(w.find('[data-testid="show-all-toggle"]').exists()).toBe(false) // everything fits
   })
 })
+
+describe("DiscoveryList — a theme row says how many topics it holds (2026-10-12)", () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it("reads the size off the trending row, so a narrow theme has one too", async () => {
+    setActivePinia(createPinia())
+    const theme: TrendingEntity = { ...row("tc:code-switching", null), kind: "theme", label: "code switching", size: 4 }
+    vi.spyOn(api, "getTrendingPage").mockResolvedValue(page([theme]))
+    const clusters = vi.spyOn(api, "getTopClusters")
+    const w = mount(DiscoveryList, {
+      props: { kind: "theme" as const, sort: "rising" as const },
+      global: { plugins: [i18n, router, createPinia()] },
+    })
+    await flushPromises()
+    const label = w.find('[data-testid="discovery-row"] button').attributes("aria-label")
+    expect(label).toContain("code switching (4)")
+    expect(clusters, "the 50 widest themes are not where a row's size lives").not.toHaveBeenCalled()
+  })
+})

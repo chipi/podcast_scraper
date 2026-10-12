@@ -188,7 +188,7 @@ for (const viewport of [
       return [{ y: a.y, height: a.height }, { y: b.y }]
     })
     expect(sl.y, 'storyline under theme').toBeGreaterThanOrEqual(th.y + th.height)
-    await pair(`/theme/${encodeURIComponent('tc:safety-practices')}`, 'theme-view', 'theme-topics', 'ec-top-voices')
+    await pair(`/theme/${encodeURIComponent('tc:risk-management')}`, 'theme-view', 'theme-topics', 'ec-top-voices')
     await pair(`/storyline/${encodeURIComponent('topic:risk-management')}`, 'storyline-view', 'storyline-topics', 'ec-top-voices')
   })
 }
@@ -212,7 +212,7 @@ test('every full-width page starts at the shell edge on desktop', async ({ page 
     '/podcast/p05',
     `/topic/${encodeURIComponent('topic:risk-management')}`,
     `/person/${encodeURIComponent('person:nora')}`,
-    `/theme/${encodeURIComponent('tc:safety-practices')}`,
+    `/theme/${encodeURIComponent('tc:risk-management')}`,
     `/storyline/${encodeURIComponent('topic:risk-management')}`,
   ]) {
     await page.goto(url)

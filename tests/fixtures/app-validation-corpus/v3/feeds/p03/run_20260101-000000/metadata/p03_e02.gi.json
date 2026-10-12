@@ -17,32 +17,12 @@
     },
     {
       "from": "episode:ep-a0a7f86b34a4de26",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a0a7f86b34a4de26",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a0a7f86b34a4de26",
       "to": "topic:marine-biology",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-a0a7f86b34a4de26",
       "to": "topic:reef-conservation",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a0a7f86b34a4de26",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a0a7f86b34a4de26",
-      "to": "topic:safety-practices",
       "type": "MENTIONS"
     },
     {
@@ -113,34 +93,6 @@
       "id": "topic:soil-erosion",
       "properties": {
         "label": "soil erosion"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:safety-practices",
-      "properties": {
-        "label": "safety practices"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

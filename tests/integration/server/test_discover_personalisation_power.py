@@ -46,6 +46,11 @@ on a passing test is itself a failure, which is how this surfaced.
 at a closed issue tells the next reader the defect is already fixed, which is the opposite of what
 the marker means.
 
+**2026-10-12 — the natural corpus.** The two umbrellas above, and each show's "lead topic", were
+STAMPED by the corpus generator; nothing in an episode said them. They are gone (an episode now
+carries its ground-truth topics and what a real pipeline extracted), so no picker option covers
+every episode, the xfail below became a pass, and the niche topics are ones the episodes carry.
+
 The two layers here:
   * `TestRankerDiscriminates` — the ranker's power, on the REAL corpus. Passes; locks in that a
     niche follow surfaces its show, so a refactor cannot quietly flatten it.
@@ -110,11 +115,15 @@ CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-valid
 # show" — when what had actually happened was that the interest correctly routed to BOTH shows
 # carrying it. A topic shared by two shows is a normal corpus, not a ranking regression, so the
 # expectation is a set.
+#
+# Since the natural corpus (2026-10-12) these are topics the episodes themselves carry, each on
+# 2-3 episodes of ONE show. The old set (personal finance, safety practices, visual craft,
+# endurance sport) were each show's stamped "lead topic" and no episode carries them now.
 NICHE_TOPICS: tuple[str, ...] = (
-    "topic:personal-finance",
-    "topic:safety-practices",
-    "topic:visual-craft",
-    "topic:endurance-sport",
+    "topic:index-investing",
+    "topic:dive-planning",
+    "topic:strobe-lighting",
+    "topic:enduro-racing",
     "topic:public-radio",
     "topic:long-form",
 )
@@ -175,7 +184,11 @@ class TestRankerDiscriminates:
         """
         carriers = shows_carrying(rows, topic)
         assert carriers, f"no show carries {topic}; the fixture cannot answer this"
-        top3 = feed(rows, [topic], limit=3)
+        # As many places as the topic has episodes, at most three: a niche topic on two episodes
+        # cannot fill a third place with its own show (natural corpus, 2026-10-12).
+        n = min(3, coverage(rows).get(topic, 0))
+        assert n >= 2, f"{topic} is on fewer than two episodes; it cannot show routing"
+        top3 = feed(rows, [topic], limit=n)
         assert top3, f"no results for {topic}"
         wrong = [s for s in top3 if not s.startswith(tuple(carriers))]
         assert not wrong, (
@@ -208,7 +221,7 @@ class TestRankerDiscriminates:
         )
 
     def test_following_something_changes_the_feed(self, rows) -> None:
-        assert feed(rows, ["topic:personal-finance"]) != feed(
+        assert feed(rows, ["topic:index-investing"]) != feed(
             rows, []
         ), "a followed interest left the feed identical to recency"
 
@@ -216,18 +229,11 @@ class TestRankerDiscriminates:
 class TestPickerOffersARealChoice:
     """What a USER can actually pick. Partly decorative — recorded, not hidden."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "#2247 (successor to the closed #1669) — the picker ranks options by PREVALENCE, "
-            "so the two corpus-wide umbrellas "
-            "(tc:dialogue, tc:lifelong-learning) are still offered, and following either can only "
-            "return the recency ordering. Narrower than when this marker covered the whole class: "
-            "it then read 'EVERY option covers 100%', which was true of the two hand-authored "
-            "clusters and is false of the 14 real ones. Remove when the picker stops ranking by "
-            "prevalence."
-        ),
-    )
+    # Was xfail(strict) against #2247: the picker ranks options by PREVALENCE, so the stamped
+    # umbrellas (tc:dialogue, tc:lifelong-learning) covered every episode and were offered first.
+    # The natural corpus (2026-10-12) has no corpus-wide theme, so this passes and stays as the
+    # guard. #2247 itself — ranking by prevalence — is not fixed by this; real data simply has no
+    # universal theme for it to put first.
     def test_picker_options_are_not_all_corpus_wide(self, rows) -> None:
         counts = coverage(rows)
         total = len(rows)
@@ -278,7 +284,7 @@ class TestPoolPolicyIsExplicit:
 
     def test_a_strong_match_outside_the_window_is_not_surfaced(self, rows) -> None:
         """Documents the cost of the bound, with a real interest and a real corpus."""
-        topic = "topic:personal-finance"
+        topic = "topic:index-investing"
         full = [s.slug for s in rank_discover(CORPUS, [topic], rows, limit=3)]
         assert full, "expected the unbounded ranking to surface something"
         assert all(s.startswith("p05") for s in full), full
@@ -335,22 +341,24 @@ class TestPoolIsInterestAware:
         index = interest_episode_index(CORPUS)
         assert index, "no interest index — is search/metadata.json missing?"
         # Same id space as interests, and coverage matches an independent count.
-        # p05 carries five episodes since the per-feed cap lost its default, and
-        # expert-interviews is a SHARED_UMBRELLA so it is on every episode in the corpus.
-        #
-        # That last one is counted from disk, not written down. It was a literal 40 and went
-        # stale the moment the corpus gained its tenth show — but the claim being made is
-        # "a shared umbrella reaches EVERY episode", and a literal cannot say that. Derived,
-        # the assertion fails only when an umbrella actually stops being universal.
-        every_episode = len(list(CORPUS.glob("feeds/*/run_*/metadata/*.metadata.json")))
-        assert len(index["topic:personal-finance"]) == 5
-        assert len(index["topic:expert-interviews"]) == every_episode
+        # Checked against an independent count from the episodes' own KGs: the index must hold
+        # exactly the episodes that carry the token (a stamped umbrella used to stand in for this,
+        # on every episode; the natural corpus of 2026-10-12 has none).
+        import json
+
+        for token in ("topic:index-investing", "topic:risk-management"):
+            carrying = {
+                str(kg.relative_to(CORPUS)).replace(".kg.json", ".metadata.json")
+                for kg in CORPUS.glob("feeds/*/run_*/metadata/*.kg.json")
+                if any(n.get("id") == token for n in json.loads(kg.read_text("utf-8"))["nodes"])
+            }
+            assert index[token] == carrying, token
         assert all(t.startswith(("topic:", "person:")) for t in index)
 
     def test_a_matching_episode_outside_the_window_joins_the_pool(
         self, rows, app_validation_search_index
     ) -> None:
-        topic = "topic:personal-finance"
+        topic = "topic:index-investing"
         index = interest_episode_index(CORPUS)
         matching = index[topic]
 
@@ -379,7 +387,7 @@ class TestPoolIsInterestAware:
     def test_the_union_actually_changes_what_is_surfaced(
         self, rows, app_validation_search_index
     ) -> None:
-        topic = "topic:personal-finance"
+        topic = "topic:index-investing"
         bounded = [
             s.slug
             for s in rank_discover(CORPUS, [topic], build_discover_pool(rows, limit=1), limit=3)
@@ -413,7 +421,7 @@ class TestPoolIsInterestAware:
         """A corpus without a search index must still serve a feed, not error."""
         assert interest_episode_index(tmp_path) == {}
         assert list(
-            build_discover_pool(rows, limit=3, interests=["topic:personal-finance"], root=tmp_path)
+            build_discover_pool(rows, limit=3, interests=["topic:index-investing"], root=tmp_path)
         ) == list(build_discover_pool(rows, limit=3))
 
 
@@ -530,7 +538,7 @@ class TestAFollowDoesNotFlattenTheFeedsSenseOfTime:
     and count how many pairs are still in publish order.
     """
 
-    TOPIC = "topic:personal-finance"
+    TOPIC = "topic:index-investing"
     SHOW = "p05"
 
     @staticmethod

@@ -16,26 +16,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:visual-craft",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-9b36e2e3b959298d",
       "target": "topic:crowd-shoot-conditions",
       "type": "MENTIONS"
@@ -128,38 +108,6 @@
       "properties": {
         "label": "strobe lighting",
         "slug": "strobe-lighting"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:visual-craft",
-      "properties": {
-        "label": "visual craft",
-        "slug": "visual-craft"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking",
-        "slug": "systems-thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

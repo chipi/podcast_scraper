@@ -55,6 +55,16 @@ minimum 1 episode, 7 of 10 feeds sparse — because a show in a new language arr
 episode. The analysis layer stays English throughout (D-38), so p10's topics and summary are
 English and sit in the same token space as every other episode's.
 
+**2026-10-12 — the natural corpus.** The generator used to stamp two "umbrella" topics on every
+episode and two "cross-cutting" ones on every show, so test themes would overlap. They were the
+five corpus-wide tokens this file pinned, and they led every count-ranked surface in the app. Real
+data has none (prod read-only that day: the most common topic is on 1.0% of 3,528 episodes), so
+they are gone: an episode carries its ground-truth topics and what a real pipeline run extracted.
+Themes re-clustered over every carried topic (82, none universal, 58 spanning shows); the
+storyline "Managing risk across domains" took two real members for its two stamped ones. Where a
+stamp supplied a case (corpus-wide tokens, a person in the band's top), the test now constructs
+it, as above.
+
 That last one is why these assertions are worth having. A tool that reported "pool reaches 100%"
 without also reporting "because the window is larger than the corpus" would be actively
 misleading when the same code is aimed at 700 episodes.
@@ -170,13 +180,14 @@ class TestPickerDiscrimination:
         ``decorative`` is False — and the audit's ability to say so is the thing under test. A
         detector that only ever returned True would have passed the old assertion forever.
 
-        The 2 that still cover every episode (`tc:dialogue`, `tc:lifelong-learning`) are the shared
-        umbrellas the corpus generator injects into every show, so they SHOULD be universal.
+        Since the natural corpus (2026-10-12) none of the 12 covers every episode — the two that
+        did (`tc:dialogue`, `tc:lifelong-learning`) were the shared umbrellas the generator used to
+        stamp on every show — and the 12 give 12 distinct feeds: every option is a real choice.
         """
         picker = report.sections["picker_discrimination"]
         assert len(picker["offered"]) == 12
-        assert picker["offered_covering_every_episode"] == 2
-        assert picker["offered_distinct_feeds"] == 10
+        assert picker["offered_covering_every_episode"] == 0
+        assert picker["offered_distinct_feeds"] == 12
         assert picker["decorative"] is False
 
     def test_a_discriminating_band_exists_and_separates_the_corpus(self, report) -> None:
@@ -193,7 +204,10 @@ class TestPickerDiscrimination:
         # 113 since 2026-10-11: the corpus gained two storylines (thc:second-order-effects,
         # thc:building-trails); the trail one covers 9 episodes, inside the band, while the other
         # covers 37 of 55, above its 60% ceiling — so exactly one token joins.
-        assert picker["band_candidates"] == 113
+        # 177 since 2026-10-12, the natural corpus: the stamped topics are gone and the themes are
+        # clustered over every topic the episodes carry (82 clusters, not 14), so far more tokens
+        # are episode-specific — inside the band rather than above its ceiling.
+        assert picker["band_candidates"] == 177
         # THE TWO CAUSES COMPOUND, which is why this number is measured rather than inherited.
         # The branch asserted 75 (the corpus took REAL extracted topics from a pipeline run
         # alongside its authored ones) and main asserted 53 (the real clusters added 12 `tc:`
@@ -225,7 +239,9 @@ class TestPickerDiscrimination:
         # 9 since 2026-10-11, the direction this comment says to watch: the new storyline
         # thc:building-trails entered the top 12 with the SAME nine episodes as topic:soil-erosion
         # (its broadest member), so the two give one feed set between them, not two.
-        assert picker["band_distinct_feeds"] == 9
+        # 11 since 2026-10-12: with the stamps gone the top 12 is led by themes and topics that
+        # genuinely differ in which shows carry them.
+        assert picker["band_distinct_feeds"] == 11
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""
@@ -249,11 +265,16 @@ class TestTheReportIsReproducible:
     """
 
     def test_ties_are_broken_deterministically(self, report) -> None:
+        # Every tie in the top, not only one at its last place: the natural corpus (2026-10-12)
+        # has ties at 32 and 17 episodes and none at the bottom.
         band = report.sections["picker_discrimination"]["band_top"]
-        tied = [e for e in band if e["episodes"] == band[-1]["episodes"]]
-        assert len(tied) > 1, "no ties present, so this test would prove nothing on this corpus"
-        tokens = [e["token"] for e in tied]
-        assert tokens == sorted(tokens), f"tied tokens are not in a stable order: {tokens}"
+        groups: dict[int, list[str]] = {}
+        for e in band:
+            groups.setdefault(e["episodes"], []).append(e["token"])
+        tied = [tokens for tokens in groups.values() if len(tokens) > 1]
+        assert tied, "no ties present, so this test would prove nothing on this corpus"
+        for tokens in tied:
+            assert tokens == sorted(tokens), f"tied tokens are not in a stable order: {tokens}"
 
     def test_two_measurements_agree(self) -> None:
         """Belt and braces: measure twice in-process and compare the rendered report."""
@@ -264,29 +285,55 @@ class TestUniversalTokensAreNotOnlyClusters:
     """The finding that changed #1669's suggested fix, pinned so it cannot be lost again.
 
     #1669 originally proposed offering individual TOPICS alongside clusters, on the assumption
-    that topics are narrow. Measured on v3 they are not: five tokens cover 36/36 and only two are
-    `tc:` clusters. `topic:lifelong-learning` and `topic:expert-interviews` are equally
-    decorative, and `thc:managing-risk` means the STORYLINES rail shares the defect.
+    that topics are narrow. Measured on v3 they were not: five tokens covered every episode and
+    only two were `tc:` clusters. So the rule is coverage, not kind — and the audit must report
+    corpus-wide tokens of ANY kind.
 
-    So the rule is coverage, not kind. If a future change filters only `tc:` and this test still
-    passes, the fix is incomplete and this is what says so.
+    The natural corpus (2026-10-12) has none: those five were the topics the generator stamped on
+    every episode, which real data never has (prod: 1.0% at most). So the case is CONSTRUCTED, the
+    method this module states for a fixture that no longer supplies the mutation: a copy of the
+    corpus with two topics stamped on every episode, as the old generator did.
     """
 
-    def test_five_tokens_cover_the_whole_corpus(self, report) -> None:
-        universal = report.sections["picker_discrimination"]["universal_tokens_any_kind"]
-        assert len(universal) == 5, universal
+    @staticmethod
+    def _stamped(tmp_path: Path) -> Path:
+        import json
+        import shutil
 
-    def test_they_are_not_all_clusters(self, report) -> None:
-        universal = set(report.sections["picker_discrimination"]["universal_tokens_any_kind"])
-        assert {"topic:lifelong-learning", "topic:expert-interviews"} <= universal
-        assert "thc:managing-risk" in universal, "the storylines rail shares this defect"
-        assert sum(1 for t in universal if t.startswith("tc:")) == 2
+        corpus = tmp_path / "v3"
+        shutil.copytree(CORPUS, corpus, ignore=shutil.ignore_patterns("lance_index"))
+        for kg_path in corpus.glob("feeds/*/run_*/metadata/*.kg.json"):
+            kg = json.loads(kg_path.read_text("utf-8"))
+            episode = next(n["id"] for n in kg["nodes"] if n.get("type") == "Episode")
+            for slug, label in (
+                ("lifelong-learning", "lifelong learning"),
+                ("expert-interviews", "expert interviews"),
+            ):
+                kg["nodes"].append(
+                    {"id": f"topic:{slug}", "type": "Topic", "properties": {"label": label}}
+                )
+                kg["edges"].append({"from": episode, "to": f"topic:{slug}", "type": "MENTIONS"})
+            kg_path.write_text(json.dumps(kg), "utf-8")
+        return corpus
 
-    def test_the_warning_names_them_in_the_report(self, report) -> None:
+    def test_the_natural_corpus_has_none(self, report) -> None:
+        assert report.sections["picker_discrimination"]["universal_tokens_any_kind"] == []
+        assert "corpus-wide tokens of ANY kind" not in format_report(report)
+
+    def test_stamped_topics_are_reported_whatever_their_kind(self, tmp_path: Path) -> None:
+        stamped = measure(self._stamped(tmp_path))
+        universal = stamped.sections["picker_discrimination"]["universal_tokens_any_kind"]
+        assert {"topic:lifelong-learning", "topic:expert-interviews"} <= set(universal)
+        assert not any(
+            t.startswith("tc:") for t in universal
+        ), "only topics were stamped, so a `tc:`-only filter would miss every one of them"
+
+    def test_the_warning_names_them_in_the_report(self, tmp_path: Path) -> None:
         """A number in a dict nobody reads is not a finding; it has to reach the run summary."""
-        text = format_report(report)
+        text = format_report(measure(self._stamped(tmp_path)))
         assert "corpus-wide tokens of ANY kind" in text
         assert "only filters `tc:` clusters" in text
+        assert "`topic:lifelong-learning`" in text
 
 
 class TestTheBandIsNotAutomaticallyOfferable:
@@ -304,7 +351,7 @@ class TestTheBandIsNotAutomaticallyOfferable:
     was never that one specific id appears, it is that the reader sees the band is not all offerable.
     """
 
-    def test_the_band_contents_reach_the_report(self, report) -> None:
+    def test_the_band_contents_reach_the_report(self, tmp_path: Path) -> None:
         """The band's unofferable entries must be VISIBLE, not inferable from a count.
 
         This named `person:a-correspondent` — the band's most embarrassing member, whose KG name
@@ -314,14 +361,31 @@ class TestTheBandIsNotAutomaticallyOfferable:
         tokens like `person:maya`, `person:ethan`, `person:nora` — because "follow Maya" is not
         an interest anyone would offer, and a bare "46 discriminating tokens" reads like a
         recommendation to offer them.
+
+        On the natural corpus (2026-10-12) the top 12 is all themes and topics — no first-name
+        person reaches it any more — so the case is constructed: a copy where `person:maya` appears
+        on 20 episodes, inside the band's coverage range and high enough to rank in its top 12.
         """
+        import json
+        import shutil
+
+        corpus = tmp_path / "v3"
+        shutil.copytree(CORPUS, corpus, ignore=shutil.ignore_patterns("lance_index"))
+        for kg_path in sorted(corpus.glob("feeds/*/run_*/metadata/*.kg.json"))[:20]:
+            kg = json.loads(kg_path.read_text("utf-8"))
+            if any(n.get("id") == "person:maya" for n in kg["nodes"]):
+                continue
+            episode = next(n["id"] for n in kg["nodes"] if n.get("type") == "Episode")
+            kg["nodes"].append(
+                {"id": "person:maya", "type": "Person", "properties": {"name": "Maya"}}
+            )
+            kg["edges"].append({"from": episode, "to": "person:maya", "type": "MENTIONS"})
+            kg_path.write_text(json.dumps(kg), "utf-8")
+        report = measure(corpus)
         picker = report.sections["picker_discrimination"]
         text = format_report(report)
         people = [e["token"] for e in picker["band_top"] if e["token"].startswith("person:")]
-        assert people, (
-            "the band holds no person tokens, so this corpus can no longer demonstrate that "
-            "discriminating power is not sufficient — re-check the fixture before relaxing this"
-        )
+        assert "person:maya" in people, "the constructed first-name entity did not enter the band"
         for token in people:
             assert f"`{token}`" in text, (
                 f"{token} is in the band the report counts but is not printed; a bare count "
@@ -352,12 +416,18 @@ class TestClusterStructure:
         v3 can now settle a question it previously had to defer to prod. The size distribution is
         the part worth pinning: median 2, range 2-5 — the same shape production reported (278
         clusters at median size 2), which is what makes measurements here transferable at all.
+
+        Since the natural corpus (2026-10-12): 82 clusters over every topic the episodes carry,
+        NONE covering every episode (the 2 that did were the stamped umbrellas), median size 3,
+        largest 30 (`tc:reliability`, which gathers the many surface forms extraction gives one
+        idea). Production, read 2026-10-12, has 2,447 themes with up to 24 topics each — the same
+        long-tailed shape, which is what keeps measurements here transferable.
         """
         clusters = report.sections["cluster_structure"]
-        assert clusters["clusters_total"] == 14
-        assert clusters["clusters_covering_every_episode"] == 2
-        assert clusters["cluster_size_median"] == 2.0
-        assert (clusters["cluster_size_min"], clusters["cluster_size_max"]) == (2, 5)
+        assert clusters["clusters_total"] == 82
+        assert clusters["clusters_covering_every_episode"] == 0
+        assert clusters["cluster_size_median"] == 3.0
+        assert (clusters["cluster_size_min"], clusters["cluster_size_max"]) == (2, 30)
 
 
 class TestCorpusShape:
@@ -449,11 +519,15 @@ class TestClusterReach:
         non-English shows are deliberate counterparts of `p01` and carry the SAME authored topics,
         so a cluster that sat inside one show now spans six — one crossed over. That is the fixture
         getting more representative, not a cluster changing meaning.
+
+        58/24 ON THE NATURAL CORPUS (2026-10-12): the themes are clustered over every topic the
+        episodes carry — 82 clusters — and most cross shows, because what real shows share is
+        what their episodes discuss, not a stamped label.
         """
         reach = report.sections["cluster_reach"]
-        assert reach["clusters"] == 14
-        assert reach["cross_feed"] == 7
-        assert reach["single_feed"] == 7
+        assert reach["clusters"] == 82
+        assert reach["cross_feed"] == 58
+        assert reach["single_feed"] == 24
 
     def test_member_topics_are_actually_read(self, report) -> None:
         """The bug this catches: `top_themes_by_member_count` DROPS `members`.
@@ -498,12 +572,13 @@ class TestClusterReach:
         import shutil
 
         reach = report.sections["cluster_reach"]
-        # The boundary, asserted as the fraction rather than 0.5 so a cluster moving either way
-        # reads as a count change and not a float surprise.
-        assert reach["cross_feed_share"] == pytest.approx(7 / 14)
+        # Asserted as the fraction so a cluster moving either way reads as a count change. Since
+        # the natural corpus (2026-10-12) the fixture is well ABOVE the threshold, so the warning
+        # is silent here and the loud case below is what proves it fires.
+        assert reach["cross_feed_share"] == pytest.approx(58 / 82)
         assert "synonym merge" not in format_report(report), (
-            "the fixture is at the threshold (7/14) and the warning fires strictly BELOW it, so "
-            "it must be silent here; if it printed, the comparison has flipped"
+            "most clusters span shows (58/82) and the warning fires only BELOW half, so it must "
+            "be silent here; if it printed, the comparison has flipped"
         )
 
         corpus = tmp_path / "v3"
@@ -764,7 +839,9 @@ class TestTopicMomentum:
         mom = report.sections["topic_momentum"]
         assert mom["available"] is True
         # 50, not 10: per-episode topics multiplied the distinct tokens the rail can consider.
-        assert mom["topics"] == 50
+        # 401 since 2026-10-12, the natural corpus: the builder-authored file counts every topic an
+        # episode's KG carries, ground truth AND extracted, and the stamped ones are gone.
+        assert mom["topics"] == 401
         assert mom["rail_is_always_empty"] is False, (
             "the trending rail is empty by construction again — this is #1668 exactly. Check "
             "_RISING_DEFAULT in server/routes/app_enrichment.py before touching this test."
@@ -779,20 +856,20 @@ class TestTopicMomentum:
         discussed topic in the fixture. A "what's being talked about" rail hiding its most
         discussed topic is the concrete failure #1931 fixed, so assert THAT row specifically
         rather than just a non-empty list.
+
+        Since the natural corpus (2026-10-12) `systems thinking` sits exactly at 1.5x, so it no
+        longer shows the case. `second-order effects` does: 21 mentions and 0.0x, the second most
+        discussed topic, which an old 1.5 ratio gate would hide. Assert THAT row.
         """
         mom = report.sections["topic_momentum"]
         rows = {r["topic"]: r for r in mom["would_render"]}
         assert (
-            "topic:systems-thinking" in rows
-        ), f"the fixture's most-discussed topic is hidden again; visible: {sorted(rows)}"
-        assert rows["topic:systems-thinking"]["total"] == 27
-        # 1.0 exactly since the four new shows landed. They carry no systems-thinking, so this
-        # moved for a WINDOW reason, not a topic one: four episodes published Oct 2025-Jan 2026
-        # shift where the recent window falls, and the topic's own mentions redistribute across
-        # it. Still not acceleration — 1.0 is exactly par, and the rail's point stands.
-        assert rows["topic:systems-thinking"]["velocity"] == pytest.approx(
-            1.0, abs=0.01
-        ), "at or below par — it is not accelerating, and that was never the point"
+            "topic:second-order-effects" in rows
+        ), f"a much-discussed, non-accelerating topic is hidden again; visible: {sorted(rows)}"
+        assert rows["topic:second-order-effects"]["total"] == 21
+        assert (
+            rows["topic:second-order-effects"]["velocity"] < 1.5
+        ), "below the old ratio gate — it is not accelerating, and that was never the point"
 
     def test_the_headroom_is_reported_not_just_the_verdict(self, report) -> None:
         """Headroom stays in the report so a future re-tune can be argued from data, not vibes.
@@ -807,8 +884,17 @@ class TestTopicMomentum:
         # episode-specific topics gave the window something that actually accelerates. It is
         # 3.0 since it/fr/de/pt widened the date axis by four months; same topic, same reason,
         # more headroom.
-        assert mom["max_velocity"] == pytest.approx(3.0, abs=0.01)
-        assert mom["headroom_to_gate"] == pytest.approx(-3.0, abs=0.01)
+        # 6.0 since the natural corpus (2026-10-12): extracted topics first heard in the latest
+        # month, each on one or two episodes — under the mention floor, so they never render (the
+        # report lists them as `high_ratio_below_min_total`). Among those that do, reliability
+        # still leads at 3.0.
+        assert mom["max_velocity"] == pytest.approx(6.0, abs=0.01)
+        assert mom["headroom_to_gate"] == pytest.approx(-6.0, abs=0.01)
+        assert mom["would_render"][0] == {
+            "topic": "topic:reliability",
+            "velocity": 3.0,
+            "total": 17,
+        }
         assert "short by" not in format_report(report)
 
     def test_the_gate_matches_the_component(self, report) -> None:

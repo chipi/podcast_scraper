@@ -7,8 +7,10 @@ import { signInIsolated, showEveryonesTrends } from './helpers'
  * read-time momentum is deterministic and the risk/systems content reads as rising; GET
  * /api/app/trending?kind=topic then returns those topics and the list renders.
  *
- * Trending topics from the committed corpus at that anchor: "systems thinking" / "risk management"
- * (the cross-domain storyline the newest episodes carry).
+ * Rising topics from the committed corpus at that anchor (natural topics since 2026-10-12): the
+ * newest episodes' own subjects, all new in the window and so tied at the top momentum, in id
+ * order — "canonical labeling", "code switching", … The stamped "risk management" that led before
+ * was on every show's newest episodes because the generator put it there.
  */
 test('Discover shows the Rising-now discovery list with rising topics', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trending-rising', testInfo)
@@ -27,8 +29,8 @@ test('Discover shows the Rising-now discovery list with rising topics', async ({
   // At least one discovery row, and it carries a velocity multiplier (↑N×) — the momentum signal.
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
   await expect(list).toContainText('×')
-  // The risk/systems storyline is what's freshest at the pinned anchor.
-  await expect(list.getByText(/risk management|systems thinking/i).first()).toBeVisible()
+  // The newest episodes' own subjects are what's rising at the pinned anchor.
+  await expect(list.getByText(/canonical labeling|code switching/i).first()).toBeVisible()
 })
 
 test('signed in: following a trending topic from the list toggles to followed', async ({

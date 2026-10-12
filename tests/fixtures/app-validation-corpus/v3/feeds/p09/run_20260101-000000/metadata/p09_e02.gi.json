@@ -27,16 +27,6 @@
     },
     {
       "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a1342cd495b1165b",
       "to": "topic:macroeconomics",
       "type": "MENTIONS"
     },
@@ -48,11 +38,6 @@
     {
       "from": "episode:ep-a1342cd495b1165b",
       "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:systems-thinking",
       "type": "MENTIONS"
     },
     {
@@ -118,27 +103,6 @@
       "id": "topic:reliability",
       "properties": {
         "label": "reliability"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

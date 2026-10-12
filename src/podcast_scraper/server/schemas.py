@@ -1114,6 +1114,10 @@ class AppTrendingEntity(BaseModel):
         description="Served hosted-photo route for a person entity when the web enricher hosts a "
         "photo; null for non-person kinds and people without a hosted photo.",
     )
+    size: int | None = Field(
+        default=None,
+        description="For a theme (tc:) entity: how many topics it holds. Null for other kinds.",
+    )
     anchor_topic_id: str | None = Field(
         default=None,
         description=(

@@ -114,7 +114,8 @@ test.describe('Search v3 Tier-2 — Query Workspace end-to-end walk', () => {
     // server capability, so hits carry query_enrichments.
     const hero = page.getByTestId('enriched-answer-hero')
     await expect(hero).toBeVisible({ timeout: 30_000 })
-    const heroChips = page.getByTestId('enriched-answer-topics').locator('li')
+    // The chips, not every <li>: past 6 topics the list ends in a "+N more" item, which is not one.
+    const heroChips = page.getByTestId('enriched-answer-topics').locator('[data-testid^="enriched-answer-topic-"]')
     const chipCount = await heroChips.count()
     expect(chipCount).toBeGreaterThan(0)
     expect(chipCount).toBeLessThanOrEqual(6) // UXS-008 cap

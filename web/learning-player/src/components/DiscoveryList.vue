@@ -19,7 +19,7 @@
 import { computed, onActivated, onDeactivated, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { useI18n } from "vue-i18n"
-import { getStorylines, getTopClusters, getTrendingPage, type TrendWindow } from "../services/api"
+import { getStorylines, getTrendingPage, type TrendWindow } from "../services/api"
 import type { Storyline, TrendingEntity } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
@@ -96,14 +96,13 @@ async function decorate(items: TrendingEntity[]): Promise<Row[]> {
   if (props.kind === "theme") {
     // A theme opens by its OWN `tc:` id — it has a card and a page of its own, unlike a storyline,
     // which is read through an anchor topic. Its size rides at the end as "(N)", the same
-    // decoration a storyline row carries; a miss in the top-themes list just renders no count.
-    const themes = await getTopClusters(50).catch(() => [])
-    const sizeById = new Map(themes.map((c) => [c.id, c.size]))
+    // decoration a storyline row carries. The server puts it on the row: looked up in the 50
+    // widest themes, every narrower rising theme had none.
     return items.map((e) => ({
       id: e.entity_id,
       openId: e.entity_id,
       label: e.label,
-      count: sizeById.get(e.entity_id),
+      count: e.size ?? undefined,
       velocity: e.velocity,
       volume: e.volume,
       series: e.series,

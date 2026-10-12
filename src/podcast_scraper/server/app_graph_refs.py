@@ -17,6 +17,7 @@ from pathlib import Path
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 
 #: A small cap keeps digests/cards legible and the persisted highlight compact.
 DEFAULT_LIMIT = 3
@@ -31,7 +32,10 @@ def refs_for_slug(root: Path, slug: str, *, limit: int = DEFAULT_LIMIT) -> list[
         return []
     persons, _orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
     refs: list[dict[str, str]] = [{"id": p.id, "kind": "person", "label": p.name} for p in persons]
-    refs += [{"id": t.id, "kind": "topic", "label": t.label} for t in topics]
+    umbrellas = umbrella_tokens(root)
+    refs += [
+        {"id": t.id, "kind": "topic", "label": t.label} for t in topics if t.id not in umbrellas
+    ]
     return refs[:limit]
 
 

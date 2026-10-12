@@ -17,21 +17,6 @@
     },
     {
       "from": "episode:ep-a341174daaf88193",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a341174daaf88193",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a341174daaf88193",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a341174daaf88193",
       "to": "topic:risk-management",
       "type": "MENTIONS"
     },
@@ -81,30 +66,9 @@
       "type": "Episode"
     },
     {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

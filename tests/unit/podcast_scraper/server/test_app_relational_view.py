@@ -848,7 +848,7 @@ class TestThemeCardMergesAcrossItsMembers:
     """The union is the point: a similarity grouping exists because one member misses the others."""
 
     FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
-    THEME = "tc:safety-practices"
+    THEME = "tc:risk-management"
 
     @pytest.fixture(autouse=True)
     def _skip_without_fixture(self) -> None:
@@ -863,7 +863,7 @@ class TestThemeCardMergesAcrossItsMembers:
         the theme shows 9. If this ever equals the largest member, the merge has regressed to "show
         one member's episodes" and the page has no reason to exist.
 
-        NOT `self.THEME` (`tc:safety-practices`), deliberately: risk management carries 30 of its
+        NOT `self.THEME` (`tc:risk-management`), deliberately: risk management carries 30 of its
         30 union episodes, so that theme's union EQUALS its biggest member and could never fail
         this assertion for the right reason. A test that cannot fail is not evidence — and the old
         hand-authored `tc:show-themes` hid this by bundling eight unrelated topics, which made the
@@ -997,7 +997,7 @@ class TestStorylineCardMergesToo:
             build_theme_card,
         )
 
-        assert build_storyline_card(self.FIXTURE, "tc:safety-practices") is None
+        assert build_storyline_card(self.FIXTURE, "tc:risk-management") is None
         assert build_theme_card(self.FIXTURE, self.STORYLINE) is None
 
 
@@ -1010,7 +1010,7 @@ class TestWhatHoldsAStorylineTogether:
 
     FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
     STORYLINE = "thc:managing-risk"
-    THEME = "tc:safety-practices"
+    THEME = "tc:risk-management"
 
     @pytest.fixture(autouse=True)
     def _skip_without_fixture(self) -> None:
@@ -1061,17 +1061,19 @@ class TestWhatHoldsAStorylineTogether:
         (each carries it as an authored topic), the tie vanished, and the test failed with its own
         message: "fixture no longer has a tie; this test needs a new example".
 
-        The merged fixture offers something stronger than a tie: `safety practices` has 4 episodes
-        and `endurance sport` has 9, yet safety practices ranks HIGHER because its lift is 1.7
-        against 1.5. Ordering by size alone would invert them, so this is the real claim —
-        asserted over the whole list rather than one hand-picked pair, which is also why it cannot
-        go stale the way the tie did.
+        Asserted on `thc:second-order-effects` since the natural corpus (2026-10-12): `incident
+        response` has 2 episodes and `iteration practice` 7, yet incident response ranks HIGHER
+        (lift 1.6 against 1.4). `thc:managing-risk` no longer has such a pair — its members now
+        fall in size order too — so on it this test could not fail for the right reason. Asserted
+        over the whole list rather than one hand-picked pair, so it cannot go stale the way the
+        tie did.
         """
         from podcast_scraper.search.storylines import storyline_member_lift
         from podcast_scraper.server.app_relational_view import build_storyline_card
 
-        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
-        lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
+        storyline = "thc:second-order-effects"
+        card = build_storyline_card(self.FIXTURE, storyline)
+        lift = storyline_member_lift(self.FIXTURE)[storyline]
         assert card is not None
         members = card.member_topics
         assert len(members) >= 2, "a single member cannot demonstrate an ordering"
@@ -1102,9 +1104,10 @@ class TestWhatHoldsAStorylineTogether:
         p = card.strongest_pair
         assert p.shared_episode_count > 0
         assert p.a_label != p.b_label
-        # It must be the STRONGEST pair, not merely a pair: the top two carry 17 shared episodes
-        # while every other combination is 4 or fewer.
-        assert p.shared_episode_count >= 17
+        # It must be the STRONGEST pair, not merely a pair: risk management and systems thinking
+        # share 11 episodes (natural corpus, 2026-10-12), every other combination far fewer.
+        assert {p.a_label, p.b_label} == {"risk management", "systems thinking"}
+        assert p.shared_episode_count >= 11
 
     def test_a_theme_gets_neither_anchor_nor_pair(self) -> None:
         """The divergence, asserted. "Means the same thing" is symmetric: no centre, no pair
@@ -1176,7 +1179,9 @@ class TestAGroupingMovesOverTime:
         assert card is not None
         by_label = {m.label: m for m in card.member_topics}
         arrival = by_label["labor markets"]
-        established = by_label["personal finance"]
+        # `macroeconomics` itself, there since April 2025 (was `personal finance`, a stamped
+        # cross-cutting topic until the natural corpus of 2026-10-12).
+        established = by_label["macroeconomics"]
         assert arrival.trend == "new"
         # And it must have started LATER than a member that was there from the beginning. Both
         # dates are asserted present first: `first_seen` is `str | None`, and comparing an absent
@@ -1197,7 +1202,7 @@ class TestAGroupingMovesOverTime:
         """A badge on every row is a badge that says nothing."""
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
+        card = build_theme_card(self.FIXTURE, "tc:risk-management")
         assert card is not None
         moved = [m for m in card.member_topics if m.trend != "steady"]
         assert 0 < len(moved) < len(card.member_topics), (
@@ -1214,7 +1219,7 @@ class TestAGroupingMovesOverTime:
         """
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
+        card = build_theme_card(self.FIXTURE, "tc:risk-management")
         assert card is not None
         earliest = min(card.member_topics, key=lambda m: m.first_seen or "9999")
         assert earliest.trend != "new"
@@ -1223,7 +1228,7 @@ class TestAGroupingMovesOverTime:
         """The union, not one member — that is what makes it the GROUPING's perspectives."""
         from podcast_scraper.server.app_relational_view import build_cluster_perspectives
 
-        theme = build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "theme")
+        theme = build_cluster_perspectives(self.FIXTURE, "tc:risk-management", "theme")
         assert theme is not None
         assert theme.perspective_count == len(theme.perspectives) > 0
         # Every take must be attributable and jumpable — a perspective needs an owner, and the
@@ -1279,7 +1284,7 @@ class TestAGroupingMovesOverTime:
         assert as_storyline is not None
         assert as_storyline.topic_label == "Managing risk across domains"
         # A theme id is not a storyline, and must not be quietly accepted as one.
-        assert build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "storyline") is None
+        assert build_cluster_perspectives(self.FIXTURE, "tc:risk-management", "storyline") is None
 
     def test_a_grouping_nobody_speaks_to_is_absent_not_empty(self) -> None:
         """Its members are abstract labels nobody says aloud; the page shows nothing."""

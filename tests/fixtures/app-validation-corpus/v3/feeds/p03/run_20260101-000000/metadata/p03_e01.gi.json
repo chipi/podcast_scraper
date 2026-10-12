@@ -22,26 +22,6 @@
     },
     {
       "from": "episode:ep-2a703b6f57d9020f",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2a703b6f57d9020f",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2a703b6f57d9020f",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2a703b6f57d9020f",
-      "to": "topic:safety-practices",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2a703b6f57d9020f",
       "to": "topic:soil-erosion",
       "type": "MENTIONS"
     },
@@ -118,34 +98,6 @@
       "id": "topic:soil-erosion",
       "properties": {
         "label": "soil erosion"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:safety-practices",
-      "properties": {
-        "label": "safety practices"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

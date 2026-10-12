@@ -22,7 +22,7 @@ const dir = (name: string) =>
   `design-results/${VARIANT}/${test.info().project.name}/${name}.png`
 
 /** From `tests/fixtures/app-validation-corpus/v3` — read out of the artifacts, not invented. */
-const THEME = 'tc:safety-practices'
+const THEME = 'tc:risk-management'
 const STORYLINE_ANCHOR = 'topic:risk-management' // `/storyline/:id` routes by anchor topic
 const TOPIC = 'topic:systems-thinking'
 
@@ -76,7 +76,7 @@ async function seed(page: Page, ids: { theme: string; storyline: string; topic: 
     // SAVE both groupings. A saved storyline used to render as a row that could not be opened.
     await post(
       '/api/app/favorites',
-      { kind: 'theme', ref: x.theme, label: 'safety practices' },
+      { kind: 'theme', ref: x.theme, label: 'risk management' },
       'PUT',
     )
     await post(

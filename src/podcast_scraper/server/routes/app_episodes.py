@@ -63,6 +63,7 @@ from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, with_photos
 from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
@@ -813,8 +814,18 @@ def episode_entities(
     # topic — semantic (search/topic_clusters.json, "Similar") and theme
     # (enrichments/topic_theme_clusters.json, co-occurrence "Theme"). Each is a no-op when its
     # artifact is absent → flat list / no theme markers, today's behaviour.
-    cluster_map = theme_map_by_topic(root)
-    storyline_map = storyline_map_by_topic(root)
+    # Umbrella subjects say nothing about this episode (``app_umbrellas``): neither the topic nor
+    # an umbrella theme / storyline it belongs to is shown.
+    umbrellas = umbrella_tokens(root)
+    topics = [t for t in topics if t.id not in umbrellas]
+    cluster_map = {
+        t: v for t, v in theme_map_by_topic(root).items() if v.get("cluster_id") not in umbrellas
+    }
+    storyline_map = {
+        t: v
+        for t, v in storyline_map_by_topic(root).items()
+        if v.get("storyline_id") not in umbrellas
+    }
     if cluster_map or storyline_map:
         topics = [
             (

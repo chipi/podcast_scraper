@@ -259,7 +259,7 @@ them, as it always did.
 
 **Absence is honest.** Renders nothing when no member has a speaker-attributable insight. That is
 the normal outcome for a grouping whose members are abstract labels nobody utters aloud
-(`tc:lifelong-learning` is exactly that), and showing nothing beats showing unrelated quotes.
+(the old fixture's stamped `tc:lifelong-learning` was exactly that), and showing nothing beats showing unrelated quotes.
 
 **Known limit (#2248).** Ranking is `salience` descending (ADR-135/#1191). Where artifacts carry no
 salience the sort degenerates to `position_hint` ascending — earliest-in-episode first — which

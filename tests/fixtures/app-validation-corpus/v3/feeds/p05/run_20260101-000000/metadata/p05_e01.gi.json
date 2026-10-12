@@ -27,27 +27,12 @@
     },
     {
       "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
       "to": "topic:frame",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "topic:index-investing",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:personal-finance",
       "type": "MENTIONS"
     },
     {
@@ -135,27 +120,6 @@
       "id": "topic:frame",
       "properties": {
         "label": "frame"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:personal-finance",
-      "properties": {
-        "label": "personal finance"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

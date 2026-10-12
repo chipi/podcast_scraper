@@ -288,12 +288,13 @@ def _captured_topics_for(ep_label: str, version: str) -> list[str]:
     but demonstrably not caused by them. That is a real property of the product and a fixture
     carrying real output SHOULD expose it.
 
-    What it cannot also do is carry the cross-show overlap the interests picker, topic clusters
-    and discover rails need — at this corpus size real extraction produces almost none. Dropping
-    the authored umbrellas to "be more realistic" would not make those surfaces more honest, it
-    would silently leave them with no data and their tests asserting nothing.
+    It does carry cross-show overlap. This note used to say real extraction "produces almost none"
+    at this corpus size, which justified stamping umbrella topics on every episode; measured again
+    on the 55-episode corpus (2026-10-12), extraction alone shares 48 topics across two or more
+    shows, and with the ground-truth topics 57 — so the stamps are gone (see the note where they
+    were defined).
 
-    Hence both, and labelled: see `topic_source` on the KG node.
+    Labelled: see `topic_source` on the KG node.
     """
     path = CAPTURED_KG_DIR / version / f"{ep_label}.json"
     if not path.is_file():
@@ -332,7 +333,7 @@ def _add_extracted_topics(kg: dict[str, Any], topic_ids: list[str], episode_id: 
                 "type": "Topic",
                 "properties": {
                     "label": tid.split(":", 1)[-1].replace("-", " "),
-                    #: Marks model output. Absent on the authored/umbrella topics.
+                    #: Marks model output. Absent on the authored (ground-truth) topics.
                     "topic_source": "extracted",
                 },
             }
@@ -1428,50 +1429,18 @@ def _media_url(episode_id: str) -> str:
     return f"/audio/{episode_id}.mp3"
 
 
-# Cross-show umbrella topics so ``search/topic_clusters.json`` has multi-member
-# clusters (the interests picker only surfaces multi-member clusters; singletons
-# are hidden). Each umbrella spans 2+ shows.
-CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
-    "p05": ["personal finance", "risk management"],
-    "p02": ["systems thinking", "risk management"],
-    "p03": ["safety practices", "risk management"],
-    # #1148: risk management + systems thinking recur across all 9 wired shows so
-    # they form real multi-member clusters (not singletons the picker hides).
-    "p04": ["visual craft", "systems thinking"],
-    "p01": ["endurance sport", "risk management"],
-    "p07": ["systems thinking", "risk management"],
-    "p06": ["long-form", "systems thinking"],
-    "p08": ["public radio", "risk management"],
-    "p09": ["systems thinking", "risk management"],
-    # p10 is p01's Spanish counterpart — the same trail-building show, so the same
-    # umbrellas. It is NOT a language variant of the entry: nothing here branches on
-    # language, and the analysis layer these topics live on is English either way
-    # (D-38). Adding the show without this entry left it holding only SHARED_UMBRELLAS,
-    # which dropped `risk management` from one episode and so cost `tc:managing-risk`
-    # its corpus-wide coverage — the interests picker went from two offerable options
-    # to one. Silently, because a `.get(show, [])` has no opinion about a missing show.
-    "p10": ["endurance sport", "risk management"],
-    # The it/fr/de/pt counterparts, same reasoning: same conversation, same umbrellas.
-    # The guard below is what makes forgetting one of these impossible now.
-    "p11": ["endurance sport", "risk management"],
-    "p12": ["endurance sport", "risk management"],
-    "p13": ["endurance sport", "risk management"],
-    "p14": ["endurance sport", "risk management"],
-}
-# Shared umbrellas injected into every show so clusters are genuinely multi-member.
-SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]
-
-#: Every wired show MUST declare its umbrellas. The map is keyed by show and read with
-#: ``.get(..., [])``, so a new show in APP_SHOWS without an entry builds a corpus that
-#: is quietly less discriminating than the one the capability audit measures. Checked at
-#: import so the build cannot start, rather than at the end when the artifacts are written.
-_SHOWS_WITHOUT_UMBRELLAS = [sdir for _stem, sdir in APP_SHOWS if sdir not in CROSS_CUTTING_TOPICS]
-if _SHOWS_WITHOUT_UMBRELLAS:
-    raise SystemExit(
-        "CROSS_CUTTING_TOPICS is missing an entry for: "
-        + ", ".join(_SHOWS_WITHOUT_UMBRELLAS)
-        + " — add the show's two umbrella topics (see the comment above the map)."
-    )
+# NO stamped topics (operator 2026-10-12). This corpus used to give every episode two "shared
+# umbrella" topics (lifelong learning, expert interviews) and every show two "cross-cutting" ones
+# (risk management on 12 of 14 shows), so test themes would have overlap. Nothing in an episode
+# said them, and they made every count-ranked surface — Home's week, stats, "Also about", a show's
+# topics, the interests picker — lead with topics on 100% of episodes, which real data never has
+# (prod, read-only 2026-10-12: the most common topic is on 1.0% of 3,528 episodes).
+#
+# An episode carries what it says: its ground-truth topics and the topics a real pipeline run
+# extracted from its transcript. That still leaves 57 topics shared by two or more shows (risk
+# management on 56% of episodes, because the episodes discuss it), and the embedding-derived
+# themes cluster them. The committed files were migrated by
+# scripts/tools/drop_stamped_fixture_topics.py.
 
 
 def _episode_subtitle(transcript_path: Path, fallback: str) -> str:
@@ -1581,7 +1550,7 @@ def _clean_insight_quote_excerpts(
     "insight" is the markdown header block (``# show … ## title … Host: …``) — ugly on the
     Player insights surface. The diarized segments already drop that header and the speaker
     prefixes, so picking clean utterance sentences from them yields readable, grounded
-    insights/quotes. Topics come from the umbrella list we injected (caller-supplied).
+    insights/quotes. Topics are the episode's own (caller-supplied).
 
     GREETINGS AND FILLER ARE REJECTED. The length + sponsor filters were not enough: an episode's
     first substantive utterance is ALWAYS the host's welcome, so all 36 committed episodes shipped
@@ -1891,8 +1860,11 @@ STORYLINES: list[tuple[str, str, list[tuple[str, str, float]]]] = [
         [
             ("topic:risk-management", "risk management", 2.6),
             ("topic:systems-thinking", "systems thinking", 2.1),
-            ("topic:safety-practices", "safety practices", 1.7),
-            ("topic:endurance-sport", "endurance sport", 1.5),
+            # Was safety practices + endurance sport: both were only ever STAMPED by the old
+            # cross-cutting map, and the natural corpus (2026-10-12) has neither. These two are
+            # what the episodes themselves say about risk, across finance and engineering shows.
+            ("topic:correlated-bets", "correlated bets", 1.7),
+            ("topic:decision-making-under-uncertainty", "decision making under uncertainty", 1.5),
         ],
     ),
     (
@@ -1922,18 +1894,18 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
     """Author the theme clusters ("storylines", ``STORYLINES``) for the consumer Storylines surface.
 
     The first, the cross-domain *managing risk* story: risk management, systems thinking,
-    safety practices and endurance sport co-occur across shows (the transcripts frame risk as
-    "systems of correlated bets" in investing, software, racing, and diving). Members carry
-    ``lift_to_cluster`` (anchor = highest) + their episode ids, matching the enricher output the
-    consumer readers parse. Deterministic, like ``search/topic_clusters.json``.
+    correlated bets and decision making under uncertainty co-occur across shows (the transcripts
+    frame risk as "systems of correlated bets" in investing, software, racing, and diving). Members
+    carry ``lift_to_cluster`` (anchor = highest) + their episode ids, matching the enricher output
+    the consumer readers parse. Deterministic, like ``search/topic_clusters.json``.
 
     FOUR members, not three, and the count is load-bearing. ``storylines`` surfaces a
     storyline only at ``DEFAULT_MIN_THEME_MEMBERS`` (4) — "a 2-member theme is a single
     co-occurrence pair, not a destination". The floor was raised from 2 to 4 in #1936, which
     silently dropped this corpus's only storyline below it: the Home rail still rendered, with
-    zero chips, and `home-rails.spec.ts` went red. `topic:endurance-sport` is the honest fourth
-    member — the docstring already claimed "racing" as one of the four domains, and it was the
-    one with no topic behind it. If the floor moves again, this list has to grow with it.
+    zero chips, and `home-rails.spec.ts` went red. The members must be topics the episodes carry
+    (ground truth or extracted): a member no episode has is dropped below, and the storyline with
+    it. If the floor moves again, this list has to grow with it.
     """
     clusters: list[dict[str, Any]] = []
     for cluster_id, canonical, members_spec in STORYLINES:
@@ -2448,17 +2420,12 @@ def main() -> int:
             diar_segments, roster = parse_diarized_segments(transcript_path)
             raw_text, offset_segs = format_screenplay_with_offsets(diar_segments)
 
-            # Topics: the show's lead topic + the shared cross-show umbrellas. These are
-            # curated, clean labels (the viewer helper's raw transcript-phrase extraction
-            # yields conversational junk like "welcome back to" on these chatty fixtures,
-            # which would look broken on the entity/topic surfaces), and they give the
-            # topic_clusters the cross-show overlap the interests picker needs.
+            # Topics: the episode's ground-truth topics — curated, clean labels (the viewer
+            # helper's raw transcript-phrase extraction yields conversational junk like
+            # "welcome back to" on these chatty fixtures) — and, below, what a real pipeline
+            # run extracted. No stamped topics (2026-10-12).
             authored = episode_topics_for(ep_label, gt_dir)
-            topics = authored + [
-                t
-                for t in CROSS_CUTTING_TOPICS.get(show_dir, []) + SHARED_UMBRELLAS
-                if t not in authored
-            ]
+            topics = list(authored)
             # Real extracted topics from the committed pipeline run, APPENDED. They carry the
             # product's actual extraction behaviour — including its lack of canonicalisation —
             # while the authored ones above keep the cross-show overlap the picker needs. See
@@ -2546,7 +2513,12 @@ def main() -> int:
             # Episode-scope enrichment envelope (RFC-088) so the consumer enrichment read surface
             # (GET /api/app/episodes/{slug}/enrichment, P3 #1121) has real data in the e2e corpus.
             # insight_density (topic_cooccurrence was dropped — trivial at episode scope).
-            topic_ids = [f"topic:{slug(lbl)}" for lbl in topics]
+            # Every topic the episode's KG carries — ground truth AND extracted — feeds the corpus
+            # enrichments below, as in production, where every topic an episode has is counted.
+            # Counting the ground truth alone left the storylines' extracted members out (a rebuild
+            # gave them 2 members, under the 4 a storyline needs) and the trend series without the
+            # topics the app actually lists (2026-10-12).
+            topic_ids = [str(n["id"]) for n in kg.get("nodes", []) if n.get("type") == "Topic"]
             enrich_dir = run_meta_dir / "enrichments"
             enrich_dir.mkdir(parents=True, exist_ok=True)
             (enrich_dir / f"{ep_label}.insight_density.json").write_text(
@@ -2739,45 +2711,11 @@ def main() -> int:
             print(f"  {show_dir}/{ep_label}: {episode_title!r} ({len(offset_segs)} segs)")
 
     # --- search/topic_clusters.json -----------------------------------------
-    # Real clusters group DISTINCT topic ids under one themed parent. We build two
-    # multi-member clusters so the interests picker (top_themes_by_member_count)
-    # surfaces them and entity-card siblings (theme_siblings_by_topic) resolve:
-    #
-    #   tc:lifelong-learning  — the shared "lifelong learning" + "expert interviews"
-    #                           umbrellas (cross-show themes), 2 distinct members.
-    #   tc:show-themes         — each show's distinct lead topic (personal-finance,
-    #                           systems-thinking, safety-practices), one per show.
-    #
-    # Members carry distinct topic ids + their own label, matching the v2 schema
-    # the readers expect (graph_compound_parent_id / cil_alias_target_topic_id /
-    # member_count / members[{topic_id,label}]).
-    def _cluster(parent_slug: str, canonical: str, labels: list[str]) -> dict[str, Any] | None:
-        members = []
-        seen: set[str] = set()
-        for lbl in labels:
-            tid = f"topic:{slug(lbl)}"
-            if tid in seen:
-                continue
-            seen.add(tid)
-            members.append({"topic_id": tid, "label": lbl})
-        if len(members) < 2:
-            return None
-        return {
-            "canonical_label": canonical,
-            "cil_alias_target_topic_id": members[0]["topic_id"],
-            "graph_compound_parent_id": f"tc:{parent_slug}",
-            "member_count": len(members),
-            "members": members,
-        }
-
+    # The themes are EMBEDDING-derived and committed (`make build-validation-topic-clusters`);
+    # `_write_topic_clusters_scaffold` never overwrites them. Without that file — a clean build with
+    # no ML extras — the scaffold is empty: it used to bundle the stamped umbrellas into two
+    # synthetic themes (tc:lifelong-learning, tc:show-themes), and there are no stamps any more.
     clusters: list[dict[str, Any]] = []
-    cross_theme = _cluster("lifelong-learning", "Lifelong Learning", SHARED_UMBRELLAS)
-    if cross_theme is not None:
-        clusters.append(cross_theme)
-    show_lead_labels = [lbl for _stem, sdir in shows for lbl in CROSS_CUTTING_TOPICS.get(sdir, [])]
-    show_themes = _cluster("show-themes", "Show Themes", show_lead_labels)
-    if show_themes is not None:
-        clusters.append(show_themes)
 
     search_dir = out / "search"
     search_dir.mkdir(parents=True, exist_ok=True)
@@ -2823,7 +2761,7 @@ def main() -> int:
     # discussed together). Authored deterministically (like search/topic_clusters.json) from the
     # cross-domain "managing risk" storyline the transcripts co-author (risk management framed as
     # "systems of correlated bets" across investing/software/racing/diving → risk-management +
-    # systems-thinking + safety-practices co-occur). Members carry the shape the consumer readers
+    # systems-thinking + correlated-bets co-occur). Members carry the shape the consumer readers
     # expect (graph_compound_parent_id thc:… / canonical_label / member_count / members[{topic_id,
     # label, lift_to_cluster, episode_ids}]).
     theme = _theme_clusters_data(corpus_topic_episodes)

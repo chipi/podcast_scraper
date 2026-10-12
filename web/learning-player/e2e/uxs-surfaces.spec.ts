@@ -41,10 +41,10 @@ test('UXS-013 §3.4: a search that names a topic shows its card above the passag
 test('UXS-012 §Theme: the theme page names its members, lists episodes newest first, and follows', async ({
   page,
 }) => {
-  await page.goto('/theme/tc:broadcast-format')
+  await page.goto('/theme/tc:public-radio')
   const view = page.getByTestId('theme-view')
   await expect(view).toBeVisible()
-  await expect(view).toContainText('broadcast format')
+  await expect(view).toContainText('public radio')
   // The member topics, each with its episode count.
   await expect(view.getByTestId('member-episodes').first()).toBeVisible()
   await expect(view.getByTestId('episodes-order')).toHaveText(/newest first/i)

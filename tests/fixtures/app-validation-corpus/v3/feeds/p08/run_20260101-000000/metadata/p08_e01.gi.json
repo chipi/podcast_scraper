@@ -32,17 +32,7 @@
     },
     {
       "from": "episode:ep-efc13989b676df9d",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
       "to": "topic:journalism",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -53,11 +43,6 @@
     {
       "from": "episode:ep-efc13989b676df9d",
       "to": "topic:reliability",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-efc13989b676df9d",
-      "to": "topic:risk-management",
       "type": "MENTIONS"
     },
     {
@@ -135,27 +120,6 @@
       "id": "topic:reliability",
       "properties": {
         "label": "reliability"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

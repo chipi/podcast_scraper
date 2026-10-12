@@ -19,7 +19,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import (
     is_unresolved_speaker_placeholder,
     node_label,
@@ -33,6 +32,7 @@ from podcast_scraper.server.app_corpus_access import cached_json_artifact
 # page and the episode card must not be able to disagree about what "host" means.
 from podcast_scraper.server.app_kg_view import _role_of
 from podcast_scraper.server.app_relational_view import _aggregate_role, _ROLE_RANK
+from podcast_scraper.server.app_umbrellas import corpus_episode_topics, umbrella_tokens
 from podcast_scraper.server.corpus_catalog import (
     filter_rows,
 )
@@ -181,37 +181,6 @@ def _recurring_guests(
     ]
     out.sort(key=lambda p: (-p.episode_count, p.name))
     return out[:top_k]
-
-
-_CORPUS_EPISODE_TOPICS_NS = "feed_signals_corpus_episode_topics"
-
-
-def _corpus_episode_topics(root: Path) -> list[frozenset[str]]:
-    """Every corpus episode's topic ids, one set per episode with a KG.
-
-    The library-wide base rate of a THEME or STORYLINE — episodes touching ANY of its topics — is
-    a union, so it cannot be summed from the per-topic counts ``topic_cooccurrence_corpus`` keeps
-    (operator 2026-10-12: distinctive themes and storylines). One pass over the episode KGs,
-    cached per corpus version like the catalog, so a show page pays for it once, not per request.
-    """
-
-    def build() -> list[frozenset[str]]:
-        out: list[frozenset[str]] = []
-        for r in cached_catalog(root):
-            if not r.has_kg or not r.kg_relative_path:
-                continue
-            art = _read_kg_artifact(str(root), r.kg_relative_path)
-            if art is None:
-                continue
-            out.append(
-                frozenset(str(n.get("id")) for n in nodes_of_type(art, "Topic") if n.get("id"))
-            )
-        return out
-
-    result: list[frozenset[str]] = perf_cache.get_or_compute(
-        _CORPUS_EPISODE_TOPICS_NS, str(root), perf_cache.corpus_mtime(root), build
-    )
-    return result
 
 
 def _group_reach(
@@ -574,7 +543,11 @@ def compute_feed_signals(
     connectivity = _feed_connectivity(topic_eps, scanned, top_k) if scanned else None
 
     root_s = str(root)
-    corpus = _corpus_episode_topics(root) if scanned else []
+    corpus = corpus_episode_topics(root) if scanned else []
+    # Umbrellas say nothing about this show (``app_umbrellas``): out of every list below, before
+    # each is cut to ``top_k`` so the next subject takes the place.
+    umbrellas = umbrella_tokens(root)
+    topic_eps = {t: v for t, v in topic_eps.items() if t not in umbrellas}
     vel = _topic_velocity_map(root_s)
     corpus_df, corpus_eps = _topic_base_rate_map(root_s)
     # Selection stays "most-covered first" — that is what "top topics" means, and the operator
@@ -621,8 +594,18 @@ def compute_feed_signals(
         top_topics=top_topics,
         key_people=key_people,
         recurring_guests=_recurring_guests(person_eps, top_k),
-        dominant_storylines=_dominant_storylines(root_s, topic_eps, top_k, scanned, corpus),
-        dominant_themes=_dominant_themes(root, topic_eps, top_k, scanned, corpus),
+        dominant_storylines=[
+            s
+            for s in _dominant_storylines(
+                root_s, topic_eps, top_k + len(umbrellas), scanned, corpus
+            )
+            if s.storyline_id not in umbrellas
+        ][:top_k],
+        dominant_themes=[
+            t
+            for t in _dominant_themes(root, topic_eps, top_k + len(umbrellas), scanned, corpus)
+            if t.theme_id not in umbrellas
+        ][:top_k],
         trending_topics=_trending_topics(vel, topic_eps, top_k),
         grounding=_show_grounding(root_s, show_episode_ids),
         connectivity=connectivity,

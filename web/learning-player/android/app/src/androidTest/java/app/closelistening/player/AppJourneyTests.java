@@ -125,10 +125,12 @@ public class AppJourneyTests extends UITestCase {
         // ("You") — empty for a fresh account. Switch to everyone's first (2026-10-07).
         Journey.showEveryonesTrends();
 
-        // Any topic row from the rail — "systems thinking" and "risk management" are in the
-        // p09 fixture but the exact ranking changes with the corpus.
+        // Any topic row from the rail: the top Rising topics at the pinned trend date are the
+        // newest episode's own subjects (natural corpus, 2026-10-12 — "risk management" led only
+        // while it was stamped on every show).
         boolean topicTapped = Journey.tap(
-                Arrays.asList("systems thinking", "risk management"), true, 12_000);
+                Arrays.asList("canonical labeling", "code switching", "coupling vs components"),
+                true, 12_000);
         if (topicTapped) {
             Journey.sleep(5_000);
         } else {

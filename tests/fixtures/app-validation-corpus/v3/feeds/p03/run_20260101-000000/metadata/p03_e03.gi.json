@@ -27,16 +27,6 @@
     },
     {
       "from": "episode:ep-a884b153355070f0",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a884b153355070f0",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a884b153355070f0",
       "to": "topic:marine-biology",
       "type": "MENTIONS"
     },
@@ -48,11 +38,6 @@
     {
       "from": "episode:ep-a884b153355070f0",
       "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a884b153355070f0",
-      "to": "topic:safety-practices",
       "type": "MENTIONS"
     },
     {
@@ -118,27 +103,6 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:safety-practices",
-      "properties": {
-        "label": "safety practices"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

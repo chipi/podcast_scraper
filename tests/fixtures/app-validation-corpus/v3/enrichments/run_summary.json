@@ -1,34 +1,15 @@
 {
-  "duration_ms": 8,
-  "finished_at": "2026-10-11T14:38:18Z",
+  "duration_ms": 11,
+  "finished_at": "2026-10-12T10:56:35Z",
   "parent_run_id": null,
   "per_enricher": {
-    "grounding_rate": {
+    "topic_cooccurrence_corpus": {
       "cost_usd": 0.0,
-      "duration_ms": 5,
+      "duration_ms": 8,
       "error_samples": [],
       "model_id": "",
       "model_version": "",
-      "records_written": 55,
-      "retries": 0,
-      "runs_cancelled": 0,
-      "runs_failed": 0,
-      "runs_ok": 1,
-      "runs_quarantined": 0,
-      "runs_skipped": 0,
-      "runs_timeout": 0,
-      "runs_total": 1,
-      "status": "ok",
-      "tokens_in": 0,
-      "tokens_out": 0
-    },
-    "guest_coappearance": {
-      "cost_usd": 0.0,
-      "duration_ms": 6,
-      "error_samples": [],
-      "model_id": "",
-      "model_version": "",
-      "records_written": 37,
+      "records_written": 397,
       "retries": 0,
       "runs_cancelled": 0,
       "runs_failed": 0,
@@ -43,8 +24,8 @@
     }
   },
   "profile": null,
-  "run_id": "aa40975c-8891-4d78-8984-335b6483189b",
+  "run_id": "992c0b27-93eb-4080-95c7-0308ebb86ea4",
   "schema_version": "1",
-  "started_at": "2026-10-11T14:38:18Z",
+  "started_at": "2026-10-12T10:56:35Z",
   "status": "ok"
 }

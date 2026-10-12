@@ -32,22 +32,7 @@
     },
     {
       "from": "episode:ep-de59d003651d9e5d",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
       "to": "topic:enduro-racing",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -163,27 +148,6 @@
       "id": "topic:enduro-racing",
       "properties": {
         "label": "enduro racing"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

@@ -377,7 +377,7 @@ def test_grouping_perspectives_routes_serve_the_union(tmp_path: Path) -> None:
     """
     client = _fixture_client(tmp_path)
 
-    theme = client.get("/api/app/themes/tc:safety-practices/perspectives")
+    theme = client.get("/api/app/themes/tc:risk-management/perspectives")
     assert theme.status_code == 200, theme.text
     body = theme.json()
     assert body["perspective_count"] == len(body["perspectives"]) > 0

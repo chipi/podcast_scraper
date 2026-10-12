@@ -22,17 +22,7 @@
     },
     {
       "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
       "to": "topic:frame",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:lifelong-learning",
       "type": "MENTIONS"
     },
     {
@@ -48,11 +38,6 @@
     {
       "from": "episode:ep-d8cc458a5f0049a8",
       "to": "topic:security-design",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:systems-thinking",
       "type": "MENTIONS"
     },
     {
@@ -130,27 +115,6 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

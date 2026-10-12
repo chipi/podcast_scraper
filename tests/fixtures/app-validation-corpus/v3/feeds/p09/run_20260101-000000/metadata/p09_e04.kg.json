@@ -16,16 +16,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-4d94c63887afbd1a",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-4d94c63887afbd1a",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-4d94c63887afbd1a",
       "target": "topic:coupling-vs-components",
       "type": "MENTIONS"
@@ -113,22 +103,6 @@
       "properties": {
         "label": "reliability",
         "slug": "reliability"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

@@ -923,6 +923,8 @@ export interface TrendingEntity {
    * lookup is what made storyline rows dead on tap.
    */
   anchor_topic_id?: string | null
+  /** For a theme (`tc:`) entity: how many topics it holds; null for every other kind. */
+  size?: number | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */

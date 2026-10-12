@@ -17,22 +17,7 @@
     },
     {
       "from": "episode:ep-6351d18dc6f1ff70",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-6351d18dc6f1ff70",
       "to": "topic:index-investing",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-6351d18dc6f1ff70",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-6351d18dc6f1ff70",
-      "to": "topic:personal-finance",
       "type": "MENTIONS"
     },
     {
@@ -106,27 +91,6 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:personal-finance",
-      "properties": {
-        "label": "personal finance"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },

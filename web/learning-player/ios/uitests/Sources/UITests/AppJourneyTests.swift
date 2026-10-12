@@ -113,7 +113,9 @@ final class AppJourneyTests: UITestCase {
     if Journey.tap(app, labels: ["Topics"], timeout: 15) { sleep(3) }
     Journey.showEveryonesTrends(app)
     Journey.inventory(app, "home-topics-rail")
-    if Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 12) {
+    // The top Rising topics at the pinned trend date: the newest episode's own subjects (natural
+    // corpus, 2026-10-12 — "risk management" led only while it was stamped on every show).
+    if Journey.tap(app, labels: ["canonical labeling", "code switching", "coupling vs components"], contains: true, timeout: 12) {
       sleep(5)
       Journey.shot(self, "03-topic")
       Journey.inventory(app, "topic-page")
