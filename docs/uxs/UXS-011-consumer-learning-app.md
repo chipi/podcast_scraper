@@ -1107,15 +1107,18 @@ oldest-pinned-first and opens the first. An **Add to collection** button rides e
 cards, search results and the podcast page. Empty state: "No collections yet". Auth-gated (empty when
 signed out). Own first-class Library tab.
 
-**A board's Brief and its short listen (`BoardBrief`, RFC-119 amendment 2026-10-12, #2340).** An open
-board leads with its Brief, as an episode does: one line of what it holds ("3 episodes · 1 saved
-moment · 1 show"), the topics and people two or more of its episodes share (never the show's host,
-who is in every episode of a one-show board), each episode's key point opening the episode where it
-is said, and the storylines and themes that link them. Beside the Brief's title sits the board's own
-short listen, through the same door (`ReelDoor`) and player as a subject's: the saved moments first,
-exactly as saved, then each saved episode's strongest clip. Only what is saved on the board counts:
-a saved show, topic or person is not expanded into its episodes. A board with no episodes has no
-Brief, and the Brief refreshes when an item is added or removed.
+**A board's Brief and its short listen (`BoardBrief`, RFC-119 amendment 2026-10-12, #2340).** Not
+shown by default: each board's header carries a small **Brief** button (beside its cover and drag
+handle), and the Brief opens in a sheet laid out exactly as the episode's — grab handle, "Brief"
+with ✕, the board's name with one line of what it holds ("3 episodes · 1 saved moment · 1 show"),
+**▶ Play N moments** into the board's own short listen, **Top voices** (who speaks across its
+episodes, the topic page's grid — a board has no host or guest of its own), **Key points** (each
+episode's, opening the episode where it is said), and **What this board’s about**, the show page's
+band: a row each for storylines, themes and topics, most episodes first, no numbers on the pills.
+The short listen plays the saved moments first, exactly as saved, then the strongest clip of each
+saved episode that has no saved moment; while it plays, the nav lights Library. Only what is saved
+on the board counts: a saved show, topic or person is not expanded into its episodes. A board with
+no episodes says it has nothing to brief yet. Anything that navigates closes the sheet first.
 
 **Your boards in Search (#2341).** Search lists the listener's boards beside their notes: a board
 whose name holds every word first, then one holding something that does, each row saying what
@@ -1427,7 +1430,7 @@ review or rebuild it.
 | `TermsOfUse` | The terms of use, first version (2026-10-05), on the About › Terms page; public, and `/terms` redirects there | Written from what the app actually does — beta, 16+, podcasts belong to their creators, automatically generated content can be wrong and is not professional advice, your notes stay yours, connected agents act on your behalf, fair use, deletion. Same visible draft notice as the privacy policy for what is not decided (the company, the governing law, legal review). English only, for the same reason |
 | `ThirdPartySoftware` | The third-party software list, on the About › Third-party page | NOT hand-written: `scripts/third-party.mjs` regenerates `public/third-party.json` from npm's production dependency tree (direct and transitive) on every `npm run build`, minus build-only tooling (`@capacitor/cli`, which never ships), plus the native iOS pods and Android release-classpath libraries from the committed snapshot `scripts/third-party-native.json` (regenerated on the Mac with `make third-party-native`; `src/__checks__/third-party-native.test.ts` fails when the native dependency files change without a regenerate), plus the self-hosted Google Sans font, so it cannot drift from what ships. Fetched when the page opens, not bundled. Grouped by name prefix (operator 2026-10-05): a scope or Maven-group row (`@vue`, `androidx.core` …) expands to its members, named without the prefix; an unscoped package is its own row; native rows carry an iOS / Android badge. Every row carries a ▸/▾ chevron and opens in place to the project link, a labelled "Licence text" box, and a "Notice" box when the library ships a NOTICE file (Apache-2.0). The copy counts "libraries" (npm packages, pods and Maven artifacts alike). Android lists what the release APK links: Kotlin Multiplatform "umbrella" coordinates (a POM + a `.module` redirecting to the `-jvm` / `-android` build, which is listed) and BOMs ship no code, so they are not rows; every listed archive is searched for a LICENSE / NOTICE, and the generator names any whose archive is not in the Gradle cache. If the list cannot be fetched (offline) the page says so ("Couldn't load the list — it needs a connection.") |
 | `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
-| `BoardBrief` | An open board's Brief (#2340): what it holds, what its episodes share, each one's key point, the threads linking them, and the door into the board's own short listen | Reads only what is saved on the board, never expanding a saved show, topic or person; a board with no episodes shows no Brief rather than an empty one |
+| `BoardBrief` | A board's Brief (#2340), in a sheet opened from the board's **Brief** button: what it holds, Play N moments, Top voices, Key points, What this board’s about | Laid out as the episode's Brief; reads only what is saved on the board, never expanding a saved show, topic or person; a board with no episodes says so rather than showing empty sections |
 | `HighlightsView` | Everything captured, with export | The listener's own words — export must be lossless and must never require a network round trip to read |
 
 ### Remaining shared components

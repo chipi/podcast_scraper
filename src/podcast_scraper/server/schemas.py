@@ -2370,12 +2370,24 @@ class AppBoardHolds(BaseModel):
 
 
 class AppBoardSubject(BaseModel):
-    """A topic or person that recurs across a board's episodes."""
+    """A topic of a board's episodes, with how many of them it is in."""
 
     id: str
-    kind: Literal["topic", "person"]
+    kind: Literal["topic"] = "topic"
     label: str
-    episodes: int = Field(description="How many of the board's episodes it is in (at least 2).")
+    episodes: int = Field(description="How many of the board's episodes it is in.")
+    saved: bool = Field(description="Also saved on the board itself.")
+
+
+class AppBoardVoice(BaseModel):
+    """Someone who speaks (host or guest) in a board's episodes: its Top voices."""
+
+    id: str
+    name: str
+    episodes: int = Field(description="How many of the board's episodes they speak in.")
+    image_url: str | None = Field(
+        default=None, description="Hosted photo route, when there is one."
+    )
     saved: bool = Field(description="Also saved on the board itself.")
 
 
@@ -2391,12 +2403,12 @@ class AppBoardPoint(BaseModel):
 
 
 class AppBoardThread(BaseModel):
-    """A storyline or theme that two or more of a board's episodes share."""
+    """A storyline or theme of a board's episodes."""
 
     id: str = Field(description="Storyline: its anchor topic id (the route param). Theme: tc: id.")
     kind: Literal["storyline", "theme"]
     label: str
-    episodes: int = Field(description="How many of the board's episodes are in it (at least 2).")
+    episodes: int = Field(description="How many of the board's episodes are in it.")
 
 
 class AppBoardBrief(BaseModel):
@@ -2409,7 +2421,12 @@ class AppBoardBrief(BaseModel):
     board_id: str
     name: str
     holds: AppBoardHolds
-    about: list[AppBoardSubject] = Field(default_factory=list)
+    voices: list[AppBoardVoice] = Field(
+        default_factory=list, description="Top voices: who speaks in most of its episodes."
+    )
+    about: list[AppBoardSubject] = Field(
+        default_factory=list, description="Its episodes' topics, most episodes first."
+    )
     points: list[AppBoardPoint] = Field(default_factory=list)
     threads: list[AppBoardThread] = Field(default_factory=list)
 

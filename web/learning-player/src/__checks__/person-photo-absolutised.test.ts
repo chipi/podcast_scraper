@@ -34,7 +34,7 @@ import typesSrc from "../services/types.ts?raw"
  */
 
 /** Types whose `image_url` is a PERSON's photo (served relative, from our API). */
-const PERSON_PHOTO_TYPES = ["Entity", "KeyVoice", "PersonWeb", "TopicPerspective", "TrendingEntity"]
+const PERSON_PHOTO_TYPES = ["Entity", "KeyVoice", "PersonWeb", "TopicPerspective", "TrendingEntity", "BoardBrief"]
 /** Types whose `image_url` is episode/show ARTWORK — a different field family, covered elsewhere. */
 // TopicCard: `top_shows[].image_url` is show artwork (2026-10-08), resolved with resolveMediaUrl.
 const ARTWORK_TYPES = ["EpisodeDetail", "EpisodeSummary", "Podcast", "YourWeekItem", "TopicCard"]

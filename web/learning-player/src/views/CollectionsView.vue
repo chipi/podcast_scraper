@@ -488,6 +488,10 @@ async function addLink(): Promise<void> {
  * The pending id doubles as the open/closed flag, so there is no second boolean to keep in sync.
  */
 const pendingDelete = ref<string | null>(null)
+/** The board whose Brief is open in the sheet (#2340), or null. */
+const briefFor = ref<{ id: string; name: string } | null>(null)
+/** Its item count, so an add or a remove while the sheet is open refreshes it. */
+const briefVersion = computed(() => collections.value.find((c: Collection) => c.id === briefFor.value?.id)?.count)
 
 async function confirmDelete(): Promise<void> {
   const id = pendingDelete.value
@@ -764,6 +768,19 @@ onMounted(() => {
             data-testid="collection-thumb"
             @error="brokenCovers.add(c.id)"
           />
+          <!-- The board's Brief (#2340), behind a button as the episode's is (operator 2026-10-12):
+               it opens in a sheet. Only for a board that holds something. -->
+          <button
+            v-if="c.count > 0"
+            type="button"
+            class="lp-tap shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
+            data-testid="collection-brief"
+            @click="briefFor = { id: c.id, name: c.name }"
+          >
+            <!-- No aria-label: Android's WebView reads the TEXT first, so the name is the text —
+                 "Brief", as this row's ✕ is "Remove": both act on the row they sit in. -->
+            {{ t("boardBrief.open") }}
+          </button>
           <!-- Grab area between the cover and the ✕ (operator 2026-09-17). Arrows were tried and
                dropped: two extra buttons per row for something a drag already does. The grip is a
                drawn SVG, not a glyph — U+283F rendered as tofu on device, the same failure CloseIcon
@@ -811,8 +828,6 @@ onMounted(() => {
         </div>
 
         <div v-if="open?.collection.id === c.id" class="border-t border-border p-3">
-          <!-- The board's Brief and its short listen, above what it holds (#2340). -->
-          <BoardBrief :board-id="c.id" :board-name="c.name" :version="c.count" />
           <p v-if="!open.items.length" class="text-sm text-muted">
             {{ t("collections.emptyBoard") }}
           </p>
@@ -997,6 +1012,13 @@ onMounted(() => {
       />
     </section>
 
+    <BoardBrief
+      :open="briefFor !== null"
+      :board-id="briefFor?.id ?? ''"
+      :board-name="briefFor?.name ?? ''"
+      :version="briefVersion"
+      @close="briefFor = null"
+    />
     <ConfirmDialog
       :open="pendingDelete !== null"
       :title="t('collections.confirmDeleteTitle')"

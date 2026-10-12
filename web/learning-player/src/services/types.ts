@@ -751,8 +751,10 @@ export interface BoardBrief {
     searches: number
     links: number
   }
-  /** Topics and people in two or more of the board's episodes. */
-  about: { id: string; kind: "topic" | "person"; label: string; episodes: number; saved: boolean }[]
+  /** Top voices: who speaks (host or guest) in most of the board's episodes. */
+  voices: { id: string; name: string; episodes: number; image_url: string | null; saved: boolean }[]
+  /** Its episodes' topics, most episodes first. */
+  about: { id: string; kind: "topic"; label: string; episodes: number; saved: boolean }[]
   /** Each episode's strongest insight, and where its best quote is said. */
   points: {
     episode: EpisodeSummary
@@ -762,7 +764,7 @@ export interface BoardBrief {
     speaker: string | null
     start_ms: number | null
   }[]
-  /** Storylines (id = anchor topic) and themes two or more of its episodes share. */
+  /** Its episodes' storylines (id = anchor topic) and themes, most episodes first. */
   threads: { id: string; kind: "storyline" | "theme"; label: string; episodes: number }[]
 }
 

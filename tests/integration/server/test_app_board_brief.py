@@ -68,6 +68,16 @@ def _kg_hosts(row: object) -> set[str]:
     }
 
 
+def _kg_speakers(row: object) -> set[str]:
+    kg = json.loads((CORPUS / row.kg_relative_path).read_text("utf-8"))  # type: ignore[attr-defined]
+    return {
+        str(n["id"])
+        for n in kg["nodes"]
+        if n.get("type") == "Person"
+        and (n.get("properties") or {}).get("role") in ("host", "guest")
+    }
+
+
 def _board(client: TestClient, name: str, items: list[dict]) -> str:
     cid = client.post("/api/app/collections", json={"name": name}).json()["id"]
     for item in items:
@@ -114,16 +124,27 @@ def test_the_brief_reads_only_what_is_saved_and_says_what_its_episodes_share(
     assert [p["episode"]["slug"] for p in brief["points"]] == [a, b, c][: len(brief["points"])]
     assert brief["points"], "the fixture's episodes have insights"
     subjects = [_kg_subjects(r) for r in (row_a, row_b, row_c)]
-    assert brief["about"], "three episodes of one show share subjects"
+    # Every topic of the three episodes, each counted in the episodes that carry it, most first.
+    assert brief["about"], "the episodes have topics"
+    assert all(s["kind"] == "topic" for s in brief["about"])
     for s in brief["about"]:
-        shared = sum(1 for kg in subjects if s["id"] in kg)
-        assert s["episodes"] >= 2 and shared == s["episodes"], s
-    # The show's host is in all three and says nothing about the board.
+        assert s["episodes"] == sum(1 for kg in subjects if s["id"] in kg), s
+    counts = [s["episodes"] for s in brief["about"]]
+    assert counts == sorted(counts, reverse=True)
+    # Top voices: who SPEAKS in them, the show's host included (operator 2026-10-12: a board has no
+    # host or guest of its own, it has its voices).
+    speakers = [_kg_speakers(r) for r in (row_a, row_b, row_c)]
     hosts = set().union(*(_kg_hosts(r) for r in (row_a, row_b, row_c)))
     assert hosts, "the fixture's KGs carry the host's role"
-    assert not {s["id"] for s in brief["about"]} & hosts
+    voices = {v["id"]: v["episodes"] for v in brief["voices"]}
+    assert hosts <= set(voices)
+    for vid, n in voices.items():
+        assert n == sum(1 for kg in speakers if vid in kg), vid
+    # A theme never repeats a storyline's name in the same row.
+    names: dict[str, set[str]] = {t["kind"]: set() for t in brief["threads"]}
     for t in brief["threads"]:
-        assert t["episodes"] >= 2 and t["kind"] in ("storyline", "theme")
+        names[t["kind"]].add(t["label"].casefold().replace("-", " "))
+    assert not names.get("theme", set()) & names.get("storyline", set())
 
 
 def test_a_board_of_shows_and_searches_has_nothing_to_brief(tmp_path: Path) -> None:
@@ -199,6 +220,21 @@ def test_the_short_listen_plays_saved_moments_first_then_each_saved_episode(
 
     short = client.get(f"/api/app/collections/{cid}/reel", params={"minutes": 1}).json()
     assert short["total_seconds"] <= 60
+
+    # An episode saved WITH one of its moments plays the moment, not the moment and then its own
+    # strongest clip: the same episode twice in a row (2026-10-12, the screenshot review).
+    both = _board(
+        client,
+        "Both",
+        [
+            {"kind": "episode", "ref": c},
+            {"kind": "highlight", "ref": "h1"},
+            {"kind": "episode", "ref": b},
+        ],
+    )
+    clips = client.get(f"/api/app/collections/{both}/reel").json()["clips"]
+    assert [x["episode"]["slug"] for x in clips] == [c, b]
+    assert clips[0]["start_ms"] == 61_000
 
 
 def test_an_unfinished_board_listen_resumes_from_home_and_goes_with_its_board(

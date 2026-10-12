@@ -52,4 +52,11 @@ describe('nav route ownership (shared by both navs)', () => {
     expect(ownsRoute('browse', null)).toBe(false)
     expect(ownsRoute('browse', undefined)).toBe(false)
   })
+
+  it("a board's own short listen lights Library, not Discover (#2340)", () => {
+    expect(ownsRoute('library', 'topic-reel', { id: 'board:col_a' })).toBe(true)
+    expect(ownsRoute('browse', 'topic-reel', { id: 'board:col_a' })).toBe(false)
+    expect(ownsRoute('browse', 'topic-reel', { id: 'thc:risk' })).toBe(true)
+    expect(ownsRoute('library', 'topic-reel', { id: 'thc:risk' })).toBe(false)
+  })
 })

@@ -32,7 +32,7 @@ async function makeBoard(page: Page, name: string, items: Array<Record<string, s
   return id
 }
 
-test('an open board leads with its Brief and plays its own moments', async ({ page }, testInfo) => {
+test('a board opens its Brief from its own button, and plays its own moments', async ({ page }, testInfo) => {
   await signInIsolated(page, 'board-brief', testInfo)
   const run = Date.now().toString(36)
   const name = `Brief ${run}`
@@ -45,8 +45,13 @@ test('an open board leads with its Brief and plays its own moments', async ({ pa
 
   await navTo(page, 'library')
   await page.getByTestId('library-tab-collections').click()
-  await page.getByTestId('collection-open').filter({ hasText: name }).click()
+  const row = page.locator('[data-board-row]').filter({ hasText: name })
+  await row.getByTestId('collection-open').click()
+  await expect(page.getByTestId('collection-items')).toBeVisible()
+  // Not shown by default (operator 2026-10-12): the Brief opens from the board's own button.
   const brief = page.getByTestId('board-brief')
+  await expect(brief).toBeHidden()
+  await row.getByTestId('collection-brief').click()
   await expect(brief).toBeVisible()
   await expect(brief.getByTestId('board-brief-holds')).toHaveText('3 episodes')
   // One key point per episode, each opening its episode.
@@ -55,13 +60,15 @@ test('an open board leads with its Brief and plays its own moments', async ({ pa
   for (const [i, slug] of slugs.entries()) {
     await expect(points.nth(i)).toHaveAttribute('href', new RegExp(`^/episode/${slug}(\\?t=\\d+)?$`))
   }
-  // Three episodes of one show share subjects, and none of them is the show's host.
+  // Its voices, and what its episodes are about.
+  await expect(brief.getByTestId('ec-top-voice').first()).toBeVisible()
   await expect(brief.getByTestId('board-brief-subject').first()).toBeVisible()
 
   // The board's own short listen, through the same player as a subject's.
-  const door = brief.getByTestId('reel-door')
+  const door = brief.getByTestId('board-brief-play')
   await expect(door).toBeVisible()
   await door.click()
+  await expect(brief).toBeHidden()
   await expect(page).toHaveURL(new RegExp(`/listen/topic/board:${id}\\?minutes=15$`))
   await expect(page.getByTestId('topic-reel-title')).toHaveText(name)
   await expect(page.getByTestId('topic-reel-length')).toContainText('3 clips')

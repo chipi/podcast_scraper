@@ -2552,7 +2552,15 @@ export async function getCollection(id: string): Promise<CollectionDetail> {
 
 /** A board's Brief (#2340): from what is saved on it only. */
 export async function getBoardBrief(id: string): Promise<BoardBrief> {
-  return getJSON<BoardBrief>(`/collections/${encodeURIComponent(id)}/brief`)
+  const brief = await getJSON<BoardBrief>(`/collections/${encodeURIComponent(id)}/brief`)
+  // Top voices' photos are served routes: absolute, or the native WebView resolves them against
+  // capacitor://localhost and draws nothing.
+  return {
+    ...brief,
+    voices: brief.voices.map((v) =>
+      v.image_url ? { ...v, image_url: resolveMediaUrl(v.image_url) ?? v.image_url } : v,
+    ),
+  }
 }
 
 /** The user's boards matching `q` (#2341): by name first, then by something saved on them. */

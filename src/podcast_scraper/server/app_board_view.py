@@ -14,7 +14,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 from podcast_scraper.server import app_collections_store, app_user_state
 from podcast_scraper.server.app_catalog_cache import cached_catalog
@@ -34,6 +34,7 @@ from podcast_scraper.server.schemas import (
     AppBoardPoint,
     AppBoardSubject,
     AppBoardThread,
+    AppBoardVoice,
 )
 
 #: A board's short listen is addressed as ``board:<collection id>``, beside ``topic:`` and the rest.
@@ -42,10 +43,15 @@ BOARD_SUBJECT_PREFIX = "board:"
 #: read. Key points come from the first ``MAX_POINTS`` of them, in board order.
 MAX_BRIEF_EPISODES = 40
 MAX_POINTS = 8
-MAX_ABOUT = 8
-MAX_THREADS = 6
-#: A subject or thread names what the board's episodes share: one episode is not sharing.
-MIN_SHARED = 2
+#: The topics, storylines and themes of the board's episodes, most episodes first, as an episode's
+#: or a show's "about" lists them; the sheet folds them after the first few.
+MAX_TOPICS = 30
+MAX_THREADS = 12
+#: The people who speak across the board's episodes (operator 2026-10-12: a board has no host or
+#: guest of its own, it has its voices, as a topic does).
+MAX_VOICES = 12
+#: Roles of the people who SPEAK in an episode; "mentioned" people are talked about, not heard.
+_SPEAKING_ROLES = frozenset({"host", "guest"})
 
 _SUBJECT_KINDS = frozenset({"topic", "person", "theme", "storyline"})
 
@@ -103,6 +109,13 @@ def _holds(board: Board, episodes: int) -> AppBoardHolds:
     )
 
 
+def _point_text(text: str, quote: Optional[str]) -> str:
+    """The insight, or its whole quote when the insight is that quote cut short with "…"."""
+    if quote and text.endswith("…") and quote.startswith(text[:-1].rstrip()):
+        return quote
+    return text
+
+
 def _point(root: Path, row: Any) -> Optional[AppBoardPoint]:
     """The episode's strongest insight and where its best quote is said, or None without GI."""
     if not row.has_gi:
@@ -115,20 +128,31 @@ def _point(root: Path, row: Any) -> Optional[AppBoardPoint]:
     return AppBoardPoint(
         episode=row_to_summary(root, row),
         insight_id=top.id,
-        text=top.text,
+        text=_point_text(top.text, quote.text if quote else None),
         quote_text=quote.text if quote else None,
         speaker=quote.speaker if quote else None,
         start_ms=quote.start_ms if quote else None,
     )
 
 
+def _same_label(a: str, b: str) -> bool:
+    """ "Second-order effects" and "second order effects" name one thing."""
+
+    def norm(x: str) -> str:
+        return re.sub(r"[\W_]+", " ", x.casefold()).strip()
+
+    return norm(a) == norm(b)
+
+
 def build_board_brief(root: Path, board: Board) -> AppBoardBrief:
-    """The board's Brief: what it holds, what its episodes share, and each episode's key point."""
+    """The board's Brief: what it holds, its voices, what its episodes are about, and each
+    episode's key point. Everything is counted in the board's episodes, most first."""
     from podcast_scraper.search.storylines import (
         storyline_map_by_topic,
         top_storylines_by_member_count,
     )
     from podcast_scraper.search.topic_clusters import theme_map_by_topic
+    from podcast_scraper.server.app_relational_view import hosted_photo_urls
 
     rows = [
         (slug, row)
@@ -137,7 +161,8 @@ def build_board_brief(root: Path, board: Board) -> AppBoardBrief:
     ]
     umbrellas = umbrella_tokens(root)
     saved = {str(m.get("ref")) for m in board.items if m.get("kind") in ("topic", "person")}
-    subject_eps: Counter[tuple[Literal["topic", "person"], str]] = Counter()
+    topic_eps: Counter[str] = Counter()
+    voice_eps: Counter[str] = Counter()
     labels: dict[str, str] = {}
     storyline_eps: Counter[str] = Counter()
     theme_eps: Counter[str] = Counter()
@@ -155,17 +180,16 @@ def build_board_brief(root: Path, board: Board) -> AppBoardBrief:
         for topic in topics:
             if topic.id in topic_ids:
                 labels.setdefault(topic.id, topic.label)
-        # A host is in every episode of their show, so on a board of one show they would lead
-        # "about" while saying nothing about it; a name known only inside one episode has no card.
-        voices = {
+        topic_eps.update(topic_ids)
+        # Who SPEAKS in it. A name known only inside one episode has no card to open.
+        speakers = {
             p.id: p.name
             for p in persons
-            if p.kind == "person" and p.role != "host" and not p.episode_scoped
+            if p.kind == "person" and p.role in _SPEAKING_ROLES and not p.episode_scoped
         }
-        for pid, name in voices.items():
+        for pid, name in speakers.items():
             labels.setdefault(pid, name)
-        subject_eps.update(("topic", tid) for tid in topic_ids)
-        subject_eps.update(("person", pid) for pid in voices)
+        voice_eps.update(speakers.keys())
         storyline_eps.update(
             {
                 str(storyline_map[t]["storyline_id"])
@@ -187,15 +211,24 @@ def build_board_brief(root: Path, board: Board) -> AppBoardBrief:
             - umbrellas
         )
     about = [
-        AppBoardSubject(id=sid, kind=kind, label=labels[sid], episodes=n, saved=sid in saved)
-        for (kind, sid), n in subject_eps.items()
-        if n >= MIN_SHARED and labels.get(sid)
+        AppBoardSubject(id=tid, kind="topic", label=labels[tid], episodes=n, saved=tid in saved)
+        for tid, n in topic_eps.items()
+        if labels.get(tid)
     ]
     about.sort(key=lambda s: (-s.episodes, s.label.casefold()))
+    photos = hosted_photo_urls(root) if voice_eps else {}
+    voices = [
+        AppBoardVoice(
+            id=pid, name=labels[pid], episodes=n, image_url=photos.get(pid), saved=pid in saved
+        )
+        for pid, n in voice_eps.items()
+        if labels.get(pid)
+    ]
+    voices.sort(key=lambda v: (-v.episodes, v.name.casefold()))
     # A storyline opens at its anchor topic, and only one that clears the corpus's surfacing floor
     # has one, as in an episode's Brief (``app_recap_view.episode_storylines``).
     anchors = {c["id"]: c for c in top_storylines_by_member_count(root, top_n=1000)}
-    threads = [
+    storylines = [
         AppBoardThread(
             id=str(anchors[thc]["anchor_topic_id"]),
             kind="storyline",
@@ -203,18 +236,23 @@ def build_board_brief(root: Path, board: Board) -> AppBoardBrief:
             episodes=n,
         )
         for thc, n in storyline_eps.items()
-        if n >= MIN_SHARED and thc in anchors
-    ] + [
+        if thc in anchors
+    ]
+    # A theme with a storyline's name would read twice in one row: the storyline stays.
+    themes = [
         AppBoardThread(id=tc, kind="theme", label=theme_labels[tc], episodes=n)
         for tc, n in theme_eps.items()
-        if n >= MIN_SHARED and theme_labels.get(tc)
+        if theme_labels.get(tc)
+        and not any(_same_label(theme_labels[tc], s.label) for s in storylines)
     ]
+    threads = storylines + themes
     threads.sort(key=lambda t: (-t.episodes, t.kind, t.label.casefold()))
     return AppBoardBrief(
         board_id=str(board.meta["id"]),
         name=str(board.meta.get("name") or ""),
         holds=_holds(board, len(rows)),
-        about=about[:MAX_ABOUT],
+        voices=voices[:MAX_VOICES],
+        about=about[:MAX_TOPICS],
         points=points,
         threads=threads[:MAX_THREADS],
     )
@@ -269,6 +307,7 @@ def board_reel(
             h = board.highlights.get(str(item.get("ref")))
             if h is not None and (clip := _saved_moment_clip(root, h)) is not None:
                 fits(clip)
+    saved_from = {c.episode_slug for c in out}
     for item in board.items:
         if item.get("kind") != "episode":
             continue
@@ -276,18 +315,14 @@ def board_reel(
         row = resolve_slug(root, slug)
         if row is None:
             continue
+        # A moment of this episode is saved: that is what the listener chose to hear from it, and
+        # its strongest clip as well would play the same episode twice in a row.
+        if slug in saved_from:
+            continue
         refs = episode_clips(root, row, cfg)
         if not refs:
             continue
         best = min(refs, key=lambda r: (-r.score, r.order))
-        # A saved moment of this episode already plays this stretch.
-        if any(
-            c.episode_slug == slug
-            and c.moment.start_ms < best.end_ms
-            and best.start_ms < c.moment.end_ms
-            for c in out
-        ):
-            continue
         for moment in hydrate(root, row, [best], cfg):
             fits(ReelClip(episode_slug=slug, moment=moment))
     return out

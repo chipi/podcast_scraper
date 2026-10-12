@@ -34,8 +34,19 @@ export const OWNED_ROUTES: Record<string, readonly string[]> = {
   queue: ['queue'],
 }
 
-/** True when `routeName` belongs to the nav destination `owner`. */
-export function ownsRoute(owner: string, routeName: string | null | undefined): boolean {
+/** True when `routeName` belongs to the nav destination `owner`.
+ *
+ * `params` settles the one route two destinations share: a short listen (`topic-reel`) is
+ * Discover's, but a BOARD's own short listen (`board:<id>`, #2340) is opened from Library and lights
+ * Library, as the board it plays does. */
+export function ownsRoute(
+  owner: string,
+  routeName: string | null | undefined,
+  params?: Record<string, unknown>,
+): boolean {
   if (!routeName) return false
+  if (routeName === 'topic-reel' && String(params?.id ?? '').startsWith('board:')) {
+    return owner === 'library'
+  }
   return OWNED_ROUTES[owner]?.includes(routeName) ?? false
 }

@@ -154,26 +154,34 @@ short listens (ADR-163).
 
 ### The board Brief (#2340)
 
-An episode has a Brief; a board gets one too, **at the top of the open board**. It covers **only
-what is saved on the board itself**: a saved show, topic or person is not expanded into its
-episodes. "The board's episodes" are its saved episodes plus the episodes of its saved moments.
+An episode has a Brief; a board gets one too. It is **not shown by default**: a "Brief" button on
+the board's header opens it in a sheet laid out as the episode's Brief is (operator 2026-10-12).
+It covers **only what is saved on the board itself**: a saved show, topic or person is not
+expanded into its episodes. "The board's episodes" are its saved episodes plus the episodes of its
+saved moments.
 
 - **What it holds**: how many episodes, saved moments, shows, subjects, searches and links.
-- **What it is about**: topics and people that recur across two or more of the board's episodes,
-  from their knowledge graphs, umbrella-guarded (ADR-163 amendment). A subject also saved on the
-  board directly is marked as such.
+- **Play N moments**: the board's short listen (below), the episode Brief's play button.
+- **Top voices**: a board has no host or guest of its own, so instead of the episode's people it
+  lists who speaks (host or guest) across its episodes, most episodes first, as a topic does.
 - **Key points**: the strongest insight of each of the board's episodes, with its quote and time,
-  so every point can be heard where it is said (the "why" of ADR-164).
-- **What links them**: storylines and themes that two or more of the board's episodes share.
+  so every point can be heard where it is said (the "why" of ADR-164). When the insight is its
+  quote cut short, the whole quote is shown.
+- **What this board's about**: as the show page's band, a row per kind — storylines, themes,
+  topics — every one of the board's episodes carries, most episodes first, umbrella-guarded
+  (ADR-163 amendment). A theme with a storyline's name is left out of the row. A topic also saved
+  on the board directly is marked as such.
 
-`GET /api/app/collections/{id}/brief`, owner only (404 otherwise). An empty board, or one holding
-only shows, searches and links, has no Brief and shows none.
+`GET /api/app/collections/{id}/brief`, owner only (404 otherwise). A board with no episodes (shows,
+searches and links only) has nothing to brief, and its sheet says so.
 
 ### The board's short listen (#2340)
 
-Next to the Brief: the board's own moments, back to back. Every saved moment that has a time, in
-board order, then the strongest clip of each saved episode (the same clip a topic's short listen
-would take from it, ADR-163 §8), within the minutes chosen. Served at
+Opened from the Brief: the board's own moments, back to back. Every saved moment that has a time,
+in board order, then the strongest clip of each saved episode with no saved moment (the same clip
+a topic's short listen would take from it, ADR-163 §8), within the minutes chosen. An episode with
+a saved moment plays that moment only, so it is never heard twice in a row. While it plays, the
+nav lights Library, where the board lives. Served at
 `GET /api/app/collections/{id}/reel` in the shape of `/discover/reel` (`subject_kind: board`), so
 the existing short-listen player plays it.
 

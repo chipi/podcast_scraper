@@ -1374,12 +1374,13 @@
     "holdsSubjects": "{count} subject | {count} subjects",
     "holdsSearches": "{count} search | {count} searches",
     "holdsLinks": "{count} link | {count} links",
-    "about": "What it's about",
-    "inEpisodes": "in {count} episode | in {count} episodes",
     "savedHere": "saved on this board",
-    "points": "Key points",
     "pointBy": "{speaker} · {episode}",
-    "threads": "What links them",
-    "unavailable": "The Brief could not be loaded."
+    "unavailable": "The Brief could not be loaded.",
+    "open": "Brief",
+    "close": "Close brief",
+    "empty": "Nothing to brief yet. Save an episode or a moment to this board.",
+    "playHint": "{length} · this board's moments, in order",
+    "about": "What this board’s about"
   }
 }

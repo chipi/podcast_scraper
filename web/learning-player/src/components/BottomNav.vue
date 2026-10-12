@@ -100,7 +100,7 @@ function target(name: string): { name: string; query?: Record<string, string> } 
 /* Route ownership is shared with the desktop masthead — see utils/navOwnership.ts. */
 
 /** Highlight by the routes the tab OWNS, not the resolved target, so a gated tab still reads active. */
-const isActive = (name: string): boolean => ownsRoute(name, route.name as string | undefined)
+const isActive = (name: string): boolean => ownsRoute(name, route.name as string | undefined, route.params)
 </script>
 
 <template>
