@@ -103,6 +103,7 @@ import { formatDuration, formatPublishDate, speakerLabel } from '../utils/format
 import { episodePlayerArtwork } from '../utils/episode'
 import { getPlayerViewSnapshot, setPlayerViewSnapshot } from './player-view-cache'
 import QueueButton from '../components/QueueButton.vue'
+import { setLearnOrigin } from '../services/captureSource'
 
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
@@ -1196,6 +1197,17 @@ watch(
     if (Number.isFinite(seconds) && seconds > 0) seekContent(seconds)
     if (play) player.play()
   },
+)
+
+// Opened from a learning day (`?from=learn`): a highlight saved on this episode counts as saved
+// while learning (stats, operator 2026-10-12). Opening another episode without it ends that.
+watch(
+  () => [props.slug, route.query.from] as const,
+  ([slug, from], previous) => {
+    if (from === 'learn') setLearnOrigin(slug)
+    else if (previous && previous[0] !== slug) setLearnOrigin(null)
+  },
+  { immediate: true },
 )
 
 // --- Moments (operator 2026-10-10) ------------------------------------------------------------

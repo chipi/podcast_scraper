@@ -591,6 +591,8 @@ export interface HighlightCreate {
   /** D-36(b): source language when the captured text is a machine translation. */
   translated_from?: string | null
   color?: string | null
+  /** Where it was saved, for stats: a full episode, a short listen, or a learning day. */
+  source?: 'episode' | 'moment' | 'learn'
   /**
    * Client-minted id (#1925). Supplying one makes the POST idempotent, which is what lets a
    * capture made offline sit in the outbox and be replayed: without a key, a retry whose response
@@ -1275,6 +1277,27 @@ export interface UserStats {
   captures_reviewed?: number
   reviews_total?: number
   captures_muted?: number
+  /** Where highlights were saved (operator 2026-10-12). */
+  capture_from_episode?: number
+  capture_from_moment?: number
+  capture_from_learn?: number
+  /** Learning and short listens, all time. */
+  learning_now?: LearningNowStat[]
+  learning_days_total?: number
+  learning_streak?: number
+  paths_finished?: number
+  paths_left?: number
+  moments_heard_total?: number
+  moments_seconds_total?: number
+}
+
+export interface LearningNowStat {
+  subject_id: string
+  subject_kind: "topic" | "person" | "theme" | "storyline"
+  subject_label: string
+  day: number
+  days: number
+  done: number
 }
 
 /** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */
@@ -1348,6 +1371,30 @@ export interface RecapResponse {
   days_in_window: number
   coverage_from: string | null
   first_listened_at: number | null
+  /** Beside the listening (operator 2026-10-12). Optional: a server before them sends none. */
+  distinct_shows?: number
+  /** Short-listen clips heard to their end, and their seconds — NOT in `listening_seconds`. */
+  moments_heard?: number
+  moments_seconds?: number
+  moments_by_day?: Record<string, number>
+  learning_days?: number
+  /** Episodes heard as moments, and how many of them were then played in full. */
+  moment_episodes?: number
+  moment_to_full?: number
+  /** What the window was about, across episodes, short listens and learning days. */
+  subjects?: RecapSubject[]
+}
+
+/** A subject of the window, across episodes heard, short listens and learning days. */
+export interface RecapSubject {
+  id: string
+  kind: "topic" | "person" | "theme" | "storyline"
+  label: string
+  episodes: number
+  moments: number
+  learning_days: number
+  delta: number
+  is_new: boolean
 }
 
 export type RecapWindow = "week" | "month" | "year" | "ytd"

@@ -85,7 +85,7 @@ describe('LearnPathView', () => {
     expect(card(4).find('[data-testid="learn-step-open"]').exists()).toBe(false) // later: not openable
     await card(1).get('[data-testid="learn-step-open"]').trigger('click')
     expect(card(1).attributes('data-open')).toBe('true')
-    expect(card(1).get('[data-testid="learn-step-play"]').attributes('href')).toBe('/episode/ep-1?t=1&play=1')
+    expect(card(1).get('[data-testid="learn-step-play"]').attributes('href')).toBe('/episode/ep-1?t=1&play=1&from=learn')
     expect(card(1).find('[data-testid="learn-step-mark-done"]').exists()).toBe(false) // already done
     await card(1).get('[data-testid="learn-step-toggle"]').trigger('click')
     expect(card(1).attributes('data-open')).toBe('false')

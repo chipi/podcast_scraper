@@ -63,3 +63,14 @@ describe('formatMonthYear', () => {
     expect(formatMonthYear(undefined)).toBeNull()
   })
 })
+
+describe('formatListened (operator 2026-10-12)', () => {
+  it('says minutes under an hour, not 0.0h', async () => {
+    const { formatListened } = await import('./format')
+    expect(formatListened(0)).toBe('0 min')
+    expect(formatListened(170)).toBe('3 min')
+    expect(formatListened(3599)).toBe('60 min')
+    expect(formatListened(3600 * 4.24)).toBe('4.2h')
+    expect(formatListened(3600 * 12.6)).toBe('13h')
+  })
+})

@@ -33,7 +33,8 @@ const time = computed(() => formatTime(props.step.start_ms / 1000))
 const playTo = computed(() => ({
   name: 'player',
   params: { slug: props.step.episode.slug },
-  query: { t: String(Math.floor(props.step.start_ms / 1000)), play: '1' },
+  // `from=learn`: a highlight saved there counts as saved on a learning day (stats, 2026-10-12).
+  query: { t: String(Math.floor(props.step.start_ms / 1000)), play: '1', from: 'learn' },
 }))
 </script>
 

@@ -127,7 +127,7 @@ async function start(at = 0): Promise<void> {
   if (!data.value) return
   report('start')
   await player.startTopicReel(
-    { id: props.id, label: data.value.subject_label, minutes: budget.value },
+    { id: props.id, label: data.value.subject_label, minutes: budget.value, kind: data.value.subject_kind },
     moments.value,
     resolveNextUpForSlug,
     at,

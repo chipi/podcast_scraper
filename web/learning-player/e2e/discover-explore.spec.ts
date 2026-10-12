@@ -323,7 +323,7 @@ test('Learn X this week: start on Discover, do today, go ahead, find it on Home,
   await expect(page.getByTestId('learn-view-title')).toHaveText(label)
   const today = page.locator('[data-testid="learn-step"][data-open="true"]')
   await expect(today).toHaveAttribute('data-day', '1')
-  await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1$/)
+  await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1&from=learn$/)
   await today.getByTestId('learn-step-mark-done').click()
   await expect(today.getByTestId('learn-step-done-mark')).toBeVisible()
   // A day a day is the rhythm, not a wall: once today's is done, the next can open now.

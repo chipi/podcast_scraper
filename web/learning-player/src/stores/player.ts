@@ -67,6 +67,19 @@ export interface ReelTopic {
   id: string
   label: string
   minutes: number
+  /** The subject's kind, for the stats a heard clip feeds (operator 2026-10-12). */
+  kind?: 'topic' | 'person' | 'theme' | 'storyline'
+}
+
+/** A short-listen event for stats (operator 2026-10-12): a clip heard to its end, or "Keep
+ *  listening" from one into its full episode. `seq` makes two identical events two changes. */
+export interface MomentEvent {
+  seq: number
+  kind: 'clip' | 'keep'
+  slug: string
+  insightId?: string
+  seconds?: number
+  topic?: ReelTopic
 }
 
 /** A Moments reel in progress: which moment, and where the listener was before it started. */
@@ -518,7 +531,19 @@ export const usePlayerStore = defineStore('player', () => {
       // The reel plays clip windows: past the current one's end, on to the next (or the end card).
       // No position saves and no milestones while it runs — a reel must not move the resume point
       // or count as listening.
-      if (!r.done && !reelSwitching && currentTime.value * 1000 >= r.moments[r.index].endMs) reelNext()
+      if (!r.done && !reelSwitching && currentTime.value * 1000 >= r.moments[r.index].endMs) {
+        // Played to its end, not skipped: that is a clip heard (stats, operator 2026-10-12).
+        const clip = r.moments[r.index]
+        momentHeard.value = {
+          seq: (momentHeard.value?.seq ?? 0) + 1,
+          kind: 'clip',
+          slug: clip.slug ?? r.slug,
+          insightId: clip.insightId,
+          seconds: Math.max(0, (clip.endMs - clip.startMs) / 1000),
+          topic: r.topic,
+        }
+        reelNext()
+      }
       return
     }
     maybeSavePosition()
@@ -720,10 +745,15 @@ export const usePlayerStore = defineStore('player', () => {
    */
   /** The topic reel the listener last left, and how: ✕ (`close`) or "Keep listening" (`keep`). */
   const reelLeft = ref<{ id: string; how: 'close' | 'keep' } | null>(null)
+  /** The last short-listen event, for stats; watched from the app shell (`momentsHeard`). */
+  const momentHeard = ref<MomentEvent | null>(null)
   function exitReel(keepHere: boolean): void {
     const r = reel.value
     if (!r) return
     if (r.topic) reelLeft.value = { id: r.topic.id, how: keepHere ? 'keep' : 'close' }
+    if (keepHere) {
+      momentHeard.value = { seq: (momentHeard.value?.seq ?? 0) + 1, kind: 'keep', slug: r.slug }
+    }
     reel.value = null
     reelResolve = null
     if (keepHere) {
@@ -1098,6 +1128,7 @@ export const usePlayerStore = defineStore('player', () => {
     justFinished,
     reel,
     reelLeft,
+    momentHeard,
     inReel,
     startReel,
     startTopicReel,

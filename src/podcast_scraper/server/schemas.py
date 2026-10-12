@@ -1559,6 +1559,13 @@ class HighlightCreate(BaseModel):
         "the capture so every copy of the quote (export, digest, share card) can say so.",
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
+    source: Literal["episode", "moment", "learn"] | None = Field(
+        default=None,
+        description=(
+            "Where it was saved (operator 2026-10-12): a full episode, a short listen, or a "
+            "learning day. Stats only; omitted counts as an episode."
+        ),
+    )
     client_id: str | None = Field(
         default=None,
         pattern=_CLIENT_ID_PATTERN,
@@ -1625,6 +1632,9 @@ class Highlight(BaseModel):
         description="Source language code when the captured text is a machine translation.",
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
+    source: Literal["episode", "moment", "learn"] | None = Field(
+        default=None, description="Where it was saved: episode, moment (short listen) or learn."
+    )
     created_at: int = Field(description="Unix time captured.")
     anchor_status: str | None = Field(
         default=None, description="'anchored' | 'drifted' after a re-anchor; None until re-scraped."
@@ -2486,6 +2496,32 @@ class StatPoint(BaseModel):
     count: int = Field(ge=0, description="Opens on that day.")
 
 
+class LearningNowStat(BaseModel):
+    """One learning path on now, for stats."""
+
+    subject_id: str
+    subject_kind: str
+    subject_label: str
+    day: int = Field(ge=0, description="The path's day today (1-based, capped at its days).")
+    days: int = Field(ge=0, description="Days in the path.")
+    done: int = Field(ge=0, description="Days done.")
+
+
+class MomentHeard(BaseModel):
+    """Body for POST /api/app/me/moments-heard — one short-listen event (operator 2026-10-12)."""
+
+    kind: Literal["clip", "keep"] = Field(
+        description="A clip heard to its end, or 'Keep listening' from a clip into its episode."
+    )
+    slug: str = Field(min_length=1, description="The clip's episode.")
+    insight_id: str | None = Field(default=None, description="The clip's insight.")
+    seconds: float = Field(default=0, ge=0, le=3600, description="The clip's length heard.")
+    subject_id: str | None = Field(default=None, description="The short listen's subject.")
+    subject_kind: Literal["topic", "person", "theme", "storyline"] | None = None
+    subject_label: str | None = Field(default=None, max_length=300)
+    client_ts: int | None = Field(default=None, description="When it happened (advisory).")
+
+
 class UserStatsResponse(BaseModel):
     """The signed-in user's own listening summary — GET /api/app/me/stats (PRD-043 / RFC-102)."""
 
@@ -2522,6 +2558,23 @@ class UserStatsResponse(BaseModel):
         ge=0,
         description="Captures the user stopped resurfacing (kept, never asked again).",
     )
+    # --- where captures were made, learning, short listens (operator 2026-10-12) ---------------
+    capture_from_episode: int = Field(default=0, ge=0, description="Saved in a full episode.")
+    capture_from_moment: int = Field(default=0, ge=0, description="Saved in a short listen.")
+    capture_from_learn: int = Field(default=0, ge=0, description="Saved on a learning day.")
+    learning_now: list[LearningNowStat] = Field(
+        default_factory=list, description="Each path on now: its subject, day and days done."
+    )
+    learning_days_total: int = Field(default=0, ge=0, description="Learning days done, ever.")
+    learning_streak: int = Field(
+        default=0, ge=0, description="Current run of days (UTC) with a learning day done."
+    )
+    paths_finished: int = Field(default=0, ge=0, description="Paths with every day done.")
+    paths_left: int = Field(default=0, ge=0, description="Paths left before the end.")
+    moments_heard_total: int = Field(
+        default=0, ge=0, description="Short-listen clips heard to their end, ever."
+    )
+    moments_seconds_total: float = Field(default=0, ge=0, description="Their seconds, ever.")
 
 
 class EpisodeStatsResponse(BaseModel):
@@ -2711,6 +2764,19 @@ class RecapLine(BaseModel):
     created_at: int = Field(description="Unix seconds saved.")
 
 
+class RecapSubject(BaseModel):
+    """A subject of the window, across episodes, short listens and learning days."""
+
+    id: str
+    kind: Literal["topic", "person", "theme", "storyline"]
+    label: str
+    episodes: int = Field(default=0, description="Episodes heard that were about it.")
+    moments: int = Field(default=0, description="Short-listen clips heard on it.")
+    learning_days: int = Field(default=0, description="Learning days done on it.")
+    delta: int = Field(default=0, description="Change against the previous window.")
+    is_new: bool = Field(default=False, description="Absent from the previous window.")
+
+
 class RecapResponse(BaseModel):
     """A listening recap for one window (GET /api/app/me/recap).
 
@@ -2745,6 +2811,22 @@ class RecapResponse(BaseModel):
     )
     first_listened_at: int | None = Field(
         default=None, description="Unix seconds of the earliest listening we ever recorded."
+    )
+    # --- beside the listening (operator 2026-10-12) --------------------------------------------
+    distinct_shows: int = Field(default=0, description="Shows of the episodes started.")
+    moments_heard: int = Field(default=0, description="Short-listen clips heard to their end.")
+    moments_seconds: float = Field(
+        default=0, description="Their seconds; not part of listening_seconds."
+    )
+    moments_by_day: dict[str, float] = Field(
+        default_factory=dict, description="Short-listen seconds per local day."
+    )
+    learning_days: int = Field(default=0, description="Learning days done in the window.")
+    moment_episodes: int = Field(default=0, description="Episodes heard as moments.")
+    moment_to_full: int = Field(default=0, description="Of those, then played in full.")
+    subjects: list[RecapSubject] = Field(
+        default_factory=list,
+        description="What the window was about, across episodes, short listens and learning.",
     )
 
 

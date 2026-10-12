@@ -1190,24 +1190,41 @@ over-correction and was walked back — it made a working control read as dead.
 
 ### The look-back: recap panel and Home prompt
 
-- **`ListeningRecap`** (Profile → "Your listening") — a window toggle (Week · Month · This year),
-  per-day BARS (discrete days read better as bars than as a line), what kept coming up with its
-  movement (`↑2`, `↓3`, `new` — a delta of zero renders nothing, since an "unchanged" marker is
-  noise on every chip that did not move), and the line the listener saved, linking to the MOMENT it
-  came from.
-  **It always states its coverage while the window is partial** ("Recorded 3 of 7 days"), and the
-  line disappears on its own as coverage fills in.
-- **`RecapPrompt`** (Home, under Your Week) — deliberately NOT the recap: one line, one tap,
-  pointing at Profile. Profile is the permanent home you can always go to; this is the periodic
-  reminder that it is there. It self-hides when signed out, when the request fails, and when
-  nothing was listened to — a row reading "0h · 0 episodes" spends space telling the user what they
-  already know.
+**Profile › Stats is one story** (operator 2026-10-12: "take a holistic look … harmony, not more
+stuff"), top to bottom: the window's listening, then learning, then what was kept.
 
-**A number that was removed.** Profile's "Your listening" previously showed a headline `Xh` fed by
-`sum(position_seconds)` — a lifetime snapshot of furthest-position-reached. It rose when you seeked
-forward without hearing anything and did not move when you re-listened. It is gone; the panel below
-is retitled **"Your activity"**, because opens-over-time is a different question from time listened
-and conflating them is how the first number went unexamined for so long.
+- **`ListeningRecap`** (Profile → "Your listening") — a window toggle (Week · Month · This year)
+  over four tiles, one per way of listening: **Listened** (full episodes; minutes under an hour —
+  "0.0h" beside five episodes read as broken), **Moments** (short-listen clips heard to their end,
+  with their time), **Learning days**, and **Episodes** ("3 shows · 2 finished" as its second line).
+  Then ONE day chart, bars, full episodes and moments stacked (a short listen accrues no listening
+  time, so a day of moments was a blank bar); the streaks in one line ("Day streak: 4 days ·
+  Learning streak: 2 days", only those running); "2 of 5 episodes you heard as moments, you went on
+  to play in full"; **What it was about** — the topics and people of the episodes heard and the
+  subjects of the short listens and learning days, one row, each pill naming its kind
+  (`KindWord`), showing its total with its movement (`↑2`, `↓3`, `new`; zero renders nothing),
+  its spoken name saying what the total is made of; and the line the listener saved, linking to
+  the MOMENT it came from. **It always states its coverage while the window is partial**
+  ("Recorded 3 of 7 days").
+- **`LearningStats`** (Profile → "Learning") — each path on now with its kind, "Day 3 of 7 · 2 done"
+  and a bar of days done, linked to its week; then "2 finished · 1 left · 16 learning days in all".
+  A path left, or swapped out at the three-path cap, is kept server-side with its days, so these
+  can be said at all. Hidden for a listener who never learned.
+- **What you've kept** — as before, plus where highlights were saved: in episodes, in moments, on
+  learning days (a highlight carries `source`).
+- **What was folded in, not added:** the old all-time "Your activity" tiles — streak, episodes,
+  shows, and a 14-day sparkline of opens — went into the recap (the streak into its line, shows and
+  finishes into the Episodes tile, the one day chart is the recap's), so the tab no longer carries
+  two charts and two episode counts.
+- **`RecapPrompt`** (Home, under Your Week) — deliberately NOT the recap: the same week in one
+  line, one tap, pointing at Profile — "4.2h · 5 episodes · 9 moments · 2 learning days" (moments
+  and learning only when there were any), the week's top subject, then the next three as pills in
+  their kind's colours with their kind word. It self-hides when signed out, when the request fails,
+  and when nothing was heard at all.
+
+**Recording behind it.** `POST /me/moments-heard` records a clip heard to its end (not one skipped)
+and "Keep listening" from a clip into its episode; learning days carry when they were done; ended
+paths are kept with how they ended. Clearing listening history clears the moments log too.
 
 ### Deep links
 

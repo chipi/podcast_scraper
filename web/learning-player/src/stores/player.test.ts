@@ -1029,6 +1029,24 @@ describe('Moments reel (operator 2026-10-10)', () => {
     expect(el.pause).toHaveBeenCalled()
   })
 
+  it('a clip heard to its end is a moment heard; a skipped one is not; Keep listening is a keep', () => {
+    // Stats (operator 2026-10-12): a short listen leaves no position and no listening time, so
+    // this event is its only trace.
+    p.startReel('ep-1', MOMENTS)
+    at(75)
+    expect(p.momentHeard).toMatchObject({ seq: 1, kind: 'clip', slug: 'ep-1', insightId: 'i1', seconds: 15 })
+    p.reelNext() // skipped, not heard
+    expect(p.momentHeard?.seq).toBe(1)
+    p.exitReel(true)
+    expect(p.momentHeard).toMatchObject({ seq: 2, kind: 'keep', slug: 'ep-1' })
+  })
+
+  it('closing a short listen with ✕ is not a keep', () => {
+    p.startReel('ep-1', MOMENTS)
+    p.exitReel(false)
+    expect(p.momentHeard).toBeNull()
+  })
+
   it('previous restarts the moment after 3 s, and goes back one within them', () => {
     p.startReel('ep-1', MOMENTS, 1)
     at(306)

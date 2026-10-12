@@ -31,8 +31,8 @@ import Tabs from "../components/Tabs.vue"
 import { panelAttrs, type TabSpec } from "../components/tabs"
 import InterestSections from "../components/InterestSections.vue"
 import SuggestedLessList from "../components/SuggestedLessList.vue"
-import Sparkline from "../components/Sparkline.vue"
 import ListeningRecap from "../components/ListeningRecap.vue"
+import LearningStats from "../components/LearningStats.vue"
 import ProfileAvatar from "../components/ProfileAvatar.vue"
 import AvatarCropModal from "../components/AvatarCropModal.vue"
 const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
@@ -240,8 +240,13 @@ const interestsFailed = ref(false)
 // `sum(position_seconds)` — a lifetime snapshot of furthest position reached, which rises when
 // you seek forward without hearing anything and does not move when you re-listen. It was rendered
 // as a headline "Xh". ListeningRecap shows time actually accrued instead, with its coverage.
-const series = computed(() => stats.value?.daily.map((d) => d.count) ?? [])
-const hasStats = computed(() => !!stats.value && stats.value.episodes > 0)
+const hasStats = computed(
+  () =>
+    !!stats.value &&
+    (stats.value.episodes > 0 ||
+      (stats.value.moments_heard_total ?? 0) > 0 ||
+      (stats.value.learning_days_total ?? 0) > 0),
+)
 /**
  * The capture half gates on CAPTURES, not on listening (operator 2026-09-18).
  *
@@ -629,61 +634,21 @@ onActivated(() => {
     <!-- STATS tab: listening analytics + the recap. -->
     <div v-show="tab === 'stats'" v-bind="panelAttrs('profile', 'stats')">
       <template v-if="visitedTabs.has('stats')">
-      <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
-      <!-- Always rendered. A conditional was tried and reverted (operator 2026-09-18): "Start
-           listening to build your stats" appeared above a kept block reading 12 captures, which
-           looked wrong — but that account had genuinely never listened, so the prompt was correct
-           and the seed data was the artificial thing. Capturing requires opening an episode, and
-           opening one counts, so "captures but no listening" is not a state the app can produce.
-           A branch that cannot fire is a branch nobody will verify again. -->
-      <section class="rounded-2xl border border-border p-5" data-testid="stats-listening">
-        <h2 class="lp-section mb-4">{{ t("stats.title") }}</h2>
-        <template v-if="hasStats">
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div class="rounded-xl bg-overlay p-4">
-              <!-- No flame beside the number (operator 2026-09-16). It was a 🔥 emoji that rendered
-                   as a tofu box on device, and it was decoration either way — the number and the
-                   "Day streak" label below already say everything it said. Dropped rather than
-                   redrawn, which also lets this tile match its siblings exactly: a bare number, no
-                   flex wrapper. -->
-              <span class="font-display text-3xl font-extrabold leading-none">{{
-                stats!.day_streak
-              }}</span>
-              <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.streak") }}</div>
-            </div>
-            <div class="rounded-xl bg-overlay p-4">
-              <span class="font-display text-3xl font-extrabold leading-none">{{
-                stats!.episodes
-              }}</span>
-              <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.episodes") }}</div>
-            </div>
-            <div class="rounded-xl bg-overlay p-4">
-              <span class="font-display text-3xl font-extrabold leading-none">{{
-                stats!.shows
-              }}</span>
-              <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.shows") }}</div>
-            </div>
-          </div>
-          <div class="mt-3 rounded-xl bg-overlay p-4">
-            <div class="mb-2 flex items-baseline justify-between">
-              <span class="text-xs font-medium text-muted">{{ t("stats.overTime") }}</span>
-              <span class="text-xs text-muted">{{
-                t("stats.activeDays", stats!.active_days, { named: { count: stats!.active_days } })
-              }}</span>
-            </div>
-            <Sparkline
-              :values="series"
-              :width="320"
-              :height="44"
-              class="block w-full text-canvas-foreground"
-            />
-          </div>
-        </template>
-        <p v-else-if="statsFailed" class="text-sm text-muted" data-testid="stats-unavailable">
+      <!-- One story, top to bottom (operator 2026-10-12): the window's listening — full episodes,
+           short listens, learning days — then the learning itself, then what was kept. The old
+           all-time tiles (streak, episodes, shows, a 14-day sparkline of opens) folded into the
+           recap: the streaks into its line, shows and finishes into its Episodes tile, and the one
+           day chart is the recap's, so the tab no longer had two charts and two episode counts. -->
+      <div data-testid="stats-listening">
+        <p v-if="statsFailed" class="text-sm text-muted" data-testid="stats-unavailable">
           {{ t("profile.unavailable") }}
         </p>
-        <p v-else class="text-sm text-muted">{{ t("stats.empty") }}</p>
-      </section>
+        <p v-else-if="!hasStats" class="rounded-2xl border border-border p-5 text-sm text-muted">
+          {{ t("stats.empty") }}
+        </p>
+        <ListeningRecap v-else :stats="stats" />
+      </div>
+      <LearningStats v-if="stats" :stats="stats" class="mt-6" />
 
       <!-- What the user has KEPT, and what they have done with it. Its own section because it
            answers a different question from the tiles above: those measure consumption, this
@@ -721,6 +686,17 @@ onActivated(() => {
           }}
         </p>
 
+        <!-- Where they were saved (operator 2026-10-12): the same total, by what was playing. -->
+        <p class="lp-kicker mt-1" data-testid="stats-capture-sources">
+          {{
+            t("stats.captureSources", {
+              episode: kept.capture_from_episode ?? kept.captures,
+              moment: kept.capture_from_moment ?? 0,
+              learn: kept.capture_from_learn ?? 0,
+            })
+          }}
+        </p>
+
         <!-- The review loop, which nothing measured before: the ladder records a count per
              highlight, so "how many reviews have I done" was a sum nobody had added up. -->
         <h3 class="lp-section mb-3 mt-6">{{ t("stats.reviewTitle") }}</h3>
@@ -747,9 +723,6 @@ onActivated(() => {
         <p class="lp-kicker mt-3">{{ t("stats.reviewHint") }}</p>
       </section>
 
-      <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and the
-         line they kept. -->
-      <ListeningRecap class="mt-6" />
       </template>
     </div>
 

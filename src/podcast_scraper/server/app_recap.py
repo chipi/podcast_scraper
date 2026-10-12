@@ -201,6 +201,139 @@ def _best_line(data_dir: Path, user_id: str, in_window: set[str], tz: int) -> di
     return best
 
 
+def _ts_of(raw: Any) -> int | None:
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        try:
+            return int(datetime.fromisoformat(str(raw)).timestamp())
+        except ValueError:
+            return None
+
+
+def learning_done_times(data_dir: Path, user_id: str) -> list[tuple[int, dict[str, Any]]]:
+    """Every learning day done, as ``(when, path)``: from the paths on now and those ended."""
+    out: list[tuple[int, dict[str, Any]]] = []
+    on = app_user_state.get_learning_paths(data_dir, user_id)
+    # A finished path is in the history from its last day AND still on until it is left: one path.
+    same = {(p.get("subject_id"), p.get("started_at")) for p in on}
+    ended = [
+        h
+        for h in app_user_state.get_learning_history(data_dir, user_id)
+        if (h.get("subject_id"), h.get("started_at")) not in same
+    ]
+    for path in [*on, *ended]:
+        for ts in dict(path.get("done_at") or {}).values():
+            at = _ts_of(ts)
+            if at is not None:
+                out.append((at, path))
+    return out
+
+
+def _moments_and_learning(
+    data_dir: Path,
+    user_id: str,
+    in_window: set[str],
+    previous: set[str],
+    tz: int,
+    exposure: Counter[tuple[str, str]],
+    exposure_prior: Counter[tuple[str, str]],
+    exposure_labels: dict[tuple[str, str], str],
+    top_n: int,
+) -> dict[str, Any]:
+    """Short listens and learning in the window, beside the listening (operator 2026-10-12).
+
+    * ``moments_*``: clips heard to their end, and their seconds. Not part of
+      ``listening_seconds``: a short listen saves no position and accrues no listening time.
+    * ``learning_days``: learning days done in the window, on any path (on now or ended).
+    * ``moment_episodes`` / ``moment_to_full``: the episodes heard as moments, and how many of them
+      were then played in full — "Keep listening" from a clip, or a start of the episode after it.
+    * ``subjects``: what the window was about, across all three — the topics and people of the
+      episodes heard, the subjects of the short listens, the subjects of the learning days — each
+      with its counts and its change against the previous window.
+    """
+    moments = app_user_state.list_moments_heard(data_dir, user_id)
+    seconds_by_day: dict[str, float] = {k: 0.0 for k in sorted(in_window)}
+    heard = 0
+    seconds = 0.0
+    first_heard: dict[str, int] = {}
+    kept: set[str] = set()
+    subj_now: Counter[tuple[str, str]] = Counter(exposure)
+    subj_before: Counter[tuple[str, str]] = Counter(exposure_prior)
+    labels: dict[tuple[str, str], str] = dict(exposure_labels)
+    parts: dict[tuple[str, str], Counter[str]] = {
+        k: Counter({"episodes": n}) for k, n in exposure.items()
+    }
+    for m in moments:
+        day = _event_day(m, tz)
+        at = _ts_of(m.get("ts"))
+        slug = str(m.get("slug"))
+        if m.get("kind") == "keep":
+            if day in in_window:
+                kept.add(slug)
+            continue
+        key = (str(m.get("subject_kind") or ""), str(m.get("subject_id") or ""))
+        if day in in_window:
+            heard += 1
+            sec = float(m.get("seconds") or 0.0)
+            seconds += sec
+            seconds_by_day[day] = round(seconds_by_day.get(day, 0.0) + sec, 1)
+            if at is not None:
+                first_heard[slug] = min(first_heard.get(slug, at), at)
+            if key[1]:
+                subj_now[key] += 1
+                parts.setdefault(key, Counter())["moments"] += 1
+                labels.setdefault(key, str(m.get("subject_label") or key[1]))
+        elif day in previous and key[1]:
+            subj_before[key] += 1
+
+    learning_days = 0
+    for at, path in learning_done_times(data_dir, user_id):
+        day = app_user_state._day_key(at, tz)
+        key = (str(path.get("subject_kind") or ""), str(path.get("subject_id") or ""))
+        if day in in_window:
+            learning_days += 1
+            if key[1]:
+                subj_now[key] += 1
+                parts.setdefault(key, Counter())["learning_days"] += 1
+                labels.setdefault(key, str(path.get("subject_label") or key[1]))
+        elif day in previous and key[1]:
+            subj_before[key] += 1
+
+    # Played in full after the moment: "Keep listening" from it, or a start of the episode later.
+    then_full = set(kept)
+    for rec in app_user_state.list_listen_events(data_dir, user_id):
+        slug = str(rec.get("slug"))
+        at = _ts_of(rec.get("ts"))
+        if slug in first_heard and at is not None and at > first_heard[slug]:
+            then_full.add(slug)
+
+    ranked = sorted(subj_now.items(), key=lambda kv: (-kv[1], kv[0][1]))[:top_n]
+    subjects = [
+        {
+            "id": k[1],
+            "kind": k[0],
+            "label": labels.get(k, k[1]),
+            "episodes": parts.get(k, Counter())["episodes"],
+            "moments": parts.get(k, Counter())["moments"],
+            "learning_days": parts.get(k, Counter())["learning_days"],
+            "delta": n - subj_before.get(k, 0),
+            "is_new": subj_before.get(k, 0) == 0,
+        }
+        for k, n in ranked
+        if k[0] in ("topic", "person", "theme", "storyline")
+    ]
+    return {
+        "moments_heard": heard,
+        "moments_seconds": round(seconds, 1),
+        "moments_by_day": seconds_by_day,
+        "learning_days": learning_days,
+        "moment_episodes": len(first_heard),
+        "moment_to_full": len(then_full & set(first_heard)),
+        "subjects": subjects,
+    }
+
+
 def build_recap(
     data_dir: Path,
     user_id: str,
@@ -256,9 +389,21 @@ def build_recap(
     # it needs no corpus. The previous window of the same length gives every theme its trend.
     previous_keys = set(_day_range(today - timedelta(days=days), days))
     counts, labels = _exposure_counts(data_dir, user_id, in_window, tz_offset_minutes)
+    prior: Counter[tuple[str, str]] = Counter()
     if counts:
         prior, _ = _exposure_counts(data_dir, user_id, previous_keys, tz_offset_minutes)
         themes = _ranked(counts, labels, top_n, prior)
+    beside = _moments_and_learning(
+        data_dir,
+        user_id,
+        in_window,
+        previous_keys,
+        tz_offset_minutes,
+        counts,
+        prior,
+        labels,
+        top_n,
+    )
 
     if root is not None:
         try:
@@ -303,4 +448,15 @@ def build_recap(
         "days_in_window": days,
         "coverage_from": recorded_days[0] if recorded_days else None,
         "first_listened_at": first_ever,
+        "distinct_shows": len(_shows_of(data_dir, user_id, set(starts))),
+        **beside,
+    }
+
+
+def _shows_of(data_dir: Path, user_id: str, slugs: set[str]) -> set[str]:
+    """The shows of these episodes, from the listen log's own ``feed_id`` (no corpus needed)."""
+    return {
+        str(rec["feed_id"])
+        for rec in app_user_state.list_listen_events(data_dir, user_id)
+        if rec.get("feed_id") and str(rec.get("slug")) in slugs
     }

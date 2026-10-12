@@ -35,6 +35,7 @@ from podcast_scraper.server.schemas import (
     LibraryItem,
     LibraryResponse,
     ListenEventBody,
+    MomentHeard,
     PlaybackListResponse,
     PlaybackPosition,
     PlaybackProgressBody,
@@ -211,6 +212,20 @@ def log_playback_progress(
     at = app_user_state.clamp_client_ts(body.client_ts, int(time.time()))
     app_user_state.append_playback_progress(
         _data_dir(request), user.user_id, slug, feed_id, body.milestone, at
+    )
+
+
+@router.post("/me/moments-heard", status_code=204)
+def log_moment_heard(
+    request: Request, body: MomentHeard, user: User = Depends(get_current_user)
+) -> None:
+    """Record a short-listen clip heard to its end, or "Keep listening" from one into its full
+    episode (operator 2026-10-12). Only what stats need; a short listen saves no position and
+    accrues no listening time, so without this it left no trace at all. ``client_ts`` is advisory
+    and clamped, as for playback milestones."""
+    at = app_user_state.clamp_client_ts(body.client_ts, int(time.time()))
+    app_user_state.append_moment_heard(
+        _data_dir(request), user.user_id, body.model_dump(exclude={"client_ts"}), at
     )
 
 

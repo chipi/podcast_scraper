@@ -1071,6 +1071,26 @@ export interface ReelProgress {
   speaker?: string | null
   quote_text?: string
 }
+/** One short-listen event, for stats (operator 2026-10-12): a clip heard to its end, or "Keep
+ *  listening" from one into its full episode. */
+export async function postMomentHeard(body: {
+  kind: "clip" | "keep"
+  slug: string
+  insight_id?: string
+  seconds?: number
+  subject_id?: string
+  subject_kind?: "topic" | "person" | "theme" | "storyline"
+  subject_label?: string
+  client_ts?: number
+}): Promise<void> {
+  const resp = await apiFetch(`${BASE}/me/moments-heard`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /me/moments-heard → ${resp.status}`)
+}
 /** Remember where a short listen is, so Home can resume it. */
 export async function putReelProgress(
   subjectId: string,

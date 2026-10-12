@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createRouter, createWebHistory } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import * as api from '../services/api'
-import type { RecapResponse } from '../services/types'
+import type { RecapResponse, RecapSubject } from '../services/types'
 import ListeningRecap from './ListeningRecap.vue'
 import { useAuthStore } from '../stores/auth'
 import { bumpIdentityEpoch } from '../services/identity'
@@ -19,6 +19,15 @@ const router = createRouter({
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
   ],
 })
+
+function subj(
+  id: string,
+  kind: RecapSubject['kind'],
+  label: string,
+  over: Partial<RecapSubject> = {},
+): RecapSubject {
+  return { id, kind, label, episodes: 0, moments: 0, learning_days: 0, delta: 0, is_new: false, ...over }
+}
 
 function recap(over: Partial<RecapResponse> = {}): RecapResponse {
   return {
@@ -49,6 +58,10 @@ function recap(over: Partial<RecapResponse> = {}): RecapResponse {
     days_in_window: 7,
     coverage_from: '2026-08-30',
     first_listened_at: 1788000000,
+    subjects: [
+      subj('topic:indexing', 'topic', 'Index investing', { episodes: 5, delta: 2 }),
+      subj('person:cho', 'person', 'Daniel Cho', { episodes: 2 }),
+    ],
     ...over,
   }
 }
@@ -127,12 +140,23 @@ describe('ListeningRecap', () => {
     expect(w.findAll('[role="img"] > div')).toHaveLength(7)
   })
 
-  it('lists what kept coming up, topics and people together', async () => {
-    vi.spyOn(api, 'getRecap').mockResolvedValue(recap())
+  it('lists what the window was about in one row, each pill naming its kind', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        subjects: [
+          subj('topic:indexing', 'topic', 'Index investing', { episodes: 5, moments: 2 }),
+          subj('thc:risk', 'storyline', 'Managing risk', { learning_days: 3 }),
+        ],
+      }),
+    )
     const w = mountRecap()
     await flushPromises()
-    expect(w.text()).toContain('Index investing')
-    expect(w.text()).toContain('Daniel Cho')
+    const pills = w.findAll('[data-testid="recap-subject"]')
+    expect(pills.map((p) => p.find('[data-testid="kind-word"]').text().trim())).toEqual(['Topic', 'Storyline'])
+    // The pill shows the total; its spoken name says what the total is made of.
+    expect(pills[0].text()).toContain('Index investing7')
+    expect(pills[0].attributes('aria-label')).toBe('Topic Index investing: 5 episodes, 2 moments')
+    expect(pills[1].attributes('aria-label')).toBe('Storyline Managing risk: 3 learning days')
   })
 
   it('links a saved line to the MOMENT it came from', async () => {
@@ -198,9 +222,7 @@ describe('what changed', () => {
     // A different fact, not a bigger number.
     vi.spyOn(api, 'getRecap').mockResolvedValue(
       recap({
-        topics: [
-          { token: 'topic:systems', label: 'Systems', episodes: 3, delta: 3, is_new: true },
-        ],
+        subjects: [subj('topic:systems', 'topic', 'Systems', { episodes: 3, delta: 3, is_new: true })],
       }),
     )
     const w = mountRecap()
@@ -212,7 +234,7 @@ describe('what changed', () => {
   it('shows a fall too — a recap that only ever goes up is flattery', async () => {
     vi.spyOn(api, 'getRecap').mockResolvedValue(
       recap({
-        topics: [{ token: 'topic:bonds', label: 'Bonds', episodes: 1, delta: -3, is_new: false }],
+        subjects: [subj('topic:bonds', 'topic', 'Bonds', { episodes: 1, delta: -3 })],
       }),
     )
     const w = mountRecap()
@@ -223,13 +245,66 @@ describe('what changed', () => {
   it('renders NO marker when nothing moved — an "unchanged" arrow is noise on every chip', async () => {
     vi.spyOn(api, 'getRecap').mockResolvedValue(
       recap({
-        topics: [{ token: 'topic:x', label: 'Steady', episodes: 4, delta: 0, is_new: false }],
-        people: [],
+        subjects: [subj('topic:x', 'topic', 'Steady', { episodes: 4 })],
       }),
     )
     const w = mountRecap()
     await flushPromises()
     expect(w.text()).not.toContain('↑')
     expect(w.text()).not.toContain('↓')
+  })
+})
+
+/** Moments and learning beside the listening (operator 2026-10-12). */
+describe('short listens and learning', () => {
+  it('counts moments and learning days in their own tiles, and says minutes under an hour', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({ listening_seconds: 170, moments_heard: 9, moments_seconds: 600, learning_days: 2, distinct_shows: 3 }),
+    )
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.get('[data-testid="recap-listened"]').text()).toContain('3 min')
+    expect(w.get('[data-testid="recap-moments"]').text()).toContain('9')
+    expect(w.get('[data-testid="recap-moments"]').text()).toContain('10 min')
+    expect(w.get('[data-testid="recap-learning"]').text()).toContain('2')
+    expect(w.get('[data-testid="recap-episodes"]').text()).toContain('3 shows · 4 finished')
+  })
+
+  it('stacks a day of moments on the day chart, so it is not a blank bar', async () => {
+    const r = recap({ moments_heard: 1, moments_by_day: { '2026-08-28': 300 } })
+    vi.spyOn(api, 'getRecap').mockResolvedValue(r)
+    const w = mountRecap()
+    await flushPromises()
+    const first = w.findAll('[data-testid="recap-day"]')[0]
+    expect(first.attributes('style')).toContain('opacity: 1')
+    expect(first.find('.bg-accent').exists()).toBe(true)
+  })
+
+  it('says how many moments led to the full episode, only once there were moments', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ moment_episodes: 5, moment_to_full: 2 }))
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.get('[data-testid="recap-moment-to-full"]').text()).toBe(
+      '2 of 5 episodes you heard as moments, you went on to play in full',
+    )
+  })
+
+  it('shows the running streaks from the all-time stats, and nothing for one not running', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap())
+    const w = mount(ListeningRecap, {
+      props: { stats: { day_streak: 4, learning_streak: 0 } as never },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    expect(w.get('[data-testid="recap-streaks"]').text()).toBe('Day streak: 4 days')
+  })
+
+  it('shows for a week of only short listens', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({ days_recorded: 0, episodes_started: 0, listening_seconds: 0, moments_heard: 3 }),
+    )
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.find('[data-testid="stats-recap"]').exists()).toBe(true)
   })
 })

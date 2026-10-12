@@ -62,6 +62,7 @@ const router = createRouter({
     { path: "/account/delete", name: "account-delete", component: { template: "<div/>" } },
     { path: "/", name: "home", component: { template: "<div/>" } },
     { path: "/catalog", name: "catalog", component: { template: "<div/>" } },
+    { path: "/learn", name: "learn", component: { template: "<div/>" } },
   ],
 })
 
@@ -403,22 +404,30 @@ describe("ProfileView — Your listening panel", () => {
     await router.push("/profile")
   })
 
-  it("renders streak / episodes / shows when episodes > 0", async () => {
+  it("is one story: the listening recap, then learning, then what was kept (operator 2026-10-12)", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    vi.spyOn(api, "getMyStats").mockResolvedValue(
+      stats({
+        captures: 3,
+        learning_now: [
+          { subject_id: "thc:r", subject_kind: "storyline", subject_label: "Managing risk", day: 3, days: 7, done: 2 },
+        ],
+        paths_finished: 1,
+        learning_days_total: 9,
+      }),
+    )
     const w = mountProfile()
     await flushPromises()
-    expect(w.text()).toContain("Your activity")
-    expect(w.text()).toContain("Day streak")
-    expect(w.text()).toContain("Episodes")
-    expect(w.text()).toContain("Shows")
-    // NO "Hours" tile here any more (#1914). It rendered `sum(position_seconds)` — a lifetime
-    // snapshot of furthest position reached, which rises on a forward seek and does not move on a
-    // re-listen. Time actually listened lives in ListeningRecap, with its coverage stated.
-    expect(w.text()).not.toContain("Hours")
-    // 4-day streak + 8 episodes + 3 shows surface their numbers.
-    expect(w.text()).toContain("4")
-    expect(w.text()).toContain("8")
-    expect(w.text()).toContain("3")
+    const order = ["stats-listening", "stats-learning", "stats-kept"].map((id) =>
+      w.html().indexOf(`data-testid="${id}"`),
+    )
+    expect(order.every((at) => at >= 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    // The old all-time tiles folded into the recap: no second "Your activity" block, no sparkline
+    // of opens beside the recap's own day chart.
+    expect(w.text()).not.toContain("Your activity")
+    expect(w.text()).not.toContain("Opens over time")
+    expect(w.get('[data-testid="stats-learning-path"]').text()).toContain("Day 3 of 7 · 2 done")
   })
 
   it("shows the stats empty state when the user has no episodes", async () => {
@@ -427,7 +436,6 @@ describe("ProfileView — Your listening panel", () => {
     const w = mountProfile()
     await flushPromises()
     expect(w.text()).toContain("Start listening to build your stats.")
-    expect(w.text()).not.toContain("Day streak")
   })
 
   it("keeps the listening panel when there IS listening, alongside the kept block", async () => {

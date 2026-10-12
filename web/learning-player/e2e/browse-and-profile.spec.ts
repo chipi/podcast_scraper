@@ -52,9 +52,10 @@ test('Profile shows activity and puts DEVICE settings last', async ({ page }, te
   // Signed-in identity and the account-level surfaces.
   await expectSignedIn(page)
   await expect(page.getByTestId('profile-settings-link')).toBeVisible()
-  // Activity lives in the Stats tab now (Profile is tabbed: Account / Topics / Stats).
+  // Activity lives in the Stats tab now (Profile is tabbed: Account / Topics / Stats). A fresh
+  // account has listened to nothing, so it says how to start (one Stats story since 2026-10-12).
   await page.getByRole('tab', { name: 'Stats' }).click()
-  await expect(page.getByText('Your activity')).toBeVisible()
+  await expect(page.getByTestId('stats-listening')).toContainText('Start listening to build your stats')
 })
 
 test('the interests picker opens as a modal and "Not now" is as reachable as Save', async ({

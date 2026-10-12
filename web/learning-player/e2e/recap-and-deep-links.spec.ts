@@ -85,9 +85,13 @@ test('the recap panel replaces the fabricated Hours tile and states its coverage
   await expect(page.getByText(/Recorded \d+ of \d+ days/)).toBeVisible()
 
   // The tile that showed `sum(position_seconds)` — a lifetime furthest-position snapshot — is
-  // gone, and the panel that remains is titled for what it actually measures.
-  await expect(page.getByText('Your activity')).toBeVisible()
+  // gone, and so is the all-time block it sat in: one Stats story since 2026-10-12, its four
+  // window tiles one per way of listening.
+  await expect(page.getByText('Your activity')).toHaveCount(0)
   await expect(page.getByText('Hours', { exact: true })).toHaveCount(0)
+  for (const id of ['recap-listened', 'recap-moments', 'recap-learning', 'recap-episodes']) {
+    await expect(page.getByTestId(id)).toBeVisible()
+  }
 })
 
 test('the Home prompt appears once there is something to look back on, and opens Profile', async ({

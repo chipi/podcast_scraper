@@ -85,6 +85,8 @@ import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
 import { watchReelProgress } from './services/reelProgress'
+import { watchMomentsHeard } from './services/momentsHeard'
+import { setShortListenProbe } from './services/captureSource'
 import { useCaptureStore } from './stores/capture'
 import { useLibraryStore } from './stores/library'
 import { useCompletedStore } from './stores/completed'
@@ -114,6 +116,9 @@ watchReelProgress({
   left: () => player.reelLeft,
   signedIn: () => !!auth.user,
 })
+// Short listens heard, for stats; and a highlight saved during one says so (operator 2026-10-12).
+watchMomentsHeard({ event: () => player.momentHeard, signedIn: () => !!auth.user })
+setShortListenProbe(() => !!player.reel)
 
 // Native launch overlay: shown briefly after the native splash hands off, while the app + its first
 // data load behind it (prolongs the branded splash + surfaces the build version). Native only.

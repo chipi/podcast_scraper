@@ -757,11 +757,84 @@ def list_listen_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     return out
 
 
+def _moments_path(data_dir: Path, user_id: str) -> Path:
+    return data_dir / "users" / user_id / "moments_heard.jsonl"
+
+
+#: What a moments row may carry, and nothing else: the client writes these.
+MOMENT_EVENT_KINDS = ("clip", "keep")
+
+
+def append_moment_heard(data_dir: Path, user_id: str, rec: dict[str, Any], ts: int) -> None:
+    """Record one short-listen event (operator 2026-10-12): a clip heard to its end (``clip``),
+    or "Keep listening" from a clip into its full episode (``keep``).
+
+    ``rec``: ``kind``, ``slug``, and optionally ``insight_id``, ``seconds`` and the short listen's
+    subject (``subject_id`` / ``subject_kind`` / ``subject_label``; none for an episode's own
+    moments). A redelivered clip (same kind, slug, insight and second) is dropped. Never raises:
+    a statistic must not cost a listen.
+    """
+    path = _moments_path(data_dir, user_id)
+    row = {
+        "ts": datetime.fromtimestamp(int(ts), timezone.utc).isoformat(),
+        "kind": str(rec.get("kind")),
+        "slug": str(rec.get("slug")),
+        "insight_id": rec.get("insight_id"),
+        "seconds": max(0.0, float(rec.get("seconds") or 0.0)),
+        "subject_id": rec.get("subject_id"),
+        "subject_kind": rec.get("subject_kind"),
+        "subject_label": rec.get("subject_label"),
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with _user_lock(data_dir, user_id, "moments_heard"):
+            if path.is_file():
+                with path.open("r", encoding="utf-8") as fh:
+                    for line in deque(fh, maxlen=LISTEN_DEDUPE_TAIL_LINES):
+                        try:
+                            old = json.loads(line)
+                        except ValueError:
+                            continue
+                        if isinstance(old, dict) and all(
+                            old.get(k) == row[k] for k in ("ts", "kind", "slug", "insight_id")
+                        ):
+                            return
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except OSError:
+        logger.debug("moments write failed for %s", user_id, exc_info=True)
+
+
+def list_moments_heard(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """One user's short-listen events, as written; skips blank and corrupt lines."""
+    path = _moments_path(data_dir, user_id)
+    if not path.is_file():
+        return []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    out: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and rec.get("slug") and rec.get("kind") in MOMENT_EVENT_KINDS:
+            out.append(rec)
+    return out
+
+
 #: Everything that records WHAT a person listened to and WHEN (Google Play "activity history",
 #: #2273). The library, follows, queue, highlights, notes, collections and interests are the
 #: person's own choices, not history, and are left alone.
 _HISTORY_JSON = ("playback", "listening_daily", "completed")
-_HISTORY_LOGS = ("listen_events.jsonl", "playback_events.jsonl", "topic_exposure.jsonl")
+_HISTORY_LOGS = (
+    "listen_events.jsonl",
+    "playback_events.jsonl",
+    "topic_exposure.jsonl",
+    "moments_heard.jsonl",
+)
 #: Owned by app_corpus_revision; its snapshot lists every "experienced" episode. Removing it makes
 #: the next read rebuild an empty log — consumers behind it get a full re-export (RFC-113 §2).
 _CORPUS_LOG = "corpus_log.json"
@@ -1189,23 +1262,64 @@ def add_learning_path(
         same = next((p for p in paths if p.get("subject_id") == path.get("subject_id")), None)
         if same is not None:
             return same
+        replaced = [p for p in paths if replace and p.get("subject_id") == replace]
         if replace:
             paths = [p for p in paths if p.get("subject_id") != replace]
         if len(paths) >= cap:
             return None
         _write(data_dir, user_id, "learning_paths", [*paths, path])
-        return path
+    # A path swapped out at the cap ended too: it goes to the history like one left.
+    for old in replaced:
+        if not old.get("finished_at"):
+            _append_learning_history(data_dir, user_id, old, "left", None)
+    return path
 
 
-def remove_learning_path(data_dir: Path, user_id: str, subject_id: str) -> bool:
-    """Stop the path through ``subject_id``; whether there was one."""
+def remove_learning_path(
+    data_dir: Path, user_id: str, subject_id: str, now: int | None = None
+) -> bool:
+    """Stop the path through ``subject_id``; whether there was one.
+
+    The path is kept in the listener's learning history (``left``, with the days done), unless it
+    was already recorded there as finished: its stats outlive the path (operator 2026-10-12).
+    """
     with _user_lock(data_dir, user_id, "learning_paths"):
         paths = _rows_for_update(data_dir, user_id, "learning_paths")
+        gone = [p for p in paths if p.get("subject_id") == subject_id]
         kept = [p for p in paths if p.get("subject_id") != subject_id]
-        if len(kept) == len(paths):
+        if not gone:
             return False
         _write(data_dir, user_id, "learning_paths", kept)
-        return True
+    if not gone[0].get("finished_at"):
+        _append_learning_history(data_dir, user_id, gone[0], "left", now)
+    return True
+
+
+def _append_learning_history(
+    data_dir: Path, user_id: str, path: dict[str, Any], outcome: str, now: int | None
+) -> None:
+    """One ended path, as stats need it: what it was about, how long, how much was done, how it
+    ended (``finished`` / ``left``), and when each day was done."""
+    entry = {
+        "subject_id": path.get("subject_id"),
+        "subject_kind": path.get("subject_kind"),
+        "subject_label": path.get("subject_label"),
+        "started_at": path.get("started_at"),
+        "ended_at": int(now if now is not None else time.time()),
+        "steps": len(path.get("steps") or []),
+        "done": len(path.get("done") or []),
+        "done_at": dict(path.get("done_at") or {}),
+        "outcome": outcome,
+    }
+    with _user_lock(data_dir, user_id, "learning_history"):
+        rows = _rows_for_update(data_dir, user_id, "learning_history")
+        _write(data_dir, user_id, "learning_history", [*rows, entry])
+
+
+def get_learning_history(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """Paths that ended (finished or left), oldest first."""
+    data = _read(data_dir, user_id, "learning_history", [])
+    return [r for r in data if isinstance(r, dict)] if isinstance(data, list) else []
 
 
 def _update_learning_path(
@@ -1230,15 +1344,29 @@ def _update_learning_path(
 
 
 def mark_learning_step_done(
-    data_dir: Path, user_id: str, subject_id: str, index: int
+    data_dir: Path, user_id: str, subject_id: str, index: int, now: int | None = None
 ) -> dict[str, Any] | None:
-    """Record step ``index`` of that path as done (idempotent); the path, or ``None`` without it."""
-    return _update_learning_path(
-        data_dir,
-        user_id,
-        subject_id,
-        lambda p: {**p, "done": sorted({int(i) for i in p.get("done") or []} | {int(index)})},
-    )
+    """Record step ``index`` of that path as done (idempotent); the path, or ``None`` without it.
+
+    Also when (``done_at``, the first time only), for the learning days and streak in stats; and
+    the path's ``finished_at`` once every day is done, which also records it in the learning
+    history as finished (operator 2026-10-12).
+    """
+    at = int(now if now is not None else time.time())
+
+    def change(p: dict[str, Any]) -> dict[str, Any]:
+        done = sorted({int(i) for i in p.get("done") or []} | {int(index)})
+        done_at = {str(k): v for k, v in dict(p.get("done_at") or {}).items()}
+        done_at.setdefault(str(int(index)), at)
+        updated = {**p, "done": done, "done_at": done_at}
+        if len(done) >= len(p.get("steps") or []) and not p.get("finished_at"):
+            updated["finished_at"] = at
+        return updated
+
+    path = _update_learning_path(data_dir, user_id, subject_id, change)
+    if path is not None and path.get("finished_at") == at:
+        _append_learning_history(data_dir, user_id, path, "finished", at)
+    return path
 
 
 def open_next_learning_day(
