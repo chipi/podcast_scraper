@@ -129,7 +129,9 @@ test.describe('Search — command palette (#1233)', () => {
     await landOnDigestWithCorpus(page, 'palette-pin-compare', testInfo)
     await openPalette(page)
     await queryPalette(page)
-    const pin = page.getByTestId('command-palette-action-pin-compare').first()
+    // The first hit that HAS a subject to pin: a hit without one disables its button (correctly),
+    // and which hit ranks first can differ by browser when scores tie (Firefox, 2026-10-12).
+    const pin = page.locator('[data-testid="command-palette-action-pin-compare"]:not([disabled])').first()
     await expect(pin).toBeVisible()
     await pin.click()
     await expect(page.getByTestId('command-palette')).toHaveCount(0)
