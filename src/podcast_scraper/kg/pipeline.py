@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, cast, Dict, List, Optional, Set
@@ -541,6 +542,11 @@ def build_artifact(
     nodes, edges = _collapse_mentions_into_speakers(nodes, edges)
     nodes, edges = _collapse_persons_named_as_orgs(nodes, edges)
     nodes = _dedupe_nodes_by_id(nodes)
+    # The same name-vs-slug collision mints a second MENTIONS edge with each second node
+    # ("Dr. Jade McGlynn" from the speakers, "Jade McGlynn" from the transcript). Folding the
+    # nodes leaves both edges; an exact duplicate edge then failed migration verifies (prod,
+    # 2026-10-12).
+    edges = _dedupe_edges(edges)
 
     return {
         # RFC-097 v2.0: typed Person / Organization / Podcast nodes + HAS_EPISODE.
@@ -702,6 +708,19 @@ def _remap_nodes(
         seen_edges.add(key)
         remapped_edges.append(e2)
     return kept, remapped_edges
+
+
+def _dedupe_edges(edges: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Drop edges byte-identical (sorted-key JSON) to an earlier one; first kept, order kept."""
+    seen: Set[str] = set()
+    out: List[Dict[str, Any]] = []
+    for edge in edges:
+        key = json.dumps(edge, sort_keys=True, default=str)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(edge)
+    return out
 
 
 def _dedupe_nodes_by_id(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

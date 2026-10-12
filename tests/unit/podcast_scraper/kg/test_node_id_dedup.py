@@ -8,6 +8,7 @@ ambiguous merge and the WHOLE corpus reindex aborts. The artifact-level pass is 
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 
 import pytest
@@ -58,3 +59,33 @@ def test_dedupe_helper_merges_and_preserves_order() -> None:
     assert [n["id"] for n in out] == ["person:a", "topic:t"]
     assert out[0]["properties"]["role"] == "host"
     assert out[0]["properties"]["x"] == 1 and out[0]["properties"]["y"] == 2
+
+
+def test_a_titled_variant_leaves_one_mentions_edge_not_two() -> None:
+    """The live shape on prod 2026-10-10 (Meduza, Jade McGlynn; Is Jesus, Andy Bannister).
+
+    The speaker pipeline names the guest "Dr. Jade McGlynn"; the transcript mentions "Jade
+    McGlynn". Both slug to ``person:jade-mcglynn`` but their name keys differ, so each site adds
+    a node AND a MENTIONS edge. The node pass folds the nodes; nothing folded the edges, and the
+    duplicate edge failed migrations 0017/0020's verify after the deploy.
+    """
+    payload = build_artifact(
+        episode_id="ep-1",
+        transcript_text="a transcript",
+        podcast_id="show-1",
+        episode_title="Ep",
+        detected_guests=["Dr. Jade McGlynn"],
+        prefilled_partial={
+            "topics": [{"label": "russian politics"}],
+            "entities": [{"name": "Jade McGlynn", "entity_kind": "person"}],
+        },
+    )
+    keys = [
+        (e["from"], e["to"], e["type"])
+        for e in payload["edges"]
+        if e["from"] == "person:jade-mcglynn" and e["type"] == "MENTIONS"
+    ]
+    assert len(keys) == 1, f"one person, one MENTIONS edge to the episode: {keys}"
+    assert len({json.dumps(e, sort_keys=True) for e in payload["edges"]}) == len(
+        payload["edges"]
+    ), "no edge may appear twice, byte for byte"
