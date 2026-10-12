@@ -193,3 +193,34 @@ wrong 41 → 36, missing 68 → 72, one regression (a trailer clip named as a ho
 
 On the audited labels (`labels_v1`): today 103 correct / 43 wrong / 70 missing; +seat_v4 104 / 38 /
 74; better 6, worse 1.
+
+## Whole-corpus replay and the failure atlas (2026-10-12)
+
+The gold gate scores labelled voices. Two more tools decide whether a change ships, and both are
+read-only:
+
+- **Whole-corpus replay.** Replay the baseline and the change side by side over every served
+  episode, sharded, then compare. Side by side matters: reprocessing moves the snapshot.
+
+  ```sh
+  for k in 0 1 2 3; do
+    python scripts/measure/roster_replay.py --corpus /app/output --repool --signatures \
+      --shard $k/4 --trace-out base.$k.jsonl --new roster=/tmp/base_roster.py &
+    python scripts/measure/roster_replay.py --corpus /app/output --repool --signatures \
+      --shard $k/4 --trace-out new.$k.jsonl --new roster=src/podcast_scraper/providers/ml/diarization/roster.py &
+  done; wait
+  cat base.?.jsonl > base.jsonl; cat new.?.jsonl > new.jsonl
+  python scripts/measure/naming_replay_compare.py base.jsonl new.jsonl
+  ```
+
+  It prints coverage for both sides (episodes with no named voice, named voices), episodes that
+  gained or lost every name, and every changed voice with its share and its own words. Read every
+  one. On the #2304 arc, five of the attempts had good totals and wrong voices.
+
+- **Failure atlas.** `scripts/measure/naming_atlas.py --variant roster=... --signatures` lists
+  every gold voice one code variant gets wrong, with where the right name was available and the
+  rung that dropped it. Use it on `dev_v1` to choose what to fix. Running it on `val_v1` reads the
+  held-out set (see [known issues](NAMING_KNOWN_ISSUES.md), measurement caveats).
+
+The classes the ladder cannot fix, and the changes already tried and rejected, are in
+[naming ladder — known issues](NAMING_KNOWN_ISSUES.md).

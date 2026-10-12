@@ -213,7 +213,7 @@ def test_known_hosts_none_is_accepted() -> None:
 
 def test_the_design_doc_states_the_trace_schema_the_code_writes() -> None:
     """A schema change must land with the doc that explains how to read it."""
-    doc = Path(__file__).parents[6] / "docs" / "wip" / "NAMING_DECISION_TRACE.md"
+    doc = Path(__file__).parents[6] / "docs" / "guides" / "NAMING_LADDER.md"
     m = re.search(r"^\| Trace schema \| `TRACE_VERSION = (\d+)`", doc.read_text(), re.M)
     assert m, "the doc's 'Trace schema' row is missing"
     assert int(m.group(1)) == TRACE_VERSION
