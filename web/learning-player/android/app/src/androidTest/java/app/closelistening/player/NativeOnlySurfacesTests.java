@@ -160,7 +160,9 @@ public class NativeOnlySurfacesTests extends UITestCase {
                 + Journey.labelledInventory(24), Journey.scrollTo(SEEDED_TITLE, false));
         assertNotNull("a downloaded episode still offers \"" + DOWNLOAD + "\" — the state is not "
                         + "reaching the control. On screen: " + Journey.labelledInventory(24),
-                Journey.find(DOWNLOADED, false, 8_000));
+                // Contains: the control names its episode ("Downloaded — tap to remove: <title>",
+                // 2026-10-12).
+                Journey.find(DOWNLOADED, true, 8_000));
     }
 
     // ------------------------------------------- 2. "On this device" — offline AND signed out
