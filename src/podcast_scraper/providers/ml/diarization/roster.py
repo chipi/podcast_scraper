@@ -3307,6 +3307,8 @@ def _refuted_unless_hailed(
         return False
     if _only_addressed_in_a_dominant_voice(v, name, voice_texts):
         return False
+    if _surname_only_of_someone_else(text, name):
+        return False
     if not ordered_turns or _vocative_count(text, name):
         return True
     if re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE):
@@ -3317,6 +3319,31 @@ def _refuted_unless_hailed(
         for (speaker, said), (nxt, _) in zip(turns, turns[1:])
     )
     return not hailed
+
+
+def _surname_only_of_someone_else(text: str, name: str) -> bool:
+    """Is every mention of ``name``'s surname in ``text`` preceded by a DIFFERENT given name?
+
+    The guest of The Living Philosophy #9, Layman Pascal, talks about "Blaise Pascal" and was
+    refused his own forced name as if he spoke of himself in the third person (prod 2026-10-12).
+    A different given name in front is a different person; a near spelling ("Laman Pascal", one
+    edit) is the same one, and a bare surname or the full name still refutes.
+    """
+    toks = name.split()
+    if len(toks) < 2:
+        return False
+    given, surname = toks[0].lower(), toks[-1]
+    mentions = list(re.finditer(rf"\b{re.escape(surname)}\b", text, re.IGNORECASE))
+    if not mentions:
+        return False
+    for m in mentions:
+        before = re.search(r"([A-Z][a-z]+)\s+$", text[: m.start()])
+        if before is None:
+            return False
+        other = before.group(1).lower()
+        if _edit_distance(other, given) <= 2 or other in {"dr", "mr", "mrs", "ms", "professor"}:
+            return False
+    return True
 
 
 def _only_addressed_in_a_dominant_voice(v: str, name: str, voice_texts: Mapping[str, str]) -> bool:

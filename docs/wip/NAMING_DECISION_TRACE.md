@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| Doc version | 17 |
+| Doc version | 18 |
 | Last updated | 2026-10-12 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
-| Code content hash | `e3f52f118a84` (see below) |
+| Code content hash | `d950e4e345a7` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,11 @@
 
 **Changelog**
 
+- **v18, 2026-10-12.** One rule changed (#2304): the forced guest name's third-person refusal
+  (`says_that_name_in_the_third_person`) no longer fires when every mention of the surname follows
+  a clearly DIFFERENT given name (`_surname_only_of_someone_else`): The Living Philosophy's Layman
+  Pascal talking about "Blaise Pascal". A near spelling (two edits, "Laman") or a title (Dr., Mr.,
+  Professor) still counts as the same person, and so does a bare surname.
 - **v17, 2026-10-12.** Two rules changed (#2304, F2c). `title_subject` also accepts the person
   the title ENDS with ("[Dr. Jeff Beck]", "(Dan Hendrycks)", "| Josh Elman", "— Brad Carson",
   "with Steve McConnell", read in the first 160 characters of title + description), when the

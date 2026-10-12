@@ -459,3 +459,22 @@ def test_the_title_tail_needs_an_evidence_host_that_does_not_own_the_talk() -> N
     assert _declared(host_voices=["H", "O"], llm_named={"H"}) == []
     # an 84% host cluster holds the guest too (a16z "Josh Elman Joins")
     assert _declared(talk_share={"H": 0.84, "G": 0.16}) == []
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # The Living Philosophy #9: the guest talks about Blaise Pascal, not himself
+        ("My two favorite things about Blaise Pascal are, one, when he died", True),
+        # a near spelling of the given name is the same person
+        ("So I'm here with Laman Pascal, a feral philosopher.", False),
+        ("Pascal brings both rigor and irreverence.", False),  # bare surname still refutes
+        ("Layman Pascal is a Canadian philosopher.", False),  # the full name still refutes
+        ("Dr. Pascal will tell you more.", False),
+        ("I never said that.", False),  # no mention at all: nothing to excuse
+    ],
+)
+def test_a_surname_after_a_different_given_name_is_someone_else(text: str, expected: bool) -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _surname_only_of_someone_else
+
+    assert _surname_only_of_someone_else(text, "Layman Pascal") is expected
