@@ -30,10 +30,11 @@ import inspect
 import json
 import sys
 import types
+import zlib
 from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 _PKG = "podcast_scraper"
 #: Short names for the modules a variant may replace.
@@ -400,7 +401,24 @@ def compare(
     yield {"summary": dict(counts)}
 
 
-def corpus_episodes(corpus: Path) -> Iterable[Dict[str, Any]]:
+def in_shard(meta: Path, shard: Optional[Tuple[int, int]]) -> bool:
+    """Whether ``meta`` belongs to shard ``k`` of ``n`` (stable across runs and processes)."""
+    if shard is None:
+        return True
+    k, n = shard
+    return zlib.crc32(str(meta).encode("utf-8")) % n == k
+
+
+def _shard_arg(value: str) -> Tuple[int, int]:
+    k, _, n = value.partition("/")
+    if not (k.isdigit() and n.isdigit() and 0 <= int(k) < int(n)):
+        raise argparse.ArgumentTypeError(f"--shard wants K/N with 0 <= K < N, got {value!r}")
+    return int(k), int(n)
+
+
+def corpus_episodes(
+    corpus: Path, shard: Optional[Tuple[int, int]] = None
+) -> Iterable[Dict[str, Any]]:
     from podcast_scraper.search.corpus_scope import (
         dedupe_metadata_paths_newest_run_per_episode,
         discover_metadata_files,
@@ -409,6 +427,8 @@ def corpus_episodes(corpus: Path) -> Iterable[Dict[str, Any]]:
     for meta in dedupe_metadata_paths_newest_run_per_episode(
         corpus, discover_metadata_files(corpus)
     ):
+        if not in_shard(Path(meta), shard):
+            continue
         try:
             yield load_episode(Path(meta))
         except (OSError, ValueError, KeyError):
@@ -454,6 +474,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         "(#2276) and write {episode, roster, decision_trace} JSONL here; also checks that the "
         "traced roster equals an untraced one",
     )
+    ap.add_argument(
+        "--shard",
+        type=_shard_arg,
+        metavar="K/N",
+        help="replay only shard K of N (by a hash of the metadata path), to run N processes in "
+        "parallel over the whole corpus; concatenate their outputs",
+    )
     args = ap.parse_args(argv)
     global REPOOL, ROLES
     REPOOL = bool(args.repool)
@@ -462,7 +489,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     new = load_variant(_variant_arg(args.new))
     if args.trace_out:
         sig = _signatures(new.get("ad_signatures"), args.corpus) if args.signatures else None
-        summary = write_traces(corpus_episodes(args.corpus), new, args.trace_out, sig)
+        summary = write_traces(corpus_episodes(args.corpus, args.shard), new, args.trace_out, sig)
         print(json.dumps({"summary": summary}, ensure_ascii=False))
         failed = ("traced_roster_differs", "traced_only_error", "trace_degraded")
         return 1 if any(summary.get(k) for k in failed) else 0
@@ -472,7 +499,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         sig_old = _signatures(old.get("ad_signatures"), args.corpus)
         sig_new = _signatures(new.get("ad_signatures"), args.corpus)
     for rec in compare(
-        corpus_episodes(args.corpus), old, new, signatures_old=sig_old, signatures_new=sig_new
+        corpus_episodes(args.corpus, args.shard),
+        old,
+        new,
+        signatures_old=sig_old,
+        signatures_new=sig_new,
     ):
         print(json.dumps(rec, ensure_ascii=False))
     return 0
