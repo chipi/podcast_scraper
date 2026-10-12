@@ -129,6 +129,14 @@ const hasAnything = computed(
 const partial = computed(
   () => !!recap.value && recap.value.days_recorded < recap.value.days_in_window,
 )
+/** "3 shows · 2 finished" — the finishes only when there were any. */
+const episodesNote = computed(() => {
+  const r = recap.value
+  const shows = t('recap.shows', r?.distinct_shows ?? 0, { named: { count: r?.distinct_shows ?? 0 } })
+  return r?.episodes_finished
+    ? t('recap.episodesNote', { shows, finished: r.episodes_finished })
+    : t('recap.episodesShowsOnly', { shows })
+})
 /** The streaks, said once, only those that are running. */
 const streaks = computed(() => {
   const parts: string[] = []
@@ -213,12 +221,7 @@ const lineTarget = computed(() => {
       <div class="rounded-xl bg-overlay p-4" data-testid="recap-episodes">
         <span class="font-display text-3xl font-extrabold leading-none">{{ recap!.distinct_episodes }}</span>
         <div class="mt-2 text-xs font-medium text-muted">{{ t('recap.episodes') }}</div>
-        <div class="lp-kicker mt-1">{{
-          t('recap.episodesNote', {
-            shows: t('recap.shows', recap!.distinct_shows ?? 0, { named: { count: recap!.distinct_shows ?? 0 } }),
-            finished: recap!.episodes_finished,
-          })
-        }}</div>
+        <div class="lp-kicker mt-1">{{ episodesNote }}</div>
       </div>
     </div>
     <!-- The day series: bars, both kinds stacked, a legend only when there were moments. -->

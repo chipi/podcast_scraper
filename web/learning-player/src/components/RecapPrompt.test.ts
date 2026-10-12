@@ -141,18 +141,17 @@ describe('RecapPrompt', () => {
     const line = w.find('[data-testid="recap-prompt-topics"]')
     expect(line.exists()).toBe(true)
 
-    // The strongest topic stays in the summary line; the row carries the ones AFTER it, so it
-    // never repeats what was just said one line up.
-    expect(w.text()).toContain('Index investing')
-    expect(line.text()).not.toContain('Index investing')
+    // The top three are pills (operator 2026-10-12: the numbers line carries no headline subject
+    // any more — with moments and learning days it ran off the card).
+    expect(line.text()).toContain('Index investing')
     expect(line.text()).toContain('Sleep science')
     expect(line.text()).toContain('Fusion power')
-    expect(line.text()).toContain('Should render too')
 
-    // Capped: headline + three pills, so the fifth topic never renders.
+    // Capped at three, so the fourth and fifth never render.
+    expect(line.text()).not.toContain('Should render too')
     expect(line.text()).not.toContain('Should not render')
     expect(line.text()).toContain('new')
-    expect(line.text()).toContain('↓1')
+    expect(line.text()).toContain('↑2')
     // A delta of zero renders no arrow: "unchanged" on most entries is noise.
     expect(line.text()).not.toContain('↑0')
     expect(line.text()).not.toContain('↓0')
@@ -236,7 +235,7 @@ describe('RecapPrompt: moments and learning', () => {
     )
     const w = mountPrompt()
     await flushPromises()
-    const pill = w.get('[data-testid="recap-prompt-subject"]')
+    const pill = w.findAll('[data-testid="recap-prompt-subject"]')[1]
     expect(pill.text()).toContain('Storyline Managing risk')
     expect(pill.classes()).toContain('text-storyline')
   })

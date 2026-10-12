@@ -257,6 +257,17 @@ const hasStats = computed(
  * listening half alone, and a row of zeroes looks like a real answer rather than an absent one.
  */
 const kept = computed(() => (stats.value?.captures ?? 0) > 0 ? stats.value : null)
+/** Where highlights were saved, the non-zero places only (operator 2026-10-12). */
+const savedIn = computed(() => {
+  const k = kept.value
+  if (!k) return ""
+  const parts = [
+    k.capture_from_episode ? t("stats.savedEpisodes", { count: k.capture_from_episode }) : "",
+    k.capture_from_moment ? t("stats.savedMoments", { count: k.capture_from_moment }) : "",
+    k.capture_from_learn ? t("stats.savedLearn", { count: k.capture_from_learn }) : "",
+  ].filter(Boolean)
+  return parts.length ? t("stats.savedIn", { parts: parts.join(" · ") }) : ""
+})
 
 // A tapped interest opens the SAME overlay its kind opens everywhere else — a storyline as the
 // StorylineCard, a topic or person as the entity card.
@@ -687,15 +698,7 @@ onActivated(() => {
         </p>
 
         <!-- Where they were saved (operator 2026-10-12): the same total, by what was playing. -->
-        <p class="lp-kicker mt-1" data-testid="stats-capture-sources">
-          {{
-            t("stats.captureSources", {
-              episode: kept.capture_from_episode ?? kept.captures,
-              moment: kept.capture_from_moment ?? 0,
-              learn: kept.capture_from_learn ?? 0,
-            })
-          }}
-        </p>
+        <p v-if="savedIn" class="lp-kicker mt-1" data-testid="stats-capture-sources">{{ savedIn }}</p>
 
         <!-- The review loop, which nothing measured before: the ladder records a count per
              highlight, so "how many reviews have I done" was a sum nobody had added up. -->

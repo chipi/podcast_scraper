@@ -63,15 +63,15 @@ const extras = computed(() => {
 })
 /**
  * What the week was about — topics, people, and the subjects of its short listens and learning
- * days (operator 2026-10-12), the same list as Profile's. The first is the headline; the next three
- * are pills, each naming its kind since the row now mixes them.
+ * days (operator 2026-10-12), the same list as Profile's: the top three as pills, each naming its
+ * kind since the row mixes them. The numbers line no longer carries a headline subject — with
+ * moments and learning days it ran off the card ("2 learnin…").
  *
  * Movement is the reason the row is worth its height: the same labels every week say nothing,
  * "up two" says what changed.
  */
-const headline = computed(() => recap.value?.subjects?.[0]?.label ?? recap.value?.topics[0]?.label ?? null)
 const moreTopics = computed(() =>
-  (recap.value?.subjects ?? []).slice(1, 4).map((s) => ({
+  (recap.value?.subjects ?? []).slice(0, 3).map((s) => ({
     key: `${s.kind}:${s.id}`,
     kind: s.kind,
     label: s.label,
@@ -102,7 +102,6 @@ const linkLabel = computed(() => {
       named: { count: recap.value?.distinct_episodes ?? 0 },
     }),
     ...extras.value,
-    ...(headline.value ? [headline.value] : []),
     ...moreTopics.value.map((topic) => topic.label),
   ]
   return parts.join(', ')
@@ -143,16 +142,13 @@ const dayBars = computed<number[]>(() => {
     </div>
     <div class="relative min-w-0">
       <span class="lp-kicker">{{ t('recap.promptTitle') }}</span>
-      <p class="mt-1 truncate text-sm">
+      <p class="mt-1 text-sm">
         <span class="font-bold">{{ listened }}</span>
         <span class="text-muted"> · </span>
         <span>{{ t('recap.promptEpisodes', recap!.distinct_episodes, { named: { count: recap!.distinct_episodes } }) }}</span>
         <template v-for="e in extras" :key="e"><span class="text-muted"> · </span><span>{{ e }}</span></template>
-        <template v-if="headline">
-          <span class="text-muted"> · </span><span class="text-muted">{{ headline }}</span>
-        </template>
       </p>
-      <!-- Second row: the topics after the headline, as pills.
+      <!-- Second row: the week's top subjects, as pills.
            Pills rather than more running text — at plain weight the marker ran into the label it
            annotates ("expert interviewsNEW") and the whole row read as one grey sentence. A bordered
            chip gives each topic an edge to end at, which is what was actually missing.

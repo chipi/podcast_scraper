@@ -1101,7 +1101,8 @@
     "subjectMoments": "1 moment | {count} moments",
     "subjectLearning": "1 learning day | {count} learning days",
     "promptMoments": "1 moment | {count} moments",
-    "promptLearning": "1 learning day | {count} learning days"
+    "promptLearning": "1 learning day | {count} learning days",
+    "episodesShowsOnly": "{shows}"
   },
   "stats": {
     "keptTitle": "What you've kept",
@@ -1122,8 +1123,13 @@
     "learningStreakLine": "Learning streak: 1 day | Learning streak: {count} days",
     "learningTitle": "Learning",
     "learningDay": "Day {day} of {days} · {done} done",
-    "learningTotals": "{finished} finished · {left} left · {days} learning days in all",
-    "captureSources": "Saved in episodes {episode} · in moments {moment} · on learning days {learn}"
+    "learningFinished": "1 path finished | {count} paths finished",
+    "learningLeft": "1 left | {count} left",
+    "learningDaysAll": "1 learning day in all | {count} learning days in all",
+    "savedIn": "Saved in: {parts}",
+    "savedEpisodes": "episodes {count}",
+    "savedMoments": "moments {count}",
+    "savedLearn": "learning days {count}"
   },
   "status": {
     "pending": "Pending",

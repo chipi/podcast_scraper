@@ -108,7 +108,7 @@ def _learning_and_moments(
     * ``paths_finished`` / ``paths_left``: paths that ended, by how.
     * ``moments_heard_total`` / ``moments_seconds_total``: clips heard to their end, ever.
     """
-    from podcast_scraper.server.app_learning_path import day_of
+    from podcast_scraper.server.app_learning_path import open_days
     from podcast_scraper.server.app_recap import learning_done_times
 
     at = int(now if now is not None else time.time())
@@ -124,7 +124,9 @@ def _learning_and_moments(
                 "subject_id": p.get("subject_id"),
                 "subject_kind": p.get("subject_kind"),
                 "subject_label": p.get("subject_label"),
-                "day": min(len(p.get("steps") or []), day_of(p, at) + 1),
+                # The newest day open, counting days opened early: "Day 1 of 7 · 2 done" read
+                # wrong after the second day was opened ahead.
+                "day": open_days(p, at),
                 "days": len(p.get("steps") or []),
                 "done": len(p.get("done") or []),
             }

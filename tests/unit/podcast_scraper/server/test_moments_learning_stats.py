@@ -146,3 +146,14 @@ def test_clearing_listening_history_clears_the_moments_too(tmp_path: Path) -> No
     _clip(tmp_path, "ep1", NOW)
     assert "moments_heard.jsonl" in app_user_state.clear_listening_history(tmp_path, "u")
     assert app_user_state.list_moments_heard(tmp_path, "u") == []
+
+
+def test_the_day_a_path_is_on_counts_days_opened_early(tmp_path: Path) -> None:
+    """ "Day 1 of 7 · 2 done" read wrong once the second day was opened ahead (2026-10-12)."""
+    app_user_state.add_learning_path(
+        tmp_path, "u", _path("tc:rel", "theme", "reliability", 7, NOW), cap=3
+    )
+    app_user_state.mark_learning_step_done(tmp_path, "u", "tc:rel", 0, now=NOW)
+    app_user_state.open_next_learning_day(tmp_path, "u", "tc:rel")
+    stats = app_stats.compute_user_stats(tmp_path, "u", now=NOW)
+    assert stats["learning_now"][0]["day"] == 2

@@ -35,7 +35,7 @@ describe('LearningStats (operator 2026-10-12)', () => {
     expect(row.text()).toContain('Day 3 of 7 · 2 done')
     expect(row.attributes('href')).toBe('/learn?subject=tc:rel')
     expect(w.get('[data-testid="stats-learning-totals"]').text()).toBe(
-      '2 finished · 1 left · 16 learning days in all',
+      '2 paths finished · 1 left · 16 learning days in all',
     )
   })
 
@@ -46,6 +46,7 @@ describe('LearningStats (operator 2026-10-12)', () => {
   it('still shows the totals once every path has ended', () => {
     const w = mountIt(stats({ paths_finished: 1, learning_days_total: 7 }))
     expect(w.find('[data-testid="stats-learning-path"]').exists()).toBe(false)
-    expect(w.get('[data-testid="stats-learning-totals"]').text()).toContain('1 finished')
+    // Only the counts that are not zero: no "0 left".
+    expect(w.get('[data-testid="stats-learning-totals"]').text()).toBe('1 path finished · 7 learning days in all')
   })
 })

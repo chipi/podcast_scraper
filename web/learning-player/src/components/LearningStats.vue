@@ -17,6 +17,16 @@ const { t } = useI18n()
 
 const paths = computed(() => props.stats.learning_now ?? [])
 const ended = computed(() => (props.stats.paths_finished ?? 0) + (props.stats.paths_left ?? 0))
+/** Only the counts that are not zero: "0 finished · 0 left" was noise. */
+const totals = computed(() => {
+  const s = props.stats
+  const parts: string[] = []
+  const n = (k: string, c: number) => t(k, c, { named: { count: c } })
+  if (s.paths_finished) parts.push(n('stats.learningFinished', s.paths_finished))
+  if (s.paths_left) parts.push(n('stats.learningLeft', s.paths_left))
+  if (s.learning_days_total) parts.push(n('stats.learningDaysAll', s.learning_days_total))
+  return parts.join(' · ')
+})
 const show = computed(
   () => paths.value.length > 0 || ended.value > 0 || (props.stats.learning_days_total ?? 0) > 0,
 )
@@ -46,14 +56,6 @@ const show = computed(
         </RouterLink>
       </li>
     </ul>
-    <p class="mt-3 text-sm text-muted" data-testid="stats-learning-totals">
-      {{
-        t('stats.learningTotals', {
-          finished: stats.paths_finished ?? 0,
-          left: stats.paths_left ?? 0,
-          days: stats.learning_days_total ?? 0,
-        })
-      }}
-    </p>
+    <p v-if="totals" class="mt-3 text-sm text-muted" data-testid="stats-learning-totals">{{ totals }}</p>
   </section>
 </template>
