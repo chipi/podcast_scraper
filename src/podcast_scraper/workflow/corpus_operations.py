@@ -597,6 +597,12 @@ def finalize_multi_feed_batch(
     if not feed_results:
         return summary_doc
 
+    # The served corpus's naming coverage, once per batch, for the API's /metrics (#2304 S8).
+    # Absolute, not a diff: an episode no code version names was invisible to every other check.
+    from podcast_scraper.quality.naming_coverage import measure_and_record
+
+    measure_and_record(Path(corpus_parent))
+
     # Enqueue the corpus-level enrichment follow-up against the CORPUS ROOT (#1811 E4).
     #
     # The bug this closes: each per-feed pipeline step ALSO calls

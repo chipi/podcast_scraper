@@ -34,81 +34,17 @@ Exit 1 when ``--max-unnamed`` is given and more episodes than that publish no na
 from __future__ import annotations
 
 import argparse
-import collections
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-_DIARIZATION_LABEL = re.compile(r"^SPEAKER(_\d+)?$")
-
-
-def _segments(path: Path) -> Optional[List[Dict[str, Any]]]:
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    rows = raw if isinstance(raw, list) else raw.get("segments", [])
-    return [r for r in rows if isinstance(r, dict)]
-
-
-def _language(doc: Dict[str, Any]) -> str:
-    feed = doc.get("feed") or {}
-    content = doc.get("content") or {}
-    return str(feed.get("language") or content.get("language") or "")[:2].lower()
-
-
-def scan_episode(meta: Path, lang: Optional[str]) -> Optional[Dict[str, Any]]:
-    """One episode's coverage row, or None when it is out of scope."""
-    try:
-        doc = json.loads(meta.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if lang and _language(doc) not in (lang, ""):
-        return None
-    stem = meta.name[: -len(".metadata.json")]
-    gi = next(iter(meta.parent.glob(stem + "*.gi.json")), None)
-    if gi is None:
-        return None
-    try:
-        nodes = json.loads(gi.read_text(encoding="utf-8")).get("nodes") or []
-    except (OSError, ValueError):
-        return None
-    quotes = [n for n in nodes if isinstance(n, dict) and n.get("type") == "Quote"]
-    named_quotes = sum(
-        1
-        for q in quotes
-        if str((q.get("properties") or {}).get("speaker_id") or "").startswith("person:")
-    )
-    rel = str((doc.get("content") or {}).get("transcript_file_path") or "")
-    run = meta.parent.parent
-    row: Dict[str, Any] = {
-        "meta": str(meta),
-        "feed": str((doc.get("feed") or {}).get("title") or "")[:40],
-        "title": str((doc.get("episode") or {}).get("title") or "")[:60],
-        "quotes": len(quotes),
-        "named_quotes": named_quotes,
-    }
-    segs = _segments(run / rel.replace(".txt", ".segments.json")) if rel else None
-    if segs is None:
-        row.update(named_voices=0, group="no_segments")
-        return row
-    labels = collections.Counter(
-        str(s.get("speaker_label") or s.get("speaker") or "") for s in segs
-    )
-    named = {lab for lab in labels if lab and not _DIARIZATION_LABEL.match(lab)}
-    row["named_voices"] = len(named)
-    row["main_voice"] = labels.most_common(1)[0][0] if labels else None
-    if named:
-        row["group"] = "named"
-    elif (run / rel.replace(".txt", ".speakers.diagnostics.json")).is_file():
-        row["group"] = "stored_unnamed"
-    else:
-        row["group"] = "no_diagnostics"
-    return row
+from podcast_scraper.quality.naming_coverage import (  # noqa: E402 - the scan lives in src/
+    scan_episode,
+    summarise,
+)
 
 
 def refine_by_replay(rows: List[Dict[str, Any]], corpus: Path, roster_path: Optional[Path]) -> None:
@@ -145,19 +81,6 @@ def refine_by_replay(rows: List[Dict[str, Any]], corpus: Path, roster_path: Opti
             row["group"] = "replay_hosts_known"
         else:
             row["group"] = "replay_no_host"
-
-
-def summarise(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
-    groups = collections.Counter(r["group"] for r in rows)
-    unnamed = [r for r in rows if r["group"] != "named"]
-    return {
-        "episodes": len(rows),
-        "episodes_no_named_voice": len(unnamed),
-        "quotes": sum(r["quotes"] for r in rows),
-        "named_quotes": sum(r["named_quotes"] for r in rows),
-        "groups": dict(groups),
-        "unnamed_by_feed": dict(collections.Counter(r["feed"] for r in unnamed).most_common(15)),
-    }
 
 
 def main(argv: Optional[List[str]] = None) -> int:
