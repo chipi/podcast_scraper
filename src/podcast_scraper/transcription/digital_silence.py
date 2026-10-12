@@ -38,6 +38,8 @@ _DURATION = re.compile(r"Duration:\s*(\d+):(\d+):([\d.]+)")
 
 @dataclass(frozen=True)
 class SilentEdges:
+    """Seconds of digital silence at the start and end of a file, and its duration."""
+
     lead_s: float
     tail_s: float
     duration_s: float
@@ -101,12 +103,15 @@ def silent_edges(audio_path: str) -> Optional[SilentEdges]:
 
 @dataclass(frozen=True)
 class Trim:
+    """The cut copy ASR hears, and the span of the original it kept (episode time)."""
+
     path: str
     kept_start_s: float
     kept_end_s: float
     edges: SilentEdges
 
     def record(self) -> Dict[str, Any]:
+        """What the ASR record keeps: the silence at each end and the span ASR heard."""
         return {
             "lead_s": round(self.edges.lead_s, 2),
             "tail_s": round(self.edges.tail_s, 2),
