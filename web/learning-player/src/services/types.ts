@@ -738,6 +738,42 @@ export interface CollectionDetail {
   kind_counts?: Record<string, number>
 }
 
+/** A board's Brief (RFC-119 amendment 2026-10-12, #2340): only what is saved on the board. */
+export interface BoardBrief {
+  board_id: string
+  name: string
+  /** `episodes` = saved episodes plus those of saved moments; a saved show adds none. */
+  holds: {
+    episodes: number
+    moments: number
+    shows: number
+    subjects: number
+    searches: number
+    links: number
+  }
+  /** Topics and people in two or more of the board's episodes. */
+  about: { id: string; kind: "topic" | "person"; label: string; episodes: number; saved: boolean }[]
+  /** Each episode's strongest insight, and where its best quote is said. */
+  points: {
+    episode: EpisodeSummary
+    insight_id: string
+    text: string
+    quote_text: string | null
+    speaker: string | null
+    start_ms: number | null
+  }[]
+  /** Storylines (id = anchor topic) and themes two or more of its episodes share. */
+  threads: { id: string; kind: "storyline" | "theme"; label: string; episodes: number }[]
+}
+
+/** One of the user's boards matching a search (#2341), and what on it matched. */
+export interface CollectionMatch {
+  collection: Collection
+  matched: "name" | "item"
+  item_kind: CollectionItemKind | null
+  item_label: string | null
+}
+
 // --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
 /** The notification types a user tunes independently per channel. */

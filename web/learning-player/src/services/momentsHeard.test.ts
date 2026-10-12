@@ -37,6 +37,24 @@ describe('watchMomentsHeard (operator 2026-10-12)', () => {
     expect(post.mock.calls[1][0]).not.toHaveProperty('subject_id')
   })
 
+  it('counts a board’s clip but never names the board as a subject (#2340)', async () => {
+    const event = ref<MomentEvent | null>(null)
+    watchMomentsHeard({ event: () => event.value, signedIn: () => true })
+    event.value = {
+      seq: 1,
+      kind: 'clip',
+      slug: 'ep1',
+      insightId: 'i1',
+      seconds: 12,
+      topic: { id: 'board:col_abc', label: 'Deep dive', minutes: 15, kind: 'board' },
+    }
+    await nextTick()
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(post.mock.calls[0][0]).toMatchObject({ kind: 'clip', slug: 'ep1', seconds: 12 })
+    expect(post.mock.calls[0][0]).not.toHaveProperty('subject_id')
+    expect(post.mock.calls[0][0]).not.toHaveProperty('subject_kind')
+  })
+
   it('sends nothing signed out', async () => {
     const event = ref<MomentEvent | null>(null)
     watchMomentsHeard({ event: () => event.value, signedIn: () => false })

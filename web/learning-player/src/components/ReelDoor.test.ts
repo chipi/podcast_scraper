@@ -42,6 +42,20 @@ describe('ReelDoor', () => {
     expect(tracked.at(-1)).toEqual({ name: 'reel_open', props: { source: 'subject_page', kind: 'storyline' } })
   })
 
+  it('opens a board’s own short listen from the board, and says so (#2340)', async () => {
+    api.getTopicReel.mockResolvedValue(reel(4, 600))
+    const w = mount(ReelDoor, {
+      props: { subjectId: 'board:col_abc', label: 'Deep dive', source: 'board' },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    expect(api.getTopicReel).toHaveBeenCalledWith('board:col_abc', 15)
+    const door = w.get('[data-testid="reel-door"]')
+    expect(door.attributes('href')).toBe('/listen/topic/board:col_abc?minutes=15')
+    await door.trigger('click')
+    expect(tracked.at(-1)).toEqual({ name: 'reel_open', props: { source: 'board', kind: 'board' } })
+  })
+
   it('has no door for a reel of fewer than two clips, or one that fails to load', async () => {
     api.getTopicReel.mockResolvedValueOnce(reel(1))
     const one = mount(ReelDoor, { props: { subjectId: 'topic:a', label: 'a' }, global: { plugins: [i18n, router] } })

@@ -12,10 +12,23 @@ import { useI18n } from "vue-i18n"
 import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
-import { getPodcastsPage, resolveEntity, searchCorpus, searchInterests } from "../services/api"
+import {
+  getPodcastsPage,
+  resolveEntity,
+  searchBoards,
+  searchCorpus,
+  searchInterests,
+} from "../services/api"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { resolveMediaUrl } from "../services/tier"
-import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
+import type {
+  CollectionMatch,
+  EntityRef,
+  EpisodeSummary,
+  Note,
+  Podcast,
+  SearchHit,
+} from "../services/types"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
 import { formatPublishDate } from "../utils/format"
@@ -162,6 +175,34 @@ watch(
   },
   { immediate: true },
 )
+// The listener's own boards for the term that ran (#2341): by name first, then by what is saved on
+// them, every word in any order (the shows' rule). Signed out there are none; a failure leaves the
+// section empty and never fails the search.
+const boardMatches = ref<CollectionMatch[]>([])
+let boardSeq = 0
+watch(
+  () => (ran.value && !isGated.value ? ranTerm.value.trim() : ""),
+  async (term) => {
+    const mine = ++boardSeq
+    if (!term) {
+      boardMatches.value = []
+      return
+    }
+    const items = await searchBoards(term).catch(() => [])
+    if (mine === boardSeq) boardMatches.value = items
+  },
+  { immediate: true },
+)
+function boardWhy(m: CollectionMatch): string {
+  if (m.matched === "name" || !m.item_kind) return t("search.boardMatchedName")
+  return t("search.boardMatchedItem", {
+    kind: t(`collections.kind.${m.item_kind}`),
+    label: m.item_label ?? "",
+  })
+}
+function openBoard(rank: number): void {
+  track("search_result_click", { result_kind: "board", rank: toRankBucket(rank) })
+}
 // Matched on the SERVER since 2026-10-08 (every word, any order — the same rule as before), five
 // at a time, newest first: the store no longer holds every note to search through.
 const notesTerm = computed(() => (ran.value ? ranTerm.value.trim() : ""))
@@ -693,6 +734,7 @@ const availableResultTypes = computed(() => {
     out.push({ key: "storylines", label: t("search.type_storylines") })
   if (showMatches.value.length) out.push({ key: "shows", label: t("search.type_shows") })
   if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
+  if (boardMatches.value.length) out.push({ key: "boards", label: t("search.type_boards") })
   if (yearSections.value.length) out.push({ key: "episodes", label: t("search.typeEpisodes") })
   return out
 })
@@ -711,6 +753,7 @@ const showEmpty = computed(
     !error.value &&
     results.value.length === 0 &&
     noteMatches.value.length === 0 &&
+    boardMatches.value.length === 0 &&
     storylineResults.value.length === 0 &&
     topicResults.value.length === 0 &&
     peopleResults.value.length === 0 &&
@@ -729,7 +772,8 @@ const showMineEmpty = computed(
     !searching.value &&
     !error.value &&
     passageResults.value.length === 0 &&
-    noteMatches.value.length === 0
+    noteMatches.value.length === 0 &&
+    boardMatches.value.length === 0
 )
 </script>
 
@@ -974,6 +1018,49 @@ const showMineEmpty = computed(
         data-testid="search-notes-more"
         @toggle="notesPage.toggle()"
       />
+    </section>
+
+    <!-- The listener's own BOARDS (#2341), beside their notes: a board whose name matches, then one
+         holding something that does. Each row says what matched and opens the board in Library. -->
+    <section
+      v-if="boardMatches.length && typeVisible('boards')"
+      class="mt-4"
+      data-testid="search-board-matches"
+    >
+      <h2 class="lp-section mb-1">{{ t("search.type_boards") }}</h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.boardsSummary", { count: boardMatches.length }, boardMatches.length) }}
+      </p>
+      <ul class="flex flex-col gap-2">
+        <li v-for="(m, i) in boardMatches" :key="m.collection.id">
+          <RouterLink
+            :to="{ name: 'library', query: { tab: 'collections', board: m.collection.id } }"
+            class="flex items-center gap-3 rounded-xl border border-border p-3 no-underline"
+            data-testid="search-board"
+            @click="openBoard(i + 1)"
+          >
+            <img
+              v-if="m.collection.cover_url"
+              :src="m.collection.cover_url"
+              alt=""
+              loading="lazy"
+              class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+            />
+            <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-semibold text-canvas-foreground">{{
+                m.collection.name
+              }}</span>
+              <span class="block truncate text-xs text-muted" data-testid="search-board-why">{{
+                boardWhy(m)
+              }}</span>
+            </span>
+            <span class="shrink-0 text-xs text-muted">{{
+              t("collections.count", m.collection.count, { named: { count: m.collection.count } })
+            }}</span>
+          </RouterLink>
+        </li>
+      </ul>
     </section>
 
     <!-- F1.3/F1.4: reserve the results shape while searching (no jump when they land) and offer a

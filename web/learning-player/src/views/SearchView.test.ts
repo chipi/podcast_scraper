@@ -37,6 +37,8 @@ function makeRouter() {
       // error (operator 2026-09-17). Same failure mode as an EpisodeCard with no feed_id.
       { path: "/storyline/:id", name: "storyline", component: { template: "<div/>" }, props: true },
       { path: "/theme/:id", name: "theme", component: { template: "<div/>" }, props: true },
+      // Board results open the board in Library (#2341).
+      { path: "/library", name: "library", component: { template: "<div/>" } },
     ],
   })
 }
@@ -70,6 +72,9 @@ beforeEach(async () => {
   // the namespace at write time is not the one a bare clear touches.)
   vi.spyOn(api, "getNotes").mockResolvedValue([])
   vi.spyOn(api, "getHighlights").mockResolvedValue([])
+  // Default: no boards match (#2341). Unmocked, a signed-in search asks a server that is not there,
+  // and a failed request marks the server unreachable for the tests that follow.
+  vi.spyOn(api, "searchBoards").mockResolvedValue([])
   capturesViaFullLists()
   podcastsViaGetPodcasts()
 })
@@ -1314,5 +1319,64 @@ describe("SearchView: Moments on episode results (operator 2026-10-10)", () => {
     expect(withGi.get('[data-testid="moments-link"]').attributes("href")).toBe("/episode/with-gi?moments=1")
     expect(noGi.find('[data-testid="moments-link"]').exists()).toBe(false)
     expect(w.get('[data-testid="episode-group-body"]').find('[data-testid="moments-link"]').exists()).toBe(false)
+  })
+})
+
+describe("SearchView — your boards (#2341)", () => {
+  const board = (id: string, name: string, count = 2) => ({
+    id,
+    name,
+    created_at: 1,
+    count,
+    cover_url: null,
+  })
+
+  async function mountSignedIn(q: string) {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: "u1", email: "a@b.c", name: "A" }
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: q, error: null, results: [] })
+    const router = makeRouter()
+    router.push({ name: "search", query: { q, scope: "all" } })
+    await router.isReady()
+    const w = mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
+    mounted = w
+    await flushPromises()
+    return w
+  }
+
+  it("lists the boards that match, says why, and opens each in Library", async () => {
+    const boards = vi.spyOn(api, "searchBoards").mockResolvedValue([
+      { collection: board("col_a", "All about gauges"), matched: "name", item_kind: null, item_label: null },
+      {
+        collection: board("col_b", "Weekend"),
+        matched: "item",
+        item_kind: "episode",
+        item_label: "Pressure gauges never lie",
+      },
+    ])
+    const w = await mountSignedIn("gauges")
+    expect(boards).toHaveBeenCalledWith("gauges")
+    const section = w.get('[data-testid="search-board-matches"]')
+    expect(section.text()).toContain("2 of your boards")
+    const rows = w.findAll('[data-testid="search-board"]')
+    expect(rows.map((r) => r.attributes("href"))).toEqual([
+      "/library?tab=collections&board=col_a",
+      "/library?tab=collections&board=col_b",
+    ])
+    expect(w.findAll('[data-testid="search-board-why"]').map((x) => x.text())).toEqual([
+      "Name matches",
+      "Episode: Pressure gauges never lie",
+    ])
+    // With nothing else found, a board match is not "no results".
+    expect(w.text()).not.toContain(en.search.noResults)
+  })
+
+  it("does not search boards signed out", async () => {
+    const boards = vi.spyOn(api, "searchBoards").mockResolvedValue([])
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "gauges", error: null, results: [] })
+    const { w } = await mountAt("gauges")
+    expect(boards).not.toHaveBeenCalled()
+    expect(w.find('[data-testid="search-board-matches"]').exists()).toBe(false)
   })
 })

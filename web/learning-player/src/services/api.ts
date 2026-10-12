@@ -14,9 +14,11 @@ import type {
   RecapResponse,
   RecapWindow,
   AudioSource,
+  BoardBrief,
   Collection,
   CollectionDetail,
   CollectionItemRef,
+  CollectionMatch,
   CommsSettings,
   CommsUpdate,
   CorpusEnrichmentSignals,
@@ -954,9 +956,14 @@ export interface ReelClip {
 }
 /** What a reel is about: a topic, or a theme's or storyline's member topics. */
 export type ReelKind = "topic" | "theme" | "storyline"
+/** A short listen plays a subject's reel, or a board's own moments (`board:<collection id>`,
+ *  #2340). A board is not a subject: no Learn path, no Discover row, no subject page. */
+export type ShortListenKind = ReelKind | "board"
+/** A board's short listen is addressed beside a subject's: `board:<collection id>`. */
+export const BOARD_REEL_PREFIX = "board:"
 export interface TopicReel {
   subject_id: string
-  subject_kind: ReelKind
+  subject_kind: ShortListenKind
   subject_label: string
   minutes: number
   /** What the reel actually runs — never the budget. */
@@ -964,8 +971,13 @@ export interface TopicReel {
   clips: ReelClip[]
 }
 /** N minutes on a topic, theme or storyline (ADR-163 §8 amendment): clips about it across
- *  episodes. `subjectId` is a `topic:`, `tc:` (theme) or `thc:` (storyline) id. */
+ *  episodes. `subjectId` is a `topic:`, `tc:` (theme) or `thc:` (storyline) id, or `board:<id>`
+ *  for a board's own moments (#2340), served by the board in the same shape. */
 export async function getTopicReel(subjectId: string, minutes = 15): Promise<TopicReel> {
+  if (subjectId.startsWith(BOARD_REEL_PREFIX)) {
+    const id = subjectId.slice(BOARD_REEL_PREFIX.length)
+    return getJSON<TopicReel>(`/collections/${encodeURIComponent(id)}/reel`, { minutes })
+  }
   return getJSON<TopicReel>("/discover/reel", { subject: subjectId, minutes })
 }
 export interface ReelTopic {
@@ -1070,7 +1082,7 @@ export async function stopLearn(subjectId: string): Promise<void> {
 /** The last short listen left unfinished: where to resume it (`index` is the 0-based clip). */
 export interface ReelProgress {
   subject_id: string
-  subject_kind: ReelKind
+  subject_kind: ShortListenKind
   subject_label: string
   index: number
   clips: number
@@ -2536,6 +2548,17 @@ function withAbsoluteCover(c: Collection): Collection {
 export async function getCollection(id: string): Promise<CollectionDetail> {
   const detail = await getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
   return { ...detail, collection: withAbsoluteCover(detail.collection) }
+}
+
+/** A board's Brief (#2340): from what is saved on it only. */
+export async function getBoardBrief(id: string): Promise<BoardBrief> {
+  return getJSON<BoardBrief>(`/collections/${encodeURIComponent(id)}/brief`)
+}
+
+/** The user's boards matching `q` (#2341): by name first, then by something saved on them. */
+export async function searchBoards(q: string): Promise<CollectionMatch[]> {
+  const res = await getJSON<{ items: CollectionMatch[] }>("/collections/search", { q })
+  return res.items.map((m) => ({ ...m, collection: withAbsoluteCover(m.collection) }))
 }
 
 /**

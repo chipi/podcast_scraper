@@ -145,3 +145,56 @@ draggable "Up next" + a "Recently played" list), then:
 
 This likely wants its own small RFC/issue (player transport UX); captured here because it changes the
 tab-strip math P4 assumes.
+
+## Amendment 2026-10-12: a board's Brief, its short listen, and boards in search
+
+Collections are called **boards** in the app. Three additions (operator 2026-10-12; #2340, #2341).
+All three are built from what is on disk, with no LLM call, like the episode Brief (RFC-122) and
+short listens (ADR-163).
+
+### The board Brief (#2340)
+
+An episode has a Brief; a board gets one too, **at the top of the open board**. It covers **only
+what is saved on the board itself**: a saved show, topic or person is not expanded into its
+episodes. "The board's episodes" are its saved episodes plus the episodes of its saved moments.
+
+- **What it holds**: how many episodes, saved moments, shows, subjects, searches and links.
+- **What it is about**: topics and people that recur across two or more of the board's episodes,
+  from their knowledge graphs, umbrella-guarded (ADR-163 amendment). A subject also saved on the
+  board directly is marked as such.
+- **Key points**: the strongest insight of each of the board's episodes, with its quote and time,
+  so every point can be heard where it is said (the "why" of ADR-164).
+- **What links them**: storylines and themes that two or more of the board's episodes share.
+
+`GET /api/app/collections/{id}/brief`, owner only (404 otherwise). An empty board, or one holding
+only shows, searches and links, has no Brief and shows none.
+
+### The board's short listen (#2340)
+
+Next to the Brief: the board's own moments, back to back. Every saved moment that has a time, in
+board order, then the strongest clip of each saved episode (the same clip a topic's short listen
+would take from it, ADR-163 §8), within the minutes chosen. Served at
+`GET /api/app/collections/{id}/reel` in the shape of `/discover/reel` (`subject_kind: board`), so
+the existing short-listen player plays it.
+
+### Boards in search (#2341)
+
+Search lists **your own boards** in a Boards section beside your notes: those whose name matches the
+query, then those holding something that matches (a saved episode or show by title, a saved moment
+by its words, a topic, person, theme or storyline by name, a saved search, a link). Each row says
+what matched and opens the board (`/library?tab=collections&board=<id>`). Every word of the query
+must appear, in any order, the rule show titles already follow in search. Signed out, the section is
+absent. `GET /api/app/collections/search?q=`.
+
+### Telemetry
+
+Opening a board's short listen sends `reel_open { source: board, kind: board }`, and the player's
+`reel_action` carries `kind: board` (RFC-126 §telemetry). Opening a board from search sends
+`search_result_click { result_kind: board, rank }`. No event carries a board's id or name, and a
+clip heard in a board's short listen is counted in the stats without naming the board as a subject.
+
+### Not in this amendment
+
+- Expanding a saved show, topic or person into its episodes for the Brief or the short listen.
+- Searching other people's boards (boards are private; sharing a board stays a non-goal).
+- Suggesting episodes to add to a board.

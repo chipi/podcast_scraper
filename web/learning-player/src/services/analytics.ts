@@ -329,7 +329,7 @@ export type EventProps = {
   /** NO query text. `results` is a bucket, so "how many hits" never becomes "what they searched". */
   search_submitted: { scope: 'corpus' | 'recall'; results: CountBucket }
   search_result_click: {
-    result_kind: 'episode' | 'topic' | 'person' | 'show' | 'insight'
+    result_kind: 'episode' | 'topic' | 'person' | 'show' | 'insight' | 'board'
     rank: RankBucket
   }
   share_link_opened: { target_kind: string }
@@ -457,14 +457,14 @@ export type EventProps = {
   /** A short listen opened: from Discover's Short listens row, a subject page's "N min on this", or
    *  resumed from Home's "In progress". */
   reel_open: {
-    source: 'discover_row' | 'subject_page' | 'in_progress'
-    kind: 'topic' | 'theme' | 'storyline'
+    source: 'discover_row' | 'subject_page' | 'in_progress' | 'board'
+    kind: 'topic' | 'theme' | 'storyline' | 'board'
   }
   /** Inside a reel: started, a clip skipped back or on, a clip to come jumped to, "Keep listening to
    *  this episode" (it became a listen), or the last clip finished. `clip` is the 1-based clip it happened on, bucketed. */
   reel_action: {
     action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'done'
-    kind: 'topic' | 'theme' | 'storyline'
+    kind: 'topic' | 'theme' | 'storyline' | 'board'
     clips: CountBucket
     clip?: RankBucket
   }

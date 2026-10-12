@@ -67,8 +67,9 @@ export interface ReelTopic {
   id: string
   label: string
   minutes: number
-  /** The subject's kind, for the stats a heard clip feeds (operator 2026-10-12). */
-  kind?: 'topic' | 'person' | 'theme' | 'storyline'
+  /** The subject's kind, for the stats a heard clip feeds (operator 2026-10-12). A board's own
+   *  short listen (#2340) is `board`: private, so it is never named as a subject in the stats. */
+  kind?: 'topic' | 'person' | 'theme' | 'storyline' | 'board'
 }
 
 /** A short-listen event for stats (operator 2026-10-12): a clip heard to its end, or "Keep

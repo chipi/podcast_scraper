@@ -6,6 +6,7 @@
  * (empty when signed out).
  */
 import { computed, nextTick, onMounted, ref, watch } from "vue"
+import BoardBrief from "../components/BoardBrief.vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
@@ -810,6 +811,8 @@ onMounted(() => {
         </div>
 
         <div v-if="open?.collection.id === c.id" class="border-t border-border p-3">
+          <!-- The board's Brief and its short listen, above what it holds (#2340). -->
+          <BoardBrief :board-id="c.id" :board-name="c.name" :version="c.count" />
           <p v-if="!open.items.length" class="text-sm text-muted">
             {{ t("collections.emptyBoard") }}
           </p>

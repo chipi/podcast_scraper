@@ -22,7 +22,9 @@ export function watchMomentsHeard(source: {
       slug: e.slug,
       ...(e.insightId ? { insight_id: e.insightId } : {}),
       ...(e.seconds != null ? { seconds: Math.round(e.seconds * 10) / 10 } : {}),
-      ...(e.topic
+      // A board is the listener's own and private (#2340): its clips count, but it is not a
+      // subject the recap names, and the stats store accepts topics, people, themes, storylines.
+      ...(e.topic && e.topic.kind !== 'board'
         ? {
             subject_id: e.topic.id,
             subject_label: e.topic.label,

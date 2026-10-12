@@ -1224,8 +1224,10 @@ class AppReelClip(BaseModel):
 class AppTopicReelResponse(BaseModel):
     """N minutes on a topic, theme or storyline: clips about it across episodes, back to back."""
 
-    subject_id: str = Field(description="topic: / tc: (theme) / thc: (storyline) id.")
-    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_id: str = Field(
+        description="topic: / tc: (theme) / thc: (storyline) id, or board:<collection id>."
+    )
+    subject_kind: Literal["topic", "theme", "storyline", "board"]
     subject_label: str
     minutes: int = Field(description="The budget asked for.")
     total_seconds: float = Field(description="What the reel actually runs — never the budget.")
@@ -1303,7 +1305,9 @@ class AppLearnStart(BaseModel):
 class AppReelProgressIn(BaseModel):
     """PUT /discover/reel/progress: where an unfinished short listen is."""
 
-    subject_id: str = Field(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
+    subject_id: str = Field(
+        min_length=4, max_length=200, pattern=r"^((topic|tc|thc):|board:col_[a-z0-9]{1,32}$)"
+    )
     index: int = Field(ge=0, le=500, description="The clip playing, 0-based.")
     clips: int = Field(ge=1, le=500)
     minutes: int = Field(default=15, ge=1, le=60, description="The reel's budget, to resume it.")
@@ -1313,7 +1317,7 @@ class AppReelProgress(BaseModel):
     """The last short listen left unfinished, to resume."""
 
     subject_id: str
-    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_kind: Literal["topic", "theme", "storyline", "board"]
     subject_label: str
     index: int = Field(description="The clip to resume at, 0-based.")
     clips: int
@@ -2350,6 +2354,79 @@ class CollectionDetail(BaseModel):
         exclude_if=_paged_only,
         description="Paged: the board's items per kind (Play all needs the episode count).",
     )
+
+
+class AppBoardHolds(BaseModel):
+    """What a board holds, by kind (its Brief's first line)."""
+
+    episodes: int = Field(
+        default=0, description="Episodes: saved ones plus those of saved moments."
+    )
+    moments: int = Field(default=0, description="Saved moments (highlights).")
+    shows: int = 0
+    subjects: int = Field(default=0, description="Topics, people, themes and storylines saved.")
+    searches: int = 0
+    links: int = 0
+
+
+class AppBoardSubject(BaseModel):
+    """A topic or person that recurs across a board's episodes."""
+
+    id: str
+    kind: Literal["topic", "person"]
+    label: str
+    episodes: int = Field(description="How many of the board's episodes it is in (at least 2).")
+    saved: bool = Field(description="Also saved on the board itself.")
+
+
+class AppBoardPoint(BaseModel):
+    """The strongest insight of one of a board's episodes, with where it is said."""
+
+    episode: AppEpisodeSummary
+    insight_id: str
+    text: str = Field(description="The insight.")
+    quote_text: str | None = Field(default=None, description="Its strongest supporting quote.")
+    speaker: str | None = None
+    start_ms: int | None = Field(default=None, description="Where the quote starts, to hear it.")
+
+
+class AppBoardThread(BaseModel):
+    """A storyline or theme that two or more of a board's episodes share."""
+
+    id: str = Field(description="Storyline: its anchor topic id (the route param). Theme: tc: id.")
+    kind: Literal["storyline", "theme"]
+    label: str
+    episodes: int = Field(description="How many of the board's episodes are in it (at least 2).")
+
+
+class AppBoardBrief(BaseModel):
+    """GET /api/app/collections/{id}/brief — a board's Brief (RFC-119 amendment 2026-10-12).
+
+    Built only from what is saved on the board: a saved show, topic or person is not expanded into
+    its episodes. Empty lists on a board with no episodes; the client then shows no Brief.
+    """
+
+    board_id: str
+    name: str
+    holds: AppBoardHolds
+    about: list[AppBoardSubject] = Field(default_factory=list)
+    points: list[AppBoardPoint] = Field(default_factory=list)
+    threads: list[AppBoardThread] = Field(default_factory=list)
+
+
+class CollectionMatch(BaseModel):
+    """One of the user's boards that matches a search, and why."""
+
+    collection: Collection
+    matched: Literal["name", "item"] = Field(description="Its name matched, or something on it.")
+    item_kind: str | None = Field(default=None, description="What on it matched (matched=item).")
+    item_label: str | None = Field(default=None, description="That item's title or words.")
+
+
+class CollectionSearchResponse(BaseModel):
+    """GET /api/app/collections/search — the user's boards matching a query, name matches first."""
+
+    items: list[CollectionMatch] = Field(default_factory=list)
 
 
 # --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---

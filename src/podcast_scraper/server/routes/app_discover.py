@@ -783,16 +783,39 @@ def app_stop_learning_path(
         raise HTTPException(status_code=404, detail="No path on this.")
 
 
-def _reel_progress_out(root: Path, progress: dict[str, Any], config: Any = None) -> AppReelProgress:
+def _reel_progress_out(
+    root: Path,
+    progress: dict[str, Any],
+    config: Any = None,
+    *,
+    data_dir: Path | None = None,
+    user_id: str | None = None,
+) -> AppReelProgress | None:
     """The saved place, with the clip it resumes at (the reel is cached per corpus version, so
-    this costs nothing once it was played)."""
+    this costs nothing once it was played). A board's short listen is rebuilt from the board
+    (RFC-119 amendment 2026-10-12); None when that board is gone, so there is nothing to resume."""
+    from podcast_scraper.server import app_board_view
     from podcast_scraper.server.app_learning_path import subject_label
 
     subject_id = str(progress["subject_id"])
-    kind, label = subject_label(root, subject_id)
     index = int(progress.get("index") or 0)
     minutes = int(progress.get("minutes") or 15)
-    clips = goal_reel(root, subject_id, minutes=minutes, config=config)
+    kind: Literal["topic", "theme", "storyline", "board"]
+    if subject_id.startswith(app_board_view.BOARD_SUBJECT_PREFIX):
+        board = (
+            app_board_view.load_board(
+                data_dir, user_id, subject_id[len(app_board_view.BOARD_SUBJECT_PREFIX) :]
+            )
+            if data_dir is not None and user_id is not None
+            else None
+        )
+        if board is None:
+            return None
+        kind, label = "board", str(board.meta.get("name") or "")
+        clips = app_board_view.board_reel(root, board, minutes=minutes, config=config)
+    else:
+        kind, label = subject_label(root, subject_id)
+        clips = goal_reel(root, subject_id, minutes=minutes, config=config)
     at = clips[min(index, len(clips) - 1)] if clips else None
     row = resolve_slug(root, at.episode_slug) if at else None
     return AppReelProgress(
@@ -825,14 +848,26 @@ def app_put_reel_progress(
         "minutes": body.minutes,
         "updated_at": int(time.time()),
     }
-    app_user_state.set_reel_progress(_data_dir(request), user.user_id, progress)
-    return _reel_progress_out(root, progress, getattr(request.app.state, "moments_config", None))
+    data_dir = _data_dir(request)
+    out = _reel_progress_out(
+        root,
+        progress,
+        getattr(request.app.state, "moments_config", None),
+        data_dir=data_dir,
+        user_id=user.user_id,
+    )
+    if out is None:
+        raise HTTPException(status_code=404, detail="No such board.")
+    app_user_state.set_reel_progress(data_dir, user.user_id, progress)
+    return out
 
 
 @router.delete("/discover/reel/progress", status_code=204)
 def app_delete_reel_progress(
     request: Request,
-    subject: str = Query(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):"),
+    subject: str = Query(
+        min_length=4, max_length=200, pattern=r"^((topic|tc|thc):|board:col_[a-z0-9]{1,32}$)"
+    ),
     user: User = Depends(get_current_user),
 ) -> None:
     """That short listen was finished or closed: nothing of it to resume. Only clears the saved
@@ -852,7 +887,13 @@ def app_in_progress(request: Request, user: User = Depends(get_current_user)) ->
             _path_out(root, p) for p in app_user_state.get_learning_paths(data_dir, user.user_id)
         ],
         reel=(
-            _reel_progress_out(root, reel, getattr(request.app.state, "moments_config", None))
+            _reel_progress_out(
+                root,
+                reel,
+                getattr(request.app.state, "moments_config", None),
+                data_dir=data_dir,
+                user_id=user.user_id,
+            )
             if reel
             else None
         ),

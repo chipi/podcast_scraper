@@ -187,12 +187,15 @@ The reel, Learn and Explore (2026-10-11; every event checked end to end into the
 `e2e/telemetry/10-reel-learn-explore.spec.ts`, accepted, never naming a subject or episode):
 
 ```text
-reel_open        { source: discover_row|subject_page|in_progress, kind }
+reel_open        { source: discover_row|subject_page|in_progress|board, kind }
 reel_action      { action: start|next|prev|jump|keep|done, kind, clips: CountBucket, clip?: RankBucket }
 learn_path       { action: start|open|step_play|step_done|open_next|stop, kind, day?, source?: discover|subject_page|in_progress }
 trends_show_more { kind, sort, shown: CountBucket }
 catalog_filter   { list: episodes, value: all|following|mine }
 ```
+
+`kind` is `topic|theme|storyline`, or `board` for a board's own short listen (RFC-119 amendment
+2026-10-12, #2340), which opens from the board with `source: board`. The board's id is never sent.
 
 ### 7. Scale (2026-10-11: 2,500 episodes on prod, 10,000 planned)
 

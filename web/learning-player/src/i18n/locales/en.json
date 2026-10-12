@@ -241,7 +241,11 @@
     "unsaveQuery": "Remove this saved search",
     "savedConfirm": "Saved — find it in Library › Saved",
     "savedTitle": "Your saved searches",
-    "openEpisode": "Open {title}"
+    "openEpisode": "Open {title}",
+    "type_boards": "Boards",
+    "boardsSummary": "1 of your boards | {count} of your boards",
+    "boardMatchedName": "Name matches",
+    "boardMatchedItem": "{kind}: {label}"
   },
   "browse": {
     "hubKicker": "The whole corpus",
@@ -737,7 +741,8 @@
     "sigVsAvg": "vs its 6-month average",
     "sigSimilar": "Similar topics",
     "sigAlongside": "Often discussed alongside",
-    "moreVoices": "Show more voices ({count})"
+    "moreVoices": "Show more voices ({count})",
+    "board": "Board"
   },
   "queue": {
     "title": "Queue",
@@ -1360,5 +1365,21 @@
     "title": "Explore",
     "seeAllEpisodes": "See all {count} episodes",
     "seeAllShows": "See all {count} shows"
+  },
+  "boardBrief": {
+    "title": "Brief",
+    "holdsEpisodes": "{count} episode | {count} episodes",
+    "holdsMoments": "{count} saved moment | {count} saved moments",
+    "holdsShows": "{count} show | {count} shows",
+    "holdsSubjects": "{count} subject | {count} subjects",
+    "holdsSearches": "{count} search | {count} searches",
+    "holdsLinks": "{count} link | {count} links",
+    "about": "What it's about",
+    "inEpisodes": "in {count} episode | in {count} episodes",
+    "savedHere": "saved on this board",
+    "points": "Key points",
+    "pointBy": "{speaker} · {episode}",
+    "threads": "What links them",
+    "unavailable": "The Brief could not be loaded."
   }
 }
