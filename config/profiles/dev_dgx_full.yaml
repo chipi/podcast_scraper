@@ -143,6 +143,10 @@ vllm_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8003/v1
 # 30B summary model at bf16.
 translate_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1
 translate_model: google/translategemma-12b-it
+# D8 (operator, 2026-10-13): 4 units in flight, ~3.5x faster (El Hilo: 525-574 s against
+# 1,782-2,062 s serial). Wording varies run to run either way (serial vs serial 68 of 85 units
+# identical, serial vs 4 in flight 65-66) and the judged quality did not move.
+translation_max_concurrency: 4
 vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 ner_model: en_core_web_trf
 transcription_speech_coverage_min: 0.0
