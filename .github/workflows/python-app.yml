@@ -34,10 +34,6 @@
 name: Python application
 
 on:
-  # Manual run of the full main suite (operator 2026-10-13): a fix outside these path filters (e.g.
-  # config/profile-governance-accepted.yaml) otherwise never re-runs the job it repairs. A manual
-  # run counts as a push to its branch and runs every Python job.
-  workflow_dispatch:
   push:
     branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     paths:
@@ -137,7 +133,7 @@ jobs:
       # job-minutes of suites that tested nothing about it. MAIN keeps `python`, which still counts
       # every workflow file. A filter result is the STRING 'true'/'false', and both are truthy in an
       # expression, so `pr && a || b` yields `a` on a PR — 'false' included — and `b` otherwise.
-      python: ${{ github.event_name == 'workflow_dispatch' && 'true' || github.event_name == 'pull_request' && steps.filter.outputs.python-pr || steps.filter.outputs.python }}
+      python: ${{ github.event_name == 'pull_request' && steps.filter.outputs.python-pr || steps.filter.outputs.python }}
       viewer: ${{ steps.filter.outputs.viewer }}
       viewer-e2e: ${{ steps.filter.outputs.viewer-e2e }}
       app: ${{ steps.filter.outputs.app }}
@@ -973,7 +969,7 @@ jobs:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
@@ -1352,7 +1348,7 @@ jobs:
       # attempt (socket-blocked) network calls — zero 3rd-party traffic at test time.
       HF_HUB_OFFLINE: "1"
     if: |
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
@@ -1498,7 +1494,7 @@ jobs:
     # BEFORE merge, not only on the post-merge main-push run.
     if: |
       (
-        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.event_name == 'push' &&
         (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
         needs.detect-changes.outputs.python == 'true'
       ) || (
