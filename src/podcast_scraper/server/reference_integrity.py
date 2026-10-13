@@ -50,6 +50,8 @@ class Resolver:
     persons: set[str] = field(default_factory=set)
     canonical: Mapping[str, str] = field(default_factory=dict)
     episodes: set[str] | None = None
+    #: ``topic id -> storyline id`` now: an older save stored a storyline by its anchor topic.
+    storyline_of_topic: Mapping[str, str] = field(default_factory=dict)
 
     def resolve(self, ref: str) -> tuple[str, str | None]:
         """``("ok", ref)``, ``("rekey", new)``, ``("gone", None)``, or ``("unknown", ref)`` for an
@@ -111,9 +113,16 @@ def build_resolver(root: Path, extra_history: Mapping[str, Any] | None = None) -
     themes, theme_history = _cluster_ids_and_history(
         _load_json(root / "search" / "topic_clusters.json")
     )
-    storylines, story_history = _cluster_ids_and_history(
-        _load_json(root / "enrichments" / "topic_theme_clusters.json")
-    )
+    story_payload = _load_json(root / "enrichments" / "topic_theme_clusters.json")
+    storylines, story_history = _cluster_ids_and_history(story_payload)
+    story_data = story_payload.get("data", story_payload)
+    storyline_of_topic = {
+        str(m.get("topic_id")): str(c.get("graph_compound_parent_id"))
+        for c in (story_data.get("clusters") or [] if isinstance(story_data, Mapping) else [])
+        if isinstance(c, Mapping) and c.get("graph_compound_parent_id")
+        for m in c.get("members") or []
+        if isinstance(m, Mapping) and m.get("topic_id")
+    }
     successors = {
         **dict(theme_history.get("successors") or {}),
         **dict(story_history.get("successors") or {}),
@@ -140,6 +149,7 @@ def build_resolver(root: Path, extra_history: Mapping[str, Any] | None = None) -
         persons=set(index.person_to_eps),
         canonical=canonical,
         episodes={slug_for_row(row) for row in cached_catalog(root)},
+        storyline_of_topic=storyline_of_topic,
     )
 
 
@@ -163,6 +173,14 @@ def _fix_ref(
     resolver: Resolver, ref: str, kind: str, flag: Callable[[str, str], None]
 ) -> str | None:
     """The new value for ``ref`` (``None`` when unchanged); flags it when it is gone."""
+    if kind == "storyline" and ref.startswith("topic:"):
+        # Saved by its anchor topic before saves carried the storyline id: the storyline that
+        # topic belongs to now, or gone when it is in none.
+        sid = resolver.storyline_of_topic.get(str(resolver.canonical.get(ref) or ref))
+        if sid:
+            return sid
+        flag(ref, "storyline")
+        return None
     if kind == "episode":
         if ref and not resolver.episode_exists(ref):
             flag(ref, "episode")

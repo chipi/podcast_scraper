@@ -37,13 +37,20 @@ pass, sidecar step and backfill command (7020abf0b), the player's "No longer ava
 (67193c205), storyline summaries and the board fixes (0b28f8da5). The post-deploy order is §7 of
 `POST-DEPLOY-BOARDS-AND-DGX-GATEWAY.md`.
 
+Measured on prod (read-only, 2026-10-14): 6 accounts, 3 of them hold 18 follows that point at
+nothing — 13 themes and 5 storylines renamed by re-clustering. No saved storylines, and no reference
+to the one id m0010 changed (`person:peter-attia-md`).
+
+Closed on 2026-10-14:
+
+- A storyline is saved (favorite, board, note) by its own `thc:` id, once its card has loaded; an
+  older save by its anchor topic is re-keyed to the storyline that topic belongs to now, or flagged.
+- Playwright: `storyline-summary-and-gone-references.spec.ts` — the summary on the storyline page
+  (by anchor and by id) and atop its Learn path, the save by id, a gone follow muted and
+  unfollowable.
+
 Not covered:
 
-- A storyline SAVED as a favorite stores its anchor topic id; if a re-clustering makes another
-  member the anchor, the saved link opens that topic's storyline page by the old anchor, which
-  still resolves only while that topic stays in the same storyline. Not flagged.
-- Person ids are re-keyed only where the #852 entity map merges spellings; m0010's renames that
-  the map does not hold stay flagged rather than repaired.
-- No Playwright spec for `GoneBadge` or `StorylineSummary`: the e2e state has no gone reference and
-  no written summary (surface-map gap rows).
+- Person ids are re-keyed where the #852 entity map merges spellings. m0010 changed one id
+  (`person:peter-attia-md`), which no prod account references; nothing to repair.
 - Decision 10 (storyline durability) is not filed: issues are opened only on the operator's word.

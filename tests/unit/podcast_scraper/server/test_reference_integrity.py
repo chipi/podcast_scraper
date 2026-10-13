@@ -140,3 +140,24 @@ def test_resolver_follows_a_chain_and_judges_only_what_it_knows() -> None:
     assert r.resolve("topic:cargill") == ("ok", "topic:cargill")
     assert r.resolve("topic:nothing") == ("gone", None)
     assert r.resolve("feed-x") == ("unknown", "feed-x")
+
+
+def test_a_storyline_saved_by_its_anchor_topic_becomes_its_storyline_id(tmp_path: Path) -> None:
+    """Saves made before they carried the storyline id stored the page's anchor topic, which a
+    re-clustering can move into another storyline. The pass rewrites it to the storyline the topic
+    belongs to now, and flags one whose topic is in no storyline."""
+    r = _resolver()
+    r.storyline_of_topic = {"topic:cargill": "thc:managing-risk"}
+    state._write(
+        tmp_path,
+        U,
+        "favorites",
+        [
+            {"kind": "storyline", "ref": "topic:cargil", "added_at": 1},  # a spelling of cargill
+            {"kind": "storyline", "ref": "topic:orphaned", "added_at": 2},
+        ],
+    )
+    repair_user(tmp_path, U, r)
+    refs = [f["ref"] for f in state._read(tmp_path, U, "favorites", [])]
+    assert refs == ["thc:managing-risk", "topic:orphaned"]
+    assert {"ref": "topic:orphaned", "kind": "storyline"} in gone_references(tmp_path, U)

@@ -228,8 +228,11 @@ function goBack(): void {
           :label="label || undefined"
           @toggle="toggleFollow"
         />
-        <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
-        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
+        <!-- Saved by the storyline's own id (#2345): the route's anchor topic can move to another
+             storyline when the corpus is re-clustered, and the save would then open that one. So,
+             like Follow, they wait for the card that names the storyline. -->
+        <FavoriteButton v-if="storylineId" :item="{ kind: 'storyline', ref: storylineId, label: label || id }" />
+        <AddToCollectionButton v-if="storylineId" :item="{ kind: 'storyline', ref: storylineId }" />
         <!-- Share (card / link / text) — #2036. -->
         <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
       </div>
@@ -382,7 +385,7 @@ function goBack(): void {
       <!-- Notes on this storyline (SL.3). Shown in the sheet too (operator 2026-09-16): the sheet is
            no longer a preview of the page, it IS the page's content, so withholding notes here was
            the last thing making the two differ. -->
-      <NoteComposer target="storyline" :target-id="id" />
+      <NoteComposer v-if="storylineId" target="storyline" :target-id="storylineId" />
     </template>
 
     <!-- A topic or person opened FROM this sheet, layered on top. Its own history key, or it would
