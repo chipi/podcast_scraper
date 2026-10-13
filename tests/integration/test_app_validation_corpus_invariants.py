@@ -131,10 +131,15 @@ def test_topic_cooccurrence_corpus_has_pairs_with_lift() -> None:
 
 
 def test_grounding_rate_discriminates() -> None:
-    """The grounding-rate row needs real, discriminating rates (not all-0 / all-1), each in [0, 1]."""
-    persons = _data("grounding_rate").get("persons", [])
-    assert len(persons) >= 2, persons
-    rates = [p["rate"] for p in persons]
+    """The grounding-rate row needs real, discriminating rates (not all-0 / all-1), each in [0, 1].
+
+    Per EPISODE since enricher v2.0.0 (#1927), which is what ``feed_signals._show_grounding``
+    reads. The fixture carried the per-Person v1 file until 2026-10-13, so this test checked a
+    shape production no longer writes, and the show grounding signal was empty on this corpus.
+    """
+    episodes = _data("grounding_rate").get("episodes", [])
+    assert len(episodes) >= 2, episodes
+    rates = [e["rate"] for e in episodes]
     assert all(0.0 <= r <= 1.0 for r in rates)
     assert min(rates) < max(
         rates
@@ -225,9 +230,12 @@ def test_topic_perspectives_about_edges_are_not_fanned_out() -> None:
     names = {str(p.get("person_name") or "") for p in persp}
     # Count is the fan-out canary: the #1371 blanket fan-out ballooned this to 27; the token-matched
     # ABOUT contract yields exactly the cross-show risk-management speakers.
+    # 9 since 2026-10-13, from 10: Maya (p01 host) was here only because her QUESTION ("You say
+    # it's about risk") was cycled onto Sophie Laurent's risk-management answer as its support.
+    # Speaker-balanced quote selection now grounds that insight in Sophie's own words.
     assert (
-        len(persp) == 10
-    ), f"expected 10 risk-management speakers, got {len(persp)}: {sorted(names)}"
+        len(persp) == 9
+    ), f"expected 9 risk-management speakers, got {len(persp)}: {sorted(names)}"
     assert {
         "Daniel Cho",
         "Scott Bessent",

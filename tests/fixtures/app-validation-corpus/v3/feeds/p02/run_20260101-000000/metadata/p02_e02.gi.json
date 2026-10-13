@@ -51,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:9fa15783bd6868de",
-      "to": "person:jonas-weisenthal",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f6015b46ac8d9512",
-      "to": "quote:9fa15783bd6868de",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:aa6e8136f1441738",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f0ae6579fa1160ab",
-      "to": "quote:aa6e8136f1441738",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b7f88f0bbbeb2353",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7e2691fe27da850c",
-      "to": "quote:b7f88f0bbbeb2353",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:1b0ac3b127e0dcf5",
+      "from": "quote:d357a96a252f91cf",
       "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:f6015b46ac8d9512",
-      "to": "quote:1b0ac3b127e0dcf5",
+      "to": "quote:d357a96a252f91cf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:5eb2f37527425705",
+      "from": "quote:9ddc1dec1e29f7a4",
       "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:f0ae6579fa1160ab",
-      "to": "quote:5eb2f37527425705",
+      "to": "quote:9ddc1dec1e29f7a4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:e29b8109fa3b6dd4",
+      "from": "quote:b1476c7900723141",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7e2691fe27da850c",
+      "to": "quote:b1476c7900723141",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:caadf98dbfc7ce30",
+      "to": "person:jonas-weisenthal",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f6015b46ac8d9512",
+      "to": "quote:caadf98dbfc7ce30",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3d5dfb9dfbdb9d60",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f0ae6579fa1160ab",
+      "to": "quote:3d5dfb9dfbdb9d60",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5b40f6441d6cdbba",
       "to": "person:jonas-weisenthal",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7e2691fe27da850c",
-      "to": "quote:e29b8109fa3b6dd4",
+      "to": "quote:5b40f6441d6cdbba",
       "type": "SUPPORTED_BY"
     },
     {
@@ -232,27 +232,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:jonas-weisenthal",
-      "properties": {
-        "name": "Jonas Weisenthal"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:9fa15783bd6868de",
-      "properties": {
-        "char_end": 258,
-        "char_start": 226,
-        "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Ethan. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p02_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:ethan",
       "properties": {
         "name": "Ethan"
@@ -260,21 +239,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:aa6e8136f1441738",
-      "properties": {
-        "char_end": 399,
-        "char_start": 266,
-        "episode_id": "ep-35f04bce441bf827",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p02_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:b7f88f0bbbeb2353",
+      "id": "quote:d357a96a252f91cf",
       "properties": {
         "char_end": 530,
         "char_start": 399,
@@ -288,7 +253,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1b0ac3b127e0dcf5",
+      "id": "quote:9ddc1dec1e29f7a4",
       "properties": {
         "char_end": 703,
         "char_start": 613,
@@ -302,7 +267,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:5eb2f37527425705",
+      "id": "quote:b1476c7900723141",
       "properties": {
         "char_end": 785,
         "char_start": 703,
@@ -316,7 +281,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e29b8109fa3b6dd4",
+      "id": "person:jonas-weisenthal",
+      "properties": {
+        "name": "Jonas Weisenthal"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:caadf98dbfc7ce30",
       "properties": {
         "char_end": 987,
         "char_start": 802,
@@ -325,6 +297,34 @@
         "text": "Honestly, A great RFC starts with context and constraints, then options. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3d5dfb9dfbdb9d60",
+      "properties": {
+        "char_end": 1069,
+        "char_start": 995,
+        "episode_id": "ep-35f04bce441bf827",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. How does Linear fit into this picture?",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5b40f6441d6cdbba",
+      "properties": {
+        "char_end": 1213,
+        "char_start": 1086,
+        "episode_id": "ep-35f04bce441bf827",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Writing things down turns disagreement into collaboration. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
         "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"

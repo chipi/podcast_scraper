@@ -93,7 +93,7 @@
   ],
   "episode_id": "ep-8dce4ec000757097",
   "extraction": {
-    "extracted_at": "2025-11-01T00:00:00",
+    "extracted_at": "2024-11-01T00:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p12_e01.txt"
   },
@@ -102,7 +102,7 @@
       "id": "episode:ep-8dce4ec000757097",
       "properties": {
         "podcast_id": "p12",
-        "publish_date": "2025-11-01T00:00:00",
+        "publish_date": "2024-11-01T00:00:00",
         "title": "Construire Des Sentiers Qui Durent"
       },
       "type": "Episode"

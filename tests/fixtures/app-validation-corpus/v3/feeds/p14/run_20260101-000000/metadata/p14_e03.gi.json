@@ -2,12 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "topic:endurance-sport",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:maintenance",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
       "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:endurance-sport",
       "type": "MENTIONS"
     },
     {
@@ -22,91 +32,91 @@
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:da2dbaed7d11f57f",
+      "to": "insight:6841bfbdadbb2482",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:ea630778dedbc918",
+      "to": "insight:3294a2bf0fc6990c",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:7cba6ed61ec0cb5c",
+      "to": "insight:3dc0311fc1a8571b",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:92acedd55b09bfab",
+      "from": "quote:0a3f713c013329d5",
       "to": "person:beatriz-antunes",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:da2dbaed7d11f57f",
-      "to": "quote:92acedd55b09bfab",
+      "from": "insight:6841bfbdadbb2482",
+      "to": "quote:0a3f713c013329d5",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c1172bca36ec7e04",
+      "from": "quote:972fb30008d99c67",
       "to": "person:tiago-moreira",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:ea630778dedbc918",
-      "to": "quote:c1172bca36ec7e04",
+      "from": "insight:3294a2bf0fc6990c",
+      "to": "quote:972fb30008d99c67",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c10db3095312515e",
+      "from": "quote:78bbfef48673b79d",
       "to": "person:beatriz-antunes",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:7cba6ed61ec0cb5c",
-      "to": "quote:c10db3095312515e",
+      "from": "insight:3dc0311fc1a8571b",
+      "to": "quote:78bbfef48673b79d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:9afb39f257a45495",
+      "from": "quote:0330260e2f514fef",
       "to": "person:beatriz-antunes",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:da2dbaed7d11f57f",
-      "to": "quote:9afb39f257a45495",
+      "from": "insight:6841bfbdadbb2482",
+      "to": "quote:0330260e2f514fef",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:f969a4848c03d611",
+      "from": "quote:d5559bf0102139cc",
       "to": "person:tiago-moreira",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:ea630778dedbc918",
-      "to": "quote:f969a4848c03d611",
+      "from": "insight:3294a2bf0fc6990c",
+      "to": "quote:d5559bf0102139cc",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:bfd3e00bb0941da1",
+      "from": "quote:723565d53ce962d4",
       "to": "person:beatriz-antunes",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:7cba6ed61ec0cb5c",
-      "to": "quote:bfd3e00bb0941da1",
+      "from": "insight:3dc0311fc1a8571b",
+      "to": "quote:723565d53ce962d4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:da2dbaed7d11f57f",
+      "from": "insight:6841bfbdadbb2482",
       "to": "person:beatriz-antunes",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:ea630778dedbc918",
+      "from": "insight:3294a2bf0fc6990c",
       "to": "person:tiago-moreira",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:7cba6ed61ec0cb5c",
+      "from": "insight:3dc0311fc1a8571b",
       "to": "person:beatriz-antunes",
       "type": "MENTIONS_PERSON"
     }
@@ -120,15 +130,22 @@
         "duration_ms": 422000,
         "feed_id": "p14",
         "podcast_id": "p14",
-        "publish_date": "2025-12-18T00:00:00",
+        "publish_date": "2025-06-25T00:00:00",
         "title": "A Mec\u00e2nica de Uma Bicicleta Silenciosa e R\u00e1pida"
       },
       "type": "Episode"
     },
     {
-      "id": "topic:endurance-sport",
+      "id": "topic:drivetrain-mechanics",
       "properties": {
-        "label": "endurance sport"
+        "label": "drivetrain mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance"
       },
       "type": "Topic"
     },
@@ -136,6 +153,13 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -154,7 +178,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:da2dbaed7d11f57f",
+      "id": "insight:6841bfbdadbb2482",
       "properties": {
         "episode_id": "ep-1d733f650ad9bff9",
         "grounded": true,
@@ -162,13 +186,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Bem-vindos de novo \u00e0s Sess\u00f5es de Trilha. Hoje falamos de mec\u00e2nica de transmiss\u00e3o, e comigo est\u00e1 Tiago Moreira, mec\u00e2nico na Spoke & Wrench. Tiago Moreira, obrigada por estares aqui.",
+        "text": "Notion replaces the dozen tools your team uses every day. Try notion.com today. Before we get into the topic, In\u00eas Carvalho was on the previous episode and said that tire pressure is more important\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:ea630778dedbc918",
+      "id": "insight:3294a2bf0fc6990c",
       "properties": {
         "episode_id": "ep-1d733f650ad9bff9",
         "grounded": true,
@@ -176,13 +200,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Obrigado, Beatriz. Contente de estar de volta.",
+        "text": "Yes, exactly. And it connects to what we're going to discuss today.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:7cba6ed61ec0cb5c",
+      "id": "insight:3dc0311fc1a8571b",
       "properties": {
         "episode_id": "ep-1d733f650ad9bff9",
         "grounded": true,
@@ -190,7 +214,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Notion. A Notion substitui a d\u00fazia de ferramentas que a tua equipa usa a meio. Experimenta notion.com hoje.",
+        "text": "I want to point something out \u2013 In\u00eas Carvalho mentioned this same dynamic a few episodes ago. I want to point something out \u2013 Rafael Vasconcelos mentioned this same dynamic a few episodes ago.",
         "tier": 2
       },
       "type": "Insight"
@@ -203,16 +227,26 @@
       "type": "Person"
     },
     {
-      "id": "quote:92acedd55b09bfab",
+      "id": "quote:0a3f713c013329d5",
       "properties": {
-        "char_end": 197,
+        "char_end": 243,
         "char_start": 17,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-01",
-        "text": "Bem-vindos de novo \u00e0s Sess\u00f5es de Trilha. Hoje falamos de mec\u00e2nica de transmiss\u00e3o, e comigo est\u00e1 Tiago Moreira, mec\u00e2nico na Spoke & Wrench. Tiago Moreira, obrigada por estares aqui.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "text": "Notion replaces the dozen tools your team uses every day. Try notion.com today. Before we get into the topic, In\u00eas Carvalho was on the previous episode and said that tire pressure is more important than suspension adjustments.",
+        "timestamp_end_ms": 31260,
+        "timestamp_start_ms": 16320,
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
@@ -224,72 +258,122 @@
       "type": "Person"
     },
     {
-      "id": "quote:c1172bca36ec7e04",
+      "id": "quote:972fb30008d99c67",
       "properties": {
-        "char_end": 259,
-        "char_start": 213,
+        "char_end": 326,
+        "char_start": 259,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-02",
-        "text": "Obrigado, Beatriz. Contente de estar de volta.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "text": "Yes, exactly. And it connects to what we're going to discuss today.",
+        "timestamp_end_ms": 34380,
+        "timestamp_start_ms": 31260,
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:c10db3095312515e",
+      "id": "quote:78bbfef48673b79d",
       "properties": {
-        "char_end": 422,
-        "char_start": 277,
+        "char_end": 536,
+        "char_start": 344,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-01",
-        "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Notion. A Notion substitui a d\u00fazia de ferramentas que a tua equipa usa a meio. Experimenta notion.com hoje.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "text": "I want to point something out \u2013 In\u00eas Carvalho mentioned this same dynamic a few episodes ago. I want to point something out \u2013 Rafael Vasconcelos mentioned this same dynamic a few episodes ago.",
+        "timestamp_end_ms": 45960,
+        "timestamp_start_ms": 34380,
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:9afb39f257a45495",
+      "id": "quote:0330260e2f514fef",
       "properties": {
-        "char_end": 572,
-        "char_start": 422,
+        "char_end": 630,
+        "char_start": 537,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-01",
-        "text": "Antes de entrarmos no assunto \u2014 a In\u00eas Carvalho esteve no epis\u00f3dio anterior a dizer que a press\u00e3o dos pneus conta mais do que os ajustes de suspens\u00e3o.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "text": "I want to delve deeper into that. What did you believe about this, and have you revisited it?",
+        "timestamp_end_ms": 214320,
+        "timestamp_start_ms": 210000,
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:f969a4848c03d611",
+      "id": "quote:d5559bf0102139cc",
       "properties": {
-        "char_end": 640,
-        "char_start": 588,
+        "char_end": 915,
+        "char_start": 646,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-02",
-        "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "text": "In short, most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this happen with teams that use Spoke & Wrench. The context matters because it tells you what compromises you're making.",
+        "timestamp_end_ms": 229260,
+        "timestamp_start_ms": 214320,
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:bfd3e00bb0941da1",
+      "id": "quote:723565d53ce962d4",
       "properties": {
-        "char_end": 752,
-        "char_start": 658,
+        "char_end": 1016,
+        "char_start": 933,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-01",
-        "text": "Quero assinalar uma coisa \u2014 a In\u00eas Carvalho mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "text": "It's a useful framework. Where do maintenance and transmission mechanics intersect?",
+        "timestamp_end_ms": 234120,
+        "timestamp_start_ms": 229260,
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0006.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

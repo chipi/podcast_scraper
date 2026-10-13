@@ -25,20 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 364,
+    "description": "Camille Dubois talks with Élodie Chevalier: Le Pilotage Enduro Sans le Battage.",
+    "duration_seconds": 344,
     "episode_id": "ep-16fcdef77d624069",
     "language": "fr",
     "language_source": "rss",
-    "published_date": "2025-12-25T00:00:00",
-    "title": "Le Pilotage Enduro Sans le Battage",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-03-11T00:00:00",
+    "title": "Le Pilotage Enduro Sans le Battage"
   },
   "feed": {
     "authors": [
@@ -49,19 +50,19 @@
     "language": "fr",
     "language_raw": "fr-FR",
     "language_source": "rss",
-    "last_updated": "2025-12-25T00:00:00",
+    "last_updated": "2025-06-29T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Sessions Sentier",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p12.svg",
-    "image_url": "http://localhost/images/p12.svg",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_url": "http://localhost/images/p12.svg"
   },
   "schema_version": "1",
   "summary": {

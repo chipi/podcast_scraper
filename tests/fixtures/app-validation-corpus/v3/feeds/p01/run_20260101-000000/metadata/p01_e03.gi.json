@@ -46,63 +46,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:9c8414b3fe8ec3c3",
+      "from": "quote:3192f8db6a3d86ff",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "quote:3192f8db6a3d86ff",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:db7a0edb137f1b70",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:fce60b894030dd3e",
+      "to": "quote:db7a0edb137f1b70",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:697a1ae0ea5c7046",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7c938bbc88eadb7a",
+      "to": "quote:697a1ae0ea5c7046",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f462e65c3e397d0c",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "quote:f462e65c3e397d0c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4b1a52303ee4d78a",
       "to": "person:noah-brier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "quote:9c8414b3fe8ec3c3",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f3e3d8cf509c4bd5",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:fce60b894030dd3e",
-      "to": "quote:f3e3d8cf509c4bd5",
+      "to": "quote:4b1a52303ee4d78a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:23cfbb052cd7d004",
+      "from": "quote:f2c8771f8efe8a53",
       "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7c938bbc88eadb7a",
-      "to": "quote:23cfbb052cd7d004",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a2902e17d27cdbc7",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "quote:a2902e17d27cdbc7",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:9cc31777cc5ce2bd",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:fce60b894030dd3e",
-      "to": "quote:9cc31777cc5ce2bd",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b6ffc0d42752f5b2",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7c938bbc88eadb7a",
-      "to": "quote:b6ffc0d42752f5b2",
+      "to": "quote:f2c8771f8efe8a53",
       "type": "SUPPORTED_BY"
     },
     {
@@ -220,27 +220,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:noah-brier",
-      "properties": {
-        "name": "Noah Brier"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:9c8414b3fe8ec3c3",
-      "properties": {
-        "char_end": 228,
-        "char_start": 197,
-        "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Maya. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:maya",
       "properties": {
         "name": "Maya"
@@ -248,21 +227,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:f3e3d8cf509c4bd5",
-      "properties": {
-        "char_end": 353,
-        "char_start": 235,
-        "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:23cfbb052cd7d004",
+      "id": "quote:3192f8db6a3d86ff",
       "properties": {
         "char_end": 477,
         "char_start": 353,
@@ -276,7 +241,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a2902e17d27cdbc7",
+      "id": "quote:db7a0edb137f1b70",
       "properties": {
         "char_end": 647,
         "char_start": 555,
@@ -290,7 +255,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:9cc31777cc5ce2bd",
+      "id": "quote:697a1ae0ea5c7046",
       "properties": {
         "char_end": 741,
         "char_start": 647,
@@ -304,7 +269,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b6ffc0d42752f5b2",
+      "id": "quote:f462e65c3e397d0c",
       "properties": {
         "char_end": 834,
         "char_start": 741,
@@ -313,6 +278,41 @@
         "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:noah-brier",
+      "properties": {
+        "name": "Noah Brier"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4b1a52303ee4d78a",
+      "properties": {
+        "char_end": 1083,
+        "char_start": 847,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec. We've seen this play out at teams using Spoke & Wrench. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f2c8771f8efe8a53",
+      "properties": {
+        "char_end": 1171,
+        "char_start": 1090,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. Where do maintenance and drivetrain mechanics intersect?",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
         "transcript_ref": "transcripts/p01_e03.txt"
       },
       "type": "Quote"

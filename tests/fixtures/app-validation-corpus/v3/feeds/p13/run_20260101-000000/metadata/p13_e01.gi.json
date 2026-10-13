@@ -37,91 +37,91 @@
     },
     {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:f866764e4101b0bf",
+      "to": "insight:fe3de44103010078",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:e3c13a1fc876ee8c",
+      "to": "insight:8c09dca3d4c8912d",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:f94eae39fc405574",
+      "to": "insight:9b83278c512a909e",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:1ed48dd21e966c82",
+      "from": "quote:6ff8349b22c22b20",
       "to": "person:katrin-vogel",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:f866764e4101b0bf",
-      "to": "quote:1ed48dd21e966c82",
+      "from": "insight:fe3de44103010078",
+      "to": "quote:6ff8349b22c22b20",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:10f09bc563cc652f",
+      "from": "quote:bba97f073ce553e1",
       "to": "person:stefan-brandt",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e3c13a1fc876ee8c",
-      "to": "quote:10f09bc563cc652f",
+      "from": "insight:8c09dca3d4c8912d",
+      "to": "quote:bba97f073ce553e1",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:0fa07fb278acdffb",
+      "from": "quote:3e5d60c0b3b1b7d5",
       "to": "person:katrin-vogel",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:f94eae39fc405574",
-      "to": "quote:0fa07fb278acdffb",
+      "from": "insight:9b83278c512a909e",
+      "to": "quote:3e5d60c0b3b1b7d5",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:84d99680002ca60b",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f866764e4101b0bf",
-      "to": "quote:84d99680002ca60b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:93bde665caf68046",
+      "from": "quote:1bfd5f3038ea3eba",
       "to": "person:stefan-brandt",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e3c13a1fc876ee8c",
-      "to": "quote:93bde665caf68046",
+      "from": "insight:fe3de44103010078",
+      "to": "quote:1bfd5f3038ea3eba",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:5401352d11d433b5",
+      "from": "quote:278d8b774f2bdd2e",
       "to": "person:katrin-vogel",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:f94eae39fc405574",
-      "to": "quote:5401352d11d433b5",
+      "from": "insight:8c09dca3d4c8912d",
+      "to": "quote:278d8b774f2bdd2e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:f866764e4101b0bf",
+      "from": "quote:4b6a433e2527c38d",
+      "to": "person:stefan-brandt",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9b83278c512a909e",
+      "to": "quote:4b6a433e2527c38d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:fe3de44103010078",
       "to": "person:katrin-vogel",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:e3c13a1fc876ee8c",
+      "from": "insight:8c09dca3d4c8912d",
       "to": "person:stefan-brandt",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:f94eae39fc405574",
+      "from": "insight:9b83278c512a909e",
       "to": "person:katrin-vogel",
       "type": "MENTIONS_PERSON"
     }
@@ -135,7 +135,7 @@
         "duration_ms": 420000,
         "feed_id": "p13",
         "podcast_id": "p13",
-        "publish_date": "2025-12-01T00:00:00",
+        "publish_date": "2024-12-01T00:00:00",
         "title": "Wege Bauen, Die Bleiben"
       },
       "type": "Episode"
@@ -190,7 +190,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:f866764e4101b0bf",
+      "id": "insight:fe3de44103010078",
       "properties": {
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "grounded": true,
@@ -198,13 +198,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4che. Heute sprechen wir \u00fcber Wegebau, und bei mir ist Stefan Brandt, Wegebauer der Cascadia-Allianz. Stefan Brandt, danke, dass du hier bist.",
+        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:e3c13a1fc876ee8c",
+      "id": "insight:8c09dca3d4c8912d",
       "properties": {
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "grounded": true,
@@ -212,13 +212,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Danke, Katrin. Sehr gern \u2014 Wegebau ist etwas, wor\u00fcber ich ziemlich viel nachgedacht habe.",
+        "text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project. We've seen this with teams that use the Cascadia Alliance. I've observed this pattern\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:f94eae39fc405574",
+      "id": "insight:9b83278c512a909e",
       "properties": {
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "grounded": true,
@@ -226,7 +226,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Diese Folge wird unterst\u00fctzt von Strava. Strava ist die Heimat der Athleten. Starte auf strava.com/podcast.",
+        "text": "Tell me how you made the decision. What is the core issue that really matters in this question?",
         "tier": 2
       },
       "type": "Insight"
@@ -239,16 +239,26 @@
       "type": "Person"
     },
     {
-      "id": "quote:1ed48dd21e966c82",
+      "id": "quote:6ff8349b22c22b20",
       "properties": {
-        "char_end": 187,
-        "char_start": 14,
+        "char_end": 94,
+        "char_start": 12,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-01",
-        "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4che. Heute sprechen wir \u00fcber Wegebau, und bei mir ist Stefan Brandt, Wegebauer der Cascadia-Allianz. Stefan Brandt, danke, dass du hier bist.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
+        "timestamp_end_ms": 215160,
+        "timestamp_start_ms": 210000,
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
@@ -260,72 +270,122 @@
       "type": "Person"
     },
     {
-      "id": "quote:10f09bc563cc652f",
+      "id": "quote:bba97f073ce553e1",
       "properties": {
-        "char_end": 292,
-        "char_start": 203,
+        "char_end": 329,
+        "char_start": 107,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-02",
-        "text": "Danke, Katrin. Sehr gern \u2014 Wegebau ist etwas, wor\u00fcber ich ziemlich viel nachgedacht habe.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project. We've seen this with teams that use the Cascadia Alliance. I've observed this pattern in three different teams.",
+        "timestamp_end_ms": 229020,
+        "timestamp_start_ms": 215160,
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:0fa07fb278acdffb",
+      "id": "quote:3e5d60c0b3b1b7d5",
       "properties": {
-        "char_end": 414,
-        "char_start": 307,
+        "char_end": 437,
+        "char_start": 342,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-01",
-        "text": "Diese Folge wird unterst\u00fctzt von Strava. Strava ist die Heimat der Athleten. Starte auf strava.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "text": "Tell me how you made the decision. What is the core issue that really matters in this question?",
+        "timestamp_end_ms": 235680,
+        "timestamp_start_ms": 229020,
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:84d99680002ca60b",
+      "id": "quote:1bfd5f3038ea3eba",
       "properties": {
-        "char_end": 500,
-        "char_start": 414,
-        "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "speaker_id": "person:speaker-01",
-        "text": "Erz\u00e4hl mir, wie du die Entscheidung getroffen hast. Wie passt RockShox in dieses Bild?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p13_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:93bde665caf68046",
-      "properties": {
-        "char_end": 747,
-        "char_start": 516,
+        "char_end": 603,
+        "char_start": 450,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-02",
-        "text": "Ehrlich gesagt ist die Entw\u00e4sserung die Gestaltungsentscheidung mit der gr\u00f6\u00dften Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die die Cascadia-Allianz nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "text": "Yes, see \u2013 a common mistake that new path builders make is digging with too much of a slope. Once you understand that, the other decisions become easier.",
+        "timestamp_end_ms": 245880,
+        "timestamp_start_ms": 235680,
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:5401352d11d433b5",
+      "id": "quote:278d8b774f2bdd2e",
       "properties": {
-        "char_end": 873,
-        "char_start": 762,
+        "char_end": 708,
+        "char_start": 616,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-01",
-        "text": "Erz\u00e4hl mir, wie du die Entscheidung getroffen hast. Was ist die Fassung der Frage, auf die es wirklich ankommt?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "text": "I would like to explore this further. Where do soil erosion and road construction intersect?",
+        "timestamp_end_ms": 250260,
+        "timestamp_start_ms": 245880,
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0006.u01"
+          ]
+        }
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4b6a433e2527c38d",
+      "properties": {
+        "char_end": 947,
+        "char_start": 721,
+        "episode_id": "ep-c0ab3bfb1ebdab6d",
+        "speaker_id": "person:speaker-02",
+        "text": "Certainly. Discussions about land management must take place before any ground is broken. We've seen this happen with teams that use RockShox products. The frame is important because it tells you what trade-offs you're making.",
+        "timestamp_end_ms": 262380,
+        "timestamp_start_ms": 250260,
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0007.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

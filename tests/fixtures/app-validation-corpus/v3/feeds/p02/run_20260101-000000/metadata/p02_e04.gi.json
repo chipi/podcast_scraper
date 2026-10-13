@@ -71,53 +71,53 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:343bfc221f2a4d2b",
+      "from": "quote:01fb10e293a5ae5d",
       "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:87d008bfa722a799",
-      "to": "quote:343bfc221f2a4d2b",
+      "to": "quote:01fb10e293a5ae5d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:9d5c940449d523d2",
-      "to": "person:ethan",
+      "from": "quote:df3769db5b06292b",
+      "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:07dcf9af0368ccff",
-      "to": "quote:9d5c940449d523d2",
+      "to": "quote:df3769db5b06292b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:493b89eb3e734cb8",
+      "from": "quote:7778cd4e54d62074",
       "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:bf453ec4d5e6f873",
-      "to": "quote:493b89eb3e734cb8",
+      "to": "quote:7778cd4e54d62074",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:3f623cc708ffcce2",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:87d008bfa722a799",
-      "to": "quote:3f623cc708ffcce2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:22600d663c7b26e1",
+      "from": "quote:bf66e5866ad82e5f",
       "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:87d008bfa722a799",
+      "to": "quote:bf66e5866ad82e5f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c4edef3030d48234",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:07dcf9af0368ccff",
-      "to": "quote:22600d663c7b26e1",
+      "to": "quote:c4edef3030d48234",
       "type": "SUPPORTED_BY"
     },
     {
@@ -303,21 +303,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:343bfc221f2a4d2b",
-      "properties": {
-        "char_end": 348,
-        "char_start": 200,
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Datadog. Datadog gives unified observability across logs, metrics, and traces. Get started at datadog.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p02_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:9d5c940449d523d2",
+      "id": "quote:01fb10e293a5ae5d",
       "properties": {
         "char_end": 410,
         "char_start": 348,
@@ -331,7 +317,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:493b89eb3e734cb8",
+      "id": "quote:df3769db5b06292b",
       "properties": {
         "char_end": 653,
         "char_start": 423,
@@ -345,7 +331,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:3f623cc708ffcce2",
+      "id": "quote:7778cd4e54d62074",
       "properties": {
         "char_end": 869,
         "char_start": 653,
@@ -359,7 +345,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:22600d663c7b26e1",
+      "id": "quote:bf66e5866ad82e5f",
       "properties": {
         "char_end": 950,
         "char_start": 877,
@@ -373,6 +359,20 @@
       "type": "Quote"
     },
     {
+      "id": "quote:c4edef3030d48234",
+      "properties": {
+        "char_end": 1218,
+        "char_start": 963,
+        "episode_id": "ep-18ede6ffbd63f18f",
+        "speaker_id": "person:speaker-02",
+        "text": "It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p02_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
       "id": "insight:authored-p02_e04-0",
       "properties": {
         "episode_id": "ep-18ede6ffbd63f18f",
@@ -380,9 +380,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Reliability is a property of the whole system, not of any one component.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -408,9 +408,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Risk management in production is naming the risk before it names you.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },

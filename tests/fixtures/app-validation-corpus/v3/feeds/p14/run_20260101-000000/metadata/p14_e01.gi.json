@@ -37,91 +37,91 @@
     },
     {
       "from": "episode:ep-28614332add8c2ae",
-      "to": "insight:73ab8bbdf5e8606a",
+      "to": "insight:45350807a6038550",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-28614332add8c2ae",
-      "to": "insight:0a024706cf2eb2d1",
+      "to": "insight:fe3de44103010078",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-28614332add8c2ae",
-      "to": "insight:c96fe39596a05e6d",
+      "to": "insight:a972e2200ca36410",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:15abdb5d8df294f1",
+      "from": "quote:3c090fa0dd2b0b95",
       "to": "person:beatriz-antunes",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:73ab8bbdf5e8606a",
-      "to": "quote:15abdb5d8df294f1",
+      "from": "insight:45350807a6038550",
+      "to": "quote:3c090fa0dd2b0b95",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c8d67e90ca8103b0",
+      "from": "quote:b60a5b80e1d74fe4",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:fe3de44103010078",
+      "to": "quote:b60a5b80e1d74fe4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:20e3b1776a2a3a28",
       "to": "person:rafael-vasconcelos",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:0a024706cf2eb2d1",
-      "to": "quote:c8d67e90ca8103b0",
+      "from": "insight:a972e2200ca36410",
+      "to": "quote:20e3b1776a2a3a28",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ccc7dddfd4e6962a",
+      "from": "quote:4d9abe9a4ef0a151",
       "to": "person:beatriz-antunes",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:c96fe39596a05e6d",
-      "to": "quote:ccc7dddfd4e6962a",
+      "from": "insight:45350807a6038550",
+      "to": "quote:4d9abe9a4ef0a151",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:bdf312c5a1427c48",
-      "to": "person:beatriz-antunes",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:73ab8bbdf5e8606a",
-      "to": "quote:bdf312c5a1427c48",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:208fee5dff01beb7",
+      "from": "quote:5e282eef96c83170",
       "to": "person:rafael-vasconcelos",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:0a024706cf2eb2d1",
-      "to": "quote:208fee5dff01beb7",
+      "from": "insight:fe3de44103010078",
+      "to": "quote:5e282eef96c83170",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:857464342c055c41",
+      "from": "quote:9c9e0da0933f4a5b",
       "to": "person:beatriz-antunes",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:c96fe39596a05e6d",
-      "to": "quote:857464342c055c41",
+      "from": "insight:a972e2200ca36410",
+      "to": "quote:9c9e0da0933f4a5b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:73ab8bbdf5e8606a",
+      "from": "insight:45350807a6038550",
       "to": "person:beatriz-antunes",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:0a024706cf2eb2d1",
+      "from": "insight:fe3de44103010078",
       "to": "person:rafael-vasconcelos",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:c96fe39596a05e6d",
+      "from": "insight:a972e2200ca36410",
       "to": "person:beatriz-antunes",
       "type": "MENTIONS_PERSON"
     }
@@ -135,7 +135,7 @@
         "duration_ms": 443000,
         "feed_id": "p14",
         "podcast_id": "p14",
-        "publish_date": "2026-01-01T00:00:00",
+        "publish_date": "2025-01-01T00:00:00",
         "title": "Construir Trilhas Que Duram"
       },
       "type": "Episode"
@@ -190,7 +190,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:73ab8bbdf5e8606a",
+      "id": "insight:45350807a6038550",
       "properties": {
         "episode_id": "ep-28614332add8c2ae",
         "grounded": true,
@@ -198,13 +198,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Bem-vindos de volta a Sess\u00f5es de Trilha. Hoje falamos sobre constru\u00e7\u00e3o de trilhas, e comigo est\u00e1 Rafael Vasconcelos, construtor de trilhas da Alian\u00e7a Cascadia. Rafael Vasconcelos, obrigada por esta\u2026",
+        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:0a024706cf2eb2d1",
+      "id": "insight:fe3de44103010078",
       "properties": {
         "episode_id": "ep-28614332add8c2ae",
         "grounded": true,
@@ -212,13 +212,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Obrigado, Beatriz. Com muito gosto \u2014 a constru\u00e7\u00e3o de trilhas \u00e9 algo em que tenho pensado bastante.",
+        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:c96fe39596a05e6d",
+      "id": "insight:a972e2200ca36410",
       "properties": {
         "episode_id": "ep-28614332add8c2ae",
         "grounded": true,
@@ -226,7 +226,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Este epis\u00f3dio \u00e9 patrocinado pela Strava. A Strava \u00e9 a casa dos atletas. Comece em strava.com/podcast.",
+        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've already seen this pattern repeat itself in three di\u2026",
         "tier": 2
       },
       "type": "Insight"
@@ -239,16 +239,50 @@
       "type": "Person"
     },
     {
-      "id": "quote:15abdb5d8df294f1",
+      "id": "quote:3c090fa0dd2b0b95",
       "properties": {
-        "char_end": 221,
-        "char_start": 17,
+        "char_end": 72,
+        "char_start": 12,
         "episode_id": "ep-28614332add8c2ae",
         "speaker_id": "person:speaker-01",
-        "text": "Bem-vindos de volta a Sess\u00f5es de Trilha. Hoje falamos sobre constru\u00e7\u00e3o de trilhas, e comigo est\u00e1 Rafael Vasconcelos, construtor de trilhas da Alian\u00e7a Cascadia. Rafael Vasconcelos, obrigada por estar aqui.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p14_e01.txt"
+        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
+        "timestamp_end_ms": 24180,
+        "timestamp_start_ms": 20580,
+        "transcript_ref": "transcripts/p14_e01.txt",
+        "translation": {
+          "en_sha256": "e73fa744e1a13efbafe8b884a5b64bf638ba16989a446c0ced22aa71263f9358",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b60a5b80e1d74fe4",
+      "properties": {
+        "char_end": 155,
+        "char_start": 73,
+        "episode_id": "ep-28614332add8c2ae",
+        "speaker_id": "person:speaker-01",
+        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
+        "timestamp_end_ms": 214740,
+        "timestamp_start_ms": 210000,
+        "transcript_ref": "transcripts/p14_e01.txt",
+        "translation": {
+          "en_sha256": "e73fa744e1a13efbafe8b884a5b64bf638ba16989a446c0ced22aa71263f9358",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
@@ -260,72 +294,98 @@
       "type": "Person"
     },
     {
-      "id": "quote:c8d67e90ca8103b0",
+      "id": "quote:20e3b1776a2a3a28",
       "properties": {
-        "char_end": 340,
-        "char_start": 242,
+        "char_end": 379,
+        "char_start": 168,
         "episode_id": "ep-28614332add8c2ae",
         "speaker_id": "person:speaker-02",
-        "text": "Obrigado, Beatriz. Com muito gosto \u2014 a constru\u00e7\u00e3o de trilhas \u00e9 algo em que tenho pensado bastante.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p14_e01.txt"
+        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've already seen this pattern repeat itself in three different teams.",
+        "timestamp_end_ms": 226320,
+        "timestamp_start_ms": 214740,
+        "transcript_ref": "transcripts/p14_e01.txt",
+        "translation": {
+          "en_sha256": "e73fa744e1a13efbafe8b884a5b64bf638ba16989a446c0ced22aa71263f9358",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:ccc7dddfd4e6962a",
+      "id": "quote:4d9abe9a4ef0a151",
       "properties": {
-        "char_end": 459,
-        "char_start": 358,
+        "char_end": 483,
+        "char_start": 392,
         "episode_id": "ep-28614332add8c2ae",
         "speaker_id": "person:speaker-01",
-        "text": "Este epis\u00f3dio \u00e9 patrocinado pela Strava. A Strava \u00e9 a casa dos atletas. Comece em strava.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p14_e01.txt"
+        "text": "Tell me how you made the decision. What is the version of the question that really matters?",
+        "timestamp_end_ms": 231300,
+        "timestamp_start_ms": 226320,
+        "transcript_ref": "transcripts/p14_e01.txt",
+        "translation": {
+          "en_sha256": "e73fa744e1a13efbafe8b884a5b64bf638ba16989a446c0ced22aa71263f9358",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:bdf312c5a1427c48",
+      "id": "quote:5e282eef96c83170",
       "properties": {
-        "char_end": 538,
-        "char_start": 459,
-        "episode_id": "ep-28614332add8c2ae",
-        "speaker_id": "person:speaker-01",
-        "text": "Conta-me como tomaste a decis\u00e3o. Como \u00e9 que a RockShox se encaixa neste quadro?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p14_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:208fee5dff01beb7",
-      "properties": {
-        "char_end": 752,
-        "char_start": 559,
+        "char_end": 659,
+        "char_start": 496,
         "episode_id": "ep-28614332add8c2ae",
         "speaker_id": "person:speaker-02",
-        "text": "Sinceramente, a drenagem \u00e9 a decis\u00e3o de projeto com maior impacto em qualquer trilha. Vimos isso em equipas que usam a Alian\u00e7a Cascadia. J\u00e1 vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p14_e01.txt"
+        "text": "Yes, look \u2013 the most common mistake that new builders make is excavating with too steep a slope. Once you understand that, the rest of the decisions become easier.",
+        "timestamp_end_ms": 241380,
+        "timestamp_start_ms": 231300,
+        "transcript_ref": "transcripts/p14_e01.txt",
+        "translation": {
+          "en_sha256": "e73fa744e1a13efbafe8b884a5b64bf638ba16989a446c0ced22aa71263f9358",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:857464342c055c41",
+      "id": "quote:9c9e0da0933f4a5b",
       "properties": {
-        "char_end": 853,
-        "char_start": 770,
+        "char_end": 761,
+        "char_start": 672,
         "episode_id": "ep-28614332add8c2ae",
         "speaker_id": "person:speaker-01",
-        "text": "Conta-me como tomaste a decis\u00e3o. Qual \u00e9 a vers\u00e3o da pergunta que realmente importa?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p14_e01.txt"
+        "text": "I want to delve deeper into that. Where do soil erosion and trail construction intersect?",
+        "timestamp_end_ms": 246600,
+        "timestamp_start_ms": 241380,
+        "transcript_ref": "transcripts/p14_e01.txt",
+        "translation": {
+          "en_sha256": "e73fa744e1a13efbafe8b884a5b64bf638ba16989a446c0ced22aa71263f9358",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0006.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

@@ -25,41 +25,41 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Nora talks with Daniel Cho: From the Archive.",
     "duration_seconds": 69,
     "episode_id": "ep-6351d18dc6f1ff70",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2025-09-11T00:00:00",
-    "title": "From the Archive",
-    "description": "Nora talks with Daniel Cho: From the Archive.",
     "licence": {
-      "status": "declared",
+      "conflicts": [],
       "declarations": [
         {
-          "level": "episode",
-          "mechanism": "podcast_license",
-          "raw": "cc-by-4.0",
-          "url": "https://creativecommons.org/licenses/by/4.0/",
           "asset_scope": "audio_video",
           "known": {
-            "id": "CC-BY-4.0",
-            "name": "CC BY 4.0",
-            "url": "https://creativecommons.org/licenses/by/4.0/",
-            "commercial_use": true,
             "adaptations": true,
             "attribution": true,
-            "share_alike": false
+            "commercial_use": true,
+            "id": "CC-BY-4.0",
+            "name": "CC BY 4.0",
+            "share_alike": false,
+            "url": "https://creativecommons.org/licenses/by/4.0/"
           },
-          "notes": []
+          "level": "episode",
+          "mechanism": "podcast_license",
+          "notes": [],
+          "raw": "cc-by-4.0",
+          "url": "https://creativecommons.org/licenses/by/4.0/"
         }
       ],
-      "conflicts": [],
       "documents_for_review": [
         "https://creativecommons.org/licenses/by/4.0/"
       ],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "declared"
+    },
+    "published_date": "2025-09-11T00:00:00",
+    "title": "From the Archive"
   },
   "feed": {
     "authors": [
@@ -67,32 +67,32 @@
     ],
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
-    "image_url": "http://localhost/images/p05.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2025-09-11T00:00:00",
-    "title": "Long Horizon Notes",
-    "url": "http://localhost/",
     "licence": {
-      "status": "declared",
+      "conflicts": [],
       "declarations": [
         {
-          "level": "channel",
-          "mechanism": "rss_copyright",
-          "raw": "© 2025 Long Horizon Media. All rights reserved.",
-          "url": null,
           "asset_scope": "unspecified",
           "known": null,
-          "notes": []
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "notes": [],
+          "raw": "© 2025 Long Horizon Media. All rights reserved.",
+          "url": null
         }
       ],
-      "conflicts": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "declared"
+    },
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
   },
   "schema_version": "1",
   "summary": {

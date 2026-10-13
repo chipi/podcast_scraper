@@ -25,20 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Camille Dubois discute avec le constructeur de sentiers Julien Mercier du drainage, du tracé, et de comment garder les sentiers roulables en hiver.",
     "duration_seconds": 401,
     "episode_id": "ep-8dce4ec000757097",
     "language": "fr",
     "language_source": "rss",
-    "published_date": "2025-11-01T00:00:00",
-    "title": "Construire Des Sentiers Qui Durent",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-11-01T00:00:00",
+    "title": "Construire Des Sentiers Qui Durent"
   },
   "feed": {
     "authors": [
@@ -49,19 +50,19 @@
     "language": "fr",
     "language_raw": "fr-FR",
     "language_source": "rss",
-    "last_updated": "2025-12-25T00:00:00",
+    "last_updated": "2025-06-29T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Sessions Sentier",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p12.svg",
-    "image_url": "http://localhost/images/p12.svg",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_url": "http://localhost/images/p12.svg"
   },
   "schema_version": "1",
   "summary": {

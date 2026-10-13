@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "What indexing does well, where people still make mistakes, and how to think about fees and behavior.",
     "duration_seconds": 416,
     "episode_id": "ep-bccfce5798a83a6e",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2024-09-06T00:00:00",
-    "title": "Index Investing Without the Myths",
-    "description": "What indexing does well, where people still make mistakes, and how to think about fees and behavior.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-09-06T00:00:00",
+    "title": "Index Investing Without the Myths"
   },
   "feed": {
     "authors": [
@@ -47,32 +47,32 @@
     ],
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
-    "image_url": "http://localhost/images/p05.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2025-09-11T00:00:00",
-    "title": "Long Horizon Notes",
-    "url": "http://localhost/",
     "licence": {
-      "status": "declared",
+      "conflicts": [],
       "declarations": [
         {
-          "level": "channel",
-          "mechanism": "rss_copyright",
-          "raw": "© 2025 Long Horizon Media. All rights reserved.",
-          "url": null,
           "asset_scope": "unspecified",
           "known": null,
-          "notes": []
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "notes": [],
+          "raw": "© 2025 Long Horizon Media. All rights reserved.",
+          "url": null
         }
       ],
-      "conflicts": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "declared"
+    },
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
   },
   "schema_version": "1",
   "summary": {

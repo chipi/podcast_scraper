@@ -32,11 +32,6 @@
     },
     {
       "from": "episode:ep-de59d003651d9e5d",
-      "to": "insight:62a7190d2a4ded85",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
       "to": "insight:5e35fb7106d60df7",
       "type": "HAS_INSIGHT"
     },
@@ -51,77 +46,82 @@
       "type": "ABOUT"
     },
     {
-      "from": "quote:6b65417c8e68e546",
-      "to": "person:sophie-laurent",
-      "type": "SPOKEN_BY"
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "insight:ad8ec142fe95887e",
+      "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:62a7190d2a4ded85",
-      "to": "quote:6b65417c8e68e546",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a4334eec6c9ac203",
+      "from": "quote:8f87874856617d80",
       "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5e35fb7106d60df7",
-      "to": "quote:a4334eec6c9ac203",
+      "to": "quote:8f87874856617d80",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:2d281afff9d60e11",
-      "to": "person:maya",
+      "from": "quote:c689c41c5bef3446",
+      "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:81318986adbd8e69",
-      "to": "quote:2d281afff9d60e11",
+      "to": "quote:c689c41c5bef3446",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:87a875c631835729",
+      "from": "quote:a319096bc89d13cb",
       "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:62a7190d2a4ded85",
-      "to": "quote:87a875c631835729",
+      "from": "insight:ad8ec142fe95887e",
+      "to": "quote:a319096bc89d13cb",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:e2af62f685104787",
-      "to": "person:sophie-laurent",
+      "from": "quote:1f8545152b0daba1",
+      "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5e35fb7106d60df7",
-      "to": "quote:e2af62f685104787",
+      "to": "quote:1f8545152b0daba1",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:4dbbe8e8a518dbf5",
-      "to": "person:maya",
+      "from": "quote:a3734211bf939977",
+      "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:81318986adbd8e69",
-      "to": "quote:4dbbe8e8a518dbf5",
+      "to": "quote:a3734211bf939977",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:62a7190d2a4ded85",
+      "from": "quote:45be05d7dbea096c",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ad8ec142fe95887e",
+      "to": "quote:45be05d7dbea096c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
       "to": "person:maya",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:5e35fb7106d60df7",
+      "from": "insight:81318986adbd8e69",
       "to": "person:sophie-laurent",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:81318986adbd8e69",
+      "from": "insight:ad8ec142fe95887e",
       "to": "person:maya",
       "type": "MENTIONS_PERSON"
     },
@@ -223,26 +223,12 @@
       "type": "Topic"
     },
     {
-      "id": "insight:62a7190d2a4ded85",
+      "id": "insight:5e35fb7106d60df7",
       "properties": {
         "episode_id": "ep-de59d003651d9e5d",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "drop",
-        "salience": 0.3,
-        "text": "Thanks, Maya. Always happy to talk shop.",
-        "tier": 0
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:5e35fb7106d60df7",
-      "properties": {
-        "episode_id": "ep-de59d003651d9e5d",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "People think racing is about nerve. You say it's about risk.",
@@ -255,8 +241,8 @@
       "properties": {
         "episode_id": "ep-de59d003651d9e5d",
         "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger\u2026",
@@ -265,25 +251,18 @@
       "type": "Insight"
     },
     {
-      "id": "person:sophie-laurent",
+      "id": "insight:ad8ec142fe95887e",
       "properties": {
-        "name": "Sophie Laurent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:6b65417c8e68e546",
-      "properties": {
-        "char_end": 175,
-        "char_start": 135,
         "episode_id": "ep-de59d003651d9e5d",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Maya. Always happy to talk shop.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p01_e04.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always\u2026",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
       "id": "person:maya",
@@ -293,21 +272,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:a4334eec6c9ac203",
-      "properties": {
-        "char_end": 276,
-        "char_start": 182,
-        "episode_id": "ep-de59d003651d9e5d",
-        "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by Strava. Strava is the home for athletes. Try strava.com today.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p01_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:2d281afff9d60e11",
+      "id": "quote:8f87874856617d80",
       "properties": {
         "char_end": 336,
         "char_start": 276,
@@ -321,7 +286,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:87a875c631835729",
+      "id": "person:sophie-laurent",
+      "properties": {
+        "name": "Sophie Laurent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c689c41c5bef3446",
       "properties": {
         "char_end": 560,
         "char_start": 353,
@@ -335,7 +307,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e2af62f685104787",
+      "id": "quote:a319096bc89d13cb",
       "properties": {
         "char_end": 777,
         "char_start": 560,
@@ -349,7 +321,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:4dbbe8e8a518dbf5",
+      "id": "quote:1f8545152b0daba1",
       "properties": {
         "char_end": 860,
         "char_start": 784,
@@ -363,6 +335,34 @@
       "type": "Quote"
     },
     {
+      "id": "quote:a3734211bf939977",
+      "properties": {
+        "char_end": 1066,
+        "char_start": 877,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-02",
+        "text": "It's the same discipline. A race line and a portfolio are both systems of correlated bets \u2014 you're managing the interactions, and the risk you can describe is the one you can design around.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:45be05d7dbea096c",
+      "properties": {
+        "char_end": 1189,
+        "char_start": 1073,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-01",
+        "text": "Thanks to Peak Design for backing the show. Peak Design builds bags and straps designed by people who actually ride.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
       "id": "insight:authored-p01_e04-0",
       "properties": {
         "episode_id": "ep-de59d003651d9e5d",
@@ -370,9 +370,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "The crash that ends your season is the boring risk you didn't name.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -398,9 +398,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "You ride the whole run as a system; the mistakes come from how sections interact.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },

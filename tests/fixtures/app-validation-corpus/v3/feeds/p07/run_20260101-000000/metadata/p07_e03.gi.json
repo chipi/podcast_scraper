@@ -66,53 +66,53 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:767ef97d5fe6de15",
+      "from": "quote:70a12db00ce25601",
       "to": "person:alex-morgan",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:4dd75a8b258e871f",
-      "to": "quote:767ef97d5fe6de15",
+      "to": "quote:70a12db00ce25601",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:9851fa2bb750f98c",
-      "to": "person:alex-morgan",
+      "from": "quote:af2d368ef3f71acb",
+      "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ee43fd63c3d28951",
-      "to": "quote:9851fa2bb750f98c",
+      "to": "quote:af2d368ef3f71acb",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:fe66b0a812d00e38",
+      "from": "quote:8265146458ef0303",
       "to": "person:dr-elena-fischer",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7d6f7075083505ad",
-      "to": "quote:fe66b0a812d00e38",
+      "to": "quote:8265146458ef0303",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:578ea7447663130e",
-      "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "quote:578ea7447663130e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:10603383f544f061",
+      "from": "quote:b25834a334dd8748",
       "to": "person:alex-morgan",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:4dd75a8b258e871f",
+      "to": "quote:b25834a334dd8748",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3d81516a8da2db27",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:ee43fd63c3d28951",
-      "to": "quote:10603383f544f061",
+      "to": "quote:3d81516a8da2db27",
       "type": "SUPPORTED_BY"
     },
     {
@@ -291,21 +291,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:767ef97d5fe6de15",
-      "properties": {
-        "char_end": 355,
-        "char_start": 222,
-        "episode_id": "ep-a86da8f148d3bf29",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p07_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:9851fa2bb750f98c",
+      "id": "quote:70a12db00ce25601",
       "properties": {
         "char_end": 397,
         "char_start": 355,
@@ -319,7 +305,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:fe66b0a812d00e38",
+      "id": "quote:af2d368ef3f71acb",
       "properties": {
         "char_end": 660,
         "char_start": 417,
@@ -333,7 +319,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:578ea7447663130e",
+      "id": "quote:8265146458ef0303",
       "properties": {
         "char_end": 868,
         "char_start": 660,
@@ -347,7 +333,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:10603383f544f061",
+      "id": "quote:b25834a334dd8748",
       "properties": {
         "char_end": 920,
         "char_start": 882,
@@ -361,6 +347,20 @@
       "type": "Quote"
     },
     {
+      "id": "quote:3d81516a8da2db27",
+      "properties": {
+        "char_end": 1163,
+        "char_start": 940,
+        "episode_id": "ep-a86da8f148d3bf29",
+        "speaker_id": "person:speaker-02",
+        "text": "The dangerous risks are the slow ones you can name but discount. Risk management here is the same discipline as anywhere \u2014 a portfolio, a power grid, a reef \u2014 name the risk before it names you, and respect the correlations.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
       "id": "insight:authored-p07_e03-0",
       "properties": {
         "episode_id": "ep-a86da8f148d3bf29",
@@ -368,9 +368,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -396,9 +396,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "The dangerous risks are the slow ones you can name but discount.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },

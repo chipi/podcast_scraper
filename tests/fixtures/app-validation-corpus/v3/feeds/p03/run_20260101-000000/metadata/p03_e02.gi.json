@@ -51,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:7f5926e6c5ed4bb4",
-      "to": "person:hanna-crebo-rediker",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b5a40e3cf44d149d",
-      "to": "quote:7f5926e6c5ed4bb4",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:5a9a07d724ff5e47",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ce7f3a554ed3e347",
-      "to": "quote:5a9a07d724ff5e47",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a7f926b7be76c220",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:3a9fc65782086662",
-      "to": "quote:a7f926b7be76c220",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8b7a5062f3d658e0",
+      "from": "quote:0d8c32b946ddae23",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:b5a40e3cf44d149d",
-      "to": "quote:8b7a5062f3d658e0",
+      "to": "quote:0d8c32b946ddae23",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:302438c63e4f3d56",
+      "from": "quote:ae0ad93ad311b774",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ce7f3a554ed3e347",
-      "to": "quote:302438c63e4f3d56",
+      "to": "quote:ae0ad93ad311b774",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:19f5aa7eeb80abf9",
+      "from": "quote:347fd9af18831d34",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3a9fc65782086662",
+      "to": "quote:347fd9af18831d34",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f92b9a71d8848e65",
+      "to": "person:hanna-crebo-rediker",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b5a40e3cf44d149d",
+      "to": "quote:f92b9a71d8848e65",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5c84947083570e5d",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ce7f3a554ed3e347",
+      "to": "quote:5c84947083570e5d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fb4e4d97735adc54",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:3a9fc65782086662",
-      "to": "quote:19f5aa7eeb80abf9",
+      "to": "quote:fb4e4d97735adc54",
       "type": "SUPPORTED_BY"
     },
     {
@@ -232,27 +232,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:hanna-crebo-rediker",
-      "properties": {
-        "name": "Hanna Crebo-Rediker"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:7f5926e6c5ed4bb4",
-      "properties": {
-        "char_end": 260,
-        "char_start": 229,
-        "episode_id": "ep-a0a7f86b34a4de26",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Rina. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p03_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:rina",
       "properties": {
         "name": "Rina"
@@ -260,21 +239,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:5a9a07d724ff5e47",
-      "properties": {
-        "char_end": 372,
-        "char_start": 267,
-        "episode_id": "ep-a0a7f86b34a4de26",
-        "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by PADI. PADI is the global standard for dive education. Try padi.com today.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p03_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:a7f926b7be76c220",
+      "id": "quote:0d8c32b946ddae23",
       "properties": {
         "char_end": 454,
         "char_start": 372,
@@ -288,7 +253,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8b7a5062f3d658e0",
+      "id": "quote:ae0ad93ad311b774",
       "properties": {
         "char_end": 631,
         "char_start": 541,
@@ -302,7 +267,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:302438c63e4f3d56",
+      "id": "quote:347fd9af18831d34",
       "properties": {
         "char_end": 707,
         "char_start": 631,
@@ -316,7 +281,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:19f5aa7eeb80abf9",
+      "id": "person:hanna-crebo-rediker",
+      "properties": {
+        "name": "Hanna Crebo-Rediker"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f92b9a71d8848e65",
       "properties": {
         "char_end": 893,
         "char_start": 729,
@@ -325,6 +297,34 @@
         "text": "Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5c84947083570e5d",
+      "properties": {
+        "char_end": 980,
+        "char_start": 900,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "Push back on the conventional wisdom for me. How does DAN fit into this picture?",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fb4e4d97735adc54",
+      "properties": {
+        "char_end": 1126,
+        "char_start": 1002,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Erosion in coastal areas drives sediment plumes. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
         "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"

@@ -46,63 +46,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:da76cd59a6f1b22c",
+      "from": "quote:514f13d6e0d5c270",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "quote:514f13d6e0d5c270",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:80ae997ea200c3f2",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:58433146870b98cc",
+      "to": "quote:80ae997ea200c3f2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c0cad14563802939",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:08e21b1684255b5a",
+      "to": "quote:c0cad14563802939",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6441007fca6f2b0c",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "quote:6441007fca6f2b0c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:82ad39c8d691e662",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "quote:da76cd59a6f1b22c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:be884d3b76454a2f",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:58433146870b98cc",
-      "to": "quote:be884d3b76454a2f",
+      "to": "quote:82ad39c8d691e662",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:33b5901028d9a51d",
+      "from": "quote:21905418ae2b5e3f",
       "to": "person:sam",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:08e21b1684255b5a",
-      "to": "quote:33b5901028d9a51d",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:775197587e7d26bc",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "quote:775197587e7d26bc",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e2ada08ab6a7cfee",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:58433146870b98cc",
-      "to": "quote:e2ada08ab6a7cfee",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c606b36656d7878e",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:08e21b1684255b5a",
-      "to": "quote:c606b36656d7878e",
+      "to": "quote:21905418ae2b5e3f",
       "type": "SUPPORTED_BY"
     },
     {
@@ -220,27 +220,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:skanda-amarnath",
-      "properties": {
-        "name": "Skanda Amarnath"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:da76cd59a6f1b22c",
-      "properties": {
-        "char_end": 227,
-        "char_start": 197,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Sam. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:sam",
       "properties": {
         "name": "Sam"
@@ -248,21 +227,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:be884d3b76454a2f",
-      "properties": {
-        "char_end": 385,
-        "char_start": 233,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:33b5901028d9a51d",
+      "id": "quote:514f13d6e0d5c270",
       "properties": {
         "char_end": 472,
         "char_start": 385,
@@ -276,7 +241,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:775197587e7d26bc",
+      "id": "quote:80ae997ea200c3f2",
       "properties": {
         "char_end": 650,
         "char_start": 555,
@@ -290,7 +255,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e2ada08ab6a7cfee",
+      "id": "quote:c0cad14563802939",
       "properties": {
         "char_end": 790,
         "char_start": 650,
@@ -304,7 +269,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:c606b36656d7878e",
+      "id": "quote:6441007fca6f2b0c",
       "properties": {
         "char_end": 879,
         "char_start": 790,
@@ -313,6 +278,41 @@
         "text": "I want to dig into that. What's the structural angle most listeners don't have access to?",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:82ad39c8d691e662",
+      "properties": {
+        "char_end": 1099,
+        "char_start": 898,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Macro forecasting is mostly humility plus a few dependable signals. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:21905418ae2b5e3f",
+      "properties": {
+        "char_end": 1181,
+        "char_start": 1105,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"

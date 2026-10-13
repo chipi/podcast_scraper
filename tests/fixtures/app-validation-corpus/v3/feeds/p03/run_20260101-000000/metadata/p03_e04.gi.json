@@ -66,53 +66,53 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:b130876635637f21",
+      "from": "quote:668b4252b80c2023",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:c1a333a563abe849",
-      "to": "quote:b130876635637f21",
+      "to": "quote:668b4252b80c2023",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:0f91d4752baf32fd",
-      "to": "person:rina",
+      "from": "quote:95524ff18d7c24c9",
+      "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:8d5667985a6bf6f1",
-      "to": "quote:0f91d4752baf32fd",
+      "to": "quote:95524ff18d7c24c9",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:15d229b8edce998f",
+      "from": "quote:9cd9f72d427cb83e",
       "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:a7c9178cc26caaf1",
-      "to": "quote:15d229b8edce998f",
+      "to": "quote:9cd9f72d427cb83e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:abecc7a7e3e95b61",
-      "to": "person:marco-silva",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c1a333a563abe849",
-      "to": "quote:abecc7a7e3e95b61",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d770f69fe4b22382",
+      "from": "quote:89f643619ecf379f",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:c1a333a563abe849",
+      "to": "quote:89f643619ecf379f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:855d8a05de549e57",
+      "to": "person:marco-silva",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:8d5667985a6bf6f1",
-      "to": "quote:d770f69fe4b22382",
+      "to": "quote:855d8a05de549e57",
       "type": "SUPPORTED_BY"
     },
     {
@@ -298,21 +298,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:b130876635637f21",
-      "properties": {
-        "char_end": 302,
-        "char_start": 176,
-        "episode_id": "ep-916dab1698f88aec",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p03_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:0f91d4752baf32fd",
+      "id": "quote:668b4252b80c2023",
       "properties": {
         "char_end": 363,
         "char_start": 302,
@@ -326,7 +312,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:15d229b8edce998f",
+      "id": "quote:95524ff18d7c24c9",
       "properties": {
         "char_end": 579,
         "char_start": 377,
@@ -340,7 +326,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:abecc7a7e3e95b61",
+      "id": "quote:9cd9f72d427cb83e",
       "properties": {
         "char_end": 803,
         "char_start": 579,
@@ -354,7 +340,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d770f69fe4b22382",
+      "id": "quote:89f643619ecf379f",
       "properties": {
         "char_end": 866,
         "char_start": 810,
@@ -368,6 +354,20 @@
       "type": "Quote"
     },
     {
+      "id": "quote:855d8a05de549e57",
+      "properties": {
+        "char_end": 1062,
+        "char_start": 880,
+        "episode_id": "ep-916dab1698f88aec",
+        "speaker_id": "person:speaker-02",
+        "text": "Not different at all. A dive plan and a portfolio are the same discipline \u2014 systems of correlated risk, where the one you can describe in advance is the one you can actually control.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
       "id": "insight:authored-p03_e04-0",
       "properties": {
         "episode_id": "ep-916dab1698f88aec",
@@ -375,9 +375,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -403,9 +403,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "You plan the whole dive as one system; accidents live in the interactions.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },

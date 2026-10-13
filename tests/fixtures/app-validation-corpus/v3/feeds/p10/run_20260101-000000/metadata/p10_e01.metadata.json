@@ -25,20 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Lucía Herrera conversa con el constructor de senderos Javier Benavides sobre drenaje, trazado, y cómo mantener los senderos rodables durante el invierno.",
     "duration_seconds": 409,
     "episode_id": "ep-7072d2e85dcd5233",
     "language": "es",
     "language_source": "rss",
-    "published_date": "2026-01-19T00:00:00",
-    "title": "Construyendo Senderos Que Duran",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-01-19T00:00:00",
+    "title": "Construyendo Senderos Que Duran"
   },
   "feed": {
     "authors": [
@@ -49,19 +50,19 @@
     "language": "es",
     "language_raw": "es-ES",
     "language_source": "rss",
-    "last_updated": "2026-01-19T00:00:00",
+    "last_updated": "2025-08-17T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Sesiones de Sendero",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p10.svg",
-    "image_url": "http://localhost/images/p10.svg",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_url": "http://localhost/images/p10.svg"
   },
   "schema_version": "1",
   "summary": {

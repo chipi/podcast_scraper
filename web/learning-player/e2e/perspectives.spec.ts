@@ -39,13 +39,14 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   const section = page.getByTestId('topic-perspectives')
   await expect(section).toBeVisible()
   // The heading names the topic (operator 2026-10-05).
-  await expect(section.getByText('10 perspectives on risk management', { exact: true })).toBeVisible()
+  await expect(section.getByText('9 perspectives on risk management', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
-  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 9th of 10, so he
-  // appears on the second "Show more voices".
+  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 9th of 9, so he
+  // appears on the second "Show more voices". 9, not 10, since the 2026-10-13 corpus refresh: Maya
+  // was here only because her question was cycled onto Sophie Laurent's answer as its support.
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
   const moreVoices = section.getByTestId('perspectives-more-speakers')
-  await expect(moreVoices).toHaveText('Show more voices (7)')
+  await expect(moreVoices).toHaveText('Show more voices (6)')
   await moreVoices.click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
   await moreVoices.click()

@@ -37,16 +37,6 @@
     },
     {
       "from": "episode:ep-2a703b6f57d9020f",
-      "to": "insight:47c22603562181f7",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:47c22603562181f7",
-      "to": "topic:wreck-diving",
-      "type": "ABOUT"
-    },
-    {
-      "from": "episode:ep-2a703b6f57d9020f",
       "to": "insight:4213c32cc839904b",
       "type": "HAS_INSIGHT"
     },
@@ -56,77 +46,92 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:18ab7be69d2317f9",
-      "to": "person:marco-silva",
-      "type": "SPOKEN_BY"
+      "from": "episode:ep-2a703b6f57d9020f",
+      "to": "insight:38fa3aaee018d17d",
+      "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:47c22603562181f7",
-      "to": "quote:18ab7be69d2317f9",
-      "type": "SUPPORTED_BY"
+      "from": "insight:38fa3aaee018d17d",
+      "to": "topic:wreck-diving",
+      "type": "ABOUT"
     },
     {
-      "from": "quote:0fc88cbbb05a0263",
+      "from": "insight:38fa3aaee018d17d",
+      "to": "topic:dive-planning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:50d18f6db09fe431",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:4213c32cc839904b",
-      "to": "quote:0fc88cbbb05a0263",
+      "to": "quote:50d18f6db09fe431",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:a465d32d2950c7db",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7eef2b7f4b64517f",
-      "to": "quote:a465d32d2950c7db",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f25961fa20c48a14",
+      "from": "quote:167d64432e6d940b",
       "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:47c22603562181f7",
-      "to": "quote:f25961fa20c48a14",
+      "from": "insight:7eef2b7f4b64517f",
+      "to": "quote:167d64432e6d940b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:43aafb82b445dac5",
+      "from": "quote:2bcd3b2242e1fd35",
       "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:38fa3aaee018d17d",
+      "to": "quote:2bcd3b2242e1fd35",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:70821dd91a72ad37",
+      "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:4213c32cc839904b",
-      "to": "quote:43aafb82b445dac5",
+      "to": "quote:70821dd91a72ad37",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:6a1c0157da2802e9",
-      "to": "person:marco-silva",
+      "from": "quote:7fbe446d8ac2d1dd",
+      "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7eef2b7f4b64517f",
-      "to": "quote:6a1c0157da2802e9",
+      "to": "quote:7fbe446d8ac2d1dd",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:47c22603562181f7",
+      "from": "quote:0b868e0c980fc027",
+      "to": "person:marco-silva",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:38fa3aaee018d17d",
+      "to": "quote:0b868e0c980fc027",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:4213c32cc839904b",
       "to": "person:rina",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:4213c32cc839904b",
+      "from": "insight:7eef2b7f4b64517f",
       "to": "person:marco-silva",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:7eef2b7f4b64517f",
+      "from": "insight:38fa3aaee018d17d",
       "to": "person:rina",
       "type": "MENTIONS_PERSON"
     }
@@ -195,26 +200,12 @@
       "type": "Topic"
     },
     {
-      "id": "insight:47c22603562181f7",
+      "id": "insight:4213c32cc839904b",
       "properties": {
         "episode_id": "ep-2a703b6f57d9020f",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "drop",
-        "salience": 0.3,
-        "text": "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
-        "tier": 0
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:4213c32cc839904b",
-      "properties": {
-        "episode_id": "ep-2a703b6f57d9020f",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?",
@@ -227,8 +218,8 @@
       "properties": {
         "episode_id": "ep-2a703b6f57d9020f",
         "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Let me give you the version I actually believe. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. I've watched this pattern ho\u2026",
@@ -237,25 +228,18 @@
       "type": "Insight"
     },
     {
-      "id": "person:marco-silva",
+      "id": "insight:38fa3aaee018d17d",
       "properties": {
-        "name": "Marco Silva"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:18ab7be69d2317f9",
-      "properties": {
-        "char_end": 314,
-        "char_start": 207,
         "episode_id": "ep-2a703b6f57d9020f",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Rina. Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p03_e01.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to dig into that. Where do dive planning and wreck diving intersect?",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
       "id": "person:rina",
@@ -265,21 +249,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:0fc88cbbb05a0263",
-      "properties": {
-        "char_end": 447,
-        "char_start": 321,
-        "episode_id": "ep-2a703b6f57d9020f",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p03_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:a465d32d2950c7db",
+      "id": "quote:50d18f6db09fe431",
       "properties": {
         "char_end": 553,
         "char_start": 447,
@@ -293,7 +263,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:f25961fa20c48a14",
+      "id": "person:marco-silva",
+      "properties": {
+        "name": "Marco Silva"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:167d64432e6d940b",
       "properties": {
         "char_end": 796,
         "char_start": 567,
@@ -307,7 +284,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:43aafb82b445dac5",
+      "id": "quote:2bcd3b2242e1fd35",
       "properties": {
         "char_end": 878,
         "char_start": 803,
@@ -321,7 +298,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:6a1c0157da2802e9",
+      "id": "quote:70821dd91a72ad37",
       "properties": {
         "char_end": 1056,
         "char_start": 892,
@@ -330,6 +307,34 @@
         "text": "Honestly, Silt-out from poor finning technique kills more divers in wrecks than equipment failures. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7fbe446d8ac2d1dd",
+      "properties": {
+        "char_end": 1156,
+        "char_start": 1063,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0b868e0c980fc027",
+      "properties": {
+        "char_end": 1356,
+        "char_start": 1170,
+        "episode_id": "ep-2a703b6f57d9020f",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p03_e01.txt"
       },
       "type": "Quote"

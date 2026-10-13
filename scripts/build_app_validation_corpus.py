@@ -508,6 +508,152 @@ def _drop_untranslated_non_english(
     return [tr for tr in transcripts if tr.stem not in missing]
 
 
+def _is_ad_read(text: str) -> bool:
+    """A sponsor read — kept out of insights AND quotes, as the pipeline's ad cut keeps it out."""
+    low = text.lower()
+    return "sponsor" in low or "use code pod" in low or "brought to you by" in low
+
+
+def _speaker_balanced_quotes(segments: list[dict[str, Any]], k: int = 6) -> list[dict[str, Any]]:
+    """The ``k`` quote segments ``build_gi`` should ground in: every speaker first, then in order.
+
+    ``build_gi`` caps quotes at its first six non-filler segments, while its own comment promises
+    that "each speaker is represented". On a host-heavy opening those six are all the host — p04_e04
+    gave all six to Leo, Ava Lemoine's 17 lines none — and the speaker-coherence invariant then
+    reads the fixture as a mis-attributed episode. Selecting here keeps the shared helper's output
+    unchanged for the viewer corpus.
+
+    Ad reads and non-person voices (``Ad:``) are never quotes: the pipeline cuts ads before GI
+    runs, so a sponsor read can never become somebody's words. Without this, p06_e04's ``Ad:``
+    line became a quote and ``person:ad`` a co-appearing guest.
+    """
+    usable = [
+        s
+        for s in segments
+        if not is_greeting_or_filler(str(s.get("text") or ""))
+        and not _is_ad_read(str(s.get("text") or ""))
+        and str(s.get("speaker_label") or "").lower() not in _NON_PERSON_LABELS
+    ]
+    picked: list[int] = []
+    seen: set[str] = set()
+    for i, seg in enumerate(usable):
+        label = str(seg.get("speaker_label") or "")
+        if label and label.lower() not in _NON_PERSON_LABELS and label not in seen:
+            seen.add(label)
+            picked.append(i)
+    for i in range(len(usable)):
+        if len(picked) >= k:
+            break
+        if i not in picked:
+            picked.append(i)
+    return [usable[i] for i in sorted(picked[:k])] or segments
+
+
+def _translated_analysis(ep_label: str, version: str) -> tuple[dict[str, Any] | None, list]:
+    """(captured render, English ad-free segments) for a translated episode, else (None, []).
+
+    Outside ``main`` because ``main`` is at the flake8 complexity ceiling.
+    """
+    captured = _captured_render_for(ep_label, version)
+    if not captured:
+        return None, []
+    body = (captured.get("stack") or {}).get("adfree.txt") or ""
+    return captured, _merge_sentences_into_turns(_english_analysis_segments(captured), body)
+
+
+def _english_analysis_segments(captured: dict[str, Any]) -> list[dict[str, Any]]:
+    """The captured ENGLISH ad-free segments, each carrying its speaker's name. Empty when absent.
+
+    D-44: a translated episode's GI runs on the English ad-free body, so its quotes are English and
+    their offsets index `.en.adfree.txt`. Building them from the source screenplay instead put
+    Spanish quotes, with offsets into the wrong text, where every reader is promised English.
+
+    The ad-free segments label voices `SPEAKER_NN`; the full-timeline English segments carry the
+    names. Both share `sent_id`, which is how the name is restored without guessing.
+    """
+    stack = captured.get("stack") or {}
+    try:
+        adfree = json.loads(stack.get("adfree.segments.json") or "[]")
+        full = json.loads(stack.get("segments.json") or "[]")
+    except ValueError:
+        return []
+    name_by_sent = {
+        s.get("sent_id"): s.get("speaker_label")
+        for s in full
+        if isinstance(s, dict) and s.get("sent_id") and s.get("speaker_label")
+    }
+    out: list[dict[str, Any]] = []
+    for seg in adfree:
+        if not isinstance(seg, dict) or not str(seg.get("text") or "").strip():
+            continue
+        named = dict(seg)
+        named["speaker_label"] = name_by_sent.get(seg.get("sent_id")) or seg.get("speaker_label")
+        out.append(named)
+    return out
+
+
+#: Longest pause between two sentences that still makes them one stretch of speech.
+_TURN_MERGE_MAX_GAP_S = 2.0
+
+
+def _turn_of(seg: dict[str, Any]) -> str:
+    return str(seg.get("sent_id") or seg.get("unit_id") or "").split(".")[0]
+
+
+def _merge_sentences_into_turns(segments: list[dict[str, Any]], body: str) -> list[dict[str, Any]]:
+    """Consecutive sentences of one turn, joined back into the turn.
+
+    The captured segments are SENTENCES (one translation unit each), while the English fixtures'
+    are whole turns. A one-sentence "insight" almost never carries a topic's words, so the builder's
+    token-matched ABOUT edges came out at zero on all 15 translated episodes and none of them
+    reached a topic page. The merged span is checked against the body: its offsets must still
+    index exactly its text, or the sentences stay apart.
+
+    Sentences must also be continuous in TIME. An ad cut removes the middle of a turn and leaves its
+    two ends adjacent in the ad-free text: merged, p10_e01's opening ran 20.9 s -> 214.4 s, a quote
+    whose audio plays straight through the ad it was cut from.
+    """
+    out: list[dict[str, Any]] = []
+    for seg in segments:
+        prev = out[-1] if out else None
+        if (
+            prev is not None
+            and _turn_of(prev)
+            and _turn_of(prev) == _turn_of(seg)
+            and prev.get("speaker_label") == seg.get("speaker_label")
+        ):
+            start, end = prev.get("char_start"), seg.get("char_end")
+            gap = float(seg.get("start") or 0.0) - float(prev.get("end") or 0.0)
+            if isinstance(start, int) and isinstance(end, int) and gap <= _TURN_MERGE_MAX_GAP_S:
+                text = body[start:end]
+                if text == f"{prev['text']} {seg['text']}":
+                    prev["text"], prev["char_end"], prev["end"] = text, end, seg.get("end")
+                    continue
+        out.append(dict(seg))
+    return out
+
+
+def _attach_captured_provenance(
+    gi: dict[str, Any], captured: dict[str, Any] | None, en_segments: list[dict[str, Any]]
+) -> int:
+    """Decorate the GI's quotes with translation provenance, as the pipeline's GI writer does.
+
+    A no-op for an episode with no captured translation.
+    """
+    from podcast_scraper.translation.artifacts import TranslationDocument
+    from podcast_scraper.translation.provenance import attach_translation_provenance
+
+    if not captured or not en_segments:
+        return 0
+    raw = (captured.get("stack") or {}).get("translation.json")
+    if not raw:
+        return 0
+    doc = TranslationDocument.from_dict(json.loads(raw))
+    # The SENTENCE segments, not the merged turns: each carries its own unit id, so a quote
+    # spanning a turn resolves to every unit it was translated from.
+    return attach_translation_provenance(gi, doc, _english_analysis_segments(captured))
+
+
 def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
     """Write this episode's captured `.en.*` stack beside its source transcript. Returns a count.
 
@@ -993,6 +1139,18 @@ def _load_pod_guests(manifest_path: Path) -> dict[str, dict[str, str]]:
     return out
 
 
+def _authored_claim_route(grounded: bool) -> dict[str, Any]:
+    """``tier`` / ``routing_tag`` / ``salience`` for an authored claim: CORE (tier 3).
+
+    Authored claims are the corpus's designed central stances — the opposition and perspective
+    storylines are built from them. They carried no ranking fields at all, so consumers sorting by
+    salience put them LAST; they surfaced only while an ordinary insight with the same text happened
+    to carry one. Same formula as ``_route_and_tag``: ``(tier/3)*0.7 + 0.2 grounded + 0.1``.
+    """
+    salience = round(min(1.0, 0.7 + (0.2 if grounded else 0.0) + 0.1), 4)
+    return {"tier": 3, "routing_tag": "surface", "salience": salience}
+
+
 def _inject_authored_claims(
     gi: dict[str, Any], ep_label: str, gt_dir: Path, name_by_key: dict[str, str]
 ) -> None:
@@ -1057,6 +1215,7 @@ def _inject_authored_claims(
                     "grounded": grounded,
                     "insight_type": "claim",
                     "position_hint": 0.5,
+                    **_authored_claim_route(grounded),
                 },
             }
         )
@@ -1317,8 +1476,7 @@ def _clean_insight_quote_excerpts(
             continue
         if is_greeting_or_filler(txt):
             continue
-        low = txt.lower()
-        if "sponsor" in low or "use code pod" in low or "brought to you by" in low:
+        if _is_ad_read(txt):
             continue
         sentences.append(txt if len(txt) <= 200 else txt[:197].rstrip() + "…")
         if len(sentences) >= 6:
@@ -2128,8 +2286,10 @@ def main() -> int:
             # while the authored ones above keep the cross-show overlap the picker needs. See
             # `_captured_topics_for` for the measurements behind doing both.
             extracted = [t for t in _captured_topics_for(ep_label, version) if t not in topics]
-            # Insights/quotes from CLEAN diarized utterances (not the raw header block).
-            excerpts = _clean_insight_quote_excerpts(diar_segments, topics)
+            # Insights/quotes from CLEAN diarized utterances (not the raw header block). A
+            # translated episode takes them from its captured ENGLISH ad-free body (D-44).
+            captured, en_segments = _translated_analysis(ep_label, version)
+            excerpts = _clean_insight_quote_excerpts(en_segments or diar_segments, topics)
 
             # ONE duration, resolved ONCE, before anything that carries it is built. It used to be
             # resolved after the GI and the density sidecar were already written, so those two kept
@@ -2153,7 +2313,7 @@ def main() -> int:
                 episode_title,
                 publish + _PUBLISH_TIME_OF_DAY,
                 excerpts,
-                quote_segments=offset_segs,
+                quote_segments=_speaker_balanced_quotes(en_segments or offset_segs),
                 roster=roster,
                 transcript_ref=transcript_run_rel,
                 metadata_relative_path=metadata_rel,
@@ -2184,6 +2344,7 @@ def main() -> int:
             _inject_authored_claims(
                 gi, ep_label, gt_dir, pod_guests.get(ep_label.split("_")[0], {})
             )
+            _attach_captured_provenance(gi, captured, en_segments)
 
             (run_meta_dir / f"{ep_label}.gi.json").write_text(
                 json.dumps(gi, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -2612,7 +2773,12 @@ def _norm_text(value: str) -> str:
 
 
 def _first_segment_text(metadata_path: Path, stem: str) -> str:
-    """The first transcript segment's text for an episode, or "" when there is no transcript."""
+    """The transcript's opening for an episode, or "" when there is no transcript.
+
+    Consecutive segments are joined until the opening reaches ``_ECHO_PREFIX_CHARS``: a single
+    sentence-level segment is often shorter than that, and the echo check skips a short opening,
+    so those episodes went unjudged. ``capability_audit._transcript_opening`` reads the same way.
+    """
     seg_path = metadata_path.parent.parent / "transcripts" / f"{stem}.segments.json"
     try:
         doc = json.loads(seg_path.read_text(encoding="utf-8"))
@@ -2621,8 +2787,14 @@ def _first_segment_text(metadata_path: Path, stem: str) -> str:
     segments = doc.get("segments") if isinstance(doc, dict) else doc
     if not isinstance(segments, list) or not segments:
         return ""
-    first = segments[0]
-    return str(first.get("text") or "") if isinstance(first, dict) else ""
+    parts: list[str] = []
+    for seg in segments:
+        text = str(seg.get("text") or "").strip() if isinstance(seg, dict) else ""
+        if text:
+            parts.append(text)
+        if len(" ".join(parts)) >= _ECHO_PREFIX_CHARS:
+            break
+    return " ".join(parts)
 
 
 def _summary_echo_problems(metas: list[Path], _load) -> list[str]:

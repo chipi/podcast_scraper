@@ -61,53 +61,53 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d697b67b54953700",
+      "from": "quote:8792dc280d445daf",
       "to": "person:alex-morgan",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:646137f8417f698c",
-      "to": "quote:d697b67b54953700",
+      "to": "quote:8792dc280d445daf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:35798e4ccba86be8",
-      "to": "person:alex-morgan",
+      "from": "quote:dcbeda99fbb146da",
+      "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e7511be415356f27",
-      "to": "quote:35798e4ccba86be8",
+      "to": "quote:dcbeda99fbb146da",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:48f1c30e4886fc4f",
+      "from": "quote:2b822af2beaeaf5a",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e561fff4c04db8b9",
-      "to": "quote:48f1c30e4886fc4f",
+      "to": "quote:2b822af2beaeaf5a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:e11c2ca06b77f0ef",
-      "to": "person:skanda-amarnath",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:646137f8417f698c",
-      "to": "quote:e11c2ca06b77f0ef",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:fb058548c9f3efb8",
+      "from": "quote:95422725336280e4",
       "to": "person:alex-morgan",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:646137f8417f698c",
+      "to": "quote:95422725336280e4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:cfa8b4256dbedd10",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:e7511be415356f27",
-      "to": "quote:fb058548c9f3efb8",
+      "to": "quote:cfa8b4256dbedd10",
       "type": "SUPPORTED_BY"
     },
     {
@@ -286,21 +286,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:d697b67b54953700",
-      "properties": {
-        "char_end": 318,
-        "char_start": 186,
-        "episode_id": "ep-362f5d463b877d2c",
-        "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine institutional desks run on. Try bloomberg.com today.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p07_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:35798e4ccba86be8",
+      "id": "quote:8792dc280d445daf",
       "properties": {
         "char_end": 369,
         "char_start": 318,
@@ -314,7 +300,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:48f1c30e4886fc4f",
+      "id": "quote:dcbeda99fbb146da",
       "properties": {
         "char_end": 592,
         "char_start": 387,
@@ -328,7 +314,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e11c2ca06b77f0ef",
+      "id": "quote:2b822af2beaeaf5a",
       "properties": {
         "char_end": 798,
         "char_start": 592,
@@ -342,7 +328,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:fb058548c9f3efb8",
+      "id": "quote:95422725336280e4",
       "properties": {
         "char_end": 871,
         "char_start": 812,
@@ -356,6 +342,20 @@
       "type": "Quote"
     },
     {
+      "id": "quote:cfa8b4256dbedd10",
+      "properties": {
+        "char_end": 1063,
+        "char_start": 889,
+        "episode_id": "ep-362f5d463b877d2c",
+        "speaker_id": "person:speaker-02",
+        "text": "Exactly the same. A macro book and a power grid are both systems of correlated risk. Systems thinking and risk management are one discipline \u2014 you just change the vocabulary.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p07_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
       "id": "insight:authored-p07_e04-0",
       "properties": {
         "episode_id": "ep-362f5d463b877d2c",
@@ -363,9 +363,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Macro is risk management at scale \u2014 not being on the wrong side of a regime change.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -391,9 +391,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "The economy is a system, not a set of levers.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },

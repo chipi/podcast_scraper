@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "How to keep batteries, backups, captions, and releases organized when you’re moving every day.",
     "duration_seconds": 456,
     "episode_id": "ep-fb2bb5f0f4044f1d",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2024-10-04T00:00:00",
-    "title": "Documentary Workflow in the Field",
-    "description": "How to keep batteries, backups, captions, and releases organized when you’re moving every day.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-10-04T00:00:00",
+    "title": "Documentary Workflow in the Field"
   },
   "feed": {
     "authors": [
@@ -47,22 +47,22 @@
     ],
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
-    "image_url": "http://localhost/images/p04.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2025-06-21T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Frame & Light",
     "url": "http://localhost/",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
+    "image_url": "http://localhost/images/p04.webp"
   },
   "schema_version": "1",
   "summary": {

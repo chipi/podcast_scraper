@@ -46,63 +46,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:6054681677d7727d",
-      "to": "person:richard-clarida",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:563dc22ce6a7cd56",
-      "to": "quote:6054681677d7727d",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:eb432efce5a2f040",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1beb3f32691aced8",
-      "to": "quote:eb432efce5a2f040",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:9b927f059e2ff725",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bedcae13375c310e",
-      "to": "quote:9b927f059e2ff725",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:294d19d61d68808d",
+      "from": "quote:ee36e951c43c8d84",
       "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:563dc22ce6a7cd56",
-      "to": "quote:294d19d61d68808d",
+      "to": "quote:ee36e951c43c8d84",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d75b1beacd2409ba",
+      "from": "quote:8d7281d1e64a4c3d",
       "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:1beb3f32691aced8",
-      "to": "quote:d75b1beacd2409ba",
+      "to": "quote:8d7281d1e64a4c3d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:7af85b7a0012ce15",
-      "to": "person:richard-clarida",
+      "from": "quote:0744e25a69b75c9a",
+      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:bedcae13375c310e",
-      "to": "quote:7af85b7a0012ce15",
+      "to": "quote:0744e25a69b75c9a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d98ff4022a99b315",
+      "to": "person:richard-clarida",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:563dc22ce6a7cd56",
+      "to": "quote:d98ff4022a99b315",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e764391168305da6",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1beb3f32691aced8",
+      "to": "quote:e764391168305da6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:15bfcdb896b184ce",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bedcae13375c310e",
+      "to": "quote:15bfcdb896b184ce",
       "type": "SUPPORTED_BY"
     },
     {
@@ -220,27 +220,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:richard-clarida",
-      "properties": {
-        "name": "Richard Clarida"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:6054681677d7727d",
-      "properties": {
-        "char_end": 222,
-        "char_start": 191,
-        "episode_id": "ep-1e526e495918fb27",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Nora. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p05_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:nora",
       "properties": {
         "name": "Nora"
@@ -248,21 +227,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:eb432efce5a2f040",
-      "properties": {
-        "char_end": 381,
-        "char_start": 229,
-        "episode_id": "ep-1e526e495918fb27",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p05_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:9b927f059e2ff725",
+      "id": "quote:ee36e951c43c8d84",
       "properties": {
         "char_end": 476,
         "char_start": 381,
@@ -276,7 +241,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:294d19d61d68808d",
+      "id": "quote:8d7281d1e64a4c3d",
       "properties": {
         "char_end": 646,
         "char_start": 556,
@@ -290,7 +255,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d75b1beacd2409ba",
+      "id": "quote:0744e25a69b75c9a",
       "properties": {
         "char_end": 737,
         "char_start": 646,
@@ -304,7 +269,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7af85b7a0012ce15",
+      "id": "person:richard-clarida",
+      "properties": {
+        "name": "Richard Clarida"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d98ff4022a99b315",
       "properties": {
         "char_end": 920,
         "char_start": 752,
@@ -313,6 +285,34 @@
         "text": "Earlier in my career I argued forward guidance was sufficient. Over time I revised that \u2014 without a credible balance-sheet signal, forward guidance alone is just words.",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e764391168305da6",
+      "properties": {
+        "char_end": 965,
+        "char_start": 927,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a real shift. Worth pulling on.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:15bfcdb896b184ce",
+      "properties": {
+        "char_end": 1069,
+        "char_start": 965,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
         "transcript_ref": "transcripts/p05_e02.txt"
       },
       "type": "Quote"

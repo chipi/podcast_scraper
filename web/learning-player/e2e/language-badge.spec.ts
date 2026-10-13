@@ -116,9 +116,9 @@ test('every show in Browse carries its language, as a tile and as a row', async 
   const rows = page.getByTestId('show-browse-list').getByTestId('show-row')
   await expect(rows.first()).toBeVisible()
   await expect(badge(page.getByTestId('show-browse-list'))).toHaveCount(await rows.count())
-  await expect(
-    badge(rows.filter({ hasText: "Sentieri d'Autore" })),
-  ).toHaveAttribute('data-lang', 'it')
+  // A non-English row on the FIRST page. The list shows ten, newest first; since the non-English
+  // shows were re-dated a year earlier (2026-10-13) the Italian one sits behind "Load more".
+  await expect(badge(rows.filter({ hasText: 'Pfadgespräche' }))).toHaveAttribute('data-lang', 'de')
 })
 
 test('Browse > Shows filters by language when the shows span languages', async ({ page }, testInfo) => {

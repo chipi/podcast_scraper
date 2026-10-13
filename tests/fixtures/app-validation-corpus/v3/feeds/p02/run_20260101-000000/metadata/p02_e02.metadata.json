@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "How to write RFCs, run reviews, and align teams without turning everything into meetings.",
     "duration_seconds": 414,
     "episode_id": "ep-35f04bce441bf827",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2024-04-18T00:00:00",
-    "title": "Staff-Engineer Communication Patterns",
-    "description": "How to write RFCs, run reviews, and align teams without turning everything into meetings.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-04-18T00:00:00",
+    "title": "Staff-Engineer Communication Patterns"
   },
   "feed": {
     "authors": [
@@ -47,51 +47,51 @@
     ],
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
-    "image_url": "http://localhost/images/p02.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2025-03-09T00:00:00",
-    "title": "Practical Systems",
-    "url": "http://localhost/",
     "licence": {
-      "status": "declared",
+      "conflicts": [],
       "declarations": [
         {
-          "level": "channel",
-          "mechanism": "rss_copyright",
-          "raw": "2025 Practical Systems Collective",
-          "url": null,
           "asset_scope": "unspecified",
           "known": null,
-          "notes": []
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "notes": [],
+          "raw": "2025 Practical Systems Collective",
+          "url": null
         },
         {
-          "level": "channel",
-          "mechanism": "podcast_license",
-          "raw": "cc-by-nc-sa-4.0",
-          "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
           "asset_scope": "audio_video",
           "known": {
-            "id": "CC-BY-NC-SA-4.0",
-            "name": "CC BY-NC-SA 4.0",
-            "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-            "commercial_use": false,
             "adaptations": true,
             "attribution": true,
-            "share_alike": true
+            "commercial_use": false,
+            "id": "CC-BY-NC-SA-4.0",
+            "name": "CC BY-NC-SA 4.0",
+            "share_alike": true,
+            "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
           },
-          "notes": []
+          "level": "channel",
+          "mechanism": "podcast_license",
+          "notes": [],
+          "raw": "cc-by-nc-sa-4.0",
+          "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
         }
       ],
-      "conflicts": [],
       "documents_for_review": [
         "https://creativecommons.org/licenses/by-nc-sa/4.0/"
       ],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "declared"
+    },
+    "title": "Practical Systems",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp"
   },
   "schema_version": "1",
   "summary": {

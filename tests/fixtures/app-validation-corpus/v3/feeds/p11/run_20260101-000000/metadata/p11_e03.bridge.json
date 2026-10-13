@@ -2,12 +2,20 @@
   "episode_id": "ep-ec0bf35da3719170",
   "identities": [
     {
-      "display_name": "endurance sport",
-      "id": "topic:endurance-sport"
+      "display_name": "drivetrain mechanics",
+      "id": "topic:drivetrain-mechanics"
+    },
+    {
+      "display_name": "maintenance",
+      "id": "topic:maintenance"
     },
     {
       "display_name": "risk management",
       "id": "topic:risk-management"
+    },
+    {
+      "display_name": "endurance sport",
+      "id": "topic:endurance-sport"
     },
     {
       "display_name": "lifelong learning",

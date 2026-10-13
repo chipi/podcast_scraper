@@ -37,91 +37,96 @@
     },
     {
       "from": "episode:ep-16ff698c1bd21087",
-      "to": "insight:ec9ec1e4f4e5a960",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
-      "to": "insight:473ab86045cd6865",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
       "to": "insight:6745f6b01936982b",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:6447c90b573ae431",
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:bcfb53c35d7b6917",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:4db6ad82bb47e6fe",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:4db6ad82bb47e6fe",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:97fa0c0b4f7b3d1f",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6745f6b01936982b",
+      "to": "quote:97fa0c0b4f7b3d1f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0cc10f8da8c6b4af",
       "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:ec9ec1e4f4e5a960",
-      "to": "quote:6447c90b573ae431",
+      "from": "insight:bcfb53c35d7b6917",
+      "to": "quote:0cc10f8da8c6b4af",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:960d327fdb3ad752",
+      "from": "quote:f383811760efe5cb",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4db6ad82bb47e6fe",
+      "to": "quote:f383811760efe5cb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:98a5069f94a381be",
       "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:473ab86045cd6865",
-      "to": "quote:960d327fdb3ad752",
+      "from": "insight:6745f6b01936982b",
+      "to": "quote:98a5069f94a381be",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:fcb06aa52e2436df",
+      "from": "quote:279eded5e5d8ebbd",
+      "to": "person:scott-bessent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bcfb53c35d7b6917",
+      "to": "quote:279eded5e5d8ebbd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9517f0e0cac4d376",
       "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6745f6b01936982b",
-      "to": "quote:fcb06aa52e2436df",
+      "from": "insight:4db6ad82bb47e6fe",
+      "to": "quote:9517f0e0cac4d376",
       "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:31a26b87d9f8a1a8",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ec9ec1e4f4e5a960",
-      "to": "quote:31a26b87d9f8a1a8",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8c5908eb3c7c4faa",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:473ab86045cd6865",
-      "to": "quote:8c5908eb3c7c4faa",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8e5165d8a6fb1da5",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6745f6b01936982b",
-      "to": "quote:8e5165d8a6fb1da5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:ec9ec1e4f4e5a960",
       "to": "person:nora",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:473ab86045cd6865",
+      "from": "insight:bcfb53c35d7b6917",
       "to": "person:daniel-cho",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:6745f6b01936982b",
+      "from": "insight:4db6ad82bb47e6fe",
       "to": "person:scott-bessent",
       "type": "MENTIONS_PERSON"
     },
@@ -270,40 +275,12 @@
       "type": "Topic"
     },
     {
-      "id": "insight:ec9ec1e4f4e5a960",
+      "id": "insight:6745f6b01936982b",
       "properties": {
         "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "drop",
-        "salience": 0.3,
-        "text": "Thanks, Nora. Happy to be the boring one today.",
-        "tier": 0
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:473ab86045cd6865",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "drop",
-        "salience": 0.3,
-        "text": "And I'll be the reckless one, apparently.",
-        "tier": 0
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:6745f6b01936982b",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first.",
@@ -312,46 +289,32 @@
       "type": "Insight"
     },
     {
-      "id": "person:daniel-cho",
+      "id": "insight:bcfb53c35d7b6917",
       "properties": {
-        "name": "Daniel Cho"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:6447c90b573ae431",
-      "properties": {
-        "char_end": 332,
-        "char_start": 285,
         "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Nora. Happy to be the boring one today.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p05_e04.txt"
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves \u2014 one position\u2026",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
-      "id": "person:scott-bessent",
+      "id": "insight:4db6ad82bb47e6fe",
       "properties": {
-        "name": "Scott Bessent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:960d327fdb3ad752",
-      "properties": {
-        "char_end": 389,
-        "char_start": 348,
         "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:speaker-03",
-        "text": "And I'll be the reckless one, apparently.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p05_e04.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "And I want to be precise: risk management for individuals is mostly behavioral. The math is easy. Sitting still while a holding gets cut in half is the hard part \u2014 and diversification is what makes\u2026",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
       "id": "person:nora",
@@ -361,21 +324,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:fcb06aa52e2436df",
-      "properties": {
-        "char_end": 521,
-        "char_start": 396,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we dig in \u2014 today's episode is sponsored by Vanguard. Vanguard pioneered low-cost index funds. Try vanguard.com today.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:31a26b87d9f8a1a8",
+      "id": "quote:97fa0c0b4f7b3d1f",
       "properties": {
         "char_end": 675,
         "char_start": 521,
@@ -389,7 +338,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8c5908eb3c7c4faa",
+      "id": "person:daniel-cho",
+      "properties": {
+        "name": "Daniel Cho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0cc10f8da8c6b4af",
       "properties": {
         "char_end": 927,
         "char_start": 688,
@@ -403,7 +359,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8e5165d8a6fb1da5",
+      "id": "quote:f383811760efe5cb",
       "properties": {
         "char_end": 1139,
         "char_start": 927,
@@ -417,6 +373,55 @@
       "type": "Quote"
     },
     {
+      "id": "person:scott-bessent",
+      "properties": {
+        "name": "Scott Bessent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:98a5069f94a381be",
+      "properties": {
+        "char_end": 1379,
+        "char_start": 1155,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-03",
+        "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ignorance, evenly distributed.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:279eded5e5d8ebbd",
+      "properties": {
+        "char_end": 1659,
+        "char_start": 1379,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-03",
+        "text": "The way I see it, a portfolio is a system of correlated bets. A handful you understand deeply is more robust than a hundred you don't, because you can see how they move together. Diversifying without understanding just hides the correlation until it's the only thing that matters.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9517f0e0cac4d376",
+      "properties": {
+        "char_end": 1827,
+        "char_start": 1666,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-01",
+        "text": "Let me sharpen it, because the disagreement is real. Daniel, Scott says your safety is an illusion. Scott, Daniel says your edge won't survive your own behavior.",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
       "id": "insight:authored-p05_e04-0",
       "properties": {
         "episode_id": "ep-16ff698c1bd21087",
@@ -424,9 +429,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -452,9 +457,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -480,9 +485,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -508,9 +513,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },

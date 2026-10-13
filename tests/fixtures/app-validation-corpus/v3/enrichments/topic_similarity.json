@@ -174,7 +174,7 @@
             "topic_label": "wreck diving"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.576667,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
@@ -231,22 +231,22 @@
             "topic_label": "maintenance"
           },
           {
-            "similarity": 0.571053,
+            "similarity": 0.676316,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.558889,
+            "similarity": 0.603333,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.557273,
+            "similarity": 0.593636,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.557273,
+            "similarity": 0.593636,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -319,9 +319,19 @@
       {
         "top_k": [
           {
+            "similarity": 0.778571,
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion"
+          },
+          {
             "similarity": 0.718889,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.697368,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
           },
           {
             "similarity": 0.688182,
@@ -332,16 +342,6 @@
             "similarity": 0.688182,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
-          },
-          {
-            "similarity": 0.676316,
-            "topic_id": "topic:land-stewardship",
-            "topic_label": "land stewardship"
           }
         ],
         "topic_id": "topic:endurance-sport",
@@ -350,27 +350,27 @@
       {
         "top_k": [
           {
-            "similarity": 0.592105,
-            "topic_id": "topic:endurance-sport",
-            "topic_label": "endurance sport"
-          },
-          {
-            "similarity": 0.59,
+            "similarity": 0.71,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.567778,
+            "similarity": 0.697368,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
+          },
+          {
+            "similarity": 0.612222,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.564545,
+            "similarity": 0.600909,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.564545,
+            "similarity": 0.600909,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -629,7 +629,7 @@
             "topic_label": "trail building"
           },
           {
-            "similarity": 0.816667,
+            "similarity": 0.721429,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
@@ -815,22 +815,22 @@
             "topic_label": "drivetrain mechanics"
           },
           {
-            "similarity": 0.571053,
+            "similarity": 0.676316,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.558889,
+            "similarity": 0.603333,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.557273,
+            "similarity": 0.593636,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.557273,
+            "similarity": 0.593636,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -851,7 +851,7 @@
             "topic_label": "safety practices"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.576667,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
@@ -1099,7 +1099,7 @@
             "topic_label": "safety practices"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.576667,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
@@ -1171,9 +1171,9 @@
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.673636,
-            "topic_id": "topic:systems-thinking",
-            "topic_label": "systems thinking"
+            "similarity": 0.674444,
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion"
           }
         ],
         "topic_id": "topic:risk-management",
@@ -1233,7 +1233,7 @@
             "topic_label": "wreck diving"
           },
           {
-            "similarity": 0.622727,
+            "similarity": 0.6,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           }
@@ -1275,29 +1275,29 @@
       {
         "top_k": [
           {
-            "similarity": 0.816667,
-            "topic_id": "topic:land-stewardship",
-            "topic_label": "land stewardship"
-          },
-          {
-            "similarity": 0.816667,
-            "topic_id": "topic:trail-building",
-            "topic_label": "trail building"
-          },
-          {
-            "similarity": 0.683333,
+            "similarity": 0.778571,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.63,
-            "topic_id": "topic:risk-management",
-            "topic_label": "risk management"
+            "similarity": 0.721429,
+            "topic_id": "topic:land-stewardship",
+            "topic_label": "land stewardship"
           },
           {
-            "similarity": 0.622727,
-            "topic_id": "topic:safety-practices",
-            "topic_label": "safety practices"
+            "similarity": 0.721429,
+            "topic_id": "topic:trail-building",
+            "topic_label": "trail building"
+          },
+          {
+            "similarity": 0.71,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
+          },
+          {
+            "similarity": 0.674444,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
           }
         ],
         "topic_id": "topic:soil-erosion",
@@ -1435,7 +1435,7 @@
             "topic_label": "land stewardship"
           },
           {
-            "similarity": 0.816667,
+            "similarity": 0.721429,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
@@ -1533,7 +1533,7 @@
             "topic_label": "safety practices"
           },
           {
-            "similarity": 0.594444,
+            "similarity": 0.578571,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },

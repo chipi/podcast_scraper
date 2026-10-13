@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "A grounded overview of biohacking in 2025: why it moved from fringe experimentation toward measurement, fundamentals, and systems thinking—and where it still goes wrong.",
     "duration_seconds": 214,
     "episode_id": "ep-1abf911df5bea2c3",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2025-05-12T00:00:00",
-    "title": "Systems Thinking, Two Years Later",
-    "description": "A grounded overview of biohacking in 2025: why it moved from fringe experimentation toward measurement, fundamentals, and systems thinking—and where it still goes wrong.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-05-12T00:00:00",
+    "title": "Systems Thinking, Two Years Later"
   },
   "feed": {
     "authors": [
@@ -47,22 +47,22 @@
     ],
     "description": "Recurring guests from other shows revisit their positions.",
     "feed_id": "p09",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
-    "image_url": "http://localhost/images/p09.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2026-07-16T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Cross-Show",
     "url": "http://localhost/",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp"
   },
   "schema_version": "1",
   "summary": {

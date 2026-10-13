@@ -51,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:abdd7f200751e817",
+      "from": "quote:e4407b1e5f7ea640",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "quote:e4407b1e5f7ea640",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:dd9a811d22ceeaaf",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:725b1e32e3b24f73",
+      "to": "quote:dd9a811d22ceeaaf",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:64f941d40181b2a4",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c3788458caa97dd0",
+      "to": "quote:64f941d40181b2a4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fbaf91ffdddff805",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:27b94dd5bdf2158f",
+      "to": "quote:fbaf91ffdddff805",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5add219b3a4e7ced",
+      "to": "person:leo",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:725b1e32e3b24f73",
+      "to": "quote:5add219b3a4e7ced",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:86eb3d2691694ca7",
       "to": "person:ava-lemoine",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:27b94dd5bdf2158f",
-      "to": "quote:abdd7f200751e817",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:4b33f887515594be",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:725b1e32e3b24f73",
-      "to": "quote:4b33f887515594be",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e38f93c5555266ac",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:c3788458caa97dd0",
-      "to": "quote:e38f93c5555266ac",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:bf28680c637d3d5f",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:27b94dd5bdf2158f",
-      "to": "quote:bf28680c637d3d5f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:301e4f5262fcb599",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:725b1e32e3b24f73",
-      "to": "quote:301e4f5262fcb599",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:477e0395bedb38f0",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c3788458caa97dd0",
-      "to": "quote:477e0395bedb38f0",
+      "to": "quote:86eb3d2691694ca7",
       "type": "SUPPORTED_BY"
     },
     {
@@ -232,27 +232,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:ava-lemoine",
-      "properties": {
-        "name": "Ava Lemoine"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:abdd7f200751e817",
-      "properties": {
-        "char_end": 221,
-        "char_start": 191,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Leo. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:leo",
       "properties": {
         "name": "Leo"
@@ -260,21 +239,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:4b33f887515594be",
-      "properties": {
-        "char_end": 364,
-        "char_start": 227,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:e38f93c5555266ac",
+      "id": "quote:e4407b1e5f7ea640",
       "properties": {
         "char_end": 545,
         "char_start": 364,
@@ -288,7 +253,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:bf28680c637d3d5f",
+      "id": "quote:dd9a811d22ceeaaf",
       "properties": {
         "char_end": 705,
         "char_start": 623,
@@ -302,7 +267,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:301e4f5262fcb599",
+      "id": "quote:64f941d40181b2a4",
       "properties": {
         "char_end": 796,
         "char_start": 705,
@@ -316,7 +281,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:477e0395bedb38f0",
+      "id": "quote:fbaf91ffdddff805",
       "properties": {
         "char_end": 889,
         "char_start": 796,
@@ -325,6 +290,41 @@
         "text": "I want to flag something \u2014 Daniel Olufemy mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5add219b3a4e7ced",
+      "properties": {
+        "char_end": 1029,
+        "char_start": 889,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-01",
+        "text": "Real talk: Adobe is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for post-processing.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:ava-lemoine",
+      "properties": {
+        "name": "Ava Lemoine"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:86eb3d2691694ca7",
+      "properties": {
+        "char_end": 1306,
+        "char_start": 1125,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. Roundtables reveal where photographers actually disagree. We've seen this play out at teams using Peak Design. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
         "transcript_ref": "transcripts/p04_e04.txt"
       },
       "type": "Quote"

@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "An in-depth discussion on how solar energy will shape grids, markets, geopolitics, and daily life over the next two decades.",
     "duration_seconds": 271,
     "episode_id": "ep-efc13989b676df9d",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2025-03-11T00:00:00",
-    "title": "Public Radio Format Conventions",
-    "description": "An in-depth discussion on how solar energy will shape grids, markets, geopolitics, and daily life over the next two decades.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-03-11T00:00:00",
+    "title": "Public Radio Format Conventions"
   },
   "feed": {
     "authors": [
@@ -47,22 +47,22 @@
     ],
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
-    "image_url": "http://localhost/images/p08.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2026-01-05T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Public Hour",
     "url": "http://localhost/",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp"
   },
   "schema_version": "1",
   "summary": {

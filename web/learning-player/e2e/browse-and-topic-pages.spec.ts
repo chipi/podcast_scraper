@@ -143,9 +143,20 @@ for (const viewport of [
     const tiles = rail.getByTestId('trending-show-card')
     await expect(tiles.first()).toBeVisible()
     const all = await rail.getByTestId('trending-shows-seeall').boundingBox()
-    const last = await tiles.last().boundingBox()
     const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
-    expect(Math.abs(right(all) - right(last))).toBeLessThanOrEqual(1)
+    // The header is min(n, per-row) tiles wide (3 to a row on a phone, 4 from `sm`). Short of a
+    // row, "all ›" ends where the last tile ends; with a full row the header is the rail's width
+    // and the rail scrolls on. The refreshed corpus (2026-10-13) has more trending shows than a
+    // row (it used to have two), so both branches are real. Measured at 1440px with five shows the
+    // fourth tile ends 1.83px short of the rail — tile sizing, not the header — so the full-row
+    // case is checked against the rail edge the header is defined by.
+    const perRow = viewport.width >= 640 ? 4 : 3
+    const n = await tiles.count()
+    const edge =
+      n < perRow
+        ? await tiles.last().boundingBox()
+        : await rail.locator('ul').first().boundingBox()
+    expect(Math.abs(right(all) - right(edge))).toBeLessThanOrEqual(1)
   })
 }
 

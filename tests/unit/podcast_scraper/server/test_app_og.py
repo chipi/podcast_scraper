@@ -185,9 +185,17 @@ def test_topic_model_carries_voices_stat_and_attributed_quote(ids: dict[str, str
 
 
 def test_storyline_model_explains_itself(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.app_relational_view import build_topic_card
     from podcast_scraper.server.og.build import build_og_model
 
-    m = build_og_model(_CORPUS, "storyline", ids["topic"])
+    # A storyline WITH siblings, chosen explicitly: the index's first topic is a one-topic
+    # storyline on the refreshed corpus, which has nothing for the blurb to join.
+    anchor = next(
+        t
+        for t in build_kg_index(_CORPUS).topic_to_eps
+        if (card := build_topic_card(_CORPUS, t)) is not None and card.storyline_sibling_topics
+    )
+    m = build_og_model(_CORPUS, "storyline", anchor)
     assert m is not None
     # It defines what a storyline is (byline) and shows WHICH topics (blurb).
     assert m.byline == "Topics discussed together"

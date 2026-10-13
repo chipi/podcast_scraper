@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Testing Unicode: 你好世界 🌍 Café résumé naïve ñoño",
     "duration_seconds": 248,
     "episode_id": "ep-f4b940a095192621",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2025-03-17T00:00:00",
-    "title": "More Drift, Less Signal",
-    "description": "Testing Unicode: 你好世界 🌍 Café résumé naïve ñoño",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-03-17T00:00:00",
+    "title": "More Drift, Less Signal"
   },
   "feed": {
     "authors": [
@@ -47,22 +47,22 @@
     ],
     "description": "Dialogue-heavy, meandering long-form interviews.",
     "feed_id": "p06",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
-    "image_url": "http://localhost/images/p06.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2026-06-20T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "The Drift",
     "url": "http://localhost/",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp"
   },
   "schema_version": "1",
   "summary": {

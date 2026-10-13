@@ -51,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:4f6d25714039222a",
-      "to": "person:daniel-olufemi",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cb626e0a5fe29a63",
-      "to": "quote:4f6d25714039222a",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:1fc557f46c1ea009",
+      "from": "quote:7711b9ffeb6284e9",
       "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:72fd97ce71dea026",
-      "to": "quote:1fc557f46c1ea009",
+      "from": "insight:cb626e0a5fe29a63",
+      "to": "quote:7711b9ffeb6284e9",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:3b73aff2ed432b2b",
+      "from": "quote:e94679a2031c1719",
+      "to": "person:daniel-olufemi",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:72fd97ce71dea026",
+      "to": "quote:e94679a2031c1719",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7172d9934415585d",
       "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6eddc5dcf4d2ffc0",
-      "to": "quote:3b73aff2ed432b2b",
+      "to": "quote:7172d9934415585d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:7b6105b45932e06a",
+      "from": "quote:fee7c2c9b97efb45",
       "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:cb626e0a5fe29a63",
-      "to": "quote:7b6105b45932e06a",
+      "to": "quote:fee7c2c9b97efb45",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:7e034193b6067eed",
+      "from": "quote:b8bed3f65e486083",
       "to": "person:leo",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:72fd97ce71dea026",
-      "to": "quote:7e034193b6067eed",
+      "to": "quote:b8bed3f65e486083",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:70a294296ca705ee",
+      "from": "quote:a23240b81cab4436",
       "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6eddc5dcf4d2ffc0",
-      "to": "quote:70a294296ca705ee",
+      "to": "quote:a23240b81cab4436",
       "type": "SUPPORTED_BY"
     },
     {
@@ -232,27 +232,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:daniel-olufemi",
-      "properties": {
-        "name": "Daniel Olufemi"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:4f6d25714039222a",
-      "properties": {
-        "char_end": 228,
-        "char_start": 198,
-        "episode_id": "ep-9f97daef33906cf6",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Leo. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p04_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:leo",
       "properties": {
         "name": "Leo"
@@ -260,21 +239,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:1fc557f46c1ea009",
-      "properties": {
-        "char_end": 386,
-        "char_start": 234,
-        "episode_id": "ep-9f97daef33906cf6",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Get started at adobe.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p04_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:3b73aff2ed432b2b",
+      "id": "quote:7711b9ffeb6284e9",
       "properties": {
         "char_end": 490,
         "char_start": 386,
@@ -288,7 +253,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7b6105b45932e06a",
+      "id": "person:daniel-olufemi",
+      "properties": {
+        "name": "Daniel Olufemi"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e94679a2031c1719",
       "properties": {
         "char_end": 723,
         "char_start": 507,
@@ -302,7 +274,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7e034193b6067eed",
+      "id": "quote:7172d9934415585d",
       "properties": {
         "char_end": 793,
         "char_start": 729,
@@ -316,7 +288,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:70a294296ca705ee",
+      "id": "quote:fee7c2c9b97efb45",
       "properties": {
         "char_end": 929,
         "char_start": 810,
@@ -325,6 +297,34 @@
         "text": "Yeah, so \u2014 Two-light setups solve 80% of commercial problems. And the second-order effect is the part most people miss.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b8bed3f65e486083",
+      "properties": {
+        "char_end": 1028,
+        "char_start": 935,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a23240b81cab4436",
+      "properties": {
+        "char_end": 1205,
+        "char_start": 1045,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Frame and light are inseparable. We've seen this play out at teams using Capture One. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p04_e03.txt"
       },
       "type": "Quote"

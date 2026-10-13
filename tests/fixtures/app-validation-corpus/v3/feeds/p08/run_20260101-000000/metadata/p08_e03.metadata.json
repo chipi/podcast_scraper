@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "A. correspondent talks with Renee Montagne-Park: The Desk That Never Sleeps.",
     "duration_seconds": 187,
     "episode_id": "ep-b3570c1ceb5eca41",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2025-09-02T00:00:00",
-    "title": "The Desk That Never Sleeps",
-    "description": "A. correspondent talks with Renee Montagne-Park: The Desk That Never Sleeps.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-09-02T00:00:00",
+    "title": "The Desk That Never Sleeps"
   },
   "feed": {
     "authors": [
@@ -47,22 +47,22 @@
     ],
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
-    "image_url": "http://localhost/images/p08.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2026-01-05T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Public Hour",
     "url": "http://localhost/",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp"
   },
   "schema_version": "1",
   "summary": {

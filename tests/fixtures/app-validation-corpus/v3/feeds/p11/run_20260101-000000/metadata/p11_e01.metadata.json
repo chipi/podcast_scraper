@@ -25,20 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Giulia Ferrara parla con il costruttore di sentieri Marco Bellini di drenaggio, tracciato, e di come mantenere i sentieri percorribili durante l'inverno.",
     "duration_seconds": 390,
     "episode_id": "ep-e2231244311ca964",
     "language": "it",
     "language_source": "rss",
-    "published_date": "2025-10-01T00:00:00",
-    "title": "Costruire Sentieri Che Durano",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-10-01T00:00:00",
+    "title": "Costruire Sentieri Che Durano"
   },
   "feed": {
     "authors": [
@@ -49,19 +50,19 @@
     "language": "it",
     "language_raw": "it-IT",
     "language_source": "rss",
-    "last_updated": "2025-12-28T00:00:00",
+    "last_updated": "2025-03-25T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Sentieri d'Autore",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p11.svg",
-    "image_url": "http://localhost/images/p11.svg",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_url": "http://localhost/images/p11.svg"
   },
   "schema_version": "1",
   "summary": {

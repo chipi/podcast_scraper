@@ -10,11 +10,6 @@
     "episode_id": "ep-a89e6a42509c9af0",
     "insights": [
       {
-        "compound": 0.6486,
-        "insight_id": "insight:cc2e4424701733c3",
-        "label": "positive"
-      },
-      {
         "compound": 0.0772,
         "insight_id": "insight:781d2f5960d956a0",
         "label": "positive"
@@ -22,6 +17,11 @@
       {
         "compound": 0.6059,
         "insight_id": "insight:b0ae727f8e37bb73",
+        "label": "positive"
+      },
+      {
+        "compound": 0.0772,
+        "insight_id": "insight:79b290b9d8014615",
         "label": "positive"
       }
     ],

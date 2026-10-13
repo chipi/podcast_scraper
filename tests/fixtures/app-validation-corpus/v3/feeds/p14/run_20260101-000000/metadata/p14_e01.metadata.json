@@ -25,20 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Beatriz Antunes conversa com o construtor de trilhas Rafael Vasconcelos sobre drenagem, traçado, e como manter as trilhas rolantes durante o inverno.",
     "duration_seconds": 443,
     "episode_id": "ep-28614332add8c2ae",
     "language": "pt",
     "language_source": "rss",
-    "published_date": "2026-01-01T00:00:00",
-    "title": "Construir Trilhas Que Duram",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-01-01T00:00:00",
+    "title": "Construir Trilhas Que Duram"
   },
   "feed": {
     "authors": [
@@ -49,19 +50,19 @@
     "language": "pt",
     "language_raw": "pt-PT",
     "language_source": "rss",
-    "last_updated": "2026-01-01T00:00:00",
+    "last_updated": "2025-06-25T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Sessões de Trilha",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p14.svg",
-    "image_url": "http://localhost/images/p14.svg",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_url": "http://localhost/images/p14.svg"
   },
   "schema_version": "1",
   "summary": {

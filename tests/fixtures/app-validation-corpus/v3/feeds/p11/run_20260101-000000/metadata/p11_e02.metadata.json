@@ -25,20 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Giulia Ferrara talks with Chiara Ricci: Tecnica Enduro Senza Clamore.",
     "duration_seconds": 353,
     "episode_id": "ep-7ccfb108302b3faa",
     "language": "it",
     "language_source": "rss",
-    "published_date": "2025-12-28T00:00:00",
-    "title": "Tecnica Enduro Senza Clamore",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-11-15T00:00:00",
+    "title": "Tecnica Enduro Senza Clamore"
   },
   "feed": {
     "authors": [
@@ -49,19 +50,19 @@
     "language": "it",
     "language_raw": "it-IT",
     "language_source": "rss",
-    "last_updated": "2025-12-28T00:00:00",
+    "last_updated": "2025-03-25T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Sentieri d'Autore",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p11.svg",
-    "image_url": "http://localhost/images/p11.svg",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_url": "http://localhost/images/p11.svg"
   },
   "schema_version": "1",
   "summary": {

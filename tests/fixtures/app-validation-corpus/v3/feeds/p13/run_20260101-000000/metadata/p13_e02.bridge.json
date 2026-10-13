@@ -2,12 +2,20 @@
   "episode_id": "ep-ca65ab78f4c50f2a",
   "identities": [
     {
-      "display_name": "endurance sport",
-      "id": "topic:endurance-sport"
+      "display_name": "enduro racing",
+      "id": "topic:enduro-racing"
+    },
+    {
+      "display_name": "soil erosion",
+      "id": "topic:soil-erosion"
     },
     {
       "display_name": "risk management",
       "id": "topic:risk-management"
+    },
+    {
+      "display_name": "endurance sport",
+      "id": "topic:endurance-sport"
     },
     {
       "display_name": "lifelong learning",

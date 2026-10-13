@@ -52,14 +52,18 @@ test('the Description door opens the full publisher text, and the sheet closes a
   await expect(sheet).toBeHidden()
 })
 
-test('an episode whose feed gave no description still has About, holding only the licence line', async ({
+test('a translated episode\'s About holds its feed description, in the feed\'s language, and the licence line', async ({
   page,
 }, testInfo) => {
   // Operator 2026-10-11 (#2325): every episode carries a licence line, so About always opens.
+  // This spec used p10 as the episode "whose feed gave no description" — but p10's feed has one;
+  // the corpus lacked it only until the 2026-10-13 refresh. No episode in the corpus is without a
+  // description now, so that path (the licence line alone) is covered by
+  // EpisodeDescriptionSheet.test.ts, "shows the line alone when the episode has no description".
   await openEpisode(page, testInfo, 'p10', 'Construyendo Senderos Que Duran')
   await page.getByTestId('player-open-description').click()
   await expect(page.getByTestId('episode-description')).toBeVisible()
-  await expect(page.getByTestId('episode-description-text')).toHaveCount(0)
+  await expect(page.getByTestId('episode-description-text')).toContainText('Lucía Herrera conversa')
   await expect(page.getByTestId('episode-description-licence')).toHaveText('No explicit licence found')
 })
 

@@ -37,11 +37,6 @@
     },
     {
       "from": "episode:ep-d428e906f5affc60",
-      "to": "insight:b4d1b05b601509cf",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-d428e906f5affc60",
       "to": "insight:edbfab0054c27324",
       "type": "HAS_INSIGHT"
     },
@@ -56,77 +51,82 @@
       "type": "ABOUT"
     },
     {
-      "from": "quote:f43ece3e537a3179",
-      "to": "person:renee-montagne-park",
-      "type": "SPOKEN_BY"
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "insight:cca71f9f55c49b78",
+      "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "quote:f43ece3e537a3179",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:bd2318cdc034aa87",
+      "from": "quote:c7694fe86e3a0f29",
       "to": "person:a-correspondent",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:edbfab0054c27324",
-      "to": "quote:bd2318cdc034aa87",
+      "to": "quote:c7694fe86e3a0f29",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:f32490c48c4e08e8",
-      "to": "person:a-correspondent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:76efa51983cb01ba",
-      "to": "quote:f32490c48c4e08e8",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0da3d316385a111f",
+      "from": "quote:48fa8e8afc5a690b",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:b4d1b05b601509cf",
-      "to": "quote:0da3d316385a111f",
+      "from": "insight:76efa51983cb01ba",
+      "to": "quote:48fa8e8afc5a690b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:02c37565824b8dfb",
+      "from": "quote:c14e5fec61b71d7f",
       "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cca71f9f55c49b78",
+      "to": "quote:c14e5fec61b71d7f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2fd45ac0db6cb7f0",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:edbfab0054c27324",
-      "to": "quote:02c37565824b8dfb",
+      "to": "quote:2fd45ac0db6cb7f0",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ee9071efb3e18484",
+      "from": "quote:90bee7c5f56e34d2",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:76efa51983cb01ba",
-      "to": "quote:ee9071efb3e18484",
+      "to": "quote:90bee7c5f56e34d2",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:b4d1b05b601509cf",
+      "from": "quote:47befdcaf7fdca8b",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cca71f9f55c49b78",
+      "to": "quote:47befdcaf7fdca8b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:edbfab0054c27324",
       "to": "person:a-correspondent",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:edbfab0054c27324",
+      "from": "insight:76efa51983cb01ba",
       "to": "person:renee-montagne-park",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:76efa51983cb01ba",
+      "from": "insight:cca71f9f55c49b78",
       "to": "person:a-correspondent",
       "type": "MENTIONS_PERSON"
     }
@@ -195,26 +195,12 @@
       "type": "Topic"
     },
     {
-      "id": "insight:b4d1b05b601509cf",
+      "id": "insight:edbfab0054c27324",
       "properties": {
         "episode_id": "ep-d428e906f5affc60",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "drop",
-        "salience": 0.3,
-        "text": "Thanks, A. correspondent. Great to be back.",
-        "tier": 0
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:edbfab0054c27324",
-      "properties": {
-        "episode_id": "ep-d428e906f5affc60",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?",
@@ -227,8 +213,8 @@
       "properties": {
         "episode_id": "ep-d428e906f5affc60",
         "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
@@ -237,25 +223,18 @@
       "type": "Insight"
     },
     {
-      "id": "person:renee-montagne-park",
+      "id": "insight:cca71f9f55c49b78",
       "properties": {
-        "name": "Renee Montagne-Park"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:f43ece3e537a3179",
-      "properties": {
-        "char_end": 245,
-        "char_start": 202,
         "episode_id": "ep-d428e906f5affc60",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, A. correspondent. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p08_e04.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "What does the failure mode look like? What's the version of the question that actually matters?",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
       "id": "person:a-correspondent",
@@ -265,21 +244,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:bd2318cdc034aa87",
-      "properties": {
-        "char_end": 397,
-        "char_start": 264,
-        "episode_id": "ep-d428e906f5affc60",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p08_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f32490c48c4e08e8",
+      "id": "quote:c7694fe86e3a0f29",
       "properties": {
         "char_end": 499,
         "char_start": 397,
@@ -293,7 +258,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:0da3d316385a111f",
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:48fa8e8afc5a690b",
       "properties": {
         "char_end": 700,
         "char_start": 521,
@@ -307,7 +279,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:02c37565824b8dfb",
+      "id": "quote:c14e5fec61b71d7f",
       "properties": {
         "char_end": 814,
         "char_start": 719,
@@ -321,7 +293,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ee9071efb3e18484",
+      "id": "quote:2fd45ac0db6cb7f0",
       "properties": {
         "char_end": 1010,
         "char_start": 836,
@@ -330,6 +302,34 @@
         "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:90bee7c5f56e34d2",
+      "properties": {
+        "char_end": 1581,
+        "char_start": 1402,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:47befdcaf7fdca8b",
+      "properties": {
+        "char_end": 1654,
+        "char_start": 1600,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. How does BBC fit into this picture?",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
         "transcript_ref": "transcripts/p08_e04.txt"
       },
       "type": "Quote"

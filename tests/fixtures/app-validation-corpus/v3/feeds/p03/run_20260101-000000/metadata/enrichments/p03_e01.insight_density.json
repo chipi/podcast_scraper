@@ -13,15 +13,15 @@
     "has_timing": false,
     "insight_segments": [
       {
-        "insight_id": "insight:47c22603562181f7",
+        "insight_id": "insight:4213c32cc839904b",
         "segment": "early"
       },
       {
-        "insight_id": "insight:4213c32cc839904b",
+        "insight_id": "insight:7eef2b7f4b64517f",
         "segment": "mid"
       },
       {
-        "insight_id": "insight:7eef2b7f4b64517f",
+        "insight_id": "insight:38fa3aaee018d17d",
         "segment": "late"
       }
     ],

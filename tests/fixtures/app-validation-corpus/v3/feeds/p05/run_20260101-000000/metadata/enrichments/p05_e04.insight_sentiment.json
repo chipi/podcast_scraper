@@ -3,25 +3,25 @@
   "computed_at": "2026-01-01T00:00:00Z",
   "data": {
     "counts": {
-      "negative": 4,
+      "negative": 5,
       "neutral": 0,
-      "positive": 3
+      "positive": 2
     },
     "episode_id": "ep-16ff698c1bd21087",
     "insights": [
       {
-        "compound": 0.6486,
-        "insight_id": "insight:ec9ec1e4f4e5a960",
-        "label": "positive"
-      },
-      {
-        "compound": -0.4019,
-        "insight_id": "insight:473ab86045cd6865",
+        "compound": -0.1779,
+        "insight_id": "insight:6745f6b01936982b",
         "label": "negative"
       },
       {
-        "compound": -0.1779,
-        "insight_id": "insight:6745f6b01936982b",
+        "compound": -0.128,
+        "insight_id": "insight:bcfb53c35d7b6917",
+        "label": "negative"
+      },
+      {
+        "compound": -0.1027,
+        "insight_id": "insight:4db6ad82bb47e6fe",
         "label": "negative"
       },
       {

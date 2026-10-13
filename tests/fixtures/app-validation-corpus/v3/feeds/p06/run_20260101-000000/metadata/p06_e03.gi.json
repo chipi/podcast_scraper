@@ -51,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:0daf9596975bacbf",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:213c5627bf76ce4d",
-      "to": "quote:0daf9596975bacbf",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:ae8af71233a5f93b",
+      "from": "quote:466eb7246aa93331",
       "to": "person:cam",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:5787ea53983e25b0",
-      "to": "quote:ae8af71233a5f93b",
+      "from": "insight:213c5627bf76ce4d",
+      "to": "quote:466eb7246aa93331",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:098c609e9e072d87",
+      "from": "quote:403df656ad8074c8",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5787ea53983e25b0",
+      "to": "quote:403df656ad8074c8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c4dd6078e9b3708e",
       "to": "person:cam",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:95e6bff7ab4955fb",
-      "to": "quote:098c609e9e072d87",
+      "to": "quote:c4dd6078e9b3708e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:dd8a6ac8306e3e39",
+      "from": "quote:f1413776823892df",
       "to": "person:jordan-park",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:213c5627bf76ce4d",
-      "to": "quote:dd8a6ac8306e3e39",
+      "to": "quote:f1413776823892df",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:5f8e0fe6ae7bad75",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:5787ea53983e25b0",
-      "to": "quote:5f8e0fe6ae7bad75",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d8165cf46badc892",
+      "from": "quote:b4ef741e2fda4564",
       "to": "person:jordan-park",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:5787ea53983e25b0",
+      "to": "quote:b4ef741e2fda4564",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b4e69c3d82b13c47",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:95e6bff7ab4955fb",
-      "to": "quote:d8165cf46badc892",
+      "to": "quote:b4e69c3d82b13c47",
       "type": "SUPPORTED_BY"
     },
     {
@@ -232,27 +232,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:jordan-park",
-      "properties": {
-        "name": "Jordan Park"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:0daf9596975bacbf",
-      "properties": {
-        "char_end": 195,
-        "char_start": 165,
-        "episode_id": "ep-034d8bc4204034df",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Cam. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p06_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:cam",
       "properties": {
         "name": "Cam"
@@ -260,21 +239,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:ae8af71233a5f93b",
-      "properties": {
-        "char_end": 319,
-        "char_start": 201,
-        "episode_id": "ep-034d8bc4204034df",
-        "speaker_id": "person:speaker-01",
-        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p06_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:098c609e9e072d87",
+      "id": "quote:466eb7246aa93331",
       "properties": {
         "char_end": 419,
         "char_start": 319,
@@ -288,7 +253,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:dd8a6ac8306e3e39",
+      "id": "person:jordan-park",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:403df656ad8074c8",
       "properties": {
         "char_end": 608,
         "char_start": 433,
@@ -302,7 +274,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:5f8e0fe6ae7bad75",
+      "id": "quote:c4dd6078e9b3708e",
       "properties": {
         "char_end": 707,
         "char_start": 614,
@@ -316,7 +288,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d8165cf46badc892",
+      "id": "quote:f1413776823892df",
       "properties": {
         "char_end": 871,
         "char_start": 721,
@@ -325,6 +297,34 @@
         "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. I've watched this pattern hold across three different teams.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b4ef741e2fda4564",
+      "properties": {
+        "char_end": 1387,
+        "char_start": 1228,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Meaning drifts faster than anyone admits. We've seen this play out at teams using Patreon. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b4e69c3d82b13c47",
+      "properties": {
+        "char_end": 1483,
+        "char_start": 1393,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the operational angle most listeners don't have access to?",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
         "transcript_ref": "transcripts/p06_e03.txt"
       },
       "type": "Quote"

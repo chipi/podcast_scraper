@@ -1,196 +1,402 @@
 {
   "derived": true,
-  "computed_at": "2026-08-15T20:03:20Z",
+  "computed_at": "2026-10-13T14:14:28Z",
   "enricher_id": "grounding_rate",
-  "enricher_version": "1.0.0",
+  "enricher_version": "2.0.0",
   "schema_version": "1.0",
   "status": "ok",
   "data": {
-    "persons": [
+    "episodes": [
       {
-        "person_id": "person:a-correspondent",
-        "person_name": "A. correspondent",
-        "total_insights": 16,
-        "grounded_insights": 16,
-        "rate": 1.0
+        "episode_id": "ep-034d8bc4204034df",
+        "total_insights": 3,
+        "grounded_insights": 2,
+        "ungrounded_insights": 1,
+        "rate": 0.6667
       },
       {
-        "person_id": "person:cam",
-        "person_name": "Cam",
-        "total_insights": 16,
-        "grounded_insights": 16,
-        "rate": 1.0
+        "episode_id": "ep-3158b8ff3e943b1e",
+        "total_insights": 3,
+        "grounded_insights": 2,
+        "ungrounded_insights": 1,
+        "rate": 0.6667
       },
       {
-        "person_id": "person:leo",
-        "person_name": "Leo",
-        "total_insights": 16,
-        "grounded_insights": 16,
-        "rate": 1.0
+        "episode_id": "ep-a89e6a42509c9af0",
+        "total_insights": 3,
+        "grounded_insights": 2,
+        "ungrounded_insights": 1,
+        "rate": 0.6667
       },
       {
-        "person_id": "person:sam",
-        "person_name": "Sam",
-        "total_insights": 16,
-        "grounded_insights": 16,
-        "rate": 1.0
+        "episode_id": "ep-f4b940a095192621",
+        "total_insights": 3,
+        "grounded_insights": 2,
+        "ungrounded_insights": 1,
+        "rate": 0.6667
       },
       {
-        "person_id": "person:maya",
-        "person_name": "Maya",
-        "total_insights": 15,
-        "grounded_insights": 15,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:nora",
-        "person_name": "Nora",
-        "total_insights": 15,
-        "grounded_insights": 15,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:rina",
-        "person_name": "Rina",
-        "total_insights": 15,
-        "grounded_insights": 15,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:alex-morgan",
-        "person_name": "Alex Morgan",
-        "total_insights": 14,
-        "grounded_insights": 14,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:ethan",
-        "person_name": "Ethan",
-        "total_insights": 14,
-        "grounded_insights": 14,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:dr-elena-fischer",
-        "person_name": "Dr. Elena Fischer",
-        "total_insights": 13,
-        "grounded_insights": 13,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:skanda-amarnath",
-        "person_name": "Skanda Amarnath",
-        "total_insights": 11,
-        "grounded_insights": 11,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:priya-nair",
-        "person_name": "Priya Nair",
-        "total_insights": 10,
-        "grounded_insights": 10,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:renee-montagne-park",
-        "person_name": "Renee Montagne-Park",
-        "total_insights": 8,
-        "grounded_insights": 8,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:marco-silva",
-        "person_name": "Marco Silva",
+        "episode_id": "ep-16ff698c1bd21087",
         "total_insights": 7,
         "grounded_insights": 7,
+        "ungrounded_insights": 0,
         "rate": 1.0
       },
       {
-        "person_id": "person:sophie-laurent",
-        "person_name": "Sophie Laurent",
-        "total_insights": 7,
-        "grounded_insights": 7,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:daniel-cho",
-        "person_name": "Daniel Cho",
-        "total_insights": 6,
-        "grounded_insights": 6,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:scott-bessent",
-        "person_name": "Scott Bessent",
+        "episode_id": "ep-18ede6ffbd63f18f",
         "total_insights": 5,
         "grounded_insights": 5,
+        "ungrounded_insights": 0,
         "rate": 1.0
       },
       {
-        "person_id": "person:ava-lemoine",
-        "person_name": "Ava Lemoine",
-        "total_insights": 4,
-        "grounded_insights": 4,
+        "episode_id": "ep-362f5d463b877d2c",
+        "total_insights": 5,
+        "grounded_insights": 5,
+        "ungrounded_insights": 0,
         "rate": 1.0
       },
       {
-        "person_id": "person:hanna-crebo-rediker",
-        "person_name": "Hanna Crebo-Rediker",
-        "total_insights": 4,
-        "grounded_insights": 4,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "total_insights": 5,
+        "grounded_insights": 5,
+        "ungrounded_insights": 0,
         "rate": 1.0
       },
       {
-        "person_id": "person:daniel-olufemi",
-        "person_name": "Daniel Olufemi",
+        "episode_id": "ep-916dab1698f88aec",
+        "total_insights": 5,
+        "grounded_insights": 5,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-a86da8f148d3bf29",
+        "total_insights": 5,
+        "grounded_insights": 5,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-de59d003651d9e5d",
+        "total_insights": 5,
+        "grounded_insights": 5,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-0d9100843ee555f8",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-16fcdef77d624069",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-1979e93514355ea6",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-1abf911df5bea2c3",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-1d733f650ad9bff9",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-1e526e495918fb27",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-28614332add8c2ae",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-2a703b6f57d9020f",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-2cd5c6d11325a312",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-35f04bce441bf827",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-4a1a673a7005a6b5",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-60d667843dc40fca",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-64ef09a7ee543045",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-7072d2e85dcd5233",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-7ccfb108302b3faa",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-88fec846e9003e86",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-8dce4ec000757097",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-919c77e84ad37664",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-9b36e2e3b959298d",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-9f97daef33906cf6",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-a05e37624721d37c",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-a1342cd495b1165b",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-a341174daaf88193",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-a884b153355070f0",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-bccfce5798a83a6e",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-c0ab3bfb1ebdab6d",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-d428e906f5affc60",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-e2231244311ca964",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-ec0bf35da3719170",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-efc13989b676df9d",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-fb2bb5f0f4044f1d",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-febd9a8f53bf3a3a",
+        "total_insights": 3,
+        "grounded_insights": 3,
+        "ungrounded_insights": 0,
+        "rate": 1.0
+      },
+      {
+        "episode_id": "ep-26eaa57651247221",
         "total_insights": 2,
         "grounded_insights": 2,
+        "ungrounded_insights": 0,
         "rate": 1.0
       },
       {
-        "person_id": "person:jonas-weisenthal",
-        "person_name": "Jonas Weisenthal",
-        "total_insights": 2,
-        "grounded_insights": 2,
+        "episode_id": "ep-0c46a67a56b05689",
+        "total_insights": 1,
+        "grounded_insights": 1,
+        "ungrounded_insights": 0,
         "rate": 1.0
-      },
-      {
-        "person_id": "person:liam-verbeek",
-        "person_name": "Liam Verbeek",
-        "total_insights": 2,
-        "grounded_insights": 2,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:noah-brier",
-        "person_name": "Noah Brier",
-        "total_insights": 2,
-        "grounded_insights": 2,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:richard-clarida",
-        "person_name": "Richard Clarida",
-        "total_insights": 2,
-        "grounded_insights": 2,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:tariq-hassan",
-        "person_name": "Tariq Hassan",
-        "total_insights": 2,
-        "grounded_insights": 2,
-        "rate": 1.0
-      },
-      {
-        "person_id": "person:jordan-park",
-        "person_name": "Jordan Park",
-        "total_insights": 8,
-        "grounded_insights": 0,
-        "rate": 0.0
       }
     ],
-    "episode_count": 36,
+    "episode_count": 55,
+    "corpus_total_insights": 178,
+    "corpus_grounded_insights": 174,
+    "corpus_rate": 0.9775,
     "partial_reason": null
   },
   "error": null,
@@ -198,5 +404,5 @@
   "retry_count": 0,
   "circuit_state": null,
   "duration_ms": 0,
-  "records_written": 26
+  "records_written": 55
 }

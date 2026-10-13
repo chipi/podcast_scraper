@@ -25,20 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "Katrin Vogel spricht mit dem Wegebauer Stefan Brandt über Entwässerung, Linienführung, und wie Wege den Winter über befahrbar bleiben.",
     "duration_seconds": 420,
     "episode_id": "ep-c0ab3bfb1ebdab6d",
     "language": "de",
     "language_source": "rss",
-    "published_date": "2025-12-01T00:00:00",
-    "title": "Wege Bauen, Die Bleiben",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-12-01T00:00:00",
+    "title": "Wege Bauen, Die Bleiben"
   },
   "feed": {
     "authors": [
@@ -49,19 +50,19 @@
     "language": "de",
     "language_raw": "de-DE",
     "language_source": "rss",
-    "last_updated": "2025-12-22T00:00:00",
+    "last_updated": "2025-07-02T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Pfadgespräche",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p13.svg",
-    "image_url": "http://localhost/images/p13.svg",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_url": "http://localhost/images/p13.svg"
   },
   "schema_version": "1",
   "summary": {

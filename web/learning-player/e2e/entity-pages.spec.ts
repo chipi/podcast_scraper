@@ -161,7 +161,10 @@ test.describe('person page', () => {
 
   test('agreements page five at a time', async ({ page }, testInfo) => {
     await signInIsolated(page, 'entity-person-paging', testInfo)
-    await page.goto(NORA)
+    // Maya, not Nora, since the 2026-10-13 corpus refresh: topic_consensus keeps the 12 topics with
+    // the most people, the non-English episodes' real topics now fill more of them, and Nora is left
+    // with exactly five agreements — nothing to page. Maya has six.
+    await page.goto(MAYA)
     const v = page.getByTestId('person-view')
     const rows = v.getByTestId('es-consensus-row')
     await expect(rows).toHaveCount(5)

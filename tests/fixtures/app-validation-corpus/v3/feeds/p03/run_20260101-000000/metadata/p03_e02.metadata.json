@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "What divers often misidentify, how reefs recover, and how to be a better observer without touching anything.",
     "duration_seconds": 307,
     "episode_id": "ep-a0a7f86b34a4de26",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2024-09-12T00:00:00",
-    "title": "Marine Biology for Divers",
-    "description": "What divers often misidentify, how reefs recover, and how to be a better observer without touching anything.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-09-12T00:00:00",
+    "title": "Marine Biology for Divers"
   },
   "feed": {
     "authors": [
@@ -47,22 +47,22 @@
     ],
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
-    "image_url": "http://localhost/images/p03.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2025-07-09T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Below the Surface",
     "url": "http://localhost/",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp"
   },
   "schema_version": "1",
   "summary": {

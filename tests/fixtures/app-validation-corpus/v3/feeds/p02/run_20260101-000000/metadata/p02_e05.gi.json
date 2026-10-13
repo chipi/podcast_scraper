@@ -56,53 +56,53 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:81bb59f82dd1c56d",
+      "from": "quote:aa5b7f360150e343",
       "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:25cd30aae7255960",
-      "to": "quote:81bb59f82dd1c56d",
+      "to": "quote:aa5b7f360150e343",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ae57867860ab3f6b",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f79b30771333b04b",
-      "to": "quote:ae57867860ab3f6b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:33c1f06ac61b7a1d",
+      "from": "quote:a2a66158b5696556",
       "to": "person:caller",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6c7a41616d8f80ad",
-      "to": "quote:33c1f06ac61b7a1d",
+      "from": "insight:f79b30771333b04b",
+      "to": "quote:a2a66158b5696556",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:530d8a5b35cfc437",
+      "from": "quote:8e18c0b083b73ab4",
       "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:25cd30aae7255960",
-      "to": "quote:530d8a5b35cfc437",
+      "from": "insight:6c7a41616d8f80ad",
+      "to": "quote:8e18c0b083b73ab4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:7907c6628164b9c1",
+      "from": "quote:6353549bb1cefd9f",
       "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:25cd30aae7255960",
+      "to": "quote:6353549bb1cefd9f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:dbe00c1389e799dc",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:f79b30771333b04b",
-      "to": "quote:7907c6628164b9c1",
+      "to": "quote:dbe00c1389e799dc",
       "type": "SUPPORTED_BY"
     },
     {
@@ -248,21 +248,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:81bb59f82dd1c56d",
-      "properties": {
-        "char_end": 327,
-        "char_start": 198,
-        "episode_id": "ep-a05e37624721d37c",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Datadog \u2014 unified observability across logs, metrics, and traces. Start at datadog.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p02_e05.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:ae57867860ab3f6b",
+      "id": "quote:aa5b7f360150e343",
       "properties": {
         "char_end": 423,
         "char_start": 327,
@@ -283,7 +269,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:33c1f06ac61b7a1d",
+      "id": "quote:a2a66158b5696556",
       "properties": {
         "char_end": 494,
         "char_start": 432,
@@ -297,7 +283,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:530d8a5b35cfc437",
+      "id": "quote:8e18c0b083b73ab4",
       "properties": {
         "char_end": 656,
         "char_start": 507,
@@ -311,7 +297,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7907c6628164b9c1",
+      "id": "quote:6353549bb1cefd9f",
       "properties": {
         "char_end": 716,
         "char_start": 664,
@@ -320,6 +306,20 @@
         "text": "So you'd tune the alerts before you tune the humans.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p02_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:dbe00c1389e799dc",
+      "properties": {
+        "char_end": 857,
+        "char_start": 729,
+        "episode_id": "ep-a05e37624721d37c",
+        "speaker_id": "person:speaker-02",
+        "text": "Every time. Measure how many pages led to action. Under half, and you have a noise problem \u2014 no amount of willpower fixes noise.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p02_e05.txt"
       },
       "type": "Quote"

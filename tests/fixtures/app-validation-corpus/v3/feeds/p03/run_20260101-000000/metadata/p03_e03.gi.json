@@ -51,63 +51,63 @@
       "type": "ABOUT"
     },
     {
-      "from": "quote:8f9191533b2eaa22",
-      "to": "person:hanna-crebo-rediker",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:dc5e6437623bc58f",
-      "to": "quote:8f9191533b2eaa22",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a9888307820b8903",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0aa0f4acd9c66848",
-      "to": "quote:a9888307820b8903",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:24a11ff23f859ab0",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:db787214f85609da",
-      "to": "quote:24a11ff23f859ab0",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0dbf7d56ab681fa0",
+      "from": "quote:e9b43ad12ace7e4c",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:dc5e6437623bc58f",
-      "to": "quote:0dbf7d56ab681fa0",
+      "to": "quote:e9b43ad12ace7e4c",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:a66c620b496b7d50",
+      "from": "quote:4552220e8c1b32ce",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:0aa0f4acd9c66848",
-      "to": "quote:a66c620b496b7d50",
+      "to": "quote:4552220e8c1b32ce",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:917c50808f1d85cc",
+      "from": "quote:327d73c3774787d8",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:db787214f85609da",
+      "to": "quote:327d73c3774787d8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b8ac2c6e15efd248",
+      "to": "person:hanna-crebo-rediker",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:dc5e6437623bc58f",
+      "to": "quote:b8ac2c6e15efd248",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bb3d36c36ebcb838",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0aa0f4acd9c66848",
+      "to": "quote:bb3d36c36ebcb838",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7095880212899bbc",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:db787214f85609da",
-      "to": "quote:917c50808f1d85cc",
+      "to": "quote:7095880212899bbc",
       "type": "SUPPORTED_BY"
     },
     {
@@ -225,27 +225,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:hanna-crebo-rediker",
-      "properties": {
-        "name": "Hanna Crebo-Rediker"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:8f9191533b2eaa22",
-      "properties": {
-        "char_end": 257,
-        "char_start": 226,
-        "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-02",
-        "text": "Thanks, Rina. Great to be back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:rina",
       "properties": {
         "name": "Rina"
@@ -253,21 +232,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:a9888307820b8903",
-      "properties": {
-        "char_end": 390,
-        "char_start": 264,
-        "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-01",
-        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:24a11ff23f859ab0",
+      "id": "quote:e9b43ad12ace7e4c",
       "properties": {
         "char_end": 514,
         "char_start": 390,
@@ -281,7 +246,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:0dbf7d56ab681fa0",
+      "id": "quote:4552220e8c1b32ce",
       "properties": {
         "char_end": 684,
         "char_start": 600,
@@ -295,7 +260,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a66c620b496b7d50",
+      "id": "quote:327d73c3774787d8",
       "properties": {
         "char_end": 760,
         "char_start": 684,
@@ -309,7 +274,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:917c50808f1d85cc",
+      "id": "person:hanna-crebo-rediker",
+      "properties": {
+        "name": "Hanna Crebo-Rediker"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:b8ac2c6e15efd248",
       "properties": {
         "char_end": 977,
         "char_start": 781,
@@ -318,6 +290,34 @@
         "text": "Yeah, so \u2014 Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're making.",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bb3d36c36ebcb838",
+      "properties": {
+        "char_end": 1102,
+        "char_start": 984,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-01",
+        "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7095880212899bbc",
+      "properties": {
+        "char_end": 1269,
+        "char_start": 1123,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Most operational dive safety is about not pushing tired teams. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
         "transcript_ref": "transcripts/p03_e03.txt"
       },
       "type": "Quote"

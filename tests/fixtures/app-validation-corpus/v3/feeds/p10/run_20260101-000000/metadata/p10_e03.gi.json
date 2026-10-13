@@ -2,12 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-a341174daaf88193",
-      "to": "topic:endurance-sport",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:maintenance",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-a341174daaf88193",
       "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:endurance-sport",
       "type": "MENTIONS"
     },
     {
@@ -22,91 +32,91 @@
     },
     {
       "from": "episode:ep-a341174daaf88193",
-      "to": "insight:e24a10c9bde53b5a",
+      "to": "insight:08eb76904539265b",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-a341174daaf88193",
-      "to": "insight:f7e348f0d7a06394",
+      "to": "insight:241be72966364882",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-a341174daaf88193",
-      "to": "insight:47d2b60b341232fd",
+      "to": "insight:85228ec3212e7d40",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:c03847338bfd2985",
+      "from": "quote:5b2d6c25e00db079",
       "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e24a10c9bde53b5a",
-      "to": "quote:c03847338bfd2985",
+      "from": "insight:08eb76904539265b",
+      "to": "quote:5b2d6c25e00db079",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:bec98cfc352f9db1",
+      "from": "quote:43f1c52a24326115",
       "to": "person:diego-ferrer",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:f7e348f0d7a06394",
-      "to": "quote:bec98cfc352f9db1",
+      "from": "insight:241be72966364882",
+      "to": "quote:43f1c52a24326115",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ce982754d314ac41",
+      "from": "quote:05ad23d38087e7c5",
       "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:47d2b60b341232fd",
-      "to": "quote:ce982754d314ac41",
+      "from": "insight:85228ec3212e7d40",
+      "to": "quote:05ad23d38087e7c5",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:3799531b47175d72",
+      "from": "quote:e7874d5c678b427d",
       "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e24a10c9bde53b5a",
-      "to": "quote:3799531b47175d72",
+      "from": "insight:08eb76904539265b",
+      "to": "quote:e7874d5c678b427d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:7f547e0be1da5d69",
+      "from": "quote:d44ee6e2f24916c5",
       "to": "person:diego-ferrer",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:f7e348f0d7a06394",
-      "to": "quote:7f547e0be1da5d69",
+      "from": "insight:241be72966364882",
+      "to": "quote:d44ee6e2f24916c5",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:fe2bbc4efd781da7",
+      "from": "quote:2914b93fe3126a23",
       "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:47d2b60b341232fd",
-      "to": "quote:fe2bbc4efd781da7",
+      "from": "insight:85228ec3212e7d40",
+      "to": "quote:2914b93fe3126a23",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:e24a10c9bde53b5a",
+      "from": "insight:08eb76904539265b",
       "to": "person:lucia-herrera",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:f7e348f0d7a06394",
+      "from": "insight:241be72966364882",
       "to": "person:diego-ferrer",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:47d2b60b341232fd",
+      "from": "insight:85228ec3212e7d40",
       "to": "person:lucia-herrera",
       "type": "MENTIONS_PERSON"
     }
@@ -120,15 +130,22 @@
         "duration_ms": 392000,
         "feed_id": "p10",
         "podcast_id": "p10",
-        "publish_date": "2025-12-30T00:00:00",
+        "publish_date": "2025-08-17T00:00:00",
         "title": "La Mec\u00e1nica de Una Bici Silenciosa y R\u00e1pida"
       },
       "type": "Episode"
     },
     {
-      "id": "topic:endurance-sport",
+      "id": "topic:drivetrain-mechanics",
       "properties": {
-        "label": "endurance sport"
+        "label": "drivetrain mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance"
       },
       "type": "Topic"
     },
@@ -136,6 +153,13 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -154,7 +178,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:e24a10c9bde53b5a",
+      "id": "insight:08eb76904539265b",
       "properties": {
         "episode_id": "ep-a341174daaf88193",
         "grounded": true,
@@ -162,13 +186,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de mec\u00e1nica de transmisi\u00f3n, y me acompa\u00f1a Diego Ferrer, mec\u00e1nico en Spoke & Wrench. Diego Ferrer, gracias por estar aqu\u00ed.",
+        "text": "Notion replaces the dozen tools your team uses inconsistently. Try notion.com today. Before we get started \u2013 Marta Sol\u00eds was on the previous episode, explaining that tire pressure is more important\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:f7e348f0d7a06394",
+      "id": "insight:241be72966364882",
       "properties": {
         "episode_id": "ep-a341174daaf88193",
         "grounded": true,
@@ -176,13 +200,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Gracias, Luc\u00eda. Contento de estar de vuelta.",
+        "text": "Yes, exactly. And it connects to what we're going to be discussing today.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:47d2b60b341232fd",
+      "id": "insight:85228ec3212e7d40",
       "properties": {
         "episode_id": "ep-a341174daaf88193",
         "grounded": true,
@@ -190,7 +214,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "El episodio de hoy es patrocinado por Notion. Notion reemplaza la docena de herramientas que tu equipo usa a medias. Prueba notion.com hoy.",
+        "text": "I want to point something out \u2013 Marta Sol\u00eds mentioned this same dynamic a couple of episodes ago. I want to point something out \u2013 Javier Benavides mentioned this same dynamic a couple of episodes ago.",
         "tier": 2
       },
       "type": "Insight"
@@ -203,16 +227,26 @@
       "type": "Person"
     },
     {
-      "id": "quote:c03847338bfd2985",
+      "id": "quote:5b2d6c25e00db079",
       "properties": {
-        "char_end": 193,
+        "char_end": 241,
         "char_start": 15,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-01",
-        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de mec\u00e1nica de transmisi\u00f3n, y me acompa\u00f1a Diego Ferrer, mec\u00e1nico en Spoke & Wrench. Diego Ferrer, gracias por estar aqu\u00ed.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p10_e03.txt"
+        "text": "Notion replaces the dozen tools your team uses inconsistently. Try notion.com today. Before we get started \u2013 Marta Sol\u00eds was on the previous episode, explaining that tire pressure is more important than suspension adjustments.",
+        "timestamp_end_ms": 31020,
+        "timestamp_start_ms": 16079,
+        "transcript_ref": "transcripts/p10_e03.txt",
+        "translation": {
+          "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "es",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
@@ -224,72 +258,122 @@
       "type": "Person"
     },
     {
-      "id": "quote:bec98cfc352f9db1",
+      "id": "quote:43f1c52a24326115",
       "properties": {
-        "char_end": 252,
-        "char_start": 208,
+        "char_end": 329,
+        "char_start": 256,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-02",
-        "text": "Gracias, Luc\u00eda. Contento de estar de vuelta.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p10_e03.txt"
+        "text": "Yes, exactly. And it connects to what we're going to be discussing today.",
+        "timestamp_end_ms": 34320,
+        "timestamp_start_ms": 31020,
+        "transcript_ref": "transcripts/p10_e03.txt",
+        "translation": {
+          "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "es",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:ce982754d314ac41",
+      "id": "quote:05ad23d38087e7c5",
       "properties": {
-        "char_end": 407,
-        "char_start": 268,
+        "char_end": 545,
+        "char_start": 345,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-01",
-        "text": "El episodio de hoy es patrocinado por Notion. Notion reemplaza la docena de herramientas que tu equipo usa a medias. Prueba notion.com hoy.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p10_e03.txt"
+        "text": "I want to point something out \u2013 Marta Sol\u00eds mentioned this same dynamic a couple of episodes ago. I want to point something out \u2013 Javier Benavides mentioned this same dynamic a couple of episodes ago.",
+        "timestamp_end_ms": 45180,
+        "timestamp_start_ms": 34320,
+        "transcript_ref": "transcripts/p10_e03.txt",
+        "translation": {
+          "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "es",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:3799531b47175d72",
+      "id": "quote:e7874d5c678b427d",
       "properties": {
-        "char_end": 563,
-        "char_start": 407,
+        "char_end": 659,
+        "char_start": 546,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-01",
-        "text": "Antes de entrar en materia \u2014 Marta Sol\u00eds estuvo en el episodio anterior contando que la presi\u00f3n de los neum\u00e1ticos importa m\u00e1s que los ajustes de suspensi\u00f3n.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p10_e03.txt"
+        "text": "I want to delve deeper into that. What's something you used to believe about this that you've since re-evaluated?",
+        "timestamp_end_ms": 215220,
+        "timestamp_start_ms": 210000,
+        "transcript_ref": "transcripts/p10_e03.txt",
+        "translation": {
+          "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "es",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:7f547e0be1da5d69",
+      "id": "quote:d44ee6e2f24916c5",
       "properties": {
-        "char_end": 633,
-        "char_start": 578,
+        "char_end": 957,
+        "char_start": 674,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-02",
-        "text": "S\u00ed, exacto. Y se conecta con lo que vamos a cubrir hoy.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p10_e03.txt"
+        "text": "It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque. We've seen this happen with equipment that uses Spoke & Wrench. The frame matters because it tells you what compromises you're making.",
+        "timestamp_end_ms": 231120,
+        "timestamp_start_ms": 215220,
+        "transcript_ref": "transcripts/p10_e03.txt",
+        "translation": {
+          "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "es",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:fe2bbc4efd781da7",
+      "id": "quote:2914b93fe3126a23",
       "properties": {
-        "char_end": 737,
-        "char_start": 649,
+        "char_end": 1058,
+        "char_start": 973,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-01",
-        "text": "Quiero se\u00f1alar algo \u2014 Marta Sol\u00eds mencion\u00f3 esta misma din\u00e1mica hace un par de episodios.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p10_e03.txt"
+        "text": "That's a useful framework. Where do maintenance and transmission mechanics intersect?",
+        "timestamp_end_ms": 236220,
+        "timestamp_start_ms": 231120,
+        "transcript_ref": "transcripts/p10_e03.txt",
+        "translation": {
+          "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "es",
+          "translated": true,
+          "unit_ids": [
+            "t0006.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

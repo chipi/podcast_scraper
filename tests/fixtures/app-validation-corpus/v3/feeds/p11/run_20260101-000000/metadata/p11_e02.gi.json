@@ -2,12 +2,22 @@
   "edges": [
     {
       "from": "episode:ep-7ccfb108302b3faa",
-      "to": "topic:endurance-sport",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:soil-erosion",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-7ccfb108302b3faa",
       "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:endurance-sport",
       "type": "MENTIONS"
     },
     {
@@ -22,91 +32,91 @@
     },
     {
       "from": "episode:ep-7ccfb108302b3faa",
-      "to": "insight:c69f9f03f0ab1139",
+      "to": "insight:bd6f2bcd40790bd0",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7ccfb108302b3faa",
-      "to": "insight:3211dca92f6ea6e2",
+      "to": "insight:7c0037bb8cebdf3e",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7ccfb108302b3faa",
-      "to": "insight:855caaf55d033eef",
+      "to": "insight:2164ecd0ff052291",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:7ff8d1bf0e593498",
+      "from": "quote:4d3aa1af3af210cd",
       "to": "person:giulia-ferrara",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:c69f9f03f0ab1139",
-      "to": "quote:7ff8d1bf0e593498",
+      "from": "insight:bd6f2bcd40790bd0",
+      "to": "quote:4d3aa1af3af210cd",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:5113963f112b5511",
+      "from": "quote:5ab8fb346871f7ae",
       "to": "person:chiara-ricci",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:3211dca92f6ea6e2",
-      "to": "quote:5113963f112b5511",
+      "from": "insight:7c0037bb8cebdf3e",
+      "to": "quote:5ab8fb346871f7ae",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:12171e695e425399",
+      "from": "quote:209dc10d314450df",
       "to": "person:giulia-ferrara",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:855caaf55d033eef",
-      "to": "quote:12171e695e425399",
+      "from": "insight:2164ecd0ff052291",
+      "to": "quote:209dc10d314450df",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:8b400b3418bad3cc",
+      "from": "quote:a711471464e81c1a",
       "to": "person:giulia-ferrara",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:c69f9f03f0ab1139",
-      "to": "quote:8b400b3418bad3cc",
+      "from": "insight:bd6f2bcd40790bd0",
+      "to": "quote:a711471464e81c1a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c964e7cf638d3b9e",
+      "from": "quote:2b7d7e2a5910f66f",
       "to": "person:chiara-ricci",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:3211dca92f6ea6e2",
-      "to": "quote:c964e7cf638d3b9e",
+      "from": "insight:7c0037bb8cebdf3e",
+      "to": "quote:2b7d7e2a5910f66f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:78fb8c686f2a8819",
+      "from": "quote:3981551f0555d0d7",
       "to": "person:giulia-ferrara",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:855caaf55d033eef",
-      "to": "quote:78fb8c686f2a8819",
+      "from": "insight:2164ecd0ff052291",
+      "to": "quote:3981551f0555d0d7",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:c69f9f03f0ab1139",
+      "from": "insight:bd6f2bcd40790bd0",
       "to": "person:giulia-ferrara",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:3211dca92f6ea6e2",
+      "from": "insight:7c0037bb8cebdf3e",
       "to": "person:chiara-ricci",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:855caaf55d033eef",
+      "from": "insight:2164ecd0ff052291",
       "to": "person:giulia-ferrara",
       "type": "MENTIONS_PERSON"
     }
@@ -120,15 +130,22 @@
         "duration_ms": 353000,
         "feed_id": "p11",
         "podcast_id": "p11",
-        "publish_date": "2025-12-28T00:00:00",
+        "publish_date": "2024-11-15T00:00:00",
         "title": "Tecnica Enduro Senza Clamore"
       },
       "type": "Episode"
     },
     {
-      "id": "topic:endurance-sport",
+      "id": "topic:enduro-racing",
       "properties": {
-        "label": "endurance sport"
+        "label": "enduro racing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
       },
       "type": "Topic"
     },
@@ -136,6 +153,13 @@
       "id": "topic:risk-management",
       "properties": {
         "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
       },
       "type": "Topic"
     },
@@ -154,7 +178,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:c69f9f03f0ab1139",
+      "id": "insight:bd6f2bcd40790bd0",
       "properties": {
         "episode_id": "ep-7ccfb108302b3faa",
         "grounded": true,
@@ -162,13 +186,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di gare di enduro, e con me c'\u00e8 Chiara Ricci, atleta di enduro e allenatrice. Chiara Ricci, grazie per essere qui.",
+        "text": "Linear is the issue tracker designed for speed \u2013 built for the keyboard. Try linear.com today. Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is t\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:3211dca92f6ea6e2",
+      "id": "insight:7c0037bb8cebdf3e",
       "properties": {
         "episode_id": "ep-7ccfb108302b3faa",
         "grounded": true,
@@ -176,13 +200,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Grazie, Giulia. Felice di essere di nuovo qui.",
+        "text": "Yes, that's correct. And that connects to what we're discussing today.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:855caaf55d033eef",
+      "id": "insight:2164ecd0ff052291",
       "properties": {
         "episode_id": "ep-7ccfb108302b3faa",
         "grounded": true,
@@ -190,7 +214,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Prima di entrare nel merito \u2014 Marco Bellini \u00e8 stato ospite del programma e raccontava che il drenaggio \u00e8 la scelta di progetto con pi\u00f9 impatto.",
+        "text": "I want to point out something \u2013 Marco Bellini mentioned the same issue a couple of episodes ago.",
         "tier": 2
       },
       "type": "Insight"
@@ -203,16 +227,26 @@
       "type": "Person"
     },
     {
-      "id": "quote:7ff8d1bf0e593498",
+      "id": "quote:4d3aa1af3af210cd",
       "properties": {
-        "char_end": 176,
+        "char_end": 254,
         "char_start": 16,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-01",
-        "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di gare di enduro, e con me c'\u00e8 Chiara Ricci, atleta di enduro e allenatrice. Chiara Ricci, grazie per essere qui.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p11_e02.txt"
+        "text": "Linear is the issue tracker designed for speed \u2013 built for the keyboard. Try linear.com today. Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.",
+        "timestamp_end_ms": 29280,
+        "timestamp_start_ms": 14940,
+        "transcript_ref": "transcripts/p11_e02.txt",
+        "translation": {
+          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
@@ -224,72 +258,122 @@
       "type": "Person"
     },
     {
-      "id": "quote:5113963f112b5511",
+      "id": "quote:5ab8fb346871f7ae",
       "properties": {
-        "char_end": 237,
-        "char_start": 191,
+        "char_end": 339,
+        "char_start": 269,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-02",
-        "text": "Grazie, Giulia. Felice di essere di nuovo qui.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p11_e02.txt"
+        "text": "Yes, that's correct. And that connects to what we're discussing today.",
+        "timestamp_end_ms": 32400,
+        "timestamp_start_ms": 29280,
+        "transcript_ref": "transcripts/p11_e02.txt",
+        "translation": {
+          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:12171e695e425399",
+      "id": "quote:209dc10d314450df",
       "properties": {
-        "char_end": 393,
-        "char_start": 254,
+        "char_end": 452,
+        "char_start": 356,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-01",
-        "text": "Questo episodio \u00e8 sponsorizzato da Linear. Linear \u00e8 l'issue tracker fatto per la velocit\u00e0 \u2014 pensato per la tastiera. Prova linear.com oggi.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p11_e02.txt"
+        "text": "I want to point out something \u2013 Marco Bellini mentioned the same issue a couple of episodes ago.",
+        "timestamp_end_ms": 38220,
+        "timestamp_start_ms": 32400,
+        "transcript_ref": "transcripts/p11_e02.txt",
+        "translation": {
+          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:8b400b3418bad3cc",
+      "id": "quote:a711471464e81c1a",
       "properties": {
-        "char_end": 536,
-        "char_start": 393,
+        "char_end": 538,
+        "char_start": 453,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-01",
-        "text": "Prima di entrare nel merito \u2014 Marco Bellini \u00e8 stato ospite del programma e raccontava che il drenaggio \u00e8 la scelta di progetto con pi\u00f9 impatto.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p11_e02.txt"
+        "text": "Can you give me a specific example? Where do soil erosion and enduro races intersect?",
+        "timestamp_end_ms": 215220,
+        "timestamp_start_ms": 210000,
+        "transcript_ref": "transcripts/p11_e02.txt",
+        "translation": {
+          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:c964e7cf638d3b9e",
+      "id": "quote:2b7d7e2a5910f66f",
       "properties": {
-        "char_end": 603,
-        "char_start": 551,
+        "char_end": 759,
+        "char_start": 553,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-02",
-        "text": "S\u00ec, esatto. E si collega a quello che copriamo oggi.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p11_e02.txt"
+        "text": "Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.",
+        "timestamp_end_ms": 227160,
+        "timestamp_start_ms": 215220,
+        "transcript_ref": "transcripts/p11_e02.txt",
+        "translation": {
+          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:78fb8c686f2a8819",
+      "id": "quote:3981551f0555d0d7",
       "properties": {
-        "char_end": 717,
-        "char_start": 620,
+        "char_end": 860,
+        "char_start": 776,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-01",
-        "text": "Voglio segnalare una cosa \u2014 Marco Bellini ha menzionato la stessa dinamica un paio di episodi fa.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p11_e02.txt"
+        "text": "I want to delve deeper into this. Where do soil erosion and enduro racing intersect?",
+        "timestamp_end_ms": 232020,
+        "timestamp_start_ms": 227160,
+        "transcript_ref": "transcripts/p11_e02.txt",
+        "translation": {
+          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0006.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

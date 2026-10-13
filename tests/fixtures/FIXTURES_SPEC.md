@@ -538,6 +538,57 @@ git-tracked `.app/users/*` files the viewer e2e reads. `test_fixture_languages.p
 viewer-corpus episode carries `feed.language`; making that generator deterministic is the part
 of issue #2185 still open.
 
+### 18. The translated episodes' insights were in the source language (fixed 2026-10-13)
+
+The app corpus is BUILT, not run: `build_app_validation_corpus.py` authors GI from the screenplay
+`.txt` and REPLAYS only pieces of real runs (summaries, extracted topics, and for the 15 non-English
+episodes the captured English stack in `tests/fixtures/pipeline-renders/v3/`). It built every GI from
+the source screenplay, before the English stack was swapped in, so p10–p14 shipped Spanish, Italian,
+French, German and Portuguese insights and quotes whose offsets indexed the wrong text, under an
+English transcript — where the pipeline runs GI on the English ad-free body (D-44).
+
+Fixed in the builder, not in the data:
+
+- A translated episode's insights and quotes come from the captured **English ad-free segments**,
+  speaker names restored by `sent_id` from the full English segments, and each Quote carries the
+  translation provenance the pipeline's GI writer attaches (`translation` block, D-36 slice b).
+- Captured segments are sentences; they are merged back into turns, but only where the sentences
+  are continuous in **time** as well as text. An ad cut leaves a turn's two ends adjacent in the
+  ad-free text 160–187 s apart (14 of 721 same-turn gaps; the other 707 are ≤ 0.5 s), and a quote
+  spanning that plays straight through the ad.
+- Every speaker gets a quote before any speaker gets a second (`build_gi` documents "each speaker is
+  represented" and took the first six lines: p04_e04 gave all six to the host), and **ad reads and
+  non-person voices are never quotes** (`Ad:` had become `person:ad`, a co-appearing "guest").
+
+Checks: every translated quote's offsets index exactly its text in `.adfree.txt` (90/90), every one
+carries provenance, and quote audio spans are 3–17 s.
+
+**The refresh brought the whole corpus back in line with its builder.** The committed corpus no
+longer matched `build_app_validation_corpus.py` with default arguments (181 files differed before
+this fix): builder changes had landed without a rebuild, and #2260 wrote ground truth (topics,
+publish dates) for the ten non-English `e02`/`e03` episodes after they were last built. A rebuild
+now reproduces the committed corpus exactly. `grounding_rate` and `guest_coappearance` — written by
+the real enrichers, not the builder — were recomputed too; they dated from 2026-08-15, covered 36 of
+55 episodes, and `grounding_rate` was still the per-Person v1 shape the server stopped reading in
+#1927, so the show grounding signal was empty on this corpus.
+
+**The non-English episodes were re-dated one year earlier (operator, 2026-10-13).** #2260's ground
+truth and feeds dated p10–p14 up to 2026-08-17, which made a Spanish `e03` the corpus's newest
+episode and drivetrain mechanics its fastest-rising topic, ahead of the designed newest episode
+("Risk Is a Systems Property", 2026-07-16) and the designed freshest storyline (risk management /
+systems thinking). All 15 episodes moved back exactly 365 days in the ground truth and in the
+`p1x_corpus.xml` feeds alike, keeping each show's order and spacing; the single-item language feeds
+(`p10_spanish.xml` …) keep their own dates. Authored claims also gained the CORE ranking fields
+real GI gives a central stance (tier 3): without any, salience-sorted surfaces ranked the designed
+diversify-vs-concentrate opposition last.
+
+**Known, not fixed here:** the captured Spanish run's ad cut removed "Este episodio es patrocinado
+por Strava" but kept the rest of the sponsor read, so "Strava is the home of athletes. Start at
+strava.com/podcast." is a translated episode's lead quote. That is real pipeline output, replayed
+(#2346).
+No translated episode reaches a topic page: the builder's token-matched ABOUT edges find none of
+their selected lines (the eight that did were all spliced across an ad cut).
+
 ---
 
 ## Podcasts (v3)

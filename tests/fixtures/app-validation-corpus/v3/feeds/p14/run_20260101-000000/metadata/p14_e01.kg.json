@@ -98,7 +98,7 @@
   ],
   "episode_id": "ep-28614332add8c2ae",
   "extraction": {
-    "extracted_at": "2026-01-01T00:00:00",
+    "extracted_at": "2025-01-01T00:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p14_e01.txt"
   },
@@ -107,7 +107,7 @@
       "id": "episode:ep-28614332add8c2ae",
       "properties": {
         "podcast_id": "p14",
-        "publish_date": "2026-01-01T00:00:00",
+        "publish_date": "2025-01-01T00:00:00",
         "title": "Construir Trilhas Que Duram"
       },
       "type": "Episode"

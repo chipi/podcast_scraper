@@ -25,21 +25,21 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
+    "description": "A longer shop-floor conversation: suspension setup, drivetrain wear, brake bleed myths, and diagnosing clicks that only happen on climbs.",
     "duration_seconds": 348,
     "episode_id": "ep-0d9100843ee555f8",
     "language": "en",
     "language_source": "rss",
-    "published_date": "2024-07-30T00:00:00",
-    "title": "The Mechanics of a Quiet, Fast Bike",
-    "description": "A longer shop-floor conversation: suspension setup, drivetrain wear, brake bleed myths, and diagnosing clicks that only happen on climbs.",
     "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
       "conflicts": [],
+      "declarations": [],
       "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
       "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-07-30T00:00:00",
+    "title": "The Mechanics of a Quiet, Fast Bike"
   },
   "feed": {
     "authors": [
@@ -47,22 +47,22 @@
     ],
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "p01",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
-    "image_url": "http://localhost/images/p01.webp",
     "language": "en",
     "language_raw": "en-us",
     "language_source": "rss",
     "last_updated": "2024-12-17T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
     "title": "Singletrack Sessions",
     "url": "http://localhost/",
-    "licence": {
-      "status": "no_explicit_licence_found",
-      "declarations": [],
-      "conflicts": [],
-      "documents_for_review": [],
-      "source_feed_url": "http://localhost/",
-      "retrieved_at": "2026-01-01T00:00:00+00:00"
-    }
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp"
   },
   "schema_version": "1",
   "summary": {

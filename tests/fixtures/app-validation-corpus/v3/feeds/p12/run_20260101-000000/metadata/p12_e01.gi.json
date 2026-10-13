@@ -37,91 +37,91 @@
     },
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:1376546e9d50ed64",
+      "to": "insight:45350807a6038550",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:6640cfc2afd75fd9",
+      "to": "insight:fe3de44103010078",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:9764097ba6ef170e",
+      "to": "insight:5cc24d0bffa08f0c",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:d7a1d1b303a0daa0",
+      "from": "quote:67435e444d25d0cf",
       "to": "person:camille-dubois",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:1376546e9d50ed64",
-      "to": "quote:d7a1d1b303a0daa0",
+      "from": "insight:45350807a6038550",
+      "to": "quote:67435e444d25d0cf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d680fdc98554f50d",
+      "from": "quote:2300a78e3dd8f850",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:fe3de44103010078",
+      "to": "quote:2300a78e3dd8f850",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ad64ef6c59d41aa8",
       "to": "person:julien-mercier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6640cfc2afd75fd9",
-      "to": "quote:d680fdc98554f50d",
+      "from": "insight:5cc24d0bffa08f0c",
+      "to": "quote:ad64ef6c59d41aa8",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:49ac0159c6b333f2",
+      "from": "quote:e2bd5cb275474206",
       "to": "person:camille-dubois",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:9764097ba6ef170e",
-      "to": "quote:49ac0159c6b333f2",
+      "from": "insight:45350807a6038550",
+      "to": "quote:e2bd5cb275474206",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:2772f696ac1ed6a5",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1376546e9d50ed64",
-      "to": "quote:2772f696ac1ed6a5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:1888bdb1bd495f0d",
+      "from": "quote:fd8c7f19bb544451",
       "to": "person:julien-mercier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6640cfc2afd75fd9",
-      "to": "quote:1888bdb1bd495f0d",
+      "from": "insight:fe3de44103010078",
+      "to": "quote:fd8c7f19bb544451",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:f19127993bab1db2",
+      "from": "quote:7af5404a9fbcd8fb",
       "to": "person:camille-dubois",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:9764097ba6ef170e",
-      "to": "quote:f19127993bab1db2",
+      "from": "insight:5cc24d0bffa08f0c",
+      "to": "quote:7af5404a9fbcd8fb",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:1376546e9d50ed64",
+      "from": "insight:45350807a6038550",
       "to": "person:camille-dubois",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:6640cfc2afd75fd9",
+      "from": "insight:fe3de44103010078",
       "to": "person:julien-mercier",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:9764097ba6ef170e",
+      "from": "insight:5cc24d0bffa08f0c",
       "to": "person:camille-dubois",
       "type": "MENTIONS_PERSON"
     }
@@ -135,7 +135,7 @@
         "duration_ms": 401000,
         "feed_id": "p12",
         "podcast_id": "p12",
-        "publish_date": "2025-11-01T00:00:00",
+        "publish_date": "2024-11-01T00:00:00",
         "title": "Construire Des Sentiers Qui Durent"
       },
       "type": "Episode"
@@ -190,7 +190,7 @@
       "type": "Topic"
     },
     {
-      "id": "insight:1376546e9d50ed64",
+      "id": "insight:45350807a6038550",
       "properties": {
         "episode_id": "ep-8dce4ec000757097",
         "grounded": true,
@@ -198,13 +198,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui nous parlons de construction de sentiers, et je re\u00e7ois Julien Mercier, constructeur de sentiers de l'Alliance Cascadia. Julien Mercier, merci\u2026",
+        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:6640cfc2afd75fd9",
+      "id": "insight:fe3de44103010078",
       "properties": {
         "episode_id": "ep-8dce4ec000757097",
         "grounded": true,
@@ -212,13 +212,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Merci, Camille. Avec grand plaisir \u2014 la construction de sentiers est un sujet auquel j'ai beaucoup r\u00e9fl\u00e9chi.",
+        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:9764097ba6ef170e",
+      "id": "insight:5cc24d0bffa08f0c",
       "properties": {
         "episode_id": "ep-8dce4ec000757097",
         "grounded": true,
@@ -226,7 +226,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Cet \u00e9pisode vous est propos\u00e9 par Strava. Strava est la maison des athl\u00e8tes. Commencez sur strava.com/podcast.",
+        "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
         "tier": 2
       },
       "type": "Insight"
@@ -239,16 +239,50 @@
       "type": "Person"
     },
     {
-      "id": "quote:d7a1d1b303a0daa0",
+      "id": "quote:67435e444d25d0cf",
       "properties": {
-        "char_end": 223,
-        "char_start": 16,
+        "char_end": 72,
+        "char_start": 12,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-01",
-        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui nous parlons de construction de sentiers, et je re\u00e7ois Julien Mercier, constructeur de sentiers de l'Alliance Cascadia. Julien Mercier, merci d'\u00eatre l\u00e0.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
+        "timestamp_end_ms": 25440,
+        "timestamp_start_ms": 21360,
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2300a78e3dd8f850",
+      "properties": {
+        "char_end": 155,
+        "char_start": 73,
+        "episode_id": "ep-8dce4ec000757097",
+        "speaker_id": "person:speaker-01",
+        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
+        "timestamp_end_ms": 215460,
+        "timestamp_start_ms": 210000,
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0002.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
@@ -260,72 +294,98 @@
       "type": "Person"
     },
     {
-      "id": "quote:d680fdc98554f50d",
+      "id": "quote:ad64ef6c59d41aa8",
       "properties": {
-        "char_end": 348,
-        "char_start": 240,
+        "char_end": 364,
+        "char_start": 168,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
-        "text": "Merci, Camille. Avec grand plaisir \u2014 la construction de sentiers est un sujet auquel j'ai beaucoup r\u00e9fl\u00e9chi.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
+        "timestamp_end_ms": 229020,
+        "timestamp_start_ms": 215460,
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:49ac0159c6b333f2",
+      "id": "quote:e2bd5cb275474206",
       "properties": {
-        "char_end": 474,
-        "char_start": 365,
+        "char_end": 465,
+        "char_start": 377,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-01",
-        "text": "Cet \u00e9pisode vous est propos\u00e9 par Strava. Strava est la maison des athl\u00e8tes. Commencez sur strava.com/podcast.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "text": "Tell me how you came to that decision. Which version of the question is truly important?",
+        "timestamp_end_ms": 235140,
+        "timestamp_start_ms": 229020,
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0004.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:2772f696ac1ed6a5",
+      "id": "quote:fd8c7f19bb544451",
       "properties": {
-        "char_end": 565,
-        "char_start": 474,
-        "episode_id": "ep-8dce4ec000757097",
-        "speaker_id": "person:speaker-01",
-        "text": "Raconte-moi comment tu as pris la d\u00e9cision. Comment RockShox s'inscrit-il dans ce tableau ?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p12_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:1888bdb1bd495f0d",
-      "properties": {
-        "char_end": 808,
-        "char_start": 582,
+        "char_end": 650,
+        "char_start": 478,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
-        "text": "Honn\u00eatement, le drainage est la d\u00e9cision de conception la plus d\u00e9terminante sur n'importe quel sentier. On l'a vu dans des \u00e9quipes qui utilisent l'Alliance Cascadia. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "text": "Yes, listen \u2013 the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.",
+        "timestamp_end_ms": 246180,
+        "timestamp_start_ms": 235140,
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:f19127993bab1db2",
+      "id": "quote:7af5404a9fbcd8fb",
       "properties": {
-        "char_end": 927,
-        "char_start": 825,
+        "char_end": 742,
+        "char_start": 663,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-01",
-        "text": "Raconte-moi comment tu as pris la d\u00e9cision. Quelle est la version de la question qui compte vraiment ?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "text": "I want to delve deeper. Where do soil erosion and trail construction intersect?",
+        "timestamp_end_ms": 251760,
+        "timestamp_start_ms": 246180,
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0006.u01"
+          ]
+        }
       },
       "type": "Quote"
     }
