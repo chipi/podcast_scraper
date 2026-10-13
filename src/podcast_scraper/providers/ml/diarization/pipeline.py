@@ -32,6 +32,7 @@ from .roster import (
     build_speaker_diagnostics,
     classify_voices,
     host_copresence_from_diagnostics,
+    plausible_person_names,
     resolve_speaker_roster,
     SpeakerRoster,
 )
@@ -907,7 +908,10 @@ def apply_diarization_to_result(
     # not only the episode-opening host intro.
     aligned = align_segments_to_speakers(segments, diarization)
     voice_texts = _voice_texts_from_aligned(aligned)
-    guests = detected_speaker_names or []
+    # A group or an institution is not one speaker: dropped here, so it neither enters the guest
+    # pool nor reaches the speaker record as an unplaced "person" (#2304 Phase C).
+    guests = plausible_person_names(detected_speaker_names or [])
+    metadata_named = plausible_person_names(metadata_named or [])
     # known_hosts anchors the roster: it names the opening voice and lets
     # _canonicalize_to_known_host repair an ASR-garbled spoken surname ("Kevin Russo" -> "Kevin
     # Roose"). cfg.known_hosts is the manual show-level override; feed_hosts is what the feed's own

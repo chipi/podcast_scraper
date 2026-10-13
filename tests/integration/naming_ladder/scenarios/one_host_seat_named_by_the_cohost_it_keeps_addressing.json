@@ -1,0 +1,40 @@
+{
+ "why": "Phase C fix B (#2304, prod 2026-10-13 Hard Fork 'Sora and the Infinite Slop Feeds'): two stated hosts, one live host voice, and nothing in its own words naming it. With the feed-stated hosts kept in the pool (fix A) both names are spare and one-name-one-seat cannot choose. The seat keeps ADDRESSING Kevin ('Well, Kevin, ...', 20 to 5 on prod), so it is Casey Newton. Before fix A this seat got Casey only because the intro clip's 'I'm Kevin Roose' had thrown Kevin out of the pool.",
+ "feed": {
+  "title": "Hard Fork",
+  "description": "Each week, journalists Kevin Roose and Casey Newton explore the future."
+ },
+ "episode": {
+  "title": "Sora and the Infinite Slop Feeds"
+ },
+ "detected": {
+  "speaker_names": [
+   "Kevin Roose",
+   "Casey Newton"
+  ],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "INTRO",
+   20,
+   "I'm Kevin Roose, a tech columnist at the New York Times. I'm Casey Newton from Platformer. And this is Hard Fork. This podcast is supported by Acme Cloud. Visit acme.com/hardfork and use promo code FORK for twenty percent off. Terms apply."
+  ],
+  [
+   "H",
+   700,
+   "Well, Kevin, here is the next story about chatbots, number 0. Well, Kevin, here is the next story about chatbots, number 1. Well, Kevin, here is the next story about chatbots, number 2. Well, Kevin, here is the next story about chatbots, number 3. Well, Kevin, here is the next story about chatbots, number 4. Well, Kevin, here is the next story about chatbots, number 5. Well, Kevin, here is the next story about chatbots, number 6. Well, Kevin, here is the next story about chatbots, number 7. The point about the app store keeps changing, part 0. The point about the app store keeps changing, part 1. The point about the app store keeps changing, part 2. The point about the app store keeps changing, part 3. The point about the app store keeps changing, part 4. The point about the app store keeps changing, part 5. The point about the app store keeps changing, part 6. The point about the app store keeps changing, part 7. The point about the app store keeps changing, part 8. The point about the app store keeps changing, part 9. The point about the app store keeps changing, part 10. The point about the app store keeps changing, part 11. The point about the app store keeps changing, part 12. The point about the app store keeps changing, part 13. The point about the app store keeps changing, part 14. The point about the app store keeps changing, part 15. The point about the app store keeps changing, part 16. The point about the app store keeps changing, part 17. The point about the app store keeps changing, part 18. The point about the app store keeps changing, part 19. The point about the app store keeps changing, part 20. The point about the app store keeps changing, part 21. The point about the app store keeps changing, part 22. The point about the app store keeps changing, part 23. The point about the app store keeps changing, part 24. The point about the app store keeps changing, part 25. The point about the app store keeps changing, part 26. The point about the app store keeps changing, part 27. The point about the app store keeps changing, part 28. The point about the app store keeps changing, part 29. The point about the app store keeps changing, part 30. The point about the app store keeps changing, part 31. The point about the app store keeps changing, part 32. The point about the app store keeps changing, part 33. The point about the app store keeps changing, part 34. The point about the app store keeps changing, part 35. The point about the app store keeps changing, part 36. The point about the app store keeps changing, part 37. The point about the app store keeps changing, part 38. The point about the app store keeps changing, part 39."
+  ],
+  [
+   "G",
+   650,
+   "Thanks for having me. The model learned to imitate a therapist, observation 0. The model learned to imitate a therapist, observation 1. The model learned to imitate a therapist, observation 2. The model learned to imitate a therapist, observation 3. The model learned to imitate a therapist, observation 4. The model learned to imitate a therapist, observation 5. The model learned to imitate a therapist, observation 6. The model learned to imitate a therapist, observation 7. The model learned to imitate a therapist, observation 8. The model learned to imitate a therapist, observation 9. The model learned to imitate a therapist, observation 10. The model learned to imitate a therapist, observation 11. The model learned to imitate a therapist, observation 12. The model learned to imitate a therapist, observation 13. The model learned to imitate a therapist, observation 14. The model learned to imitate a therapist, observation 15. The model learned to imitate a therapist, observation 16. The model learned to imitate a therapist, observation 17. The model learned to imitate a therapist, observation 18. The model learned to imitate a therapist, observation 19. The model learned to imitate a therapist, observation 20. The model learned to imitate a therapist, observation 21. The model learned to imitate a therapist, observation 22. The model learned to imitate a therapist, observation 23. The model learned to imitate a therapist, observation 24. The model learned to imitate a therapist, observation 25. The model learned to imitate a therapist, observation 26. The model learned to imitate a therapist, observation 27. The model learned to imitate a therapist, observation 28. The model learned to imitate a therapist, observation 29. The model learned to imitate a therapist, observation 30. The model learned to imitate a therapist, observation 31. The model learned to imitate a therapist, observation 32. The model learned to imitate a therapist, observation 33. The model learned to imitate a therapist, observation 34. The model learned to imitate a therapist, observation 35. The model learned to imitate a therapist, observation 36. The model learned to imitate a therapist, observation 37. The model learned to imitate a therapist, observation 38. The model learned to imitate a therapist, observation 39. The model learned to imitate a therapist, observation 40. The model learned to imitate a therapist, observation 41. The model learned to imitate a therapist, observation 42. The model learned to imitate a therapist, observation 43. The model learned to imitate a therapist, observation 44."
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name": "Casey Newton",
+   "role": "host"
+  }
+ }
+}

@@ -1,0 +1,345 @@
+{
+ "why": "Phase C opener rule (#2304, prod 2026-10-13 Unhedged 'Is the Fed the referee...'): on a two-host show the second host OPENS the episode with a promo naming the show, then the first host introduces herself. The opener may take the second seat because it presents -- it names the show. Restricting the opener to 'no host seated yet' left this host unnamed.",
+ "feed": {
+  "title": "Market Hour",
+  "hosts": [
+   "Ann Rivers",
+   "Ben Stone"
+  ],
+  "description": "Ann Rivers and Ben Stone talk markets."
+ },
+ "episode": {
+  "title": "Is the referee a player?"
+ },
+ "detected": {
+  "speaker_names": [
+   "Ann Rivers",
+   "Ben Stone"
+  ],
+  "metadata_named": []
+ },
+ "turns": [
+  [
+   "B",
+   30,
+   "Listeners, do you love listening to the Market Hour podcast? Come and see it live this summer, tickets are on sale now."
+  ],
+  [
+   "A",
+   20,
+   "Hello and welcome. I'm Ann Rivers."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 0."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 0."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 1."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 1."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 2."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 2."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 3."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 3."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 4."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 4."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 5."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 5."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 6."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 6."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 7."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 7."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 8."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 8."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 9."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 9."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 10."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 10."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 11."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 11."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 12."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 12."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 13."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 13."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 14."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 14."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 15."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 15."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 16."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 16."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 17."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 17."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 18."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 18."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 19."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 19."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 20."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 20."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 21."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 21."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 22."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 22."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 23."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 23."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 24."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 24."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 25."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 25."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 26."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 26."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 27."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 27."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 28."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 28."
+  ],
+  [
+   "A",
+   30,
+   "The rate decision matters for bonds, point 29."
+  ],
+  [
+   "B",
+   30,
+   "And the curve moved again after that, point 29."
+  ]
+ ],
+ "expect": {
+  "A": {
+   "name": "Ann Rivers",
+   "role": "host"
+  },
+  "B": {
+   "role": "host",
+   "steps": [
+    "host_seat_step:seated:3_opener"
+   ]
+  }
+ }
+}
