@@ -24,6 +24,8 @@ import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
 import ShowAllToggle from './ShowAllToggle.vue'
 import type { Storyline } from '../services/types'
+import { useGoneReferencesStore } from '../stores/goneReferences'
+import GoneBadge from './GoneBadge.vue'
 
 const props = defineProps<{ search?: string; sort?: string; visibleTypes?: string[] }>()
 
@@ -35,7 +37,10 @@ const { ids } = storeToRefs(interests)
 const clusterLabels = ref<Map<string, string>>(new Map())
 const storylines = ref<Storyline[]>([])
 
+const gone = useGoneReferencesStore()
+
 onMounted(async () => {
+  void gone.ensureLoaded()
   await interests.ensureLoaded().catch(() => {})
   const [clusters, stories] = await Promise.all([
     getTopClusters(50).catch(() => []),
@@ -124,13 +129,14 @@ function openStoryline(id: string): void {
         <span class="lp-kicker ml-1 font-normal">{{ topics.length }}</span>
       </h2>
       <ul class="flex flex-wrap gap-1.5">
-        <li v-for="id in caps.visible('topics', topics, searchActive)" :key="id" class="inline-flex items-center rounded-full bg-overlay">
+        <li v-for="id in caps.visible('topics', topics, searchActive)" :key="id" :class="{ 'opacity-60': gone.isGone(id) }" class="inline-flex items-center rounded-full bg-overlay">
           <button
             type="button"
             class="max-w-[12rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-topic transition hover:opacity-80"
+            :disabled="gone.isGone(id)"
             @click="router.push({ name: 'topic', params: { id } })"
           >
-            {{ labelOf(id) }}
+            {{ labelOf(id) }}<template v-if="gone.isGone(id)"> · <GoneBadge /></template>
           </button>
           <button
             type="button"
@@ -159,15 +165,16 @@ function openStoryline(id: string): void {
       <ul class="flex flex-wrap gap-1.5">
         <li
           v-for="id in caps.visible('people', persons, searchActive)"
-          :key="id"
+          :key="id" :class="{ 'opacity-60': gone.isGone(id) }"
           class="inline-flex items-center rounded-full bg-overlay"
         >
           <button
             type="button"
             class="max-w-[12rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-person transition hover:opacity-80"
+            :disabled="gone.isGone(id)"
             @click="router.push({ name: 'person', params: { id } })"
           >
-            {{ labelOf(id) }}
+            {{ labelOf(id) }}<template v-if="gone.isGone(id)"> · <GoneBadge /></template>
           </button>
           <button
             type="button"
@@ -196,7 +203,7 @@ function openStoryline(id: string): void {
       <ul class="flex flex-wrap gap-1.5">
         <li
           v-for="id in caps.visible('themes', themeTokens, searchActive)"
-          :key="id"
+          :key="id" :class="{ 'opacity-60': gone.isGone(id) }"
           class="inline-flex items-center rounded-full bg-overlay ring-1 ring-inset ring-theme/30"
         >
           <!-- Straight to the theme page: a theme's id IS its route param, so there is no anchor
@@ -204,9 +211,10 @@ function openStoryline(id: string): void {
           <button
             type="button"
             class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-theme transition hover:opacity-80"
+            :disabled="gone.isGone(id)"
             @click="router.push({ name: 'theme', params: { id } })"
           >
-            {{ labelOf(id) }}
+            {{ labelOf(id) }}<template v-if="gone.isGone(id)"> · <GoneBadge /></template>
           </button>
           <button
             type="button"
@@ -229,15 +237,16 @@ function openStoryline(id: string): void {
       <ul class="flex flex-wrap gap-1.5">
         <li
           v-for="id in caps.visible('storylines', storylineTokens, searchActive)"
-          :key="id"
+          :key="id" :class="{ 'opacity-60': gone.isGone(id) }"
           class="lp-storyline-chip inline-flex items-center rounded-full"
         >
           <button
             type="button"
             class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-storyline transition hover:opacity-80"
+            :disabled="gone.isGone(id)"
             @click="openStoryline(id)"
           >
-            {{ labelOf(id) }}
+            {{ labelOf(id) }}<template v-if="gone.isGone(id)"> · <GoneBadge /></template>
           </button>
           <button
             type="button"

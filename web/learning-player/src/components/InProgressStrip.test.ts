@@ -6,11 +6,17 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
+import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import type { LearningPath, PathStep, ReelProgress } from '../services/api'
 
-const api = vi.hoisted(() => ({ getInProgress: vi.fn(), learnOpenNext: vi.fn() }))
+const api = vi.hoisted(() => ({
+  getInProgress: vi.fn(),
+  learnOpenNext: vi.fn(),
+  clearReelProgress: vi.fn(),
+  getGoneReferences: vi.fn().mockResolvedValue([]),
+}))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
 const tracked = vi.hoisted(() => [] as Array<{ name: string; props: unknown }>)
 vi.mock('../services/analytics', async (orig) => ({
@@ -70,7 +76,7 @@ afterEach(() => {
 })
 
 async function mountIt() {
-  const w = mount(InProgressStrip, { global: { plugins: [i18n, router] } })
+  const w = mount(InProgressStrip, { global: { plugins: [i18n, router, createPinia()] } })
   await flushPromises()
   return w
 }
@@ -133,7 +139,7 @@ describe('InProgressStrip', () => {
     api.getInProgress
       .mockResolvedValueOnce({ paths: [], reel: null })
       .mockResolvedValue({ paths: [], reel })
-    const tab = await keptAlive(InProgressStrip, { plugins: [i18n, router] })
+    const tab = await keptAlive(InProgressStrip, { plugins: [i18n, router, createPinia()] })
     expect(tab.wrapper.find('[data-testid="home-in-progress"]').exists()).toBe(false)
     await tab.leave()
     await tab.back()

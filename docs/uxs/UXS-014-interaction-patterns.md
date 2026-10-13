@@ -647,6 +647,22 @@ translation provenance the pipeline writes on each quote.
 **Not yet labelled** (operator, 2026-10-13): search results and the MCP tools. The page a search
 result opens carries the label.
 
+## Gone references (`GoneBadge`) — #2345, 2026-10-13
+
+**What a listener kept is never silently dropped.** A theme, storyline, topic or person they
+followed, saved, put on a board, wrote a note on or started a path on can leave the corpus. A
+rename is re-keyed on the server and the listener never sees it. What is truly gone stays in
+its list, muted, with "No longer available" and that list's own remove action.
+
+| Surface | What happens |
+| --- | --- |
+| Following (`FollowedInterests`) | Chip muted; the open button disabled; × unfollows |
+| Less like this (`SuggestedLessList`) | Chip muted; a tap still undoes it |
+| Saved subjects (Library) | Row muted, not a link; the ♥ removes it |
+| Board items, notes (`CollectionsView`) | Not a link; Remove / delete as before |
+| Learn path (`InProgressStrip`) | The path is frozen and still plays; the badge sits under its name |
+| Last short listen (`InProgressStrip`) | Resume replaced by Remove: the reel cannot be rebuilt |
+
 ## Destructive confirmation (#1594)
 
 `ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.

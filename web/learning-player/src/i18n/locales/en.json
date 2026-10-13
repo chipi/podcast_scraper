@@ -1213,7 +1213,8 @@
     "forItem": "{action}: {subject}",
     "cancel": "Cancel",
     "moreActions": "More actions",
-    "retry": "Try again"
+    "retry": "Try again",
+    "noLongerAvailable": "No longer available"
   },
   "export": {
     "close": "Close",
@@ -1355,6 +1356,7 @@
     "doorCancel": "Not now"
   },
   "inProgress": {
+    "remove": "Remove",
     "title": "In progress",
     "learnKicker": "Learn · day {n} of {total}",
     "playDay": "Play day {n}",

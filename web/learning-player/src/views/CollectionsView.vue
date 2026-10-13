@@ -9,6 +9,8 @@ import { computed, nextTick, onMounted, ref, watch } from "vue"
 import BoardBrief from "../components/BoardBrief.vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
+import { useGoneReferencesStore } from "../stores/goneReferences"
+import GoneBadge from "../components/GoneBadge.vue"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
@@ -39,6 +41,8 @@ import { episodeArtwork, showArtwork } from '../utils/episode'
 const store = useCollectionsStore()
 
 const { t, locale } = useI18n()
+const gone = useGoneReferencesStore()
+void gone.ensureLoaded()
 const route = useRoute()
 
 /** When a board last changed (CO.2), as "Oct 12" — the year only when it is not this one. The board header's second line holds the
@@ -877,11 +881,11 @@ onMounted(() => {
 
               <div class="min-w-0 flex-1">
                 <component
-                  :is="it.kind === 'link' ? 'a' : it.deep_link ? RouterLink : 'span'"
+                  :is="it.kind === 'link' ? 'a' : it.deep_link && !gone.isGone(it.ref) ? RouterLink : 'span'"
                   v-bind="
                     it.kind === 'link'
                       ? { href: it.deep_link ?? it.ref, target: '_blank', rel: 'noopener' }
-                      : it.deep_link
+                      : it.deep_link && !gone.isGone(it.ref)
                       ? { to: it.deep_link }
                       : {}
                   "
@@ -891,6 +895,8 @@ onMounted(() => {
                 >
                 <div class="mt-0.5 flex items-center gap-2">
                   <span class="lp-kicker shrink-0">{{ t("collections.kind." + it.kind) }}</span>
+                  <!-- Gone from the corpus (#2345): no page to open; Remove still works. -->
+                  <GoneBadge v-if="gone.isGone(it.ref)" class="shrink-0" />
                   <span
                     v-if="shown[itemKey(it)]?.subtitle ?? it.subtitle"
                     class="min-w-0 truncate text-xs text-muted"
@@ -999,8 +1005,9 @@ onMounted(() => {
           </p>
           <div class="mt-1.5 flex items-center gap-2 text-xs">
             <span class="lp-kicker">{{ noteKindLabel(n.target) }} · {{ noteDate(n.created_at) }}</span>
+            <GoneBadge v-if="gone.isGone(n.target_id)" />
             <RouterLink
-              v-if="noteRoute(n.target, n.target_id)"
+              v-else-if="noteRoute(n.target, n.target_id)"
               :to="noteRoute(n.target, n.target_id)!"
               class="font-semibold text-accent no-underline"
             >
