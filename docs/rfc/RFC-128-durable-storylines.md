@@ -1,6 +1,6 @@
 # RFC-128: Durable Storylines — a storyline is a thing that exists, not the output of one run
 
-- **Status**: Draft
+- **Status**: Implemented (2026-10-14), not yet deployed
 - **Authors**: Marko, Claude (Opus 5.5)
 - **Stakeholders**: Consumer App, Enrichment (corpus clustering), Server API
 - **Related RFCs**:
@@ -58,17 +58,19 @@ entry.
 
 ### 2. A lifecycle, not deletion
 
-`emerging → active → quiet → archived`. A storyline with no new episode for N weeks goes quiet; a
+`emerging → active → quiet → archived`. A storyline with no new episode for **90 days** goes quiet; a
 new episode on its topics makes it active again. "Crisis in Hormuz" is quiet between flare-ups and
 is the same storyline at the next one. Followers keep it in every state; Discover ranks quiet ones
 down, never out.
 
-### 3. Sticky assignment, then a high bar to create
+### 3. Sticky assignment, then a bar to create
 
 A run first attaches episodes and topics to existing storylines (by overlap with the registry's
 weighted topic set). Only what fits none seeds a **candidate**, and a candidate becomes a storyline
-only past a bar: proposed values, to be set by the replay — at least 3 topics, 5 episodes, recurring
-across at least 2 weeks. Today 43 of 99 storylines span fewer than 5 episodes.
+only past a bar, set by the replay below: **at least 2 topics and 5 episodes, proposed across at
+least 28 days**. Today 45 of 99 storylines span fewer than 5 episodes. A replay with "3 topics"
+kept prompt engineering (12 episodes, two topics) out: most real threads here are two topics
+discussed together.
 
 ### 4. Membership drifts, identity stays
 
@@ -77,8 +79,8 @@ started with and keep its id, its followers and its page.
 
 ### 5. A name that sticks
 
-The name is chosen when the storyline is created and changes only past a higher bar (a sustained
-shift over several runs). The old name stays as an alias: search finds it, and the page can say
+The name is chosen when the storyline is created and changes only when another label has led its
+proposals for **60 days** running. The old name stays as an alias: search finds it, and the page can say
 "now also: agentic engineering". When a new thread grows its own momentum, it becomes a child
 storyline linked to its parent instead of a rename.
 
@@ -115,9 +117,46 @@ Before any of this ships (the `replay-proven-fix` procedure):
 
 The thresholds in §2, §3 and §5 are set from this replay, not guessed.
 
+## Replay results (2026-10-14)
+
+Production corpus, read-only copy: 2,635 served episodes, clustered month by month from 2024-11 to
+2026-10 (episodes published up to each month). Faithfulness: today's clustering on the copy
+reproduces production's 99 storylines member for member and id for id.
+
+| | Today's rule | New rule, bar 2/5/2 | Bar 2/3/2 | Bar 3/5/2 |
+| --- | --- | --- | --- | --- |
+| Storylines at 2026-10 | 99 | 59 (47 active, 12 quiet) | 83 | 31 |
+| Spanning fewer than 5 episodes | 45 | 0 | 24 | 0 |
+| Renamed during the history | 24 storylines, up to 4 times each | 3 | 5 | 2 |
+| A follow made 2026-04 is on the same storyline at 2026-10 | 25 of 34 | 19 of 19 | 25 of 25 | 12 of 12 |
+| "Prompt engineering" | yes | yes (since 2026-04, 12 episodes) | yes | no (a candidate) |
+| Episodes in some storyline | 795 | 681 | 746 | 561 |
+
+Today's rule renames as the corpus grows, back and forth: one 44-episode thread went "nominal gdp
+targeting → inflation expectations → nominal gdp targeting → federal reserve policy → inflation
+expectations". Under the registry it keeps one id and renames once. Chosen: **2/5/2**.
+
+**Coverage is limited by topics, not by this rule.** 30% of episodes belong to any storyline today:
+22,884 topics, 92% of them on one episode only, and 70% of episodes have no topic pair seen
+together in two or more episodes, which is exactly the set in no storyline. Tracked in #2351.
+
+## Implementation (2026-10-14)
+
+- `search/storyline_registry.py` — `reconcile(proposals, prior, …, now)`: attach at a 0.5 topic
+  share, topic strength ×0.85 per 30 days (held at 0.2), bar 2 topics / 5 episodes / 28 days,
+  rename after 60 days, quiet after 90 days. The anchor a page routes by is the most durable topic.
+- `enrichers/topic_theme_clusters.py` (1.3.0) — this run's clusters are proposals; the registry is
+  carried in `topic_theme_clusters.json` (`registry`, plus `state` and `aliases` per storyline);
+  super-themes are computed over the registry's storylines.
+- `search/storylines.py` — quiet storylines are offered after active ones.
+- `scripts/eval/replay_storylines.py` — the replay above, driving the production enricher (old
+  rule: each month from scratch; new rule: each month reconciled against the previous one).
+
 ## Migration
 
-The registry is seeded from today's storylines (ids kept). #2345's `id_history` maps every id the
+The first run with the registry seeds it from the previous artifact's storylines (ids and names
+kept, all 99 on production; a corpus's very first run seeds from its own clusters). New storylines
+then need the 28-day bar, so for four weeks none appears; existing ones keep growing. #2345's `id_history` maps every id the
 registry ever retired, so stored references keep resolving. No user state is rewritten by this
 change; the reference pass keeps running.
 
@@ -128,6 +167,9 @@ change; the reference pass keeps running.
 
 ## Open questions
 
-- The quiet-period N and the creation bar: from the replay.
+- Matching proposals to storylines by THEME (semantic grouping) rather than exact topic ids, so an
+  episode on "risk naming" can join "risk management" (#2351).
+- Automatic merges of two storylines that keep proposing together (v1 folds a proposal into its
+  best match and leaves the other to go quiet).
 - Whether a quiet storyline is offered to new listeners at all, or only kept for followers.
 - How a child storyline appears on its parent's page.

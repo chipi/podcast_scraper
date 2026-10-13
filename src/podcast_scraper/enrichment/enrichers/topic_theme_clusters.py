@@ -45,6 +45,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -63,7 +64,7 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     sync_enricher,
 )
-from podcast_scraper.search.stable_cluster_ids import carry_cluster_ids
+from podcast_scraper.search import storyline_registry
 
 _logger = logging.getLogger(__name__)
 
@@ -475,13 +476,23 @@ def _compute(
         )
         cluster_member_sets.append(members)
 
-    _assign_super_themes(clusters_out, cluster_member_sets, weight)
-    # #2345: a storyline keeps its id across runs when its members largely stay, and every id
-    # that went is mapped to its successor, so listeners' follows, paths and boards still resolve.
+    # RFC-128 (#2349): this run's clusters are PROPOSALS. The storyline registry, carried in this
+    # artifact from run to run, decides what the storylines are: a proposal attaches to the
+    # storyline that already holds half its topics; a new one is created only past the bar; none is
+    # deleted (a quiet one stays); a name changes only when another label leads for 60 days.
     prior = _prior_payload(corpus_root)
-    id_history = carry_cluster_ids(
-        clusters_out, prior.get("clusters") or [], prior_history=prior.get("id_history")
+    proposals = clusters_out
+    clusters_out, registry, id_history = storyline_registry.reconcile(
+        proposals,
+        prior,
+        topic_label=topic_label,
+        topic_eps=topic_eps,
+        now=_now(),
     )
+    cluster_member_sets = [
+        {index[m["topic_id"]] for m in c["members"] if m["topic_id"] in index} for c in clusters_out
+    ]
+    _assign_super_themes(clusters_out, cluster_member_sets, weight)
 
     # #1208 no-silent-fail contract (see grounding_rate / temporal_velocity), extended for #1929.
     # An empty theme set has three very different causes and they need different responses:
@@ -489,7 +500,7 @@ def _compute(
     # refusing to run. Only the last one is a capability failure, and it was previously
     # indistinguishable from the other two.
     partial_reason: str | None = None
-    if not clusters_out:
+    if not proposals:
         if len(idx_topics) > _MAX_LINKAGE_TOPICS:
             partial_reason = "linkage_cap_exceeded"
         elif not idx_topics:
@@ -536,7 +547,15 @@ def _compute(
         ),
         "super_theme_method": "cross_cluster_lift_avg_linkage",
         "id_history": id_history,
+        # RFC-128: the registry the next run reconciles against, and what this run proposed.
+        "registry": registry,
+        "proposal_count": len(proposals),
     }
+
+
+def _now() -> float:
+    """The run's clock (a function, so the replay and the tests can set it)."""
+    return time.time()
 
 
 def _prior_payload(corpus_root: Path) -> dict[str, Any]:
@@ -558,7 +577,8 @@ class TopicThemeClustersEnricher:
 
     manifest = EnricherManifest(
         id="topic_theme_clusters",
-        version="1.2.0",  # long-tail super-theme + partial_reason/linkage_* fields (#1929/#1932)
+        # 1.3.0: the storyline registry (RFC-128) — durable ids, sticky names, quiet not deleted.
+        version="1.3.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],

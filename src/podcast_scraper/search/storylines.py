@@ -267,10 +267,18 @@ def top_storylines_by_member_count(
     raw = payload.get("clusters")
     if not isinstance(raw, list):
         return []
-    out = [s for cl in raw if isinstance(cl, Mapping) and (s := _storyline_summary(cl))]
+    quiet: set[str] = set()
+    out = []
+    for cl in raw:
+        if isinstance(cl, Mapping) and (s := _storyline_summary(cl)):
+            out.append(s)
+            if cl.get("state") == "quiet":
+                quiet.add(s["id"])
     if min_members > 1:
         out = [c for c in out if c["size"] >= min_members]
-    out.sort(key=lambda c: c["size"], reverse=True)
+    # A QUIET storyline (RFC-128: no new episode in 90 days) is offered after the active ones,
+    # never dropped: it is still a thread, and still followable.
+    out.sort(key=lambda c: (c["id"] in quiet, -c["size"]))
     return out[: max(top_n, 0)]
 
 

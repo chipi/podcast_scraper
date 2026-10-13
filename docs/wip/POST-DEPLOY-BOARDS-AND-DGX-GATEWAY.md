@@ -139,7 +139,11 @@ kept is used.
    ```
 
    Needs the DGX in research mode (the `:8003` slot), like the board summaries; $0 budget holds.
-4. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
+4. **Durable storylines (RFC-128, #2349):** after the first nightly, `topic_theme_clusters.json`
+   has `data.registry` with every storyline the last artifact had (99 on 2026-10-14; ids and names
+   unchanged), each with `state`. No new storyline appears for 28 days (the creation bar); names no
+   longer flip between runs. Re-run `scripts/eval/replay_storylines.py` on a copy to compare.
+5. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
    `GET /api/app/discover/references/gone` answers for the smoke account.
 
 ## Carried over (operator items, not deploy steps; from the 2026-10-12/13 plan)

@@ -287,3 +287,36 @@ def test_storyline_index_rows_skip_an_anchorless_cluster(tmp_path: Path) -> None
     """No resolvable anchor → not indexed, as the rail also skips an unopenable cluster."""
     _write(tmp_path, {"data": {"clusters": [_cluster("thc:broken", "Broken", [], member_count=4)]}})
     assert storyline_index_rows(tmp_path) == []
+
+
+def test_a_quiet_storyline_is_offered_after_the_active_ones(tmp_path) -> None:
+    """RFC-128: a storyline with no new episode for 90 days stays, ranked after active ones."""
+    import json
+
+    from podcast_scraper.search.storylines import top_storylines_by_member_count
+
+    def cl(cid: str, n: int, state: str) -> dict:
+        return {
+            "graph_compound_parent_id": cid,
+            "canonical_label": cid,
+            "state": state,
+            "member_count": n,
+            "members": [{"topic_id": f"topic:{cid}-{i}", "lift_to_cluster": 1.0} for i in range(n)],
+        }
+
+    (tmp_path / "enrichments").mkdir()
+    (tmp_path / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(
+            {
+                "data": {
+                    "clusters": [
+                        cl("thc:big-quiet", 9, "quiet"),
+                        cl("thc:small-active", 5, "active"),
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    ids = [s["id"] for s in top_storylines_by_member_count(tmp_path, 12)]
+    assert ids == ["thc:small-active", "thc:big-quiet"]

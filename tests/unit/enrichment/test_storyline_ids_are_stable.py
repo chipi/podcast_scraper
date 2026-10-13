@@ -18,12 +18,14 @@ def _kg(labels: dict[str, str]) -> dict:
     }
 
 
-def _storylines(tmp_path, labels: dict[str, str]) -> dict:
-    from podcast_scraper.enrichment.enrichers.topic_theme_clusters import (
-        TopicThemeClustersEnricher,
-    )
+def _storylines(
+    tmp_path, labels: dict[str, str], now: float = 1_000_000.0, monkeypatch=None
+) -> dict:
+    from podcast_scraper.enrichment.enrichers import topic_theme_clusters as ttc
     from tests.unit.enrichment.test_deterministic_enrichers import _bundle, _ctx, _run
 
+    if monkeypatch is not None:
+        monkeypatch.setattr(ttc, "_now", lambda: now)
     # Two topics on half the episodes and two others on the rest: each pair co-occurs above
     # chance (lift 2), so each forms a storyline.
     pair, other = dict(list(labels.items())[:2]), {"topic:c": "cedar", "topic:d": "dune"}
@@ -32,7 +34,7 @@ def _storylines(tmp_path, labels: dict[str, str]) -> dict:
         for i in range(4)
     ]
     data = _run(
-        TopicThemeClustersEnricher(),
+        ttc.TopicThemeClustersEnricher(),
         bundle=None,
         corpus_root=tmp_path,
         all_bundles=bundles,
@@ -45,27 +47,41 @@ def _storylines(tmp_path, labels: dict[str, str]) -> dict:
     return data
 
 
-def test_a_relabelled_storyline_keeps_its_id(tmp_path) -> None:
-    first = _storylines(tmp_path, {"topic:a": "alpha", "topic:b": "beta"})
-    ids = {
-        frozenset(m["topic_id"] for m in c["members"]): c["graph_compound_parent_id"]
-        for c in first["clusters"]
-    }
-    sid = ids[frozenset({"topic:a", "topic:b"})]
-    assert first["id_history"] == {"successors": {}, "gone": []}
-
-    # Same members, new labels: the canonical label (and so the slug) changes.
-    second = _storylines(tmp_path, {"topic:a": "gamma", "topic:b": "delta"})
-    ab = next(
+def _ab(data: dict) -> dict:
+    return next(
         c
-        for c in second["clusters"]
+        for c in data["clusters"]
         if {m["topic_id"] for m in c["members"]} == {"topic:a", "topic:b"}
     )
-    assert ab["graph_compound_parent_id"] == sid
-    assert ab["canonical_label"] in {"gamma", "delta"}
-    assert second["id_history"] == {"successors": {}, "gone": []}
 
 
-def test_a_first_run_has_an_empty_history(tmp_path) -> None:
-    data = _storylines(tmp_path, {"topic:a": "alpha", "topic:b": "beta"})
+DAY = 86400.0
+
+
+def test_a_relabelled_storyline_keeps_its_id_and_its_name_until_the_new_label_holds(
+    tmp_path, monkeypatch
+) -> None:
+    """RFC-128: the id never moves; the name changes only after another label has led the
+    storyline's proposals for 60 days, and the old name stays as an alias."""
+    first = _ab(_storylines(tmp_path, {"topic:a": "alpha", "topic:b": "beta"}, 0.0, monkeypatch))
+    sid, name = first["graph_compound_parent_id"], first["canonical_label"]
+
+    # Same members under new labels: the next day, nothing a listener sees changes.
+    nxt = _ab(_storylines(tmp_path, {"topic:a": "gamma", "topic:b": "delta"}, DAY, monkeypatch))
+    assert (nxt["graph_compound_parent_id"], nxt["canonical_label"]) == (sid, name)
+
+    # 61 days of the new label leading: renamed, the old name kept.
+    later = _ab(
+        _storylines(tmp_path, {"topic:a": "gamma", "topic:b": "delta"}, 62 * DAY, monkeypatch)
+    )
+    assert later["graph_compound_parent_id"] == sid
+    assert later["canonical_label"] in {"gamma", "delta"} and later["aliases"] == [name]
+
+
+def test_a_first_run_seeds_the_registry_from_its_own_clusters(tmp_path, monkeypatch) -> None:
+    data = _storylines(tmp_path, {"topic:a": "alpha", "topic:b": "beta"}, 0.0, monkeypatch)
+    assert data["cluster_count"] == 2 and data["proposal_count"] == 2
+    assert set(data["registry"]["entries"]) == {
+        c["graph_compound_parent_id"] for c in data["clusters"]
+    }
     assert data["id_history"] == {"successors": {}, "gone": []}
