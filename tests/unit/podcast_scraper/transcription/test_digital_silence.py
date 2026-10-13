@@ -186,3 +186,22 @@ def test_the_episode_is_transcribed_trimmed_and_read_in_episode_time(monkeypatch
         "tail_s": 66.0,
         "kept": [101.9, 3907.1],
     }
+
+
+def test_the_end_is_where_decoding_ended_not_the_header_estimate() -> None:
+    """ffmpeg 7.1 (and CI's 6.1) on an MP3: the header estimates 47.09 s, decoding ends at 47.00 and
+    the final silence ends there. Read against the header, the 12 s tail was 0 (CI, 2026-10-13)."""
+    log = """
+  Duration: 00:00:47.09, start: 0.000000, bitrate: 32 kb/s
+[Parsed_silencedetect_0 @ 0x1] silence_start: 0
+[Parsed_silencedetect_0 @ 0x1] silence_end: 14.983937 | silence_duration: 14.983937
+[Parsed_silencedetect_0 @ 0x1] silence_start: 35.01775
+size=N/A time=00:00:30.00 bitrate=N/A speed= 600x
+[Parsed_silencedetect_0 @ 0x1] silence_end: 47 | silence_duration: 11.98225
+[out#0/null @ 0x2] video:0KiB audio:0KiB
+size=N/A time=00:00:47.00 bitrate=N/A speed= 610x
+"""
+    edges = ds.silent_edges_from_log(log)
+    assert edges is not None
+    assert edges.duration_s == pytest.approx(47.0)
+    assert edges.tail_s == pytest.approx(11.98, abs=0.01)

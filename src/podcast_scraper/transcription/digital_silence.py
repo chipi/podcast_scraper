@@ -34,6 +34,7 @@ MARGIN_S = 1.0
 _START = re.compile(r"silence_start:\s*(-?[\d.]+)")
 _END = re.compile(r"silence_end:\s*([\d.]+)")
 _DURATION = re.compile(r"Duration:\s*(\d+):(\d+):([\d.]+)")
+_DECODED = re.compile(r"time=(\d+):(\d+):([\d.]+)")
 
 
 @dataclass(frozen=True)
@@ -51,10 +52,19 @@ def silent_edges_from_log(log: str) -> Optional[SilentEdges]:
     A silence still open at the end of the stream has no ``silence_end`` on some ffmpeg versions
     and one at the stream's duration on others; both count as reaching the end.
     """
+    # The stream ends where decoding ended (the last progress ``time=``), not at the header's
+    # estimate: on an MP3, ffmpeg 6.1 and 7.1 estimate 47.09 s for a file that decodes to 47.00 and
+    # report its final silence ending at 47, so against the header the tail read as none (CI,
+    # 2026-10-13). The header is the fallback when no progress line was printed.
+    decoded = _DECODED.findall(log)
     m = _DURATION.search(log)
-    if not m:
+    if decoded:
+        h, mi, se = decoded[-1]
+        duration = int(h) * 3600 + int(mi) * 60 + float(se)
+    elif m:
+        duration = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+    else:
         return None
-    duration = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
     spans: List[Tuple[float, float]] = []
     pending: Optional[float] = None
     for line in log.splitlines():
@@ -84,7 +94,6 @@ def silent_edges(audio_path: str) -> Optional[SilentEdges]:
         [
             "ffmpeg",
             "-hide_banner",
-            "-nostats",
             "-i",
             audio_path,
             "-af",
