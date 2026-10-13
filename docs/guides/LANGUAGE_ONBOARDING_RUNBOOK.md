@@ -49,16 +49,16 @@ measured:
 | naming | `speaker_detectors/naming_vocabulary.py` (`X_BY_LANGUAGE`), `speaker_detectors/hosts.py`, `speaker_detectors/constants.py` (step 2 below is the method) |
 | after prod | `gi/filters.py`, `search/query_language.py` (shape insights and search, not the transcript) |
 
-**ASR lists, checked 2026-10-11** on the 24 reference episodes (en, es, pt, fr, de). Italian got
-its reference set the same day (below) and is checked on the next run:
+**ASR lists, checked 2026-10-11** on the 24 reference episodes (en, es, pt, fr, de), and for
+Italian on 2026-10-13 on its 6 episodes of the 2026-10-12 re-run (the Italian part of each row):
 
 | list | covered | sourced and measured | change |
 | --- | --- | --- | --- |
-| `INVENTED_LINES` | en es pt fr de it | entries seen on our runs or standard subtitle credits; 0 hits in 303 gap decodes | none |
-| `_FILLERS` | hesitations for en de fr pt; es and pt discourse words ("né", "o sea", "pues") left out on purpose | Whisper writes no hesitations in any of the 24; adding the es/pt discourse words to the silent-gap floor changed nothing (-100 errors either way) | none |
-| punctuation prompts | en es pt fr de it | window repairs ran on es and pt; the whole-transcript retry had only the English prompt, so RFI 10-09 (French, 2.0 sentence ends per 1,000 words) was never retried | the retry now uses the language's prompt; on the 2026-10-12 re-run it fired on 2 of 30 (RFI 10-09: 2.0 -> 70.0, +16 adjusted errors from two names) |
+| `INVENTED_LINES` | en es pt fr de it | entries seen on our runs or standard subtitle credits; 0 hits in 303 gap decodes | none; it: 0 hits and 0 lines removed in the 6 Italian episodes; "Grazie a tutti." is not added (the chair says it to close a sitting; the invented copies sat in digital silence, now cut) |
+| `_FILLERS` | hesitations for en de fr pt; es and pt discourse words ("né", "o sea", "pues") left out on purpose | Whisper writes no hesitations in any of the 24; adding the es/pt discourse words to the silent-gap floor changed nothing (-100 errors either way) | none; it: Whisper wrote "eh" 3 and "ah" 4 (both listed), "ehm" 0; discourse words ("cioè" 24, "allora" 29, "appunto" 13) are words and left out, as for es and pt; no Italian silent-gap recovery was fillers only |
+| punctuation prompts | en es pt fr de it | window repairs ran on es and pt; the whole-transcript retry had only the English prompt, so RFI 10-09 (French, 2.0 sentence ends per 1,000 words) was never retried | the retry now uses the language's prompt; on the 2026-10-12 re-run it fired on 2 of 30 (RFI 10-09: 2.0 -> 70.0, +16 adjusted errors from two names); it: the retry fired on Ci vediamo in Piazza (0.0 -> 73.9) |
 | ad-signature function words | en de es pt fr it nl | unique-per-language rule measured on prod 2026-10-02 | none |
-| `SPOKEN_FORMS` (eval repo) | pt de en | each entry seen as a substitution in the 24 | added de "hab'/habe", "sag/sage", en "ok/okay"; removed never-seen es "pa", en "gonna"/"wanna", pt "tavam"/"cê"/"cês" |
+| `SPOKEN_FORMS` (eval repo) | pt de en it | each entry seen as a substitution in the 24 | added de "hab'/habe", "sag/sage", en "ok/okay"; removed never-seen es "pa", en "gonna"/"wanna", pt "tavam"/"cê"/"cês"; it: euphonic d both ways (a/ad 10+4, e/ed 6), con il/col 6, apocope maggiore/maggior 3 and avere/aver 2, "è" typed "e'" 2: Camera's main-voice adjusted 0.0896 / 0.0808 / 0.0919 -> 0.0883 / 0.0789 / 0.0911, ON-Air unchanged |
 | bracketed-note rule (eval repo) | all | notes in every reference set | added |
 
 ## Where each decision is recorded
@@ -373,7 +373,7 @@ against the earlier runs re-scored with the same scorer.
 | Senado | pt, 1.02 | news | 0.0534 / 0.0230 / 0.0318 | 0.0318 | 0.0343 | pass |
 | Rádio Novelo | pt, 1.02 | narrative | 0.0357 / 0.0289 / 0.0575 | 0.0357 | 0.0362 | pass by 0.0005: on the bar |
 | El Hilo | es, 1.0 | narrative | 0.0588 / 0.0157 / 0.0373 | 0.0373 | 0.0354 | over by 0.0019 |
-| Camera, Question Time | it, 1.0 | news | 0.0896 / 0.0808 / 0.0919 | 0.0896 | 0.0335 | over |
+| Camera, Question Time | it, 1.0 | news | 0.0896 / 0.0808 / 0.0919 | 0.0896 | 0.0335 | over (0.0883 with the Italian spoken forms added 2026-10-13; still over) |
 
 Against the earlier runs, main voices: 21 of 24 episodes equal or better (Radio Ambulante 07-21
 0.0339 -> 0.0271 and SWR 0.0371 -> 0.0287 from stretched-word recovery). Worse: RFI 10-09
