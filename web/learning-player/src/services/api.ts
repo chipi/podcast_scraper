@@ -669,7 +669,8 @@ export function searchCorpus(
   q: string,
   topK = 12,
   scope?: "all" | "mine",
-  enrichResults?: boolean
+  enrichResults?: boolean,
+  page?: { perCategory?: number; category?: string; offset?: number }
 ): Promise<SearchResponse> {
   // scope='mine' = grounded recall over the signed-in user's heard∪captured corpus (P3 #1120).
   // enrichResults=true asks the server to decorate hits with
@@ -680,6 +681,11 @@ export function searchCorpus(
     top_k: topK,
     scope,
     enrich_results: enrichResults ? "true" : undefined,
+    // Category mode (operator 2026-10-13): each kind of result capped on its own, so one kind
+    // (a topic row per episode) cannot fill the page; `category` + `offset` is its "Show more".
+    per_category: page?.perCategory,
+    category: page?.category,
+    offset: page?.offset,
   })
 }
 

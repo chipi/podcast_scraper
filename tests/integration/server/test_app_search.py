@@ -517,3 +517,115 @@ def test_app_search_enrich_results_missing_topic_similarity_passes_through(
     )
     assert body["error"] is None
     assert "query_enrichments" not in body["results"][0]["metadata"]
+
+
+# --- category mode (operator 2026-10-13) ------------------------------------------------------
+
+
+def _rows_by_type() -> dict[str, list[dict[str, Any]]]:
+    """A corpus where topic rows outrank everything, as "risk" did on the fixture: 12 topic rows,
+    then 5 insights, 4 transcript passages, a person and an organisation."""
+    rows: dict[str, list[dict[str, Any]]] = {
+        "kg_topic": [
+            {"doc_id": f"kg_topic:{i}", "score": 0.99, "metadata": {"doc_type": "kg_topic"}}
+            for i in range(12)
+        ],
+        "insight": [
+            {"doc_id": f"insight:{i}", "score": 0.8 - i / 100, "metadata": {"doc_type": "insight"}}
+            for i in range(5)
+        ],
+        "transcript": [
+            {"doc_id": f"tx:{i}", "score": 0.7, "metadata": {"doc_type": "transcript"}}
+            for i in range(4)
+        ],
+        "kg_entity": [
+            {
+                "doc_id": "kg_entity:p",
+                "score": 0.6,
+                "metadata": {"doc_type": "kg_entity", "source_id": "person:ann"},
+            },
+            {
+                "doc_id": "kg_entity:o",
+                "score": 0.5,
+                "metadata": {"doc_type": "kg_entity", "source_id": "org:acme"},
+            },
+        ],
+    }
+    for group in rows.values():
+        for r in group:
+            r["text"] = r["doc_id"]
+    return rows
+
+
+def _fake_typed_search(calls: list[dict[str, Any]]):
+    rows = _rows_by_type()
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        calls.append(kwargs)
+        types = kwargs.get("doc_types") or list(rows)
+        hits = [r for t in types for r in rows.get(t, [])]
+        hits.sort(key=lambda r: -r["score"])
+        return CorpusSearchOutcome(results=[dict(r) for r in hits[: kwargs["top_k"]]])
+
+    return fake_run
+
+
+def test_plain_mode_lets_one_kind_fill_the_page(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bug, reproduced: twelve topic rows and nothing else (the player drops topic rows from
+    the episodes, so it showed none)."""
+    calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search", _fake_typed_search(calls)
+    )
+    body = _client(tmp_path).get("/api/app/search", params={"q": "risk", "top_k": 12}).json()
+    assert {r["metadata"]["doc_type"] for r in body["results"]} == {"kg_topic"}
+    assert body["categories"] is None
+
+
+def test_category_mode_caps_each_kind_and_never_asks_for_topics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search", _fake_typed_search(calls)
+    )
+    body = _client(tmp_path).get("/api/app/search", params={"q": "risk", "per_category": 3}).json()
+    ids = [r["doc_id"] for r in body["results"]]
+    assert ids == ["insight:0", "insight:1", "insight:2", "tx:0", "tx:1", "tx:2", "kg_entity:o"]
+    assert [r["metadata"]["search_category"] for r in body["results"]][:4] == [
+        "insights",
+        "insights",
+        "insights",
+        "transcript",
+    ]
+    assert body["categories"] == [
+        {"id": "insights", "returned": 3, "has_more": True},
+        {"id": "transcript", "returned": 3, "has_more": True},
+        {"id": "episodes", "returned": 0, "has_more": False},
+        {"id": "mentions", "returned": 1, "has_more": False},
+        {"id": "storylines", "returned": 0, "has_more": False},
+    ]
+    asked = {t for c in calls for t in c.get("doc_types") or []}
+    assert "kg_topic" not in asked
+    assert all(c.get("doc_types") for c in calls), "every search names its kinds"
+
+
+def test_show_more_is_one_category_from_an_offset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search", _fake_typed_search(calls)
+    )
+    client = _client(tmp_path)
+    body = client.get(
+        "/api/app/search",
+        params={"q": "risk", "per_category": 3, "category": "insights", "offset": 3},
+    ).json()
+    assert [r["doc_id"] for r in body["results"]] == ["insight:3", "insight:4"]
+    assert body["categories"] == [{"id": "insights", "returned": 2, "has_more": False}]
+    assert len(calls) == 1
+    bad = client.get("/api/app/search", params={"q": "risk", "category": "topics"})
+    assert bad.status_code == 422

@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key
 from podcast_scraper.search.query_log import append_query_event
+from podcast_scraper.search.router import classify_query
 from podcast_scraper.search.storylines import STORYLINE_DOC_TYPE
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
@@ -32,7 +33,7 @@ from podcast_scraper.server.corpus_catalog import (
 )
 from podcast_scraper.server.query_enricher_helper import apply_query_enrichers
 from podcast_scraper.server.routes.app_auth import get_current_user
-from podcast_scraper.server.schemas import CorpusSearchApiResponse
+from podcast_scraper.server.schemas import CorpusSearchApiResponse, SearchCategoryModel
 
 router = APIRouter(tags=["app"])
 
@@ -121,13 +122,7 @@ def _world_search(
     world when any episode it draws on does — ``_in_listening_scope``, applied by the caller).
     Merged by score.
     """
-    ids = sorted(
-        {
-            row.episode_id
-            for row in cached_catalog(root)
-            if row.episode_id and slug_for_row(row) in mine
-        }
-    )
+    ids = _world_episode_ids(root, mine)
     episodes = structured_corpus_search(
         root, q, top_k=top_k, grounded_only=grounded_only, episode_ids=ids
     )
@@ -142,6 +137,104 @@ def _world_search(
     merged = [*(episodes.get("results") or []), *story_rows]
     merged.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
     return {**episodes, "results": merged}
+
+
+#: The player's search in category mode (operator 2026-10-13): each kind of result is its own
+#: capped search, so no kind crowds out the others. A topic row exists per episode per topic, and
+#: a common word ("risk") filled all twelve slots with topic rows, which the player lists by NAME
+#: above the results and drops from them, so the search showed no episode at all. Topic and person
+#: rows are not asked for here: the subjects at the top come from the name search.
+SEARCH_CATEGORIES: dict[str, tuple[str, ...]] = {
+    # Not quotes: each insight's quote is the same moment again (on the fixture word for word), so
+    # the section listed every insight twice.
+    "insights": ("insight",),
+    "transcript": ("transcript",),
+    "episodes": ("episode_title", "episode_description", "summary_short", "summary"),
+    "mentions": ("kg_entity",),
+    STORYLINE_DOC_TYPE + "s": (STORYLINE_DOC_TYPE,),
+}
+
+
+def _category_page(
+    root: Path,
+    q: str,
+    category: str,
+    *,
+    offset: int,
+    limit: int,
+    grounded_only: bool,
+    episode_ids: list[str] | None,
+) -> tuple[list[dict[str, Any]], bool, dict[str, Any] | None]:
+    """One category's results ``[offset, offset + limit)``, whether more follow, and the error
+    outcome when the search failed. A storyline has no episode, so it is never episode-scoped
+    (the caller applies ``_in_listening_scope``); a person is listed by name, never here."""
+    doc_types = SEARCH_CATEGORIES[category]
+    storyline = doc_types == (STORYLINE_DOC_TYPE,)
+    want = offset + limit + 1
+    # Mentions drop person rows after the search, so ask for more to fill the page.
+    fetch = min(100, want * 3 if category == "mentions" else want)
+    outcome = structured_corpus_search(
+        root,
+        q,
+        top_k=fetch,
+        grounded_only=grounded_only,
+        doc_types=list(doc_types),
+        episode_ids=None if storyline else episode_ids,
+    )
+    if outcome.get("error"):
+        return [], False, outcome
+    rows = [
+        r
+        for r in outcome.get("results") or []
+        if (r.get("metadata") or {}).get("doc_type") in doc_types
+        and not str((r.get("metadata") or {}).get("source_id") or "").startswith("person:")
+    ]
+    for r in rows:
+        r["metadata"] = {**(r.get("metadata") or {}), "search_category": category}
+    return rows[offset : offset + limit], len(rows) > offset + limit, None
+
+
+def _categories_search(
+    root: Path,
+    q: str,
+    *,
+    categories: list[str],
+    offset: int,
+    limit: int,
+    grounded_only: bool,
+    episode_ids: list[str] | None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Each category's page, concatenated in category order, and what each holds."""
+    results: list[dict[str, Any]] = []
+    summary: list[dict[str, Any]] = []
+    query_type = ""
+    for category in categories:
+        rows, more, error = _category_page(
+            root,
+            q,
+            category,
+            offset=offset,
+            limit=limit,
+            grounded_only=grounded_only,
+            episode_ids=episode_ids,
+        )
+        if error is not None:
+            return error, []
+        results.extend(rows)
+        summary.append({"id": category, "returned": len(rows), "has_more": more})
+    if categories:
+        query_type = classify_query(q)
+    return {"query": q, "results": results, "query_type": query_type}, summary
+
+
+def _world_episode_ids(root: Path, mine: set[str]) -> list[str]:
+    return sorted(
+        {
+            row.episode_id
+            for row in cached_catalog(root)
+            if row.episode_id and slug_for_row(row) in mine
+        }
+    )
 
 
 def _data_dir(request: Request) -> Path | None:
@@ -171,6 +264,21 @@ async def app_search(
             "swallowed — response degrades to the plain top-k page."
         ),
     ),
+    per_category: int | None = Query(
+        default=None,
+        ge=1,
+        le=50,
+        description=(
+            "Category mode (the player): each kind of result (``SEARCH_CATEGORIES``) is its own "
+            "search capped at this many, and ``categories`` says which have more. Unset: the "
+            "plain top-k page."
+        ),
+    ),
+    category: str | None = Query(
+        default=None,
+        description='Category mode: only this category ("Show more"), from ``offset``.',
+    ),
+    offset: int = Query(default=0, ge=0, le=90),
     user: User = Depends(get_current_user),
 ) -> CorpusSearchApiResponse:
     """Grounded library-wide search (extractive grounded passages; no request-time LLM).
@@ -190,11 +298,25 @@ async def app_search(
         if not mine:
             # Nothing in the user's world yet — honest empty, no global fallback.
             return build_search_response(q, {"query": q, "results": []})
+    if category is not None and category not in SEARCH_CATEGORIES:
+        raise HTTPException(status_code=422, detail=f"Unknown search category: {category}")
     # Offload the blocking, CPU-bound search (query embedding + LanceDB) off the event loop so it
     # doesn't freeze concurrent requests — the first call also lazy-loads MiniLM (~seconds). Safe
     # under concurrency: index_pool serves a warm, shared LanceDB backend (the pool is what removed
     # the #1205 concurrent-cold-init SIGSEGV).
-    if mine is not None:
+    summary: list[dict[str, Any]] | None = None
+    if per_category is not None or category is not None:
+        outcome, summary = await asyncio.to_thread(
+            _categories_search,
+            root,
+            q,
+            categories=[category] if category else list(SEARCH_CATEGORIES),
+            offset=offset if category else 0,
+            limit=per_category or 3,
+            grounded_only=grounded_only,
+            episode_ids=_world_episode_ids(root, mine) if mine is not None else None,
+        )
+    elif mine is not None:
         outcome = await asyncio.to_thread(
             _world_search, root, q, mine, top_k=top_k, grounded_only=grounded_only
         )
@@ -210,7 +332,17 @@ async def app_search(
     # "Play from" jumped to 0:00. Found by the result's words in its episode's timed transcript.
     await asyncio.to_thread(time_hits_by_episode, root, resp.results, cached_catalog(root))
     if mine is not None:
-        resp.results = [r for r in resp.results if _in_listening_scope(root, r, mine)][:top_k]
+        kept = [r for r in resp.results if _in_listening_scope(root, r, mine)]
+        resp.results = kept if summary is not None else kept[:top_k]
+    if summary is not None and not resp.error:
+        counts: dict[str, int] = {}
+        for r in resp.results:
+            cat = str((r.metadata or {}).get("search_category") or "")
+            counts[cat] = counts.get(cat, 0) + 1
+        resp.categories = [
+            SearchCategoryModel(id=c["id"], returned=counts.get(c["id"], 0), has_more=c["has_more"])
+            for c in summary
+        ]
     # The cluster's episode ids were carried only to answer the scope question. Strip them: a
     # storyline can span dozens of episodes and the client has no use for the raw ids.
     for r in resp.results:

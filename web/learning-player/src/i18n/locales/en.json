@@ -201,6 +201,13 @@
     "showsSummary": "1 show matches | {count} shows match",
     "notesSummary": "1 of your notes mentions this | {count} of your notes mention this",
     "typeEpisodes": "Episodes",
+    "category": {
+      "insights": "Insights",
+      "transcript": "In the conversation",
+      "episodes": "Titles and summaries",
+      "mentions": "Mentions"
+    },
+    "categoryMore": "Show more",
     "noResults": "No matches found.",
     "recallEmpty": "Nothing in your listening on this yet — play or save episodes to build it up.",
     "searchEveryone": "Search every episode instead",

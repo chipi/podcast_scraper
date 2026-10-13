@@ -155,6 +155,17 @@ async function toggleSaveQuery(): Promise<void> {
 // @click discards the returned handler).
 const onSaveClick = gated(toggleSaveQuery)
 const results = ref<SearchHit[]>([])
+/**
+ * Category mode (operator 2026-10-13): each kind of result is its own capped search, three each,
+ * with "Show more" under a kind's last item as on the rails. A topic row exists per episode per
+ * topic, so "risk" filled every slot with topic rows — which are listed by name above and dropped
+ * from the episodes — and the search showed no episode at all.
+ */
+const PER_CATEGORY = 3
+const CATEGORY_ORDER = ["insights", "transcript", "episodes", "mentions"] as const
+/** Whether each category has more than is shown (from the server's `categories`). */
+const categoryMore = ref<Record<string, boolean>>({})
+const categoryLoading = ref<string | null>(null)
 const entity = ref<EntityRef | null>(null)
 const cardTarget = ref<{ kind: "person" | "topic" | "organization"; id: string } | null>(null)
 const searching = ref(false)
@@ -333,6 +344,12 @@ function matchedFieldChips(hits: SearchHit[]) {
   return summarizeMatchedFields(hits)
 }
 
+/** Every hit of a group's episode, across the category sections: "Matched: Title · Transcript"
+ * says why the EPISODE surfaced, not why it is in this one section. */
+function episodeHits(g: EpisodeGroup): SearchHit[] {
+  return g.slug ? passageResults.value.filter((h) => hitSlug(h) === g.slug) : g.hits
+}
+
 // #1261-7: bucket the episode groups by publish year so the results read as
 // "2026 · 4 episodes" / "2025 · 12 episodes" sections — the mobile-friendly
 // reshape of the operator viewer's timeline chart concept. Sections are only
@@ -341,7 +358,6 @@ function matchedFieldChips(hits: SearchHit[]) {
 const yearSections = computed<YearSection<EpisodeGroup>[]>(() =>
   groupEpisodesByYear<EpisodeGroup>(groups.value, (g) => g.date)
 )
-const showYearHeaders = computed(() => yearSections.value.length > 1)
 
 function yearLabel(year: number | "unknown"): string {
   return year === "unknown" ? t("search.yearUnknown") : String(year)
@@ -461,10 +477,13 @@ function openEntityRow(kind: "topic" | "person", id: string): void {
   cardTarget.value = { kind, id }
 }
 
-const groups = computed<EpisodeGroup[]>(() => {
+const groups = computed<EpisodeGroup[]>(() => groupHits(passageResults.value))
+
+/** Hits grouped by episode, in rank order (the first hit of an episode places it). */
+function groupHits(hits: readonly SearchHit[]): EpisodeGroup[] {
   const byKey = new Map<string, EpisodeGroup>()
   const order: string[] = []
-  for (const h of passageResults.value) {
+  for (const h of hits) {
     const slug = hitSlug(h)
     const key = slug ?? `doc:${h.doc_id}`
     let g = byKey.get(key)
@@ -486,7 +505,69 @@ const groups = computed<EpisodeGroup[]>(() => {
   const built = order.map((k) => byKey.get(k)!)
   for (const g of built) g.rows = collapseFoldableHits(g.hits)
   return built
-})
+}
+
+/** The server's `SEARCH_CATEGORIES`, for a hit that does not say its own category. */
+const CATEGORY_OF_DOC_TYPE: Record<string, (typeof CATEGORY_ORDER)[number]> = {
+  insight: "insights",
+  transcript: "transcript",
+  episode_title: "episodes",
+  episode_description: "episodes",
+  summary_short: "episodes",
+  summary: "episodes",
+  kg_entity: "mentions",
+}
+function hitCategory(h: SearchHit): string {
+  const own = md(h).search_category
+  if (typeof own === "string" && own) return own
+  return CATEGORY_OF_DOC_TYPE[String(md(h).doc_type ?? "")] ?? "episodes"
+}
+
+/** The episode results, one section per category with hits, each grouped by episode. */
+const categorySections = computed(() =>
+  CATEGORY_ORDER.map((id) => {
+    const hits = passageResults.value.filter((h) => hitCategory(h) === id)
+    const years = groupEpisodesByYear<EpisodeGroup>(groupHits(hits), (g) => g.date)
+    return {
+      id,
+      count: hits.length,
+      yearSections: years,
+      showYearHeaders: years.length > 1,
+      more: categoryMore.value[id] === true,
+    }
+  }).filter((c) => c.count > 0)
+)
+
+/** "Show more" under a category: its next page, appended; "Show less" once it is all out. */
+async function showMoreOrLess(id: string): Promise<void> {
+  if (categoryLoading.value) return
+  const mine = results.value.filter((h) => hitCategory(h) === id)
+  if (!categoryMore.value[id]) {
+    // "Show less": back to the first three; what was hidden is there to show again.
+    const keep = new Set(mine.slice(0, PER_CATEGORY))
+    results.value = results.value.filter((h) => hitCategory(h) !== id || keep.has(h))
+    categoryMore.value = { ...categoryMore.value, [id]: true }
+    return
+  }
+  const term = ranTerm.value
+  categoryLoading.value = id
+  try {
+    const resp = await searchCorpus(term, PER_CATEGORY, scope.value, true, {
+      perCategory: PER_CATEGORY,
+      category: id,
+      offset: mine.length,
+    })
+    if (ranTerm.value !== term) return
+    const seen = new Set(results.value.map((h) => h.doc_id))
+    results.value = [...results.value, ...resp.results.filter((h) => !seen.has(h.doc_id))]
+    const cat = (resp.categories ?? []).find((c) => c.id === id)
+    categoryMore.value = { ...categoryMore.value, [id]: cat?.has_more === true }
+  } catch {
+    // The page stays as it was; the control still offers more.
+  } finally {
+    categoryLoading.value = null
+  }
+}
 
 // #1261-3: expand/collapse state per folded-cluster row, keyed by "<slug>|<kind>".
 // A Set of expanded keys — reactive because the ref is a plain Set instance and
@@ -534,6 +615,7 @@ async function run(q: string): Promise<void> {
     inFlightSig = ""
     lastRunTerm = ""
     results.value = []
+    categoryMore.value = {}
     entity.value = null
     nameMatches.value = { person: [], topic: [], theme: [], storyline: [] }
     ran.value = false
@@ -590,9 +672,12 @@ async function run(q: string): Promise<void> {
   try {
     // #1261-1: always ask the server for related-topic decoration; a broken
     // enricher chain degrades to plain hits and the chip row simply disappears.
-    const resp = await searchCorpus(term, 12, recall ? "mine" : "all", true)
+    const resp = await searchCorpus(term, 12, recall ? "mine" : "all", true, {
+      perCategory: PER_CATEGORY,
+    })
     if (!current()) return
     results.value = resp.results
+    categoryMore.value = Object.fromEntries((resp.categories ?? []).map((c) => [c.id, c.has_more]))
     error.value = Boolean(resp.error)
     // #2267 — NO QUERY TEXT, ever. Only the scope and a BUCKETED hit count: "did search answer
     // them" is the question, and `results: '0'` is what makes an empty search visible to the
@@ -1124,9 +1209,16 @@ const showMineEmpty = computed(
       <!-- #1261-7: year sections wrap the episode-group list. When the
            results span a single year, the header is suppressed so the
            results still read as one flat list. -->
-      <template v-for="section in yearSections" :key="section.year">
+      <section
+        v-for="cat in categorySections"
+        :key="cat.id"
+        class="mt-5"
+        :data-testid="`search-category-${cat.id}`"
+      >
+      <h3 class="lp-kicker" data-testid="search-category-title">{{ t(`search.category.${cat.id}`) }}</h3>
+      <template v-for="section in cat.yearSections" :key="section.year">
         <h2
-          v-if="showYearHeaders"
+          v-if="cat.showYearHeaders"
           class="mt-6 mb-2 font-display text-sm font-bold uppercase tracking-wider text-muted"
           data-testid="year-header"
         >
@@ -1154,10 +1246,10 @@ const showMineEmpty = computed(
             <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
                  so the listener knows WHY this episode surfaced without tapping through. Hidden
                  when nothing resolved to an episode-level field. -->
-            <template v-if="matchedFieldChips(g.hits).length" #extra>
+            <template v-if="matchedFieldChips(episodeHits(g)).length" #extra>
               <span class="lp-kicker mt-1 block" data-testid="matched-fields">
                 {{ t("search.matchedPrefix") }}
-                <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
+                <template v-for="(m, mi) in matchedFieldChips(episodeHits(g))" :key="m.label">
                   <template v-if="mi > 0"> · </template>
                   <span class="font-semibold text-canvas-foreground">
                     {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
@@ -1265,6 +1357,18 @@ const showMineEmpty = computed(
           </EpisodeGroupCard>
         </ul>
       </template>
+      <!-- Under the category's last item, as on the rails: its next three, then "Show less". -->
+      <ShowAllToggle
+        v-if="cat.more || cat.count > PER_CATEGORY"
+        :expanded="cat.count > PER_CATEGORY"
+        :count="cat.count"
+        :remaining="cat.more ? 1 : 0"
+        :more-label="t('search.categoryMore')"
+        :disabled="categoryLoading === cat.id"
+        :data-testid="`search-category-more-${cat.id}`"
+        @toggle="showMoreOrLess(cat.id)"
+      />
+      </section>
     </template>
 
     <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is

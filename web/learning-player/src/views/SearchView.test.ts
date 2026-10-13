@@ -748,7 +748,7 @@ describe("SearchView", () => {
     expect(w.find('[data-testid="search-scope"]').exists()).toBe(true)
     // 4th positional arg is enrich_results=true (#1261-2): the listener always asks the
     // server to decorate hits with related_topics so the "Also about:" chip row can render.
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true, { perCategory: 3 })
     expect(w.text()).toContain("Nothing in your listening on this yet")
     // …and offers everyone's — Mine is the default, so this is a new listener's first search.
     expect(w.find('[data-testid="search-show-everyone"]').exists()).toBe(true)
@@ -757,11 +757,11 @@ describe("SearchView", () => {
     // Flipping it here flips the shared choice — Discover follows.
     await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true, { perCategory: 3 })
     expect(lastScopeWrite(setPref)).toBe("corpus")
     await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true, { perCategory: 3 })
     expect(lastScopeWrite(setPref)).toBe("mine")
   })
 
@@ -801,7 +801,7 @@ describe("SearchView", () => {
     await router.isReady()
     mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
     await flushPromises()
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true, { perCategory: 3 })
   })
 
   // #1261-2: enriched related-topic chips above episode groups
@@ -1378,5 +1378,77 @@ describe("SearchView — your boards (#2341)", () => {
     const { w } = await mountAt("gauges")
     expect(boards).not.toHaveBeenCalled()
     expect(w.find('[data-testid="search-board-matches"]').exists()).toBe(false)
+  })
+})
+
+describe("SearchView: results by category, three each (operator 2026-10-13)", () => {
+  function hit(id: string, category: string, docType: string, slug: string) {
+    return {
+      doc_id: id,
+      score: 0.9,
+      text: `${category} passage ${id}.`,
+      source_tier: "segment",
+      metadata: { episode_slug: slug, episode_title: `Title ${slug}`, podcast_title: "Show", doc_type: docType, search_category: category },
+    }
+  }
+
+  it("one section per category, in order, each with its own Show more that fetches its next page", async () => {
+    const { reportServerReachable } = await import("../composables/useOnline")
+    reportServerReachable(true)
+    const spy = vi.spyOn(api, "searchCorpus").mockResolvedValueOnce({
+      query: "risk",
+      error: null,
+      results: [
+        hit("t1", "transcript", "transcript", "a"),
+        hit("i1", "insights", "insight", "a"),
+        hit("i2", "insights", "insight", "b"),
+        hit("i3", "insights", "insight", "c"),
+      ],
+      categories: [
+        { id: "insights", returned: 3, has_more: true },
+        { id: "transcript", returned: 1, has_more: false },
+        { id: "episodes", returned: 0, has_more: false },
+      ],
+    } as never)
+    const { w } = await mountAt("risk")
+    expect(spy).toHaveBeenLastCalledWith("risk", 12, "all", true, { perCategory: 3 })
+    const sections = w.findAll('section[data-testid^="search-category-"]')
+    expect(sections.map((s) => s.attributes("data-testid"))).toEqual([
+      "search-category-insights",
+      "search-category-transcript",
+    ])
+    // Only the kind with more offers it; a kind with nothing is not shown at all.
+    expect(w.find('[data-testid="search-category-more-insights"]').text()).toBe("Show more")
+    expect(w.find('[data-testid="search-category-more-transcript"]').exists()).toBe(false)
+    expect(w.find('[data-testid="search-category-episodes"]').exists()).toBe(false)
+
+    spy.mockResolvedValueOnce({
+      query: "risk",
+      error: null,
+      results: [hit("i4", "insights", "insight", "d")],
+      categories: [{ id: "insights", returned: 1, has_more: false }],
+    } as never)
+    await w.get('[data-testid="search-category-more-insights"]').trigger("click")
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith("risk", 3, "all", true, { perCategory: 3, category: "insights", offset: 3 })
+    const insights = w.get('[data-testid="search-category-insights"]')
+    expect(insights.text()).toContain("insights passage i4.")
+    // All out: the control now folds the kind back to three.
+    const toggle = w.get('[data-testid="search-category-more-insights"]')
+    expect(toggle.text()).toBe("Show less")
+    await toggle.trigger("click")
+    await flushPromises()
+    expect(w.get('[data-testid="search-category-insights"]').text()).not.toContain("insights passage i4.")
+    expect(w.get('[data-testid="search-category-more-insights"]').text()).toBe("Show more")
+  })
+
+  it("a hit that does not name its category is placed by its kind", async () => {
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "x",
+      error: null,
+      results: [{ ...hit("t9", "", "transcript", "a"), metadata: { episode_slug: "a", episode_title: "Title a", doc_type: "transcript" } }],
+    } as never)
+    const { w } = await mountAt("x")
+    expect(w.get('[data-testid="search-category-transcript"]').text()).toContain("Transcript")
   })
 })

@@ -1298,10 +1298,19 @@ export interface SearchHit {
   lifted?: Record<string, unknown> | null
 }
 
+/** One kind of search result in category mode, and whether it has more (2026-10-13). */
+export interface SearchCategory {
+  id: string
+  returned: number
+  has_more: boolean
+}
+
 export interface SearchResponse {
   query: string
   results: SearchHit[]
   error: string | null
+  /** Category mode only (`perCategory` / `category`): each kind's page, in display order. */
+  categories?: SearchCategory[] | null
 }
 
 /** One day bucket of a listening sparkline (UXS-014). */

@@ -3550,6 +3550,14 @@ class SearchConsensusPairModel(BaseModel):
     )
 
 
+class SearchCategoryModel(BaseModel):
+    """One kind of result in the player's search (insights, transcript, …) and its paging."""
+
+    id: str
+    returned: int
+    has_more: bool
+
+
 class CorpusSearchApiResponse(BaseModel):
     """Response for GET /api/search."""
 
@@ -3592,6 +3600,13 @@ class CorpusSearchApiResponse(BaseModel):
             "from ``enrichments/topic_consensus.json`` filtered to topics in the current "
             "hit page (or the top-referenced topic set when no ``kg_topic`` hits are "
             "present). Never null unless the enricher output is missing / unreadable."
+        ),
+    )
+    categories: list[SearchCategoryModel] | None = Field(
+        default=None,
+        description=(
+            "Populated only by the player's search in category mode (``per_category``): each "
+            "category the page holds, in display order, and whether it has more."
         ),
     )
 
