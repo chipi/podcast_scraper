@@ -24,7 +24,7 @@ on:
         default: episode_ids_worklist
       episode_ids:
         description: >-
-          Episode ids to repair, one per line (or comma-separated), used INSTEAD of
+          Episode ids to repair, one per line or space-separated (NEVER comma-separated: tag-URI guids contain commas), used INSTEAD of
           episode_ids_file when non-empty. This exists because the work-list on the box is
           whatever the last audit wrote — all 32 ids — and there was no way to say "just this
           one" without ssh. A first repair after an incident should be ONE episode, and being
@@ -319,8 +319,8 @@ jobs:
           IDS_FILE="${EPISODE_IDS_FILE}"
           if [ -n "${EPISODE_IDS_INLINE//[[:space:]]/}" ]; then
             IDS_FILE="/app/output/.repair-adhoc-${GITHUB_RUN_ID}.txt"
-            printf '%s' "${EPISODE_IDS_INLINE}" | tr ',' '\n' \
-              | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' > "${RUNNER_TEMP}/adhoc-ids.txt"
+            printf '%s' "${EPISODE_IDS_INLINE}" | bash scripts/ops/split_episode_ids.sh \
+              > "${RUNNER_TEMP}/adhoc-ids.txt" || true
             COUNT=$(wc -l < "${RUNNER_TEMP}/adhoc-ids.txt" | tr -d ' ')
             if [ "${COUNT}" -eq 0 ]; then
               echo "::error::episode_ids was set but contained no usable ids"
