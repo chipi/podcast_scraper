@@ -186,3 +186,65 @@ def test_get_entity_resolver_caches_registry():
     clear_entity_resolver_cache()
     r3 = get_entity_resolver(corpus, embedder=FakeEmbedder())
     assert r3.registry is not r1.registry
+
+
+def _corpus_copy(tmp_path):
+    import shutil
+
+    src = Path("tests/fixtures/gil_kg_ci_enforce")
+    dst = tmp_path / "corpus"
+    shutil.copytree(src, dst)
+    return dst
+
+
+def _bump_corpus(corpus: Path, when: float) -> None:
+    import os
+
+    stamp = corpus / "corpus_run_summary.json"
+    stamp.write_text("{}", encoding="utf-8")
+    os.utime(stamp, (when, when))
+
+
+def test_a_changed_corpus_refreshes_the_registry_in_the_background(tmp_path):
+    """Prod 2026-10-13: the registry was built once per process and never refreshed."""
+    import podcast_scraper.identity.resolver as res
+
+    corpus = _corpus_copy(tmp_path)
+    _bump_corpus(corpus, 1_000_000.0)
+    clear_entity_resolver_cache()
+    r1 = get_entity_resolver(corpus, embedder=FakeEmbedder())
+
+    _bump_corpus(corpus, 2_000_000.0)  # an ingest / migration rewrote the corpus
+    r2 = get_entity_resolver(corpus, embedder=FakeEmbedder())
+    assert r2.registry is r1.registry  # the stale one answers at once, no in-request rebuild
+    assert res._last_refresh is not None
+    res._last_refresh.join(timeout=30)
+
+    r3 = get_entity_resolver(corpus, embedder=FakeEmbedder())
+    assert r3.registry is not r1.registry  # the background rebuild replaced it
+    r4 = get_entity_resolver(corpus, embedder=FakeEmbedder())
+    assert r4.registry is r3.registry  # and it is fresh now: no further rebuild
+
+
+def test_an_unchanged_corpus_starts_no_rebuild(tmp_path):
+    import podcast_scraper.identity.resolver as res
+
+    corpus = _corpus_copy(tmp_path)
+    _bump_corpus(corpus, 1_000_000.0)
+    clear_entity_resolver_cache()
+    get_entity_resolver(corpus, embedder=FakeEmbedder())
+    res._last_refresh = None
+    get_entity_resolver(corpus, embedder=FakeEmbedder())
+    assert res._last_refresh is None
+
+
+def test_warm_up_builds_the_registry_before_the_first_lookup(tmp_path, monkeypatch):
+    import podcast_scraper.identity.resolver as res
+
+    corpus = _corpus_copy(tmp_path)
+    clear_entity_resolver_cache()
+    res.warm_entity_resolver(corpus, embedder=FakeEmbedder()).join(timeout=30)
+    monkeypatch.setattr(
+        res, "build_entity_registry", lambda *a, **k: pytest.fail("rebuilt on first lookup")
+    )
+    assert get_entity_resolver(corpus, embedder=FakeEmbedder()).registry.records

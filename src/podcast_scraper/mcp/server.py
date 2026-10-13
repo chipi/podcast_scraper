@@ -764,6 +764,11 @@ def run_server(
         init_sentry("mcp")
     except Exception:  # noqa: BLE001 - never block serving on error reporting
         logger.debug("mcp sentry init skipped", exc_info=True)
+    # The entity registry's cold build is 2-3 minutes on prod; run it now, not inside the first
+    # `resolve_entity` call (which timed out, and queued every other lookup behind it).
+    from ..identity.resolver import warm_entity_resolver
+
+    warm_entity_resolver(corpus_dir)
 
     uvicorn.run(_instrument_asgi(_with_metrics(build_http_app(corpus_dir))), host=host, port=port)
 

@@ -326,9 +326,74 @@ class EntityResolver:
 
 # Process-level registry cache (mirrors search/corpus_graph + embedding_loader):
 # building a registry scans the whole corpus and embeds every display name, so it
-# must not be rebuilt per query. Keyed by resolved corpus path + threshold + model.
-_entity_registries: Dict[Tuple[str, float, str], EntityRegistry] = {}
+# must not be rebuilt per query. Keyed by resolved corpus path + threshold + model, and stamped
+# with the corpus token it was built from (``perf_cache.corpus_mtime``).
+#
+# Prod 2026-10-13: the cache had no token, so the MCP answered from the registry it built on its
+# FIRST lookup until the process restarted — new storylines and people never resolved after an
+# ingest. That first build took 2-3 minutes inside the request; every lookup queued behind it
+# timed out. Now a stale registry keeps answering while ONE background rebuild runs, and
+# ``warm_entity_resolver`` lets a server start the cold build before anyone asks.
+_entity_registries: Dict[Tuple[str, float, str], Tuple[float, EntityRegistry]] = {}
 _entity_registries_lock = threading.Lock()
+_entity_build_lock = threading.Lock()
+_refreshing: set = set()
+_last_refresh: Optional[threading.Thread] = None
+
+
+def _registry_key(
+    corpus_dir: Path | str, fuzzy_threshold: float, model_id: str
+) -> Tuple[str, float, str]:
+    return (str(Path(corpus_dir).resolve()), float(fuzzy_threshold), str(model_id))
+
+
+def _build_and_store(
+    key: Tuple[str, float, str],
+    corpus_dir: Path | str,
+    embedder: Any,
+    model_id: str,
+    fuzzy_threshold: float,
+) -> EntityRegistry:
+    from ..perf_cache import corpus_mtime
+
+    # Token read BEFORE the scan: a write landing mid-build leaves the stored token older than the
+    # corpus, so the next lookup refreshes again instead of keeping a registry that missed it.
+    token = corpus_mtime(corpus_dir)
+    registry = build_entity_registry(
+        corpus_dir, embedder=embedder, model_id=model_id, fuzzy_threshold=fuzzy_threshold
+    )
+    with _entity_registries_lock:
+        _entity_registries[key] = (token, registry)
+    return registry
+
+
+def _refresh_in_background(
+    key: Tuple[str, float, str],
+    corpus_dir: Path | str,
+    embedder: Any,
+    model_id: str,
+    fuzzy_threshold: float,
+) -> None:
+    global _last_refresh
+
+    with _entity_registries_lock:
+        if key in _refreshing:
+            return
+        _refreshing.add(key)
+
+    def run() -> None:
+        try:
+            with _entity_build_lock:
+                _build_and_store(key, corpus_dir, embedder, model_id, fuzzy_threshold)
+        except Exception as exc:  # noqa: BLE001 — the stale registry keeps serving
+            logger.warning("entity registry refresh failed: %s", exc)
+        finally:
+            with _entity_registries_lock:
+                _refreshing.discard(key)
+
+    thread = threading.Thread(target=run, name="entity-registry-refresh", daemon=True)
+    _last_refresh = thread
+    thread.start()
 
 
 def get_entity_resolver(
@@ -338,17 +403,52 @@ def get_entity_resolver(
     model_id: str = DEFAULT_EMBED_MODEL_ID,
     fuzzy_threshold: float = DEFAULT_FUZZY_THRESHOLD,
 ) -> EntityResolver:
-    """Return an ``EntityResolver`` backed by a process-cached corpus registry."""
-    key = (str(Path(corpus_dir).resolve()), float(fuzzy_threshold), str(model_id))
+    """Return an ``EntityResolver`` backed by a process-cached corpus registry.
+
+    Fresh → served. Stale (the corpus changed since the build) → the old registry is served and
+    one background rebuild starts. None yet → built now; concurrent callers wait for that one
+    build instead of starting their own.
+    """
+    from ..perf_cache import corpus_mtime
+
+    key = _registry_key(corpus_dir, fuzzy_threshold, model_id)
+    token = corpus_mtime(corpus_dir)
     with _entity_registries_lock:
-        if key not in _entity_registries:
-            _entity_registries[key] = build_entity_registry(
-                corpus_dir,
-                embedder=embedder,
-                model_id=model_id,
-                fuzzy_threshold=fuzzy_threshold,
+        hit = _entity_registries.get(key)
+    if hit is not None:
+        if hit[0] != token:
+            _refresh_in_background(key, corpus_dir, embedder, model_id, fuzzy_threshold)
+        return EntityResolver(hit[1])
+    with _entity_build_lock:
+        with _entity_registries_lock:
+            hit = _entity_registries.get(key)
+        if hit is not None:
+            return EntityResolver(hit[1])
+        return EntityResolver(
+            _build_and_store(key, corpus_dir, embedder, model_id, fuzzy_threshold)
+        )
+
+
+def warm_entity_resolver(
+    corpus_dir: Path | str,
+    *,
+    embedder: Any = None,
+    model_id: str = DEFAULT_EMBED_MODEL_ID,
+    fuzzy_threshold: float = DEFAULT_FUZZY_THRESHOLD,
+) -> threading.Thread:
+    """Start the cold registry build in a background thread (server startup)."""
+
+    def run() -> None:
+        try:
+            get_entity_resolver(
+                corpus_dir, embedder=embedder, model_id=model_id, fuzzy_threshold=fuzzy_threshold
             )
-        return EntityResolver(_entity_registries[key])
+        except Exception as exc:  # noqa: BLE001 — the first lookup builds it instead
+            logger.warning("entity registry warm-up failed: %s", exc)
+
+    thread = threading.Thread(target=run, name="entity-registry-warm", daemon=True)
+    thread.start()
+    return thread
 
 
 def clear_entity_resolver_cache() -> None:
