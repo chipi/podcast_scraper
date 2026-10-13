@@ -5,7 +5,7 @@ Branch `feat/2344-2345-refs-and-storyline-summaries`, from main e6cc51be2. One P
 ## Decisions (operator, 2026-10-13)
 
 | # | Decision |
-|---|---|
+| --- | --- |
 | 1 | Theme (`tc:`) and storyline (`thc:`) ids are kept across re-clustering: a new cluster inherits a previous id when the member Jaccard is at least 0.5, one-to-one. Each artifact publishes `id_history`: successors (renamed or absorbed → the cluster that took its members) and gone ids. |
 | 2 | The repair runs in the board-summarizer sidecar's loop, before the summaries, with no LLM call. |
 | 3 | Re-keyed or flagged: interests (follows), "Less like this", favorites, collection/board items, notes, learning paths and their history, short-listen progress, highlight graph refs. Episode references are flagged only. Append-only analytics logs are left alone. |
@@ -29,3 +29,21 @@ Branch `feat/2344-2345-refs-and-storyline-summaries`, from main e6cc51be2. One P
 3. The player shows flagged references muted with a remove action.
 4. Storyline summaries in the sidecar (prompts under `prompts/shared/summarization/storyline_*`), stored in the player data dir, served on the storyline page and at the top of its learning path; orphan sweep; one-shot backfill command.
 5. Board-summary fixes (7).
+
+## Status (2026-10-13)
+
+Done on the branch, each with tests: steps 1–5. Commits: stable ids (2512ba7d3), the reference
+pass, sidecar step and backfill command (7020abf0b), the player's "No longer available"
+(67193c205), storyline summaries and the board fixes (0b28f8da5). The post-deploy order is §7 of
+`POST-DEPLOY-BOARDS-AND-DGX-GATEWAY.md`.
+
+Not covered:
+
+- A storyline SAVED as a favorite stores its anchor topic id; if a re-clustering makes another
+  member the anchor, the saved link opens that topic's storyline page by the old anchor, which
+  still resolves only while that topic stays in the same storyline. Not flagged.
+- Person ids are re-keyed only where the #852 entity map merges spellings; m0010's renames that
+  the map does not hold stay flagged rather than repaired.
+- No Playwright spec for `GoneBadge` or `StorylineSummary`: the e2e state has no gone reference and
+  no written summary (surface-map gap rows).
+- Decision 10 (storyline durability) is not filed: issues are opened only on the operator's word.

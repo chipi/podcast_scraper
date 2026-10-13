@@ -106,6 +106,42 @@ Stages two new files in `/dev/shm/player-secrets/`: `podcast_sentry_dsn_pipeline
 
 As usual: run green, `llm_cost` per stage, now also in Langfuse `podcast-prod`; GlitchTip quiet.
 
+### 7. Stable references and storyline summaries (#2345, #2344) — each step needs the operator's go
+
+From `feat/2344-2345-refs-and-storyline-summaries`. The sidecar runs both on its own every 5
+minutes (the reference pass first, no model; then boards; then storylines, capped at 20 a sweep).
+These are the one-time fills, so nothing waits on the cap and the history from before ids were
+kept is used.
+
+1. **After the first nightly on the new code**, both artifacts carry `id_history`:
+   `topic_theme_clusters.json` (`data.id_history`) and `search/topic_clusters.json`. Check both.
+2. **Re-key existing user state**, with the renames from before ids were kept read from the
+   2026-10-10 snapshots' artifacts. Dry run, read the counts, then apply (receipts in
+   `<appdata>/rekey_user_references.jsonl`; `--undo` puts back what the apply wrote):
+
+   ```sh
+   # the two snapshot artifacts into the sidecar (it mounts the corpus read-only)
+   docker cp <snapshot>/enrichments/topic_theme_clusters.json player-board-summarizer-1:/tmp/prior-storylines.json
+   docker cp <snapshot>/search/topic_clusters.json player-board-summarizer-1:/tmp/prior-themes.json
+   docker exec player-board-summarizer-1 python -m podcast_scraper.server.rekey_references \
+     --appdata /app/appdata --corpus /app/output \
+     --prior-storylines /tmp/prior-storylines.json --prior-themes /tmp/prior-themes.json   # dry run
+   ...                                                                                   # then --apply
+   ```
+
+   Expect: renames re-keyed silently, the rest flagged "No longer available" in the player,
+   nothing deleted.
+3. **Fill every storyline's summary** (99 on prod), dry run first:
+
+   ```sh
+   docker exec player-board-summarizer-1 python /app/board_summarizer.py --storylines-backfill
+   docker exec player-board-summarizer-1 python /app/board_summarizer.py --storylines-backfill --apply
+   ```
+
+   Needs the DGX in research mode (the `:8003` slot), like the board summaries; $0 budget holds.
+4. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
+   `GET /api/app/discover/references/gone` answers for the smoke account.
+
 ## Carried over (operator items, not deploy steps; from the 2026-10-12/13 plan)
 
 - **A10 calendar, 2026-10-25:** nightly cron `0 23 * * *` → `0 0 * * *` (DST).
