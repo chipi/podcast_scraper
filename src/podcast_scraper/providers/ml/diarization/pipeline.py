@@ -210,6 +210,52 @@ def _bounds(s: Any) -> Optional[Tuple[float, float]]:
         return None
 
 
+def silent_transcript_gaps(
+    asr_segments: Sequence[Any],
+    attempted: Sequence[Mapping[str, Any]] = (),
+    min_gap_s: float = UNTRANSCRIBED_SPEECH_MIN_S,
+) -> List[Dict[str, Any]]:
+    """Gaps between consecutive transcript segments, minus the stretches already re-transcribed
+    (``attempted``); every piece left of at least ``min_gap_s``.
+
+    ``untranscribed_speech`` sees only gaps under a diarized speaker turn, and the diarizer misses a
+    voice over a music bed: SWR's intro ("Die Kriminellen. Von Beate Kroll."), RFI's ("Le journal
+    en français facile"), El Hilo's date line, all decoded word for word when cut out alone
+    (2026-10-11). Before the first segment and after the last are not gaps.
+
+    Returns ``[{"start", "end", "duration_s", "speaker": None}]`` in time order.
+    """
+    bounds = sorted(b for b in (_bounds(s) for s in asr_segments) if b is not None and b[1] > b[0])
+    tried = [b for b in (_bounds(a) for a in attempted) if b is not None]
+    out: List[Dict[str, Any]] = []
+    reach: Optional[float] = None
+    for start, end in bounds:
+        if reach is not None and start - reach >= min_gap_s:
+            # A retried stretch can cover part of a gap only (SWR 10-07: 70.6-74.2 s retried, the
+            # intro at 74.2-81.2 s not), so it is subtracted, not a reason to skip the gap.
+            for a, b in _subtract((reach, start), tried):
+                if b - a >= min_gap_s:
+                    out.append(
+                        {
+                            "start": round(a, 3),
+                            "end": round(b, 3),
+                            "duration_s": round(b - a, 3),
+                            "speaker": None,
+                        }
+                    )
+        reach = end if reach is None else max(reach, end)
+    return out
+
+
+def _subtract(
+    span: Tuple[float, float], holes: Sequence[Tuple[float, float]]
+) -> List[Tuple[float, float]]:
+    pieces = [span]
+    for h0, h1 in holes:
+        pieces = [p for a, b in pieces for p in ((a, min(b, h0)), (max(a, h1), b)) if p[1] > p[0]]
+    return pieces
+
+
 def _speaker(s: Any) -> Optional[str]:
     value = s.get("speaker") if isinstance(s, dict) else getattr(s, "speaker", None)
     return None if value is None else str(value)
@@ -740,6 +786,7 @@ def apply_diarization_to_result(
     detection_report: Optional[Mapping[str, Any]] = None,
     speaker_renames: Optional[Mapping[str, str]] = None,
     transcribe_clip: Optional[Callable[[str], Mapping[str, Any]]] = None,
+    recover_silent_gaps: bool = False,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
 
@@ -747,7 +794,9 @@ def apply_diarization_to_result(
     given, every stretch of diarized speech the transcript has no words for is re-transcribed and
     spliced in, tagged ``recovered``; ``asr_untranscribed_speech`` then reports what is STILL
     missing. Passed only on the fresh-transcription path, where ``audio_path`` is the audio the
-    transcript was made from.
+    transcript was made from. ``recover_silent_gaps`` also re-transcribes the transcript's gaps
+    the diarizer heard no voice in (``silent_transcript_gaps``), keeping only real speech
+    (``asr_silent_gap_recovery``).
 
     ``speaker_renames`` (operator override, #2283) maps a resolved speaker name to the name to
     publish instead. Applied to the FINAL roster, before the segments and the diagnostics are
@@ -815,7 +864,11 @@ def apply_diarization_to_result(
     # #2187 A2: re-transcribe the speech the diarizer heard and the transcript skipped, BEFORE
     # alignment, so recovered words get their speaker the same way every other segment does.
     if transcribe_clip is not None:
-        from podcast_scraper.transcription.gap_recovery import recover_untranscribed_speech
+        from podcast_scraper.transcription.gap_recovery import (
+            recover_silent_gaps as _recover_silent,
+            recover_stretched_words,
+            recover_untranscribed_speech,
+        )
 
         result = recover_untranscribed_speech(
             result,
@@ -824,6 +877,23 @@ def apply_diarization_to_result(
             transcribe_clip,
         )
         segments = list(result.get("segments") or [])
+        # D16: a word stretched over speech is re-transcribed alone and replaced only by more
+        # speech; ``asr_stretched_words`` below then lists what is still stretched.
+        result = recover_stretched_words(
+            result,
+            stretched_words_over_speech(diarization.segments, segments),
+            audio_path,
+            transcribe_clip,
+        )
+        segments = list(result.get("segments") or [])
+        if recover_silent_gaps:
+            result = _recover_silent(
+                result,
+                silent_transcript_gaps(segments, result.get("asr_speech_recovery") or []),
+                audio_path,
+                transcribe_clip,
+            )
+            segments = list(result.get("segments") or [])
 
     # Resolve every diarized voice once via the unified roster (#876): host = the opening
     # voice (#1169), named by transcript self-intro ("I'm Patrick O'Shaughnessy") → config

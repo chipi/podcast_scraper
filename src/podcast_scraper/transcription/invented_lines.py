@@ -6,7 +6,8 @@ episode opened with nine segments of "Sous-titrage Société Radio-Canada" while
 the guest talking, and the Spanish one ended on "Gracias por ver el video." Neither the loop check
 nor the confidence floor catches them: each is said once per segment, at avg_logprob -0.1 to -0.5.
 
-A segment is dropped only when its WHOLE text is one of these lines. A sentence that merely
+A segment is dropped only when its WHOLE text is one of these lines (give or take one stray token
+of at most two characters at either end). A sentence that merely
 contains such words (a sentence that mentions subtitles or says thanks for watching) is speech
 and stays.
 """
@@ -58,10 +59,30 @@ def _norm(text: str) -> str:
 _INVENTED = frozenset(_norm(line) for line in INVENTED_LINES)
 
 
+#: A stray token this short beside an invented line does not make it speech: Rádio Novelo's
+#: closing music came out twice as "A Sous-titrage Société Radio-Canada" (2026-10-09). One such
+#: token, at either end; anything longer is a sentence around the words, which stays.
+_STRAY_TOKEN_MAX_CHARS = 2
+
+
+def _is_invented_norm(norm: str) -> bool:
+    return norm in _INVENTED or bool(_ZDF_CREDIT.match(norm))
+
+
 def is_invented_line(text: Any) -> bool:
-    """True when ``text`` is, in its entirety, a line Whisper invents."""
+    """True when ``text`` is, in its entirety, a line Whisper invents — allowing one stray token
+    of at most two characters at either end."""
     norm = _norm(str(text or ""))
-    return bool(norm) and (norm in _INVENTED or bool(_ZDF_CREDIT.match(norm)))
+    if not norm:
+        return False
+    if _is_invented_norm(norm):
+        return True
+    toks = norm.split()
+    if len(toks) < 2:
+        return False
+    if len(toks[0]) <= _STRAY_TOKEN_MAX_CHARS and _is_invented_norm(" ".join(toks[1:])):
+        return True
+    return len(toks[-1]) <= _STRAY_TOKEN_MAX_CHARS and _is_invented_norm(" ".join(toks[:-1]))
 
 
 def drop_invented_lines(result: Dict[str, Any]) -> Dict[str, Any]:

@@ -171,3 +171,29 @@ def test_resolve_failure_strategy_derived_from_run_context() -> None:
     serve = types.SimpleNamespace(model_fields_set=set(), resilience_run_context="serve")
     assert resolve_failure_strategy(reprocess) is FailureStrategy.HOLD
     assert resolve_failure_strategy(serve) is FailureStrategy.FAILOVER
+
+
+def test_a_guardrail_violation_is_raised_at_once_and_does_not_trip_the_fuse() -> None:
+    """The endpoint answered; its answer failed a content check. Not an outage.
+
+    Camera seduta 717 (2026-10-12): Whisper returned the same 417 words for 66 minutes of speech
+    on three attempts and three probes; the policy backed off, tripped the breaker, held for 900 s
+    and reported "endpoint did not recover", blocking the episodes queued behind it. ADR-099's
+    contract for a guardrail violation is no retry against the same endpoint.
+    """
+    from podcast_scraper.providers.guardrails import GuardrailViolation
+
+    calls: list[int] = []
+    sleeps: list[float] = []
+
+    def short_transcript() -> str:
+        calls.append(1)
+        raise GuardrailViolation("whisper", "length_floor_violated", "word_count=417")
+
+    breaker = _breaker()
+    policy = ResiliencePolicy(breaker=breaker, retries_before_trip=3, name="test")
+    with pytest.raises(GuardrailViolation):
+        policy.run(short_transcript, timeout_sec=1.0, sleep=sleeps.append)
+    assert calls == [1]
+    assert sleeps == []
+    assert breaker.state == "closed"

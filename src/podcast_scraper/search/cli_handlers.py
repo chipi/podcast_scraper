@@ -1926,6 +1926,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
                 roster_hosts, roster_guests = _speaker_lists_for_graph(
                     _speaker_infos(content.get("speakers")),
                     feed_title=str((doc.get("feed") or {}).get("title") or ""),
+                    language=(doc.get("feed") or {}).get("language") or None,
                 )
                 per_episode_spoken_by = add_spoken_by_edges(
                     artifact,

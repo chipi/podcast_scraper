@@ -113,6 +113,11 @@ INTERVIEW_INDICATOR_PATTERNS_BY_LANGUAGE: Dict[str, List[str]] = {
         # had only the plural form, so four of five languages scored ZERO introduction cues on
         # content that plainly introduces a guest. Added 2026-10-02 from that measurement.
         r"conmigo\s+(?:est(?:á|a)|hoy)\s+",
+        # The coordinated second guest, as English's "(?:and|along) with": "hablamos con A, de X,
+        # y con B" — the leading cue reaches only A. MEASURED on 714 real El Hilo / Radio
+        # Ambulante descriptions (2026-10-09): 34 names newly introduced, 24 that episode's
+        # guests, 10 organisations (refused by the person check), none a merely-mentioned person.
+        r"(?:y|tambi(?:é|e)n)\s+con\s+",
     ],
     "it": [
         r"intervista\s+(?:con|a)\s+",
@@ -392,9 +397,10 @@ def interview_cue_patterns_for(language: Optional[str]) -> Optional[SpeakerCuePa
     )
 
 
-#: The analysis-language rows, resolved once. Under D-44 the canonical body — and the feed
-#: description that reaches this code beside it — is always the analysis language, so these are
-#: what every caller in this package reads, and they are the lists that shipped.
+#: The analysis-language rows, resolved once: what a caller that passes no language reads. The
+#: canonical body is always the analysis language under D-44, but the FEED DESCRIPTION is not —
+#: D-44 translates the transcript, not the feed — so description readers take the feed's language
+#: (`guests._cues`). Assuming otherwise rejected both of El Hilo's guests (2026-10-09).
 INTERVIEW_INDICATOR_PATTERNS = INTERVIEW_INDICATOR_PATTERNS_BY_LANGUAGE[TARGET_LANGUAGE]
 INTERVIEW_TRAILING_PATTERNS = INTERVIEW_TRAILING_PATTERNS_BY_LANGUAGE[TARGET_LANGUAGE]
 INTERVIEW_TRAILING_GAPPED_PATTERNS = INTERVIEW_TRAILING_GAPPED_PATTERNS_BY_LANGUAGE[TARGET_LANGUAGE]

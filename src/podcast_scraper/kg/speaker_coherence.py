@@ -432,6 +432,7 @@ def check_no_show_as_speaker(
     list of words that would need feeding forever.
     """
     feed_title = str((metadata.get("feed") or {}).get("title") or "")
+    feed_language = (metadata.get("feed") or {}).get("language") or None
     if not feed_title:
         return []
     from ..speaker_detectors.hosts import names_the_show
@@ -441,7 +442,7 @@ def check_no_show_as_speaker(
         if _role(node) not in SPEAKER_ROLES:
             continue
         who = _name(node)
-        if names_the_show(who, feed_title):
+        if names_the_show(who, feed_title, feed_language):
             out.append(f"{label}{_role(node)}={who!r} names the show {feed_title!r}")
     return out
 

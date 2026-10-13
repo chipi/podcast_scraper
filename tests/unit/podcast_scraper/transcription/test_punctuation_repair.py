@@ -206,3 +206,76 @@ def test_a_segment_without_times_is_left_alone(no_ffmpeg: List[tuple]) -> None:
     before["segments"].insert(1, {"text": "no times on this one"})
     out = R.repair_unpunctuated_windows(before, WINDOW, "a.mp3", lambda p, pr: _repair(), PROMPT)
     assert {"text": "no times on this one"} in out["segments"]
+
+
+# Up First 10-09 (2026-10-12): the repair of 602-768 s was refused as "repetitive" although its
+# 160 s of text were good. Over the clip's near-silent end Whisper re-emitted lines the credits had
+# already said, and its reported ratio for that last window (2.23 in a replay, over 2.4 in the
+# run) counts text it never put in a segment: the segments' own text measures 1.47.
+
+UPFIRST_TAIL = [
+    # (seek, start, text, reported compression_ratio)
+    (14028, 140.3, "As we finish today, we'll remind you the NPR Network needs you.", 1.48),
+    (14028, 142.0, "I'm Steve Inskeep.", 1.48),
+    (14028, 142.9, "And I'm Michelle Martin.", 1.48),
+    (14028, 160.1, "And our executive producer is Jay Shaler.", 1.48),
+    (14028, 162.3, "We hope you'll join us again on Monday.", 1.48),
+    (16128, 163.9, "I'm Steve Inskeep.", 3.1),
+    (16128, 167.5, "We hope you'll join us again on Monday.", 3.1),
+    (16128, 167.8, "We hope you'll join us again on Monday.", 3.1),
+    (16128, 167.9, "Bye.", 3.1),
+]
+
+
+def _segs(rows: Sequence[tuple]) -> List[Dict[str, Any]]:
+    return [
+        {"seek": k, "start": t, "end": t + 0.5, "text": x, "compression_ratio": c}
+        for k, t, x, c in rows
+    ]
+
+
+def test_lines_an_earlier_window_holds_are_dropped_from_the_last_window() -> None:
+    kept, dropped = R.drop_tail_repeats(_segs(UPFIRST_TAIL))
+    assert dropped == [
+        "I'm Steve Inskeep.",
+        "We hope you'll join us again on Monday.",
+        "We hope you'll join us again on Monday.",
+    ]
+    assert [s["text"] for s in kept][-2:] == ["We hope you'll join us again on Monday.", "Bye."]
+
+
+def test_a_window_whose_kept_text_is_ordinary_is_not_repetitive() -> None:
+    kept, _ = R.drop_tail_repeats(_segs(UPFIRST_TAIL))
+    assert R.repetitive_window(kept) is None
+
+
+def test_a_loop_inside_one_window_is_still_repetitive_and_reported() -> None:
+    """A line looping within one window is not an earlier window's line, so it is not dropped,
+    and its own text measures high."""
+    loop = _segs([(0, 3.4 * i, "Grazie a tutti.", 6.0) for i in range(10)])
+    kept, dropped = R.drop_tail_repeats(loop)
+    assert dropped == [] and len(kept) == 10
+    found = R.repetitive_window(kept)
+    assert found is not None and found["ratio"] > 2.4 and found["reported_ratio"] == 6.0
+    assert found["text"].startswith("Grazie a tutti. Grazie a tutti.")
+
+
+def test_without_seek_the_reported_ratio_decides_as_before() -> None:
+    segs = [{"start": 0.0, "end": 1.0, "text": "Fine.", "compression_ratio": 3.1}]
+    assert R.repetitive_window(segs) is not None
+    assert R.drop_tail_repeats(segs) == (segs, [])
+
+
+def test_the_repair_drops_tail_repeats_and_records_them(no_ffmpeg: List[tuple]) -> None:
+    line = _punctuated(FLAT)
+    tail = [
+        {"seek": 3000, "start": 198.5 + 0.2 * i, "end": 198.6 + 0.2 * i, "text": line,
+         "compression_ratio": 3.1}
+        for i in range(2)
+    ]  # fmt: skip
+    clip = _clip([line] * 20, extra=tail, seek=0, compression_ratio=1.6)
+    out = R.repair_unpunctuated_windows(_result(), WINDOW, "a.mp3", lambda p, pr: clip, PROMPT)
+    [entry] = out["asr_punctuation_repair"]
+    assert entry["status"] == "repaired"
+    assert entry["tail_repeats_dropped"] == [line, line]
+    assert len(out["segments"]) == 21

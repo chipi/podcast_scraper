@@ -2790,6 +2790,11 @@ HOST_PHRASE_TEMPLATES: Dict[str, Tuple[str, ...]] = {
 #: The verb for "these people make the show". English folds singular and plural into one `s?`;
 #: the Romance rows spell BOTH conjugations because the third-person plural is not the singular
 #: plus an s (`presenta`/`presentano`).
+#:
+#: "HELP" IS IN THE ROMANCE ROWS ONLY ("Eliezer Budasoff y Silvia Viñas te ayudan a entender",
+#: El Hilo). Measured over 585 chart feeds' channel descriptions (2026-10-10): es/pt/it/fr gain
+#: one host statement, El Hilo's, and no wrong one; German `hilft`/`helfen` produced two false
+#: hosts ("Lustige Experimente helfen"), because German capitalises the nouns before it.
 PRESENTS: Dict[str, str] = {
     #: The verb a description uses for "these people make the show". English folds singular and
     #: plural into one `s?`; the Romance rows need BOTH conjugations spelled out because the
@@ -2802,17 +2807,17 @@ PRESENTS: Dict[str, str] = {
     "es": (
         r"(?:explora|exploran|explica|explican|discute|discuten|habla|hablan|cubre|cubren"
         r"|presenta|presentan|trae|traen|entrevista|entrevistan|aborda|abordan|conduce"
-        r"|conducen)\b"
+        r"|conducen|ayuda|ayudan)\b"
     ),
     "it": (
         r"(?:esplora|esplorano|spiega|spiegano|discute|discutono|parla|parlano|copre|coprono"
         r"|presenta|presentano|porta|portano|intervista|intervistano|affronta|affrontano"
-        r"|conduce|conducono)\b"
+        r"|conduce|conducono|aiuta|aiutano)\b"
     ),
     "fr": (
         r"(?:explore|explorent|explique|expliquent|discute|discutent|parle|parlent|couvre"
         r"|couvrent|présente|présentent|apporte|apportent|interviewe|interviewent|aborde"
-        r"|abordent|animent|anime)\b"
+        r"|abordent|animent|anime|aide|aident)\b"
     ),
     "de": (
         r"(?:erkund(?:et|en)|erklär(?:t|en)|diskutier(?:t|en)|sprech(?:t|en)|spricht"
@@ -2822,7 +2827,7 @@ PRESENTS: Dict[str, str] = {
     "pt": (
         r"(?:explora|exploram|explica|explicam|discute|discutem|fala|falam|cobre|cobrem"
         r"|apresenta|apresentam|traz|trazem|entrevista|entrevistam|aborda|abordam|conduz"
-        r"|conduzem)\b"
+        r"|conduzem|ajuda|ajudam)\b"
     ),
 }
 
@@ -3368,33 +3373,37 @@ HOST_SELF_INTRO: Dict[str, str] = {
         r"(%(names)s)"
     ),
     "es": (
-        r"\b(?:soy|me llamo|mi nombre es)\s+"
+        r"\b(?i:soy|me llamo|mi nombre es)\s+"
         r"(?:(?:tu|su|el|la)\s+(?:co)?(?:anfitri(?:ó|o)n|anfitriona|presentador(?:a)?)"
         r"(?:\s+de\s+hoy)?,?\s+)?"
         r"(?P<names>%(names)s)"
     ),
     "it": (
-        r"\b(?:sono|mi chiamo|il mio nome (?:è|e'|e))\s+"
+        r"\b(?i:sono|mi chiamo|il mio nome (?:è|e'|e))\s+"
         r"(?:(?:il|la|tuo|tua)\s+(?:co)?(?:conduttor(?:e|ice)|presentator(?:e|ice))"
         r"(?:\s+di\s+oggi)?,?\s+)?"
         r"(?P<names>%(names)s)"
     ),
     "fr": (
-        r"\b(?:je suis|je m'appelle|mon nom est)\s+"
+        r"\b(?i:je suis|je m'appelle|mon nom est)\s+"
         r"(?:(?:votre|ton|le|la)\s+(?:co)?(?:animateur|animatrice|pr(?:é|e)sentateur"
         r"|pr(?:é|e)sentatrice)(?:\s+d'?aujourd'?hui)?,?\s+)?"
         r"(?P<names>%(names)s)"
     ),
     "de": (
-        r"\b(?:ich bin|ich hei(?:ß|ss)e|mein name ist)\s+"
+        r"\b(?i:ich bin|ich hei(?:ß|ss)e|mein name ist)\s+"
         r"(?:(?:dein|ihr|euer|der|die)\s+(?:ko)?(?:gastgeber(?:in)?|moderator(?:in)?)"
         r"(?:\s+von\s+heute)?,?\s+)?"
         r"(?P<names>%(names)s)"
     ),
     "pt": (
-        r"\b(?:sou|eu sou|chamo-me|me chamo|o meu nome (?:é|e)|meu nome (?:é|e))\s+"
+        r"\b(?i:sou|eu sou|chamo-me|me chamo|o meu nome (?:é|e)|meu nome (?:é|e))\s+"
         r"(?:(?:o|a|teu|tua|seu|sua)\s+(?:co)?(?:anfitri(?:ã|a)o|anfitri(?:ã|a)|apresentador(?:a)?)"
         r"(?:\s+de\s+hoje)?,?\s+)?"
+        # The article before a NAME: "Eu sou a Branca Vianna", "eu sou o Eduardo" — ordinary
+        # Portuguese, and how Rádio Novelo's host opens both measured episodes (2026-10-09).
+        # The name capture still needs a capital, so "sou a primeira" stays out.
+        r"(?:(?:o|a)\s+)?"
         r"(?P<names>%(names)s)"
     ),
 }
@@ -3406,23 +3415,23 @@ HOST_SELF_INTRO: Dict[str, str] = {
 HOST_BRANDED_INTRO: Dict[str, str] = {
     "en": r"\b[Ii]t'?s\s+(%(names)s)\s+(?:with|from|for)\s+(%(show)s)",
     "es": (
-        r"\b(?:es|soy|aqu(?:í|i) est(?:á|a))\s+(?P<names>%(names)s)"
+        r"\b(?i:es|soy|aqu(?:í|i) est(?:á|a))\s+(?P<names>%(names)s)"
         r"\s+(?:con|de|desde|para)\s+(?P<show>%(show)s)"
     ),
     "it": (
-        r"\b(?:(?:è|e'|e)|sono|qui (?:c'(?:è|e)))\s+(?P<names>%(names)s)"
+        r"\b(?i:(?:è|e'|e)|sono|qui (?:c'(?:è|e)))\s+(?P<names>%(names)s)"
         r"\s+(?:con|da|di|per)\s+(?P<show>%(show)s)"
     ),
     "fr": (
-        r"\b(?:c'?est|voici)\s+(?P<names>%(names)s)"
+        r"\b(?i:c'?est|voici)\s+(?P<names>%(names)s)"
         r"\s+(?:avec|de|depuis|pour)\s+(?P<show>%(show)s)"
     ),
     "de": (
-        r"\b(?:hier ist|das ist|es ist)\s+(?P<names>%(names)s)"
+        r"\b(?i:hier ist|das ist|es ist)\s+(?P<names>%(names)s)"
         r"\s+(?:mit|von|bei|f(?:ü|u)r)\s+(?P<show>%(show)s)"
     ),
     "pt": (
-        r"\b(?:(?:é|e)|sou|aqui (?:é|e)|aqui est(?:á|a))\s+(?P<names>%(names)s)"
+        r"\b(?i:(?:é|e)|sou|aqui (?:é|e)|aqui est(?:á|a))\s+(?P<names>%(names)s)"
         r"\s+(?:com|de|d[oa]|para)\s+(?P<show>%(show)s)"
     ),
 }
@@ -3432,11 +3441,11 @@ HOST_BRANDED_INTRO: Dict[str, str] = {
 #: X" introduces somebody ELSE, and admitting it paints a guest's name onto the host's voice.
 HOST_WITH_ME_INTRO: Dict[str, str] = {
     "en": r"\b(?:with|and)\s+me,\s+(%(names)s)",
-    "es": r"\b(?:con|y)\s+(?:migo|m(?:í|i)),\s+(?P<names>%(names)s)",
-    "it": r"\b(?:con|e)\s+me,\s+(?P<names>%(names)s)",
-    "fr": r"\b(?:avec|et)\s+moi,\s+(?P<names>%(names)s)",
-    "de": r"\b(?:mit|und)\s+mir,\s+(?P<names>%(names)s)",
-    "pt": r"\b(?:com|e)\s+(?:igo|mim),\s+(?P<names>%(names)s)",
+    "es": r"\b(?i:(?:y\s+)?conmigo),\s+(?P<names>%(names)s)",
+    "it": r"\b(?i:con|e)\s+me,\s+(?P<names>%(names)s)",
+    "fr": r"\b(?i:avec|et)\s+moi,\s+(?P<names>%(names)s)",
+    "de": r"\b(?i:mit|und)\s+mir,\s+(?P<names>%(names)s)",
+    "pt": r"\b(?i:(?:e\s+)?comigo),\s+(?P<names>%(names)s)",
 }
 
 #: The episode's own prose handing off to a named host: "X speaks with", "X is joined by".

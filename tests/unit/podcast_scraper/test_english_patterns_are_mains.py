@@ -60,6 +60,33 @@ _MOVED: Dict[Tuple[str, str], Tuple[str, str, Any]] = {
         "_HOST_SPEECH_ACTS",
         None,
     ),
+    # The roster read hosts' English host-introduction pattern directly; it now takes its row
+    # from the per-language map (2026-10-09), so the English value is that map's "en" row.
+    ("podcast_scraper.providers.ml.diarization.roster", "_GUEST_INTRODUCED_BY_HOST_RE"): (
+        "podcast_scraper.speaker_detectors.hosts",
+        "_GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE",
+        "en",
+    ),
+    # ...and its English speech-act rows the same way (2026-10-09).
+    **{
+        ("podcast_scraper.providers.ml.diarization.roster", name): (
+            "podcast_scraper.speaker_detectors.hosts",
+            f"{name}_BY_LANGUAGE",
+            "en",
+        )
+        for name in ("_HOST_SPEECH_ACTS", "_GUEST_SPEECH_ACTS")
+    },
+    # ...and its name-anchored greeting / name-first introduction patterns (2026-10-10).
+    ("podcast_scraper.providers.ml.diarization.roster", "_GUEST_GREETED_RE"): (
+        "podcast_scraper.speaker_detectors.hosts",
+        "_GUEST_GREETED_BY_LANGUAGE",
+        "en",
+    ),
+    ("podcast_scraper.providers.ml.diarization.roster", "_GUEST_INTRODUCED_NAME_FIRST_RE"): (
+        "podcast_scraper.speaker_detectors.hosts",
+        "_GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE",
+        "en",
+    ),
     # The stated-name possessive became the English row of a per-language map.
     ("podcast_scraper.speaker_detectors.hosts", "_STATED_POSSESSIVE_PREFIX"): (
         "podcast_scraper.speaker_detectors.hosts",

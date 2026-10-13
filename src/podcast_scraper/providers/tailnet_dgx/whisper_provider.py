@@ -515,11 +515,14 @@ class TailnetDgxWhisperTranscriptionProvider:
             reason = "already prompted" if prompted else f"mode={self._punctuation_mode}"
             logger.warning("DGX Whisper transcript is unpunctuated (%s); kept as is", reason)
             return first
-        if not punctuation.prompt_suits_language(language):
+        # The episode language's own prompt: the English one can push Whisper to translate, and
+        # without one a short non-English episode had no repair at all (RFI 10-09, French,
+        # 2.0 sentence ends per 1,000 words; the window repair needs the rest punctuated).
+        prompt = punctuation.window_prompt(language) if language else punctuation.PUNCTUATION_PROMPT
+        if prompt is None:
             outcome["skipped"] = f"language={language}"
             logger.warning(
-                "DGX Whisper transcript is unpunctuated; no retry: the prompt is English and the "
-                "episode language is %s",
+                "DGX Whisper transcript is unpunctuated; no retry: no punctuation prompt for %s",
                 language,
             )
             return first
@@ -532,7 +535,7 @@ class TailnetDgxWhisperTranscriptionProvider:
                     language,
                     timeout_sec,
                     model_override=model_override,
-                    prompt=punctuation.PUNCTUATION_PROMPT,
+                    prompt=prompt,
                 ),
                 timeout_sec + resilience.WATCHDOG_GRACE_SEC,
                 label="dgx-whisper-punctuation",
@@ -548,7 +551,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         second_text = second[0]
         second_ends = punctuation.sentence_ends_per_1000_words(second_text)
         outcome["retry_sentence_ends_per_1000_words"] = round(second_ends, 1)
-        if punctuation.echoes_prompt(second_text):
+        if punctuation.echoes_prompt(second_text, prompt):
             outcome["retry_rejected"] = "echoed the prompt"
         elif punctuation.is_unpunctuated(second_text):
             outcome["retry_rejected"] = "still unpunctuated"

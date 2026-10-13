@@ -415,6 +415,78 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         source_language: str,
         target_language: str = "en",
     ) -> Dict[str, Any]:
+        """Translate one unit; with ``protected_terms``, keep those names out of the model's hands.
+
+        The names the episode's metadata states (``translation.protected_terms``) are swapped for
+        placeholders before the request and put back after. When any placeholder does not come
+        back intact the unit is translated again WITHOUT protection, exactly as it would be with
+        the switch off, and the reason is kept in ``refusals``: protection cannot make a unit
+        worse than today.
+        """
+        terms = list(getattr(unit, "protected_terms", None) or [])
+        if terms:
+            protected = self._translate_protected(
+                unit, terms, source_language=source_language, target_language=target_language
+            )
+            if protected is not None and not protected.get("fell_back"):
+                return protected
+            plain = self._translate_unit(
+                unit, source_language=source_language, target_language=target_language
+            )
+            reason = (protected or {}).get("reason", "names protection failed")
+            meta = plain.setdefault("metadata", {})
+            meta["refusals"] = [reason, *(meta.get("refusals") or [])]
+            return plain
+        return self._translate_unit(
+            unit, source_language=source_language, target_language=target_language
+        )
+
+    def _translate_protected(
+        self, unit: Any, terms: List[str], *, source_language: str, target_language: str
+    ) -> Optional[Dict[str, Any]]:
+        """The unit translated with its names as placeholders, or ``{"fell_back": True, ...}``."""
+        import dataclasses
+
+        from ...translation.protected_terms import protect, restore
+
+        sentences = list(unit.sentences)
+        context = list(getattr(unit, "context", None) or [])
+        sent_lines, mapping = protect([*context, *(s.text for s in sentences)], terms)
+        if not mapping:
+            return None
+        sent_context, sent_sentences = sent_lines[: len(context)], sent_lines[len(context) :]
+        masked = dataclasses.replace(
+            unit,
+            sentences=[dataclasses.replace(s, text=t) for s, t in zip(sentences, sent_sentences)],
+            context=sent_context,
+        )
+        got = self._translate_unit(
+            masked, source_language=source_language, target_language=target_language
+        )
+        out = got.get("sentences") or []
+        if got.get("alignment") == "sentence":
+            back = restore([o["en_text"] for o in out], sent_sentences, mapping)
+        elif got.get("alignment") == "unit" and out:
+            back = restore([out[0]["en_text"]], [" ".join(sent_sentences)], mapping)
+        else:
+            return {"fell_back": True, "reason": "names protection: unit not translated"}
+        if back is None:
+            return {
+                "fell_back": True,
+                "reason": "names protection: a placeholder did not come back intact",
+            }
+        for o, text in zip(out, back):
+            o["en_text"] = text
+        got.setdefault("metadata", {})["protected_terms"] = sorted(set(mapping.values()))
+        return got
+
+    def _translate_unit(
+        self,
+        unit: Any,
+        *,
+        source_language: str,
+        target_language: str = "en",
+    ) -> Dict[str, Any]:
         """Translate one unit and align the result back to its SENTENCES (RFC-124 §5.1).
 
         The unit is the translation CONTEXT; the sentence is the alignment atom. The request
@@ -424,10 +496,10 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         5-sentence units all returned numbered output of matching length. The RFC asserted this
         and it would have been the second assumption today to go untested.
 
-        On a length mismatch: retry once, then fall back to translating the unit as ONE block
-        and mark it ``alignment: "unit"``. The fallback is not a failure — it costs subtitle
-        granularity for that unit, not correctness — but it is recorded so a corpus can be
-        queried for how often it happened.
+        On a length mismatch OR a refused output (``reject_translation_output``): retry once,
+        then fall back to translating the unit as ONE block and mark it ``alignment: "unit"``.
+        The fallback is not a failure — it costs subtitle granularity for that unit, not
+        correctness — but it is recorded so a corpus can be queried for how often it happened.
 
         Returns ``{"sentences": [{sent_id, en_text}], "alignment": ..., "metadata": {...}}``
         with ``sentences`` empty when the unit could not be translated at all.
@@ -451,28 +523,63 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             }
 
         # A single-sentence unit needs no numbering: there is nothing to align.
-        if len(sentences) == 1:
-            got = self.translate(
-                sentences[0].text,
-                source_language=source_language,
-                target_language=target_language,
-            )
-            meta = {**base_meta, **got["metadata"], "attempts": 1}
-            if got["text"] is None:
-                return {"sentences": [], "alignment": "failed", "metadata": meta}
-            rejected = reject_translation_output(sentences[0].text, got["text"])
-            if rejected:
-                logger.warning("translate: REFUSING unit %s — %s", base_meta["unit_id"], rejected)
+        # A REFUSED output is retried once, on both paths. The refusals are not stable: two
+        # refused El Hilo units (2026-10-09) came back clean on two re-sends each, and one refused
+        # unit costs the episode its whole English set (§5.3).
+        # Why each refused attempt was refused, kept in the ledger even when a retry passes.
+        refusals: List[str] = []
+        # Context lines (the previous turn, `attach_context`) are sent numbered ahead of the
+        # unit's own and their translation dropped, so a unit with context always takes the
+        # numbered path.
+        context = list(getattr(unit, "context", None) or [])
+        if len(sentences) == 1 and not context:
+            refused: Optional[str] = None
+            meta = dict(base_meta)
+            for attempt in (1, 2):
+                # The retry is a DIFFERENT request — the numbered form "1. <sentence>". At
+                # temperature 0 the same request gets the same reply; measured on the live
+                # translator (2026-10-09), three refused units came back as "Here's the
+                # translation:" (twice followed by an invented story) every time they were sent
+                # plain, and as one clean numbered line every time they were sent numbered.
+                numbered = attempt == 2 and bool(getattr(unit, "numbered_source", ""))
+                got = self.translate(
+                    unit.numbered_source if numbered else sentences[0].text,
+                    source_language=source_language,
+                    target_language=target_language,
+                )
+                meta = {**base_meta, **got["metadata"], "attempts": attempt}
+                if refusals:
+                    meta["refusals"] = list(refusals)
+                if got["text"] is None:
+                    break
+                if numbered:
+                    lines = _parse_numbered(got["text"])
+                    if len(lines) > 1:
+                        refused = f"numbered retry returned {len(lines)} lines for 1 sentence"
+                        refusals.append(refused)
+                        meta["refusals"] = list(refusals)
+                        continue
+                    # A one-line answer may come back without its "1."; it is still that line.
+                    got = {**got, "text": lines[0] if lines else got["text"].strip()}
+                refused = reject_translation_output(sentences[0].text, got["text"])
+                if refused:
+                    logger.warning(
+                        "translate: REFUSING unit %s (attempt %d) — %s",
+                        base_meta["unit_id"],
+                        attempt,
+                        refused,
+                    )
+                    refusals.append(refused)
+                    meta["refusals"] = list(refusals)
+                    continue
                 return {
-                    "sentences": [],
-                    "alignment": "failed",
-                    "metadata": {**meta, "error": f"output refused: {rejected}"},
+                    "sentences": [{"sent_id": sentences[0].sent_id, "en_text": got["text"]}],
+                    "alignment": "sentence",
+                    "metadata": meta,
                 }
-            return {
-                "sentences": [{"sent_id": sentences[0].sent_id, "en_text": got["text"]}],
-                "alignment": "sentence",
-                "metadata": meta,
-            }
+            if refused:
+                meta["error"] = f"output refused: {refused}"
+            return {"sentences": [], "alignment": "failed", "metadata": meta}
 
         last_meta: Dict[str, Any] = {}
         for attempt in (1, 2):
@@ -482,10 +589,13 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                 target_language=target_language,
             )
             last_meta = {**base_meta, **got["metadata"], "attempts": attempt}
+            if refusals:
+                last_meta["refusals"] = list(refusals)
             if got["text"] is None:
                 continue
             parsed = _parse_numbered(got["text"])
-            if len(parsed) == len(sentences):
+            if len(parsed) == len(context) + len(sentences):
+                parsed = parsed[len(context) :]
                 # A commentary response CAN come back with the right number of numbered lines,
                 # in which case the alignment contract passes it. Validated per sentence, so one
                 # bad line cannot ride along with good ones.
@@ -499,13 +609,15 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                 )
                 if refused:
                     logger.warning(
-                        "translate: REFUSING unit %s — %s", base_meta["unit_id"], refused
+                        "translate: REFUSING unit %s (attempt %d) — %s",
+                        base_meta["unit_id"],
+                        attempt,
+                        refused,
                     )
-                    return {
-                        "sentences": [],
-                        "alignment": "failed",
-                        "metadata": {**last_meta, "error": f"output refused: {refused}"},
-                    }
+                    last_meta["refused"] = refused
+                    refusals.append(refused)
+                    last_meta["refusals"] = list(refusals)
+                    continue
                 return {
                     "sentences": [
                         {"sent_id": s.sent_id, "en_text": p} for s, p in zip(sentences, parsed)
@@ -513,7 +625,10 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                     "alignment": "sentence",
                     "metadata": last_meta,
                 }
-            last_meta["alignment_mismatch"] = f"{len(parsed)} of {len(sentences)}"
+            expected = len(context) + len(sentences)
+            last_meta["alignment_mismatch"] = f"{len(parsed)} of {expected}"
+            refusals.append(f"returned {len(parsed)} lines for {expected} sentences")
+            last_meta["refusals"] = list(refusals)
             logger.info(
                 "translate: unit %s returned %d lines for %d sentences (attempt %d)",
                 base_meta["unit_id"],
@@ -528,6 +643,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         )
         meta = {**last_meta, **whole["metadata"], "attempts": 3}
         if whole["text"] is None:
+            if last_meta.get("refused"):
+                meta["error"] = f"output refused: {last_meta['refused']}"
             return {"sentences": [], "alignment": "failed", "metadata": meta}
         # THIS PATH WAS COMPLETELY UNVALIDATED, and it is where the measured commentary landed.
         # The two numbered attempts mismatch precisely when the model is not following the
@@ -543,7 +660,11 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             return {
                 "sentences": [],
                 "alignment": "failed",
-                "metadata": {**meta, "error": f"output refused: {rejected}"},
+                "metadata": {
+                    **meta,
+                    "error": f"output refused: {rejected}",
+                    "refusals": [*refusals, rejected],
+                },
             }
         return {
             "sentences": [{"sent_id": sentences[0].sent_id, "en_text": whole["text"]}],
@@ -602,18 +723,28 @@ _COMMENTARY_MARKERS: Tuple[str, ...] = (
     "here's a translation",
     "here is a translation",
     "here's the translation",
-    "depending on the specific context",
-    "depending on the context",
     "i'm ready to translate",
     "i am ready to translate",
-    "okay, i understand",
     "please provide the text",
     "please provide the spanish",
-    "as an ai",
     "i cannot translate",
     "note that this translation",
     "translation note",
 )
+
+#: Recorded commentary phrases that are ALSO ordinary speech, so they count only when the same
+#: output narrates translating (`_TRANSLATOR_NARRATION`). "Según el contexto" translates to
+#: "depending on the context": El Hilo (2026-10-09) lost its whole English set to a faithful
+#: sentence saying exactly that. "Vale, entiendo" is "Okay, I understand"; an AI researcher says
+#: "as an AI...". Every recorded commentary string that carried one of these also carried a
+#: narration word, so moving them here refuses nothing that was refused for a real reason.
+_SPEECH_LIKE_MARKERS: Tuple[str, ...] = (
+    "depending on the specific context",
+    "depending on the context",
+    "okay, i understand",
+    "as an ai",
+)
+_TRANSLATOR_NARRATION = re.compile(r"\btranslat|\boptions?\b", re.IGNORECASE)
 
 #: A numbered "Option 1:" / "Option 2:" list is the shape the commentary case took, and the
 #: option text itself can read like a plausible translation — so the enumeration is the tell.
@@ -661,6 +792,10 @@ def reject_translation_output(source: str, translated: Optional[str]) -> Optiona
     for marker in _COMMENTARY_MARKERS:
         if marker in low:
             return f"model commentary, not a translation (matched {marker!r})"
+    if _TRANSLATOR_NARRATION.search(body):
+        for marker in _SPEECH_LIKE_MARKERS:
+            if marker in low:
+                return f"model commentary, not a translation (matched {marker!r})"
     if _OPTION_LIST.search(body):
         return "model offered numbered options instead of a translation"
 

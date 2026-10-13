@@ -48,11 +48,13 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ..languages import primary_language, resolve_config_language
 from ..translation.factory import is_translation_configured
+from ..utils.timeout import excluded_from_deadline
 
 logger = logging.getLogger(__name__)
 
@@ -198,62 +200,70 @@ def run_translation_stage(
     feed_id: Optional[str] = None,
     run_id: Optional[str] = None,
     episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    feed_title: Optional[str] = None,
 ) -> TranslationOutcome:
     """Decide, translate, and record. Never raises into metadata generation.
 
-    NO DEADLINE CREDIT IS APPLIED (checked 2026-10-07; #2230). The seam sits inside the block
-    ``processing.py`` observes under the ``summarization_timeout`` key — the block that already
-    reports GI's overruns under the summariser's name — and the design called for crediting
-    translation's wall time back so an overrun alert keeps meaning "summary + GI + KG were
-    slow". That credit was never built: only ``outcome.duration_s`` is recorded, so a long
-    translation DOES count toward "METADATA GENERATION OVERRAN".
+    THE DEADLINE CREDIT (#2230). The seam sits inside the block ``processing.py`` observes under
+    the ``summarization_timeout`` key, so translation's wall time is excluded from it as it runs
+    (``utils.timeout.excluded_from_deadline``) and an overrun alert keeps meaning "summary + GI +
+    KG were slow". Until 2026-10-09 the credit was designed but never built, and a 41-minute
+    Spanish episode with summary, GI and KG all off logged DEADLINE EXCEEDED on translation alone;
+    the first credit landed only when translation ended, too late for one longer than the deadline.
     """
-    started = time.monotonic()
-    try:
-        outcome = decide_translation(
-            cfg,
-            feed_language=feed_language,
-            transcript_relpath=transcript_relpath,
-        )
-    except Exception:  # noqa: BLE001 - a stage that produces nothing must not lose the episode
-        logger.warning("translation: decision failed for %s", transcript_relpath, exc_info=True)
-        outcome = TranslationOutcome(status=STATUS_SKIPPED, reason=REASON_NO_LANGUAGE)
-
-    # THE WORK HAPPENS BEFORE THE CLOCK IS READ. An earlier version measured `duration_s` and
-    # credited the deadline HERE, above the translation call — so it credited the decision's
-    # microseconds, the manifest recorded ~0 for an episode that took minutes, and the whole
-    # translation was charged to the `summarization_timeout` block it was supposed to be
-    # excluded from. Every long translated episode would have logged "METADATA GENERATION
-    # OVERRAN", bumped `summarization_deadline_overruns` and filed an incident — precisely the
-    # misattribution this seam exists to prevent, reintroduced by measuring in the wrong order.
-    if outcome.status == STATUS_PENDING and effective_output_dir and transcript_relpath:
+    # Excluded WHILE it runs, not credited afterwards: a credit that lands after the alarm
+    # changes nothing, and a 70-minute Italian session's translation outlasts the 1200 s
+    # deadline on its own (2026-10-12).
+    with excluded_from_deadline():
+        started = time.monotonic()
         try:
-            outcome = _translate_episode(
+            outcome = decide_translation(
                 cfg,
-                outcome,
+                feed_language=feed_language,
                 transcript_relpath=transcript_relpath,
-                effective_output_dir=effective_output_dir,
-                episode_title=episode_title,
             )
-        except Exception as exc:  # noqa: BLE001 - see the docstring: never raise into metadata
-            # "Never raises into metadata generation" was false: `create_translation_provider`
-            # raises on an unknown provider id and `initialize()` raises on a served-model
-            # mismatch, both of which escaped into processing.py's generic handler — episode
-            # counted as an error, NO `metadata.json` written, backlog invisible. A translation
-            # that cannot run is a recorded outcome, not a lost episode.
-            # exc_info: without it a code bug (AttributeError, TypeError) becomes a one-line
-            # `stage_error:AttributeError` in the manifest with no stack to debug from.
-            logger.error(
-                "translation: the stage failed for %s (%s): %s",
-                transcript_relpath,
-                type(exc).__name__,
-                exc,
-                exc_info=True,
-            )
-            outcome.status = STATUS_FAILED
-            outcome.reason = f"stage_error:{type(exc).__name__}"
+        except Exception:  # noqa: BLE001 - a stage that produces nothing must not lose the episode
+            logger.warning("translation: decision failed for %s", transcript_relpath, exc_info=True)
+            outcome = TranslationOutcome(status=STATUS_SKIPPED, reason=REASON_NO_LANGUAGE)
 
-    outcome.duration_s = time.monotonic() - started
+        # THE WORK HAPPENS BEFORE THE CLOCK IS READ. An earlier version measured `duration_s` and
+        # credited the deadline HERE, above the translation call — so it credited the decision's
+        # microseconds, the manifest recorded ~0 for an episode that took minutes, and the whole
+        # translation was charged to the `summarization_timeout` block it was supposed to be
+        # excluded from. Every long translated episode would have logged "METADATA GENERATION
+        # OVERRAN", bumped `summarization_deadline_overruns` and filed an incident — precisely the
+        # misattribution this seam exists to prevent, reintroduced by measuring in the wrong order.
+        if outcome.status == STATUS_PENDING and effective_output_dir and transcript_relpath:
+            try:
+                outcome = _translate_episode(
+                    cfg,
+                    outcome,
+                    transcript_relpath=transcript_relpath,
+                    effective_output_dir=effective_output_dir,
+                    episode_title=episode_title,
+                    episode_description=episode_description,
+                    feed_title=feed_title,
+                )
+            except Exception as exc:  # noqa: BLE001 - see the docstring: never raise into metadata
+                # "Never raises into metadata generation" was false: `create_translation_provider`
+                # raises on an unknown provider id and `initialize()` raises on a served-model
+                # mismatch, both of which escaped into processing.py's generic handler — episode
+                # counted as an error, NO `metadata.json` written, backlog invisible. A translation
+                # that cannot run is a recorded outcome, not a lost episode.
+                # exc_info: without it a code bug (AttributeError, TypeError) becomes a one-line
+                # `stage_error:AttributeError` in the manifest with no stack to debug from.
+                logger.error(
+                    "translation: the stage failed for %s (%s): %s",
+                    transcript_relpath,
+                    type(exc).__name__,
+                    exc,
+                    exc_info=True,
+                )
+                outcome.status = STATUS_FAILED
+                outcome.reason = f"stage_error:{type(exc).__name__}"
+
+        outcome.duration_s = time.monotonic() - started
 
     if effective_output_dir and transcript_relpath:
         _record(
@@ -473,6 +483,38 @@ def _translate_title(
     return None
 
 
+def _translate_units(
+    provider: Any, units: List[Any], language: str, max_concurrency: int
+) -> Dict[str, Dict[str, Any]]:
+    """``{unit_id: translate_unit result}`` for *units*, up to *max_concurrency* in flight.
+
+    Units are independent — each request carries only its own unit — and the caller assembles the
+    ledger in unit order regardless. The server's wording is not reproducible run to run: measured
+    on the DGX, 4 in flight matched a sequential run byte-for-byte on 65 of 84 units, the rest
+    differing in wording only. Sent
+    one at a time, a 41-minute Spanish episode took over 20 minutes against a vLLM server that
+    batches concurrent requests (El Hilo, 2026-10-09). The FIRST unit always goes alone: the
+    provider resolves and caches its served-model and context checks on first use.
+    """
+    out: Dict[str, Dict[str, Any]] = {}
+    if not units:
+        return out
+    first, rest = units[0], units[1:]
+    out[first.unit_id] = provider.translate_unit(first, source_language=language)
+    if max_concurrency <= 1:
+        for unit in rest:
+            out[unit.unit_id] = provider.translate_unit(unit, source_language=language)
+        return out
+    with ThreadPoolExecutor(max_workers=max_concurrency, thread_name_prefix="translate") as pool:
+        futures = {
+            unit.unit_id: pool.submit(provider.translate_unit, unit, source_language=language)
+            for unit in rest
+        }
+        for unit_id, future in futures.items():
+            out[unit_id] = future.result()
+    return out
+
+
 def _translate_episode(
     cfg: Any,
     outcome: TranslationOutcome,
@@ -480,6 +522,8 @@ def _translate_episode(
     transcript_relpath: str,
     effective_output_dir: str,
     episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    feed_title: Optional[str] = None,
 ) -> TranslationOutcome:
     """Pack, translate, write the ledger, and write the English render only when complete.
 
@@ -502,7 +546,8 @@ def _translate_episode(
         write_translation_json,
     )
     from ..translation.factory import create_translation_provider
-    from ..translation.units import pack_units
+    from ..translation.protected_terms import candidate_terms
+    from ..translation.units import attach_context, attach_protected_terms, pack_units
 
     language = outcome.source_language or ""
     if not is_translation_configured(cfg):
@@ -541,7 +586,11 @@ def _translate_episode(
         outcome.status = STATUS_SKIPPED
         outcome.reason = "not_a_diarized_screenplay"
         return outcome
-    turns = build_turns(offset_segments, screenplay_text=rebuilt)
+    turns = build_turns(
+        offset_segments,
+        screenplay_text=rebuilt,
+        max_sentence_words=int(getattr(cfg, "translation_max_sentence_words", 0) or 0),
+    )
     turn_dicts = [t.to_dict() for t in turns.turns]
 
     provider = create_translation_provider(cfg)
@@ -555,7 +604,26 @@ def _translate_episode(
             else 2048
         ),
         count_tokens=getattr(provider, "count_tokens", None),
+        max_words=int(getattr(cfg, "translation_max_unit_words", 0) or 0),
     )
+    if bool(getattr(cfg, "translation_protect_names", False)):
+        # The show's own title only. Measured 2026-10-10 (El Hilo): protecting the capitalised
+        # spans of the episode metadata too was a net loss -- places with an English name
+        # ("América Latina") came back untranslated, and a placeholder lost the grammar around it.
+        attach_protected_terms(
+            units,
+            candidate_terms(show_title=feed_title, language=language),
+            source_language=language,
+        )
+    context_sentences = int(getattr(cfg, "translation_context_sentences", 0) or 0)
+    if context_sentences > 0:
+        attach_context(
+            units,
+            context_sentences,
+            source_language=language,
+            max_input_tokens=int(getattr(provider, "MODEL_INPUT_TOKEN_LIMIT", 2048) or 2048),
+            count_tokens=getattr(provider, "count_tokens", None),
+        )
     if not units:
         outcome.status = STATUS_SKIPPED
         outcome.reason = "nothing_to_translate"
@@ -592,6 +660,12 @@ def _translate_episode(
         doc.model = previous.model or doc.model
 
     todo_ids = {u.unit_id for u in todo}
+    fresh = _translate_units(
+        provider,
+        [u for u in units if u.unit_id in todo_ids or reused.get(u.content_key) is None],
+        language,
+        int(getattr(cfg, "translation_max_concurrency", 1) or 1),
+    )
     for unit in units:
         if unit.unit_id not in todo_ids:
             cached = reused.get(unit.content_key)
@@ -620,10 +694,12 @@ def _translate_episode(
                         prompt_tokens=cached.prompt_tokens,
                         completion_tokens=cached.completion_tokens,
                         max_tokens_capped_from=cached.max_tokens_capped_from,
+                        refusals=list(cached.refusals),
+                        protected_terms=list(cached.protected_terms),
                     )
                 )
                 continue
-        result = provider.translate_unit(unit, source_language=language)
+        result = fresh[unit.unit_id]
         meta = result.get("metadata") or {}
         # A freshly translated unit's prompt wins: it is the one that actually produced text in
         # THIS run, and it is what a mixed ledger should be attributed to.
@@ -646,6 +722,8 @@ def _translate_episode(
                 prompt_tokens=meta.get("prompt_tokens"),
                 completion_tokens=meta.get("completion_tokens"),
                 max_tokens_capped_from=meta.get("max_tokens_capped_from"),
+                refusals=[str(r) for r in (meta.get("refusals") or []) if r],
+                protected_terms=[str(t) for t in (meta.get("protected_terms") or []) if t],
             )
         )
 
@@ -740,7 +818,12 @@ def _translate_episode(
     outcome.units = len(doc.units)
     outcome.units_failed = len(doc.failed_units)
     outcome.english_ready = en_rel is not None
-    outcome.metrics = translation_metrics(doc, units)
+    outcome.metrics = translation_metrics(
+        doc,
+        units,
+        fresh_unit_ids=set(fresh),
+        max_concurrency=int(getattr(cfg, "translation_max_concurrency", 1) or 1),
+    )
     outcome.status = STATUS_TRANSLATED if en_rel else STATUS_FAILED
     if en_rel:
         outcome.reason = None

@@ -224,3 +224,162 @@ class TestEveryAcceptancePathIsGuarded:
         got = p.translate_unit(self._unit([_SPANISH, "Otra frase aquí."]), source_language="es")
         assert got["alignment"] == "sentence", got
         assert len(got["sentences"]) == 2
+
+
+class TestSpeechThatSoundsLikeCommentaryIsAccepted:
+    """Found on El Hilo (es, 2026-10-09): a correct 11-sentence unit was refused on both passes
+    because its first sentence — "Los resultados de las pruebas PISA pueden ser leídos de formas
+    bien distintas según el contexto" — translates to "...depending on the context". One refused
+    unit withholds the episode's whole English set (§5.3), so the episode lost summary, GI and KG
+    over a faithful translation. Phrases that are ordinary speech are commentary only when the
+    output also narrates translating."""
+
+    @pytest.mark.parametrize(
+        "source,english",
+        [
+            (
+                "Los resultados pueden ser leídos de formas bien distintas según el contexto.",
+                "The results can be interpreted in very different ways depending on the context.",
+            ),
+            ("Vale, entiendo. Sigamos.", "Okay, I understand. Let's go on."),
+            (
+                "Como investigadora de IA, lo veo a diario.",
+                "As an AI researcher, I see it every day.",
+            ),
+        ],
+    )
+    def test_a_faithful_translation_is_not_refused(self, source: str, english: str) -> None:
+        assert reject_translation_output(source, english) is None
+
+    def test_the_same_phrase_inside_translator_narration_is_still_refused(self) -> None:
+        got = reject_translation_output(
+            _SPANISH, "Depending on the context, this could be translated as: Honestly, drainage."
+        )
+        assert got is not None and "commentary" in got
+
+
+class TestARefusedUnitIsRetried:
+    """The two other El Hilo refusals were one-off: re-sent, both units came back clean on two
+    passes. A refusal was final on the first attempt, and one refusal costs the episode its
+    English set."""
+
+    _unit = staticmethod(TestEveryAcceptancePathIsGuarded._unit)
+    _provider = staticmethod(TestEveryAcceptancePathIsGuarded._provider)
+    COMMENTARY = TestEveryAcceptancePathIsGuarded.COMMENTARY
+
+    def test_a_single_sentence_is_retried_after_a_refusal(self) -> None:
+        p = self._provider([self.COMMENTARY, _GOOD])
+        got = p.translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert got["alignment"] == "sentence" and got["metadata"]["attempts"] == 2
+
+    def test_a_numbered_unit_is_retried_after_a_refusal(self) -> None:
+        p = self._provider(
+            [f"1. {_GOOD}\n2. {self.COMMENTARY}", f"1. {_GOOD}\n2. Another sentence here."]
+        )
+        got = p.translate_unit(self._unit([_SPANISH, "Otra frase aquí."]), source_language="es")
+        assert got["alignment"] == "sentence" and got["metadata"]["attempts"] == 2
+
+    def test_a_refusal_on_every_attempt_still_fails_and_says_why(self) -> None:
+        p = self._provider([self.COMMENTARY, self.COMMENTARY])
+        got = p.translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert got["alignment"] == "failed"
+        assert "refused" in (got["metadata"].get("error") or "")
+
+
+class TestARefusedSentenceIsRetriedInTheNumberedForm:
+    """The retest (2026-10-09) showed the plain retry repeats the refusal: at temperature 0 the
+    same request gets the same reply. Re-sent to the live translator, all three still-failing El
+    Hilo / Radio Ambulante units — one garbled line of a reggaeton promo — came back as "Here's the
+    translation:" (twice with an invented story after it) when sent plain, and as a clean single
+    numbered line when sent as "1. <sentence>". The retry has to be a DIFFERENT request."""
+
+    _unit = staticmethod(TestEveryAcceptancePathIsGuarded._unit)
+
+    def test_the_second_attempt_sends_the_numbered_form_and_reads_one_line(self) -> None:
+        sent: List[str] = []
+        p = TestEveryAcceptancePathIsGuarded._provider([])
+
+        def fake_translate(text: str, **_kw: Any) -> Dict[str, Any]:
+            sent.append(text)
+            out = (
+                "Here's the translation: Honestly, drainage."
+                if not text.startswith("1.")
+                else f"1. {_GOOD}"
+            )
+            return {"text": out, "metadata": {"model": "stub"}}
+
+        p.translate = fake_translate  # type: ignore[method-assign]
+        got = p.translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert sent[0] == _SPANISH and sent[1].startswith("1. ")
+        assert got["alignment"] == "sentence"
+        assert got["sentences"][0]["en_text"] == _GOOD
+
+
+class TestWhyAnAttemptWasRefusedIsKept:
+    """A unit that passed on its retry kept only ``attempts: 2``: why the first was refused was
+    gone from the ledger, and the D10 analysis had to rebuild it from logs (2026-10-10)."""
+
+    _unit = staticmethod(TestEveryAcceptancePathIsGuarded._unit)
+    _provider = staticmethod(TestEveryAcceptancePathIsGuarded._provider)
+    COMMENTARY = TestEveryAcceptancePathIsGuarded.COMMENTARY
+
+    def test_a_single_sentence_records_the_refused_attempt(self) -> None:
+        got = self._provider([self.COMMENTARY, _GOOD]).translate_unit(
+            self._unit([_SPANISH]), source_language="es"
+        )
+        assert got["alignment"] == "sentence"
+        assert len(got["metadata"]["refusals"]) == 1
+        assert "commentary" in got["metadata"]["refusals"][0]
+
+    def test_a_numbered_unit_records_the_refused_attempt(self) -> None:
+        got = self._provider(
+            [f"1. {_GOOD}\n2. {self.COMMENTARY}", f"1. {_GOOD}\n2. Another sentence here."]
+        ).translate_unit(self._unit([_SPANISH, "Otra frase aquí."]), source_language="es")
+        assert len(got["metadata"]["refusals"]) == 1
+
+    def test_a_clean_first_attempt_records_none(self) -> None:
+        got = self._provider([_GOOD]).translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert not got["metadata"].get("refusals")
+
+    def test_the_ledger_keeps_them(self) -> None:
+        from podcast_scraper.translation.artifacts import UnitRecord
+
+        rec = UnitRecord(
+            unit_id="u1",
+            turn_id="t1",
+            content_key="k",
+            status="ok",
+            attempts=2,
+            refusals=["model commentary, not a translation (matched 'here are')"],
+        )
+        assert UnitRecord.from_dict(rec.to_dict()).refusals == rec.refusals
+        assert (
+            "refusals"
+            not in UnitRecord(unit_id="u1", turn_id="t1", content_key="k", status="ok").to_dict()
+        )
+
+
+def test_the_stage_metrics_say_what_this_run_did() -> None:
+    """Memory hits, concurrency and refused-then-passed units are run facts the manifest lacked."""
+    from podcast_scraper.translation.artifacts import (
+        translation_metrics,
+        TranslationDocument,
+        UnitRecord,
+    )
+
+    doc = TranslationDocument(episode_slug="e", source_language="es")
+    doc.units = [
+        UnitRecord(
+            unit_id="u1",
+            turn_id="t1",
+            content_key="a",
+            status="ok",
+            attempts=2,
+            refusals=["model commentary"],
+        ),
+        UnitRecord(unit_id="u2", turn_id="t2", content_key="b", status="ok", attempts=0),
+    ]
+    m = translation_metrics(doc, [], fresh_unit_ids={"u1"}, max_concurrency=4)
+    assert m["units_ok_after_refusal"] == 1
+    assert m["units_translated_fresh"] == 1 and m["units_from_memory"] == 1
+    assert m["max_concurrency"] == 4

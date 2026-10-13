@@ -377,3 +377,109 @@ class TestAFailedCallStopsTheRest:
         out = G.recover_untranscribed_speech(self.RESULT, self.GAPS, "a.mp3", empty)
         assert [e["status"] for e in out["asr_speech_recovery"]] == ["failed", "empty", "empty"]
         assert len(calls) == 2
+
+
+class TestRecoverSilentGaps:
+    """A gap the diarizer heard no voice in (a voice over a music bed) is recovered only when it
+    holds real speech: 3+ words that are not fillers. On 24 reference episodes (2026-10-11) the
+    1-2 word decodes of music gaps ("for", "Hmm.", "Episodio") were the only additions that made
+    an episode worse."""
+
+    RESULT = TestRecoverUntranscribedSpeech.RESULT
+    GAP = [{"start": 99.5, "end": 105.0, "duration_s": 5.5, "speaker": None}]
+
+    def _clip(self, text: str) -> Dict[str, Any]:
+        return {
+            "segments": [
+                {"start": 1.2, "end": 5.0, "text": text, "avg_logprob": -0.3},
+            ]
+        }
+
+    def test_an_intro_over_music_is_spliced_in(self, no_ffmpeg: List[tuple]) -> None:
+        out = G.recover_silent_gaps(
+            self.RESULT,
+            self.GAP,
+            "a.mp3",
+            lambda p: self._clip("Die Kriminellen. Von Beate Kroll."),
+        )
+        assert [s["text"] for s in out["segments"]] == [
+            "Before the gap.",
+            "Die Kriminellen. Von Beate Kroll.",
+            "After the gap.",
+        ]
+        assert out["asr_silent_gap_recovery"][0]["status"] == "recovered"
+        assert "asr_speech_recovery" not in out
+
+    @pytest.mark.parametrize("text", ["for", "Hmm. Episodio", "uh um the"])
+    def test_an_echo_or_fillers_are_not(self, no_ffmpeg: List[tuple], text: str) -> None:
+        out = G.recover_silent_gaps(self.RESULT, self.GAP, "a.mp3", lambda p: self._clip(text))
+        assert [s["text"] for s in out["segments"]] == ["Before the gap.", "After the gap."]
+        assert out["asr_silent_gap_recovery"][0]["status"] == "too_few_words"
+
+    def test_the_word_floor_is_the_d16_rule(self) -> None:
+        assert G.SILENT_GAP_MIN_WORDS == G.STRETCHED_MIN_EXTRA_WORDS == 3
+
+    def test_diarized_gaps_keep_short_speech(self, no_ffmpeg: List[tuple]) -> None:
+        """The floor is for gaps with no voice; a diarized turn already says the gap is speech."""
+        gap = [{**self.GAP[0], "speaker": "SPEAKER_01"}]
+        out = G.recover_untranscribed_speech(self.RESULT, gap, "a.mp3", lambda p: self._clip("Sí."))
+        assert out["asr_speech_recovery"][0]["status"] == "recovered"
+
+
+class TestSpeakingRate:
+    """Throughline 10-08 on the DGX (2026-10-11): two recoveries packed words faster than anyone
+    speaks ("That's it for this." in 0.26 s, "Stay warm." in 0.12 s) and passed the confidence and
+    loop filters; the real ones ran 1.1-6.2 words/s."""
+
+    def _seg(self, text: str, start: float, end: float) -> Dict[str, Any]:
+        return {"start": start, "end": end, "text": text, "avg_logprob": -0.4}
+
+    def test_words_packed_into_a_fraction_of_a_second_are_rejected(self) -> None:
+        kept, rejected = G.segments_inside_gap(
+            [self._seg("That's it for this.", 4.54, 4.80)],
+            clip_start=2525.9,
+            gap_start=2526.9,
+            gap_end=2545.5,
+        )
+        assert kept == [] and rejected == ["too_fast"]
+
+    def test_a_zero_length_segment_is_rejected(self) -> None:
+        kept, rejected = G.segments_inside_gap(
+            [self._seg("warm.", 2.0, 2.0)], clip_start=0.0, gap_start=1.0, gap_end=4.0
+        )
+        assert kept == [] and rejected == ["too_fast"]
+
+    def test_fast_real_speech_is_kept(self) -> None:
+        kept, _ = G.segments_inside_gap(
+            [self._seg("the way it is.", 1.43, 2.07)], clip_start=0.0, gap_start=1.0, gap_end=4.0
+        )
+        assert [k["text"] for k in kept] == ["the way it is."]
+
+    def test_the_cap_is_eight_words_a_second(self) -> None:
+        assert G.RECOVERY_MAX_WORDS_PER_S == 8.0
+        at_cap, _ = G.segments_inside_gap(
+            [self._seg("one two three four", 1.5, 2.0)], clip_start=0.0, gap_start=1.0, gap_end=4.0
+        )
+        assert len(at_cap) == 1
+
+
+def test_recovered_words_are_joined_as_whisper_wrote_them() -> None:
+    """Whisper's word tokens carry their own leading space; an elision's second half has none.
+
+    Joining stripped words with spaces split every elision: Camera seduta 714 (2026-10-12) read
+    "l 'ordine del giorno", "dell 'economia"; RFI "l 'intégralité". Each split elision scores as
+    errors against the reference and reads wrong.
+    """
+    from podcast_scraper.transcription.gap_recovery import segments_inside_gap
+
+    words = [
+        {"start": 0.1, "end": 0.3, "word": " la"},
+        {"start": 0.3, "end": 0.6, "word": " seduta,"},
+        {"start": 0.6, "end": 0.7, "word": " l"},
+        {"start": 0.7, "end": 1.1, "word": "'ordine"},
+        {"start": 1.1, "end": 1.3, "word": " del"},
+        {"start": 1.3, "end": 1.6, "word": " giorno"},
+    ]
+    seg = {"start": 0.1, "end": 1.6, "text": " la seduta, l'ordine del giorno", "words": words}
+    kept, _ = segments_inside_gap([seg], clip_start=100.0, gap_start=100.0, gap_end=102.0)
+    assert [s["text"] for s in kept] == ["la seduta, l'ordine del giorno"]

@@ -16,15 +16,23 @@ What a recovered clip must pass, because a short clip is where Whisper invents t
 - not a loop: ``compression_ratio`` at or below ``RECOVERY_MAX_COMPRESSION_RATIO`` and no run of
   the same short phrase repeated (``is_repetitive``);
 - not an invented line: a subtitle credit or video sign-off (``invented_lines``), which passes
-  both checks above (V.6b French feed: avg_logprob -0.1 to -0.3).
+  both checks above (V.6b French feed: avg_logprob -0.1 to -0.3);
+- a speaking rate a person can produce: at most ``RECOVERY_MAX_WORDS_PER_S`` inside the gap.
 
 ``no_speech_prob`` is NOT used: the DGX faster-whisper server returns 0.0 for every segment (all
 six 80k A/B responses, 2026-10-08), so it cannot tell speech from silence there. The diarizer's
 speaker turn is what says the gap is speech.
+
+The diarizer misses a voice over a music bed: show intros, headlines, sign-offs ("Die Kriminellen.
+Von Beate Kroll.", "Le journal en français facile", "Es 25 de septiembre de 2026."). Those gaps
+have no speaker turn, so ``recover_silent_gaps`` cuts every transcript gap instead and, with no
+turn to say it is speech, keeps a gap's text only when it holds ``SILENT_GAP_MIN_WORDS`` words that
+are not fillers: a music gap decodes to an echo of the next word ("for", "Hmm.", "Episodio").
 """
 
 from __future__ import annotations
 
+import difflib
 import logging
 import os
 import re
@@ -33,6 +41,7 @@ import tempfile
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from podcast_scraper.preprocessing.audio.ffmpeg_processor import _run_text_subprocess
+from podcast_scraper.transcription.digital_silence import transcribed_span
 from podcast_scraper.transcription.invented_lines import is_invented_line
 
 logger = logging.getLogger(__name__)
@@ -43,6 +52,17 @@ RECOVERY_PAD_S = 1.0
 RECOVERY_MIN_AVG_LOGPROB = -1.0
 #: Whisper's own loop threshold (``compression_ratio_threshold`` in openai-whisper).
 RECOVERY_MAX_COMPRESSION_RATIO = 2.4
+#: Nobody speaks faster than this. Real recoveries on Throughline 10-08 (DGX, 2026-10-11) ran
+#: 1.1-6.2 words/s; the invented ones packed words into a fraction of a second: "That's it for
+#: this." 15.4, "Stay warm." 16.7 and 100. Both passed the confidence and loop filters.
+RECOVERY_MAX_WORDS_PER_S = 8.0
+
+#: A gap with no diarized speech keeps its text only from this many words, not fillers (the D16
+#: rule, ``STRETCHED_MIN_EXTRA_WORDS``). Measured 2026-10-11 on 24 reference episodes (6 English,
+#: 18 non-English), every transcript gap of 3 s+ cut and decoded: main-voice adjusted errors
+#: 2861 -> 2780 keeping every gap, 2861 -> 2761 at 3 words, and the 1-2 word gaps were the only
+#: ones that made an episode worse (Throughline 09-29 +3, Radio Ambulante 09-10 +4).
+SILENT_GAP_MIN_WORDS = 3
 
 ClipTranscriber = Callable[[str], Mapping[str, Any]]
 
@@ -120,6 +140,27 @@ def _rejection(seg: Mapping[str, Any], text: str) -> Optional[str]:
     return None
 
 
+#: A token starting with one of these attaches to the word before it ("l" + "'ordine").
+_ATTACHES = "'\u2019-.,;:!?)\u00bb%"
+
+
+def join_words(words: Sequence[Mapping[str, Any]]) -> str:
+    """Words as Whisper wrote them: a token's own leading space separates it, an elision's second
+    half has none. Stripping every token and re-spacing split each elision: Camera seduta 714
+    (2026-10-12) read "l 'ordine del giorno", RFI "l 'intégralité". A token with no leading space
+    from a provider that does not write one is still separated, unless it attaches.
+    """
+    out = ""
+    for w in words:
+        token = str(w.get("word", ""))
+        if not token.strip():
+            continue
+        if out and not token[0].isspace() and token[0] not in _ATTACHES:
+            out += " "
+        out += token
+    return " ".join(out.split())
+
+
 def segments_inside_gap(
     clip_segments: Sequence[Mapping[str, Any]],
     *,
@@ -157,7 +198,7 @@ def segments_inside_gap(
             ]
             if not inside:
                 continue
-            text = " ".join(str(w.get("word", "")).strip() for w in inside).strip()
+            text = join_words(inside)
             start, end = inside[0]["start"], inside[-1]["end"]
         else:
             if not _inside(s, e, gap_start - clip_start, gap_end - clip_start):
@@ -168,6 +209,10 @@ def segments_inside_gap(
         if not text:
             continue
         reason = _rejection(seg, text)
+        if reason is None and len(_WORD.findall(text)) > RECOVERY_MAX_WORDS_PER_S * max(
+            end - start, 0.0
+        ):
+            reason = "too_fast"
         if reason is not None:
             rejected.append(reason)
             continue
@@ -195,6 +240,42 @@ def recover_untranscribed_speech(
 
     With no gaps the input is returned unchanged — no key added, no call made.
     """
+    return _recover_gaps(
+        result, gaps, audio_path, transcribe_clip, min_words=0, report_key="asr_speech_recovery"
+    )
+
+
+def recover_silent_gaps(
+    result: Dict[str, Any],
+    gaps: Sequence[Mapping[str, Any]],
+    audio_path: str,
+    transcribe_clip: ClipTranscriber,
+) -> Dict[str, Any]:
+    """Like ``recover_untranscribed_speech`` for transcript gaps the diarizer heard no voice in.
+
+    A gap's text is spliced in only when it holds ``SILENT_GAP_MIN_WORDS`` words that are not
+    fillers; otherwise the gap is reported ``too_few_words``. Reported in
+    ``asr_silent_gap_recovery``.
+    """
+    return _recover_gaps(
+        result,
+        gaps,
+        audio_path,
+        transcribe_clip,
+        min_words=SILENT_GAP_MIN_WORDS,
+        report_key="asr_silent_gap_recovery",
+    )
+
+
+def _recover_gaps(
+    result: Dict[str, Any],
+    gaps: Sequence[Mapping[str, Any]],
+    audio_path: str,
+    transcribe_clip: ClipTranscriber,
+    *,
+    min_words: int,
+    report_key: str,
+) -> Dict[str, Any]:
     if not gaps:
         return result
     segments = [s for s in (result.get("segments") or []) if isinstance(s, Mapping)]
@@ -205,21 +286,31 @@ def recover_untranscribed_speech(
     # own timeout while holding the DGX lock; the rest are skipped. A failed CUT is local to its
     # clip and says nothing about the endpoint.
     call_failed = False
+    # The digital silence cut off before ASR is not a gap to re-transcribe: Whisper invents a line
+    # there, and on Camera seduta 722 (2026-10-12) silent-gap recovery added two such lines in the
+    # 70 s of zeros at the end. Gaps are kept to the span ASR heard.
+    heard = transcribed_span(result)
+    lo, hi = heard if heard else (0.0, float("inf"))
     try:
         for i, gap in enumerate(gaps):
             gap_start, gap_end = float(gap["start"]), float(gap["end"])
-            clip_start = max(0.0, gap_start - RECOVERY_PAD_S)
             entry: Dict[str, Any] = {
                 "start": gap_start,
                 "end": gap_end,
                 "speaker": gap.get("speaker"),
             }
+            gap_start, gap_end = max(gap_start, lo), min(gap_end, hi)
+            if gap_end <= gap_start:
+                report.append({**entry, "status": "skipped", "reason": "digital_silence"})
+                continue
+            clip_start = max(lo, gap_start - RECOVERY_PAD_S)
+            clip_end = min(hi, gap_end + RECOVERY_PAD_S)
             if call_failed:
                 report.append({**entry, "status": "skipped", "reason": "earlier_call_failed"})
                 continue
             clip = os.path.join(work_dir, f"gap_{i:03d}.wav")
             try:
-                cut_clip(audio_path, clip_start, gap_end + RECOVERY_PAD_S, clip)
+                cut_clip(audio_path, clip_start, clip_end, clip)
             except Exception as exc:  # noqa: BLE001 - never lose the transcript to a recovery call
                 logger.warning(
                     "gap recovery: %.1f-%.1fs could not be cut: %s", gap_start, gap_end, exc
@@ -246,6 +337,12 @@ def recover_untranscribed_speech(
                 gap_end=gap_end,
             )
             words = sum(len(_WORD.findall(s["text"])) for s in kept)
+            content = [t for s in kept for t in _tokens(s["text"]) if t not in _FILLERS]
+            if kept and len(content) < min_words:
+                report.append(
+                    {**entry, "status": "too_few_words", "words": 0, "rejected": rejected}
+                )
+                continue
             status = "recovered" if kept else ("rejected" if rejected else "empty")
             report.append({**entry, "status": status, "words": words, "rejected": rejected})
             added.extend(kept)
@@ -253,16 +350,203 @@ def recover_untranscribed_speech(
         shutil.rmtree(work_dir, ignore_errors=True)
 
     out = dict(result)
-    out["asr_speech_recovery"] = report
+    out[report_key] = report
     if added:
         merged = sorted([*segments, *added], key=lambda s: float(s.get("start", 0.0)))
         out["segments"] = merged
         out["text"] = " ".join(str(s.get("text", "")).strip() for s in merged if s.get("text"))
     recovered = sum(1 for r in report if r["status"] == "recovered")
     logger.info(
-        "gap recovery: %d of %d untranscribed stretch(es) recovered, %d word(s) added",
+        "gap recovery (%s): %d of %d stretch(es) recovered, %d word(s) added",
+        report_key,
         recovered,
         len(report),
         sum(int(r.get("words", 0)) for r in report),
+    )
+    return out
+
+
+#: A stretched word is replaced only when its span holds at least this many words, not fillers,
+#: that the episode does not already have beside it (D16). Of 11 stretched words re-transcribed on
+#: 2026-10-08, 6 held only the word, a stutter or fillers; the 3 that hid speech held 13 to 55.
+STRETCHED_MIN_EXTRA_WORDS = 3
+#: Hesitation sounds, in the languages the pipeline transcribes. They are speech, not lost speech.
+_FILLERS = frozenset(
+    "uh um uhm erm er ah eh ehm hmm mm mhm äh ähm öh euh heu hum bah ahn ãh éé".split()
+)
+
+
+def _tokens(text: str) -> List[str]:
+    return [t.lower() for t in _WORD.findall(text)]
+
+
+def _norm(word: Any) -> str:
+    return "".join(_tokens(str(word)))
+
+
+def _clip_words(clip_segments: Sequence[Mapping[str, Any]], clip_start: float) -> List[Dict]:
+    """The clip's words in episode time, from segments that pass the gap-recovery filters."""
+    out: List[Dict[str, Any]] = []
+    for seg in clip_segments:
+        if _rejection(seg, str(seg.get("text", ""))) is not None:
+            continue
+        for w in seg.get("words") or []:
+            ws, we = _f(w.get("start")), _f(w.get("end"))
+            if ws is not None and we is not None and _norm(w.get("word")):
+                out.append({**w, "start": clip_start + ws, "end": clip_start + we})
+    return out
+
+
+def _new_speech(
+    episode_words: Sequence[Mapping[str, Any]],
+    target: Mapping[str, Any],
+    clip: Sequence[Dict[str, Any]],
+    span: Tuple[float, float],
+    window: Tuple[float, float],
+) -> List[Dict[str, Any]]:
+    """The clip words inside ``span`` that the episode does not already have around it.
+
+    The clip and the episode's own words over the same ``window`` are aligned (difflib), the
+    stretched word left out of the episode side: whatever the clip shares with its neighbours is
+    already in the transcript and would be duplicated -- SWR "Europäer": the clip's "Wenn man die"
+    are the episode's next words, timed later. The stretched word itself stays if the clip hears it.
+    """
+    around = [
+        w
+        for w in episode_words
+        if w is not target
+        and window[0] <= ((_f(w.get("start")) or 0) + (_f(w.get("end")) or 0)) / 2 <= window[1]
+    ]
+    a = [_norm(w.get("word")) for w in around]
+    b = [_norm(w.get("word")) for w in clip]
+    shared: set[int] = set()
+    for blk in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
+        shared.update(range(blk.b, blk.b + blk.size))
+    return [
+        w
+        for j, w in enumerate(clip)
+        if j not in shared and span[0] <= (w["start"] + w["end"]) / 2 < span[1]
+    ]
+
+
+def _replace_word(
+    segments: List[Dict[str, Any]], target: Mapping[str, Any], new_words: List[Dict[str, Any]]
+) -> Optional[str]:
+    """Put ``new_words`` in place of ``target``; the reason it could not be, else None."""
+    for seg in segments:
+        words = list(seg.get("words") or [])
+        for i, w in enumerate(words):
+            if w is not target:
+                continue
+            # The segment text is rebuilt from its words, so it must BE its words.
+            if (
+                "".join(str(x.get("word", "")) for x in words).strip()
+                != str(seg.get("text", "")).strip()
+            ):
+                return "text_differs_from_words"
+            words[i : i + 1] = new_words
+            seg["words"] = words
+            seg["text"] = "".join(str(x.get("word", "")) for x in words)
+            return None
+    return "word_not_found"
+
+
+def _find_word(segments: Sequence[Mapping[str, Any]], start: float, end: float) -> Optional[Dict]:
+    # ``stretched_words_over_speech`` rounds to the millisecond.
+    for seg in segments:
+        for w in seg.get("words") or []:
+            ws, we = _f(w.get("start")), _f(w.get("end"))
+            if (
+                ws is not None
+                and we is not None
+                and abs(ws - start) <= 0.001
+                and abs(we - end) <= 0.001
+            ):
+                return dict(w) if not isinstance(w, dict) else w
+    return None
+
+
+def _decide(
+    segments: List[Dict[str, Any]], item: Mapping[str, Any], clip_result: Mapping[str, Any]
+) -> Dict[str, Any]:
+    """One stretched word: replace it with the speech it hid, or say why not."""
+    ws, we, word = float(item["start"]), float(item["end"]), str(item.get("word", ""))
+    clip_start = max(0.0, ws - RECOVERY_PAD_S)
+    target = _find_word(segments, ws, we)
+    if target is None:
+        return {"status": "declined", "reason": "word_not_found"}
+    segs = [s for s in (clip_result.get("segments") or []) if isinstance(s, Mapping)]
+    clip = _clip_words(segs, clip_start)
+    episode_words = [w for s in segments for w in (s.get("words") or [])]
+    new = _new_speech(episode_words, target, clip, (ws, we), (clip_start, we + RECOVERY_PAD_S))
+    heard = " ".join(str(w.get("word", "")).strip() for w in new)
+    content = [t for t in _tokens(heard) if t not in _FILLERS and t not in _tokens(word)]
+    if len(content) < STRETCHED_MIN_EXTRA_WORDS:
+        return {"status": "declined", "reason": "not_more_speech", "heard": heard}
+    new_words = [
+        {**w, "word": " " + str(w.get("word", "")).lstrip(), "recovered": True} for w in new
+    ]
+    reason = _replace_word(segments, target, new_words)
+    if reason is not None:
+        return {"status": "declined", "reason": reason, "heard": heard}
+    return {"status": "replaced", "words": len(_tokens(heard)), "heard": heard}
+
+
+def recover_stretched_words(
+    result: Dict[str, Any],
+    stretched: Sequence[Mapping[str, Any]],
+    audio_path: str,
+    transcribe_clip: ClipTranscriber,
+) -> Dict[str, Any]:
+    """Re-transcribe each stretched word's span alone; put back the speech it hid (D16).
+
+    ``stretched`` is ``stretched_words_over_speech`` output. The span is cut with the usual pad and
+    transcribed in the episode's language; clip segments go through the gap-recovery filters. The
+    stretched word is REPLACED by the clip's words inside its span that the episode does not already
+    have beside it (``_new_speech``) -- never spliced beside it, never moving or deleting another
+    word -- and only when they are ``STRETCHED_MIN_EXTRA_WORDS`` or more words that are not
+    fillers. Scored against human references on 7 stretched words (2026-10-10): adjusted errors
+    -33 Radio Ambulante 07-21, -3 Novelo 10-08, -5 Novelo 09-24, 0 SWR (both declined).
+    Reported as ``asr_stretched_word_recovery``.
+    """
+    if not stretched:
+        return result
+    out = dict(result)
+    segments = [
+        {**s, "words": [dict(w) for w in (s.get("words") or [])]}
+        for s in (result.get("segments") or [])
+        if isinstance(s, Mapping)
+    ]
+    report: List[Dict[str, Any]] = []
+    work_dir = tempfile.mkdtemp(prefix="stretched_recovery_")
+    call_failed = False
+    try:
+        for i, item in enumerate(stretched):
+            ws, we = float(item["start"]), float(item["end"])
+            entry: Dict[str, Any] = {"start": ws, "end": we, "word": str(item.get("word", ""))}
+            if call_failed:
+                report.append({**entry, "status": "skipped", "reason": "earlier_call_failed"})
+                continue
+            clip = os.path.join(work_dir, f"stretched_{i:03d}.wav")
+            try:
+                cut_clip(audio_path, max(0.0, ws - RECOVERY_PAD_S), we + RECOVERY_PAD_S, clip)
+                clip_result = transcribe_clip(clip)
+            except Exception as exc:  # noqa: BLE001 - never lose the transcript to a recovery call
+                logger.warning("stretched word %.1f-%.1fs not re-transcribed: %s", ws, we, exc)
+                report.append({**entry, "status": "failed", "error": type(exc).__name__})
+                call_failed = True
+                continue
+            report.append({**entry, **_decide(segments, item, clip_result)})
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+    out["asr_stretched_word_recovery"] = report
+    if any(r["status"] == "replaced" for r in report):
+        out["segments"] = segments
+        out["text"] = " ".join(str(s.get("text", "")).strip() for s in segments if s.get("text"))
+    logger.info(
+        "stretched words: %d of %d replaced by the speech they hid, %d word(s)",
+        sum(1 for r in report if r["status"] == "replaced"),
+        len(report),
+        sum(int(r.get("words", 0)) for r in report if r["status"] == "replaced"),
     )
     return out

@@ -1485,6 +1485,18 @@ class Config(BaseModel):
             "only (untranscribed_speech in .asr.json), never re-transcribe."
         ),
     )
+    transcription_recover_silent_gaps: bool = Field(
+        default=True,
+        alias="transcription_recover_silent_gaps",
+        description=(
+            "#2187 -- with transcription_recover_untranscribed_speech, also re-transcribe every "
+            "gap of 3 s or more between transcript segments that the diarizer heard no voice in "
+            "(a voice over a music bed: intros, headlines, sign-offs), keeping a gap's text only "
+            "when it holds 3+ words that are not fillers (asr_silent_gap_recovery in .asr.json). "
+            "One extra ASR call per such gap. Measured on 24 reference episodes: main-voice "
+            "adjusted errors 2861 -> 2761, no episode of the 6 English worse."
+        ),
+    )
     transcription_repair_unpunctuated_windows: bool = Field(
         default=True,
         alias="transcription_repair_unpunctuated_windows",
@@ -2264,6 +2276,58 @@ class Config(BaseModel):
         alias="translate_api_key_env",
         description="Env var the translation provider reads the bearer from when "
         "translate_api_key is unset. A locally served vLLM ignores it.",
+    )
+    translation_max_concurrency: int = Field(
+        default=1,
+        ge=1,
+        le=32,
+        alias="translation_max_concurrency",
+        description="How many translation units are in flight at once. Each unit carries only "
+        "its own context and the ledger is written in unit order either way; 1 sends them one at a "
+        "time, as before. Measured on the DGX (2026-10-09, El Hilo, 85 units): 4 in flight took "
+        "3.0 s per unit against 15.5 sequentially. The ENGLISH is not byte-identical to a "
+        "sequential run — 65 of 84 units matched, the rest differed in wording only (same "
+        "sentence counts, lengths within 1.5%) — the translator does not repeat itself exactly "
+        "at temperature 0, sequential or not.",
+    )
+    translation_context_sentences: int = Field(
+        default=0,
+        ge=0,
+        le=3,
+        alias="translation_context_sentences",
+        description="How many of the previous turn's last sentences go ahead of each unit as "
+        "context, sent numbered and their translation dropped (translation.units."
+        "attach_context). 0 = off, each turn translated alone, as before. About a fifth of the "
+        "judge's low units on the first non-English set (2026-10-10) were who-did-what errors a "
+        "neighbouring turn resolves.",
+    )
+    translation_max_unit_words: int = Field(
+        default=0,
+        ge=0,
+        alias="translation_max_unit_words",
+        description="Cap on a unit's source words: a turn longer than this is packed into "
+        "several units, split between sentences (translation.units.pack_units). 0 = off, a unit "
+        "fills the model's input limit, as before. On El Hilo (2026-10-10) units of 200+ words "
+        "were judged low 43-50% of the time against 12% for 50-100 words; the model condenses "
+        "long units. Words are whitespace-split, so the cap does not bind for unspaced scripts.",
+    )
+    translation_max_sentence_words: int = Field(
+        default=0,
+        ge=0,
+        alias="translation_max_sentence_words",
+        description="Cut a sentence longer than this at the ASR segment ends inside it, for the "
+        "translation's units only (turns.json is unchanged). 0 = off, punctuation is the only "
+        "sentence boundary, as before. Unpunctuated speech made 'sentences' of 339 and 654 words "
+        "on El Hilo (2026-10-10), which translation_max_unit_words cannot split.",
+    )
+    translation_protect_names: bool = Field(
+        default=False,
+        alias="translation_protect_names",
+        description="Keep the show's own title out of the translator: replaced by a placeholder "
+        "and put back, the unit re-translated unprotected when the placeholder does not come "
+        "back intact (translation.protected_terms). Off = as before. El Hilo's host says 'en el "
+        "hilo' and the model wrote 'the thread'. Protecting the episode metadata's other names "
+        "too was measured (2026-10-10) and was a net loss.",
     )
     translate_verify_served_model: bool = Field(
         default=True,

@@ -668,3 +668,22 @@ class TestAdvisorRegressions(unittest.TestCase):
         meta_feed = json.load(open(pm.manifest_path(d, rel)))["feed_id"]
         self.assertEqual(asr_feed, "https://example.com/feed.xml")
         self.assertEqual(meta_feed, asr_feed)  # one scheme, not url-vs-hash
+
+
+def test_every_quality_flag_the_pipeline_appends_is_in_the_vocabulary() -> None:
+    """QUALITY_FLAGS is the closed vocabulary the corpus ledger groups by (ADR-132); a flag
+    outside it is still written, with only a debug log. ``asr_stretched_words_replaced`` (D16)
+    and ``asr_unpunctuated`` (#2284) were both emitted before anyone added them."""
+    import re
+    from pathlib import Path
+
+    from podcast_scraper.workflow.processing_manifest import QUALITY_FLAGS
+
+    src = Path(__file__).resolve().parents[4] / "src" / "podcast_scraper"
+    emitted = {
+        m
+        for path in src.rglob("*.py")
+        for m in re.findall(r'_flags\.append\("([a-z_]+)"\)', path.read_text(encoding="utf-8"))
+    }
+    assert emitted, "the pattern found no flags; the test is not looking at the code"
+    assert emitted - QUALITY_FLAGS == set()

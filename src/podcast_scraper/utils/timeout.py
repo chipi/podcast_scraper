@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -20,6 +23,52 @@ class TimeoutError(Exception):
     """Raised when an operation exceeds the timeout."""
 
     pass
+
+
+@dataclass
+class _ObservedDeadline:
+    credit_s: float = 0.0
+    # monotonic start of the `excluded_from_deadline` block running now, else None
+    excluded_since: Optional[float] = None
+    timer: Optional[threading.Timer] = None
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+
+_ACTIVE_DEADLINE: ContextVar[Optional[_ObservedDeadline]] = ContextVar(
+    "active_deadline", default=None
+)
+
+# While an exclusion is open the deadline is paused; the timer re-checks at least this far apart,
+# so an exclusion that opened a moment before the deadline cannot spin the timer on microseconds.
+EXCLUSION_REARM_FLOOR_S = 10.0
+
+
+@contextmanager
+def excluded_from_deadline():
+    """Exclude the wall time of this block from the innermost observed deadline, as it runs.
+
+    A credit applied once the work is over (the first version of this, until 2026-10-12) is too
+    late for work longer than the deadline itself: a 70-minute Italian session's translation fired
+    "DEADLINE EXCEEDED: metadata generation" at 1200 s with summary, GI and KG all off. Here the
+    deadline is paused while the block runs. Nested exclusions count once; outside any observed
+    block this is a no-op.
+    """
+    active = _ACTIVE_DEADLINE.get()
+    if active is None:
+        yield
+        return
+    with active.lock:
+        outermost = active.excluded_since is None
+        if outermost:
+            active.excluded_since = time.monotonic()
+    try:
+        yield
+    finally:
+        if outermost:
+            with active.lock:
+                if active.excluded_since is not None:
+                    active.credit_s += time.monotonic() - active.excluded_since
+                active.excluded_since = None
 
 
 @contextmanager
@@ -72,8 +121,26 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
 
     # Use threading.Timer for cross-platform timeout (signal.alarm is Unix-only)
     timeout_occurred = threading.Event()
+    deadline = _ObservedDeadline()
 
     def timeout_handler():
+        # Time spent in a finished `excluded_from_deadline` block while we waited moves the
+        # deadline out by that much: re-arm for it instead of alerting. An exclusion still open is
+        # credited up to now and keeps the deadline paused.
+        with deadline.lock:
+            excluding = deadline.excluded_since is not None
+            if excluding:
+                now = time.monotonic()
+                deadline.credit_s += now - deadline.excluded_since
+                deadline.excluded_since = now
+            credit, deadline.credit_s = deadline.credit_s, 0.0
+            if excluding:
+                credit = max(credit, EXCLUSION_REARM_FLOOR_S)
+            if credit > 0 and not timeout_occurred.is_set():
+                deadline.timer = threading.Timer(credit, timeout_handler)
+                deadline.timer.daemon = True
+                deadline.timer.start()
+                return
         timeout_occurred.set()
         # ERROR, not warning: this is the ONLY signal a caller gets while an operation is
         # overrunning, and it is emitted from a timer thread while the blocked operation is
@@ -89,16 +156,20 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
             seconds,
         )
 
-    timer = threading.Timer(seconds, timeout_handler)
-    timer.daemon = True  # never keep the interpreter alive waiting to log a deadline
-    timer.start()
+    deadline.timer = threading.Timer(seconds, timeout_handler)
+    deadline.timer.daemon = True  # never keep the interpreter alive waiting to log a deadline
+    deadline.timer.start()
+    token = _ACTIVE_DEADLINE.set(deadline)
 
     try:
         yield
         if timeout_occurred.is_set():
             raise TimeoutError(f"{operation_name} exceeded timeout of {seconds} seconds")
     finally:
-        timer.cancel()
+        _ACTIVE_DEADLINE.reset(token)
+        with deadline.lock:
+            if deadline.timer is not None:
+                deadline.timer.cancel()
 
 
 def with_timeout(
