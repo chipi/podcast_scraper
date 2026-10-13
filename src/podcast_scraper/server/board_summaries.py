@@ -67,6 +67,9 @@ class Limits:
 
     @classmethod
     def from_env(cls) -> "Limits":
+        """The defaults, each overridable by ``BOARD_SUMMARY_<NAME>`` (the sidecar's env); an
+        unparsable value keeps the default."""
+
         def num(name: str, default: float) -> float:
             raw = os.environ.get(f"BOARD_SUMMARY_{name}", "").strip()
             try:
@@ -119,6 +122,7 @@ def _write_json(path: Path, doc: dict[str, Any]) -> None:
 
 
 def spent_today(data_dir: Path, now: float) -> float:
+    """Today's recorded spend in USD, from the ledger in the appdata root."""
     day = _read_json(data_dir / LEDGER_FILE).get(_today(now)) or {}
     return float(day.get("usd") or 0.0)
 
@@ -143,6 +147,7 @@ def _summaries_path(data_dir: Path, user_id: str) -> Path:
 
 
 def read_summaries(data_dir: Path, user_id: str) -> dict[str, dict[str, Any]]:
+    """A user's stored board summaries, ``{board_id: record}``; empty for an unsafe user id."""
     if not _is_safe_user_id(user_id):
         return {}
     doc = _read_json(_summaries_path(data_dir, user_id))
@@ -150,6 +155,7 @@ def read_summaries(data_dir: Path, user_id: str) -> dict[str, dict[str, Any]]:
 
 
 def write_summary(data_dir: Path, user_id: str, board_id: str, record: dict[str, Any]) -> None:
+    """Store one board's summary record under the user's file lock, as the board store writes."""
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
     path = _summaries_path(data_dir, user_id)
