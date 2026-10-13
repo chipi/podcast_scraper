@@ -38,6 +38,7 @@ from podcast_scraper.search.corpus_scope import (
     episode_root_from_metadata_path,
 )
 from podcast_scraper.search.indexer import _kg_path, _load_metadata_file
+from podcast_scraper.search.stable_cluster_ids import carry_cluster_ids
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
@@ -568,8 +569,12 @@ def build_topic_clusters_payload(
     threshold: float,
     embedding_model: str,
     prior_fingerprint: Optional[str] = None,
+    prior_payload: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build ``topic_clusters.json`` body from aggregated topic rows.
+
+    *prior_payload* is the previous file: a theme keeps its ``tc:`` id when its members largely
+    stay, and the ids that went are mapped in ``id_history`` (#2345, ``stable_cluster_ids``).
 
     When *prior_fingerprint* matches the current rows' fingerprint, clustering is
     skipped and the returned dict carries ``skipped_unchanged: True`` so callers
@@ -662,6 +667,10 @@ def build_topic_clusters_payload(
             }
         )
 
+    prior = prior_payload or {}
+    id_history = carry_cluster_ids(
+        clusters_out, prior.get("clusters") or [], prior_history=prior.get("id_history")
+    )
     return {
         "schema_version": TOPIC_CLUSTERS_SCHEMA_VERSION,
         "model": embedding_model,
@@ -671,6 +680,7 @@ def build_topic_clusters_payload(
         "topic_count": len(ids),
         "cluster_count": len(clusters_out),
         "fingerprint": current_fp,
+        "id_history": id_history,
     }
 
 
@@ -759,10 +769,12 @@ def build_topic_clusters_for_corpus(
     # Load prior fingerprint from the existing output file (if present) for the skip-gate.
     target = out_path if out_path is not None else idx / TOPIC_CLUSTERS_FILENAME
     prior_fp: Optional[str] = None
+    prior_payload: Optional[Dict[str, Any]] = None
     if target.is_file():
         try:
             existing_raw = json.loads(target.read_text(encoding="utf-8"))
             if isinstance(existing_raw, dict):
+                prior_payload = existing_raw
                 fp_val = existing_raw.get("fingerprint")
                 if isinstance(fp_val, str) and fp_val:
                     prior_fp = fp_val
@@ -770,7 +782,11 @@ def build_topic_clusters_for_corpus(
             pass
 
     payload = build_topic_clusters_payload(
-        rows, threshold=threshold, embedding_model=model, prior_fingerprint=prior_fp
+        rows,
+        threshold=threshold,
+        embedding_model=model,
+        prior_fingerprint=prior_fp,
+        prior_payload=prior_payload,
     )
 
     if payload.get("skipped_unchanged"):

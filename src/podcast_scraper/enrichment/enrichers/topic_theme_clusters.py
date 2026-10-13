@@ -42,6 +42,7 @@ same consumer / graph code can read it, but tags each cluster
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections import defaultdict
@@ -62,6 +63,7 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     sync_enricher,
 )
+from podcast_scraper.search.stable_cluster_ids import carry_cluster_ids
 
 _logger = logging.getLogger(__name__)
 
@@ -474,6 +476,12 @@ def _compute(
         cluster_member_sets.append(members)
 
     _assign_super_themes(clusters_out, cluster_member_sets, weight)
+    # #2345: a storyline keeps its id across runs when its members largely stay, and every id
+    # that went is mapped to its successor, so listeners' follows, paths and boards still resolve.
+    prior = _prior_payload(corpus_root)
+    id_history = carry_cluster_ids(
+        clusters_out, prior.get("clusters") or [], prior_history=prior.get("id_history")
+    )
 
     # #1208 no-silent-fail contract (see grounding_rate / temporal_velocity), extended for #1929.
     # An empty theme set has three very different causes and they need different responses:
@@ -527,7 +535,19 @@ def _compute(
             {c["super_theme_id"] for c in clusters_out if c.get("super_theme_id")}
         ),
         "super_theme_method": "cross_cluster_lift_avg_linkage",
+        "id_history": id_history,
     }
+
+
+def _prior_payload(corpus_root: Path) -> dict[str, Any]:
+    """The previous run's storylines (``data`` of the written envelope), or ``{}``."""
+    path = Path(corpus_root) / "enrichments" / "topic_theme_clusters.json"
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    data = raw.get("data", raw) if isinstance(raw, dict) else None
+    return data if isinstance(data, dict) else {}
 
 
 _enrich_async = sync_enricher(_compute)
