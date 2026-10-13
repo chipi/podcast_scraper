@@ -317,6 +317,18 @@ def translated_from_label(code: Optional[str]) -> Optional[str]:
     return f"Translated from {entry.name if entry else code.upper()}"
 
 
+def translation_fields(code: Any) -> Dict[str, str]:
+    """``quote_translated_from`` + ``quote_translated_label`` for a delivery item, or ``{}``.
+
+    The email and push templates print the label as given, so they need no language table; the
+    code travels beside it for anything that wants to localise. Native text yields nothing.
+    """
+    if not isinstance(code, str) or not code.strip():
+        return {}
+    label = translated_from_label(code.strip())
+    return {"quote_translated_from": code.strip(), "quote_translated_label": label} if label else {}
+
+
 def is_language_enabled(code: Optional[str]) -> bool:
     """Is this language one we ingest? Unknown or absent → False, never a lenient default."""
     if not code:

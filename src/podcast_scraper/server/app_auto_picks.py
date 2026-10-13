@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.languages import translation_fields
 from podcast_scraper.server import app_graph_refs
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
@@ -44,6 +45,8 @@ def _pick_for_slug(root: Path, slug: str) -> dict[str, Any] | None:
         "t_ms": t_ms,
         "quote": ins.text,
         "source": "auto",
+        # The insight text of a translated episode is English made from the source (D-36 b).
+        **translation_fields(getattr(ins, "translated_from", None)),
     }
 
 

@@ -433,3 +433,40 @@ def test_the_two_gates_agree_for_every_shape_of_highlight(tmp_path: Path) -> Non
             f"{h['id']}: carries_the_graph={predicate} but the assembler "
             f"{'kept' if assembled else 'dropped'} it — the two gates have drifted"
         )
+
+
+def test_a_translated_capture_still_builds_a_contract_valid_envelope(tmp_path: Path) -> None:
+    """D-36 slice b: a capture made on a translated episode carries its language into the digest.
+
+    The item schema is additionalProperties:false, and `quote_translated_from` was written into
+    items before the contract declared it — so every digest holding a translated capture would
+    have failed validation at the seam. The fields are part of the contract now.
+    """
+    from podcast_scraper.server import app_user_state
+    from podcast_scraper.server.app_user_store import get_user
+
+    uid = _user(tmp_path)
+    comms = app_comms_store.set_comms(tmp_path, uid, types={"digest": {"email": True}})
+    app_user_state.add_highlight(
+        tmp_path,
+        uid,
+        {
+            "id": "h-es",
+            "episode_slug": "ep-es",
+            "kind": "span",
+            "start_ms": 60_000,
+            "quote_text": "drainage is the design decision",
+            "translated_from": "es",
+            "created_at": 1000,
+        },
+    )
+    payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
+    assert payload is not None
+    items = [i for s in payload["sections"] for i in s["items"] if i.get("quote")]
+    assert items and items[0]["quote_translated_from"] == "es"
+    assert items[0]["quote_translated_label"] == "Translated from Spanish"
+    user = get_user(tmp_path, uid)
+    assert user is not None
+    envelope = app_digest_personal.build_email_envelope(user, comms, payload, now=10**9)
+    errors = sorted(Draft202012Validator(_SCHEMA).iter_errors(envelope), key=str)
+    assert not errors, "\n".join(f"{list(e.path)}: {e.message}" for e in errors)

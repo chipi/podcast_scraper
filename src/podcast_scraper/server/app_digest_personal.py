@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
+from podcast_scraper.languages import translation_fields
 from podcast_scraper.server import (
     app_auto_picks,
     app_comms_store,
@@ -91,9 +92,7 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
     quote = highlight.get("quote_text")
     if isinstance(quote, str) and quote:
         item["quote"] = quote
-        translated = highlight.get("translated_from")
-        if isinstance(translated, str) and translated:
-            item["quote_translated_from"] = translated
+        item.update(translation_fields(highlight.get("translated_from")))
     return item
 
 

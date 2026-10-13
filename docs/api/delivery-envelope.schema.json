@@ -277,6 +277,16 @@
         "quote": {
           "type": "string"
         },
+        "quote_translated_from": {
+          "type": "string",
+          "minLength": 2,
+          "description": "Source language code when `quote` is a machine translation of what was said (D-36 slice b). Absent for native text."
+        },
+        "quote_translated_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Ready-to-print line for under the quote, e.g. \"Translated from Spanish\". Present exactly when quote_translated_from is; templates print it as given."
+        },
         "episode_slug": {
           "type": "string",
           "minLength": 1

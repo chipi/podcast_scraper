@@ -40,6 +40,19 @@
             "source": "user"
           },
           {
+            "quote": "Drainage is the design decision that has the biggest impact on any trail.",
+            "quote_translated_from": "es",
+            "quote_translated_label": "Translated from Spanish",
+            "episode_slug": "p10-construyendo-senderos-que-duran",
+            "episode_title": "Construyendo Senderos Que Duran",
+            "t_ms": 20940,
+            "graph_refs": [
+              { "id": "topic:trail-building", "kind": "topic", "label": "Trail building" }
+            ],
+            "deep_link": "/episode/p10-construyendo-senderos-que-duran?t=20",
+            "source": "auto"
+          },
+          {
             "quote": "Most alignment work is really about making disagreement legible before it becomes catastrophic.",
             "episode_slug": "dwarkesh-paul-christiano-how-ai-could-go-wrong",
             "episode_title": "Paul Christiano — How AI Could Go Wrong",

@@ -99,3 +99,30 @@ def test_an_auto_pick_carries_nothing_that_advances_a_ladder(
         assert item["source"] == "auto"
         assert "highlight_id" not in item, item
         assert "revisit" not in item["deep_link"], item["deep_link"]
+
+
+def test_a_translated_episodes_pick_says_so(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D-36 slice b: an editor's pick from a translated episode is the English insight text, so
+    the digest labels it the way a translated capture is labelled."""
+    translated = SimpleNamespace(**{**vars(_insight()), "translated_from": "de"})
+    monkeypatch.setattr(
+        app_auto_picks, "insights_from_gi", lambda artifact, limit=None: [translated]
+    )
+    _heard(monkeypatch, {"ep-de"})
+    (item,) = app_auto_picks.auto_pick_items(
+        Path("/r"), tmp_path, "u1", exclude_slugs=set(), limit=1
+    )
+    assert item["quote_translated_from"] == "de"
+    assert item["quote_translated_label"] == "Translated from German"
+
+
+def test_a_native_pick_carries_no_translation_fields(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _heard(monkeypatch, {"ep-en"})
+    (item,) = app_auto_picks.auto_pick_items(
+        Path("/r"), tmp_path, "u1", exclude_slugs=set(), limit=1
+    )
+    assert "quote_translated_from" not in item and "quote_translated_label" not in item
