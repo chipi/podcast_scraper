@@ -477,7 +477,7 @@ jobs:
           PROD_APP_OPERATOR_API_KEY: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
           # Board summaries (RFC-127): the DGX vLLM's bearer, for the board-summarizer sidecar
           # ONLY (docker-compose.player-secrets.yml mounts it into no other service).
-          VLLM_API_KEY: ${{ secrets.PLAYER_VLLM_API_KEY }}
+          VLLM_API_KEY: ${{ secrets.VLLM_API_KEY }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)

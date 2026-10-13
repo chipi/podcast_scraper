@@ -74,7 +74,7 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
 - **Network**: egress to the profile's model endpoint only — the DGX vLLM over the tailnet
   (`vllm_api_base`, `dgx-llm-1:8003`). No inbound port, no docker.sock.
 - **Secrets**: the DGX vLLM bearer only, as a file secret mounted into this service alone
-  (`/run/secrets/vllm_api_key`, staged by `deploy-player.yml` from `PLAYER_VLLM_API_KEY`;
+  (`/run/secrets/vllm_api_key`, staged by `deploy-player.yml` from the `prod` environment secret `VLLM_API_KEY`;
   `docker-compose.player-secrets.yml`). The API container never sees it. No other provider's key.
 - **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 300, offset 60 s so it never
   wakes with the digest), does one sweep, sleeps. A sweep with nothing changed reads files only.
@@ -286,8 +286,8 @@ same day for the beta).
   note when the board changed since.
 - The privacy policy says boards are summarised by a model on our own servers.
 
-Not done, and needed before it runs in prod: create the GitHub secret `PLAYER_VLLM_API_KEY`
-(operator approval); confirm the player host reaches `dgx-llm-1:8003` (prod resolves the name; a
+Not done, and needed before it runs in prod: create the `prod` environment secret `VLLM_API_KEY`
+(the DGX vLLM key, one name for every consumer; operator approval); confirm the player host reaches `dgx-llm-1:8003` (prod resolves the name; a
 `GET /v1/models` from the player host has not been run); the first sweep on prod.
 
 ## References
