@@ -133,17 +133,36 @@ class TestTheTitleIsRecordedInTheLedger:
 
 
 class TestTheShowNameIsNotTranslated:
-    def test_nothing_passes_the_FEED_title_to_the_translator(self) -> None:
-        """The decision, asserted where it could regress. `run_translation_stage` takes an
-        `episode_title` and no feed/show title, so there is no channel for the show name to
-        reach the translator by."""
+    def test_the_FEED_title_reaches_the_stage_only_to_be_PROTECTED(self) -> None:
+        """The decision, asserted where it could regress.
+
+        Since #2324 the stage takes `feed_title`, and for the opposite reason to a translation:
+        with `translation_protect_names` on, the show's own title becomes a protected term the
+        translator must keep verbatim. So the guard is no longer "no channel exists" (which went
+        red on main the day it merged) but "the channel's only use is protection": every line of
+        the stage that mentions `feed_title` is a parameter, a pass-through, or
+        `candidate_terms(show_title=feed_title, ...)`."""
         import inspect
+        import re
 
-        from podcast_scraper.workflow.translation_stage import run_translation_stage
+        from podcast_scraper.workflow import translation_stage as ts
 
-        params = set(inspect.signature(run_translation_stage).parameters)
-        assert "episode_title" in params
-        assert not {"feed_title", "show_title", "show_name"} & params
+        assert "episode_title" in inspect.signature(ts.run_translation_stage).parameters
+        assert not {"show_title", "show_name"} & set(
+            inspect.signature(ts.run_translation_stage).parameters
+        )
+        uses = [
+            line.strip()
+            for line in inspect.getsource(ts).splitlines()
+            if re.search(r"\bfeed_title\b", line)
+        ]
+        allowed = (
+            re.compile(r"^feed_title: Optional\[str\] = None,$"),
+            re.compile(r"^feed_title=feed_title,$"),
+            re.compile(r"^candidate_terms\(show_title=feed_title, language=language\),$"),
+        )
+        stray = [u for u in uses if not any(p.match(u) for p in allowed)]
+        assert uses and not stray, f"feed_title used for something other than protection: {stray}"
 
     def test_the_helper_is_documented_as_episode_only(self) -> None:
         from podcast_scraper.workflow.translation_stage import _translate_title
