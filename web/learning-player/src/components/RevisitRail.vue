@@ -48,6 +48,7 @@ import { useResurfacingStore } from '../stores/resurfacing'
 import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
 import { resolveMediaUrl } from '../services/tier'
+import TranslatedFrom from './TranslatedFrom.vue'
 
 const { t } = useI18n()
 const resurfacing = useResurfacingStore()
@@ -210,7 +211,8 @@ const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
               v-if="quoteOf(item.highlight)"
               class="line-clamp-2 text-sm font-semibold italic leading-snug text-canvas-foreground"
             >
-              {{ quoteOf(item.highlight) }}
+              {{ quoteOf(item.highlight)
+              }}<TranslatedFrom inline :lang="item.highlight.translated_from" />
             </p>
             <p
               v-else

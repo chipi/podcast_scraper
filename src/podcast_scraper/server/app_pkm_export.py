@@ -26,6 +26,7 @@ from typing import Any
 from filelock import FileLock
 
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
+from podcast_scraper.languages import translated_from_label
 from podcast_scraper.server import app_graph_refs, app_user_state
 from podcast_scraper.server.app_capture_export import (
     captured_on,
@@ -182,6 +183,10 @@ def _highlight_note(h: dict[str, Any], episode_title: str, notes: list[str] | No
     captured = captured_on(h.get("created_at"))
     if captured:
         lines.append(f"captured: {captured}")
+    translated = str(h.get("translated_from") or "").strip()
+    if translated and quote:
+        # A vault outlives the app, so a translated line says so where it is kept (D-36 slice b).
+        lines.append(f"translated_from: {_yaml_scalar(translated)}")
     colour = str(h.get("color") or "").strip()
     if colour:
         # The user's own classification — the one piece of metadata here they authored themselves.
@@ -198,6 +203,9 @@ def _highlight_note(h: dict[str, Any], episode_title: str, notes: list[str] | No
         # unprefixed line, so a captured passage spanning two lines rendered its opening line as a
         # quote and the remainder as body text attributed to nobody.
         lines.append("\n".join(f"> {line}" for line in quote.splitlines() or [quote]))
+        label = translated_from_label(translated or None)
+        if label:
+            lines.append(f"> _{label}_")
     ep_link = f"[[{_ROOT}/Episodes/{_safe_id(slug)}|{_wikilink_text(episode_title)}]]"
     deep = episode_url(slug, t_ms)
     lines.append(f"— {ep_link} · [▶ jump]({deep})")

@@ -37,6 +37,7 @@ import { useCappedSections } from '../composables/useCappedSections'
 import type { HighlightsPageState } from '../composables/useHighlightsPage'
 import { shareHighlightCard } from '../composables/shareCard'
 import ShareIcon from '../components/ShareIcon.vue'
+import TranslatedFrom from "../components/TranslatedFrom.vue"
 
 const { t, locale } = useI18n()
 const capture = useCaptureStore()
@@ -473,6 +474,7 @@ watch(
               >
                 {{ quoteOf(h) }}
               </blockquote>
+              <TranslatedFrom v-if="quoteOf(h)" :lang="h.translated_from" />
               <p v-if="h.speaker" class="lp-speaker mt-1 text-xs">{{ h.speaker }}</p>
               <!-- Graph refs (#1419): the highlight as a node — person/topic it's linked to. -->
               <!-- The person/topic pills that sat here are gone (operator 2026-09-17): the card is a

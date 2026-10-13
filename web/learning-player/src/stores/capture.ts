@@ -384,6 +384,7 @@ export const useCaptureStore = defineStore('capture', {
       contentSeconds: number,
       speaker?: string | null,
       quoteText?: string | null,
+      translatedFrom?: string | null,
     ): Promise<boolean> {
       // Swallowed so `void capture.x()` can never raise, but the OUTCOME is reported: callers
       // were announcing "Saved" to screen readers unconditionally, so a failed POST told a blind
@@ -399,6 +400,7 @@ export const useCaptureStore = defineStore('capture', {
         // could see that they had marked something and not what (operator 2026-09-17). The player
         // already has the active segment in hand; its text is the thing being marked.
         quote_text: quoteText ?? null,
+        translated_from: quoteText ? (translatedFrom ?? null) : null,
       })
     },
     /**
@@ -406,19 +408,33 @@ export const useCaptureStore = defineStore('capture', {
      * pre-computed (`spanFromParagraph`). An identical span (same verbatim text over the same
      * segments) *toggles* — a second save removes it; otherwise it *adds*.
      */
-    async captureSpan(slug: string, span: ParagraphSpan): Promise<boolean> {
+    async captureSpan(
+      slug: string,
+      span: ParagraphSpan,
+      translatedFrom?: string | null,
+    ): Promise<boolean> {
       const key = span.segment_ids.join(',')
       const existing = this.highlights.find(
         (h) =>
           h.kind === 'span' && h.quote_text === span.quote_text && h.segment_ids.join(',') === key,
       )
       if (existing) return this._uncapture(existing.id)
-      return this._capture({ episode_slug: slug, kind: 'span', ...span })
+      return this._capture({
+        episode_slug: slug,
+        kind: 'span',
+        ...span,
+        translated_from: translatedFrom ?? null,
+      })
     },
     /** Save a grounded insight as an insight highlight (toggles off if already saved). */
     async captureInsight(
       slug: string,
-      insight: { id: string; text: string; start_ms?: number | null },
+      insight: {
+        id: string
+        text: string
+        start_ms?: number | null
+        translated_from?: string | null
+      },
     ): Promise<boolean> {
       const existing = this.highlights.find((h) => h.source_insight_id === insight.id)
       if (existing) return this._uncapture(existing.id)
@@ -428,6 +444,7 @@ export const useCaptureStore = defineStore('capture', {
         source_insight_id: insight.id,
         quote_text: insight.text,
         start_ms: insight.start_ms ?? null,
+        translated_from: insight.translated_from ?? null,
       })
     },
     /**

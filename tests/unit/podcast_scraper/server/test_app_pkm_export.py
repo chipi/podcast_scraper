@@ -580,3 +580,16 @@ class TestPlaceholderPeopleNeverReachTheVault:
 
     def test_none_is_safe(self) -> None:
         assert ex._usable_refs(None) == []
+
+
+def test_a_translated_capture_is_labelled_in_the_vault(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-36 slice b: a vault outlives the app, so the note says the quote is a translation."""
+    hl = {**_HL, "translated_from": "es", "notes": None}
+    note = _vault(monkeypatch, [hl])["closelistening/Highlights/h_1.md"]
+    assert 'translated_from: "es"' in note
+    assert "> _Translated from Spanish_" in note
+
+
+def test_a_native_capture_carries_no_label(monkeypatch: pytest.MonkeyPatch) -> None:
+    note = _vault(monkeypatch, [_HL])["closelistening/Highlights/h_1.md"]
+    assert "translated_from" not in note and "Translated from" not in note

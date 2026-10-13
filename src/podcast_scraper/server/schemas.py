@@ -1341,6 +1341,13 @@ class HighlightCreate(BaseModel):
     source_insight_id: str | None = Field(
         default=None, description="GIL insight id (insight kind)."
     )
+    translated_from: str | None = Field(
+        default=None,
+        description="Source language code when the captured text is a machine translation (D-36 "
+        "slice b). Sent by the client, which knows which rendering it showed: an English span of a "
+        "Spanish episode is translated, the same span captured from `?lang=es` is not. Stored with "
+        "the capture so every copy of the quote (export, digest, share card) can say so.",
+    )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
     client_id: str | None = Field(
         default=None,
@@ -1368,6 +1375,13 @@ class HighlightCreate(BaseModel):
                 f"end_ms ({self.end_ms}) must be >= start_ms ({self.start_ms}); "
                 "an inverted window cannot anchor to anything"
             )
+        if self.translated_from is not None:
+            from podcast_scraper.languages import normalize_language_tag
+
+            code = normalize_language_tag(self.translated_from)
+            if not code:
+                raise ValueError(f"translated_from {self.translated_from!r} is not a language tag")
+            self.translated_from = None if code == "en" else code
         return self
 
 
@@ -1395,6 +1409,10 @@ class Highlight(BaseModel):
     speaker: str | None = Field(default=None, description="Speaker label when known.")
     source_insight_id: str | None = Field(
         default=None, description="GIL insight id (insight kind)."
+    )
+    translated_from: str | None = Field(
+        default=None,
+        description="Source language code when the captured text is a machine translation.",
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
     created_at: int = Field(description="Unix time captured.")
@@ -2475,6 +2493,9 @@ class RecapLine(BaseModel):
     """A verbatim line the listener saved — the one part of a recap that is an artifact."""
 
     quote_text: str = Field(description="What they kept.")
+    translated_from: str | None = Field(
+        default=None, description="Source language when the line is a machine translation."
+    )
     episode_slug: str | None = Field(default=None)
     start_ms: int | None = Field(default=None, description="Anchor, so it can open AT the moment.")
     created_at: int = Field(description="Unix seconds saved.")

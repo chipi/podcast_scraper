@@ -32,6 +32,7 @@ import type { EpisodeDetail, EpisodeSummary, ResurfacingItem } from '../services
 import { formatPublishDate } from '../utils/format'
 import { borderClass } from '../utils/highlightColors'
 import { scrollBehavior } from '../utils/motion'
+import TranslatedFrom from "../components/TranslatedFrom.vue"
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -505,6 +506,7 @@ onActivated(() => {
             >
               {{ quoteOf(item) }}
             </blockquote>
+            <TranslatedFrom v-if="quoteOf(item)" :lang="item.highlight.translated_from" />
             <p v-if="item.highlight.speaker" class="lp-speaker mt-1 text-xs">
               {{ item.highlight.speaker }}
             </p>

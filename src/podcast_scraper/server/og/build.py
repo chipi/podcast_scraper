@@ -19,6 +19,7 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
+from podcast_scraper.languages import translated_from_label
 from podcast_scraper.server.og.card import accent_for_kind, OgCardModel
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,9 @@ def build_og_meta(root: Path, kind: str, ident: str) -> OgMeta | None:
     if model is None:
         return None
     description = model.quote or model.blurb or model.stats or model.byline or "Close Listening"
+    label = translated_from_label(model.translated_from) if model.quote else None
+    if label:
+        description = f"{description} ({label})"
     return OgMeta(title=model.title, description=description)
 
 
@@ -213,6 +217,7 @@ def _topic(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     if card is None:
         return None
     quote: str | None = None
+    translated_from: str | None = None
     byline: str | None = None
     voices = len(card.related_people or [])
     persp = build_topic_perspectives(root, ident)
@@ -222,6 +227,7 @@ def _topic(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
         if lead.insights:
             # Salience-sorted → [0].insights[0] is the leading voice's top take; attribute it.
             quote = _clip(lead.insights[0].text, _MAX_QUOTE)
+            translated_from = lead.insights[0].translated_from
             byline = f"— {lead.person_name}" if lead.person_name else None
     stats = _eps(card.episode_count)
     if voices:
@@ -232,6 +238,7 @@ def _topic(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
         kicker="Topic",
         title=card.label,
         quote=quote,
+        translated_from=translated_from,
         byline=byline,
         stats=stats,
         hot=hot,
@@ -565,6 +572,7 @@ def build_highlight_card(
         kicker=f"Highlight · {row.feed_title}" if row.feed_title else "Highlight",
         title=row.episode_title or "Untitled episode",
         quote=quote,
+        translated_from=(str(highlight.get("translated_from") or "") or None) if quote else None,
         byline=byline,
         stats=" · ".join(m for m in meta if m) or None,
         tags=" · ".join(labels) or None,

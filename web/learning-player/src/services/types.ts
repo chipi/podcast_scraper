@@ -561,6 +561,8 @@ export interface Highlight {
   quote_text: string | null
   speaker: string | null
   source_insight_id: string | null
+  /** D-36(b): source language when `quote_text` is a machine translation; absent/null = said. */
+  translated_from?: string | null
   color: string | null
   created_at: number
   /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
@@ -586,6 +588,8 @@ export interface HighlightCreate {
   quote_text?: string | null
   speaker?: string | null
   source_insight_id?: string | null
+  /** D-36(b): source language when the captured text is a machine translation. */
+  translated_from?: string | null
   color?: string | null
   /**
    * Client-minted id (#1925). Supplying one makes the POST idempotent, which is what lets a
@@ -1311,6 +1315,8 @@ export interface RecapStrongEpisode {
 /** A verbatim line the listener saved — the one part of a recap that is an artifact. */
 export interface RecapLine {
   quote_text: string
+  /** D-36(b): source language when the saved line is a machine translation. */
+  translated_from?: string | null
   episode_slug: string | null
   /** Anchor, so the UI can open the episode AT the moment rather than at the start. */
   start_ms: number | null

@@ -112,6 +112,26 @@ describe('capture store', () => {
     expect(c.savedSegmentIds.has('s5')).toBe(false)
   })
 
+  it('a capture of translated text carries its source language (D-36 b)', async () => {
+    vi.spyOn(api, 'createHighlight').mockResolvedValue(hl({ id: 'x' }))
+    const c = useCaptureStore()
+    await c.captureMoment('ep', 3, 'Ann', 'what she said', 'es')
+    await c.captureSpan(
+      'ep',
+      { start_ms: 1, end_ms: 2, segment_ids: ['s9'], char_start: 0, char_end: 4, quote_text: 'said', speaker: null },
+      'pt',
+    )
+    await c.captureInsight('ep', { id: 'i7', text: 'a take', translated_from: 'de' })
+    const sent = vi.mocked(api.createHighlight).mock.calls.map((call) => call[0].translated_from)
+    expect(sent).toEqual(['es', 'pt', 'de'])
+  })
+
+  it('a moment with no captured text claims no translation', async () => {
+    vi.spyOn(api, 'createHighlight').mockResolvedValue(hl({ id: 'y' }))
+    await useCaptureStore().captureMoment('ep', 3, null, null, 'es')
+    expect(vi.mocked(api.createHighlight).mock.calls[0][0].translated_from).toBeNull()
+  })
+
   it('captureSpan() adds distinct spans (a phrase ≠ the whole paragraph) without toggling', async () => {
     let n = 0
     vi.spyOn(api, 'createHighlight').mockImplementation(

@@ -193,6 +193,7 @@ def _best_line(data_dir: Path, user_id: str, in_window: set[str], tz: int) -> di
         if best is None or len(quote) > len(best["quote_text"]):
             best = {
                 "quote_text": quote,
+                "translated_from": h.get("translated_from"),
                 "episode_slug": h.get("episode_slug"),
                 "start_ms": h.get("start_ms"),
                 "created_at": created,

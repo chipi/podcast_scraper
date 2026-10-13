@@ -305,6 +305,18 @@ def language_registry() -> Dict[str, LanguageEntry]:
     return out
 
 
+def translated_from_label(code: Optional[str]) -> Optional[str]:
+    """ "Translated from Spanish" for a source-language code (D-36 slice b), or ``None``.
+
+    For copies of a quote that leave the app (share cards, notes, exports), where the player's
+    own label cannot follow. Names come from the registry; an unknown code shows as itself.
+    """
+    if not code:
+        return None
+    entry = language_registry().get(normalize_language_tag(code) or code)
+    return f"Translated from {entry.name if entry else code.upper()}"
+
+
 def is_language_enabled(code: Optional[str]) -> bool:
     """Is this language one we ingest? Unknown or absent → False, never a lenient default."""
     if not code:

@@ -91,6 +91,9 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
     quote = highlight.get("quote_text")
     if isinstance(quote, str) and quote:
         item["quote"] = quote
+        translated = highlight.get("translated_from")
+        if isinstance(translated, str) and translated:
+            item["quote_translated_from"] = translated
     return item
 
 

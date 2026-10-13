@@ -17,6 +17,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from podcast_scraper.languages import translated_from_label
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from PIL import Image, ImageDraw, ImageFont
 
@@ -68,6 +70,7 @@ class OgCardModel:
     kicker: str  # "TOPIC" / "EPISODE · CROSS-SHOW"
     title: str
     quote: str | None = None  # a signature spoken take — italic + quote marks
+    translated_from: str | None = None  # source language when `quote` is a machine translation
     blurb: str | None = None  # a descriptive line (org "what they do", storyline members) — roman,
     # no quote marks; rendered in the same slot as `quote` when there is no quote to show
     byline: str | None = None  # "— Dr. Elena Fischer" / "42 min · 3 insights"
@@ -362,6 +365,13 @@ def render_card_png(model: OgCardModel) -> bytes:
         ):
             draw.text((_PAD, y), line, font=quote_font, fill=_FG)
             y += 62
+        # D-36 slice b: a translated quote says so on the card itself, since the card travels
+        # without the app around it.
+        label = translated_from_label(model.translated_from)
+        if label:
+            y += 8
+            draw.text((_PAD, y), label, font=_font(str(_SERIF_ITALIC), 30), fill=_MUTED)
+            y += 42
     elif model.blurb:
         blurb_font = _font(str(_SERIF), 47)
         y += 40

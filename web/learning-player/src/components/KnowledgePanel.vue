@@ -619,6 +619,7 @@ const captureInsight = (ins: Insight) =>
       id: ins.id,
       text: ins.text,
       start_ms: secs != null ? Math.round(secs * 1000) : null,
+      translated_from: ins.translated_from ?? null,
     })
     emit(
       "announce",

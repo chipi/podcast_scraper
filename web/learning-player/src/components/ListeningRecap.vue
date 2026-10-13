@@ -23,6 +23,7 @@ import PlayFrom from './PlayFrom.vue'
 import { getRecap } from '../services/api'
 import type { RecapResponse, RecapRecurring, RecapWindow } from '../services/types'
 import { trendLabel } from '../utils/recapTrend'
+import TranslatedFrom from './TranslatedFrom.vue'
 
 const { t } = useI18n()
 
@@ -214,6 +215,7 @@ const lineTarget = computed(() => {
     <figure v-if="recap!.best_line" class="mt-3 rounded-xl bg-overlay p-4">
       <h3 class="lp-kicker mb-2">{{ t('recap.line') }}</h3>
       <blockquote class="text-sm italic">“{{ recap!.best_line.quote_text }}”</blockquote>
+      <TranslatedFrom :lang="recap!.best_line.translated_from" />
       <!-- The shared jump control (operator 2026-10-05): "▶ Play from 3:12", or the old "Open
            line" wording when the line has no time to name. -->
       <PlayFrom

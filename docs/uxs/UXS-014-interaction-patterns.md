@@ -605,6 +605,36 @@ adapter, which are covered. The over-artwork plate is an opaque-enough `bg-black
 backdrop blur (blur blanks regions in Android WebView); the contrast check composites it over pure
 white and pure black, the two extremes the artwork can present.
 
+## Translated quotes (`TranslatedFrom`) — D-36 slice b, 2026-10-13
+
+**A quote that is a machine translation says so, under the quote, wherever the quote renders.** A
+quote can be passed on as somebody's words; a translated one must not read as what they said in
+English. One muted italic line — "Translated from Spanish" — beneath the quote and its speaker,
+never inside the quote marks.
+
+| Surface | Where |
+| --- | --- |
+| Brief (`KnowledgePanel`) | Under the supporting quote, after the speaker |
+| Post-episode recap (`EpisodeRecapPanel`) | Under the signature quote |
+| Moments (`MomentsCard`) | Under the speaker line |
+| Topic takes (`TopicPerspectives`) | Inline after the take and its ▶ Play from |
+| Saved, resurfacing inbox | Under the captured quote |
+| Revisit rail, listening recap | Inline after / under the saved line |
+
+**A capture keeps the label it was made with.** Saving copies the words, so the copy carries the
+language: the client sends what it showed — an English line of a Spanish episode is translated, the
+same line captured from the Spanish transcript is not. A moment saved without text claims nothing.
+
+**Copies outside the app carry it too:** the highlight and topic share cards, the episode-notes
+document and the note-app export (as `translated_from` in the frontmatter plus a line under the
+quote). The user's own notes are never labelled — they are the user's words.
+
+**Native text carries no label**, and nothing is labelled by guess: the language comes from the
+translation provenance the pipeline writes on each quote.
+
+**Not yet labelled** (operator, 2026-10-13): search results and the MCP tools. The page a search
+result opens carries the label.
+
 ## Destructive confirmation (#1594)
 
 `ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.

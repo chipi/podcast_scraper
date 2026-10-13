@@ -204,6 +204,13 @@ const segments = ref<Segment[]>([])
 const transcriptLang = ref<string | null>(null)
 const servedLanguage = ref<string | null>(null)
 const sourceLanguage = ref<string | null>(null)
+/** D-36(b): the source language when the transcript on screen is the English translation, so a
+ *  capture of it says so. Null for a native-English episode and for the source-language view. */
+const shownTranslatedFrom = computed(() =>
+  servedLanguage.value === 'en' && sourceLanguage.value && sourceLanguage.value !== 'en'
+    ? sourceLanguage.value
+    : null,
+)
 const transcriptLangBusy = ref(false)
 const audioUrl = ref<string | null>(null)
 const insights = ref<Insight[]>([])
@@ -1424,6 +1431,7 @@ const markMoment = () =>
       Math.max(0, contentTime.value),
       speaker,
       quote,
+      shownTranslatedFrom.value,
     )
     if (flashTimer) clearTimeout(flashTimer)
     captureState.value = ok ? 'saved' : 'failed'
@@ -1447,7 +1455,7 @@ const markMoment = () =>
  */
 const onCaptureParagraph = (span: ParagraphSpan) =>
   gated(async () => {
-    const ok = await capture.captureSpan(props.slug, span)
+    const ok = await capture.captureSpan(props.slug, span, shownTranslatedFrom.value)
     announceCapture(ok ? t('capture.savedHighlight') : t('capture.saveFailed'))
   })()
 

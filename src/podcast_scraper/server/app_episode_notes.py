@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.languages import translated_from_label
 from podcast_scraper.server.app_capture_export import (
     _e,
     _PRINT_CSS,
@@ -43,6 +44,7 @@ class NoteQuote:
     speaker: str | None = None
     start_ms: int | None = None
     jump_url: str | None = None
+    translated_from: str | None = None
 
 
 @dataclass
@@ -66,6 +68,7 @@ class NoteCapture:
 
     kind: str
     quote_text: str | None = None
+    translated_from: str | None = None
     speaker: str | None = None
     color: str | None = None
     start_ms: int | None = None
@@ -133,6 +136,9 @@ def render_episode_notes_markdown(doc: EpisodeNotes) -> str:
                 tail = [x for x in (q.speaker, _stamp_md(q)) if x]
                 if tail:
                     L.append(f"> — {', '.join(tail)}")
+                label = translated_from_label(q.translated_from)
+                if label:
+                    L.append(f"> _{label}_")
                 L.append("")
 
     if doc.captures:
@@ -151,6 +157,9 @@ def render_episode_notes_markdown(doc: EpisodeNotes) -> str:
             made = captured_on(c.created_at)
             if made:
                 suffix.append(f"· captured {made}")
+            translated = translated_from_label(c.translated_from) if quote else None
+            if translated:
+                suffix.append(f"_({translated})_")
             line = f"- **{label}** {' '.join(bits)}"
             if suffix:
                 line += " " + " ".join(suffix)
@@ -221,6 +230,9 @@ def render_episode_notes_html(doc: EpisodeNotes) -> str:
             out.append(f"<p class='quote'><strong>{_e(ins.text)}</strong></p>")
             for q in ins.quotes:
                 out.append(f"<p class='quote'>&ldquo;{_e(q.text)}&rdquo;</p>")
+                label = translated_from_label(q.translated_from)
+                if label:
+                    out.append(f"<p class='who'><em>{_e(label)}</em></p>")
                 bits = []
                 if q.speaker:
                     bits.append(_e(q.speaker))
@@ -249,6 +261,9 @@ def render_episode_notes_html(doc: EpisodeNotes) -> str:
             if quote:
                 body = _e(quote) if c.kind == "insight" else f"&ldquo;{_e(quote)}&rdquo;"
                 out.append(f"<p class='quote'>{body}</p>")
+                label = translated_from_label(c.translated_from)
+                if label:
+                    out.append(f"<p class='who'><em>{_e(label)}</em></p>")
             if c.speaker:
                 out.append(f"<p class='who'>— {_e(c.speaker)}</p>")
             for n in c.notes:
@@ -316,6 +331,7 @@ def build_episode_notes(
                         speaker=q.speaker,
                         start_ms=q.start_ms,
                         jump_url=episode_url(slug, q.start_ms),
+                        translated_from=q.translated_from,
                     )
                     for q in (ins.quotes or [])
                 ],
@@ -328,6 +344,7 @@ def build_episode_notes(
             NoteCapture(
                 kind=str(h.get("kind", "span")),
                 quote_text=h.get("quote_text"),
+                translated_from=h.get("translated_from"),
                 speaker=h.get("speaker"),
                 color=h.get("color"),
                 start_ms=h.get("start_ms"),
