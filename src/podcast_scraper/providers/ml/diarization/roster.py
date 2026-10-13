@@ -80,6 +80,7 @@ from ....speaker_detectors.hosts import (
     names_the_show,
     performs_show_intro,
     roles_from_conversation,
+    show_name_pattern,
     strip_role_prefix,
 )
 from ....speaker_detectors.normalization import filter_default_speaker_names
@@ -2890,6 +2891,26 @@ def _name_host_voices(
             named=sorted(f"{v}={n}" for v, (n, _) in pair_names.items()),
         )
 
+    # ONE UNNAMED HOST SEAT, TWO STATED HOSTS, AND THE SEAT KEEPS ADDRESSING ONE OF THEM: it is the
+    # other one (`_seat_by_cohost_address`). Hard Fork, prod 2026-10-13: the only live host voice
+    # says "Well, Kevin, ..." 20 times and "Casey" 5, so it is Casey Newton. Before the feed-stated
+    # hosts stayed in the pool (Phase C fix A) this seat got Casey only because the intro clip's
+    # "I'm Kevin Roose" had thrown Kevin out of the pool -- the right name for a wrong reason.
+    if forced_name is None and not pair_names and len(unnamed_seats) == 1 and not guest_hosted:
+        seat = unnamed_seats[0]
+        text_ = (voice_texts or {}).get(seat, "")
+        guest_act = seat not in host_evidence_voices and any(
+            p.search(text_) for p in _guest_acts(language)
+        )
+        other = None if guest_act else _seat_by_cohost_address(text_, [n for n, _ in unclaimed])
+        if other and _speaks_of_by_first_name(text_, other, feed_title):
+            other = None
+        if other:
+            pair_names = {seat: (other, dict(unclaimed)[other])}
+        tr.note(
+            "host_naming_by_cohost_address", seat=seat, named=other, performs_guest_act=guest_act
+        )
+
     for v in host_voices:
         iname = voice_intro.get(v)
         if iname and iname.lower() not in used_lower:
@@ -2921,7 +2942,8 @@ def _name_host_voices(
             name, src = pair_names[v]
             used_lower.add(name.lower())
             out[v] = SpeakerRole(name=name, role="host", named=True, source=src, forced=True)
-            tr.voice(v, "host_naming", "forced_pool_name", name=name, source=src, by="address_pair")
+            by = "address_pair" if len(pair_names) == 2 else "addressed_cohost"
+            tr.voice(v, "host_naming", "forced_pool_name", name=name, source=src, by=by)
             continue
         out[v] = SpeakerRole(name=v, role="host", named=False, source="raw")
         tr.voice(v, "host_naming", "unnamed", intro_name_taken=iname or None)
@@ -4746,6 +4768,25 @@ def _vocative_count(text: str, host: str) -> int:
     return n
 
 
+def _seat_by_cohost_address(text: str, names: Sequence[str]) -> Optional[str]:
+    """The stated host a lone host seat IS, read off whom it keeps addressing: with exactly two
+    stated hosts unclaimed, a seat that addresses one of them at least 3 times and the other at
+    most a third as often is the other. One address is not enough (`_pair_by_address`: guests
+    address hosts too), and a seat addressing both alike says nothing."""
+    if len(names) != 2:
+        return None
+    a, b = (_vocative_count(text, n) for n in names)
+    if a >= _COHOST_ADDRESS_MIN and b * 3 <= a:
+        return names[1]
+    if b >= _COHOST_ADDRESS_MIN and a * 3 <= b:
+        return names[0]
+    return None
+
+
+#: Addresses of the co-host before a lone host seat is named by them (`_seat_by_cohost_address`).
+_COHOST_ADDRESS_MIN = 3
+
+
 def _pair_by_address(
     texts: Mapping[str, str], a: str, b: str, names: Sequence[str]
 ) -> Optional[Dict[str, str]]:
@@ -5035,6 +5076,36 @@ def _seat_unnamed_introducers(
         host_voices.append(v)
 
 
+#: How many of the opener's own turns count as "how it opens" for :func:`_opener_presents`.
+_OPENER_HEAD_TURNS = 3
+
+
+def _opener_presents(
+    opener: str,
+    ordered_turns: Optional[Sequence[Tuple[str, str]]],
+    feed_title: Optional[str],
+    stated_people: Sequence[str],
+) -> bool:
+    """The opener's first turns name the SHOW or a person the episode states by full name.
+
+    What lets the opener take a SECOND host seat. Of the 34 episodes on prod where it did
+    (2026-10-13), the real hosts open with the show ("Listeners, do you love listening to the
+    UnHedged podcast?") or the guest ("we're lucky to have with us Jesse Zhang"); the guests open
+    with the network's merged ad tag ("This BBC podcast is supported by ads outside the UK.") or a
+    cold-open soundbite, and neither names the show or a stated person.
+    """
+    head = " ".join([t for v, t in ordered_turns or () if v == opener][:_OPENER_HEAD_TURNS])
+    if not head:
+        return False
+    show = show_name_pattern(feed_title)
+    if show and re.search(rf"(?<!\w)(?:{show})(?!\w)", head, re.IGNORECASE):
+        return True
+    return any(
+        len(n.split()) >= 2 and re.search(rf"(?<!\w){re.escape(n)}(?!\w)", head, re.IGNORECASE)
+        for n in stated_people
+    )
+
+
 def _select_host_voices(
     *,
     language: Optional[str] = TARGET_LANGUAGE,
@@ -5063,6 +5134,8 @@ def _select_host_voices(
     # Voices that introduce or greet a person the episode states (the introducer half of
     # `presenter_voices`); an UNNAMED one may take a seat the pool can name (step 1c).
     introducer_voices: AbstractSet[str] = frozenset(),
+    ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
+    feed_title: Optional[str] = None,
     trace: Optional[NamingTrace] = None,
 ) -> List[str]:
     """WHICH diarized voices are the hosts — the cross-reference of metadata (who / how many) and
@@ -5279,6 +5352,12 @@ def _select_host_voices(
         and opener not in positional_non_host
         and share.get(opener, 0.0) >= HOST_ELIMINATION_MIN_SHARE
         and len(host_voices) < max(1, len(host_pool))
+        # Once a host is seated, "the opener does the intro" needs the opener to actually present:
+        # on a two-host show (Capitalisn't) the second seat went to the guest's cold-open
+        # soundbite, which the forced pool name then called "Luigi Zingales"; on In Our Time and
+        # Curious Cases to the guest whose cluster carries the merged "This BBC podcast is
+        # supported by ads" tag. A host opener names the show or the guest (Unhedged, No Priors).
+        and (not host_voices or _opener_presents(opener, ordered_turns, feed_title, stated_others))
     ):
         host_voices.append(opener)
     tr.note("host_seat_opener", opener=opener)
@@ -5591,6 +5670,53 @@ def _snap_evidence_hosts_to_stated_spelling(
             by_voice[v] = replace(role, name=snapped)
 
 
+#: Words that make a "name" a group or an institution, not one person (#2304 Phase C, prod
+#: 2026-10-13: "Africa Bitcoin Corporation board", "NTT's Japanese owners", "Madlanga Commission").
+_NOT_ONE_PERSON_WORDS = frozenset(
+    "board owners owner corporation corp company inc ltd llc plc group ministry department "
+    "government team staff officials members committee council association foundation institute "
+    "university bank agency authority commission administration family people investors "
+    "shareholders executives management partners fund holdings brothers sisters".split()
+)
+#: Lowercase words a real multi-word name carries ("Ludwig van Beethoven", "Osama bin Laden").
+_NAME_PARTICLES = frozenset(
+    (
+        "van von de der den da das do dos di del della du le la "
+        "bin binti ibn al el ten ter y e of st"
+    ).split()
+)
+
+
+def plausible_person_names(names: Iterable[str]) -> List[str]:
+    """``names`` without the phrases that cannot be one person's name; order kept.
+
+    The episode-description extraction yields group and institution phrases as "people"; they
+    reached the speaker record as unplaced guests and entered the guest pool as spare names, where
+    the forced one-name-one-voice rule could paint one onto a voice. Measured over the 2,014
+    distinct stored names (2026-10-13), this drops exactly "NTT's Japanese owners", "Africa Bitcoin
+    Corporation board", "Madlanga Commission", "math teacher" and "The Ord brothers", and keeps
+    every real name, including a lowercase handle ("swyx", one word) and the ``unknown_guest_N`` /
+    ``Host`` placeholders the pipeline uses as a signal (one word each, so no rule touches them).
+    """
+    out: List[str] = []
+    for raw in names:
+        name = str(raw or "").strip()
+        if not name:
+            continue
+        plain = name.replace("\u2019", "'")
+        words = plain.split()
+        if any(w.lower().strip(".,") in _NOT_ONE_PERSON_WORDS for w in words):
+            continue
+        if re.search(r"\w's\b", plain):
+            continue
+        if len(words) > 1 and any(
+            w[:1].islower() and w.lower() not in _NAME_PARTICLES for w in words
+        ):
+            continue
+        out.append(name)
+    return out
+
+
 def resolve_speaker_roster(
     diarization: DiarizationResult,
     transcript_text: Optional[str],
@@ -5651,6 +5777,8 @@ def resolve_speaker_roster(
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
 
     tr: NamingTrace = trace if trace is not None else NullTrace()
+    detected_guests = plausible_person_names(detected_guests or ())
+    metadata_named = plausible_person_names(metadata_named or ())
     tr.roster_inputs(
         known_hosts=list(known_hosts or ()),
         detected_guests=list(detected_guests or ()),
@@ -5981,10 +6109,14 @@ def resolve_speaker_roster(
     # when we have them the transcript-level scan is strictly worse and is skipped. It survives only
     # for callers that pass no `voice_texts` at all.
     intro_source = None if voice_texts else transcript_text
+    # The ad-reader filter is for names GUESSED from the transcript. A host the FEED states stays:
+    # his own voice reading the show's recorded intro is often typed an ad (an edge clip), and
+    # dropping him emptied the pool on Macro Musings (prod 2026-10-13: "I am your host, David
+    # Beckworth" in the intro, the host left unnamed and the guest seated as host).
     host_pool = [
         (n, s)
         for n, s in _host_name_pool(intro_source, known_hosts, host_candidates, language)
-        if n.lower() not in ad_names_lower
+        if s in ("known_hosts", "feed") or n.lower() not in ad_names_lower
     ]
     # THE SHOW IS NOT ITS OWN HOST. A feed-level pool still carries the show's name on some feeds
     # ("Africa Tech Summit", "Machine Learning Street", "Trivium China"), and it was FORCED onto a
@@ -6038,6 +6170,8 @@ def resolve_speaker_roster(
         presenter_voices=presenter_voices,
         copresenter_voices=copresenter_voices,
         introducer_voices=_introducer_voices,
+        ordered_turns=ordered_turns,
+        feed_title=feed_title,
         trace=tr,
     )
     _cohost_present = _an_unseated_host_is_said_present(

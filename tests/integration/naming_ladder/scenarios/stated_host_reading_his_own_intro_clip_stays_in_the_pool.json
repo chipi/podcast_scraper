@@ -1,0 +1,49 @@
+{
+ "why": "Phase C fix A (#2304, prod 2026-10-13 Macro Musings 'John Rolle on The Bahamas...'): the show's recorded intro ('I am your host, David Beckworth ... produced by ... mercatus.org ... subscribe') is typed an ad (an edge intro clip, K10), and the ad-reader filter then dropped the FEED-STATED host from the host pool. With an empty pool the host voice stayed unnamed and the no-stated-host step could seat the guest. The filter exists for names guessed from the transcript; a host the feed states is still the host when his own voice reads the intro.",
+ "feed": {
+  "title": "Macro Musings with David Beckworth",
+  "description": "Hosted by David Beckworth, a senior research fellow."
+ },
+ "episode": {
+  "title": "John Rolle on The Bahamas' Fixed Exchange Rate"
+ },
+ "detected": {
+  "speaker_names": [
+   "David Beckworth"
+  ],
+  "metadata_named": [
+   "John Rolle"
+  ]
+ },
+ "turns": [
+  [
+   "INTRO",
+   25,
+   "Welcome to Macro Musings, where each week we pull back the curtain on macroeconomics. I am your host, David Beckworth, a senior research fellow with the Mercatus Center. Macro Musings is produced by the Mercatus Center. Dive deeper into our research at mercatus.org/monetary-policy. You can subscribe to the show on Apple Podcasts, Spotify or your favorite podcast app, and please rate and review the show."
+  ],
+  [
+   "H",
+   60,
+   "Our guest today is John Rolle. John, welcome to the show."
+  ],
+  [
+   "G",
+   900,
+   "Well, David, thank you again for having me. The peg provides convenience for a tourism economy, point 0. The peg provides convenience for a tourism economy, point 1. The peg provides convenience for a tourism economy, point 2. The peg provides convenience for a tourism economy, point 3. The peg provides convenience for a tourism economy, point 4. The peg provides convenience for a tourism economy, point 5. The peg provides convenience for a tourism economy, point 6. The peg provides convenience for a tourism economy, point 7. The peg provides convenience for a tourism economy, point 8. The peg provides convenience for a tourism economy, point 9. The peg provides convenience for a tourism economy, point 10. The peg provides convenience for a tourism economy, point 11. The peg provides convenience for a tourism economy, point 12. The peg provides convenience for a tourism economy, point 13. The peg provides convenience for a tourism economy, point 14. The peg provides convenience for a tourism economy, point 15. The peg provides convenience for a tourism economy, point 16. The peg provides convenience for a tourism economy, point 17. The peg provides convenience for a tourism economy, point 18. The peg provides convenience for a tourism economy, point 19. The peg provides convenience for a tourism economy, point 20. The peg provides convenience for a tourism economy, point 21. The peg provides convenience for a tourism economy, point 22. The peg provides convenience for a tourism economy, point 23. The peg provides convenience for a tourism economy, point 24. The peg provides convenience for a tourism economy, point 25. The peg provides convenience for a tourism economy, point 26. The peg provides convenience for a tourism economy, point 27. The peg provides convenience for a tourism economy, point 28. The peg provides convenience for a tourism economy, point 29. The peg provides convenience for a tourism economy, point 30. The peg provides convenience for a tourism economy, point 31. The peg provides convenience for a tourism economy, point 32. The peg provides convenience for a tourism economy, point 33. The peg provides convenience for a tourism economy, point 34. The peg provides convenience for a tourism economy, point 35. The peg provides convenience for a tourism economy, point 36. The peg provides convenience for a tourism economy, point 37. The peg provides convenience for a tourism economy, point 38. The peg provides convenience for a tourism economy, point 39. The peg provides convenience for a tourism economy, point 40. The peg provides convenience for a tourism economy, point 41. The peg provides convenience for a tourism economy, point 42. The peg provides convenience for a tourism economy, point 43. The peg provides convenience for a tourism economy, point 44. The peg provides convenience for a tourism economy, point 45. The peg provides convenience for a tourism economy, point 46. The peg provides convenience for a tourism economy, point 47. The peg provides convenience for a tourism economy, point 48. The peg provides convenience for a tourism economy, point 49. The peg provides convenience for a tourism economy, point 50. The peg provides convenience for a tourism economy, point 51. The peg provides convenience for a tourism economy, point 52. The peg provides convenience for a tourism economy, point 53. The peg provides convenience for a tourism economy, point 54. The peg provides convenience for a tourism economy, point 55. The peg provides convenience for a tourism economy, point 56. The peg provides convenience for a tourism economy, point 57. The peg provides convenience for a tourism economy, point 58. The peg provides convenience for a tourism economy, point 59."
+  ],
+  [
+   "H",
+   600,
+   "So what is the benefit of the peg, question 0? So what is the benefit of the peg, question 1? So what is the benefit of the peg, question 2? So what is the benefit of the peg, question 3? So what is the benefit of the peg, question 4? So what is the benefit of the peg, question 5? So what is the benefit of the peg, question 6? So what is the benefit of the peg, question 7? So what is the benefit of the peg, question 8? So what is the benefit of the peg, question 9? So what is the benefit of the peg, question 10? So what is the benefit of the peg, question 11? So what is the benefit of the peg, question 12? So what is the benefit of the peg, question 13? So what is the benefit of the peg, question 14? So what is the benefit of the peg, question 15? So what is the benefit of the peg, question 16? So what is the benefit of the peg, question 17? So what is the benefit of the peg, question 18? So what is the benefit of the peg, question 19? So what is the benefit of the peg, question 20? So what is the benefit of the peg, question 21? So what is the benefit of the peg, question 22? So what is the benefit of the peg, question 23? So what is the benefit of the peg, question 24? So what is the benefit of the peg, question 25? So what is the benefit of the peg, question 26? So what is the benefit of the peg, question 27? So what is the benefit of the peg, question 28? So what is the benefit of the peg, question 29? So what is the benefit of the peg, question 30? So what is the benefit of the peg, question 31? So what is the benefit of the peg, question 32? So what is the benefit of the peg, question 33? So what is the benefit of the peg, question 34? So what is the benefit of the peg, question 35? So what is the benefit of the peg, question 36? So what is the benefit of the peg, question 37? So what is the benefit of the peg, question 38? So what is the benefit of the peg, question 39? So what is the benefit of the peg, question 40? So what is the benefit of the peg, question 41? So what is the benefit of the peg, question 42? So what is the benefit of the peg, question 43? So what is the benefit of the peg, question 44?"
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name": "David Beckworth",
+   "role": "host"
+  },
+  "G": {
+   "role": "guest"
+  }
+ }
+}

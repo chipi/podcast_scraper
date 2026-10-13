@@ -1,0 +1,348 @@
+{
+ "why": "Phase C opener rule (#2304, prod 2026-10-13, In Our Time / Curious Cases): the network's pre-roll ad tag is merged into a GUEST's cluster, so the guest is the 'opener'. With one host already seated by name, the opener took the second seat of the two-name pool. It names neither the show nor a stated person, so it stays off the host seats. Pinned role 'unknown' (not 'guest'): nobody introduces this voice by name and two stated experts are unplaced, so the ladder does not guess which one it is -- the point of the scenario is only that it is not a host and never carries the absent host's name.",
+ "feed": {
+  "title": "Deep Time Talks",
+  "hosts": [
+   "Ann Rivers",
+   "Ben Stone"
+  ],
+  "description": "Ann Rivers or Ben Stone with three experts."
+ },
+ "episode": {
+  "title": "Archaea"
+ },
+ "detected": {
+  "speaker_names": [
+   "Ann Rivers",
+   "Ben Stone"
+  ],
+  "metadata_named": [
+   "Carla Expert",
+   "Dan Scholar"
+  ]
+ },
+ "turns": [
+  [
+   "G",
+   30,
+   "This network podcast is supported by ads outside the region. Yes, so these are a kind of cell, and every living thing is old."
+  ],
+  [
+   "A",
+   40,
+   "Hello, I'm Ann Rivers. With me to discuss archaea are Carla Expert and Dan Scholar."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 0?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 0."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 1?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 1."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 2?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 2."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 3?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 3."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 4?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 4."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 5?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 5."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 6?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 6."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 7?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 7."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 8?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 8."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 9?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 9."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 10?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 10."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 11?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 11."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 12?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 12."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 13?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 13."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 14?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 14."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 15?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 15."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 16?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 16."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 17?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 17."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 18?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 18."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 19?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 19."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 20?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 20."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 21?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 21."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 22?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 22."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 23?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 23."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 24?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 24."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 25?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 25."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 26?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 26."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 27?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 27."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 28?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 28."
+  ],
+  [
+   "A",
+   30,
+   "So what is a cell, question 29?"
+  ],
+  [
+   "G",
+   30,
+   "A cell is a membrane around chemistry, answer 29."
+  ]
+ ],
+ "expect": {
+  "A": {
+   "name": "Ann Rivers",
+   "role": "host"
+  },
+  "G": {
+   "name_not": [
+    "Ben Stone"
+   ],
+   "role": "unknown"
+  }
+ }
+}
