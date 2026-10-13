@@ -506,6 +506,15 @@ There is no storyline endpoint; the anchor topic's card carries it, so the route
 anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
 "theme cluster", which is the opposite of what a reader means by theme.
 
+### The storyline's summary (`StorylineSummary`) — #2344, 2026-10-13
+
+**Every storyline has one paragraph on what the thread is**, written in the background (never on
+a tap), first on its page and at the top of its Learn path. Every storyline, so no listener
+wonders why one has a summary and another does not; a short thread says what each episode adds,
+a longer one also how it developed and where the voices differ. Under it: when it was written,
+and "the storyline grew since, an update follows" when its episodes changed. Until one is written
+the section is simply absent.
+
 ## Insight type marks (#2004 item 8)
 
 `InsightTypeMark.vue` — how one insight is told from another in a list that can hold 36 of them.

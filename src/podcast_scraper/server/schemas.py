@@ -2401,6 +2401,15 @@ class AppBoardSummary(BaseModel):
     stale: bool = Field(description="The board's episodes or saved moments changed since.")
 
 
+class AppStorylineSummary(BaseModel):
+    """One paragraph on what a storyline is about (#2344), written by the board-summarizer
+    sidecar for every storyline; read by its page and the top of its Learn path."""
+
+    text: str
+    created_at: int = Field(description="When it was written (unix seconds).")
+    stale: bool = Field(description="The storyline's episodes or topics changed since.")
+
+
 class AppBoardVoice(BaseModel):
     """Someone who speaks (host or guest) in a board's episodes: its Top voices."""
 

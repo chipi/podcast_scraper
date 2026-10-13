@@ -1209,6 +1209,9 @@
     "kind_storyline": "Storyline",
     "kind_theme": "Theme"
   },
+  "storylineSummary": {
+    "stale": "the storyline grew since, an update follows"
+  },
   "common": {
     "forItem": "{action}: {subject}",
     "cancel": "Cancel",

@@ -8,6 +8,7 @@
  * `storyline_*` + `storyline_sibling_topics` + `related_people` + `episodes`), so the route param is
  * the anchor topic id and everything derives from `getTopicCard`.
  */
+import StorylineSummary from '../components/StorylineSummary.vue'
 import CollapsibleSection from "../components/CollapsibleSection.vue"
 import { computed, ref, watch, defineAsyncComponent } from "vue"
 import BackIcon from "../components/BackIcon.vue"
@@ -256,6 +257,8 @@ function goBack(): void {
     </p>
 
     <template v-else>
+      <!-- The storyline's summary (#2344), first, as the episode Brief leads with its own. -->
+      <StorylineSummary v-if="storylineId" :storyline-id="storylineId" class="mt-6" />
       <!-- Member topics, an ordered list (SL.1). -->
       <!-- ORDER (operator 2026-10-05): members + top voices -> what they SAID -> episodes.
            Top voices moved up beside the member list — side by side, half the width each, on the

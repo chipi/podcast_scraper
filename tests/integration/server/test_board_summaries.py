@@ -422,3 +422,29 @@ def test_the_brief_shows_the_summary_and_says_when_the_board_changed_since(tmp_p
 
     client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": _slugs(3)[2]})
     assert client.get(f"/api/app/collections/{cid}/brief").json()["summary"]["stale"] is True
+
+
+def test_a_deleted_boards_summary_is_dropped(tmp_path: Path) -> None:
+    """#2344: a summary never outlives its board."""
+    keep = _board(tmp_path, U1, "Keep", _episodes(2))
+    gone = _board(tmp_path, U1, "Gone", _episodes(3))
+    _sweep(tmp_path, Model())
+    assert set(bs.read_summaries(tmp_path, U1)) == {keep, gone}
+    app_collections_store.delete_collection(tmp_path, U1, gone)
+    result = _sweep(tmp_path, Model(), now=NOW + DAY)
+    assert result.counts["orphan_dropped"] == 1
+    assert set(bs.read_summaries(tmp_path, U1)) == {keep}
+
+
+def test_an_episode_not_in_the_corpus_does_not_count_in_the_fingerprint() -> None:
+    """#2344: the fingerprint counts the episodes still in the corpus, so one leaving it redoes
+    the summary, and a slug the corpus never had changes nothing."""
+    from types import SimpleNamespace
+
+    def board(slugs: list[str]) -> Any:
+        return SimpleNamespace(items=[{"kind": "episode", "ref": s} for s in slugs], meta={})
+
+    real = _slugs(2)
+    with_ghost = bs.content_fingerprint(board([*real, "p99-not-in-corpus"]), CORPUS)
+    assert with_ghost == bs.content_fingerprint(board(real), CORPUS)
+    assert bs.content_fingerprint(board(real[:1]), CORPUS) != with_ghost

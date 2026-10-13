@@ -6,6 +6,7 @@
  * With no subject named: the one path straight away, or with several (up to three) a list of them.
  * Without a path, it says so and points back to Discover.
  */
+import StorylineSummary from '../components/StorylineSummary.vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
@@ -112,6 +113,12 @@ function goBack(): void {
       <p class="lp-kicker mt-4">{{ t('learn.kicker') }}</p>
       <h1 class="font-display text-3xl font-extrabold tracking-tight" data-testid="learn-view-title">{{ path.subject_label }}</h1>
       <p class="mt-1 text-sm text-muted">{{ t('learn.dayOf', { n: path.day, total: path.steps.length }) }}</p>
+      <!-- At the top of a storyline's path (#2344): what the thread is, before its seven days. -->
+      <StorylineSummary
+        v-if="path.subject_kind === 'storyline'"
+        :storyline-id="path.subject_id"
+        class="mt-5"
+      />
       <ol class="mt-6 flex flex-col gap-3">
         <li v-for="s in path.steps" :key="s.day"><LearnStep
             :step="s"

@@ -397,8 +397,9 @@ def collection_brief(
     board = app_board_view.load_board(data_dir, user.user_id, collection_id)
     if board is None:
         raise HTTPException(status_code=404, detail="collection not found")
-    brief = app_board_view.build_board_brief(corpus_root_or_503(request), board)
-    summary = board_summaries.summary_for_brief(data_dir, user.user_id, board)
+    root = corpus_root_or_503(request)
+    brief = app_board_view.build_board_brief(root, board)
+    summary = board_summaries.summary_for_brief(data_dir, user.user_id, board, root)
     if summary is not None:
         brief.summary = AppBoardSummary(**summary)
     return brief
