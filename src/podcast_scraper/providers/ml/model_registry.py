@@ -2449,7 +2449,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
-        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
+        # translation reaches Langfuse too; the provider and its paths are unchanged.
+        translate_api_base="${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1",
         translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
@@ -2524,7 +2526,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
-        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
+        # translation reaches Langfuse too; the provider and its paths are unchanged.
+        translate_api_base="${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1",
         translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)

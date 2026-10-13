@@ -67,7 +67,7 @@ vllm_verify_served_model: true
 # that is the whole point of `feed_declared_language` (D-41: the enabled-language list is the
 # gate, there is no separate flag). If it ever wins, the symptom is an English-looking summary of
 # a Spanish episode, which is exactly what this block exists to prevent.
-translate_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1
+translate_api_base: ${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1  # #2342
 translate_model: google/translategemma-12b-it
 translate_verify_served_model: true
 

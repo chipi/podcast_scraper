@@ -126,4 +126,24 @@ general_settings:
       headers:
         Authorization: "Bearer EMPTY"
       auth: false
+    # Translation (#2342): TranslateGemma on the DGX :8005. The translate provider's base is
+    # <gateway>/v1/translate/v1 and it calls exactly these three paths, each passed through to
+    # the DGX's own path unchanged. One EXACT route per path: this LiteLLM exempts only an exact
+    # path from auth (a subpath route's children need a key and are then admin-only, Enterprise).
+    # Keyless, so their traces go to this gateway's default Langfuse project (podcast-prod).
+    - path: "/v1/translate/v1/completions"
+      target: "http://dgx-llm-1:8005/v1/completions"
+      headers:
+        Authorization: "Bearer EMPTY"
+      auth: false
+    - path: "/v1/translate/v1/models"
+      target: "http://dgx-llm-1:8005/v1/models"
+      headers:
+        Authorization: "Bearer EMPTY"
+      auth: false
+    - path: "/v1/translate/tokenize"
+      target: "http://dgx-llm-1:8005/tokenize"
+      headers:
+        Authorization: "Bearer EMPTY"
+      auth: false
   # Virtual keys + per-key budgets live in postgres (DATABASE_URL from compose).

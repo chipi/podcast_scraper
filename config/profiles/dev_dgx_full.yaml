@@ -144,7 +144,7 @@ vllm_api_base: ${LITELLM_API_BASE:-http://homelab:4001/v1}
 # TranslateGemma-12B: WMT24++ MetricX 3.60 / Comet22 83.5, and it beats BASE Gemma-3-27B (4.04),
 # so the fine-tune is worth more than the size step — and unlike the 27B it co-resides with the
 # 30B summary model at bf16.
-translate_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1
+translate_api_base: ${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1
 translate_model: google/translategemma-12b-it
 # D8 (operator, 2026-10-13): 4 units in flight, ~3.5x faster (El Hilo: 525-574 s against
 # 1,782-2,062 s serial). Wording varies run to run either way (serial vs serial 68 of 85 units

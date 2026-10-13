@@ -18,6 +18,7 @@ Branch `feat/player-1.0.4`, no PR yet. Living document: updated as each open ite
 ## For someone else to fix: the insights upstream of Moments
 
 **#2304** has the full root-cause analysis:
+
 - 230 episodes where speaker naming resolved nobody (212 have an unnamed `host` voice; 62 have the
   guest's name in metadata but never placed on a voice);
 - 3 where the value gate made every insight tier 0;
@@ -81,15 +82,9 @@ Branch `feat/player-1.0.4`, no PR yet. Living document: updated as each open ite
 
 ## After the deploy: the prod agent's list
 
-**`docs/wip/HANDOVER-prod-agent-player-1.0.4-post-deploy.md`** is the step-by-step list for
-whoever deploys this branch. Each prod step needs the operator's go. In order:
-1. Confirm the images.
-2. Migration **0028**: dry-run, read the counts, apply, verify. Undo is documented.
-3. The duplicate playback milestones: `scripts/ops/dedupe_playback_milestones.py`, dry-run then
-   `--apply`, with undo.
-4. Check Moments against the known examples.
-5. Check the speaker/topic and Brief search changes.
-6. Check the first nightly writes timed transcript rows.
+The first part of this branch (#2305: migration 0028, the playback-milestone dedupe, Moments, the
+search changes) was deployed 2026-10-12/13 and its list executed. The rest of the branch has its
+own plan: **`docs/wip/POST-DEPLOY-BOARDS-AND-DGX-GATEWAY.md`**.
 
 ## Next session: the competitive analysis findings
 
@@ -103,7 +98,7 @@ The operator starts the next session on the findings of the discovery competitiv
   - recommenders optimise "not your usual habit";
   - nobody recommends from what a listener highlighted or noted;
   - stacked popularity surfaces risk lower diversity.
-- **The scan as a page:** https://claude.ai/artifact/HRXJkuKB6sqZdiFjma4pez
+- **The scan as a page:** <https://claude.ai/artifact/HRXJkuKB6sqZdiFjma4pez>
 - **`docs/adr/ADR-162-mine-means-the-listeners-own-world.md`**: the "Mine" decision made from it.
 - **Step 0 done (2026-10-10):** the decisions are [ADR-163](../adr/ADR-163-the-jobs-of-discover.md); the plan is `docs/wip/DISCOVER-ARC-PLAN-2026-10-10.md` (Step 1: the "why" contract, per-rail measurement, momentum on captures and completion).
 - Discover 2, the preview built on this branch, was removed (operator 2026-10-10, UI only; its APIs stay: `GET /trending/episodes`, `/interests/derived`). The arc starts from the scan, not from it.
