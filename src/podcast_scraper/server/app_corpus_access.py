@@ -12,8 +12,7 @@ import json
 import logging
 import os
 from pathlib import Path
-
-from fastapi import HTTPException, Request
+from typing import TYPE_CHECKING
 
 from podcast_scraper import perf_cache
 from podcast_scraper.utils.path_validation import (
@@ -21,13 +20,23 @@ from podcast_scraper.utils.path_validation import (
     safe_resolve_directory,
 )
 
+if TYPE_CHECKING:
+    from fastapi import Request
+
 logger = logging.getLogger(__name__)
 
 _ARTIFACT_NS = "app_corpus_artifact"
 
 
 def corpus_root_or_503(request: Request) -> Path:
-    """Resolve the single shared corpus root, or 503 if the platform has no corpus."""
+    """Resolve the single shared corpus root, or 503 if the platform has no corpus.
+
+    FastAPI is imported here and not at the top: the artifact readers below are also used by the
+    board-summarizer sidecar (RFC-127), which runs on the pipeline image, where FastAPI is not
+    installed. Called directly by the routes, never as a ``Depends``, so the annotation needs no
+    runtime name."""
+    from fastapi import HTTPException
+
     anchor = getattr(request.app.state, "output_dir", None)
     if anchor is None:
         raise HTTPException(status_code=503, detail="No corpus configured for the platform API.")

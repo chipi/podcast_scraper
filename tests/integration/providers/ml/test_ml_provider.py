@@ -1221,3 +1221,102 @@ class TestMLProviderGILEvidence(unittest.TestCase):
         """ML summarization does not run LLM insight extraction; stub returns []."""
         provider = MLProvider(self.cfg)
         self.assertEqual(provider.generate_insights("any transcript"), [])
+
+
+@pytest.mark.integration
+class TestMLProviderSummaryUseCase:
+    """RFC-127: BART/LED take a document, not instructions, so a board summary on the
+    ``transformers`` provider is the use case's material written as prose, summarised by this same
+    map/reduce within the use case's budget. Without a use case nothing changes."""
+
+    MATERIAL = {
+        "episodes": [
+            {
+                "title": "Quokka Ledger Hour",
+                "show": "Marsupial Finance",
+                "summary": "Two hosts argue about small-island accounting.",
+                "key_points": ["Ledgers drift when nobody reconciles them."],
+                "insights": [{"speaker": "Ada Lin", "text": "Reconcile weekly, not yearly."}],
+            }
+        ],
+        "moments": [{"text": "Counting is a moral act.", "speaker": "Ada Lin", "episode": "Q"}],
+    }
+
+    def _provider(self):
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="transformers",
+            generate_summaries=True,
+            generate_metadata=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        provider = MLProvider(cfg)
+        provider._transformers_initialized = True
+        provider._map_model = Mock(model_name="facebook/bart-large-cnn", device="cpu")
+        provider._reduce_model = provider._map_model
+        return provider
+
+    def _summarize(self, provider, *args, **kwargs):
+        target = "podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text"
+        caps = "podcast_scraper.providers.ml.ml_provider.ModelRegistry.get_capabilities"
+        with (
+            patch(target, return_value="A board about ledgers.") as run,
+            patch(caps, return_value=Mock(max_input_tokens=1024)),
+        ):
+            out = provider.summarize(*args, **kwargs)
+        return out, run.call_args.kwargs
+
+    def _use_case(self):
+        from podcast_scraper.providers.common.summary_use_case import SummaryUseCase
+
+        return SummaryUseCase(
+            system_prompt="summarization/board_system_v1",
+            user_prompt="summarization/board_user_v1",
+            stage="board_summary",
+            max_length=345,
+            params=self.MATERIAL,
+            document_prompt="summarization/board_document_v1",
+        )
+
+    def test_the_material_written_as_prose_is_the_document(self):
+        out, sent = self._summarize(self._provider(), "", params={"use_case": self._use_case()})
+
+        assert out["summary"] == "A board about ledgers."
+        doc = sent["text"]
+        assert "Quokka Ledger Hour, from Marsupial Finance." in doc
+        assert "Ada Lin: Reconcile weekly, not yearly." in doc
+        assert "Ada Lin: Counting is a moral act." in doc
+        # No instructions and no markup: BART would copy them into the summary.
+        assert "Summarise" not in doc and "<episode" not in doc
+        assert "listener's board" not in doc
+        assert sent["transcript_text"] == doc
+
+    def test_the_budget_caps_both_the_single_pass_and_the_reduce(self):
+        _out, sent = self._summarize(self._provider(), "", params={"use_case": self._use_case()})
+
+        assert sent["max_length"] == 345 and sent["reduce_max_new_tokens"] == 345
+        assert sent["preprocessing_profile"] == "cleaning_none"  # not a transcript
+
+    def test_metadata_names_the_document_template(self):
+        out, _sent = self._summarize(self._provider(), "", params={"use_case": self._use_case()})
+
+        prompts = out["metadata"]["prompts"]
+        assert set(prompts) == {"document"}
+        assert prompts["document"]["name"] == "transformers/summarization/board_document_v1"
+        assert prompts["document"]["file"] == "shared/summarization/board_document_v1.j2"
+        assert prompts["document"]["params"] == {"episodes": 1, "moments": 1}
+
+    def test_without_a_use_case_it_is_the_episode_summary(self):
+        out, sent = self._summarize(self._provider(), "A long transcript about ledgers.")
+
+        assert sent["text"] == "A long transcript about ledgers."
+        assert sent["max_length"] == 150 and sent["preprocessing_profile"] != "cleaning_none"
+        assert "prompts" not in out["metadata"]
+
+    def test_a_use_case_without_a_document_template_fails_loudly(self):
+        from dataclasses import replace
+
+        uc = replace(self._use_case(), document_prompt=None)
+        with pytest.raises(ValueError, match="document_prompt"):
+            self._summarize(self._provider(), "", params={"use_case": uc})

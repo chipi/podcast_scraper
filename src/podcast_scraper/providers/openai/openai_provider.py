@@ -490,6 +490,14 @@ def _record_openai_summarization_call(
 _TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
 
 
+from ..common.summary_use_case import (
+    build_use_case_prompts,
+    reply_budget,
+    SummaryUseCase,
+    use_case_from_params,
+    use_case_prompt_metadata,
+    use_case_stage,
+)
 from ..common.token_budget import fit_text_to_token_budget
 
 # RFC-115: transcript-prefix caching lives in the shared, provider-family-agnostic module so every
@@ -539,6 +547,9 @@ class OpenAICompatibleProvider:
     # so a subclass changes identity by overriding these three, not by copying method bodies. ---
     _CONFIG_NS: str = "openai"  # config-field prefix: {ns}_summary_model, {ns}_api_base, …
     _TELEMETRY_PROVIDER: str = "openai"  # provider/service label in metrics + guardrails
+    # The prompt folder a use case's logical prompt names resolve under (RFC-127); the family's
+    # summarization prompts live under openai/ too, whatever the sibling.
+    _PROMPT_NS: str = "openai"
     _PROVIDER_LABEL: str = "OpenAI"  # human label for log_provider_metadata
     # Output-token cap for transcript cleaning. OpenAI's per-model output cap is conservative;
     # gateway subclasses (litellm) route to models that support more, so they raise this. A cap
@@ -1943,6 +1954,14 @@ class OpenAICompatibleProvider:
             or 100
         )
         custom_prompt = params.get("prompt") if params else None
+        # RFC-127: a summary other than the episode's (a board's) runs this same flow with its own
+        # prompts, stage and budget; absent, this is the episode summary exactly as before.
+        use_case = use_case_from_params(params)
+        max_length = reply_budget(
+            use_case,
+            max_length,
+            lambda n: cloud_structured_max_output_tokens(self.cfg, n, structured=False),
+        )
 
         # #2050: bound the transcript against the served window. `max_length` is the reply budget
         # and is only known here, which is why the clip lives at this point and not at the caller.
@@ -1968,7 +1987,13 @@ class OpenAICompatibleProvider:
                 paragraphs_min,
                 paragraphs_max,
             ) = self._build_summarization_prompts(
-                text, episode_title, episode_description, max_length, min_length, custom_prompt
+                text,
+                episode_title,
+                episode_description,
+                max_length,
+                min_length,
+                custom_prompt,
+                use_case=use_case,
             )
 
             # Track retries and rate limits
@@ -2076,6 +2101,7 @@ class OpenAICompatibleProvider:
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
                     response=response,  # RFC-115: surfaces prefix-cache read tokens in llm_cost
+                    stage=use_case_stage(use_case),
                 )
 
             # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
@@ -2124,6 +2150,8 @@ class OpenAICompatibleProvider:
             }
             user_params.update(self.cfg.summary_prompt_params)
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
+            # A use case records its own templates (RFC-127); the episode summary keeps the above.
+            prompt_metadata = use_case_prompt_metadata(self._PROMPT_NS, use_case) or prompt_metadata
 
             return {
                 "summary": summary,
@@ -2830,48 +2858,6 @@ class OpenAICompatibleProvider:
         )
         return _insight_salvage.strip_json_fence(content)
 
-    def complete_prose(self, prompt: str, *, stage: str, max_tokens: int = 400) -> str:
-        """One prompt in, plain text out, costed under ``stage`` (RFC-127: board summaries).
-
-        ``complete_text`` is the resolver's call: JSON only, 800 tokens, and costed as
-        ``speaker_detection``. A summary is prose, and its cost belongs to its own stage, so a call
-        made outside the pipeline is never counted as pipeline work.
-        """
-        if not self._summarization_initialized:
-            raise RuntimeError("OpenAI summarization not initialized for complete_prose")
-        # A summary cut off at the token limit is not a summary: the stop reason goes to the
-        # guardrail with the text, so a truncated answer is re-rolled, never stored.
-        finish: Dict[str, Optional[str]] = {"reason": None}
-
-        def _call() -> str:
-            response = self._chat_create(
-                model=self.summary_model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                **self._token_kwarg(max_tokens),
-            )
-            self._emit_stage_cost(
-                stage=stage,
-                capability="summarization",
-                model=self.summary_model,
-                response=response,
-            )
-            choice = response.choices[0]
-            finish["reason"] = getattr(choice, "finish_reason", None)
-            return (choice.message.content or "").strip()
-
-        def _validate(content: str) -> None:
-            _guardrails.check_chat_response(
-                content,
-                service=self._TELEMETRY_PROVIDER,
-                finish_reason=finish["reason"],
-                expect_json=False,
-            )
-
-        return _guardrails.structured_call_with_reroll(
-            _call, _validate, service=self._TELEMETRY_PROVIDER, max_reroll=1
-        )
-
     def extract_kg_graph(
         self,
         text: str,
@@ -3564,6 +3550,7 @@ class OpenAICompatibleProvider:
         max_length: int,
         min_length: int,
         custom_prompt: Optional[str],
+        use_case: Optional[SummaryUseCase] = None,
     ) -> tuple[str, str, Optional[str], str, int, int]:
         """Build system and user prompts for summarization using prompt_store.
 
@@ -3574,12 +3561,17 @@ class OpenAICompatibleProvider:
             max_length: Maximum summary length in tokens
             min_length: Minimum summary length in tokens
             custom_prompt: Optional custom prompt (overrides default)
+            use_case: A summary other than the episode's (RFC-127): its own prompts
 
         Returns:
             Tuple of (system_prompt, user_prompt, system_prompt_name,
             user_prompt_name, paragraphs_min, paragraphs_max)
         """
         from ...prompts.store import render_prompt
+
+        if use_case is not None:
+            system, user, system_name, user_name = build_use_case_prompts(self._PROMPT_NS, use_case)
+            return system, user, system_name, user_name, 0, 0
 
         # Use prompt_store to load versioned prompt templates
         system_prompt_name = (

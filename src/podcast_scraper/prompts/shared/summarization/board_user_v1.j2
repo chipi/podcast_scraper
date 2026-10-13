@@ -1,0 +1,19 @@
+Summarise this board.
+{% for ep in episodes %}
+
+<episode n={{ loop.index }}>
+Title: {{ ep.title }}
+{% if ep.show %}Show: {{ ep.show }}
+{% endif %}{% if ep.summary %}Summary: {{ ep.summary }}
+{% endif %}{% if ep.key_points %}Key points:
+{% for p in ep.key_points %}- {{ p }}
+{% endfor %}{% endif %}{% if ep.insights %}Insights:
+{% for i in ep.insights %}- {% if i.speaker %}({{ i.speaker }}) {% endif %}{{ i.text }}
+{% endfor %}{% endif %}</episode>
+{% endfor %}
+{% if moments %}
+
+<saved_moments>
+{% for m in moments %}- "{{ m.text }}"{% if m.speaker %} ({{ m.speaker }}){% endif %}{% if m.episode %}, in {{ m.episode }}{% endif %}
+{% endfor %}</saved_moments>
+{% endif %}

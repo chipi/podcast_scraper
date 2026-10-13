@@ -17,6 +17,13 @@ Implementation: `podcast_scraper.prompts.store._resolve_template_path`.
 
 **If you change the JSON/schema shape:** Treat that as a pipeline + schema change, not only a template edit.
 
+**Board summaries (RFC-127):** `board_system_v1.j2` + `board_user_v1.j2` are the chat prompts for a
+board summary; `board_document_v1.j2` writes the same material as plain prose for the seq2seq
+summarizer (BART/LED), which follows no instructions. They render board material, never a
+transcript, and are passed as a use case of each provider's `summarize`
+(`providers/common/summary_use_case.py`); config: `board_summary_system_prompt`,
+`board_summary_user_prompt`, `board_summary_document_prompt`, `board_summary_max_tokens`.
+
 ## Other shared subtrees
 
 - **`shared/kg_graph_extraction/`** — KG extraction prompts shared where applicable (same override pattern if extended to provider paths).

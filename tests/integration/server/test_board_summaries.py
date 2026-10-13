@@ -2,7 +2,9 @@
 
 Every rule that decides whether the model is called gets its own test: the first LLM call outside
 the pipeline is only as safe as the rules in front of it. No test here calls a real model (CI
-never does); ``complete`` is a recorder that returns fixed text.
+never does); ``Model`` stands in for the provider's ``summarize`` with the board use case: it
+renders the real board templates from the material, as every provider does, records the prompt and
+returns fixed text.
 """
 
 from __future__ import annotations
@@ -18,6 +20,10 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.providers.common.summary_use_case import (
+    build_use_case_prompts,
+    SummaryUseCase,
+)
 from podcast_scraper.server import (
     app_collections_store,
     app_sessions,
@@ -26,6 +32,7 @@ from podcast_scraper.server import (
 )
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
+from podcast_scraper.server.app_board_view import load_board
 from podcast_scraper.server.app_slugs import _slug_index
 from podcast_scraper.server.app_user_store import get_or_create_user
 
@@ -35,25 +42,35 @@ CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-valid
 DAY = 86_400
 NOW = 1_800_000_000.0  # a fixed instant, far from a day boundary's edge cases
 MODEL = "stub-model"
+PROMPT = "openai/summarization/board_system_v1@aaaaaaaaaaaa+openai/summarization/board_user_v1@bbbb"
 U1, U2, U3 = ("u_" + c * 24 for c in "abc")
 
 
 class Model:
-    """Records every prompt; answers with fixed text, or raises what it is told to."""
+    """The provider's ``summarize`` with the board use case: renders the real templates from the
+    material, records the prompt sent, answers with fixed text or raises what it is told to."""
 
     def __init__(self, text: str = "A board about risk, told by three voices.") -> None:
         self.text = text
         self.prompts: list[str] = []
         self.raise_: Optional[BaseException] = None
 
-    def __call__(self, prompt: str) -> str:
-        self.prompts.append(prompt)
+    def __call__(self, material: dict) -> str:
+        use_case = SummaryUseCase(
+            system_prompt="summarization/board_system_v1",
+            user_prompt="summarization/board_user_v1",
+            stage=bs.STAGE,
+            max_length=400,
+            params=material,
+        )
+        system, user, _sn, _un = build_use_case_prompts("openai", use_case)
+        self.prompts.append(system + "\n" + user)
         if self.raise_ is not None:
             raise self.raise_
         return self.text
 
 
-def free(_prompt: str, _max_tokens: int) -> Optional[float]:
+def free(_material: dict) -> Optional[float]:
     return 0.0
 
 
@@ -79,15 +96,25 @@ def _set_changed(data_dir: Path, uid: str, cid: str, ts: float) -> None:
     path.write_text(json.dumps(doc), "utf-8")
 
 
-def _sweep(data_dir: Path, model: Model, price: Any = free, **limits: Any) -> bs.SweepResult:
+def _sweep(
+    data_dir: Path,
+    model: Model,
+    price: Any = free,
+    *,
+    now: float = NOW,
+    model_id: str = MODEL,
+    prompt: str = PROMPT,
+    **limits: Any,
+) -> bs.SweepResult:
     return bs.sweep(
         CORPUS,
         data_dir,
-        complete=model,
+        summarize=model,
         price=price,
-        model=MODEL,
+        model=model_id,
+        prompt=prompt,
         limits=bs.Limits(**limits),
-        now=NOW,
+        now=now,
     )
 
 
@@ -131,15 +158,78 @@ def test_a_changed_quiet_board_is_summarised_from_the_episodes_briefs_only(tmp_p
         assert typed not in prompt
     stored = bs.read_summaries(tmp_path, U1)[cid]
     assert stored["text"] == model.text and stored["model"] == MODEL
-    assert stored["prompt_version"] == bs.PROMPT_VERSION and stored["created_at"] == int(NOW)
+    assert stored["prompt"] == PROMPT and stored["created_at"] == int(NOW)
 
 
 def test_an_unchanged_board_is_never_summarised_twice(tmp_path: Path) -> None:
     _board(tmp_path, U1, "B", _episodes(2))
     model = Model()
     _sweep(tmp_path, model)
-    again = bs.sweep(CORPUS, tmp_path, complete=model, price=free, model=MODEL, now=NOW + 3 * DAY)
+    again = _sweep(tmp_path, model, now=NOW + 3 * DAY)
     assert len(model.prompts) == 1 and again.counts["unchanged"] == 1
+
+
+@pytest.mark.parametrize("changed", ["prompt", "model"])
+def test_a_new_prompt_or_model_summarises_every_board_once_more(
+    tmp_path: Path, changed: str
+) -> None:
+    """The record names the templates (name and content hash) and the model it was written with;
+    an edited template or a new model writes each board again, once, the next day."""
+    cid = _board(tmp_path, U1, "B", _episodes(2))
+    model = Model()
+    _sweep(tmp_path, model)
+    kw = {"prompt": PROMPT + "-edited"} if changed == "prompt" else {"model_id": "other-model"}
+    again = _sweep(tmp_path, model, now=NOW + DAY, **kw)
+    assert again.summarised == [(U1, cid)] and len(model.prompts) == 2
+    stored = bs.read_summaries(tmp_path, U1)[cid]
+    assert stored.get("prompt") == kw.get("prompt", PROMPT)
+    assert stored.get("model") == kw.get("model_id", MODEL)
+    third = _sweep(tmp_path, model, now=NOW + 3 * DAY, **kw)
+    assert third.counts["unchanged"] == 1 and len(model.prompts) == 2
+
+
+def test_the_material_has_a_ceiling_whatever_the_board_holds(tmp_path: Path) -> None:
+    """At most ``max_input_episodes`` episodes go in, each part clipped; the model never sees a
+    prompt that grows with the board."""
+    cid = _board(tmp_path, U1, "Big", _episodes(6))
+    board = load_board(tmp_path, U1, cid)
+    assert board is not None
+    material = bs.build_material(CORPUS, board, bs.Limits(max_input_episodes=2))
+    assert material is not None and len(material["episodes"]) == 2
+    for ep in material["episodes"]:
+        assert len(ep["summary"]) <= 600 and len(ep["title"]) <= 160
+        assert len(ep["key_points"]) <= 5 and all(len(k) <= 200 for k in ep["key_points"])
+        assert len(ep["insights"]) <= 3
+
+
+def test_every_part_of_the_material_is_clipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An episode whose Brief runs long still goes in at a fixed size."""
+    from types import SimpleNamespace
+
+    from podcast_scraper.server import app_recap_view
+
+    huge = "x" * 5000
+    quote = SimpleNamespace(speaker="s" * 500)
+    recap = SimpleNamespace(
+        title=huge,
+        podcast_title=huge,
+        summary_text=huge,
+        key_points=[huge] * 9,
+        insights=[SimpleNamespace(text=huge, quotes=[quote])] * 9,
+    )
+    monkeypatch.setattr(app_recap_view, "build_episode_recap", lambda *a, **k: recap)
+    cid = _board(tmp_path, U1, "B", _episodes(2))
+    board = load_board(tmp_path, U1, cid)
+    assert board is not None
+    material = bs.build_material(CORPUS, board, bs.Limits())
+    assert material is not None
+    ep = material["episodes"][0]
+    assert len(ep["title"]) <= 160 and len(ep["show"]) <= 120 and len(ep["summary"]) <= 600
+    assert len(ep["key_points"]) == 5 and all(len(k) <= 200 for k in ep["key_points"])
+    assert len(ep["insights"]) == 3
+    assert all(len(i["text"]) <= 220 and len(i["speaker"]) <= 60 for i in ep["insights"])
 
 
 def test_adding_a_show_or_a_link_changes_nothing_the_summary_reads(tmp_path: Path) -> None:
@@ -149,7 +239,7 @@ def test_adding_a_show_or_a_link_changes_nothing_the_summary_reads(tmp_path: Pat
     app_collections_store.add_item(tmp_path, U1, cid, {"kind": "link", "ref": "https://x.org"})
     app_collections_store.add_item(tmp_path, U1, cid, {"kind": "topic", "ref": "topic:risk"})
     _set_changed(tmp_path, U1, cid, NOW - 2 * DAY)
-    bs.sweep(CORPUS, tmp_path, complete=model, price=free, model=MODEL, now=NOW + 3 * DAY)
+    _sweep(tmp_path, model, now=NOW + 3 * DAY)
     assert len(model.prompts) == 1
 
 
@@ -176,9 +266,9 @@ def test_at_most_once_a_day_even_when_it_changes(tmp_path: Path) -> None:
     _sweep(tmp_path, model)
     app_collections_store.add_item(tmp_path, U1, cid, {"kind": "episode", "ref": _slugs(3)[2]})
     _set_changed(tmp_path, U1, cid, NOW - 3600)
-    later = bs.sweep(CORPUS, tmp_path, complete=model, price=free, model=MODEL, now=NOW + 7200)
+    later = _sweep(tmp_path, model, now=NOW + 7200)
     assert later.counts["too_soon"] == 1 and len(model.prompts) == 1
-    next_day = bs.sweep(CORPUS, tmp_path, complete=model, price=free, model=MODEL, now=NOW + DAY)
+    next_day = _sweep(tmp_path, model, now=NOW + DAY)
     assert next_day.summarised == [(U1, cid)]
 
 
@@ -204,7 +294,7 @@ def test_the_budget_is_zero_and_a_priced_call_is_never_made(tmp_path: Path) -> N
     the model is called (operator 2026-10-13: budget zero)."""
     _board(tmp_path, U1, "B", _episodes(2))
     model = Model()
-    result = _sweep(tmp_path, model, price=lambda _p, _m: 0.000448)
+    result = _sweep(tmp_path, model, price=lambda _m: 0.000448)
     assert result.stopped == "budget" and model.prompts == []
     assert bs.read_summaries(tmp_path, U1) == {}
 
@@ -212,7 +302,7 @@ def test_the_budget_is_zero_and_a_priced_call_is_never_made(tmp_path: Path) -> N
 def test_an_unknown_price_is_not_zero(tmp_path: Path) -> None:
     _board(tmp_path, U1, "B", _episodes(2))
     model = Model()
-    result = _sweep(tmp_path, model, price=lambda _p, _m: None)
+    result = _sweep(tmp_path, model, price=lambda _m: None)
     assert result.stopped == "price_unknown" and model.prompts == []
 
 
@@ -236,7 +326,7 @@ def test_a_model_that_is_away_ends_the_sweep_and_keeps_the_last_summary(tmp_path
             "text": "Old.",
             "fingerprint": "x",
             "model": MODEL,
-            "prompt_version": bs.PROMPT_VERSION,
+            "prompt": PROMPT,
             "created_at": int(NOW - 2 * DAY),
         },
     )
@@ -280,7 +370,7 @@ def test_the_brief_shows_the_summary_and_says_when_the_board_changed_since(tmp_p
     assert client.get(f"/api/app/collections/{cid}/brief").json()["summary"] is None
 
     _set_changed(data_dir, user.user_id, cid, time.time() - 3600)
-    bs.sweep(CORPUS, data_dir, complete=Model(), price=free, model=MODEL)
+    bs.sweep(CORPUS, data_dir, summarize=Model(), price=free, model=MODEL, prompt=PROMPT)
     summary = client.get(f"/api/app/collections/{cid}/brief").json()["summary"]
     assert summary["text"] == Model().text and summary["stale"] is False
 

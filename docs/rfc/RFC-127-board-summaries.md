@@ -72,8 +72,9 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
 - **Mounts**: the corpus **read-only**; the player appdata **read-write** (it writes summaries).
 - **Network**: egress to the profile's model endpoint only — the DGX vLLM over the tailnet
   (`vllm_api_base`, `dgx-llm-1:8003`). No inbound port, no docker.sock.
-- **Secrets**: whatever the profile's provider needs (`VLLM_API_KEY`, through the compose secrets
-  shim as the pipeline gets it). No other provider's key.
+- **Secrets**: the DGX vLLM bearer only, as a file secret mounted into this service alone
+  (`/run/secrets/vllm_api_key`, staged by `deploy-player.yml` from `PLAYER_VLLM_API_KEY`;
+  `docker-compose.player-secrets.yml`). The API container never sees it. No other provider's key.
 - **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 3600), does one sweep, sleeps.
 - **DGX availability**: the `:8003` slot is up only in the GPU's research mode. A sweep that cannot
   reach it skips every board, counts `model_unreachable`, and the next sweep tries again.
@@ -113,8 +114,11 @@ refused while the budget is zero, so moving the profile to a paid model stops th
 spending; raising the budget is a deliberate change. After each call the recorded cost is added to
 the day's ledger and checked again.
 
-The **fingerprint** is a hash of the sorted episode slugs, the saved moments' ids, the prompt
-version and the model. Adding a show, a topic or a link changes no input, so it calls nothing.
+The **fingerprint** is a hash of the sorted episode slugs and the saved moments' ids. The stored
+record also names the model and the templates it was written with (each template's name and content
+hash, e.g. `openai/summarization/board_system_v1@5c9d61efc4c3+…`); a new model or an edited
+template re-summarises each board once. Adding a show, a topic or a link changes no input, so it
+calls nothing.
 
 ### 3. What it reads: the episodes' Briefs, not the episodes
 
@@ -131,31 +135,59 @@ Nothing the user typed goes in: not the board's name, not link titles, not saved
 closes the prompt-injection route through a board named "ignore your instructions". Each part is
 cut to a fixed length, so the prompt has a ceiling whatever the board holds.
 
-### 4. The call: the pipeline's provider, its own stage
+### 4. The call: another use case of the provider's own `summarize`
 
 The sidecar loads its profile by name (`BOARD_SUMMARY_PROFILE`, default `prod_dgx_full`: the
-DGX vLLM, `summary_model` Qwen3-30B-A3B) and builds the provider with
-`create_summarization_provider(cfg)`, exactly as the pipeline does. A new provider method takes one
-prompt and returns text:
+DGX vLLM, Qwen3-30B-A3B) and builds the provider with `create_summarization_provider(cfg)`, exactly
+as the pipeline does. The board summary is then **just another use case of `summarize`**, the
+method that writes every episode summary (operator 2026-10-13): no new provider method, so it gets
+the same retries, call metrics, `llm_cost` record, response guardrails (`check_chat_response`) and
+prompt metadata the episode summary has in production.
 
 ```python
-def complete_prose(self, prompt: str, *, stage: str, max_tokens: int) -> str: ...
+provider.summarize(text="", params={"use_case": SummaryUseCase(
+    system_prompt="summarization/board_system_v1",   # cfg.board_summary_system_prompt
+    user_prompt="summarization/board_user_v1",       # cfg.board_summary_user_prompt
+    document_prompt="summarization/board_document_v1",  # cfg.board_summary_document_prompt
+    stage="board_summary", max_length=400,           # cfg.board_summary_max_tokens
+    params=material)})
 ```
 
-It exists because `complete_text` is JSON-only, 800 tokens and tagged `speaker_detection`. The new
-method tags cost and traces as `stage="board_summary"`, and runs `check_chat_response` with the
-reply's stop reason, so a summary cut off at the token limit is re-rolled once and never stored.
+`providers/common/summary_use_case.py` holds what a use case changes, and nothing else: the
+prompts, the template parameters (the material, not a transcript), the `llm_cost` stage and the
+reply budget. Without a use case `summarize` is exactly what it was; a parity test
+(`test_providers_are_equal.py`) fails the build if any provider stops carrying it.
 
-It **never fails over** (`_NEVER_WRAPPED` in `summarization/fallback.py`). Every call is priced
-against the primary provider before it is made; failing over would make it on a provider nobody
-priced, a free DGX call quietly becoming a paid cloud one. A summary that cannot be made now is
-made on a later sweep. Only the OpenAI-compatible providers (vLLM, LiteLLM, OpenAI) have it; on
-another profile the sidecar logs `unsupported_provider` and summarises nothing.
+**Prompts** are Jinja files in the prompt store, versioned and hashed like every other prompt:
+`prompts/shared/summarization/board_system_v1.j2`, `board_user_v1.j2` and `board_document_v1.j2`.
+Each provider resolves them under its own folder (`<provider>/summarization/…`) and falls back to
+`shared/`, the store's rule for summarization prompts, so one provider can be tuned later without
+touching the others.
+
+**Every summary provider** carries the use case:
+
+| Provider | What it renders | Budget |
+|---|---|---|
+| OpenAI-compatible (vLLM, LiteLLM, OpenAI, DeepSeek, Qwen, Groq), Anthropic, Gemini, Grok, Mistral, Ollama | system + user prompts | `max_tokens` (cloud ones through `cloud_structured_max_output_tokens`) |
+| SummLlama (local chat model) | system + user prompts, through its chat template | `max_new_tokens` |
+| BART/LED (`transformers`) | the document: the material written as prose, no instructions (a seq2seq model follows none), summarised by its own map/reduce with `cleaning_none` | single-pass `max_length` and reduce `max_new_tokens` |
+
+The sidecar picks chat or document from what the provider can render
+(`use_case_input_kind`), prices that input, and records those templates; a provider that can render
+neither is refused (`unsupported_provider`). Local providers (ollama, SummLlama, `transformers`) and
+the DGX vLLM price at $0 in `config/pricing_assumptions.yaml`.
+
+It **never fails over**: the sidecar builds the profile with `summary_fallback_providers=[]` and
+refuses a provider that still comes back wrapped for failover (`failover_configured`). Every call is
+priced against the primary provider before it is made; failing over would make it on a provider
+nobody priced, a free DGX call quietly becoming a paid cloud one. A summary that cannot be made now
+is made on a later sweep.
 
 ### 5. What it writes, and what the Brief shows
 
 `users/<id>/board_summaries.json`, under a FileLock as the board store uses:
-`{board_id: {text, fingerprint, model, prompt_version, created_at}}`. The day's spend is a ledger
+`{board_id: {text, fingerprint, model, prompt, created_at}}` (`prompt`: the templates' names and
+hashes). The day's spend is a ledger
 in the appdata root, `board_summaries_ledger.json`. An answer over 1,200 characters is not the
 paragraph asked for and is not stored.
 
@@ -189,16 +221,27 @@ the section is absent. A failed or skipped run leaves the last good summary in p
 
 ## Testing Strategy
 
-- **Unit**: the fingerprint; every eligibility rule, each on its own; prompt assembly, including
-  that board names, link titles and searches never reach it; output length.
-- **Integration**: a sweep over a fixture appdata and the fixture corpus with a stub provider
-  returning recorded text. It writes the summary, skips an unchanged board, respects the per-user
+- **Unit**: the use-case helpers (`test_summary_use_case.py`); the parity test that every provider
+  carries the use case; the prompt contract and packaging tests for the three templates.
+- **Provider tier** (`test_summary_use_case_providers.py`, SummLlama and BART/LED in
+  `providers/ml/`): for each provider, with its SDK mocked and the REAL templates rendered, the
+  board templates are sent, the budget is the use case's, the cost record has
+  `stage=board_summary`, the metadata names the templates, and without a use case the episode
+  summary is unchanged.
+- **Integration**: a sweep over a fixture appdata and the fixture corpus with a stub that renders
+  the real templates and returns recorded text; every eligibility rule on its own; that board
+  names, link titles and searches never reach the prompt; the material's ceiling and clipping; a new
+  template or model re-summarising once. The sidecar runner: a full cycle on the real
+  `prod_dgx_full` provider (HTTP client mocked), on SummLlama and on BART/LED, each at $0; a paid
+  profile priced and never called; failover and unsupported providers refused. It It writes the summary, skips an unchanged board, respects the per-user
   and daily caps, and leaves the last summary when the stub fails. `/brief` carries it, with
   `stale`.
 - **Vitest + Playwright**: the sheet shows the summary, the date, and the stale note; with no
   summary, no section.
-- **Live, manual**: one sweep against the DGX vLLM from a dev machine on the tailnet, on a copy of
-  a board, before the first deploy.
+- **Live, manual** (done 2026-10-13): sweeps against the DGX vLLM from a dev machine and from the
+  `pipeline-llm` image (read-only, uid 1000, the key as a file secret); SummLlama and BART/LED
+  locally. The DGX and SummLlama write a usable paragraph; BART-base, which follows no
+  instructions, repeats itself and stops mid-sentence.
 
 ## Rollout & Monitoring
 
@@ -224,12 +267,15 @@ per-user, per-sweep, quiet and once-a-day numbers as in the table.
   It takes the model call as a function and imports no SDK; the API imports it only to read.
 - `infra/deploy/board_summarizer.py` — the sidecar loop; `board-summarizer` in
   `compose/docker-compose.player-public.yml`; the DGX address in `infra/deploy/deploy-player.sh`.
-- `OpenAICompatibleProvider.complete_prose`; `/collections/{id}/brief` carries `summary`; the
-  Brief sheet shows it first, with its date and a note when the board changed since.
+- `providers/common/summary_use_case.py` and the use case in every provider's `summarize`; the
+  three templates in `prompts/shared/summarization/`; `board_summary_*` fields in `config.py`.
+- `/collections/{id}/brief` carries `summary`; the Brief sheet shows it first, with its date and a
+  note when the board changed since.
 - The privacy policy says boards are summarised by a model on our own servers.
 
-Not done, and needed before it runs in prod: confirm the player host reaches `dgx-llm-1:8003`; put
-`VLLM_API_KEY` in the player stack's env if the DGX vLLM requires one; the first live sweep.
+Not done, and needed before it runs in prod: create the GitHub secret `PLAYER_VLLM_API_KEY`
+(operator approval); confirm the player host reaches `dgx-llm-1:8003` (prod resolves the name; a
+`GET /v1/models` from the player host has not been run); the first sweep on prod.
 
 ## References
 
@@ -238,5 +284,6 @@ Not done, and needed before it runs in prod: confirm the player host reaches `dg
 - The pattern: `digest-scheduler` in `compose/docker-compose.player-public.yml`,
   `infra/deploy/digest_scheduler.py`
 - Provider factory: `src/podcast_scraper/summarization/factory.py`; cost:
-  `src/podcast_scraper/workflow/cost_monitoring.py`; fuse: `utils/llm_call_fuse.py`;
+  `src/podcast_scraper/workflow/cost_monitoring.py`; fuse: `utils/llm_call_fuse.py`; the use case:
+  `providers/common/summary_use_case.py`;
   guardrails: `providers/guardrails/chat.py`

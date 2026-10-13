@@ -17,6 +17,8 @@ Each cycle:
 3. Runs one ``board_summaries.sweep``: only boards that changed, have been quiet, were not
    summarised in the last day; per-user and per-sweep caps; every call priced first with the
    pipeline's pricing table against a budget of zero by default, so a paid profile stops the job.
+   The call itself is the provider's own ``summarize`` with the board use case
+   (``providers/common/summary_use_case.py``): the episode summary's flow, its prompts excepted.
 
 The loop and its heartbeat follow ``digest_scheduler.py``: interval-aligned wakes, one cycle at
 start, a bad cycle never kills the loop, a heartbeat file for the container healthcheck.
@@ -67,36 +69,94 @@ def _vllm_key() -> Optional[str]:
 
 
 def _provider() -> tuple[Any, Any]:
-    """The profile's provider, built and initialised as the pipeline builds it."""
+    """The profile's provider, built and initialised as the pipeline builds it — with no failover.
+
+    Every call is priced against this provider before it is made, against a budget of zero;
+    failing over would make it on a provider nobody priced (a free DGX call becoming a paid cloud
+    one). So the ladder is emptied here, and ``_run_once`` refuses a provider that still comes
+    back wrapped for failover (the older ``degradation_policy`` route): fail closed."""
     from podcast_scraper import config
     from podcast_scraper.summarization.factory import create_summarization_provider
 
-    # None is the field's own default: the provider then falls back as it always does.
-    cfg = config.Config(profile=PROFILE, vllm_api_key=_vllm_key())
+    # vllm_api_key None is the field's own default: the provider then falls back as it always does.
+    cfg = config.Config(profile=PROFILE, vllm_api_key=_vllm_key(), summary_fallback_providers=[])
     provider = create_summarization_provider(cfg)
     provider.initialize()
     return cfg, provider
 
 
-def _pricer(cfg: Any) -> Callable[[str, int], Optional[float]]:
-    """``(prompt, max_tokens) → USD`` from the pipeline's pricing table; None when unpriced."""
-    from podcast_scraper.workflow.helpers import calculate_provider_cost
+class _BoardUseCase:
+    """The board summary as a use case of the provider's own ``summarize`` (RFC-127): the same
+    retries, metrics, cost recording, guardrails and prompt metadata as the episode summary. The
+    prompt names come from the profile (``board_summary_*_prompt``), resolved under the provider's
+    prompt folder with the ``prompts/shared/`` fallback."""
 
-    def price(prompt: str, max_tokens: int) -> Optional[float]:
+    def __init__(self, cfg: Any, provider: Any, kind: str) -> None:
+        from podcast_scraper.providers.common.summary_use_case import use_case_prompt_metadata
+        from podcast_scraper.server.board_summaries import STAGE
+
+        self.cfg = cfg
+        self.provider = provider
+        self.stage = STAGE
+        # "chat": system + user prompts; "document": a seq2seq model's prose input (BART/LED).
+        self.kind = kind
+        # The model the provider calls, as its own metadata records it — not ``cfg.summary_model``,
+        # the local-ML field, which names the served model only on the vLLM profiles.
+        self.model = str(getattr(provider, "summary_model", None) or cfg.summary_model)
+        # The OpenAI-compatible family keeps its prompts under openai/ whatever the sibling.
+        self.namespace = getattr(provider, "_PROMPT_NS", None) or str(cfg.summary_provider)
+        # The identity of the templates this provider renders: an edited one re-summarises once.
+        meta = (
+            use_case_prompt_metadata(
+                self.namespace, self.use_case({}), "document" if kind == "document" else "chat"
+            )
+            or {}
+        )
+        self.prompt = "+".join(f"{m['name']}@{str(m['sha256'])[:12]}" for m in meta.values() if m)
+
+    def use_case(self, material: dict[str, Any]) -> Any:
+        from podcast_scraper.providers.common.summary_use_case import SummaryUseCase
+
+        return SummaryUseCase(
+            system_prompt=str(self.cfg.board_summary_system_prompt),
+            user_prompt=str(self.cfg.board_summary_user_prompt),
+            stage=self.stage,
+            max_length=int(self.cfg.board_summary_max_tokens),
+            params=material,
+            document_prompt=str(self.cfg.board_summary_document_prompt),
+        )
+
+    def summarize(self, material: dict[str, Any]) -> str:
+        out = self.provider.summarize(text="", params={"use_case": self.use_case(material)})
+        return str(out.get("summary") or "")
+
+    def price(self, material: dict[str, Any]) -> Optional[float]:
+        """The call's estimated cost from the pipeline's pricing table, on the prompt as rendered;
+        None when unpriced, which the sweep treats as not zero."""
+        from podcast_scraper.providers.common.summary_use_case import (
+            build_use_case_document,
+            build_use_case_prompts,
+        )
+        from podcast_scraper.workflow.helpers import calculate_provider_cost
+
+        use_case = self.use_case(material)
+        if self.kind == "document":
+            system, user = "", build_use_case_document(self.namespace, use_case)[0]
+        else:
+            system, user, _sn, _un = build_use_case_prompts(self.namespace, use_case)
         cost: Optional[float] = calculate_provider_cost(
-            cfg=cfg,
-            provider_type=str(cfg.summary_provider),
+            cfg=self.cfg,
+            provider_type=str(self.cfg.summary_provider),
             capability="summarization",
-            model=str(cfg.summary_model),
-            prompt_tokens=max(1, len(prompt) // 3),
-            completion_tokens=max_tokens,
+            model=self.model,
+            prompt_tokens=max(1, (len(system) + len(user)) // 3),
+            completion_tokens=int(self.cfg.board_summary_max_tokens),
         )
         return cost
 
-    return price
-
 
 def _run_once() -> None:
+    from podcast_scraper.providers.common.summary_use_case import use_case_input_kind
     from podcast_scraper.server import board_summaries
 
     ts = int(time.time())
@@ -110,28 +170,36 @@ def _run_once() -> None:
         _log(f"model not reachable on profile {PROFILE}: {exc!r}")
         _log_json(event="board_summary.tick", stopped="model_unreachable", profile=PROFILE, ts=ts)
         return
-    complete = getattr(provider, "complete_prose", None)
-    if complete is None:
-        _log(f"profile {PROFILE}: provider {cfg.summary_provider} has no complete_prose")
-        _log_json(event="board_summary.tick", stopped="unsupported_provider", ts=ts)
+    if type(provider).__name__ == "FallbackAwareSummarizationProvider":
+        _log(f"profile {PROFILE} fails over to another provider; refusing (nothing priced it)")
+        _log_json(event="board_summary.tick", stopped="failover_configured", profile=PROFILE, ts=ts)
         return
-    limits = board_summaries.Limits.from_env()
+    kind = use_case_input_kind(provider)
+    if kind is None:
+        # A summarizer that carries no use case would summarise the empty transcript and ignore
+        # the board. Every one the factory builds carries it today; one added without it stops here.
+        _log(f"profile {PROFILE} summarises with {cfg.summary_provider}, which runs no use case")
+        _log_json(
+            event="board_summary.tick", stopped="unsupported_provider", profile=PROFILE, ts=ts
+        )
+        return
+    board = _BoardUseCase(cfg, provider, kind)
     result = board_summaries.sweep(
         CORPUS_ROOT,
         DATA_DIR,
-        complete=lambda prompt: complete(
-            prompt, stage=board_summaries.STAGE, max_tokens=limits.max_tokens
-        ),
-        price=_pricer(cfg),
-        model=str(cfg.summary_model),
-        limits=limits,
+        summarize=board.summarize,
+        price=board.price,
+        model=board.model,
+        prompt=board.prompt,
+        limits=board_summaries.Limits.from_env(),
     )
     for user_id, board_id in result.summarised:
         _log_json(event="board_summary.written", user=user_id, board=board_id, ts=ts)
     _log_json(
         event="board_summary.tick",
         profile=PROFILE,
-        model=str(cfg.summary_model),
+        model=board.model,
+        prompt=board.prompt,
         counts=dict(result.counts),
         stopped=result.stopped,
         ts=ts,

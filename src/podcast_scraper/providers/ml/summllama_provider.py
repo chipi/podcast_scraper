@@ -11,7 +11,15 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
+
+from ..common.summary_use_case import (
+    build_use_case_prompts,
+    reply_budget,
+    SummaryUseCase,
+    use_case_from_params,
+    use_case_prompt_metadata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +131,21 @@ class SummLlamaProvider:
         self._initialized = True
         logger.info("SummLlama loaded: %s on %s", self._model_id, self._device)
 
+    @property
+    def summary_model(self) -> str:
+        """The model id, under the name every LLM provider exposes it."""
+        return str(self._model_id)
+
+    def _build_summarization_prompts(
+        self, transcript: str, style: str, use_case: Optional[SummaryUseCase] = None
+    ) -> Tuple[str, str, Optional[str], Optional[str]]:
+        """``(system, user, system_name, user_name)``: the episode prompts (inline, tuned in
+        autoresearch v2, unnamed) or a use case's own templates from the prompt store (RFC-127)."""
+        if use_case is not None:
+            return build_use_case_prompts("summllama", use_case)
+        user = (_USER_PARAGRAPH if style == "paragraph" else _USER_BULLETS) + transcript
+        return _SYSTEM, user, None, None
+
     def summarize(
         self,
         text: str,
@@ -141,15 +164,17 @@ class SummLlamaProvider:
         # Truncate input
         transcript = text[: self._max_input_chars] if text else ""
 
-        # Build prompt
+        # RFC-127: a summary other than the episode's (a board's) runs this same flow with its own
+        # prompts and budget; absent, this is the episode summary exactly as before.
+        use_case = use_case_from_params(params)
+        max_new_tokens = reply_budget(use_case, self._max_tokens)
         style = (params or {}).get("style", self._style)
-        if style == "paragraph":
-            user_content = _USER_PARAGRAPH + transcript
-        else:
-            user_content = _USER_BULLETS + transcript
+        system, user_content, _sn, _un = self._build_summarization_prompts(
+            transcript, style, use_case
+        )
 
         messages = [
-            {"role": "system", "content": _SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_content},
         ]
         prompt = self._tokenizer.apply_chat_template(
@@ -164,7 +189,7 @@ class SummLlamaProvider:
         with torch.no_grad():
             output = self._model.generate(
                 **inputs,
-                max_new_tokens=self._max_tokens,
+                max_new_tokens=max_new_tokens,
                 do_sample=False,
                 temperature=1.0,
                 pad_token_id=self._tokenizer.eos_token_id,
@@ -183,12 +208,21 @@ class SummLlamaProvider:
             style,
         )
 
-        return {
+        result: Dict[str, Any] = {
             "summary": response,
             "model": self._model_id,
             "style": style,
             "elapsed_seconds": round(elapsed, 2),
         }
+        prompts = use_case_prompt_metadata("summllama", use_case)
+        if prompts is not None:  # a use case records its templates, as on every LLM provider
+            result["metadata"] = {
+                "model": self._model_id,
+                "provider": "summllama",
+                "max_length": max_new_tokens,
+                "prompts": prompts,
+            }
+        return result
 
     def cleanup(self) -> None:
         """Unload model to free memory."""

@@ -27,6 +27,14 @@ except ImportError:
     OpenAI = None  # type: ignore
 
 from ... import config, config_constants
+from ..common.summary_use_case import (
+    build_use_case_prompts,
+    reply_budget,
+    SummaryUseCase,
+    use_case_from_params,
+    use_case_prompt_metadata,
+    use_case_stage,
+)
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -668,6 +676,14 @@ class GrokProvider:
             or 100
         )
         custom_prompt = params.get("prompt") if params else None
+        # RFC-127: a summary other than the episode's (a board's) runs this same flow with its
+        # own prompts, stage and budget; absent, this is the episode summary exactly as before.
+        use_case = use_case_from_params(params)
+        max_length = reply_budget(
+            use_case,
+            max_length,
+            lambda n: cloud_structured_max_output_tokens(self.cfg, n, structured=False),
+        )
 
         logger.debug(
             "Summarizing text via Grok API (model: %s, max_tokens: %d)",
@@ -685,7 +701,13 @@ class GrokProvider:
                 paragraphs_min,
                 paragraphs_max,
             ) = self._build_summarization_prompts(
-                text, episode_title, episode_description, max_length, min_length, custom_prompt
+                text,
+                episode_title,
+                episode_description,
+                max_length,
+                min_length,
+                custom_prompt,
+                use_case=use_case,
             )
 
             # Track retries and rate limits
@@ -779,6 +801,7 @@ class GrokProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
+                    stage=use_case_stage(use_case),
                 )
 
             # ADR-100 response-shape guardrail; Grok is OpenAI-compatible.
@@ -822,6 +845,8 @@ class GrokProvider:
             user_params.update(self.cfg.summary_prompt_params)
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
+            # A use case records its own templates (RFC-127); the episode summary keeps the above.
+            prompt_metadata = use_case_prompt_metadata("grok", use_case) or prompt_metadata
             return {
                 "summary": summary,
                 "summary_short": None,  # Grok doesn't generate short summaries separately
@@ -1238,9 +1263,14 @@ class GrokProvider:
         max_length: int,
         min_length: int,
         custom_prompt: Optional[str],
+        use_case: Optional[SummaryUseCase] = None,
     ) -> tuple[str, str, Optional[str], str, int, int]:
         """Build system and user prompts for summarization using prompt_store."""
         from ...prompts.store import render_prompt
+
+        if use_case is not None:  # RFC-127: a use case's own prompts
+            system, user, system_name, user_name = build_use_case_prompts("grok", use_case)
+            return system, user, system_name, user_name, 0, 0
 
         system_prompt_name = self.cfg.grok_summary_system_prompt or "grok/summarization/system_v1"
         user_prompt_name = self.cfg.grok_summary_user_prompt

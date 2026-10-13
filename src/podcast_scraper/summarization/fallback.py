@@ -90,11 +90,6 @@ _NEVER_WRAPPED = frozenset(
         # ladders on one call and fail over twice by different rules.
         "transcribe",
         "transcribe_with_segments",
-        # Board summaries (RFC-127) run on a budget, zero by default, and every call is PRICED
-        # against the primary provider before it is made. Failing over would make the call on a
-        # provider nobody priced — a free DGX call quietly becoming a paid cloud one. A summary
-        # that cannot be made now is made on a later sweep; it never needs a second provider.
-        "complete_prose",
         # Context-budget surface (#2050). These must NEVER fail over, for a reason specific to
         # what they compute rather than the generic "no LLM call" one above:
         #
