@@ -16,6 +16,10 @@ import { signInIsolated } from './helpers'
  * Drift, Less Signal" at 12s. That is the worst case the panel can actually be asked to draw, so
  * it is the one asserted here rather than a synthetic string that proves nothing about the corpus.
  *
+ * Re-measured 2026-10-13 on the rebuilt corpus (55 episodes, 178 insights, 176 renderable): the
+ * longest renderable one is now 200 characters in p04_e01 "Underwater Images That Feel Alive" at
+ * 108s; p06_e02's longest is 135, under this test's own guard.
+ *
  * Note the overall maximum (200) and the renderable maximum (200) coincide, but only by luck: the
  * longest insight overall has no timed quote at all, and a different corpus could easily put its
  * longest text somewhere Zone D never reaches.
@@ -25,9 +29,9 @@ test.use({ viewport: { width: 375, height: 667 } })
 test('Zone D renders the corpus-longest insight at 375pt without clipping', async ({ page }, testInfo) => {
   await signInIsolated(page, 'zone-d-375', testInfo)
 
-  await page.goto('/podcast/p06')
+  await page.goto('/podcast/p04')
   await page.waitForLoadState('networkidle')
-  await page.getByRole('link', { name: /More Drift, Less Signal/i }).first().click()
+  await page.getByRole('link', { name: /Underwater Images That Feel Alive/i }).first().click()
   await page.waitForURL(/\/episode\//)
   await page.waitForLoadState('networkidle')
 
