@@ -346,6 +346,9 @@ jobs:
             # Env-tag every span (api + mcp) so staging (laptop) and prod (VPS) split in Grafana —
             # parity with the GlitchTip `environment` tag (#1505 staging↔prod separation).
             echo "OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod"
+            # #2342: the LiteLLM gateway the board summarizer reaches the DGX through — the same
+            # value deploy-prod writes for the pipeline.
+            echo "LITELLM_API_BASE=${{ vars.PROD_LITELLM_API_BASE }}"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
@@ -477,6 +480,8 @@ jobs:
           PROD_APP_OPERATOR_API_KEY: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
           # Board summaries (RFC-127): the board-summarizer runs as the pipeline does, with its DSN.
           PROD_SENTRY_DSN_PIPELINE: ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          # ...and the pipeline's LiteLLM gateway key, the route to the DGX (#2342).
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)
@@ -499,6 +504,7 @@ jobs:
           python3 -c 'import hashlib, hmac, os; print(hmac.new(os.environ["PROD_APP_OPERATOR_API_KEY"].encode(), b"operator-read-v1", hashlib.sha256).hexdigest(), end="")' \
             > "$STAGE/app_operator_read_key"
           printf '%s' "$PROD_SENTRY_DSN_PIPELINE"   > "$STAGE/podcast_sentry_dsn_pipeline"
+          printf '%s' "$LITELLM_PROJ_PODCAST_PROD_KEY" > "$STAGE/litellm_api_key"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \

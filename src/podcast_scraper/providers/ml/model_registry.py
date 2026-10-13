@@ -1294,7 +1294,10 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="vllm_qwen3_30b_a3b_nvfp4",
         provider="vllm",
         model="NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",  # real HF id on the wire (ADR-147)
-        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        # #2342: through the LiteLLM gateway, a transparent proxy in front of the DGX (alias = this
+        # real model id; /tokenize passed through), so every call is metered and reaches Langfuse.
+        # Dev: the homelab gateway. Prod: LITELLM_API_BASE, which the deploy already sets.
+        endpoint="${LITELLM_API_BASE:-http://homelab:4001/v1}",
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
@@ -1716,7 +1719,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         # ollama_speaker_detector); the LLM that does speaker NAMING is `speaker_llm_model` below,
         # emitted to vllm_speaker_model. This split keeps ner_model a spaCy id, never a Qwen id.
         model="en_core_web_trf",
-        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        endpoint="${LITELLM_API_BASE:-http://homelab:4001/v1}",  # #2342, as the summary option
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},

@@ -81,6 +81,28 @@ model_list:
       model: openrouter/deepseek/deepseek-v4-flash
       api_key: os.environ/OPENROUTER_API_KEY_ORRERY
 
+  # ── The DGX model (#2342): a TRANSPARENT proxy in front of the DGX vLLM. The podcast pipeline
+  # (and the board summarizer) keep their vLLM provider unchanged and only point vllm_api_base at
+  # this gateway, so every DGX call is metered and reaches Langfuse like every other model. The
+  # alias IS the real HF model id, so requests, the provider's served-model check
+  # (GET /v1/models) and telemetry are exactly what they were. Our hardware: $0, and NO fallback of
+  # any kind may ever be added (it would turn a free local call into a paid cloud one; RFC-127
+  # board summaries run at budget $0). This container resolves dgx-llm-1 (checked 2026-10-13);
+  # the vLLM is served under the placeholder key EMPTY. 900 s covers long GI/quote calls the global
+  # 120 s would cut. Not podcast-* on purpose: litellm_smoke.py only checks it is served, so a
+  # gateway deploy does not fail while the GPU is in another mode.
+  - model_name: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+    litellm_params:
+      model: hosted_vllm/NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+      api_base: http://dgx-llm-1:8003/v1
+      api_key: EMPTY
+      timeout: 900
+    model_info:
+      mode: chat
+      max_input_tokens: 65536
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
 litellm_settings:
   # Full-package observability from day one (operator requirement). On PROD these
   # callbacks reach the homelab pane over the tailnet — see .env.example: LANGFUSE_HOST
@@ -93,4 +115,15 @@ litellm_settings:
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
+  # #2342: the vLLM provider counts tokens exactly with vLLM's own POST /tokenize (#2050); this
+  # gateway is an OpenAI-API proxy with no such route, so it passes through to the DGX unchanged
+  # (otherwise the provider falls back to an estimate and clips more transcript). auth: false —
+  # per-key pass-through permission is LiteLLM Enterprise-only; /tokenize only counts tokens (no
+  # generation, no spend) and the DGX already answers it to the tailnet under the key EMPTY.
+  pass_through_endpoints:
+    - path: "/tokenize"
+      target: "http://dgx-llm-1:8003/tokenize"
+      headers:
+        Authorization: "Bearer EMPTY"
+      auth: false
   # Virtual keys + per-key budgets live in postgres (DATABASE_URL from compose).

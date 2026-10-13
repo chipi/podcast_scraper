@@ -29,6 +29,9 @@ speaker_detector_provider: vllm
 auto_speakers: true
 
 summary_provider: vllm
+# #2342: the DGX is reached through the LiteLLM gateway (vllm_api_base, registry-governed),
+# so the vLLM provider authenticates with the gateway key the pipeline already holds.
+vllm_api_key_env: LITELLM_API_KEY
 llm_pipeline_mode: staged
 degradation_policy:
   continue_on_stage_failure: true
@@ -122,7 +125,7 @@ enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
-vllm_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8003/v1
+vllm_api_base: ${LITELLM_API_BASE:-http://homelab:4001/v1}
 
 # Translation vLLM (#2169, Gate V) — CO-RESIDENT with the summary model above, not swapped
 # against it. `gpu-mode-swap.sh prod` brings both up; the tailnet ACL grants :8005 to tag:prod.

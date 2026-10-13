@@ -469,8 +469,8 @@ services:
   # It is the pipeline's container, run as the pipeline is run: the pipeline-llm image with its own
   # entrypoint (secrets shim -> entrypoint.sh -> opentelemetry-instrument when tracing is on), the
   # pipeline's DSN, the pipeline's OTEL settings, and the same startup as the CLI (Sentry, OTEL,
-  # logging). Only the command differs. The DGX is called exactly as the pipeline calls it: no
-  # VLLM_API_KEY, so the provider's own bearer, which is what the DGX is served under.
+  # logging). Only the command differs. The DGX is reached exactly as the pipeline reaches it:
+  # through the LiteLLM gateway (LITELLM_API_BASE) with the pipeline's gateway key (#2342).
   board-summarizer:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
@@ -496,11 +496,10 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
-    # The DGX by its tailnet IP, resolved fresh at each deploy by deploy-player.sh (Docker's DNS
-    # cannot resolve MagicDNS). Loopback by default, so an unresolved name fails closed: the
-    # sidecar logs model_unreachable and summarises nothing.
+      # The LiteLLM gateway, as the pipeline gets it (deploy-player writes it from the same
+      # vars.PROD_LITELLM_API_BASE deploy-prod uses). The key arrives as the litellm_api_key secret.
+      LITELLM_API_BASE: ${LITELLM_API_BASE:-}
     extra_hosts:
-      - "dgx-llm-1:${DGX_TAILNET_IP:-127.0.0.1}"
       # The traces endpoint, as the api reaches it.
       - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     volumes:

@@ -215,3 +215,39 @@ id into `ner_model` (a spaCy field) — `spacy.load()` would have crashed if the
 on the wire; the homelab vLLM must serve under that `--served-model-name` (dual-name transition)
 before a live run passes the B3 check. Prepared as a handoff, not deployed — see the session
 handover in `docs/wip/`.
+
+## Amendment 2026-10-13 — through the LiteLLM gateway (#2342)
+
+The DGX profiles (`prod_dgx_full`, `dev_dgx_full`, `eval_default`, `fixture_validation_dgx`) now
+reach the DGX vLLM **through the LiteLLM gateway**, so every DGX call is metered and traced in
+Langfuse like every other model. Before this, none of the pipeline's DGX calls reached Langfuse
+(0 in 30 days on 2026-10-13, while `llm_cost` showed ~1,190 a day).
+
+Everything this ADR decides still holds, because the gateway is a **transparent proxy**:
+
+- The provider is still `vllm` (`VLLMProvider`), unchanged. Only `vllm_api_base` changes, to
+  `${LITELLM_API_BASE:-http://homelab:4001/v1}` (the registry StageOption's endpoint; prod sets
+  `LITELLM_API_BASE` in the box `.env`), and `vllm_api_key_env: LITELLM_API_KEY`, the gateway key
+  the pipeline already holds.
+- The gateway alias **is** the real HF model id (`NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`), so the
+  wire model, the fail-closed served-model check (`GET /v1/models`) and telemetry
+  (`provider: vllm`, the real id) are as before. ADR-143's single-variable rule is untouched.
+- vLLM's `POST /tokenize` (#2050 exact token counts) has no OpenAI-API equivalent, so the gateway
+  passes it through to the DGX (`pass_through_endpoints`, `auth: false`, because per-key
+  pass-through permission is LiteLLM Enterprise-only; the route only counts tokens).
+- The alias is `$0` and has **no fallback of any kind**: a gateway fallback would turn a local call
+  into a paid cloud one, which "fully airgapped" (Key decision 1) rules out. The gateway runs on
+  our own hosts (the mini for dev, the prod VPS), so inference stays on our hardware; what is
+  added is one hop, and LiteLLM's Langfuse callback sending prompts to our homelab Langfuse.
+- The gateway returns vLLM's `maximum context length` 400 text unchanged, so the learn-from-400
+  recovery still works. Its `/v1/models` does not carry `max_model_len`; the provider then keeps
+  the declared window (65,536), which is what the DGX serves.
+
+Verified 2026-10-13, same fixture episode on `dev_dgx_full`, direct ×2 and through the gateway:
+every prompt built only from the transcript (summary, speaker detection, KG, the first GI chunk) has
+the same token count on both routes; the prompts built on earlier sampled output differ, and differ
+as much between the two direct runs. `/tokenize` returns the same token ids on both routes.
+
+Not moved: translation (TranslateGemma on `:8005`) still calls the DGX directly. It also uses
+`/tokenize`, on a different port, and one gateway path can pass through to one target only (see
+issue #2342).

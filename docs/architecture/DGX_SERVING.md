@@ -40,7 +40,7 @@ but NOT what v2.5 researches:
 
 | Pipeline stage | DGX service | Port | Notes |
 | --- | --- | --- | --- |
-| Speaker naming + summarization LLM | vLLM (autoresearch) | 8003 | **GPU-mode-gated** — see below. Phase D bakes off local LLM candidates here to match the Gemini baseline. |
+| Speaker naming + summarization LLM | vLLM (autoresearch) | 8003 | **GPU-mode-gated** — see below. Phase D bakes off local LLM candidates here to match the Gemini baseline. Since #2342 the DGX profiles reach it **through the LiteLLM gateway** (alias = the real model id, `/tokenize` passed through), so every call is metered and in Langfuse; see ADR-147's 2026-10-13 amendment. |
 
 Only the naming/summarization **LLM** changes in v2.5. ASR, diarization, and the ASR failover stay
 exactly as they are — they support the run, they are not under evaluation.

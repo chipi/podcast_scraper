@@ -76,12 +76,13 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
   `init_otel()`, console logging at INFO). Only the command differs. So its `llm_cost` lines,
   traces and errors arrive where the pipeline's do, told apart by `stage=board_summary`.
 - **Mounts**: the corpus **read-only**; the player appdata **read-write** (it writes summaries).
-- **Network**: egress to the profile's model endpoint only — the DGX vLLM over the tailnet
-  (`vllm_api_base`, `dgx-llm-1:8003`). No inbound port, no docker.sock.
-- **Secrets**: the pipeline's GlitchTip DSN (`PROD_SENTRY_DSN_PIPELINE`, staged by
-  `deploy-player.yml` into the player tenant's dir and mounted into this service only). No model
-  key: the DGX is called as the pipeline calls it, with no `VLLM_API_KEY`, so with the provider's
-  own bearer, which is what the DGX vLLM is served under (`docs/guides/PIPELINE_CHECK.md`).
+- **Network**: egress to the LiteLLM gateway in front of the DGX (`vllm_api_base` =
+  `LITELLM_API_BASE`, as for the pipeline; #2342) and the homelab traces endpoint. No inbound
+  port, no docker.sock.
+- **Secrets**: the pipeline's own — its GlitchTip DSN (`PROD_SENTRY_DSN_PIPELINE`) and its LiteLLM
+  gateway key (`LITELLM_PROJ_PODCAST_PROD_KEY` → `LITELLM_API_KEY`), staged by
+  `deploy-player.yml` into the player tenant's dir and mounted into this service only. The gateway
+  base comes from the same `vars.PROD_LITELLM_API_BASE` deploy-prod uses.
 - **Logs**: `player.alloy` keeps `player-board-summarizer-*` and labels it `surface=pipeline`.
 - **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 300, offset 60 s so it never
   wakes with the digest), does one sweep, sleeps. A sweep with nothing changed reads files only.
@@ -113,7 +114,7 @@ the board row; nothing else changes in the API.
 A sweep summarises a board when all of these hold:
 
 | Rule | Default | Why |
-|---|---|---|
+| --- | --- | --- |
 | Its content fingerprint differs from the stored summary's | — | No change, no call |
 | No change for `QUIET_MINUTES` | 10 | A burst of adds is one summary, not ten |
 | Last summary older than `MIN_HOURS_BETWEEN` | 0.25 (15 min) | A board being edited is not re-summarised every sweep |
@@ -182,7 +183,7 @@ touching the others.
 **Every summary provider** carries the use case:
 
 | Provider | What it renders | Budget |
-|---|---|---|
+| --- | --- | --- |
 | OpenAI-compatible (vLLM, LiteLLM, OpenAI, DeepSeek, Qwen, Groq), Anthropic, Gemini, Grok, Mistral, Ollama | system + user prompts | `max_tokens` (cloud ones through `cloud_structured_max_output_tokens`) |
 | SummLlama (local chat model) | system + user prompts, through its chat template | `max_new_tokens` |
 | BART/LED (`transformers`) | the document: the material written as prose, no instructions (a seq2seq model follows none), summarised by its own map/reduce with `cleaning_none` | single-pass `max_length` and reduce `max_new_tokens` |

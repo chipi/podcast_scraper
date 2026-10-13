@@ -41,7 +41,10 @@ screenplay: true
 # --- LLM work, all of it on the DGX ---
 summary_provider: vllm
 llm_pipeline_mode: staged
-vllm_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8003/v1
+# #2342: through the LiteLLM gateway in front of the DGX, as every DGX profile (alias = the real
+# model id; /tokenize passed through), authenticating with the gateway key.
+vllm_api_base: ${LITELLM_API_BASE:-http://homelab:4001/v1}
+vllm_api_key_env: LITELLM_API_KEY
 vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 vllm_insight_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
