@@ -134,8 +134,8 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 - **Next stages, not this arc:** naming (tier 3, `2187-NAMING-HANDOVER-2026-10-08.md`) and prod
   enablement.
 - **Where things are:**
-  - Public branch `feat/nonenglish-reference-analysis` (PR #2324).
-  - Eval repo branch of the same name: datasets, runner, scorers, judge.
+  - Public repo: on `main` (PR #2324, merged 2026-10-13 as `0783cf4b3`).
+  - Eval repo (private): on `master` (datasets, runner, scorers, judge).
   - Run outputs under the eval repo's ignored `cache/dataset_runs/`: re-run
     `20261012T083505Z_full` (en), `20261012T195734Z_full` (it, with the Italian judgement),
     `20261012T114048Z_full` (12 non-English), `20261012T173101Z_full` (6 non-English).
