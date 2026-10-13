@@ -424,9 +424,17 @@ def _transcript_opening(root: Path, metadata_rel: str) -> str:
                 head = fh.read(_TRANSCRIPT_HEAD_BYTES)
         except OSError:
             continue
-        match = re.search(r'"text"\s*:\s*"((?:[^"\\]|\\.){10,})"', head)
-        if match:
-            return match.group(1)
+        # Consecutive segments are joined until the opening is long enough to compare. One segment
+        # alone is often a short sentence ("Welcome back to Trail Sessions.", 31 chars), and the
+        # echo check skips any opening under ECHO_PREFIX_CHARS, so those episodes went unjudged.
+        parts: List[str] = []
+        for match in re.finditer(r'"text"\s*:\s*"((?:[^"\\]|\\.){1,})"', head):
+            parts.append(match.group(1))
+            if len(" ".join(parts)) >= ECHO_PREFIX_CHARS:
+                break
+        opening = " ".join(parts)
+        if len(opening) >= 10:
+            return opening
     return ""
 
 

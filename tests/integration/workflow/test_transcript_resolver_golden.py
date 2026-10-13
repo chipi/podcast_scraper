@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional
 
@@ -106,7 +107,11 @@ def _sidecar_variant_of(text: str, run_root: Path, transcript_rel: str) -> str:
     for label, suffix in (("raw", ".segments.json"), ("adfree", ".adfree.segments.json")):
         p = base.with_name(base.name + suffix)
         try:
-            if p.is_file() and text in p.read_text(encoding="utf-8"):
+            # The opening joins consecutive segment texts (raw, as the reader regex-matches
+            # them), so look for it in the file's texts joined the same way.
+            raw = p.read_text(encoding="utf-8") if p.is_file() else ""
+            joined = " ".join(re.findall(r'"text"\s*:\s*"((?:[^"\\]|\\.)+)"', raw))
+            if raw and text in joined:
                 found.append(label)
         except OSError:
             continue
