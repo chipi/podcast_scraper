@@ -312,3 +312,17 @@ def test_a_bad_cycle_never_kills_the_loop_and_still_beats(
     monkeypatch.setattr(mod, "_run_once", broken)
     mod._cycle()
     assert (tmp_path / "hb" / "tick").read_text().isdigit()
+
+
+def test_the_sweep_runs_every_five_minutes_and_never_with_the_digest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("BOARD_SUMMARY_INTERVAL_SECONDS", "BOARD_SUMMARY_INTERVAL_OFFSET_SECONDS"):
+        monkeypatch.delenv(name, raising=False)
+    mod = _load(tmp_path, monkeypatch)
+    assert (mod.INTERVAL_S, mod.OFFSET_S) == (300, 60)
+    slept: list[float] = []
+    mod._sleep_to_next_interval(slept.append)
+    assert 0 < slept[0] <= 360
+    # The digest wakes 120 s past the hour; 60 + 300k never lands there.
+    assert all((60 + 300 * k) % 3600 != 120 for k in range(12))

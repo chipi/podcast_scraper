@@ -260,16 +260,36 @@ def test_boards_that_must_wait(tmp_path: Path, setup: str, reason: str) -> None:
     assert model.prompts == [] and result.counts[reason] == 1
 
 
-def test_at_most_once_a_day_even_when_it_changes(tmp_path: Path) -> None:
+def test_never_twice_within_the_minimum_gap_even_when_it_changes(tmp_path: Path) -> None:
+    """Defaults: 15 minutes between two summaries of a board, 10 quiet after its last edit."""
     cid = _board(tmp_path, U1, "B", _episodes(2))
     model = Model()
     _sweep(tmp_path, model)
     app_collections_store.add_item(tmp_path, U1, cid, {"kind": "episode", "ref": _slugs(3)[2]})
     _set_changed(tmp_path, U1, cid, NOW - 3600)
-    later = _sweep(tmp_path, model, now=NOW + 7200)
-    assert later.counts["too_soon"] == 1 and len(model.prompts) == 1
-    next_day = _sweep(tmp_path, model, now=NOW + DAY)
-    assert next_day.summarised == [(U1, cid)]
+    within = _sweep(tmp_path, model, now=NOW + 10 * 60)
+    assert within.counts["too_soon"] == 1 and len(model.prompts) == 1
+    after = _sweep(tmp_path, model, now=NOW + 16 * 60)
+    assert after.summarised == [(U1, cid)]
+
+
+def test_an_edit_reaches_the_summary_within_minutes(tmp_path: Path) -> None:
+    """The beta promise (operator 2026-10-13): a board edited and left alone is re-summarised by
+    the first sweep after it has been quiet for 10 minutes, not the next day."""
+    cid = _board(tmp_path, U1, "B", _episodes(2))
+    model = Model()
+    _sweep(tmp_path, model)
+    edit_at = NOW + 20 * 60
+    app_collections_store.add_item(tmp_path, U1, cid, {"kind": "episode", "ref": _slugs(3)[2]})
+    _set_changed(tmp_path, U1, cid, edit_at)
+    assert _sweep(tmp_path, model, now=edit_at + 5 * 60).counts["quiet"] == 1
+    assert _sweep(tmp_path, model, now=edit_at + 11 * 60).summarised == [(U1, cid)]
+
+
+def test_the_defaults_are_the_beta_freshness_numbers() -> None:
+    lim = bs.Limits()
+    assert (lim.quiet_minutes, lim.min_hours_between, lim.max_per_user_per_day) == (10, 0.25, 30)
+    assert lim.daily_budget_usd == 0.0
 
 
 def test_a_user_cannot_take_more_than_their_share(tmp_path: Path) -> None:

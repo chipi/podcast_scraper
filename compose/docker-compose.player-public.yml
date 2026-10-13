@@ -477,7 +477,7 @@ services:
       APP_DATA_DIR: /app/appdata
       BOARD_SUMMARY_CORPUS_ROOT: /app/output
       BOARD_SUMMARY_PROFILE: prod_dgx_full
-      BOARD_SUMMARY_INTERVAL_SECONDS: "3600"
+      BOARD_SUMMARY_INTERVAL_SECONDS: "300"
       BOARD_SUMMARY_DAILY_BUDGET_USD: "0"
       BOARD_SUMMARY_HEARTBEAT_FILE: /heartbeat/tick
       # The DGX vLLM's bearer is a file, /run/secrets/vllm_api_key, mounted into this service only

@@ -36,9 +36,10 @@ HEARTBEAT = Path(os.environ.get("BOARD_SUMMARY_HEARTBEAT_FILE", "/heartbeat/tick
 CORPUS_ROOT = Path(os.environ.get("BOARD_SUMMARY_CORPUS_ROOT", "/app/output"))
 DATA_DIR = Path(os.environ.get("APP_DATA_DIR", "/app/appdata"))
 PROFILE = os.environ.get("BOARD_SUMMARY_PROFILE", "prod_dgx_full").strip() or "prod_dgx_full"
-INTERVAL_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_SECONDS", "3600"))
-# Off the digest's offset, so the two sidecars never wake in the same second.
-OFFSET_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_OFFSET_SECONDS", "900"))
+INTERVAL_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_SECONDS", "300"))
+# Under the interval, and off the digest's (120 s past the hour): with a 300 s interval this wakes
+# at :01, :06, :11 …, never with the digest. A sweep with nothing changed reads files only.
+OFFSET_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_OFFSET_SECONDS", "60"))
 KEY_FILE = Path(os.environ.get("BOARD_SUMMARY_VLLM_KEY_FILE", "/run/secrets/vllm_api_key"))
 
 

@@ -52,10 +52,12 @@ MAX_SUMMARY_CHARS = 1200
 class Limits:
     """Every number that decides what runs (RFC-127 §2). Env overrides, for the sidecar."""
 
-    quiet_minutes: float = 30.0
-    min_hours_between: float = 24.0
+    # Fresh within minutes of the last edit (operator 2026-10-13, for the beta): the model is ours
+    # and free, so these bound DGX load and runaway loops, not spend. The budget does that.
+    quiet_minutes: float = 10.0
+    min_hours_between: float = 0.25
     min_episodes: int = 2
-    max_per_user_per_day: int = 5
+    max_per_user_per_day: int = 30
     max_per_sweep: int = 50
     daily_budget_usd: float = 0.0
     max_input_episodes: int = 20

@@ -44,7 +44,8 @@ LLM. Giving the operator plane the player's user data would join two planes kept
 
 1. **Never in a request.** No user action calls the LLM: no open, no tap, no route. A summary is
    made in the background and stored on the board.
-2. **Only when the board changed**, and at most **once a day per board**.
+2. **Only when the board changed**, fresh within minutes of the last edit, and never more often
+   than every 15 minutes per board.
 3. **The pipeline's profile and provider code**: the profile names the model; the code is the
    provider factory the pipeline uses, with its `llm_cost` events, traces and response guardrails.
    Changing the profile changes the model and nothing else.
@@ -75,12 +76,13 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
 - **Secrets**: the DGX vLLM bearer only, as a file secret mounted into this service alone
   (`/run/secrets/vllm_api_key`, staged by `deploy-player.yml` from `PLAYER_VLLM_API_KEY`;
   `docker-compose.player-secrets.yml`). The API container never sees it. No other provider's key.
-- **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 3600), does one sweep, sleeps.
+- **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 300, offset 60 s so it never
+  wakes with the digest), does one sweep, sleeps. A sweep with nothing changed reads files only.
 - **DGX availability**: the `:8003` slot is up only in the GPU's research mode. A sweep that cannot
   reach it skips every board, counts `model_unreachable`, and the next sweep tries again.
 - **Kill switch**: `board_summaries_settings.json` in the player appdata root, read at the start
   of every sweep, as the API reads `access_policy.json`. Absent, unreadable or `{"enabled": true}`
-  runs; `{"enabled": false}` stops new summaries from the next sweep on (within the hour) — the
+  runs; `{"enabled": false}` stops new summaries from the next sweep on (within five minutes) — the
   model is not even built. Summaries already made stay. To stop it:
   `echo '{"enabled": false}' > /srv/podcast-scraper/player-appdata/board_summaries_settings.json`
 - **The DGX's address**: Docker cannot resolve MagicDNS, so `deploy-player.sh` resolves
@@ -90,7 +92,7 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
 The API keeps no keys and gains nothing that can call a model. The worst a UI or API bug can do is
 mark a board as changed; the sidecar decides what runs and when.
 
-### 2. When: changed, quiet, and not summarised today
+### 2. When: changed, quiet for 10 minutes, and not summarised in the last 15
 
 The API already rewrites a board on every add and remove. It also records `content_changed_at` on
 the board row; nothing else changes in the API.
@@ -100,10 +102,10 @@ A sweep summarises a board when all of these hold:
 | Rule | Default | Why |
 |---|---|---|
 | Its content fingerprint differs from the stored summary's | — | No change, no call |
-| No change for `QUIET_MINUTES` | 30 | A burst of adds is one summary, not ten |
-| Last summary older than `MIN_HOURS_BETWEEN` | 24 | At most once a day per board |
+| No change for `QUIET_MINUTES` | 10 | A burst of adds is one summary, not ten |
+| Last summary older than `MIN_HOURS_BETWEEN` | 0.25 (15 min) | A board being edited is not re-summarised every sweep |
 | It has at least `MIN_EPISODES` episodes | 2 | One episode already has its own Brief |
-| The user is under `MAX_PER_USER_PER_DAY` | 5 | One account cannot spend the day's budget |
+| The user is under `MAX_PER_USER_PER_DAY` | 30 | One account cannot take the DGX for the day |
 | The sweep is under `MAX_PER_SWEEP` | 50 | A backlog drains over hours, not in one burst |
 | Today's spend is under `DAILY_BUDGET_USD` | **0.00** | Zero, and enforced: see below |
 | A sweep makes at most one call at a time | 1 | The DGX also serves the pipeline |
@@ -204,8 +206,12 @@ the section is absent. A failed or skipped run leaves the last good summary in p
    a profile change can never quietly start spending (operator 2026-10-13).
 3. **Everyone, with a kill switch.** Every board of every user is summarised; the switch is on by
    default and is there to stop it without a deploy if it misbehaves (operator 2026-10-13).
-4. **Changed, quiet, once a day.** It is cheaper than summarising on every change, and fresher than
-   a nightly batch.
+4. **Changed, quiet, fresh within minutes.** First decided as once a day; changed the same day for
+   the beta (operator 2026-10-13): testers build and edit boards and should see the summary follow
+   within about 10–15 minutes of their last edit, not the next day. The model is ours and free, so
+   the limits bound DGX load and runaway loops (one call at a time, 15 minutes per board, 30 per
+   user per day, 50 per sweep); the zero budget still bounds spend. Still never on a user action:
+   an edit only makes a board eligible, the sidecar decides.
 5. **Brief content in, never user text.** It is cheaper, faithful to what the app already shows, and
    closes injection.
 
@@ -259,7 +265,8 @@ the section is absent. A failed or skipped run leaves the last good summary in p
    party, which is a smaller change than a cloud provider would be.
 
 Decided 2026-10-13: the DGX profile; a zero budget; every user; the kill switch on by default; the
-per-user, per-sweep, quiet and once-a-day numbers as in the table.
+per-user, per-sweep, quiet and gap numbers as in the table (the gap and quiet window shortened the
+same day for the beta).
 
 ## Built (2026-10-13)
 
