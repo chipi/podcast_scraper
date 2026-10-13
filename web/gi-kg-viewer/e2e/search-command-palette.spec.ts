@@ -157,7 +157,11 @@ test.describe('Search — command palette (#1233)', () => {
   }, testInfo) => {
     await landOnDigestWithCorpus(page, 'palette-show-graph', testInfo)
     await openPalette(page)
-    await queryPalette(page)
+    // Its own query, not QUERY: Show on graph is enabled only on insight / quote CONTENT hits
+    // (topics go to the subject section), and since the 2026-10-13 corpus refresh "incident
+    // response" sits on the edge — insights at ranks 3 and 8 of 8 locally, none in CI's top 8.
+    // "alert fatigue" ranks an insight first, with four insight/quote hits in its top 8.
+    await queryPalette(page, 'alert fatigue')
     // The FIRST ENABLED action, not the first hit's: the button is disabled on hits with no graph
     // node (transcript chunks), and which hit ranks first moves whenever the fixture grows — the
     // p10-p14 `_e02`/`_e03` episodes put a transcript chunk on top. Still fails loudly when no
