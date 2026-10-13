@@ -232,6 +232,26 @@ def test_every_part_of_the_material_is_clipped(
     assert all(len(i["text"]) <= 220 and len(i["speaker"]) <= 60 for i in ep["insights"])
 
 
+def test_a_sweep_with_nothing_changed_prices_and_calls_nothing(tmp_path: Path) -> None:
+    """No change, no call: not the model, and not the pricing either."""
+    priced: list[dict] = []
+
+    def price(material: dict) -> Optional[float]:
+        priced.append(material)
+        return 0.0
+
+    model = Model()
+    empty = _sweep(tmp_path, model, price)
+    assert model.prompts == [] and priced == [] and empty.summarised == []
+    for u in (U1, U2):
+        _board(tmp_path, u, "B", _episodes(2))
+    _sweep(tmp_path, model, price)
+    assert len(model.prompts) == 2 and len(priced) == 2
+    again = _sweep(tmp_path, model, price, now=NOW + DAY)
+    assert again.counts["unchanged"] == 2 and again.summarised == []
+    assert len(model.prompts) == 2 and len(priced) == 2
+
+
 def test_adding_a_show_or_a_link_changes_nothing_the_summary_reads(tmp_path: Path) -> None:
     cid = _board(tmp_path, U1, "B", _episodes(2))
     model = Model()

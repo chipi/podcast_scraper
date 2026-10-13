@@ -326,3 +326,59 @@ def test_the_sweep_runs_every_five_minutes_and_never_with_the_digest(
     assert 0 < slept[0] <= 360
     # The digest wakes 120 s past the hour; 60 + 300k never lands there.
     assert all((60 + 300 * k) % 3600 != 120 for k in range(12))
+
+
+def test_a_cycle_with_nothing_changed_never_talks_to_the_model_server(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """As much a success criterion as summarising a changed board (operator 2026-10-13): with
+    nothing to summarise, no request reaches the DGX — not the summary, and not the served-model
+    check ``initialize`` makes. Every five minutes, that would be 288 useless requests a day."""
+    from podcast_scraper.providers.vllm.vllm_provider import VLLMProvider
+
+    checks: list[str] = []
+    monkeypatch.setattr(VLLMProvider, "_verify_served_model", lambda self: checks.append("models"))
+    monkeypatch.setenv("BOARD_SUMMARY_CORPUS_ROOT", str(_CORPUS))
+    mod = _load(tmp_path, monkeypatch)
+    monkeypatch.setattr(mod, "CORPUS_ROOT", _CORPUS)
+    monkeypatch.setattr(mod, "KEY_FILE", tmp_path / "absent")
+    client = Mock()
+    client.chat.completions.create.return_value = _chat_reply("A board about risk.")
+    real = mod._provider
+
+    def provider() -> Any:
+        cfg, prov = real()
+        prov.client = client
+        return cfg, prov
+
+    monkeypatch.setattr(mod, "_provider", provider)
+
+    mod._run_once()  # no boards at all
+    assert checks == [] and client.chat.completions.create.call_count == 0
+
+    _board_with_two_episodes(tmp_path)
+    mod._run_once()  # one changed board: one check, one call
+    assert checks == ["models"] and client.chat.completions.create.call_count == 1
+
+    capsys.readouterr()
+    mod._run_once()  # nothing changed since
+    assert checks == ["models"] and client.chat.completions.create.call_count == 1
+    assert '"unchanged": 1' in capsys.readouterr().out
+
+
+def test_a_provider_that_cannot_get_ready_ends_the_sweep_as_unreachable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from podcast_scraper.providers.vllm.vllm_provider import VLLMProvider
+
+    def wrong_model(self: Any) -> None:
+        raise RuntimeError("the slot serves another model")
+
+    monkeypatch.setattr(VLLMProvider, "_verify_served_model", wrong_model)
+    monkeypatch.setenv("BOARD_SUMMARY_CORPUS_ROOT", str(_CORPUS))
+    mod = _load(tmp_path, monkeypatch)
+    monkeypatch.setattr(mod, "CORPUS_ROOT", _CORPUS)
+    monkeypatch.setattr(mod, "KEY_FILE", tmp_path / "absent")
+    _board_with_two_episodes(tmp_path)
+    mod._run_once()
+    assert '"stopped": "model_unreachable"' in capsys.readouterr().out

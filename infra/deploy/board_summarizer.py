@@ -70,7 +70,10 @@ def _vllm_key() -> Optional[str]:
 
 
 def _provider() -> tuple[Any, Any]:
-    """The profile's provider, built and initialised as the pipeline builds it — with no failover.
+    """The profile's provider, built as the pipeline builds it — with no failover, and NOT yet
+    initialised: building it touches no network, initialising it does (the vLLM provider asks the
+    DGX which model it serves). A sweep with nothing to summarise must not talk to the model
+    server at all, so ``_BoardUseCase`` initialises it on the first call it actually makes.
 
     Every call is priced against this provider before it is made, against a budget of zero;
     failing over would make it on a provider nobody priced (a free DGX call becoming a paid cloud
@@ -81,9 +84,7 @@ def _provider() -> tuple[Any, Any]:
 
     # vllm_api_key None is the field's own default: the provider then falls back as it always does.
     cfg = config.Config(profile=PROFILE, vllm_api_key=_vllm_key(), summary_fallback_providers=[])
-    provider = create_summarization_provider(cfg)
-    provider.initialize()
-    return cfg, provider
+    return cfg, create_summarization_provider(cfg)
 
 
 class _BoardUseCase:
@@ -98,6 +99,7 @@ class _BoardUseCase:
 
         self.cfg = cfg
         self.provider = provider
+        self.ready = False
         self.stage = STAGE
         # "chat": system + user prompts; "document": a seq2seq model's prose input (BART/LED).
         self.kind = kind
@@ -127,7 +129,20 @@ class _BoardUseCase:
             document_prompt=str(self.cfg.board_summary_document_prompt),
         )
 
+    def _initialize(self) -> None:
+        """Once, before the first call of the sweep, never before. A provider that cannot get
+        ready (the DGX in another GPU mode, a wrong model on the slot) ends the sweep as
+        unreachable; the next sweep tries again."""
+        if self.ready:
+            return
+        try:
+            self.provider.initialize()
+        except Exception as exc:  # noqa: BLE001 — any reason it is not ready ends this sweep
+            raise ConnectionError(f"provider not ready: {exc!r}") from exc
+        self.ready = True
+
     def summarize(self, material: dict[str, Any]) -> str:
+        self._initialize()
         out = self.provider.summarize(text="", params={"use_case": self.use_case(material)})
         return str(out.get("summary") or "")
 

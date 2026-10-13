@@ -89,6 +89,12 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
   `dgx-llm-1` on every deploy (`tailscale ip -4`) into `DGX_TAILNET_IP`, as it does `homelab`.
   Unresolved, the name points at loopback and the sidecar summarises nothing.
 
+**Nothing changed, nothing sent.** A sweep with no eligible board makes no request to the model
+server at all: the provider is built every sweep (that touches no network) but initialised only
+before the first call it actually makes, since initialising the vLLM provider asks the DGX which
+model it serves. At a sweep every five minutes that would otherwise be 288 requests a day for
+nothing. A provider that cannot get ready ends the sweep as `model_unreachable`.
+
 The API keeps no keys and gains nothing that can call a model. The worst a UI or API bug can do is
 mark a board as changed; the sidecar decides what runs and when.
 
