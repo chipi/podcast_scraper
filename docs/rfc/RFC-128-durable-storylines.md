@@ -49,9 +49,10 @@ This RFC is about storylines only.
 
 ### 1. Identity separate from membership
 
-A **storyline registry** (`enrichments/storyline_registry.json`) holds every storyline ever created:
-`id`, `name`, `aliases`, `state`, `created_at`, the weighted topic set (each topic with first and
-last seen and a recency-weighted strength), and `lineage` (`merged_into`, `split_from`). The
+A **storyline registry** (carried as `data.registry` in `enrichments/topic_theme_clusters.json`)
+holds every storyline ever created: `id`, `name`, `aliases`, `anchor`, `created_at`,
+`last_active_at`, and the recency-weighted topic set. Lineage is `id_history` (`successors`,
+`gone`); explicit `merged_into` / `split_from` records are not built (Open questions). The
 clustering stays as it is and produces **proposals**: groups of topics discussed together this run.
 A reconcile step matches proposals to registry entries and updates membership. It never deletes an
 entry.
@@ -123,14 +124,26 @@ Production corpus, read-only copy: 2,635 served episodes, clustered month by mon
 2026-10 (episodes published up to each month). Faithfulness: today's clustering on the copy
 reproduces production's 99 storylines member for member and id for id.
 
-| | Today's rule | New rule, bar 2/5/2 | Bar 2/3/2 | Bar 3/5/2 |
+| | Today's rule | New rule, bar 2/5/2 | Bar 2/3/2 \* | Bar 3/5/2 \* |
 | --- | --- | --- | --- | --- |
-| Storylines at 2026-10 | 99 | 59 (47 active, 12 quiet) | 83 | 31 |
-| Spanning fewer than 5 episodes | 45 | 0 | 24 | 0 |
-| Renamed during the history | 24 storylines, up to 4 times each | 3 | 5 | 2 |
+| Storylines at 2026-10 | 99 | 58 | 83 | 31 |
+| Spanning fewer than 5 episodes | 45 | 1 | 24 | 0 |
+| Same id, new name, during the history | 2 (24 storylines renamed by a new id, up to 4 times each) | 4 | 5 | 2 |
 | A follow made 2026-04 is on the same storyline at 2026-10 | 25 of 34 | 19 of 19 | 25 of 25 | 12 of 12 |
-| "Prompt engineering" | yes | yes (since 2026-04, 12 episodes) | yes | no (a candidate) |
+| "Prompt engineering" | yes | yes (since 2026-04) | yes | no (a candidate) |
 | Episodes in some storyline | 795 | 681 | 746 | 561 |
+| Topics in two storylines; widest storyline | 0; 16 topics | 0; 16 topics | — | — |
+
+\* Measured with the prototype, before the two fixes below; not re-run. The first two columns are
+`scripts/eval/replay_storylines.py` on the copy, after them.
+
+**Found on the copy after the first implementation, both fixed and now tested:**
+
+- *Anchors moved.* The first run after deploy seeded every topic at the same strength, so 22 of 99
+  storyline pages would have moved to another anchor topic. The registry now keeps each anchor.
+- *Topics shared.* Attaching a proposal copied all its topics into the storyline, including ones
+  another storyline held: by 2026-10, 25 topics sat in two storylines and some storylines widened
+  (3 → 13 topics). Each topic is now published in one storyline only, as today's clustering does.
 
 Today's rule renames as the corpus grows, back and forth: one 44-episode thread went "nominal gdp
 targeting → inflation expectations → nominal gdp targeting → federal reserve policy → inflation
@@ -146,7 +159,10 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
   share, topic strength ×0.85 per 30 days (held at 0.2), bar 2 topics / 5 episodes / 28 days,
   rename after 60 days, quiet after 90 days. The anchor a page routes by is kept in the
   registry (the pre-registry anchor, or the most-episode topic at creation) and moves only when its
-  topic leaves; the member is marked `"anchor": true`.
+  topic leaves; the member is marked `"anchor": true`. Each topic is published in one storyline
+  only (the one it anchors, else the one where it is strongest); a storyline whose topics all
+  faded into others is recorded as their successor in `id_history`, for the reference pass.
+- `search/storyline_history.py` — the one-time history seed (Migration).
 - `enrichers/topic_theme_clusters.py` (1.3.0) — this run's clusters are proposals; the registry is
   carried in `topic_theme_clusters.json` (`registry`, plus `state` and `aliases` per storyline);
   super-themes are computed over the registry's storylines.
@@ -156,13 +172,26 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
 
 ## Migration
 
-The first run with the registry seeds it from the previous artifact's storylines (ids and names
-kept, all 99 on production; a corpus's very first run seeds from its own clusters), and each
-storyline's current anchor, so no storyline page moves (simulated on the production copy: 99 of 99
-ids, names and anchors unchanged over two runs). New storylines
-then need the 28-day bar, so for four weeks none appears; existing ones keep growing. #2345's `id_history` maps every id the
-registry ever retired, so stored references keep resolving. No user state is rewritten by this
-change; the reference pass keeps running.
+Operator, 2026-10-14: build the registry from history, and keep every storyline published today.
+
+`python -m podcast_scraper.search.storyline_history --corpus <root> [--apply]`, once, after the
+deploy: it replays the registry month by month over the corpus (no model; seconds on production),
+then merges the result with the storylines published today. A replayed storyline that shares half
+of its topics, or of a current storyline's, with a current one folds into it: the current one takes
+the replayed history (created, last active, topic strengths; a different replayed name becomes an
+alias) and keeps its own id, name and anchor. A current storyline with no replayed match is dated
+by its episodes; a replayed one with no current match is added. Only `data.registry` is written,
+with a backup next to the artifact (undo: copy it back). Dry run by default.
+
+Simulated on the production copy, seed then two nightly runs: 99 of 99 ids, names and anchors
+unchanged, so no page, follow or save moves; 17 quiet; no topic in two storylines; all 59 replayed
+storylines folded in (none added); 6 storylines trade a few topics with each other; 47 candidates
+carried on, so new storylines do not wait four weeks from deploy.
+
+Without the seed (a corpus's first run), the registry starts from the previous artifact's
+storylines, with today's ids, names and anchors, and, on a corpus with none, from its own clusters.
+#2345's `id_history` maps every id the registry retires, so stored references keep resolving. No
+user state is rewritten; the reference pass keeps running.
 
 ## Not in scope
 

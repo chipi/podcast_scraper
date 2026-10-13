@@ -132,3 +132,40 @@ def test_the_anchor_moves_only_when_its_topic_leaves_the_corpus() -> None:
     _, state = _run([], {"clusters": [old]}, 0.0, extra_topics=("topic:a", "topic:z"))
     stories, _ = _run([], state, 1 * DAY, extra_topics=("topic:a",))
     assert _anchor(stories[0]) == "topic:a"
+
+
+def test_a_topic_is_published_in_one_storyline_only() -> None:
+    """Today's clustering is a partition; attaching a proposal must not copy a topic another
+    storyline holds (the replay over production reached 25 shared topics without this)."""
+    _, state = _run(
+        [
+            _prop("risk", ["topic:a", "topic:b"], ["e1", "e2"]),
+            _prop("trade", ["topic:c", "topic:d"], ["e3", "e4"]),
+        ],
+        None,
+        0.0,
+    )
+    spill = _prop("risk", ["topic:a", "topic:b", "topic:c"], ["e1", "e2", "e3"])
+    trade = _prop("trade", ["topic:c", "topic:d"], ["e3", "e4"])
+    stories, _ = _run([spill, trade], state, 1 * DAY)
+    held = [m["topic_id"] for s in stories for m in s["members"]]
+    assert len(held) == len(set(held)), held
+    by = {s["graph_compound_parent_id"]: {m["topic_id"] for m in s["members"]} for s in stories}
+    assert by["thc:trade"] == {"topic:c", "topic:d"}, "the anchor's storyline keeps it"
+
+
+def test_a_storyline_whose_topics_all_went_to_others_has_a_successor() -> None:
+    _, state = _run(
+        [
+            _prop("big", ["topic:a", "topic:b", "topic:c"], ["e1", "e2"]),
+            _prop("small", ["topic:x", "topic:y"], ["e3", "e4"]),
+        ],
+        None,
+        0.0,
+    )
+    # "small"'s topics have faded below held, and big is now proposed with them.
+    state["registry"]["entries"]["thc:small"]["topics"] = {"topic:x": 0.1, "topic:y": 0.1}
+    merged = _prop("big", ["topic:a", "topic:b", "topic:c", "topic:x", "topic:y"], ["e1", "e3"])
+    stories, state = _run([merged], state, 1 * DAY)
+    assert "thc:small" not in _ids(stories)
+    assert state["id_history"]["successors"] == {"thc:small": "thc:big"}

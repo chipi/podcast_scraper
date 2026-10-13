@@ -57,11 +57,13 @@ def _run(bundles: list[Any], state_dir: Path, now: float, carry: bool) -> dict[s
     return data
 
 
-def _snapshot(data: dict[str, Any]) -> dict[str, tuple[str, int]]:
+def _snapshot(data: dict[str, Any]) -> dict[str, tuple[str, frozenset[str], frozenset[str]]]:
+    """``{id: (name, episodes, topics)}``."""
     return {
         c["graph_compound_parent_id"]: (
             c["canonical_label"],
-            len({e for m in c["members"] for e in m.get("episode_ids") or []}),
+            frozenset(e for m in c["members"] for e in m.get("episode_ids") or []),
+            frozenset(m["topic_id"] for m in c["members"]),
         )
         for c in data["clusters"]
     }
@@ -91,10 +93,15 @@ def summarise(snaps: list[tuple[str, dict]], follow_months: int = 6) -> dict[str
     for (_m, prev), (_n, cur) in zip(snaps, snaps[1:]):
         renamed |= {i for i in cur if i in prev and cur[i][0] != prev[i][0]}
     start = snaps[max(0, len(snaps) - 1 - follow_months)][1]
+    seen = [t for _n, _e, topics in final.values() for t in topics]
     return {
         "month": snaps[-1][0],
         "storylines": len(final),
-        "under_5_episodes": sum(1 for _n, e in final.values() if e < 5),
+        "under_5_episodes": sum(1 for _n, e, _t in final.values() if len(e) < 5),
+        "episodes_covered": len(set().union(*(e for _n, e, _t in final.values()))),
+        # Today's clustering is a partition; the registry must stay one (RFC-128).
+        "topics_in_two_storylines": len(seen) - len(set(seen)),
+        "widest": max((len(t) for _n, _e, t in final.values()), default=0),
         # Same id, new name. Under the old rule a new name is a new id, so its renames show as
         # follows lost instead.
         "names_changed_same_id": len(renamed),
@@ -116,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
             seen = [
                 (m, sid, name)
                 for m, snap in result[rule]
-                for sid, (name, _e) in snap.items()
+                for sid, (name, _e, _t) in snap.items()
                 if probe.lower() in name.lower()
             ]
             first = seen[0] if seen else None

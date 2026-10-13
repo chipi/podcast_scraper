@@ -139,10 +139,23 @@ kept is used.
    ```
 
    Needs the DGX in research mode (the `:8003` slot), like the board summaries; $0 budget holds.
-4. **Durable storylines (RFC-128, #2349):** after the first nightly, `topic_theme_clusters.json`
-   has `data.registry` with every storyline the last artifact had (99 on 2026-10-14; ids and names
-   unchanged), each with `state`. No new storyline appears for 28 days (the creation bar); names no
-   longer flip between runs. Re-run `scripts/eval/replay_storylines.py` on a copy to compare.
+4. **Durable storylines (RFC-128, #2349): seed the registry from history**, after the deploy and
+   ideally before the first nightly on the new code (after it is fine too: the seed reads the
+   published storylines either way). Replays the registry month by month over the corpus (no
+   model, seconds) and merges it with today's storylines; writes only `data.registry` in
+   `enrichments/topic_theme_clusters.json`, with a backup next to it (undo: copy the backup back).
+   Dry run, read the counts, then apply:
+
+   ```sh
+   docker exec compose-api-1 python -m podcast_scraper.search.storyline_history --corpus /app/output
+   docker exec compose-api-1 python -m podcast_scraper.search.storyline_history --corpus /app/output --apply
+   ```
+
+   Expect, as on the 2026-10-14 copy: `current` 99, `replayed` 59, `with_history` 51, `folded` 59,
+   `added_from_history` [], `candidates` 47. After the next nightly: 99 storylines with the same
+   ids, names and anchors (pages and follows do not move), about 17 `quiet`, no topic in two
+   storylines; 6 storylines trade a few topics with each other. Re-run
+   `scripts/eval/replay_storylines.py` on a copy to compare.
 5. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
    `GET /api/app/discover/references/gone` answers for the smoke account.
 

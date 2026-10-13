@@ -16,9 +16,12 @@ Here a storyline is a record that outlives any run:
   grow when proposed again, so a thread can change every topic it began with and keep its id.
 - **A name that sticks.** Another label must lead the storyline's proposals for 60 days before a
   rename; the old name becomes an alias.
+- **One storyline per topic**, as the clustering's own output: a topic shared by several entries is
+  published in the one it anchors, else the one where it is strongest.
 - **Never deleted.** A storyline with no new episode for 90 days is *quiet*; a new episode makes it
-  active again. Only one whose every topic has left the corpus stops being published (and is then
-  ``gone`` in ``id_history``, for the reference pass).
+  active again. One whose topics have all faded into other storylines is published as their
+  successor (``id_history.successors``); one whose every topic left the corpus is ``gone``. The
+  reference pass moves what listeners kept on either.
 
 Storyline pages are routed by their anchor topic, so the registry keeps it: the anchor a storyline
 had before the registry, or its most-episode topic when created. It moves only when that topic
@@ -186,16 +189,58 @@ def reconcile(
         elif now - float(c["last_seen"]) <= p.candidate_forget_days * _DAY_S:
             kept_candidates.append(c)
 
-    storylines, gone = [], []
+    storylines, gone, absorbed = _publish(entries, p, topic_label, topic_eps, now)
+
+    history = dict(prior.get("id_history") or {})
+    successors = {**dict(history.get("successors") or {}), **absorbed}
+    published = {s["graph_compound_parent_id"] for s in storylines}
+    id_history = {
+        "successors": {k: v for k, v in sorted(successors.items()) if v in published},
+        "gone": sorted((set(history.get("gone") or []) | set(gone)) - published),
+    }
+    state = {"as_of": now, "entries": entries, "candidates": kept_candidates}
+    return storylines, state, id_history
+
+
+def _publish(
+    entries: dict[str, dict[str, Any]],
+    p: Params,
+    topic_label: Mapping[str, str],
+    topic_eps: Mapping[str, list[str]],
+    now: float,
+) -> tuple[list[dict[str, Any]], list[str], dict[str, str]]:
+    """``(storylines, gone ids, {absorbed id: successor})``: each held topic published in one
+    storyline only — the one it anchors, else the one where it is strongest."""
+    in_corpus = {
+        sid: {t: w for t, w in e["topics"].items() if t in topic_label and topic_eps.get(t)}
+        for sid, e in entries.items()
+    }
+    owner: dict[str, tuple[bool, float, str]] = {}  # topic -> best (is anchor, strength, -id)
+    for sid in sorted(entries, reverse=True):
+        e = entries[sid]
+        kept = {t: w for t, w in in_corpus[sid].items() if w >= p.held_strength}
+        if kept and e.get("anchor") not in kept:
+            e["anchor"] = min(kept, key=lambda t: (-kept[t], t))
+        for t, w in kept.items():
+            key = (t == e.get("anchor"), w, sid)
+            if t not in owner or key[:2] >= owner[t][:2]:
+                owner[t] = key
+
+    storylines: list[dict[str, Any]] = []
+    gone: list[str] = []
+    absorbed: dict[str, str] = {}
     for sid in sorted(entries):
         e = entries[sid]
         strengths = {
-            t: w
-            for t, w in e["topics"].items()
-            if w >= p.held_strength and t in topic_label and topic_eps.get(t)
+            t: w for t, w in in_corpus[sid].items() if w >= p.held_strength and owner[t][2] == sid
         }
         if not strengths:
-            gone.append(sid)
+            rest = sorted(in_corpus[sid].items(), key=lambda kv: (-kv[1], kv[0]))
+            took = next((owner[t][2] for t, _w in rest if t in owner), None)
+            if took is None:
+                gone.append(sid)
+            else:
+                absorbed[sid] = took
             continue
         if e.get("anchor") not in strengths:
             e["anchor"] = min(strengths, key=lambda t: (-strengths[t], t))
@@ -224,16 +269,7 @@ def reconcile(
                 "last_active_at": int(float(e["last_active_at"])),
             }
         )
-
-    history = dict(prior.get("id_history") or {})
-    successors = dict(history.get("successors") or {})
-    published = {s["graph_compound_parent_id"] for s in storylines}
-    id_history = {
-        "successors": {k: v for k, v in sorted(successors.items()) if v in published},
-        "gone": sorted((set(history.get("gone") or []) | set(gone)) - published),
-    }
-    state = {"as_of": now, "entries": entries, "candidates": kept_candidates}
-    return storylines, state, id_history
+    return storylines, gone, absorbed
 
 
 def _candidate(
