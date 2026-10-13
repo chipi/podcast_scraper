@@ -1094,7 +1094,8 @@
     "played": "Played"
   },
   "language": {
-    "badgeLabel": "Language: {name}"
+    "badgeLabel": "Language: {name}",
+    "translatedFrom": "Translated from {name}"
   },
   "route": {
     "choose": "Play on another device",

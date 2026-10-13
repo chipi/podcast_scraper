@@ -30,6 +30,12 @@ describe('loadMoments (operator 2026-10-10)', () => {
   })
 
   it('maps to the player store shape', () => {
-    expect(toReel([M])).toEqual([{ insightId: 'i1', text: 'A point', speaker: 'Ann', startMs: 1000, endMs: 9000 }])
+    expect(toReel([M])).toEqual([
+      { insightId: 'i1', text: 'A point', speaker: 'Ann', startMs: 1000, endMs: 9000, translatedFrom: null },
+    ])
+  })
+
+  it('carries a translated moment\'s source language (D-36 b)', () => {
+    expect(toReel([{ ...M, translated_from: 'es' }])[0].translatedFrom).toBe('es')
   })
 })

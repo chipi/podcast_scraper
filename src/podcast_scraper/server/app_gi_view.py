@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from podcast_scraper.server.schemas import AppInsight, AppQuote
+from podcast_scraper.translation.provenance import translated_from
 
 
 def _opt_int(value: Any) -> int | None:
@@ -190,6 +191,7 @@ def insights_from_gi(
                     char_end=_opt_int(qp.get("char_end")),
                     start_ms=_opt_int(qp.get("timestamp_start_ms")),
                     end_ms=_opt_int(qp.get("timestamp_end_ms")),
+                    translated_from=translated_from(qp),
                 )
             )
 
@@ -209,6 +211,9 @@ def insights_from_gi(
                 tier=_opt_int(props.get("tier")),
                 attributed=not unattributed,
                 quotes=quote_models,
+                translated_from=next(
+                    (q.translated_from for q in quote_models if q.translated_from), None
+                ),
             )
         )
 

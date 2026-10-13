@@ -375,6 +375,11 @@ class AppQuote(BaseModel):
     char_end: int | None = Field(default=None, description="Transcript char offset end.")
     start_ms: int | None = Field(default=None, description="Quote start timestamp (ms).")
     end_ms: int | None = Field(default=None, description="Quote end timestamp (ms).")
+    translated_from: str | None = Field(
+        default=None,
+        description="Source language code when the quote's text is a machine translation "
+        "(D-36 slice b); None when it is what was said.",
+    )
 
 
 class AppInsight(BaseModel):
@@ -421,6 +426,11 @@ class AppInsight(BaseModel):
         ),
     )
     quotes: list[AppQuote] = Field(default_factory=list)
+    translated_from: str | None = Field(
+        default=None,
+        description="Source language code when the insight's supporting quote is a machine "
+        "translation (D-36 slice b).",
+    )
 
 
 class AppInsightsResponse(BaseModel):
@@ -439,6 +449,11 @@ class AppMoment(BaseModel):
     start_ms: int = Field(description="Clip start on the episode's original audio timeline.")
     end_ms: int = Field(description="Clip end (exclusive); at most the configured cap after start.")
     clip_text: str = Field(default="", description="Transcript of what plays.")
+    translated_from: str | None = Field(
+        default=None,
+        description="Source language code when the moment's quote is a machine translation "
+        "(D-36 slice b); the audio is the original.",
+    )
 
 
 class AppMomentsResponse(BaseModel):

@@ -1125,6 +1125,7 @@ def _node_to_app_insight(
     tier = props.get("tier")
     ep_id = node.get("_episode_id")
     start_ms = node.get("_quote_start_ms")
+    lang = node.get("_quote_translated_from")
     episode_slug = (slug_by_episode or {}).get(str(ep_id)) if ep_id else None
     return AppInsight(
         id=str(node.get("id") or ""),
@@ -1140,6 +1141,7 @@ def _node_to_app_insight(
         episode_slug=episode_slug,
         start_ms=start_ms if isinstance(start_ms, int) else None,
         quotes=[],
+        translated_from=lang if isinstance(lang, str) and lang else None,
     )
 
 

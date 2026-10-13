@@ -379,6 +379,8 @@ export interface Quote {
   char_end: number | null
   start_ms: number | null
   end_ms: number | null
+  /** D-36(b): source language code when the text is a machine translation; absent/null = said. */
+  translated_from?: string | null
 }
 
 /** A grounded GIL insight (with supporting quotes). */
@@ -403,6 +405,8 @@ export interface Insight {
    *  episode panel's fallback when an episode has no attributed insight; absent = true. */
   attributed?: boolean
   quotes: Quote[]
+  /** D-36(b): source language code when the supporting quote is a machine translation. */
+  translated_from?: string | null
 }
 
 export interface InsightsResponse {
@@ -418,6 +422,8 @@ export interface Moment {
   start_ms: number
   end_ms: number
   clip_text: string
+  /** D-36(b): source language code when the moment's quote is a machine translation. */
+  translated_from?: string | null
 }
 
 export interface MomentsResponse {

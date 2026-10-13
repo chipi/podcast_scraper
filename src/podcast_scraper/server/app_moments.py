@@ -122,6 +122,8 @@ class Moment:
     clip_text: str = ""
     #: Position in the player's order (0 = first), the default ranking.
     player_rank: int = 0
+    #: Source language when the quote is a machine translation (D-36 slice b).
+    translated_from: str | None = None
 
 
 def moment_count(duration_seconds: float, available: int, config: MomentsConfig) -> int:
@@ -268,6 +270,7 @@ def score_candidates(
                 quote_text=first.text,
                 clip_text=clip_text,
                 player_rank=rank,
+                translated_from=ins.translated_from,
             )
         )
     return out

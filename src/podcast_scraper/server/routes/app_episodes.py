@@ -834,6 +834,7 @@ def episode_moments(
                 start_ms=m.start_ms,
                 end_ms=m.end_ms,
                 clip_text=m.clip_text,
+                translated_from=m.translated_from,
             )
             for m in picked
         ],

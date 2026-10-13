@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n'
 import type { ReelMoment } from '../stores/player'
 import { formatTime } from '../player/transcriptSync'
 import { minutesValue, reelSeconds } from '../services/moments'
+import TranslatedFrom from './TranslatedFrom.vue'
 
 const props = defineProps<{
   moments: ReelMoment[]
@@ -144,6 +145,7 @@ function segState(i: number): 'done' | 'now' | 'todo' {
         <p v-if="current.speaker" class="mt-1 text-xs text-muted" data-testid="moments-speaker">
           {{ current.speaker }}<template v-if="speakerRoles?.[current.speaker]">, {{ speakerRoles[current.speaker] }}</template>
         </p>
+        <TranslatedFrom :lang="current.translatedFrom" />
         <div class="mt-2 h-[3px] rounded-sm bg-canvas-foreground/20" aria-hidden="true">
           <div class="h-full rounded-sm bg-accent" :style="{ width: `${clipProgress * 100}%` }" />
         </div>

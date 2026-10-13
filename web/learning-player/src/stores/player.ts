@@ -53,6 +53,8 @@ export interface ReelMoment {
   speaker: string | null
   startMs: number
   endMs: number
+  /** D-36(b): source language when the moment's quote is a machine translation. */
+  translatedFrom?: string | null
 }
 
 /** A Moments reel in progress: which moment, and where the listener was before it started. */

@@ -23,6 +23,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { EpisodeRecap } from '../services/types'
+import TranslatedFrom from './TranslatedFrom.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -162,6 +163,7 @@ function stay(): void {
         <footer v-if="quote.speaker" class="mt-1 text-sm text-muted">
           {{ t('player.recapQuoteBy', { speaker: quote.speaker }) }}
         </footer>
+        <TranslatedFrom :lang="quote.translated_from" />
       </blockquote>
 
       <!-- Top insights (salience-ranked, capped server-side). -->

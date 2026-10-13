@@ -1,9 +1,10 @@
 """Translation provenance on every claim (RFC-124 / RFC-125 / S2.11).
 
-WHAT THIS IS FOR, AND WHY IT IS NOT OPTIONAL. In v1 there is no user-visible "translated from
-Spanish" marker (D-36), so a listener cannot tell a translated quote from a native-English one.
-The compensation is that the PROVENANCE is written on every claim at the time it is made, which
-is what lets v2 add the label, a quality score or a verification pass **without reprocessing**.
+WHAT THIS IS FOR, AND WHY IT IS NOT OPTIONAL. The PROVENANCE is written on every claim at the
+time it is made, which is what lets a label, a quality score or a verification pass be added
+**without reprocessing**. The app's quotes, insights, moments and topic takes now read it as
+"Translated from <language>" (D-36 slice b, 2026-10-13, :func:`translated_from`); search, MCP,
+share cards and snapshots do not yet (V2-A.4).
 A claim that shipped without it can never acquire it, because the units that produced it are
 not recoverable after the fact.
 
@@ -58,6 +59,21 @@ def target_units_sha256(doc: TranslationDocument) -> str:
             h.update(b"\x02")
             h.update(str(sentence.get("en_text") or "").encode("utf-8"))
     return h.hexdigest()
+
+
+def translated_from(props: Any) -> Optional[str]:
+    """The source language of a translated node's text, or ``None`` when it is not translated.
+
+    What the app shows as "Translated from <language>" (D-36 slice b). Read from the node's own
+    block, so a quote is labelled exactly when its text came from the translator.
+    """
+    block = props.get(PROVENANCE_KEY) if isinstance(props, dict) else None
+    if not isinstance(block, dict) or block.get("translated") is not True:
+        return None
+    lang = block.get("source_language")
+    if not isinstance(lang, str) or not lang.strip() or lang.strip() == "en":
+        return None
+    return lang.strip()
 
 
 def build_provenance_block(

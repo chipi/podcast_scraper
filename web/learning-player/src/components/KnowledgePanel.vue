@@ -28,6 +28,7 @@ import { groupBriefResults, markTerms, searchTerms } from "../player/briefSearch
 import { spanFromParagraph, type ParagraphSpan } from "../player/transcriptCapture"
 import { minutesValue } from "../services/moments"
 import { speakerLabel } from "../utils/format"
+import TranslatedFrom from "./TranslatedFrom.vue"
 import CardRail from "./CardRail.vue"
 import EpisodeTile from "./EpisodeTile.vue"
 import PlayFrom from "./PlayFrom.vue"
@@ -1235,6 +1236,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 <span v-if="speakerLabel(ins.quotes[0].speaker)" class="lp-speaker block">
                   — {{ speakerLabel(ins.quotes[0].speaker) }}
                 </span>
+                <TranslatedFrom :lang="ins.quotes[0].translated_from" />
               </blockquote>
               <!-- #2198: said, but by a voice we could not name. Say so, rather than implying the
                    episode's host or guest said it. -->

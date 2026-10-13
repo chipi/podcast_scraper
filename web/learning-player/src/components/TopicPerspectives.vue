@@ -16,6 +16,7 @@ import PlayFrom from "./PlayFrom.vue"
 import { useSectionState } from "../composables/useSectionState"
 import { useCappedSections } from "../composables/useCappedSections"
 import ShowAllToggle from "./ShowAllToggle.vue"
+import TranslatedFrom from "./TranslatedFrom.vue"
 import {
   ApiError,
   getStorylinePerspectives,
@@ -269,7 +270,7 @@ function toggle(personId: string): void {
                 :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
                 :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
                 class="ml-1"
-              /></span>
+              /><TranslatedFrom inline :lang="ins.translated_from" /></span>
             </li>
           </ul>
           <button

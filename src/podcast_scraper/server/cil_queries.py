@@ -30,6 +30,7 @@ from podcast_scraper.server.corpus_catalog import (
     _optional_relpath_field,
     _verified_artwork_relpath,
 )
+from podcast_scraper.translation.provenance import translated_from
 from podcast_scraper.utils.corpus_walk import prune_excluded_dirs
 
 logger = logging.getLogger(__name__)
@@ -1221,6 +1222,9 @@ def topics_perspectives(
                 start_ms = (quote_node.get("properties") or {}).get("timestamp_start_ms")
                 if isinstance(start_ms, int):
                     annotated["_quote_start_ms"] = start_ms
+                lang = translated_from(quote_node.get("properties"))
+                if lang:
+                    annotated["_quote_translated_from"] = lang
             entry = by_person.setdefault(speaker_id, {"insights": [], "episodes": set()})
             entry["insights"].append(annotated)
             if episode_id:
