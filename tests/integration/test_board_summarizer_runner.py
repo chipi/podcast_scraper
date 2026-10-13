@@ -473,3 +473,47 @@ def test_a_failed_cycle_is_logged_at_error(
     with caplog.at_level("ERROR"):
         mod._cycle()
     assert any(r.levelname == "ERROR" and r.exc_info for r in caplog.records)
+
+
+def test_each_cycle_runs_the_reference_pass_first_and_its_failure_never_stops_the_summaries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2345: the reference pass runs before the summaries, whether or not they are on."""
+    mod = _load(tmp_path, monkeypatch)
+    order: list[str] = []
+
+    def failing_refs() -> None:
+        order.append("references")
+        raise RuntimeError("corpus unreadable")
+
+    monkeypatch.setattr(mod, "_references_once", failing_refs)
+    monkeypatch.setattr(mod, "_run_once", lambda: order.append("summaries"))
+    monkeypatch.setattr(mod, "_beat", lambda: order.append("beat"))
+    mod._cycle()
+    assert order == ["references", "summaries", "beat"]
+
+
+def test_the_reference_pass_rekeys_a_renamed_storyline_from_the_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End to end through the sidecar: id_history in the storyline artifact → a follow re-keyed."""
+    from podcast_scraper.server import app_user_state
+
+    mod = _load(tmp_path, monkeypatch)
+    root = tmp_path / "corpus"
+    (root / "enrichments").mkdir(parents=True)
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(
+            {
+                "data": {
+                    "clusters": [{"graph_compound_parent_id": "thc:new", "members": []}],
+                    "id_history": {"successors": {"thc:old": "thc:new"}, "gone": []},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(mod, "CORPUS_ROOT", root)
+    app_user_state.add_interest(mod.DATA_DIR, "u1", "thc:old")
+    mod._references_once()
+    assert app_user_state.get_interests(mod.DATA_DIR, "u1") == ["thc:new"]

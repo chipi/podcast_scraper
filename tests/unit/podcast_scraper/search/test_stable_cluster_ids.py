@@ -103,3 +103,15 @@ def test_a_theme_keeps_its_tc_id_when_its_label_changes() -> None:
     assert [c["graph_compound_parent_id"] for c in second["clusters"]] == [tc]
     assert second["clusters"][0]["canonical_label"] in {"gamma", "delta"}
     assert second["id_history"] == {"successors": {}, "gone": []}
+
+
+def test_an_old_artifact_maps_to_the_current_ids_without_changing_them() -> None:
+    """The backfill: renames from before ids were kept, read from a saved snapshot."""
+    from podcast_scraper.search.stable_cluster_ids import map_prior_ids
+
+    old = [_c("thc:risk", "a", "b", "c"), _c("thc:pair", "x", "y"), _c("thc:same", "m", "n")]
+    current = [_c("thc:managing-risk", "a", "b", "c", "d"), _c("thc:same", "m", "n")]
+    snapshot = copy.deepcopy(current)
+    history = map_prior_ids(old, current)
+    assert current == snapshot, "the current artifact is read, never changed"
+    assert history == {"successors": {"thc:risk": "thc:managing-risk"}, "gone": ["thc:pair"]}

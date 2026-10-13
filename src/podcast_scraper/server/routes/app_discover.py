@@ -74,6 +74,8 @@ from podcast_scraper.server.schemas import (
     AppDiscoverRail,
     AppDiscoverRailsResponse,
     AppEpisodesResponse,
+    AppGoneReference,
+    AppGoneReferencesResponse,
     AppInProgress,
     AppInterestCluster,
     AppInterestClustersResponse,
@@ -910,6 +912,20 @@ def _valid_less_token(token: str) -> str:
     if len(token) > 200 or not token.startswith(app_user_state.SUGGEST_LESS_PREFIXES):
         raise HTTPException(status_code=422, detail="Not a topic, person, storyline or theme.")
     return token
+
+
+@router.get("/discover/references/gone", response_model=AppGoneReferencesResponse)
+def app_gone_references(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppGoneReferencesResponse:
+    """The listener's stored references that no longer exist (#2345): the player shows each one
+    muted, "No longer available", with a remove action. A renamed one was already re-keyed."""
+    from podcast_scraper.server.reference_integrity import gone_references
+
+    rows = gone_references(_data_dir(request), user.user_id)
+    return AppGoneReferencesResponse(
+        items=[AppGoneReference(ref=str(r["ref"]), kind=str(r.get("kind") or "")) for r in rows]
+    )
 
 
 @router.get("/discover/suggest-less", response_model=AppSuggestLessResponse)

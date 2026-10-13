@@ -21,6 +21,11 @@ Each cycle:
    The call itself is the provider's own ``summarize`` with the board use case
    (``providers/common/summary_use_case.py``): the episode summary's flow, its prompts excepted.
 
+Before the summaries, each cycle also runs the reference pass (#2345,
+``server/reference_integrity.py``): listeners' stored theme, storyline, topic and person ids are
+re-keyed when the corpus renamed them and flagged when they are gone. No model is involved, so it
+runs whether or not summaries are switched on.
+
 The loop and its heartbeat follow ``digest_scheduler.py``: interval-aligned wakes, one cycle at
 start, a bad cycle never kills the loop, a heartbeat file for the container healthcheck.
 """
@@ -218,12 +223,28 @@ def _run_once() -> None:
     )
 
 
+def _references_once() -> None:
+    """The reference pass (#2345): every listener's stored ids re-keyed or flagged."""
+    from podcast_scraper.server import reference_integrity
+
+    ts = int(time.time())
+    results = reference_integrity.repair_all(DATA_DIR, CORPUS_ROOT)
+    rekeyed = sum(len(r.receipts) for r in results)
+    flagged = sum(len(r.flagged) for r in results)
+    _log_json(event="references.tick", users=len(results), rekeyed=rekeyed, flagged=flagged, ts=ts)
+    _log(f"references: {len(results)} users, {rekeyed} re-keyed, {flagged} flagged")
+
+
 def _sleep_to_next_interval(sleep: Callable[[float], object] = time.sleep) -> None:
     now = time.time()
     sleep(INTERVAL_S - (now % INTERVAL_S) + OFFSET_S)
 
 
 def _cycle() -> None:
+    try:
+        _references_once()
+    except Exception:  # noqa: BLE001 — the summaries still run
+        _LOGGER.exception("reference pass failed")
     try:
         _run_once()
     except Exception:  # noqa: BLE001 — a bad cycle must never kill the loop

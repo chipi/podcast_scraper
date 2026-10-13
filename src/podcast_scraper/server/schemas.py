@@ -1368,6 +1368,20 @@ class AppSuggestLessBody(BaseModel):
     label: str = Field(min_length=1, max_length=200)
 
 
+class AppGoneReference(BaseModel):
+    """A reference the listener stored that no longer exists in the corpus (#2345)."""
+
+    ref: str
+    kind: str = Field(description="topic | person | theme | storyline | episode")
+
+
+class AppGoneReferencesResponse(BaseModel):
+    """The listener's stored references found gone by the last reference pass (#2345): shown
+    muted, "No longer available", with a remove action. Empty before the first pass."""
+
+    items: list[AppGoneReference] = Field(default_factory=list)
+
+
 class AppSuggestLessResponse(BaseModel):
     """Everything the listener asked to see less of, oldest first."""
 

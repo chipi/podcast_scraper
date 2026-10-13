@@ -128,6 +128,35 @@ def carry_cluster_ids(
     return {"successors": dict(sorted(successors.items())), "gone": sorted(gone)}
 
 
+def map_prior_ids(
+    prior_clusters: Iterable[Mapping[str, Any]],
+    current_clusters: Iterable[Mapping[str, Any]],
+    *,
+    min_jaccard: float = MIN_JACCARD,
+) -> dict[str, Any]:
+    """``id_history`` from an OLD artifact to the CURRENT one, without changing either.
+
+    For state written before ids were kept (the one-time backfill): an old id that a current
+    cluster would have inherited, or whose members one current cluster mostly holds, maps to that
+    cluster's current id; the rest are gone.
+    """
+    current = [dict(c) for c in current_clusters]
+    original = [_cluster_id(c) for c in current]
+    probe = [dict(c) for c in current]
+    carried = carry_cluster_ids(probe, prior_clusters, min_jaccard=min_jaccard)
+    successors: dict[str, str] = {}
+    for orig, c in zip(original, probe):
+        inherited = _cluster_id(c)
+        if inherited != orig and inherited not in original:
+            successors[inherited] = orig
+    to_current = dict(zip((_cluster_id(c) for c in probe), original))
+    for old, new in carried["successors"].items():
+        successors.setdefault(old, to_current.get(new, new))
+    current_ids = set(original)
+    gone = sorted(g for g in carried["gone"] if g not in current_ids and g not in successors)
+    return {"successors": dict(sorted(successors.items())), "gone": gone}
+
+
 def resolve(ref: str, history: Mapping[str, Any]) -> str | None:
     """The id ``ref`` stands for now: its successor, itself when not in the history, or ``None``
     when it is gone."""
