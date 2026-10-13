@@ -74,6 +74,7 @@ class Resolver:
         return "unknown", ref
 
     def episode_exists(self, slug: str) -> bool:
+        """Whether the corpus still has this episode (always, when the catalog was not read)."""
         return self.episodes is None or slug in self.episodes
 
 

@@ -57,6 +57,7 @@ def _prior_history(corpus: Path, storylines: Path | None, themes: Path | None) -
 
 
 def main(argv: list[str] | None = None) -> int:
+    """The command: dry run, ``--apply`` with receipts, or ``--undo``. Returns the exit code."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--appdata", type=Path, required=True)
     ap.add_argument("--corpus", type=Path, help="corpus root (not needed for --undo)")

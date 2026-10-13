@@ -49,6 +49,8 @@ class Limits:
 
     @classmethod
     def from_env(cls) -> "Limits":
+        """The limits, with ``STORYLINE_SUMMARY_*`` environment overrides."""
+
         def _int(name: str, default: int) -> int:
             try:
                 return int(os.environ.get(name, default))
