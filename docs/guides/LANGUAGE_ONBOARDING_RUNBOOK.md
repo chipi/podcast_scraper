@@ -124,7 +124,7 @@ real names twice (D12, D22's first model).
 - DGX: 1-2 episodes without asking; more needs the operator's yes. Before spending a DGX run on a
   phenomenon, check which episode carries it: the arc ran the stretched-word test on the wrong
   Radio Ambulante episode once (D16).
-- A config `null` now unsets a profile value (D20); before `73eaffaa6` it was silently ignored.
+- A config `null` now unsets a profile value (D20); before `df5535a38` it was silently ignored.
 
 ## 4. ASR
 
@@ -320,7 +320,7 @@ What this result does not show:
   words) and on no English, Spanish, French, German or Senado episode. Senado's newsreaders read
   standard Portuguese.
 - **Two code versions.** The first two episodes per show ran on 2026-10-09 code, the third on
-  the branch at `23956c651` (the run records that build; the same commit is `33828f6ff` after the
+  the branch at `23956c651` (the run records that build; the same commit is `5541acd7e` after the
   rebase onto main). Re-decoding the same audio was reproducible (above), but the chain changed
   between them; they were not re-run on one version.
 - **Residue left on the third episodes.** Novelo 09-17 (0.060 after the rule) is name spellings
@@ -532,7 +532,7 @@ out of the adjusted figures.
      3.82 / 9, a net loss. Places with an English name ("América Latina") came back untranslated,
      a placeholder lost the grammar around it ("Desde [1]" as "Since"), and the show title was
      missed because the host says it in lower case. Narrowed to the show title, case-blind when
-     multi-word (`a79ec0ffd`): 3.43 / 11 and 4.10 / 5. It touches 8 units, so read them, not
+     multi-word (`9452cd455`): 3.43 / 11 and 4.10 / 5. It touches 8 units, so read them, not
      the mean: all four show-name errors ("back on track", "back to the thread") are gone, three
      units rose (3->5, 4->5, 4->5), none fell.
    - `translation_max_unit_words: 100`: 3.82 / 4.24 on its own units, which looked like the

@@ -177,12 +177,12 @@ Runs live in the eval repo's ignored `cache/dataset_runs/asr_publisher_ref_nonen
 `run.json` names the commit it ran. Those are pre-rebase SHAs, and each run's exported code is kept
 under `cache/code/<sha>`. After the rebase onto main `3e0615172`: `d43559417` → `59d3c29cc`,
 `22ea34a55` → `86ed99c84`, `283038972` → `0d0db93d6`. Every other hash cited on this page predates
-the rebases onto main `a6375152a`, `37ff6563d` and `3906936fe` (2026-10-10 to 10-13); on the branch:
-`59d3c29cc`/`d43559417` → `4968caebe`, `86ed99c84`/`22ea34a55` → `151daae3a`,
-`0d0db93d6`/`283038972` → `11a0d2b76`, `b28cbc120` → `a26338944`, `36f8eefb0` → `8308edebc`,
-`8ba7e8e1c` → `207f8518c`, `d619fa099` → `8e04ff456`, `664334560` → `05c38a129`, `0252e8b97` →
-`73eaffaa6`, `7f7b8fb81` → `1af24b9b9`, `216844484` → `523db5a9c`, `2f166c0f8`/`d2f7c7dd2` →
-`72e0f78b5`, `33b31fabf` → `895918066`, `b5fc95281` → `423a1483a`.
+the rebases onto main `a6375152a`, `37ff6563d`, `3906936fe` and `aeca6a6e6` (2026-10-10 to 10-13);
+on the branch: `59d3c29cc`/`d43559417` → `8c97914ee`, `86ed99c84`/`22ea34a55` → `7a4966d7e`,
+`0d0db93d6`/`283038972` → `6639521f0`, `b28cbc120` → `b1a48012a`, `36f8eefb0` → `564d07caa`,
+`8ba7e8e1c` → `91f9c01c0`, `d619fa099` → `7f792ef4f`, `664334560` → `43f2157e7`, `0252e8b97` →
+`df5535a38`, `7f7b8fb81` → `ffae7eaf6`, `216844484` → `60bfd0f8b`, `2f166c0f8`/`d2f7c7dd2` →
+`8131bcdbc`, `33b31fabf` → `4e75f4390`, `b5fc95281` → `4050e40ab`.
 
 | run | code | what |
 | --- | --- | --- |
