@@ -653,6 +653,8 @@ class Config(BaseModel):
         prefer_types: Preferred transcript types or extensions (e.g., ["text/vtt", ".srt"]).
         transcribe_missing: Enable Whisper transcription for episodes without transcripts
             (default: True). Set to False to only download existing transcripts.
+        use_publisher_transcripts: Use a feed-published transcript when one is offered
+            (default: True). False always transcribes the audio.
         whisper_model: Whisper model name (e.g., "base", "small", "medium").
         whisper_device: Device for Whisper execution ("cpu", "cuda", "mps", or None for auto).
         screenplay: Format transcripts as screenplay with speaker labels (Whisper-only;
@@ -1109,6 +1111,16 @@ class Config(BaseModel):
     )
     prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
     transcribe_missing: bool = Field(default=True, alias="transcribe_missing")
+    use_publisher_transcripts: bool = Field(
+        default=True,
+        alias="use_publisher_transcripts",
+        description="Use a transcript the feed publishes instead of transcribing the audio. "
+        "False sends every episode to the audio route (ASR + diarization) even when the feed "
+        "offers a transcript. Set per feed in feeds.spec.yaml: a non-English feed is sent to our "
+        "ASR because that is the path its language gates measured (D6, operator 2026-10-13); "
+        "a publisher's transcript skips invented-line removal, gap recovery and punctuation "
+        "repair, and its quality varies by publisher.",
+    )
     whisper_model: str = Field(default="base.en", alias="whisper_model")
     whisper_device: Optional[str] = Field(default=None, alias="whisper_device")
     screenplay: bool = Field(

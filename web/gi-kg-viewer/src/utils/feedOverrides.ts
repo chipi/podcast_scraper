@@ -63,6 +63,7 @@ export const FEED_ADVANCED_FIELDS: FeedAdvancedFieldDef[] = [
   { key: 'rss_cache_dir', label: 'RSS cache dir', type: 'string', group: 'Conditional GET' },
   { key: 'episode_retry_max', label: 'Episode retry max', type: 'int', group: 'Episode retry' },
   { key: 'episode_retry_delay_sec', label: 'Episode retry delay (s)', type: 'float', group: 'Episode retry' },
+  { key: 'use_publisher_transcripts', label: "Use the feed's own transcript", type: 'bool', group: 'Transcript' },
   { key: 'user_agent', label: 'User agent', type: 'string', group: 'Misc' },
 ]
 export const FEED_ADVANCED_FIELD_KEYS = FEED_ADVANCED_FIELDS.map((f) => f.key)

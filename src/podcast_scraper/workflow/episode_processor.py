@@ -5265,9 +5265,12 @@ def publisher_transcript_choice(
     """The publisher transcript the download step will fetch, or ``None`` for the audio route.
 
     A REPROCESS STAGE NEVER RE-DOWNLOADS THE PUBLISHER TRANSCRIPT (#2075): see
-    ``process_episode_download``.
+    ``process_episode_download``. A feed with ``use_publisher_transcripts: false`` always takes
+    the audio route (D6).
     """
     if cfg.pipeline_stage in config.STAGES_REUSING_ON_DISK_ARTIFACTS:
+        return None
+    if not cfg.use_publisher_transcripts:
         return None
     return choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
 

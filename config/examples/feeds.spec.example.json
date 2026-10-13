@@ -28,6 +28,10 @@
     {
       "url": "https://example.com/news-desk.xml",
       "show_centric": true
+    },
+    {
+      "url": "https://example.com/spanish-show.xml",
+      "use_publisher_transcripts": false
     }
   ]
 }

@@ -64,3 +64,8 @@ feeds:
   # host (rendered "Host") as the EXPECTED outcome, so it is not flagged as a detection failure.
   - url: https://example.com/news-desk.xml
     show_centric: true
+
+  # Feed E: a non-English show. Its language was measured on our ASR, not on publishers'
+  # transcripts, so the feed's own transcript is ignored and the audio is transcribed (D6).
+  - url: https://example.com/spanish-show.xml
+    use_publisher_transcripts: false

@@ -60,6 +60,7 @@ RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
         "show_centric",
         "diarization_min_segment_ms",
         "crosspromo_cue_patterns",
+        "use_publisher_transcripts",
         # Per-feed language override (#2174). Feed <language> tags are routinely wrong, and this
         # is how an operator corrects one at onboarding without a code change. It needs BOTH this
         # entry and the typed field on RssFeedEntry below: the model is extra="forbid", so the key
@@ -124,6 +125,9 @@ class RssFeedEntry(BaseModel):
     # Per-feed opening cross-promo cue patterns (#1188). Extend the built-in cue set with a feed's
     # cross-promo phrasing at onboarding — the intended evolving surface for ads the defaults miss.
     crosspromo_cue_patterns: Optional[List[str]] = None
+    # Per-feed: false = transcribe the audio even when the feed publishes a transcript (D6). Set
+    # on non-English feeds, whose languages were measured on our ASR, not on publishers' text.
+    use_publisher_transcripts: Optional[bool] = None
     # Per-feed language override (#2174), the highest-precedence source. A publisher's <language>
     # is routinely wrong — an English show tagged `de` would otherwise be skipped on every run
     # with no remedy — so this is what corrects it at onboarding.

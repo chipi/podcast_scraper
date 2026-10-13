@@ -505,3 +505,17 @@ class TestRoutingIsOwnedByThePin:
             explicit, RssFeedEntry(url="https://p.example/f", profile="cloud_with_dgx_primary")
         )
         assert merged.litellm_api_base == "http://100.64.0.7:4001/v1"
+
+
+def test_merge_feed_entry_use_publisher_transcripts_per_feed() -> None:
+    # D6 (2026-10-13): a non-English feed is sent to our ASR, the path its language was measured
+    # on, by turning the publisher's transcript off for that feed alone.
+    base = cfg_mod.Config(rss="https://ignored.example/x")
+    assert base.use_publisher_transcripts is True
+    merged = merge_feed_entry_into_config(
+        base, RssFeedEntry(url="https://feed.example/rss", use_publisher_transcripts=False)
+    )
+    assert merged.use_publisher_transcripts is False
+    inherit = merge_feed_entry_into_config(base, RssFeedEntry(url="https://feed.example/rss"))
+    assert inherit.use_publisher_transcripts is True
+    assert "use_publisher_transcripts" in RSS_FEED_ENTRY_OVERRIDE_KEYS
