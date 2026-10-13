@@ -19,7 +19,6 @@ import EntityEpisodeList from "./EntityEpisodeList.vue"
 const props = defineProps<{ org: OrgCard }>()
 const emit = defineEmits<{
   (e: "open", payload: { kind: "person" | "topic" | "organization"; id: string }): void
-  (e: "close"): void
 }>()
 const { t } = useI18n()
 const router = useRouter()
@@ -49,9 +48,9 @@ const relatedPeople = computed<Entity[]>(() => props.org.related_people ?? [])
 const relatedOrgs = computed<Entity[]>(() => props.org.related_orgs ?? [])
 const relatedTopics = computed<Topic[]>(() => props.org.related_topics ?? [])
 
+// Navigating closes the sheet (see PersonCardContent's searchLibrary): no explicit close here.
 function searchLibrary(): void {
   const term = label.value.trim()
-  emit("close")
   if (term) void router.push({ name: "search", query: { q: term } })
 }
 </script>

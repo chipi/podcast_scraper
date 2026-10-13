@@ -5,7 +5,7 @@ Pure dict-in / model-out — no HTTP, no index.
 
 from __future__ import annotations
 
-from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
+from podcast_scraper.server.app_search_view import build_search_response
 
 
 def _outcome(results, *, error=None, detail=None, query_type="semantic", lift_stats=None) -> dict:
@@ -55,23 +55,3 @@ class TestBuildSearchResponse:
         resp = build_search_response("q", _outcome([{"doc_id": "x", "metadata": {}, "text": "t"}]))
         assert resp.results[0].score == 0.0
         assert resp.results[0].source_tier == ""
-
-
-class TestFilterOutcomeToEpisode:
-    def test_filters_to_episode_and_truncates(self) -> None:
-        out = _outcome(
-            [
-                {"doc_id": "a", "metadata": {"episode_id": "ep1"}},
-                {"doc_id": "b", "metadata": {"episode_id": "ep2"}},
-                {"doc_id": "c", "metadata": {"episode_id": "ep1"}},
-            ]
-        )
-        scoped = filter_outcome_to_episode(out, "ep1", top_k=1)
-        assert [r["doc_id"] for r in scoped["results"]] == ["a"]
-        # original outcome untouched
-        assert len(out["results"]) == 3
-
-    def test_no_episode_id_keeps_all_up_to_top_k(self) -> None:
-        out = _outcome([{"doc_id": "a", "metadata": {}}, {"doc_id": "b", "metadata": {}}])
-        scoped = filter_outcome_to_episode(out, None, top_k=10)
-        assert [r["doc_id"] for r in scoped["results"]] == ["a", "b"]

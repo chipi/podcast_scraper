@@ -157,7 +157,7 @@ watch(
       </CardRail>
       <div class="mt-4 flex flex-nowrap items-center gap-1">
         <RouterLink
-          :to="{ name: 'browse', query: { tab: 'shows' }, hash: '#catalog' }"
+          :to="{ name: 'shows' }"
           class="inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border px-4 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
           data-testid="interests-follow-shows"
         >

@@ -28,7 +28,7 @@ test('a board can be dragged into a new position, and the order persists', async
   const names = [`Alpha ${run}`, `Bravo ${run}`, `Charlie ${run}`]
 
   // Three boards, created newest-last so the default `updated` sort gives a known starting order.
-  await page.goto('/browse')
+  await page.goto('/explore')
   await page.waitForLoadState('networkidle')
   const firstRow = page.locator('article').first()
   await expect(firstRow).toBeVisible()

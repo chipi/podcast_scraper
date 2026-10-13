@@ -1,13 +1,38 @@
 {
   "edges": [
     {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:macroeconomics",
-      "type": "MENTIONS"
+      "from": "insight:2c1a7c3926e33f30",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b39864ca42f543aa",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c51f06353ae883fb",
+      "to": "topic:reliability",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:risk-management",
+      "to": "insight:2c1a7c3926e33f30",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:b39864ca42f543aa",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:c51f06353ae883fb",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:macroeconomics",
       "type": "MENTIONS"
     },
     {
@@ -17,108 +42,53 @@
     },
     {
       "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:systems-thinking",
+      "to": "topic:risk-management",
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "insight:1b3d89444a6f5fb7",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "insight:58433146870b98cc",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-a1342cd495b1165b",
-      "to": "insight:08e21b1684255b5a",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:514f13d6e0d5c270",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "quote:514f13d6e0d5c270",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:80ae997ea200c3f2",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:58433146870b98cc",
-      "to": "quote:80ae997ea200c3f2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c0cad14563802939",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:08e21b1684255b5a",
-      "to": "quote:c0cad14563802939",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:6441007fca6f2b0c",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "quote:6441007fca6f2b0c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:82ad39c8d691e662",
-      "to": "person:skanda-amarnath",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:58433146870b98cc",
-      "to": "quote:82ad39c8d691e662",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:21905418ae2b5e3f",
-      "to": "person:sam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:08e21b1684255b5a",
-      "to": "quote:21905418ae2b5e3f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:1b3d89444a6f5fb7",
-      "to": "person:sam",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:58433146870b98cc",
+      "from": "insight:2c1a7c3926e33f30",
       "to": "person:skanda-amarnath",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:08e21b1684255b5a",
-      "to": "person:sam",
+      "from": "insight:b39864ca42f543aa",
+      "to": "person:skanda-amarnath",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:c51f06353ae883fb",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:12f425b0524a4b05",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:2314f145647a6d3d",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:95f030860f034ed0",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2c1a7c3926e33f30",
+      "to": "quote:12f425b0524a4b05",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b39864ca42f543aa",
+      "to": "quote:2314f145647a6d3d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:c51f06353ae883fb",
+      "to": "quote:95f030860f034ed0",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-a1342cd495b1165b",
@@ -157,28 +127,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:1b3d89444a6f5fb7",
+      "id": "insight:2c1a7c3926e33f30",
       "properties": {
         "episode_id": "ep-a1342cd495b1165b",
         "grounded": true,
@@ -186,13 +135,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position.",
+        "text": "Let me give you the version I actually believe. Reliability of data trumps cleverness of model. If you ignore that, you end up rebuilding it from scratch a year later.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:58433146870b98cc",
+      "id": "insight:c51f06353ae883fb",
       "properties": {
         "episode_id": "ep-a1342cd495b1165b",
         "grounded": true,
@@ -200,13 +149,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "text": "It comes down to this: Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:08e21b1684255b5a",
+      "id": "insight:b39864ca42f543aa",
       "properties": {
         "episode_id": "ep-a1342cd495b1165b",
         "grounded": true,
@@ -214,73 +163,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Real talk: Bloomberg is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for market data.",
+        "text": "Yeah, so \u2014 Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:sam",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:514f13d6e0d5c270",
-      "properties": {
-        "char_end": 472,
-        "char_start": 385,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:80ae997ea200c3f2",
-      "properties": {
-        "char_end": 650,
-        "char_start": 555,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:c0cad14563802939",
-      "properties": {
-        "char_end": 790,
-        "char_start": 650,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:speaker-01",
-        "text": "Real talk: Bloomberg is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for market data.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:6441007fca6f2b0c",
-      "properties": {
-        "char_end": 879,
-        "char_start": 790,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to dig into that. What's the structural angle most listeners don't have access to?",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:skanda-amarnath",
@@ -290,29 +176,43 @@
       "type": "Person"
     },
     {
-      "id": "quote:82ad39c8d691e662",
+      "id": "quote:12f425b0524a4b05",
       "properties": {
-        "char_end": 1099,
-        "char_start": 898,
+        "char_end": 1367,
+        "char_start": 1200,
         "episode_id": "ep-a1342cd495b1165b",
         "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 Macro forecasting is mostly humility plus a few dependable signals. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "text": "Let me give you the version I actually believe. Reliability of data trumps cleverness of model. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:21905418ae2b5e3f",
+      "id": "quote:95f030860f034ed0",
       "properties": {
-        "char_end": 1181,
-        "char_start": 1105,
+        "char_end": 2186,
+        "char_start": 2043,
         "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:speaker-01",
-        "text": "Let's start there. What's the version of the question that actually matters?",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 108000,
+        "timestamp_start_ms": 102000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2314f145647a6d3d",
+      "properties": {
+        "char_end": 2985,
+        "char_start": 2854,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 144000,
+        "timestamp_start_ms": 138000,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"

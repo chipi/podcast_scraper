@@ -1,34 +1,19 @@
 {
   "edges": [
     {
-      "from": "episode:ep-de59d003651d9e5d",
+      "from": "insight:81318986adbd8e69",
       "to": "topic:risk-management",
-      "type": "MENTIONS"
+      "type": "ABOUT"
     },
     {
-      "from": "episode:ep-de59d003651d9e5d",
+      "from": "insight:authored-p01_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
       "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
-      "to": "topic:enduro-racing",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-de59d003651d9e5d",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-de59d003651d9e5d",
@@ -41,18 +26,73 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:81318986adbd8e69",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:ep-de59d003651d9e5d",
       "to": "insight:ad8ec142fe95887e",
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:81318986adbd8e69",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ad8ec142fe95887e",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p01_e04-0",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
       "from": "quote:8f87874856617d80",
       "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:a319096bc89d13cb",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:authored-p01_e04-0",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:authored-p01_e04-1",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:c689c41c5bef3446",
+      "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
@@ -61,19 +101,9 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c689c41c5bef3446",
-      "to": "person:sophie-laurent",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:81318986adbd8e69",
       "to": "quote:c689c41c5bef3446",
       "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a319096bc89d13cb",
-      "to": "person:sophie-laurent",
-      "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ad8ec142fe95887e",
@@ -81,89 +111,14 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:1f8545152b0daba1",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:5e35fb7106d60df7",
-      "to": "quote:1f8545152b0daba1",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a3734211bf939977",
-      "to": "person:sophie-laurent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:81318986adbd8e69",
-      "to": "quote:a3734211bf939977",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:45be05d7dbea096c",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ad8ec142fe95887e",
-      "to": "quote:45be05d7dbea096c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:5e35fb7106d60df7",
-      "to": "person:maya",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:81318986adbd8e69",
-      "to": "person:sophie-laurent",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:ad8ec142fe95887e",
-      "to": "person:maya",
-      "type": "MENTIONS_PERSON"
-    },
-    {
       "from": "insight:authored-p01_e04-0",
       "to": "quote:authored-p01_e04-0",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:authored-p01_e04-0",
-      "to": "person:sophie-laurent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:authored-p01_e04-0",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p01_e04-0",
-      "to": "person:sophie-laurent",
-      "type": "MENTIONS_PERSON"
-    },
-    {
       "from": "insight:authored-p01_e04-1",
       "to": "quote:authored-p01_e04-1",
       "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:authored-p01_e04-1",
-      "to": "person:sophie-laurent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:authored-p01_e04-1",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p01_e04-1",
-      "to": "person:sophie-laurent",
-      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-de59d003651d9e5d",
@@ -198,27 +153,6 @@
       "id": "topic:enduro-racing",
       "properties": {
         "label": "enduro racing"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },
@@ -321,48 +255,6 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1f8545152b0daba1",
-      "properties": {
-        "char_end": 860,
-        "char_start": 784,
-        "episode_id": "ep-de59d003651d9e5d",
-        "speaker_id": "person:speaker-01",
-        "text": "That's almost word-for-word what a friend in finance says about a portfolio.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p01_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:a3734211bf939977",
-      "properties": {
-        "char_end": 1066,
-        "char_start": 877,
-        "episode_id": "ep-de59d003651d9e5d",
-        "speaker_id": "person:speaker-02",
-        "text": "It's the same discipline. A race line and a portfolio are both systems of correlated bets \u2014 you're managing the interactions, and the risk you can describe is the one you can design around.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p01_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:45be05d7dbea096c",
-      "properties": {
-        "char_end": 1189,
-        "char_start": 1073,
-        "episode_id": "ep-de59d003651d9e5d",
-        "speaker_id": "person:speaker-01",
-        "text": "Thanks to Peak Design for backing the show. Peak Design builds bags and straps designed by people who actually ride.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p01_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:authored-p01_e04-0",
       "properties": {
         "episode_id": "ep-de59d003651d9e5d",
@@ -379,13 +271,13 @@
     {
       "id": "quote:authored-p01_e04-0",
       "properties": {
-        "char_end": 67,
-        "char_start": 0,
+        "char_end": 560,
+        "char_start": 353,
         "episode_id": "ep-de59d003651d9e5d",
         "speaker_id": "person:sophie-laurent",
-        "text": "The crash that ends your season is the boring risk you didn't name.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"
@@ -407,13 +299,13 @@
     {
       "id": "quote:authored-p01_e04-1",
       "properties": {
-        "char_end": 81,
-        "char_start": 0,
+        "char_end": 777,
+        "char_start": 560,
         "episode_id": "ep-de59d003651d9e5d",
         "speaker_id": "person:sophie-laurent",
-        "text": "You ride the whole run as a system; the mistakes come from how sections interact.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"

@@ -11,17 +11,18 @@ import { signInIsolated, expectSignedIn } from './helpers'
  * who signs in on that phone, so they belong last.
  */
 
-test('Browse renders the discovery explorer and both content tabs', async ({ page }, testInfo) => {
+test('Explore renders the discovery explorer and both content tabs', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-hub', testInfo)
-  await page.goto('/browse')
-  await expect(page.getByTestId('browse-view')).toBeVisible()
+  // Trends and the catalog live on Explore since 2026-10-11 (ADR-163 §1).
+  await page.goto('/explore')
+  await expect(page.getByTestId('explore-view')).toBeVisible()
 
   // The shared discovery explorer (tabbed topics/storylines/people) sits above the content tabs.
   await expect(page.getByTestId('discovery-explorer')).toBeVisible()
 
   // Content band — Episodes and Shows only (topics/people/storylines surface via the explorer).
   await page.getByTestId('browse-tab-shows').click()
-  await expect(page.getByTestId('show-browse-view')).toBeVisible()
+  await expect(page.getByTestId('browse-panel-shows').getByTestId('show-browse-search')).toBeVisible()
 
   await page.getByTestId('browse-tab-episodes').click()
   await expect(page.getByTestId('browse-panel-episodes')).toBeVisible()
@@ -29,8 +30,7 @@ test('Browse renders the discovery explorer and both content tabs', async ({ pag
 
 test('the shows index can be searched and sorted', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-shows', testInfo)
-  await page.goto('/browse')
-  await page.getByTestId('browse-tab-shows').click()
+  await page.goto('/shows')
 
   await expect(page.getByTestId('show-browse-grid')).toBeVisible()
   const search = page.getByTestId('show-browse-search')
@@ -52,9 +52,10 @@ test('Profile shows activity and puts DEVICE settings last', async ({ page }, te
   // Signed-in identity and the account-level surfaces.
   await expectSignedIn(page)
   await expect(page.getByTestId('profile-settings-link')).toBeVisible()
-  // Activity lives in the Stats tab now (Profile is tabbed: Account / Topics / Stats).
+  // Activity lives in the Stats tab now (Profile is tabbed: Account / Topics / Stats). A fresh
+  // account has listened to nothing, so it says how to start (one Stats story since 2026-10-12).
   await page.getByRole('tab', { name: 'Stats' }).click()
-  await expect(page.getByText('Your activity')).toBeVisible()
+  await expect(page.getByTestId('stats-listening')).toContainText('Start listening to build your stats')
 })
 
 test('the interests picker opens as a modal and "Not now" is as reachable as Save', async ({
@@ -114,12 +115,11 @@ test('the Browse affordance lands on the hub at every viewport', async ({ page }
   await browseLink.click()
 
   await expect(page.getByTestId('browse-view')).toBeVisible()
-  // The hub now has the discovery explorer (topics/storylines/people) + two content tabs.
-  await expect(page.getByTestId('discovery-explorer')).toBeVisible()
-  for (const tab of ['episodes', 'shows']) {
-    await expect(
-      page.getByTestId(`browse-tab-${tab}`),
-      `Browse must offer the ${tab} content tab`,
-    ).toBeVisible()
-  }
+  // Discover is what to hear next (ADR-163); search, Trends and the catalog are on Explore, its own
+  // nav place (2026-10-11).
+  await expect(page.getByTestId('quote-cards')).toBeVisible()
+  // A tab on a phone, a masthead icon on desktop.
+  await expect(
+    page.locator('[data-testid="bottom-nav-explore"]:visible, [data-testid="masthead-explore"]:visible'),
+  ).toHaveCount(1)
 })

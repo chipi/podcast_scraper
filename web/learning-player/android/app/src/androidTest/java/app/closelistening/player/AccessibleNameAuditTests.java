@@ -312,7 +312,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // check could never pass, the surface was never audited once, and the suite failed on its
         // own "NOT AUDITED — the surface would not open" finding every time it ran. The tab's title
         // is `profile.interests` = "Interests" (i18n/locales/en.json:692) — the same relationship
-        // Stats has to `stats.title` = "Your activity" (en.json:895), which is why that one works.
+        // Stats has to `stats.title` = "Your listening" (en.json:1078; was "Your activity").
         //
         // 2026-10-04: the tab itself is now CALLED "Interests" and the panel heading is gone, so
         // waiting for "Interests" would match the tab label and "arrive" before the panel had. The
@@ -323,7 +323,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // sat on top of the ACTUAL defect this suite was parked for: with the surface finally
         // audited, Settings reports zero findings, so the two nameless switches of P1 are fixed.
         audit("Profile ▸ Interests", openProfileTab("Interests", "Add a topic"), findings);
-        audit("Profile ▸ Stats", openProfileTab("Stats", "Your activity"), findings);
+        audit("Profile ▸ Stats", openProfileTab("Stats", "Your listening"), findings);
 
         // Settings verifies by ARRIVING (Journey.openSettings), not by the tap returning true.
         // This is where both findings were, and where the fix for them has to be proven.
@@ -344,9 +344,9 @@ public class AccessibleNameAuditTests extends UITestCase {
         // THE INSIGHTS PANEL AND ITS NOTE COMPOSER. `NoteComposer` is one of the components the
         // static guard lists, and no device suite has ever audited the names on the surface it
         // lives on — `NativeCapabilityTests` reaches the composer only to assert a mic exists.
-        audit("player ▸ Episode notes", Journey.tap(Arrays.asList("Episode notes", "✦ Episode notes"), true, 15_000), findings);
+        audit("player ▸ Brief", Journey.tap(Arrays.asList("Brief"), false, 15_000), findings);
         // Notes are the LAST section of a long panel. Scrolling to the textarea's aria-label
-        // ("Your notes" = notes.title) rather than the placeholder, because aria-label wins over
+        // ("Notes" = notes.title) rather than the placeholder, because aria-label wins over
         // placeholder here — matching 'Add a note…' finds nothing, on both platforms.
         //
         // Deliberately NOT clicking the textarea: focusing it opens the soft keyboard, and Android's
@@ -354,7 +354,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // the tree at exactly the moment it is drawn. That is what made the dictation test flake
         // 1-pass/2-fail in suite against 4/0 solo, and an audit that did it would report the mic and
         // Add button as missing rather than as unnamed.
-        audit("player ▸ notes", Journey.scrollTo("Your notes", false) != null, findings);
+        audit("player ▸ notes", Journey.scrollTo("Notes", false) != null, findings);
 
         assertTrue(
                 "These controls are tappable but carry no name a person could act on, so a screen "

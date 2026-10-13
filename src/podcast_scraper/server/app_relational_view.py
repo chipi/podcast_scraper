@@ -39,6 +39,8 @@ from podcast_scraper.server.app_kg_index import (
     iter_kg_entities,
     normalize_label,
 )
+from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
@@ -57,6 +59,7 @@ from podcast_scraper.server.schemas import (
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
+    AppQuote,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -311,7 +314,7 @@ def _theme_ref_by_norm_at(root: Path, _token: float) -> Mapping[str, AppEntityRe
     typed verbatim returned nothing.
 
     LAST in the precedence chain, deliberately. A label can name both a topic and a theme
-    (`Lifelong Learning` is `topic:lifelong-learning` AND `tc:lifelong-learning` in the v3 fixture),
+    (`risk management` is `topic:risk-management` AND `tc:risk-management` in the v3 fixture),
     and putting themes ahead of topics would silently change where every such query lands today.
     Going last makes this purely additive: a theme resolves only when nothing narrower claims the
     label. The cost is that an ambiguous label still opens the topic — the narrower thing wins —
@@ -495,6 +498,21 @@ def _person_shows(pairs: Sequence[tuple[CatalogEpisodeRow, str | None]]) -> list
     return shows
 
 
+def _related_topics(
+    root: Path,
+    topic_counts: Counter[str],
+    topics_by_id: dict[str, AppTopic],
+    cluster_map: ClusterMap,
+    storyline_map: ClusterMap,
+    top_k: int,
+) -> list[AppTopic]:
+    """The card's most-shared topics, leaving out umbrella subjects (``app_umbrellas``): a topic
+    on nearly every episode is shared with everyone and says nothing about this one."""
+    umbrellas = umbrella_tokens(root)
+    ranked = [i for i, _ in topic_counts.most_common() if i not in umbrellas][:top_k]
+    return [_enrich_topic(topics_by_id[i], cluster_map, storyline_map) for i in ranked]
+
+
 def build_person_card(
     root: Path,
     person_id: str,
@@ -553,10 +571,9 @@ def build_person_card(
         ],
         hosted_photo_urls(root),
     )
-    related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
-        for i, _ in topic_counts.most_common(top_k)
-    ]
+    related_topics = _related_topics(
+        root, topic_counts, topics_by_id, cluster_map, storyline_map, top_k
+    )
     return AppPersonCard(
         id=person_id,
         label=label or person_id.split(":", 1)[-1],
@@ -956,15 +973,13 @@ def build_cluster_perspectives(
         keep = {
             r.episode_id
             for r in cached_catalog(root)
-            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
+            if r.episode_id and slug_for_row(r) in mine_slugs
         }
     groups = topics_perspectives(str(root), str(root), members, keep_episode_ids=keep)
     if not groups:
         return None
     photos = hosted_photo_urls(root)
-    slug_by_episode = {
-        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
-    }
+    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
@@ -1089,10 +1104,9 @@ def build_org_card(
         [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
     )
     related_orgs = [orgs_by_id[i] for i, _ in org_counts.most_common(top_k)]
-    related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
-        for i, _ in topic_counts.most_common(top_k)
-    ]
+    related_topics = _related_topics(
+        root, topic_counts, topics_by_id, cluster_map, storyline_map, top_k
+    )
     return AppOrgCard(
         id=org_id,
         label=label or org_id.split(":", 1)[-1],
@@ -1108,11 +1122,13 @@ def build_org_card(
 def _node_to_app_insight(
     node: dict[str, Any], slug_by_episode: dict[str, str] | None = None
 ) -> AppInsight:
-    """Project a GI Insight node to AppInsight (grounded; quotes omitted here).
+    """Project a GI Insight node to AppInsight (grounded).
 
     ``slug_by_episode`` maps episode id -> slug so a perspective insight carries its source
     episode + the supporting quote's start moment (#2032); both are annotated onto the node by
-    ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere.
+    ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere. The
+    supporting quote itself (``_quote_text`` / ``_quote_end_ms``, 2026-10-11) becomes the insight's
+    one quote, so a quote card shows the transcript's words, not the paraphrase (ADR-163 §4).
     """
     props = node.get("properties") or {}
     text = props.get("text") or props.get("title") or ""
@@ -1126,6 +1142,20 @@ def _node_to_app_insight(
     ep_id = node.get("_episode_id")
     start_ms = node.get("_quote_start_ms")
     lang = node.get("_quote_translated_from")
+    end_ms = node.get("_quote_end_ms")
+    qtext = node.get("_quote_text")
+    quotes = (
+        [
+            AppQuote(
+                text=qtext,
+                speaker=None,
+                start_ms=start_ms if isinstance(start_ms, int) else None,
+                end_ms=end_ms if isinstance(end_ms, int) else None,
+            )
+        ]
+        if isinstance(qtext, str) and qtext.strip()
+        else []
+    )
     episode_slug = (slug_by_episode or {}).get(str(ep_id)) if ep_id else None
     return AppInsight(
         id=str(node.get("id") or ""),
@@ -1140,7 +1170,7 @@ def _node_to_app_insight(
         tier=int(tier) if isinstance(tier, int) else None,
         episode_slug=episode_slug,
         start_ms=start_ms if isinstance(start_ms, int) else None,
-        quotes=[],
+        quotes=quotes,
         translated_from=lang if isinstance(lang, str) and lang else None,
     )
 
@@ -1164,19 +1194,13 @@ def build_topic_perspectives(
     keep: set[str] | None = None
     if mine_slugs is not None:
         rows = cached_catalog(root)
-        keep = {
-            r.episode_id
-            for r in rows
-            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
-        }
+        keep = {r.episode_id for r in rows if r.episode_id and slug_for_row(r) in mine_slugs}
     groups = topic_perspectives(str(root), str(root), topic_id, keep_episode_ids=keep)
     if not groups:
         return None
     photos = hosted_photo_urls(root)
     # episode id -> slug, so each perspective insight can carry a jump-to-moment link (#2032).
-    slug_by_episode = {
-        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
-    }
+    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),

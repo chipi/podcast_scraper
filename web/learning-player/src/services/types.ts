@@ -362,6 +362,17 @@ export interface PodcastSignals {
     label: string
     topic_count: number
     anchor_topic_id: string | null
+    /** Episodes of this show touching any of its topics, and how distinctive (2026-10-12). */
+    episode_count?: number
+    lift?: number | null
+  }>
+  /** Themes the show's topics fall into, each with its reach and distinctiveness (2026-10-12). */
+  dominant_themes?: Array<{
+    theme_id: string
+    label: string
+    topic_count: number
+    episode_count: number
+    lift: number | null
   }>
   trending_topics: Array<{
     topic_id: string
@@ -591,6 +602,8 @@ export interface HighlightCreate {
   /** D-36(b): source language when the captured text is a machine translation. */
   translated_from?: string | null
   color?: string | null
+  /** Where it was saved, for stats: a full episode, a short listen, or a learning day. */
+  source?: 'episode' | 'moment' | 'learn'
   /**
    * Client-minted id (#1925). Supplying one makes the POST idempotent, which is what lets a
    * capture made offline sit in the outbox and be replayed: without a key, a retry whose response
@@ -723,6 +736,47 @@ export interface CollectionDetail {
   total?: number
   /** Paged: the board's items per kind. */
   kind_counts?: Record<string, number>
+}
+
+/** A board's Brief (RFC-119 amendment 2026-10-12, #2340): only what is saved on the board. */
+export interface BoardBrief {
+  board_id: string
+  name: string
+  /** `episodes` = saved episodes plus those of saved moments; a saved show adds none. */
+  /** One paragraph on the whole board, written in the background (RFC-127); null until one is.
+   *  `stale`: the board's episodes or saved moments changed since it was written. */
+  summary: { text: string; created_at: number; stale: boolean } | null
+  holds: {
+    episodes: number
+    moments: number
+    shows: number
+    subjects: number
+    searches: number
+    links: number
+  }
+  /** Top voices: who speaks (host or guest) in most of the board's episodes. */
+  voices: { id: string; name: string; episodes: number; image_url: string | null; saved: boolean }[]
+  /** Its episodes' topics, most episodes first. */
+  about: { id: string; kind: "topic"; label: string; episodes: number; saved: boolean }[]
+  /** Each episode's strongest insight, and where its best quote is said. */
+  points: {
+    episode: EpisodeSummary
+    insight_id: string
+    text: string
+    quote_text: string | null
+    speaker: string | null
+    start_ms: number | null
+  }[]
+  /** Its episodes' storylines (id = anchor topic) and themes, most episodes first. */
+  threads: { id: string; kind: "storyline" | "theme"; label: string; episodes: number }[]
+}
+
+/** One of the user's boards matching a search (#2341), and what on it matched. */
+export interface CollectionMatch {
+  collection: Collection
+  matched: "name" | "item"
+  item_kind: CollectionItemKind | null
+  item_label: string | null
 }
 
 // --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
@@ -910,6 +964,8 @@ export interface TrendingEntity {
    * lookup is what made storyline rows dead on tap.
    */
   anchor_topic_id?: string | null
+  /** For a theme (`tc:`) entity: how many topics it holds; null for every other kind. */
+  size?: number | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
@@ -1242,10 +1298,19 @@ export interface SearchHit {
   lifted?: Record<string, unknown> | null
 }
 
+/** One kind of search result in category mode, and whether it has more (2026-10-13). */
+export interface SearchCategory {
+  id: string
+  returned: number
+  has_more: boolean
+}
+
 export interface SearchResponse {
   query: string
   results: SearchHit[]
   error: string | null
+  /** Category mode only (`perCategory` / `category`): each kind's page, in display order. */
+  categories?: SearchCategory[] | null
 }
 
 /** One day bucket of a listening sparkline (UXS-014). */
@@ -1275,6 +1340,27 @@ export interface UserStats {
   captures_reviewed?: number
   reviews_total?: number
   captures_muted?: number
+  /** Where highlights were saved (operator 2026-10-12). */
+  capture_from_episode?: number
+  capture_from_moment?: number
+  capture_from_learn?: number
+  /** Learning and short listens, all time. */
+  learning_now?: LearningNowStat[]
+  learning_days_total?: number
+  learning_streak?: number
+  paths_finished?: number
+  paths_left?: number
+  moments_heard_total?: number
+  moments_seconds_total?: number
+}
+
+export interface LearningNowStat {
+  subject_id: string
+  subject_kind: "topic" | "person" | "theme" | "storyline"
+  subject_label: string
+  day: number
+  days: number
+  done: number
 }
 
 /** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */
@@ -1348,6 +1434,59 @@ export interface RecapResponse {
   days_in_window: number
   coverage_from: string | null
   first_listened_at: number | null
+  /** Beside the listening (operator 2026-10-12). Optional: a server before them sends none. */
+  distinct_shows?: number
+  /** Short-listen clips heard to their end, and their seconds — NOT in `listening_seconds`. */
+  moments_heard?: number
+  moments_seconds?: number
+  moments_by_day?: Record<string, number>
+  learning_days?: number
+  /** Episodes heard as moments, and how many of them were then played in full. */
+  moment_episodes?: number
+  moment_to_full?: number
+  /** What the window was about, across episodes, short listens and learning days. */
+  subjects?: RecapSubject[]
+}
+
+/** A subject of the window, across episodes heard, short listens and learning days. */
+export interface RecapSubject {
+  id: string
+  kind: "topic" | "person" | "theme" | "storyline"
+  label: string
+  episodes: number
+  moments: number
+  learning_days: number
+  delta: number
+  is_new: boolean
 }
 
 export type RecapWindow = "week" | "month" | "year" | "ytd"
+
+/** Why a recommendation is here — the one shape every Discover rail carries (ADR-163). Extractive
+ *  only: the server sends the parts, the client writes the words; `quote` is null when nothing
+ *  grounds it, and then no quote is shown. */
+export interface ReasonQuote {
+  text: string
+  episode_slug: string
+  speaker: string | null
+  start_ms: number | null
+  insight_id: string | null
+}
+export interface ReasonSubject {
+  kind: "topic" | "person" | "storyline" | "show"
+  id: string
+  label: string
+}
+export interface ReasonCapture {
+  kind: "highlight" | "note" | "save"
+  episode_slug: string
+  text: string | null
+  start_ms: number | null
+}
+export interface Reason {
+  kind: "rising_topic" | "most_engaged" | "captured" | "thread" | "person" | "another_view"
+  quote: ReasonQuote | null
+  subject: ReasonSubject | null
+  capture: ReasonCapture | null
+  events: number | null
+}

@@ -26,7 +26,7 @@ async function queueEpisode(page: Page, title: string): Promise<void> {
   const card = page.locator('article').filter({ hasText: title })
   const btn = card.getByRole('button', { name: /queue/i })
   await expect(btn).toBeVisible()
-  if ((await btn.getAttribute('aria-label')) === 'Add to queue') {
+  if ((await btn.getAttribute('aria-label'))?.startsWith('Add to queue')) {
     const persisted = page.waitForResponse(
       (r) => r.url().includes('/api/app/queue/items') && r.request().method() === 'POST' && r.ok(),
     )

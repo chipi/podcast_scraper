@@ -1,17 +1,24 @@
-"""Engagement event series for the momentum layer (RFC-103 Phase 2).
+"""Engagement event series for the momentum layer (RFC-103 Phase 2; ADR-163 §5).
 
 The *engagement* event source (complements the enricher's ``content_series``): rolls the per-user
-**timestamped** engagement logs into per-entity weekly counts, keyed by a namespaced ``(kind,
-entity_id)``. Every saveable kind has a timestamped signal:
+**timestamped** logs into per-entity weekly scores, keyed by a namespaced ``(kind, entity_id)``.
 
-* episode — opens (``listen_events.jsonl``) + clicks (``ranking_events.jsonl``)
-* show — opens (by ``feed_id``) + subscribes (``library`` ``added_at``)
-* insight / person / topic — saves (``favorites`` ``added_at``)
-* topic / cluster (``tc:``) / storyline (``thc:``) / person — follows (``interest_events.jsonl``)
+**Distinct listeners, not events** (ADR-163 §5, advisor review 2026-10-11). Each listener counts
+ONCE per signal per entity per week, weighted by what the signal means — so one listener's three
+highlights are one "captured", not three, and a small, noisy user base cannot inflate an item by
+repeating an action. The signals (``DEFAULT_WEIGHTS``):
 
-Corpus-wide aggregate (all users) by default; a single ``user_id`` yields the per-user ("mine")
-series. Output mirrors ``content_series`` — ``window_weeks`` (contiguous ISO-week axis) + per-entity
-sparse ``weekly_counts`` — so the momentum capability runs one EWMA over either source.
+* ``finished`` — reached 75% or 95% of an episode (``playback_events.jsonl``)
+* ``captured`` — a highlight, or a note on the item (``highlights`` / ``notes``)
+* ``saved`` — favourited (``favorites`` ``added_at``)
+* ``opened`` — opened an episode / its show (``listen_events.jsonl``)
+* ``subscribed`` — followed a show (``library`` ``added_at``)
+* ``followed`` — followed a topic, theme, storyline or person (``interest_events.jsonl``)
+
+Each entity also carries ``listeners`` (distinct users over the series), which floors use instead
+of event counts. Corpus-wide aggregate by default; ``user_id`` yields one user's ("mine") series;
+``since_week`` restricts the tally to a window (so ``listeners`` is distinct within it). Output
+mirrors ``content_series`` — ``window_weeks`` + per-entity sparse ``weekly_counts``.
 """
 
 from __future__ import annotations
@@ -24,8 +31,20 @@ from typing import Any
 
 from podcast_scraper.server import app_user_state
 
-# Accumulator: (kind, entity_id) → {ISO-week: count}
-_Acc = dict[tuple[str, str], dict[str, int]]
+#: Weight of each signal, counted once per listener per entity per week (ADR-163 §5).
+DEFAULT_WEIGHTS: dict[str, int] = {
+    "finished": 3,
+    "captured": 3,
+    "saved": 2,
+    "opened": 1,
+    "subscribed": 1,
+    "followed": 1,
+}
+#: Playback milestones that count as finishing an episode.
+_FINISHED_MILESTONES = frozenset({75, 95})
+
+# One user's signals: (kind, entity_id) → {ISO-week: {signal}}
+_Signals = dict[tuple[str, str], dict[str, set[str]]]
 
 
 def _week_of_ts(ts: Any) -> str | None:
@@ -75,12 +94,10 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return out
 
 
-def _bump(acc: _Acc, active: set[str], kind: str, entity_id: str, week: str | None) -> None:
-    """Add one engagement event for ``(kind, entity_id)`` in ``week`` (no-op on a bad week)."""
-    if not week or not entity_id:
-        return
-    active.add(week)
-    acc[(kind, entity_id)][week] += 1
+def _mark(sig: _Signals, kind: str, entity_id: str, week: str | None, signal: str) -> None:
+    """Note that this user gave ``signal`` for ``(kind, entity_id)`` in ``week`` (idempotent)."""
+    if week and entity_id:
+        sig[(kind, entity_id)][week].add(signal)
 
 
 def _kind_of_token(token: str) -> str | None:
@@ -93,32 +110,52 @@ def _kind_of_token(token: str) -> str | None:
     return "theme" if token.startswith("tc:") else None
 
 
-def _tally_user(data_dir: Path, uid: str, acc: _Acc, active: set[str]) -> None:
-    """Fold one user's opens, clicks, subscribes, saves, and follows into the tallies in place."""
+def _user_signals(data_dir: Path, uid: str) -> _Signals:
+    """Every signal one user gave, by entity and week — each at most once per (entity, week)."""
+    sig: _Signals = defaultdict(lambda: defaultdict(set))
     udir = data_dir / "users" / uid
-    # opens (episode + show) + clicks (episode)
     for ev in _read_jsonl(udir / "listen_events.jsonl"):
         wk = _week_of_ts(ev.get("ts"))
-        _bump(acc, active, "episode", str(ev.get("slug") or ""), wk)
+        _mark(sig, "episode", str(ev.get("slug") or ""), wk, "opened")
         if ev.get("feed_id"):
-            _bump(acc, active, "show", str(ev.get("feed_id")), wk)
-    for ev in _read_jsonl(udir / "ranking_events.jsonl"):
-        if ev.get("kind") == "click":
-            _bump(acc, active, "episode", str(ev.get("slug") or ""), _week_of_ts(ev.get("ts")))
-    # subscribes (show) — library carries added_at
+            _mark(sig, "show", str(ev.get("feed_id")), wk, "opened")
+    for ev in _read_jsonl(udir / "playback_events.jsonl"):
+        try:
+            finished = int(ev.get("milestone") or 0) in _FINISHED_MILESTONES
+        except (TypeError, ValueError):
+            finished = False
+        if finished:
+            _mark(sig, "episode", str(ev.get("slug") or ""), _week_of_ts(ev.get("ts")), "finished")
     for sub in app_user_state.get_library(data_dir, uid):
-        _bump(acc, active, "show", str(sub.get("feed_id") or ""), _week_of_ts(sub.get("added_at")))
-    # saves (episode / insight / person / topic) — favorites carry added_at
+        _mark(
+            sig,
+            "show",
+            str(sub.get("feed_id") or ""),
+            _week_of_ts(sub.get("added_at")),
+            "subscribed",
+        )
     for fav in app_user_state.get_favorites(data_dir, uid):
         kind, ref = str(fav.get("kind") or ""), str(fav.get("ref") or "")
         if kind in ("episode", "insight", "person", "topic"):
-            _bump(acc, active, kind, ref, _week_of_ts(fav.get("added_at")))
-    # follows (topic / cluster / storyline / person) — interest_events log
+            _mark(sig, kind, ref, _week_of_ts(fav.get("added_at")), "saved")
+    slug_of_highlight: dict[str, str] = {}
+    for h in app_user_state.get_highlights(data_dir, uid):
+        slug = str(h.get("episode_slug") or "")
+        slug_of_highlight[str(h.get("id"))] = slug
+        _mark(sig, "episode", slug, _week_of_ts(h.get("created_at")), "captured")
+    for n in app_user_state.get_notes(data_dir, uid):
+        target, tid = str(n.get("target") or ""), str(n.get("target_id") or "")
+        wk = _week_of_ts(n.get("created_at"))
+        if target == "highlight":
+            _mark(sig, "episode", slug_of_highlight.get(tid, ""), wk, "captured")
+        elif target in ("episode", "show", "topic", "person", "storyline"):
+            _mark(sig, target, tid, wk, "captured")
     for ev in _read_jsonl(udir / "interest_events.jsonl"):
         token = str(ev.get("token") or "")
         tkind = _kind_of_token(token)
         if tkind:
-            _bump(acc, active, tkind, token, _week_of_ts(ev.get("ts")))
+            _mark(sig, tkind, token, _week_of_ts(ev.get("ts")), "followed")
+    return sig
 
 
 def _week_axis(active_weeks: set[str]) -> list[str]:
@@ -144,27 +181,44 @@ def _week_axis(active_weeks: set[str]) -> list[str]:
     return axis
 
 
-def engagement_series(data_dir: Path, *, user_id: str | None = None) -> dict[str, Any]:
-    """Per-entity weekly engagement counts (corpus-wide, or one user for ``scope=mine``).
+def engagement_series(
+    data_dir: Path,
+    *,
+    user_id: str | None = None,
+    since_week: str | None = None,
+    weights: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Per-entity weekly engagement scores (corpus-wide, or one user for ``scope=mine``).
 
-    Returns ``{window_weeks, entities: [{entity_id, kind, weekly_counts, total}]}`` — the momentum
-    layer's engagement event source, parallel to the enricher's content series.
+    Returns ``{window_weeks, entities: [{entity_id, kind, weekly_counts, total, listeners}]}``.
+    ``weekly_counts[w]`` = the sum, over listeners, of the weights of the DISTINCT signals each gave
+    the entity in week ``w``; ``listeners`` = distinct users who gave any signal (within
+    ``since_week``…, when set).
     """
-    acc: _Acc = defaultdict(lambda: defaultdict(int))
+    w = {**DEFAULT_WEIGHTS, **(weights or {})}
+    scores: dict[tuple[str, str], dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    who: dict[tuple[str, str], set[str]] = defaultdict(set)
     active: set[str] = set()
     for uid in _iter_user_ids(data_dir, user_id):
-        _tally_user(data_dir, uid, acc, active)
+        for key, by_week in _user_signals(data_dir, uid).items():
+            for week, signals in by_week.items():
+                if since_week is not None and week < since_week:
+                    continue
+                active.add(week)
+                scores[key][week] += sum(int(w.get(s, 0)) for s in signals)
+                who[key].add(uid)
     entities: list[dict[str, Any]] = [
         {
             "entity_id": entity_id,
             "kind": kind,
             "weekly_counts": dict(sorted(counts.items())),
             "total": sum(counts.values()),
+            "listeners": len(who[(kind, entity_id)]),
         }
-        for (kind, entity_id), counts in acc.items()
+        for (kind, entity_id), counts in scores.items()
     ]
     entities.sort(key=lambda r: (str(r["kind"]), -int(r["total"]), str(r["entity_id"])))
     return {"window_weeks": _week_axis(active), "entities": entities}
 
 
-__all__ = ["engagement_series"]
+__all__ = ["DEFAULT_WEIGHTS", "engagement_series"]

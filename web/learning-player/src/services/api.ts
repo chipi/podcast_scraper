@@ -14,9 +14,11 @@ import type {
   RecapResponse,
   RecapWindow,
   AudioSource,
+  BoardBrief,
   Collection,
   CollectionDetail,
   CollectionItemRef,
+  CollectionMatch,
   CommsSettings,
   CommsUpdate,
   CorpusEnrichmentSignals,
@@ -69,10 +71,12 @@ import type {
   UserStats,
   YourWeekResponse,
   MomentsResponse,
+  Reason,
 } from "./types"
 import { ref } from "vue"
 import { isNativeShell, resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
 import { track } from "./analytics"
+import { sourceOfCurrentNavigation } from "./provenance"
 import { isForcedOffline, isOffline, reportServerReachable } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
@@ -125,6 +129,17 @@ export function setOnUnauthorized(fn: (() => void) | null): void {
   onUnauthorized = fn
 }
 
+/** The request's path without its query: `/api/app/me/recap?window=week` and `?window=month` are
+ * one route to the degraded-server signal. */
+function routeOf(input: RequestInfo | URL): string {
+  const raw = typeof Request !== "undefined" && input instanceof Request ? input.url : String(input)
+  try {
+    return new URL(raw, "http://local").pathname
+  } catch {
+    return raw.split("?")[0]
+  }
+}
+
 async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   // Fast-fail policy split by method (2026-09-15 RCA of #2034):
   //  - WRITES fast-fail on the full offline signal, so a mutation routes to the outbox for replay
@@ -154,16 +169,27 @@ async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promi
   // A transport failure (refused / DNS / timeout) and a 503 both mean "not usable right now"; a 503
   // specifically is how the API now reports that it cannot authenticate anyone (a lost signing
   // secret, incident 2026-09-16) rather than lying that the caller's credential is bad.
+  const route = routeOf(input)
   let resp: Response
   try {
     resp = await fetch(input, { ...init, headers })
   } catch (err) {
-    reportServerReachable(false)
+    reportServerReachable(false, route, "unreachable")
     throw err
   }
-  reportServerReachable(resp.status !== 503)
+  reportServerReachable(resp.status !== 503, route, "refused")
   if (resp.status === 401 && onUnauthorized) onUnauthorized()
   return resp
+}
+
+/**
+ * A request to `${BASE}${path}` under the client's own rules (auth header, offline policy), for a
+ * caller that reads the Response itself. A bare `fetch('/api/app/…')` resolves against
+ * capacitor://localhost in the native shell and never reaches the server (2026-10-11: synced
+ * preferences never synced on iOS or Android).
+ */
+export function apiRequest(path: string, init: RequestInit = {}): Promise<Response> {
+  return apiFetch(`${BASE}${path}`, { credentials: "include", ...init })
 }
 
 /**
@@ -348,11 +374,10 @@ export async function getEntities(slug: string): Promise<EntitiesResponse> {
 }
 
 /** Episode-scoped grounded search — extractive passages, no request-time LLM (D6). */
-export function searchEpisode(slug: string, q: string, topK = 8): Promise<SearchResponse> {
-  return getJSON<SearchResponse>(`/episodes/${encodeURIComponent(slug)}/search`, {
-    q,
-    top_k: topK,
-  })
+/** Word search within one episode: every passage and insight with the words, not limited
+ *  (operator 2026-10-12). */
+export function searchEpisode(slug: string, q: string): Promise<SearchResponse> {
+  return getJSON<SearchResponse>(`/episodes/${encodeURIComponent(slug)}/search`, { q })
 }
 
 /** "More like this" — semantic peer episodes; empty page when the index is unavailable. */
@@ -644,7 +669,8 @@ export function searchCorpus(
   q: string,
   topK = 12,
   scope?: "all" | "mine",
-  enrichResults?: boolean
+  enrichResults?: boolean,
+  page?: { perCategory?: number; category?: string; offset?: number }
 ): Promise<SearchResponse> {
   // scope='mine' = grounded recall over the signed-in user's heard∪captured corpus (P3 #1120).
   // enrichResults=true asks the server to decorate hits with
@@ -655,6 +681,11 @@ export function searchCorpus(
     top_k: topK,
     scope,
     enrich_results: enrichResults ? "true" : undefined,
+    // Category mode (operator 2026-10-13): each kind of result capped on its own, so one kind
+    // (a topic row per episode) cannot fill the page; `category` + `offset` is its "Show more".
+    per_category: page?.perCategory,
+    category: page?.category,
+    offset: page?.offset,
   })
 }
 
@@ -679,17 +710,6 @@ export function getWhatsNew(limit = 5): Promise<WhatsNewResponse> {
  *  base it on, and no items. */
 export function getRecommended(limit = 12): Promise<{ items: EpisodeSummary[]; basis: "interests" | "none" }> {
   return getJSON("/recommended", { limit })
-}
-
-/** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
- *  ranking telemetry (#11). Silent no-op when signed out or on any network error. */
-export function recordDiscoverClick(slug: string, position: number): void {
-  void apiFetch(`${BASE}/discover/click`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slug, position }),
-  }).catch(() => {})
 }
 
 /** Followables of one kind whose label contains `q`, best match first — an Interests section's
@@ -762,6 +782,31 @@ export function getTrending(
   }
   _trending.set(key, entry)
   return entry.p
+}
+
+/** One page of a kind's trends, ordered on the server (operator 2026-10-11: "Show more" is the
+ *  next page). `total` is how many there are in all. */
+export interface TrendingPage {
+  items: TrendingEntity[]
+  total: number
+}
+export async function getTrendingPage(
+  kind: string,
+  query: {
+    scope: "corpus" | "mine"
+    window: TrendWindow
+    sort: "score" | "rising" | "trending"
+    offset: number
+    limit: number
+  }
+): Promise<TrendingPage> {
+  const r = await getJSON<{ items: TrendingEntity[]; total: number }>("/trending", { kind, ...query })
+  return {
+    total: r.total,
+    items: r.items.map((e) =>
+      e.image_url ? { ...e, image_url: resolveMediaUrl(e.image_url) ?? e.image_url } : e
+    ),
+  }
 }
 
 /** Test seam: forget every shared trending answer. */
@@ -871,23 +916,243 @@ export async function setFavoriteColor(
 }
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
-/** A trending-episode quote card (GET /trending/episodes, 2026-10-10). */
+/** A recommendation card: the episode and why it is here (ADR-163; every Discover rail). */
 export interface TrendingEpisodeCard {
-  reason: "rising_topic" | "most_engaged"
-  quote: string
-  speaker: string | null
-  start_ms: number | null
-  topic_id: string | null
-  topic_label: string | null
-  events: number | null
+  why: Reason
   episode: EpisodeSummary
 }
-/** Episodes speaking to a rising topic, interleaved with the most listened-to and saved. */
-export async function getTrendingEpisodes(
-  scope: "corpus" | "mine" = "corpus",
-  limit = 8,
-): Promise<TrendingEpisodeCard[]> {
-  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/trending/episodes", { scope, limit })).items
+/** One page of one Discover rail (ADR-163; paged on the server, operator 2026-10-11). */
+export interface DiscoverRail {
+  rail: "quotes" | "captured" | "thread" | "people" | "another_view"
+  items: TrendingEpisodeCard[]
+  /** Cards the rail has in all, after the rails above took theirs: what "Show more" pages through. */
+  total: number
+  /** Cold start: Everyone's cards standing in for an empty Mine — the page labels them so. */
+  fallback: boolean
+}
+
+/** Every Discover rail's first page, in page order, one card per episode across the page. */
+export async function getDiscoverRails(scope: "corpus" | "mine", first = 2): Promise<DiscoverRail[]> {
+  return (await getJSON<{ rails?: DiscoverRail[] }>("/discover/rails", { scope, first })).rails ?? []
+}
+
+/** The next page of one rail. `exclude` is the episodes the rails above it showed first. */
+export async function getDiscoverRailPage(
+  rail: DiscoverRail["rail"],
+  query: { scope: "corpus" | "mine"; offset: number; limit: number; exclude: string[] },
+): Promise<DiscoverRail> {
+  const params = new URLSearchParams({
+    scope: query.scope,
+    offset: String(query.offset),
+    limit: String(query.limit),
+  })
+  for (const slug of query.exclude) params.append("exclude", slug)
+  return getJSON<DiscoverRail>(`/discover/rails/${encodeURIComponent(rail)}?${params}`)
+}
+
+/** One clip of a topic reel (GET /discover/reel). */
+export interface ReelClip {
+  episode: EpisodeSummary
+  insight_id: string
+  text: string
+  quote_text: string
+  speaker: string | null
+  start_ms: number
+  end_ms: number
+}
+/** What a reel is about: a topic, or a theme's or storyline's member topics. */
+export type ReelKind = "topic" | "theme" | "storyline"
+/** A short listen plays a subject's reel, or a board's own moments (`board:<collection id>`,
+ *  #2340). A board is not a subject: no Learn path, no Discover row, no subject page. */
+export type ShortListenKind = ReelKind | "board"
+/** A board's short listen is addressed beside a subject's: `board:<collection id>`. */
+export const BOARD_REEL_PREFIX = "board:"
+export interface TopicReel {
+  subject_id: string
+  subject_kind: ShortListenKind
+  subject_label: string
+  minutes: number
+  /** What the reel actually runs — never the budget. */
+  total_seconds: number
+  clips: ReelClip[]
+}
+/** N minutes on a topic, theme or storyline (ADR-163 §8 amendment): clips about it across
+ *  episodes. `subjectId` is a `topic:`, `tc:` (theme) or `thc:` (storyline) id, or `board:<id>`
+ *  for a board's own moments (#2340), served by the board in the same shape. */
+export async function getTopicReel(subjectId: string, minutes = 15): Promise<TopicReel> {
+  if (subjectId.startsWith(BOARD_REEL_PREFIX)) {
+    const id = subjectId.slice(BOARD_REEL_PREFIX.length)
+    return getJSON<TopicReel>(`/collections/${encodeURIComponent(id)}/reel`, { minutes })
+  }
+  return getJSON<TopicReel>("/discover/reel", { subject: subjectId, minutes })
+}
+export interface ReelTopic {
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
+  clips: number
+  total_seconds: number
+}
+/** One day of a "Learn X this week" path (GET/POST /discover/learn). */
+export interface PathStep {
+  day: number
+  episode: EpisodeSummary
+  insight_id: string
+  text: string
+  quote_text: string
+  speaker: string | null
+  start_ms: number
+  end_ms: number
+  unlocked: boolean
+  done: boolean
+}
+export interface LearningPath {
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
+  started_at: number
+  /** The newest open day, 1-based: today's, or later when days were opened early. */
+  day: number
+  /** The newest open day is done and the next may be opened now ("Next day now"). */
+  can_open_next?: boolean
+  /** When the next day opens by itself (epoch seconds); null with every day open. */
+  next_opens_at?: number | null
+  steps: PathStep[]
+}
+export interface LearnSubject {
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
+  steps: number
+}
+/** The listener's paths (up to `max_paths`) and, below the cap, subjects they could start one on. */
+export interface LearnResponse {
+  paths: LearningPath[]
+  candidates: LearnSubject[]
+  max_paths: number
+}
+export async function getLearn(scope: "mine" | "corpus"): Promise<LearnResponse> {
+  const r = await getJSON<Partial<LearnResponse>>("/discover/learn", { scope })
+  return { paths: r.paths ?? [], candidates: r.candidates ?? [], max_paths: r.max_paths ?? 3 }
+}
+/** Whether a topic, theme or storyline can be learned in a week (`null`: too few episodes). */
+export async function getLearnSubject(subjectId: string): Promise<LearnSubject | null> {
+  try {
+    return await getJSON<LearnSubject>(`/discover/learn/subjects/${encodeURIComponent(subjectId)}`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
+/** Start a path (one already being learned comes back unchanged). At the cap the server answers
+ *  409 unless `replace` names a path to stop in the same request. */
+export async function startLearn(subjectId: string, replace?: string): Promise<LearningPath> {
+  const resp = await apiFetch(`${BASE}/discover/learn`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(replace ? { subject_id: subjectId, replace } : { subject_id: subjectId }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn → ${resp.status}`)
+  return (await resp.json()) as LearningPath
+}
+const pathUrl = (subjectId: string) => `${BASE}/discover/learn/paths/${encodeURIComponent(subjectId)}`
+/** One of the listener's paths (`null`: not learning it). */
+export async function getLearningPath(subjectId: string): Promise<LearningPath | null> {
+  try {
+    return await getJSON<LearningPath>(`/discover/learn/paths/${encodeURIComponent(subjectId)}`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
+export async function learnStepDone(subjectId: string, index: number): Promise<LearningPath> {
+  const resp = await apiFetch(`${pathUrl(subjectId)}/steps/${index}/done`, {
+    method: "POST",
+    credentials: "include",
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/paths/…/done → ${resp.status}`)
+  return (await resp.json()) as LearningPath
+}
+/** Open a path's next day now (only once its newest open day is done; 409 before). */
+export async function learnOpenNext(subjectId: string): Promise<LearningPath> {
+  const resp = await apiFetch(`${pathUrl(subjectId)}/next`, { method: "POST", credentials: "include" })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/learn/paths/…/next → ${resp.status}`)
+  return (await resp.json()) as LearningPath
+}
+export async function stopLearn(subjectId: string): Promise<void> {
+  const resp = await apiFetch(pathUrl(subjectId), { method: "DELETE", credentials: "include" })
+  if (!resp.ok && resp.status !== 404) throw new ApiError(resp.status, `DELETE /discover/learn/paths/… → ${resp.status}`)
+}
+
+/** The last short listen left unfinished: where to resume it (`index` is the 0-based clip). */
+export interface ReelProgress {
+  subject_id: string
+  subject_kind: ShortListenKind
+  subject_label: string
+  index: number
+  clips: number
+  /** The reel's budget, to resume the same reel. */
+  minutes?: number
+  updated_at: number
+  /** The episode of the clip it resumes at (its artwork and title), and what is said there. */
+  episode?: EpisodeSummary | null
+  speaker?: string | null
+  quote_text?: string
+}
+/** One short-listen event, for stats (operator 2026-10-12): a clip heard to its end, or "Keep
+ *  listening" from one into its full episode. */
+export async function postMomentHeard(body: {
+  kind: "clip" | "keep"
+  slug: string
+  insight_id?: string
+  seconds?: number
+  subject_id?: string
+  subject_kind?: "topic" | "person" | "theme" | "storyline"
+  subject_label?: string
+  client_ts?: number
+}): Promise<void> {
+  const resp = await apiFetch(`${BASE}/me/moments-heard`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /me/moments-heard → ${resp.status}`)
+}
+/** Remember where a short listen is, so Home can resume it. */
+export async function putReelProgress(
+  subjectId: string,
+  index: number,
+  clips: number,
+  minutes = 15,
+): Promise<void> {
+  const resp = await apiFetch(`${BASE}/discover/reel/progress`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject_id: subjectId, index, clips, minutes }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /discover/reel/progress → ${resp.status}`)
+}
+/** That short listen was finished or closed: forget it — only if it is still the one kept (a
+ *  newer one, from another device, stays). */
+export async function clearReelProgress(subjectId: string): Promise<void> {
+  const resp = await apiFetch(
+    `${BASE}/discover/reel/progress?subject=${encodeURIComponent(subjectId)}`,
+    { method: "DELETE", credentials: "include" },
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /discover/reel/progress → ${resp.status}`)
+}
+/** What the listener started and has not finished: Home's "In progress". */
+export async function getInProgress(): Promise<{ paths: LearningPath[]; reel: ReelProgress | null }> {
+  const r = await getJSON<{ paths?: LearningPath[]; reel?: ReelProgress | null }>("/discover/in-progress")
+  return { paths: r.paths ?? [], reel: r.reel ?? null }
+}
+
+/** The topics, themes and storylines Discover offers a reel on (each with at least two clips). */
+export async function getReelTopics(scope: "mine" | "corpus"): Promise<ReelTopic[]> {
+  return (await getJSON<{ items?: ReelTopic[] }>("/discover/reel-topics", { scope })).items ?? []
 }
 
 /** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
@@ -919,6 +1184,40 @@ export async function addInterest(token: string): Promise<string[]> {
 }
 
 /** Unfollow one interest token (auth-gated); returns the remaining list. */
+/** One subject the listener asked Discover to suggest less of (ADR-163 §6). */
+export interface SuggestLessItem {
+  token: string
+  label: string
+  added_at: number
+}
+
+/** "Suggest less": hide the subject a card's reason names from every Discover rail. */
+export async function suggestLess(token: string, label: string): Promise<SuggestLessItem[]> {
+  const resp = await apiFetch(`${BASE}/discover/suggest-less/${encodeURIComponent(token)}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /discover/suggest-less → ${resp.status}`)
+  return ((await resp.json()) as { items: SuggestLessItem[] }).items
+}
+
+/** Undo a "suggest less". */
+export async function undoSuggestLess(token: string): Promise<SuggestLessItem[]> {
+  const resp = await apiFetch(`${BASE}/discover/suggest-less/${encodeURIComponent(token)}`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /discover/suggest-less → ${resp.status}`)
+  return ((await resp.json()) as { items: SuggestLessItem[] }).items
+}
+
+/** Everything the listener asked to see less of, for Profile › Interests. */
+export async function getSuggestLess(): Promise<SuggestLessItem[]> {
+  return (await getJSON<{ items: SuggestLessItem[] }>("/discover/suggest-less")).items
+}
+
 export async function removeInterest(token: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
     method: "DELETE",
@@ -983,6 +1282,8 @@ export interface PodcastsQuery {
   feedIds?: string[]
   /** Leave out descriptions (a list of names). */
   compact?: boolean
+  /** Everyone's shows, the ones the listener follows, or their world's (ADR-162). */
+  facet?: "all" | "following" | "mine"
 }
 
 /**
@@ -995,6 +1296,7 @@ export async function getPodcastsPage(query: PodcastsQuery): Promise<PodcastsPag
   if (query.language) params.set("language", query.language)
   if (query.sort) params.set("sort", query.sort)
   if (query.compact) params.set("compact", "true")
+  if (query.facet && query.facet !== "all") params.set("facet", query.facet)
   for (const id of query.feedIds ?? []) params.append("feed_ids", id)
   const resp = await getJSON<{
     items: Podcast[]
@@ -1657,7 +1959,7 @@ export async function createHighlight(body: HighlightCreate): Promise<Highlight>
   // #2267 — one of the spec's four Umami goals, and part of "learning actions per active day".
   // NEVER the highlighted text, only that a capture happened and against what kind of thing. A
   // highlight is always episode-scoped; notes are the ones that can hang off a topic or person.
-  track("capture_created", { kind: "highlight", target_kind: "episode" })
+  track("capture_created", { kind: "highlight", target_kind: "episode", source: sourceOfCurrentNavigation() })
   const resp = await apiFetch(`${BASE}/highlights`, {
     method: "POST",
     credentials: "include",
@@ -1709,7 +2011,11 @@ export async function getNotes(target?: string, targetId?: string): Promise<Note
 /** Attach a free-text note to a highlight / insight / episode (auth-gated). */
 export async function createNote(body: NoteCreate): Promise<Note> {
   // Same rule as createHighlight: the TARGET KIND, never the note's text.
-  track("capture_created", { kind: "note", target_kind: noteTargetKind(body.target) })
+  track("capture_created", {
+    kind: "note",
+    target_kind: noteTargetKind(body.target),
+    source: sourceOfCurrentNavigation(),
+  })
   const resp = await apiFetch(`${BASE}/notes`, {
     method: "POST",
     credentials: "include",
@@ -2248,6 +2554,25 @@ function withAbsoluteCover(c: Collection): Collection {
 export async function getCollection(id: string): Promise<CollectionDetail> {
   const detail = await getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
   return { ...detail, collection: withAbsoluteCover(detail.collection) }
+}
+
+/** A board's Brief (#2340): from what is saved on it only. */
+export async function getBoardBrief(id: string): Promise<BoardBrief> {
+  const brief = await getJSON<BoardBrief>(`/collections/${encodeURIComponent(id)}/brief`)
+  // Top voices' photos are served routes: absolute, or the native WebView resolves them against
+  // capacitor://localhost and draws nothing.
+  return {
+    ...brief,
+    voices: brief.voices.map((v) =>
+      v.image_url ? { ...v, image_url: resolveMediaUrl(v.image_url) ?? v.image_url } : v,
+    ),
+  }
+}
+
+/** The user's boards matching `q` (#2341): by name first, then by something saved on them. */
+export async function searchBoards(q: string): Promise<CollectionMatch[]> {
+  const res = await getJSON<{ items: CollectionMatch[] }>("/collections/search", { q })
+  return res.items.map((m) => ({ ...m, collection: withAbsoluteCover(m.collection) }))
 }
 
 /**

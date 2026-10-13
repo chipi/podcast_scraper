@@ -73,12 +73,13 @@ final class NativeOnlySurfacesTests: UITestCase {
     // 2026-09-27: zero `POST/PUT /api/app/queue` in the container's whole lifetime, so nothing in
     // the tier had queued anything; the assertion had been riding on residue.
     XCTAssertTrue(Journey.openTab(app, "Home"), "Home was not reachable")
-    var queued = Journey.scrollTo(app, labels: ["Add to queue"], contains: false) != nil
-      && Journey.tap(app, labels: ["Add to queue"], timeout: 10)
+    // A card's controls name their episode ("Add to queue: <title>", 2026-10-12), so match the start.
+    var queued = Journey.scrollTo(app, labels: ["Add to queue"], contains: true) != nil
+      && Journey.tap(app, labels: ["Add to queue"], contains: true, timeout: 10)
     if !queued {
       // Already queued on the shared account is a legitimate state — assert the OTHER control
       // rather than assuming it.
-      queued = Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 5)
+      queued = Journey.find(app, labels: ["Remove from queue"], contains: true, timeout: 5) != nil
     }
     XCTAssertTrue(queued, "no queue control on any Home list row, so nothing can reach Up next")
 
@@ -122,9 +123,15 @@ final class NativeOnlySurfacesTests: UITestCase {
     // item ALREADY queued passed in 62s. Same build, same code — the difference was the fetch. That
     // is also why this must not be left alone: it would then pass only on a queue populated by some
     // earlier run, which is exactly the residue this test was just rescued from.
+    //
+    // ANY ROW, by the control every rendered row carries ("Move up"), not the seeded episode's title
+    // (2026-10-11). The step above queues Home's FIRST "Add to queue" row, and which episode that is
+    // follows Home's ranking — on the Discover-arc branch it is "Risk Is a Systems Property", and the
+    // title wait failed on a queue that held exactly what was queued.
+    // The Android twin never named an episode here.
     XCTAssertNotNil(
-      Journey.scrollTo(app, labels: [seeded.title], contains: true, maxSwipes: 10),
-      "the queued episode never appeared in Up next")
+      Journey.find(app, labels: ["Move up"], contains: false, timeout: 20),
+      "no queued row appeared in Up next")
 
     // The claim: the download control is in the ROW, reachable without opening the ⋯.
     let downloadNames = ["Downloaded — tap to remove", "Download for offline"]
@@ -141,7 +148,8 @@ final class NativeOnlySurfacesTests: UITestCase {
     // DELETED queue.json.
     var found: XCUIElement?
     for _ in 0..<12 {
-      found = Journey.find(app, labels: downloadNames, contains: false, timeout: 4)
+      // Starts with: the row's control names its episode ("Download for offline: <title>", 2026-10-12).
+      found = Journey.find(app, labels: downloadNames, contains: true, timeout: 4)
       if found != nil { break }
       app.swipeUp()
       sleep(1)
@@ -156,8 +164,9 @@ final class NativeOnlySurfacesTests: UITestCase {
       "no download control on the queue row — it is still behind the ⋯, which is the bug this change fixed")
 
     // ...and the ⋯ is still there, because promoting download must not have REPLACED the overflow.
-    XCTAssertTrue(
-      Journey.control(app, label: "More actions").exists,
+    // Contains: the row's ⋯ names its episode too ("More actions: <title>", 2026-10-12).
+    XCTAssertNotNil(
+      Journey.find(app, labels: ["More actions"], contains: true, timeout: 4),
       "the overflow disappeared — download was meant to join the row, not take the ⋯'s place")
   }
 
@@ -181,7 +190,7 @@ final class NativeOnlySurfacesTests: UITestCase {
       app.staticTexts[seeded.title].firstMatch.waitForExistence(timeout: 10),
       "the seeded episode is missing from Downloaded")
     XCTAssertTrue(
-      Journey.control(app, label: "Downloaded — tap to remove").exists,
+      Journey.find(app, labels: ["Downloaded — tap to remove: \(seeded.title)"], contains: false, timeout: 5) != nil,
       "a downloaded episode still offers 'Download for offline' — the state is not reaching the control")
   }
 

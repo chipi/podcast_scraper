@@ -38,7 +38,7 @@ test("Follow shows from the welcome card, and What's new becomes yours on return
   const tiles = page.getByTestId('guided-shows').locator('li')
   await expect(tiles).toHaveCount(ranked.length)
   await page.getByTestId('interests-follow-shows').click()
-  await expect(page).toHaveURL(/\/browse\?tab=shows/)
+  await expect(page).toHaveURL(/\/shows$/)
 
   // Open a show from the Shows list and follow it.
   await page.locator('main a[href^="/podcast/"]:visible').first().click()

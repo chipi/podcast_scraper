@@ -69,6 +69,7 @@ const artwork = computed(() => episodeArtwork(props.episode))
          wrap unbounded. Same treatment as Home's "Recommended for you". -->
     <EpisodeActions
       :slug="episode.slug"
+      :episode-title="episode.title"
       :moments="!!episode.has_moments"
       overlay
       class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"

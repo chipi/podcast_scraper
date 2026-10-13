@@ -53,6 +53,14 @@ def _mistral_file_class() -> Any:
 Mistral, MistralSDKError = _load_mistral_sdk()
 
 from ... import config, config_constants
+from ..common.summary_use_case import (
+    build_use_case_prompts,
+    reply_budget,
+    SummaryUseCase,
+    use_case_from_params,
+    use_case_prompt_metadata,
+    use_case_stage,
+)
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -901,6 +909,14 @@ class MistralProvider:
             or 100
         )
         custom_prompt = params.get("prompt") if params else None
+        # RFC-127: a summary other than the episode's (a board's) runs this same flow with its
+        # own prompts, stage and budget; absent, this is the episode summary exactly as before.
+        use_case = use_case_from_params(params)
+        max_length = reply_budget(
+            use_case,
+            max_length,
+            lambda n: cloud_structured_max_output_tokens(self.cfg, n, structured=False),
+        )
 
         logger.debug(
             "Summarizing text via Mistral API (model: %s, max_tokens: %d)",
@@ -918,7 +934,13 @@ class MistralProvider:
                 paragraphs_min,
                 paragraphs_max,
             ) = self._build_summarization_prompts(
-                text, episode_title, episode_description, max_length, min_length, custom_prompt
+                text,
+                episode_title,
+                episode_description,
+                max_length,
+                min_length,
+                custom_prompt,
+                use_case=use_case,
             )
 
             # Track retries and rate limits
@@ -1008,6 +1030,7 @@ class MistralProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
+                    stage=use_case_stage(use_case),
                 )
 
             # Response-shape guardrail (ADR-100): cost emitted in BOTH branches;
@@ -1050,6 +1073,8 @@ class MistralProvider:
             user_params.update(self.cfg.summary_prompt_params)
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
+            # A use case records its own templates (RFC-127); the episode summary keeps the above.
+            prompt_metadata = use_case_prompt_metadata("mistral", use_case) or prompt_metadata
             return {
                 "summary": summary,
                 "summary_short": None,  # Mistral doesn't generate short summaries separately
@@ -1461,9 +1486,14 @@ class MistralProvider:
         max_length: int,
         min_length: int,
         custom_prompt: Optional[str],
+        use_case: Optional[SummaryUseCase] = None,
     ) -> tuple[str, str, Optional[str], str, int, int]:
         """Build system and user prompts for summarization using prompt_store."""
         from ...prompts.store import render_prompt
+
+        if use_case is not None:  # RFC-127: a use case's own prompts
+            system, user, system_name, user_name = build_use_case_prompts("mistral", use_case)
+            return system, user, system_name, user_name, 0, 0
 
         system_prompt_name = (
             self.cfg.mistral_summary_system_prompt or "mistral/summarization/system_v1"

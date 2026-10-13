@@ -17,7 +17,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.server import app_ranking_telemetry, app_sessions, app_user_state
+from podcast_scraper.server import app_sessions, app_user_state
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_user_store import get_or_create_user
@@ -158,7 +158,7 @@ def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestCli
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     app.state.personalized_ranking = personalized
     app.state.derived_interests = derived
-    # RFC-120: auth-gated routes (/themes, /storylines, /trending, /discover/click) now
+    # RFC-120: auth-gated routes (/themes, /storylines, /trending) now
     # require a signed-in user. Pre-sign a default user; tests that need different state call
     # _sign_in() or _sign_in_heard() after _client() to overwrite the cookie.
     user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
@@ -387,43 +387,6 @@ def _user_id(tmp_path: Path) -> str:
     ).user_id
 
 
-def test_discover_records_impressions_for_signed_in_user(tmp_path: Path) -> None:
-    # #11 telemetry: a signed-in discover call logs the shown slugs (rank order) + the variant.
-    _corpus(tmp_path)
-    client = _client(tmp_path, personalized=True)
-    _sign_in(client, tmp_path, ["topic:ai"])
-    resp = client.get("/api/app/discover", params={"limit": 5})
-    assert resp.status_code == 200
-    shown = [it["slug"] for it in resp.json()["items"]]
-    events = app_ranking_telemetry.read_events(tmp_path / "appdata", _user_id(tmp_path))
-    imps = [e for e in events if e["kind"] == "impression"]
-    assert imps, "expected an impression event"
-    assert imps[-1]["shown"] == shown
-    assert imps[-1]["variant"] == "personalized"
-
-
-def test_discover_click_records_event(tmp_path: Path) -> None:
-    _corpus(tmp_path)
-    client = _client(tmp_path, personalized=True)
-    _sign_in(client, tmp_path, ["topic:ai"])
-    resp = client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 2})
-    assert resp.status_code == 204
-    clicks = [
-        e
-        for e in app_ranking_telemetry.read_events(tmp_path / "appdata", _user_id(tmp_path))
-        if e["kind"] == "click"
-    ]
-    assert clicks and clicks[-1]["slug"] == "some-slug" and clicks[-1]["position"] == 2
-
-
-def test_discover_click_signed_out_is_noop_204(tmp_path: Path) -> None:
-    # RFC-120: this route now requires auth; verify the endpoint returns 204 (not an error).
-    _corpus(tmp_path)
-    client = _client(tmp_path, personalized=True)
-    resp = client.post("/api/app/discover/click", json={"slug": "x", "position": 0})
-    assert resp.status_code == 204
-
-
 def _sign_in_admin(client: TestClient, root: Path) -> None:
     from podcast_scraper.server.app_user_store import set_role
 
@@ -529,70 +492,6 @@ def test_corpus_trending_operator_global_view(
     assert body["as_of_week"].startswith("2026-W")
     assert "topic" in body["kinds"] and "episode" in body["kinds"]  # every kind present
     assert body["kinds"]["topic"][0]["entity_id"] == "topic:ai"
-
-
-# --- #11 telemetry: impressions and clicks must be labelled by the SAME rule -------------------
-#
-# They were not. The impression used `personalized and interests`; the click used the
-# personalized_ranking flag alone. A flag-on user with NO interests therefore logged `recency`
-# impressions and `personalized` clicks, so any CTR-by-variant comparison over
-# ranking_events.jsonl was wrong before an experiment could start. The click now reads back the
-# variant of the feed that produced it (app_ranking_telemetry.last_impression_variant).
-
-
-def _variants(tmp_path: Path) -> tuple[list[str], list[str]]:
-    events = app_ranking_telemetry.read_events(tmp_path / "appdata", _user_id(tmp_path))
-    imps = [e["variant"] for e in events if e["kind"] == "impression"]
-    clicks = [e["variant"] for e in events if e["kind"] == "click"]
-    return imps, clicks
-
-
-def test_click_variant_matches_impression_when_flag_on_but_no_interests(tmp_path: Path) -> None:
-    """The regression case: personalisation enabled, user has followed nothing."""
-    _corpus(tmp_path)
-    client = _client(tmp_path, personalized=True)
-    _sign_in(client, tmp_path, [])  # no interests
-    client.get("/api/app/discover?limit=3")
-    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
-    imps, clicks = _variants(tmp_path)
-    assert imps and clicks
-    assert imps[-1] == "recency", imps
-    assert clicks[-1] == imps[-1], (
-        f"click logged variant={clicks[-1]!r} against impression variant={imps[-1]!r} — "
-        "the two sides are labelled by different rules, which corrupts CTR-by-variant analysis"
-    )
-
-
-def test_click_variant_matches_impression_when_personalized(tmp_path: Path) -> None:
-    _corpus(tmp_path)
-    client = _client(tmp_path, personalized=True)
-    _sign_in(client, tmp_path, ["topic:ai"])
-    client.get("/api/app/discover?limit=3")
-    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 1})
-    imps, clicks = _variants(tmp_path)
-    assert imps[-1] == "personalized"
-    assert clicks[-1] == imps[-1]
-
-
-def test_click_variant_matches_impression_when_flag_off(tmp_path: Path) -> None:
-    _corpus(tmp_path)
-    client = _client(tmp_path, personalized=False)
-    _sign_in(client, tmp_path, ["topic:ai"])  # interests exist but the flag gates them
-    client.get("/api/app/discover?limit=3")
-    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
-    imps, clicks = _variants(tmp_path)
-    assert imps[-1] == "recency"
-    assert clicks[-1] == imps[-1]
-
-
-def test_click_without_a_preceding_impression_still_logs(tmp_path: Path) -> None:
-    """Deep link or cleared log: fall back to the flag rather than dropping the event."""
-    _corpus(tmp_path)
-    client = _client(tmp_path, personalized=True)
-    _sign_in(client, tmp_path, ["topic:ai"])
-    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
-    _imps, clicks = _variants(tmp_path)
-    assert clicks == ["personalized"], clicks
 
 
 # --- the stored ranking config must reach RANKING, not just the store (#21) ----------------------

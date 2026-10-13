@@ -25,6 +25,8 @@ import FollowButton from "./FollowButton.vue"
 import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
+import LearnDoor from "./LearnDoor.vue"
+import ReelDoor from "./ReelDoor.vue"
 import ShareMenu from "./ShareMenu.vue"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
@@ -227,10 +229,41 @@ const isTopic = computed(() => current.value.kind === "topic")
     <!-- Header (UXS-014, unified across topic / person / storyline): the actions ride the top row
          WITH the kicker, so the TITLE owns its own full-width row and can run to two lines instead
          of being crushed to "agent in…" beside the icons. Same structure in StorylineView. -->
-    <header class="border-b border-border py-3" :class="props.flush ? '' : 'px-4'">
+    <!-- As a sheet the top matches the theme and storyline sheets (operator 2026-10-11): their 16px
+         top inset and no rule under the header; as a page, the pages' top (no inset of its own). -->
+    <header :class="props.flush ? 'pb-3' : 'px-4 pb-3 pt-4'">
+      <!-- As a PAGE (the /topic and /person routes) the top is the theme and storyline pages' top,
+           exactly (operator 2026-10-11): "‹ Back" on its own row, then the kind in its colour, the
+           title, Follow first on the actions row, and the listen row under it. -->
+      <button
+        v-if="props.flush"
+        type="button"
+        class="lp-nav mb-3 flex w-fit"
+        :aria-label="t('nav.back')"
+        data-testid="ec-dismiss"
+        @click="onBack"
+      >
+        <BackIcon />
+        <span>{{ t("nav.back") }}</span>
+      </button>
       <div class="flex items-start justify-between gap-3">
         <span class="flex min-w-0 flex-wrap items-center gap-2">
-          <span class="lp-kicker">{{
+          <!-- In a SHEET drilled one level in, the way back sits before the kind; the ✕ on the right
+               always closes the whole sheet (operator 2026-10-11: every sheet has an ✕). -->
+          <button
+            v-if="props.variant === 'overlay' && !atRoot"
+            type="button"
+            class="lp-nav shrink-0"
+            :aria-label="t('ec.back')"
+            data-testid="ec-back"
+            @click="onBack"
+          >
+            <BackIcon />
+          </button>
+          <span
+            class="lp-kicker"
+            :class="current.kind === 'topic' ? 'text-topic' : current.kind === 'person' ? 'text-person' : ''"
+          >{{
             current.kind === "person"
               ? t("ec.person")
               : current.kind === "organization"
@@ -251,6 +284,17 @@ const isTopic = computed(() => current.value.kind === "topic")
         <!-- Only the close/back control rides the kicker row; the primary actions get their OWN
              row AFTER the title (operator: the kicker+actions row was too cramped and misaligned). -->
         <button
+          v-if="props.variant === 'overlay'"
+          type="button"
+          class="lp-nav shrink-0"
+          :aria-label="t('ec.close')"
+          data-testid="ec-dismiss"
+          @click="emit('close')"
+        >
+          <CloseIcon />
+        </button>
+        <button
+          v-else-if="!props.flush"
           type="button"
           class="lp-nav shrink-0"
           :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
@@ -265,7 +309,9 @@ const isTopic = computed(() => current.value.kind === "topic")
       </div>
 
       <!-- TITLE on its own full-width row — up to two lines, never sliced against the actions. -->
-      <h2 class="mt-2 font-display text-xl font-extrabold leading-snug line-clamp-2">
+      <!-- ONE title style for every subject, page or sheet (operator 2026-10-11: literally identical;
+           measured 24px/33px tight on the pages, 20px on the sheets before). -->
+      <h2 class="lp-subject-title">
         {{ label || "…" }}
       </h2>
       <!-- One-line "who is this" descriptor under the name (person_web) — glanceable identity
@@ -304,6 +350,12 @@ const isTopic = computed(() => current.value.kind === "topic")
           :target-kind="current.kind"
         />
       </div>
+      <!-- The listen row, ALWAYS its own row (operator 2026-10-11): fifteen minutes of clips now, or
+           seven days of it, one episode a day. Same row on the theme and storyline pages. -->
+      <div v-if="label && isTopic" class="mt-3 flex flex-wrap items-center gap-2 empty:hidden" data-testid="subject-listen-row">
+        <ReelDoor :subject-id="current.id" :label="label" />
+        <LearnDoor v-if="auth.isAuthenticated" :subject-id="current.id" />
+      </div>
 
       <!-- REMOVED (operator 2026-09-16): the "Open in page ›" escape hatch (#1261-9).
            The sheet already shows everything the standalone page does, so the link asked the user
@@ -326,7 +378,6 @@ const isTopic = computed(() => current.value.kind === "topic")
         :person="person"
         :depth="depth"
         @open="(p) => open(p.kind, p.id)"
-        @close="emit('close')"
       />
       <!-- `can-layer`: may this card open a person/storyline as a sheet ON TOP, or must it replace
            in place? The rule app-wide is that a sheet may layer over another SHEET or over a PAGE,
@@ -344,13 +395,11 @@ const isTopic = computed(() => current.value.kind === "topic")
         :depth="depth"
         :wide="props.flush"
         @open="(p) => open(p.kind, p.id)"
-        @close="emit('close')"
       />
       <OrgCardContent
         v-else-if="org"
         :org="org"
         @open="(p) => open(p.kind, p.id)"
-        @close="emit('close')"
       />
     </div>
   </div>

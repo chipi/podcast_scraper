@@ -1,9 +1,34 @@
 {
   "edges": [
     {
+      "from": "insight:4cfb4432e8e1fa37",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b016febad91803c7",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:bfb716eef9159918",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:roundtable-photography",
-      "type": "MENTIONS"
+      "to": "insight:4cfb4432e8e1fa37",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "insight:b016febad91803c7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
+      "to": "insight:bfb716eef9159918",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-9b36e2e3b959298d",
@@ -12,118 +37,58 @@
     },
     {
       "from": "episode:ep-9b36e2e3b959298d",
+      "to": "topic:roundtable-photography",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9b36e2e3b959298d",
       "to": "topic:strobe-lighting",
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:visual-craft",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "insight:27b94dd5bdf2158f",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "insight:725b1e32e3b24f73",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-9b36e2e3b959298d",
-      "to": "insight:c3788458caa97dd0",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:e4407b1e5f7ea640",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:27b94dd5bdf2158f",
-      "to": "quote:e4407b1e5f7ea640",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:dd9a811d22ceeaaf",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:725b1e32e3b24f73",
-      "to": "quote:dd9a811d22ceeaaf",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:64f941d40181b2a4",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c3788458caa97dd0",
-      "to": "quote:64f941d40181b2a4",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:fbaf91ffdddff805",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:27b94dd5bdf2158f",
-      "to": "quote:fbaf91ffdddff805",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:5add219b3a4e7ced",
-      "to": "person:leo",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:725b1e32e3b24f73",
-      "to": "quote:5add219b3a4e7ced",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:86eb3d2691694ca7",
-      "to": "person:ava-lemoine",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c3788458caa97dd0",
-      "to": "quote:86eb3d2691694ca7",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:27b94dd5bdf2158f",
-      "to": "person:leo",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:725b1e32e3b24f73",
+      "from": "insight:4cfb4432e8e1fa37",
       "to": "person:ava-lemoine",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:c3788458caa97dd0",
-      "to": "person:leo",
+      "from": "insight:b016febad91803c7",
+      "to": "person:ava-lemoine",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:bfb716eef9159918",
+      "to": "person:ava-lemoine",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:0a721468477abf62",
+      "to": "person:ava-lemoine",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:2267a82059796ee4",
+      "to": "person:ava-lemoine",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:34c1211d6dc0a52a",
+      "to": "person:ava-lemoine",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4cfb4432e8e1fa37",
+      "to": "quote:0a721468477abf62",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b016febad91803c7",
+      "to": "quote:2267a82059796ee4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:bfb716eef9159918",
+      "to": "quote:34c1211d6dc0a52a",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-9b36e2e3b959298d",
@@ -162,35 +127,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:visual-craft",
-      "properties": {
-        "label": "visual craft"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:27b94dd5bdf2158f",
+      "id": "insight:4cfb4432e8e1fa37",
       "properties": {
         "episode_id": "ep-9b36e2e3b959298d",
         "grounded": true,
@@ -198,13 +135,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation.",
+        "text": "Honestly, Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:725b1e32e3b24f73",
+      "id": "insight:b016febad91803c7",
       "properties": {
         "episode_id": "ep-9b36e2e3b959298d",
         "grounded": true,
@@ -212,13 +149,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to flag something \u2014 Ava mentioned this same dynamic a couple episodes back.",
+        "text": "Yeah, so \u2014 Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:c3788458caa97dd0",
+      "id": "insight:bfb716eef9159918",
       "properties": {
         "episode_id": "ep-9b36e2e3b959298d",
         "grounded": true,
@@ -226,87 +163,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to flag something \u2014 Tariq Hasaan mentioned this same dynamic a couple episodes back.",
+        "text": "It comes down to this: Frame and light decisions converge across genres. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:leo",
-      "properties": {
-        "name": "Leo"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:e4407b1e5f7ea640",
-      "properties": {
-        "char_end": 545,
-        "char_start": 364,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Ava walked us through underwater work last month, Tariq covered documentary, Daniel on commercial lighting \u2014 today we get all three in the same conversation.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:dd9a811d22ceeaaf",
-      "properties": {
-        "char_end": 705,
-        "char_start": 623,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Ava mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:64f941d40181b2a4",
-      "properties": {
-        "char_end": 796,
-        "char_start": 705,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Tariq Hasaan mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:fbaf91ffdddff805",
-      "properties": {
-        "char_end": 889,
-        "char_start": 796,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Daniel Olufemy mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:5add219b3a4e7ced",
-      "properties": {
-        "char_end": 1029,
-        "char_start": 889,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:speaker-01",
-        "text": "Real talk: Adobe is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for post-processing.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:ava-lemoine",
@@ -316,15 +176,43 @@
       "type": "Person"
     },
     {
-      "id": "quote:86eb3d2691694ca7",
+      "id": "quote:0a721468477abf62",
       "properties": {
-        "char_end": 1306,
-        "char_start": 1125,
+        "char_end": 1544,
+        "char_start": 1420,
         "episode_id": "ep-9b36e2e3b959298d",
         "speaker_id": "person:speaker-02",
-        "text": "Sure. Roundtables reveal where photographers actually disagree. We've seen this play out at teams using Peak Design. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
+        "text": "Honestly, Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2267a82059796ee4",
+      "properties": {
+        "char_end": 2888,
+        "char_start": 2763,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 144000,
+        "timestamp_start_ms": 138000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:34c1211d6dc0a52a",
+      "properties": {
+        "char_end": 4130,
+        "char_start": 3985,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Frame and light decisions converge across genres. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 204000,
+        "timestamp_start_ms": 198000,
         "transcript_ref": "transcripts/p04_e04.txt"
       },
       "type": "Quote"

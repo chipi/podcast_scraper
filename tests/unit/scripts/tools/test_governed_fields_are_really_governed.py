@@ -48,7 +48,12 @@ class TestEveryGovernedFieldIsActuallyEmitted:
         presets are the ones that carry them."""
         settings = mp.resolve_profile_to_settings("prod_dgx_full")
         assert settings.get("translate_model") == "google/translategemma-12b-it"
-        assert "8005" in str(settings.get("translate_api_base"))
+        # Since #2342 the translate server (:8005) is reached through the LiteLLM gateway's
+        # translate route, so the emitted base names that route, not the port; it must still be
+        # the TRANSLATE base, never the summary one.
+        base = str(settings.get("translate_api_base"))
+        assert base.endswith("/translate/v1"), base
+        assert base != str(settings.get("vllm_api_base")), base
 
     def test_an_unemitted_governed_field_FAILS_the_audit(self, mp: Any, monkeypatch) -> None:
         """The audit's whole job. Without it, adding a field to the governed list and forgetting

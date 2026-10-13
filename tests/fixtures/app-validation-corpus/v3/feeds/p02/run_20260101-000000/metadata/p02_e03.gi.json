@@ -1,8 +1,43 @@
 {
   "edges": [
     {
+      "from": "insight:1d60d05c768c1c43",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1d60d05c768c1c43",
+      "to": "topic:second-order-effects",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:62579f0bc62a88da",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f0317228c2ef2e49",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:security-design",
+      "to": "insight:1d60d05c768c1c43",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "insight:62579f0bc62a88da",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "insight:f0317228c2ef2e49",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:frame",
       "type": "MENTIONS"
     },
     {
@@ -12,118 +47,58 @@
     },
     {
       "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:frame",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
       "to": "topic:risk-management",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:systems-thinking",
+      "to": "topic:security-design",
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:00c37b14c35c25e2",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:01a91bddf077003a",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-d8cc458a5f0049a8",
-      "to": "insight:f97ef1a7c3fde3d2",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:e4a46f608b7a24f2",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "quote:e4a46f608b7a24f2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7b29a21442e33eaa",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:01a91bddf077003a",
-      "to": "quote:7b29a21442e33eaa",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:016f14243a76da79",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f97ef1a7c3fde3d2",
-      "to": "quote:016f14243a76da79",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e416e358202e315a",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "quote:e416e358202e315a",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c4e590daf4d2b00f",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:01a91bddf077003a",
-      "to": "quote:c4e590daf4d2b00f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d2b46c54a7ce6ef1",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f97ef1a7c3fde3d2",
-      "to": "quote:d2b46c54a7ce6ef1",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:00c37b14c35c25e2",
-      "to": "person:ethan",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:01a91bddf077003a",
+      "from": "insight:1d60d05c768c1c43",
       "to": "person:priya-nair",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:f97ef1a7c3fde3d2",
-      "to": "person:ethan",
+      "from": "insight:62579f0bc62a88da",
+      "to": "person:priya-nair",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:f0317228c2ef2e49",
+      "to": "person:priya-nair",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:58574d8176b79f79",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:5f0fb06f0b9cdb9a",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:6538f1bf2a2ee11c",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1d60d05c768c1c43",
+      "to": "quote:58574d8176b79f79",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:62579f0bc62a88da",
+      "to": "quote:5f0fb06f0b9cdb9a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:f0317228c2ef2e49",
+      "to": "quote:6538f1bf2a2ee11c",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-d8cc458a5f0049a8",
@@ -169,28 +144,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:00c37b14c35c25e2",
+      "id": "insight:62579f0bc62a88da",
       "properties": {
         "episode_id": "ep-d8cc458a5f0049a8",
         "grounded": true,
@@ -198,13 +152,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here.",
+        "text": "Let me give you the version I actually believe. Threat modeling is a framing exercise \u2014 frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Notion. On\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:01a91bddf077003a",
+      "id": "insight:1d60d05c768c1c43",
       "properties": {
         "episode_id": "ep-d8cc458a5f0049a8",
         "grounded": true,
@@ -212,13 +166,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind \u2014 embedded ownership beats a central gatekeeper every time.",
+        "text": "It comes down to this: Security incidents are reliability incidents. We've seen this play out at teams using Sentry. And the second-order effect is the part most people miss.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:f97ef1a7c3fde3d2",
+      "id": "insight:f0317228c2ef2e49",
       "properties": {
         "episode_id": "ep-d8cc458a5f0049a8",
         "grounded": true,
@@ -226,31 +180,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Real talk: Sentry is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for error tracking.",
+        "text": "It comes down to this: The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Sentry. If you ignore that, you end up rebuildin\u2026",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:ethan",
-      "properties": {
-        "name": "Ethan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:e4a46f608b7a24f2",
-      "properties": {
-        "char_end": 453,
-        "char_start": 341,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p02_e03.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:priya-nair",
@@ -260,63 +193,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:7b29a21442e33eaa",
-      "properties": {
-        "char_end": 685,
-        "char_start": 524,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-02",
-        "text": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind \u2014 embedded ownership beats a central gatekeeper every time.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p02_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:016f14243a76da79",
-      "properties": {
-        "char_end": 731,
-        "char_start": 693,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "That's a real shift. Worth pulling on.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p02_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:e416e358202e315a",
-      "properties": {
-        "char_end": 871,
-        "char_start": 731,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "Real talk: Sentry is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for error tracking.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p02_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:c4e590daf4d2b00f",
-      "properties": {
-        "char_end": 973,
-        "char_start": 871,
-        "episode_id": "ep-d8cc458a5f0049a8",
-        "speaker_id": "person:speaker-01",
-        "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of security design?",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p02_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d2b46c54a7ce6ef1",
+      "id": "quote:5f0fb06f0b9cdb9a",
       "properties": {
         "char_end": 1245,
         "char_start": 986,
@@ -328,6 +205,41 @@
         "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "quote:58574d8176b79f79",
+      "properties": {
+        "char_end": 1820,
+        "char_start": 1646,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Security incidents are reliability incidents. We've seen this play out at teams using Sentry. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 84000,
+        "timestamp_start_ms": 78000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6538f1bf2a2ee11c",
+      "properties": {
+        "char_end": 2635,
+        "char_start": 2407,
+        "episode_id": "ep-d8cc458a5f0049a8",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Sentry. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 120000,
+        "timestamp_start_ms": 114000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second-order effects"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

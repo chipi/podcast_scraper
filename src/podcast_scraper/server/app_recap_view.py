@@ -21,6 +21,7 @@ from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.schemas import (
     AppEpisodeRecap,
@@ -65,12 +66,13 @@ def episode_storylines(
         return []
     # thc id -> {id, label, size, anchor_topic_id}; the floor + anchor are enforced here.
     summaries = {c["id"]: c for c in top_storylines_by_member_count(root, top_n=1000)}
+    umbrellas = umbrella_tokens(root)
     out: list[AppStorylineRef] = []
     seen: set[str] = set()
     for topic in topics:
         info = storyline_map.get(topic.id)
         thc = info.get("storyline_id") if info else None
-        summary = summaries.get(thc) if thc else None
+        summary = summaries.get(thc) if thc and thc not in umbrellas else None
         if not summary:
             continue
         anchor = str(summary["anchor_topic_id"])
@@ -97,6 +99,9 @@ def build_episode_recap(
     all_topics: list[AppTopic] = []
     if row.has_kg:
         _p, _o, all_topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+    # An umbrella subject (``app_umbrellas``) says nothing about this episode.
+    umbrellas = umbrella_tokens(root)
+    all_topics = [t for t in all_topics if t.id not in umbrellas]
     storylines = episode_storylines(root, all_topics)
     local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
     return AppEpisodeRecap(

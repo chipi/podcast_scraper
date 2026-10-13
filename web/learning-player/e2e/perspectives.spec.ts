@@ -31,27 +31,37 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
   await page.getByTestId('player-open-insights').click()
   // The notes show five chips first (operator 2026-10-07); open the rest when they are folded.
+  // isVisible() does not wait: checked before the chips render, it read "no +N more" and the chip
+  // stayed folded. Wait for the chips first (a flake, 2026-10-11).
   const moreChips = page.getByTestId('kp-tags-more')
-  if (await moreChips.isVisible().catch(() => false)) await moreChips.click()
+  await expect(page.getByTestId('kp-topic-chip').first()).toBeVisible()
+  if (await moreChips.isVisible()) await moreChips.click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   // The Perspectives section renders the real, corpus-derived speakers.
   const section = page.getByTestId('topic-perspectives')
   await expect(section).toBeVisible()
   // The heading names the topic (operator 2026-10-05).
-  await expect(section.getByText('9 perspectives on risk management', { exact: true })).toBeVisible()
+  // 11 since the fixture grounds every insight in the line that says it (ADR-165, 2026-10-11); 21
+  // since 2026-10-12, when the translated shows' ten guests' own lines on it stopped being hidden
+  // behind connective templates.
+  await expect(section.getByText('21 perspectives on risk management', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
-  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 9th of 9, so he
-  // appears on the second "Show more voices". 9, not 10, since the 2026-10-13 corpus refresh: Maya
-  // was here only because her question was cycled onto Sophie Laurent's answer as its support.
+  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 21st of 21, so he
+  // appears on the sixth "Show more voices".
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
   const moreVoices = section.getByTestId('perspectives-more-speakers')
-  await expect(moreVoices).toHaveText('Show more voices (6)')
-  await moreVoices.click()
-  await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
+  await expect(moreVoices).toHaveText('Show more voices (18)')
+  for (let page = 1; page < 6; page++) {
+    await moreVoices.click()
+    await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
+  }
   await moreVoices.click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toBeVisible()
-  // The engineered opposition surfaces verbatim as a grounded claim.
+  // The engineered opposition surfaces verbatim as a grounded claim. It is Daniel Cho's third take
+  // since the fixture grounds every insight (ADR-165): the card previews two, so open his.
+  const cho = section.getByTestId('topic-perspective').filter({ hasText: 'Daniel Cho' })
+  await cho.getByRole('button', { name: /^Show \d+ more$/ }).click()
   await expect(
     section.getByText(/Diversification is the only real risk control/),
   ).toBeVisible()
@@ -119,8 +129,11 @@ test('per-speaker show-more toggle reveals insights past the preview cap', async
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
   await page.getByTestId('player-open-insights').click()
   // The notes show five chips first (operator 2026-10-07); open the rest when they are folded.
+  // isVisible() does not wait: checked before the chips render, it read "no +N more" and the chip
+  // stayed folded. Wait for the chips first (a flake, 2026-10-11).
   const moreChips = page.getByTestId('kp-tags-more')
-  if (await moreChips.isVisible().catch(() => false)) await moreChips.click()
+  await expect(page.getByTestId('kp-topic-chip').first()).toBeVisible()
+  if (await moreChips.isVisible()) await moreChips.click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   const section = page.getByTestId('topic-perspectives')

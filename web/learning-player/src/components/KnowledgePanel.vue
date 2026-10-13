@@ -857,13 +857,18 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </div>
           <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
           <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
-          <!-- Two groups (operator 2026-10-10): the transcript — the sentence holding the words,
-               the words marked, Play from and Highlight — then the insights. -->
-          <div
+          <!-- One folding "Search results" section (operator 2026-10-12), its count in the header,
+               and inside it the two groups (operator 2026-10-10), always shown: the transcript —
+               the sentence holding the words, the words marked, Play from and Highlight — then the
+               insights. -->
+          <CollapsibleSection
             v-else-if="grouped.transcript.length || grouped.insights.length"
-            class="mt-3 flex flex-col gap-4"
-            data-testid="kp-search-results"
+            :title="t('kp.searchResults')"
+            :count="grouped.transcript.length + grouped.insights.length"
+            section-key="search-results"
+            class="mt-3"
           >
+          <div class="flex flex-col gap-4" data-testid="kp-search-results">
             <section v-if="grouped.transcript.length" data-testid="kp-search-transcript">
               <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInTranscript") }}</h4>
               <ul class="flex flex-col gap-2">
@@ -880,17 +885,21 @@ watch(() => auth.isAuthenticated, loadCaptures)
                         v-if="run.mark"
                         class="rounded-sm bg-canvas-foreground/15 px-0.5 font-semibold text-canvas-foreground"
                       >{{ run.text }}</mark><template v-else>{{ run.text }}</template></template></p>
-                  <div class="mt-1 flex flex-wrap items-center gap-x-4">
+                  <!-- Save as a highlight with the app's one highlight control, the bookmark
+                       (operator 2026-10-12): it was the word "Highlight", the only place the action
+                       was a word. Filled once those segments are saved, like a transcript line. -->
+                  <div class="mt-1 flex flex-wrap items-center justify-between gap-x-4">
                     <PlayFrom v-if="p.start != null" :seconds="p.start" @click="emit('play-from', p.start)" />
-                    <button
+                    <HighlightToggle
                       v-if="p.segments.length"
-                      type="button"
-                      class="inline-flex min-h-[44px] items-center text-sm font-bold text-accent"
+                      context="line"
+                      :size="20"
+                      :label="p.text.slice(0, 60)"
+                      :saved="p.segments.some((seg) => capture.savedSegmentIds.has(seg.id))"
+                      :gated="isGated"
                       data-testid="kp-search-highlight"
-                      @click="emit('capture-span', spanFromParagraph(p.segments, null))"
-                    >
-                      {{ t("kp.searchHighlight") }}
-                    </button>
+                      @toggle="emit('capture-span', spanFromParagraph(p.segments, null))"
+                    />
                   </div>
                 </li>
               </ul>
@@ -914,6 +923,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               </ul>
             </section>
           </div>
+          </CollapsibleSection>
           <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
             {{ t("kp.noResults") }}
           </p>

@@ -28,7 +28,7 @@ test('adding uses the item route, so the whole-list PUT is not what persists a q
     if (r.url().includes('/api/app/queue')) seen.push(`${r.method()} ${new URL(r.url()).pathname}`)
   })
 
-  if ((await btn.getAttribute('aria-label')) === 'Add to queue') {
+  if ((await btn.getAttribute('aria-label'))?.startsWith('Add to queue')) {
     await Promise.all([
       page.waitForResponse(
         (r) => r.url().includes('/api/app/queue/items') && r.request().method() === 'POST' && r.ok(),
@@ -57,7 +57,7 @@ test('a queue restored from cache says so, and refuses ONLY reordering', async (
   for (const index of [0, 1]) {
     const btn = cards.nth(index).getByRole('button', { name: /queue/i }).first()
     await expect(btn).toBeVisible()
-    if ((await btn.getAttribute('aria-label')) === 'Add to queue') {
+    if ((await btn.getAttribute('aria-label'))?.startsWith('Add to queue')) {
       await Promise.all([
         page.waitForResponse(
           (r) =>

@@ -151,6 +151,100 @@ make enrich CORPUS=tests/fixtures/app-validation-corpus/v3 # corpus-scope + per-
 Prefix both commands with `HF_HUB_OFFLINE=1` — the build is deterministic and must not reach
 the network for models.
 
+**The committed corpus is a rebuild followed by the realign** (2026-10-13). Until then a rebuild
+did not reproduce it (2026-10-11: 153 files differ — later fixes lived only in the committed files),
+so corpus-wide corrections were MIGRATIONS of the committed files. On 2026-10-13 the corpus was
+rebuilt from the builder (rebasing onto main's D-44 English analysis of translated episodes) and
+the realign applied on top; a second realign changes nothing. To regenerate:
+
+```sh
+S=$(mktemp -d); cp -R tests/fixtures/app-validation-corpus/v3 $S/v3
+rm -rf $S/v3/search/lance_index $S/v3/search/episode_fingerprints.json
+HF_HUB_OFFLINE=1 .venv/bin/python scripts/build_app_validation_corpus.py --output $S
+.venv/bin/python scripts/tools/realign_fixture_gi.py --corpus $S/v3 --apply  # GI + envelopes
+.venv/bin/python scripts/tools/realign_fixture_gi.py --corpus $S/v3          # must change 0
+HF_HUB_OFFLINE=1 PYTHONPATH=src .venv/bin/python -m podcast_scraper.cli enrich --output-dir $S/v3 \
+  --only grounding_rate,guest_coappearance --corpus-only --force   # the corpus enrichers on GI
+# then copy the changed files back into tests/fixtures/app-validation-corpus/v3
+```
+
+`realign_fixture_gi.py` grounds every insight in the transcript line that says it (ADR-165):
+insights are claims (no questions, greetings, sponsor reads, connective templates or host
+prompts), chosen speaker-balanced and topical first; a translated episode is grounded in its
+English ad-free turns (D-44), as the builder builds its GI, and its quotes carry translation
+provenance. It is idempotent — a second `--apply` changes nothing.
+
+A translated line is judged through its English: the English render's sentences inside the line's
+time span (the renders are on the source timeline, below). Until 2026-10-12 only an opening stretch
+was paired, so the translated shows' later episodes kept nothing but connective templates as
+insights ("Before we get into it —", "And it ties into what we cover today"); the filler rules
+(`build_synthetic_validation_corpus._FILLER_MARKERS`) also carry the renders' paraphrases of those
+templates, and the host's closing "<guest>, thanks for the conversation." in every show. 62
+insights in 42 episodes were replaced with the episode's next claims.
+
+**No ad in a short listen** (2026-10-12). Two fixture faults made clips play ads, both fixed:
+
+- The translated shows' (p10-p14) English renders were captured from a pipeline run on other
+  audio, so their timings (a 1,710 s timeline) disagreed with the episode's source segments and GI
+  quotes (a 294 s grid). A clip cut from the render at a quote's time played the wrong line —
+  "Start at strava.com/podcast" for a point about drainage. The builder now puts a replayed render
+  on the source timeline (`retime_english_render`: sentence -> source segment through
+  `translation.json`'s turns; text untouched), and the committed corpus was migrated:
+
+  ```sh
+  .venv/bin/python scripts/tools/retime_fixture_english_renders.py          # dry run
+  .venv/bin/python scripts/tools/retime_fixture_english_renders.py --apply  # start/end only
+  ```
+
+- The break lead-in ("We'll be right back after a short ad break") was an insight in all five
+  translated shows: the builder's ad filter was English-only. `is_ad_copy` now knows it in each
+  language here, and `realign_fixture_gi.py --apply` replaced those five with the episode's next
+  claim.
+
+The app side (clips stop at an ad wherever the corpus comes from) is
+`server/app_moments.build_clip` with `app_episode_search.episode_ad_spans`.
+
+**Topics are natural** (2026-10-12). An episode carries its ground-truth topics and the topics a
+real pipeline run extracted from its transcript — nothing else. The builder used to STAMP two
+"shared umbrella" topics (lifelong learning, expert interviews) on every episode and two
+"cross-cutting" ones on every show (risk management on 12 of 14), so test themes would overlap;
+they made every count-ranked surface in the app lead with topics on 100% of episodes, which real
+data never has (prod, read-only 2026-10-12: the most common topic is on 1.0% of 3,528 episodes).
+The committed files were migrated, and the builder no longer stamps:
+
+```sh
+.venv/bin/python scripts/tools/drop_stamped_fixture_topics.py            # dry run
+.venv/bin/python scripts/tools/drop_stamped_fixture_topics.py --apply    # KG, GI, bridge + the
+                                                                          # builder's 4 enrichments
+HF_HUB_OFFLINE=1 .venv/bin/python -m podcast_scraper.cli enrich --output-dir \
+  tests/fixtures/app-validation-corpus/v3 --only topic_cooccurrence_corpus \
+  --corpus-only --force                                                   # the framework's one
+make build-app-validation-index && \
+  make build-validation-topic-clusters CORPUS=tests/fixtures/app-validation-corpus/v3  # themes
+```
+
+The tool re-authors the four enrichments the builder writes (`temporal_velocity`,
+`topic_theme_clusters`, `topic_similarity`, `topic_consensus`) with the builder's own functions,
+over every topic each episode's KG carries — ground truth and extracted, as production counts
+them. They stay deterministic (`computed_at` 2026-01-01; the framework's `temporal_velocity`
+embeds a wall-clock `now`, which is why the builder authors it). The builder now counts the
+same topics (it counted the ground truth alone before). Still 57 topics are shared by two or more shows; the
+themes (82) cluster them, none covering every episode.
+
+**Storylines** (`enrichments/topic_theme_clusters.json`, 2026-10-11) come from
+`build_app_validation_corpus.STORYLINES`: three DISJOINT storylines of four topics each (the app maps a
+topic to one storyline). *Managing risk across domains* (since 2026-10-12: risk management, systems thinking, correlated
+bets, decision making under uncertainty — the last two replacing two stamped topics) and
+*Second-order effects* have grounded clips
+(a reel and a seven-day path each); *Building trails that last* has none, so the reel and Learn doors
+are proven to stay away. Regenerate the file from the committed graphs with the builder's own
+functions — it refuses if an existing storyline would change:
+
+```sh
+.venv/bin/python scripts/tools/regen_fixture_storylines.py            # dry run
+.venv/bin/python scripts/tools/regen_fixture_storylines.py --write
+```
+
 The generator reuses the viewer generator's construction helpers
 (`scripts/build_synthetic_validation_corpus.py`: `build_gi`, `build_kg`,
 `parse_diarized_segments`, …) so GI/KG can't drift from what the readers expect.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Trends — the titled `DiscoveryExplorer` section on Discover: 3 rows on a phone and 5 on desktop,
- * more rows expanding in place from the header's "all ›". Home rendered it too until 2026-10-07,
+ * Trends — the titled `DiscoveryExplorer` section on Explore: 3 rows on a phone and 5 on desktop,
+ * then "Show more (N)", paged from the server (operator 2026-10-11). Home rendered it too until 2026-10-07,
  * when Trends became Discover-only (operator); the page decides what a tap opens.
  */
 import { ref } from "vue"
@@ -35,7 +35,6 @@ defineExpose({ trendsEl })
     <!-- A prop cannot follow a media query in CSS, hence `useIsDesktop`. -->
     <DiscoveryExplorer
       :collapsed="isDesktop ? 5 : 3"
-      see-all
       :kind="props.kind"
       :title="t('browse.trendsTitle')"
       @open="emit('open', $event)"

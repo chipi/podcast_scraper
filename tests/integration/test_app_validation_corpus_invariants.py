@@ -133,9 +133,9 @@ def test_topic_cooccurrence_corpus_has_pairs_with_lift() -> None:
 def test_grounding_rate_discriminates() -> None:
     """The grounding-rate row needs real, discriminating rates (not all-0 / all-1), each in [0, 1].
 
-    Per EPISODE since enricher v2.0.0 (#1927), which is what ``feed_signals._show_grounding``
-    reads. The fixture carried the per-Person v1 file until 2026-10-13, so this test checked a
-    shape production no longer writes, and the show grounding signal was empty on this corpus.
+    Per EPISODE, the shape the server reads since #1927 (``feed_signals._show_grounding``). The
+    fixture carried the older per-person shape until 2026-10-11, so the show-level signal it feeds
+    was always empty on the fixture.
     """
     episodes = _data("grounding_rate").get("episodes", [])
     assert len(episodes) >= 2, episodes
@@ -229,13 +229,15 @@ def test_topic_perspectives_about_edges_are_not_fanned_out() -> None:
     persp = topic_perspectives(str(_V3), str(_V3), "topic:risk-management")
     names = {str(p.get("person_name") or "") for p in persp}
     # Count is the fan-out canary: the #1371 blanket fan-out ballooned this to 27; the token-matched
-    # ABOUT contract yields exactly the cross-show risk-management speakers.
-    # 9 since 2026-10-13, from 10: Maya (p01 host) was here only because her QUESTION ("You say
-    # it's about risk") was cycled onto Sophie Laurent's risk-management answer as its support.
-    # Speaker-balanced quote selection now grounds that insight in Sophie's own words.
+    # ABOUT contract yields exactly the cross-show risk-management speakers. 11 since 2026-10-11
+    # (ADR-165): every insight is now grounded in the line that says it, so three hosts whose
+    # "risk management" lines were prompts or misattributed quotes left, and four guests whose
+    # real lines on it had never been insights arrived. 21 since 2026-10-12: the translated shows'
+    # ten guests say it in their own language ("gestión del riesgo", "Risikomanagement" ...); their
+    # lines were hidden behind connective templates. Still well under the fan-out's 27.
     assert (
-        len(persp) == 9
-    ), f"expected 9 risk-management speakers, got {len(persp)}: {sorted(names)}"
+        len(persp) == 21
+    ), f"expected 21 risk-management speakers, got {len(persp)}: {sorted(names)}"
     assert {
         "Daniel Cho",
         "Scott Bessent",

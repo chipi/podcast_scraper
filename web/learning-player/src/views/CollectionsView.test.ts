@@ -87,7 +87,7 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain('2 items')
   })
 
-  it('titles the section "Your boards"', async () => {
+  it('titles the section "Boards"', async () => {
     const w = mountView()
     await flushPromises()
     expect(w.text()).toContain(en.collections.sectionTitle)

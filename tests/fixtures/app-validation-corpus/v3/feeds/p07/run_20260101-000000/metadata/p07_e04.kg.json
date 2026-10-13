@@ -16,16 +16,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-362f5d463b877d2c",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-362f5d463b877d2c",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-362f5d463b877d2c",
       "target": "topic:back-tested-calls",
       "type": "MENTIONS"
@@ -118,22 +108,6 @@
       "properties": {
         "label": "macroeconomics",
         "slug": "macroeconomics"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

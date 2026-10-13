@@ -13,6 +13,7 @@ import EpisodeTile from "../components/EpisodeTile.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import { getInProgressSlugs, getPodcastsPage, getWorldEpisodeSlugs, listEpisodes } from "../services/api"
+import { track } from "../services/analytics"
 import { useRoute } from "vue-router"
 import { useLibraryStore } from "../stores/library"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
@@ -52,8 +53,8 @@ const filter = ref("all")
 /**
  * WHICH episodes, independent of their state (operator 2026-10-09): All, Shows I follow, or Mine
  * — the listener's world, ADR-162. A second row rather than more entries in the state filter, so
- * "Shows I follow" combines with "Unplayed". Deep-linkable: `?from=` and `?state=` (What's new and
- * Discover 2 open the list already filtered).
+ * "Shows I follow" combines with "Unplayed". Deep-linkable: `?from=` and `?state=` (What's new
+ * opens the list already filtered).
  */
 type From = "all" | "following" | "mine"
 const from = ref<From>("all")
@@ -352,7 +353,7 @@ onMounted(async () => {
         :sort-options="sortOptions"
         :count="countLabel"
         :search-placeholder="t('browse.filterEpisodes')"
-        @update:from="(v) => (from = v as From)"
+        @update:from="(v) => { from = v as From; track('catalog_filter', { list: 'episodes', value: from }) }"
       />
 
       <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>

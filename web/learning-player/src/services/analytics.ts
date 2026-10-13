@@ -96,8 +96,50 @@ export const SOURCES = [
   'notification',
   'deep_link',
   'other',
+  // Discover's rails (ADR-163), one per rail so a tap says which rail — see railSource().
+  'discover_quotes',
+  'discover_captured',
+  'discover_thread',
+  'discover_people',
+  'discover_another_view',
+  'discover_trending_shows',
+  'explore_trends',
 ] as const
 export type Source = (typeof SOURCES)[number]
+
+/**
+ * Discover's rails (ADR-163; Discover arc plan, Step 1.2). The rail id is code-defined; each maps to
+ * one `Source`, so a capture made after arriving from a rail is attributed to it.
+ */
+/** Where the interests picker was opened from (#2267; Discover's cold start, ADR-163 §6). */
+export type PickerTrigger = 'first_run' | 'profile' | 'home_prompt' | 'discover_cold_start'
+/** What a rail tap did: opened the episode, played from the quote, or asked for less of the card's
+ *  reason ("Suggest less", ADR-163 §6). Moments, save and queue are the shared episode actions. */
+export type RailAction = 'open' | 'play_from' | 'less'
+export type RailId = 'quotes' | 'captured' | 'thread' | 'people' | 'another_view' | 'trending_shows'
+/** Why a recommendation was there (`Reason.kind`), or `none` when it carried no reason. */
+export type RailReasonKind =
+  | 'rising_topic'
+  | 'most_engaged'
+  | 'captured'
+  | 'thread'
+  | 'person'
+  | 'another_view'
+  | 'none'
+
+const RAIL_SOURCE: Readonly<Record<RailId, Source>> = {
+  quotes: 'discover_quotes',
+  captured: 'discover_captured',
+  thread: 'discover_thread',
+  people: 'discover_people',
+  another_view: 'discover_another_view',
+  trending_shows: 'discover_trending_shows',
+}
+
+/** The `Source` a tap on this rail is attributed to. */
+export function railSource(rail: RailId): Source {
+  return RAIL_SOURCE[rail]
+}
 
 /** Counts are reported as buckets, never exact. */
 export type CountBucket = '0' | '1' | '2-5' | '6-20' | '21+'
@@ -212,6 +254,16 @@ export const EVENT_NAMES = [
   'notification_open',
   // a click on a link in one of our emails (operator 2026-10-05, services/inboundLink)
   'email_link_opened',
+  // Discover's rails (ADR-163): the denominator, and the taps
+  'discover_rail_shown',
+  'discover_rail_tap',
+  // Learn X this week (operator 2026-10-11): a path started, a day done, a path stopped
+  'learn_path',
+  // The reel and Explore (operator 2026-10-11: real telemetry for everything new)
+  'reel_open',
+  'reel_action',
+  'trends_show_more',
+  'catalog_filter',
 ] as const
 
 export type EventName = (typeof EVENT_NAMES)[number]
@@ -250,7 +302,7 @@ export type EventProps = {
    */
   auth_completed: { provider: string }
   auth_failed: { provider: string; reason: 'cancelled' | 'error' }
-  interests_picker_shown: { trigger: 'first_run' | 'profile' | 'home_prompt' }
+  interests_picker_shown: { trigger: PickerTrigger }
   interests_saved: { count: CountBucket }
   interests_dismissed: undefined
 
@@ -277,7 +329,7 @@ export type EventProps = {
   /** NO query text. `results` is a bucket, so "how many hits" never becomes "what they searched". */
   search_submitted: { scope: 'corpus' | 'recall'; results: CountBucket }
   search_result_click: {
-    result_kind: 'episode' | 'topic' | 'person' | 'show' | 'insight'
+    result_kind: 'episode' | 'topic' | 'person' | 'show' | 'insight' | 'board'
     rank: RankBucket
   }
   share_link_opened: { target_kind: string }
@@ -307,6 +359,12 @@ export type EventProps = {
      * folds into `episode` because a note on a highlight IS a note on a moment of that episode.
      */
     target_kind: 'episode' | 'topic' | 'person' | 'insight' | 'show' | 'storyline'
+    /**
+     * How the screen the capture was made on was reached (services/provenance). A capture in the
+     * player after arriving from a Discover rail carries that rail's source: how a rail is judged
+     * (Discover arc plan, Step 1.2). Same visit only — no cross-session join.
+     */
+    source: Source
   }
   recap_view: { trigger: 'panel' | 'home_prompt' }
   revisit_open: { item_kind: string }
@@ -377,6 +435,53 @@ export type EventProps = {
     element: EmailLinkElement
     target: 'player' | 'podcast' | 'topic' | 'person' | 'storyline' | 'theme' | 'other'
     signed_in: boolean
+  }
+  /**
+   * A Discover rail rendered at least one card (ADR-163) — once per rail per mount. The
+   * denominator for the rail's tap rate. Never which episodes: buckets only.
+   */
+  discover_rail_shown: {
+    rail: RailId
+    items: CountBucket
+    scope: 'mine' | 'everyone'
+  }
+  /** Learn X this week: a path started or its week opened (and from where), a step played (from
+   *  its week or Home's "In progress") or done (its 1-based day), the next day opened early, or the
+   *  path stopped. */
+  learn_path: {
+    action: 'start' | 'open' | 'step_play' | 'step_done' | 'open_next' | 'stop'
+    kind: 'topic' | 'theme' | 'storyline'
+    day?: number
+    source?: 'discover' | 'subject_page' | 'in_progress'
+  }
+  /** A short listen opened: from Discover's Short listens row, a subject page's "N min on this", or
+   *  resumed from Home's "In progress". */
+  reel_open: {
+    source: 'discover_row' | 'subject_page' | 'in_progress' | 'board'
+    kind: 'topic' | 'theme' | 'storyline' | 'board'
+  }
+  /** Inside a reel: started, a clip skipped back or on, a clip to come jumped to, "Keep listening to
+   *  this episode" (it became a listen), or the last clip finished. `clip` is the 1-based clip it happened on, bucketed. */
+  reel_action: {
+    action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'done'
+    kind: 'topic' | 'theme' | 'storyline' | 'board'
+    clips: CountBucket
+    clip?: RankBucket
+  }
+  /** Explore's Trends: "Show more" asked the server for the next page of a kind. */
+  trends_show_more: {
+    kind: 'topic' | 'theme' | 'storyline' | 'person'
+    sort: 'rising' | 'trending'
+    shown: CountBucket
+  }
+  /** The full lists' "Which episodes" / "Which shows" filter changed. */
+  catalog_filter: { list: 'episodes' | 'shows'; value: 'all' | 'following' | 'mine' }
+  /** A card on a Discover rail was opened, its "Play from" tapped, or "Less like this" tapped. */
+  discover_rail_tap: {
+    rail: RailId
+    reason_kind: RailReasonKind
+    action: RailAction
+    rank: RankBucket
   }
 }
 

@@ -15,7 +15,12 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
-from podcast_scraper.server import app_collections_store, app_user_state
+from podcast_scraper.server import (
+    app_board_view,
+    app_collections_store,
+    app_user_state,
+    board_summaries,
+)
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -25,13 +30,19 @@ from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppBoardBrief,
+    AppBoardSummary,
+    AppReelClip,
+    AppTopicReelResponse,
     Collection,
     CollectionCreate,
     CollectionDetail,
     CollectionItem,
     CollectionItemBody,
+    CollectionMatch,
     CollectionReorder,
     CollectionsContainingResponse,
+    CollectionSearchResponse,
     CollectionsResponse,
 )
 
@@ -263,6 +274,31 @@ def collections_containing(
     return CollectionsContainingResponse(ids=sorted(holding), checked=True)
 
 
+@router.get("/collections/search", response_model=CollectionSearchResponse)
+def search_collections(
+    request: Request,
+    q: str = Query(min_length=1, max_length=200, description="Words a board must hold."),
+    user: User = Depends(get_current_user),
+) -> CollectionSearchResponse:
+    """The user's boards matching ``q`` (RFC-119 amendment 2026-10-12, #2341): by name first, then
+    by something saved on them. Declared before ``/collections/{collection_id}`` so "search" is
+    never read as a collection id."""
+    matches = app_board_view.match_boards(
+        _corpus_root_opt(request), _data_dir(request), user.user_id, q
+    )
+    return CollectionSearchResponse(
+        items=[
+            CollectionMatch(
+                collection=Collection(**m["collection"]),
+                matched=m["matched"],
+                item_kind=m.get("item_kind"),
+                item_label=m.get("item_label"),
+            )
+            for m in matches
+        ]
+    )
+
+
 @router.post("/collections", response_model=Collection, status_code=201)
 def create_collection(
     request: Request,
@@ -347,6 +383,75 @@ def collection_detail(
         items=[it for it in page if it is not None],
         total=len(selected),
         kind_counts=kind_counts,
+    )
+
+
+@router.get("/collections/{collection_id}/brief", response_model=AppBoardBrief)
+def collection_brief(
+    request: Request, collection_id: str, user: User = Depends(get_current_user)
+) -> AppBoardBrief:
+    """A board's Brief (RFC-119 amendment 2026-10-12, #2340), from what is saved on it only, with
+    its summary when the background job has written one (RFC-127). Reading it never calls a
+    model: this process has no model to call."""
+    data_dir = _data_dir(request)
+    board = app_board_view.load_board(data_dir, user.user_id, collection_id)
+    if board is None:
+        raise HTTPException(status_code=404, detail="collection not found")
+    brief = app_board_view.build_board_brief(corpus_root_or_503(request), board)
+    summary = board_summaries.summary_for_brief(data_dir, user.user_id, board)
+    if summary is not None:
+        brief.summary = AppBoardSummary(**summary)
+    return brief
+
+
+@router.get("/collections/{collection_id}/reel", response_model=AppTopicReelResponse)
+def collection_reel(
+    request: Request,
+    collection_id: str,
+    minutes: int = Query(default=15, ge=1, le=60),
+    user: User = Depends(get_current_user),
+) -> AppTopicReelResponse:
+    """A board's short listen (#2340): its saved moments, then each saved episode's strongest
+    clip, back to back within ``minutes``. The shape of ``/discover/reel``, so the same player
+    plays it."""
+    root = corpus_root_or_503(request)
+    board = app_board_view.load_board(_data_dir(request), user.user_id, collection_id)
+    if board is None:
+        raise HTTPException(status_code=404, detail="collection not found")
+    clips = app_board_view.board_reel(
+        root, board, minutes=minutes, config=getattr(request.app.state, "moments_config", None)
+    )
+    return board_reel_response(root, board, clips, minutes)
+
+
+def board_reel_response(
+    root: Path, board: app_board_view.Board, clips: list, minutes: int
+) -> AppTopicReelResponse:
+    """Clips of a board's short listen → the ``/discover/reel`` response shape."""
+    out: list[AppReelClip] = []
+    for c in clips:
+        row = resolve_slug(root, c.episode_slug)
+        if row is None:
+            continue
+        m = c.moment
+        out.append(
+            AppReelClip(
+                episode=row_to_summary(root, row),
+                insight_id=m.insight_id,
+                text=m.text,
+                quote_text=m.quote_text,
+                speaker=m.speaker,
+                start_ms=m.start_ms,
+                end_ms=m.end_ms,
+            )
+        )
+    return AppTopicReelResponse(
+        subject_id=app_board_view.BOARD_SUBJECT_PREFIX + str(board.meta["id"]),
+        subject_kind="board",
+        subject_label=str(board.meta.get("name") or ""),
+        minutes=minutes,
+        total_seconds=round(sum(c.end_ms - c.start_ms for c in out) / 1000.0, 1),
+        clips=out,
     )
 
 

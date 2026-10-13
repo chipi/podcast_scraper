@@ -7,13 +7,25 @@ import { signInIsolated, showEveryonesTrends } from './helpers'
  * read-time momentum is deterministic and the risk/systems content reads as rising; GET
  * /api/app/trending?kind=topic then returns those topics and the list renders.
  *
- * Trending topics from the committed corpus at that anchor: "systems thinking" / "risk management"
- * (the cross-domain storyline the newest episodes carry).
+ * Since the natural corpus (2026-10-12) the top of Rising is a tie: the newest episodes' own
+ * subjects, each new in the window. Everyone's trends also blend engagement, which the other specs
+ * on the same server create, so which of the tied topics lead depends on what ran before. The spec
+ * therefore checks that the list renders what the server ranks first, not a name out of the tie
+ * (it named two, and CI's run order put neither on screen).
  */
 test('Discover shows the Rising-now discovery list with rising topics', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trending-rising', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
+  const everyone = page.waitForResponse(
+    (r) =>
+      r.url().includes('/trending') &&
+      r.url().includes('kind=topic') &&
+      r.url().includes('scope=corpus') &&
+      r.url().includes('offset=0'),
+  )
   await showEveryonesTrends(page)
+  const ranked = (await (await everyone).json()) as { items: { label: string }[] }
+  expect(ranked.items.length).toBeGreaterThan(0)
 
   // #4 folded the three "what's hot" rails into one tabbed area; the default discovery TAB is
   // Topics, and Rising sort is the default — the discovery list renders immediately.
@@ -27,15 +39,15 @@ test('Discover shows the Rising-now discovery list with rising topics', async ({
   // At least one discovery row, and it carries a velocity multiplier (↑N×) — the momentum signal.
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
   await expect(list).toContainText('×')
-  // The risk/systems storyline is what's freshest at the pinned anchor.
-  await expect(list.getByText(/risk management|systems thinking/i).first()).toBeVisible()
+  // The first row is what the server ranks first.
+  await expect(page.getByTestId('discovery-row').first()).toContainText(ranked.items[0].label)
 })
 
 test('signed in: following a trending topic from the list toggles to followed', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'trending', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
 
   const list = page.getByTestId('discovery-list-topic')

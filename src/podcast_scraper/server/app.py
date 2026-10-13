@@ -501,7 +501,10 @@ def _start_cache_warmer_guarded(app: FastAPI) -> "threading.Event | None":
     try:
         from podcast_scraper.server.app_cache_warm import start_cache_warmer
 
-        return start_cache_warmer(Path(root))
+        # The app's own moments config, so warmed reel clips land under the key requests read.
+        return start_cache_warmer(
+            Path(root), moments_config=getattr(app.state, "moments_config", None)
+        )
     except Exception as exc:  # pragma: no cover - never block startup on warming
         logger.warning("cache warmer failed to start: %s", exc)
         return None

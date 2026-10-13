@@ -29,7 +29,7 @@ import json
 import os
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
-from typing import Any, Sequence, TYPE_CHECKING
+from typing import AbstractSet, Any, Sequence, TYPE_CHECKING
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -150,19 +150,57 @@ def _segments_text(segments: Sequence[Segment], start: int, end: int) -> str:
     return " ".join(t.strip() for s, e, t in segments if e > start and s < end and t.strip())
 
 
+def _overlaps(start: int, end: int, ads: Sequence[tuple[int, int]]) -> bool:
+    return any(a < end and b > start for a, b in ads)
+
+
+def _clear_of_ads(start: int, end: int, ads: Sequence[tuple[int, int]]) -> tuple[int, int] | None:
+    """``[start, end)`` with any ad cut off its ends; None when an ad sits inside it or covers it.
+
+    The clip was built around the quote, so an ad overlapping its START is lead-in to skip and one
+    overlapping its END is a break the extension ran into. An ad strictly inside would leave two
+    pieces, and a clip is one stretch of audio, so there is no clip."""
+    for a, b in sorted(ads):
+        if b <= start or a >= end:
+            continue
+        if a <= start:
+            start = b
+        elif b >= end:
+            end = a
+        else:
+            return None
+    return (start, end) if end > start else None
+
+
 def build_clip(
-    quotes: Sequence[AppQuote], segments: Sequence[Segment] | None, config: MomentsConfig
+    quotes: Sequence[AppQuote],
+    segments: Sequence[Segment] | None,
+    config: MomentsConfig,
+    ads: Sequence[tuple[int, int]] = (),
+    turn_starts: AbstractSet[int] = frozenset(),
 ) -> tuple[int, int, str] | None:
-    """The clip for one insight: ``(start_ms, end_ms, text)``, or None with no timed quote."""
+    """The clip for one insight: ``(start_ms, end_ms, text)``, or None with no timed quote.
+
+    ``turn_starts`` are where a different speaker begins (``episode_turn_starts``): the extension
+    to the target length never crosses one, so the clip is the person making the point — the next
+    voice was a sponsor credit or a host-read ad as often as a question (2026-10-12).
+
+    ``ads`` are the episode's ad stretches (``app_episode_search.episode_ad_spans``). A short
+    listen never plays one (operator 2026-10-12: a clip ran on into "we'll be right back after a
+    word from our sponsors"): a quote inside an ad is no moment, the lead-in and the extension to
+    the target length stop at an ad, and what is left of the clip is cut clear of it."""
     timed = _timed(quotes)
     if not timed:
         return None
     cap = int(config.clip_max_seconds * 1000)
     first = timed[0]
     start, end = int(first.start_ms or 0), int(first.end_ms or 0)
+    mid = (start + end) // 2
+    if any(a <= mid < b for a, b in ads):
+        return None
     if config.clip_rule == "first_quote":
-        end = min(end, start + cap)
-        return start, end, first.text
+        cleared = _clear_of_ads(start, min(end, start + cap), ads)
+        return (*cleared, first.text) if cleared else None
 
     merge_gap = int(config.clip_merge_gap_seconds * 1000)
     covered = [first]
@@ -174,23 +212,28 @@ def build_clip(
 
     segs = sorted(segments or [], key=lambda s: s[0])
     if not segs:
-        end = min(end, start + cap)
-        return start, end, " ".join(q.text for q in covered)
+        cleared = _clear_of_ads(start, min(end, start + cap), ads)
+        return (*cleared, " ".join(q.text for q in covered)) if cleared else None
 
     lead = int(config.clip_lead_max_seconds * 1000)
     holder = next((s for s in reversed(segs) if s[0] <= start), None)
-    if holder is not None and start - holder[0] <= lead:
+    if holder is not None and start - holder[0] <= lead and not _overlaps(holder[0], start, ads):
         start = holder[0]
     tail = next((s for s in segs if s[0] < end <= s[1]), None)
-    if tail is not None and tail[1] - start <= cap:
+    if tail is not None and tail[1] - start <= cap and not _overlaps(end, tail[1], ads):
         end = tail[1]
     target = int(config.clip_min_target_seconds * 1000)
     for s in segs:
         if end - start >= target:
             break
         if s[0] >= end - 1 and s[1] - start <= cap:
+            if _overlaps(end, s[1], ads) or s[0] in turn_starts:
+                break  # an ad, or someone else: the clip ends where the point does
             end = s[1]
-    end = min(end, start + cap)
+    cleared = _clear_of_ads(start, min(end, start + cap), ads)
+    if cleared is None:
+        return None
+    start, end = cleared
     return start, end, _segments_text(segs, start, end)
 
 
@@ -214,7 +257,11 @@ def _topic_links(artifact: dict[str, Any]) -> dict[str, set[str]]:
 
 
 def score_candidates(
-    artifact: Any, config: MomentsConfig, segments: Sequence[Segment] | None = None
+    artifact: Any,
+    config: MomentsConfig,
+    segments: Sequence[Segment] | None = None,
+    ads: Sequence[tuple[int, int]] = (),
+    turn_starts: AbstractSet[int] = frozenset(),
 ) -> list[Moment]:
     """Every insight that could be a moment, in the player's order, with its clip and score.
     Candidates are exactly the insights the Brief shows (``insights_from_gi`` with the episode
@@ -224,7 +271,7 @@ def score_candidates(
         return []
     insights: list[AppInsight] = insights_from_gi(artifact, unattributed_fallback=True)
     links = _topic_links(artifact)
-    clips = {ins.id: build_clip(ins.quotes, segments, config) for ins in insights}
+    clips = {ins.id: build_clip(ins.quotes, segments, config, ads, turn_starts) for ins in insights}
     candidates = [ins for ins in insights if clips[ins.id] is not None]
 
     # Centrality: how many CANDIDATES share each topic, normalised by the most-shared topic.
@@ -306,11 +353,13 @@ def pick_moments(
     duration_seconds: float | None,
     config: MomentsConfig | None = None,
     segments: Sequence[Segment] | None = None,
+    ads: Sequence[tuple[int, int]] = (),
+    turn_starts: AbstractSet[int] = frozenset(),
 ) -> list[Moment]:
     """The episode's moments, in timeline order. ``duration_seconds`` unknown (None or 0) falls
     back to the end of the last clip, which under-counts a long tail but never invents length."""
     cfg = config or MomentsConfig()
-    scored = score_candidates(artifact, cfg, segments)
+    scored = score_candidates(artifact, cfg, segments, ads, turn_starts)
     if not scored:
         return []
     duration = duration_seconds or max(m.end_ms for m in scored) / 1000.0
@@ -323,7 +372,8 @@ def pick_moments(
 
 def has_moments(artifact: Any) -> bool:
     """Whether :func:`pick_moments` returns any moment: some insight the Brief shows has a timed
-    quote. Segments only shape a clip, never whether there is one, so they are not needed here."""
+    quote. Segments only shape a clip, so they are not needed here. One case it does not see: an
+    episode whose every timed insight sits inside an ad has no moment to play (``build_clip``)."""
     return any(_timed(ins.quotes) for ins in insights_from_gi(artifact, unattributed_fallback=True))
 
 

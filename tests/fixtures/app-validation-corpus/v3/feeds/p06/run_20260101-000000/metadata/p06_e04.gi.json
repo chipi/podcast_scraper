@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "insight:21f802caea7735e7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "insight:838e5efad224f1fa",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
+      "to": "insight:85bb240e9fb93139",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-3158b8ff3e943b1e",
       "to": "topic:cultural-drift",
       "type": "MENTIONS"
     },
@@ -16,34 +31,24 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "topic:long-form",
-      "type": "MENTIONS"
+      "from": "insight:21f802caea7735e7",
+      "to": "person:jordan-park",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
+      "from": "insight:838e5efad224f1fa",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
+      "from": "insight:85bb240e9fb93139",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
     },
     {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "insight:838e5efad224f1fa",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "insight:213c5627bf76ce4d",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-3158b8ff3e943b1e",
-      "to": "insight:21f802caea7735e7",
-      "type": "HAS_INSIGHT"
+      "from": "quote:69502688d98f7547",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
     },
     {
       "from": "quote:afac168fb85c7494",
@@ -51,74 +56,24 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:c88eb1437947e943",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:21f802caea7735e7",
+      "to": "quote:69502688d98f7547",
+      "type": "SUPPORTED_BY"
+    },
+    {
       "from": "insight:838e5efad224f1fa",
       "to": "quote:afac168fb85c7494",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:73234cd2315ed12f",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:213c5627bf76ce4d",
-      "to": "quote:73234cd2315ed12f",
+      "from": "insight:85bb240e9fb93139",
+      "to": "quote:c88eb1437947e943",
       "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7404710616f76471",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:21f802caea7735e7",
-      "to": "quote:7404710616f76471",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b83aeebf656958a8",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:838e5efad224f1fa",
-      "to": "quote:b83aeebf656958a8",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:4769264846037ca1",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:213c5627bf76ce4d",
-      "to": "quote:4769264846037ca1",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:6a5d7b578de9ad80",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:21f802caea7735e7",
-      "to": "quote:6a5d7b578de9ad80",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:838e5efad224f1fa",
-      "to": "person:cam",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:213c5627bf76ce4d",
-      "to": "person:jordan-park",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:21f802caea7735e7",
-      "to": "person:cam",
-      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-3158b8ff3e943b1e",
@@ -157,27 +112,6 @@
       "type": "Topic"
     },
     {
-      "id": "topic:long-form",
-      "properties": {
-        "label": "long-form"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
       "id": "insight:838e5efad224f1fa",
       "properties": {
         "episode_id": "ep-3158b8ff3e943b1e",
@@ -192,7 +126,7 @@
       "type": "Insight"
     },
     {
-      "id": "insight:213c5627bf76ce4d",
+      "id": "insight:21f802caea7735e7",
       "properties": {
         "episode_id": "ep-3158b8ff3e943b1e",
         "grounded": false,
@@ -200,13 +134,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
+        "text": "Let me give you the version I actually believe. You can't grip drift; you can only notice it. I've watched this pattern hold across three different teams.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:21f802caea7735e7",
+      "id": "insight:85bb240e9fb93139",
       "properties": {
         "episode_id": "ep-3158b8ff3e943b1e",
         "grounded": true,
@@ -214,7 +148,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Let me give you the version I actually believe. You can't grip drift; you can only notice it. I've watched this pattern hold across three different teams.",
+        "text": "So, like, yeah \u2014 that's kind of where I land too.",
         "tier": 2
       },
       "type": "Insight"
@@ -241,28 +175,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:cam",
-      "properties": {
-        "name": "Cam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:73234cd2315ed12f",
-      "properties": {
-        "char_end": 740,
-        "char_start": 640,
-        "episode_id": "ep-3158b8ff3e943b1e",
-        "speaker_id": "person:speaker-01",
-        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p06_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:7404710616f76471",
+      "id": "quote:69502688d98f7547",
       "properties": {
         "char_end": 908,
         "char_start": 754,
@@ -276,43 +189,22 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b83aeebf656958a8",
+      "id": "person:cam",
       "properties": {
-        "char_end": 1247,
-        "char_start": 1146,
-        "episode_id": "ep-3158b8ff3e943b1e",
-        "speaker_id": "person:speaker-01",
-        "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of cultural drift?",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
-        "transcript_ref": "transcripts/p06_e04.txt"
+        "name": "Cam"
       },
-      "type": "Quote"
+      "type": "Person"
     },
     {
-      "id": "quote:4769264846037ca1",
+      "id": "quote:c88eb1437947e943",
       "properties": {
-        "char_end": 1437,
-        "char_start": 1261,
-        "episode_id": "ep-3158b8ff3e943b1e",
-        "speaker_id": "person:speaker-02",
-        "text": "It comes down to this: Culture is a system that never sits still. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
-        "transcript_ref": "transcripts/p06_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:6a5d7b578de9ad80",
-      "properties": {
-        "char_end": 1536,
-        "char_start": 1443,
+        "char_end": 1714,
+        "char_start": 1665,
         "episode_id": "ep-3158b8ff3e943b1e",
         "speaker_id": "person:speaker-01",
-        "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
-        "timestamp_end_ms": 78000,
-        "timestamp_start_ms": 72000,
+        "text": "So, like, yeah \u2014 that's kind of where I land too.",
+        "timestamp_end_ms": 90000,
+        "timestamp_start_ms": 84000,
         "transcript_ref": "transcripts/p06_e04.txt"
       },
       "type": "Quote"

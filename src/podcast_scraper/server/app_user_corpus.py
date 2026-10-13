@@ -123,12 +123,13 @@ def followed_show_ids(data_dir: Path, user_id: str) -> set[str]:
 
 
 def world_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
-    """Every EPISODE in the listener's own world — what search "Mine" filters to (2026-10-09).
+    """Every EPISODE in the listener's own world — what "Mine" filters episodes to (ADR-162).
 
-    Heard or captured from (:func:`experienced_episode_set`), saved (:func:`saved_episode_set`), or
-    an episode of a show they follow. A saved SHOW does not pull its episodes in: a save is a
-    bookmark, a follow is a subscription. The one meaning of "mine" per kind of item is
-    ADR-162.
+    Heard or captured from (:func:`experienced_episode_set`), saved (:func:`saved_episode_set`), an
+    episode of a show they follow, or an episode about an interest they follow
+    (:func:`followed_interest_episodes`). A saved SHOW does not pull its episodes in: a save is a
+    bookmark, a follow is a subscription — and following a topic, person, theme or storyline is a
+    subscription too, which is how the interests picker seeds Mine (ADR-163 §6, 2026-10-11).
     """
     episodes = experienced_episode_set(root, data_dir, user_id) | saved_episode_set(
         data_dir, user_id
@@ -138,7 +139,54 @@ def world_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
         episodes |= {
             slug_for_row(r) for r in cached_catalog(root) if (r.feed_id or "").strip() in follows
         }
-    return episodes
+    return episodes | followed_interest_episodes(root, data_dir, user_id)
+
+
+#: A followed interest reaching at least this share of episodes is an umbrella (#1669): following
+#: it must not pull the whole corpus into Mine. ONE constant for the app — the same one the lists
+#: of what something is about use (``app_umbrellas``, 2026-10-12).
+from podcast_scraper.server.app_umbrellas import UMBRELLA_TOPIC_SHARE  # noqa: E402
+
+
+def followed_interest_episodes(root: Path, data_dir: Path, user_id: str) -> set[str]:
+    """Episodes about what the listener follows: a followed topic or person, or the member topics
+    of a followed theme (``tc:``) or storyline (``thc:``) less any umbrella member. A followed
+    interest whose episodes reach ``UMBRELLA_TOPIC_SHARE`` of the corpus is left out — one umbrella
+    topic, or a cluster whose members together cover nearly everything. Read from the search sidecar
+    (``interest_episode_index``), so it costs no knowledge-graph load; empty without one."""
+    from podcast_scraper.search.storylines import storyline_map_by_topic
+    from podcast_scraper.search.topic_clusters import theme_map_by_topic
+
+    followed = [str(t) for t in app_user_state.get_interests(data_dir, user_id) if str(t)]
+    if not followed:
+        return set()
+    members: dict[str, set[str]] = {}
+    if any(t.startswith(("tc:", "thc:")) for t in followed):
+        for tid, info in theme_map_by_topic(root).items():
+            members.setdefault(str(info.get("cluster_id") or ""), set()).add(tid)
+        for tid, info in storyline_map_by_topic(root).items():
+            members.setdefault(str(info.get("storyline_id") or ""), set()).add(tid)
+    from podcast_scraper.server.app_discover_view import interest_episode_index
+
+    index = interest_episode_index(root)
+    rows = cached_catalog(root)
+    ceiling = UMBRELLA_TOPIC_SHARE * len(rows)
+    paths: set[str] = set()
+    for token in followed:
+        if token.startswith(("topic:", "person:")):
+            reach = set(index.get(token, set()))
+        elif token.startswith(("tc:", "thc:")):
+            # Its umbrella members first (they would sink the whole cluster), then its reach.
+            narrow = [index.get(t, set()) for t in members.get(token, set())]
+            reach = set().union(*(h for h in narrow if len(h) < ceiling))
+        else:
+            continue
+        if rows and len(reach) >= ceiling:
+            continue  # an umbrella: following it would make Mine everyone's
+        paths |= reach
+    if not paths:
+        return set()
+    return {slug_for_row(r) for r in rows if r.metadata_relative_path in paths}
 
 
 def personal_show_ids(root: Path, data_dir: Path, user_id: str) -> set[str]:

@@ -39,6 +39,12 @@ from ...exceptions import (
 from ...languages import transcription_language
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ..capabilities import ProviderCapabilities
+from ..common.summary_use_case import (
+    build_use_case_document,
+    SummaryUseCase,
+    use_case_from_params,
+    use_case_prompt_metadata,
+)
 from . import speaker_detection, summarizer
 from .model_registry import ModelRegistry
 from .whisper_utils import normalize_whisper_model_name
@@ -1231,6 +1237,26 @@ class MLProvider:
     # SummarizationProvider Protocol Implementation
     # ============================================================================
 
+    def _build_use_case_document(self, use_case: SummaryUseCase) -> Tuple[str, str]:
+        """The use case's material written as prose (its ``document_prompt``), resolved under
+        ``transformers/`` with the ``shared/`` fallback, as every prompt is (RFC-127)."""
+        return build_use_case_document("transformers", use_case)
+
+    def _use_case_input(
+        self, use_case: SummaryUseCase, params: Optional[Dict[str, Any]]
+    ) -> Tuple[str, Dict[str, Any]]:
+        """``(text, params)`` for ``summarize``: the document, and the use case's budget on both
+        the single-pass cap (``max_length``) and the reduce cap. The material is not a transcript,
+        so no transcript cleaning (``cleaning_none``)."""
+        document, _name = self._build_use_case_document(use_case)
+        run = {k: v for k, v in (params or {}).items() if k != "use_case"}
+        run.update(
+            max_length=use_case.max_length,
+            reduce_max_new_tokens=use_case.max_length,
+            preprocessing_profile="cleaning_none",
+        )
+        return document, run
+
     def summarize(  # noqa: C901
         self,
         text: str,
@@ -1278,6 +1304,13 @@ class MLProvider:
                 provider="MLProvider/Transformers",
                 capability="summarization",
             )
+
+        # RFC-127: a summary other than the episode's (a board's). BART/LED follow no instructions,
+        # so the use case's material, written as prose, is the document this same map/reduce
+        # summarises, within the use case's budget; absent, this is the episode summary as before.
+        use_case = use_case_from_params(params)
+        if use_case is not None:
+            text, params = self._use_case_input(use_case, params)
 
         mode_id = getattr(self.cfg, "summary_mode_id", None)
         mode_cfg = None
@@ -1602,6 +1635,10 @@ class MLProvider:
                         "preprocessing_profile": preprocessing_profile,
                     }
                 )
+
+            prompts = use_case_prompt_metadata("transformers", use_case, kind="document")
+            if prompts is not None:  # a use case records its template, as on every provider
+                metadata["prompts"] = prompts
 
             result_dict: Dict[str, Any] = {
                 "summary": summary_text,

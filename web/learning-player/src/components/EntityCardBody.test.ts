@@ -131,10 +131,16 @@ describe("EntityCardBody — Back (operator 2026-10-04)", () => {
     expect(w.text()).toContain("AI")
     expect(body.scrollTop, "the topic opened at the person's offset, not its own top").toBe(0)
 
-    await w.find('[data-testid="ec-dismiss"]').trigger("click")
+    // A sheet drilled in keeps its ✕ (closes the sheet) and gains ‹ (back one level), operator
+    // 2026-10-11: every sheet has an ✕.
+    expect(w.get('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Close")
+    await w.find('[data-testid="ec-back"]').trigger("click")
     await flushPromises()
     expect(w.text()).toContain("Jane Doe")
     expect(body.scrollTop).toBe(480)
+    expect(w.find('[data-testid="ec-back"]').exists()).toBe(false) // back at the root: ✕ only
+    await w.get('[data-testid="ec-dismiss"]').trigger("click")
+    expect(w.emitted("close")).toHaveLength(1)
   })
 })
 

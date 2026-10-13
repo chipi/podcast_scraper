@@ -48,7 +48,11 @@ final class ScreenshotTourTests: UITestCase {
     // roots, and a regression can hit one without touching the other.
     "t22a-topic-sheet", "t22b-person-over-topic", "t22c-storyline-over-topic",
     "t22d-person-over-storyline-over-topic",
-    "t23-saved-row", "t24-colour-popover", "t25-home-offline", "t26-home-final",
+    "t23-saved-row", "t24-colour-popover",
+    // The lists an episode row's controls live on, and a short listen (2026-10-12): an extra
+    // control wrapped every row onto a second line and no frame showed it.
+    "t27-queue", "t28-explore", "t29-explore-lower", "t30-short-listen",
+    "t25-home-offline", "t26-home-final",
   ]
 
   /// People who appear as top-voice chips in the fixture corpus. Named explicitly because those
@@ -57,17 +61,54 @@ final class ScreenshotTourTests: UITestCase {
     "Dr. Elena Fischer", "Sam", "Skanda Amarnath", "Alex Morgan",
   ]
 
-  /// Tap a chip in the Episode notes' "Topics & People" section. The section is a <details> that is
+  /// Tap a chip in the Brief' "Topics & People" section. The section is a <details> that is
   /// open by default and REMEMBERS being closed, so: scroll to the chip; only if it is not there,
   /// open the header and look again. Tapping the header first is what closed it (2026-10-08).
+  /// Tap the first HITTABLE button whose label matches, scrolling the top sheet until one is.
+  ///
+  /// Two traps the stacking frames hit (2026-10-12): iOS keeps off-screen nodes in the tree, so
+  /// "exists" is not "on screen"; and the layers under a sheet (the episode page, the Brief) carry
+  /// buttons with the SAME names, so `firstMatch` picked one of those — a person chip at y=-1096 —
+  /// the tap landed on nothing, and four "stacked over the topic" frames were all the Brief.
+  private static func tapReachable(
+    _ app: XCUIApplication, _ predicate: NSPredicate, swipes: Int = 8
+  ) -> Bool {
+    for attempt in 0...swipes {
+      let matches = app.buttons.matching(predicate)
+      for k in 0..<min(matches.count, 24) {
+        let el = matches.element(boundBy: k)
+        if el.exists && el.isHittable {
+          el.tap()
+          return true
+        }
+      }
+      if attempt < swipes {
+        app.swipeUp()
+        sleep(1)
+      }
+    }
+    print("=====UNREACHABLE \(predicate.predicateFormat)=====")
+    return false
+  }
+
+  private static func exactly(_ labels: [String]) -> NSPredicate {
+    NSPredicate(format: "label IN %@", labels)
+  }
+
   private static func openFromTopicsAndPeople(_ app: XCUIApplication, _ labels: [String]) -> Bool {
-    _ = Journey.scrollTo(app, labels: labels, maxSwipes: 10)
-    if Journey.tap(app, labels: labels, contains: true, timeout: 4) { return true }
-    _ = Journey.scrollTo(app, labels: ["Topics & People"], maxSwipes: 10)
-    _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 4)
-    sleep(2)
-    _ = Journey.scrollTo(app, labels: labels, maxSwipes: 10)
-    return Journey.tap(app, labels: labels, contains: true, timeout: 6)
+    // EXACT names: "Open reliability" must not match "Open reliability trade offs".
+    if !app.buttons.matching(exactly(labels)).firstMatch.waitForExistence(timeout: 4) {
+      _ = Journey.scrollTo(app, labels: ["Topics & People"], maxSwipes: 10)
+      _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 4)
+      sleep(2)
+    }
+    // The section shows five chips and folds the rest behind "+N more" (2026-10-07).
+    if !app.buttons.matching(exactly(labels)).firstMatch.exists {
+      _ = tapReachable(
+        app, NSPredicate(format: "label BEGINSWITH '+' AND label ENDSWITH 'more'"), swipes: 4)
+      sleep(1)
+    }
+    return tapReachable(app, exactly(labels))
   }
 
   private var shotFrames: Set<String> = []
@@ -102,8 +143,9 @@ final class ScreenshotTourTests: UITestCase {
     frame("t01-home")
 
     if Journey.openTab(app, "Discover") { sleep(5); frame("t02-discover") }
-    // Search from Discover's box: phones have no Search tab and no header magnifier (2026-09-30).
-    if Journey.searchFromDiscover(app, "risk") { sleep(4); frame("t03-search") }
+    // Search from Explore's box: phones have no Search tab and no header magnifier (2026-09-30),
+    // and the box left Discover for Explore with the Discover arc.
+    if Journey.searchFromExplore(app, "risk") { sleep(4); frame("t03-search") }
 
     // --- library, every tab -------------------------------------------------------------------
     if Journey.openTab(app, "Library") {
@@ -112,7 +154,7 @@ final class ScreenshotTourTests: UITestCase {
       _ = Journey.tap(app, labels: ["Following"], timeout: 8)
       sleep(3)
       frame("t04-library-following")
-      for (i, tab) in ["Saved", "Boards", "Revisit"].enumerated() {
+      for (i, tab) in ["Saved", "Collections", "Revisit"].enumerated() {
         if Journey.tap(app, labels: [tab], timeout: 10) {
           sleep(3)
           frame(String(format: "t0%d-library-%@", 5 + i, tab.lowercased()))
@@ -139,7 +181,7 @@ final class ScreenshotTourTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
     frame("t13-episode")
-    if Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 12) {
+    if Journey.tap(app, labels: ["Brief"], contains: false, timeout: 12) {
       sleep(4)
       frame("t14-episode-insights")
       // SCROLL to these sections, never tap their headers: they are <details> that are OPEN by
@@ -220,7 +262,7 @@ final class ScreenshotTourTests: UITestCase {
 
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(5)
-    _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
+    _ = Journey.tap(app, labels: ["Brief"], contains: false, timeout: 10)
     sleep(2)
     if Self.openFromTopicsAndPeople(app, ["Open Dr. Elena Fischer", "Open Sam"]) {
       sleep(5); frame("t21-person")
@@ -244,9 +286,12 @@ final class ScreenshotTourTests: UITestCase {
     func openTopicSheet() -> Bool {
       AppSession.openEpisode(app, slug: episodeSlug)
       sleep(5)
-      _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
+      _ = Journey.tap(app, labels: ["Brief"], contains: false, timeout: 10)
       sleep(2)
-      let opened = Self.openFromTopicsAndPeople(app, ["Open risk management", "Open systems thinking"])
+      // "reliability": a topic chip of its own in this episode's Brief, and a member of the
+      // "Second-order effects" storyline the sheets stack. Risk management and systems thinking
+      // are not chips since 2026-10-12: the Brief groups them into their storyline's chip.
+      let opened = Self.openFromTopicsAndPeople(app, ["Open reliability"])
       if opened { sleep(4) }
       return opened
     }
@@ -255,8 +300,9 @@ final class ScreenshotTourTests: UITestCase {
       frame("t22a-topic-sheet")
       // Top-voice chips are BUTTONS labelled with the bare person name (`:aria-label="p.name"`) —
       // no "Open " prefix, unlike the insights panel's rows.
-      _ = Journey.scrollTo(app, labels: ["Top voices"], maxSwipes: 6)
-      if Journey.tap(app, labels: Self.fixturePeople, contains: false, timeout: 8) {
+      // reliability's own top voices first: the fixture people are also names on the layers
+      // under the sheet, so matching only them tapped one of those and nothing opened.
+      if Self.tapReachable(app, Self.exactly(["Ethan", "Nora", "Renee Montagne-Park"] + Self.fixturePeople)) {
         sleep(5)
         frame("t22b-person-over-topic")
       }
@@ -264,16 +310,14 @@ final class ScreenshotTourTests: UITestCase {
     Journey.dismissSheets(app)
 
     if openTopicSheet() {
-      _ = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 6)
-      if Journey.tap(app, labels: ["Managing risk across domains"], contains: true, timeout: 10) {
+      // reliability's storyline (since 2026-10-12; the tour used to open risk management's).
+      if Self.tapReachable(app, NSPredicate(format: "label CONTAINS[c] 'Second-order effects'")) {
         sleep(5)
         frame("t22c-storyline-over-topic")
 
         // Three deep, and the point of the whole exercise: a boolean "is nested" flag can express
         // level 1 and nothing beyond it. Each card below has to keep its title on screen.
-        _ = Journey.scrollTo(app, labels: ["Topics discussed together", "Related people"],
-                             maxSwipes: 6)
-        if Journey.tap(app, labels: Self.fixturePeople, contains: false, timeout: 8) {
+        if Self.tapReachable(app, Self.exactly(Self.fixturePeople)) {
           sleep(5)
           frame("t22d-person-over-storyline-over-topic")
         }
@@ -293,6 +337,37 @@ final class ScreenshotTourTests: UITestCase {
       if Journey.tap(app, labels: ["Colour", "Color"], contains: false, timeout: 8) {
         sleep(3); frame("t24-colour-popover")
       }
+    }
+
+    // --- Queue, Explore and a short listen (2026-10-12) --------------------------------------------
+    // Every list of episode rows gets a frame: a download button added to every row (2026-10-11)
+    // wrapped them all onto a second line on a device, and the tour photographed none of them.
+    Journey.dismissSheets(app)
+    Journey.openTab(app, "Home")
+    sleep(3)
+    // "Queue (2)": the badge's count is part of the icon's name (#1592), so match its start.
+    if Journey.tap(app, labels: ["Queue ("], contains: true, timeout: 10)
+      || Journey.tap(app, labels: ["Queue"], contains: false, timeout: 4) {
+      sleep(4)
+      frame("t27-queue")
+    }
+    Journey.dismissSheets(app)
+    if Journey.openTab(app, "Explore") {
+      sleep(5)
+      frame("t28-explore")
+      for _ in 0..<3 {
+        app.swipeUp()
+        sleep(1)
+      }
+      sleep(2)
+      frame("t29-explore-lower")
+    }
+    Journey.openTab(app, "Discover")
+    sleep(5)
+    _ = Journey.scrollTo(app, labels: ["minute on", "minutes on"], maxSwipes: 6)
+    if Journey.tap(app, labels: ["minute on", "minutes on"], contains: true, timeout: 8) {
+      sleep(5)
+      frame("t30-short-listen")
     }
 
     // --- offline, with the cache already warmed by everything above ----------------------------

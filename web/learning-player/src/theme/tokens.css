@@ -52,6 +52,13 @@
   /* Knowledge-layer domain tokens (provenance cues — not generic UI intents). */
   --lp-grounded: #9fb8a4;
 
+  /* The two ways to listen to a subject (operator 2026-10-11): "▶ 15 min on this" and "Learn this in
+     7 days" must read as two different options, and neither as Follow (the accent). ALIASES, so
+     every direction adapts them for free: the reel takes the categorical emerald and the path the
+     categorical pink, which no kind or intent uses (the sage `grounded` read as grey beside them). */
+  --lp-listen: var(--lp-cat-3);
+  --lp-learn: var(--lp-cat-5);
+
   /* Insight types (#2004 item 8, second pass).
 
      FOUR marks that must be told apart at a glance in a list that can hold 36 of them.

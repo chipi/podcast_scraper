@@ -237,12 +237,12 @@ test('home: the queue is reachable beside Resume', async ({ page }) => {
 
 // --- Discover ------------------------------------------------------------------------------- //
 
-test('discover: "all" expands the trends list in place', async ({ page }) => {
+test('explore: "Show more" pages the trends list on from the server', async ({ page }) => {
   await signIn(page)
-  await page.goto('/browse')
-  const seeAll = page.locator('[data-testid="discovery-see-all"]')
+  await page.goto('/explore')
+  const seeAll = page.locator('[data-testid="discovery-explorer"] [data-testid="show-all-toggle"]')
   if (!(await seeAll.count())) {
-    test.skip(true, 'fewer trend rows than the cap — the expand control correctly does not render')
+    test.skip(true, 'fewer trend rows than the first page — the control correctly does not render')
   }
   await shootNear(page, page.locator('[data-testid="discovery-explorer"]'), 'trends-all-collapsed')
   await seeAll.click()
@@ -251,7 +251,7 @@ test('discover: "all" expands the trends list in place', async ({ page }) => {
 
 test('discover: the episodes load-more matches the shows one', async ({ page }) => {
   await signIn(page)
-  await page.goto('/browse?tab=episodes')
+  await page.goto('/catalog')
   const more = page.locator('[data-testid="catalog-load-more"]')
   if (!(await more.count())) test.skip(true, 'corpus fits on one page — no load-more to shoot')
   await shootNear(page, more, 'episodes-load-more')
@@ -271,14 +271,6 @@ test('topic: the conversation arc sits under the activity sparkline', async ({ p
     test.skip(true, 'no conversation arc for this topic — shot the sparkline alone')
   }
   await shootSpan(page, spark, arc, 'topic-charts-stacked')
-})
-
-test('topic: similar topics excludes the topic you are on', async ({ page }) => {
-  await signIn(page)
-  await openTopicCard(page)
-  const chips = page.locator('[data-testid="ec-similar-topic"]')
-  if (!(await chips.count())) test.skip(true, 'this topic has no siblings')
-  await shootNear(page, chips.first().locator('xpath=../..'), 'similar-topics-no-self')
 })
 
 test('topic: strongest shows carry artwork', async ({ page }) => {

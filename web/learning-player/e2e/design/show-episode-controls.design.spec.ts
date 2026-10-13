@@ -71,7 +71,7 @@ test('shows and episodes on one page share one place for controls', async ({ pag
   await page.screenshot({ path: shot('home-whats-new'), fullPage: false })
 
   // 3. Discover › Shows, list view
-  await page.goto('/browse?tab=shows')
+  await page.goto('/shows')
   await settle(page)
   await page.getByTestId('show-view').click()
   await page.getByTestId('show-view-opt-list').click()

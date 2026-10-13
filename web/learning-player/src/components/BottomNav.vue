@@ -75,9 +75,12 @@ function tabLabel(name: string): string {
  * the magnifier left the phone header on 2026-09-30 for lack of room. Removing Discover from this
  * bar, or its search box, would re-open #1588 on phones.
  */
+// Explore has its own tab (operator 2026-10-11): it is a full page — Trends and the Episodes ·
+// Shows catalog — not a corner of Discover, which keeps "what to hear next" (ADR-163 §1).
 const TABS = [
   { name: 'home', label: 'nav.home' },
   { name: 'browse', label: 'nav.browse' },
+  { name: 'explore', label: 'nav.explore' },
   { name: 'library', label: 'library.title' },
 ] as const
 
@@ -97,7 +100,7 @@ function target(name: string): { name: string; query?: Record<string, string> } 
 /* Route ownership is shared with the desktop masthead — see utils/navOwnership.ts. */
 
 /** Highlight by the routes the tab OWNS, not the resolved target, so a gated tab still reads active. */
-const isActive = (name: string): boolean => ownsRoute(name, route.name as string | undefined)
+const isActive = (name: string): boolean => ownsRoute(name, route.name as string | undefined, route.params)
 </script>
 
 <template>
@@ -123,6 +126,10 @@ const isActive = (name: string): boolean => ownsRoute(name, route.name as string
             <template v-else-if="tab.name === 'browse'">
               <circle cx="12" cy="12" r="10" />
               <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+            </template>
+            <template v-else-if="tab.name === 'explore'">
+              <path d="m3.5 13.5 11-5.5 2 4-11 5.5z" /><path d="m16.5 7.5 3-1.5 2 4-3 1.5" />
+              <path d="m10 14.5-3 6.5" /><path d="m10 14.5 3 6.5" />
             </template>
             <template v-else-if="tab.name === 'library'">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />

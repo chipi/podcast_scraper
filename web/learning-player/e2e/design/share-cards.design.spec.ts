@@ -44,7 +44,7 @@ for (const [name, path] of [
   ['topic', '/topic/topic:risk-management'],
   ['person', '/person/person:nora'],
   ['storyline', '/storyline/topic:risk-management'],
-  ['theme', '/theme/tc:broadcast-format'],
+  ['theme', '/theme/tc:public-radio'],
 ] as const) {
   test(name, async ({ page }) => {
     await page.goto(path)

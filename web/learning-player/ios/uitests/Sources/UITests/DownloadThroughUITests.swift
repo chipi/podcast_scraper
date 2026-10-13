@@ -54,6 +54,17 @@ final class DownloadThroughUITests: UITestCase {
     download(app, slug: first.slug, title: first.title)
     download(app, slug: second.slug, title: second.title)
 
+    // QUEUE THE EPISODES THIS TEST DOWNLOADED, and prove the queue holds them (2026-10-11).
+    //
+    // The queue step used to run on the PLAYER page and tap the first "Add to queue" it found. The
+    // player has no queue control for its own episode, so that was always a "More like this"
+    // recommendation's toggle: the test queued an episode it never named and its flip check
+    // ("Remove from queue" anywhere on screen) could not tell. Now each title is queued from its
+    // OWN row on the show page, and the queue page must list both, in the order they were added.
+    openShow(app, feed: "p06")
+    for ep in [first, second] { queueFromItsRow(app, title: ep.title) }
+    assertQueueHolds(app, [first.title, second.title])
+
     // The end state, asserted by TITLE — unique per episode, so unlike the label-only download
     // states it cannot be satisfied by some other episode that happened to be downloaded already.
     var libTries = 0
@@ -116,7 +127,7 @@ final class DownloadThroughUITests: UITestCase {
     show.tap()
   }
 
-  /// Open one episode, tap Download, wait for the app to report it stored, and queue it.
+  /// Open one episode, tap Download, and wait for the app to report it stored.
   private func download(_ app: XCUIApplication, slug: String, title: String) {
     AppSession.openEpisode(app, slug: slug)
     XCTAssertTrue(
@@ -129,8 +140,7 @@ final class DownloadThroughUITests: UITestCase {
     //
     // The test was looking in the right place for where the button used to be. How the scope is
     // replaced is argued at the query below.
-    let trigger = Journey.control(app, label: "More actions")
-    guard trigger.waitForExistence(timeout: 20) else {
+    guard Journey.control(app, label: "More actions").waitForExistence(timeout: 20) else {
       // The failure MESSAGE carries the diagnosis, not a `print`.
       //
       // This guard used to dump `app.debugDescription` to stdout, and xcodebuild does not reliably
@@ -149,10 +159,10 @@ final class DownloadThroughUITests: UITestCase {
       )
       return
     }
-    trigger.tap()
+    pageOverflow(app).tap()
 
     // `role="menuitem"` maps to MenuItem, not Button — see `Journey.control`.
-    let already = Journey.control(app, label: "Downloaded — tap to remove")
+    let already = menuItem(app, "Downloaded — tap to remove")
     if already.waitForExistence(timeout: 10) {
       already.tap()
       // Removal deletes the file and rewrites the registry; give it room, and CONFIRM the control
@@ -163,8 +173,8 @@ final class DownloadThroughUITests: UITestCase {
       // `<DownloadButton variant="menuitem" @activated="close" />`, so activating an item CLOSES
       // the panel by design. The control we then waited 30s for was not slow, it was off-screen.
       _ = Journey.control(app, label: "More actions").waitForExistence(timeout: 10)
-      Journey.control(app, label: "More actions").tap()
-      if !Journey.control(app, label: "Download for offline").waitForExistence(timeout: 30) {
+      pageOverflow(app).tap()
+      if !menuItem(app, "Download for offline").waitForExistence(timeout: 30) {
         print("=====REMOVE_TREE_START====="); print(app.debugDescription); print("=====REMOVE_TREE_END=====")
         XCTFail("removing the existing download never restored the Download control for \(title)")
         return
@@ -186,18 +196,25 @@ final class DownloadThroughUITests: UITestCase {
     // wrong twice over for web content: the menu variant carries `role="menuitem"` so it is not a
     // Button, and `identifier` maps from `accessibilityIdentifier`, which the DOM does not set —
     // the accessible NAME is what `aria-label` produces. See `Journey.control`.
+    //
+    // ABOVE THE TRANSPORT only (2026-10-11). Download became a first-level action on every episode
+    // CARD, so the "More like this" cards under the player each carry a "Download for offline"
+    // control for their own episode — six of them. This episode's is the one in its ⋯ menu, which
+    // drops down above the transport; count those: still exactly one, and a second would say so.
     let candidates = app.descendants(matching: .any)
       .matching(NSPredicate(format: "label == %@", "Download for offline"))
+      .allElementsBoundByIndex
+      .filter { $0.exists && $0.isHittable && $0.frame.maxY <= aboveTransport(app) }
     if candidates.count > 1 {
       print("=====AMBIGUOUS_DOWNLOAD_TREE_START====="); print(app.debugDescription)
       print("=====AMBIGUOUS_DOWNLOAD_TREE_END=====")
       XCTFail(
-        "\(candidates.count) Download controls are on screen for \(title) — another surface "
-          + "(kept-alive Library → Downloaded?) is offering one too, so tapping would be a guess"
+        "\(candidates.count) Download controls are on screen above the transport for \(title) — "
+          + "another menu is open too, so tapping would be a guess"
       )
       return
     }
-    let downloadButton = candidates.firstMatch
+    let downloadButton = menuItem(app, "Download for offline")
     if !downloadButton.waitForExistence(timeout: 20) {
       print("=====NO_DOWNLOAD_CONTROL_TREE_START====="); print(app.debugDescription)
       print("=====NO_DOWNLOAD_CONTROL_TREE_END=====")
@@ -207,6 +224,11 @@ final class DownloadThroughUITests: UITestCase {
       // believe it is running natively.
       XCTFail(
         "the overflow menu opened on \(title) but carries no \"Download for offline\" control. "
+          + "Download-ish elements: \(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "download")).allElementsBoundByIndex.prefix(12).map { "\($0.elementType.rawValue)|\($0.label)|\(Int($0.frame.minY))|hit=\($0.isHittable)" }). "
+          + "Ceiling: \(Int(aboveTransport(app))). Menu items: \(app.menuItems.allElementsBoundByIndex.map { $0.label }). "
+          + "All elements: \(app.descendants(matching: .any).count). Other menu item present: "
+          + "\(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Mark as")).count). "
+          + "Last 6 labelled: \(app.descendants(matching: .any).allElementsBoundByIndex.suffix(40).map { $0.label }.filter { !$0.isEmpty }.suffix(6)). "
           + "Labelled elements on screen: \(Journey.labelledInventory(app))"
       )
       return
@@ -228,18 +250,18 @@ final class DownloadThroughUITests: UITestCase {
     ]
     var lastSeen = "<never observed>"
     for _ in 0..<9 {
-      if Journey.control(app, label: "Downloaded — tap to remove").waitForExistence(timeout: 2) {
+      if menuItem(app, "Downloaded — tap to remove").waitForExistence(timeout: 2) {
         settled = true
         break
       }
       // Re-open and read the state. A transfer in flight keeps the panel's item on "Downloading",
       // so this doubles as the progress observation.
       if Journey.control(app, label: "More actions").waitForExistence(timeout: 5) {
-        Journey.control(app, label: "More actions").tap()
+        pageOverflow(app).tap()
       }
-      let seen = states.filter { Journey.control(app, label: $0).exists }
+      let seen = states.filter { menuItem(app, $0).exists }
       if !seen.isEmpty { lastSeen = seen.joined(separator: ", ") }
-      if Journey.control(app, label: "Downloaded — tap to remove").exists {
+      if menuItem(app, "Downloaded — tap to remove").exists {
         settled = true
         break
       }
@@ -258,48 +280,110 @@ final class DownloadThroughUITests: UITestCase {
       )
       return
     }
+  }
 
-    // Queue it, so the offline auto-advance run has somewhere to advance TO.
-    // QueueButton carries `aria-pressed`, so it is not a Button to XCUITest either.
-    //
-    // THIS STEP ASSERTED NOTHING, and that is why this test's name was a lie. It read
-    // `if queue.waitForExistence(timeout: 10) { queue.tap() }` — no postcondition — and the suite
-    // made ZERO `POST /api/app/queue/items` over a container's whole lifetime while passing. Two
-    // ways it silently did nothing, both live:
-    //
-    //   1. The label is STATE-DEPENDENT. `QueueButton.vue:60` renders `queue.remove` ("Remove from
-    //      queue") once the slug is already queued, and the shared `simtest` account accumulated
-    //      across runs — so an exact match on "Add to queue" found nothing and the `if` swallowed
-    //      it. That is the immortal-account regime `app-e2e-users-reset` now clears.
-    //   2. The settle loop above re-opens the overflow panel on its last iteration and never closes
-    //      it, so the tap can land on the panel instead of the control.
-    //
-    // Downstream made it worse: the offline auto-advance suite "passed" on a queue left by earlier
-    // sessions, so the dependency this step exists to serve was fictional at both ends.
-    //
-    // Already-queued counts as success, because it is. Otherwise tap and REQUIRE the flip —
-    // `queue.has(slug)` drives the label, so "Remove from queue" on screen means the store holds it.
-    if Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 3) {
-      print("=====QUEUE \(title) was already queued; nothing to add=====")
+  /// The show page by deep link, top of its episode list in view.
+  private func openShow(_ app: XCUIApplication, feed: String) {
+    AppSession.openLink(app, "podcast/\(feed)")
+    sleep(4)
+  }
+
+  /// The queue toggle of THIS title's row, by its name: a card's controls name their episode
+  /// ("Add to queue: <title>", 2026-10-12), so the row's toggle is the one named for it. (Before,
+  /// every card's toggle was just "Add to queue" and the row had to be found by position.)
+  private func queueToggle(_ app: XCUIApplication, rowOf title: String) -> XCUIElement? {
+    let named = app.descendants(matching: .any).matching(NSPredicate(
+      format: "label == %@ OR label == %@", "Add to queue: \(title)", "Remove from queue: \(title)"
+    )).firstMatch
+    return named.exists ? named : nil
+  }
+
+  private func queueFromItsRow(_ app: XCUIApplication, title: String) {
+    guard Journey.scrollTo(app, labels: [title], contains: false) != nil,
+      let toggle = queueToggle(app, rowOf: title)
+    else {
+      XCTFail("no row with a queue toggle for \(title) on the show page. Labelled elements: "
+        + "\(Journey.labelledInventory(app, limit: 20))")
       return
     }
-    let add = Journey.control(app, label: "Add to queue")
-    guard add.waitForExistence(timeout: 10) else {
-      XCTFail(
-        "no queue control on \(title) — neither \"Add to queue\" nor \"Remove from queue\". The "
-          + "offline auto-advance suite depends on this episode being queued, and this step used to "
-          + "skip silently when the control was missing. Labelled elements: "
-          + "\(Journey.labelledInventory(app, limit: 20))"
-      )
+    var target = toggle
+    // Clear of the tab bar and a docked mini-player: the toggle sits a card's artwork below the
+    // title, so a title just in view can leave its toggle under them, and the tap lands on a tab.
+    if target.frame.maxY > app.frame.height - 180 {
+      app.swipeUp()
+      sleep(1)
+      guard let again = queueToggle(app, rowOf: title) else {
+        XCTFail("lost the row of \(title) after scrolling it clear of the tab bar"); return
+      }
+      target = again
+    }
+    if target.label.hasPrefix("Add to queue") { target.tap() }
+    // THAT row's toggle, re-read: the store drives its label, so the flip is the write confirmed.
+    var flipped = false
+    for _ in 0..<20 where !flipped {
+      flipped = queueToggle(app, rowOf: title)?.label.hasPrefix("Remove from queue") == true
+      if !flipped { usleep(500_000) }
+    }
+    XCTAssertTrue(flipped, "queued \(title) from its row and its toggle never read \"Remove from "
+      + "queue\", so the queue was not written. Labelled elements: "
+      + "\(Journey.labelledInventory(app, limit: 20))")
+  }
+
+  /// Up next lists exactly what was queued, in the order it was added.
+  private func assertQueueHolds(_ app: XCUIApplication, _ titles: [String]) {
+    for _ in 0..<8 { app.swipeDown() }
+    sleep(1)
+    guard Journey.tap(app, labels: ["Queue ("], contains: true, timeout: 15) else {
+      XCTFail("the masthead queue control was not reachable — the queue is empty or unreachable. "
+        + "Labelled elements: \(Journey.labelledInventory(app, limit: 20))")
       return
     }
-    add.tap()
-    XCTAssertTrue(
-      Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 10),
-      "tapped \"Add to queue\" on \(title) and the control never flipped to \"Remove from queue\", "
-        + "so the queue was not written. This is the assertion whose absence let a test called "
-        + "…AndQueuesThem make zero queue writes for months. Labelled elements: "
-        + "\(Journey.labelledInventory(app, limit: 20))"
-    )
+    var tops: [CGFloat] = []
+    for title in titles {
+      guard let row = Journey.scrollTo(app, labels: [title], contains: false, maxSwipes: 10) else {
+        XCTFail("\(title) was queued from its row but is not in Up next. Labelled elements: "
+          + "\(Journey.labelledInventory(app, limit: 20))")
+        return
+      }
+      tops.append(row.frame.minY)
+    }
+    XCTAssertEqual(tops, tops.sorted(), "Up next holds \(titles) out of the order they were added")
+  }
+
+  /// The PAGE's ⋯ — the topmost one on screen. Every "More like this" card under the player has a
+  /// ⋯ of its own with the same name (2026-10-11), and a card's menu carries no Download item (on a
+  /// card, Download is a button in the row), so the first match in the tree is not good enough.
+  private func aboveTransport(_ app: XCUIApplication) -> CGFloat {
+    let transport = Journey.control(app, label: "Skip back 15 seconds")
+    return transport.exists ? transport.frame.minY : app.frame.height / 2
+  }
+
+  private func pageOverflow(_ app: XCUIApplication) -> XCUIElement {
+    let all = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "More actions"))
+      .allElementsBoundByIndex
+    let onScreen = all.filter { $0.exists && $0.isHittable }
+    return onScreen.min(by: { $0.frame.minY < $1.frame.minY })
+      ?? Journey.control(app, label: "More actions")
+  }
+
+  /// This episode's download control: the item in its ⋯ menu, found by WHERE it is.
+  ///
+  /// Since 2026-10-11 every episode CARD also carries a Download control for its own episode, so
+  /// the "More like this" cards under the player offer the same names. The element TYPE cannot
+  /// separate them: the menu's `role="menuitem"` reached XCUITest as a MenuItem on one episode and
+  /// not on the next (the recording showed the menu open with the item; `app.menuItems` was empty).
+  /// Position can: the menu drops down under the page's ⋯, above the player's transport, and every
+  /// card sits below it. So: a matching element that is on screen, above the transport.
+  private func menuItem(_ app: XCUIApplication, _ label: String) -> XCUIElement {
+    let ceiling = aboveTransport(app)
+    let all = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", label))
+    let pick = all.allElementsBoundByIndex.first {
+      $0.exists && $0.isHittable && $0.frame.maxY <= ceiling
+    }
+    // Not found yet: hand back a query that never matches a card, so `waitForExistence` and
+    // `exists` keep meaning "the menu's item", and the caller's timeout does the waiting.
+    return pick ?? app.menuItems.matching(NSPredicate(format: "label == %@", label)).firstMatch
   }
 }

@@ -76,7 +76,32 @@ describe('groupBriefResults (operator 2026-10-10: C and D)', () => {
   })
 })
 
-describe('markTerms / snippetAround', () => {
+describe('a passage found by another form of the word (operator 2026-10-12)', () => {
+  it('is cut to the segment that says it, not the first segment of its range', () => {
+    const chunk = hit('c1', 'transcript', 'long passage', {
+      marks: ['diversification'],
+      timestamp_start_ms: 0,
+      timestamp_end_ms: 20_000,
+    })
+    const [p] = groupBriefResults([chunk], SEGS, 'diversify').transcript
+    expect(p.start).toBe(14)
+    expect(p.text).toContain('Diversification')
+  })
+
+  it('and when no segment in its range says it, the words come from its own text', () => {
+    const chunk = hit('c1', 'transcript', 'they spoke of diversification at length', {
+      marks: ['diversification'],
+      timestamp_start_ms: 0,
+      timestamp_end_ms: 9_000,
+    })
+    const [p] = groupBriefResults([chunk], SEGS, 'diversify').transcript
+    expect(p.segments).toEqual([])
+    expect(p.text).toContain('diversification')
+  })
+})
+
+describe('markTerms / snippetAround'
+, () => {
   it('marks whole words in any case, and nothing inside other words', () => {
     expect(markTerms('Worst week; worsted wool', ['worst', 'week'])).toEqual([
       { text: 'Worst', mark: true },

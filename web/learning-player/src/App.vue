@@ -84,6 +84,9 @@ import { artworkThumb } from './utils/episode'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
+import { watchReelProgress } from './services/reelProgress'
+import { watchMomentsHeard } from './services/momentsHeard'
+import { setShortListenProbe } from './services/captureSource'
 import { useCaptureStore } from './stores/capture'
 import { useLibraryStore } from './stores/library'
 import { useCompletedStore } from './stores/completed'
@@ -95,8 +98,9 @@ import { initDeepLinks, initNativeAuth, isNative } from './services/native'
 import { initPushTaps } from './services/pushTaps'
 
 // Bottom-nav tab views to keep mounted across navigation (matches each view's `name`). Detail views
-// are omitted so they stay fresh per-route. Keep in sync with router/index.ts tab routes.
-const KEEP_ALIVE_TABS = ['HomeView', 'SearchView', 'LibraryView', 'ProfileView', 'CatalogView', 'BrowseView']
+// are omitted so they stay fresh per-route. Keep in sync with router/index.ts tab routes. Explore
+// holds Trends and the catalog, which Discover kept alive before they moved there (ADR-163 §1).
+const KEEP_ALIVE_TABS = ['HomeView', 'SearchView', 'LibraryView', 'ProfileView', 'CatalogView', 'BrowseView', 'ExploreView']
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -105,6 +109,16 @@ const queue = useQueueStore()
 const player = usePlayerStore()
 const favorites = useFavoritesStore()
 const router = useRouter()
+// Where a short listen is, for Home's "In progress" (operator 2026-10-11).
+watchReelProgress({
+  reel: () => player.reel,
+  playing: () => player.playing,
+  left: () => player.reelLeft,
+  signedIn: () => !!auth.user,
+})
+// Short listens heard, for stats; and a highlight saved during one says so (operator 2026-10-12).
+watchMomentsHeard({ event: () => player.momentHeard, signedIn: () => !!auth.user })
+setShortListenProbe(() => !!player.reel)
 
 // Native launch overlay: shown briefly after the native splash hands off, while the app + its first
 // data load behind it (prolongs the branded splash + surfaces the build version). Native only.
@@ -580,7 +594,7 @@ const mainBottomPadding = computed(() =>
           Search is desktop-only again (operator 2026-09-30). It was hoisted out of this span on
           2026-09-20 to keep search reachable on a phone after it lost its tab, but on a phone the
           header had no room for it: "Close Listening" ran under the magnifier at 360px. A phone
-          reaches search from the Discover tab's search box (`browse-search-input`), one tap from
+          reaches search from the Explore tab's search box (`browse-search-input`, 2026-10-11), one tap from
           any screen, and from Home's box, so #1588 (search unreachable) stays closed without it.
 
           Browse lives only here, and that is fine: it is a corpus index, not a daily destination
@@ -618,6 +632,17 @@ const mainBottomPadding = computed(() =>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+          </svg>
+        </NavIconLink>
+        <NavIconLink
+          :to="{ name: 'explore' }"
+          :label="t('nav.explore')"
+          owns="explore"
+          data-testid="masthead-explore"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <path d="m3.5 13.5 11-5.5 2 4-11 5.5z" /><path d="m16.5 7.5 3-1.5 2 4-3 1.5" />
+            <path d="m10 14.5-3 6.5" /><path d="m10 14.5 3 6.5" />
           </svg>
         </NavIconLink>
         <template v-if="auth.hasSession">

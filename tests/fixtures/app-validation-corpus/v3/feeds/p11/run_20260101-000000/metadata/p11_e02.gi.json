@@ -1,13 +1,38 @@
 {
   "edges": [
     {
-      "from": "episode:ep-7ccfb108302b3faa",
-      "to": "topic:enduro-racing",
-      "type": "MENTIONS"
+      "from": "insight:112fadd20ea6ebbf",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:4e84611b8ce46a79",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:783d55bbd2848410",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-7ccfb108302b3faa",
-      "to": "topic:soil-erosion",
+      "to": "insight:112fadd20ea6ebbf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "insight:4e84611b8ce46a79",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "insight:783d55bbd2848410",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:enduro-racing",
       "type": "MENTIONS"
     },
     {
@@ -17,108 +42,53 @@
     },
     {
       "from": "episode:ep-7ccfb108302b3faa",
-      "to": "topic:endurance-sport",
+      "to": "topic:soil-erosion",
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-7ccfb108302b3faa",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-7ccfb108302b3faa",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-7ccfb108302b3faa",
-      "to": "insight:bd6f2bcd40790bd0",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-7ccfb108302b3faa",
-      "to": "insight:7c0037bb8cebdf3e",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-7ccfb108302b3faa",
-      "to": "insight:2164ecd0ff052291",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:4d3aa1af3af210cd",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bd6f2bcd40790bd0",
-      "to": "quote:4d3aa1af3af210cd",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:5ab8fb346871f7ae",
-      "to": "person:chiara-ricci",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7c0037bb8cebdf3e",
-      "to": "quote:5ab8fb346871f7ae",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:209dc10d314450df",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:2164ecd0ff052291",
-      "to": "quote:209dc10d314450df",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a711471464e81c1a",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bd6f2bcd40790bd0",
-      "to": "quote:a711471464e81c1a",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2b7d7e2a5910f66f",
-      "to": "person:chiara-ricci",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7c0037bb8cebdf3e",
-      "to": "quote:2b7d7e2a5910f66f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:3981551f0555d0d7",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:2164ecd0ff052291",
-      "to": "quote:3981551f0555d0d7",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:bd6f2bcd40790bd0",
-      "to": "person:giulia-ferrara",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:7c0037bb8cebdf3e",
+      "from": "insight:112fadd20ea6ebbf",
       "to": "person:chiara-ricci",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:2164ecd0ff052291",
-      "to": "person:giulia-ferrara",
+      "from": "insight:4e84611b8ce46a79",
+      "to": "person:chiara-ricci",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:783d55bbd2848410",
+      "to": "person:chiara-ricci",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:5554a3b4f48ad585",
+      "to": "person:chiara-ricci",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:ec84a95f8db3f90d",
+      "to": "person:chiara-ricci",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:f1a2a64d24d5ad6d",
+      "to": "person:chiara-ricci",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:112fadd20ea6ebbf",
+      "to": "quote:ec84a95f8db3f90d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:4e84611b8ce46a79",
+      "to": "quote:f1a2a64d24d5ad6d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:783d55bbd2848410",
+      "to": "quote:5554a3b4f48ad585",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-7ccfb108302b3faa",
@@ -157,28 +127,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:bd6f2bcd40790bd0",
+      "id": "insight:4e84611b8ce46a79",
       "properties": {
         "episode_id": "ep-7ccfb108302b3faa",
         "grounded": true,
@@ -186,13 +135,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Linear is the issue tracker designed for speed \u2013 built for the keyboard. Try linear.com today. Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is t\u2026",
+        "text": "Honestly, risk management in racing isn't about avoiding crashes \u2013 it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore it, you end up having t\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:7c0037bb8cebdf3e",
+      "id": "insight:112fadd20ea6ebbf",
       "properties": {
         "episode_id": "ep-7ccfb108302b3faa",
         "grounded": true,
@@ -200,13 +149,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Yes, that's correct. And that connects to what we're discussing today.",
+        "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've observed this pattern\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:2164ecd0ff052291",
+      "id": "insight:783d55bbd2848410",
       "properties": {
         "episode_id": "ep-7ccfb108302b3faa",
         "grounded": true,
@@ -214,41 +163,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to point out something \u2013 Marco Bellini mentioned the same issue a couple of episodes ago.",
+        "text": "I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Spoke\u2026",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:giulia-ferrara",
-      "properties": {
-        "name": "Giulia Ferrara"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:4d3aa1af3af210cd",
-      "properties": {
-        "char_end": 254,
-        "char_start": 16,
-        "episode_id": "ep-7ccfb108302b3faa",
-        "speaker_id": "person:speaker-01",
-        "text": "Linear is the issue tracker designed for speed \u2013 built for the keyboard. Try linear.com today. Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.",
-        "timestamp_end_ms": 29280,
-        "timestamp_start_ms": 14940,
-        "transcript_ref": "transcripts/p11_e02.txt",
-        "translation": {
-          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:chiara-ricci",
@@ -258,15 +176,15 @@
       "type": "Person"
     },
     {
-      "id": "quote:5ab8fb346871f7ae",
+      "id": "quote:f1a2a64d24d5ad6d",
       "properties": {
-        "char_end": 339,
-        "char_start": 269,
+        "char_end": 1418,
+        "char_start": 1174,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-02",
-        "text": "Yes, that's correct. And that connects to what we're discussing today.",
-        "timestamp_end_ms": 32400,
-        "timestamp_start_ms": 29280,
+        "text": "Honestly, risk management in racing isn't about avoiding crashes \u2013 it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore it, you end up having to rebuild everything from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
         "transcript_ref": "transcripts/p11_e02.txt",
         "translation": {
           "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
@@ -275,70 +193,22 @@
           "source_language": "it",
           "translated": true,
           "unit_ids": [
-            "t0003.u01"
+            "t0009.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:209dc10d314450df",
+      "id": "quote:ec84a95f8db3f90d",
       "properties": {
-        "char_end": 452,
-        "char_start": 356,
-        "episode_id": "ep-7ccfb108302b3faa",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to point out something \u2013 Marco Bellini mentioned the same issue a couple of episodes ago.",
-        "timestamp_end_ms": 38220,
-        "timestamp_start_ms": 32400,
-        "transcript_ref": "transcripts/p11_e02.txt",
-        "translation": {
-          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:a711471464e81c1a",
-      "properties": {
-        "char_end": 538,
-        "char_start": 453,
-        "episode_id": "ep-7ccfb108302b3faa",
-        "speaker_id": "person:speaker-01",
-        "text": "Can you give me a specific example? Where do soil erosion and enduro races intersect?",
-        "timestamp_end_ms": 215220,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p11_e02.txt",
-        "translation": {
-          "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:2b7d7e2a5910f66f",
-      "properties": {
-        "char_end": 759,
-        "char_start": 553,
+        "char_end": 2966,
+        "char_start": 2726,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-02",
-        "text": "Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.",
-        "timestamp_end_ms": 227160,
-        "timestamp_start_ms": 215220,
+        "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
         "transcript_ref": "transcripts/p11_e02.txt",
         "translation": {
           "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
@@ -347,22 +217,22 @@
           "source_language": "it",
           "translated": true,
           "unit_ids": [
-            "t0005.u01"
+            "t0021.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:3981551f0555d0d7",
+      "id": "quote:5554a3b4f48ad585",
       "properties": {
-        "char_end": 860,
-        "char_start": 776,
+        "char_end": 4786,
+        "char_start": 4516,
         "episode_id": "ep-7ccfb108302b3faa",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into this. Where do soil erosion and enduro racing intersect?",
-        "timestamp_end_ms": 232020,
-        "timestamp_start_ms": 227160,
+        "speaker_id": "person:speaker-02",
+        "text": "I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
         "transcript_ref": "transcripts/p11_e02.txt",
         "translation": {
           "en_sha256": "890e1874e4307b3599ac295e939e56174cb584a0d7aff269baec38c28e7fcf04",
@@ -371,7 +241,7 @@
           "source_language": "it",
           "translated": true,
           "unit_ids": [
-            "t0006.u01"
+            "t0033.u01"
           ]
         }
       },

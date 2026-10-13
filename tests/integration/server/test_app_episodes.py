@@ -17,7 +17,6 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
@@ -561,60 +560,12 @@ def test_audio_source_validate_network_error(
     assert body["resolved_url"] == "https://cdn.example/ep1.mp3"  # falls back to the original URL
 
 
-def test_episode_search_no_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _write_corpus(tmp_path)
-    slug = _only_slug(tmp_path)
-    monkeypatch.setattr(
-        "podcast_scraper.search.capability.run_corpus_search",
-        lambda output_dir, query, **kw: CorpusSearchOutcome(error="no_index", detail="no index"),
-    )
-    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "x"}).json()
-    assert body["error"] == "no_index"
-    assert body["results"] == []
-
-
 def test_resolve_slug_fallback_without_episode_id(tmp_path: Path) -> None:
     _write_corpus(tmp_path, episode_id=None)  # exercises the metadata-relpath slug fallback
     slug = _only_slug(tmp_path)
     resp = _client(tmp_path).get(f"/api/app/episodes/{slug}")
     assert resp.status_code == 200
     assert resp.json()["slug"] == slug
-
-
-def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _write_corpus(tmp_path)  # feed "myfeed", episode "ep1"
-    slug = _only_slug(tmp_path)
-    captured: dict[str, Any] = {}
-
-    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
-        captured["feed"] = kwargs.get("feed")
-        captured["episode_id"] = kwargs.get("episode_id")
-        captured["top_k"] = kwargs.get("top_k")
-        return CorpusSearchOutcome(
-            results=[
-                {
-                    "doc_id": "a",
-                    "score": 0.9,
-                    "metadata": {"doc_type": "insight", "episode_id": "ep1"},
-                    "text": "mine",
-                },
-                {
-                    "doc_id": "b",
-                    "score": 0.8,
-                    "metadata": {"doc_type": "insight", "episode_id": "other"},
-                    "text": "theirs",
-                },
-            ]
-        )
-
-    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
-    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "foo"}).json()
-    assert captured["feed"] == "myfeed"
-    # The episode is part of the QUERY (operator 2026-10-10): the search ranks only this episode's
-    # rows, so no over-fetch — it asks for exactly the page it returns.
-    assert captured["episode_id"] == "ep1"
-    assert captured["top_k"] == 10
-    assert [r["doc_id"] for r in body["results"]] == ["a"]  # and nothing from another episode
 
 
 def _long_segments(root: Path, stem: str = "0001-hello") -> None:
@@ -627,52 +578,50 @@ def _long_segments(root: Path, stem: str = "0001-hello") -> None:
     (root / "transcripts" / f"{stem}.segments.json").write_text(json.dumps(segs), encoding="utf-8")
 
 
-def test_episode_search_puts_verbatim_passages_first_with_their_real_time(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A remembered phrase (operator 2026-10-10): the passage that says it comes first, timed."""
-    _write_corpus(tmp_path)
-    _long_segments(tmp_path)
-    slug = _only_slug(tmp_path)
-    chunk = {
-        "doc_id": "chunk:ep1:0",
-        "score": 0.5,
-        # The index's transcript chunks carry no time (0 on prod) and a speaker label line.
-        "metadata": {"doc_type": "transcript", "episode_id": "ep1", "timestamp_start_ms": 0},
-        "text": "Nora: Diversification is the only free lunch, people say.",
-    }
-    monkeypatch.setattr(
-        "podcast_scraper.search.capability.run_corpus_search",
-        lambda output_dir, query, **kw: CorpusSearchOutcome(results=[chunk]),
+def _search(root: Path, q: str) -> dict[str, Any]:
+    body: dict[str, Any] = (
+        _client(root).get(f"/api/app/episodes/{_only_slug(root)}/search", params={"q": q}).json()
     )
-    body = (
-        _client(tmp_path)
-        .get(f"/api/app/episodes/{slug}/search", params={"q": "worst week is survivable"})
-        .json()
-    )
-    first, second = body["results"][0], body["results"][1]
-    assert first["metadata"]["match"] == "phrase"
-    assert first["metadata"]["timestamp_start_ms"] == 9_000
-    # The index's result keeps its place after the verbatim one, now with the time it was said.
-    assert second["doc_id"] == "chunk:ep1:0"
-    assert second["metadata"]["timestamp_start_ms"] == 14_000
+    return body
 
 
-def test_episode_search_finds_the_words_even_when_the_index_cannot_answer(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_episode_search_needs_no_index_and_puts_verbatim_first_with_real_time(
+    tmp_path: Path,
 ) -> None:
+    """Word search over the episode's own files (operator 2026-10-12): no index, no meaning."""
     _write_corpus(tmp_path)
     _long_segments(tmp_path)
-    slug = _only_slug(tmp_path)
-    monkeypatch.setattr(
-        "podcast_scraper.search.capability.run_corpus_search",
-        lambda output_dir, query, **kw: CorpusSearchOutcome(error="no_index", detail="no index"),
-    )
-    body = (
-        _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "free lunch"}).json()
-    )
+    body = _search(tmp_path, "the only free lunch")
     assert body["error"] is None
-    assert [r["metadata"]["timestamp_start_ms"] for r in body["results"]] == [14_000]
+    first = body["results"][0]
+    assert first["metadata"]["match"] == "phrase"
+    assert first["metadata"]["timestamp_start_ms"] == 14_000
+
+
+def test_episode_search_is_not_limited(tmp_path: Path) -> None:
+    """Every passage with the words, however many (operator 2026-10-12: "not limited")."""
+    _write_corpus(tmp_path)
+    segs = [
+        {"start": float(i), "end": float(i) + 1, "text": f"Risk number {i} is real."}
+        for i in range(0, 120, 2)
+    ]
+    (tmp_path / "transcripts" / "0001-hello.segments.json").write_text(
+        json.dumps(segs), encoding="utf-8"
+    )
+    assert len(_search(tmp_path, "risk")["results"]) == 60
+
+
+def test_episode_search_finds_insights_by_their_words_only(tmp_path: Path) -> None:
+    """The Brief's own insights, every one whose text holds the words, timed from its quote."""
+    _write_corpus(tmp_path)
+    hits = [
+        r for r in _search(tmp_path, "claims")["results"] if r["metadata"]["doc_type"] == "insight"
+    ]
+    assert [h["text"] for h in hits] == ["Big claim."]
+    assert hits[0]["metadata"]["marks"] == ["claim"]
+    assert hits[0]["supporting_quotes"][0]["start_ms"] == 1000
+    # Close in meaning is not a match.
+    assert _search(tmp_path, "assertion")["results"] == []
 
 
 def test_episodes_list_endpoint(tmp_path: Path) -> None:

@@ -332,6 +332,9 @@ web/learning-player/e2e/telemetry/.diag/
 # per-user state here exactly as the player's does — and unlike the player's, this path was not
 # ignored, so a local run left runtime JSONL staged. It reached main in ef069c1e via `git add -A`.
 web/gi-kg-viewer/e2e/.app-state/
+# `make serve-for-app-validation` (the Tier-3 app walk's API) writes its users' state here, at the
+# repo root; a `git add -A` after a local walk swept it into a commit (2026-10-12).
+/.tier3-app-data/
 
 # LCP trace raw JSON (large; keep only the .gz alongside)
 docs/wip/graph-v3/traces/*.trace.json

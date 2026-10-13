@@ -553,6 +553,22 @@ describe('a refused play() is recorded, not dropped', () => {
 
     expect(p.audioError).toBe(false)
   })
+
+  it('does NOT flag a play() that a pause interrupted — the audio is fine, the request was overtaken', async () => {
+    // Moments' ‹ › and leaving the reel pause and seek while a play() is pending; Chromium rejects
+    // that play() with AbortError ("interrupted by a call to pause()"). Flagging it replaced the
+    // transport with "Couldn't load the audio" on an episode that was playing (e2e moments.spec:165).
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    ;(el as unknown as { play: () => Promise<void> }).play = () =>
+      Promise.reject(new DOMException('The play() request was interrupted by a call to pause().', 'AbortError'))
+
+    p.toggle()
+    await settle()
+
+    expect(p.audioError).toBe(false)
+  })
 })
 
 describe('finishing an episode', () => {
@@ -1013,6 +1029,24 @@ describe('Moments reel (operator 2026-10-10)', () => {
     expect(el.pause).toHaveBeenCalled()
   })
 
+  it('a clip heard to its end is a moment heard; a skipped one is not; Keep listening is a keep', () => {
+    // Stats (operator 2026-10-12): a short listen leaves no position and no listening time, so
+    // this event is its only trace.
+    p.startReel('ep-1', MOMENTS)
+    at(75)
+    expect(p.momentHeard).toMatchObject({ seq: 1, kind: 'clip', slug: 'ep-1', insightId: 'i1', seconds: 15 })
+    p.reelNext() // skipped, not heard
+    expect(p.momentHeard?.seq).toBe(1)
+    p.exitReel(true)
+    expect(p.momentHeard).toMatchObject({ seq: 2, kind: 'keep', slug: 'ep-1' })
+  })
+
+  it('closing a short listen with ✕ is not a keep', () => {
+    p.startReel('ep-1', MOMENTS)
+    p.exitReel(false)
+    expect(p.momentHeard).toBeNull()
+  })
+
   it('previous restarts the moment after 3 s, and goes back one within them', () => {
     p.startReel('ep-1', MOMENTS, 1)
     at(306)
@@ -1061,6 +1095,77 @@ describe('Moments reel (operator 2026-10-10)', () => {
   it('loading another episode ends the reel', () => {
     p.startReel('ep-1', MOMENTS)
     p.load({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' })
+    expect(p.reel).toBeNull()
+  })
+})
+
+describe('topic reel — clips across episodes (ADR-163 §8 amendment, 2026-10-11)', () => {
+  const TOPIC = { id: 'topic:x', label: 'X', minutes: 15 }
+  const CLIPS = [
+    { insightId: 'a', text: 'a', speaker: 'Ann', startMs: 30_000, endMs: 42_000, slug: 'ep-a' },
+    { insightId: 'b', text: 'b', speaker: 'Bo', startMs: 90_000, endMs: 100_000, slug: 'ep-b' },
+  ]
+  let el: HTMLAudioElement & { __emit: (k: string) => void }
+  let p: ReturnType<typeof usePlayerStore>
+  const resolve = vi.fn(async (slug: string) => ({ slug, url: `https://x/${slug}.mp3`, title: slug }))
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    p = usePlayerStore()
+    el = stubAudio({ currentTime: 0, duration: 1800 })
+    resolve.mockClear()
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  function at(seconds: number): void {
+    ;(el as unknown as { currentTime: number }).currentTime = seconds
+    p.onTimeUpdate()
+  }
+
+  it("loads each clip's episode, seeks to the clip, and moves on across episodes", async () => {
+    expect(await p.startTopicReel(TOPIC, CLIPS, resolve)).toBe(true)
+    expect(resolve).toHaveBeenCalledWith('ep-a')
+    expect(p.currentSlug).toBe('ep-a')
+    expect(el.currentTime).toBe(30)
+    expect(p.reel).toMatchObject({ slug: 'ep-a', topic: TOPIC, index: 0 })
+    at(42)
+    await drainMicrotasks()
+    expect(resolve).toHaveBeenCalledWith('ep-b')
+    expect(p.currentSlug).toBe('ep-b')
+    expect(el.currentTime).toBe(90)
+    expect(p.reel).toMatchObject({ slug: 'ep-b', index: 1 })
+  })
+
+  it('never moves a resume point and logs no listen while it plays', async () => {
+    const saves: [string, number, boolean][] = []
+    const listens: string[] = []
+    p.setPositionPersister((slug, seconds, finished) => saves.push([slug, seconds, finished]))
+    p.setListenLogger((slug) => listens.push(slug))
+    await p.startTopicReel(TOPIC, CLIPS, resolve)
+    el.__emit('play')
+    at(41)
+    at(42) // to ep-b: the switch must not save ep-a at 42 s
+    await drainMicrotasks()
+    el.__emit('play')
+    expect(saves.filter(([slug]) => slug === 'ep-a')).toEqual([])
+    expect(listens).toEqual([])
+  })
+
+  it('"Keep listening here" turns the clip into a listen; ✕ stops without seeking back', async () => {
+    const listens: string[] = []
+    p.setListenLogger((slug) => listens.push(slug))
+    await p.startTopicReel(TOPIC, CLIPS, resolve)
+    p.exitReel(true)
+    el.__emit('play')
+    expect(listens).toEqual(['ep-a'])
+    await p.startTopicReel(TOPIC, CLIPS, resolve)
+    at(35)
+    p.exitReel(false)
+    expect(el.pause).toHaveBeenCalled()
+    expect(el.currentTime).toBe(35)
+  })
+
+  it('refuses a reel with no playable clip', async () => {
+    expect(await p.startTopicReel(TOPIC, [{ ...CLIPS[0], slug: undefined }], resolve)).toBe(false)
     expect(p.reel).toBeNull()
   })
 })

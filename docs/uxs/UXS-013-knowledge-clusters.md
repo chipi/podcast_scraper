@@ -47,7 +47,7 @@ person↔topic↔organization walk in a single panel:
   pages (2026-10-05).
 - **Topic card:** a "Topic" kicker + label; "{n} similar topics" as a kicker label at the start of
   the sibling pill row (the semantic siblings — NOT the topic you are reading, which is not similar
-  to itself); the theme and storyline as link cards whose caption names the kind ("THEME · 3
+  to itself), shown only when there is no theme link, whose page lists the same topics; the theme and storyline as link cards whose caption names the kind ("THEME · 3
   TOPICS", "STORYLINE · 4 TOPICS"), with no section heading over them; Top voices; "{n}
   perspectives on {topic}"; a "Discussed in {n} episodes" list paged by 10. Data: `GET
   /api/app/topics/{id}`. Desktop page layout: UXS-011 §Entity pages.
@@ -140,11 +140,22 @@ This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in 
 
 ## Entities in search (3.4 — shipped)
 
-When a query exact/near-exact-matches a person/topic, an **entity card** sits **above** the grouped
-passage results (UXS-012 search): a kicker ("Person"/"Topic") + name + a "View ›" affordance,
-tapping which opens the §Entity-cards overlay. Distinct from passage cards, never blocking the
-passages below; the "no grounded passages" line is suppressed when an entity matched (we *did* find
-something). Resolved in parallel with the passage search, so a miss never delays results.
+Every subject a query reaches is shown **one way**, **above** the grouped passage results (UXS-012
+search; operator 2026-10-11): a section per kind — **People**, **Topics**, **Themes**,
+**Storylines** — each the same compact kind-coloured pills, one per subject however many episodes it
+was found in (eight, then "Show all (N)"). Matched **by name, on the words typed** (operator
+2026-10-12: "a word match … exact matches"): every typed word must start a word of the subject's name
+("risk" finds "risk management" and "discounted risks"; "art" does not find "start"), from each kind's
+name search (`/interests/search`), across the library in both scopes. Meaning-only matches — "safety"
+used to list "Second-order effects" and "incident prevention" — are not shown here; the **episode**
+results keep word + meaning, so a passage that says "avoiding injury" is still found. The exact name
+match leads its kind. A person or topic pill opens the §Entity-cards overlay; a theme or storyline
+pill opens its page. Under Mine, "nothing in your listening" still shows when no episode matched,
+whatever subjects are listed. None
+of them is a row under an episode: a subject connects episodes, and under one it read as a fact
+about that episode. The "no grounded passages" line is suppressed when any of these matched (we
+*did* find something). Resolved in parallel with the passage search, so a miss never delays
+results.
 
 ## Personalized discovery (3.5 — shipped)
 
@@ -171,10 +182,22 @@ precision the underlying data does not have.
 
 ### `PodcastSignalsBand` — what sets THIS show apart
 
-On a show page. Topics split deliberately into two groups: **distinctive** topics carry `lift`
-above the corpus base rate — the ones that make this show itself — and the remainder are listed
-plainly. The split exists because an alphabetical tiebreak once let a show's signature topic lose
-to wallpaper every show covers.
+On a show page. One row per kind — **Storylines**, **Themes**, **Topics**, **Key people** — and in
+each, the subjects **distinctive** to this show come first, drawn stronger with a small star (`DistinctiveMark`) —
+no number (operator 2026-10-12: "9×" was hard to read), and one note under the heading says what
+the mark means: `lift`, their share of
+this show's episodes over their share of the library's, at least 1.5, in at least two episodes
+(for a theme or storyline, episodes touching any of its topics; the library's count for that is
+one pass over every episode's topics, cached per corpus version). The rest follow plainly. The
+ordering exists because an alphabetical tiebreak once let a show's signature topic lose to
+wallpaper every show covers.
+
+Until 2026-10-12 this was a separate "Distinctive to this show" row of topics only: it read as a
+fifth kind, said nothing about themes or storylines, and kept "how many times more" in a hover
+tooltip that a phone never shows (operator: "let's be clear about it"). The mark is now on the pill,
+spoken as "distinctive to this show". People pills carry no episode count either. Themes were not
+on the show page at all
+before; a theme pill opens the theme on top, as a storyline does.
 
 > The momentum bubble cloud was **removed** from this band: its `velocity` is corpus-wide, not
 > show-scoped, so it sized topics by a number that did not answer the band's own question.
@@ -236,7 +259,7 @@ them, as it always did.
 
 **Absence is honest.** Renders nothing when no member has a speaker-attributable insight. That is
 the normal outcome for a grouping whose members are abstract labels nobody utters aloud
-(`tc:lifelong-learning` is exactly that), and showing nothing beats showing unrelated quotes.
+(the old fixture's stamped `tc:lifelong-learning` was exactly that), and showing nothing beats showing unrelated quotes.
 
 **Known limit (#2248).** Ranking is `salience` descending (ADR-135/#1191). Where artifacts carry no
 salience the sort degenerates to `position_hint` ascending — earliest-in-episode first — which

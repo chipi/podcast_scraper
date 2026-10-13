@@ -12,7 +12,7 @@ import { signInIsolated, showEveryonesTrends } from './helpers'
  * RFC-120: all routes below are login-first; each test signs in.
  */
 
-test('Home surfaces the compact "Discover" strip and each chip deep-links into the Browse Trends section', async ({
+test('Home surfaces the compact "Discover" strip and each chip deep-links into Explore\'s Trends', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'browse-home-nav', testInfo)
@@ -38,14 +38,15 @@ test('Home surfaces the compact "Discover" strip and each chip deep-links into t
   expect(new Set(tops).size).toBe(1)
 
   await nav.getByTestId('home-discover-topics').click()
-  await expect(page).toHaveURL(/\/browse\?trends=topic/)
-  await expect(page.getByTestId('browse-view')).toBeVisible()
+  // Trends live on Explore since 2026-10-11 (ADR-163 §1).
+  await expect(page).toHaveURL(/\/explore\?trends=topic/)
+  await expect(page.getByTestId('explore-view')).toBeVisible()
   // The KIND must be selected, not merely the page reached — the whole point of the deep link.
   await expect(page.getByTestId('discovery-tab-topic')).toHaveAttribute('aria-selected', 'true')
 
   await page.goto('/')
   await page.getByTestId('home-browse-nav').getByTestId('home-discover-people').click()
-  await expect(page).toHaveURL(/\/browse\?trends=person/)
+  await expect(page).toHaveURL(/\/explore\?trends=person/)
   await expect(page.getByTestId('discovery-tab-person')).toHaveAttribute('aria-selected', 'true')
 })
 
@@ -65,11 +66,11 @@ test('the standalone /topic/:id page renders the topic card body (EntityCardBody
 
 test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trend-window-3m', testInfo)
-  // The trend-window control lives inside DiscoveryList, rendered in Discover's Trends (Home's
-  // left 2026-10-07). The committed corpus ships no temporal_velocity, so rows may be empty — but
+  // The trend-window control lives inside DiscoveryList, rendered in Explore's Trends (Home's left
+  // 2026-10-07; Discover's moved to Explore 2026-10-11, ADR-163 §1). The committed corpus ships no temporal_velocity, so rows may be empty — but
   // the window control always renders (so an empty window can be switched away from). Assert the
   // control's default + that a pick updates the selection; the refetch is covered by unit tests.
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   await expect(page.getByTestId('browse-discovery')).toBeVisible()
   const section = page.getByTestId('browse-discovery')
@@ -99,8 +100,8 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
  */
 test('the catalogue groups by time, and stops when time is not the order', async ({ page }, testInfo) => {
   await signInIsolated(page, 'catalogue-time-groups', testInfo)
-  await page.goto('/browse')
-  await showEveryonesTrends(page)
+  // The full episode list (Explore shows only a taste since 2026-10-11).
+  await page.goto('/catalog')
   await page.waitForLoadState('networkidle')
 
   const headings = page.locator('h2.lp-kicker')
@@ -231,7 +232,7 @@ test('every other search / filter row ends where its area ends', async ({ page }
   }
 })
 
-test("What's new \"Browse all\" lands ON the episode list, not the top of Discover", async ({ page }, testInfo) => {
+test("What's new \"Browse all\" lands ON the episode list (on Explore since 2026-10-11)", async ({ page }, testInfo) => {
   // Operator 2026-10-08, on the phone: the link opened Discover at the top, the episode list two
   // screens down — it read as going to the wrong page. Twice, because Discover is kept alive and the
   // second arrival changes no query.
@@ -239,7 +240,8 @@ test("What's new \"Browse all\" lands ON the episode list, not the top of Discov
   for (let i = 0; i < 2; i++) {
     await page.goto('/')
     await page.getByRole('link', { name: /Browse all/ }).first().click()
-    await expect(page).toHaveURL(/\/browse\?tab=episodes/)
-    await expect(page.getByTestId('browse-panel-episodes')).toBeInViewport()
+    // The full episode list itself since 2026-10-11 (Explore shows only a taste).
+    await expect(page).toHaveURL(/\/catalog/)
+    await expect(page.getByTestId('episode-card').first()).toBeInViewport()
   }
 })

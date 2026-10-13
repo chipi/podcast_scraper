@@ -54,6 +54,8 @@ export default defineConfig({
   // and the critic would be judging a race rather than a design.
   retries: 0,
   reporter: [['list']],
+  // The search index the disposable corpus copy is seeded without (see the file).
+  globalSetup: './e2e/design.globalSetup.ts',
   timeout: 60_000,
   expect: { timeout: 15_000 },
   outputDir: 'design-results/.playwright',

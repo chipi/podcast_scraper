@@ -448,6 +448,34 @@ describe('useArtifactsStore — maybeMergeClusterSiblingEpisodes', () => {
     expect(fetchResolveEpisodeArtifacts).not.toHaveBeenCalled()
   })
 
+  it('a focused pick stays focused even after the load source is cleared (2026-10-12)', async () => {
+    // GraphCanvas clears the load source when it redraws, and App's merge watcher fires on the same
+    // load: whichever ran first decided whether a status-bar pick of ONE episode got ten cluster
+    // siblings appended. The decision now belongs to the picked set, not to the transient flag.
+    const store = useArtifactsStore()
+    store.setLoadSource('subject-external')
+    await primeWithCluster(store)
+    store.clearLoadSource()
+    await store.maybeMergeClusterSiblingEpisodes(true)
+    expect(fetchResolveEpisodeArtifacts).not.toHaveBeenCalled()
+  })
+
+  it('a later unfocused load of a different set merges again', async () => {
+    const store = useArtifactsStore()
+    store.setLoadSource('subject-external')
+    await primeWithCluster(store)
+    store.clearLoadSource()
+    store.selectAllListed(['ep1.gi.json', 'ep1.kg.json'])
+    await store.loadSelected()
+    vi.mocked(fetchResolveEpisodeArtifacts).mockResolvedValue({
+      path: '/c',
+      resolved: [],
+      missing_episode_ids: [],
+    })
+    await store.maybeMergeClusterSiblingEpisodes(true)
+    expect(fetchResolveEpisodeArtifacts).toHaveBeenCalled()
+  })
+
   it('skips when the graph tab is not active', async () => {
     const store = useArtifactsStore()
     await primeWithCluster(store)

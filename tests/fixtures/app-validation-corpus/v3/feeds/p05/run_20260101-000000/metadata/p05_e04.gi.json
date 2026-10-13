@@ -1,18 +1,53 @@
 {
   "edges": [
     {
-      "from": "episode:ep-16ff698c1bd21087",
+      "from": "insight:4db6ad82bb47e6fe",
       "to": "topic:risk-management",
-      "type": "MENTIONS"
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
+      "to": "topic:correlated-bets",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-2",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p05_e04-3",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:4db6ad82bb47e6fe",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:75d4d3871f97dc92",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "insight:7d4413f14e9648e9",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-16ff698c1bd21087",
       "to": "topic:index-investing",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
-      "to": "topic:systems-thinking",
       "type": "MENTIONS"
     },
     {
@@ -22,118 +57,53 @@
     },
     {
       "from": "episode:ep-16ff698c1bd21087",
-      "to": "topic:personal-finance",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
-      "to": "insight:6745f6b01936982b",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
-      "to": "insight:bcfb53c35d7b6917",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-16ff698c1bd21087",
-      "to": "insight:4db6ad82bb47e6fe",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:4db6ad82bb47e6fe",
       "to": "topic:risk-management",
-      "type": "ABOUT"
+      "type": "MENTIONS"
     },
     {
-      "from": "quote:97fa0c0b4f7b3d1f",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6745f6b01936982b",
-      "to": "quote:97fa0c0b4f7b3d1f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0cc10f8da8c6b4af",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bcfb53c35d7b6917",
-      "to": "quote:0cc10f8da8c6b4af",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f383811760efe5cb",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
+      "from": "episode:ep-16ff698c1bd21087",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
     },
     {
       "from": "insight:4db6ad82bb47e6fe",
-      "to": "quote:f383811760efe5cb",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:98a5069f94a381be",
-      "to": "person:scott-bessent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6745f6b01936982b",
-      "to": "quote:98a5069f94a381be",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:279eded5e5d8ebbd",
-      "to": "person:scott-bessent",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bcfb53c35d7b6917",
-      "to": "quote:279eded5e5d8ebbd",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:9517f0e0cac4d376",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:4db6ad82bb47e6fe",
-      "to": "quote:9517f0e0cac4d376",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:6745f6b01936982b",
       "to": "person:nora",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:bcfb53c35d7b6917",
-      "to": "person:daniel-cho",
+      "from": "insight:75d4d3871f97dc92",
+      "to": "person:scott-bessent",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:4db6ad82bb47e6fe",
-      "to": "person:scott-bessent",
+      "from": "insight:7d4413f14e9648e9",
+      "to": "person:daniel-cho",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p05_e04-0",
-      "to": "quote:authored-p05_e04-0",
-      "type": "SUPPORTED_BY"
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p05_e04-2",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p05_e04-3",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:749c23faa96e328d",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
     },
     {
       "from": "quote:authored-p05_e04-0",
@@ -141,39 +111,9 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:authored-p05_e04-0",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p05_e04-0",
-      "to": "person:daniel-cho",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:authored-p05_e04-1",
-      "to": "quote:authored-p05_e04-1",
-      "type": "SUPPORTED_BY"
-    },
-    {
       "from": "quote:authored-p05_e04-1",
       "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:authored-p05_e04-1",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p05_e04-1",
-      "to": "person:scott-bessent",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:authored-p05_e04-2",
-      "to": "quote:authored-p05_e04-2",
-      "type": "SUPPORTED_BY"
     },
     {
       "from": "quote:authored-p05_e04-2",
@@ -181,34 +121,54 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:authored-p05_e04-2",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p05_e04-2",
-      "to": "person:daniel-cho",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:authored-p05_e04-3",
-      "to": "quote:authored-p05_e04-3",
-      "type": "SUPPORTED_BY"
-    },
-    {
       "from": "quote:authored-p05_e04-3",
       "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:authored-p05_e04-3",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
+      "from": "quote:e925f95e21462dde",
+      "to": "person:scott-bessent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:fad2912d7c1e9448",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4db6ad82bb47e6fe",
+      "to": "quote:749c23faa96e328d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:75d4d3871f97dc92",
+      "to": "quote:fad2912d7c1e9448",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:7d4413f14e9648e9",
+      "to": "quote:e925f95e21462dde",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-0",
+      "to": "quote:authored-p05_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-1",
+      "to": "quote:authored-p05_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p05_e04-2",
+      "to": "quote:authored-p05_e04-2",
+      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:authored-p05_e04-3",
-      "to": "person:scott-bessent",
-      "type": "MENTIONS_PERSON"
+      "to": "quote:authored-p05_e04-3",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-16ff698c1bd21087",
@@ -254,61 +214,12 @@
       "type": "Topic"
     },
     {
-      "id": "topic:personal-finance",
-      "properties": {
-        "label": "personal finance"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:6745f6b01936982b",
+      "id": "insight:4db6ad82bb47e6fe",
       "properties": {
         "episode_id": "ep-16ff698c1bd21087",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:bcfb53c35d7b6917",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves \u2014 one position\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:4db6ad82bb47e6fe",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "And I want to be precise: risk management for individuals is mostly behavioral. The math is easy. Sitting still while a holding gets cut in half is the hard part \u2014 and diversification is what makes\u2026",
@@ -317,25 +228,32 @@
       "type": "Insight"
     },
     {
-      "id": "person:nora",
+      "id": "insight:7d4413f14e9648e9",
       "properties": {
-        "name": "Nora"
+        "episode_id": "ep-16ff698c1bd21087",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ign\u2026",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
     },
     {
-      "id": "quote:97fa0c0b4f7b3d1f",
+      "id": "insight:75d4d3871f97dc92",
       "properties": {
-        "char_end": 675,
-        "char_start": 521,
         "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:speaker-01",
-        "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p05_e04.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me sharpen it, because the disagreement is real. Daniel, Scott says your safety is an illusion. Scott, Daniel says your edge won't survive your own behavior.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
       "id": "person:daniel-cho",
@@ -345,21 +263,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:0cc10f8da8c6b4af",
-      "properties": {
-        "char_end": 927,
-        "char_start": 688,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:speaker-02",
-        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves \u2014 one position going to zero at the worst possible time.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f383811760efe5cb",
+      "id": "quote:749c23faa96e328d",
       "properties": {
         "char_end": 1139,
         "char_start": 927,
@@ -380,7 +284,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:98a5069f94a381be",
+      "id": "quote:e925f95e21462dde",
       "properties": {
         "char_end": 1379,
         "char_start": 1155,
@@ -394,21 +298,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:279eded5e5d8ebbd",
+      "id": "person:nora",
       "properties": {
-        "char_end": 1659,
-        "char_start": 1379,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:speaker-03",
-        "text": "The way I see it, a portfolio is a system of correlated bets. A handful you understand deeply is more robust than a hundred you don't, because you can see how they move together. Diversifying without understanding just hides the correlation until it's the only thing that matters.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p05_e04.txt"
+        "name": "Nora"
       },
-      "type": "Quote"
+      "type": "Person"
     },
     {
-      "id": "quote:9517f0e0cac4d376",
+      "id": "quote:fad2912d7c1e9448",
       "properties": {
         "char_end": 1827,
         "char_start": 1666,
@@ -438,13 +335,13 @@
     {
       "id": "quote:authored-p05_e04-0",
       "properties": {
-        "char_end": 93,
-        "char_start": 0,
+        "char_end": 781,
+        "char_start": 688,
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:daniel-cho",
         "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -471,8 +368,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:scott-bessent",
         "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -494,13 +391,13 @@
     {
       "id": "quote:authored-p05_e04-2",
       "properties": {
-        "char_end": 105,
-        "char_start": 0,
+        "char_end": 1970,
+        "char_start": 1865,
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:daniel-cho",
         "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -522,16 +419,23 @@
     {
       "id": "quote:authored-p05_e04-3",
       "properties": {
-        "char_end": 155,
-        "char_start": 0,
+        "char_end": 1379,
+        "char_start": 1155,
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:scott-bessent",
-        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ignorance, evenly distributed.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:correlated-bets",
+      "properties": {
+        "label": "correlated bets"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

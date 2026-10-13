@@ -33,7 +33,7 @@ final class ProdTourTests: UITestCase {
         print("=====PROD_TAB_MISS \(tab)=====")
       }
     }
-    if Journey.searchFromDiscover(app, "risk") {
+    if Journey.searchFromExplore(app, "risk") {
       sleep(6)
       Journey.shot(self, "p05-search")
     } else {

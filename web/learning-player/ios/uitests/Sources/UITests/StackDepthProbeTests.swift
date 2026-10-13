@@ -22,13 +22,13 @@ final class StackDepthProbeTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 
-    guard Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) else {
+    guard Journey.tap(app, labels: ["Brief"], contains: false, timeout: 15) else {
       XCTFail("could not open the knowledge panel"); return
     }
     sleep(3)
 
     let topicPre = NSPredicate(
-      format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'"
+      format: "label == 'Open reliability'"
     )
     if !app.buttons.matching(topicPre).firstMatch.waitForExistence(timeout: 4) {
       _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 12)
@@ -45,8 +45,8 @@ final class StackDepthProbeTests: UITestCase {
     Journey.shot(self, "s1-topic")
 
     // L2 — its storyline, stacked on the topic.
-    _ = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 8)
-    guard Journey.tap(app, labels: ["Managing risk across domains"], contains: true, timeout: 12)
+    _ = Journey.scrollTo(app, labels: ["Second-order effects"], maxSwipes: 8)
+    guard Journey.tap(app, labels: ["Second-order effects"], contains: true, timeout: 12)
     else {
       Journey.inventory(app, "probe-no-storyline")
       XCTFail("storyline row not tappable"); return
@@ -96,7 +96,7 @@ final class HostShowLinkTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 
-    guard Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) else {
+    guard Journey.tap(app, labels: ["Brief"], contains: false, timeout: 15) else {
       XCTFail("could not open the knowledge panel"); return
     }
     sleep(3)
@@ -161,7 +161,7 @@ final class BoardsShotTests: UITestCase {
     let app = Journey.launch()
     Journey.openTab(app, "Library")
     sleep(4)
-    _ = Journey.tap(app, labels: ["Boards"], contains: true, timeout: 12)
+    _ = Journey.tap(app, labels: ["Collections"], timeout: 12)
     sleep(4)
     Journey.shot(self, "b1-boards")
     // Grid ("board") view — the reordered sequence must read the same here as in the list.

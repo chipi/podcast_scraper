@@ -2,7 +2,8 @@
 
 The data sources (topic momentum, speaker takes, the engagement series, GI insights) are replaced
 with small fakes: what is under test is the SELECTION — interleaving, one card per episode, the
-engagement window and floor, and "mine" keeping to the listener's world (ADR-162).
+engagement window and floor, and "mine" keeping to the listener's world (ADR-162) — and each card's
+reason (ADR-163): a real quote and where it is said, never the insight's own text.
 """
 
 from __future__ import annotations
@@ -48,10 +49,13 @@ def _wire(
                     person_name=spk,
                     insights=[
                         NS(
+                            id=f"insight:{slug}",
                             episode_slug=slug,
                             start_ms=60_000,
                             text=f"take on {topic_id}",
-                            quotes=[NS(text=f'"{spk} on {topic_id}"')],
+                            quotes=[
+                                NS(text=f'"{spk} on {topic_id}"', speaker=None, start_ms=60_000)
+                            ],
                         )
                     ],
                 )
@@ -59,13 +63,19 @@ def _wire(
             ]
         )
 
-    def fake_engagement(data_dir: Path, *, user_id: str | None = None) -> dict[str, Any]:
-        return {
-            "entities": [
-                {"kind": "episode", "entity_id": slug, "weekly_counts": wc}
-                for slug, wc in engagement.items()
-            ]
-        }
+    def fake_engagement(
+        data_dir: Path, *, user_id: str | None = None, since_week: str | None = None, **kw: Any
+    ) -> dict[str, Any]:
+        """``engagement`` is slug -> {week: distinct listeners that week}; the window is applied
+        like the real series (weeks >= since_week), listeners summed (the fakes never overlap)."""
+        seen["since_week"] = since_week
+        out = []
+        for slug, wc in engagement.items():
+            inside = {w: n for w, n in wc.items() if since_week is None or w >= since_week}
+            if inside:
+                n = sum(inside.values())
+                out.append({"kind": "episode", "entity_id": slug, "listeners": n, "total": n * 3})
+        return {"entities": out}
 
     monkeypatch.setattr(te, "trending", fake_trending)
     monkeypatch.setattr(te, "build_topic_perspectives", fake_perspectives)
@@ -77,8 +87,9 @@ def _wire(
     monkeypatch.setattr(
         te,
         "insights_from_gi",
-        lambda art, limit=None: [
+        lambda art, limit=None, unattributed_fallback=False: [
             NS(
+                id="insight:1",
                 text="insight",
                 quotes=[NS(text=f"quote from {art['rel']}", speaker="Host", start_ms=5_000)],
             )
@@ -98,33 +109,39 @@ def test_interleaves_rising_and_engaged_one_card_per_episode(
         engagement={"ep-hot": {"2026-W29": 5}, "ep-ai": {"2026-W30": 4}},
     )
     cards = te.trending_episodes(tmp_path, tmp_path, now=_NOW)
-    assert [(c.slug, c.reason) for c in cards] == [
+    assert [(c.slug, c.why.kind) for c in cards] == [
         ("ep-ai", "rising_topic"),
         ("ep-hot", "most_engaged"),
         ("ep-peg", "rising_topic"),
     ]
-    first = cards[0]
-    assert first.topic_label == "AI" and first.speaker == "Ann" and first.start_ms == 60_000
-    assert first.quote == '"Ann on topic:ai"'
-    assert cards[1].events == 5 and cards[1].quote == "quote from ep-hot.gi.json"
+    first = cards[0].why
+    assert first.subject is not None and first.subject.label == "AI"
+    assert first.subject.kind == "topic" and first.subject.id == "topic:ai"
+    assert first.quote is not None
+    assert (first.quote.speaker, first.quote.start_ms) == ("Ann", 60_000)
+    assert first.quote.text == '"Ann on topic:ai"' and first.quote.episode_slug == "ep-ai"
+    engaged = cards[1].why
+    assert engaged.events == 5 and engaged.quote is not None
+    assert engaged.quote.text == "quote from ep-hot.gi.json" and engaged.quote.start_ms == 5_000
 
 
-def test_most_engaged_counts_four_weeks_and_drops_one_off_activity(
+def test_most_engaged_counts_distinct_listeners_over_four_weeks_and_drops_a_lone_one(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _wire(
+    seen = _wire(
         monkeypatch,
         topics=[],
         takes={},
         engagement={
             "ep-old": {"2026-W20": 50},  # outside the window
-            "ep-once": {"2026-W30": 1},  # below the floor
+            "ep-once": {"2026-W30": 1},  # one listener: below the floor of 2
             "ep-two": {"2026-W27": 1, "2026-W30": 1},  # 2 inside the window
             "ep-many": {"2026-W28": 3},
         },
     )
     cards = te.trending_episodes(tmp_path, tmp_path, now=_NOW)
-    assert [(c.slug, c.events) for c in cards] == [("ep-many", 3), ("ep-two", 2)]
+    assert [(c.slug, c.why.events) for c in cards] == [("ep-many", 3), ("ep-two", 2)]
+    assert seen["since_week"] == "2026-W27"  # the four ISO weeks ending in W30
 
 
 def test_mine_keeps_both_halves_to_the_listeners_world(
@@ -156,11 +173,32 @@ def test_an_episode_without_insights_has_no_quote_and_no_card(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _wire(monkeypatch, topics=[], takes={}, engagement={"ep-bare": {"2026-W30": 6}})
-    monkeypatch.setattr(te, "insights_from_gi", lambda art, limit=None: [])
+    monkeypatch.setattr(te, "insights_from_gi", lambda art, limit=None, **kw: [])
     assert te.trending_episodes(tmp_path, tmp_path, now=_NOW) == []
 
 
-def test_long_quotes_are_cut_for_the_card() -> None:
-    long = "word " * 200
-    cut = te._cut(long)
-    assert len(cut) == te.QUOTE_MAX_CHARS and cut.endswith("…")
+def test_the_insights_own_text_never_stands_in_for_a_quote(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """ADR-163 §4: an insight's text is an LLM paraphrase. With no quote, the next insight that has
+    one leads the card; with none at all, there is no card — not a card quoting the paraphrase."""
+    _wire(monkeypatch, topics=[], takes={}, engagement={"ep-a": {"2026-W30": 6}})
+    monkeypatch.setattr(
+        te,
+        "insights_from_gi",
+        lambda art, limit=None, **kw: [
+            NS(id="insight:paraphrase-only", text="A paraphrase", quotes=[]),
+            NS(
+                id="insight:quoted",
+                text="x",
+                quotes=[NS(text="Said it.", speaker=None, start_ms=9)],
+            ),
+        ],
+    )
+    [card] = te.trending_episodes(tmp_path, tmp_path, now=_NOW)
+    assert card.why.quote is not None
+    assert (card.why.quote.text, card.why.quote.insight_id) == ("Said it.", "insight:quoted")
+    monkeypatch.setattr(
+        te, "insights_from_gi", lambda art, limit=None, **kw: [NS(id="i", text="A", quotes=[])]
+    )
+    assert te.trending_episodes(tmp_path, tmp_path, now=_NOW) == []

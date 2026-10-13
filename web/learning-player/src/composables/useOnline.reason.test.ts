@@ -51,6 +51,41 @@ describe('offlineReason', () => {
     expect(offlineReason()).toBeNull()
   })
 
+  it('a route that needs no session answering 200 does not clear a server that refuses the rest', async () => {
+    // 2026-10-12, Android degraded-server drill: with the signing secret gone, every read answered
+    // 503 except `/corpus/trending-topics` behind Home's search box, and its 200 landed last.
+    const { offlineReason, reportServerReachable } = await import('./useOnline')
+    reportServerReachable(false, '/api/app/me', 'refused')
+    reportServerReachable(true, '/api/app/corpus/trending-topics', 'refused') // a blip before: resets
+    reportServerReachable(false, '/api/app/your-week', 'refused')
+    reportServerReachable(false, '/api/app/queue', 'refused')
+    expect(offlineReason()).toBe('server')
+    reportServerReachable(true, '/api/app/corpus/trending-topics', 'refused')
+    expect(offlineReason()).toBe('server')
+    // Recovery is the failed route itself answering — "Try again", or the next read of it.
+    reportServerReachable(true, '/api/app/queue', 'refused')
+    expect(offlineReason()).toBeNull()
+  })
+
+  it('after a 503 that cleared, the next degradation needs two failures again', async () => {
+    const { offlineReason, reportServerReachable } = await import('./useOnline')
+    reportServerReachable(false, '/api/app/me', 'refused')
+    reportServerReachable(false, '/api/app/queue', 'refused')
+    reportServerReachable(true, '/api/app/me', 'refused')
+    expect(offlineReason()).toBeNull()
+    reportServerReachable(false, '/api/app/push/vapid-key', 'refused') // a 503 by configuration
+    expect(offlineReason()).toBeNull()
+  })
+
+  it('when the server could not be reached at all, ANY answer proves it is back', async () => {
+    const { offlineReason, reportServerReachable } = await import('./useOnline')
+    reportServerReachable(false, '/api/app/me', 'unreachable')
+    reportServerReachable(false, '/api/app/queue', 'unreachable')
+    expect(offlineReason()).toBe('server')
+    reportServerReachable(true, '/api/app/corpus/trending-topics', 'refused')
+    expect(offlineReason()).toBeNull()
+  })
+
   it('READS are never gated on a degraded server, or it could never recover', async () => {
     const { reportServerReachable, isForcedOffline, isOffline } = await import('./useOnline')
     reportServerReachable(false)

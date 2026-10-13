@@ -14,6 +14,7 @@
     "person": "Person",
     "storyline": "Storyline",
     "browse": "Discover",
+    "explore": "Explore",
     "settings": "Settings",
     "about-page": "About"
   },
@@ -50,6 +51,7 @@
     "search": "Search",
     "skipToContent": "Skip to content",
     "home": "Home",
+    "explore": "Explore",
     "library": "Library",
     "primary": "Primary"
   },
@@ -189,6 +191,7 @@
     "searching": "Searching…",
     "type_people": "People",
     "type_topics": "Topics",
+    "showAllCount": "Show all ({count})",
     "type_storylines": "Storylines",
     "type_themes": "Themes",
     "type_shows": "Shows",
@@ -198,6 +201,13 @@
     "showsSummary": "1 show matches | {count} shows match",
     "notesSummary": "1 of your notes mentions this | {count} of your notes mention this",
     "typeEpisodes": "Episodes",
+    "category": {
+      "insights": "Insights",
+      "transcript": "In the conversation",
+      "episodes": "Titles and summaries",
+      "mentions": "Mentions"
+    },
+    "categoryMore": "Show more",
     "noResults": "No matches found.",
     "recallEmpty": "Nothing in your listening on this yet — play or save episodes to build it up.",
     "searchEveryone": "Search every episode instead",
@@ -238,7 +248,11 @@
     "unsaveQuery": "Remove this saved search",
     "savedConfirm": "Saved — find it in Library › Saved",
     "savedTitle": "Your saved searches",
-    "openEpisode": "Open {title}"
+    "openEpisode": "Open {title}",
+    "type_boards": "Boards",
+    "boardsSummary": "1 of your boards | {count} of your boards",
+    "boardMatchedName": "Name matches",
+    "boardMatchedItem": "{kind}: {label}"
   },
   "browse": {
     "hubKicker": "The whole corpus",
@@ -271,6 +285,7 @@
     "shows": "Shows",
     "filterShows": "Filter shows…",
     "fromLabel": "Which episodes",
+    "fromShowsLabel": "Which shows",
     "fromAll": "All shows",
     "fromFollowing": "Shows I follow",
     "fromFollowingShort": "Following",
@@ -431,10 +446,11 @@
     "activityBar": "{month}: no episodes | {month}: {count} episode | {month}: {count} episodes",
     "sigStorylines": "Storylines",
     "sigTopics": "Topics",
-    "sigDistinctive": "Distinctive to this show",
-    "sigDistinctiveHint": "Covered {factor}× more here than across the library",
     "sigPeople": "Key people",
-    "licenceLink": "Licence and copyright: {summary}"
+    "licenceLink": "Licence and copyright: {summary}",
+    "sigThemes": "Themes",
+    "sigDistinctiveNote": "Marked: distinctive to this show, far more here than across the library",
+    "sigDistinctiveName": "distinctive to this show: "
   },
   "player": {
     "description": "Description",
@@ -500,6 +516,29 @@
     "recapRegion": "Episode recap",
     "closeMini": "Close player"
   },
+  "reel": {
+    "kicker": "Listen",
+    "clips": "{n} clip | {n} clips",
+    "episodes": "{n} episode | {n} episodes",
+    "elapsed": "{at} of {total}",
+    "ofCount": "Clip {n} of {total}",
+    "prev": "Previous clip",
+    "next": "Next clip",
+    "play": "Play",
+    "pause": "Pause",
+    "upNext": "Up next",
+    "jump": "Play clip {n}: {speaker}, {episode}",
+    "keep": "Keep listening to this episode",
+    "done": "That was {topic}. The episodes:",
+    "again": "Play again",
+    "empty": "Nothing on {topic} to play yet.",
+    "unavailable": "This reel could not be loaded. Try again later.",
+    "mini": "{topic} · {n} / {total}",
+    "row": "Short listens",
+    "chipLabel": "Play {minutes} minute on {topic} | Play {minutes} minutes on {topic}",
+    "door": "{minutes} min on this",
+    "doorLabel": "Play {minutes} minute of clips on {topic} | Play {minutes} minutes of clips on {topic}"
+  },
   "moments": {
     "title": "Moments",
     "close": "Close moments and go back",
@@ -545,9 +584,9 @@
     "searching": "Searching…",
     "searchError": "Search isn’t available for this episode.",
     "noResults": "No matches found.",
+    "searchResults": "Search results",
     "searchInTranscript": "In the transcript",
     "searchInsights": "Insights",
-    "searchHighlight": "Highlight",
     "summary": "Summary",
     "tags": "Topics & People",
     "storyline": "Storyline · {cluster}",
@@ -695,10 +734,6 @@
     "follow": "Follow",
     "following": "Following",
     "followHint": "Add to your interests — shapes your recommendations",
-    "followTheme": "Follow theme",
-    "followingTheme": "Following theme",
-    "followStoryline": "Follow storyline",
-    "followingStoryline": "Following storyline",
     "followStorylineHint": "Follow every topic in this storyline — shapes your recommendations",
     "sigGrounding": "Grounding",
     "sigGroundedLine": "{grounded} of {total} claims backed by quotes ({pct}%)",
@@ -713,7 +748,8 @@
     "sigVsAvg": "vs its 6-month average",
     "sigSimilar": "Similar topics",
     "sigAlongside": "Often discussed alongside",
-    "moreVoices": "Show more voices ({count})"
+    "moreVoices": "Show more voices ({count})",
+    "board": "Board"
   },
   "queue": {
     "title": "Queue",
@@ -731,10 +767,9 @@
     "offlineDisabled": "Reordering needs a connection"
   },
   "collections": {
-    "sectionTitle": "Your boards",
+    "sectionTitle": "Boards",
     "namePlaceholder": "Board name",
     "create": "Create",
-    "updated": "Updated {date}",
     "searchPlaceholder": "Filter boards and notes…",
     "sortUpdated": "Yours",
     "sortName": "A–Z",
@@ -867,6 +902,9 @@
     "tabStats": "Stats",
     "openInterest": "Open {label}",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
+    "suggestedLess": "Suggested less",
+    "suggestedLessHelp": "Discover shows less about these. Tap one to see it again.",
+    "suggestedLessUndo": "See {subject} in Discover again",
     "unavailable": "Couldn't load this — it needs a connection.",
     "notifications": "Notifications",
     "notificationsHelp": "Choose how each kind reaches you. In-app shows in the bell; email and push reach you when you're away.",
@@ -956,7 +994,7 @@
     "unfollow": "Unfollow {label}",
     "saved": "Saved",
     "highlights": "Highlights",
-    "collections": "Boards",
+    "collections": "Collections",
     "revisit": "Revisit",
     "queue": "Queue",
     "recent": "Recent",
@@ -1055,23 +1093,30 @@
     "ytd": "This year",
     "listened": "Listened",
     "episodes": "Episodes",
-    "finished": "Finished",
-    "starts": "Sessions",
     "byDay": "Listening by day",
     "coverage": "Recorded {recorded} of {total} days",
-    "recurring": "What kept coming up",
     "vsPrevious": "compared with the window before",
     "promptTitle": "Your week in listening",
     "promptEpisodes": "1 episode | {count} episodes",
     "new": "new",
     "line": "The line you kept",
-    "openLine": "Open at this moment →"
+    "openLine": "Open at this moment →",
+    "moments": "Moments",
+    "learningDays": "Learning days",
+    "episodesNote": "{shows} · {finished} finished",
+    "shows": "1 show | {count} shows",
+    "legendEpisodes": "Episodes",
+    "legendMoments": "Moments",
+    "momentToFull": "{n} of {total} episodes you heard as moments, you went on to play in full",
+    "about": "What it was about",
+    "subjectEpisodes": "1 episode | {count} episodes",
+    "subjectMoments": "1 moment | {count} moments",
+    "subjectLearning": "1 learning day | {count} learning days",
+    "promptMoments": "1 moment | {count} moments",
+    "promptLearning": "1 learning day | {count} learning days",
+    "episodesShowsOnly": "{shows}"
   },
   "stats": {
-    "title": "Your activity",
-    "streak": "Day streak",
-    "episodes": "Episodes",
-    "shows": "Shows",
     "keptTitle": "What you've kept",
     "captures": "Highlights",
     "notes": "Notes",
@@ -1083,11 +1128,20 @@
     "capturesReviewed": "Highlights revisited",
     "capturesMuted": "Muted",
     "reviewHint": "A highlight comes back after 2 days, then a week, a month, a quarter.",
-    "overTime": "Opens over time",
-    "activeDays": "{count} active day | {count} active days",
     "empty": "Start listening to build your stats.",
     "listeners": "1 listener | {count} listeners",
-    "opens": "1 open | {count} opens"
+    "opens": "1 open | {count} opens",
+    "streakLine": "Day streak: 1 day | Day streak: {count} days",
+    "learningStreakLine": "Learning streak: 1 day | Learning streak: {count} days",
+    "learningTitle": "Learning",
+    "learningDay": "Day {day} of {days} · {done} done",
+    "learningFinished": "1 path finished | {count} paths finished",
+    "learningLeft": "1 left | {count} left",
+    "learningDaysAll": "1 learning day in all | {count} learning days in all",
+    "savedIn": "Saved in: {parts}",
+    "savedEpisodes": "episodes {count}",
+    "savedMoments": "moments {count}",
+    "savedLearn": "learning days {count}"
   },
   "status": {
     "pending": "Pending",
@@ -1137,7 +1191,7 @@
     "gb": "{n} GB"
   },
   "notes": {
-    "title": "Your notes",
+    "title": "Notes",
     "placeholder": "Add a note…",
     "add": "Add",
     "remove": "Remove",
@@ -1156,6 +1210,7 @@
     "kind_theme": "Theme"
   },
   "common": {
+    "forItem": "{action}: {subject}",
     "cancel": "Cancel",
     "moreActions": "More actions",
     "retry": "Try again"
@@ -1227,5 +1282,113 @@
     "thisEpisode": "This episode: {title}",
     "episodeOwnApplies": "This episode declares its own. Podcasting 2.0 lets an episode do so for its audio and video in place of the show's.",
     "theShow": "The show"
+  },
+  "why": {
+    "rising_topic": "Rising: {subject}",
+    "most_engaged": "Most listened to and saved",
+    "captured_highlight": "Because you highlighted “{capture}”",
+    "captured_note": "Because of your note “{capture}”",
+    "captured_save": "Because you saved {subject}",
+    "captured_plain": "Because of what you captured",
+    "thread": "New in {subject}",
+    "person": "{subject}, whom you keep hearing",
+    "another_view": "Another view on {subject}",
+    "playFrom": "Play from {time}",
+    "playFromLabel": "Play “{quote}” from {time}"
+  },
+  "discover": {
+    "quotes": {
+      "title": "Worth hearing next"
+    },
+    "captured": {
+      "title": "More from what you captured"
+    },
+    "thread": {
+      "title": "Continue the thread"
+    },
+    "people": {
+      "title": "People you keep hearing"
+    },
+    "anotherView": {
+      "title": "Hear another view"
+    },
+    "less": {
+      "button": "Less like this",
+      "label": "Suggest less about {subject}",
+      "done": "Less about {subject} from now on.",
+      "undo": "Undo"
+    },
+    "coldStart": {
+      "note": "Everyone’s picks — yours begin once you listen, save or pick a few topics.",
+      "pick": "Pick topics"
+    }
+  },
+  "learn": {
+    "kicker": "Learn this week",
+    "title": "Learn {subject} this week",
+    "offerTitle": "Learn something this week",
+    "offerNote": "One episode a day for up to a week, each with the moment that matters. Done early? Open the next day now.",
+    "dayOf": "Day {n} of {total}",
+    "dayN": "Day {n}",
+    "progress": "{done} of {total} days done",
+    "seeWeek": "The whole week",
+    "markDone": "Done",
+    "done": "Done",
+    "opensOn": "Opens on day {n}",
+    "notDone": "Not done yet",
+    "openNext": "Next day now",
+    "yourPaths": "What you are learning",
+    "learningNow": "Learning now",
+    "current": "{subject} · day {n} of {total}",
+    "atCap": "You are learning 3 things. This replaces “{subject}”, the oldest.",
+    "expand": "Day {n}: {title}. Open to replay",
+    "collapse": "Close day {n}",
+    "stop": "Leave this path",
+    "stopConfirm": "Leave this path?",
+    "stopYes": "Leave",
+    "stopNo": "Keep going",
+    "none": "You are not learning anything this week.",
+    "toDiscover": "Pick something on Discover",
+    "door": "Learn this in {days} days",
+    "doorDay": "Learning · day {n} of {total}",
+    "doorStart": "Start",
+    "doorCancel": "Not now"
+  },
+  "inProgress": {
+    "title": "In progress",
+    "learnKicker": "Learn · day {n} of {total}",
+    "playDay": "Play day {n}",
+    "doneToday": "Day {n} done ✓",
+    "opensIn": "Day {n} opens in {h} h",
+    "opensSoon": "Day {n} opens within the hour",
+    "finished": "All {total} days done ✓",
+    "reelKicker": "Short listen · clip {n} of {total}",
+    "resume": "Resume",
+    "clipN": "clip {n}",
+    "resumeLabel": "Resume {subject} at clip {n}"
+  },
+  "explore": {
+    "title": "Explore",
+    "seeAllEpisodes": "See all {count} episodes",
+    "seeAllShows": "See all {count} shows"
+  },
+  "boardBrief": {
+    "title": "Brief",
+    "holdsEpisodes": "{count} episode | {count} episodes",
+    "holdsMoments": "{count} saved moment | {count} saved moments",
+    "holdsShows": "{count} show | {count} shows",
+    "holdsSubjects": "{count} subject | {count} subjects",
+    "holdsSearches": "{count} search | {count} searches",
+    "holdsLinks": "{count} link | {count} links",
+    "savedHere": "saved on this board",
+    "pointBy": "{speaker} · {episode}",
+    "unavailable": "The Brief could not be loaded.",
+    "open": "Brief",
+    "close": "Close brief",
+    "empty": "Nothing to brief yet. Save an episode or a moment to this board.",
+    "playHint": "{length} · this board's moments, in order",
+    "about": "What this board’s about",
+    "summarisedOn": "Summarised {date}",
+    "summaryStale": "the board changed since, an update follows within a day"
   }
 }

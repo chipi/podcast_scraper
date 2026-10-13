@@ -109,7 +109,7 @@ def _hit(
 
 
 def exact_passages(
-    segments: Sequence[Segment], query: str, *, episode_id: str, limit: int = 20
+    segments: Sequence[Segment], query: str, *, episode_id: str, limit: Optional[int] = 20
 ) -> List[Dict[str, Any]]:
     """Passages holding the remembered words verbatim (case-insensitive, whole words).
 
@@ -120,7 +120,8 @@ def exact_passages(
     misremembered, was found by these exact tiers 1-5% of the time): every word in some form
     (``forms``: "invested" finds "investing"), and, for three or more words, all but one of them
     (``most``). Each group in episode order; a passage is listed once, and carries the transcript
-    words it matched (``marks``) so the reader can see why.
+    words it matched (``marks``) so the reader can see why. ``limit=None`` returns every passage
+    (the Brief's word search, operator 2026-10-12: not limited).
     """
     typed = _words(query)
     terms = _terms(query)
@@ -178,6 +179,31 @@ def exact_passages(
     return found[:limit]
 
 
+def word_matches(results: List[Any], query: str) -> List[Any]:
+    """The results that hold every remembered word, in some form; the rest are dropped.
+
+    The Brief's search is a word search (operator 2026-10-12): a result found only by meaning, with
+    none of the typed words in it, read as a wrong answer ("Intervention" returned a welcome line).
+    The index ranks by words and meaning together, so its results are kept only when their own text
+    has each content word in some form (:func:`_form`: "interventions" for "intervention"), and they
+    carry the words they matched (``marks``) like the verbatim passages do. In place on each kept
+    hit's metadata; the order is the index's.
+    """
+    forms = {_form(t) for t in _terms(query)}
+    if not forms:
+        return []
+    kept: List[Any] = []
+    for hit in results:
+        ws = _words(hit.text or "")
+        if not forms <= {_form(w) for w in ws}:
+            continue
+        md = dict(hit.metadata) if isinstance(hit.metadata, dict) else {}
+        md["marks"] = sorted({w for w in ws if _form(w) in forms})
+        hit.metadata = md
+        kept.append(hit)
+    return kept
+
+
 def _locate(
     hit_words: Sequence[str], index: Dict[Tuple[str, ...], int], from_end: bool
 ) -> Optional[int]:
@@ -233,13 +259,8 @@ def time_transcript_hits(results: List[Any], segments: Sequence[Segment]) -> Non
         hit.metadata = timed
 
 
-def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segment]]:
-    """The episode's canonical timed transcript as ``(start_ms, end_ms, text)``, or None.
-
-    The same candidates, in the same order, as ``GET /segments`` serves by default: the raw
-    canonical file first (its timestamps run on the original audio the player streams), the
-    ad-free one only as a fallback.
-    """
+def episode_segments_relpath(root: Path, row: CatalogEpisodeRow) -> Optional[str]:
+    """The corpus-relative path of the file :func:`episode_segments` reads, or None."""
     doc = _load_metadata_doc(root / row.metadata_relative_path)
     content = doc.get("content") if isinstance(doc, dict) else None
     transcript_rel = transcript_relpath(content if isinstance(content, dict) else {})
@@ -248,15 +269,177 @@ def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segmen
     corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
     for candidate in segments_relpaths_for_transcript(corpus_rel):
         safe = safe_relpath_under_corpus_root(root, candidate)
-        if not safe or not (root / safe).is_file():
-            continue
-        try:
-            raw = json.loads((root / safe).read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            logger.warning("Unreadable segments file %s: %s", root / safe, exc)
-            return None
-        return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
+        if safe and (root / safe).is_file():
+            return str(safe)
     return None
+
+
+def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segment]]:
+    """The episode's canonical timed transcript as ``(start_ms, end_ms, text)``, or None.
+
+    The same candidates, in the same order, as ``GET /segments`` serves by default: the raw
+    canonical file first (its timestamps run on the original audio the player streams), the
+    ad-free one only as a fallback.
+    """
+    safe = episode_segments_relpath(root, row)
+    if safe is None:
+        return None
+    try:
+        raw = json.loads((root / safe).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        logger.warning("Unreadable segments file %s: %s", root / safe, exc)
+        return None
+    return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
+
+
+def _segment_dicts(path: Path) -> List[Dict[str, Any]]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    segs = raw.get("segments", raw) if isinstance(raw, dict) else raw
+    return [s for s in segs if isinstance(s, dict)] if isinstance(segs, list) else []
+
+
+def _merge_spans(spans: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    out: List[Tuple[int, int]] = []
+    for lo, hi in sorted(spans):
+        if out and lo <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], hi))
+        elif hi > lo:
+            out.append((lo, hi))
+    return out
+
+
+def _detected_ad_reads(raw: List[Dict[str, Any]]) -> List[Tuple[int, int]]:
+    """The ad READS inside the detector's ranges, not the ranges themselves.
+
+    A detected range is the stretch the pipeline would cut, and it can sweep in content: in a
+    fixture episode with a pre-roll at 12 s and a break at 42 s it ran 0-54 s, over two real
+    points. A clip only needs to never play an ad, so here a segment is an ad when it lies in a
+    range AND its own text reads as one, in any language the ad patterns cover
+    (``gi.filters.AD_PATTERNS_BY_LANGUAGE``). Reads one line apart in the
+    same range join up, so a sponsor read split across three segments is one span."""
+    from podcast_scraper.gi.ad_regions import ad_time_intervals
+    from podcast_scraper.gi.filters import AD_PATTERNS_BY_LANGUAGE
+
+    ranges = ad_time_intervals(raw)
+    if not ranges:
+        return []
+    patterns = [p for group in AD_PATTERNS_BY_LANGUAGE.values() for p in group]
+
+    def range_of(seg: Dict[str, Any]) -> Optional[int]:
+        mid = (float(seg.get("start") or 0.0) + float(seg.get("end") or 0.0)) / 2.0
+        return next((i for i, (a, b) in enumerate(ranges) if a <= mid <= b), None)
+
+    reads: List[Tuple[int, int]] = []  # (index in raw, which range)
+    for i, seg in enumerate(raw):
+        r = range_of(seg)
+        if r is not None and any(p.search(str(seg.get("text") or "")) for p in patterns):
+            reads.append((i, r))
+    spans: List[Tuple[int, int]] = []
+    prev: Optional[Tuple[int, int]] = None
+    for i, r in reads:
+        lo = int(float(raw[i].get("start") or 0.0) * 1000)
+        hi = int(float(raw[i].get("end") or 0.0) * 1000)
+        if prev is not None and prev[1] == r and i - prev[0] <= 2:
+            spans[-1] = (spans[-1][0], hi)
+        else:
+            spans.append((lo, hi))
+        prev = (i, r)
+    return spans
+
+
+def ad_spans_from_segments(
+    raw: List[Dict[str, Any]], adfree: Optional[List[Dict[str, Any]]]
+) -> List[Tuple[int, int]]:
+    """Ad stretches of the raw timeline as ``(start_ms, end_ms)``, merged and sorted.
+
+    From what is already on disk, in this order of evidence: with the ad-free segments the
+    pipeline wrote, the raw segments it left out (the ad-free file keeps raw start times, so a
+    missing start is a cut) — the very cut every insight was extracted after. Without that file
+    (or with an empty one), the ad reads the same detector finds (:func:`_detected_ad_reads`).
+    Either way, any segment diarization voiced as ``commercial``.
+    """
+    spans: List[Tuple[int, int]] = []
+    if adfree:
+        kept = {round(float(s.get("start") or 0.0), 2) for s in adfree}
+        spans += [
+            (int(float(s.get("start") or 0.0) * 1000), int(float(s.get("end") or 0.0) * 1000))
+            for s in raw
+            if round(float(s.get("start") or 0.0), 2) not in kept
+        ]
+    else:
+        spans += _detected_ad_reads(raw)
+    spans += [
+        (int(float(s.get("start") or 0.0) * 1000), int(float(s.get("end") or 0.0) * 1000))
+        for s in raw
+        if s.get("voice_type") == "commercial"
+    ]
+    return _merge_spans(spans)
+
+
+def episode_ad_spans(root: Path, row: CatalogEpisodeRow) -> List[Tuple[int, int]]:
+    """:func:`ad_spans_from_segments` for an episode's raw canonical segments, cached until the
+    file changes. ``[]`` when the episode has no raw segments (an ad-free file alone has no ads to
+    find, and its timeline is the one the clips would then use)."""
+    from podcast_scraper import perf_cache
+
+    safe = episode_segments_relpath(root, row)
+    if safe is None or safe.endswith(".adfree.segments.json"):
+        return []
+    path = root / safe
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return []
+
+    def build() -> List[Tuple[int, int]]:
+        adfree_path = path.with_name(path.name[: -len(".segments.json")] + ".adfree.segments.json")
+        adfree = _segment_dicts(adfree_path) if adfree_path.is_file() else None
+        return ad_spans_from_segments(_segment_dicts(path), adfree)
+
+    spans: List[Tuple[int, int]] = perf_cache.get_or_compute(
+        "app_episode_ad_spans", str(path), mtime, build
+    )
+    return spans
+
+
+def episode_turn_starts(root: Path, row: CatalogEpisodeRow) -> frozenset[int]:
+    """Start (ms) of every segment whose speaker differs from the one before it: where one person
+    stops and another starts. Unknown speakers are never a change. Cached until the file changes.
+
+    A short listen is a clip of the person making the point, so it ends where they do — the next
+    voice was a host's sponsor credit or native ad as often as a question (2026-10-12)."""
+    from podcast_scraper import perf_cache
+
+    safe = episode_segments_relpath(root, row)
+    if safe is None:
+        return frozenset()
+    path = root / safe
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return frozenset()
+
+    def build() -> frozenset[int]:
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return frozenset()
+        starts: set[int] = set()
+        prev: Optional[str] = None
+        for seg in to_contract_segments(raw):
+            if seg.speaker and prev and seg.speaker != prev:
+                starts.add(int(seg.start * 1000))
+            if seg.speaker:
+                prev = seg.speaker
+        return frozenset(starts)
+
+    turns: frozenset[int] = perf_cache.get_or_compute(
+        "app_episode_turn_starts", str(path), mtime, build
+    )
+    return turns
 
 
 def time_hits_by_episode(root: Path, results: List[Any], rows: Iterable[CatalogEpisodeRow]) -> None:

@@ -45,7 +45,17 @@ def _corpus(root: Path) -> None:
     }
     (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
     (root / "transcripts" / f"{stem}.segments.json").write_text(
-        json.dumps([{"id": 0, "start": 0.0, "end": 2.5, "text": "Hi", "speaker_label": "A"}]),
+        json.dumps(
+            [
+                {
+                    "id": 0,
+                    "start": 0.0,
+                    "end": 2.5,
+                    "text": "Hi, the show begins.",
+                    "speaker_label": "A",
+                }
+            ]
+        ),
         encoding="utf-8",
     )
     (root / "metadata" / f"{stem}.gi.json").write_text(
@@ -71,23 +81,9 @@ def _corpus(root: Path) -> None:
     )
 
 
-def test_reference_client_walks_full_spine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from podcast_scraper.search.corpus_search import CorpusSearchOutcome
-
-    # Keep search deterministic + ML-free: the walker hits /search, so stub the retrieval.
-    monkeypatch.setattr(
-        "podcast_scraper.search.capability.run_corpus_search",
-        lambda output_dir, query, **kw: CorpusSearchOutcome(
-            results=[
-                {
-                    "doc_id": "insight:1",
-                    "score": 0.9,
-                    "metadata": {"doc_type": "insight", "episode_id": "ep1"},
-                    "text": "hit",
-                }
-            ]
-        ),
-    )
+def test_reference_client_walks_full_spine(tmp_path: Path) -> None:
+    # The walker searches "the": the Brief's search reads the episode's own transcript for the
+    # words (operator 2026-10-12), so the one segment says it.
     _corpus(tmp_path)
     data_dir = tmp_path / "appdata"
     app = create_app(tmp_path, static_dir=False)

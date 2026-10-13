@@ -56,6 +56,14 @@ from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
+from ..common.summary_use_case import (
+    build_use_case_prompts,
+    reply_budget,
+    SummaryUseCase,
+    use_case_from_params,
+    use_case_prompt_metadata,
+    use_case_stage,
+)
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
 
 logger = logging.getLogger(__name__)
@@ -1159,6 +1167,10 @@ class OllamaProvider:
             or 100
         )
         custom_prompt = params.get("prompt") if params else None
+        # RFC-127: a summary other than the episode's (a board's) runs this same flow with its
+        # own prompts, stage and budget; absent, this is the episode summary exactly as before.
+        use_case = use_case_from_params(params)
+        max_length = reply_budget(use_case, max_length)
 
         # Ollama-specific reduce params (from ollama_reduce_params in hybrid config)
         # Fall back to summary_temperature / OpenAI-compat defaults when not set
@@ -1186,7 +1198,13 @@ class OllamaProvider:
                 paragraphs_min,
                 paragraphs_max,
             ) = self._build_summarization_prompts(
-                text, episode_title, episode_description, max_length, min_length, custom_prompt
+                text,
+                episode_title,
+                episode_description,
+                max_length,
+                min_length,
+                custom_prompt,
+                use_case=use_case,
             )
 
             # Track retries and rate limits
@@ -1293,6 +1311,7 @@ class OllamaProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                     triggered_guardrail=triggered_guardrail,
+                    stage=use_case_stage(use_case),
                 )
 
             # Response-shape guardrail (ADR-099/100). Cost emitted in BOTH
@@ -1344,6 +1363,8 @@ class OllamaProvider:
                 user_params.update(self.cfg.summary_prompt_params)
                 prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
+            # A use case records its own templates (RFC-127); the episode summary keeps the above.
+            prompt_metadata = use_case_prompt_metadata("ollama", use_case) or prompt_metadata
             return {
                 "summary": summary,
                 "summary_short": None,  # Ollama doesn't generate short summaries separately
@@ -1588,6 +1609,7 @@ class OllamaProvider:
         max_length: int,
         min_length: int,
         custom_prompt: Optional[str],
+        use_case: Optional[SummaryUseCase] = None,
     ) -> tuple[str, str, Optional[str], str, int, int]:
         """Build system and user prompts for summarization using prompt_store."""
 
@@ -1614,6 +1636,10 @@ class OllamaProvider:
             )
             text = text[:_budget]
         from ...prompts.store import render_prompt
+
+        if use_case is not None:  # RFC-127: a use case's own prompts
+            system, user, system_name, user_name = build_use_case_prompts("ollama", use_case)
+            return system, user, system_name, user_name, 0, 0
 
         # Try model-specific prompts first, fallback to generic
         if self.cfg.ollama_summary_system_prompt:

@@ -12,7 +12,7 @@ test('discovery rows draw a real sparkline path from the corpus, not an empty on
   page,
 }, testInfo) => {
   await signInIsolated(page, 'sparkline', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   // Topics tab is the default; discovery-row rows carry an inline Sparkline each.
   await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()

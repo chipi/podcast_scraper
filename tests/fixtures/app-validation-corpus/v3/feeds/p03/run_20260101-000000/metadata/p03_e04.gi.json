@@ -1,34 +1,34 @@
 {
   "edges": [
     {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
+      "from": "insight:authored-p03_e04-0",
       "to": "topic:dive-planning",
-      "type": "MENTIONS"
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p03_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p03_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "topic:dive-planning",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:safety-practices",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-916dab1698f88aec",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
+      "to": "insight:8d5667985a6bf6f1",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-916dab1698f88aec",
@@ -41,99 +41,59 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:c1a333a563abe849",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:c1a333a563abe849",
+      "from": "episode:ep-916dab1698f88aec",
       "to": "topic:dive-planning",
-      "type": "ABOUT"
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-916dab1698f88aec",
-      "to": "insight:8d5667985a6bf6f1",
-      "type": "HAS_INSIGHT"
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
     },
     {
-      "from": "quote:b5e91a65497860c0",
-      "to": "person:marco-silva",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:a7c9178cc26caaf1",
-      "to": "quote:b5e91a65497860c0",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:668b4252b80c2023",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c1a333a563abe849",
-      "to": "quote:668b4252b80c2023",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:95524ff18d7c24c9",
-      "to": "person:marco-silva",
-      "type": "SPOKEN_BY"
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
     },
     {
       "from": "insight:8d5667985a6bf6f1",
-      "to": "quote:95524ff18d7c24c9",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:9cd9f72d427cb83e",
-      "to": "person:marco-silva",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:a7c9178cc26caaf1",
-      "to": "quote:9cd9f72d427cb83e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:89f643619ecf379f",
-      "to": "person:rina",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c1a333a563abe849",
-      "to": "quote:89f643619ecf379f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:855d8a05de549e57",
-      "to": "person:marco-silva",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:8d5667985a6bf6f1",
-      "to": "quote:855d8a05de549e57",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:a7c9178cc26caaf1",
       "to": "person:rina",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:c1a333a563abe849",
-      "to": "person:marco-silva",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:8d5667985a6bf6f1",
+      "from": "insight:a7c9178cc26caaf1",
       "to": "person:rina",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p03_e04-0",
-      "to": "quote:authored-p03_e04-0",
-      "type": "SUPPORTED_BY"
+      "to": "person:marco-silva",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p03_e04-1",
+      "to": "person:marco-silva",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:c1a333a563abe849",
+      "to": "person:marco-silva",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:3dc7aa9281860a1b",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:74bd2be937edcc83",
+      "to": "person:marco-silva",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:ac670460e3b9ad16",
+      "to": "person:marco-silva",
+      "type": "SPOKEN_BY"
     },
     {
       "from": "quote:authored-p03_e04-0",
@@ -141,14 +101,24 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:authored-p03_e04-0",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
+      "from": "quote:authored-p03_e04-1",
+      "to": "person:marco-silva",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8d5667985a6bf6f1",
+      "to": "quote:ac670460e3b9ad16",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:a7c9178cc26caaf1",
+      "to": "quote:3dc7aa9281860a1b",
+      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:authored-p03_e04-0",
-      "to": "person:marco-silva",
-      "type": "MENTIONS_PERSON"
+      "to": "quote:authored-p03_e04-0",
+      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:authored-p03_e04-1",
@@ -156,19 +126,9 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:authored-p03_e04-1",
-      "to": "person:marco-silva",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:authored-p03_e04-1",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p03_e04-1",
-      "to": "person:marco-silva",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:c1a333a563abe849",
+      "to": "quote:74bd2be937edcc83",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-916dab1698f88aec",
@@ -203,27 +163,6 @@
       "id": "topic:dive-planning",
       "properties": {
         "label": "dive planning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:safety-practices",
-      "properties": {
-        "label": "safety practices"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },
@@ -270,27 +209,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:marco-silva",
-      "properties": {
-        "name": "Marco Silva"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:b5e91a65497860c0",
-      "properties": {
-        "char_end": 169,
-        "char_start": 149,
-        "episode_id": "ep-916dab1698f88aec",
-        "speaker_id": "person:speaker-02",
-        "text": "Ha \u2014 happy to, Rina.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p03_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:rina",
       "properties": {
         "name": "Rina"
@@ -298,7 +216,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:668b4252b80c2023",
+      "id": "quote:3dc7aa9281860a1b",
       "properties": {
         "char_end": 363,
         "char_start": 302,
@@ -312,7 +230,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:95524ff18d7c24c9",
+      "id": "person:marco-silva",
+      "properties": {
+        "name": "Marco Silva"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:74bd2be937edcc83",
       "properties": {
         "char_end": 579,
         "char_start": 377,
@@ -326,7 +251,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:9cd9f72d427cb83e",
+      "id": "quote:ac670460e3b9ad16",
       "properties": {
         "char_end": 803,
         "char_start": 579,
@@ -335,34 +260,6 @@
         "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p03_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:89f643619ecf379f",
-      "properties": {
-        "char_end": 866,
-        "char_start": 810,
-        "episode_id": "ep-916dab1698f88aec",
-        "speaker_id": "person:speaker-01",
-        "text": "So it's not so different from managing any kind of risk.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p03_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:855d8a05de549e57",
-      "properties": {
-        "char_end": 1062,
-        "char_start": 880,
-        "episode_id": "ep-916dab1698f88aec",
-        "speaker_id": "person:speaker-02",
-        "text": "Not different at all. A dive plan and a portfolio are the same discipline \u2014 systems of correlated risk, where the one you can describe in advance is the one you can actually control.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
@@ -384,13 +281,13 @@
     {
       "id": "quote:authored-p03_e04-0",
       "properties": {
-        "char_end": 84,
-        "char_start": 0,
+        "char_end": 579,
+        "char_start": 377,
         "episode_id": "ep-916dab1698f88aec",
         "speaker_id": "person:marco-silva",
-        "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all first.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
@@ -412,13 +309,13 @@
     {
       "id": "quote:authored-p03_e04-1",
       "properties": {
-        "char_end": 74,
-        "char_start": 0,
+        "char_end": 803,
+        "char_start": 579,
         "episode_id": "ep-916dab1698f88aec",
         "speaker_id": "person:marco-silva",
-        "text": "You plan the whole dive as one system; accidents live in the interactions.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"

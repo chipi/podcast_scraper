@@ -2008,6 +2008,33 @@ class Config(BaseModel):
             "and max_words_per_bullet for shared bullet templates; optional bullet_max caps count."
         ),
     )
+    # RFC-127: the board summary, a use case of the same `summarize` (providers/common/
+    # summary_use_case.py). Logical names, resolved like every summarization prompt: under the
+    # provider's own folder (<ns>/summarization/...), else prompts/shared/summarization/. A new
+    # version is a new file and a change of these names.
+    board_summary_system_prompt: str = Field(
+        default="summarization/board_system_v1",
+        alias="board_summary_system_prompt",
+        description="System prompt for board summaries (logical prompt_store name).",
+    )
+    board_summary_user_prompt: str = Field(
+        default="summarization/board_user_v1",
+        alias="board_summary_user_prompt",
+        description="User prompt for board summaries (logical prompt_store name).",
+    )
+    board_summary_document_prompt: str = Field(
+        default="summarization/board_document_v1",
+        alias="board_summary_document_prompt",
+        description="Board material written as prose, for seq2seq summarizers (BART/LED) that "
+        "take a document and no instructions (logical prompt_store name).",
+    )
+    board_summary_max_tokens: int = Field(
+        default=400,
+        ge=50,
+        le=4000,
+        alias="board_summary_max_tokens",
+        description="Reply budget for a board summary, in tokens.",
+    )
     openai_speaker_system_prompt: Optional[str] = Field(
         default=None,
         alias="openai_speaker_system_prompt",

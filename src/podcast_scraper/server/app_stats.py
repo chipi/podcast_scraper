@@ -93,6 +93,53 @@ def compute_user_stats(data_dir: Path, user_id: str, *, now: int | None = None) 
         "day_streak": _day_streak(set(event_dates), today),
         "daily": _daily_series(event_dates, today),
         **_capture_stats(data_dir, user_id, now=now),
+        **_learning_and_moments(data_dir, user_id, today, now=now),
+    }
+
+
+def _learning_and_moments(
+    data_dir: Path, user_id: str, today: date, *, now: int | None = None
+) -> dict[str, Any]:
+    """Learning and short listens, all time (operator 2026-10-12).
+
+    * ``learning_now``: each path on now — its subject, the day it is on, its days, how many done.
+    * ``learning_days_total`` / ``learning_streak``: days done on any path, and the current run of
+      calendar days (UTC) with at least one done — anchored like the listening streak.
+    * ``paths_finished`` / ``paths_left``: paths that ended, by how.
+    * ``moments_heard_total`` / ``moments_seconds_total``: clips heard to their end, ever.
+    """
+    from podcast_scraper.server.app_learning_path import open_days
+    from podcast_scraper.server.app_recap import learning_done_times
+
+    at = int(now if now is not None else time.time())
+    paths = app_user_state.get_learning_paths(data_dir, user_id)
+    history = app_user_state.get_learning_history(data_dir, user_id)
+    done = learning_done_times(data_dir, user_id)
+    done_days = {d for d in (_ts_to_date(ts) for ts, _ in done) if d is not None}
+    moments = app_user_state.list_moments_heard(data_dir, user_id)
+    clips = [m for m in moments if m.get("kind") == "clip"]
+    return {
+        "learning_now": [
+            {
+                "subject_id": p.get("subject_id"),
+                "subject_kind": p.get("subject_kind"),
+                "subject_label": p.get("subject_label"),
+                # The newest day open, counting days opened early: "Day 1 of 7 · 2 done" read
+                # wrong after the second day was opened ahead.
+                "day": open_days(p, at),
+                "days": len(p.get("steps") or []),
+                "done": len(p.get("done") or []),
+            }
+            for p in paths
+        ],
+        "learning_days_total": len(done),
+        "learning_streak": _day_streak(done_days, today),
+        # A path is written to the history as finished the moment its last day is done, while it
+        # stays on until left; counting both would count it twice.
+        "paths_finished": sum(1 for h in history if h.get("outcome") == "finished"),
+        "paths_left": sum(1 for h in history if h.get("outcome") == "left"),
+        "moments_heard_total": len(clips),
+        "moments_seconds_total": round(sum(float(m.get("seconds") or 0.0) for m in clips), 1),
     }
 
 
@@ -140,6 +187,9 @@ def _capture_stats(data_dir: Path, user_id: str, *, now: int | None = None) -> d
             reviewed_ids += 1
 
     kinds = Counter(str(h.get("kind") or "span") for h in highlights)
+    # Where each was saved (operator 2026-10-12): an episode, a short listen, or a learning day.
+    # Saved before the source was recorded counts as an episode, which every capture then was.
+    sources = Counter(str(h.get("source") or "episode") for h in highlights)
     return {
         "captures": len(highlights),
         "capture_moments": kinds.get("moment", 0),
@@ -149,6 +199,9 @@ def _capture_stats(data_dir: Path, user_id: str, *, now: int | None = None) -> d
         "capture_episodes": len(
             {str(h.get("episode_slug") or "") for h in highlights if h.get("episode_slug")}
         ),
+        "capture_from_episode": sources.get("episode", 0),
+        "capture_from_moment": sources.get("moment", 0),
+        "capture_from_learn": sources.get("learn", 0),
         "notes": len(notes),
         # The review loop, which nothing measured: how many captures have come back at least once,
         # how many reviews that is in total, and how many the user has asked to stop hearing about.

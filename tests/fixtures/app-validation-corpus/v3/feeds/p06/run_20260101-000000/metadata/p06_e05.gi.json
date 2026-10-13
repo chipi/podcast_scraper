@@ -1,6 +1,16 @@
 {
   "edges": [
     {
+      "from": "insight:ae4361058ac53839",
+      "to": "topic:edge-cases",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-0c46a67a56b05689",
+      "to": "insight:ae4361058ac53839",
+      "type": "HAS_INSIGHT"
+    },
+    {
       "from": "episode:ep-0c46a67a56b05689",
       "to": "topic:edge-cases",
       "type": "MENTIONS"
@@ -11,29 +21,9 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:long-form",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0c46a67a56b05689",
-      "to": "insight:ae4361058ac53839",
-      "type": "HAS_INSIGHT"
+      "from": "insight:ae4361058ac53839",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "quote:5ab47e4f1e194c1f",
@@ -44,41 +34,6 @@
       "from": "insight:ae4361058ac53839",
       "to": "quote:5ab47e4f1e194c1f",
       "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:628be7900426e0f5",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ae4361058ac53839",
-      "to": "quote:628be7900426e0f5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:9ffa369fdb9845b4",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ae4361058ac53839",
-      "to": "quote:9ffa369fdb9845b4",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0ac3906c06d68498",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ae4361058ac53839",
-      "to": "quote:0ac3906c06d68498",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:ae4361058ac53839",
-      "to": "person:maya",
-      "type": "MENTIONS_PERSON"
     }
   ],
   "episode_id": "ep-0c46a67a56b05689",
@@ -106,34 +61,6 @@
       "id": "topic:stage-directions",
       "properties": {
         "label": "stage directions"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:long-form",
-      "properties": {
-        "label": "long-form"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
       },
       "type": "Topic"
     },
@@ -168,48 +95,6 @@
         "text": "This is an edge-case fixture used for parser and processor robustness tests.",
         "timestamp_end_ms": 6000,
         "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p06_e05.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:628be7900426e0f5",
-      "properties": {
-        "char_end": 95,
-        "char_start": 82,
-        "episode_id": "ep-0c46a67a56b05689",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p06_e05.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:9ffa369fdb9845b4",
-      "properties": {
-        "char_end": 111,
-        "char_start": 95,
-        "episode_id": "ep-0c46a67a56b05689",
-        "speaker_id": "person:speaker-01",
-        "text": "We are now back.",
-        "timestamp_end_ms": 18000,
-        "timestamp_start_ms": 12000,
-        "transcript_ref": "transcripts/p06_e05.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:0ac3906c06d68498",
-      "properties": {
-        "char_end": 140,
-        "char_start": 111,
-        "episode_id": "ep-0c46a67a56b05689",
-        "speaker_id": "person:speaker-01",
-        "text": "End of edge-case episode e05.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
         "transcript_ref": "transcripts/p06_e05.txt"
       },
       "type": "Quote"

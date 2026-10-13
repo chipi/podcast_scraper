@@ -1,13 +1,33 @@
 {
   "edges": [
     {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:enduro-racing",
-      "type": "MENTIONS"
+      "from": "insight:377b669da4390e44",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:f0b48000fc67a378",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:soil-erosion",
+      "to": "insight:377b669da4390e44",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "insight:9b50b4751f5febaa",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "insight:f0b48000fc67a378",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:enduro-racing",
       "type": "MENTIONS"
     },
     {
@@ -17,108 +37,53 @@
     },
     {
       "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:endurance-sport",
+      "to": "topic:soil-erosion",
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:558de94420aa78f2",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:7989dd48f774e396",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-ca65ab78f4c50f2a",
-      "to": "insight:3ca798db298f5f8e",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:808942183cfc917c",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:558de94420aa78f2",
-      "to": "quote:808942183cfc917c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:43ac9c5f2a8f3aa7",
-      "to": "person:lena-hofmann",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7989dd48f774e396",
-      "to": "quote:43ac9c5f2a8f3aa7",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:592bb0dc44e38341",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:3ca798db298f5f8e",
-      "to": "quote:592bb0dc44e38341",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0b456b5719b7204b",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:558de94420aa78f2",
-      "to": "quote:0b456b5719b7204b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d468001725802005",
-      "to": "person:lena-hofmann",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7989dd48f774e396",
-      "to": "quote:d468001725802005",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0573644fb2c872d5",
-      "to": "person:katrin-vogel",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:3ca798db298f5f8e",
-      "to": "quote:0573644fb2c872d5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:558de94420aa78f2",
+      "from": "insight:377b669da4390e44",
       "to": "person:katrin-vogel",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:7989dd48f774e396",
+      "from": "insight:9b50b4751f5febaa",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:f0b48000fc67a378",
       "to": "person:lena-hofmann",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:3ca798db298f5f8e",
+      "from": "quote:0cb0577611666d04",
       "to": "person:katrin-vogel",
-      "type": "MENTIONS_PERSON"
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:173164fc7a2d7e1f",
+      "to": "person:lena-hofmann",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:f8da80b8ea8991ad",
+      "to": "person:lena-hofmann",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:377b669da4390e44",
+      "to": "quote:f8da80b8ea8991ad",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:9b50b4751f5febaa",
+      "to": "quote:0cb0577611666d04",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:f0b48000fc67a378",
+      "to": "quote:173164fc7a2d7e1f",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-ca65ab78f4c50f2a",
@@ -157,28 +122,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:558de94420aa78f2",
+      "id": "insight:377b669da4390e44",
       "properties": {
         "episode_id": "ep-ca65ab78f4c50f2a",
         "grounded": true,
@@ -186,13 +130,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Linear is the issue tracker built for speed \u2013 designed for the keyboard. Try linear.com today. Before we get started, Stefan Brandt was on the show and mentioned that drainage is the design decisio\u2026",
+        "text": "To be honest, risk management in racing isn't about avoiding crashes; it's about choosing which crashes you can survive. We've seen this with teams that use Shimano. If you ignore that, you'll have\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:7989dd48f774e396",
+      "id": "insight:f0b48000fc67a378",
       "properties": {
         "episode_id": "ep-ca65ab78f4c50f2a",
         "grounded": true,
@@ -200,13 +144,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Yes, exactly. And that connects to what we are discussing today.",
+        "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this with teams that use RockShox. I've observed this pattern in three\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:3ca798db298f5f8e",
+      "id": "insight:9b50b4751f5febaa",
       "properties": {
         "episode_id": "ep-ca65ab78f4c50f2a",
         "grounded": true,
@@ -214,41 +158,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I'd like to point something out \u2013 Stefan Brandt mentioned a similar dynamic a few episodes ago.",
+        "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:katrin-vogel",
-      "properties": {
-        "name": "Katrin Vogel"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:808942183cfc917c",
-      "properties": {
-        "char_end": 237,
-        "char_start": 14,
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "Linear is the issue tracker built for speed \u2013 designed for the keyboard. Try linear.com today. Before we get started, Stefan Brandt was on the show and mentioned that drainage is the design decision with the biggest impact.",
-        "timestamp_end_ms": 31440,
-        "timestamp_start_ms": 15540,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:lena-hofmann",
@@ -258,15 +171,15 @@
       "type": "Person"
     },
     {
-      "id": "quote:43ac9c5f2a8f3aa7",
+      "id": "quote:f8da80b8ea8991ad",
       "properties": {
-        "char_end": 316,
-        "char_start": 252,
+        "char_end": 1365,
+        "char_start": 1127,
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-02",
-        "text": "Yes, exactly. And that connects to what we are discussing today.",
-        "timestamp_end_ms": 35100,
-        "timestamp_start_ms": 31440,
+        "text": "To be honest, risk management in racing isn't about avoiding crashes; it's about choosing which crashes you can survive. We've seen this with teams that use Shimano. If you ignore that, you'll have to rebuild it from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
         "transcript_ref": "transcripts/p13_e02.txt",
         "translation": {
           "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
@@ -275,70 +188,22 @@
           "source_language": "de",
           "translated": true,
           "unit_ids": [
-            "t0003.u01"
+            "t0009.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:592bb0dc44e38341",
+      "id": "quote:173164fc7a2d7e1f",
       "properties": {
-        "char_end": 426,
-        "char_start": 331,
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "I'd like to point something out \u2013 Stefan Brandt mentioned a similar dynamic a few episodes ago.",
-        "timestamp_end_ms": 40560,
-        "timestamp_start_ms": 35100,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:0b456b5719b7204b",
-      "properties": {
-        "char_end": 512,
-        "char_start": 427,
-        "episode_id": "ep-ca65ab78f4c50f2a",
-        "speaker_id": "person:speaker-01",
-        "text": "Can you give me a specific example? Where do soil erosion and enduro races intersect?",
-        "timestamp_end_ms": 215100,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p13_e02.txt",
-        "translation": {
-          "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "de",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d468001725802005",
-      "properties": {
-        "char_end": 722,
-        "char_start": 527,
+        "char_end": 2864,
+        "char_start": 2650,
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-02",
-        "text": "To be honest, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.",
-        "timestamp_end_ms": 229080,
-        "timestamp_start_ms": 215100,
+        "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
         "transcript_ref": "transcripts/p13_e02.txt",
         "translation": {
           "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
@@ -347,22 +212,29 @@
           "source_language": "de",
           "translated": true,
           "unit_ids": [
-            "t0005.u01"
+            "t0021.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:0573644fb2c872d5",
+      "id": "person:katrin-vogel",
       "properties": {
-        "char_end": 820,
-        "char_start": 737,
+        "name": "Katrin Vogel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0cb0577611666d04",
+      "properties": {
+        "char_end": 4688,
+        "char_start": 4617,
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into that. Where do soil erosion and enduro races intersect?",
-        "timestamp_end_ms": 233760,
-        "timestamp_start_ms": 229080,
+        "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
+        "timestamp_end_ms": 234000,
+        "timestamp_start_ms": 228000,
         "transcript_ref": "transcripts/p13_e02.txt",
         "translation": {
           "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
@@ -371,7 +243,7 @@
           "source_language": "de",
           "translated": true,
           "unit_ids": [
-            "t0006.u01"
+            "t0034.u01"
           ]
         }
       },

@@ -81,12 +81,15 @@ test('the Episode door returns to where the listener was, paused', async ({ page
 test('Step: › in the episode view jumps to the next insight', async ({ page }, testInfo) => {
   await openEpisode(page, testInfo, 'step')
   await page.getByTestId('player-step-next-rest').click()
-  // The first insight is at 0:18 since the 2026-10-13 corpus refresh: the 0:06 greeting ("Thanks,
-  // Nora. Great to be back.") and the 0:12 Bloomberg read are no longer quotes.
-  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(17.5)
-  await expect.poll(() => audioTime(page)).toBeLessThan(24)
-  // The jump is never unexplained: "› Jumped to 0:18" for a moment.
-  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 0:1\d/)
+  // The Bessent Tape's first insight is at 1:00 (2026-10-12): the host's closing "thanks for the
+  // conversation" stopped being an insight and the episode's next claim, at 1:00, took its place.
+  // (1:24 since ADR-165, 2026-10-11 — the 0:06 one was a guest's greeting.)
+  // 1:24 again since 2026-10-13: the corpus rebuilt on main's claim ranking puts the episode's
+  // first insight at 84 s (the GI's first SUPPORTED_BY quote).
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(83.5)
+  await expect.poll(() => audioTime(page)).toBeLessThan(90)
+  // The jump is never unexplained: "› Jumped to 1:24" for a moment.
+  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 1:2\d/)
 })
 
 test('Step: a left swipe on the insight card is next, a right swipe previous', async ({ page }, testInfo) => {
@@ -104,7 +107,8 @@ test('Step: a left swipe on the insight card is next, a right swipe previous', a
     await card.dispatchEvent('pointerup', { pointerType: 'touch', clientX: x + dx, clientY: y + 4, isPrimary: true })
   }
   await swipe(-80)
-  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(17.5)
+  // The first insight, at 1:24 (see the step test above).
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(83.5)
   const afterNext = await audioTime(page)
   await swipe(-80)
   await expect.poll(() => audioTime(page)).toBeGreaterThan(afterNext + 1)
@@ -142,6 +146,18 @@ test.describe('the ways into Moments', () => {
     await expect(page.getByTestId('kp-play-moments')).toContainText('Play 3 moments')
     await expect(page.getByTestId('kp-play-moments')).toContainText('min · the strongest moments, in order')
     await page.getByTestId('kp-play-moments').click()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
+  })
+
+  test('Discover: "Play moments" in a recommendation card ⋯ samples the episode', async ({ page }, testInfo) => {
+    // Discover arc Step 3, "Sample an episode": every recommendation card offers the reel, through
+    // the standard episode actions' ⋯ menu (operator 2026-10-11: the same actions as every card).
+    await signInIsolated(page, 'moments-entry-discover', testInfo)
+    await page.goto('/browse')
+    const card = page.getByTestId('quote-cards').getByTestId('quote-card').first()
+    await card.getByTestId('overflow-trigger').click()
+    await page.getByTestId('episode-play-moments').click()
+    await expect(page).toHaveURL(/moments=1/)
     await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 

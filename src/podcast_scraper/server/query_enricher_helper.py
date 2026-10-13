@@ -19,6 +19,7 @@ from podcast_scraper.enrichment.query_enrichers import (
 )
 from podcast_scraper.enrichment.query_protocol import QueryResultEnvelope
 from podcast_scraper.enrichment.query_registry import QueryEnricherRegistry
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -65,9 +66,12 @@ async def apply_query_enrichers(
             hits=[{"doc_id": h.doc_id, "metadata": dict(h.metadata)} for h in hits],
         )
         decorated = await registry.run_chain(envelope=envelope, request_id=str(uuid.uuid4()))
+        # "Also about" never names an umbrella topic (``app_umbrellas``).
+        umbrellas = umbrella_tokens(corpus_root)
         for hit, decorated_hit in zip(hits, decorated.hits):
             related = decorated_hit.get("related_topics")
             if related is not None:
+                related = [r for r in related if r.get("topic_id") not in umbrellas]
                 hit.metadata.setdefault("query_enrichments", {})["related_topics"] = related
     except Exception as exc:  # noqa: BLE001 — enrichment never breaks search
         logger.warning("query enricher chain failed: %s", exc)

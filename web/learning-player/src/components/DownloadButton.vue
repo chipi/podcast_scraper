@@ -25,8 +25,10 @@ const props = withDefaults(
      *  player's ⋯ overflow (operator 2026-09-13 — download is a secondary action there, not a
      *  primary transport control). */
     variant?: 'icon' | 'menuitem'
+    /** What this control acts on, for its accessible name on a list ("…: <episode title>"). */
+    subject?: string
   }>(),
-  { variant: 'icon' },
+  { variant: 'icon', subject: undefined },
 )
 const emit = defineEmits<{ activated: [] }>()
 const { t } = useI18n()
@@ -126,7 +128,7 @@ function onActivate(): void {
                 : 'border-border text-muted hover:text-canvas-foreground',
           ]
     "
-    :aria-label="label"
+    :aria-label="subject ? t('common.forItem', { action: label, subject }) : label"
     :title="variant === 'menuitem' ? undefined : label"
     :aria-busy="state === 'downloading' ? 'true' : undefined"
     @click.stop.prevent="onActivate"

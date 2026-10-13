@@ -36,6 +36,9 @@ function makeRouter() {
       // section did not render" AND corrupted later tests in this file, rather than as a routing
       // error (operator 2026-09-17). Same failure mode as an EpisodeCard with no feed_id.
       { path: "/storyline/:id", name: "storyline", component: { template: "<div/>" }, props: true },
+      { path: "/theme/:id", name: "theme", component: { template: "<div/>" }, props: true },
+      // Board results open the board in Library (#2341).
+      { path: "/library", name: "library", component: { template: "<div/>" } },
     ],
   })
 }
@@ -53,6 +56,9 @@ beforeEach(async () => {
   // store the component had written looked empty to the test.
   await clearCached(["captures"])
   vi.spyOn(api, "resolveEntity").mockResolvedValue({ query: "", entity: null })
+  // Default: no theme matches. Unmocked, the theme lookup fails against no server, the client marks
+  // the server unreachable, and offline-gated controls (▶ Moments) vanish from unrelated tests.
+  vi.spyOn(api, "searchInterests").mockResolvedValue([])
   // Default: no storylines. Unmocked, the onMounted fetch rejects into an unhandled rejection that
   // Vitest reports across the whole run.
   vi.spyOn(api, "getStorylines").mockResolvedValue([])
@@ -66,6 +72,9 @@ beforeEach(async () => {
   // the namespace at write time is not the one a bare clear touches.)
   vi.spyOn(api, "getNotes").mockResolvedValue([])
   vi.spyOn(api, "getHighlights").mockResolvedValue([])
+  // Default: no boards match (#2341). Unmocked, a signed-in search asks a server that is not there,
+  // and a failed request marks the server unreachable for the tests that follow.
+  vi.spyOn(api, "searchBoards").mockResolvedValue([])
   capturesViaFullLists()
   podcastsViaGetPodcasts()
 })
@@ -98,6 +107,12 @@ async function mountAt(q: string) {
   mounted = w
   await flushPromises()
   return { w, router }
+}
+
+// The last write of the shared scope. A search also records the term under its own key, so the
+// last write overall is not the scope's.
+function lastScopeWrite(setPref: { mock: { calls: unknown[][] } }): unknown {
+  return setPref.mock.calls.filter((c) => c[0] === TRENDING_SCOPE_PREF).at(-1)?.[1]
 }
 
 describe("SearchView", () => {
@@ -133,7 +148,8 @@ describe("SearchView", () => {
     // circles under the artwork were most of the header's height). Favourite and queue are inside it.
     const actions = w.get('[data-testid="episode-actions"]')
     expect(actions.findAll("button")).toHaveLength(1)
-    expect(actions.get("button").attributes("aria-label")).toBe("More actions")
+    // Named for its episode (2026-10-12): every result has a ⋯, so "More actions" alone was ambiguous.
+    expect(actions.get("button").attributes("aria-label")).toBe("More actions: Ep X")
   })
 
   it("labels each episode result with its language — from a source-layer hit, else the show (V2-C.1)", async () => {
@@ -358,18 +374,79 @@ describe("SearchView", () => {
       related_topics: [],
     })
     const { w } = await mountAt("jane")
-    // Entity hit card shows (Person kicker + name); the no-results line is suppressed.
-    expect(w.text()).toContain("Person")
-    expect(w.text()).toContain("Jane Doe")
+    // The exact-name person leads the People list at the top; the no-results line is suppressed.
+    expect(w.get('[data-testid="search-section-people"]').text()).toBe("People")
+    expect(w.get('[data-testid="search-person-result"]').text()).toBe("Jane Doe")
     expect(w.text()).not.toContain("No matches found.")
     // Tapping it opens the full EntityCard overlay.
-    await w
-      .findAll("button")
-      .find((b) => b.text().includes("View"))!
-      .trigger("click")
+    await w.get('[data-testid="search-person-result"]').trigger("click")
     await flushPromises()
     expect(getPerson).toHaveBeenCalledWith("person:jane-doe", undefined, { limit: 5, excludeHostShows: true })
     expect(w.find('[role="dialog"]').exists()).toBe(true)
+  })
+
+  it("the top lists subjects whose NAME has the word; meaning-only hits are neither listed nor under episodes", async () => {
+    // Operator 2026-10-12: "I want a word match … exact matches". "safety" used to list
+    // "Second-order effects" and "incident prevention" — near in meaning, without the word. And a
+    // topic connects episodes, so it is never a row under one (2026-10-11).
+    const hit = (doc_id: string, doc_type: string, source_id: string, text: string, slug: string) => ({
+      doc_id,
+      score: 1,
+      text,
+      metadata: { doc_type, source_id, episode_slug: slug, episode_title: `Episode ${slug}`, podcast_title: "Show" },
+    })
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "safety",
+      error: null,
+      results: [
+        hit("t1", "kg_topic", "topic:incident-prevention", "incident prevention", "e1"),
+        hit("t2", "kg_topic", "topic:safety-practices", "safety practices", "e2"),
+        hit("p1", "kg_entity", "person:dr-elena-fischer", "Dr. Elena Fischer", "e1"),
+        hit("i1", "insight", "insight:1", "Safety lives in the couplings.", "e1"),
+      ],
+    } as never)
+    vi.spyOn(api, "searchInterests").mockImplementation(async (kind) => {
+      if (kind === "topic")
+        return [
+          { id: "topic:safety-practices", kind: "topic", label: "safety practices" },
+          { id: "topic:dan-safety-stops", kind: "topic", label: "dan safety stops" },
+          // A substring, not a word: the server's name search contains it, the word rule does not.
+          { id: "topic:unsafety", kind: "topic", label: "unsafety" },
+        ]
+      if (kind === "storyline")
+        return [{ id: "thc:second-order-effects", kind: "storyline", label: "Second-order effects", anchor_topic_id: "topic:second-order-effects" }]
+      return []
+    })
+    const { w } = await mountAt("safety")
+    expect(w.findAll('[data-testid="search-topic-result"]').map((b) => b.text())).toEqual([
+      "safety practices",
+      "dan safety stops",
+    ])
+    expect(w.find('[data-testid="search-storylines"]').exists()).toBe(false)
+    expect(w.find('[data-testid="search-people"]').exists()).toBe(false)
+    // Under the episodes: the insight, and no topic or person row.
+    const episodes = w.findAll('[data-testid="episode-group"]').map((g) => g.text()).join(" | ")
+    expect(episodes).toContain("Safety lives in the couplings.")
+    expect(episodes).not.toContain("incident prevention")
+    expect(episodes).not.toContain("Dr. Elena Fischer")
+  })
+
+  it("lists THEMES that contain the query, as pills like every other kind (\"safety\" → safety practices)", async () => {
+    // Operator 2026-10-11: themes are not indexed rows, and the resolver needs the whole name, so
+    // "safety" found nothing although "safety practices" is a theme.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "safety", error: null, results: [] })
+    const themes = vi
+      .spyOn(api, "searchInterests")
+      .mockImplementation(async (kind) =>
+        kind === "theme" ? [{ id: "tc:safety-practices", kind: "theme", label: "safety practices" }] : []
+      )
+    const { w } = await mountAt("safety")
+    expect(themes).toHaveBeenCalledWith("theme", "safety", 50)
+    expect(w.get('[data-testid="search-section-themes"]').text()).toBe("Themes")
+    const pill = w.get('[data-testid="search-theme-result"]')
+    expect(pill.text()).toBe("safety practices")
+    expect(pill.attributes("href")).toBe("/theme/tc:safety-practices")
+    expect(w.text()).not.toContain("No matches found.")
   })
 
   it("surfaces a STORYLINE from the resolver, in its own section", async () => {
@@ -450,9 +527,16 @@ describe("SearchView", () => {
         },
       ],
     })
+    // The section is matched BY NAME (2026-10-12), from the name search, not from this hit.
+    vi.spyOn(api, "searchInterests").mockImplementation(async (kind) =>
+      kind === "storyline"
+        ? [{ id: "thc:managing-risk", kind: "storyline", label: "Managing risk across domains", anchor_topic_id: "topic:risk-management" }]
+        : []
+    )
     const { w } = await mountAt("risk")
     await flushPromises()
     expect(w.find('[data-testid="search-storylines"]').exists()).toBe(true)
+    expect(w.get('[data-testid="search-storyline-result"]').attributes("href")).toBe("/storyline/topic:risk-management")
     expect(w.text()).toContain("Managing risk across domains")
     expect(w.find('[data-testid="episode-group"]').exists(), "storyline became an episode").toBe(
       false
@@ -664,7 +748,7 @@ describe("SearchView", () => {
     expect(w.find('[data-testid="search-scope"]').exists()).toBe(true)
     // 4th positional arg is enrich_results=true (#1261-2): the listener always asks the
     // server to decorate hits with related_topics so the "Also about:" chip row can render.
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true, { perCategory: 3 })
     expect(w.text()).toContain("Nothing in your listening on this yet")
     // …and offers everyone's — Mine is the default, so this is a new listener's first search.
     expect(w.find('[data-testid="search-show-everyone"]').exists()).toBe(true)
@@ -673,12 +757,38 @@ describe("SearchView", () => {
     // Flipping it here flips the shared choice — Discover follows.
     await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
-    expect(setPref).toHaveBeenLastCalledWith(TRENDING_SCOPE_PREF, "corpus")
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true, { perCategory: 3 })
+    expect(lastScopeWrite(setPref)).toBe("corpus")
     await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
-    expect(setPref).toHaveBeenLastCalledWith(TRENDING_SCOPE_PREF, "mine")
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true, { perCategory: 3 })
+    expect(lastScopeWrite(setPref)).toBe("mine")
+  })
+
+  it("recent searches are the ACCOUNT's (synced preferences), not the device's", async () => {
+    // Kept in localStorage, one account's searches showed to the next account on the same phone
+    // (2026-10-11). A device-level list must not appear; the account's synced list must.
+    localStorage.setItem("lp.search.recents", JSON.stringify(["someone else's search"]))
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: "u1", email: "a@b.c", name: "A" }
+    const prefs = useUserPreferencesStore()
+    const setPref = vi.spyOn(prefs, "set")
+    void prefs.set("lp.search.recents", ["my earlier search"])
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "sleep", error: null, results: [] })
+    const router = makeRouter()
+    router.push({ name: "search" })
+    await router.isReady()
+    const w = mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
+    mounted = w
+    await flushPromises()
+    const shown = w.get('[data-testid="search-recents"]').text()
+    expect(shown).toContain("my earlier search")
+    expect(shown).not.toContain("someone else's search")
+    await router.push({ name: "search", query: { q: "sleep" } })
+    await flushPromises()
+    expect(setPref).toHaveBeenLastCalledWith("lp.search.recents", ["sleep", "my earlier search"])
+    localStorage.removeItem("lp.search.recents")
   })
 
   it("an explicit ?scope= in the URL wins over the shared choice", async () => {
@@ -691,7 +801,7 @@ describe("SearchView", () => {
     await router.isReady()
     mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
     await flushPromises()
-    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true, { perCategory: 3 })
   })
 
   // #1261-2: enriched related-topic chips above episode groups
@@ -1209,5 +1319,136 @@ describe("SearchView: Moments on episode results (operator 2026-10-10)", () => {
     expect(withGi.get('[data-testid="moments-link"]').attributes("href")).toBe("/episode/with-gi?moments=1")
     expect(noGi.find('[data-testid="moments-link"]').exists()).toBe(false)
     expect(w.get('[data-testid="episode-group-body"]').find('[data-testid="moments-link"]').exists()).toBe(false)
+  })
+})
+
+describe("SearchView — your boards (#2341)", () => {
+  const board = (id: string, name: string, count = 2) => ({
+    id,
+    name,
+    created_at: 1,
+    count,
+    cover_url: null,
+  })
+
+  async function mountSignedIn(q: string) {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: "u1", email: "a@b.c", name: "A" }
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: q, error: null, results: [] })
+    const router = makeRouter()
+    router.push({ name: "search", query: { q, scope: "all" } })
+    await router.isReady()
+    const w = mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
+    mounted = w
+    await flushPromises()
+    return w
+  }
+
+  it("lists the boards that match, says why, and opens each in Library", async () => {
+    const boards = vi.spyOn(api, "searchBoards").mockResolvedValue([
+      { collection: board("col_a", "All about gauges"), matched: "name", item_kind: null, item_label: null },
+      {
+        collection: board("col_b", "Weekend"),
+        matched: "item",
+        item_kind: "episode",
+        item_label: "Pressure gauges never lie",
+      },
+    ])
+    const w = await mountSignedIn("gauges")
+    expect(boards).toHaveBeenCalledWith("gauges")
+    const section = w.get('[data-testid="search-board-matches"]')
+    expect(section.text()).toContain("2 of your boards")
+    const rows = w.findAll('[data-testid="search-board"]')
+    expect(rows.map((r) => r.attributes("href"))).toEqual([
+      "/library?tab=collections&board=col_a",
+      "/library?tab=collections&board=col_b",
+    ])
+    expect(w.findAll('[data-testid="search-board-why"]').map((x) => x.text())).toEqual([
+      "Name matches",
+      "Episode: Pressure gauges never lie",
+    ])
+    // With nothing else found, a board match is not "no results".
+    expect(w.text()).not.toContain(en.search.noResults)
+  })
+
+  it("does not search boards signed out", async () => {
+    const boards = vi.spyOn(api, "searchBoards").mockResolvedValue([])
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "gauges", error: null, results: [] })
+    const { w } = await mountAt("gauges")
+    expect(boards).not.toHaveBeenCalled()
+    expect(w.find('[data-testid="search-board-matches"]').exists()).toBe(false)
+  })
+})
+
+describe("SearchView: results by category, three each (operator 2026-10-13)", () => {
+  function hit(id: string, category: string, docType: string, slug: string) {
+    return {
+      doc_id: id,
+      score: 0.9,
+      text: `${category} passage ${id}.`,
+      source_tier: "segment",
+      metadata: { episode_slug: slug, episode_title: `Title ${slug}`, podcast_title: "Show", doc_type: docType, search_category: category },
+    }
+  }
+
+  it("one section per category, in order, each with its own Show more that fetches its next page", async () => {
+    const { reportServerReachable } = await import("../composables/useOnline")
+    reportServerReachable(true)
+    const spy = vi.spyOn(api, "searchCorpus").mockResolvedValueOnce({
+      query: "risk",
+      error: null,
+      results: [
+        hit("t1", "transcript", "transcript", "a"),
+        hit("i1", "insights", "insight", "a"),
+        hit("i2", "insights", "insight", "b"),
+        hit("i3", "insights", "insight", "c"),
+      ],
+      categories: [
+        { id: "insights", returned: 3, has_more: true },
+        { id: "transcript", returned: 1, has_more: false },
+        { id: "episodes", returned: 0, has_more: false },
+      ],
+    } as never)
+    const { w } = await mountAt("risk")
+    expect(spy).toHaveBeenLastCalledWith("risk", 12, "all", true, { perCategory: 3 })
+    const sections = w.findAll('section[data-testid^="search-category-"]')
+    expect(sections.map((s) => s.attributes("data-testid"))).toEqual([
+      "search-category-insights",
+      "search-category-transcript",
+    ])
+    // Only the kind with more offers it; a kind with nothing is not shown at all.
+    expect(w.find('[data-testid="search-category-more-insights"]').text()).toBe("Show more")
+    expect(w.find('[data-testid="search-category-more-transcript"]').exists()).toBe(false)
+    expect(w.find('[data-testid="search-category-episodes"]').exists()).toBe(false)
+
+    spy.mockResolvedValueOnce({
+      query: "risk",
+      error: null,
+      results: [hit("i4", "insights", "insight", "d")],
+      categories: [{ id: "insights", returned: 1, has_more: false }],
+    } as never)
+    await w.get('[data-testid="search-category-more-insights"]').trigger("click")
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith("risk", 3, "all", true, { perCategory: 3, category: "insights", offset: 3 })
+    const insights = w.get('[data-testid="search-category-insights"]')
+    expect(insights.text()).toContain("insights passage i4.")
+    // All out: the control now folds the kind back to three.
+    const toggle = w.get('[data-testid="search-category-more-insights"]')
+    expect(toggle.text()).toBe("Show less")
+    await toggle.trigger("click")
+    await flushPromises()
+    expect(w.get('[data-testid="search-category-insights"]').text()).not.toContain("insights passage i4.")
+    expect(w.get('[data-testid="search-category-more-insights"]').text()).toBe("Show more")
+  })
+
+  it("a hit that does not name its category is placed by its kind", async () => {
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "x",
+      error: null,
+      results: [{ ...hit("t9", "", "transcript", "a"), metadata: { episode_slug: "a", episode_title: "Title a", doc_type: "transcript" } }],
+    } as never)
+    const { w } = await mountAt("x")
+    expect(w.get('[data-testid="search-category-transcript"]').text()).toContain("Transcript")
   })
 })

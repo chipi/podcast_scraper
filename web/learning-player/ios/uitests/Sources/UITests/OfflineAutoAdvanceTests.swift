@@ -88,7 +88,8 @@ final class OfflineAutoAdvanceTests: UITestCase {
     XCTAssertTrue(downloadedHeading.exists, "Downloaded section did not render offline")
 
     // Whichever episode is downloaded — the journey is the assertion, not a specific slug.
-    let episode = app.buttons["Downloaded — tap to remove"].firstMatch
+    // Starts with: the row's control names its episode ("…: <title>", 2026-10-12).
+    let episode = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Downloaded — tap to remove")).firstMatch
     XCTAssertTrue(episode.waitForExistence(timeout: 15), "no downloaded episode listed offline")
 
     // 3. It opens and plays off disk.

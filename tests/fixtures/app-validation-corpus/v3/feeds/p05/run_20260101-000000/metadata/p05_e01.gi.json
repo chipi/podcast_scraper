@@ -1,6 +1,41 @@
 {
   "edges": [
     {
+      "from": "insight:058777af848d6ae8",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b5ed57cacca5cb7f",
+      "to": "topic:frame",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:bb22f9e4540eef0f",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:058777af848d6ae8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:b5ed57cacca5cb7f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:bb22f9e4540eef0f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "topic:index-investing",
       "type": "MENTIONS"
@@ -16,114 +51,49 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:frame",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:personal-finance",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:1860b98400777024",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:450b6aa41c4b371b",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:b552da1625a22af8",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:82faca19fcc19732",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "quote:82faca19fcc19732",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d76545a5049eed44",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:450b6aa41c4b371b",
-      "to": "quote:d76545a5049eed44",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d3c3eadbfd050726",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b552da1625a22af8",
-      "to": "quote:d3c3eadbfd050726",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:73a50f705e99379f",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "quote:73a50f705e99379f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:83a9c6c8863e55f6",
-      "to": "person:nora",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:450b6aa41c4b371b",
-      "to": "quote:83a9c6c8863e55f6",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:24d3e18855fdec35",
-      "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b552da1625a22af8",
-      "to": "quote:24d3e18855fdec35",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:1860b98400777024",
-      "to": "person:nora",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:450b6aa41c4b371b",
+      "from": "insight:058777af848d6ae8",
       "to": "person:daniel-cho",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:b552da1625a22af8",
-      "to": "person:nora",
+      "from": "insight:b5ed57cacca5cb7f",
+      "to": "person:daniel-cho",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:bb22f9e4540eef0f",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:2a639ff7d5f2dd4e",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:a84f0224c14697bb",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:ddd7a54d3ff0e06d",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:058777af848d6ae8",
+      "to": "quote:ddd7a54d3ff0e06d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b5ed57cacca5cb7f",
+      "to": "quote:a84f0224c14697bb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:bb22f9e4540eef0f",
+      "to": "quote:2a639ff7d5f2dd4e",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-bccfce5798a83a6e",
@@ -169,28 +139,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:personal-finance",
-      "properties": {
-        "label": "personal finance"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:1860b98400777024",
+      "id": "insight:058777af848d6ae8",
       "properties": {
         "episode_id": "ep-bccfce5798a83a6e",
         "grounded": true,
@@ -198,13 +147,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "What does the failure mode look like? How does Vanguard fit into this picture?",
+        "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the de\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:450b6aa41c4b371b",
+      "id": "insight:bb22f9e4540eef0f",
       "properties": {
         "episode_id": "ep-bccfce5798a83a6e",
         "grounded": true,
@@ -212,13 +161,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the par\u2026",
+        "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:b552da1625a22af8",
+      "id": "insight:b5ed57cacca5cb7f",
       "properties": {
         "episode_id": "ep-bccfce5798a83a6e",
         "grounded": true,
@@ -226,31 +175,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
+        "text": "Let me give you the version I actually believe. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Bloomberg. On\u2026",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:nora",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:82faca19fcc19732",
-      "properties": {
-        "char_end": 507,
-        "char_start": 429,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-01",
-        "text": "What does the failure mode look like? How does Vanguard fit into this picture?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:daniel-cho",
@@ -260,63 +188,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:d76545a5049eed44",
-      "properties": {
-        "char_end": 736,
-        "char_start": 520,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-02",
-        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d3c3eadbfd050726",
-      "properties": {
-        "char_end": 861,
-        "char_start": 743,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-01",
-        "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:73a50f705e99379f",
-      "properties": {
-        "char_end": 986,
-        "char_start": 874,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-02",
-        "text": "Honestly, Vanguard's structure pioneered low costs. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:83a9c6c8863e55f6",
-      "properties": {
-        "char_end": 1063,
-        "char_start": 993,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-01",
-        "text": "Let's start there. Where do reliability and index investing intersect?",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:24d3e18855fdec35",
+      "id": "quote:ddd7a54d3ff0e06d",
       "properties": {
         "char_end": 1292,
         "char_start": 1076,
@@ -325,6 +197,34 @@
         "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 54000,
         "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2a639ff7d5f2dd4e",
+      "properties": {
+        "char_end": 1725,
+        "char_start": 1588,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a84f0224c14697bb",
+      "properties": {
+        "char_end": 3128,
+        "char_start": 2869,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Bloomberg. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 144000,
+        "timestamp_start_ms": 138000,
         "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"

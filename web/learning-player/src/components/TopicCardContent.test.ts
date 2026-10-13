@@ -202,12 +202,27 @@ describe("the theme a topic belongs to", () => {
     expect(section.text()).not.toContain("Part of a theme")
     expect(w.get('[data-testid="ec-theme-kind"]').text()).toBe("Theme · 5 topics")
     expect(section.text()).toContain("Diving")
-    // Similar topics: no section heading — the count is an inline label at the start of the pill row.
+    // The count is the whole cluster, not the siblings (which exclude the topic you are on).
+    expect(section.text()).toContain("5")
+    // No similar-topics chips beside it (operator 2026-10-12): they are this theme's members, and
+    // its page lists them.
+    expect(w.find('[data-testid="ec-similar-topics"]').exists()).toBe(false)
+  })
+
+  it("without a theme, the similar topics show as a labelled pill row", async () => {
+    const w = mountIt(
+      topic({
+        cluster_id: null,
+        cluster_label: null,
+        sibling_topics: [{ id: "topic:wreck-diving", label: "wreck diving" }],
+      } as Partial<TopicCard>)
+    )
+    await flushPromises()
+    // No section heading — the count is an inline label at the start of the pill row.
     const similar = w.get('[data-testid="ec-similar-topics"]')
     expect(similar.find("h3").exists()).toBe(false)
     expect(similar.get('[data-testid="ec-similar-label"]').text()).toBe("1 similar topic")
-    // The count is the whole cluster, not the siblings (which exclude the topic you are on).
-    expect(section.text()).toContain("5")
+    expect(similar.text()).toContain("wreck diving")
   })
 
   it("says nothing when the topic is in no theme", async () => {

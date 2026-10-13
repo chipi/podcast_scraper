@@ -1,6 +1,36 @@
 {
   "edges": [
     {
+      "from": "insight:1677c578da3fecdd",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:4a9a3e0ba970e2c5",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:b97e8d18848190b3",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:1677c578da3fecdd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:4a9a3e0ba970e2c5",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:b97e8d18848190b3",
+      "type": "HAS_INSIGHT"
+    },
+    {
       "from": "episode:ep-0d9100843ee555f8",
       "to": "topic:drivetrain-mechanics",
       "type": "MENTIONS"
@@ -16,109 +46,49 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "insight:0f09b8a5a1d5f64c",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "insight:fce60b894030dd3e",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "insight:7c938bbc88eadb7a",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:3192f8db6a3d86ff",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "quote:3192f8db6a3d86ff",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:db7a0edb137f1b70",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:fce60b894030dd3e",
-      "to": "quote:db7a0edb137f1b70",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:697a1ae0ea5c7046",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7c938bbc88eadb7a",
-      "to": "quote:697a1ae0ea5c7046",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f462e65c3e397d0c",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "quote:f462e65c3e397d0c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:4b1a52303ee4d78a",
-      "to": "person:noah-brier",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:fce60b894030dd3e",
-      "to": "quote:4b1a52303ee4d78a",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f2c8771f8efe8a53",
-      "to": "person:maya",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7c938bbc88eadb7a",
-      "to": "quote:f2c8771f8efe8a53",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:0f09b8a5a1d5f64c",
-      "to": "person:maya",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:fce60b894030dd3e",
+      "from": "insight:1677c578da3fecdd",
       "to": "person:noah-brier",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:7c938bbc88eadb7a",
-      "to": "person:maya",
+      "from": "insight:4a9a3e0ba970e2c5",
+      "to": "person:noah-brier",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b97e8d18848190b3",
+      "to": "person:noah-brier",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:0a861b538508e499",
+      "to": "person:noah-brier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:36b244ce844381f8",
+      "to": "person:noah-brier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:f6594c5f27b618e7",
+      "to": "person:noah-brier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1677c578da3fecdd",
+      "to": "quote:f6594c5f27b618e7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:4a9a3e0ba970e2c5",
+      "to": "quote:36b244ce844381f8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b97e8d18848190b3",
+      "to": "quote:0a861b538508e499",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-0d9100843ee555f8",
@@ -157,28 +127,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:0f09b8a5a1d5f64c",
+      "id": "insight:b97e8d18848190b3",
       "properties": {
         "episode_id": "ep-0d9100843ee555f8",
         "grounded": true,
@@ -186,13 +135,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
+        "text": "Sure. Suspension service intervals are a risk-management decision. If you ignore that, you end up rebuilding it from scratch a year later.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:fce60b894030dd3e",
+      "id": "insight:4a9a3e0ba970e2c5",
       "properties": {
         "episode_id": "ep-0d9100843ee555f8",
         "grounded": true,
@@ -200,13 +149,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back.",
+        "text": "Here's how I think about it. Suspension service intervals are a risk-management decision. I've watched this pattern hold across three different teams.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:7c938bbc88eadb7a",
+      "id": "insight:1677c578da3fecdd",
       "properties": {
         "episode_id": "ep-0d9100843ee555f8",
         "grounded": true,
@@ -214,73 +163,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to flag something \u2014 Liam Vandermeer mentioned this same dynamic a couple episodes back.",
+        "text": "Honestly, Suspension service intervals are a risk-management decision. And the second-order effect is the part most people miss.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:maya",
-      "properties": {
-        "name": "Maya"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:3192f8db6a3d86ff",
-      "properties": {
-        "char_end": 477,
-        "char_start": 353,
-        "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:db7a0edb137f1b70",
-      "properties": {
-        "char_end": 647,
-        "char_start": 555,
-        "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:697a1ae0ea5c7046",
-      "properties": {
-        "char_end": 741,
-        "char_start": 647,
-        "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Liam Vandermeer mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f462e65c3e397d0c",
-      "properties": {
-        "char_end": 834,
-        "char_start": 741,
-        "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:noah-brier",
@@ -290,29 +176,43 @@
       "type": "Person"
     },
     {
-      "id": "quote:4b1a52303ee4d78a",
+      "id": "quote:0a861b538508e499",
       "properties": {
-        "char_end": 1083,
-        "char_start": 847,
+        "char_end": 2079,
+        "char_start": 1941,
         "episode_id": "ep-0d9100843ee555f8",
         "speaker_id": "person:speaker-02",
-        "text": "It comes down to this: Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec. We've seen this play out at teams using Spoke & Wrench. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "text": "Sure. Suspension service intervals are a risk-management decision. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 102000,
+        "timestamp_start_ms": 96000,
         "transcript_ref": "transcripts/p01_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:f2c8771f8efe8a53",
+      "id": "quote:36b244ce844381f8",
       "properties": {
-        "char_end": 1171,
-        "char_start": 1090,
+        "char_end": 3889,
+        "char_start": 3739,
         "episode_id": "ep-0d9100843ee555f8",
-        "speaker_id": "person:speaker-01",
-        "text": "That's a useful framing. Where do maintenance and drivetrain mechanics intersect?",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Suspension service intervals are a risk-management decision. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 186000,
+        "timestamp_start_ms": 180000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f6594c5f27b618e7",
+      "properties": {
+        "char_end": 5474,
+        "char_start": 5346,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Suspension service intervals are a risk-management decision. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
         "transcript_ref": "transcripts/p01_e03.txt"
       },
       "type": "Quote"

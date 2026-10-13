@@ -1,0 +1,4 @@
+{% for ep in episodes %}{{ ep.title }}{% if ep.show %}, from {{ ep.show }}{% endif %}. {% if ep.summary %}{{ ep.summary }} {% endif %}{% for p in ep.key_points %}{{ p }} {% endfor %}{% for i in ep.insights %}{% if i.speaker %}{{ i.speaker }}: {% endif %}{{ i.text }} {% endfor %}
+
+{% endfor %}{% for m in moments %}{% if m.speaker %}{{ m.speaker }}: {% endif %}{{ m.text }}
+{% endfor %}

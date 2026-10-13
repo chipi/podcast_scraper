@@ -10,17 +10,24 @@ import { OWNED_ROUTES, ownsRoute } from './navOwnership'
  * answering "where am I" two ways depending on window width.
  */
 describe('nav route ownership (shared by both navs)', () => {
-  it('Discovery owns the search results page (operator 2026-09-20)', () => {
-    expect(ownsRoute('browse', 'search')).toBe(true)
+  it('Explore owns the search results page (operator 2026-10-11: the search box leads Explore)', () => {
+    expect(ownsRoute('explore', 'search')).toBe(true)
     // …and nothing else claims it, or two nav items would light at once.
-    for (const owner of Object.keys(OWNED_ROUTES).filter((o) => o !== 'browse')) {
+    for (const owner of Object.keys(OWNED_ROUTES).filter((o) => o !== 'explore')) {
       expect(ownsRoute(owner, 'search'), `${owner} must not claim /search`).toBe(false)
     }
   })
 
-  it('Discovery gathers the corpus indexes and show pages (#14)', () => {
-    for (const r of ['browse', 'catalog', 'podcast', 'browse-shows', 'browse-topics', 'browse-people']) {
+  it('Discovery gathers show pages, topic reels and the week path (#14, ADR-163)', () => {
+    for (const r of ['browse', 'podcast', 'topic-reel', 'learn']) {
       expect(ownsRoute('browse', r), `browse should own ${r}`).toBe(true)
+    }
+  })
+
+  it('Explore gathers the catalogue and its indexes, which moved there from Discovery (ADR-163 §1)', () => {
+    for (const r of ['explore', 'catalog', 'browse-shows', 'browse-topics', 'browse-people']) {
+      expect(ownsRoute('explore', r), `explore should own ${r}`).toBe(true)
+      expect(ownsRoute('browse', r), `browse must not also own ${r}`).toBe(false)
     }
   })
 
@@ -44,5 +51,12 @@ describe('nav route ownership (shared by both navs)', () => {
     expect(ownsRoute('nope', 'browse')).toBe(false)
     expect(ownsRoute('browse', null)).toBe(false)
     expect(ownsRoute('browse', undefined)).toBe(false)
+  })
+
+  it("a board's own short listen lights Library, not Discover (#2340)", () => {
+    expect(ownsRoute('library', 'topic-reel', { id: 'board:col_a' })).toBe(true)
+    expect(ownsRoute('browse', 'topic-reel', { id: 'board:col_a' })).toBe(false)
+    expect(ownsRoute('browse', 'topic-reel', { id: 'thc:risk' })).toBe(true)
+    expect(ownsRoute('library', 'topic-reel', { id: 'thc:risk' })).toBe(false)
   })
 })

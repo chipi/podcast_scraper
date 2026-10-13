@@ -42,7 +42,7 @@ test('Library › Saved: a show row puts its controls UNDER the artwork, like th
 test('Discover › Shows (list): Follow + heart under the artwork; the pill reads exactly Follow / Following', async ({
   page,
 }) => {
-  await page.goto('/browse?tab=shows')
+  await page.goto('/shows')
   await page.getByTestId('show-view').click()
   await page.getByTestId('show-view-opt-list').click()
   const row = page.getByTestId('show-browse-list').getByTestId('show-row').first()

@@ -1,7 +1,7 @@
 [
 {
 "start": 0.0,
-"end": 2.52,
+"end": 1.1,
 "speaker_label": "Camille Dubois",
 "text": "Welcome back to Sessions Sentier.",
 "char_start": 16,
@@ -10,8 +10,8 @@
 "sent_id": "t0000.s01"
 },
 {
-"start": 2.58,
-"end": 8.82,
+"start": 1.1,
+"end": 4.57,
 "speaker_label": "Camille Dubois",
 "text": "Today, we're talking about enduro racing, and I'm joined by Élodie Chevalier, an enduro rider and coach.",
 "char_start": 50,
@@ -20,8 +20,8 @@
 "sent_id": "t0000.s02"
 },
 {
-"start": 8.88,
-"end": 10.92,
+"start": 4.57,
+"end": 6.0,
 "speaker_label": "Camille Dubois",
 "text": "Élodie Chevalier, thank you for being here.",
 "char_start": 155,
@@ -30,8 +30,8 @@
 "sent_id": "t0000.s03"
 },
 {
-"start": 10.92,
-"end": 11.82,
+"start": 6.0,
+"end": 9.26,
 "speaker_label": "Élodie Chevalier",
 "text": "Thank you, Camille.",
 "char_start": 217,
@@ -40,8 +40,8 @@
 "sent_id": "t0001.s01"
 },
 {
-"start": 11.88,
-"end": 13.44,
+"start": 9.26,
+"end": 12.0,
 "speaker_label": "Élodie Chevalier",
 "text": "Glad to be back.",
 "char_start": 237,
@@ -50,8 +50,8 @@
 "sent_id": "t0001.s02"
 },
 {
-"start": 13.44,
-"end": 15.72,
+"start": 12.0,
+"end": 13.64,
 "speaker_label": "Camille Dubois",
 "text": "This episode is sponsored by Linear.",
 "char_start": 270,
@@ -60,8 +60,8 @@
 "sent_id": "t0002.s01"
 },
 {
-"start": 15.78,
-"end": 20.82,
+"start": 13.64,
+"end": 17.05,
 "speaker_label": "Camille Dubois",
 "text": "Linear is the ticketing system designed for speed – built for the keyboard.",
 "char_start": 307,
@@ -70,8 +70,8 @@
 "sent_id": "t0002.s02"
 },
 {
-"start": 20.88,
-"end": 22.98,
+"start": 17.05,
+"end": 18.0,
 "speaker_label": "Camille Dubois",
 "text": "Try linear.com today.",
 "char_start": 383,
@@ -80,8 +80,8 @@
 "sent_id": "t0002.s03"
 },
 {
-"start": 22.98,
-"end": 31.56,
+"start": 18.0,
+"end": 24.0,
 "speaker_label": "Camille Dubois",
 "text": "Before we get into the details, Julien Mercier was on the show and explained that drainage is the most crucial design choice.",
 "char_start": 405,
@@ -90,8 +90,8 @@
 "sent_id": "t0002.s04"
 },
 {
-"start": 31.56,
-"end": 32.52,
+"start": 24.0,
+"end": 25.24,
 "speaker_label": "Élodie Chevalier",
 "text": "Yes, exactly.",
 "char_start": 549,
@@ -100,8 +100,8 @@
 "sent_id": "t0003.s01"
 },
 {
-"start": 32.58,
-"end": 35.1,
+"start": 25.24,
+"end": 30.0,
 "speaker_label": "Élodie Chevalier",
 "text": "And that ties in with what we're discussing today.",
 "char_start": 563,
@@ -110,8 +110,8 @@
 "sent_id": "t0003.s02"
 },
 {
-"start": 35.1,
-"end": 41.22,
+"start": 30.0,
+"end": 36.0,
 "speaker_label": "Camille Dubois",
 "text": "I want to point out something – Julien Mercier mentioned this same dynamic a few episodes ago.",
 "char_start": 630,
@@ -120,8 +120,8 @@
 "sent_id": "t0004.s01"
 },
 {
-"start": 210.0,
-"end": 211.74,
+"start": 36.0,
+"end": 38.1,
 "speaker_label": "Camille Dubois",
 "text": "Give me a concrete example.",
 "char_start": 725,
@@ -130,8 +130,8 @@
 "sent_id": "t0004.s02"
 },
 {
-"start": 211.8,
-"end": 215.22,
+"start": 38.1,
+"end": 42.0,
 "speaker_label": "Camille Dubois",
 "text": "Where do soil erosion and enduro racing intersect?",
 "char_start": 753,
@@ -140,8 +140,8 @@
 "sent_id": "t0004.s03"
 },
 {
-"start": 215.22,
-"end": 221.7,
+"start": 42.0,
+"end": 44.85,
 "speaker_label": "Élodie Chevalier",
 "text": "Honestly, the increased speed comes from braking earlier and more gently, not from taking more risks.",
 "char_start": 822,
@@ -150,8 +150,8 @@
 "sent_id": "t0005.s01"
 },
 {
-"start": 221.76,
-"end": 224.76,
+"start": 44.85,
+"end": 46.06,
 "speaker_label": "Élodie Chevalier",
 "text": "We've seen this in teams that use RockShox.",
 "char_start": 924,
@@ -160,8 +160,8 @@
 "sent_id": "t0005.s02"
 },
 {
-"start": 224.82,
-"end": 228.42,
+"start": 46.06,
+"end": 48.0,
 "speaker_label": "Élodie Chevalier",
 "text": "I've observed this pattern repeating itself in three different teams.",
 "char_start": 968,
@@ -170,8 +170,8 @@
 "sent_id": "t0005.s03"
 },
 {
-"start": 228.42,
-"end": 229.56,
+"start": 48.0,
+"end": 50.3,
 "speaker_label": "Camille Dubois",
 "text": "I want to explore this further.",
 "char_start": 1054,
@@ -180,8 +180,8 @@
 "sent_id": "t0006.s01"
 },
 {
-"start": 229.62,
-"end": 233.04,
+"start": 50.3,
+"end": 54.0,
 "speaker_label": "Camille Dubois",
 "text": "Where do soil erosion and enduro racing intersect?",
 "char_start": 1086,
@@ -190,8 +190,8 @@
 "sent_id": "t0006.s02"
 },
 {
-"start": 233.04,
-"end": 233.58,
+"start": 54.0,
+"end": 54.33,
 "speaker_label": "Élodie Chevalier",
 "text": "Of course.",
 "char_start": 1155,
@@ -200,8 +200,8 @@
 "sent_id": "t0007.s01"
 },
 {
-"start": 233.64,
-"end": 240.0,
+"start": 54.33,
+"end": 57.51,
 "speaker_label": "Élodie Chevalier",
 "text": "Tire pressure and the choice of tire casing often matter more than minor suspension adjustments.",
 "char_start": 1166,
@@ -210,8 +210,8 @@
 "sent_id": "t0007.s02"
 },
 {
-"start": 240.06,
-"end": 243.72,
+"start": 57.51,
+"end": 60.0,
 "speaker_label": "Élodie Chevalier",
 "text": "The setup is important because it tells you what compromises you're making.",
 "char_start": 1263,
@@ -220,8 +220,8 @@
 "sent_id": "t0007.s03"
 },
 {
-"start": 243.72,
-"end": 244.8,
+"start": 60.0,
+"end": 61.83,
 "speaker_label": "Camille Dubois",
 "text": "Let's start with that.",
 "char_start": 1355,
@@ -230,8 +230,8 @@
 "sent_id": "t0008.s01"
 },
 {
-"start": 244.86,
-"end": 248.28,
+"start": 61.83,
+"end": 66.0,
 "speaker_label": "Camille Dubois",
 "text": "Where do soil erosion and enduro racing intersect?",
 "char_start": 1378,
@@ -240,8 +240,8 @@
 "sent_id": "t0008.s02"
 },
 {
-"start": 248.28,
-"end": 255.78,
+"start": 66.0,
+"end": 68.84,
 "speaker_label": "Élodie Chevalier",
 "text": "Honestly, risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
 "char_start": 1447,
@@ -250,8 +250,8 @@
 "sent_id": "t0009.s01"
 },
 {
-"start": 255.84,
-"end": 258.78,
+"start": 68.84,
+"end": 69.88,
 "speaker_label": "Élodie Chevalier",
 "text": "We've seen this in teams that use Shimano.",
 "char_start": 1563,
@@ -260,8 +260,8 @@
 "sent_id": "t0009.s02"
 },
 {
-"start": 258.84,
-"end": 263.22,
+"start": 69.88,
+"end": 72.0,
 "speaker_label": "Élodie Chevalier",
 "text": "If you ignore that, you end up having to rebuild everything from scratch a year later.",
 "char_start": 1606,
@@ -270,8 +270,8 @@
 "sent_id": "t0009.s03"
 },
 {
-"start": 263.22,
-"end": 265.2,
+"start": 72.0,
+"end": 78.0,
 "speaker_label": "Camille Dubois",
 "text": "Where is it no longer working?",
 "char_start": 1709,
@@ -280,8 +280,8 @@
 "sent_id": "t0010.s01"
 },
 {
-"start": 265.2,
-"end": 269.46,
+"start": 78.0,
+"end": 81.26,
 "speaker_label": "Élodie Chevalier",
 "text": "The Cascadia Alliance is one of the platforms where this is particularly evident.",
 "char_start": 1758,
@@ -290,8 +290,8 @@
 "sent_id": "t0011.s01"
 },
 {
-"start": 269.52,
-"end": 273.84,
+"start": 81.26,
+"end": 84.0,
 "speaker_label": "Élodie Chevalier",
 "text": "And the second-order effect is the part that almost everyone misses.",
 "char_start": 1840,
@@ -300,8 +300,8 @@
 "sent_id": "t0011.s02"
 },
 {
-"start": 273.84,
-"end": 277.38,
+"start": 84.0,
+"end": 87.11,
 "speaker_label": "Camille Dubois",
 "text": "What heuristic do you consistently rely on?",
 "char_start": 1925,
@@ -310,8 +310,8 @@
 "sent_id": "t0012.s01"
 },
 {
-"start": 277.44,
-"end": 280.08,
+"start": 87.11,
+"end": 90.0,
 "speaker_label": "Camille Dubois",
 "text": "How does RockShox fit into this picture?",
 "char_start": 1969,
@@ -320,8 +320,8 @@
 "sent_id": "t0012.s02"
 },
 {
-"start": 280.08,
-"end": 281.58,
+"start": 90.0,
+"end": 90.54,
 "speaker_label": "Élodie Chevalier",
 "text": "That's how I see it.",
 "char_start": 2028,
@@ -330,8 +330,8 @@
 "sent_id": "t0013.s01"
 },
 {
-"start": 281.64,
-"end": 288.96,
+"start": 90.54,
+"end": 94.09,
 "speaker_label": "Élodie Chevalier",
 "text": "The erosion patterns on the special stages change the choice of racing line between the reconnaissance runs and the actual race day.",
 "char_start": 2049,
@@ -340,8 +340,8 @@
 "sent_id": "t0013.s02"
 },
 {
-"start": 289.02,
-"end": 293.7,
+"start": 94.09,
+"end": 96.0,
 "speaker_label": "Élodie Chevalier",
 "text": "Once you've internalized that, the rest of the decisions become easier.",
 "char_start": 2182,
@@ -350,8 +350,8 @@
 "sent_id": "t0013.s03"
 },
 {
-"start": 293.7,
-"end": 298.68,
+"start": 96.0,
+"end": 100.41,
 "speaker_label": "Camille Dubois",
 "text": "Before we continue, please support the program by visiting the website of our sponsor.",
 "char_start": 2270,
@@ -360,8 +360,8 @@
 "sent_id": "t0014.s01"
 },
 {
-"start": 298.74,
-"end": 300.78,
+"start": 100.41,
+"end": 102.0,
 "speaker_label": "Camille Dubois",
 "text": "Strava is the home of athletes.",
 "char_start": 2357,
@@ -370,8 +370,8 @@
 "sent_id": "t0014.s02"
 },
 {
-"start": 720.0,
-"end": 723.72,
+"start": 102.0,
+"end": 108.0,
 "speaker_label": "Camille Dubois",
 "text": "We'll be right back after a short commercial break.",
 "char_start": 2389,
@@ -380,8 +380,8 @@
 "sent_id": "t0014.s03"
 },
 {
-"start": 723.72,
-"end": 726.0,
+"start": 108.0,
+"end": 109.55,
 "speaker_label": "SPEAKER_02",
 "text": "This episode is sponsored by Notion.",
 "char_start": 2453,
@@ -390,8 +390,8 @@
 "sent_id": "t0015.s01"
 },
 {
-"start": 726.06,
-"end": 730.32,
+"start": 109.55,
+"end": 112.19,
 "speaker_label": "SPEAKER_02",
 "text": "Notion replaces the dozen tools your team is only half using.",
 "char_start": 2490,
@@ -400,8 +400,8 @@
 "sent_id": "t0015.s02"
 },
 {
-"start": 730.38,
-"end": 733.32,
+"start": 112.19,
+"end": 114.0,
 "speaker_label": "SPEAKER_02",
 "text": "Visit notion.com/podcast for a free trial.",
 "char_start": 2552,
@@ -410,8 +410,8 @@
 "sent_id": "t0015.s03"
 },
 {
-"start": 733.32,
-"end": 735.48,
+"start": 114.0,
+"end": 120.0,
 "speaker_label": "Camille Dubois",
 "text": "Welcome back to the show.",
 "char_start": 2611,
@@ -420,8 +420,8 @@
 "sent_id": "t0016.s01"
 },
 {
-"start": 840.0,
-"end": 841.14,
+"start": 120.0,
+"end": 122.46,
 "speaker_label": "Camille Dubois",
 "text": "I want to delve into that further.",
 "char_start": 2637,
@@ -430,8 +430,8 @@
 "sent_id": "t0016.s02"
 },
 {
-"start": 841.2,
-"end": 844.68,
+"start": 122.46,
+"end": 126.0,
 "speaker_label": "Camille Dubois",
 "text": "Which version of the question is truly important?",
 "char_start": 2672,
@@ -440,8 +440,8 @@
 "sent_id": "t0016.s03"
 },
 {
-"start": 844.68,
-"end": 847.8,
+"start": 126.0,
+"end": 127.28,
 "speaker_label": "Élodie Chevalier",
 "text": "I'm giving you the version that I truly believe in.",
 "char_start": 2740,
@@ -450,8 +450,8 @@
 "sent_id": "t0017.s01"
 },
 {
-"start": 847.86,
-"end": 853.56,
+"start": 127.28,
+"end": 129.3,
 "speaker_label": "Élodie Chevalier",
 "text": "The speed comes from braking earlier and more gently, not from taking more risks.",
 "char_start": 2792,
@@ -460,8 +460,8 @@
 "sent_id": "t0017.s02"
 },
 {
-"start": 853.62,
-"end": 856.62,
+"start": 129.3,
+"end": 130.38,
 "speaker_label": "Élodie Chevalier",
 "text": "We've seen this in teams that use RockShox.",
 "char_start": 2874,
@@ -470,8 +470,8 @@
 "sent_id": "t0017.s03"
 },
 {
-"start": 856.68,
-"end": 861.0,
+"start": 130.38,
+"end": 132.0,
 "speaker_label": "Élodie Chevalier",
 "text": "And the secondary effect is the part that almost everyone misses.",
 "char_start": 2918,
@@ -480,8 +480,8 @@
 "sent_id": "t0017.s04"
 },
 {
-"start": 861.0,
-"end": 863.46,
+"start": 132.0,
+"end": 134.04,
 "speaker_label": "Camille Dubois",
 "text": "What does the failure mode look like?",
 "char_start": 3000,
@@ -490,8 +490,8 @@
 "sent_id": "t0018.s01"
 },
 {
-"start": 863.52,
-"end": 868.26,
+"start": 134.04,
+"end": 138.0,
 "speaker_label": "Camille Dubois",
 "text": "What is the operational aspect that most auditors do not have access to?",
 "char_start": 3038,
@@ -500,8 +500,8 @@
 "sent_id": "t0018.s02"
 },
 {
-"start": 868.26,
-"end": 875.4,
+"start": 138.0,
+"end": 141.51,
 "speaker_label": "Élodie Chevalier",
 "text": "Yes, so – tire pressure and the choice of tire casing often matter more than minor suspension adjustments.",
 "char_start": 3129,
@@ -510,8 +510,8 @@
 "sent_id": "t0019.s01"
 },
 {
-"start": 875.46,
-"end": 879.12,
+"start": 141.51,
+"end": 144.0,
 "speaker_label": "Élodie Chevalier",
 "text": "The setup is important because it tells you what compromises you're making.",
 "char_start": 3236,
@@ -520,8 +520,8 @@
 "sent_id": "t0019.s02"
 },
 {
-"start": 879.12,
-"end": 880.86,
+"start": 144.0,
+"end": 146.13,
 "speaker_label": "Camille Dubois",
 "text": "Give me a concrete example.",
 "char_start": 3328,
@@ -530,8 +530,8 @@
 "sent_id": "t0020.s01"
 },
 {
-"start": 880.92,
-"end": 884.4,
+"start": 146.13,
+"end": 150.0,
 "speaker_label": "Camille Dubois",
 "text": "Which version of the question is truly important?",
 "char_start": 3356,
@@ -540,8 +540,8 @@
 "sent_id": "t0020.s02"
 },
 {
-"start": 884.4,
-"end": 891.9,
+"start": 150.0,
+"end": 153.14,
 "speaker_label": "Élodie Chevalier",
 "text": "Yes, so – risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
 "char_start": 3424,
@@ -550,8 +550,8 @@
 "sent_id": "t0021.s01"
 },
 {
-"start": 891.96,
-"end": 894.96,
+"start": 153.14,
+"end": 154.31,
 "speaker_label": "Élodie Chevalier",
 "text": "We've seen this in teams that use RockShox.",
 "char_start": 3540,
@@ -560,8 +560,8 @@
 "sent_id": "t0021.s02"
 },
 {
-"start": 895.02,
-"end": 898.62,
+"start": 154.31,
+"end": 156.0,
 "speaker_label": "Élodie Chevalier",
 "text": "I've seen this pattern repeat itself in three different teams.",
 "char_start": 3584,
@@ -570,8 +570,8 @@
 "sent_id": "t0021.s03"
 },
 {
-"start": 898.62,
-"end": 900.12,
+"start": 156.0,
+"end": 162.0,
 "speaker_label": "Camille Dubois",
 "text": "Tell me more.",
 "char_start": 3663,
@@ -580,8 +580,8 @@
 "sent_id": "t0022.s01"
 },
 {
-"start": 900.12,
-"end": 904.38,
+"start": 162.0,
+"end": 165.28,
 "speaker_label": "Élodie Chevalier",
 "text": "The Cascadia Alliance is one of the platforms where this is particularly evident.",
 "char_start": 3695,
@@ -590,8 +590,8 @@
 "sent_id": "t0023.s01"
 },
 {
-"start": 904.44,
-"end": 909.12,
+"start": 165.28,
+"end": 168.0,
 "speaker_label": "Élodie Chevalier",
 "text": "Once you internalize that, the rest of the decisions become easier.",
 "char_start": 3777,
@@ -600,8 +600,8 @@
 "sent_id": "t0023.s02"
 },
 {
-"start": 909.12,
-"end": 910.2,
+"start": 168.0,
+"end": 169.69,
 "speaker_label": "Camille Dubois",
 "text": "Let's start with that.",
 "char_start": 3861,
@@ -610,8 +610,8 @@
 "sent_id": "t0024.s01"
 },
 {
-"start": 910.26,
-"end": 913.86,
+"start": 169.69,
+"end": 174.0,
 "speaker_label": "Camille Dubois",
 "text": "What is the most underestimated aspect of enduro racing?",
 "char_start": 3884,
@@ -620,8 +620,8 @@
 "sent_id": "t0024.s02"
 },
 {
-"start": 913.86,
-"end": 922.5,
+"start": 174.0,
+"end": 178.27,
 "speaker_label": "Élodie Chevalier",
 "text": "It boils down to this: the erosion patterns on the special stages change the optimal racing line between the reconnaissance runs and the actual race day.",
 "char_start": 3959,
@@ -630,8 +630,8 @@
 "sent_id": "t0025.s01"
 },
 {
-"start": 922.56,
-"end": 926.16,
+"start": 178.27,
+"end": 180.0,
 "speaker_label": "Élodie Chevalier",
 "text": "I've seen this pattern repeat itself in three different teams.",
 "char_start": 4113,
@@ -640,8 +640,8 @@
 "sent_id": "t0025.s02"
 },
 {
-"start": 1320.0,
-"end": 1324.86,
+"start": 180.0,
+"end": 186.0,
 "speaker_label": "Camille Dubois",
 "text": "Let's change the subject – I want to dedicate the final section to risk management.",
 "char_start": 4192,
@@ -650,8 +650,8 @@
 "sent_id": "t0026.s01"
 },
 {
-"start": 1324.86,
-"end": 1333.32,
+"start": 186.0,
+"end": 192.0,
 "speaker_label": "Élodie Chevalier",
 "text": "That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.",
 "char_start": 4294,
@@ -660,8 +660,8 @@
 "sent_id": "t0027.s01"
 },
 {
-"start": 1333.32,
-"end": 1335.78,
+"start": 192.0,
+"end": 194.04,
 "speaker_label": "Camille Dubois",
 "text": "What does the failure mode look like?",
 "char_start": 4451,
@@ -670,8 +670,8 @@
 "sent_id": "t0028.s01"
 },
 {
-"start": 1335.84,
-"end": 1340.82,
+"start": 194.04,
+"end": 198.0,
 "speaker_label": "Camille Dubois",
 "text": "What is the counter-flow angle that most auditors do not have access to?",
 "char_start": 4489,
@@ -680,8 +680,8 @@
 "sent_id": "t0028.s02"
 },
 {
-"start": 1340.82,
-"end": 1341.36,
+"start": 198.0,
+"end": 198.28,
 "speaker_label": "Élodie Chevalier",
 "text": "Of course.",
 "char_start": 4580,
@@ -690,8 +690,8 @@
 "sent_id": "t0029.s01"
 },
 {
-"start": 1341.42,
-"end": 1347.12,
+"start": 198.28,
+"end": 200.85,
 "speaker_label": "Élodie Chevalier",
 "text": "The increased speed comes from braking earlier and more gently, not from taking more risks.",
 "char_start": 4591,
@@ -700,8 +700,8 @@
 "sent_id": "t0029.s02"
 },
 {
-"start": 1347.18,
-"end": 1350.18,
+"start": 200.85,
+"end": 202.06,
 "speaker_label": "Élodie Chevalier",
 "text": "We've seen this in teams that use RockShox.",
 "char_start": 4683,
@@ -710,8 +710,8 @@
 "sent_id": "t0029.s03"
 },
 {
-"start": 1350.24,
-"end": 1353.84,
+"start": 202.06,
+"end": 204.0,
 "speaker_label": "Élodie Chevalier",
 "text": "I've observed this pattern repeating itself in three different teams.",
 "char_start": 4727,
@@ -720,8 +720,8 @@
 "sent_id": "t0029.s04"
 },
 {
-"start": 1353.84,
-"end": 1355.58,
+"start": 204.0,
+"end": 205.95,
 "speaker_label": "Camille Dubois",
 "text": "Give me a concrete example.",
 "char_start": 4813,
@@ -730,8 +730,8 @@
 "sent_id": "t0030.s01"
 },
 {
-"start": 1355.64,
-"end": 1359.24,
+"start": 205.95,
+"end": 210.0,
 "speaker_label": "Camille Dubois",
 "text": "What is the most underestimated aspect of enduro racing?",
 "char_start": 4841,
@@ -740,8 +740,8 @@
 "sent_id": "t0030.s02"
 },
 {
-"start": 1359.24,
-"end": 1366.38,
+"start": 210.0,
+"end": 213.79,
 "speaker_label": "Élodie Chevalier",
 "text": "Yes, so – tire pressure and the choice of tire casing often matter more than minor suspension adjustments.",
 "char_start": 4916,
@@ -750,8 +750,8 @@
 "sent_id": "t0031.s01"
 },
 {
-"start": 1366.44,
-"end": 1370.04,
+"start": 213.79,
+"end": 216.0,
 "speaker_label": "Élodie Chevalier",
 "text": "I've seen this pattern repeat itself in three different teams.",
 "char_start": 5023,
@@ -760,8 +760,8 @@
 "sent_id": "t0031.s02"
 },
 {
-"start": 1370.04,
-"end": 1371.78,
+"start": 216.0,
+"end": 218.13,
 "speaker_label": "Camille Dubois",
 "text": "Give me a concrete example.",
 "char_start": 5102,
@@ -770,8 +770,8 @@
 "sent_id": "t0032.s01"
 },
 {
-"start": 1371.84,
-"end": 1375.32,
+"start": 218.13,
+"end": 222.0,
 "speaker_label": "Camille Dubois",
 "text": "Which version of the question is truly important?",
 "char_start": 5130,
@@ -780,8 +780,8 @@
 "sent_id": "t0032.s02"
 },
 {
-"start": 1375.32,
-"end": 1378.44,
+"start": 222.0,
+"end": 223.15,
 "speaker_label": "Élodie Chevalier",
 "text": "I'm giving you the version that I truly believe in.",
 "char_start": 5198,
@@ -790,8 +790,8 @@
 "sent_id": "t0033.s01"
 },
 {
-"start": 1378.5,
-"end": 1385.22,
+"start": 223.15,
+"end": 225.51,
 "speaker_label": "Élodie Chevalier",
 "text": "Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
 "char_start": 5250,
@@ -800,8 +800,8 @@
 "sent_id": "t0033.s02"
 },
 {
-"start": 1385.28,
-"end": 1388.64,
+"start": 225.51,
+"end": 226.61,
 "speaker_label": "Élodie Chevalier",
 "text": "We've seen this in teams that use Spoke & Wrench.",
 "char_start": 5356,
@@ -810,8 +810,8 @@
 "sent_id": "t0033.s03"
 },
 {
-"start": 1388.7,
-"end": 1392.3,
+"start": 226.61,
+"end": 228.0,
 "speaker_label": "Élodie Chevalier",
 "text": "I've seen this pattern repeat itself in three different teams.",
 "char_start": 5406,
@@ -820,8 +820,8 @@
 "sent_id": "t0033.s04"
 },
 {
-"start": 1392.3,
-"end": 1393.8,
+"start": 228.0,
+"end": 234.0,
 "speaker_label": "Camille Dubois",
 "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\n(The best option depends on the specific context.)",
 "char_start": 5485,
@@ -830,8 +830,8 @@
 "sent_id": "t0034.s01"
 },
 {
-"start": 1393.8,
-"end": 1402.8,
+"start": 234.0,
+"end": 240.0,
 "speaker_label": "Élodie Chevalier",
 "text": "And when teams adopt Spoke & Wrench within this workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.",
 "char_start": 5645,
@@ -840,8 +840,8 @@
 "sent_id": "t0035.s01"
 },
 {
-"start": 1402.8,
-"end": 1406.34,
+"start": 240.0,
+"end": 242.8,
 "speaker_label": "Camille Dubois",
 "text": "What heuristic do you consistently rely on?",
 "char_start": 5815,
@@ -850,8 +850,8 @@
 "sent_id": "t0036.s01"
 },
 {
-"start": 1406.4,
-"end": 1409.88,
+"start": 242.8,
+"end": 246.0,
 "speaker_label": "Camille Dubois",
 "text": "Which version of the question is truly important?",
 "char_start": 5859,
@@ -860,8 +860,8 @@
 "sent_id": "t0036.s02"
 },
 {
-"start": 1409.88,
-"end": 1411.38,
+"start": 246.0,
+"end": 246.57,
 "speaker_label": "Élodie Chevalier",
 "text": "That's how I see it.",
 "char_start": 5927,
@@ -870,8 +870,8 @@
 "sent_id": "t0037.s01"
 },
 {
-"start": 1411.44,
-"end": 1418.76,
+"start": 246.57,
+"end": 250.34,
 "speaker_label": "Élodie Chevalier",
 "text": "The erosion patterns on the special stages change the choice of racing line between the reconnaissance runs and the actual race day.",
 "char_start": 5948,
@@ -880,8 +880,8 @@
 "sent_id": "t0037.s02"
 },
 {
-"start": 1418.82,
-"end": 1422.42,
+"start": 250.34,
+"end": 252.0,
 "speaker_label": "Élodie Chevalier",
 "text": "I saw this pattern repeat itself in three different teams.",
 "char_start": 6081,
@@ -890,8 +890,8 @@
 "sent_id": "t0037.s03"
 },
 {
-"start": 1680.0,
-"end": 1685.34,
+"start": 252.0,
+"end": 258.0,
 "speaker_label": "Camille Dubois",
 "text": "Before we conclude, what is one thing that listeners can try this week?",
 "char_start": 6156,
@@ -900,8 +900,8 @@
 "sent_id": "t0038.s01"
 },
 {
-"start": 1685.34,
-"end": 1689.96,
+"start": 258.0,
+"end": 261.88,
 "speaker_label": "Élodie Chevalier",
 "text": "Choose one of the ideas we discussed and apply it for two weeks.",
 "char_start": 6246,
@@ -910,8 +910,8 @@
 "sent_id": "t0039.s01"
 },
 {
-"start": 1690.02,
-"end": 1691.88,
+"start": 261.88,
+"end": 264.0,
 "speaker_label": "Élodie Chevalier",
 "text": "Everything else is about iteration.",
 "char_start": 6311,
@@ -920,8 +920,8 @@
 "sent_id": "t0039.s02"
 },
 {
-"start": 1691.88,
-"end": 1694.58,
+"start": 264.0,
+"end": 266.53,
 "speaker_label": "Camille Dubois",
 "text": "And finally, thank you to our sponsors at Vanta.",
 "char_start": 6363,
@@ -930,8 +930,8 @@
 "sent_id": "t0040.s01"
 },
 {
-"start": 1694.64,
-"end": 1697.28,
+"start": 266.53,
+"end": 268.68,
 "speaker_label": "Camille Dubois",
 "text": "Vanta automates SOC 2 and ISO compliance.",
 "char_start": 6412,
@@ -940,8 +940,8 @@
 "sent_id": "t0040.s02"
 },
 {
-"start": 1697.34,
-"end": 1698.96,
+"start": 268.68,
+"end": 270.0,
 "speaker_label": "Camille Dubois",
 "text": "Take a look at vanta.com.",
 "char_start": 6454,
@@ -950,8 +950,8 @@
 "sent_id": "t0040.s03"
 },
 {
-"start": 1698.96,
-"end": 1701.66,
+"start": 270.0,
+"end": 276.0,
 "speaker_label": "Camille Dubois",
 "text": "Élodie Chevalier, thank you for the conversation.",
 "char_start": 6480,
@@ -960,8 +960,8 @@
 "sent_id": "t0040.s04"
 },
 {
-"start": 1701.66,
-"end": 1703.16,
+"start": 276.0,
+"end": 282.0,
 "speaker_label": "Élodie Chevalier",
 "text": "Thank you, Camille.",
 "char_start": 6548,
@@ -970,8 +970,8 @@
 "sent_id": "t0041.s01"
 },
 {
-"start": 1703.16,
-"end": 1706.76,
+"start": 282.0,
+"end": 286.43,
 "speaker_label": "Camille Dubois",
 "text": "That's all for today's episode of Sessions Sentier.",
 "char_start": 6584,
@@ -980,8 +980,8 @@
 "sent_id": "t0042.s01"
 },
 {
-"start": 1706.82,
-"end": 1707.72,
+"start": 286.43,
+"end": 288.0,
 "speaker_label": "Camille Dubois",
 "text": "See you next time.",
 "char_start": 6636,

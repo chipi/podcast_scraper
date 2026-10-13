@@ -69,7 +69,9 @@ const NON_COLOUR = new Set(['--lp-font-display', '--lp-font-ui', '--lp-font-mono
  */
 function aliasTokens(): Set<string> {
   return new Set(
-    Array.from(TOKENS.matchAll(/(--lp-[a-z-]+)\s*:\s*var\(\s*--lp-[a-z-]+\s*\)/g), (m) => m[1]),
+    // `[a-z0-9-]`: an alias may point at a numbered token (`--lp-learn: var(--lp-cat-5)`), and a
+    // letters-only pattern read that as a literal colour (2026-10-11).
+    Array.from(TOKENS.matchAll(/(--lp-[a-z-]+)\s*:\s*var\(\s*--lp-[a-z0-9-]+\s*\)/g), (m) => m[1]),
   )
 }
 

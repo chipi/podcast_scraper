@@ -28,6 +28,15 @@ export const CONSISTENCY_MATRIX: ConsistencyRow[] = [
   // --- interests ----------------------------------------------------------------------------------
   { write: 'addInterest', readers: ['Discover › Your trends', 'Profile › Interests', 'Home recommended'], proof: ['e2e/cross-surface.spec.ts', 'src/stores/interests.test.ts'] },
   { write: 'removeInterest', readers: ['Discover › Your trends', 'Profile › Interests'], proof: ['e2e/cross-surface.spec.ts', 'src/stores/interests.test.ts'] },
+  { write: 'suggestLess', readers: ['every Discover rail', 'Profile › Interests › Suggested less'], proof: ['e2e/discover-explore.spec.ts', 'src/components/RecommendationRail.test.ts'] },
+  { write: 'undoSuggestLess', readers: ['every Discover rail', 'Profile › Interests › Suggested less'], proof: ['e2e/discover-explore.spec.ts', 'src/components/SuggestedLessList.test.ts'] },
+  { write: 'startLearn', readers: ['Discover › Learn this week', 'Learn › the whole week', 'topic card / theme / storyline › Learn door', 'Home › In progress'], proof: ['e2e/discover-explore.spec.ts', 'src/components/LearnThisWeek.test.ts'] },
+  { write: 'learnStepDone', readers: ['Discover › Learn this week', 'Learn › the whole week', 'Home › In progress'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
+  { write: 'learnOpenNext', readers: ['Discover › Learn this week', 'Learn › the whole week', 'Home › In progress'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
+  { write: 'putReelProgress', readers: ['Home › In progress (the short listen to resume)'], proof: ['src/services/reelProgress.test.ts', 'src/components/InProgressStrip.test.ts', 'e2e/discover-explore.spec.ts'] },
+  { write: 'clearReelProgress', readers: ['Home › In progress'], proof: ['src/services/reelProgress.test.ts'] },
+  { write: 'postMomentHeard', readers: ['Profile › Stats › Your listening (moments, moment → full, subjects)', 'Home › Your week in listening'], proof: ['src/services/momentsHeard.test.ts', 'src/stores/player.test.ts'] },
+  { write: 'stopLearn', readers: ['Discover › Learn this week', 'Learn › the whole week', 'Home › In progress'], proof: ['e2e/discover-explore.spec.ts', 'src/views/LearnPathView.test.ts'] },
   { write: 'putUserInterests', readers: ['every interests reader (store replaceAll)'], proof: ['src/components/InterestsPicker.test.ts'] },
 
   // --- follows ------------------------------------------------------------------------------------
@@ -86,6 +95,5 @@ export const CONSISTENCY_MATRIX: ConsistencyRow[] = [
   { write: 'revokeMcpConnection', readers: [], proof: ['src/components/ConnectedAgents.test.ts'], note: 'Settings › Connected agents only.' },
 
   // --- telemetry ----------------------------------------------------------------------------------
-  { write: 'recordDiscoverClick', readers: [], proof: [], note: 'Ranking telemetry; no surface displays it.' },
   { write: 'postAppExits', readers: [], proof: ['src/services/lifecycle.test.ts'], note: 'Lifecycle telemetry; no surface displays it.' },
 ]

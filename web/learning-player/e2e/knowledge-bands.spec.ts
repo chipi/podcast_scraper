@@ -19,12 +19,15 @@ test('the podcast signals band separates DISTINCTIVE topics from the rest', asyn
   const band = page.getByTestId('podcast-signals')
   await expect(band).toBeVisible()
 
-  // The split is the point (UXS-013): topics with `lift` above the corpus base rate are what set
-  // this show apart, and they are listed under their own heading. Collapsing the two groups is how
-  // a show's signature topic lost an alphabetical tiebreak to wallpaper every show covers.
-  await expect(page.getByTestId('ps-distinctive-heading')).toBeVisible()
-  await expect(page.getByTestId('ps-distinctive-topic').first()).toBeVisible()
+  // What sets this show apart (UXS-013): subjects with `lift` above the library's base rate lead
+  // their own kind's row, marked with a star (operator 2026-10-12; no numbers on the pills) — topics, and now themes and
+  // storylines too. A tie on coverage used to hand a show's signature topic to wallpaper.
   await expect(page.getByTestId('ps-topics-heading')).toBeVisible()
+  const lead = page.getByTestId('ps-topic').first()
+  await expect(lead).toHaveAttribute('data-distinctive', 'true')
+  await expect(lead.getByTestId('ps-distinctive-mark')).toBeVisible()
+  await expect(page.getByTestId('ps-distinctive-note')).toBeVisible()
+  await expect(page.getByTestId('ps-theme-cluster').first()).toBeVisible()
 })
 
 test('the show activity chart renders one bar per period', async ({ page }, testInfo) => {

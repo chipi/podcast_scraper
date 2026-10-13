@@ -10,7 +10,7 @@ import { signInIsolated } from './helpers'
  */
 test('a fresh listener sees Mine empty, explained, with a way to everyone', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-mine-fresh', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   const toggle = page.getByTestId('discover-scope')
   await expect(toggle).toHaveAttribute('aria-pressed', 'true') // Mine by default
   await expect(page.getByTestId('discovery-mine-empty')).toBeVisible()
@@ -40,7 +40,7 @@ test("following a topic puts it in Mine, and Mine holds only the listener's worl
   expect(ids).toContain(followed)
   expect(ids.length, 'Mine must be a subset, not everyone again').toBeLessThan(all.length)
 
-  await page.goto('/browse')
+  await page.goto('/explore')
   await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
   await expect(page.getByTestId('discovery-mine-empty')).toHaveCount(0)
@@ -62,10 +62,14 @@ test('Trending shows follow the page switch: Mine is empty and explained for a f
   await expect(page.getByTestId('trending-shows-mine-empty')).toBeVisible()
   await expect(page.getByTestId('trending-show-card')).toHaveCount(0)
 
-  // Its own "show everyone" flips the ONE switch — Trends below follows too.
+  // Its own "show everyone" flips the ONE switch — the quote cards follow, and so do Explore's
+  // Trends (the switch is shared across pages; Trends moved to Explore 2026-10-11).
   await page.getByTestId('trending-shows-show-everyone').click()
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByTestId('trending-show-card').first()).toBeVisible()
+  await expect(page.getByTestId('quote-card').first()).toBeVisible()
+  await page.goto('/explore')
+  await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
 })
 
@@ -90,17 +94,28 @@ test('following a show puts it in Mine, and only the shows of the listener\'s wo
   await expect(cards.first().locator(`a[href$="/podcast/${encodeURIComponent(followed)}"]`).first()).toBeVisible()
 })
 
-test('a search from Discover runs in the same switch, and the results flip it back', async ({ page }, testInfo) => {
+test('a search from Explore runs in the same switch, and the results flip it back', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-mine-search', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'true')
   await page.getByTestId('browse-search-section').locator('input').fill('memory')
   await page.getByTestId('browse-search-section').locator('input').press('Enter')
   await expect(page).toHaveURL(/scope=mine/)
   const scope = page.getByTestId('search-scope')
   await expect(scope).toHaveAttribute('aria-pressed', 'true')
+  // Wait for the switch to be SAVED before reloading: a reload a few ms after the tap can read the
+  // preferences before the save lands (flaked once under full-suite load, 2026-10-12, now that a
+  // search also saves its recent terms in the same moment). A person cannot reload that fast.
+  const saved = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/app/preferences') &&
+      r.request().method() === 'PATCH' &&
+      (r.request().postData() ?? '').includes('lp.trendingScope') &&
+      r.ok(),
+  )
   await scope.click()
   await expect(page).toHaveURL(/scope=all/)
+  await saved
   await page.goto('/browse')
   await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'false')
 })

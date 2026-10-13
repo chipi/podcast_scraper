@@ -263,3 +263,41 @@ def test_podcasts_page_filters_by_language_and_lists_the_languages(tmp_path: Pat
     assert english["total"] == 2
     spanish = client.get("/api/app/podcasts", params={"limit": 10, "language": "es"}).json()
     assert [p["feed_id"] for p in spanish["items"]] == ["es1"]
+
+
+def test_podcasts_page_narrows_to_the_listeners_own_shows(tmp_path: Path) -> None:
+    """Operator 2026-10-11: the catalogue stays everyone's, with a filter for Mine. Following = the
+    shows they follow; Mine = their world's shows (followed, saved, or of an episode they had)."""
+    from podcast_scraper.server import app_user_state
+
+    for i, fid in enumerate(("zeta", "alpha", "mid")):
+        _write_episode(
+            tmp_path,
+            stem=f"e{i}",
+            feed_id=fid,
+            feed_title=fid.title(),
+            episode_id=str(i),
+            title=f"Ep {i}",
+            published=f"2024-0{i + 1}-01",
+            category="Science",
+        )
+    client = _client(tmp_path)
+
+    def shows(facet: str) -> dict:
+        body: dict = client.get(
+            "/api/app/podcasts", params={"limit": 10, "sort": "az", "facet": facet}
+        ).json()
+        return body
+
+    empty = shows("mine")
+    assert (empty["items"], empty["total"], empty["categories"]) == ([], 0, ["Science"])
+    data_dir = tmp_path / "_appdata"
+    uid = get_or_create_user(
+        data_dir, provider="stub", subject="s", email="u@x.com", name="U"
+    ).user_id
+    app_user_state.add_subscription(data_dir, uid, {"feed_id": "zeta"})
+    app_user_state.add_favorite(data_dir, uid, {"kind": "show", "ref": "mid", "label": "Mid"})
+    assert [p["feed_id"] for p in shows("all")["items"]] == ["alpha", "mid", "zeta"]
+    assert [p["feed_id"] for p in shows("following")["items"]] == ["zeta"]
+    assert [p["feed_id"] for p in shows("mine")["items"]] == ["mid", "zeta"]
+    assert client.get("/api/app/podcasts", params={"limit": 5, "facet": "x"}).status_code == 422

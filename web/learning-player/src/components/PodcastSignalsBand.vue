@@ -11,7 +11,9 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { kindPill } from '../utils/interests'
 import CollapsibleSection from './CollapsibleSection.vue'
+import DistinctiveMark from './DistinctiveMark.vue'
 import SectionStatus from './SectionStatus.vue'
 import { useSectionState } from '../composables/useSectionState'
 import { getPodcastSignals } from '../services/api'
@@ -19,7 +21,7 @@ import type { PodcastSignals } from '../services/types'
 
 const props = defineProps<{ feedId: string }>()
 const emit = defineEmits<{
-  (e: 'open', payload: { kind: 'topic' | 'person' | 'storyline'; id: string }): void
+  (e: 'open', payload: { kind: 'topic' | 'person' | 'storyline' | 'theme'; id: string }): void
 }>()
 const { t } = useI18n()
 
@@ -45,7 +47,7 @@ async function load(): Promise<void> {
 
 watch(() => props.feedId, () => void load(), { immediate: true })
 
-const themes = computed(() => signals.value?.dominant_storylines ?? [])
+
 const topics = computed(() => signals.value?.top_topics ?? [])
 const people = computed(() => signals.value?.key_people ?? [])
 
@@ -70,54 +72,57 @@ function roleLabel(role: string | null | undefined): string {
 }
 
 /**
- * Distinctiveness, which is what the band's title actually asks.
+ * Distinctiveness, which is what the band's title actually asks — now for every kind, not only
+ * topics (operator 2026-10-12).
  *
  * Coverage alone can't answer "what this show's about": in the validation corpus every show
  * covers "expert interviews" in all four of its episodes, so it ties with the one topic that
- * identifies the show, and the tie breaks alphabetically — one show's signature topic sorted
- * dead last. `lift` (the topic's share of THIS show over its share of the whole corpus, computed
- * server-side in `feed_signals`) breaks that tie on meaning instead: corpus-wide wallpaper lands
- * at 1.0, a signature topic well above it.
+ * identifies the show. `lift` (a subject's share of THIS show's episodes over its share of the
+ * whole library's, computed server-side in `feed_signals`; for a theme or storyline, episodes
+ * touching any of its topics) breaks that tie on meaning: wallpaper lands at 1.0, a signature
+ * subject well above it. The pill shows no number (operator 2026-10-12: "9×" was hard to read):
+ * the distinctive ones lead their row, drawn stronger with a star, and one note says what that
+ * means.
  *
- * A topic must clear BOTH gates to be called distinctive:
- *  - `lift >= MIN_LIFT` — meaningfully above the corpus base rate, not noise. Same bar the
- *    trending gate uses for velocity (`_trending_topics(min_velocity=1.5)`).
- *  - present in ≥2 of the show's episodes — one passing mention on a short show can score a high
- *    lift while saying nothing about the show. Same "regulars, not one-offs" rule as
- *    `_recurring_guests`.
- *
- * Topics with an unknown lift (`null` — no corpus base rate) are never promoted; they fall
- * through to the plain list rather than being guessed at.
+ * Distinctive = `lift >= MIN_LIFT` AND in ≥2 of the show's episodes (one passing mention on a
+ * short show can score a high lift while saying nothing about it). An unknown lift is never
+ * promoted. The distinctive ones lead their own kind's row, marked — there used to be a
+ * separate "Distinctive to this show" row of topics only, which read as a fifth kind, said
+ * nothing about themes or storylines, and kept its "how much more" in a hover tooltip a phone
+ * never shows.
  */
 const MIN_LIFT = 1.5
 const MIN_EPISODES_FOR_DISTINCTIVE = 2
 
-const byLiftDesc = (a: { lift: number | null }, b: { lift: number | null }) =>
-  (b.lift ?? 0) - (a.lift ?? 0)
-
-const distinctiveTopics = computed(() =>
-  topics.value
-    .filter(
-      (t) =>
-        (t.lift ?? 0) >= MIN_LIFT && (t.episode_count ?? 0) >= MIN_EPISODES_FOR_DISTINCTIVE,
-    )
-    .slice()
-    .sort(byLiftDesc),
-)
-
-/** Everything else, still most-covered-first (the order the server returns). */
-const otherTopics = computed(() => {
-  const promoted = new Set(distinctiveTopics.value.map((t) => t.topic_id))
-  return topics.value.filter((t) => !promoted.has(t.topic_id))
-})
-
-/** "9" not "9.0", "1.8" as-is — the multiplier in the chip's hover explanation. */
-function formatLift(lift: number | null): string {
-  if (lift === null) return ''
-  return Number.isInteger(lift) ? String(lift) : lift.toFixed(1)
+function isDistinctive(x: { lift?: number | null; episode_count?: number | null }): boolean {
+  return (x.lift ?? 0) >= MIN_LIFT && (x.episode_count ?? 0) >= MIN_EPISODES_FOR_DISTINCTIVE
 }
+
+/** Distinctive first, by lift; the rest keep the server's order (most-covered first). */
+function distinctiveFirst<T extends { lift?: number | null; episode_count?: number | null }>(
+  list: T[],
+): T[] {
+  const lead = list.filter(isDistinctive).sort((a, b) => (b.lift ?? 0) - (a.lift ?? 0))
+  return [...lead, ...list.filter((x) => !isDistinctive(x))]
+}
+
+const storylines = computed(() => distinctiveFirst(signals.value?.dominant_storylines ?? []))
+const themeList = computed(() => distinctiveFirst(signals.value?.dominant_themes ?? []))
+const topicList = computed(() => distinctiveFirst(topics.value))
+
+/** Whether anything in the band is marked, so the note saying what the mark means shows. */
+const anyDistinctive = computed(
+  () =>
+    storylines.value.some(isDistinctive) ||
+    themeList.value.some(isDistinctive) ||
+    topicList.value.some(isDistinctive),
+)
 const hasAny = computed(
-  () => themes.value.length > 0 || topics.value.length > 0 || people.value.length > 0,
+  () =>
+    storylines.value.length > 0 ||
+    themeList.value.length > 0 ||
+    topics.value.length > 0 ||
+    people.value.length > 0,
 )
 </script>
 
@@ -144,61 +149,65 @@ const hasAny = computed(
          choice is remembered per listener across every show — "I don't need this band" is a
          preference about the page, not about one show. -->
     <CollapsibleSection :title="t('podcast.about')" section-key="show-about">
-      <div v-if="themes.length" class="mb-3">
+      <!-- One row per kind (operator 2026-10-12): Storylines, Themes, Topics, Key people. In each,
+           the subjects DISTINCTIVE to this show come first with their "4×" — how many times more
+           of this show's episodes they run through than the library's. -->
+      <!-- What the mark means, said once (operator 2026-10-12: "9×" was hard to read; no numbers on
+           the pills). Only when something here is marked. -->
+      <p v-if="anyDistinctive" class="mb-3 flex items-center text-xs text-muted" data-testid="ps-distinctive-note">
+        <DistinctiveMark decorative />{{ t('podcast.sigDistinctiveNote') }}
+      </p>
+      <div v-if="storylines.length" class="mb-3">
         <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigStorylines') }}</h3>
         <div class="flex flex-wrap gap-1.5">
           <button
-            v-for="th in themes"
+            v-for="th in storylines"
             :key="th.storyline_id"
             type="button"
             data-testid="ps-theme"
-            class="lp-storyline-chip rounded-full px-2.5 py-1 text-xs font-semibold text-storyline transition disabled:opacity-60"
+            :data-distinctive="isDistinctive(th) || undefined"
+            class="lp-storyline-chip inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold text-storyline transition disabled:opacity-60"
+            :class="isDistinctive(th) ? 'ring-1 ring-inset ring-current' : ''"
             :disabled="!th.anchor_topic_id"
             @click="th.anchor_topic_id && emit('open', { kind: 'storyline', id: th.anchor_topic_id })"
           >
-            {{ th.label }} <span class="opacity-70">· {{ th.topic_count }}</span>
+            <DistinctiveMark v-if="isDistinctive(th)" />{{ th.label }}
           </button>
         </div>
       </div>
 
-      <!--
-        What sets this show apart, ahead of what it merely covers. These chips are exactly as
-        clickable as the "other topics" ones below (both open the topic card) — the distinction is
-        informational, not an affordance, so font-weight carries it instead of the accent (#2013).
-      -->
-      <div v-if="distinctiveTopics.length" class="mb-3">
-        <h3 class="lp-kicker mb-1.5" data-testid="ps-distinctive-heading">
-          {{ t('podcast.sigDistinctive') }}
-        </h3>
+      <div v-if="themeList.length" class="mb-3">
+        <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigThemes') }}</h3>
         <div class="flex flex-wrap gap-1.5">
           <button
-            v-for="tp in distinctiveTopics"
-            :key="tp.topic_id"
+            v-for="th in themeList"
+            :key="th.theme_id"
             type="button"
-            data-testid="ps-distinctive-topic"
-            :title="t('podcast.sigDistinctiveHint', { factor: formatLift(tp.lift) })"
-            class="rounded-full border border-border bg-overlay px-2.5 py-1 text-xs font-semibold text-topic transition hover:bg-elevated"
-            @click="emit('open', { kind: 'topic', id: tp.topic_id })"
+            data-testid="ps-theme-cluster"
+            :data-distinctive="isDistinctive(th) || undefined"
+            class="inline-flex items-center rounded-full px-2.5 py-1 text-xs transition hover:opacity-80"
+            :class="[kindPill('theme'), isDistinctive(th) ? 'font-semibold ring-current' : '']"
+            @click="emit('open', { kind: 'theme', id: th.theme_id })"
           >
-            {{ tp.label }}
+            <DistinctiveMark v-if="isDistinctive(th)" />{{ th.label }}
           </button>
         </div>
       </div>
 
-      <div v-if="otherTopics.length" class="mb-3">
-        <!-- Plain "Topics" — the section pairs with "Distinctive to this show" above (operator: the
-             coverage-claim variants + a separate Trending row read as clutter). -->
+      <div v-if="topicList.length" class="mb-3">
         <h3 class="lp-kicker mb-1.5" data-testid="ps-topics-heading">{{ t('podcast.sigTopics') }}</h3>
         <div class="flex flex-wrap gap-1.5">
           <button
-            v-for="tp in otherTopics"
+            v-for="tp in topicList"
             :key="tp.topic_id"
             type="button"
             data-testid="ps-topic"
-            class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+            :data-distinctive="isDistinctive(tp) || undefined"
+            class="inline-flex items-center rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+            :class="isDistinctive(tp) ? 'font-semibold ring-1 ring-inset ring-current' : ''"
             @click="emit('open', { kind: 'topic', id: tp.topic_id })"
           >
-            {{ tp.label }}
+            <DistinctiveMark v-if="isDistinctive(tp)" />{{ tp.label }}
           </button>
         </div>
       </div>
@@ -242,7 +251,6 @@ const hasAny = computed(
               class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
               >{{ roleLabel(p.role) }}</span
             >
-            <span class="text-muted">· {{ p.episode_count }}</span>
           </button>
         </div>
       </div>

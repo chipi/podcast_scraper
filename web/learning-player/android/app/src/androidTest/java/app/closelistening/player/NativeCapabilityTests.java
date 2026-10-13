@@ -211,26 +211,26 @@ public class NativeCapabilityTests extends UITestCase {
         //     with the mic.
         //
         // This route is PROVEN on this device and build: `AccessibleNameAuditTests.java:352` reaches
-        // "Your notes" by it, and that suite passes with zero findings — which it could not do if
+        // "Notes" by it, and that suite passes with zero findings — which it could not do if
         // the scroll failed, because a false there is recorded as a NOT AUDITED finding. The opener
         // pattern is `AppJourneyTests.java:88-104`, which also passes.
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
-        // "✦ Episode notes" (kp.title) is one string on Android and two text nodes on iOS, so
+        // "Brief" (kp.title; "✦ Episode notes" until #2305) is one string on Android and two text nodes on iOS, so
         // contains is the safe match — the note at AppJourneyTests.java:95-97.
-        if (!Journey.tap("Episode notes", true, 15_000)) {
-            Journey.scrollTo("Episode notes", true);
-            Journey.tap("Episode notes", true, 10_000);
+        if (!Journey.tap("Brief", false, 15_000)) {
+            Journey.scrollTo("Brief", false);
+            Journey.tap("Brief", false, 10_000);
         }
         Journey.sleep(4_000);
 
-        // "Your notes" — the textarea's aria-label (notes.title). Matching the placeholder
+        // "Notes" — the textarea's aria-label (notes.title). Matching the placeholder
         // 'Add a note…' found nothing because aria-label wins over placeholder (same on iOS).
         // The composer is the last item of the panel, which has its own scroll container.
-        UiObject2 composer = Journey.scrollTo("Your notes", false);
+        UiObject2 composer = Journey.scrollTo("Notes", false);
         if (composer == null) {
-            fail("no note composer ('Your notes' aria-label) in the Episode notes panel. "
+            fail("no note composer ('Your notes' aria-label) in the Brief panel. "
                     + "On screen: " + Journey.labelledInventory(80));
         }
         // DO NOT CLICK THE TEXTAREA (2026-09-26). Clicking focuses it, which opens the soft

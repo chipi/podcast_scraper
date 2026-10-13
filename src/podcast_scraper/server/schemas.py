@@ -327,13 +327,6 @@ class AppRecommendedResponse(BaseModel):
     )
 
 
-class AppDiscoverClickBody(BaseModel):
-    """A click on a discovery-feed episode — ranking-experiment telemetry (#11)."""
-
-    slug: str = Field(description="The clicked episode's slug, as shown in the feed.")
-    position: int = Field(ge=0, description="0-based rank position where it was shown.")
-
-
 class AppExitEntry(BaseModel):
     """One reason the native app (or its WebView) ended, as the device recorded it (#2279)."""
 
@@ -1121,6 +1114,10 @@ class AppTrendingEntity(BaseModel):
         description="Served hosted-photo route for a person entity when the web enricher hosts a "
         "photo; null for non-person kinds and people without a hosted photo.",
     )
+    size: int | None = Field(
+        default=None,
+        description="For a theme (tc:) entity: how many topics it holds. Null for other kinds.",
+    )
     anchor_topic_id: str | None = Field(
         default=None,
         description=(
@@ -1133,20 +1130,56 @@ class AppTrendingEntity(BaseModel):
     )
 
 
-class AppTrendingEpisodeCard(BaseModel):
-    """One trending-episode quote card (GET /api/app/trending/episodes, 2026-10-10)."""
+class AppReasonQuote(BaseModel):
+    """A quote said in an episode, and where — the grounding of a reason (ADR-163 §4)."""
 
-    reason: Literal["rising_topic", "most_engaged"] = Field(
-        description="Why it is here: a rising topic it speaks to, or the most listening and saves."
-    )
-    quote: str = Field(description="The grounded quote that leads the card.")
+    text: str = Field(description="The quote, verbatim from the transcript (cut for a card).")
+    episode_slug: str = Field(description="The episode it is said in.")
     speaker: str | None = Field(default=None, description="Who says it, when named.")
-    start_ms: int | None = Field(default=None, description="Where the quote starts (play from).")
-    topic_id: str | None = Field(default=None, description="The rising topic (rising_topic).")
-    topic_label: str | None = Field(default=None, description="Its label (rising_topic).")
+    start_ms: int | None = Field(default=None, description="Where it starts: play from here.")
+    insight_id: str | None = Field(default=None, description="The insight it grounds, if any.")
+
+
+class AppReasonSubject(BaseModel):
+    """What links a recommendation to its reason."""
+
+    kind: Literal["topic", "person", "storyline", "show"]
+    id: str
+    label: str
+
+
+class AppReasonCapture(BaseModel):
+    """The listener's own capture that seeded a recommendation."""
+
+    kind: Literal["highlight", "note", "save"]
+    episode_slug: str
+    text: str | None = None
+    start_ms: int | None = None
+
+
+class AppReason(BaseModel):
+    """Why a recommendation is here — the shape every Discover rail carries (ADR-163).
+
+    Extractive only: the parts, never a written sentence (the client writes the words). ``quote``
+    is null when nothing grounds the recommendation; the client then shows no quote rather than an
+    invented one.
+    """
+
+    kind: Literal["rising_topic", "most_engaged", "captured", "thread", "person", "another_view"]
+    quote: AppReasonQuote | None = None
+    subject: AppReasonSubject | None = None
+    capture: AppReasonCapture | None = None
     events: int | None = Field(
-        default=None, description="Listens, opens and saves in the last 4 weeks (most_engaged)."
+        default=None,
+        description="most_engaged: distinct listeners who finished, captured, saved or opened it "
+        "over the window (ADR-163 §5).",
     )
+
+
+class AppTrendingEpisodeCard(BaseModel):
+    """One trending-episode quote card (GET /api/app/trending/episodes)."""
+
+    why: AppReason
     episode: AppEpisodeSummary
 
 
@@ -1157,6 +1190,190 @@ class AppTrendingEpisodesResponse(BaseModel):
     items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
 
 
+class AppDiscoverRail(BaseModel):
+    """One page of one Discover rail (ADR-163; paged on the server, operator 2026-10-11)."""
+
+    rail: str = Field(description="quotes | captured | thread | people | another_view.")
+    items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
+    total: int = Field(ge=0, description="Cards the rail has in all (after the rails above).")
+    fallback: bool = Field(
+        default=False,
+        description="Cold start: Everyone's cards standing in for an empty Mine — label them so.",
+    )
+
+
+class AppDiscoverRailsResponse(BaseModel):
+    """Every rail's first page, in page order, one card per episode across the page."""
+
+    scope: str = Field(description="mine | corpus.")
+    rails: list[AppDiscoverRail] = Field(default_factory=list)
+
+
+class AppReelClip(BaseModel):
+    """One clip of a topic reel: a moment of an episode (the Moments picker's clip window)."""
+
+    episode: AppEpisodeSummary
+    insight_id: str
+    text: str = Field(description="The moment's point (the insight).")
+    quote_text: str = Field(description="What is said at the clip's start (transcript).")
+    speaker: str | None = None
+    start_ms: int
+    end_ms: int
+
+
+class AppTopicReelResponse(BaseModel):
+    """N minutes on a topic, theme or storyline: clips about it across episodes, back to back."""
+
+    subject_id: str = Field(
+        description="topic: / tc: (theme) / thc: (storyline) id, or board:<collection id>."
+    )
+    subject_kind: Literal["topic", "theme", "storyline", "board"]
+    subject_label: str
+    minutes: int = Field(description="The budget asked for.")
+    total_seconds: float = Field(description="What the reel actually runs — never the budget.")
+    clips: list[AppReelClip] = Field(default_factory=list)
+
+
+class AppPathStep(BaseModel):
+    """One day of a "Learn X this week" path: an episode and its best clip on the subject."""
+
+    day: int = Field(description="1-based day of the path this step opens on.")
+    episode: AppEpisodeSummary
+    insight_id: str
+    text: str = Field(description="The clip's point (the insight).")
+    quote_text: str = Field(description="What is said at the clip's start (transcript).")
+    speaker: str | None = None
+    start_ms: int
+    end_ms: int
+    unlocked: bool = Field(description="Its day has come (steps open one a day, never early).")
+    done: bool
+
+
+class AppLearningPath(BaseModel):
+    """The listener's seven-day path through a topic, theme or storyline, frozen at its start."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
+    started_at: int = Field(description="When it started (epoch seconds).")
+    day: int = Field(
+        description="The newest open day, 1-based: today's, or later when days were opened early."
+    )
+    can_open_next: bool = Field(
+        default=False, description="The newest open day is done and the next may be opened now."
+    )
+    next_opens_at: int | None = Field(
+        default=None,
+        description="When the next day opens by itself (epoch seconds; 24 h periods from the "
+        "start); None with every day open.",
+    )
+    steps: list[AppPathStep] = Field(default_factory=list)
+
+
+class AppLearnSubject(BaseModel):
+    """A theme or storyline Discover offers a path through."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
+    steps: int = Field(description="How many days its path would have.")
+
+
+class AppLearnResponse(BaseModel):
+    """GET /discover/learn: the listener's paths, and what else they could start one on."""
+
+    paths: list[AppLearningPath] = Field(default_factory=list)
+    candidates: list[AppLearnSubject] = Field(
+        default_factory=list, description="Empty at max_paths: a new path needs one stopped."
+    )
+    max_paths: int
+
+
+class AppLearnStart(BaseModel):
+    """POST /discover/learn: the subject to learn this week."""
+
+    subject_id: str = Field(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
+    replace: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=200,
+        pattern=r"^(topic|tc|thc):",
+        description="A path to stop in the same request (at max_paths).",
+    )
+
+
+class AppReelProgressIn(BaseModel):
+    """PUT /discover/reel/progress: where an unfinished short listen is."""
+
+    subject_id: str = Field(
+        min_length=4, max_length=200, pattern=r"^((topic|tc|thc):|board:col_[a-z0-9]{1,32}$)"
+    )
+    index: int = Field(ge=0, le=500, description="The clip playing, 0-based.")
+    clips: int = Field(ge=1, le=500)
+    minutes: int = Field(default=15, ge=1, le=60, description="The reel's budget, to resume it.")
+
+
+class AppReelProgress(BaseModel):
+    """The last short listen left unfinished, to resume."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline", "board"]
+    subject_label: str
+    index: int = Field(description="The clip to resume at, 0-based.")
+    clips: int
+    minutes: int = 15
+    updated_at: int
+    episode: AppEpisodeSummary | None = Field(
+        default=None, description="The episode of the clip it resumes at (its artwork, its title)."
+    )
+    speaker: str | None = None
+    quote_text: str = ""
+
+
+class AppInProgress(BaseModel):
+    """GET /discover/in-progress: what the listener started and has not finished — Home's door."""
+
+    paths: list[AppLearningPath] = Field(default_factory=list)
+    reel: AppReelProgress | None = None
+
+
+class AppReelTopic(BaseModel):
+    """A topic, theme or storyline Discover offers a reel on."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
+    clips: int
+    total_seconds: float
+
+
+class AppReelTopicsResponse(BaseModel):
+    """The topics of Discover's "15 minutes on…" row (each has a reel of at least two clips)."""
+
+    scope: str = Field(description="mine | corpus — whose topics.")
+    items: list[AppReelTopic] = Field(default_factory=list)
+
+
+class AppSuggestLessItem(BaseModel):
+    """One subject the listener asked Discover to suggest less of (ADR-163 §6)."""
+
+    token: str = Field(description="topic: / person: / thc: / tc: id the card's reason named.")
+    label: str = Field(description="Its display name when it was hidden, for Profile's list.")
+    added_at: int = Field(description="When (epoch seconds).")
+
+
+class AppSuggestLessBody(BaseModel):
+    """POST /discover/suggest-less/{token} — the label shown on the card."""
+
+    label: str = Field(min_length=1, max_length=200)
+
+
+class AppSuggestLessResponse(BaseModel):
+    """Everything the listener asked to see less of, oldest first."""
+
+    items: list[AppSuggestLessItem] = Field(default_factory=list)
+
+
 class AppTrendingResponse(BaseModel):
     """Trending entities of one kind (GET /api/app/trending) — read-time momentum vs today."""
 
@@ -1165,6 +1382,7 @@ class AppTrendingResponse(BaseModel):
     as_of_week: str = Field(description="ISO reference week the momentum is anchored to.")
     window: str = Field(default="3m", description="Trend window applied (1m|3m|6m|1y).")
     items: list[AppTrendingEntity] = Field(default_factory=list)
+    total: int = Field(default=0, description="How many there are in all; items is one page.")
 
 
 class AppCorpusTrendingResponse(BaseModel):
@@ -1349,6 +1567,13 @@ class HighlightCreate(BaseModel):
         "the capture so every copy of the quote (export, digest, share card) can say so.",
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
+    source: Literal["episode", "moment", "learn"] | None = Field(
+        default=None,
+        description=(
+            "Where it was saved (operator 2026-10-12): a full episode, a short listen, or a "
+            "learning day. Stats only; omitted counts as an episode."
+        ),
+    )
     client_id: str | None = Field(
         default=None,
         pattern=_CLIENT_ID_PATTERN,
@@ -1415,6 +1640,9 @@ class Highlight(BaseModel):
         description="Source language code when the captured text is a machine translation.",
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
+    source: Literal["episode", "moment", "learn"] | None = Field(
+        default=None, description="Where it was saved: episode, moment (short listen) or learn."
+    )
     created_at: int = Field(description="Unix time captured.")
     anchor_status: str | None = Field(
         default=None, description="'anchored' | 'drifted' after a re-anchor; None until re-scraped."
@@ -2128,6 +2356,108 @@ class CollectionDetail(BaseModel):
     )
 
 
+class AppBoardHolds(BaseModel):
+    """What a board holds, by kind (its Brief's first line)."""
+
+    episodes: int = Field(
+        default=0, description="Episodes: saved ones plus those of saved moments."
+    )
+    moments: int = Field(default=0, description="Saved moments (highlights).")
+    shows: int = 0
+    subjects: int = Field(default=0, description="Topics, people, themes and storylines saved.")
+    searches: int = 0
+    links: int = 0
+
+
+class AppBoardSubject(BaseModel):
+    """A topic of a board's episodes, with how many of them it is in."""
+
+    id: str
+    kind: Literal["topic"] = "topic"
+    label: str
+    episodes: int = Field(description="How many of the board's episodes it is in.")
+    saved: bool = Field(description="Also saved on the board itself.")
+
+
+class AppBoardSummary(BaseModel):
+    """One paragraph on what a board is about, made by the board-summarizer sidecar (RFC-127)."""
+
+    text: str
+    created_at: int = Field(description="When it was written (unix seconds).")
+    stale: bool = Field(description="The board's episodes or saved moments changed since.")
+
+
+class AppBoardVoice(BaseModel):
+    """Someone who speaks (host or guest) in a board's episodes: its Top voices."""
+
+    id: str
+    name: str
+    episodes: int = Field(description="How many of the board's episodes they speak in.")
+    image_url: str | None = Field(
+        default=None, description="Hosted photo route, when there is one."
+    )
+    saved: bool = Field(description="Also saved on the board itself.")
+
+
+class AppBoardPoint(BaseModel):
+    """The strongest insight of one of a board's episodes, with where it is said."""
+
+    episode: AppEpisodeSummary
+    insight_id: str
+    text: str = Field(description="The insight.")
+    quote_text: str | None = Field(default=None, description="Its strongest supporting quote.")
+    speaker: str | None = None
+    start_ms: int | None = Field(default=None, description="Where the quote starts, to hear it.")
+
+
+class AppBoardThread(BaseModel):
+    """A storyline or theme of a board's episodes."""
+
+    id: str = Field(description="Storyline: its anchor topic id (the route param). Theme: tc: id.")
+    kind: Literal["storyline", "theme"]
+    label: str
+    episodes: int = Field(description="How many of the board's episodes are in it.")
+
+
+class AppBoardBrief(BaseModel):
+    """GET /api/app/collections/{id}/brief — a board's Brief (RFC-119 amendment 2026-10-12).
+
+    Built only from what is saved on the board: a saved show, topic or person is not expanded into
+    its episodes. Empty lists on a board with no episodes; the client then shows no Brief.
+    """
+
+    board_id: str
+    name: str
+    holds: AppBoardHolds
+    summary: AppBoardSummary | None = Field(
+        default=None,
+        description="The board's summary, written in the background (RFC-127); null until one is.",
+    )
+    voices: list[AppBoardVoice] = Field(
+        default_factory=list, description="Top voices: who speaks in most of its episodes."
+    )
+    about: list[AppBoardSubject] = Field(
+        default_factory=list, description="Its episodes' topics, most episodes first."
+    )
+    points: list[AppBoardPoint] = Field(default_factory=list)
+    threads: list[AppBoardThread] = Field(default_factory=list)
+
+
+class CollectionMatch(BaseModel):
+    """One of the user's boards that matches a search, and why."""
+
+    collection: Collection
+    matched: Literal["name", "item"] = Field(description="Its name matched, or something on it.")
+    item_kind: str | None = Field(default=None, description="What on it matched (matched=item).")
+    item_label: str | None = Field(default=None, description="That item's title or words.")
+
+
+class CollectionSearchResponse(BaseModel):
+    """GET /api/app/collections/search — the user's boards matching a query, name matches first."""
+
+    items: list[CollectionMatch] = Field(default_factory=list)
+
+
 # --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
 
 
@@ -2276,6 +2606,32 @@ class StatPoint(BaseModel):
     count: int = Field(ge=0, description="Opens on that day.")
 
 
+class LearningNowStat(BaseModel):
+    """One learning path on now, for stats."""
+
+    subject_id: str
+    subject_kind: str
+    subject_label: str
+    day: int = Field(ge=0, description="The path's day today (1-based, capped at its days).")
+    days: int = Field(ge=0, description="Days in the path.")
+    done: int = Field(ge=0, description="Days done.")
+
+
+class MomentHeard(BaseModel):
+    """Body for POST /api/app/me/moments-heard — one short-listen event (operator 2026-10-12)."""
+
+    kind: Literal["clip", "keep"] = Field(
+        description="A clip heard to its end, or 'Keep listening' from a clip into its episode."
+    )
+    slug: str = Field(min_length=1, description="The clip's episode.")
+    insight_id: str | None = Field(default=None, description="The clip's insight.")
+    seconds: float = Field(default=0, ge=0, le=3600, description="The clip's length heard.")
+    subject_id: str | None = Field(default=None, description="The short listen's subject.")
+    subject_kind: Literal["topic", "person", "theme", "storyline"] | None = None
+    subject_label: str | None = Field(default=None, max_length=300)
+    client_ts: int | None = Field(default=None, description="When it happened (advisory).")
+
+
 class UserStatsResponse(BaseModel):
     """The signed-in user's own listening summary — GET /api/app/me/stats (PRD-043 / RFC-102)."""
 
@@ -2312,6 +2668,23 @@ class UserStatsResponse(BaseModel):
         ge=0,
         description="Captures the user stopped resurfacing (kept, never asked again).",
     )
+    # --- where captures were made, learning, short listens (operator 2026-10-12) ---------------
+    capture_from_episode: int = Field(default=0, ge=0, description="Saved in a full episode.")
+    capture_from_moment: int = Field(default=0, ge=0, description="Saved in a short listen.")
+    capture_from_learn: int = Field(default=0, ge=0, description="Saved on a learning day.")
+    learning_now: list[LearningNowStat] = Field(
+        default_factory=list, description="Each path on now: its subject, day and days done."
+    )
+    learning_days_total: int = Field(default=0, ge=0, description="Learning days done, ever.")
+    learning_streak: int = Field(
+        default=0, ge=0, description="Current run of days (UTC) with a learning day done."
+    )
+    paths_finished: int = Field(default=0, ge=0, description="Paths with every day done.")
+    paths_left: int = Field(default=0, ge=0, description="Paths left before the end.")
+    moments_heard_total: int = Field(
+        default=0, ge=0, description="Short-listen clips heard to their end, ever."
+    )
+    moments_seconds_total: float = Field(default=0, ge=0, description="Their seconds, ever.")
 
 
 class EpisodeStatsResponse(BaseModel):
@@ -2501,6 +2874,19 @@ class RecapLine(BaseModel):
     created_at: int = Field(description="Unix seconds saved.")
 
 
+class RecapSubject(BaseModel):
+    """A subject of the window, across episodes, short listens and learning days."""
+
+    id: str
+    kind: Literal["topic", "person", "theme", "storyline"]
+    label: str
+    episodes: int = Field(default=0, description="Episodes heard that were about it.")
+    moments: int = Field(default=0, description="Short-listen clips heard on it.")
+    learning_days: int = Field(default=0, description="Learning days done on it.")
+    delta: int = Field(default=0, description="Change against the previous window.")
+    is_new: bool = Field(default=False, description="Absent from the previous window.")
+
+
 class RecapResponse(BaseModel):
     """A listening recap for one window (GET /api/app/me/recap).
 
@@ -2535,6 +2921,22 @@ class RecapResponse(BaseModel):
     )
     first_listened_at: int | None = Field(
         default=None, description="Unix seconds of the earliest listening we ever recorded."
+    )
+    # --- beside the listening (operator 2026-10-12) --------------------------------------------
+    distinct_shows: int = Field(default=0, description="Shows of the episodes started.")
+    moments_heard: int = Field(default=0, description="Short-listen clips heard to their end.")
+    moments_seconds: float = Field(
+        default=0, description="Their seconds; not part of listening_seconds."
+    )
+    moments_by_day: dict[str, float] = Field(
+        default_factory=dict, description="Short-listen seconds per local day."
+    )
+    learning_days: int = Field(default=0, description="Learning days done in the window.")
+    moment_episodes: int = Field(default=0, description="Episodes heard as moments.")
+    moment_to_full: int = Field(default=0, description="Of those, then played in full.")
+    subjects: list[RecapSubject] = Field(
+        default_factory=list,
+        description="What the window was about, across episodes, short listens and learning.",
     )
 
 
@@ -3148,6 +3550,14 @@ class SearchConsensusPairModel(BaseModel):
     )
 
 
+class SearchCategoryModel(BaseModel):
+    """One kind of result in the player's search (insights, transcript, …) and its paging."""
+
+    id: str
+    returned: int
+    has_more: bool
+
+
 class CorpusSearchApiResponse(BaseModel):
     """Response for GET /api/search."""
 
@@ -3190,6 +3600,13 @@ class CorpusSearchApiResponse(BaseModel):
             "from ``enrichments/topic_consensus.json`` filtered to topics in the current "
             "hit page (or the top-referenced topic set when no ``kg_topic`` hits are "
             "present). Never null unless the enricher output is missing / unreadable."
+        ),
+    )
+    categories: list[SearchCategoryModel] | None = Field(
+        default=None,
+        description=(
+            "Populated only by the player's search in category mode (``per_category``): each "
+            "category the page holds, in display order, and whether it has more."
         ),
     )
 
@@ -3506,6 +3923,28 @@ class FeedSignalStoryline(BaseModel):
         default=None,
         description="A member topic present in this show — the click target for a topic card.",
     )
+    episode_count: int = Field(
+        default=0, ge=0, description="Episodes of this show touching any of its topics."
+    )
+    lift: float | None = Field(
+        default=None,
+        description=(
+            "Its share of this show's episodes over its share of the whole library's; None if "
+            "unknowable. Distinctiveness, as for topics (operator 2026-10-12)."
+        ),
+    )
+
+
+class FeedSignalTheme(BaseModel):
+    """A theme (``search/topic_clusters.json``, ``tc:``) the show's topics fall into."""
+
+    theme_id: str = Field(description="The theme's own id (tc:…); its page opens on it.")
+    label: str
+    topic_count: int = Field(ge=1, description="Show topics that are members of this theme.")
+    episode_count: int = Field(
+        default=0, ge=0, description="Episodes of this show touching any of its topics."
+    )
+    lift: float | None = Field(default=None, description="As for storylines and topics.")
 
 
 class FeedSignalTrend(BaseModel):
@@ -3593,6 +4032,7 @@ class CorpusFeedSignalsResponse(BaseModel):
         default_factory=list, description="People in ≥2 of this show's episodes."
     )
     dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
+    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
     grounding: FeedGroundingSummary | None = None
     connectivity: FeedConnectivity | None = None
@@ -3612,6 +4052,7 @@ class AppPodcastSignalsResponse(BaseModel):
     key_people: list[FeedSignalPerson] = Field(default_factory=list)
     recurring_guests: list[FeedSignalPerson] = Field(default_factory=list)
     dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
+    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
 
 

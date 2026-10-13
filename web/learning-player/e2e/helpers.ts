@@ -83,7 +83,7 @@ export async function openTranscript(page: Page): Promise<void> {
  */
 export async function navTo(
   page: Page,
-  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
+  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog' | 'explore',
 ): Promise<void> {
   await tapTo(page, dest)
   // ARRIVE before returning (2026-10-09). A click only starts a client-side navigation; a caller
@@ -95,34 +95,44 @@ export async function navTo(
     search: (u) => u.pathname.startsWith('/search'),
     library: (u) => u.pathname.startsWith('/library'),
     profile: (u) => u.pathname.startsWith('/profile'),
-    catalog: (u) => u.pathname.startsWith('/browse') || u.pathname.startsWith('/catalog'),
+    // The full episode list: `/catalog` on a phone (Home's "Browse all"), Explore's Episodes tab on
+    // desktop — Explore embeds the full list again since 2026-10-11.
+    catalog: (u) => u.pathname.startsWith('/catalog') || u.pathname.startsWith('/explore'),
+    explore: (u) => u.pathname.startsWith('/explore'),
   }
   await page.waitForURL(at[dest])
 }
 
 async function tapTo(
   page: Page,
-  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
+  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog' | 'explore',
 ): Promise<void> {
-  if (dest === 'catalog') {
-    const tab = page.getByTestId('bottom-nav-home')
-    if (await tab.isVisible().catch(() => false)) {
-      await tab.click()
+  // `explore` is Explore (Trends + Browse, ADR-163 §1): its own bottom tab on a phone, the masthead
+  // icon on desktop. `catalog` is the full episode list: on a phone Home's "Browse all" (`/catalog`),
+  // on desktop Explore's Episodes tab, which embeds the same list.
+  if (dest === 'explore' || dest === 'catalog') {
+    const tab = page.getByTestId('bottom-nav-explore')
+    const phone = await tab.isVisible().catch(() => false)
+    if (dest === 'catalog' && phone) {
+      await page.getByTestId('bottom-nav-home').click()
       await page.getByRole('link', { name: /Browse all/i }).first().click()
       return
     }
-    // The header nav link was renamed Browse → Discover (nav.browse, operator 2026-09-14).
-    await page.locator('header').getByRole('link', { name: 'Discover' }).click()
+    await (phone ? tab : page.getByTestId('masthead-explore')).click()
+    if (dest === 'catalog') {
+      await page.getByTestId('browse-tab-episodes').click()
+    }
     return
   }
 
   // Search has no phone nav entry of its own: no tab (2026-09-20) and no header magnifier since
-  // 2026-09-30 (no room for it). A phone reaches it the way a user does — Discover's search box —
-  // which is still an IN-APP navigation, as audio-continuity needs. Desktop keeps the magnifier.
+  // 2026-09-30 (no room for it). A phone reaches it the way a user does — Explore's search box
+  // (2026-10-11) — which is still an IN-APP navigation, as audio-continuity needs. Desktop keeps the
+  // magnifier.
   if (dest === 'search') {
-    const discover = page.getByTestId('bottom-nav-browse')
-    if (await discover.isVisible().catch(() => false)) {
-      await discover.click()
+    const explore = page.getByTestId('bottom-nav-explore')
+    if (await explore.isVisible().catch(() => false)) {
+      await explore.click()
       await page.getByTestId('browse-search-input').fill('risk')
       await page.getByTestId('browse-search-submit').click()
       await page.waitForURL(/\/search/)

@@ -1,7 +1,7 @@
 [
 {
 "start": 0.0,
-"end": 1.86,
+"end": 1.09,
 "speaker_label": "Giulia Ferrara",
 "text": "Welcome back to \"Author's Trails.\"",
 "char_start": 16,
@@ -10,8 +10,8 @@
 "sent_id": "t0000.s01"
 },
 {
-"start": 1.92,
-"end": 8.04,
+"start": 1.09,
+"end": 4.75,
 "speaker_label": "Giulia Ferrara",
 "text": "Today, we're talking about transmission mechanics, and I'm joined by Luca Moretti, a mechanic from Spoke & Wrench.",
 "char_start": 51,
@@ -20,8 +20,8 @@
 "sent_id": "t0000.s02"
 },
 {
-"start": 8.1,
-"end": 10.26,
+"start": 4.75,
+"end": 6.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Luca Moretti, thank you for being here.",
 "char_start": 166,
@@ -30,8 +30,8 @@
 "sent_id": "t0000.s03"
 },
 {
-"start": 10.26,
-"end": 11.16,
+"start": 6.0,
+"end": 8.16,
 "speaker_label": "Luca Moretti",
 "text": "Thank you, Giulia.",
 "char_start": 220,
@@ -40,8 +40,8 @@
 "sent_id": "t0001.s01"
 },
 {
-"start": 11.22,
-"end": 13.02,
+"start": 8.16,
+"end": 12.0,
 "speaker_label": "Luca Moretti",
 "text": "It's good to be back here again.",
 "char_start": 239,
@@ -50,8 +50,8 @@
 "sent_id": "t0001.s02"
 },
 {
-"start": 13.02,
-"end": 15.54,
+"start": 12.0,
+"end": 13.89,
 "speaker_label": "Giulia Ferrara",
 "text": "This episode is sponsored by Notion.",
 "char_start": 288,
@@ -60,8 +60,8 @@
 "sent_id": "t0002.s01"
 },
 {
-"start": 15.6,
-"end": 19.8,
+"start": 13.89,
+"end": 16.89,
 "speaker_label": "Giulia Ferrara",
 "text": "Notion replaces the dozen tools your team currently uses.",
 "char_start": 325,
@@ -70,8 +70,8 @@
 "sent_id": "t0002.s02"
 },
 {
-"start": 19.86,
-"end": 21.18,
+"start": 16.89,
+"end": 18.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Try notion.com today.",
 "char_start": 383,
@@ -80,8 +80,8 @@
 "sent_id": "t0002.s03"
 },
 {
-"start": 21.18,
-"end": 30.72,
+"start": 18.0,
+"end": 24.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Before we get into the details, Chiara Ricci was a guest on the previous episode and mentioned that tire pressure is more important than suspension adjustments.",
 "char_start": 405,
@@ -90,8 +90,8 @@
 "sent_id": "t0002.s04"
 },
 {
-"start": 30.72,
-"end": 31.38,
+"start": 24.0,
+"end": 25.79,
 "speaker_label": "Luca Moretti",
 "text": "Yes, that's correct.",
 "char_start": 580,
@@ -100,8 +100,8 @@
 "sent_id": "t0003.s01"
 },
 {
-"start": 31.44,
-"end": 33.84,
+"start": 25.79,
+"end": 30.0,
 "speaker_label": "Luca Moretti",
 "text": "And that connects to what we're covering today.",
 "char_start": 601,
@@ -110,8 +110,8 @@
 "sent_id": "t0003.s02"
 },
 {
-"start": 33.84,
-"end": 39.6,
+"start": 30.0,
+"end": 36.0,
 "speaker_label": "Giulia Ferrara",
 "text": "I want to point something out – Chiara Ricci mentioned the same dynamic a few episodes ago.",
 "char_start": 665,
@@ -120,8 +120,8 @@
 "sent_id": "t0004.s01"
 },
 {
-"start": 39.6,
-"end": 45.42,
+"start": 36.0,
+"end": 40.42,
 "speaker_label": "Giulia Ferrara",
 "text": "I want to point something out – Marco Bellini mentioned the same dynamic a few episodes ago.",
 "char_start": 757,
@@ -130,8 +130,8 @@
 "sent_id": "t0004.s02"
 },
 {
-"start": 210.0,
-"end": 211.2,
+"start": 40.42,
+"end": 42.0,
 "speaker_label": "Giulia Ferrara",
 "text": "I want to delve deeper into this.",
 "char_start": 850,
@@ -140,8 +140,8 @@
 "sent_id": "t0004.s03"
 },
 {
-"start": 211.26,
-"end": 214.02,
+"start": 42.0,
+"end": 48.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What were your initial thoughts on this topic, and how have they changed?",
 "char_start": 884,
@@ -150,8 +150,8 @@
 "sent_id": "t0004.s04"
 },
 {
-"start": 214.02,
-"end": 222.3,
+"start": 48.0,
+"end": 51.14,
 "speaker_label": "Luca Moretti",
 "text": "It boils down to this: most mysterious squeaks are resolved by cleaning the contact surfaces and tightening them to the specified torque.",
 "char_start": 972,
@@ -160,8 +160,8 @@
 "sent_id": "t0005.s01"
 },
 {
-"start": 222.36,
-"end": 225.42,
+"start": 51.14,
+"end": 52.26,
 "speaker_label": "Luca Moretti",
 "text": "We've seen this in teams that use Spoke & Wrench.",
 "char_start": 1110,
@@ -170,8 +170,8 @@
 "sent_id": "t0005.s02"
 },
 {
-"start": 225.48,
-"end": 229.5,
+"start": 52.26,
+"end": 54.0,
 "speaker_label": "Luca Moretti",
 "text": "The framing is important because it tells you what trade-offs you're making.",
 "char_start": 1160,
@@ -180,8 +180,8 @@
 "sent_id": "t0005.s03"
 },
 {
-"start": 229.5,
-"end": 230.94,
+"start": 54.0,
+"end": 55.86,
 "speaker_label": "Giulia Ferrara",
 "text": "It's a useful perspective.",
 "char_start": 1253,
@@ -190,8 +190,8 @@
 "sent_id": "t0006.s01"
 },
 {
-"start": 231.0,
-"end": 235.14,
+"start": 55.86,
+"end": 60.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Where do maintenance and transmission mechanics intersect?",
 "char_start": 1280,
@@ -200,8 +200,8 @@
 "sent_id": "t0006.s02"
 },
 {
-"start": 235.14,
-"end": 236.1,
+"start": 60.0,
+"end": 60.65,
 "speaker_label": "Luca Moretti",
 "text": "That's how I see it.",
 "char_start": 1353,
@@ -210,8 +210,8 @@
 "sent_id": "t0007.s01"
 },
 {
-"start": 236.16,
-"end": 241.8,
+"start": 60.65,
+"end": 63.68,
 "speaker_label": "Luca Moretti",
 "text": "A bike should feel quiet and predictable so that your attention remains focused on the trail.",
 "char_start": 1374,
@@ -220,8 +220,8 @@
 "sent_id": "t0007.s02"
 },
 {
-"start": 241.86,
-"end": 245.94,
+"start": 63.68,
+"end": 66.0,
 "speaker_label": "Luca Moretti",
 "text": "And the second-order effect is the part that almost everyone overlooks.",
 "char_start": 1468,
@@ -230,8 +230,8 @@
 "sent_id": "t0007.s03"
 },
 {
-"start": 245.94,
-"end": 247.14,
+"start": 66.0,
+"end": 67.44,
 "speaker_label": "Giulia Ferrara",
 "text": "I want to delve deeper.",
 "char_start": 1556,
@@ -240,8 +240,8 @@
 "sent_id": "t0008.s01"
 },
 {
-"start": 247.2,
-"end": 252.3,
+"start": 67.44,
+"end": 72.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What is the structural element that most listeners do not have access to?",
 "char_start": 1580,
@@ -250,8 +250,8 @@
 "sent_id": "t0008.s02"
 },
 {
-"start": 252.3,
-"end": 252.66,
+"start": 72.0,
+"end": 72.25,
 "speaker_label": "Luca Moretti",
 "text": "Certainly.",
 "char_start": 1668,
@@ -260,8 +260,8 @@
 "sent_id": "t0009.s01"
 },
 {
-"start": 252.72,
-"end": 258.48,
+"start": 72.25,
+"end": 74.86,
 "speaker_label": "Luca Moretti",
 "text": "The wear and tear on the chain is the best early indicator of when you will need to replace the cassette.",
 "char_start": 1679,
@@ -270,8 +270,8 @@
 "sent_id": "t0009.s02"
 },
 {
-"start": 258.54,
-"end": 261.6,
+"start": 74.86,
+"end": 76.08,
 "speaker_label": "Luca Moretti",
 "text": "We've seen this in teams that use Spoke & Wrench.",
 "char_start": 1785,
@@ -280,8 +280,8 @@
 "sent_id": "t0009.s03"
 },
 {
-"start": 261.66,
-"end": 265.68,
+"start": 76.08,
+"end": 78.0,
 "speaker_label": "Luca Moretti",
 "text": "The framing is important because it tells you what trade-offs you are making.",
 "char_start": 1835,
@@ -290,8 +290,8 @@
 "sent_id": "t0009.s04"
 },
 {
-"start": 265.68,
-"end": 267.18,
+"start": 78.0,
+"end": 84.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Tell me more.",
 "char_start": 1929,
@@ -300,8 +300,8 @@
 "sent_id": "t0010.s01"
 },
 {
-"start": 267.18,
-"end": 271.5,
+"start": 84.0,
+"end": 87.06,
 "speaker_label": "Luca Moretti",
 "text": "Spoke & Wrench is one of the platforms where this becomes clearly evident.",
 "char_start": 1957,
@@ -310,8 +310,8 @@
 "sent_id": "t0011.s01"
 },
 {
-"start": 271.56,
-"end": 274.74,
+"start": 87.06,
+"end": 90.0,
 "speaker_label": "Luca Moretti",
 "text": "I have observed this pattern repeating itself in three different teams.",
 "char_start": 2032,
@@ -320,8 +320,8 @@
 "sent_id": "t0011.s02"
 },
 {
-"start": 274.74,
-"end": 276.36,
+"start": 90.0,
+"end": 92.92,
 "speaker_label": "Giulia Ferrara",
 "text": "Tell me how you came to that decision.",
 "char_start": 2120,
@@ -330,8 +330,8 @@
 "sent_id": "t0012.s01"
 },
 {
-"start": 276.42,
-"end": 279.06,
+"start": 92.92,
+"end": 96.0,
 "speaker_label": "Giulia Ferrara",
 "text": "How does RockShox fit into this picture?",
 "char_start": 2159,
@@ -340,8 +340,8 @@
 "sent_id": "t0012.s02"
 },
 {
-"start": 279.06,
-"end": 279.42,
+"start": 96.0,
+"end": 96.35,
 "speaker_label": "Luca Moretti",
 "text": "Certainly.",
 "char_start": 2214,
@@ -350,8 +350,8 @@
 "sent_id": "t0013.s01"
 },
 {
-"start": 279.48,
-"end": 285.0,
+"start": 96.35,
+"end": 98.98,
 "speaker_label": "Luca Moretti",
 "text": "The maintenance intervals for the suspension are a risk management decision.",
 "char_start": 2225,
@@ -360,8 +360,8 @@
 "sent_id": "t0013.s02"
 },
 {
-"start": 285.06,
-"end": 288.96,
+"start": 98.98,
+"end": 102.0,
 "speaker_label": "Luca Moretti",
 "text": "If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
 "char_start": 2302,
@@ -370,8 +370,8 @@
 "sent_id": "t0013.s03"
 },
 {
-"start": 288.96,
-"end": 289.5,
+"start": 102.0,
+"end": 102.44,
 "speaker_label": "Giulia Ferrara",
 "text": "You know what?",
 "char_start": 2406,
@@ -380,8 +380,8 @@
 "sent_id": "t0014.s01"
 },
 {
-"start": 289.56,
-"end": 293.88,
+"start": 102.44,
+"end": 104.49,
 "speaker_label": "Giulia Ferrara",
 "text": "I'm just saying: Linear manages all of my engineering operations.",
 "char_start": 2421,
@@ -390,8 +390,8 @@
 "sent_id": "t0014.s02"
 },
 {
-"start": 293.94,
-"end": 298.32,
+"start": 104.49,
+"end": 106.93,
 "speaker_label": "Giulia Ferrara",
 "text": "Linear is the issue tracker designed for speed – it's built for keyboard use.",
 "char_start": 2487,
@@ -400,8 +400,8 @@
 "sent_id": "t0014.s03"
 },
 {
-"start": 298.38,
-"end": 300.6,
+"start": 106.93,
+"end": 108.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Use the link in the episode notes.",
 "char_start": 2565,
@@ -410,8 +410,8 @@
 "sent_id": "t0014.s04"
 },
 {
-"start": 720.0,
-"end": 723.12,
+"start": 108.0,
+"end": 114.0,
 "speaker_label": "Giulia Ferrara",
 "text": "We'll be right back after a short commercial break.",
 "char_start": 2600,
@@ -420,8 +420,8 @@
 "sent_id": "t0014.s05"
 },
 {
-"start": 723.12,
-"end": 725.64,
+"start": 114.0,
+"end": 115.23,
 "speaker_label": "SPEAKER_02",
 "text": "This episode is sponsored by Stripe.",
 "char_start": 2664,
@@ -430,8 +430,8 @@
 "sent_id": "t0015.s01"
 },
 {
-"start": 725.7,
-"end": 731.22,
+"start": 115.23,
+"end": 118.57,
 "speaker_label": "SPEAKER_02",
 "text": "Stripe makes payments easy, whether you're running a marketplace or a subscription-based business.",
 "char_start": 2701,
@@ -440,8 +440,8 @@
 "sent_id": "t0015.s02"
 },
 {
-"start": 731.28,
-"end": 734.22,
+"start": 118.57,
+"end": 120.0,
 "speaker_label": "SPEAKER_02",
 "text": "Visit stripe.com/podcast for a free trial.",
 "char_start": 2800,
@@ -450,8 +450,8 @@
 "sent_id": "t0015.s03"
 },
 {
-"start": 734.22,
-"end": 735.72,
+"start": 120.0,
+"end": 126.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Welcome back to the program.",
 "char_start": 2859,
@@ -460,8 +460,8 @@
 "sent_id": "t0016.s01"
 },
 {
-"start": 840.0,
-"end": 841.44,
+"start": 126.0,
+"end": 127.59,
 "speaker_label": "Giulia Ferrara",
 "text": "That's a useful shot.",
 "char_start": 2888,
@@ -470,8 +470,8 @@
 "sent_id": "t0016.s02"
 },
 {
-"start": 841.5,
-"end": 845.64,
+"start": 127.59,
+"end": 132.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Where do maintenance and transmission mechanics intersect?",
 "char_start": 2910,
@@ -480,8 +480,8 @@
 "sent_id": "t0016.s03"
 },
 {
-"start": 845.64,
-"end": 846.6,
+"start": 132.0,
+"end": 132.45,
 "speaker_label": "Luca Moretti",
 "text": "That's how I see it.",
 "char_start": 2983,
@@ -490,8 +490,8 @@
 "sent_id": "t0017.s01"
 },
 {
-"start": 846.66,
-"end": 853.74,
+"start": 132.45,
+"end": 135.23,
 "speaker_label": "Luca Moretti",
 "text": "Most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening them to the specified torque.",
 "char_start": 3004,
@@ -500,8 +500,8 @@
 "sent_id": "t0017.s02"
 },
 {
-"start": 853.8,
-"end": 856.44,
+"start": 135.23,
+"end": 136.59,
 "speaker_label": "Luca Moretti",
 "text": "We've seen this happen in teams that use Shimano components.",
 "char_start": 3127,
@@ -510,8 +510,8 @@
 "sent_id": "t0017.s03"
 },
 {
-"start": 856.5,
-"end": 859.68,
+"start": 136.59,
+"end": 138.0,
 "speaker_label": "Luca Moretti",
 "text": "I've observed this pattern repeating in three different teams.",
 "char_start": 3188,
@@ -520,8 +520,8 @@
 "sent_id": "t0017.s04"
 },
 {
-"start": 859.68,
-"end": 861.24,
+"start": 138.0,
+"end": 139.62,
 "speaker_label": "Giulia Ferrara",
 "text": "Give me a concrete example.",
 "char_start": 3267,
@@ -530,8 +530,8 @@
 "sent_id": "t0018.s01"
 },
 {
-"start": 861.3,
-"end": 864.06,
+"start": 139.62,
+"end": 144.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What were your initial thoughts on this topic, and how have they changed?",
 "char_start": 3295,
@@ -540,8 +540,8 @@
 "sent_id": "t0018.s02"
 },
 {
-"start": 864.06,
-"end": 870.48,
+"start": 144.0,
+"end": 147.16,
 "speaker_label": "Luca Moretti",
 "text": "Yes, so – a bike should feel quiet and predictable, so your focus remains on the trail.",
 "char_start": 3383,
@@ -550,8 +550,8 @@
 "sent_id": "t0019.s01"
 },
 {
-"start": 870.54,
-"end": 875.04,
+"start": 147.16,
+"end": 150.0,
 "speaker_label": "Luca Moretti",
 "text": "Once you internalize that principle, the rest of your decisions become easier.",
 "char_start": 3471,
@@ -560,8 +560,8 @@
 "sent_id": "t0019.s02"
 },
 {
-"start": 875.04,
-"end": 875.94,
+"start": 150.0,
+"end": 151.29,
 "speaker_label": "Giulia Ferrara",
 "text": "Let's start from there.",
 "char_start": 3566,
@@ -570,8 +570,8 @@
 "sent_id": "t0020.s01"
 },
 {
-"start": 876.0,
-"end": 878.76,
+"start": 151.29,
+"end": 156.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What were your initial thoughts on this topic, and how have they changed since then?",
 "char_start": 3590,
@@ -580,8 +580,8 @@
 "sent_id": "t0020.s02"
 },
 {
-"start": 878.76,
-"end": 879.72,
+"start": 156.0,
+"end": 156.49,
 "speaker_label": "Luca Moretti",
 "text": "That's how I see it.",
 "char_start": 3689,
@@ -590,8 +590,8 @@
 "sent_id": "t0021.s01"
 },
 {
-"start": 879.78,
-"end": 885.54,
+"start": 156.49,
+"end": 158.81,
 "speaker_label": "Luca Moretti",
 "text": "The wear on the chain is the best early indicator of when you'll need to replace the cassette.",
 "char_start": 3710,
@@ -600,8 +600,8 @@
 "sent_id": "t0021.s02"
 },
 {
-"start": 885.6,
-"end": 888.24,
+"start": 158.81,
+"end": 160.12,
 "speaker_label": "Luca Moretti",
 "text": "We've seen this in teams that use Shimano components.",
 "char_start": 3805,
@@ -610,8 +610,8 @@
 "sent_id": "t0021.s03"
 },
 {
-"start": 888.3,
-"end": 892.8,
+"start": 160.12,
+"end": 162.0,
 "speaker_label": "Luca Moretti",
 "text": "Once you understand this principle, the rest of the decisions become easier.",
 "char_start": 3859,
@@ -620,8 +620,8 @@
 "sent_id": "t0021.s04"
 },
 {
-"start": 892.8,
-"end": 894.3,
+"start": 162.0,
+"end": 168.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Come back.",
 "char_start": 3952,
@@ -630,8 +630,8 @@
 "sent_id": "t0022.s01"
 },
 {
-"start": 894.3,
-"end": 903.6,
+"start": 168.0,
+"end": 174.0,
 "speaker_label": "Luca Moretti",
 "text": "And when teams adopt Spoke & Wrench within that workflow, the benefits become clear – if you ignore them, you end up having to rebuild everything from scratch a year later.",
 "char_start": 3977,
@@ -640,8 +640,8 @@
 "sent_id": "t0023.s01"
 },
 {
-"start": 903.6,
-"end": 904.5,
+"start": 174.0,
+"end": 175.44,
 "speaker_label": "Giulia Ferrara",
 "text": "Let's start from there.",
 "char_start": 4166,
@@ -650,8 +650,8 @@
 "sent_id": "t0024.s01"
 },
 {
-"start": 904.56,
-"end": 909.54,
+"start": 175.44,
+"end": 180.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What is the operational aspect that most listeners do not have access to?",
 "char_start": 4190,
@@ -660,8 +660,8 @@
 "sent_id": "t0024.s02"
 },
 {
-"start": 909.54,
-"end": 910.5,
+"start": 180.0,
+"end": 180.73,
 "speaker_label": "Luca Moretti",
 "text": "That's how I see it.",
 "char_start": 4278,
@@ -670,8 +670,8 @@
 "sent_id": "t0025.s01"
 },
 {
-"start": 910.56,
-"end": 916.08,
+"start": 180.73,
+"end": 183.75,
 "speaker_label": "Luca Moretti",
 "text": "The maintenance intervals for the suspension system are a risk management decision.",
 "char_start": 4299,
@@ -680,8 +680,8 @@
 "sent_id": "t0025.s02"
 },
 {
-"start": 916.14,
-"end": 919.32,
+"start": 183.75,
+"end": 186.0,
 "speaker_label": "Luca Moretti",
 "text": "I've seen this pattern repeat itself in three different teams.",
 "char_start": 4383,
@@ -690,8 +690,8 @@
 "sent_id": "t0025.s03"
 },
 {
-"start": 1320.0,
-"end": 1324.74,
+"start": 186.0,
+"end": 192.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Let's change the subject – I want to dedicate the final part to risk management.",
 "char_start": 4462,
@@ -700,8 +700,8 @@
 "sent_id": "t0026.s01"
 },
 {
-"start": 1324.74,
-"end": 1333.68,
+"start": 192.0,
+"end": 198.0,
 "speaker_label": "Luca Moretti",
 "text": "That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.",
 "char_start": 4557,
@@ -710,8 +710,8 @@
 "sent_id": "t0027.s01"
 },
 {
-"start": 1333.68,
-"end": 1335.24,
+"start": 198.0,
+"end": 199.76,
 "speaker_label": "Giulia Ferrara",
 "text": "Give me a concrete example.",
 "char_start": 4713,
@@ -720,8 +720,8 @@
 "sent_id": "t0028.s01"
 },
 {
-"start": 1335.3,
-"end": 1339.5,
+"start": 199.76,
+"end": 204.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What is the most underestimated aspect of transmission mechanics?",
 "char_start": 4741,
@@ -730,8 +730,8 @@
 "sent_id": "t0028.s02"
 },
 {
-"start": 1339.5,
-"end": 1339.86,
+"start": 204.0,
+"end": 204.26,
 "speaker_label": "Luca Moretti",
 "text": "Certainly.",
 "char_start": 4821,
@@ -740,8 +740,8 @@
 "sent_id": "t0029.s01"
 },
 {
-"start": 1339.92,
-"end": 1347.0,
+"start": 204.26,
+"end": 207.17,
 "speaker_label": "Luca Moretti",
 "text": "Most mysterious squeaks are resolved by cleaning the contact surfaces and tightening them to the specified torque.",
 "char_start": 4832,
@@ -750,8 +750,8 @@
 "sent_id": "t0029.s02"
 },
 {
-"start": 1347.06,
-"end": 1350.12,
+"start": 207.17,
+"end": 208.42,
 "speaker_label": "Luca Moretti",
 "text": "We've seen this in teams that use Spoke & Wrench.",
 "char_start": 4947,
@@ -760,8 +760,8 @@
 "sent_id": "t0029.s03"
 },
 {
-"start": 1350.18,
-"end": 1353.36,
+"start": 208.42,
+"end": 210.0,
 "speaker_label": "Luca Moretti",
 "text": "I've observed this pattern repeating in three different teams.",
 "char_start": 4997,
@@ -770,8 +770,8 @@
 "sent_id": "t0029.s04"
 },
 {
-"start": 1353.36,
-"end": 1354.8,
+"start": 210.0,
+"end": 211.64,
 "speaker_label": "Giulia Ferrara",
 "text": "It's a useful perspective.",
 "char_start": 5076,
@@ -780,8 +780,8 @@
 "sent_id": "t0030.s01"
 },
 {
-"start": 1354.86,
-"end": 1360.14,
+"start": 211.64,
+"end": 216.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What is the counter-narrative that most listeners are not exposed to?",
 "char_start": 5103,
@@ -790,8 +790,8 @@
 "sent_id": "t0030.s02"
 },
 {
-"start": 1360.14,
-"end": 1366.98,
+"start": 216.0,
+"end": 219.68,
 "speaker_label": "Luca Moretti",
 "text": "It boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail.",
 "char_start": 5187,
@@ -800,8 +800,8 @@
 "sent_id": "t0031.s01"
 },
 {
-"start": 1367.04,
-"end": 1371.06,
+"start": 219.68,
+"end": 222.0,
 "speaker_label": "Luca Moretti",
 "text": "The geometry matters because it tells you what compromises you're making.",
 "char_start": 5304,
@@ -810,8 +810,8 @@
 "sent_id": "t0031.s02"
 },
 {
-"start": 1371.06,
-"end": 1372.86,
+"start": 222.0,
+"end": 224.02,
 "speaker_label": "Giulia Ferrara",
 "text": "What is the typical failure mode?",
 "char_start": 5394,
@@ -820,8 +820,8 @@
 "sent_id": "t0032.s01"
 },
 {
-"start": 1372.92,
-"end": 1377.12,
+"start": 224.02,
+"end": 228.0,
 "speaker_label": "Giulia Ferrara",
 "text": "What is the most underestimated aspect of transmission mechanics?",
 "char_start": 5428,
@@ -830,8 +830,8 @@
 "sent_id": "t0032.s02"
 },
 {
-"start": 1377.12,
-"end": 1383.72,
+"start": 228.0,
+"end": 230.76,
 "speaker_label": "Luca Moretti",
 "text": "Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette.",
 "char_start": 5508,
@@ -840,8 +840,8 @@
 "sent_id": "t0033.s01"
 },
 {
-"start": 1383.78,
-"end": 1386.42,
+"start": 230.76,
+"end": 232.17,
 "speaker_label": "Luca Moretti",
 "text": "We've seen this in teams that use Shimano components.",
 "char_start": 5613,
@@ -850,8 +850,8 @@
 "sent_id": "t0033.s02"
 },
 {
-"start": 1386.48,
-"end": 1389.66,
+"start": 232.17,
+"end": 234.0,
 "speaker_label": "Luca Moretti",
 "text": "I've observed this pattern repeating itself in three different teams.",
 "char_start": 5667,
@@ -860,8 +860,8 @@
 "sent_id": "t0033.s03"
 },
 {
-"start": 1389.66,
-"end": 1391.22,
+"start": 234.0,
+"end": 240.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Where does it stop working?",
 "char_start": 5753,
@@ -870,8 +870,8 @@
 "sent_id": "t0034.s01"
 },
 {
-"start": 1391.22,
-"end": 1399.38,
+"start": 240.0,
+"end": 246.0,
 "speaker_label": "Luca Moretti",
 "text": "And when teams adopt Shimano components within that system, the compromise becomes apparent – I've seen this pattern repeat itself in three different teams.",
 "char_start": 5795,
@@ -880,8 +880,8 @@
 "sent_id": "t0035.s01"
 },
 {
-"start": 1399.38,
-"end": 1401.66,
+"start": 246.0,
+"end": 248.74,
 "speaker_label": "Giulia Ferrara",
 "text": "What is the heuristic that you always find yourself using?",
 "char_start": 5968,
@@ -890,8 +890,8 @@
 "sent_id": "t0036.s01"
 },
 {
-"start": 1401.72,
-"end": 1405.86,
+"start": 248.74,
+"end": 252.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Where do maintenance and the mechanics of the transmission intersect?",
 "char_start": 6027,
@@ -900,8 +900,8 @@
 "sent_id": "t0036.s02"
 },
 {
-"start": 1405.86,
-"end": 1412.22,
+"start": 252.0,
+"end": 255.29,
 "speaker_label": "Luca Moretti",
 "text": "Honestly, the maintenance intervals for the suspension are a risk management decision.",
 "char_start": 6111,
@@ -910,8 +910,8 @@
 "sent_id": "t0037.s01"
 },
 {
-"start": 1412.28,
-"end": 1416.36,
+"start": 255.29,
+"end": 258.0,
 "speaker_label": "Luca Moretti",
 "text": "And the second-order effect is the part that almost everyone overlooks.",
 "char_start": 6198,
@@ -920,8 +920,8 @@
 "sent_id": "t0037.s02"
 },
 {
-"start": 1680.0,
-"end": 1685.28,
+"start": 258.0,
+"end": 264.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Before we wrap up, what's one thing listeners can try out this week?",
 "char_start": 6286,
@@ -930,8 +930,8 @@
 "sent_id": "t0038.s01"
 },
 {
-"start": 1685.28,
-"end": 1689.6,
+"start": 264.0,
+"end": 268.21,
 "speaker_label": "Luca Moretti",
 "text": "Choose one of the ideas we discussed and implement it for two weeks.",
 "char_start": 6369,
@@ -940,8 +940,8 @@
 "sent_id": "t0039.s01"
 },
 {
-"start": 1689.66,
-"end": 1690.98,
+"start": 268.21,
+"end": 270.0,
 "speaker_label": "Luca Moretti",
 "text": "Everything else is iteration.",
 "char_start": 6438,
@@ -950,8 +950,8 @@
 "sent_id": "t0039.s02"
 },
 {
-"start": 1690.98,
-"end": 1694.52,
+"start": 270.0,
+"end": 272.68,
 "speaker_label": "Giulia Ferrara",
 "text": "Before we close, thank you again to our friends at Linear.",
 "char_start": 6484,
@@ -960,8 +960,8 @@
 "sent_id": "t0040.s01"
 },
 {
-"start": 1694.58,
-"end": 1698.96,
+"start": 272.68,
+"end": 276.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Linear is the issue tracker designed for speed – built for the keyboard.",
 "char_start": 6543,
@@ -970,8 +970,8 @@
 "sent_id": "t0040.s02"
 },
 {
-"start": 1698.96,
-"end": 1701.48,
+"start": 276.0,
+"end": 282.0,
 "speaker_label": "Giulia Ferrara",
 "text": "Luca Moretti, thank you for the conversation.",
 "char_start": 6616,
@@ -980,8 +980,8 @@
 "sent_id": "t0040.s03"
 },
 {
-"start": 1701.48,
-"end": 1702.98,
+"start": 282.0,
+"end": 288.0,
 "speaker_label": "Luca Moretti",
 "text": "Thank you, Giulia.",
 "char_start": 6676,
@@ -990,8 +990,8 @@
 "sent_id": "t0041.s01"
 },
 {
-"start": 1702.98,
-"end": 1706.1,
+"start": 288.0,
+"end": 292.46,
 "speaker_label": "Giulia Ferrara",
 "text": "That's all for today's episode of \"Author's Trails.\"",
 "char_start": 6711,
@@ -1000,8 +1000,8 @@
 "sent_id": "t0042.s01"
 },
 {
-"start": 1706.16,
-"end": 1707.9,
+"start": 292.46,
+"end": 294.0,
 "speaker_label": "Giulia Ferrara",
 "text": "See you next time.",
 "char_start": 6764,

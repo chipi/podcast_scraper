@@ -16,16 +16,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-919c77e84ad37664",
       "target": "topic:bloomberg-data-caveats",
       "type": "MENTIONS"
@@ -113,22 +103,6 @@
       "properties": {
         "label": "systems thinking",
         "slug": "systems-thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

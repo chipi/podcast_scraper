@@ -70,6 +70,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 # second sys.path dance. Both generators normalize exactly as the pipeline does, so a
 # fixture cannot disagree with production about what a language tag means (#2185).
 from build_synthetic_validation_corpus import (  # noqa: E402
+    about_topic_ids,
     build_gi,
     build_kg,
     episode_topics_for,
@@ -287,12 +288,13 @@ def _captured_topics_for(ep_label: str, version: str) -> list[str]:
     but demonstrably not caused by them. That is a real property of the product and a fixture
     carrying real output SHOULD expose it.
 
-    What it cannot also do is carry the cross-show overlap the interests picker, topic clusters
-    and discover rails need — at this corpus size real extraction produces almost none. Dropping
-    the authored umbrellas to "be more realistic" would not make those surfaces more honest, it
-    would silently leave them with no data and their tests asserting nothing.
+    It does carry cross-show overlap. This note used to say real extraction "produces almost none"
+    at this corpus size, which justified stamping umbrella topics on every episode; measured again
+    on the 55-episode corpus (2026-10-12), extraction alone shares 48 topics across two or more
+    shows, and with the ground-truth topics 57 — so the stamps are gone (see the note where they
+    were defined).
 
-    Hence both, and labelled: see `topic_source` on the KG node.
+    Labelled: see `topic_source` on the KG node.
     """
     path = CAPTURED_KG_DIR / version / f"{ep_label}.json"
     if not path.is_file():
@@ -331,7 +333,7 @@ def _add_extracted_topics(kg: dict[str, Any], topic_ids: list[str], episode_id: 
                 "type": "Topic",
                 "properties": {
                     "label": tid.split(":", 1)[-1].replace("-", " "),
-                    #: Marks model output. Absent on the authored/umbrella topics.
+                    #: Marks model output. Absent on the authored (ground-truth) topics.
                     "topic_source": "extracted",
                 },
             }
@@ -514,51 +516,35 @@ def _is_ad_read(text: str) -> bool:
     return "sponsor" in low or "use code pod" in low or "brought to you by" in low
 
 
-def _speaker_balanced_quotes(segments: list[dict[str, Any]], k: int = 6) -> list[dict[str, Any]]:
-    """The ``k`` quote segments ``build_gi`` should ground in: every speaker first, then in order.
-
-    ``build_gi`` caps quotes at its first six non-filler segments, while its own comment promises
-    that "each speaker is represented". On a host-heavy opening those six are all the host — p04_e04
-    gave all six to Leo, Ava Lemoine's 17 lines none — and the speaker-coherence invariant then
-    reads the fixture as a mis-attributed episode. Selecting here keeps the shared helper's output
-    unchanged for the viewer corpus.
-
-    Ad reads and non-person voices (``Ad:``) are never quotes: the pipeline cuts ads before GI
-    runs, so a sponsor read can never become somebody's words. Without this, p06_e04's ``Ad:``
-    line became a quote and ``person:ad`` a co-appearing guest.
-    """
-    usable = [
-        s
-        for s in segments
-        if not is_greeting_or_filler(str(s.get("text") or ""))
-        and not _is_ad_read(str(s.get("text") or ""))
-        and str(s.get("speaker_label") or "").lower() not in _NON_PERSON_LABELS
-    ]
-    picked: list[int] = []
-    seen: set[str] = set()
-    for i, seg in enumerate(usable):
-        label = str(seg.get("speaker_label") or "")
-        if label and label.lower() not in _NON_PERSON_LABELS and label not in seen:
-            seen.add(label)
-            picked.append(i)
-    for i in range(len(usable)):
-        if len(picked) >= k:
-            break
-        if i not in picked:
-            picked.append(i)
-    return [usable[i] for i in sorted(picked[:k])] or segments
-
-
-def _translated_analysis(ep_label: str, version: str) -> tuple[dict[str, Any] | None, list]:
+def _translated_analysis(
+    ep_label: str,
+    version: str,
+    source_segments: list[dict[str, Any]],
+    source_turns: list[str],
+) -> tuple[dict[str, Any] | None, list]:
     """(captured render, English ad-free segments) for a translated episode, else (None, []).
 
-    Outside ``main`` because ``main`` is at the flake8 complexity ceiling.
+    The segments are on the SOURCE timeline (:func:`render_times`), as the replayed render is
+    (:func:`retime_english_render`): with the captured run's own times, p10_e01's quotes sat at
+    20.9 s and 214.4 s on a 294 s episode, and a short listen cut from the render played another
+    line. Outside ``main`` because ``main`` is at the flake8 complexity ceiling.
     """
     captured = _captured_render_for(ep_label, version)
     if not captured:
         return None, []
-    body = (captured.get("stack") or {}).get("adfree.txt") or ""
-    return captured, _merge_sentences_into_turns(_english_analysis_segments(captured), body)
+    stack = captured.get("stack") or {}
+    try:
+        times = render_times(
+            json.loads(stack.get("translation.json") or "{}"), source_segments, source_turns
+        )
+    except ValueError:
+        times = {}
+    segments = _english_analysis_segments(captured)
+    for seg in segments:
+        new = times.get(str(seg.get("sent_id") or ""))
+        if new:
+            seg["start"], seg["end"] = new
+    return captured, _merge_sentences_into_turns(segments, stack.get("adfree.txt") or "")
 
 
 def _english_analysis_segments(captured: dict[str, Any]) -> list[dict[str, Any]]:
@@ -654,6 +640,133 @@ def _attach_captured_provenance(
     return attach_translation_provenance(gi, doc, _english_analysis_segments(captured))
 
 
+def _segments_of(doc: Any) -> list[dict[str, Any]]:
+    segs = doc.get("segments", doc) if isinstance(doc, dict) else doc
+    return [x for x in segs if isinstance(x, dict)] if isinstance(segs, list) else []
+
+
+def _dump_like(raw: str, doc: Any) -> str:
+    """``doc`` serialised the way ``raw`` was, so a rewrite changes values, never the layout."""
+    for indent in (2, 0, None):
+        for ascii_only in (False, True):
+            for tail in ("\n", ""):
+                if (
+                    json.dumps(json.loads(raw), indent=indent, ensure_ascii=ascii_only) + tail
+                    == raw
+                ):
+                    return json.dumps(doc, indent=indent, ensure_ascii=ascii_only) + tail
+    return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+
+
+def english_render_times(run_tr_dir: Path, ep_label: str) -> dict[str, tuple[float, float]]:
+    """``sent_id`` -> ``(start, end)`` for a translated episode's English render, on the SOURCE
+    timeline; ``{}`` when there is no render or it cannot be aligned.
+
+    The captured English renders carry the timings of the pipeline run they were captured from —
+    a 1,710 s timeline with minutes-long gaps — while this corpus's source segments and its GI
+    quotes run on the builder's own grid (p10_e01: 294 s). A short listen cuts its clip from the
+    English render at the quote's time, so it played the wrong line: "Start at strava.com/podcast"
+    for a point about drainage (operator 2026-10-12). The text is captured and stays verbatim;
+    only its timing is put on the timeline everything else in the episode uses, as a pipeline run
+    produces it.
+
+    Alignment, all from files beside the render: each source segment lies inside one source TURN
+    (a line of ``<ep>.<lang>.txt``), in order; ``translation.json``'s units are those turns, in the
+    same order, and list each turn's English sentences. A sentence goes to the source segment at
+    the same relative position in its turn (by characters), and each source segment's time is
+    shared among its sentences by length.
+    """
+    tr_path = run_tr_dir / f"{ep_label}.translation.json"
+    if not tr_path.is_file():
+        return {}
+    tr = json.loads(tr_path.read_text("utf-8"))
+    lang = str(tr.get("source_language") or "")
+    src_path = run_tr_dir / f"{ep_label}.{lang}.segments.json"
+    turns_path = run_tr_dir / f"{ep_label}.{lang}.txt"
+    if not (lang and src_path.is_file() and turns_path.is_file()):
+        return {}
+    return render_times(
+        tr,
+        _segments_of(json.loads(src_path.read_text("utf-8"))),
+        turns_path.read_text("utf-8").splitlines(),
+    )
+
+
+def render_times(
+    tr: dict[str, Any], source: list[dict[str, Any]], turns: list[str]
+) -> dict[str, tuple[float, float]]:
+    """:func:`english_render_times` on what it reads: ``translation.json``, the source segments and
+    the source turns. The builder calls it before those files are written, so the GI's English
+    quotes and the replayed render land on the same timeline."""
+    units = tr.get("units") or []
+    if len(turns) != len(units):
+        return {}
+    by_turn: list[list[dict[str, Any]]] = [[] for _ in turns]
+    ti = 0
+    for seg in source:
+        text = str(seg.get("text") or "").strip()
+        while ti < len(turns) and text not in turns[ti]:
+            ti += 1
+        if ti == len(turns):
+            return {}
+        by_turn[ti].append(seg)
+
+    times: dict[str, tuple[float, float]] = {}
+    for unit, segs in zip(units, by_turn):
+        sentences = [x for x in unit.get("sentences") or [] if x.get("sent_id")]
+        if not segs or not sentences:
+            continue
+        seg_chars = [max(len(str(x.get("text") or "")), 1) for x in segs]
+        sent_chars = [max(len(str(x.get("en_text") or "")), 1) for x in sentences]
+        total_seg, total_sent = sum(seg_chars), sum(sent_chars)
+        owner: list[int] = []
+        done = 0
+        for n in sent_chars:
+            pos = (done + n / 2) / total_sent * total_seg
+            acc, k = 0, 0
+            while k < len(segs) - 1 and acc + seg_chars[k] <= pos:
+                acc += seg_chars[k]
+                k += 1
+            owner.append(k)
+            done += n
+        for k, seg in enumerate(segs):
+            mine = [i for i, o in enumerate(owner) if o == k]
+            if not mine:
+                continue
+            start, end = float(seg.get("start") or 0.0), float(seg.get("end") or 0.0)
+            share = sum(sent_chars[i] for i in mine)
+            t = start
+            for i in mine:
+                t_end = t + (end - start) * sent_chars[i] / share
+                times[str(sentences[i]["sent_id"])] = (round(t, 2), round(t_end, 2))
+                t = t_end
+    return times
+
+
+def retime_english_render(run_tr_dir: Path, ep_label: str, *, apply: bool = True) -> int:
+    """Put a translated episode's English render (``.segments.json`` and its ad-free sibling) on
+    the source timeline (:func:`english_render_times`). Returns how many segments move; writes
+    only with ``apply``. Idempotent."""
+    times = english_render_times(run_tr_dir, ep_label)
+    moved = 0
+    for name in (f"{ep_label}.segments.json", f"{ep_label}.adfree.segments.json"):
+        path = run_tr_dir / name
+        if not times or not path.is_file():
+            continue
+        raw = path.read_text("utf-8")
+        doc = json.loads(raw)
+        changed = False
+        for seg in _segments_of(doc):
+            new = times.get(str(seg.get("sent_id") or ""))
+            if new and (seg.get("start"), seg.get("end")) != new:
+                seg["start"], seg["end"] = new
+                changed = True
+                moved += 1
+        if changed and apply:
+            path.write_text(_dump_like(raw, doc), "utf-8")
+    return moved
+
+
 def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
     """Write this episode's captured `.en.*` stack beside its source transcript. Returns a count.
 
@@ -700,6 +813,7 @@ def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
 
     for stack_suffix, body in sorted(stack.items()):
         (run_tr_dir / f"{ep_label}.{stack_suffix}").write_text(body, encoding="utf-8")
+    retime_english_render(run_tr_dir, ep_label)
     return len(stack)
 
 
@@ -1151,8 +1265,71 @@ def _authored_claim_route(grounded: bool) -> dict[str, Any]:
     return {"tier": 3, "routing_tag": "surface", "salience": salience}
 
 
+def _norm_words(text: str) -> str:
+    return re.sub(r"\W+", " ", text.lower()).strip()
+
+
+def authored_quote_anchor(
+    text: str, segments: list[dict[str, Any]], transcript: str, speaker: str | None = None
+) -> dict[str, Any] | None:
+    """Where an authored claim is SAID, as quote properties.
+
+    - The one transcript segment containing the claim: its times, and the claim's character
+      offsets when the exact text is in the transcript.
+    - Otherwise the claim is a paraphrase. Its quote becomes the line it paraphrases: that
+      speaker's segment sharing the most words with it (at least a third of the claim's words),
+      verbatim, with its times and offsets. The insight keeps the paraphrase; the quote is what
+      was said, as in real GI. "Shares" is measured against the CLAIM (a third of its words), since
+      the claim is what paraphrases the line and lines run long.
+    - ``None`` when neither exists: no time is invented.
+
+    Authored quotes used to be stamped at 0 ms with offsets 0..len, and 7 of the 16 were not
+    transcript text at all (2026-10-11 fixture review).
+    """
+    want = _norm_words(text)
+    if not want:
+        return None
+    hits = [s for s in segments if want in _norm_words(str(s.get("text") or ""))]
+
+    def times(seg: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "timestamp_start_ms": int(round(float(seg.get("start") or 0.0) * 1000)),
+            "timestamp_end_ms": int(round(float(seg.get("end") or 0.0) * 1000)),
+        }
+
+    if len(hits) == 1:
+        anchor = times(hits[0])
+        at = transcript.find(text)
+        if at >= 0:
+            anchor["char_start"], anchor["char_end"] = at, at + len(text)
+        return anchor
+    claim = {w for w in want.split() if len(w) > 3}
+    best: tuple[int, dict[str, Any]] | None = None
+    for seg in segments:
+        if speaker and str(seg.get("speaker_label") or "") != speaker:
+            continue
+        line = {w for w in _norm_words(str(seg.get("text") or "")).split() if len(w) > 3}
+        shared = len(claim & line)
+        if claim and shared * 3 >= len(claim) and (best is None or shared > best[0]):
+            best = (shared, seg)
+    if best is None:
+        return None
+    seg = best[1]
+    verbatim = str(seg.get("text") or "").strip()
+    anchor = {**times(seg), "text": verbatim}
+    at = transcript.find(verbatim)
+    if at >= 0:
+        anchor["char_start"], anchor["char_end"] = at, at + len(verbatim)
+    return anchor
+
+
 def _inject_authored_claims(
-    gi: dict[str, Any], ep_label: str, gt_dir: Path, name_by_key: dict[str, str]
+    gi: dict[str, Any],
+    ep_label: str,
+    gt_dir: Path,
+    name_by_key: dict[str, str],
+    segments: list[dict[str, Any]] | None = None,
+    transcript: str = "",
 ) -> None:
     """Inject authored topic/contradiction claims into the GI as real Insights.
 
@@ -1236,10 +1413,25 @@ def _inject_authored_claims(
                 },
             }
         )
+        anchor = authored_quote_anchor(text, segments or [], transcript, speaker=name)
+        if anchor:
+            nodes[-1]["properties"].update(anchor)
         edges.append({"from": iid, "to": qid, "type": "SUPPORTED_BY"})
         edges.append({"from": qid, "to": pid, "type": "SPOKEN_BY"})
         edges.append({"from": iid, "to": tid, "type": "ABOUT"})
         edges.append({"from": iid, "to": pid, "type": "MENTIONS_PERSON"})
+
+
+def has_failure_mode(ep_label: str, gt_dir: Path, mode: str) -> bool:
+    """Whether the episode's ground truth tags it with ``mode`` (``low_grounding_dialogue``…)."""
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return False
+    try:
+        modes = json.loads(gt.read_text(encoding="utf-8")).get("failure_modes", [])
+    except (OSError, ValueError):
+        return False
+    return mode in modes
 
 
 def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
@@ -1250,14 +1442,7 @@ def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
     "Drift" show), flip alternate Insights to ``grounded: False`` so the enricher
     sees real variation (#1148).
     """
-    gt = gt_dir / f"{ep_label}.json"
-    if not gt.is_file():
-        return
-    try:
-        modes = json.loads(gt.read_text(encoding="utf-8")).get("failure_modes", [])
-    except (OSError, ValueError):
-        return
-    if "low_grounding_dialogue" not in modes:
+    if not has_failure_mode(ep_label, gt_dir, "low_grounding_dialogue"):
         return
     insights = [n for n in gi.get("nodes", []) if n.get("type") == "Insight"]
     for i, node in enumerate(insights):
@@ -1356,50 +1541,18 @@ def _media_url(episode_id: str) -> str:
     return f"/audio/{episode_id}.mp3"
 
 
-# Cross-show umbrella topics so ``search/topic_clusters.json`` has multi-member
-# clusters (the interests picker only surfaces multi-member clusters; singletons
-# are hidden). Each umbrella spans 2+ shows.
-CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
-    "p05": ["personal finance", "risk management"],
-    "p02": ["systems thinking", "risk management"],
-    "p03": ["safety practices", "risk management"],
-    # #1148: risk management + systems thinking recur across all 9 wired shows so
-    # they form real multi-member clusters (not singletons the picker hides).
-    "p04": ["visual craft", "systems thinking"],
-    "p01": ["endurance sport", "risk management"],
-    "p07": ["systems thinking", "risk management"],
-    "p06": ["long-form", "systems thinking"],
-    "p08": ["public radio", "risk management"],
-    "p09": ["systems thinking", "risk management"],
-    # p10 is p01's Spanish counterpart — the same trail-building show, so the same
-    # umbrellas. It is NOT a language variant of the entry: nothing here branches on
-    # language, and the analysis layer these topics live on is English either way
-    # (D-38). Adding the show without this entry left it holding only SHARED_UMBRELLAS,
-    # which dropped `risk management` from one episode and so cost `tc:managing-risk`
-    # its corpus-wide coverage — the interests picker went from two offerable options
-    # to one. Silently, because a `.get(show, [])` has no opinion about a missing show.
-    "p10": ["endurance sport", "risk management"],
-    # The it/fr/de/pt counterparts, same reasoning: same conversation, same umbrellas.
-    # The guard below is what makes forgetting one of these impossible now.
-    "p11": ["endurance sport", "risk management"],
-    "p12": ["endurance sport", "risk management"],
-    "p13": ["endurance sport", "risk management"],
-    "p14": ["endurance sport", "risk management"],
-}
-# Shared umbrellas injected into every show so clusters are genuinely multi-member.
-SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]
-
-#: Every wired show MUST declare its umbrellas. The map is keyed by show and read with
-#: ``.get(..., [])``, so a new show in APP_SHOWS without an entry builds a corpus that
-#: is quietly less discriminating than the one the capability audit measures. Checked at
-#: import so the build cannot start, rather than at the end when the artifacts are written.
-_SHOWS_WITHOUT_UMBRELLAS = [sdir for _stem, sdir in APP_SHOWS if sdir not in CROSS_CUTTING_TOPICS]
-if _SHOWS_WITHOUT_UMBRELLAS:
-    raise SystemExit(
-        "CROSS_CUTTING_TOPICS is missing an entry for: "
-        + ", ".join(_SHOWS_WITHOUT_UMBRELLAS)
-        + " — add the show's two umbrella topics (see the comment above the map)."
-    )
+# NO stamped topics (operator 2026-10-12). This corpus used to give every episode two "shared
+# umbrella" topics (lifelong learning, expert interviews) and every show two "cross-cutting" ones
+# (risk management on 12 of 14 shows), so test themes would have overlap. Nothing in an episode
+# said them, and they made every count-ranked surface — Home's week, stats, "Also about", a show's
+# topics, the interests picker — lead with topics on 100% of episodes, which real data never has
+# (prod, read-only 2026-10-12: the most common topic is on 1.0% of 3,528 episodes).
+#
+# An episode carries what it says: its ground-truth topics and the topics a real pipeline run
+# extracted from its transcript. That still leaves 57 topics shared by two or more shows (risk
+# management on 56% of episodes, because the episodes discuss it), and the embedding-derived
+# themes cluster them. The committed files were migrated by
+# scripts/tools/drop_stamped_fixture_topics.py.
 
 
 def _episode_subtitle(transcript_path: Path, fallback: str) -> str:
@@ -1447,6 +1600,62 @@ def _stable_episode_id(show_dir: str, ep_label: str) -> str:
 #: Openings and connective filler that read as content but say nothing about the episode.
 #: Matched case-insensitively against the START of an utterance, except the filler lines, which
 #: are matched anywhere because they arrive mid-sentence.
+#: Ad copy the v3 generator writes (`build_v3_fixtures`: SPONSOR_TEMPLATES_OPENING / _CLOSING and
+#: NATIVE_AD_TEMPLATES, the latter host-read on purpose to slip past ad detection), plus the
+#: translated sponsor stems. None of it is a claim.
+_AD_COPY = re.compile(
+    r"sponsor|patrocin|brought to you by|use code|promo code|not an ad|backing the show"
+    r"|thanks again to our friends at|thank you to our partners at|link's in the show notes"
+    r"|special deal for our listeners|use the link in show notes"
+    r"|for supporting the show|is supported by|see you next time|that's it for today's episode"
+    # The break lead-in, in each language the corpus has: "We'll be right back after a short ad
+    # break" was an insight in all five translated shows (operator 2026-10-12, short listens).
+    r"|right back after|pausa publicitaria|pausa pubblicitaria|pause publicitaire|werbepause"
+    r"|pausa publicit[áa]ria",
+    re.I,
+)
+
+
+def is_ad_copy(text: str) -> bool:
+    """A sponsor read, sign-off or native ad (see ``_AD_COPY``)."""
+    return bool(_AD_COPY.search(text))
+
+
+def speaker_balanced(
+    candidates: list[tuple[str, str]],
+    n: int,
+    already: frozenset[str] = frozenset(),
+    topical: list[bool] | None = None,
+) -> list[int]:
+    """Which of ``candidates`` (``(text, speaker)``, in transcript order) become insights, at most
+    ``n``, returned in transcript order:
+
+    1. each speaker not in ``already`` contributes one — their first claim about one of the
+       episode's topics (``topical``), else their first claim;
+    2. the remaining slots go to topical claims first, then the rest, in order.
+
+    The first claims of an episode are often all one speaker's chatter, and an insight's quote
+    carries its speaker — so a guest whose substance came later was never quoted, and the people
+    and co-appearance surfaces had nothing to see (2026-10-11). Real extraction yields dozens of
+    insights across the speakers, and favours what is said ABOUT the episode's subjects.
+    """
+    on = topical or [False] * len(candidates)
+    picked: list[int] = []
+    seen = set(already)
+    for speaker in dict.fromkeys(s for _t, s in candidates if s):
+        if len(picked) >= n or speaker in seen:
+            continue
+        mine = [i for i, (_t, s) in enumerate(candidates) if s == speaker]
+        picked.append(next((i for i in mine if on[i]), mine[0]))
+        seen.add(speaker)
+    for i in sorted(range(len(candidates)), key=lambda k: (not on[k], k)):
+        if len(picked) >= n:
+            break
+        if i not in picked:
+            picked.append(i)
+    return sorted(picked)
+
+
 def _clean_insight_quote_excerpts(
     diar_segments: list[dict[str, Any]],
     topics: list[str],
@@ -1457,7 +1666,7 @@ def _clean_insight_quote_excerpts(
     "insight" is the markdown header block (``# show … ## title … Host: …``) — ugly on the
     Player insights surface. The diarized segments already drop that header and the speaker
     prefixes, so picking clean utterance sentences from them yields readable, grounded
-    insights/quotes. Topics come from the umbrella list we injected (caller-supplied).
+    insights/quotes. Topics are the episode's own (caller-supplied).
 
     GREETINGS AND FILLER ARE REJECTED. The length + sponsor filters were not enough: an episode's
     first substantive utterance is ALWAYS the host's welcome, so all 36 committed episodes shipped
@@ -1468,6 +1677,7 @@ def _clean_insight_quote_excerpts(
     surface is for.
     """
     sentences: list[str] = []
+    speakers: list[str] = []
     for seg in diar_segments:
         txt = str(seg.get("text") or "").strip()
         # Skip ad-read / sponsor utterances and very short interjections; keep substantive
@@ -1476,13 +1686,34 @@ def _clean_insight_quote_excerpts(
             continue
         if is_greeting_or_filler(txt):
             continue
-        if _is_ad_read(txt):
+        low = txt.lower()
+        if (
+            _is_ad_read(txt)
+            or is_ad_copy(txt)
+            or "use code pod" in low
+            or str(seg.get("speaker_label") or "").strip().lower() in _NON_PERSON_LABELS
+        ):
             continue
-        sentences.append(txt if len(txt) <= 200 else txt[:197].rstrip() + "…")
-        if len(sentences) >= 6:
-            break
-    insights = sentences[:3]
-    quotes = sentences[3:6] or sentences[:3]
+        # A question is the host asking, not a takeaway: "Walk me through a concrete example?"
+        # shipped as 31 of the corpus's insights (2026-10-11 fixture review).
+        if txt.rstrip().endswith("?") or "? " in txt:
+            continue
+        line = txt if len(txt) <= 200 else txt[:197].rstrip() + "…"
+        # A line said twice is one insight: its node id hashes the text, so p06_e02 and p08_e04
+        # carried the same Insight node twice (2026-10-13), and the realign's every-second-one
+        # grounding flipped on the second pass, when the duplicate had been dropped.
+        if line in sentences:
+            continue
+        sentences.append(line)
+        speakers.append(str(seg.get("speaker_label") or ""))
+    topic_pairs = [(f"topic:{slug(t)}", t) for t in topics]
+    chosen = speaker_balanced(
+        list(zip(sentences, speakers)),
+        3,
+        topical=[bool(about_topic_ids(t, topic_pairs)) for t in sentences],
+    )
+    insights = [sentences[i] for i in chosen]
+    quotes = [s for i, s in enumerate(sentences) if i not in chosen][:3] or insights
     return {"topics": topics, "insights": insights, "quotes": quotes}
 
 
@@ -1734,55 +1965,96 @@ def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any
     return {"window_months": window_months, "topics": topics}
 
 
-def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]:
-    """Author one theme cluster ("storyline") for the consumer Storylines surface.
+#: The corpus's storylines: ``(thc: id, label, [(topic, label, lift)])``, the anchor first.
+#: DISJOINT, as the co-occurrence enricher's clusters are: the app maps a topic to ONE
+#: storyline, so a shared member would silently drop from the others. Each has at least four
+#: members (the surface's floor, see below). Three since 2026-10-11 (operator): with one,
+#: "Continue the thread" could never take turns, hiding one storyline emptied it, and every
+#: storyline reel / path / door test landed on the same subject. No member may be a homonym of
+#: the storyline's sense: "frame" here once meant photo framing, and filled a decisions path with
+#: lighting episodes (operator 2026-10-11). "Second-order effects" has
+#: grounded clips (a reel and a path); "Building trails that last" has a two-clip reel from one
+#: episode and no path, so the Learn door is proven to stay away while the reel door shows.
+STORYLINES: list[tuple[str, str, list[tuple[str, str, float]]]] = [
+    (
+        "thc:managing-risk",
+        "Managing risk across domains",
+        [
+            ("topic:risk-management", "risk management", 2.6),
+            ("topic:systems-thinking", "systems thinking", 2.1),
+            # Was safety practices + endurance sport: both were only ever STAMPED by the old
+            # cross-cutting map, and the natural corpus (2026-10-12) has neither. These two are
+            # what the episodes themselves say about risk, across finance and engineering shows.
+            ("topic:correlated-bets", "correlated bets", 1.7),
+            ("topic:decision-making-under-uncertainty", "decision making under uncertainty", 1.5),
+        ],
+    ),
+    (
+        "thc:second-order-effects",
+        "Second-order effects",
+        [
+            ("topic:second-order-effects", "second-order effects", 2.4),
+            ("topic:reliability", "reliability", 2.0),
+            ("topic:incident-response", "incident response", 1.6),
+            ("topic:iteration-practice", "iteration practice", 1.4),
+        ],
+    ),
+    (
+        "thc:building-trails",
+        "Building trails that last",
+        [
+            ("topic:trail-building", "trail building", 2.8),
+            ("topic:soil-erosion", "soil erosion", 2.5),
+            ("topic:drainage-design", "drainage design", 2.2),
+            ("topic:land-stewardship", "land stewardship", 1.9),
+        ],
+    ),
+]
 
-    The cross-domain *managing risk* story: risk management, systems thinking, safety practices
-    and endurance sport co-occur across shows (the transcripts frame risk as "systems of
-    correlated bets" in investing, software, racing, and diving). Members carry
-    ``lift_to_cluster`` (anchor = highest) + their episode ids, matching the enricher output the
-    consumer readers parse. Deterministic, like ``search/topic_clusters.json``.
+
+def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]:
+    """Author the theme clusters ("storylines", ``STORYLINES``) for the consumer Storylines surface.
+
+    The first, the cross-domain *managing risk* story: risk management, systems thinking,
+    correlated bets and decision making under uncertainty co-occur across shows (the transcripts
+    frame risk as "systems of correlated bets" in investing, software, racing, and diving). Members
+    carry ``lift_to_cluster`` (anchor = highest) + their episode ids, matching the enricher output
+    the consumer readers parse. Deterministic, like ``search/topic_clusters.json``.
 
     FOUR members, not three, and the count is load-bearing. ``storylines`` surfaces a
     storyline only at ``DEFAULT_MIN_THEME_MEMBERS`` (4) — "a 2-member theme is a single
     co-occurrence pair, not a destination". The floor was raised from 2 to 4 in #1936, which
     silently dropped this corpus's only storyline below it: the Home rail still rendered, with
-    zero chips, and `home-rails.spec.ts` went red. `topic:endurance-sport` is the honest fourth
-    member — the docstring already claimed "racing" as one of the four domains, and it was the
-    one with no topic behind it. If the floor moves again, this list has to grow with it.
+    zero chips, and `home-rails.spec.ts` went red. The members must be topics the episodes carry
+    (ground truth or extracted): a member no episode has is dropped below, and the storyline with
+    it. If the floor moves again, this list has to grow with it.
     """
-    members_spec = [
-        ("topic:risk-management", "risk management", 2.6),
-        ("topic:systems-thinking", "systems thinking", 2.1),
-        ("topic:safety-practices", "safety practices", 1.7),
-        ("topic:endurance-sport", "endurance sport", 1.5),
-    ]
-    members = [
-        {
-            "topic_id": tid,
-            "label": label,
-            "lift_to_cluster": lift,
-            "episode_ids": sorted(set(topic_episodes.get(tid, []))),
-        }
-        for tid, label, lift in members_spec
-        if topic_episodes.get(tid)  # only topics that actually appear in the corpus
-    ]
     clusters: list[dict[str, Any]] = []
-    if len(members) >= 2:
-        canonical = "Managing risk across domains"
-        clusters.append(
+    for cluster_id, canonical, members_spec in STORYLINES:
+        members = [
             {
-                "cluster_type": "theme",
-                "canonical_label": canonical,
-                "graph_compound_parent_id": "thc:managing-risk",
-                "member_count": len(members),
-                "members": members,
-                # v1.1.0 super-theme rollup (tier 7-1a): with cluster_count ≤ _SUPER_THEME_MIN
-                # each cluster is its own super-theme (super_theme label = canonical_label).
-                "super_theme_id": f"sth:{slug(canonical)}",
-                "super_theme_label": canonical,
+                "topic_id": tid,
+                "label": label,
+                "lift_to_cluster": lift,
+                "episode_ids": sorted(set(topic_episodes.get(tid, []))),
             }
-        )
+            for tid, label, lift in members_spec
+            if topic_episodes.get(tid)  # only topics that actually appear in the corpus
+        ]
+        if len(members) >= 2:
+            clusters.append(
+                {
+                    "cluster_type": "theme",
+                    "canonical_label": canonical,
+                    "graph_compound_parent_id": cluster_id,
+                    "member_count": len(members),
+                    "members": members,
+                    # v1.1.0 super-theme rollup (tier 7-1a): with cluster_count ≤ _SUPER_THEME_MIN
+                    # each cluster is its own super-theme (super_theme label = canonical_label).
+                    "super_theme_id": f"sth:{slug(canonical)}",
+                    "super_theme_label": canonical,
+                }
+            )
     n_members = sum(c["member_count"] for c in clusters)
     super_theme_count = len({c["super_theme_id"] for c in clusters if c.get("super_theme_id")})
     return {
@@ -2270,17 +2542,12 @@ def main() -> int:
             diar_segments, roster = parse_diarized_segments(transcript_path)
             raw_text, offset_segs = format_screenplay_with_offsets(diar_segments)
 
-            # Topics: the show's lead topic + the shared cross-show umbrellas. These are
-            # curated, clean labels (the viewer helper's raw transcript-phrase extraction
-            # yields conversational junk like "welcome back to" on these chatty fixtures,
-            # which would look broken on the entity/topic surfaces), and they give the
-            # topic_clusters the cross-show overlap the interests picker needs.
+            # Topics: the episode's ground-truth topics — curated, clean labels (the viewer
+            # helper's raw transcript-phrase extraction yields conversational junk like
+            # "welcome back to" on these chatty fixtures) — and, below, what a real pipeline
+            # run extracted. No stamped topics (2026-10-12).
             authored = episode_topics_for(ep_label, gt_dir)
-            topics = authored + [
-                t
-                for t in CROSS_CUTTING_TOPICS.get(show_dir, []) + SHARED_UMBRELLAS
-                if t not in authored
-            ]
+            topics = list(authored)
             # Real extracted topics from the committed pipeline run, APPENDED. They carry the
             # product's actual extraction behaviour — including its lack of canonicalisation —
             # while the authored ones above keep the cross-show overlap the picker needs. See
@@ -2288,7 +2555,9 @@ def main() -> int:
             extracted = [t for t in _captured_topics_for(ep_label, version) if t not in topics]
             # Insights/quotes from CLEAN diarized utterances (not the raw header block). A
             # translated episode takes them from its captured ENGLISH ad-free body (D-44).
-            captured, en_segments = _translated_analysis(ep_label, version)
+            captured, en_segments = _translated_analysis(
+                ep_label, version, _raw_canonical_segments(offset_segs), raw_text.splitlines()
+            )
             excerpts = _clean_insight_quote_excerpts(en_segments or diar_segments, topics)
 
             # ONE duration, resolved ONCE, before anything that carries it is built. It used to be
@@ -2313,7 +2582,9 @@ def main() -> int:
                 episode_title,
                 publish + _PUBLISH_TIME_OF_DAY,
                 excerpts,
-                quote_segments=_speaker_balanced_quotes(en_segments or offset_segs),
+                # Every segment: build_gi grounds each insight in the one that says it (ADR-165),
+                # and an insight's own filters already keep ads and non-person voices out.
+                quote_segments=en_segments or offset_segs,
                 roster=roster,
                 transcript_ref=transcript_run_rel,
                 metadata_relative_path=metadata_rel,
@@ -2342,7 +2613,12 @@ def main() -> int:
             # #1148: surface the authored claims (perspectives + opposition) the
             # naive sentences[:3] extractor drops.
             _inject_authored_claims(
-                gi, ep_label, gt_dir, pod_guests.get(ep_label.split("_")[0], {})
+                gi,
+                ep_label,
+                gt_dir,
+                pod_guests.get(ep_label.split("_")[0], {}),
+                segments=diar_segments,
+                transcript=raw_text,
             )
             _attach_captured_provenance(gi, captured, en_segments)
 
@@ -2363,7 +2639,12 @@ def main() -> int:
             # Episode-scope enrichment envelope (RFC-088) so the consumer enrichment read surface
             # (GET /api/app/episodes/{slug}/enrichment, P3 #1121) has real data in the e2e corpus.
             # insight_density (topic_cooccurrence was dropped — trivial at episode scope).
-            topic_ids = [f"topic:{slug(lbl)}" for lbl in topics]
+            # Every topic the episode's KG carries — ground truth AND extracted — feeds the corpus
+            # enrichments below, as in production, where every topic an episode has is counted.
+            # Counting the ground truth alone left the storylines' extracted members out (a rebuild
+            # gave them 2 members, under the 4 a storyline needs) and the trend series without the
+            # topics the app actually lists (2026-10-12).
+            topic_ids = [str(n["id"]) for n in kg.get("nodes", []) if n.get("type") == "Topic"]
             enrich_dir = run_meta_dir / "enrichments"
             enrich_dir.mkdir(parents=True, exist_ok=True)
             (enrich_dir / f"{ep_label}.insight_density.json").write_text(
@@ -2556,45 +2837,11 @@ def main() -> int:
             print(f"  {show_dir}/{ep_label}: {episode_title!r} ({len(offset_segs)} segs)")
 
     # --- search/topic_clusters.json -----------------------------------------
-    # Real clusters group DISTINCT topic ids under one themed parent. We build two
-    # multi-member clusters so the interests picker (top_themes_by_member_count)
-    # surfaces them and entity-card siblings (theme_siblings_by_topic) resolve:
-    #
-    #   tc:lifelong-learning  — the shared "lifelong learning" + "expert interviews"
-    #                           umbrellas (cross-show themes), 2 distinct members.
-    #   tc:show-themes         — each show's distinct lead topic (personal-finance,
-    #                           systems-thinking, safety-practices), one per show.
-    #
-    # Members carry distinct topic ids + their own label, matching the v2 schema
-    # the readers expect (graph_compound_parent_id / cil_alias_target_topic_id /
-    # member_count / members[{topic_id,label}]).
-    def _cluster(parent_slug: str, canonical: str, labels: list[str]) -> dict[str, Any] | None:
-        members = []
-        seen: set[str] = set()
-        for lbl in labels:
-            tid = f"topic:{slug(lbl)}"
-            if tid in seen:
-                continue
-            seen.add(tid)
-            members.append({"topic_id": tid, "label": lbl})
-        if len(members) < 2:
-            return None
-        return {
-            "canonical_label": canonical,
-            "cil_alias_target_topic_id": members[0]["topic_id"],
-            "graph_compound_parent_id": f"tc:{parent_slug}",
-            "member_count": len(members),
-            "members": members,
-        }
-
+    # The themes are EMBEDDING-derived and committed (`make build-validation-topic-clusters`);
+    # `_write_topic_clusters_scaffold` never overwrites them. Without that file — a clean build with
+    # no ML extras — the scaffold is empty: it used to bundle the stamped umbrellas into two
+    # synthetic themes (tc:lifelong-learning, tc:show-themes), and there are no stamps any more.
     clusters: list[dict[str, Any]] = []
-    cross_theme = _cluster("lifelong-learning", "Lifelong Learning", SHARED_UMBRELLAS)
-    if cross_theme is not None:
-        clusters.append(cross_theme)
-    show_lead_labels = [lbl for _stem, sdir in shows for lbl in CROSS_CUTTING_TOPICS.get(sdir, [])]
-    show_themes = _cluster("show-themes", "Show Themes", show_lead_labels)
-    if show_themes is not None:
-        clusters.append(show_themes)
 
     search_dir = out / "search"
     search_dir.mkdir(parents=True, exist_ok=True)
@@ -2640,7 +2887,7 @@ def main() -> int:
     # discussed together). Authored deterministically (like search/topic_clusters.json) from the
     # cross-domain "managing risk" storyline the transcripts co-author (risk management framed as
     # "systems of correlated bets" across investing/software/racing/diving → risk-management +
-    # systems-thinking + safety-practices co-occur). Members carry the shape the consumer readers
+    # systems-thinking + correlated-bets co-occur). Members carry the shape the consumer readers
     # expect (graph_compound_parent_id thc:… / canonical_label / member_count / members[{topic_id,
     # label, lift_to_cluster, episode_ids}]).
     theme = _theme_clusters_data(corpus_topic_episodes)

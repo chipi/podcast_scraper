@@ -117,6 +117,87 @@ def _write_storylines(root: Path) -> None:
     )
 
 
+def _write_spoken_insight(
+    root: Path, stem: str, person: str, name: str, topic: str, label: str, text: str
+) -> None:
+    """One episode with one insight ABOUT ``topic``, grounded in a quote ``person`` speaks — the
+    metadata, transcript, bridge, GI and KG a perspective is read from."""
+    meta = root / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    eid = f"ep-{stem}"
+    (meta / f"{stem}.metadata.json").write_text(
+        json.dumps(
+            {
+                "feed": {"feed_id": "f", "title": "F", "url": "https://pod.example/f.xml"},
+                "episode": {
+                    "episode_id": eid,
+                    "title": eid,
+                    "published_date": "2024-03-10T00:00:00",
+                    "duration_seconds": 600,
+                },
+                "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (root / "transcripts" / f"{stem}.txt").write_text(text, encoding="utf-8")
+    identities = [
+        {"id": person, "type": "person", "sources": {"gi": True, "kg": True}, "display_name": name},
+        {"id": topic, "type": "topic", "sources": {"gi": True, "kg": True}, "display_name": label},
+    ]
+    (meta / f"{stem}.bridge.json").write_text(
+        json.dumps({"schema_version": "3.0", "episode_id": eid, "identities": identities}),
+        encoding="utf-8",
+    )
+    iid, qid = f"insight:{stem}", f"quote:{stem}"
+    gi = {
+        "schema_version": "3.0",
+        "episode_id": eid,
+        "nodes": [
+            {"id": iid, "type": "Insight", "properties": {"text": text, "insight_type": "claim"}},
+            {
+                "id": qid,
+                "type": "Quote",
+                "properties": {"text": text, "timestamp_start_ms": 1000, "timestamp_end_ms": 5000},
+            },
+            {"id": person, "type": "Person", "properties": {"name": name}},
+            {"id": topic, "type": "Topic", "properties": {"label": label}},
+        ],
+        "edges": [
+            {"type": "SPOKEN_BY", "from": qid, "to": person},
+            {"type": "SUPPORTED_BY", "from": iid, "to": qid},
+            {"type": "ABOUT", "from": iid, "to": topic},
+        ],
+    }
+    (meta / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    kg = {
+        "schema_version": "2.0",
+        "episode_id": eid,
+        "nodes": [
+            {"id": person, "type": "Person", "properties": {"name": name, "role": "guest"}},
+            {"id": topic, "type": "Topic", "properties": {"label": label}},
+        ],
+        "edges": [],
+    }
+    (meta / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
+
+
+def _write_storyline(root: Path, storyline_id: str, topics: list[str]) -> None:
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    cluster = {
+        "cluster_type": "theme",
+        "graph_compound_parent_id": storyline_id,
+        "canonical_label": storyline_id.split(":", 1)[-1],
+        "member_count": len(topics),
+        "members": [{"topic_id": t, "label": t.split(":", 1)[-1]} for t in topics],
+    }
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps({"schema_version": "1", "method": "cooccurrence_lift", "clusters": [cluster]}),
+        encoding="utf-8",
+    )
+
+
 def _write_person_web(root: Path, persons: list, provider: str = "wikipedia") -> None:
     """Write person_web.json in the executor's ENVELOPE shape ({..., data: {provider, persons}}) —
     the real on-disk artifact. A FLAT fixture ({provider, persons} at top level) is what let the
@@ -708,6 +789,26 @@ class TestRankingProjection:
         bare = {"id": "i", "properties": {"text": "x"}}
         assert _node_to_app_insight(bare, {"e": "s"}).start_ms is None
 
+    def test_a_perspective_insight_carries_its_supporting_quote(self) -> None:
+        """The quote a perspective's take is grounded on travels with it (2026-10-11): a quote card
+        (ADR-163 §4) needs the transcript's words, and the insight's own text is a paraphrase."""
+        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+
+        node = {
+            "id": "insight:1",
+            "properties": {"text": "a paraphrased claim"},
+            "_episode_id": "episode:a",
+            "_quote_start_ms": 90000,
+            "_quote_end_ms": 95000,
+            "_quote_text": "What she actually said.",
+        }
+        ins = _node_to_app_insight(node, {"episode:a": "the-slug"})
+        assert [(q.text, q.start_ms, q.end_ms) for q in ins.quotes] == [
+            ("What she actually said.", 90000, 95000)
+        ]
+        bare = {"id": "i", "properties": {"text": "x"}, "_quote_start_ms": 1}
+        assert _node_to_app_insight(bare).quotes == []  # no quote text: no quote
+
     def test_rank_for_display_sorts_desc_and_drops_drop_tagged(self) -> None:
         from podcast_scraper.server.app_relational_view import (
             _node_to_app_insight,
@@ -747,7 +848,7 @@ class TestThemeCardMergesAcrossItsMembers:
     """The union is the point: a similarity grouping exists because one member misses the others."""
 
     FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
-    THEME = "tc:safety-practices"
+    THEME = "tc:risk-management"
 
     @pytest.fixture(autouse=True)
     def _skip_without_fixture(self) -> None:
@@ -762,7 +863,7 @@ class TestThemeCardMergesAcrossItsMembers:
         the theme shows 9. If this ever equals the largest member, the merge has regressed to "show
         one member's episodes" and the page has no reason to exist.
 
-        NOT `self.THEME` (`tc:safety-practices`), deliberately: risk management carries 30 of its
+        NOT `self.THEME` (`tc:risk-management`), deliberately: risk management carries 30 of its
         30 union episodes, so that theme's union EQUALS its biggest member and could never fail
         this assertion for the right reason. A test that cannot fail is not evidence — and the old
         hand-authored `tc:show-themes` hid this by bundling eight unrelated topics, which made the
@@ -896,7 +997,7 @@ class TestStorylineCardMergesToo:
             build_theme_card,
         )
 
-        assert build_storyline_card(self.FIXTURE, "tc:safety-practices") is None
+        assert build_storyline_card(self.FIXTURE, "tc:risk-management") is None
         assert build_theme_card(self.FIXTURE, self.STORYLINE) is None
 
 
@@ -909,7 +1010,7 @@ class TestWhatHoldsAStorylineTogether:
 
     FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
     STORYLINE = "thc:managing-risk"
-    THEME = "tc:safety-practices"
+    THEME = "tc:risk-management"
 
     @pytest.fixture(autouse=True)
     def _skip_without_fixture(self) -> None:
@@ -960,17 +1061,19 @@ class TestWhatHoldsAStorylineTogether:
         (each carries it as an authored topic), the tie vanished, and the test failed with its own
         message: "fixture no longer has a tie; this test needs a new example".
 
-        The merged fixture offers something stronger than a tie: `safety practices` has 4 episodes
-        and `endurance sport` has 9, yet safety practices ranks HIGHER because its lift is 1.7
-        against 1.5. Ordering by size alone would invert them, so this is the real claim —
-        asserted over the whole list rather than one hand-picked pair, which is also why it cannot
-        go stale the way the tie did.
+        Asserted on `thc:second-order-effects` since the natural corpus (2026-10-12): `incident
+        response` has 2 episodes and `iteration practice` 7, yet incident response ranks HIGHER
+        (lift 1.6 against 1.4). `thc:managing-risk` no longer has such a pair — its members now
+        fall in size order too — so on it this test could not fail for the right reason. Asserted
+        over the whole list rather than one hand-picked pair, so it cannot go stale the way the
+        tie did.
         """
         from podcast_scraper.search.storylines import storyline_member_lift
         from podcast_scraper.server.app_relational_view import build_storyline_card
 
-        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
-        lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
+        storyline = "thc:second-order-effects"
+        card = build_storyline_card(self.FIXTURE, storyline)
+        lift = storyline_member_lift(self.FIXTURE)[storyline]
         assert card is not None
         members = card.member_topics
         assert len(members) >= 2, "a single member cannot demonstrate an ordering"
@@ -1001,9 +1104,10 @@ class TestWhatHoldsAStorylineTogether:
         p = card.strongest_pair
         assert p.shared_episode_count > 0
         assert p.a_label != p.b_label
-        # It must be the STRONGEST pair, not merely a pair: the top two carry 17 shared episodes
-        # while every other combination is 4 or fewer.
-        assert p.shared_episode_count >= 17
+        # It must be the STRONGEST pair, not merely a pair: risk management and systems thinking
+        # share 11 episodes (natural corpus, 2026-10-12), every other combination far fewer.
+        assert {p.a_label, p.b_label} == {"risk management", "systems thinking"}
+        assert p.shared_episode_count >= 11
 
     def test_a_theme_gets_neither_anchor_nor_pair(self) -> None:
         """The divergence, asserted. "Means the same thing" is symmetric: no centre, no pair
@@ -1075,7 +1179,9 @@ class TestAGroupingMovesOverTime:
         assert card is not None
         by_label = {m.label: m for m in card.member_topics}
         arrival = by_label["labor markets"]
-        established = by_label["personal finance"]
+        # `macroeconomics` itself, there since April 2025 (was `personal finance`, a stamped
+        # cross-cutting topic until the natural corpus of 2026-10-12).
+        established = by_label["macroeconomics"]
         assert arrival.trend == "new"
         # And it must have started LATER than a member that was there from the beginning. Both
         # dates are asserted present first: `first_seen` is `str | None`, and comparing an absent
@@ -1096,7 +1202,7 @@ class TestAGroupingMovesOverTime:
         """A badge on every row is a badge that says nothing."""
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
+        card = build_theme_card(self.FIXTURE, "tc:risk-management")
         assert card is not None
         moved = [m for m in card.member_topics if m.trend != "steady"]
         assert 0 < len(moved) < len(card.member_topics), (
@@ -1113,7 +1219,7 @@ class TestAGroupingMovesOverTime:
         """
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
+        card = build_theme_card(self.FIXTURE, "tc:risk-management")
         assert card is not None
         earliest = min(card.member_topics, key=lambda m: m.first_seen or "9999")
         assert earliest.trend != "new"
@@ -1122,7 +1228,7 @@ class TestAGroupingMovesOverTime:
         """The union, not one member — that is what makes it the GROUPING's perspectives."""
         from podcast_scraper.server.app_relational_view import build_cluster_perspectives
 
-        theme = build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "theme")
+        theme = build_cluster_perspectives(self.FIXTURE, "tc:risk-management", "theme")
         assert theme is not None
         assert theme.perspective_count == len(theme.perspectives) > 0
         # Every take must be attributable and jumpable — a perspective needs an owner, and the
@@ -1132,15 +1238,29 @@ class TestAGroupingMovesOverTime:
             assert p.insights, f"{p.person_name} is a perspective with no take"
             assert all(i.text.strip() for i in p.insights)
 
-    def test_the_union_is_wider_than_any_single_member(self) -> None:
-        """A grouping's speakers are the ones across it, not the biggest member's."""
+    def test_the_union_is_wider_than_any_single_member(self, tmp_path: Path) -> None:
+        """A grouping's speakers are the ones across it, not the biggest member's.
+
+        MOVED OFF THE FIXTURE (2026-10-11, ADR-165). On the committed corpus this held only because
+        quotes were handed to insights round-robin: Ethan "said" a line Priya Nair says. Once every
+        insight is grounded in the line that says it, no grouping in the corpus has a speaker
+        beyond its widest member (measured over every theme and the storyline), so the property is
+        exercised on data built for it: two episodes, two speakers, two member topics.
+        """
         from podcast_scraper.server.app_relational_view import (
             build_cluster_perspectives,
             build_topic_perspectives,
         )
 
-        grouping = build_cluster_perspectives(self.FIXTURE, "thc:managing-risk", "storyline")
-        anchor = build_topic_perspectives(self.FIXTURE, "topic:risk-management")
+        _write_spoken_insight(
+            tmp_path, "a", "person:ann", "Ann", "topic:risk", "risk", "Risk lives in the couplings."
+        )
+        _write_spoken_insight(
+            tmp_path, "b", "person:bo", "Bo", "topic:systems", "systems", "Systems fail at seams."
+        )
+        _write_storyline(tmp_path, "thc:managing", ["topic:risk", "topic:systems"])
+        grouping = build_cluster_perspectives(tmp_path, "thc:managing", "storyline")
+        anchor = build_topic_perspectives(tmp_path, "topic:risk")
         assert grouping is not None and anchor is not None
         speakers = {p.person_id for p in grouping.perspectives}
         assert speakers >= {
@@ -1164,7 +1284,7 @@ class TestAGroupingMovesOverTime:
         assert as_storyline is not None
         assert as_storyline.topic_label == "Managing risk across domains"
         # A theme id is not a storyline, and must not be quietly accepted as one.
-        assert build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "storyline") is None
+        assert build_cluster_perspectives(self.FIXTURE, "tc:risk-management", "storyline") is None
 
     def test_a_grouping_nobody_speaks_to_is_absent_not_empty(self) -> None:
         """Its members are abstract labels nobody says aloud; the page shows nothing."""

@@ -80,6 +80,11 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   let siblingMergeInFlight: Promise<void> | null = null
   /** Tracks selected paths snapshot when auto-merge last ran; prevents re-running on tab switch. */
   let lastAutoMergeSnapshotKey = ''
+  /** The set a FOCUSED load (``digest-external`` / ``subject-external``) brought in. The sibling
+   *  merge leaves exactly that set alone, whoever reads or clears ``lastLoadSource`` first: the
+   *  GraphCanvas redraw clears it and App's merge watcher fires on the same load, so a status-bar
+   *  pick of one episode sometimes got ten cluster siblings appended (2026-10-12). */
+  let focusedSelectionKey = ''
   /** 
    * Tracks the source of the last artifact load to determine if auto-merge should run.
    * 'digest-external' or 'subject-external' = user clicked from outside graph → NO auto-merge
@@ -382,6 +387,9 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     // Clear auto-merge snapshot only on full reloads (not expansion/append)
     if (!opts?.preserveExpansion) {
       lastAutoMergeSnapshotKey = ''
+      const focused =
+        lastLoadSource.value === 'digest-external' || lastLoadSource.value === 'subject-external'
+      focusedSelectionKey = focused ? selectedRelPaths.value.slice().sort().join('|') : ''
     }
     // #586 fix: do NOT clear parsedList at the start. An intermediate
     // ``parsedList = []`` triggers the GraphCanvas ``filteredArtifact``
@@ -655,6 +663,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     // Don't auto-merge on tab switch if we already ran for this exact artifact set
     const currentSnapshotKey = selectedRelPaths.value.slice().sort().join('|')
     if (currentSnapshotKey === lastAutoMergeSnapshotKey) {
+      return
+    }
+    // A focused pick stays focused, even after its load source was cleared.
+    if (focusedSelectionKey && currentSnapshotKey === focusedSelectionKey) {
       return
     }
     

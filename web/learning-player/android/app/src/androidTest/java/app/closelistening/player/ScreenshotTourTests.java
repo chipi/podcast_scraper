@@ -99,11 +99,14 @@ public class ScreenshotTourTests extends UITestCase {
     private boolean openTopicSheet() {
         AppSession.openEpisode(EPISODE_SLUG);
         settle(5_000);
-        Journey.tap("Episode notes", true, 10_000);
+        Journey.tap("Brief", false, 10_000);
         settle(2_000);
-        List<String> topics = Arrays.asList("Open risk management", "Open systems thinking");
-        Journey.scrollTo(topics, true, 10);
-        boolean opened = Journey.tap(topics, true, 6_000);
+        // "reliability": its own chip in the episode's Brief and a member of a storyline. Risk management
+        // and systems thinking are grouped into their storyline's chip since 2026-10-12. EXACT match:
+        // "Open reliability" must not match "Open reliability trade offs".
+        List<String> topics = Arrays.asList("Open reliability");
+        Journey.scrollTo(topics, false, 10);
+        boolean opened = Journey.tap(topics, false, 6_000);
         if (opened) settle(4_000);
         return opened;
     }
@@ -121,10 +124,11 @@ public class ScreenshotTourTests extends UITestCase {
         if (Journey.openTab("Discover")) {
             settle(5_000);
             frame("t02-discover");
-            // Search from Discover's own box: phones have no Search tab and no header magnifier,
+            // Search from Explore's box (it left Discover with the Discover arc): phones have no
+            // Search tab and no header magnifier,
             // so this is the route a person actually takes. With a query — Search on an empty box
             // does nothing, and t03 came back identical to t02.
-            if (Journey.searchFromDiscover("risk")) {
+            if (Journey.searchFromExplore("risk")) {
                 settle(4_000);
                 frame("t03-search");
             }
@@ -139,7 +143,7 @@ public class ScreenshotTourTests extends UITestCase {
             frame("t04-library-following");
             String[][] tabs = {
                 { "Saved", "t05-library-saved" },
-                { "Boards", "t06-library-boards" },
+                { "Collections", "t06-library-boards" },
                 { "Revisit", "t07-library-revisit" },
             };
             for (String[] t : tabs) {
@@ -174,7 +178,7 @@ public class ScreenshotTourTests extends UITestCase {
         AppSession.openEpisode(EPISODE_SLUG);
         settle(6_000);
         frame("t13-episode");
-        if (Journey.tap("Episode notes", true, 12_000)) {
+        if (Journey.tap("Brief", false, 12_000)) {
             settle(4_000);
             frame("t14-episode-insights");
             // SCROLL to these sections, never tap their headers: they are <details> that are OPEN by
@@ -261,7 +265,7 @@ public class ScreenshotTourTests extends UITestCase {
         }
         Journey.dismissCards();
         if (openTopicSheet()) {
-            List<String> storyline = Arrays.asList("Managing risk across domains");
+            List<String> storyline = Arrays.asList("Second-order effects");
             Journey.scrollTo(storyline, true, 6);
             if (Journey.tap(storyline, true, 10_000)) {
                 settle(5_000);

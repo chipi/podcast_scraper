@@ -53,7 +53,7 @@ test('a Discover storyline row opens the storyline page — members and episodes
   page,
 }, testInfo) => {
   await signInIsolated(page, 'storyline', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
 
   await page.getByTestId('discovery-tab-storyline').click()
@@ -85,7 +85,7 @@ test('a storyline opened from Discover can be followed', async ({ page }, testIn
   // true the failure names the row, rather than the old open-then-skip that reported "1 skipped"
   // for a run that had checked nothing (2026-09-25).
   await signInIsolated(page, 'storyline-follow', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
   const row = await firstOpenableStorylineRow(page)
@@ -110,7 +110,7 @@ test('the storyline PAGE shows its people as Top voices — the topic card\'s gr
   // storyline page listed the same people as "Related people" chips. Both now render TopVoices.
   // The people section is PAGE-only (the overlay stays a compact preview); Discover opens the page.
   await signInIsolated(page, 'storyline-voices', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
   const row = await firstOpenableStorylineRow(page)
@@ -136,7 +136,7 @@ test('Back from a person opened in Top voices returns to Top voices, not the top
   // on a phone, so the reader scrolls it up near the top first: Back must restore that offset.
   await page.setViewportSize({ width: 390, height: 760 })
   await signInIsolated(page, 'storyline-back-scroll', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
   const row = await firstOpenableStorylineRow(page)

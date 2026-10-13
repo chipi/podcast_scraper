@@ -1,38 +1,33 @@
 {
   "edges": [
     {
-      "from": "episode:ep-a86da8f148d3bf29",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a86da8f148d3bf29",
+      "from": "insight:4dd75a8b258e871f",
       "to": "topic:sustainability",
-      "type": "MENTIONS"
+      "type": "ABOUT"
     },
     {
-      "from": "episode:ep-a86da8f148d3bf29",
+      "from": "insight:5932fe62e5b1fd58",
       "to": "topic:risk-management",
-      "type": "MENTIONS"
+      "type": "ABOUT"
     },
     {
-      "from": "episode:ep-a86da8f148d3bf29",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a86da8f148d3bf29",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a86da8f148d3bf29",
-      "to": "insight:7d6f7075083505ad",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:7d6f7075083505ad",
+      "from": "insight:authored-p07_e03-0",
       "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e03-0",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ee43fd63c3d28951",
+      "to": "topic:systems-thinking",
       "type": "ABOUT"
     },
     {
@@ -41,9 +36,9 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "topic:sustainability",
-      "type": "ABOUT"
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "insight:5932fe62e5b1fd58",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-a86da8f148d3bf29",
@@ -51,74 +46,19 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:ee43fd63c3d28951",
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
       "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "quote:a0e9d522df98631e",
-      "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7d6f7075083505ad",
-      "to": "quote:a0e9d522df98631e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:70a12db00ce25601",
-      "to": "person:alex-morgan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "quote:70a12db00ce25601",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:af2d368ef3f71acb",
-      "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ee43fd63c3d28951",
-      "to": "quote:af2d368ef3f71acb",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8265146458ef0303",
-      "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7d6f7075083505ad",
-      "to": "quote:8265146458ef0303",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b25834a334dd8748",
-      "to": "person:alex-morgan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:4dd75a8b258e871f",
-      "to": "quote:b25834a334dd8748",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:3d81516a8da2db27",
-      "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ee43fd63c3d28951",
-      "to": "quote:3d81516a8da2db27",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:7d6f7075083505ad",
-      "to": "person:alex-morgan",
-      "type": "MENTIONS_PERSON"
+      "type": "MENTIONS"
     },
     {
       "from": "insight:4dd75a8b258e871f",
@@ -126,14 +66,34 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:ee43fd63c3d28951",
-      "to": "person:alex-morgan",
+      "from": "insight:5932fe62e5b1fd58",
+      "to": "person:dr-elena-fischer",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p07_e03-0",
-      "to": "quote:authored-p07_e03-0",
-      "type": "SUPPORTED_BY"
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p07_e03-1",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ee43fd63c3d28951",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:7d70e80ac449b4d1",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:9d059685b7afd392",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
     },
     {
       "from": "quote:authored-p07_e03-0",
@@ -141,14 +101,29 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:authored-p07_e03-0",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
+      "from": "quote:authored-p07_e03-1",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:d6af1cd334585fab",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4dd75a8b258e871f",
+      "to": "quote:d6af1cd334585fab",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:5932fe62e5b1fd58",
+      "to": "quote:9d059685b7afd392",
+      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:authored-p07_e03-0",
-      "to": "person:dr-elena-fischer",
-      "type": "MENTIONS_PERSON"
+      "to": "quote:authored-p07_e03-0",
+      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:authored-p07_e03-1",
@@ -156,19 +131,9 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:authored-p07_e03-1",
-      "to": "person:dr-elena-fischer",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:authored-p07_e03-1",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p07_e03-1",
-      "to": "person:dr-elena-fischer",
-      "type": "MENTIONS_PERSON"
+      "from": "insight:ee43fd63c3d28951",
+      "to": "quote:7d70e80ac449b4d1",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-a86da8f148d3bf29",
@@ -207,40 +172,12 @@
       "type": "Topic"
     },
     {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:7d6f7075083505ad",
+      "id": "insight:4dd75a8b258e871f",
       "properties": {
         "episode_id": "ep-a86da8f148d3bf29",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "You resist the word 'sustainability'. Why?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:4dd75a8b258e871f",
-      "properties": {
-        "episode_id": "ep-a86da8f148d3bf29",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or t\u2026",
@@ -253,11 +190,25 @@
       "properties": {
         "episode_id": "ep-a86da8f148d3bf29",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a lis\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:5932fe62e5b1fd58",
+      "properties": {
+        "episode_id": "ep-a86da8f148d3bf29",
+        "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a lis\u2026",
+        "text": "The dangerous risks are the slow ones you can name but discount. Risk management here is the same discipline as anywhere \u2014 a portfolio, a power grid, a reef \u2014 name the risk before it names you, and\u2026",
         "tier": 2
       },
       "type": "Insight"
@@ -270,42 +221,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:a0e9d522df98631e",
-      "properties": {
-        "char_end": 208,
-        "char_start": 180,
-        "episode_id": "ep-a86da8f148d3bf29",
-        "speaker_id": "person:speaker-02",
-        "text": "Thank you, Alex. A pleasure.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p07_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "person:alex-morgan",
-      "properties": {
-        "name": "Alex Morgan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:70a12db00ce25601",
-      "properties": {
-        "char_end": 397,
-        "char_start": 355,
-        "episode_id": "ep-a86da8f148d3bf29",
-        "speaker_id": "person:speaker-01",
-        "text": "You resist the word 'sustainability'. Why?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p07_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:af2d368ef3f71acb",
+      "id": "quote:d6af1cd334585fab",
       "properties": {
         "char_end": 660,
         "char_start": 417,
@@ -319,7 +235,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8265146458ef0303",
+      "id": "quote:7d70e80ac449b4d1",
       "properties": {
         "char_end": 868,
         "char_start": 660,
@@ -333,21 +249,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b25834a334dd8748",
-      "properties": {
-        "char_end": 920,
-        "char_start": 882,
-        "episode_id": "ep-a86da8f148d3bf29",
-        "speaker_id": "person:speaker-01",
-        "text": "And risk sits inside that picture how?",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p07_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:3d81516a8da2db27",
+      "id": "quote:9d059685b7afd392",
       "properties": {
         "char_end": 1163,
         "char_start": 940,
@@ -377,13 +279,13 @@
     {
       "id": "quote:authored-p07_e03-0",
       "properties": {
-        "char_end": 90,
-        "char_start": 0,
+        "char_end": 539,
+        "char_start": 449,
         "episode_id": "ep-a86da8f148d3bf29",
         "speaker_id": "person:dr-elena-fischer",
         "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p07_e03.txt"
       },
       "type": "Quote"
@@ -405,13 +307,13 @@
     {
       "id": "quote:authored-p07_e03-1",
       "properties": {
-        "char_end": 64,
-        "char_start": 0,
+        "char_end": 1004,
+        "char_start": 940,
         "episode_id": "ep-a86da8f148d3bf29",
         "speaker_id": "person:dr-elena-fischer",
         "text": "The dangerous risks are the slow ones you can name but discount.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p07_e03.txt"
       },
       "type": "Quote"

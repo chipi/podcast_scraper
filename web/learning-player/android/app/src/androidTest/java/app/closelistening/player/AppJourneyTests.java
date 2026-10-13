@@ -92,21 +92,21 @@ public class AppJourneyTests extends UITestCase {
                 + Journey.labelledInventory(16),
                 Journey.find(EPISODE_TITLE, true, 20_000));
 
-        // The Episode notes panel — entry point is "✦ Episode notes" (kp.title). The ✦ is a
+        // The Brief panel — entry point is the "Brief" tab (kp.title; "✦ Episode notes" until #2305). The ✦ is a
         // separate text node on iOS but on Android the whole label lands as one string, so
         // contains is the safe match.
-        boolean tapped = Journey.tap("Episode notes", true, 15_000);
+        boolean tapped = Journey.tap("Brief", false, 15_000);
         if (tapped) {
             Journey.sleep(4_000);
         } else {
-            Journey.scrollTo("Episode notes", true);
+            Journey.scrollTo("Brief", false);
             Journey.sleep(2_000);
         }
-        // The panel's own title (kp.title = 'Episode notes') must now be on screen. The opener pill
+        // The panel's own title (kp.title = 'Brief'; 'Episode notes' until #2305) must now be on screen. The opener pill
         // is v-if'd away while the panel is open, so this match can only be the panel.
-        assertNotNull("the Episode notes panel title did not appear. On screen: "
+        assertNotNull("the Brief panel title did not appear. On screen: "
                 + Journey.labelledInventory(80),
-                Journey.find("Episode notes", true, 10_000));
+                Journey.find("Brief", false, 10_000));
     }
 
     // ------------------------------------------------------------------ 03 topic + storyline
@@ -125,10 +125,12 @@ public class AppJourneyTests extends UITestCase {
         // ("You") — empty for a fresh account. Switch to everyone's first (2026-10-07).
         Journey.showEveryonesTrends();
 
-        // Any topic row from the rail — "systems thinking" and "risk management" are in the
-        // p09 fixture but the exact ranking changes with the corpus.
+        // Any topic row from the rail: the top Rising topics at the pinned trend date are the
+        // newest episode's own subjects (natural corpus, 2026-10-12 — "risk management" led only
+        // while it was stamped on every show).
         boolean topicTapped = Journey.tap(
-                Arrays.asList("systems thinking", "risk management"), true, 12_000);
+                Arrays.asList("canonical labeling", "code switching", "coupling vs components"),
+                true, 12_000);
         if (topicTapped) {
             Journey.sleep(5_000);
         } else {
@@ -278,11 +280,11 @@ public class AppJourneyTests extends UITestCase {
         Journey.sleep(6_000);
 
         // Three steps required before the person button is reachable:
-        //   1. Open the knowledge panel (closed on a fresh launch) via the Episode notes entry.
+        //   1. Open the knowledge panel (closed on a fresh launch) via the Brief entry.
         //   2. Expand the "Topics & People" accordion (kp.tags) — collapsed by default, only
         //      section headers in the tree until opened.
         //   3. Scroll the person control into view — offscreen web content is not in the tree.
-        Journey.tap("Episode notes", true, 15_000);
+        Journey.tap("Brief", false, 15_000);
         Journey.sleep(3_000);
 
         // The accordion REMEMBERS its state between tests. Tap only when the person controls
@@ -330,11 +332,11 @@ public class AppJourneyTests extends UITestCase {
         assertTrue("Library tab did not open", Journey.openTab("Library"));
         Journey.sleep(4_000);
 
-        // Collections live on the Library tab called "Boards" (library.collections = 'Boards').
-        // NOT "Collections" — that is the API name and matches nothing on screen.
-        boolean boardsTab = Journey.tap("Boards", false, 12_000);
+        // Boards and notes live on the Library tab called "Collections" (library.collections; it
+        // was "Boards" until 2026-10-13).
+        boolean boardsTab = Journey.tap("Collections", false, 12_000);
         if (!boardsTab) {
-            fail("no Boards tab in Library. On screen: " + Journey.labelledInventory(80));
+            fail("no Collections tab in Library. On screen: " + Journey.labelledInventory(80));
         }
         Journey.sleep(3_000);
 
@@ -548,7 +550,7 @@ public class AppJourneyTests extends UITestCase {
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
-        boolean panelOpened = Journey.tap("Episode notes", true, 15_000);
+        boolean panelOpened = Journey.tap("Brief", false, 15_000);
         if (!panelOpened) {
             fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(80));
         }
@@ -556,8 +558,11 @@ public class AppJourneyTests extends UITestCase {
 
         // Accordion state is preserved between tests — tap only when the topic controls are not
         // already reachable, and re-tap once if the first tap collapsed a section.
-        List<String> topicNames = Arrays.asList("Open systems thinking", "Open risk management");
-        if (Journey.find(topicNames, true, 4_000) == null) {
+        // "reliability": its own chip in the episode's Brief and a member of a storyline. Risk management
+        // and systems thinking are grouped into their storyline's chip since 2026-10-12. EXACT match:
+        // "Open reliability" must not match "Open reliability trade offs".
+        List<String> topicNames = Arrays.asList("Open reliability");
+        if (Journey.find(topicNames, false, 4_000) == null) {
             // SCROLL to the section first — this is a real iOS/Android difference, not a port slip.
             // Android's accessibility tree contains only ON-SCREEN nodes, where iOS keeps off-screen
             // ones with negative coordinates. So `find` cannot see "Topics & People" while the panel
@@ -570,12 +575,12 @@ public class AppJourneyTests extends UITestCase {
             }
             Journey.tap("Topics & People", true, 12_000);
             Journey.sleep(3_000);
-            if (Journey.find(topicNames, true, 6_000) == null) {
+            if (Journey.find(topicNames, false, 6_000) == null) {
                 Journey.tap("Topics & People", true, 10_000);
                 Journey.sleep(3_000);
             }
         }
-        if (Journey.find(topicNames, true, 20_000) == null) {
+        if (Journey.find(topicNames, false, 20_000) == null) {
             // 20 was not enough to reach the Topics & People section at all — the dump ended in the
             // key-points list and said nothing about the controls under test (2026-09-26). A
             // diagnostic that stops before the thing it is diagnosing is worse than none: it looks
@@ -585,14 +590,14 @@ public class AppJourneyTests extends UITestCase {
         }
 
         // L1 — drill into a topic IN THE PANEL.
-        Journey.tap(topicNames, true, 15_000);
+        Journey.tap(topicNames, false, 15_000);
         Journey.sleep(4_000);
 
         // The topic card inside the panel offers its storyline: a link card with no heading since
         // 2026-10-05 ("Part of a storyline" is gone) — scroll to the storyline's own name, then open it.
-        Journey.scrollTo("Managing risk across domains", true);
+        Journey.scrollTo("Second-order effects", true);
         boolean storylineTapped = Journey.tap(
-                Arrays.asList("Managing risk across domains"), true, 12_000);
+                Arrays.asList("Second-order effects"), true, 12_000);
         if (!storylineTapped) {
             fail("storyline row not tappable in the panel. On screen: "
                     + Journey.labelledInventory(80));
@@ -602,9 +607,11 @@ public class AppJourneyTests extends UITestCase {
         // Assert on something ONLY a storyline renders. The first version checked for
         // "Managing risk across domains" and passed while nothing had opened — that string is the
         // label of the storyline link card inside the topic card itself.
-        // ec.followStoryline = 'Follow storyline' / ec.followingStoryline = 'Following storyline'
+        // "Topics discussed together" is a storyline's own section (the topic card under it has none).
+        // Not "Follow storyline": Follow reads the same on every subject since 2026-10-11
+        // ("Follow", named "Follow — <subject>"), so it no longer says which sheet is on top.
         UiObject2 followBtn = Journey.find(
-                Arrays.asList("Follow storyline", "Following storyline"), true, 12_000);
+                Arrays.asList("Topics discussed together"), true, 12_000);
         assertNotNull(
                 "no storyline sheet on screen — the storyline never opened, or it opened behind "
                         + "the panel's top layer. On screen: " + Journey.labelledInventory(80),
@@ -616,7 +623,7 @@ public class AppJourneyTests extends UITestCase {
                 "the topic is gone — the storyline replaced it instead of stacking over it. "
                         + "On screen: " + Journey.labelledInventory(80),
                 Journey.find(
-                        Arrays.asList("systems thinking", "risk management"), true, 8_000));
+                        Arrays.asList("reliability"), true, 8_000));
     }
 
     // ------------------------------------------------------------------ helpers

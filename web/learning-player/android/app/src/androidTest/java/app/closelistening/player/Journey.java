@@ -279,6 +279,66 @@ final class Journey {
      * text and once as the interactive wrapper — so a raw node count reports two for a page with
      * one control and the assertion fires on healthy markup.
      */
+    /**
+     * The overflow menu's item named {@code name} — a node whose role is MenuItem, never a button.
+     *
+     * A menu's items and a list row's inline controls can share a name: since 2026-10-11 the
+     * player page carries episode cards whose rows show "Download for offline" as a BUTTON, while
+     * the player's own ⋯ offers the same name as a MENU ITEM (measured: one MenuItem, three
+     * Buttons). Matching the role is what the iOS twin does by position above the transport; here
+     * Chromium exposes the role, so the role is the scope. Only one menu is ever open.
+     */
+    static UiObject2 menuItem(String name, long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            try {
+                for (UiObject2 o : device().findObjects(By.pkg(PKG))) {
+                    String cls = String.valueOf(attr(o, UiObject2::getClassName));
+                    if (cls.endsWith("MenuItem") && nameOf(o).equalsIgnoreCase(name)) return o;
+                }
+            } catch (Throwable ignored) {
+                // A stale tree mid-render; look again.
+            }
+            sleep(400);
+        } while (System.currentTimeMillis() < deadline);
+        return null;
+    }
+
+    /** How many distinct MenuItems carry this name — one menu open means exactly one. */
+    static int countMenuItems(String name) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        try {
+            for (UiObject2 o : device().findObjects(By.pkg(PKG))) {
+                String cls = String.valueOf(attr(o, UiObject2::getClassName));
+                if (!cls.endsWith("MenuItem") || !nameOf(o).equalsIgnoreCase(name)) continue;
+                Rect b = attr(o, UiObject2::getVisibleBounds);
+                if (b != null) seen.add(b.centerX() + "," + b.centerY());
+            }
+        } catch (Throwable ignored) {
+            // A count that throws would replace the real assertion with its own failure.
+        }
+        return seen.size();
+    }
+
+    /** Tap the overflow menu's item named {@code name}; false when no such MenuItem appeared. */
+    static boolean tapMenuItem(String name, long timeoutMs) {
+        UiObject2 el = menuItem(name, timeoutMs);
+        if (el == null) return false;
+        Rect b = attr(el, UiObject2::getVisibleBounds);
+        try {
+            el.click();
+            return true;
+        } catch (Throwable t) {
+            if (b == null) return false;
+            try {
+                device().click(b.centerX(), b.centerY());
+                return true;
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
+    }
+
     static int countDistinct(String name) {
         java.util.Set<String> seen = new java.util.HashSet<>();
         try {
@@ -440,7 +500,11 @@ final class Journey {
             mark("=====TREND_SCOPE already everyone, or caption not found=====");
             return;
         }
-        if (tap(Arrays.asList("My listening", "Trending scope"), false, 5_000)) {
+        // Contains: the switch reads "Trending scope: Mine" (or its sr-only "My listening") since it
+        // became a labelled pill (2026-10-11); the empty Mine list's "Show everyone's trends" is
+        // the fallback.
+        if (tap(Arrays.asList("My listening", "Trending scope"), true, 5_000)
+                || tap(Arrays.asList("Show everyone's trends"), false, 3_000)) {
             boolean switched = find("Everyone's trends", true, 5_000) != null;
             mark("=====TREND_SCOPE switched, everyone=" + switched + "=====");
             sleep(1_000);
@@ -461,12 +525,19 @@ final class Journey {
      * form's own submit "Sign in" below it. Both names are correct; the markup is not the problem.
      * Taking the first match silently clicks the masthead, which navigates to the page you are
      * already on, so the form is never submitted and nothing reports an error.
+     *
+     * The anchor's position is re-read on every attempt. Typing into it raises the keyboard and the
+     * page shifts up, so a position read once, before that, can sit below the submit's new place:
+     * the submit then never counts as "below", and the form is never sent (2026-10-12, sign-in).
+     * The last position read is kept for when the node goes stale in a re-render.
      */
     static boolean tapBelow(String name, UiObject2 anchor, long timeoutMs) {
         Rect a = attr(anchor, UiObject2::getVisibleBounds);
         if (a == null) return false;
         long deadline = System.currentTimeMillis() + timeoutMs;
         do {
+            Rect now = attr(anchor, UiObject2::getVisibleBounds);
+            if (now != null) a = now;
             for (BySelector sel : selectorsFor(name, false)) {
                 List<UiObject2> hits;
                 try {
@@ -637,7 +708,7 @@ final class Journey {
 
     /**
      * Discover's search box → a results page, the route a phone takes (no Search tab, no header
-     * magnifier). The twin of iOS `searchFromDiscover`, and like it the field is found by CLASS, not
+     * magnifier). The twin of iOS `searchFromExplore`, and like it the field is found by CLASS, not
      * by label: the label is an sr-only text node, and typing into it does nothing. Tapping Search
      * with the box empty also does nothing — the tour's t03 came back as a copy of t02 (2026-10-08).
      *
@@ -645,8 +716,9 @@ final class Journey {
      * frame showed the query typed on Discover), while Enter did, by hand over adb. The button is
      * the fallback. True only once Discover's heading is gone, i.e. the results page is showing.
      */
-    static boolean searchFromDiscover(String query) {
-        if (!openTab("Discover")) return false;
+    static boolean searchFromExplore(String query) {
+        // Explore, not Discover: the search box moved with the Discover arc (ADR-163, 2026-10-12).
+        if (!openTab("Explore")) return false;
         UiObject2 field = device().wait(
                 Until.findObject(By.clazz("android.widget.EditText")), 10_000);
         if (field == null) {

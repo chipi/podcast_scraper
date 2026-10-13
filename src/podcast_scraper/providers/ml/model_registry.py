@@ -1294,7 +1294,10 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="vllm_qwen3_30b_a3b_nvfp4",
         provider="vllm",
         model="NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",  # real HF id on the wire (ADR-147)
-        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        # #2342: through the LiteLLM gateway, a transparent proxy in front of the DGX (alias = this
+        # real model id; /tokenize passed through), so every call is metered and reaches Langfuse.
+        # Dev: the homelab gateway. Prod: LITELLM_API_BASE, which the deploy already sets.
+        endpoint="${LITELLM_API_BASE:-http://homelab:4001/v1}",
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
@@ -1716,7 +1719,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         # ollama_speaker_detector); the LLM that does speaker NAMING is `speaker_llm_model` below,
         # emitted to vllm_speaker_model. This split keeps ner_model a spaCy id, never a Qwen id.
         model="en_core_web_trf",
-        endpoint="http://{dgx_tailnet_host}:8003/v1",
+        endpoint="${LITELLM_API_BASE:-http://homelab:4001/v1}",  # #2342, as the summary option
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
@@ -2446,7 +2449,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
-        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
+        # translation reaches Langfuse too; the provider and its paths are unchanged.
+        translate_api_base="${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1",
         translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
@@ -2521,7 +2526,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
-        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
+        # translation reaches Langfuse too; the provider and its paths are unchanged.
+        translate_api_base="${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1",
         translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)

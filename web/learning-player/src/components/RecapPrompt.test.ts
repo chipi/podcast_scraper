@@ -38,6 +38,9 @@ function recap(over: Partial<RecapResponse> = {}): RecapResponse {
     days_in_window: 7,
     coverage_from: '2026-08-30',
     first_listened_at: 1788000000,
+    subjects: [
+      { id: 'topic:indexing', kind: 'topic', label: 'Index investing', episodes: 5, moments: 0, learning_days: 0, delta: 2, is_new: false },
+    ],
     ...over,
   }
 }
@@ -105,7 +108,7 @@ describe('RecapPrompt', () => {
 
   it('drops the theme clause rather than the row when there is no theme', async () => {
     signIn()
-    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ topics: [] }))
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ topics: [], subjects: [] }))
     const w = mountPrompt()
     await flushPromises()
     expect(w.find('a').exists()).toBe(true)
@@ -124,12 +127,12 @@ describe('RecapPrompt', () => {
     signIn()
     vi.spyOn(api, 'getRecap').mockResolvedValue(
       recap({
-        topics: [
-          { token: 'topic:a', label: 'Index investing', episodes: 5, delta: 2, is_new: false },
-          { token: 'topic:b', label: 'Sleep science', episodes: 3, delta: 0, is_new: false },
-          { token: 'topic:c', label: 'Fusion power', episodes: 2, delta: 0, is_new: true },
-          { token: 'topic:d', label: 'Should render too', episodes: 1, delta: -1, is_new: false },
-          { token: 'topic:e', label: 'Should not render', episodes: 1, delta: -1, is_new: false },
+        subjects: [
+          { id: 'topic:a', kind: 'topic', label: 'Index investing', episodes: 5, moments: 0, learning_days: 0, delta: 2, is_new: false },
+          { id: 'topic:b', kind: 'topic', label: 'Sleep science', episodes: 3, moments: 0, learning_days: 0, delta: 0, is_new: false },
+          { id: 'topic:c', kind: 'topic', label: 'Fusion power', episodes: 2, moments: 0, learning_days: 0, delta: 0, is_new: true },
+          { id: 'topic:d', kind: 'topic', label: 'Should render too', episodes: 1, moments: 0, learning_days: 0, delta: -1, is_new: false },
+          { id: 'topic:e', kind: 'topic', label: 'Should not render', episodes: 1, moments: 0, learning_days: 0, delta: -1, is_new: false },
         ],
       }),
     )
@@ -138,18 +141,17 @@ describe('RecapPrompt', () => {
     const line = w.find('[data-testid="recap-prompt-topics"]')
     expect(line.exists()).toBe(true)
 
-    // The strongest topic stays in the summary line; the row carries the ones AFTER it, so it
-    // never repeats what was just said one line up.
-    expect(w.text()).toContain('Index investing')
-    expect(line.text()).not.toContain('Index investing')
+    // The top three are pills (operator 2026-10-12: the numbers line carries no headline subject
+    // any more — with moments and learning days it ran off the card).
+    expect(line.text()).toContain('Index investing')
     expect(line.text()).toContain('Sleep science')
     expect(line.text()).toContain('Fusion power')
-    expect(line.text()).toContain('Should render too')
 
-    // Capped: headline + three pills, so the fifth topic never renders.
+    // Capped at three, so the fourth and fifth never render.
+    expect(line.text()).not.toContain('Should render too')
     expect(line.text()).not.toContain('Should not render')
     expect(line.text()).toContain('new')
-    expect(line.text()).toContain('↓1')
+    expect(line.text()).toContain('↑2')
     // A delta of zero renders no arrow: "unchanged" on most entries is noise.
     expect(line.text()).not.toContain('↑0')
     expect(line.text()).not.toContain('↓0')
@@ -159,9 +161,9 @@ describe('RecapPrompt', () => {
     signIn()
     vi.spyOn(api, 'getRecap').mockResolvedValue(
       recap({
-        topics: [
-          { token: 'topic:a', label: 'Headline one', episodes: 9, delta: 1, is_new: false },
-          { token: 'topic:b', label: 'Only one', episodes: 5, delta: -3, is_new: false },
+        subjects: [
+          { id: 'topic:a', kind: 'topic', label: 'Headline one', episodes: 9, moments: 0, learning_days: 0, delta: 1, is_new: false },
+          { id: 'topic:b', kind: 'topic', label: 'Only one', episodes: 5, moments: 0, learning_days: 0, delta: -3, is_new: false },
         ],
       }),
     )
@@ -180,9 +182,9 @@ describe('RecapPrompt', () => {
     signIn()
     vi.spyOn(api, 'getRecap').mockResolvedValue(
       recap({
-        topics: [
-          { token: 'topic:a', label: 'Index investing', episodes: 5, delta: 2, is_new: false },
-          { token: 'topic:b', label: 'Sleep science', episodes: 3, delta: 0, is_new: true },
+        subjects: [
+          { id: 'topic:a', kind: 'topic', label: 'Index investing', episodes: 5, moments: 0, learning_days: 0, delta: 2, is_new: false },
+          { id: 'topic:b', kind: 'topic', label: 'Sleep science', episodes: 3, moments: 0, learning_days: 0, delta: 0, is_new: true },
         ],
       }),
     )
@@ -200,3 +202,65 @@ describe('RecapPrompt', () => {
   })
 })
 
+
+/** The week's other ways of listening, and the subjects they were about (operator 2026-10-12). */
+describe('RecapPrompt: moments and learning', () => {
+  it('says the week in one line: time, episodes, moments, learning days', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({ listening_seconds: 170, moments_heard: 9, learning_days: 2 }),
+    )
+    const w = mountPrompt()
+    await flushPromises()
+    expect(w.text().replace(/\s+/g, ' ')).toContain('3 min · 6 episodes · 9 moments · 2 learning days')
+  })
+
+  it('shows for a week of only short listens', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ listening_seconds: 0, moments_heard: 4 }))
+    const w = mountPrompt()
+    await flushPromises()
+    expect(w.find('a').exists()).toBe(true)
+  })
+
+  it('names each pill\'s kind, since the row mixes them', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        subjects: [
+          { id: 'topic:a', kind: 'topic', label: 'Head', episodes: 3, moments: 0, learning_days: 0, delta: 0, is_new: false },
+          { id: 'thc:r', kind: 'storyline', label: 'Managing risk', episodes: 0, moments: 0, learning_days: 2, delta: 0, is_new: true },
+        ],
+      }),
+    )
+    const w = mountPrompt()
+    await flushPromises()
+    const pill = w.findAll('[data-testid="recap-prompt-subject"]')[1]
+    expect(pill.text()).toContain('Storyline Managing risk')
+    expect(pill.classes()).toContain('text-storyline')
+  })
+})
+
+/** The week behind the card (operator 2026-10-12: one day drew a dark block down the side). */
+describe('RecapPrompt: the week behind it', () => {
+  const week = (vals: number[]) =>
+    Object.fromEntries(vals.map((v, i) => [`2026-10-0${i + 1}`, v]))
+
+  it('draws nothing for a week with one day heard', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ by_day: week([0, 0, 0, 0, 0, 0, 900]) }))
+    const w = mountPrompt()
+    await flushPromises()
+    expect(w.findAll('[aria-hidden="true"] > span.bg-accent')).toHaveLength(0)
+  })
+
+  it('draws the week low, under the words, once two days were heard', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap({ by_day: week([0, 300, 0, 0, 0, 0, 900]) }))
+    const w = mountPrompt()
+    await flushPromises()
+    const bars = w.findAll('[aria-hidden="true"] > span.bg-accent')
+    expect(bars).toHaveLength(7)
+    expect(bars[6].attributes('style')).toContain('height: 45%')
+  })
+})

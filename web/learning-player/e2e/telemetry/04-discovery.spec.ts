@@ -19,8 +19,9 @@ test.describe('browse', () => {
     const sink = attachSink(page)
     await page.goto('/api/app/auth/login?as=telemetry-browse')
     await page.waitForLoadState('networkidle')
-    await page.goto('/browse')
-    await expect(page.getByTestId('browse-view')).toBeVisible()
+    // The catalog's tabs live on Explore since 2026-10-11 (ADR-163 §1).
+    await page.goto('/explore')
+    await expect(page.getByTestId('explore-view')).toBeVisible()
 
     // Nothing yet: arriving at the hub is not choosing a tab. If it were, `episodes` would always
     // lead simply because it renders first — a ranking that measures tab ORDER, not preference.
@@ -34,7 +35,9 @@ test.describe('browse', () => {
     expect(first.data?.tab).toBe('shows')
   })
 
-  test('entity_open from Browse reports presentation=page and source=browse', async ({ page }) => {
+  test('entity_open from Explore\'s Trends reports presentation=page and source=explore_trends', async ({
+    page,
+  }) => {
     const sink = attachSink(page)
     await page.goto('/api/app/auth/login?as=telemetry-browse-entity')
     await page.waitForLoadState('networkidle')
@@ -43,8 +46,8 @@ test.describe('browse', () => {
     // selector was describing a surface that does not exist. Browse's `entity_open` comes from the
     // TRENDS explorer above the tabs (`DiscoveryExplorer @open="onEntityOpen"`), and `?trends=topic`
     // is the query that selects its kind — deliberately not `?tab=`, which drives the tabs instead.
-    await page.goto('/browse?trends=topic')
-    await expect(page.getByTestId('browse-view')).toBeVisible()
+    await page.goto('/explore?trends=topic')
+    await expect(page.getByTestId('explore-view')).toBeVisible()
 
     // Mine is the default and this account has no world yet: read everyone's.
     await showEveryonesTrends(page)
@@ -57,11 +60,40 @@ test.describe('browse', () => {
 
     const open = await sink.waitForEvent('entity_open')
     expect(open.data?.presentation, 'Browse opens a full page, not an overlay card').toBe('page')
-    expect(open.data?.source).toBe('browse')
+    expect(open.data?.source).toBe('explore_trends')
     // The rank question `home_rail_click` asked on Home, asked on Discover (operator 2026-10-07).
     const click = await sink.waitForEvent('trends_row_click')
     expect(click.data?.kind).toBe('topic')
     expect(['1', '2-3', '4-10', '11+'], 'rank is bucketed').toContain(String(click.data?.rank))
+  })
+})
+
+test.describe('discover rails', () => {
+  test('a rail reports it was shown, a tap says which rail and why, and the visit credits the rail', async ({
+    page,
+  }) => {
+    // Discover arc Step 1.2 (ADR-163): the rail contract, end to end into dev Umami.
+    const sink = attachSink(page)
+    await page.goto('/api/app/auth/login?as=telemetry-discover-rail')
+    await page.waitForLoadState('networkidle')
+    await page.goto('/browse')
+    await showEveryonesTrends(page)
+    const card = page.getByTestId('quote-card').first()
+    await expect(card).toBeVisible()
+
+    const shown = await sink.waitForEvent('discover_rail_shown')
+    expect(shown.data?.rail).toBe('quotes')
+    expect(['1', '2-5', '6-20', '21+']).toContain(String(shown.data?.items))
+
+    await card.getByTestId('quote-card-open').click()
+    const tap = await sink.waitForEvent('discover_rail_tap')
+    expect(tap.data).toMatchObject({ rail: 'quotes', action: 'open', rank: '1' })
+    expect(String(tap.data?.reason_kind)).not.toBe('')
+    // The episode opened from the rail is credited to it: `episode_open` carries the rail's source.
+    const open = await sink.waitForEvent('episode_open')
+    expect(open.data?.source).toBe('discover_quotes')
+    // Never which episode: buckets and enums only.
+    expect(JSON.stringify(tap.raw)).not.toMatch(/episode\/|slug/)
   })
 })
 

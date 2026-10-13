@@ -1,8 +1,28 @@
 {
   "edges": [
     {
+      "from": "insight:5cc24d0bffa08f0c",
+      "to": "topic:drainage-design",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "topic:trail-building",
+      "to": "insight:5cc24d0bffa08f0c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "insight:9e6fb3b6d2b83f6d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "insight:d3e92fbac0f31905",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:land-stewardship",
       "type": "MENTIONS"
     },
     {
@@ -12,118 +32,53 @@
     },
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "topic:land-stewardship",
+      "to": "topic:trail-building",
       "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-8dce4ec000757097",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-8dce4ec000757097",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-8dce4ec000757097",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-8dce4ec000757097",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:45350807a6038550",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:fe3de44103010078",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:5cc24d0bffa08f0c",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:67435e444d25d0cf",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:45350807a6038550",
-      "to": "quote:67435e444d25d0cf",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2300a78e3dd8f850",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:fe3de44103010078",
-      "to": "quote:2300a78e3dd8f850",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:ad64ef6c59d41aa8",
-      "to": "person:julien-mercier",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:5cc24d0bffa08f0c",
-      "to": "quote:ad64ef6c59d41aa8",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e2bd5cb275474206",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:45350807a6038550",
-      "to": "quote:e2bd5cb275474206",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:fd8c7f19bb544451",
-      "to": "person:julien-mercier",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:fe3de44103010078",
-      "to": "quote:fd8c7f19bb544451",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7af5404a9fbcd8fb",
-      "to": "person:camille-dubois",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:5cc24d0bffa08f0c",
-      "to": "quote:7af5404a9fbcd8fb",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:45350807a6038550",
-      "to": "person:camille-dubois",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:fe3de44103010078",
-      "to": "person:julien-mercier",
-      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:5cc24d0bffa08f0c",
       "to": "person:camille-dubois",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:9e6fb3b6d2b83f6d",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:d3e92fbac0f31905",
+      "to": "person:julien-mercier",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:03a9247fad988477",
+      "to": "person:julien-mercier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:622c49977b18a36f",
+      "to": "person:julien-mercier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:a58a83663be4a55b",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5cc24d0bffa08f0c",
+      "to": "quote:622c49977b18a36f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:9e6fb3b6d2b83f6d",
+      "to": "quote:a58a83663be4a55b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:d3e92fbac0f31905",
+      "to": "quote:03a9247fad988477",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-8dce4ec000757097",
@@ -162,68 +117,12 @@
       "type": "Topic"
     },
     {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:45350807a6038550",
+      "id": "insight:5cc24d0bffa08f0c",
       "properties": {
         "episode_id": "ep-8dce4ec000757097",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:fe3de44103010078",
-      "properties": {
-        "episode_id": "ep-8dce4ec000757097",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:5cc24d0bffa08f0c",
-      "properties": {
-        "episode_id": "ep-8dce4ec000757097",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
@@ -232,59 +131,32 @@
       "type": "Insight"
     },
     {
-      "id": "person:camille-dubois",
+      "id": "insight:d3e92fbac0f31905",
       "properties": {
-        "name": "Camille Dubois"
+        "episode_id": "ep-8dce4ec000757097",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yes, listen \u2013 the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
     },
     {
-      "id": "quote:67435e444d25d0cf",
+      "id": "insight:9e6fb3b6d2b83f6d",
       "properties": {
-        "char_end": 72,
-        "char_start": 12,
         "episode_id": "ep-8dce4ec000757097",
-        "speaker_id": "person:speaker-01",
-        "text": "Strava is the home of athletes. Start at strava.com/podcast.",
-        "timestamp_end_ms": 25440,
-        "timestamp_start_ms": 21360,
-        "transcript_ref": "transcripts/p12_e01.txt",
-        "translation": {
-          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It's settled.\nOr:\nIt's a done deal.\nOr:\nThat's confirmed.\nOr:\nIt's arranged.\nOr:\nIt's agreed.\n(The best option depends on the context.)",
+        "tier": 2
       },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:2300a78e3dd8f850",
-      "properties": {
-        "char_end": 155,
-        "char_start": 73,
-        "episode_id": "ep-8dce4ec000757097",
-        "speaker_id": "person:speaker-01",
-        "text": "Tell me about how you made that decision. How does RockShox fit into this picture?",
-        "timestamp_end_ms": 215460,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p12_e01.txt",
-        "translation": {
-          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
       "id": "person:julien-mercier",
@@ -294,15 +166,15 @@
       "type": "Person"
     },
     {
-      "id": "quote:ad64ef6c59d41aa8",
+      "id": "quote:622c49977b18a36f",
       "properties": {
         "char_end": 364,
         "char_start": 168,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
-        "timestamp_end_ms": 229020,
-        "timestamp_start_ms": 215460,
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p12_e01.txt",
         "translation": {
           "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
@@ -318,39 +190,15 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e2bd5cb275474206",
-      "properties": {
-        "char_end": 465,
-        "char_start": 377,
-        "episode_id": "ep-8dce4ec000757097",
-        "speaker_id": "person:speaker-01",
-        "text": "Tell me how you came to that decision. Which version of the question is truly important?",
-        "timestamp_end_ms": 235140,
-        "timestamp_start_ms": 229020,
-        "transcript_ref": "transcripts/p12_e01.txt",
-        "translation": {
-          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "fr",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:fd8c7f19bb544451",
+      "id": "quote:03a9247fad988477",
       "properties": {
         "char_end": 650,
         "char_start": 478,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
         "text": "Yes, listen \u2013 the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.",
-        "timestamp_end_ms": 246180,
-        "timestamp_start_ms": 235140,
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p12_e01.txt",
         "translation": {
           "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
@@ -366,15 +214,22 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7af5404a9fbcd8fb",
+      "id": "person:camille-dubois",
       "properties": {
-        "char_end": 742,
-        "char_start": 663,
+        "name": "Camille Dubois"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a58a83663be4a55b",
+      "properties": {
+        "char_end": 3320,
+        "char_start": 3185,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper. Where do soil erosion and trail construction intersect?",
-        "timestamp_end_ms": 251760,
-        "timestamp_start_ms": 246180,
+        "text": "It's settled.\nOr:\nIt's a done deal.\nOr:\nThat's confirmed.\nOr:\nIt's arranged.\nOr:\nIt's agreed.\n(The best option depends on the context.)",
+        "timestamp_end_ms": 168000,
+        "timestamp_start_ms": 162000,
         "transcript_ref": "transcripts/p12_e01.txt",
         "translation": {
           "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
@@ -383,11 +238,18 @@
           "source_language": "fr",
           "translated": true,
           "unit_ids": [
-            "t0006.u01"
+            "t0026.u01"
           ]
         }
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

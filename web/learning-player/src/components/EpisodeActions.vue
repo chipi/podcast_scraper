@@ -97,6 +97,13 @@ defineProps<{
    * rails' menus do not grow a control nobody asked for there.
    */
   shareTitle?: string
+  /**
+   * The episode's title, for the controls' accessible names (2026-10-12): on a list every card has
+   * the same heart, queue, ⋯ and download, so "Download for offline" five times told a screen-reader
+   * user nothing about which episode. With it they read "Download for offline: <title>". The
+   * screen still shows only the icons.
+   */
+  episodeTitle?: string
 }>()
 const { t } = useI18n()
 const router = useRouter()
@@ -131,9 +138,12 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
     <!-- Leading surface-specific control, taking the heart's place when it is hidden (Saved puts
          its colour picker here, so the row stays three wide and does not wrap). -->
     <slot name="lead" />
-    <FavoriteButton v-if="!hideFavorite" :item="{ kind: 'episode', ref: slug }" />
-    <QueueButton v-if="!hideQueue" :slug="slug" />
-    <OverflowMenu :label="t('common.moreActions')">
+    <FavoriteButton v-if="!hideFavorite" :item="{ kind: 'episode', ref: slug }" :subject="episodeTitle" />
+    <QueueButton v-if="!hideQueue" :slug="slug" :subject="episodeTitle" />
+    <OverflowMenu
+      :label="t('common.moreActions')"
+      :name="episodeTitle ? t('common.forItem', { action: t('common.moreActions'), subject: episodeTitle }) : ''"
+    >
       <template #default="{ close }">
         <button
           v-if="moments"
@@ -177,10 +187,10 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
     </OverflowMenu>
     <!-- Extra, surface-specific controls in the same row (e.g. the queue's reorder ↑/↓). -->
     <slot />
-    <!-- Inline download LAST (operator 2026-09-23), so the two rows the artwork-width column wraps
-         into read as a grid rather than as a row that overflowed: `♡ ⧉ ⋯` above `↑ ↓ ⬇`. Placed
-         before the ⋯ it pushed the overflow onto the second line and left the first ending on a
-         control that is not the "more" affordance, which is where the eye expects it. -->
-    <DownloadButton v-if="showDownload" :slug="slug" />
+    <!-- Inline download LAST, and only where it is asked for: Up next (operator 2026-09-23), so
+         the two rows the artwork-width column wraps into read as a grid: `♡ ⧉ ⋯` above `↑ ↓ ⬇`.
+         Every other list keeps it in the ⋯ (operator 2026-10-12; inline on
+         every episode, 2026-10-11, wrapped every row onto a second line). -->
+    <DownloadButton v-if="showDownload" :slug="slug" :subject="episodeTitle" />
   </div>
 </template>

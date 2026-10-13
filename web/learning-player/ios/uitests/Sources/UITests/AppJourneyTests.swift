@@ -86,11 +86,11 @@ final class AppJourneyTests: UITestCase {
       "episode page did not render its title"
     )
 
-    // The knowledge panel — opened by the "✦ Episode notes" pill (kp.title).
-    if Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) {
+    // The knowledge panel — opened by the "Brief" tab (kp.title; "✦ Episode notes" until #2305).
+    if Journey.tap(app, labels: ["Brief"], contains: false, timeout: 15) {
       sleep(4)
     } else {
-      _ = Journey.scrollTo(app, labels: ["Episode notes"])
+      _ = Journey.scrollTo(app, labels: ["Brief"])
       sleep(2)
     }
     Journey.inventory(app, "episode-insights")
@@ -113,7 +113,9 @@ final class AppJourneyTests: UITestCase {
     if Journey.tap(app, labels: ["Topics"], timeout: 15) { sleep(3) }
     Journey.showEveryonesTrends(app)
     Journey.inventory(app, "home-topics-rail")
-    if Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 12) {
+    // The top Rising topics at the pinned trend date: the newest episode's own subjects (natural
+    // corpus, 2026-10-12 — "risk management" led only while it was stamped on every show).
+    if Journey.tap(app, labels: ["canonical labeling", "code switching", "coupling vs components"], contains: true, timeout: 12) {
       sleep(5)
       Journey.shot(self, "03-topic")
       Journey.inventory(app, "topic-page")
@@ -183,12 +185,12 @@ final class AppJourneyTests: UITestCase {
     // lives behind the "Topics & People" section.
     // The knowledge panel is CLOSED on a fresh launch — "Topics & People" only exists once it is
     // open. (This passed the first time only because an earlier test in the same run had already
-    // opened it.) Open the panel from the player's "✦ Episode notes" entry point first.
+    // opened it.) Open the panel from the player's "Brief" tab first (kp.title; "✦ Episode notes" until #2305).
     // Three steps, all required: open the knowledge panel (closed on a fresh launch), EXPAND the
     // "Topics & People" accordion (its sections render collapsed — only the headers are in the
     // tree), then scroll the control into view. Offscreen web content is not in the accessibility
     // tree at all, so a plain `find` cannot see it and `tap`'s own scroll never triggers.
-    _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15)
+    _ = Journey.tap(app, labels: ["Brief"], contains: false, timeout: 15)
     sleep(3)
     // The accordion REMEMBERS its state between tests, so a blind tap can collapse a section that
     // a previous test left open — which is how this passed alone and failed in a full run. Tap only
@@ -242,11 +244,11 @@ final class AppJourneyTests: UITestCase {
     Journey.inventory(app, "library")
     Journey.shot(self, "05-library")
 
-    // Collections live on the Library tab called "Boards" — NOT "Collections", which is the
-    // internal/API name and matched nothing on screen. The fixture account starts with none.
-    guard Journey.tap(app, labels: ["Boards"], timeout: 12) else {
-      Journey.inventory(app, "library-no-boards")
-      XCTFail("no Boards tab in Library")
+    // Boards and notes live on the Library tab called "Collections" (library.collections; it was
+    // "Boards" until 2026-10-13). The fixture account starts with no boards.
+    guard Journey.tap(app, labels: ["Collections"], timeout: 12) else {
+      Journey.inventory(app, "library-no-collections")
+      XCTFail("no Collections tab in Library")
       return
     }
     sleep(3)
@@ -438,13 +440,13 @@ final class AppJourneyTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 
-    guard Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) else {
+    guard Journey.tap(app, labels: ["Brief"], contains: false, timeout: 15) else {
       XCTFail("could not open the knowledge panel"); return
     }
     sleep(3)
     // The accordion remembers its state, so tap only when the topic controls are not already there
     // (a blind tap would COLLAPSE a section a previous test left open) — same trap as test04.
-    let topicPre = NSPredicate(format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'")
+    let topicPre = NSPredicate(format: "label == 'Open reliability'")
     if !app.buttons.matching(topicPre).firstMatch.waitForExistence(timeout: 4) {
       _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 12)
       sleep(3)
@@ -455,7 +457,7 @@ final class AppJourneyTests: UITestCase {
     }
 
     // Drill into a topic IN THE PANEL — it must replace in place, not open a sheet.
-    let topicPredicate = NSPredicate(format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'")
+    let topicPredicate = NSPredicate(format: "label == 'Open reliability'")
     let topicButton = app.buttons.matching(topicPredicate).firstMatch
     guard topicButton.waitForExistence(timeout: 20) else {
       Journey.inventory(app, "panel-no-topic")
@@ -467,16 +469,25 @@ final class AppJourneyTests: UITestCase {
 
     // The topic card inside the panel offers its storyline. Tapping it must NAVIGATE. The link card
     // has no "Part of a storyline" heading since 2026-10-05 — scroll to the storyline's own name.
-    guard let storyline = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 8) else {
+    guard let storyline = Journey.scrollTo(app, labels: ["Second-order effects"], maxSwipes: 8) else {
       Journey.inventory(app, "panel-topic-no-storyline")
       Journey.shot(self, "11-b-no-storyline-link")
       XCTFail("the in-panel topic card offered no storyline"); return
     }
     _ = storyline
-    guard Journey.tap(app, labels: ["Managing risk across domains"], contains: true, timeout: 12) else {
+    // The LAST hittable match: the Brief underneath lists the same storyline among its own links,
+    // and it comes first in the tree — tapping it lands on the topic card covering it, and nothing
+    // opens (2026-10-11: the same steps in a browser open the storyline over the topic). The topic
+    // card is the top layer, so its link is the later one.
+    let storylineLinks = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label CONTAINS %@", "Second-order effects"))
+      .allElementsBoundByIndex
+      .filter { $0.exists && $0.isHittable }
+    guard let onTop = storylineLinks.last else {
       Journey.inventory(app, "panel-storyline-not-tappable")
       XCTFail("storyline row not tappable in the panel"); return
     }
+    onTop.tap()
     sleep(5)
     Journey.inventory(app, "after-panel-storyline")
     Journey.shot(self, "11-c-storyline-from-panel")
@@ -487,16 +498,17 @@ final class AppJourneyTests: UITestCase {
     // was no better: the panel covers the tab bar whether or not a sheet is above it. Two checks,
     // neither of which could distinguish the outcomes (2026-09-16).
     XCTAssertNotNil(
-      // "Follow storyline" unfollowed, "Following storyline" once followed — match either, or the
-      // assertion depends on this account's follow state rather than on the sheet being open.
-      Journey.find(app, labels: ["Follow storyline"], contains: true, timeout: 12),
+      // "Topics discussed together" is a storyline's own section (the topic card under it has none).
+      // Not "Follow storyline": Follow reads the same on every subject since 2026-10-11 ("Follow",
+      // named "Follow — <subject>"), so it no longer says which kind of sheet is on top.
+      Journey.find(app, labels: ["Topics discussed together"], contains: true, timeout: 12),
       "no storyline sheet on screen — the storyline never opened, or it opened behind the panel's "
         + "top layer (the panel uses showModal(), so a sheet teleported to <body> is hidden by it)"
     )
     // And the topic underneath must STILL be identifiable by its title. That is the contract —
     // stacking keeps it, routing away destroys it.
     XCTAssertNotNil(
-      Journey.find(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 8),
+      Journey.find(app, labels: ["reliability"], contains: true, timeout: 8),
       "the topic is gone — the storyline replaced it instead of stacking over it"
     )
     Journey.shot(self, "11-d-storyline-stacked-over-topic")

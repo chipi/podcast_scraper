@@ -126,7 +126,7 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   const noteText = `e2e note ${Date.now()}`
   await page.getByRole('button', { name: 'Add note' }).first().click()
   await page.getByRole('textbox', { name: 'Note' }).first().fill(noteText)
-  await page.getByRole('button', { name: 'Save', exact: true }).first().click()
+  await page.getByRole('button', { name: /^Save(: |$)/ }).first().click()
   // `.first()` like every other locator here: the note is the user's, so it renders BOTH under the
   // highlight (Saved tab) and in the "your notes" list of the always-mounted Boards tab (v-show), so
   // an unscoped getByText trips strict mode. The test asserts visibility, never counts (see docblock).

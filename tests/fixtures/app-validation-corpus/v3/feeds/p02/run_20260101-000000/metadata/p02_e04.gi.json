@@ -1,9 +1,44 @@
 {
   "edges": [
     {
-      "from": "episode:ep-18ede6ffbd63f18f",
+      "from": "insight:07dcf9af0368ccff",
       "to": "topic:systems-thinking",
-      "type": "MENTIONS"
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:87d008bfa722a799",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p02_e04-0",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p02_e04-0",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p02_e04-1",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-18ede6ffbd63f18f",
+      "to": "insight:07dcf9af0368ccff",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-18ede6ffbd63f18f",
+      "to": "insight:87d008bfa722a799",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-18ede6ffbd63f18f",
+      "to": "insight:aa0b1ec0ef608c72",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-18ede6ffbd63f18f",
@@ -22,123 +57,43 @@
     },
     {
       "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "insight:bf453ec4d5e6f873",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:bf453ec4d5e6f873",
-      "to": "topic:reliability",
-      "type": "ABOUT"
-    },
-    {
-      "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "insight:87d008bfa722a799",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:87d008bfa722a799",
-      "to": "topic:reliability",
-      "type": "ABOUT"
-    },
-    {
-      "from": "episode:ep-18ede6ffbd63f18f",
-      "to": "insight:07dcf9af0368ccff",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:07dcf9af0368ccff",
       "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "quote:7b4f2ad14e369e24",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bf453ec4d5e6f873",
-      "to": "quote:7b4f2ad14e369e24",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:01fb10e293a5ae5d",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:87d008bfa722a799",
-      "to": "quote:01fb10e293a5ae5d",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:df3769db5b06292b",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
+      "type": "MENTIONS"
     },
     {
       "from": "insight:07dcf9af0368ccff",
-      "to": "quote:df3769db5b06292b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7778cd4e54d62074",
       "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:bf453ec4d5e6f873",
-      "to": "quote:7778cd4e54d62074",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:bf66e5866ad82e5f",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:87d008bfa722a799",
-      "to": "quote:bf66e5866ad82e5f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c4edef3030d48234",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:07dcf9af0368ccff",
-      "to": "quote:c4edef3030d48234",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:bf453ec4d5e6f873",
-      "to": "person:ethan",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:87d008bfa722a799",
-      "to": "person:priya-nair",
+      "to": "person:ethan",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:07dcf9af0368ccff",
+      "from": "insight:aa0b1ec0ef608c72",
       "to": "person:ethan",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:authored-p02_e04-0",
-      "to": "quote:authored-p02_e04-0",
-      "type": "SUPPORTED_BY"
+      "to": "person:priya-nair",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p02_e04-1",
+      "to": "person:priya-nair",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:124280557b476791",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:821a1ce578bc0dff",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
     },
     {
       "from": "quote:authored-p02_e04-0",
@@ -146,34 +101,39 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:authored-p02_e04-0",
-      "to": "topic:systems-thinking",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:authored-p02_e04-0",
-      "to": "person:priya-nair",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:authored-p02_e04-1",
-      "to": "quote:authored-p02_e04-1",
-      "type": "SUPPORTED_BY"
-    },
-    {
       "from": "quote:authored-p02_e04-1",
       "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:authored-p02_e04-1",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
+      "from": "quote:fd2e2410694d06ef",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:07dcf9af0368ccff",
+      "to": "quote:124280557b476791",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:87d008bfa722a799",
+      "to": "quote:821a1ce578bc0dff",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:aa0b1ec0ef608c72",
+      "to": "quote:fd2e2410694d06ef",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:authored-p02_e04-0",
+      "to": "quote:authored-p02_e04-0",
+      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:authored-p02_e04-1",
-      "to": "person:priya-nair",
-      "type": "MENTIONS_PERSON"
+      "to": "quote:authored-p02_e04-1",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-18ede6ffbd63f18f",
@@ -219,40 +179,12 @@
       "type": "Topic"
     },
     {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:bf453ec4d5e6f873",
+      "id": "insight:87d008bfa722a799",
       "properties": {
         "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "You keep saying reliability isn't a feature. What do you mean?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:87d008bfa722a799",
-      "properties": {
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in\u2026",
@@ -265,11 +197,25 @@
       "properties": {
         "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was prett\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:aa0b1ec0ef608c72",
+      "properties": {
+        "episode_id": "ep-18ede6ffbd63f18f",
+        "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was prett\u2026",
+        "text": "That sounds a lot like what the investing folks say about a portfolio.",
         "tier": 2
       },
       "type": "Insight"
@@ -282,42 +228,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:7b4f2ad14e369e24",
-      "properties": {
-        "char_end": 192,
-        "char_start": 169,
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "speaker_id": "person:speaker-02",
-        "text": "Glad to be here, Ethan.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p02_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "person:ethan",
-      "properties": {
-        "name": "Ethan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:01fb10e293a5ae5d",
-      "properties": {
-        "char_end": 410,
-        "char_start": 348,
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "speaker_id": "person:speaker-01",
-        "text": "You keep saying reliability isn't a feature. What do you mean?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p02_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:df3769db5b06292b",
+      "id": "quote:821a1ce578bc0dff",
       "properties": {
         "char_end": 653,
         "char_start": 423,
@@ -331,7 +242,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7778cd4e54d62074",
+      "id": "quote:124280557b476791",
       "properties": {
         "char_end": 869,
         "char_start": 653,
@@ -345,29 +256,22 @@
       "type": "Quote"
     },
     {
-      "id": "quote:bf66e5866ad82e5f",
+      "id": "person:ethan",
       "properties": {
-        "char_end": 950,
-        "char_start": 877,
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "speaker_id": "person:speaker-01",
-        "text": "You once told me production risk is the same as portfolio risk. Say more.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p02_e04.txt"
+        "name": "Ethan"
       },
-      "type": "Quote"
+      "type": "Person"
     },
     {
-      "id": "quote:c4edef3030d48234",
+      "id": "quote:fd2e2410694d06ef",
       "properties": {
-        "char_end": 1218,
-        "char_start": 963,
+        "char_end": 1296,
+        "char_start": 1226,
         "episode_id": "ep-18ede6ffbd63f18f",
-        "speaker_id": "person:speaker-02",
-        "text": "It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
+        "speaker_id": "person:speaker-01",
+        "text": "That sounds a lot like what the investing folks say about a portfolio.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
@@ -389,13 +293,13 @@
     {
       "id": "quote:authored-p02_e04-0",
       "properties": {
-        "char_end": 72,
-        "char_start": 0,
+        "char_end": 495,
+        "char_start": 423,
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:priya-nair",
         "text": "Reliability is a property of the whole system, not of any one component.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
@@ -417,13 +321,13 @@
     {
       "id": "quote:authored-p02_e04-1",
       "properties": {
-        "char_end": 69,
-        "char_start": 0,
+        "char_end": 1218,
+        "char_start": 963,
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:priya-nair",
-        "text": "Risk management in production is naming the risk before it names you.",
-        "timestamp_end_ms": 0,
-        "timestamp_start_ms": 0,
+        "text": "It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"

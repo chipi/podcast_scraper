@@ -21,11 +21,17 @@ import { useAuthStore } from '../stores/auth'
 import { useI18n } from 'vue-i18n'
 import PlayFrom from './PlayFrom.vue'
 import { getRecap } from '../services/api'
-import type { RecapResponse, RecapRecurring, RecapWindow } from '../services/types'
+import type { RecapResponse, RecapSubject, RecapWindow } from '../services/types'
 import { trendLabel } from '../utils/recapTrend'
 import TranslatedFrom from './TranslatedFrom.vue'
+import { formatListened } from '../utils/format'
+import { kindPill } from '../utils/interests'
+import KindWord from './KindWord.vue'
+import type { UserStats } from '../services/types'
 
 const { t } = useI18n()
+/** The all-time half the window cannot say: the current streaks (operator 2026-10-12). */
+const props = defineProps<{ stats?: UserStats | null }>()
 
 // `ytd` rather than `year`: a rolling 365 days is not a thing anyone thinks about, and "your 2026
 // so far" is honest TODAY in a way a complete-year recap cannot be until the year has been lived.
@@ -97,36 +103,75 @@ watch(
   { immediate: true },
 )
 
-/** Days are the listener's own, so the bars line up with the days they remember. */
-const bars = computed(() => Object.entries(recap.value?.by_day ?? {}))
-const peak = computed(() => Math.max(1, ...bars.value.map(([, v]) => v)))
-
-const hours = computed(() => (recap.value?.listening_seconds ?? 0) / 3600)
-/** Under ten hours a single decimal carries real information; above it, it is noise. */
-const hoursLabel = computed(() =>
-  hours.value >= 10 ? String(Math.round(hours.value)) : hours.value.toFixed(1),
+/**
+ * One day chart for both kinds of listening (operator 2026-10-12): full episodes and short listens
+ * stacked, since a short listen is not in `listening_seconds` and a day of moments was a blank bar.
+ */
+const bars = computed(() =>
+  Object.entries(recap.value?.by_day ?? {}).map(([day, full]) => {
+    const moments = recap.value?.moments_by_day?.[day] ?? 0
+    return { day, full, moments, total: full + moments }
+  }),
 )
-
+const peak = computed(() => Math.max(1, ...bars.value.map((b) => b.total)))
+const listened = computed(() => formatListened(recap.value?.listening_seconds))
+const momentsTime = computed(() => formatListened(recap.value?.moments_seconds))
 /** Nothing recorded yet means nothing honest to say. */
 const hasAnything = computed(
-  () => !!recap.value && (recap.value.days_recorded > 0 || recap.value.episodes_started > 0),
+  () =>
+    !!recap.value &&
+    (recap.value.days_recorded > 0 ||
+      recap.value.episodes_started > 0 ||
+      (recap.value.moments_heard ?? 0) > 0 ||
+      (recap.value.learning_days ?? 0) > 0),
 )
 /** Only worth saying while it is actually partial. */
 const partial = computed(
   () => !!recap.value && recap.value.days_recorded < recap.value.days_in_window,
 )
-
+/** "3 shows · 2 finished" — the finishes only when there were any. */
+const episodesNote = computed(() => {
+  const r = recap.value
+  const shows = t('recap.shows', r?.distinct_shows ?? 0, { named: { count: r?.distinct_shows ?? 0 } })
+  return r?.episodes_finished
+    ? t('recap.episodesNote', { shows, finished: r.episodes_finished })
+    : t('recap.episodesShowsOnly', { shows })
+})
+/** The streaks, said once, only those that are running. */
+const streaks = computed(() => {
+  const parts: string[] = []
+  const day = props.stats?.day_streak ?? 0
+  const learn = props.stats?.learning_streak ?? 0
+  if (day) parts.push(t('stats.streakLine', day, { named: { count: day } }))
+  if (learn) parts.push(t('stats.learningStreakLine', learn, { named: { count: learn } }))
+  return parts.join(' · ')
+})
+/** What the window was about: one mixed row, so each pill names its kind. */
+const subjects = computed<RecapSubject[]>(() => recap.value?.subjects ?? [])
+function subjectTotal(s: RecapSubject): number {
+  return s.episodes + s.moments + s.learning_days
+}
+/** The pill's spoken name says what the number is made of; the pill shows the total. */
+function subjectName(s: RecapSubject): string {
+  const parts = [
+    s.episodes ? t('recap.subjectEpisodes', s.episodes, { named: { count: s.episodes } }) : '',
+    s.moments ? t('recap.subjectMoments', s.moments, { named: { count: s.moments } }) : '',
+    s.learning_days
+      ? t('recap.subjectLearning', s.learning_days, { named: { count: s.learning_days } })
+      : '',
+  ].filter(Boolean)
+  return `${t(`notes.kind_${s.kind}`)} ${s.label}: ${parts.join(', ')}`
+}
 /**
- * How a theme moved, or '' when there is nothing worth saying.
+ * How a subject moved, or '' when there is nothing worth saying.
  *
  * "New" beats "+2" for something that was absent — it is a different fact, not a bigger number.
  * A delta of zero renders nothing at all: an arrow that means "unchanged" is noise on every chip
  * that did not move, which is most of them.
  */
-function trendOf(theme: RecapRecurring): string {
-  return trendLabel(theme, t('recap.new'))
+function trendOf(subject: RecapSubject): string {
+  return trendLabel(subject, t('recap.new'))
 }
-
 /** A saved line opens its episode AT the moment it came from, not at the beginning. */
 const lineTarget = computed(() => {
   const line = recap.value?.best_line
@@ -137,8 +182,12 @@ const lineTarget = computed(() => {
 </script>
 
 <template>
-  <section v-if="!loading && hasAnything" class="mt-6">
-    <div class="mb-3 flex items-baseline justify-between">
+  <section
+    v-if="!loading && hasAnything"
+    class="rounded-2xl border border-border p-5"
+    data-testid="stats-recap"
+  >
+    <div class="mb-4 flex items-baseline justify-between gap-2">
       <h2 class="lp-section">{{ t('recap.title') }}</h2>
       <div class="flex gap-1" role="group" :aria-label="t('recap.window')">
         <button
@@ -152,67 +201,86 @@ const lineTarget = computed(() => {
         >{{ t(`recap.${w}`) }}</button>
       </div>
     </div>
-
+    <!-- Four numbers for the window, one per way of listening (operator 2026-10-12): full
+         episodes, short listens, learning days — and what was heard, with its shows and finishes
+         as the tile's second line rather than three more tiles. -->
     <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <div class="rounded-xl bg-overlay p-4">
-        <span class="font-display text-3xl font-extrabold leading-none">{{ hoursLabel }}<span class="text-lg">h</span></span>
+      <div class="rounded-xl bg-overlay p-4" data-testid="recap-listened">
+        <span class="font-display text-3xl font-extrabold leading-none">{{ listened }}</span>
         <div class="mt-2 text-xs font-medium text-muted">{{ t('recap.listened') }}</div>
       </div>
-      <div class="rounded-xl bg-overlay p-4">
+      <div class="rounded-xl bg-overlay p-4" data-testid="recap-moments">
+        <span class="font-display text-3xl font-extrabold leading-none">{{ recap!.moments_heard ?? 0 }}</span>
+        <div class="mt-2 text-xs font-medium text-muted">{{ t('recap.moments') }}</div>
+        <div v-if="recap!.moments_heard" class="lp-kicker mt-1">{{ momentsTime }}</div>
+      </div>
+      <div class="rounded-xl bg-overlay p-4" data-testid="recap-learning">
+        <span class="font-display text-3xl font-extrabold leading-none">{{ recap!.learning_days ?? 0 }}</span>
+        <div class="mt-2 text-xs font-medium text-muted">{{ t('recap.learningDays') }}</div>
+      </div>
+      <div class="rounded-xl bg-overlay p-4" data-testid="recap-episodes">
         <span class="font-display text-3xl font-extrabold leading-none">{{ recap!.distinct_episodes }}</span>
         <div class="mt-2 text-xs font-medium text-muted">{{ t('recap.episodes') }}</div>
-      </div>
-      <div class="rounded-xl bg-overlay p-4">
-        <span class="font-display text-3xl font-extrabold leading-none">{{ recap!.episodes_finished }}</span>
-        <div class="mt-2 text-xs font-medium text-muted">{{ t('recap.finished') }}</div>
-      </div>
-      <div class="rounded-xl bg-overlay p-4">
-        <span class="font-display text-3xl font-extrabold leading-none">{{ recap!.episodes_started }}</span>
-        <div class="mt-2 text-xs font-medium text-muted">{{ t('recap.starts') }}</div>
+        <div class="lp-kicker mt-1">{{ episodesNote }}</div>
       </div>
     </div>
-
-    <!-- The day series. Bars rather than a sparkline: these are discrete days, and a listener
-         reads "which day did I listen" off bars far more easily than off a line. -->
+    <!-- The day series: bars, both kinds stacked, a legend only when there were moments. -->
     <div class="mt-3 rounded-xl bg-overlay p-4">
       <div class="flex h-16 items-end gap-1" role="img" :aria-label="t('recap.byDay')">
         <div
-          v-for="[day, value] in bars"
-          :key="day"
-          class="flex-1 rounded-sm bg-muted"
-          :style="{ height: `${Math.max(2, (value / peak) * 100)}%`, opacity: value > 0 ? 1 : 0.25 }"
-          :title="`${day}: ${Math.round(value / 60)}m`"
-        />
+          v-for="b in bars"
+          :key="b.day"
+          class="flex flex-1 flex-col-reverse overflow-hidden rounded-sm"
+          :style="{ height: `${Math.max(2, (b.total / peak) * 100)}%`, opacity: b.total > 0 ? 1 : 0.25 }"
+          :title="`${b.day}: ${Math.round(b.full / 60)}m + ${Math.round(b.moments / 60)}m`"
+          data-testid="recap-day"
+        >
+          <span class="block bg-muted" :style="{ height: `${b.total ? (b.full / b.total) * 100 : 100}%` }" />
+          <span v-if="b.moments" class="block bg-accent" :style="{ height: `${(b.moments / b.total) * 100}%` }" />
+        </div>
       </div>
+      <p v-if="recap!.moments_heard" class="mt-2 flex gap-3 text-xs text-muted">
+        <span><span class="mr-1 inline-block h-2 w-2 rounded-sm bg-muted" />{{ t('recap.legendEpisodes') }}</span>
+        <span><span class="mr-1 inline-block h-2 w-2 rounded-sm bg-accent" />{{ t('recap.legendMoments') }}</span>
+      </p>
       <!-- Always visible while partial: the number above is real, and this says how much of the
            window produced it. -->
       <p v-if="partial" class="mt-2 text-xs text-muted">
         {{ t('recap.coverage', { recorded: recap!.days_recorded, total: recap!.days_in_window }) }}
       </p>
     </div>
-
-    <div v-if="recap!.topics.length || recap!.people.length" class="mt-3">
-      <h3 class="lp-kicker mb-2">{{ t('recap.recurring') }}</h3>
+    <p v-if="streaks" class="mt-3 text-sm" data-testid="recap-streaks">{{ streaks }}</p>
+    <p v-if="recap!.moment_episodes" class="mt-1 text-sm text-muted" data-testid="recap-moment-to-full">
+      {{ t('recap.momentToFull', { n: recap!.moment_to_full ?? 0, total: recap!.moment_episodes }) }}
+    </p>
+    <div v-if="subjects.length" class="mt-4">
+      <h3 class="lp-kicker mb-1">{{ t('recap.about') }}</h3>
       <p class="mb-2 text-xs text-muted">{{ t('recap.vsPrevious') }}</p>
-      <div class="flex flex-wrap gap-2">
-        <!-- Each chip carries how it MOVED, not just how big it is. A list that reads the same
-             every week is a list nobody looks at twice; "systems thinking, up two" is the whole
-             reason the exposure log exists. -->
-        <span
-          v-for="theme in [...recap!.topics, ...recap!.people]"
-          :key="theme.token"
-          class="rounded-full bg-overlay px-3 py-1 text-sm"
-        >{{ theme.label }}<span class="ml-1 text-xs text-muted">{{ theme.episodes }}</span
+      <!-- One row of everything the window was about — the topics and people of the episodes, the
+           subjects of the short listens and of the learning days (operator 2026-10-12). Mixed
+           kinds, so each pill names its kind; the number is the window's total for it, and its
+           spoken name says what that total is made of. -->
+      <ul class="flex flex-wrap gap-2">
+        <li
+          v-for="subject in subjects"
+          :key="`${subject.kind}:${subject.id}`"
+          class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+          :class="kindPill(subject.kind)"
+          :aria-label="subjectName(subject)"
+          data-testid="recap-subject"
+        >
+          <KindWord :kind="subject.kind" />{{ subject.label
+          }}<span class="ml-1.5 font-normal opacity-70">{{ subjectTotal(subject) }}</span
           ><span
-            v-if="trendOf(theme)"
-            class="ml-1.5 text-xs font-medium"
-            :class="theme.delta > 0 ? 'text-canvas-foreground' : 'text-muted'"
-          >{{ trendOf(theme) }}</span></span>
-      </div>
+            v-if="trendOf(subject)"
+            class="ml-1.5 font-medium"
+            :class="subject.delta > 0 ? 'text-canvas-foreground' : 'text-muted'"
+          >{{ trendOf(subject) }}</span>
+        </li>
+      </ul>
     </div>
-
     <!-- The one part of this that is an artifact rather than a statistic. -->
-    <figure v-if="recap!.best_line" class="mt-3 rounded-xl bg-overlay p-4">
+    <figure v-if="recap!.best_line" class="mt-4 rounded-xl bg-overlay p-4">
       <h3 class="lp-kicker mb-2">{{ t('recap.line') }}</h3>
       <blockquote class="text-sm italic">“{{ recap!.best_line.quote_text }}”</blockquote>
       <TranslatedFrom :lang="recap!.best_line.translated_from" />

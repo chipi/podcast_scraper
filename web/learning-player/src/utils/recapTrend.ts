@@ -1,4 +1,3 @@
-import type { RecapRecurring } from '../services/types'
 
 /**
  * How a recurring topic or person moved against the previous window of the same length.
@@ -12,7 +11,7 @@ import type { RecapRecurring } from '../services/types'
  *
  * `newLabel` is passed in rather than translated here so this stays a pure function.
  */
-export function trendLabel(item: RecapRecurring, newLabel: string): string {
+export function trendLabel(item: { delta: number; is_new: boolean }, newLabel: string): string {
   if (item.is_new) return newLabel
   if (item.delta > 0) return `↑${item.delta}`
   if (item.delta < 0) return `↓${Math.abs(item.delta)}`

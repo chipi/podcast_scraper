@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
+from typing import Any
 
 from podcast_scraper import perf_cache
 
@@ -62,8 +63,25 @@ def _warm_corpus_digest(root: Path) -> None:
     )
 
 
-def warm_caches(root: Path) -> None:
-    """Populate the consumer read caches for ``root`` (catalog, slug index, KG index).
+def _warm_reel_clips(root: Path, moments_config: Any = None) -> None:
+    """Score every episode's reel clips into their per-episode cache (``app_goal_reel``), so no
+    "15 minutes on" chip, reel or Learn offer scores episodes on a reader's request. ~5 ms an
+    episode on real transcripts, once per process; after an ingest only changed episodes miss."""
+    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.app_goal_reel import episode_clips
+    from podcast_scraper.server.app_moments import MomentsConfig
+
+    # The APP's config when the app passes it (review N8, 2026-10-11): the clip cache key
+    # includes ``repr(cfg)``, so a warmer building its own from the environment would fill
+    # entries the request path never reads once the two differ. ``from_env`` only with no app.
+    cfg = moments_config if moments_config is not None else MomentsConfig.from_env()
+    for row in cached_catalog(root):
+        if row.has_gi:
+            episode_clips(root, row, cfg)
+
+
+def warm_caches(root: Path, *, moments_config: Any = None) -> None:
+    """Populate the consumer read caches for ``root`` (catalog, slug index, KG index, reel clips).
 
     Best-effort: each step is independently guarded so one failure (e.g. a missing artifact) does
     not skip the rest. Imports are local so a warm never drags card/relational modules into a
@@ -91,6 +109,9 @@ def warm_caches(root: Path) -> None:
         # surfaces need it. Warming it here is what keeps that cost off a reader's request.
         ("entity_id_map", lambda: _warm_entity_id_map(root)),
         ("kg_index", lambda: get_kg_index(root)),
+        # LAST: the longest walk (a minute or two at 10,000 episodes) and the least urgent; the
+        # reel routes fill the same cache themselves if a reader gets there first.
+        ("reel_clips", lambda: _warm_reel_clips(root, moments_config)),
     )
     for label, fn in steps:
         try:
@@ -99,21 +120,25 @@ def warm_caches(root: Path) -> None:
             logger.debug("cache warm %s skipped: %s", label, exc)
 
 
-def _warm_loop(root: Path, interval_s: float, stop: threading.Event) -> None:
+def _warm_loop(
+    root: Path, interval_s: float, stop: threading.Event, moments_config: Any = None
+) -> None:
     """Warm once, then re-warm whenever the corpus mtime changes, until ``stop`` is set."""
     last_token: float | None = None
     while not stop.is_set():
         try:
             token = perf_cache.corpus_mtime(root)
             if token != last_token:
-                warm_caches(root)
+                warm_caches(root, moments_config=moments_config)
                 last_token = token
         except Exception as exc:  # noqa: BLE001 - the loop must never die on a transient error
             logger.debug("cache warm loop error: %s", exc)
         stop.wait(interval_s)
 
 
-def start_cache_warmer(root: Path, *, interval_s: float = _DEFAULT_INTERVAL_S) -> threading.Event:
+def start_cache_warmer(
+    root: Path, *, interval_s: float = _DEFAULT_INTERVAL_S, moments_config: Any = None
+) -> threading.Event:
     """Start the daemon warmer (warm-once + re-warm-on-ingest); return a stop ``Event``.
 
     Never blocks and never raises — a warmer that cannot start just means lazy cache fills, the
@@ -121,7 +146,10 @@ def start_cache_warmer(root: Path, *, interval_s: float = _DEFAULT_INTERVAL_S) -
     """
     stop = threading.Event()
     threading.Thread(
-        target=_warm_loop, args=(root, interval_s, stop), name="cache-warmer", daemon=True
+        target=_warm_loop,
+        args=(root, interval_s, stop, moments_config),
+        name="cache-warmer",
+        daemon=True,
     ).start()
     logger.info("cache warmer started (interval %.0fs)", interval_s)
     return stop

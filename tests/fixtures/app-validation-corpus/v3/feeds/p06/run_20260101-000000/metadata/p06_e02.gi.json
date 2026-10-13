@@ -1,8 +1,33 @@
 {
   "edges": [
     {
+      "from": "insight:79ee2ada770ac7cd",
+      "to": "topic:dialogue",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d7e148c6bf91c0c2",
+      "to": "topic:dialogue",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-f4b940a095192621",
-      "to": "topic:long-form",
+      "to": "insight:79ee2ada770ac7cd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "insight:cf6d1b2c52767a5c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "insight:d7e148c6bf91c0c2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:cultural-drift",
       "type": "MENTIONS"
     },
     {
@@ -12,118 +37,53 @@
     },
     {
       "from": "episode:ep-f4b940a095192621",
-      "to": "topic:cultural-drift",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-f4b940a095192621",
       "to": "topic:long-form",
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-f4b940a095192621",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-f4b940a095192621",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-f4b940a095192621",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-f4b940a095192621",
-      "to": "insight:18426252a4a72016",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-f4b940a095192621",
-      "to": "insight:44763f042472c001",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-f4b940a095192621",
-      "to": "insight:ceb14ee5e9abd1c1",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:f8c320c626b7f5e8",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:18426252a4a72016",
-      "to": "quote:f8c320c626b7f5e8",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c2be10199d34c9cd",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:44763f042472c001",
-      "to": "quote:c2be10199d34c9cd",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f0ede1063b683995",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ceb14ee5e9abd1c1",
-      "to": "quote:f0ede1063b683995",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:6edec9b206d91e9c",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:18426252a4a72016",
-      "to": "quote:6edec9b206d91e9c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2d968ff14ae7defb",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:44763f042472c001",
-      "to": "quote:2d968ff14ae7defb",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:acd2110fffc3134e",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ceb14ee5e9abd1c1",
-      "to": "quote:acd2110fffc3134e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:18426252a4a72016",
+      "from": "insight:79ee2ada770ac7cd",
       "to": "person:cam",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:44763f042472c001",
+      "from": "insight:cf6d1b2c52767a5c",
       "to": "person:jordan-park",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:ceb14ee5e9abd1c1",
+      "from": "insight:d7e148c6bf91c0c2",
       "to": "person:cam",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:2c0e6b5d6efaf40a",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:340c569cc67cbfc1",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:bea30c9cdd5b3b8d",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:79ee2ada770ac7cd",
+      "to": "quote:2c0e6b5d6efaf40a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:cf6d1b2c52767a5c",
+      "to": "quote:340c569cc67cbfc1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:d7e148c6bf91c0c2",
+      "to": "quote:bea30c9cdd5b3b8d",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-f4b940a095192621",
@@ -162,35 +122,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:long-form",
-      "properties": {
-        "label": "long-form"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:18426252a4a72016",
+      "id": "insight:79ee2ada770ac7cd",
       "properties": {
         "episode_id": "ep-f4b940a095192621",
         "grounded": true,
@@ -198,13 +130,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?",
+        "text": "It comes down to this: Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:44763f042472c001",
+      "id": "insight:cf6d1b2c52767a5c",
       "properties": {
         "episode_id": "ep-f4b940a095192621",
         "grounded": false,
@@ -212,13 +144,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
+        "text": "Right, right. I think about that all the time, honestly.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:ceb14ee5e9abd1c1",
+      "id": "insight:d7e148c6bf91c0c2",
       "properties": {
         "episode_id": "ep-f4b940a095192621",
         "grounded": true,
@@ -226,31 +158,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?",
+        "text": "Honestly, Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:cam",
-      "properties": {
-        "name": "Cam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:f8c320c626b7f5e8",
-      "properties": {
-        "char_end": 477,
-        "char_start": 363,
-        "episode_id": "ep-f4b940a095192621",
-        "speaker_id": "person:speaker-01",
-        "text": "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p06_e02.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:jordan-park",
@@ -260,35 +171,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:c2be10199d34c9cd",
-      "properties": {
-        "char_end": 691,
-        "char_start": 491,
-        "episode_id": "ep-f4b940a095192621",
-        "speaker_id": "person:speaker-02",
-        "text": "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p06_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f0ede1063b683995",
-      "properties": {
-        "char_end": 799,
-        "char_start": 697,
-        "episode_id": "ep-f4b940a095192621",
-        "speaker_id": "person:speaker-01",
-        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p06_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:6edec9b206d91e9c",
+      "id": "quote:2c0e6b5d6efaf40a",
       "properties": {
         "char_end": 948,
         "char_start": 813,
@@ -302,29 +185,36 @@
       "type": "Quote"
     },
     {
-      "id": "quote:2d968ff14ae7defb",
+      "id": "person:cam",
       "properties": {
-        "char_end": 1266,
-        "char_start": 1186,
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:340c569cc67cbfc1",
+      "properties": {
+        "char_end": 1810,
+        "char_start": 1754,
         "episode_id": "ep-f4b940a095192621",
         "speaker_id": "person:speaker-01",
-        "text": "What does the failure mode look like? Where do dialogue and long form intersect?",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
+        "text": "Right, right. I think about that all the time, honestly.",
+        "timestamp_end_ms": 90000,
+        "timestamp_start_ms": 84000,
         "transcript_ref": "transcripts/p06_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:acd2110fffc3134e",
+      "id": "quote:bea30c9cdd5b3b8d",
       "properties": {
-        "char_end": 1498,
-        "char_start": 1280,
+        "char_end": 3724,
+        "char_start": 3602,
         "episode_id": "ep-f4b940a095192621",
         "speaker_id": "person:speaker-02",
-        "text": "Let me give you the version I actually believe. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Patreon. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
+        "text": "Honestly, Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 240000,
+        "timestamp_start_ms": 234000,
         "transcript_ref": "transcripts/p06_e02.txt"
       },
       "type": "Quote"

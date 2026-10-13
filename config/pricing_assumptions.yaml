@@ -330,6 +330,18 @@ providers:
       default:
         input_cost_per_1m_tokens: 0.0
         output_cost_per_1m_tokens: 0.0
+  # Local seq2seq summarization (BART/LED, in-process): no API, $0/token, as ollama.
+  transformers:
+    text:
+      default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+  # SummLlama runs in-process on the local machine (transformers): no API, $0/token, as ollama.
+  summllama:
+    text:
+      default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
   # DGX-local vLLM (OpenAI-compat path). Real HF model ids on the wire (ADR-147), not a served-name
   # alias; cost is electricity-only — $0/token at the API layer. `default` covers every local id;
   # real cost is tracked via DGX power monitoring (#923 / #943).

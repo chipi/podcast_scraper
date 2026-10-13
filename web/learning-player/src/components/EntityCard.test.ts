@@ -72,6 +72,8 @@ function personCard(over: Partial<PersonCard> = {}): PersonCard {
   }
 }
 
+const NO_THEME: Partial<TopicCard> = { cluster_id: null, cluster_label: null, cluster_size: 0 }
+
 function topicCard(over: Partial<TopicCard> = {}): TopicCard {
   return {
     id: "topic:ai",
@@ -134,8 +136,9 @@ describe("EntityCard", () => {
 
   it("renders a topic card: similar topics + episode-about count", async () => {
     // The topic-first restructure dropped the "Similar · <cluster>" caption line under the title;
-    // the semantic siblings still render as the "N similar topics" chip section.
-    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    // the semantic siblings still render as the "N similar topics" chip section — when there is no
+    // theme: beside a theme link they are its members again (operator 2026-10-12).
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard(NO_THEME))
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
     // ONE sibling, so the count is 1 and the copy is singular. It used to say 2, because the
@@ -149,7 +152,7 @@ describe("EntityCard", () => {
   it("the similar-topics list excludes the topic you are already reading", async () => {
     // The heading says "N similar topics"; a topic is not similar to itself, and listing it first
     // made the count disagree with what a reader could see (operator 2026-09-19).
-    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard(NO_THEME))
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
 
@@ -166,7 +169,7 @@ describe("EntityCard", () => {
     expect(section.findAll('[data-testid="ec-similar-topic"]')).toHaveLength(1)
   })
 
-  it("the library search lives inside the card (button → search route, then closes)", async () => {
+  it("the library search lives inside the card (button → search route; the navigation closes it)", async () => {
     vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
     const push = vi.spyOn(router, "push")
     const w = mountCard({ kind: "person", id: "person:jane-doe" })
@@ -176,7 +179,9 @@ describe("EntityCard", () => {
       .find((b) => b.text().includes("Search transcripts"))!
       .trigger("click")
     expect(push).toHaveBeenCalledWith({ name: "search", query: { q: "Jane Doe" } })
-    expect(w.emitted("close")).toBeTruthy()
+    // No close of its own: that is the ✕ path, whose `router.back()` undid this push and left the
+    // listener where the card was opened (card-links-leave.spec.ts). The route change closes it.
+    expect(w.emitted("close")).toBeFalsy()
   })
 
   it("the overlay sheet DISMISSES at its root — an ✕, not a back arrow", async () => {
@@ -216,7 +221,7 @@ describe("EntityCard", () => {
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:ai", undefined, { limit: 5 })
-    expect(w.text()).toContain("1 similar topic") // topic view now shown
+    expect(w.text()).toContain("Discussed in 3 episodes") // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger("click")
     await flushPromises()

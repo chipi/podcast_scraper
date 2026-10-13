@@ -1,13 +1,38 @@
 {
   "edges": [
     {
-      "from": "episode:ep-2cd5c6d11325a312",
-      "to": "topic:macroeconomics",
-      "type": "MENTIONS"
+      "from": "insight:7a8b2bd11d3e7b9c",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:a4d557ec1ddf9ecb",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:e7ac419ad5a412ef",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-2cd5c6d11325a312",
-      "to": "topic:systems-thinking",
+      "to": "insight:7a8b2bd11d3e7b9c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:a4d557ec1ddf9ecb",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:e7ac419ad5a412ef",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:macroeconomics",
       "type": "MENTIONS"
     },
     {
@@ -17,108 +42,53 @@
     },
     {
       "from": "episode:ep-2cd5c6d11325a312",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2cd5c6d11325a312",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-2cd5c6d11325a312",
-      "to": "insight:cecf25e240f24083",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:cecf25e240f24083",
       "to": "topic:systems-thinking",
-      "type": "ABOUT"
+      "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-2cd5c6d11325a312",
-      "to": "insight:58433146870b98cc",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-2cd5c6d11325a312",
-      "to": "insight:b6f11de57c1d0f81",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:4fab73e6c51ac44f",
-      "to": "person:alex-morgan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cecf25e240f24083",
-      "to": "quote:4fab73e6c51ac44f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:4f77429092a71481",
-      "to": "person:alex-morgan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:58433146870b98cc",
-      "to": "quote:4f77429092a71481",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7331a0d378caeb9b",
-      "to": "person:alex-morgan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b6f11de57c1d0f81",
-      "to": "quote:7331a0d378caeb9b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:ddba59ab61ebc642",
-      "to": "person:alex-morgan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cecf25e240f24083",
-      "to": "quote:ddba59ab61ebc642",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a13825c308f17ed5",
-      "to": "person:skanda-amarnath",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:58433146870b98cc",
-      "to": "quote:a13825c308f17ed5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8bd4ec7e426dc602",
-      "to": "person:skanda-amarnath",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b6f11de57c1d0f81",
-      "to": "quote:8bd4ec7e426dc602",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:cecf25e240f24083",
-      "to": "person:alex-morgan",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:58433146870b98cc",
+      "from": "insight:7a8b2bd11d3e7b9c",
       "to": "person:skanda-amarnath",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:b6f11de57c1d0f81",
-      "to": "person:alex-morgan",
+      "from": "insight:a4d557ec1ddf9ecb",
+      "to": "person:skanda-amarnath",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:e7ac419ad5a412ef",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:1bb5bfcd6f21b027",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:a7ce070362f1ef6c",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:f78a40de9d85911f",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7a8b2bd11d3e7b9c",
+      "to": "quote:1bb5bfcd6f21b027",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:a4d557ec1ddf9ecb",
+      "to": "quote:f78a40de9d85911f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:e7ac419ad5a412ef",
+      "to": "quote:a7ce070362f1ef6c",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-2cd5c6d11325a312",
@@ -157,21 +127,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:cecf25e240f24083",
+      "id": "insight:a4d557ec1ddf9ecb",
       "properties": {
         "episode_id": "ep-2cd5c6d11325a312",
         "grounded": true,
@@ -179,13 +135,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking.",
+        "text": "Honestly, Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:58433146870b98cc",
+      "id": "insight:e7ac419ad5a412ef",
       "properties": {
         "episode_id": "ep-2cd5c6d11325a312",
         "grounded": true,
@@ -193,13 +149,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. I've watched this pattern hold across three\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:b6f11de57c1d0f81",
+      "id": "insight:7a8b2bd11d3e7b9c",
       "properties": {
         "episode_id": "ep-2cd5c6d11325a312",
         "grounded": true,
@@ -207,73 +163,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to flag something \u2014 Dr. Eliana Fishler mentioned this same dynamic a couple episodes back.",
+        "text": "It comes down to this: Systems thinking in macro means watching feedback loops, not point estimates. If you ignore that, you end up rebuilding it from scratch a year later.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:alex-morgan",
-      "properties": {
-        "name": "Alex Morgan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:4fab73e6c51ac44f",
-      "properties": {
-        "char_end": 484,
-        "char_start": 395,
-        "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:speaker-01",
-        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:4f77429092a71481",
-      "properties": {
-        "char_end": 667,
-        "char_start": 572,
-        "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:7331a0d378caeb9b",
-      "properties": {
-        "char_end": 764,
-        "char_start": 667,
-        "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to flag something \u2014 Dr. Eliana Fishler mentioned this same dynamic a couple episodes back.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:ddba59ab61ebc642",
-      "properties": {
-        "char_end": 847,
-        "char_start": 764,
-        "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:speaker-01",
-        "text": "Let's start there. What's the structural angle most listeners don't have access to?",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:skanda-amarnath",
@@ -283,21 +176,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:a13825c308f17ed5",
-      "properties": {
-        "char_end": 1033,
-        "char_start": 863,
-        "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:speaker-02",
-        "text": "Honestly, Employment data is noisier than headlines suggest. We've seen this play out at teams using IEA. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:8bd4ec7e426dc602",
+      "id": "quote:f78a40de9d85911f",
       "properties": {
         "char_end": 1296,
         "char_start": 1148,
@@ -306,6 +185,34 @@
         "text": "Honestly, Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams.",
         "timestamp_end_ms": 66000,
         "timestamp_start_ms": 60000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a7ce070362f1ef6c",
+      "properties": {
+        "char_end": 1646,
+        "char_start": 1433,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1bb5bfcd6f21b027",
+      "properties": {
+        "char_end": 2690,
+        "char_start": 2518,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Systems thinking in macro means watching feedback loops, not point estimates. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 132000,
+        "timestamp_start_ms": 126000,
         "transcript_ref": "transcripts/p07_e02.txt"
       },
       "type": "Quote"

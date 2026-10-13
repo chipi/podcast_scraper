@@ -45,7 +45,7 @@ const ariaLabel = computed(() =>
 
 const route = useRoute()
 const active = computed(() =>
-  props.owns ? ownsRoute(props.owns, route.name as string | undefined) : false,
+  props.owns ? ownsRoute(props.owns, route.name as string | undefined, route.params) : false,
 )
 </script>
 

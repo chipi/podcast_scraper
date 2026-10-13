@@ -51,16 +51,17 @@ test('topic, person and storyline pages inset their content by the same gutter',
  * pill (Themes) collided with the sort switch. Since Trends left Home (2026-10-07) the reference is
  * the search section beside it on the same page.
  */
-test('Trends sits at the same inset and width as the search on Discover', async ({ page }, testInfo) => {
+test("Explore's search and Trends sit at the same inset and width", async ({ page }, testInfo) => {
+  // Both on Explore (2026-10-11), both in the same left half-column, so they line up.
   await signInIsolated(page, 'trends-gutter', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
+  const search = page.getByTestId('browse-search-section')
+  await expect(search).toBeVisible()
+  const s = (await search.boundingBox())!
   await showEveryonesTrends(page)
   const trends = page.getByTestId('discovery-explorer')
-  const search = page.getByTestId('browse-search-section')
   await expect(trends).toBeVisible()
-  await expect(search).toBeVisible()
   const t = (await trends.boundingBox())!
-  const s = (await search.boundingBox())!
   expect(Math.round(t.x)).toBe(Math.round(s.x))
   expect(Math.round(t.width)).toBe(Math.round(s.width))
 })
@@ -76,7 +77,7 @@ for (const width of [360, 375]) {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'a phone-width layout')
     await page.setViewportSize({ width, height: 800 })
     await signInIsolated(page, `trends-${width}`, testInfo)
-    for (const url of ['/browse']) {
+    for (const url of ['/explore']) {
       await page.goto(url)
       await expect(page.getByTestId('discovery-tab-person')).toBeVisible()
       // One read of every box, so nothing reflows between them. A pill past the sort switch is
@@ -175,7 +176,7 @@ for (const viewport of [
       }
     }
     const topic = `/topic/${encodeURIComponent('topic:risk-management')}`
-    await pair(topic, 'topic-view', 'ec-similar-topics', 'ec-top-voices')
+    await pair(topic, 'topic-view', 'ec-theme', 'ec-top-voices')
     // The storyline link stacks under the theme link at every width (both in the left column).
     await page.goto(topic)
     const tv = page.getByTestId('topic-view')
@@ -187,7 +188,7 @@ for (const viewport of [
       return [{ y: a.y, height: a.height }, { y: b.y }]
     })
     expect(sl.y, 'storyline under theme').toBeGreaterThanOrEqual(th.y + th.height)
-    await pair(`/theme/${encodeURIComponent('tc:safety-practices')}`, 'theme-view', 'theme-topics', 'ec-top-voices')
+    await pair(`/theme/${encodeURIComponent('tc:risk-management')}`, 'theme-view', 'theme-topics', 'ec-top-voices')
     await pair(`/storyline/${encodeURIComponent('topic:risk-management')}`, 'storyline-view', 'storyline-topics', 'ec-top-voices')
   })
 }
@@ -203,6 +204,7 @@ test('every full-width page starts at the shell edge on desktop', async ({ page 
   for (const url of [
     '/',
     '/browse',
+    '/explore',
     '/catalog',
     '/search?q=reliability',
     '/queue',
@@ -210,7 +212,7 @@ test('every full-width page starts at the shell edge on desktop', async ({ page 
     '/podcast/p05',
     `/topic/${encodeURIComponent('topic:risk-management')}`,
     `/person/${encodeURIComponent('person:nora')}`,
-    `/theme/${encodeURIComponent('tc:safety-practices')}`,
+    `/theme/${encodeURIComponent('tc:risk-management')}`,
     `/storyline/${encodeURIComponent('topic:risk-management')}`,
   ]) {
     await page.goto(url)

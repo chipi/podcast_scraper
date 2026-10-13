@@ -21,7 +21,9 @@ test('UXS-013 §3.4: a search that names a topic shows its card above the passag
 }) => {
   await page.goto('/search?q=risk%20management&scope=all')
   await expect(page.getByTestId('search-section-topics')).toBeVisible({ timeout: 30_000 })
-  const card = page.getByRole('button', { name: /^Open risk management/i })
+  // The topic is a pill in the Topics list at the top (2026-10-11); a broad word reaches several
+  // ("risk management", "risk management practices"…), so the one named exactly.
+  const card = page.getByTestId('search-topic-result').filter({ hasText: /^risk management$/ })
   await expect(card).toBeVisible()
   // ABOVE the passages: the entity is what the reader named; passages are evidence for it.
   const episodes = page.getByTestId('search-section-episodes')
@@ -39,10 +41,10 @@ test('UXS-013 §3.4: a search that names a topic shows its card above the passag
 test('UXS-012 §Theme: the theme page names its members, lists episodes newest first, and follows', async ({
   page,
 }) => {
-  await page.goto('/theme/tc:broadcast-format')
+  await page.goto('/theme/tc:public-radio')
   const view = page.getByTestId('theme-view')
   await expect(view).toBeVisible()
-  await expect(view).toContainText('broadcast format')
+  await expect(view).toContainText('public radio')
   // The member topics, each with its episode count.
   await expect(view.getByTestId('member-episodes').first()).toBeVisible()
   await expect(view.getByTestId('episodes-order')).toHaveText(/newest first/i)
@@ -122,11 +124,11 @@ test('UXS-014 §CollapsibleSection: a section you close in the Brief stays close
   await page.getByTestId('knowledge-panel').getByTestId('kp-section-toggle-key-points').click()
 })
 
-test('UXS-012: "Browse all →" under What\'s new opens the Browse hub on Episodes', async ({ page }) => {
+test('UXS-012: "Browse all →" under What\'s new opens the full episode list', async ({ page }) => {
   await page.goto('/')
   const section = page.getByRole('heading', { name: "What's new" }).locator('xpath=ancestor::section[1]')
   await section.getByRole('link', { name: /Browse all/ }).click()
-  await expect(page).toHaveURL(/\/browse\?tab=episodes/)
+  await expect(page).toHaveURL(/\/catalog/)
 })
 
 test('UXS-012 §Section state: a failed What\'s new says so and Retry recovers it', async ({ page }) => {

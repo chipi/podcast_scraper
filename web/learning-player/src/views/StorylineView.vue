@@ -32,6 +32,8 @@ import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
+import LearnDoor from "../components/LearnDoor.vue"
+import ReelDoor from "../components/ReelDoor.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
 
@@ -184,7 +186,7 @@ function goBack(): void {
     <button
       v-if="!embedded"
       type="button"
-      class="lp-nav"
+      class="lp-nav flex w-fit"
       :aria-label="t('nav.back')"
       @click="goBack"
     >
@@ -210,20 +212,14 @@ function goBack(): void {
           <CloseIcon />
         </button>
       </div>
-      <h1
-        class="mt-2 font-display font-extrabold tracking-tight line-clamp-2"
-        :class="embedded ? 'text-xl' : 'text-2xl'"
-      >
+      <!-- ONE title style for every subject, page or sheet (operator 2026-10-11). -->
+      <h1 class="lp-subject-title">
         {{ label || "…" }}
       </h1>
-      <!-- Actions on their OWN aligned row, AFTER the title (operator). -->
+      <!-- Actions on their OWN row, AFTER the title, in the topic and theme pages' order: Follow
+           first, then save, board, share (operator 2026-10-11: the three tops are identical). Save
+           (heart) is a per-kind favorite, distinct from Follow, which subscribes to the cluster. -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
-             other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
-        <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
-        <!-- Share (card / link / text) — #2036. -->
-        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
-        <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"
           variant="storyline"
@@ -231,6 +227,15 @@ function goBack(): void {
           :label="label || undefined"
           @toggle="toggleFollow"
         />
+        <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
+        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
+        <!-- Share (card / link / text) — #2036. -->
+        <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
+      </div>
+      <!-- The listen row, always its own row: fifteen minutes of clips now, or seven days of it. -->
+      <div v-if="storylineId" class="mt-3 flex flex-wrap items-center gap-2 empty:hidden" data-testid="subject-listen-row">
+        <ReelDoor :subject-id="storylineId" :label="label || storylineId" />
+        <LearnDoor v-if="auth.isAuthenticated" :subject-id="storylineId" />
       </div>
     </div>
 

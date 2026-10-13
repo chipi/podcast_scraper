@@ -10,6 +10,7 @@
  * Add and remove are item-level and idempotent now, so an offline tap is queued in the outbox and
  * replayed; only REORDERING still needs a live list.
  */
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQueueStore } from '../stores/queue'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -26,8 +27,10 @@ const props = withDefaults(
      * outright would take away the only way to queue something you just heard.
      */
     variant?: 'icon' | 'menuitem'
+    /** What this control acts on, for its accessible name on a list ("…: <episode title>"). */
+    subject?: string
   }>(),
-  { variant: 'icon' },
+  { variant: 'icon', subject: undefined },
 )
 const { t } = useI18n()
 const queue = useQueueStore()
@@ -37,6 +40,9 @@ const onClick = gated(async () => {
   // The action reports whether the write survived (#1906); the gate's handler type is void.
   await queue.toggle(props.slug)
 })
+const queueLabel = computed(() =>
+  isGated.value ? t('auth.signInToQueue') : queue.has(props.slug) ? t('queue.remove') : t('queue.add')
+)
 </script>
 
 <template>
@@ -57,7 +63,7 @@ const onClick = gated(async () => {
     :data-menuitem="props.variant === 'menuitem' ? '' : undefined"
     :role="props.variant === 'menuitem' ? 'menuitem' : undefined"
     :aria-pressed="isGated || props.variant === 'menuitem' ? undefined : queue.has(slug)"
-    :aria-label="isGated ? t('auth.signInToQueue') : queue.has(slug) ? t('queue.remove') : t('queue.add')"
+    :aria-label="props.subject ? t('common.forItem', { action: queueLabel, subject: props.subject }) : queueLabel"
     :title="props.variant === 'menuitem' ? undefined : isGated ? t('auth.signInToQueue') : queue.has(slug) ? t('queue.remove') : t('queue.add')"
     @click.stop.prevent="onClick"
   >
@@ -80,8 +86,8 @@ const onClick = gated(async () => {
          button with NO usable name — which is why a device test could not find "Add to queue" on a
          page that plainly showed it, and reported the control as absent on Android. It was there;
          it had no name to be found by. A screen reader had the same problem, silently. -->
-    <span v-else class="sr-only">{{
-      isGated ? t('auth.signInToQueue') : queue.has(slug) ? t('queue.remove') : t('queue.add')
-    }}</span>
+    <!-- The short word only: the episode's name is in aria-label. Putting the title in page text
+         too made every "click the episode by its title" land on this hidden label instead. -->
+    <span v-else class="sr-only">{{ queueLabel }}</span>
   </button>
 </template>

@@ -7,8 +7,8 @@ import { expectSignedIn } from '../helpers'
  *
  * The consumer app's "My corpus" toggle re-runs search against the
  * heard∪captured set (PRD-041 §Recall). This walk drives:
- *   1. Perform a search with scope=all — confirm the everything path works
- *   2. Toggle to scope=mine — confirm the honest-zero-coverage state
+ *   1. Perform a search — signed in it opens on Mine, the shared default
+ *   2. Toggle to everything and back to Mine — the URL keeps the scope
  *   3. Screenshots both.
  */
 
@@ -48,14 +48,21 @@ test('operator recall: scope=all vs scope=mine on real search', async ({ page })
   // scope CONTROL is independent of the index, and that is what is asserted.
   // The radio pair was collapsed to ONE compact toggle button (aria-pressed) in the player review
   // — same reason it was a radiogroup: it re-queries the single results region rather than switching
-  // panels. Default is "all" (not pressed); one tap flips it to "mine".
+  // panels. Signed in, results open in the ONE shared Mine ⇄ Everyone choice (2026-10-09), and Mine
+  // is a signed-in listener's default (operator 2026-10-07): pressed. One tap is everything, the
+  // next is Mine again.
   const scopeToggle = page.getByTestId('search-scope')
   await expect(scopeToggle).toBeVisible()
-  await expect(scopeToggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(scopeToggle).toHaveAttribute('aria-pressed', 'true')
 
   await scopeToggle.click()
   await page.waitForLoadState('networkidle')
-  // Pressed AND the scope is reflected in the URL, so a shared/reloaded link keeps it.
+  // The scope is reflected in the URL, so a shared/reloaded link keeps it.
+  await expect(scopeToggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(page).toHaveURL(/scope=all/)
+
+  await scopeToggle.click()
+  await page.waitForLoadState('networkidle')
   await expect(scopeToggle).toHaveAttribute('aria-pressed', 'true')
   await expect(page).toHaveURL(/scope=mine/)
   await page.screenshot({

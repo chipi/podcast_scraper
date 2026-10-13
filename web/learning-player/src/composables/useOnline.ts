@@ -49,6 +49,14 @@ const forced = ref(readForced())
 const serverDown = ref(false)
 let consecutiveFailures = 0
 const FAILURES_BEFORE_DEGRADED = 2
+/**
+ * The routes that failed since the last success, and how. Only consulted once `serverDown` is set:
+ * it says which success proves the server is back.
+ */
+const failedRoutes = new Map<string, ServerFailure>()
+
+/** `refused`: the server answered 503. `unreachable`: no answer at all (refused, DNS, timeout). */
+export type ServerFailure = 'refused' | 'unreachable'
 
 function readForced(): boolean {
   try {
@@ -83,16 +91,36 @@ const isOnlineRef = computed(() => offlineReasonRef.value === null)
 /**
  * Report the outcome of a real request so connectivity reflects the SERVER, not just the radio.
  *
- * `ok === true` clears the degraded state immediately — that is the whole recovery path, and it is
- * why reads must never be gated on `server` (a gated read could never succeed, so the app could
- * never discover the server had come back).
+ * A success is the whole recovery path, which is why reads must never be gated on `server` (a gated
+ * read could never succeed, so the app could never discover the server had come back).
+ *
+ * But not every success proves recovery. A server that has lost its signing secret still serves the
+ * few routes that need no session — `/corpus/trending-topics` behind Home's search box answers 200
+ * while every other read answers 503 — and when that 200 landed after the 503s it cleared the
+ * banner the 503s had raised (2026-10-12, Android degraded-server drill). So once degraded, a
+ * success clears it only when it is a route that had failed, or when the failures were
+ * `unreachable`: then ANY answer proves the server can be reached. `route` is optional so a caller
+ * that reports a bare outcome keeps the old rule.
  */
-export function reportServerReachable(ok: boolean): void {
+export function reportServerReachable(
+  ok: boolean,
+  route?: string,
+  failure: ServerFailure = 'unreachable'
+): void {
   if (ok) {
     consecutiveFailures = 0
+    if (serverDown.value && route !== undefined) {
+      const recovered =
+        failedRoutes.size === 0 ||
+        failedRoutes.has(route) ||
+        [...failedRoutes.values()].includes('unreachable')
+      if (!recovered) return
+    }
+    failedRoutes.clear()
     if (serverDown.value) serverDown.value = false
     return
   }
+  if (route !== undefined) failedRoutes.set(route, failure)
   consecutiveFailures += 1
   if (consecutiveFailures >= FAILURES_BEFORE_DEGRADED) serverDown.value = true
 }

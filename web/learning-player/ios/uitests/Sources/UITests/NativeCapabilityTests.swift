@@ -120,23 +120,24 @@ final class NativeCapabilityTests: UITestCase {
       Journey.inventory(app, "home-people-rail-empty")
       _ = Journey.tap(app, labels: ["Topics"], timeout: 10)
       sleep(2)
-      guard Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 12)
+      // The top Rising topics at the pinned trend date (natural corpus, 2026-10-12).
+      guard Journey.tap(app, labels: ["canonical labeling", "code switching", "coupling vs components"], contains: true, timeout: 12)
       else {
         XCTFail("neither a person nor a topic was reachable for the note composer")
         return
       }
     }
     sleep(5)
-    // "Your notes" — the textarea's aria-label, which is what WebKit exposes as the accessible
+    // "Notes" — the textarea's aria-label, which is what WebKit exposes as the accessible
     // name. Matching the PLACEHOLDER ("Add a note…") found nothing, because an aria-label wins over
     // a placeholder. Notes are also the LAST section of a long card, so this needs more swipes than
     // the default (2026-09-16).
-    guard Journey.scrollTo(app, labels: ["Your notes"], maxSwipes: 16) != nil else {
+    guard Journey.scrollTo(app, labels: ["Notes"], maxSwipes: 16) != nil else {
       Journey.inventory(app, "topic-no-note-composer")
       XCTFail("no note composer on the topic card")
       return
     }
-    guard Journey.tap(app, labels: ["Your notes"], timeout: 8) else {
+    guard Journey.tap(app, labels: ["Notes"], timeout: 8) else {
       Journey.inventory(app, "note-composer-untappable")
       XCTFail("the note composer was found but could not be tapped")
       return

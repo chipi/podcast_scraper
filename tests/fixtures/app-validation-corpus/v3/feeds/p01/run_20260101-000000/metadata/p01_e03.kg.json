@@ -16,21 +16,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-0d9100843ee555f8",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-0d9100843ee555f8",
       "target": "topic:chain-wear",
       "type": "MENTIONS"
@@ -118,30 +103,6 @@
       "properties": {
         "label": "risk management",
         "slug": "risk-management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport",
-        "slug": "endurance-sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

@@ -18,7 +18,7 @@ discovery.relabel "player" {
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*|player-obs-.*)"
+		regex         = "/(player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*|player-obs-.*|player-board-summarizer-.*)"
 		action        = "keep"
 	}
 
@@ -63,6 +63,15 @@ discovery.relabel "player" {
 		regex         = "/player-digest-scheduler-.*"
 		target_label  = "surface"
 		replacement   = "scheduler"
+	}
+
+	// The board summarizer (RFC-127) is the pipeline's code in the pipeline's container: its
+	// llm_cost lines are pipeline lines.
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-board-summarizer-.*"
+		target_label  = "surface"
+		replacement   = "pipeline"
 	}
 
 	rule {

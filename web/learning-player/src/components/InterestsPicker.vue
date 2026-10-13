@@ -19,16 +19,17 @@ import { useI18n } from "vue-i18n"
 import { getUserInterests, putUserInterests } from "../services/api"
 import { useModalSheet } from "../composables/useModalSheet"
 import { useInterestsStore } from "../stores/interests"
+import type { PickerTrigger } from "../services/analytics"
 
 /**
  * Where this picker was opened from (#2267).
  *
- * Required rather than defaulted: the three values answer different questions — `first_run` and
- * `home_prompt` measure whether the onboarding ask works, `profile` measures deliberate curation
- * later on. A default would silently file one as another, and the funnel step between
+ * Required rather than defaulted: the values answer different questions — `first_run`,
+ * `home_prompt` and `discover_cold_start` (Discover's Mine with nothing in it yet, ADR-163 §6)
+ * measure whether the onboarding ask works, `profile` measures deliberate curation later on. A default would silently file one as another, and the funnel step between
  * `auth_completed` and `interests_saved` is exactly where the spec expects to see drop-off.
  */
-const props = defineProps<{ trigger: "first_run" | "profile" | "home_prompt" }>()
+const props = defineProps<{ trigger: PickerTrigger }>()
 const emit = defineEmits<{ (e: "close"): void; (e: "saved", ids: string[]): void }>()
 const { t } = useI18n()
 // The picker OWNS the write, so it owns telling the store. Leaving that to each parent is what

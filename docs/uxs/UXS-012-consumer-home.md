@@ -83,9 +83,11 @@ Mobile-first single column; on `lg` the rails widen and Home uses the app's max 
 Region order, top to bottom:
 
 1. **Masthead** — app identity kicker + title; account/sign-in affordance (per UXS-011 shell).
-2. **Adaptive hero** (one of two states — see below).
-3. **Continue listening** — *only when not already the hero* (auth; hidden otherwise).
-4. **What's new** — *shipped (#1091) as an editorial **ranked** layout, **not** a horizontal rail*:
+2. **In progress** (`InProgressStrip`, signed in, only when something is) — the door into what
+   was started: Learn paths and the last unfinished short listen (operator 2026-10-11).
+3. **Adaptive hero** (one of two states — see below).
+4. **Continue listening** — *only when not already the hero* (auth; hidden otherwise).
+5. **What's new** — *shipped (#1091) as an editorial **ranked** layout, **not** a horizontal rail*:
    a featured **#01** hero (artwork + gradient + oversized faint numeral) over compact numbered rows
    (02–06, each with artwork), all on screen; "Browse all →" now opens the **Browse hub**
    (`/browse?tab=episodes`, UXS-011), not the standalone catalog.
@@ -95,16 +97,16 @@ Region order, top to bottom:
    (the side-by-side cluster once crushed it to one word per line). Tapping the card or a row OPENS
    the episode, paused, like every episode card; there is no separate ▶. **Only Resume starts
    playback** (`?play=1`) — operator 2026-10-05.
-5. **Discover — tabbed (#4)** — **Rising now** (momentum) / **Trending** / **Storylines** were three
+6. **Discover — tabbed (#4)** — **Rising now** (momentum) / **Trending** / **Storylines** were three
    stacked rails that made Home very tall; they fold into ONE tabbed switcher (`home-discovery`,
    `discovery-tab-{key}`, `rising` default). The **active tab's label IS the section heading** — the
    rails no longer render a duplicate `<h2>`. `v-show` keeps each panel mounted (no refetch on
    switch).
-6. **What's new** — the newest episodes from the shows you follow and about the topics, people,
+7. **What's new** — the newest episodes from the shows you follow and about the topics, people,
    themes and storylines you follow ("New in your shows and topics"); with nothing followed, the newest
    across every show ("New across all shows"). At the bottom of Home since 2026-10-07; it absorbed
    Your Week's new-in-follows / new-in-interests.
-7. **Discover strip** — `home-browse-nav`: a title line ("Explore what people are talking about")
+8. **Discover strip** — `home-browse-nav`: a title line ("Explore what people are talking about")
    over ONE row of chips, **Topics** / **People** / **Themes** / **Storylines** (Themes added
    2026-10-07), each in its kind's colour — the same `kindPill` the Interests page uses, so the colour
    means the kind everywhere (operator 2026-10-08; the inline "Discover" lead-in had pushed a chip onto
@@ -113,8 +115,8 @@ Region order, top to bottom:
    *(Renamed from the old "Browse topics/people" links — operator 2026-09-14. They then pointed at a
    standalone `/trends` page, which was a thinner second copy of a section `/browse` already renders;
    that page is deleted — operator 2026-09-18.)*
-8. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
-9. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
+9. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
+10. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
 
 *("Your shows" — a grid of followed podcasts — was removed from Home operator 2026-09-14: the shows
 you follow already live in Library › Following, so a second copy on Home was redundant.)*
@@ -334,8 +336,8 @@ because a theme is followed by its `tc:` token and the interests store already c
 - **Search bar:** pill input (UXS-011 input tokens), search icon, example chips (`topic` toned).
 - **Continue hero card:** artwork bg + progress rule + circular resume button (player transport
   styling, UXS-011).
-- **Search result card:** passage text (`surface-foreground`), source line (`muted` + `accent`
-  show link), `▶ mm:ss` (`accent`, `font-mono` tabular).
+- **Search result card:** passage text (`surface-foreground`), source line (`muted`; the show is
+  named, not linked — UXS-014), `▶ mm:ss` (`accent`, `font-mono` tabular).
 
 ## Accessibility
 
@@ -390,15 +392,16 @@ piece to its design home:
   a label, optional subtitle, trend-hued sparkline, a trailing metric that tracks the active sort,
   and a `discovery-follow` toggle. Sourced from `GET /api/app/trending` (EWMA velocity + volume).
   Replaced `MomentumRail`, `TrendingTopics`, and `Storylines` rails.
-- **`SearchSection`** and **`TrendsSection`** — two separate sections that Home and Discover BOTH
-  render, in that order (operator 2026-10-05: "Home and Discover are the same screens … things have
+- **`SearchSection`** and **`TrendsSection`** — two separate sections. Since 2026-10-11 Explore
+  renders both, search first; Home renders `SearchSection` (Discover renders neither: search moved to
+  Explore, operator 2026-10-11). Earlier history: Home and Discover BOTH rendered them, in that order (operator 2026-10-05: "Home and Discover are the same screens … things have
   to be identical"; search and trends are unrelated, so they are two components, not one). Sharing
   `DiscoveryExplorer` alone was not enough — each page wrapped it differently (Discover added its own
   `px-4` gutter, spaced it `mt-4` against Home's `mt-7`, put search above Trends where Home put it
   below, showed 10 rows against 3, and gave only Home the chips) — so each section owns its own
   spacing. `SearchSection`: the "Find any moment you've heard" box and two trending-topic chips.
-  `TrendsSection`: Trends at **3 rows on a phone and 5 on desktop**, more rows expanding in place from
-  the header's "all ›" on both. The page decides only what a Trends tap opens (Home: overlay card;
+  `TrendsSection`: Trends at **3 rows on a phone and 5 on desktop**, then "Show more (N)", which
+  fetches the next page from the server (2026-10-11; the header's "all ›" reveal is gone). The page decides only what a Trends tap opens (Home: overlay card;
   Discover: the page).
 - **`TrendingScopeButton`** — the ONE Mine ⇄ Everyone switch (`discover-scope`, operator
   2026-10-09), an icon circle in Discover's header (accent = Mine, the default for a signed-in
@@ -406,14 +409,158 @@ piece to its design home:
   empty Mine — `trending-shows-mine-empty` — and offer everyone's), Trends, and a search started on
   the page; the Search results' own switch reads and writes the same remembered choice. "Mine" is
   the listener's own world, one meaning per kind of item ([ADR-162](../adr/ADR-162-mine-means-the-listeners-own-world.md)).
-- **`DiscoverV2View`** — Discover 2 (`/discover2`), a PREVIEW of the reworked Discover beside the
-  current one, for comparison on a device (operator 2026-10-10). Search first, then quote cards
-  "From what you captured" (your highlight → a grounded passage elsewhere), "Trending episodes"
-  (rising topics → a speaker's take with its moment), "Continue the thread" (followed storylines),
-  "People you keep hearing", "Latest from shows you follow", and the existing trending shows and
-  Trends. Built from existing APIs; the design rationale is
-  `docs/wip/discovery-competitive-analysis-2026-10-09.md`. Not the final design and not covered
-  by tests.
+- **Where Discover is going** ([ADR-163](../adr/ADR-163-the-jobs-of-discover.md), 2026-10-10):
+  Discover becomes "what to hear next" only. Rails are episode-first, and each has one job and an
+  extractive "why" (the listener's capture plus a quote and its time). Trends and the entity
+  dashboards move to an Explore surface. This section describes the page as built today; rails are
+  rebuilt against ADR-163 one by one.
+- **Discover today** (2026-10-11): the header carries the scope switch only — Explore has its own
+  nav tab, so the header no longer links to it (operator 2026-10-11). Then, episode-first: the quote cards, then (signed in, under Mine) more from what you
+  captured, continue the thread, people you keep hearing and hear another view, then trending
+  shows, and search. Trends and the
+  Episodes · Shows catalog moved to Explore (below).
+- **`RecommendationRail`** — the shape every Discover rail shares (ADR-163). The rail supplies
+  its id, title and loader; the card, its `RecommendationWhy`, the "▶ Moments" door (the shared
+  `MomentsLink`, when the episode has moments: a short taste of it), "Less like this" (on a card
+  whose reason names a subject: hides that topic, person or storyline from every rail, with Undo
+  in place and later in Profile › Interests; never on the cold-start fallback), hiding when empty,
+  reloading on return to the kept-alive page, and the Umami telemetry are the same for every rail.
+  - **"More from what you captured"** (Step 2.2; signed in, under Mine only): episodes on shows the
+    listener does not follow or captured from, each linked to one of their highlights, notes or
+    saves by a topic, person or storyline. "Because you highlighted “…”" over a quote from the
+    recommended episode.
+  - **"Continue the thread"** (Step 2.3; signed in, under Mine only): new episodes in the storylines
+    the listener follows. Each is about one of the storyline's topics, not yet heard, captured or
+    saved, and published after their last listen in that storyline. Newest first. "New in
+    <storyline>" over a quote about the topic.
+  - **"People you keep hearing"** (Step 3; signed in, under Mine only): hosts and guests in two or
+    more of the listener's episodes (never someone merely mentioned), on shows the listener neither
+    follows nor heard them on. "<name>, whom you keep hearing" over a quote that person says there.
+  - **"Hear another view"** (Step 3; signed in, under Mine only): on the topics the listener
+    engages with most (umbrella topics in nearly every episode skipped), a speaker they have not
+    heard on it, in an episode they have not heard. "Another view on <topic>" over that speaker's
+    quote. "Another" means a different speaker: the corpus records agreement, not disagreement,
+    so the card never claims an opposite; a speaker recorded as agreeing with one already heard is
+    skipped.
+- **The quote cards** — Discover's first rail (ADR-163, Discover arc Step 2.1): "Worth hearing
+  next".
+  - **Cold start** (ADR-163 §6): under Mine, while the listener's world is empty (nothing heard,
+    captured, saved, followed or picked), the rail shows Everyone's cards under a note,
+    "Everyone's picks — yours begin once you listen, save or pick a few topics", with **Pick
+    topics** (the interests picker, `trigger: discover_cold_start`). Saving reloads the rail as
+    theirs. Telemetry reports the fallback as scope `everyone`.
+  - **Content:** rising topics and the most engaged episodes (`GET /trending/episodes`) in the page
+    scope, as cards. Each card shows the episode (artwork, title, show name, which wraps and never
+    truncates per UXS-014), then its `RecommendationWhy`.
+  - **Taps:** the card opens the episode; "▶ Play from" opens it playing at the quote.
+  - **Mine:** only the listener's own: rising topics of their world, through episodes they have
+    not heard, captured from or saved. Nothing from Everyone is mixed in.
+  - **Empty:** with nothing to show, the rail is hidden.
+  - **Telemetry:** reports shown and taps to Umami (`useRailTelemetry('quotes')`).
+- **`ReelTopicsRow`** — Discover's **Short listens** row (ADR-163 §8 amendment; goal-shaped listening):
+  up to four chips, "▶ <subject> · 4 min" (each its real length, rounded, at most 15; operator
+  2026-10-11: "real length everywhere"), topics, themes and storylines taking turns — under Mine
+  the listener's own (top topics; the themes and storylines of their world), under Everyone the
+  rising ones — each offered only when its reel has at least two clips, and two subjects whose reels
+  are the same clips offered once. Each chip wears its kind's colours (`kindPill`: topic, theme,
+  storyline), as on episode notes, and starts with its kind word (`KindWord`: "▶ TOPIC risk
+  management"; operator 2026-10-12), since the row mixes kinds and colour is not a label. Hidden
+  when there are none.
+- **The subject pages' top** (topic, theme, storyline; operator 2026-10-11) is identical on all
+  three: "‹ Back" on its own row (standalone pages), the kind in its colour (TOPIC / THEME /
+  STORYLINE), the title, the actions row — **Follow** ("Follow" / "Following", the same words on
+  every page) first, then save, board, share — and then the **listen row**, always its own row:
+  `ReelDoor` and `LearnDoor`, styled as two different options. The same top as a SHEET (opened from an episode's
+  Brief, Home or Search: `EntityCard` for topics and people, `ThemeCard`, `StorylineCard`): the kind
+  and ✕ on one row, then title, actions, listen row, with one 16px top inset and no rule under the
+  header on all four. The title is ONE class, `.lp-subject-title` (24px display, extrabold, tight,
+  two lines), on every page and sheet — measured identical across all eight. Every sheet has an ✕
+  that closes it, always; a topic or person sheet drilled one level in adds ‹ before the kind to go
+  back (operator 2026-10-11).
+- **`ReelDoor`** — "▶ 4 min on this" (the reel's real length), a tinted pill the size of the Follow pill, in `listen`
+  (emerald, the categorical `cat-3`): it plays now. Never the accent — Follow owns that. It appears only once
+  that subject's reel has at least two clips.
+- **`InProgressStrip`** — Home's **In progress** (operator 2026-10-11: "what's a door into things I
+  started?"), signed in, above Continue listening, hidden with nothing in progress. One card per
+  Learn path and one for the last short listen left unfinished: a swipe of cards on a phone (each
+  84% wide, so the next peeks), a grid from `md` (three across on `lg`). Each card sits over its
+  episode's artwork (30%, a gradient to the canvas for legibility), with a border in its own colour.
+  - **A path** (`learn`, pink, `CalendarMark`): "LEARN · DAY 3 OF 7", the subject (display type),
+    the day's episode, the week as seven segments (done, open, not yet), and "▶ Play day 3 · 1:24"
+    (the episode at the clip, playing) — the Resume hero's oval, in `learn`, so Home has one play
+    control (operator 2026-10-11). Every open day done: "Day 2 done ✓" with "Next day now ›" (the
+    same oval) in place, or "Day 3 opens in 14 h" (days count 24 h from the start, so never
+    "tomorrow"); all done: "All 7 days done ✓". The card opens the
+    week.
+  - **The short listen** (`listen`, emerald): "▶ SHORT LISTEN · CLIP 5 OF 9", the subject, the
+    quote at that clip and its speaker, a bar of clips heard, and "▶ Resume · clip 5" (the same oval,
+    in `listen`).
+  - **Telemetry:** `learn_path` and `reel_open` with `source: in_progress`.
+- **`LearnThisWeek`** — Discover's **Learn something this week** (operator 2026-10-11), signed in,
+  under the Short listens row: where a seven-day path through a theme or storyline starts.
+  - **Offers** (below three paths): a line saying what it is, and up to three chips in their kind's
+    colours — "Managing risk across domains · 7 days" — themes and storylines with a path of three
+    to seven days, in the page scope, none already being learned. One tap starts it and opens its
+    week.
+  - **Kind word** (`KindWord`, operator 2026-10-12): every offer and every Learning now pill starts
+    with its subject's kind (THEME / STORYLINE), as on the Short listens row above.
+  - **Learning now:** the paths already on, as `learn` pills "Second-order effects · day 3 of 7 ›"
+    to their weeks (at three, under "What you are learning", with no offers). The day to do is on
+    Home's In progress.
+  - **Rules:** the steps are the subject's strongest episodes by their best clip, oldest first, and
+    frozen at the start; a day opens on its day (counted from the start, UTC) and can be done late.
+    Once the newest open day is done, "Next day now ›" (in `learn`) opens the next one early, so a
+    keen listener can finish in one sitting. Up to three paths at once (operator 2026-10-11: "a
+    habit, not a backlog"), one per subject. No reminders.
+- **`LearnDoor`** — "Learn this in 7 days", a tinted pill the size of the Follow pill, in `learn`
+  (pink, the categorical `cat-5`) with a small calendar (`CalendarMark`): it starts a week rather
+  than playing now. Two colours so the listen row reads as two options (operator 2026-10-11). Signed in, only when the subject has
+  a path. Starting opens its week. Already learning it: "Learning · day 3 of 7 ›". At three paths:
+  "You are learning 3 things. This replaces “Reliability”, the oldest." with Start / Not now, in
+  place, before anything changes.
+- **`LearnStep`** — one day: "DAY 2" (✓ Done once done), the episode (a link) and its show (two
+  lines at most), the clip in the speaker's words with their name, "▶ Play from 1:24" (the
+  episode, playing at the clip) and "Done". A day not yet come shows only "Opens on day 4". Closed,
+  a day is its label, episode and show, with "✓ Done" or "· Not done yet"; open, a ⌃ closes it.
+- **`LearnPathView`** — **one path's week** (`/learn?subject=`; with none named, the one path, or
+  with several "What you are learning" and a link each), "‹ Back" like every page: the subject, "Day N
+  of 7", every day as a `LearnStep`, only today's open (operator 2026-10-11: "focus on where we
+  are"). An earlier day is a closed card; tapping it opens it to replay that day. Then "Leave this path", a button on the right, confirmed in place ("Leave this path?" Leave / Keep going),
+  then back to Discover. Without a path: "You are not learning anything this week." and a link to
+  Discover.
+- **`TopicReelView`** — **a short listen on a topic, theme or storyline** (`/listen/topic/:id?minutes=`,
+  `id` a `topic:`, `tc:` or `thc:` id): the strongest clips ABOUT it (a theme or storyline: about any
+  of its member topics, umbrella members left out) from different episodes, back to back (the Moments picker's clip windows; a clip
+  must say what its insight says; never the same seconds or the same claim twice). LISTEN · <kind>
+  in `listen`, the subject as the title, and what the reel actually runs ("2:24 · 12 clips ·
+  10 episodes"), never the budget. **No start page** (operator 2026-10-11): it starts on clip 1 at
+  once; where the browser blocks the sound (opened by a link, no tap behind it) clip 1 waits with ▶.
+  One bar for the whole reel, time heard of total, not a dot per clip. The clip card shows its
+  episode, show, what is said and by whom, ‹ ▶/❚❚ ›, and **Keep listening to this episode** (the
+  full episode, which then counts as a listen). Under it **Up next**: the clips to come, "speaker ·
+  episode", each a jump. Like any reel it never moves a resume point. Leaving the page keeps it
+  playing — the mini-player reads "<topic> · 3 / 6" and reopens it. The end card lists the
+  episodes heard.
+- **`ExploreView`** — **Explore** (`/explore`, ADR-163 §1, 2026-10-11): for looking around, so
+  Discover keeps one job.
+  - **Trends:** the shared `DiscoveryExplorer` in the shared scope; `?trends=<kind>` selects a kind
+    and scrolls to it. A taste: the first page (3 / 5 rows), then "Show more (N)" pages on from the
+    server in the active sort (`GET /trending?sort&offset&limit` → `total`).
+  - **Browse:** Episodes · Shows tabs at `#catalog` (`?tab=`), each the FULL list embedded —
+    `CatalogView` and `ShowBrowseView` with their filter bars (text filter, which episodes, state,
+    sort, category, language, list ⇄ grid) — exactly as Browse had them in the last release. A link
+    carrying a list's filters (`?from=`, `?state=`; `?tab=shows&sort=trending&view=list` from
+    trending shows' "See all") opens that list on its own page, `/catalog` or `/shows`.
+  - **Old links:** `/browse` links to Trends or the catalog redirect here.
+  - **Way in:** reached from Discover's header. Whether it also gets a nav tab is open (Discover
+    arc plan).
+- **`RecommendationWhy`** — why a recommendation is here (ADR-163), the one rendering every rail
+  uses. A small reason line written from the server's parts (`AppReason`: kind, subject, the
+  listener's capture). "Rising: Rates", "Because you highlighted “…”", "New in {storyline}",
+  "{person}, whom you keep hearing", "Another view on {topic}", "Most listened to and saved".
+  Below it, the grounded quote in the transcript's own words with its speaker, and "▶ Play from
+  23:14", which opens the player playing at that moment (`?t=&play=1`). With no quote, nothing
+  stands in for one. Used by the quote cards.
 - **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
   every surface lists the kinds) with the Rising⇄Trending sort switch (`discovery-sort`). It reads
@@ -425,7 +572,7 @@ piece to its design home:
   shell's gutter (`page-gutters.spec.ts`). A theme row shows how many topics the theme holds
   ("(N)"), can be followed with the row's + (a `tc:` interest token), and opens the theme sheet on
   Home and the theme page on Discover, by the theme's own `tc:` id. Used by BOTH Home and Discover through `TrendsSection`
-  (3 rows on a phone, 5 on desktop, expanding in place via `discovery-see-all`); `/browse?trends={kind}`
+  (3 rows on a phone, 5 on desktop, then `show-all-toggle` paging from the server); `/browse?trends={kind}`
   selects that kind in this same explorer and scrolls it into view. Extracted from
   HomeView so Home and Discover cannot drift (operator 2026-09-14, replaced the top-3
   `DiscoveryDashboard`).

@@ -25,6 +25,7 @@ from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_index import get_kg_index
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.app_user_corpus import user_episode_set
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 
@@ -145,7 +146,13 @@ def new_in_interests_items(
 
 def _topic_velocity(root: Path) -> dict[str, tuple[float, int]]:
     """``topic_id → (velocity, total)`` from the temporal_velocity envelope ({} when absent)."""
-    data = load_json_artifact(root, "enrichments/temporal_velocity.json") or {}
+    env = load_json_artifact(root, "enrichments/temporal_velocity.json") or {}
+    # The enricher writes an envelope whose payload is under ``data``; reading ``topics`` off the
+    # envelope itself found none, so the digest never had anything heating up.
+    if env.get("status") not in (None, "ok"):
+        return {}
+    payload = env.get("data")
+    data: dict[str, Any] = payload if isinstance(payload, dict) else env
     out: dict[str, tuple[float, int]] = {}
     for t in data.get("topics") or []:
         if isinstance(t, dict) and t.get("topic_id") is not None:
@@ -173,7 +180,10 @@ def trending_items(root: Path, data_dir: Path, user_id: str, *, limit: int) -> l
         for topic in topics:
             rep.setdefault(topic.id, (topic.label, slug))
     ranked: list[tuple[float, str, str, str]] = []
+    umbrellas = umbrella_tokens(root)
     for topic_id, (label, slug) in rep.items():
+        if topic_id in umbrellas:
+            continue
         vel = velocity.get(topic_id)
         if vel and vel[0] >= _MIN_VELOCITY and vel[1] >= _MIN_TOTAL:
             ranked.append((vel[0], topic_id, label, slug))

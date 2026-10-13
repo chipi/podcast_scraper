@@ -37,6 +37,8 @@ const props = defineProps<{
    * including `data-menuitem` so the menu's arrow-key roaming picks it up.
    */
   variant?: 'icon' | 'menuitem'
+  /** What this control acts on, for its accessible name on a list ("…: <episode title>"). */
+  subject?: string
 }>()
 
 const { t } = useI18n()
@@ -52,6 +54,9 @@ function onGatedClick(e: MouseEvent): void {
   e.stopPropagation()
   storeToggle()
 }
+const favLabel = computed(() =>
+  isGated.value ? t('auth.signInToSave') : isActive.value ? t('fav.remove') : t('fav.add')
+)
 </script>
 
 <template>
@@ -66,7 +71,7 @@ function onGatedClick(e: MouseEvent): void {
     :data-menuitem="variant === 'menuitem' ? '' : undefined"
     :role="variant === 'menuitem' ? 'menuitem' : undefined"
     :aria-pressed="isGated || variant === 'menuitem' ? undefined : isActive"
-    :aria-label="isGated ? t('auth.signInToSave') : isActive ? t('fav.remove') : t('fav.add')"
+    :aria-label="subject ? t('common.forItem', { action: favLabel, subject }) : favLabel"
     data-testid="favorite-button"
     @click="onGatedClick"
   >
@@ -83,13 +88,8 @@ function onGatedClick(e: MouseEvent): void {
          `AccessibleNameAuditTests` counts this class app-wide and fails on it. -->
     <template v-else>
       <span aria-hidden="true">{{ isActive ? '♥' : '♡' }}</span>
-      <!-- The short form is enough here. The `label` disambiguation existed for the `controlled`
-           variant, where many hearts sat on one panel; the remaining variants live in card rows
-           that already provide surrounding context. `HighlightToggle` carries `label` for the case
-           that needed it. -->
-      <span class="sr-only">{{
-        isGated ? t('auth.signInToSave') : isActive ? t('fav.remove') : t('fav.add')
-      }}</span>
+      <!-- The short word only; the episode's name is in aria-label (see QueueButton). -->
+      <span class="sr-only">{{ favLabel }}</span>
     </template>
   </button>
 </template>

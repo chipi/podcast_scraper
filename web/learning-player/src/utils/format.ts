@@ -12,6 +12,17 @@ export function formatDuration(seconds: number | null | undefined): string | nul
 }
 
 /**
+ * Time listened, for stats (operator 2026-10-12): minutes under an hour — "0.0h" beside five
+ * episodes read as a broken number — then hours, one decimal under ten.
+ */
+export function formatListened(seconds: number | null | undefined): string {
+  const s = Math.max(0, seconds ?? 0)
+  if (s < 3600) return `${Math.round(s / 60)} min`
+  const h = s / 3600
+  return h >= 10 ? `${Math.round(h)}h` : `${h.toFixed(1)}h`
+}
+
+/**
  * Humanise a KG speaker id for display: `person:matthew-walker` → `matthew walker`; a non-`person:`
  * value passes through. ONE canonical place so the `person:` slug convention can't drift across the
  * transcript, the player and the insights panel.

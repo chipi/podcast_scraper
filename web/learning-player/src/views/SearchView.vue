@@ -12,10 +12,23 @@ import { useI18n } from "vue-i18n"
 import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
-import { getPodcastsPage, resolveEntity, searchCorpus } from "../services/api"
+import {
+  getPodcastsPage,
+  resolveEntity,
+  searchBoards,
+  searchCorpus,
+  searchInterests,
+} from "../services/api"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { resolveMediaUrl } from "../services/tier"
-import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
+import type {
+  CollectionMatch,
+  EntityRef,
+  EpisodeSummary,
+  Note,
+  Podcast,
+  SearchHit,
+} from "../services/types"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
 import { formatPublishDate } from "../utils/format"
@@ -31,6 +44,8 @@ import { groupEpisodesByYear, type YearSection } from "../utils/yearGrouping"
 import { useSignInGate } from "../composables/useSignInGate"
 import { useTrendingScope } from "../composables/useTrendingScope"
 import { useSavedQueriesStore } from "../stores/savedQueries"
+import { useUserPreferencesStore } from "../stores/userPreferences"
+import { kindPill } from "../utils/interests"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
@@ -99,8 +114,8 @@ const { languageOfFeed } = useCorpusLanguages()
 // hydrate call — the tests demonstrated that adding one creates
 // test-order flakiness without changing user-visible behaviour.
 
-// Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
-// heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
+// Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = the listener's own world (heard,
+// captured, saved, followed shows and interests; ADR-162). The toggle only shows when signed in.
 // One "mine" switch everywhere (operator 2026-10-09): with no `scope` in the URL the results open in
 // the shared Mine ⇄ Everyone choice, and flipping it here flips it on Discover too.
 const { scope: sharedScope, setScope: setSharedScope } = useTrendingScope()
@@ -140,6 +155,17 @@ async function toggleSaveQuery(): Promise<void> {
 // @click discards the returned handler).
 const onSaveClick = gated(toggleSaveQuery)
 const results = ref<SearchHit[]>([])
+/**
+ * Category mode (operator 2026-10-13): each kind of result is its own capped search, three each,
+ * with "Show more" under a kind's last item as on the rails. A topic row exists per episode per
+ * topic, so "risk" filled every slot with topic rows — which are listed by name above and dropped
+ * from the episodes — and the search showed no episode at all.
+ */
+const PER_CATEGORY = 3
+const CATEGORY_ORDER = ["insights", "transcript", "episodes", "mentions"] as const
+/** Whether each category has more than is shown (from the server's `categories`). */
+const categoryMore = ref<Record<string, boolean>>({})
+const categoryLoading = ref<string | null>(null)
 const entity = ref<EntityRef | null>(null)
 const cardTarget = ref<{ kind: "person" | "topic" | "organization"; id: string } | null>(null)
 const searching = ref(false)
@@ -160,6 +186,34 @@ watch(
   },
   { immediate: true },
 )
+// The listener's own boards for the term that ran (#2341): by name first, then by what is saved on
+// them, every word in any order (the shows' rule). Signed out there are none; a failure leaves the
+// section empty and never fails the search.
+const boardMatches = ref<CollectionMatch[]>([])
+let boardSeq = 0
+watch(
+  () => (ran.value && !isGated.value ? ranTerm.value.trim() : ""),
+  async (term) => {
+    const mine = ++boardSeq
+    if (!term) {
+      boardMatches.value = []
+      return
+    }
+    const items = await searchBoards(term).catch(() => [])
+    if (mine === boardSeq) boardMatches.value = items
+  },
+  { immediate: true },
+)
+function boardWhy(m: CollectionMatch): string {
+  if (m.matched === "name" || !m.item_kind) return t("search.boardMatchedName")
+  return t("search.boardMatchedItem", {
+    kind: t(`collections.kind.${m.item_kind}`),
+    label: m.item_label ?? "",
+  })
+}
+function openBoard(rank: number): void {
+  track("search_result_click", { result_kind: "board", rank: toRankBucket(rank) })
+}
 // Matched on the SERVER since 2026-10-08 (every word, any order — the same rule as before), five
 // at a time, newest first: the store no longer holds every note to search through.
 const notesTerm = computed(() => (ran.value ? ranTerm.value.trim() : ""))
@@ -290,6 +344,12 @@ function matchedFieldChips(hits: SearchHit[]) {
   return summarizeMatchedFields(hits)
 }
 
+/** Every hit of a group's episode, across the category sections: "Matched: Title · Transcript"
+ * says why the EPISODE surfaced, not why it is in this one section. */
+function episodeHits(g: EpisodeGroup): SearchHit[] {
+  return g.slug ? passageResults.value.filter((h) => hitSlug(h) === g.slug) : g.hits
+}
+
 // #1261-7: bucket the episode groups by publish year so the results read as
 // "2026 · 4 episodes" / "2025 · 12 episodes" sections — the mobile-friendly
 // reshape of the operator viewer's timeline chart concept. Sections are only
@@ -298,7 +358,6 @@ function matchedFieldChips(hits: SearchHit[]) {
 const yearSections = computed<YearSection<EpisodeGroup>[]>(() =>
   groupEpisodesByYear<EpisodeGroup>(groups.value, (g) => g.date)
 )
-const showYearHeaders = computed(() => yearSections.value.length > 1)
 
 function yearLabel(year: number | "unknown"): string {
   return year === "unknown" ? t("search.yearUnknown") : String(year)
@@ -313,62 +372,118 @@ function rowKey(row: CollapsedRow, i: number): string {
 // Group passages under their source episode, preserving rank order (results arrive best-first,
 // so an episode's rank is its first appearance).
 /**
- * Storyline hits, split OUT of the passage results.
- *
- * A storyline row is corpus-level: it carries no `episode_id`, so the episode grouping below would
- * key it as `doc:<id>` and render a card titled "Not found" — an episode that does not exist
- * (operator 2026-09-17). It is not a passage and must not be grouped as one.
- *
- * These come from the INDEX, so unlike the name resolver they match partially and by member topic:
- * "risk" reaches "Managing risk across domains" through its members.
+ * A storyline, topic or person hit names something ACROSS episodes, not a passage of one (operator
+ * 2026-10-11): grouped under the episode it was indexed from, "TOPIC · systems thinking
+ * integration" read as a fact about that episode. They are lifted out, like storylines, into their
+ * own lists at the top. Organizations stay where they were (they have no page or list here).
  */
-const storylineHits = computed(() =>
-  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type === "storyline")
-)
+function isLiftedEntityHit(h: SearchHit): boolean {
+  const m = md(h)
+  if (m.doc_type === "kg_topic") return true
+  return m.doc_type === "kg_entity" && String(m.source_id ?? "").startsWith("person:")
+}
 /** Everything the episode grouping should see — passages only. */
 const passageResults = computed(() =>
-  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type !== "storyline")
+  results.value.filter((h) => md(h).doc_type !== "storyline" && !isLiftedEntityHit(h))
 )
-/**
- * The storylines to show: index hits first, plus the resolver's exact-name answer when it found one
- * the index did not return. Two paths, one list, de-duplicated by id — a listener must never see the
- * same storyline twice because two mechanisms found it.
- */
-const storylineResults = computed<
-  { key: string; routeId: string; label: string; size: number | null }[]
->(() => {
-  const out: { key: string; routeId: string; label: string; size: number | null }[] = []
-  const seen = new Set<string>()
-  for (const h of storylineHits.value) {
-    const m = h.metadata as Record<string, unknown>
-    // `routeId` is the ANCHOR TOPIC id, never the `thc:` id: there is no storyline endpoint — the
-    // anchor topic's card IS the storyline — so routing with `thc:…` 404s (review, 2026-09-17).
-    // Both fields arrive from the server's query-time join, because the indexed row cannot carry
-    // them: the aux schema has no such columns and the read path rebuilds metadata from a fixed
-    // field list. A hit without them is unusable, so it is skipped rather than rendered as a slug.
-    const anchor = String(m.anchor_topic_id ?? "")
-    const label = String(m.storyline_label ?? "")
-    const sid = String(m.source_id ?? "")
-    if (!anchor || !label || seen.has(sid)) continue
-    seen.add(sid)
-    out.push({
-      key: sid,
-      routeId: anchor,
-      label,
-      size: typeof m.storyline_size === "number" ? m.storyline_size : null,
-    })
-  }
-  // The resolver already answers with the anchor id, so its entry routes the same way.
-  const e = entity.value
-  if (e?.kind === "storyline" && !seen.has(e.id))
-    out.push({ key: e.id, routeId: e.id, label: e.label, size: null })
-  return out
-})
 
-const groups = computed<EpisodeGroup[]>(() => {
+type SubjectKind = "person" | "topic" | "theme" | "storyline"
+type EntityRow = { key: string; id: string; label: string; routeId: string }
+
+/**
+ * The subjects at the top are matched BY NAME, on the words typed (operator 2026-10-12: "I want a
+ * word match … exact matches"). They used to come from the passage search's own hits, which rank by
+ * meaning as well as words, so "safety" listed "Second-order effects" and "incident prevention" —
+ * close in meaning, without the word. Episodes keep word + meaning; this section is names you open,
+ * and a name either has the word or it does not.
+ *
+ * Rule: every word typed starts a word of the name ("risk" finds "risk management" and "discounted
+ * risks"; "art" does not find "start"). Fetched per kind from the followables' name search
+ * (`/interests/search`), corpus-wide in both scopes.
+ */
+const nameMatches = ref<Record<SubjectKind, { id: string; label: string; anchor_topic_id?: string | null }[]>>({
+  person: [],
+  topic: [],
+  theme: [],
+  storyline: [],
+})
+function words(text: string): string[] {
+  return text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+}
+function nameHasWords(label: string, typed: string[]): boolean {
+  const own = words(label)
+  return typed.length > 0 && typed.every((w) => own.some((o) => o.startsWith(w)))
+}
+/** One kind's rows: the resolver's exact-name answer first, then the name matches, one per subject. */
+function subjectRows(kind: SubjectKind): EntityRow[] {
+  const typed = words(ranTerm.value)
+  const out: EntityRow[] = []
+  const seen = new Set<string>()
+  const add = (id: string, label: string, routeId: string): void => {
+    const k = label.trim().toLowerCase()
+    if (!label.trim() || seen.has(id) || seen.has(k)) return
+    seen.add(id)
+    seen.add(k)
+    out.push({ key: id, id, label: label.trim(), routeId })
+  }
+  const e = entity.value
+  // The resolver answers a storyline with its ANCHOR topic id, which is what the storyline page routes on.
+  if (e?.kind === kind) add(e.id, e.label, e.id)
+  for (const m of nameMatches.value[kind]) {
+    if (!nameHasWords(m.label, typed)) continue
+    // A storyline routes on its anchor topic (there is no `thc:` page); without one it cannot open.
+    const routeId = kind === "storyline" ? String(m.anchor_topic_id ?? "") : m.id
+    if (!routeId) continue
+    add(m.id, m.label, routeId)
+  }
+  return out
+}
+const peopleResults = computed(() => subjectRows("person"))
+const topicResults = computed(() => subjectRows("topic"))
+const themeResults = computed(() => subjectRows("theme"))
+const storylineResults = computed(() => subjectRows("storyline"))
+/** A long list folds behind "Show all" (a broad word like "risk" reaches twenty topics). */
+const ENTITY_ROWS_SHOWN = 8
+const expandedEntityLists = ref(new Set<string>())
+function shownRows<T>(key: string, rows: T[]): T[] {
+  return expandedEntityLists.value.has(key) ? rows : rows.slice(0, ENTITY_ROWS_SHOWN)
+}
+function toggleEntityList(key: string): void {
+  const next = new Set(expandedEntityLists.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedEntityLists.value = next
+}
+/**
+ * Every subject shown ONE way (operator 2026-10-11): a section per kind — People, Topics, Themes,
+ * Storylines — each the same kind-coloured pills. A person or topic opens its card; a theme or
+ * storyline its page (neither has a card). Empty kinds are left out.
+ */
+type SubjectPill = { key: string; label: string; open: { card: { kind: "person" | "topic"; id: string } } | { to: { name: string; params: { id: string } } } }
+const subjectSections = computed<{ key: string; kind: SubjectKind; rows: SubjectPill[] }[]>(() => {
+  return [
+    { key: "people", kind: "person" as const, rows: peopleResults.value.map((r) => ({ key: r.key, label: r.label, open: { card: { kind: "person" as const, id: r.id } } })) },
+    { key: "topics", kind: "topic" as const, rows: topicResults.value.map((r) => ({ key: r.key, label: r.label, open: { card: { kind: "topic" as const, id: r.id } } })) },
+    { key: "themes", kind: "theme" as const, rows: themeResults.value.map((r) => ({ key: r.key, label: r.label, open: { to: { name: "theme", params: { id: r.routeId } } } })) },
+    { key: "storylines", kind: "storyline" as const, rows: storylineResults.value.map((r) => ({ key: r.key, label: r.label, open: { to: { name: "storyline", params: { id: r.routeId } } } })) },
+  ].filter((sec) => sec.rows.length > 0)
+})
+function trackSubjectPage(kind: SubjectKind): void {
+  track("entity_open", { kind, presentation: "page", source: "search" })
+}
+function openEntityRow(kind: "topic" | "person", id: string): void {
+  track("search_result_click", { result_kind: kind, rank: "1" })
+  track("entity_open", { kind, presentation: "card", source: "search" })
+  cardTarget.value = { kind, id }
+}
+
+const groups = computed<EpisodeGroup[]>(() => groupHits(passageResults.value))
+
+/** Hits grouped by episode, in rank order (the first hit of an episode places it). */
+function groupHits(hits: readonly SearchHit[]): EpisodeGroup[] {
   const byKey = new Map<string, EpisodeGroup>()
   const order: string[] = []
-  for (const h of passageResults.value) {
+  for (const h of hits) {
     const slug = hitSlug(h)
     const key = slug ?? `doc:${h.doc_id}`
     let g = byKey.get(key)
@@ -390,7 +505,69 @@ const groups = computed<EpisodeGroup[]>(() => {
   const built = order.map((k) => byKey.get(k)!)
   for (const g of built) g.rows = collapseFoldableHits(g.hits)
   return built
-})
+}
+
+/** The server's `SEARCH_CATEGORIES`, for a hit that does not say its own category. */
+const CATEGORY_OF_DOC_TYPE: Record<string, (typeof CATEGORY_ORDER)[number]> = {
+  insight: "insights",
+  transcript: "transcript",
+  episode_title: "episodes",
+  episode_description: "episodes",
+  summary_short: "episodes",
+  summary: "episodes",
+  kg_entity: "mentions",
+}
+function hitCategory(h: SearchHit): string {
+  const own = md(h).search_category
+  if (typeof own === "string" && own) return own
+  return CATEGORY_OF_DOC_TYPE[String(md(h).doc_type ?? "")] ?? "episodes"
+}
+
+/** The episode results, one section per category with hits, each grouped by episode. */
+const categorySections = computed(() =>
+  CATEGORY_ORDER.map((id) => {
+    const hits = passageResults.value.filter((h) => hitCategory(h) === id)
+    const years = groupEpisodesByYear<EpisodeGroup>(groupHits(hits), (g) => g.date)
+    return {
+      id,
+      count: hits.length,
+      yearSections: years,
+      showYearHeaders: years.length > 1,
+      more: categoryMore.value[id] === true,
+    }
+  }).filter((c) => c.count > 0)
+)
+
+/** "Show more" under a category: its next page, appended; "Show less" once it is all out. */
+async function showMoreOrLess(id: string): Promise<void> {
+  if (categoryLoading.value) return
+  const mine = results.value.filter((h) => hitCategory(h) === id)
+  if (!categoryMore.value[id]) {
+    // "Show less": back to the first three; what was hidden is there to show again.
+    const keep = new Set(mine.slice(0, PER_CATEGORY))
+    results.value = results.value.filter((h) => hitCategory(h) !== id || keep.has(h))
+    categoryMore.value = { ...categoryMore.value, [id]: true }
+    return
+  }
+  const term = ranTerm.value
+  categoryLoading.value = id
+  try {
+    const resp = await searchCorpus(term, PER_CATEGORY, scope.value, true, {
+      perCategory: PER_CATEGORY,
+      category: id,
+      offset: mine.length,
+    })
+    if (ranTerm.value !== term) return
+    const seen = new Set(results.value.map((h) => h.doc_id))
+    results.value = [...results.value, ...resp.results.filter((h) => !seen.has(h.doc_id))]
+    const cat = (resp.categories ?? []).find((c) => c.id === id)
+    categoryMore.value = { ...categoryMore.value, [id]: cat?.has_more === true }
+  } catch {
+    // The page stays as it was; the control still offers more.
+  } finally {
+    categoryLoading.value = null
+  }
+}
 
 // #1261-3: expand/collapse state per folded-cluster row, keyed by "<slug>|<kind>".
 // A Set of expanded keys — reactive because the ref is a plain Set instance and
@@ -410,23 +587,19 @@ function isClusterOpen(groupKey: string | null, cluster: FoldedHitCluster): bool
   return clusterExpanded.value.has(clusterKey(groupKey, cluster))
 }
 
-// Recent searches (SR.3) — a small per-device history shown under the box; localStorage, cap 8.
-const RECENTS_KEY = "lp.search.recents"
+// Recent searches (SR.3) — the last few terms, shown under the box, cap 8. The ACCOUNT's, synced
+// through preferences (2026-10-11): kept in device storage, one account's searches showed to the
+// next account signed in on the same phone, and never followed the listener to another device.
+const RECENTS_PREF = "lp.search.recents"
 const RECENTS_MAX = 8
-const recents = ref<string[]>([])
-try {
-  const raw = localStorage.getItem(RECENTS_KEY)
-  recents.value = raw ? (JSON.parse(raw) as string[]).slice(0, RECENTS_MAX) : []
-} catch {
-  recents.value = []
-}
+const searchPrefs = useUserPreferencesStore()
+void searchPrefs.hydrate()
+const recents = computed<string[]>(() => {
+  const v = searchPrefs.get<unknown>(RECENTS_PREF)
+  return Array.isArray(v) ? v.filter((r): r is string => typeof r === "string").slice(0, RECENTS_MAX) : []
+})
 function recordRecent(term: string): void {
-  recents.value = [term, ...recents.value.filter((r) => r !== term)].slice(0, RECENTS_MAX)
-  try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.value))
-  } catch {
-    /* storage blocked — recents are a convenience, not critical */
-  }
+  void searchPrefs.set(RECENTS_PREF, [term, ...recents.value.filter((r) => r !== term)].slice(0, RECENTS_MAX))
 }
 function runRecent(q: string): void {
   query.value = q
@@ -442,7 +615,9 @@ async function run(q: string): Promise<void> {
     inFlightSig = ""
     lastRunTerm = ""
     results.value = []
+    categoryMore.value = {}
     entity.value = null
+    nameMatches.value = { person: [], topic: [], theme: [], storyline: [] }
     ran.value = false
     lastRunSig.value = ""
     ranTerm.value = ""
@@ -483,12 +658,26 @@ async function run(q: string): Promise<void> {
           if (current()) entity.value = null
         }
       )
+  // The subjects at the top, BY NAME (see `nameMatches`): each kind's name search, in both scopes.
+  // A failure leaves that kind empty; it never fails the search.
+  nameMatches.value = { person: [], topic: [], theme: [], storyline: [] }
+  for (const kind of ["person", "topic", "theme", "storyline"] as const) {
+    void searchInterests(kind, term, 50).then(
+      (items) => {
+        if (current()) nameMatches.value = { ...nameMatches.value, [kind]: items }
+      },
+      () => undefined
+    )
+  }
   try {
     // #1261-1: always ask the server for related-topic decoration; a broken
     // enricher chain degrades to plain hits and the chip row simply disappears.
-    const resp = await searchCorpus(term, 12, recall ? "mine" : "all", true)
+    const resp = await searchCorpus(term, 12, recall ? "mine" : "all", true, {
+      perCategory: PER_CATEGORY,
+    })
     if (!current()) return
     results.value = resp.results
+    categoryMore.value = Object.fromEntries((resp.categories ?? []).map((c) => [c.id, c.has_more]))
     error.value = Boolean(resp.error)
     // #2267 — NO QUERY TEXT, ever. Only the scope and a BUCKETED hit count: "did search answer
     // them" is the question, and `results: '0'` is what makes an empty search visible to the
@@ -541,21 +730,6 @@ function setScope(s: "all" | "mine"): void {
   setSharedScope(s === "mine" ? "mine" : "corpus")
   void router.replace({ name: "search", query: { q: query.value.trim() || undefined, scope: s } })
   void run(query.value)
-}
-
-function openEntity(): void {
-  const e = entity.value
-  // Person / topic / org only. A storyline has no EntityCard — it renders in the Storylines list as
-  // a RouterLink straight to its page, and the button this drives is not rendered for one.
-  if (!e || e.kind === "storyline") return
-  // A theme has no EntityCard either — it is a grouping, never a node on an episode, so the card
-  // would be empty. It has a PAGE, so go there. Without this the kind falls through to
-  // `cardTarget` and opens a card that cannot load.
-  if (e.kind === "theme") {
-    void router.push({ name: "theme", params: { id: e.id } })
-    return
-  }
-  cardTarget.value = { kind: e.kind, id: e.id }
 }
 
 function submit(): void {
@@ -629,43 +803,23 @@ watch(
  * presence rule Library's bar follows. Not persisted: a filter is about the query you are reading
  * now, and carrying it into the next search would silently hide results.
  */
-/**
- * Which SECTION the resolved entity belongs in — people, topics and storylines are three sections
- * now, not one lumped list (operator 2026-09-17). `organization` never reaches here; it is filtered
- * when the resolver answers.
- */
-const entityKey = computed<"people" | "topics" | "storylines" | "themes" | null>(() => {
-  switch (entity.value?.kind) {
-    case "person":
-      return "people"
-    case "topic":
-      return "topics"
-    case "storyline":
-      return "storylines"
-    // Its OWN section, not folded into storylines. A theme and a storyline are different objects —
-    // one groups by meaning, the other by co-occurrence — and showing a theme under a "Storylines"
-    // heading is the same conflation that has to be undone everywhere else it was done.
-    case "theme":
-      return "themes"
-    default:
-      // An unknown kind renders NOTHING (every entity block is `v-if="entity && entityKey"`), which
-      // is how a resolved theme was invisible here before this case existed.
-      return null
-  }
-})
-
 const resultTypes = ref<string[]>([])
 const typeVisible = (key: string) => resultTypes.value.length === 0 || resultTypes.value.includes(key)
 const availableResultTypes = computed(() => {
   const out: { key: string; label: string }[] = []
   // A chip per KIND, not one lumped "entity" chip (operator 2026-09-17): the resolver returns at
   // most one entity, so whichever kind it is gets its own chip and its own section.
-  if (entityKey.value) out.push({ key: entityKey.value, label: t(`search.type_${entityKey.value}`) })
-  // Index-found storylines get the chip even when the resolver returned nothing (a partial match).
-  if (storylineResults.value.length && entityKey.value !== "storylines")
+  // People and topics are lists now (the exact-name answer plus the index hits), so their chips
+  // follow the lists; the single entity card is left for a theme or a storyline.
+  if (peopleResults.value.length) out.push({ key: "people", label: t("search.type_people") })
+  if (topicResults.value.length) out.push({ key: "topics", label: t("search.type_topics") })
+  if (themeResults.value.length) out.push({ key: "themes", label: t("search.type_themes") })
+  // Storylines: index hits plus the resolver's exact-name answer, one list (storylineResults).
+  if (storylineResults.value.length)
     out.push({ key: "storylines", label: t("search.type_storylines") })
   if (showMatches.value.length) out.push({ key: "shows", label: t("search.type_shows") })
   if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
+  if (boardMatches.value.length) out.push({ key: "boards", label: t("search.type_boards") })
   if (yearSections.value.length) out.push({ key: "episodes", label: t("search.typeEpisodes") })
   return out
 })
@@ -684,8 +838,27 @@ const showEmpty = computed(
     !error.value &&
     results.value.length === 0 &&
     noteMatches.value.length === 0 &&
+    boardMatches.value.length === 0 &&
     storylineResults.value.length === 0 &&
+    topicResults.value.length === 0 &&
+    peopleResults.value.length === 0 &&
+    themeResults.value.length === 0 &&
     entity.value === null
+)
+/**
+ * Mine found no EPISODES. Said whatever the subjects at the top show: those are matched by name
+ * across the library (2026-10-12), so a new listener searching "index" still sees a topic named so,
+ * and that must not hide "nothing in your listening" or the way to everyone's.
+ */
+const showMineEmpty = computed(
+  () =>
+    scope.value === "mine" &&
+    ran.value &&
+    !searching.value &&
+    !error.value &&
+    passageResults.value.length === 0 &&
+    noteMatches.value.length === 0 &&
+    boardMatches.value.length === 0
 )
 </script>
 
@@ -817,72 +990,49 @@ const showEmpty = computed(
          its own heading, subtitle and filter chip. The resolver returns at most ONE entity, so
          exactly one of them renders for a given query — but which one is now named, instead of a
          lumped heading that made a person and a storyline look like the same kind of result. -->
-    <template v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)">
-      <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${entityKey}`">
-        {{ t(`search.type_${entityKey}`) }}
-      </h2>
-      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.entitySummary") }}
-      </p>
-    </template>
-    <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
-    <button
-      v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)"
-      type="button"
-      class="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:bg-overlay"
-      :aria-label="t('kp.openEntity', { term: entity.label })"
-      @click="openEntity"
-    >
-      <span class="min-w-0 flex-1">
-        <!-- An `organization` never reaches here; it is filtered when the resolver answers. -->
-        <span class="lp-kicker block">{{
-          entity.kind === "person"
-            ? t("ec.person")
-            : entity.kind === "storyline"
-              ? t("home.storylines")
-              : entity.kind === "theme"
-                ? t("home.themes")
-                : t("ec.topic")
-        }}</span>
-        <span class="block font-display text-lg font-bold text-canvas-foreground">{{
-          entity.label
-        }}</span>
-      </span>
-      <span class="shrink-0 text-sm font-semibold text-accent">{{ t("search.viewEntity") }} ›</span>
-    </button>
-
-    <!-- STORYLINES — from the INDEX, so a partial or member-topic query reaches them ("risk"
-         finds "Managing risk across domains" through its members), with the resolver's exact-name
-         answer folded in and de-duplicated by id. A list rather than the single entity card,
-         because an index query can legitimately match several. -->
-    <template v-if="storylineResults.length && !searching && typeVisible('storylines')">
-      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-storylines">
-        {{ t("search.type_storylines") }}
-      </h2>
-      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.storylinesSummary", { count: storylineResults.length }, storylineResults.length) }}
-      </p>
-      <ul class="flex flex-col gap-2" data-testid="search-storylines">
-        <li v-for="s in storylineResults" :key="s.key">
-          <RouterLink
-            :to="{ name: 'storyline', params: { id: s.routeId } }"
-            class="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 no-underline transition hover:bg-overlay"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="lp-kicker block">{{ t("home.storylines") }}</span>
-              <span class="block font-display text-lg font-bold text-canvas-foreground">{{
-                s.label
-              }}</span>
-              <span v-if="s.size" class="lp-kicker mt-0.5 block">{{
-                t("search.storylineSize", { count: s.size }, s.size)
-              }}</span>
-            </span>
-            <span class="shrink-0 text-sm font-semibold text-accent"
-              >{{ t("search.viewEntity") }} ›</span
-            >
-          </RouterLink>
-        </li>
-      </ul>
+    <!-- PEOPLE · TOPICS · THEMES · STORYLINES — one way (operator 2026-10-11): a section per kind,
+         each the same kind-coloured pills, one per subject however many episodes it was found in,
+         listed above the episodes (a topic or person connects episodes, so it is not a row under
+         one). The exact-name answer leads its kind; eight, then "Show all (N)". A person or topic
+         opens its card, a theme or storyline its page. -->
+    <template v-for="sec in subjectSections" :key="sec.key">
+      <template v-if="!searching && typeVisible(sec.key)">
+        <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${sec.key}`">
+          {{ t(`search.type_${sec.key}`) }}
+        </h2>
+        <ul class="mt-2 flex flex-wrap gap-2" :data-testid="`search-${sec.key}`">
+          <li v-for="row in shownRows(sec.key, sec.rows)" :key="row.key">
+            <RouterLink
+              v-if="'to' in row.open"
+              :to="row.open.to"
+              class="lp-tap inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold no-underline transition hover:opacity-80"
+              :class="kindPill(sec.kind)"
+              :data-kind="sec.kind"
+              :data-testid="`search-${sec.kind}-result`"
+              :aria-label="t('kp.openEntity', { term: row.label })"
+              @click="trackSubjectPage(sec.kind)"
+            >{{ row.label }}</RouterLink>
+            <button
+              v-else
+              type="button"
+              class="lp-tap inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
+              :class="kindPill(sec.kind)"
+              :data-kind="sec.kind"
+              :data-testid="`search-${sec.kind}-result`"
+              :aria-label="t('kp.openEntity', { term: row.label })"
+              @click="openEntityRow(row.open.card.kind, row.open.card.id)"
+            >{{ row.label }}</button>
+          </li>
+        </ul>
+        <button
+          v-if="sec.rows.length > ENTITY_ROWS_SHOWN"
+          type="button"
+          class="lp-tap mt-2 text-sm font-bold text-accent"
+          :aria-expanded="expandedEntityLists.has(sec.key)"
+          :data-testid="`search-${sec.key}-more`"
+          @click="toggleEntityList(sec.key)"
+        >{{ expandedEntityLists.has(sec.key) ? t("home.showLess") : t("search.showAllCount", { count: sec.rows.length }) }}</button>
+      </template>
     </template>
 
     <!-- SHOWS — matched by title / host, every word in any order (see `showMatches`). -->
@@ -955,6 +1105,49 @@ const showEmpty = computed(
       />
     </section>
 
+    <!-- The listener's own BOARDS (#2341), beside their notes: a board whose name matches, then one
+         holding something that does. Each row says what matched and opens the board in Library. -->
+    <section
+      v-if="boardMatches.length && typeVisible('boards')"
+      class="mt-4"
+      data-testid="search-board-matches"
+    >
+      <h2 class="lp-section mb-1">{{ t("search.type_boards") }}</h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.boardsSummary", { count: boardMatches.length }, boardMatches.length) }}
+      </p>
+      <ul class="flex flex-col gap-2">
+        <li v-for="(m, i) in boardMatches" :key="m.collection.id">
+          <RouterLink
+            :to="{ name: 'library', query: { tab: 'collections', board: m.collection.id } }"
+            class="flex items-center gap-3 rounded-xl border border-border p-3 no-underline"
+            data-testid="search-board"
+            @click="openBoard(i + 1)"
+          >
+            <img
+              v-if="m.collection.cover_url"
+              :src="m.collection.cover_url"
+              alt=""
+              loading="lazy"
+              class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+            />
+            <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-semibold text-canvas-foreground">{{
+                m.collection.name
+              }}</span>
+              <span class="block truncate text-xs text-muted" data-testid="search-board-why">{{
+                boardWhy(m)
+              }}</span>
+            </span>
+            <span class="shrink-0 text-xs text-muted">{{
+              t("collections.count", m.collection.count, { named: { count: m.collection.count } })
+            }}</span>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
+
     <!-- F1.3/F1.4: reserve the results shape while searching (no jump when they land) and offer a
          retry on failure, instead of a bare "Searching…"/error line. -->
     <SectionStatus
@@ -966,7 +1159,7 @@ const showEmpty = computed(
     />
     <!-- An empty Mine says so AND offers everyone's (ADR-162): Mine is the default, so this is a
          new listener's first search — it must not end on an empty page. -->
-    <div v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted" data-testid="search-mine-empty">
+    <div v-else-if="showMineEmpty" class="mt-4 text-muted" data-testid="search-mine-empty">
       <p>{{ t("search.recallEmpty") }}</p>
       <button
         type="button"
@@ -1016,9 +1209,16 @@ const showEmpty = computed(
       <!-- #1261-7: year sections wrap the episode-group list. When the
            results span a single year, the header is suppressed so the
            results still read as one flat list. -->
-      <template v-for="section in yearSections" :key="section.year">
+      <section
+        v-for="cat in categorySections"
+        :key="cat.id"
+        class="mt-5"
+        :data-testid="`search-category-${cat.id}`"
+      >
+      <h3 class="lp-kicker" data-testid="search-category-title">{{ t(`search.category.${cat.id}`) }}</h3>
+      <template v-for="section in cat.yearSections" :key="section.year">
         <h2
-          v-if="showYearHeaders"
+          v-if="cat.showYearHeaders"
           class="mt-6 mb-2 font-display text-sm font-bold uppercase tracking-wider text-muted"
           data-testid="year-header"
         >
@@ -1046,10 +1246,10 @@ const showEmpty = computed(
             <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
                  so the listener knows WHY this episode surfaced without tapping through. Hidden
                  when nothing resolved to an episode-level field. -->
-            <template v-if="matchedFieldChips(g.hits).length" #extra>
+            <template v-if="matchedFieldChips(episodeHits(g)).length" #extra>
               <span class="lp-kicker mt-1 block" data-testid="matched-fields">
                 {{ t("search.matchedPrefix") }}
-                <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
+                <template v-for="(m, mi) in matchedFieldChips(episodeHits(g))" :key="m.label">
                   <template v-if="mi > 0"> · </template>
                   <span class="font-semibold text-canvas-foreground">
                     {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
@@ -1157,6 +1357,18 @@ const showEmpty = computed(
           </EpisodeGroupCard>
         </ul>
       </template>
+      <!-- Under the category's last item, as on the rails: its next three, then "Show less". -->
+      <ShowAllToggle
+        v-if="cat.more || cat.count > PER_CATEGORY"
+        :expanded="cat.count > PER_CATEGORY"
+        :count="cat.count"
+        :remaining="cat.more ? 1 : 0"
+        :more-label="t('search.categoryMore')"
+        :disabled="categoryLoading === cat.id"
+        :data-testid="`search-category-more-${cat.id}`"
+        @toggle="showMoreOrLess(cat.id)"
+      />
+      </section>
     </template>
 
     <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is

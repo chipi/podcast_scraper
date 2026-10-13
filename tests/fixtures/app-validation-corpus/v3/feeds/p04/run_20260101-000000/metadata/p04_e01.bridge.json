@@ -12,22 +12,6 @@
     {
       "display_name": "strobe lighting",
       "id": "topic:strobe-lighting"
-    },
-    {
-      "display_name": "visual craft",
-      "id": "topic:visual-craft"
-    },
-    {
-      "display_name": "systems thinking",
-      "id": "topic:systems-thinking"
-    },
-    {
-      "display_name": "lifelong learning",
-      "id": "topic:lifelong-learning"
-    },
-    {
-      "display_name": "expert interviews",
-      "id": "topic:expert-interviews"
     }
   ],
   "schema_version": "1"

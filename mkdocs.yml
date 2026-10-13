@@ -185,6 +185,7 @@ nav:
       - PRD-045 Search v3 — Query Workspace: prd/PRD-045-search-v3-query-workspace.md
       - PRD-046 Delivery & Curation: prd/PRD-046-delivery-and-curation.md
       - PRD-047 Multilingual Ingest: prd/PRD-047-multilingual-ingest.md
+      - PRD-048 Discover and Explore: prd/PRD-048-discover-and-explore.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -327,6 +328,9 @@ nav:
       - ADR-160 Remove whole-segment invented lines: adr/ADR-160-remove-whole-segment-invented-lines.md
       - ADR-161 Repair punctuation per window: adr/ADR-161-repair-punctuation-per-window.md
       - ADR-162 Mine means the listener's own world: adr/ADR-162-mine-means-the-listeners-own-world.md
+      - ADR-163 The jobs of Discover: adr/ADR-163-the-jobs-of-discover.md
+      - ADR-164 Discover is a taste: adr/ADR-164-discover-is-a-taste.md
+      - ADR-165 The validation corpus grounds every insight: adr/ADR-165-validation-corpus-grounds-every-insight.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -444,6 +448,8 @@ nav:
       - RFC-123 Speaker Turns Artifact: rfc/RFC-123-speaker-turns-artifact.md
       - RFC-124 Multilingual Transcription and Translation: rfc/RFC-124-multilingual-transcription-and-translation.md
       - RFC-125 Translation Confidence and Claim Verification: rfc/RFC-125-translation-confidence-and-claim-verification.md
+      - RFC-126 Discover Rails, Reasons, Paging and Reels: rfc/RFC-126-discover-rails-reasons-paging-and-reels.md
+      - RFC-127 Board Summaries: rfc/RFC-127-board-summaries.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

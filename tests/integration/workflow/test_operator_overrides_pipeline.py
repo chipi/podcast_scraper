@@ -153,3 +153,18 @@ class TestOperatorOverridesInThePipeline(unittest.TestCase):
         if code != 0:
             raise RuntimeError(f"run exited {code}")
         return code
+
+    def test_a_previous_runs_work_list_does_not_fail_this_run(self) -> None:
+        """A run without a work-list must not inherit the last run's (2026-10-11).
+
+        The work-list report is process-wide and nothing reset it at the start of a run: a second
+        run in the same process (a long-lived service, a test worker) read the first run's ids,
+        reported them unfinished and exited 1 — seen as five tests here failing only when the
+        reprocess tests had run first in the same xdist worker.
+        """
+        from podcast_scraper.workflow.worklist_report import get_worklist_report
+
+        get_worklist_report().request({"eid-from-an-earlier-run"})  # what a previous run left
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._run(_rss("en"), tmpdir)  # asserts exit code 0
+        self.assertFalse(get_worklist_report().active)

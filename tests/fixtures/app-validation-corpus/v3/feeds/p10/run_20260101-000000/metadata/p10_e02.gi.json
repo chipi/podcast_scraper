@@ -1,13 +1,38 @@
 {
   "edges": [
     {
-      "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "topic:enduro-racing",
-      "type": "MENTIONS"
+      "from": "insight:593532d2d8eaa9ba",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:a441022ef9dc09f7",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:af06db6dad8f0a3a",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "topic:soil-erosion",
+      "to": "insight:593532d2d8eaa9ba",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "insight:a441022ef9dc09f7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "insight:af06db6dad8f0a3a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:enduro-racing",
       "type": "MENTIONS"
     },
     {
@@ -17,108 +42,53 @@
     },
     {
       "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "topic:endurance-sport",
+      "to": "topic:soil-erosion",
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "insight:8512a405c60d37fc",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "insight:241be72966364882",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-7fd3ec879c8c2b44",
-      "to": "insight:1056aab3a783dcaf",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:fa93254ceabba686",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:8512a405c60d37fc",
-      "to": "quote:fa93254ceabba686",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a70c4fe071020fb6",
-      "to": "person:marta-solis",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:241be72966364882",
-      "to": "quote:a70c4fe071020fb6",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:38b5d6d2cf74cbcd",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1056aab3a783dcaf",
-      "to": "quote:38b5d6d2cf74cbcd",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:89317e4a43c68701",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:8512a405c60d37fc",
-      "to": "quote:89317e4a43c68701",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:02bbaa2f61b6c9f2",
-      "to": "person:marta-solis",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:241be72966364882",
-      "to": "quote:02bbaa2f61b6c9f2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:67f42f0657d7bc23",
-      "to": "person:lucia-herrera",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:1056aab3a783dcaf",
-      "to": "quote:67f42f0657d7bc23",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:8512a405c60d37fc",
-      "to": "person:lucia-herrera",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:241be72966364882",
+      "from": "insight:593532d2d8eaa9ba",
       "to": "person:marta-solis",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:1056aab3a783dcaf",
-      "to": "person:lucia-herrera",
+      "from": "insight:a441022ef9dc09f7",
+      "to": "person:marta-solis",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:af06db6dad8f0a3a",
+      "to": "person:marta-solis",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:00e65bf95cbe7d47",
+      "to": "person:marta-solis",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:b11d861b761b173d",
+      "to": "person:marta-solis",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:d6916ecc87b5771f",
+      "to": "person:marta-solis",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:593532d2d8eaa9ba",
+      "to": "quote:d6916ecc87b5771f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:a441022ef9dc09f7",
+      "to": "quote:b11d861b761b173d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:af06db6dad8f0a3a",
+      "to": "quote:00e65bf95cbe7d47",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-7fd3ec879c8c2b44",
@@ -157,28 +127,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:8512a405c60d37fc",
+      "id": "insight:593532d2d8eaa9ba",
       "properties": {
         "episode_id": "ep-7fd3ec879c8c2b44",
         "grounded": true,
@@ -186,13 +135,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Linear is the incident management platform built for speed \u2013 designed for the keyboard. Try linear.com today. Before we get started, Javier Benavides was on the show discussing how drainage is the\u2026",
+        "text": "Honestly, risk management in cycling isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen it in teams that use Shimano components. If you ignore tha\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:241be72966364882",
+      "id": "insight:a441022ef9dc09f7",
       "properties": {
         "episode_id": "ep-7fd3ec879c8c2b44",
         "grounded": true,
@@ -200,13 +149,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Yes, exactly. And it connects to what we're going to be discussing today.",
+        "text": "Yes, look \u2013 risk management in cycling isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox components. I've seen this pattern\u2026",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:1056aab3a783dcaf",
+      "id": "insight:af06db6dad8f0a3a",
       "properties": {
         "episode_id": "ep-7fd3ec879c8c2b44",
         "grounded": true,
@@ -214,41 +163,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to point out something \u2013 Javier Benavides mentioned this same dynamic a couple of episodes ago.",
+        "text": "Let me give you the version that I truly believe in. Risk management in a career isn't about avoiding falls; it's about choosing which falls are survivable. We've seen this with teams that use Spok\u2026",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:lucia-herrera",
-      "properties": {
-        "name": "Luc\u00eda Herrera"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:fa93254ceabba686",
-      "properties": {
-        "char_end": 252,
-        "char_start": 15,
-        "episode_id": "ep-7fd3ec879c8c2b44",
-        "speaker_id": "person:speaker-01",
-        "text": "Linear is the incident management platform built for speed \u2013 designed for the keyboard. Try linear.com today. Before we get started, Javier Benavides was on the show discussing how drainage is the design decision with the biggest impact.",
-        "timestamp_end_ms": 30540,
-        "timestamp_start_ms": 16079,
-        "transcript_ref": "transcripts/p10_e02.txt",
-        "translation": {
-          "en_sha256": "2d43f099cede84e01dbb6cd2d4ccd50a8b3794b508296a2e42232dc35b3e986d",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:marta-solis",
@@ -258,15 +176,15 @@
       "type": "Person"
     },
     {
-      "id": "quote:a70c4fe071020fb6",
+      "id": "quote:d6916ecc87b5771f",
       "properties": {
-        "char_end": 339,
-        "char_start": 266,
+        "char_end": 1416,
+        "char_start": 1162,
         "episode_id": "ep-7fd3ec879c8c2b44",
         "speaker_id": "person:speaker-02",
-        "text": "Yes, exactly. And it connects to what we're going to be discussing today.",
-        "timestamp_end_ms": 33840,
-        "timestamp_start_ms": 30540,
+        "text": "Honestly, risk management in cycling isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen it in teams that use Shimano components. If you ignore that, you'll end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
         "transcript_ref": "transcripts/p10_e02.txt",
         "translation": {
           "en_sha256": "2d43f099cede84e01dbb6cd2d4ccd50a8b3794b508296a2e42232dc35b3e986d",
@@ -275,70 +193,22 @@
           "source_language": "es",
           "translated": true,
           "unit_ids": [
-            "t0003.u01"
+            "t0009.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:38b5d6d2cf74cbcd",
+      "id": "quote:b11d861b761b173d",
       "properties": {
-        "char_end": 457,
-        "char_start": 355,
-        "episode_id": "ep-7fd3ec879c8c2b44",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to point out something \u2013 Javier Benavides mentioned this same dynamic a couple of episodes ago.",
-        "timestamp_end_ms": 39420,
-        "timestamp_start_ms": 33840,
-        "transcript_ref": "transcripts/p10_e02.txt",
-        "translation": {
-          "en_sha256": "2d43f099cede84e01dbb6cd2d4ccd50a8b3794b508296a2e42232dc35b3e986d",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:89317e4a43c68701",
-      "properties": {
-        "char_end": 536,
-        "char_start": 458,
-        "episode_id": "ep-7fd3ec879c8c2b44",
-        "speaker_id": "person:speaker-01",
-        "text": "Tell me a specific example. Where do soil erosion and enduro racing intersect?",
-        "timestamp_end_ms": 215580,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p10_e02.txt",
-        "translation": {
-          "en_sha256": "2d43f099cede84e01dbb6cd2d4ccd50a8b3794b508296a2e42232dc35b3e986d",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "es",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:02bbaa2f61b6c9f2",
-      "properties": {
-        "char_end": 767,
-        "char_start": 550,
+        "char_end": 2934,
+        "char_start": 2698,
         "episode_id": "ep-7fd3ec879c8c2b44",
         "speaker_id": "person:speaker-02",
-        "text": "Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox components. I've observed this pattern repeating itself in three different teams.",
-        "timestamp_end_ms": 227220,
-        "timestamp_start_ms": 215580,
+        "text": "Yes, look \u2013 risk management in cycling isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox components. I've seen this pattern repeat itself in three different teams.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
         "transcript_ref": "transcripts/p10_e02.txt",
         "translation": {
           "en_sha256": "2d43f099cede84e01dbb6cd2d4ccd50a8b3794b508296a2e42232dc35b3e986d",
@@ -347,22 +217,22 @@
           "source_language": "es",
           "translated": true,
           "unit_ids": [
-            "t0005.u01"
+            "t0021.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:67f42f0657d7bc23",
+      "id": "quote:00e65bf95cbe7d47",
       "properties": {
-        "char_end": 867,
-        "char_start": 783,
+        "char_end": 4718,
+        "char_start": 4447,
         "episode_id": "ep-7fd3ec879c8c2b44",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into that. Where do soil erosion and enduro racing intersect?",
-        "timestamp_end_ms": 232620,
-        "timestamp_start_ms": 227220,
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version that I truly believe in. Risk management in a career isn't about avoiding falls; it's about choosing which falls are survivable. We've seen this with teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.",
+        "timestamp_end_ms": 228000,
+        "timestamp_start_ms": 222000,
         "transcript_ref": "transcripts/p10_e02.txt",
         "translation": {
           "en_sha256": "2d43f099cede84e01dbb6cd2d4ccd50a8b3794b508296a2e42232dc35b3e986d",
@@ -371,7 +241,7 @@
           "source_language": "es",
           "translated": true,
           "unit_ids": [
-            "t0006.u01"
+            "t0033.u01"
           ]
         }
       },

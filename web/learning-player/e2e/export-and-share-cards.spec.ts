@@ -77,7 +77,7 @@ test.describe('Share card — the server card, through the real button', () => {
     ['topic', '/topic/topic:risk-management', '/og/topic/topic%3Arisk-management.png'],
     ['person', '/person/person:nora', '/og/person/person%3Anora.png'],
     ['storyline', '/storyline/topic:risk-management', '/og/storyline/topic%3Arisk-management.png'],
-    ['theme', '/theme/tc:broadcast-format', '/og/theme/tc%3Abroadcast-format.png'],
+    ['theme', '/theme/tc:public-radio', '/og/theme/tc%3Apublic-radio.png'],
   ]
 
   for (const [kind, path, card] of PAGES) {

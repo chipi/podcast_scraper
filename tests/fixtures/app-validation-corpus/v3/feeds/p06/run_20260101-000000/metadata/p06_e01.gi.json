@@ -1,6 +1,31 @@
 {
   "edges": [
     {
+      "from": "insight:36e47c2eb3647d13",
+      "to": "topic:long-form",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:597daa173ce51d89",
+      "to": "topic:dialogue",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:36e47c2eb3647d13",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:510254a60310a8d3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:597daa173ce51d89",
+      "type": "HAS_INSIGHT"
+    },
+    {
       "from": "episode:ep-a89e6a42509c9af0",
       "to": "topic:cultural-drift",
       "type": "MENTIONS"
@@ -16,129 +41,49 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-a89e6a42509c9af0",
-      "to": "topic:long-form",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a89e6a42509c9af0",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a89e6a42509c9af0",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a89e6a42509c9af0",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a89e6a42509c9af0",
-      "to": "insight:781d2f5960d956a0",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:781d2f5960d956a0",
-      "to": "topic:cultural-drift",
-      "type": "ABOUT"
-    },
-    {
-      "from": "episode:ep-a89e6a42509c9af0",
-      "to": "insight:b0ae727f8e37bb73",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-a89e6a42509c9af0",
-      "to": "insight:79b290b9d8014615",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:79b290b9d8014615",
-      "to": "topic:cultural-drift",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:79b290b9d8014615",
-      "to": "topic:dialogue",
-      "type": "ABOUT"
-    },
-    {
-      "from": "quote:8b5c13cee9db729e",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:781d2f5960d956a0",
-      "to": "quote:8b5c13cee9db729e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c39f669d7a91b1c9",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b0ae727f8e37bb73",
-      "to": "quote:c39f669d7a91b1c9",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0a6b944e8f8995a3",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:79b290b9d8014615",
-      "to": "quote:0a6b944e8f8995a3",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:bed9b91f37792dd9",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:781d2f5960d956a0",
-      "to": "quote:bed9b91f37792dd9",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:fa0d90810311b248",
-      "to": "person:cam",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b0ae727f8e37bb73",
-      "to": "quote:fa0d90810311b248",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0e8196ddd2be6761",
-      "to": "person:jordan-park",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:79b290b9d8014615",
-      "to": "quote:0e8196ddd2be6761",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:781d2f5960d956a0",
-      "to": "person:cam",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:b0ae727f8e37bb73",
+      "from": "insight:36e47c2eb3647d13",
       "to": "person:jordan-park",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:79b290b9d8014615",
+      "from": "insight:510254a60310a8d3",
       "to": "person:cam",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:597daa173ce51d89",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:51f7d4e1eeb5dacd",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:5f96d13faa284f47",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:f963f7c39e0f4581",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:36e47c2eb3647d13",
+      "to": "quote:5f96d13faa284f47",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:510254a60310a8d3",
+      "to": "quote:f963f7c39e0f4581",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:597daa173ce51d89",
+      "to": "quote:51f7d4e1eeb5dacd",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-a89e6a42509c9af0",
@@ -177,35 +122,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:long-form",
-      "properties": {
-        "label": "long-form"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:781d2f5960d956a0",
+      "id": "insight:597daa173ce51d89",
       "properties": {
         "episode_id": "ep-a89e6a42509c9af0",
         "grounded": true,
@@ -213,13 +130,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to dig into that. What's the most underrated piece of cultural drift?",
+        "text": "Sure. The texture of dialogue is the work. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:b0ae727f8e37bb73",
+      "id": "insight:36e47c2eb3647d13",
       "properties": {
         "episode_id": "ep-a89e6a42509c9af0",
         "grounded": false,
@@ -227,13 +144,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decis\u2026",
+        "text": "It comes down to this: Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:79b290b9d8014615",
+      "id": "insight:510254a60310a8d3",
       "properties": {
         "episode_id": "ep-a89e6a42509c9af0",
         "grounded": true,
@@ -241,31 +158,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to dig into that. Where do dialogue and cultural drift intersect?",
+        "text": "There's something almost \u2014 I don't know. Hard to name.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:cam",
-      "properties": {
-        "name": "Cam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:8b5c13cee9db729e",
-      "properties": {
-        "char_end": 485,
-        "char_start": 409,
-        "episode_id": "ep-a89e6a42509c9af0",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to dig into that. What's the most underrated piece of cultural drift?",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
-        "transcript_ref": "transcripts/p06_e01.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "person:jordan-park",
@@ -275,35 +171,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:c39f669d7a91b1c9",
-      "properties": {
-        "char_end": 712,
-        "char_start": 499,
-        "episode_id": "ep-a89e6a42509c9af0",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p06_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:0a6b944e8f8995a3",
-      "properties": {
-        "char_end": 790,
-        "char_start": 718,
-        "episode_id": "ep-a89e6a42509c9af0",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to dig into that. Where do dialogue and cultural drift intersect?",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p06_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:bed9b91f37792dd9",
+      "id": "quote:51f7d4e1eeb5dacd",
       "properties": {
         "char_end": 919,
         "char_start": 804,
@@ -317,21 +185,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:fa0d90810311b248",
-      "properties": {
-        "char_end": 1008,
-        "char_start": 925,
-        "episode_id": "ep-a89e6a42509c9af0",
-        "speaker_id": "person:speaker-01",
-        "text": "Let's start there. What's the structural angle most listeners don't have access to?",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p06_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:0e8196ddd2be6761",
+      "id": "quote:5f96d13faa284f47",
       "properties": {
         "char_end": 1195,
         "char_start": 1022,
@@ -340,6 +194,27 @@
         "text": "It comes down to this: Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss.",
         "timestamp_end_ms": 54000,
         "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:cam",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f963f7c39e0f4581",
+      "properties": {
+        "char_end": 3084,
+        "char_start": 3030,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "There's something almost \u2014 I don't know. Hard to name.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
         "transcript_ref": "transcripts/p06_e01.txt"
       },
       "type": "Quote"

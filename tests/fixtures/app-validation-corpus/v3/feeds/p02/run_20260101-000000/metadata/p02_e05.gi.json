@@ -2,33 +2,8 @@
   "edges": [
     {
       "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:reliability",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:on-call",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:systems-thinking",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:risk-management",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
+      "to": "insight:03a39d403becf912",
+      "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-a05e37624721d37c",
@@ -37,73 +12,23 @@
     },
     {
       "from": "episode:ep-a05e37624721d37c",
-      "to": "insight:25cd30aae7255960",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-a05e37624721d37c",
       "to": "insight:f79b30771333b04b",
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:523311cf5e0f6631",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:on-call",
+      "type": "MENTIONS"
     },
     {
-      "from": "insight:6c7a41616d8f80ad",
-      "to": "quote:523311cf5e0f6631",
-      "type": "SUPPORTED_BY"
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
     },
     {
-      "from": "quote:aa5b7f360150e343",
+      "from": "insight:03a39d403becf912",
       "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:25cd30aae7255960",
-      "to": "quote:aa5b7f360150e343",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a2a66158b5696556",
-      "to": "person:caller",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f79b30771333b04b",
-      "to": "quote:a2a66158b5696556",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8e18c0b083b73ab4",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6c7a41616d8f80ad",
-      "to": "quote:8e18c0b083b73ab4",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:6353549bb1cefd9f",
-      "to": "person:ethan",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:25cd30aae7255960",
-      "to": "quote:6353549bb1cefd9f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:dbe00c1389e799dc",
-      "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f79b30771333b04b",
-      "to": "quote:dbe00c1389e799dc",
-      "type": "SUPPORTED_BY"
+      "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:6c7a41616d8f80ad",
@@ -111,14 +36,39 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:25cd30aae7255960",
+      "from": "insight:f79b30771333b04b",
       "to": "person:priya-nair",
       "type": "MENTIONS_PERSON"
     },
     {
+      "from": "quote:48370bf999e8a89d",
+      "to": "person:priya-nair",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:6594691ae36f1a98",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:7e84bdbe39f272a3",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:03a39d403becf912",
+      "to": "quote:7e84bdbe39f272a3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:6c7a41616d8f80ad",
+      "to": "quote:6594691ae36f1a98",
+      "type": "SUPPORTED_BY"
+    },
+    {
       "from": "insight:f79b30771333b04b",
-      "to": "person:caller",
-      "type": "MENTIONS_PERSON"
+      "to": "quote:48370bf999e8a89d",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-a05e37624721d37c",
@@ -150,34 +100,6 @@
       "type": "Topic"
     },
     {
-      "id": "topic:systems-thinking",
-      "properties": {
-        "label": "systems thinking"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-management",
-      "properties": {
-        "label": "risk management"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
       "id": "insight:6c7a41616d8f80ad",
       "properties": {
         "episode_id": "ep-a05e37624721d37c",
@@ -192,26 +114,12 @@
       "type": "Insight"
     },
     {
-      "id": "insight:25cd30aae7255960",
+      "id": "insight:f79b30771333b04b",
       "properties": {
         "episode_id": "ep-a05e37624721d37c",
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Hi Ethan \u2014 how do you tell alert fatigue from a real incident?",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:f79b30771333b04b",
-      "properties": {
-        "episode_id": "ep-a05e37624721d37c",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Great question. Alert fatigue is a signal-to-noise problem, not a discipline problem. If the team ignores pages, the pages are wrong, not the people.",
@@ -220,25 +128,18 @@
       "type": "Insight"
     },
     {
-      "id": "person:priya-nair",
+      "id": "insight:03a39d403becf912",
       "properties": {
-        "name": "Priya Nair"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:523311cf5e0f6631",
-      "properties": {
-        "char_end": 190,
-        "char_start": 167,
         "episode_id": "ep-a05e37624721d37c",
-        "speaker_id": "person:speaker-02",
-        "text": "Good to be back, Ethan.",
-        "timestamp_end_ms": 12000,
-        "timestamp_start_ms": 6000,
-        "transcript_ref": "transcripts/p02_e05.txt"
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "So you'd tune the alerts before you tune the humans.",
+        "tier": 2
       },
-      "type": "Quote"
+      "type": "Insight"
     },
     {
       "id": "person:ethan",
@@ -248,7 +149,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:aa5b7f360150e343",
+      "id": "quote:6594691ae36f1a98",
       "properties": {
         "char_end": 423,
         "char_start": 327,
@@ -262,28 +163,14 @@
       "type": "Quote"
     },
     {
-      "id": "person:caller",
+      "id": "person:priya-nair",
       "properties": {
-        "name": "Caller"
+        "name": "Priya Nair"
       },
       "type": "Person"
     },
     {
-      "id": "quote:a2a66158b5696556",
-      "properties": {
-        "char_end": 494,
-        "char_start": 432,
-        "episode_id": "ep-a05e37624721d37c",
-        "speaker_id": "person:speaker-03",
-        "text": "Hi Ethan \u2014 how do you tell alert fatigue from a real incident?",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p02_e05.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:8e18c0b083b73ab4",
+      "id": "quote:48370bf999e8a89d",
       "properties": {
         "char_end": 656,
         "char_start": 507,
@@ -297,7 +184,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:6353549bb1cefd9f",
+      "id": "quote:7e84bdbe39f272a3",
       "properties": {
         "char_end": 716,
         "char_start": 664,
@@ -306,20 +193,6 @@
         "text": "So you'd tune the alerts before you tune the humans.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p02_e05.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:dbe00c1389e799dc",
-      "properties": {
-        "char_end": 857,
-        "char_start": 729,
-        "episode_id": "ep-a05e37624721d37c",
-        "speaker_id": "person:speaker-02",
-        "text": "Every time. Measure how many pages led to action. Under half, and you have a noise problem \u2014 no amount of willpower fixes noise.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p02_e05.txt"
       },
       "type": "Quote"

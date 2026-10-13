@@ -33,7 +33,7 @@ test('add to a collection, create another, and find both with their items', asyn
   // --- 1. add an episode to a brand-new collection --------------------------------------------
   // From a browse ROW: the episode-kind control lives on `EpisodeCard`. There is deliberately no
   // note here about the player page — see the comment at the bottom of this file.
-  await page.goto('/browse')
+  await page.goto('/explore')
   await page.waitForLoadState('networkidle')
   const firstRow = page.locator('article').first()
   await expect(firstRow).toBeVisible()

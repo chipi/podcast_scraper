@@ -4,38 +4,6 @@
   "data": {
     "consensus": [
       {
-        "consensus_score": 0.86475,
-        "contradiction": 0.072263,
-        "cosine": 0.86475,
-        "insight_a_id": "insight:consensus:topic-expert-interviews:person-nora",
-        "insight_a_text": "With expert interviews, the durable wins come from managing the whole system, not one-off bets.",
-        "insight_b_id": "insight:consensus:topic-expert-interviews:person-daniel-cho",
-        "insight_b_text": "Agreed \u2014 expert interviews rewards a systems view; the edge is in the process, not any single call.",
-        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
-        "model_version": "v2",
-        "person_a_id": "person:nora",
-        "person_a_name": "Nora",
-        "person_b_id": "person:daniel-cho",
-        "person_b_name": "Daniel Cho",
-        "topic_id": "topic:expert-interviews"
-      },
-      {
-        "consensus_score": 0.74675,
-        "contradiction": 0.084307,
-        "cosine": 0.74675,
-        "insight_a_id": "insight:consensus:topic-lifelong-learning:person-nora",
-        "insight_a_text": "With lifelong learning, the durable wins come from managing the whole system, not one-off bets.",
-        "insight_b_id": "insight:consensus:topic-lifelong-learning:person-daniel-cho",
-        "insight_b_text": "Agreed \u2014 lifelong learning rewards a systems view; the edge is in the process, not any single call.",
-        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
-        "model_version": "v2",
-        "person_a_id": "person:nora",
-        "person_a_name": "Nora",
-        "person_b_id": "person:daniel-cho",
-        "person_b_name": "Daniel Cho",
-        "topic_id": "topic:lifelong-learning"
-      },
-      {
         "consensus_score": 0.8345,
         "contradiction": 0.066788,
         "cosine": 0.8345,
@@ -52,36 +20,20 @@
         "topic_id": "topic:risk-management"
       },
       {
-        "consensus_score": 0.86975,
-        "contradiction": 0.041606,
-        "cosine": 0.86975,
-        "insight_a_id": "insight:consensus:topic-endurance-sport:person-maya",
-        "insight_a_text": "With endurance sport, the durable wins come from managing the whole system, not one-off bets.",
-        "insight_b_id": "insight:consensus:topic-endurance-sport:person-liam-verbeek",
-        "insight_b_text": "Agreed \u2014 endurance sport rewards a systems view; the edge is in the process, not any single call.",
-        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
-        "model_version": "v2",
-        "person_a_id": "person:maya",
-        "person_a_name": "Maya",
-        "person_b_id": "person:liam-verbeek",
-        "person_b_name": "Liam Verbeek",
-        "topic_id": "topic:endurance-sport"
-      },
-      {
-        "consensus_score": 0.767,
-        "contradiction": 0.029562,
-        "cosine": 0.767,
-        "insight_a_id": "insight:consensus:topic-systems-thinking:person-nora",
-        "insight_a_text": "With systems thinking, the durable wins come from managing the whole system, not one-off bets.",
-        "insight_b_id": "insight:consensus:topic-systems-thinking:person-scott-bessent",
-        "insight_b_text": "Agreed \u2014 systems thinking rewards a systems view; the edge is in the process, not any single call.",
+        "consensus_score": 0.8625,
+        "contradiction": 0.001095,
+        "cosine": 0.8625,
+        "insight_a_id": "insight:consensus:topic-second-order-effects:person-nora",
+        "insight_a_text": "With second order effects, the durable wins come from managing the whole system, not one-off bets.",
+        "insight_b_id": "insight:consensus:topic-second-order-effects:person-daniel-cho",
+        "insight_b_text": "Agreed \u2014 second order effects rewards a systems view; the edge is in the process, not any single call.",
         "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
         "model_version": "v2",
         "person_a_id": "person:nora",
         "person_a_name": "Nora",
-        "person_b_id": "person:scott-bessent",
-        "person_b_name": "Scott Bessent",
-        "topic_id": "topic:systems-thinking"
+        "person_b_id": "person:daniel-cho",
+        "person_b_name": "Daniel Cho",
+        "topic_id": "topic:second-order-effects"
       },
       {
         "consensus_score": 0.82675,
@@ -98,6 +50,22 @@
         "person_b_id": "person:marco-silva",
         "person_b_name": "Marco Silva",
         "topic_id": "topic:soil-erosion"
+      },
+      {
+        "consensus_score": 0.767,
+        "contradiction": 0.029562,
+        "cosine": 0.767,
+        "insight_a_id": "insight:consensus:topic-systems-thinking:person-nora",
+        "insight_a_text": "With systems thinking, the durable wins come from managing the whole system, not one-off bets.",
+        "insight_b_id": "insight:consensus:topic-systems-thinking:person-scott-bessent",
+        "insight_b_text": "Agreed \u2014 systems thinking rewards a systems view; the edge is in the process, not any single call.",
+        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+        "model_version": "v2",
+        "person_a_id": "person:nora",
+        "person_a_name": "Nora",
+        "person_b_id": "person:scott-bessent",
+        "person_b_name": "Scott Bessent",
+        "topic_id": "topic:systems-thinking"
       },
       {
         "consensus_score": 0.81275,
@@ -164,6 +132,22 @@
         "topic_id": "topic:land-stewardship"
       },
       {
+        "consensus_score": 0.812,
+        "contradiction": 0.087591,
+        "cosine": 0.812,
+        "insight_a_id": "insight:consensus:topic-braking-technique:person-maya",
+        "insight_a_text": "With braking technique, the durable wins come from managing the whole system, not one-off bets.",
+        "insight_b_id": "insight:consensus:topic-braking-technique:person-sophie-laurent",
+        "insight_b_text": "Agreed \u2014 braking technique rewards a systems view; the edge is in the process, not any single call.",
+        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+        "model_version": "v2",
+        "person_a_id": "person:maya",
+        "person_a_name": "Maya",
+        "person_b_id": "person:sophie-laurent",
+        "person_b_name": "Sophie Laurent",
+        "topic_id": "topic:braking-technique"
+      },
+      {
         "consensus_score": 0.77175,
         "contradiction": 0.127007,
         "cosine": 0.77175,
@@ -178,6 +162,22 @@
         "person_b_id": "person:liam-verbeek",
         "person_b_name": "Liam Verbeek",
         "topic_id": "topic:trail-building"
+      },
+      {
+        "consensus_score": 0.7555,
+        "contradiction": 0.017518,
+        "cosine": 0.7555,
+        "insight_a_id": "insight:consensus:topic-tire-pressure-selection:person-maya",
+        "insight_a_text": "With tire pressure selection, the durable wins come from managing the whole system, not one-off bets.",
+        "insight_b_id": "insight:consensus:topic-tire-pressure-selection:person-sophie-laurent",
+        "insight_b_text": "Agreed \u2014 tire pressure selection rewards a systems view; the edge is in the process, not any single call.",
+        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+        "model_version": "v2",
+        "person_a_id": "person:maya",
+        "person_a_name": "Maya",
+        "person_b_id": "person:sophie-laurent",
+        "person_b_name": "Sophie Laurent",
+        "topic_id": "topic:tire-pressure-selection"
       },
       {
         "consensus_score": 0.7045,

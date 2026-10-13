@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
  * A component that reads PER-USER data straight from the API must re-read it on a return to its
  * tab, or say here why it does not need to (2026-10-09).
  *
- * Home, Search, Library, Profile, Catalog and Discover are KEPT ALIVE (App.vue KEEP_ALIVE_TABS), so
+ * Home, Search, Library, Profile, Catalog, Discover and Explore are KEPT ALIVE (App.vue KEEP_ALIVE_TABS), so
  * `onMounted` runs once per session. A per-user read done only there showed the data as of the first
  * visit, whatever happened on other tabs since — Your Week, Library › Revisit, Discover's "Your
  * trends" and Home's revisit line all shipped that way. The fix is `onActivated` (after the tab was
@@ -26,7 +26,6 @@ const USER_GETTERS = [
 
 /** Files that read per-user data without `onActivated`, and why that is right. */
 const EXEMPT: Record<string, string> = {
-  '../views/DiscoverV2View.vue': 'A preview page outside KEEP_ALIVE_TABS: it remounts, and so re-reads, on every visit.',
   "../App.vue": "the shell, not a tab: it is never deactivated",
   "../components/InterestsPicker.vue": "a modal, mounted each time it opens",
   "../components/RecentlyPlayedList.vue": "inside QueueView, which is not kept alive (remounts per visit)",

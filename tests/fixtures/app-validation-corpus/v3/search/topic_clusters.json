@@ -1,379 +1,991 @@
 {
-  "cluster_count": 14,
+  "cluster_count": 82,
   "clusters": [
     {
-      "canonical_label": "broadcast format",
-      "cil_alias_target_topic_id": "topic:broadcast-format",
-      "graph_compound_parent_id": "tc:broadcast-format",
+      "canonical_label": "alerting actionability",
+      "cil_alias_target_topic_id": "topic:alerting-actionability",
+      "graph_compound_parent_id": "tc:alerting-actionability",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a05e37624721d37c"
+          ],
+          "label": "actionable alerts",
+          "similarity_to_centroid": 0.887033,
+          "topic_id": "topic:actionable-alerts"
+        },
+        {
+          "episode_ids": [
+            "ep-a05e37624721d37c"
+          ],
+          "label": "alert fatigue",
+          "similarity_to_centroid": 0.834635,
+          "topic_id": "topic:alert-fatigue"
+        },
+        {
+          "episode_ids": [
+            "ep-a05e37624721d37c"
+          ],
+          "label": "alert tuning",
+          "similarity_to_centroid": 0.830855,
+          "topic_id": "topic:alert-tuning"
+        },
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "alerting actionability",
+          "similarity_to_centroid": 0.902539,
+          "topic_id": "topic:alerting-actionability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "structural trade offs",
+      "cil_alias_target_topic_id": "topic:structural-trade-offs",
+      "graph_compound_parent_id": "tc:structural-trade-offs",
+      "member_count": 9,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "architecture tradeoffs",
+          "similarity_to_centroid": 0.73448,
+          "topic_id": "topic:architecture-tradeoffs"
+        },
+        {
+          "episode_ids": [
+            "ep-8dce4ec000757097"
+          ],
+          "label": "construction trade offs",
+          "similarity_to_centroid": 0.815369,
+          "topic_id": "topic:construction-trade-offs"
+        },
+        {
+          "episode_ids": [
+            "ep-4d94c63887afbd1a",
+            "ep-64ef09a7ee543045"
+          ],
+          "label": "cross cutting trade offs",
+          "similarity_to_centroid": 0.689633,
+          "topic_id": "topic:cross-cutting-trade-offs"
+        },
+        {
+          "episode_ids": [
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "data trade offs",
+          "similarity_to_centroid": 0.630969,
+          "topic_id": "topic:data-trade-offs"
+        },
+        {
+          "episode_ids": [
+            "ep-ca65ab78f4c50f2a"
+          ],
+          "label": "design compromise",
+          "similarity_to_centroid": 0.722798,
+          "topic_id": "topic:design-compromise"
+        },
+        {
+          "episode_ids": [
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "low cost structure",
+          "similarity_to_centroid": 0.690438,
+          "topic_id": "topic:low-cost-structure"
+        },
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069",
+            "ep-88fec846e9003e86"
+          ],
+          "label": "setup compromises",
+          "similarity_to_centroid": 0.654729,
+          "topic_id": "topic:setup-compromises"
+        },
+        {
+          "episode_ids": [
+            "ep-e2231244311ca964"
+          ],
+          "label": "structural compromise",
+          "similarity_to_centroid": 0.776857,
+          "topic_id": "topic:structural-compromise"
+        },
+        {
+          "episode_ids": [
+            "ep-c0ab3bfb1ebdab6d"
+          ],
+          "label": "structural trade offs",
+          "similarity_to_centroid": 0.84789,
+          "topic_id": "topic:structural-trade-offs"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ascent control",
+      "cil_alias_target_topic_id": "topic:ascent-control",
+      "graph_compound_parent_id": "tc:ascent-control",
       "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-916dab1698f88aec"
+          ],
+          "label": "ascent control",
+          "similarity_to_centroid": 0.853336,
+          "topic_id": "topic:ascent-control"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "buoyancy control",
+          "similarity_to_centroid": 0.853336,
+          "topic_id": "topic:buoyancy-control"
+        }
+      ]
+    },
+    {
+      "canonical_label": "risk management",
+      "cil_alias_target_topic_id": "topic:risk-management",
+      "graph_compound_parent_id": "tc:risk-management",
+      "member_count": 24,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "asset risk",
+          "similarity_to_centroid": 0.790731,
+          "topic_id": "topic:asset-risk"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087"
+          ],
+          "label": "behavioral risk",
+          "similarity_to_centroid": 0.721337,
+          "topic_id": "topic:behavioral-risk"
+        },
+        {
+          "episode_ids": [
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "behavioral risk management",
+          "similarity_to_centroid": 0.742123,
+          "topic_id": "topic:behavioral-risk-management"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087"
+          ],
+          "label": "concentration risk",
+          "similarity_to_centroid": 0.671459,
+          "topic_id": "topic:concentration-risk"
+        },
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "correlated risk systems",
+          "similarity_to_centroid": 0.701137,
+          "topic_id": "topic:correlated-risk-systems"
+        },
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "correlated risks",
+          "similarity_to_centroid": 0.799099,
+          "topic_id": "topic:correlated-risks"
+        },
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "discounted risks",
+          "similarity_to_centroid": 0.781186,
+          "topic_id": "topic:discounted-risks"
+        },
+        {
+          "episode_ids": [
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "financial risk analogy",
+          "similarity_to_centroid": 0.716111,
+          "topic_id": "topic:financial-risk-analogy"
+        },
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "independent risk assumptions",
+          "similarity_to_centroid": 0.632909,
+          "topic_id": "topic:independent-risk-assumptions"
+        },
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "portfolio level risk",
+          "similarity_to_centroid": 0.73573,
+          "topic_id": "topic:portfolio-level-risk"
+        },
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "portfolio risk",
+          "similarity_to_centroid": 0.778477,
+          "topic_id": "topic:portfolio-risk"
+        },
+        {
+          "episode_ids": [
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "preemptive risk naming",
+          "similarity_to_centroid": 0.751699,
+          "topic_id": "topic:preemptive-risk-naming"
+        },
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f"
+          ],
+          "label": "production risk",
+          "similarity_to_centroid": 0.703388,
+          "topic_id": "topic:production-risk"
+        },
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "risk articulation",
+          "similarity_to_centroid": 0.777273,
+          "topic_id": "topic:risk-articulation"
+        },
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "risk communication",
+          "similarity_to_centroid": 0.765089,
+          "topic_id": "topic:risk-communication"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087"
+          ],
+          "label": "risk control",
+          "similarity_to_centroid": 0.855307,
+          "topic_id": "topic:risk-control"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8",
+            "ep-16fcdef77d624069",
+            "ep-16ff698c1bd21087",
+            "ep-18ede6ffbd63f18f",
+            "ep-1979e93514355ea6",
+            "ep-1d733f650ad9bff9",
+            "ep-1e526e495918fb27",
+            "ep-2cd5c6d11325a312",
+            "ep-2e3fcd5d8c418fb4",
+            "ep-35f04bce441bf827",
+            "ep-362f5d463b877d2c",
+            "ep-4d94c63887afbd1a",
+            "ep-60d667843dc40fca",
+            "ep-6351d18dc6f1ff70",
+            "ep-7ccfb108302b3faa",
+            "ep-7fd3ec879c8c2b44",
+            "ep-88fec846e9003e86",
+            "ep-8aa4d883afa10fa4",
+            "ep-916dab1698f88aec",
+            "ep-919c77e84ad37664",
+            "ep-a1342cd495b1165b",
+            "ep-a341174daaf88193",
+            "ep-a86da8f148d3bf29",
+            "ep-a884b153355070f0",
+            "ep-bccfce5798a83a6e",
+            "ep-ca65ab78f4c50f2a",
+            "ep-d005b87f4d3b1c0e",
+            "ep-d428e906f5affc60",
+            "ep-d8cc458a5f0049a8",
+            "ep-de59d003651d9e5d",
+            "ep-ec0bf35da3719170"
+          ],
+          "label": "risk management",
+          "similarity_to_centroid": 0.866476,
+          "topic_id": "topic:risk-management"
+        },
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "risk management at central banks",
+          "similarity_to_centroid": 0.67452,
+          "topic_id": "topic:risk-management-at-central-banks"
+        },
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "risk management integration",
+          "similarity_to_centroid": 0.712719,
+          "topic_id": "topic:risk-management-integration"
+        },
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f"
+          ],
+          "label": "risk naming",
+          "similarity_to_centroid": 0.774976,
+          "topic_id": "topic:risk-naming"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "risk of being wrong in public",
+          "similarity_to_centroid": 0.551544,
+          "topic_id": "topic:risk-of-being-wrong-in-public"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "silt out risk",
+          "similarity_to_centroid": 0.663181,
+          "topic_id": "topic:silt-out-risk"
+        },
+        {
+          "episode_ids": [
+            "ep-4d94c63887afbd1a"
+          ],
+          "label": "slow correlated risks",
+          "similarity_to_centroid": 0.664835,
+          "topic_id": "topic:slow-correlated-risks"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087"
+          ],
+          "label": "systematic risk management",
+          "similarity_to_centroid": 0.706697,
+          "topic_id": "topic:systematic-risk-management"
+        }
+      ]
+    },
+    {
+      "canonical_label": "on call rotation",
+      "cil_alias_target_topic_id": "topic:on-call-rotation",
+      "graph_compound_parent_id": "tc:on-call-rotation",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "back tested calls",
+          "similarity_to_centroid": 0.698685,
+          "topic_id": "topic:back-tested-calls"
+        },
+        {
+          "episode_ids": [
+            "ep-a05e37624721d37c"
+          ],
+          "label": "on call",
+          "similarity_to_centroid": 0.766248,
+          "topic_id": "topic:on-call"
+        },
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "on call rotation",
+          "similarity_to_centroid": 0.904272,
+          "topic_id": "topic:on-call-rotation"
+        },
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827",
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "on call rotation design",
+          "similarity_to_centroid": 0.841436,
+          "topic_id": "topic:on-call-rotation-design"
+        }
+      ]
+    },
+    {
+      "canonical_label": "measured systems behavior",
+      "cil_alias_target_topic_id": "topic:measured-systems-behavior",
+      "graph_compound_parent_id": "tc:measured-systems-behavior",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "behavioral change through metrics",
+          "similarity_to_centroid": 0.89638,
+          "topic_id": "topic:behavioral-change-through-metrics"
+        },
+        {
+          "episode_ids": [
+            "ep-4d94c63887afbd1a"
+          ],
+          "label": "measured systems behavior",
+          "similarity_to_centroid": 0.89638,
+          "topic_id": "topic:measured-systems-behavior"
+        }
+      ]
+    },
+    {
+      "canonical_label": "cut bank design",
+      "cil_alias_target_topic_id": "topic:cut-bank-design",
+      "graph_compound_parent_id": "tc:cut-bank-design",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-db8f44d2e07a22bd"
+          ],
+          "label": "bench cuts",
+          "similarity_to_centroid": 0.71234,
+          "topic_id": "topic:bench-cuts"
+        },
+        {
+          "episode_ids": [
+            "ep-7072d2e85dcd5233"
+          ],
+          "label": "cut bank design",
+          "similarity_to_centroid": 0.890966,
+          "topic_id": "topic:cut-bank-design"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae"
+          ],
+          "label": "cut banking",
+          "similarity_to_centroid": 0.872043,
+          "topic_id": "topic:cut-banking"
+        }
+      ]
+    },
+    {
+      "canonical_label": "bicycle silence",
+      "cil_alias_target_topic_id": "topic:bicycle-silence",
+      "graph_compound_parent_id": "tc:bicycle-silence",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9",
+            "ep-2e3fcd5d8c418fb4"
+          ],
+          "label": "bicycle silence",
+          "similarity_to_centroid": 0.866061,
+          "topic_id": "topic:bicycle-silence"
+        },
+        {
+          "episode_ids": [
+            "ep-a341174daaf88193"
+          ],
+          "label": "bike silence",
+          "similarity_to_centroid": 0.861471,
+          "topic_id": "topic:bike-silence"
+        },
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "predictable bike behavior",
+          "similarity_to_centroid": 0.823816,
+          "topic_id": "topic:predictable-bike-behavior"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8",
+            "ep-ec0bf35da3719170"
+          ],
+          "label": "predictable bike feel",
+          "similarity_to_centroid": 0.821706,
+          "topic_id": "topic:predictable-bike-feel"
+        }
+      ]
+    },
+    {
+      "canonical_label": "leverage risk",
+      "cil_alias_target_topic_id": "topic:leverage-risk",
+      "graph_compound_parent_id": "tc:leverage-risk",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "borrowing against assets",
+          "similarity_to_centroid": 0.769151,
+          "topic_id": "topic:borrowing-against-assets"
+        },
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "financial blow ups",
+          "similarity_to_centroid": 0.66937,
+          "topic_id": "topic:financial-blow-ups"
+        },
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "investment financing",
+          "similarity_to_centroid": 0.784687,
+          "topic_id": "topic:investment-financing"
+        },
+        {
+          "episode_ids": [
+            "ep-1abf911df5bea2c3"
+          ],
+          "label": "leverage points",
+          "similarity_to_centroid": 0.753429,
+          "topic_id": "topic:leverage-points"
+        },
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "leverage risk",
+          "similarity_to_centroid": 0.822257,
+          "topic_id": "topic:leverage-risk"
+        }
+      ]
+    },
+    {
+      "canonical_label": "braking technique",
+      "cil_alias_target_topic_id": "topic:braking-technique",
+      "graph_compound_parent_id": "tc:braking-technique",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069",
+            "ep-60d667843dc40fca",
+            "ep-7ccfb108302b3faa",
+            "ep-7fd3ec879c8c2b44",
+            "ep-88fec846e9003e86",
+            "ep-ca65ab78f4c50f2a"
+          ],
+          "label": "braking technique",
+          "similarity_to_centroid": 0.827995,
+          "topic_id": "topic:braking-technique"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "finning technique",
+          "similarity_to_centroid": 0.827994,
+          "topic_id": "topic:finning-technique"
+        }
+      ]
+    },
+    {
+      "canonical_label": "public radio",
+      "cil_alias_target_topic_id": "topic:public-radio",
+      "graph_compound_parent_id": "tc:public-radio",
+      "member_count": 4,
       "members": [
         {
           "episode_ids": [
             "ep-efc13989b676df9d"
           ],
           "label": "broadcast format",
-          "similarity_to_centroid": 0.871831,
+          "similarity_to_centroid": 0.727584,
           "topic_id": "topic:broadcast-format"
         },
         {
           "episode_ids": [
             "ep-64ef09a7ee543045",
             "ep-b3570c1ceb5eca41",
-            "ep-d428e906f5affc60",
             "ep-efc13989b676df9d"
           ],
           "label": "public radio",
-          "similarity_to_centroid": 0.871831,
+          "similarity_to_centroid": 0.927333,
           "topic_id": "topic:public-radio"
+        },
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045"
+          ],
+          "label": "public radio conventions",
+          "similarity_to_centroid": 0.87867,
+          "topic_id": "topic:public-radio-conventions"
+        },
+        {
+          "episode_ids": [
+            "ep-efc13989b676df9d"
+          ],
+          "label": "public radio voice",
+          "similarity_to_centroid": 0.879117,
+          "topic_id": "topic:public-radio-voice"
         }
       ]
     },
     {
-      "canonical_label": "incident response",
-      "cil_alias_target_topic_id": "topic:incident-response",
-      "graph_compound_parent_id": "tc:incident-response",
-      "member_count": 3,
+      "canonical_label": "frame design compromises",
+      "cil_alias_target_topic_id": "topic:frame-design-compromises",
+      "graph_compound_parent_id": "tc:frame-design-compromises",
+      "member_count": 13,
       "members": [
         {
           "episode_ids": [
-            "ep-d428e906f5affc60"
-          ],
-          "label": "corrections policy",
-          "similarity_to_centroid": 0.738988,
-          "topic_id": "topic:corrections-policy"
-        },
-        {
-          "episode_ids": [
-            "ep-35f04bce441bf827"
-          ],
-          "label": "incident postmortems",
-          "similarity_to_centroid": 0.795853,
-          "topic_id": "topic:incident-postmortems"
-        },
-        {
-          "episode_ids": [
-            "ep-18ede6ffbd63f18f",
-            "ep-4a1a673a7005a6b5"
-          ],
-          "label": "incident response",
-          "similarity_to_centroid": 0.804989,
-          "topic_id": "topic:incident-response"
-        }
-      ]
-    },
-    {
-      "canonical_label": "dialogue",
-      "cil_alias_target_topic_id": "topic:dialogue",
-      "graph_compound_parent_id": "tc:dialogue",
-      "member_count": 2,
-      "members": [
-        {
-          "episode_ids": [
-            "ep-034d8bc4204034df",
-            "ep-3158b8ff3e943b1e",
-            "ep-a89e6a42509c9af0",
             "ep-f4b940a095192621"
           ],
-          "label": "dialogue",
-          "similarity_to_centroid": 0.833048,
-          "topic_id": "topic:dialogue"
+          "label": "canonical framing",
+          "similarity_to_centroid": 0.790836,
+          "topic_id": "topic:canonical-framing"
         },
         {
           "episode_ids": [
-            "ep-034d8bc4204034df",
-            "ep-0c46a67a56b05689",
-            "ep-0d9100843ee555f8",
-            "ep-16ff698c1bd21087",
-            "ep-18ede6ffbd63f18f",
-            "ep-1979e93514355ea6",
-            "ep-1abf911df5bea2c3",
-            "ep-1e526e495918fb27",
-            "ep-26eaa57651247221",
-            "ep-2a703b6f57d9020f",
-            "ep-2cd5c6d11325a312",
-            "ep-3158b8ff3e943b1e",
-            "ep-35f04bce441bf827",
-            "ep-362f5d463b877d2c",
-            "ep-4a1a673a7005a6b5",
-            "ep-4d94c63887afbd1a",
-            "ep-60d667843dc40fca",
-            "ep-6351d18dc6f1ff70",
-            "ep-64ef09a7ee543045",
-            "ep-8aa4d883afa10fa4",
-            "ep-916dab1698f88aec",
-            "ep-919c77e84ad37664",
+            "ep-bccfce5798a83a6e",
+            "ep-d8cc458a5f0049a8"
+          ],
+          "label": "decision framing",
+          "similarity_to_centroid": 0.681364,
+          "topic_id": "topic:decision-framing"
+        },
+        {
+          "episode_ids": [
             "ep-9b36e2e3b959298d",
             "ep-9f97daef33906cf6",
-            "ep-a05e37624721d37c",
-            "ep-a0a7f86b34a4de26",
-            "ep-a1342cd495b1165b",
-            "ep-a86da8f148d3bf29",
-            "ep-a884b153355070f0",
-            "ep-a89e6a42509c9af0",
-            "ep-b3570c1ceb5eca41",
             "ep-bccfce5798a83a6e",
-            "ep-d428e906f5affc60",
             "ep-d8cc458a5f0049a8",
-            "ep-db8f44d2e07a22bd",
-            "ep-de59d003651d9e5d",
-            "ep-efc13989b676df9d",
-            "ep-f4b940a095192621",
             "ep-fb2bb5f0f4044f1d",
             "ep-febd9a8f53bf3a3a"
           ],
-          "label": "expert interviews",
-          "similarity_to_centroid": 0.833048,
-          "topic_id": "topic:expert-interviews"
-        }
-      ]
-    },
-    {
-      "canonical_label": "dive planning",
-      "cil_alias_target_topic_id": "topic:dive-planning",
-      "graph_compound_parent_id": "tc:dive-planning",
-      "member_count": 2,
-      "members": [
-        {
-          "episode_ids": [
-            "ep-2a703b6f57d9020f",
-            "ep-916dab1698f88aec"
-          ],
-          "label": "dive planning",
-          "similarity_to_centroid": 0.915224,
-          "topic_id": "topic:dive-planning"
+          "label": "frame",
+          "similarity_to_centroid": 0.840763,
+          "topic_id": "topic:frame"
         },
         {
           "episode_ids": [
-            "ep-2a703b6f57d9020f"
+            "ep-febd9a8f53bf3a3a"
           ],
-          "label": "wreck diving",
-          "similarity_to_centroid": 0.915224,
-          "topic_id": "topic:wreck-diving"
+          "label": "frame composition",
+          "similarity_to_centroid": 0.809185,
+          "topic_id": "topic:frame-composition"
+        },
+        {
+          "episode_ids": [
+            "ep-a341174daaf88193"
+          ],
+          "label": "frame compromises",
+          "similarity_to_centroid": 0.852191,
+          "topic_id": "topic:frame-compromises"
+        },
+        {
+          "episode_ids": [
+            "ep-7ccfb108302b3faa"
+          ],
+          "label": "frame design",
+          "similarity_to_centroid": 0.849935,
+          "topic_id": "topic:frame-design"
+        },
+        {
+          "episode_ids": [
+            "ep-7fd3ec879c8c2b44"
+          ],
+          "label": "frame design compromises",
+          "similarity_to_centroid": 0.856027,
+          "topic_id": "topic:frame-design-compromises"
+        },
+        {
+          "episode_ids": [
+            "ep-2e3fcd5d8c418fb4"
+          ],
+          "label": "frame geometry",
+          "similarity_to_centroid": 0.774151,
+          "topic_id": "topic:frame-geometry"
+        },
+        {
+          "episode_ids": [
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "frame positioning",
+          "similarity_to_centroid": 0.742397,
+          "topic_id": "topic:frame-positioning"
+        },
+        {
+          "episode_ids": [
+            "ep-4d94c63887afbd1a"
+          ],
+          "label": "framing risks",
+          "similarity_to_centroid": 0.730835,
+          "topic_id": "topic:framing-risks"
+        },
+        {
+          "episode_ids": [
+            "ep-a89e6a42509c9af0"
+          ],
+          "label": "framing trade offs",
+          "similarity_to_centroid": 0.716323,
+          "topic_id": "topic:framing-trade-offs"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
+          "label": "on location framing",
+          "similarity_to_centroid": 0.795277,
+          "topic_id": "topic:on-location-framing"
+        },
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045",
+            "ep-efc13989b676df9d"
+          ],
+          "label": "trade off framing",
+          "similarity_to_centroid": 0.848832,
+          "topic_id": "topic:trade-off-framing"
         }
       ]
     },
     {
-      "canonical_label": "documentary photography",
-      "cil_alias_target_topic_id": "topic:documentary-photography",
-      "graph_compound_parent_id": "tc:documentary-photography",
+      "canonical_label": "workflow integration",
+      "cil_alias_target_topic_id": "topic:workflow-integration",
+      "graph_compound_parent_id": "tc:workflow-integration",
       "member_count": 3,
       "members": [
         {
           "episode_ids": [
             "ep-fb2bb5f0f4044f1d"
           ],
-          "label": "documentary photography",
-          "similarity_to_centroid": 0.833034,
-          "topic_id": "topic:documentary-photography"
+          "label": "capture one workflow",
+          "similarity_to_centroid": 0.839297,
+          "topic_id": "topic:capture-one-workflow"
         },
         {
           "episode_ids": [
-            "ep-9b36e2e3b959298d"
+            "ep-fb2bb5f0f4044f1d"
           ],
-          "label": "roundtable photography",
-          "similarity_to_centroid": 0.775073,
-          "topic_id": "topic:roundtable-photography"
+          "label": "editing workflow",
+          "similarity_to_centroid": 0.85099,
+          "topic_id": "topic:editing-workflow"
         },
         {
           "episode_ids": [
-            "ep-febd9a8f53bf3a3a"
+            "ep-7fd3ec879c8c2b44"
           ],
-          "label": "underwater photography",
-          "similarity_to_centroid": 0.800284,
-          "topic_id": "topic:underwater-photography"
+          "label": "workflow integration",
+          "similarity_to_centroid": 0.876134,
+          "topic_id": "topic:workflow-integration"
         }
       ]
     },
     {
-      "canonical_label": "endurance sport",
-      "cil_alias_target_topic_id": "topic:endurance-sport",
-      "graph_compound_parent_id": "tc:endurance-sport",
+      "canonical_label": "emissions optimization",
+      "cil_alias_target_topic_id": "topic:emissions-optimization",
+      "graph_compound_parent_id": "tc:emissions-optimization",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1979e93514355ea6"
+          ],
+          "label": "carbon accounting",
+          "similarity_to_centroid": 0.773343,
+          "topic_id": "topic:carbon-accounting"
+        },
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "emissions optimization",
+          "similarity_to_centroid": 0.795192,
+          "topic_id": "topic:emissions-optimization"
+        },
+        {
+          "episode_ids": [
+            "ep-916dab1698f88aec"
+          ],
+          "label": "gas management",
+          "similarity_to_centroid": 0.749683,
+          "topic_id": "topic:gas-management"
+        }
+      ]
+    },
+    {
+      "canonical_label": "cascadia alliance platform",
+      "cil_alias_target_topic_id": "topic:cascadia-alliance-platform",
+      "graph_compound_parent_id": "tc:cascadia-alliance-platform",
       "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-88fec846e9003e86"
+          ],
+          "label": "cascadia alliance",
+          "similarity_to_centroid": 0.961591,
+          "topic_id": "topic:cascadia-alliance"
+        },
+        {
+          "episode_ids": [
+            "ep-ca65ab78f4c50f2a"
+          ],
+          "label": "cascadia alliance platform",
+          "similarity_to_centroid": 0.961591,
+          "topic_id": "topic:cascadia-alliance-platform"
+        }
+      ]
+    },
+    {
+      "canonical_label": "chain wear",
+      "cil_alias_target_topic_id": "topic:chain-wear",
+      "graph_compound_parent_id": "tc:chain-wear",
+      "member_count": 4,
       "members": [
         {
           "episode_ids": [
             "ep-0d9100843ee555f8",
-            "ep-60d667843dc40fca",
-            "ep-db8f44d2e07a22bd",
-            "ep-de59d003651d9e5d"
+            "ep-2e3fcd5d8c418fb4"
           ],
-          "label": "endurance sport",
-          "similarity_to_centroid": 0.876773,
-          "topic_id": "topic:endurance-sport"
+          "label": "chain wear",
+          "similarity_to_centroid": 0.908499,
+          "topic_id": "topic:chain-wear"
         },
         {
           "episode_ids": [
-            "ep-60d667843dc40fca",
-            "ep-de59d003651d9e5d"
+            "ep-1d733f650ad9bff9",
+            "ep-a341174daaf88193",
+            "ep-ec0bf35da3719170"
           ],
-          "label": "enduro racing",
-          "similarity_to_centroid": 0.876773,
-          "topic_id": "topic:enduro-racing"
+          "label": "chain wear indicator",
+          "similarity_to_centroid": 0.896533,
+          "topic_id": "topic:chain-wear-indicator"
+        },
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "chain wear monitoring",
+          "similarity_to_centroid": 0.904235,
+          "topic_id": "topic:chain-wear-monitoring"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "component wear",
+          "similarity_to_centroid": 0.726153,
+          "topic_id": "topic:component-wear"
         }
       ]
     },
     {
-      "canonical_label": "journalism",
-      "cil_alias_target_topic_id": "topic:journalism",
-      "graph_compound_parent_id": "tc:journalism",
+      "canonical_label": "code switching",
+      "cil_alias_target_topic_id": "topic:code-switching",
+      "graph_compound_parent_id": "tc:code-switching",
       "member_count": 2,
       "members": [
         {
           "episode_ids": [
-            "ep-64ef09a7ee543045",
-            "ep-b3570c1ceb5eca41",
-            "ep-d428e906f5affc60",
-            "ep-efc13989b676df9d"
+            "ep-26eaa57651247221"
           ],
-          "label": "journalism",
-          "similarity_to_centroid": 0.860577,
-          "topic_id": "topic:journalism"
+          "label": "code switching",
+          "similarity_to_centroid": 0.874602,
+          "topic_id": "topic:code-switching"
         },
         {
           "episode_ids": [
-            "ep-b3570c1ceb5eca41"
+            "ep-e2231244311ca964"
           ],
-          "label": "newsroom operations",
-          "similarity_to_centroid": 0.860577,
-          "topic_id": "topic:newsroom-operations"
+          "label": "switchback construction",
+          "similarity_to_centroid": 0.874602,
+          "topic_id": "topic:switchback-construction"
         }
       ]
     },
     {
-      "canonical_label": "macroeconomics",
-      "cil_alias_target_topic_id": "topic:macroeconomics",
-      "graph_compound_parent_id": "tc:macroeconomics",
-      "member_count": 5,
-      "members": [
-        {
-          "episode_ids": [
-            "ep-919c77e84ad37664"
-          ],
-          "label": "labor markets",
-          "similarity_to_centroid": 0.693925,
-          "topic_id": "topic:labor-markets"
-        },
-        {
-          "episode_ids": [
-            "ep-8aa4d883afa10fa4"
-          ],
-          "label": "macro policy",
-          "similarity_to_centroid": 0.707112,
-          "topic_id": "topic:macro-policy"
-        },
-        {
-          "episode_ids": [
-            "ep-2cd5c6d11325a312",
-            "ep-362f5d463b877d2c",
-            "ep-a1342cd495b1165b"
-          ],
-          "label": "macroeconomics",
-          "similarity_to_centroid": 0.857385,
-          "topic_id": "topic:macroeconomics"
-        },
-        {
-          "episode_ids": [
-            "ep-1e526e495918fb27"
-          ],
-          "label": "monetary policy",
-          "similarity_to_centroid": 0.803439,
-          "topic_id": "topic:monetary-policy"
-        },
-        {
-          "episode_ids": [
-            "ep-16ff698c1bd21087",
-            "ep-1e526e495918fb27",
-            "ep-6351d18dc6f1ff70",
-            "ep-8aa4d883afa10fa4",
-            "ep-bccfce5798a83a6e"
-          ],
-          "label": "personal finance",
-          "similarity_to_centroid": 0.701789,
-          "topic_id": "topic:personal-finance"
-        }
-      ]
-    },
-    {
-      "canonical_label": "lifelong learning",
-      "cil_alias_target_topic_id": "topic:lifelong-learning",
-      "graph_compound_parent_id": "tc:lifelong-learning",
+      "canonical_label": "color grading",
+      "cil_alias_target_topic_id": "topic:color-grading",
+      "graph_compound_parent_id": "tc:color-grading",
       "member_count": 2,
       "members": [
         {
           "episode_ids": [
-            "ep-034d8bc4204034df",
-            "ep-0c46a67a56b05689",
-            "ep-0d9100843ee555f8",
-            "ep-16ff698c1bd21087",
-            "ep-18ede6ffbd63f18f",
-            "ep-1979e93514355ea6",
-            "ep-1abf911df5bea2c3",
-            "ep-1e526e495918fb27",
-            "ep-26eaa57651247221",
-            "ep-2a703b6f57d9020f",
-            "ep-2cd5c6d11325a312",
-            "ep-3158b8ff3e943b1e",
-            "ep-35f04bce441bf827",
-            "ep-362f5d463b877d2c",
-            "ep-4a1a673a7005a6b5",
-            "ep-4d94c63887afbd1a",
-            "ep-60d667843dc40fca",
-            "ep-6351d18dc6f1ff70",
-            "ep-64ef09a7ee543045",
-            "ep-8aa4d883afa10fa4",
-            "ep-916dab1698f88aec",
-            "ep-919c77e84ad37664",
-            "ep-9b36e2e3b959298d",
-            "ep-9f97daef33906cf6",
-            "ep-a05e37624721d37c",
-            "ep-a0a7f86b34a4de26",
-            "ep-a1342cd495b1165b",
-            "ep-a86da8f148d3bf29",
-            "ep-a884b153355070f0",
-            "ep-a89e6a42509c9af0",
-            "ep-b3570c1ceb5eca41",
-            "ep-bccfce5798a83a6e",
-            "ep-d428e906f5affc60",
-            "ep-d8cc458a5f0049a8",
-            "ep-db8f44d2e07a22bd",
-            "ep-de59d003651d9e5d",
-            "ep-efc13989b676df9d",
-            "ep-f4b940a095192621",
-            "ep-fb2bb5f0f4044f1d",
-            "ep-febd9a8f53bf3a3a"
+            "ep-fb2bb5f0f4044f1d"
           ],
-          "label": "lifelong learning",
-          "similarity_to_centroid": 0.827615,
-          "topic_id": "topic:lifelong-learning"
+          "label": "color grading",
+          "similarity_to_centroid": 0.870773,
+          "topic_id": "topic:color-grading"
         },
         {
           "episode_ids": [
-            "ep-034d8bc4204034df",
-            "ep-0c46a67a56b05689",
-            "ep-26eaa57651247221",
-            "ep-3158b8ff3e943b1e",
-            "ep-a89e6a42509c9af0",
-            "ep-f4b940a095192621"
+            "ep-9f97daef33906cf6"
           ],
-          "label": "long-form",
-          "similarity_to_centroid": 0.827615,
-          "topic_id": "topic:long-form"
+          "label": "color temperature mistakes",
+          "similarity_to_centroid": 0.870773,
+          "topic_id": "topic:color-temperature-mistakes"
         }
       ]
     },
     {
-      "canonical_label": "lighting design",
-      "cil_alias_target_topic_id": "topic:lighting-design",
-      "graph_compound_parent_id": "tc:lighting-design",
-      "member_count": 2,
+      "canonical_label": "strobe lighting",
+      "cil_alias_target_topic_id": "topic:strobe-lighting",
+      "graph_compound_parent_id": "tc:strobe-lighting",
+      "member_count": 11,
       "members": [
         {
           "episode_ids": [
             "ep-9f97daef33906cf6"
           ],
+          "label": "commercial lighting workflow",
+          "similarity_to_centroid": 0.677293,
+          "topic_id": "topic:commercial-lighting-workflow"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
+          "label": "frame and light",
+          "similarity_to_centroid": 0.674512,
+          "topic_id": "topic:frame-and-light"
+        },
+        {
+          "episode_ids": [
+            "ep-9b36e2e3b959298d"
+          ],
+          "label": "frame and light decisions",
+          "similarity_to_centroid": 0.666419,
+          "topic_id": "topic:frame-and-light-decisions"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
+          "label": "light shaping decisions",
+          "similarity_to_centroid": 0.723513,
+          "topic_id": "topic:light-shaping-decisions"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
           "label": "lighting design",
-          "similarity_to_centroid": 0.892449,
+          "similarity_to_centroid": 0.781482,
           "topic_id": "topic:lighting-design"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "lighting trade offs",
+          "similarity_to_centroid": 0.7553,
+          "topic_id": "topic:lighting-trade-offs"
         },
         {
           "episode_ids": [
@@ -382,8 +994,90 @@
             "ep-febd9a8f53bf3a3a"
           ],
           "label": "strobe lighting",
-          "similarity_to_centroid": 0.892449,
+          "similarity_to_centroid": 0.830694,
           "topic_id": "topic:strobe-lighting"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
+          "label": "strobe lighting intersection",
+          "similarity_to_centroid": 0.732765,
+          "topic_id": "topic:strobe-lighting-intersection"
+        },
+        {
+          "episode_ids": [
+            "ep-9b36e2e3b959298d"
+          ],
+          "label": "strobe lighting trade offs",
+          "similarity_to_centroid": 0.829094,
+          "topic_id": "topic:strobe-lighting-trade-offs"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "strobe positioning",
+          "similarity_to_centroid": 0.462313,
+          "topic_id": "topic:strobe-positioning"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
+          "label": "two light setups",
+          "similarity_to_centroid": 0.691418,
+          "topic_id": "topic:two-light-setups"
+        }
+      ]
+    },
+    {
+      "canonical_label": "security incidents",
+      "cil_alias_target_topic_id": "topic:security-incidents",
+      "graph_compound_parent_id": "tc:security-incidents",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069",
+            "ep-7ccfb108302b3faa",
+            "ep-7fd3ec879c8c2b44"
+          ],
+          "label": "compliance automation",
+          "similarity_to_centroid": 0.656568,
+          "topic_id": "topic:compliance-automation"
+        },
+        {
+          "episode_ids": [
+            "ep-d8cc458a5f0049a8"
+          ],
+          "label": "compliance vs real security",
+          "similarity_to_centroid": 0.774967,
+          "topic_id": "topic:compliance-vs-real-security"
+        },
+        {
+          "episode_ids": [
+            "ep-d8cc458a5f0049a8"
+          ],
+          "label": "security design",
+          "similarity_to_centroid": 0.786114,
+          "topic_id": "topic:security-design"
+        },
+        {
+          "episode_ids": [
+            "ep-d8cc458a5f0049a8"
+          ],
+          "label": "security incidents",
+          "similarity_to_centroid": 0.78817,
+          "topic_id": "topic:security-incidents"
+        },
+        {
+          "episode_ids": [
+            "ep-d8cc458a5f0049a8"
+          ],
+          "label": "threat modeling",
+          "similarity_to_centroid": 0.683743,
+          "topic_id": "topic:threat-modeling"
         }
       ]
     },
@@ -391,15 +1085,148 @@
       "canonical_label": "reliability",
       "cil_alias_target_topic_id": "topic:reliability",
       "graph_compound_parent_id": "tc:reliability",
-      "member_count": 2,
+      "member_count": 30,
       "members": [
         {
           "episode_ids": [
-            "ep-0d9100843ee555f8"
+            "ep-ec0bf35da3719170"
           ],
-          "label": "maintenance",
-          "similarity_to_centroid": 0.84896,
-          "topic_id": "topic:maintenance"
+          "label": "component reliability",
+          "similarity_to_centroid": 0.773071,
+          "topic_id": "topic:component-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "correction as reliability signal",
+          "similarity_to_centroid": 0.672716,
+          "topic_id": "topic:correction-as-reliability-signal"
+        },
+        {
+          "episode_ids": [
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "crash causation patterns",
+          "similarity_to_centroid": 0.443664,
+          "topic_id": "topic:crash-causation-patterns"
+        },
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664",
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "data reliability",
+          "similarity_to_centroid": 0.738361,
+          "topic_id": "topic:data-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-a341174daaf88193"
+          ],
+          "label": "early failure detection",
+          "similarity_to_centroid": 0.670213,
+          "topic_id": "topic:early-failure-detection"
+        },
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "expectations reliability",
+          "similarity_to_centroid": 0.686781,
+          "topic_id": "topic:expectations-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f"
+          ],
+          "label": "failure interactions",
+          "similarity_to_centroid": 0.739647,
+          "topic_id": "topic:failure-interactions"
+        },
+        {
+          "episode_ids": [
+            "ep-a89e6a42509c9af0",
+            "ep-f4b940a095192621"
+          ],
+          "label": "failure mode",
+          "similarity_to_centroid": 0.724973,
+          "topic_id": "topic:failure-mode"
+        },
+        {
+          "episode_ids": [
+            "ep-60d667843dc40fca"
+          ],
+          "label": "failure mode analysis",
+          "similarity_to_centroid": 0.776577,
+          "topic_id": "topic:failure-mode-analysis"
+        },
+        {
+          "episode_ids": [
+            "ep-8dce4ec000757097",
+            "ep-9b36e2e3b959298d",
+            "ep-c0ab3bfb1ebdab6d"
+          ],
+          "label": "failure mode identification",
+          "similarity_to_centroid": 0.68861,
+          "topic_id": "topic:failure-mode-identification"
+        },
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5",
+            "ep-db8f44d2e07a22bd"
+          ],
+          "label": "failure mode visibility",
+          "similarity_to_centroid": 0.597697,
+          "topic_id": "topic:failure-mode-visibility"
+        },
+        {
+          "episode_ids": [
+            "ep-efc13989b676df9d"
+          ],
+          "label": "format reliability",
+          "similarity_to_centroid": 0.62929,
+          "topic_id": "topic:format-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "operational failure mode",
+          "similarity_to_centroid": 0.682202,
+          "topic_id": "topic:operational-failure-mode"
+        },
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "policy signal reliability",
+          "similarity_to_centroid": 0.603294,
+          "topic_id": "topic:policy-signal-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-9b36e2e3b959298d"
+          ],
+          "label": "practical reliability of gear",
+          "similarity_to_centroid": 0.616562,
+          "topic_id": "topic:practical-reliability-of-gear"
+        },
+        {
+          "episode_ids": [
+            "ep-0c46a67a56b05689"
+          ],
+          "label": "processor reliability",
+          "similarity_to_centroid": 0.690515,
+          "topic_id": "topic:processor-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "public failure management",
+          "similarity_to_centroid": 0.608855,
+          "topic_id": "topic:public-failure-management"
         },
         {
           "episode_ids": [
@@ -422,8 +1249,189 @@
             "ep-efc13989b676df9d"
           ],
           "label": "reliability",
-          "similarity_to_centroid": 0.84896,
+          "similarity_to_centroid": 0.879928,
           "topic_id": "topic:reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "reliability and on call intersection",
+          "similarity_to_centroid": 0.592581,
+          "topic_id": "topic:reliability-and-on-call-intersection"
+        },
+        {
+          "episode_ids": [
+            "ep-1abf911df5bea2c3"
+          ],
+          "label": "reliability and sustainability",
+          "similarity_to_centroid": 0.715852,
+          "topic_id": "topic:reliability-and-sustainability"
+        },
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f"
+          ],
+          "label": "reliability as property",
+          "similarity_to_centroid": 0.73777,
+          "topic_id": "topic:reliability-as-property"
+        },
+        {
+          "episode_ids": [
+            "ep-1979e93514355ea6"
+          ],
+          "label": "reliability engineering",
+          "similarity_to_centroid": 0.810194,
+          "topic_id": "topic:reliability-engineering"
+        },
+        {
+          "episode_ids": [
+            "ep-d8cc458a5f0049a8"
+          ],
+          "label": "reliability incidents",
+          "similarity_to_centroid": 0.792297,
+          "topic_id": "topic:reliability-incidents"
+        },
+        {
+          "episode_ids": [
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "reliability intersection",
+          "similarity_to_centroid": 0.747799,
+          "topic_id": "topic:reliability-intersection"
+        },
+        {
+          "episode_ids": [
+            "ep-b3570c1ceb5eca41"
+          ],
+          "label": "reliability system",
+          "similarity_to_centroid": 0.771006,
+          "topic_id": "topic:reliability-system"
+        },
+        {
+          "episode_ids": [
+            "ep-4d94c63887afbd1a"
+          ],
+          "label": "reliability trade offs",
+          "similarity_to_centroid": 0.750678,
+          "topic_id": "topic:reliability-trade-offs"
+        },
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "shimano component reliability",
+          "similarity_to_centroid": 0.711776,
+          "topic_id": "topic:shimano-component-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29",
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "systemic failure",
+          "similarity_to_centroid": 0.561076,
+          "topic_id": "topic:systemic-failure"
+        },
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "systemic failure analysis",
+          "similarity_to_centroid": 0.663012,
+          "topic_id": "topic:systemic-failure-analysis"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "underrated reliability",
+          "similarity_to_centroid": 0.724078,
+          "topic_id": "topic:underrated-reliability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "spoke wrench",
+      "cil_alias_target_topic_id": "topic:spoke-wrench",
+      "graph_compound_parent_id": "tc:spoke-wrench",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9"
+          ],
+          "label": "component torque",
+          "similarity_to_centroid": 0.601699,
+          "topic_id": "topic:component-torque"
+        },
+        {
+          "episode_ids": [
+            "ep-a341174daaf88193"
+          ],
+          "label": "spoke and wrench system",
+          "similarity_to_centroid": 0.942241,
+          "topic_id": "topic:spoke-and-wrench-system"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8",
+            "ep-2e3fcd5d8c418fb4",
+            "ep-88fec846e9003e86"
+          ],
+          "label": "spoke wrench",
+          "similarity_to_centroid": 0.950641,
+          "topic_id": "topic:spoke-wrench"
+        },
+        {
+          "episode_ids": [
+            "ep-ca65ab78f4c50f2a",
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "spoke wrench process",
+          "similarity_to_centroid": 0.942544,
+          "topic_id": "topic:spoke-wrench-process"
+        },
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9",
+            "ep-ec0bf35da3719170"
+          ],
+          "label": "spoke wrench workflow",
+          "similarity_to_centroid": 0.913994,
+          "topic_id": "topic:spoke-wrench-workflow"
+        }
+      ]
+    },
+    {
+      "canonical_label": "mystery creaks",
+      "cil_alias_target_topic_id": "topic:mystery-creaks",
+      "graph_compound_parent_id": "tc:mystery-creaks",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9"
+          ],
+          "label": "contact surface creaks",
+          "similarity_to_centroid": 0.852472,
+          "topic_id": "topic:contact-surface-creaks"
+        },
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "creaking noise diagnosis",
+          "similarity_to_centroid": 0.865509,
+          "topic_id": "topic:creaking-noise-diagnosis"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "mystery creaks",
+          "similarity_to_centroid": 0.908988,
+          "topic_id": "topic:mystery-creaks"
         }
       ]
     },
@@ -431,15 +1439,23 @@
       "canonical_label": "reef conservation",
       "cil_alias_target_topic_id": "topic:reef-conservation",
       "graph_compound_parent_id": "tc:reef-conservation",
-      "member_count": 2,
+      "member_count": 4,
       "members": [
+        {
+          "episode_ids": [
+            "ep-a0a7f86b34a4de26"
+          ],
+          "label": "coral bleaching events",
+          "similarity_to_centroid": 0.717117,
+          "topic_id": "topic:coral-bleaching-events"
+        },
         {
           "episode_ids": [
             "ep-a0a7f86b34a4de26",
             "ep-a884b153355070f0"
           ],
           "label": "marine biology",
-          "similarity_to_centroid": 0.854612,
+          "similarity_to_centroid": 0.689781,
           "topic_id": "topic:marine-biology"
         },
         {
@@ -448,104 +1464,2374 @@
             "ep-a884b153355070f0"
           ],
           "label": "reef conservation",
-          "similarity_to_centroid": 0.854612,
+          "similarity_to_centroid": 0.903157,
           "topic_id": "topic:reef-conservation"
+        },
+        {
+          "episode_ids": [
+            "ep-a884b153355070f0"
+          ],
+          "label": "reef conservation policy",
+          "similarity_to_centroid": 0.854106,
+          "topic_id": "topic:reef-conservation-policy"
         }
       ]
     },
     {
-      "canonical_label": "on call rotation",
-      "cil_alias_target_topic_id": "topic:on-call-rotation",
-      "graph_compound_parent_id": "tc:on-call-rotation",
+      "canonical_label": "coupling management",
+      "cil_alias_target_topic_id": "topic:coupling-management",
+      "graph_compound_parent_id": "tc:coupling-management",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "coupling management",
+          "similarity_to_centroid": 0.850743,
+          "topic_id": "topic:coupling-management"
+        },
+        {
+          "episode_ids": [
+            "ep-4d94c63887afbd1a"
+          ],
+          "label": "coupling vs components",
+          "similarity_to_centroid": 0.834892,
+          "topic_id": "topic:coupling-vs-components"
+        },
+        {
+          "episode_ids": [
+            "ep-916dab1698f88aec"
+          ],
+          "label": "systemic interaction",
+          "similarity_to_centroid": 0.713571,
+          "topic_id": "topic:systemic-interaction"
+        }
+      ]
+    },
+    {
+      "canonical_label": "cultural stability",
+      "cil_alias_target_topic_id": "topic:cultural-stability",
+      "graph_compound_parent_id": "tc:cultural-stability",
       "member_count": 2,
       "members": [
         {
           "episode_ids": [
-            "ep-a05e37624721d37c"
+            "ep-034d8bc4204034df",
+            "ep-3158b8ff3e943b1e",
+            "ep-a89e6a42509c9af0",
+            "ep-f4b940a095192621"
           ],
-          "label": "on call",
-          "similarity_to_centroid": 0.890152,
-          "topic_id": "topic:on-call"
+          "label": "cultural drift",
+          "similarity_to_centroid": 0.906653,
+          "topic_id": "topic:cultural-drift"
+        },
+        {
+          "episode_ids": [
+            "ep-3158b8ff3e943b1e"
+          ],
+          "label": "cultural stability",
+          "similarity_to_centroid": 0.906653,
+          "topic_id": "topic:cultural-stability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "slope excavation",
+      "cil_alias_target_topic_id": "topic:slope-excavation",
+      "graph_compound_parent_id": "tc:slope-excavation",
+      "member_count": 6,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-c0ab3bfb1ebdab6d"
+          ],
+          "label": "curb design on slopes",
+          "similarity_to_centroid": 0.801096,
+          "topic_id": "topic:curb-design-on-slopes"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae",
+            "ep-7072d2e85dcd5233",
+            "ep-8dce4ec000757097",
+            "ep-c0ab3bfb1ebdab6d",
+            "ep-db8f44d2e07a22bd",
+            "ep-e2231244311ca964"
+          ],
+          "label": "drainage design",
+          "similarity_to_centroid": 0.645431,
+          "topic_id": "topic:drainage-design"
+        },
+        {
+          "episode_ids": [
+            "ep-7072d2e85dcd5233"
+          ],
+          "label": "excavation slope",
+          "similarity_to_centroid": 0.879755,
+          "topic_id": "topic:excavation-slope"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae"
+          ],
+          "label": "slope excavation",
+          "similarity_to_centroid": 0.900031,
+          "topic_id": "topic:slope-excavation"
+        },
+        {
+          "episode_ids": [
+            "ep-c0ab3bfb1ebdab6d",
+            "ep-e2231244311ca964"
+          ],
+          "label": "slope management",
+          "similarity_to_centroid": 0.870686,
+          "topic_id": "topic:slope-management"
+        },
+        {
+          "episode_ids": [
+            "ep-8dce4ec000757097"
+          ],
+          "label": "slope steepness",
+          "similarity_to_centroid": 0.805878,
+          "topic_id": "topic:slope-steepness"
+        }
+      ]
+    },
+    {
+      "canonical_label": "macroeconomics",
+      "cil_alias_target_topic_id": "topic:macroeconomics",
+      "graph_compound_parent_id": "tc:macroeconomics",
+      "member_count": 7,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "currency intervention",
+          "similarity_to_centroid": 0.655055,
+          "topic_id": "topic:currency-intervention"
+        },
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "economic system dynamics",
+          "similarity_to_centroid": 0.780715,
+          "topic_id": "topic:economic-system-dynamics"
+        },
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "labor market dynamics",
+          "similarity_to_centroid": 0.753877,
+          "topic_id": "topic:labor-market-dynamics"
+        },
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "labor markets",
+          "similarity_to_centroid": 0.762763,
+          "topic_id": "topic:labor-markets"
+        },
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "macroeconomic abstraction",
+          "similarity_to_centroid": 0.771596,
+          "topic_id": "topic:macroeconomic-abstraction"
+        },
+        {
+          "episode_ids": [
+            "ep-2cd5c6d11325a312",
+            "ep-362f5d463b877d2c",
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "macroeconomics",
+          "similarity_to_centroid": 0.859994,
+          "topic_id": "topic:macroeconomics"
+        },
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "monetary policy",
+          "similarity_to_centroid": 0.731347,
+          "topic_id": "topic:monetary-policy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "dan adoption",
+      "cil_alias_target_topic_id": "topic:dan-adoption",
+      "graph_compound_parent_id": "tc:dan-adoption",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a0a7f86b34a4de26"
+          ],
+          "label": "dan adoption",
+          "similarity_to_centroid": 0.863979,
+          "topic_id": "topic:dan-adoption"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "dan safety stops",
+          "similarity_to_centroid": 0.863979,
+          "topic_id": "topic:dan-safety-stops"
+        }
+      ]
+    },
+    {
+      "canonical_label": "iteration practice",
+      "cil_alias_target_topic_id": "topic:iteration-practice",
+      "graph_compound_parent_id": "tc:iteration-practice",
+      "member_count": 14,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "decision iteration",
+          "similarity_to_centroid": 0.77443,
+          "topic_id": "topic:decision-iteration"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6",
+            "ep-a0a7f86b34a4de26"
+          ],
+          "label": "heuristic iteration",
+          "similarity_to_centroid": 0.772749,
+          "topic_id": "topic:heuristic-iteration"
+        },
+        {
+          "episode_ids": [
+            "ep-1abf911df5bea2c3"
+          ],
+          "label": "iteration and testing",
+          "similarity_to_centroid": 0.850358,
+          "topic_id": "topic:iteration-and-testing"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "iteration over innovation",
+          "similarity_to_centroid": 0.717084,
+          "topic_id": "topic:iteration-over-innovation"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "iteration over reconstruction",
+          "similarity_to_centroid": 0.648703,
+          "topic_id": "topic:iteration-over-reconstruction"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-3158b8ff3e943b1e",
+            "ep-64ef09a7ee543045",
+            "ep-a1342cd495b1165b",
+            "ep-a89e6a42509c9af0",
+            "ep-b3570c1ceb5eca41",
+            "ep-f4b940a095192621"
+          ],
+          "label": "iteration practice",
+          "similarity_to_centroid": 0.912663,
+          "topic_id": "topic:iteration-practice"
+        },
+        {
+          "episode_ids": [
+            "ep-c0ab3bfb1ebdab6d"
+          ],
+          "label": "iteration through practice",
+          "similarity_to_centroid": 0.859565,
+          "topic_id": "topic:iteration-through-practice"
+        },
+        {
+          "episode_ids": [
+            "ep-9b36e2e3b959298d"
+          ],
+          "label": "iteration through testing",
+          "similarity_to_centroid": 0.81826,
+          "topic_id": "topic:iteration-through-testing"
         },
         {
           "episode_ids": [
             "ep-4a1a673a7005a6b5"
           ],
-          "label": "on call rotation",
-          "similarity_to_centroid": 0.890152,
-          "topic_id": "topic:on-call-rotation"
+          "label": "iteration through trial",
+          "similarity_to_centroid": 0.819998,
+          "topic_id": "topic:iteration-through-trial"
+        },
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069",
+            "ep-4d94c63887afbd1a",
+            "ep-a884b153355070f0"
+          ],
+          "label": "iterative improvement",
+          "similarity_to_centroid": 0.79707,
+          "topic_id": "topic:iterative-improvement"
+        },
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "iterative learning",
+          "similarity_to_centroid": 0.747335,
+          "topic_id": "topic:iterative-learning"
+        },
+        {
+          "episode_ids": [
+            "ep-1979e93514355ea6"
+          ],
+          "label": "iterative testing",
+          "similarity_to_centroid": 0.779617,
+          "topic_id": "topic:iterative-testing"
+        },
+        {
+          "episode_ids": [
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "operational iteration",
+          "similarity_to_centroid": 0.822653,
+          "topic_id": "topic:operational-iteration"
+        },
+        {
+          "episode_ids": [
+            "ep-7fd3ec879c8c2b44"
+          ],
+          "label": "performance iteration",
+          "similarity_to_centroid": 0.795434,
+          "topic_id": "topic:performance-iteration"
         }
       ]
     },
     {
-      "canonical_label": "safety practices",
-      "cil_alias_target_topic_id": "topic:safety-practices",
-      "graph_compound_parent_id": "tc:safety-practices",
+      "canonical_label": "operational decision making",
+      "cil_alias_target_topic_id": "topic:operational-decision-making",
+      "graph_compound_parent_id": "tc:operational-decision-making",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27",
+            "ep-d428e906f5affc60"
+          ],
+          "label": "decision making under uncertainty",
+          "similarity_to_centroid": 0.68096,
+          "topic_id": "topic:decision-making-under-uncertainty"
+        },
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "operational decision making",
+          "similarity_to_centroid": 0.924856,
+          "topic_id": "topic:operational-decision-making"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "operational insight",
+          "similarity_to_centroid": 0.840267,
+          "topic_id": "topic:operational-insight"
+        },
+        {
+          "episode_ids": [
+            "ep-2e3fcd5d8c418fb4"
+          ],
+          "label": "operational perspective",
+          "similarity_to_centroid": 0.870647,
+          "topic_id": "topic:operational-perspective"
+        }
+      ]
+    },
+    {
+      "canonical_label": "deliberate style",
+      "cil_alias_target_topic_id": "topic:deliberate-style",
+      "graph_compound_parent_id": "tc:deliberate-style",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-efc13989b676df9d"
+          ],
+          "label": "deliberate style",
+          "similarity_to_centroid": 0.833325,
+          "topic_id": "topic:deliberate-style"
+        },
+        {
+          "episode_ids": [
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "model cleverness",
+          "similarity_to_centroid": 0.833325,
+          "topic_id": "topic:model-cleverness"
+        }
+      ]
+    },
+    {
+      "canonical_label": "observability",
+      "cil_alias_target_topic_id": "topic:observability",
+      "graph_compound_parent_id": "tc:observability",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "dependable signals",
+          "similarity_to_centroid": 0.828874,
+          "topic_id": "topic:dependable-signals"
+        },
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f"
+          ],
+          "label": "observability",
+          "similarity_to_centroid": 0.828874,
+          "topic_id": "topic:observability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "performance through design",
+      "cil_alias_target_topic_id": "topic:performance-through-design",
+      "graph_compound_parent_id": "tc:performance-through-design",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f"
+          ],
+          "label": "designing for resilience",
+          "similarity_to_centroid": 0.739513,
+          "topic_id": "topic:designing-for-resilience"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "feedback driven development",
+          "similarity_to_centroid": 0.701819,
+          "topic_id": "topic:feedback-driven-development"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "long term system design",
+          "similarity_to_centroid": 0.751246,
+          "topic_id": "topic:long-term-system-design"
+        },
+        {
+          "episode_ids": [
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "performance through design",
+          "similarity_to_centroid": 0.764417,
+          "topic_id": "topic:performance-through-design"
+        }
+      ]
+    },
+    {
+      "canonical_label": "dialogue",
+      "cil_alias_target_topic_id": "topic:dialogue",
+      "graph_compound_parent_id": "tc:dialogue",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-3158b8ff3e943b1e",
+            "ep-a89e6a42509c9af0",
+            "ep-f4b940a095192621"
+          ],
+          "label": "dialogue",
+          "similarity_to_centroid": 0.874749,
+          "topic_id": "topic:dialogue"
+        },
+        {
+          "episode_ids": [
+            "ep-f4b940a095192621"
+          ],
+          "label": "dialogue heavy formats",
+          "similarity_to_centroid": 0.85755,
+          "topic_id": "topic:dialogue-heavy-formats"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df"
+          ],
+          "label": "dialogue resolution",
+          "similarity_to_centroid": 0.855331,
+          "topic_id": "topic:dialogue-resolution"
+        },
+        {
+          "episode_ids": [
+            "ep-a89e6a42509c9af0"
+          ],
+          "label": "dialogue texture",
+          "similarity_to_centroid": 0.841607,
+          "topic_id": "topic:dialogue-texture"
+        }
+      ]
+    },
+    {
+      "canonical_label": "meaning drift",
+      "cil_alias_target_topic_id": "topic:meaning-drift",
+      "graph_compound_parent_id": "tc:meaning-drift",
       "member_count": 3,
       "members": [
         {
           "episode_ids": [
-            "ep-0d9100843ee555f8",
+            "ep-3158b8ff3e943b1e"
+          ],
+          "label": "dialogue and drift",
+          "similarity_to_centroid": 0.834859,
+          "topic_id": "topic:dialogue-and-drift"
+        },
+        {
+          "episode_ids": [
+            "ep-3158b8ff3e943b1e"
+          ],
+          "label": "drift detection",
+          "similarity_to_centroid": 0.864794,
+          "topic_id": "topic:drift-detection"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df"
+          ],
+          "label": "meaning drift",
+          "similarity_to_centroid": 0.908037,
+          "topic_id": "topic:meaning-drift"
+        }
+      ]
+    },
+    {
+      "canonical_label": "dive planning",
+      "cil_alias_target_topic_id": "topic:dive-planning",
+      "graph_compound_parent_id": "tc:dive-planning",
+      "member_count": 6,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f",
+            "ep-916dab1698f88aec"
+          ],
+          "label": "dive planning",
+          "similarity_to_centroid": 0.863338,
+          "topic_id": "topic:dive-planning"
+        },
+        {
+          "episode_ids": [
+            "ep-a0a7f86b34a4de26"
+          ],
+          "label": "diving tooling",
+          "similarity_to_centroid": 0.816756,
+          "topic_id": "topic:diving-tooling"
+        },
+        {
+          "episode_ids": [
+            "ep-a884b153355070f0"
+          ],
+          "label": "operational dive safety",
+          "similarity_to_centroid": 0.82568,
+          "topic_id": "topic:operational-dive-safety"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "underwater frame design",
+          "similarity_to_centroid": 0.747885,
+          "topic_id": "topic:underwater-frame-design"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "underwater photography",
+          "similarity_to_centroid": 0.749791,
+          "topic_id": "topic:underwater-photography"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "wreck diving",
+          "similarity_to_centroid": 0.807015,
+          "topic_id": "topic:wreck-diving"
+        }
+      ]
+    },
+    {
+      "canonical_label": "index fund investing",
+      "cil_alias_target_topic_id": "topic:index-fund-investing",
+      "graph_compound_parent_id": "tc:index-fund-investing",
+      "member_count": 6,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087"
+          ],
+          "label": "diversification strategy",
+          "similarity_to_centroid": 0.670448,
+          "topic_id": "topic:diversification-strategy"
+        },
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "index fund investing",
+          "similarity_to_centroid": 0.887277,
+          "topic_id": "topic:index-fund-investing"
+        },
+        {
+          "episode_ids": [
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "index fund strategy",
+          "similarity_to_centroid": 0.88113,
+          "topic_id": "topic:index-fund-strategy"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087",
+            "ep-6351d18dc6f1ff70",
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "index investing",
+          "similarity_to_centroid": 0.881456,
+          "topic_id": "topic:index-investing"
+        },
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "patience in investing",
+          "similarity_to_centroid": 0.686947,
+          "topic_id": "topic:patience-in-investing"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087"
+          ],
+          "label": "portfolio construction",
+          "similarity_to_centroid": 0.642178,
+          "topic_id": "topic:portfolio-construction"
+        }
+      ]
+    },
+    {
+      "canonical_label": "documentary frames",
+      "cil_alias_target_topic_id": "topic:documentary-frames",
+      "graph_compound_parent_id": "tc:documentary-frames",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "documentary essay",
+          "similarity_to_centroid": 0.869897,
+          "topic_id": "topic:documentary-essay"
+        },
+        {
+          "episode_ids": [
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "documentary frames",
+          "similarity_to_centroid": 0.901449,
+          "topic_id": "topic:documentary-frames"
+        },
+        {
+          "episode_ids": [
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "documentary photography",
+          "similarity_to_centroid": 0.875136,
+          "topic_id": "topic:documentary-photography"
+        }
+      ]
+    },
+    {
+      "canonical_label": "maintenance",
+      "cil_alias_target_topic_id": "topic:maintenance",
+      "graph_compound_parent_id": "tc:maintenance",
+      "member_count": 6,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "drive mechanism maintenance",
+          "similarity_to_centroid": 0.673372,
+          "topic_id": "topic:drive-mechanism-maintenance"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "maintenance",
+          "similarity_to_centroid": 0.917983,
+          "topic_id": "topic:maintenance"
+        },
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "maintenance compromise awareness",
+          "similarity_to_centroid": 0.820695,
+          "topic_id": "topic:maintenance-compromise-awareness"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "maintenance flow",
+          "similarity_to_centroid": 0.878191,
+          "topic_id": "topic:maintenance-flow"
+        },
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9",
+            "ep-2e3fcd5d8c418fb4",
+            "ep-ec0bf35da3719170"
+          ],
+          "label": "maintenance intervals",
+          "similarity_to_centroid": 0.816165,
+          "topic_id": "topic:maintenance-intervals"
+        },
+        {
+          "episode_ids": [
+            "ep-a341174daaf88193"
+          ],
+          "label": "maintenance mechanics",
+          "similarity_to_centroid": 0.897125,
+          "topic_id": "topic:maintenance-mechanics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "transmission mechanics",
+      "cil_alias_target_topic_id": "topic:transmission-mechanics",
+      "graph_compound_parent_id": "tc:transmission-mechanics",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "drivetrain mechanics",
+          "similarity_to_centroid": 0.877882,
+          "topic_id": "topic:drivetrain-mechanics"
+        },
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9",
+            "ep-a341174daaf88193",
+            "ep-ec0bf35da3719170"
+          ],
+          "label": "transmission mechanics",
+          "similarity_to_centroid": 0.877882,
+          "topic_id": "topic:transmission-mechanics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "edge cases",
+      "cil_alias_target_topic_id": "topic:edge-cases",
+      "graph_compound_parent_id": "tc:edge-cases",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-26eaa57651247221"
+          ],
+          "label": "edge case episode",
+          "similarity_to_centroid": 0.858823,
+          "topic_id": "topic:edge-case-episode"
+        },
+        {
+          "episode_ids": [
+            "ep-0c46a67a56b05689"
+          ],
+          "label": "edge case validation",
+          "similarity_to_centroid": 0.849279,
+          "topic_id": "topic:edge-case-validation"
+        },
+        {
+          "episode_ids": [
+            "ep-0c46a67a56b05689",
+            "ep-26eaa57651247221"
+          ],
+          "label": "edge cases",
+          "similarity_to_centroid": 0.918639,
+          "topic_id": "topic:edge-cases"
+        }
+      ]
+    },
+    {
+      "canonical_label": "race line strategy",
+      "cil_alias_target_topic_id": "topic:race-line-strategy",
+      "graph_compound_parent_id": "tc:race-line-strategy",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-60d667843dc40fca",
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "enduro racing",
+          "similarity_to_centroid": 0.6545,
+          "topic_id": "topic:enduro-racing"
+        },
+        {
+          "episode_ids": [
+            "ep-88fec846e9003e86"
+          ],
+          "label": "race line optimization",
+          "similarity_to_centroid": 0.863723,
+          "topic_id": "topic:race-line-optimization"
+        },
+        {
+          "episode_ids": [
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "race line strategy",
+          "similarity_to_centroid": 0.867316,
+          "topic_id": "topic:race-line-strategy"
+        },
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069"
+          ],
+          "label": "reconnaissance runs",
+          "similarity_to_centroid": 0.652898,
+          "topic_id": "topic:reconnaissance-runs"
+        },
+        {
+          "episode_ids": [
+            "ep-60d667843dc40fca"
+          ],
+          "label": "track line optimization",
+          "similarity_to_centroid": 0.764968,
+          "topic_id": "topic:track-line-optimization"
+        }
+      ]
+    },
+    {
+      "canonical_label": "engineering communication",
+      "cil_alias_target_topic_id": "topic:engineering-communication",
+      "graph_compound_parent_id": "tc:engineering-communication",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "engineering communication",
+          "similarity_to_centroid": 0.867417,
+          "topic_id": "topic:engineering-communication"
+        },
+        {
+          "episode_ids": [
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "engineering operations tools",
+          "similarity_to_centroid": 0.867417,
+          "topic_id": "topic:engineering-operations-tools"
+        }
+      ]
+    },
+    {
+      "canonical_label": "equipment performance",
+      "cil_alias_target_topic_id": "topic:equipment-performance",
+      "graph_compound_parent_id": "tc:equipment-performance",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069"
+          ],
+          "label": "equipment brand impact",
+          "similarity_to_centroid": 0.824209,
+          "topic_id": "topic:equipment-brand-impact"
+        },
+        {
+          "episode_ids": [
+            "ep-7ccfb108302b3faa"
+          ],
+          "label": "equipment ecosystem",
+          "similarity_to_centroid": 0.814702,
+          "topic_id": "topic:equipment-ecosystem"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "equipment failure",
+          "similarity_to_centroid": 0.806376,
+          "topic_id": "topic:equipment-failure"
+        },
+        {
+          "episode_ids": [
+            "ep-60d667843dc40fca",
+            "ep-7fd3ec879c8c2b44"
+          ],
+          "label": "equipment performance",
+          "similarity_to_centroid": 0.826114,
+          "topic_id": "topic:equipment-performance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "eroded wreck sites",
+      "cil_alias_target_topic_id": "topic:eroded-wreck-sites",
+      "graph_compound_parent_id": "tc:eroded-wreck-sites",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "eroded wreck sites",
+          "similarity_to_centroid": 0.879201,
+          "topic_id": "topic:eroded-wreck-sites"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "wreck penetration planning",
+          "similarity_to_centroid": 0.879201,
+          "topic_id": "topic:wreck-penetration-planning"
+        }
+      ]
+    },
+    {
+      "canonical_label": "soil erosion",
+      "cil_alias_target_topic_id": "topic:soil-erosion",
+      "graph_compound_parent_id": "tc:soil-erosion",
+      "member_count": 6,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069",
+            "ep-60d667843dc40fca",
+            "ep-7ccfb108302b3faa",
+            "ep-88fec846e9003e86",
+            "ep-ca65ab78f4c50f2a"
+          ],
+          "label": "erosion patterns",
+          "similarity_to_centroid": 0.886222,
+          "topic_id": "topic:erosion-patterns"
+        },
+        {
+          "episode_ids": [
+            "ep-a0a7f86b34a4de26"
+          ],
+          "label": "sediment plumes",
+          "similarity_to_centroid": 0.624601,
+          "topic_id": "topic:sediment-plumes"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae",
+            "ep-2a703b6f57d9020f",
+            "ep-60d667843dc40fca",
+            "ep-7072d2e85dcd5233",
+            "ep-8dce4ec000757097",
+            "ep-a0a7f86b34a4de26",
+            "ep-c0ab3bfb1ebdab6d",
+            "ep-db8f44d2e07a22bd",
+            "ep-e2231244311ca964"
+          ],
+          "label": "soil erosion",
+          "similarity_to_centroid": 0.916626,
+          "topic_id": "topic:soil-erosion"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "soil erosion impact",
+          "similarity_to_centroid": 0.861509,
+          "topic_id": "topic:soil-erosion-impact"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae",
+            "ep-7072d2e85dcd5233",
+            "ep-db8f44d2e07a22bd"
+          ],
+          "label": "soil structure",
+          "similarity_to_centroid": 0.654932,
+          "topic_id": "topic:soil-structure"
+        },
+        {
+          "episode_ids": [
+            "ep-7fd3ec879c8c2b44"
+          ],
+          "label": "track erosion patterns",
+          "similarity_to_centroid": 0.809956,
+          "topic_id": "topic:track-erosion-patterns"
+        }
+      ]
+    },
+    {
+      "canonical_label": "system validation",
+      "cil_alias_target_topic_id": "topic:system-validation",
+      "graph_compound_parent_id": "tc:system-validation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "error propagation",
+          "similarity_to_centroid": 0.834549,
+          "topic_id": "topic:error-propagation"
+        },
+        {
+          "episode_ids": [
+            "ep-26eaa57651247221"
+          ],
+          "label": "system validation",
+          "similarity_to_centroid": 0.834549,
+          "topic_id": "topic:system-validation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "exit planning",
+      "cil_alias_target_topic_id": "topic:exit-planning",
+      "graph_compound_parent_id": "tc:exit-planning",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a884b153355070f0"
+          ],
+          "label": "exit planning",
+          "similarity_to_centroid": 0.885789,
+          "topic_id": "topic:exit-planning"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "planning and navigation",
+          "similarity_to_centroid": 0.885789,
+          "topic_id": "topic:planning-and-navigation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market reaction framing",
+      "cil_alias_target_topic_id": "topic:market-reaction-framing",
+      "graph_compound_parent_id": "tc:market-reaction-framing",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "forced selling",
+          "similarity_to_centroid": 0.673857,
+          "topic_id": "topic:forced-selling"
+        },
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "margin trading",
+          "similarity_to_centroid": 0.720241,
+          "topic_id": "topic:margin-trading"
+        },
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "market belief in policy",
+          "similarity_to_centroid": 0.713012,
+          "topic_id": "topic:market-belief-in-policy"
+        },
+        {
+          "episode_ids": [
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "market reaction framing",
+          "similarity_to_centroid": 0.772991,
+          "topic_id": "topic:market-reaction-framing"
+        },
+        {
+          "episode_ids": [
+            "ep-6351d18dc6f1ff70"
+          ],
+          "label": "market timing",
+          "similarity_to_centroid": 0.767261,
+          "topic_id": "topic:market-timing"
+        }
+      ]
+    },
+    {
+      "canonical_label": "preparation humility",
+      "cil_alias_target_topic_id": "topic:preparation-humility",
+      "graph_compound_parent_id": "tc:preparation-humility",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "forecasting humility",
+          "similarity_to_centroid": 0.910199,
+          "topic_id": "topic:forecasting-humility"
+        },
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045"
+          ],
+          "label": "preparation humility",
+          "similarity_to_centroid": 0.910199,
+          "topic_id": "topic:preparation-humility"
+        }
+      ]
+    },
+    {
+      "canonical_label": "top down interventions",
+      "cil_alias_target_topic_id": "topic:top-down-interventions",
+      "graph_compound_parent_id": "tc:top-down-interventions",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "forward guidance effectiveness",
+          "similarity_to_centroid": 0.775625,
+          "topic_id": "topic:forward-guidance-effectiveness"
+        },
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "modeling interventions",
+          "similarity_to_centroid": 0.85088,
+          "topic_id": "topic:modeling-interventions"
+        },
+        {
+          "episode_ids": [
+            "ep-1abf911df5bea2c3"
+          ],
+          "label": "top down interventions",
+          "similarity_to_centroid": 0.859532,
+          "topic_id": "topic:top-down-interventions"
+        }
+      ]
+    },
+    {
+      "canonical_label": "framework integration",
+      "cil_alias_target_topic_id": "topic:framework-integration",
+      "graph_compound_parent_id": "tc:framework-integration",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-e2231244311ca964"
+          ],
+          "label": "framework integration",
+          "similarity_to_centroid": 0.8648,
+          "topic_id": "topic:framework-integration"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "technology integration",
+          "similarity_to_centroid": 0.8648,
+          "topic_id": "topic:technology-integration"
+        }
+      ]
+    },
+    {
+      "canonical_label": "incident patterns",
+      "cil_alias_target_topic_id": "topic:incident-patterns",
+      "graph_compound_parent_id": "tc:incident-patterns",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f"
+          ],
+          "label": "incident patterns",
+          "similarity_to_centroid": 0.841034,
+          "topic_id": "topic:incident-patterns"
+        },
+        {
+          "episode_ids": [
+            "ep-916dab1698f88aec"
+          ],
+          "label": "incident prevention",
+          "similarity_to_centroid": 0.821766,
+          "topic_id": "topic:incident-prevention"
+        },
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f",
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "incident response",
+          "similarity_to_centroid": 0.836932,
+          "topic_id": "topic:incident-response"
+        },
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "incident response ownership",
+          "similarity_to_centroid": 0.737501,
+          "topic_id": "topic:incident-response-ownership"
+        },
+        {
+          "episode_ids": [
+            "ep-a05e37624721d37c"
+          ],
+          "label": "real incident detection",
+          "similarity_to_centroid": 0.733371,
+          "topic_id": "topic:real-incident-detection"
+        }
+      ]
+    },
+    {
+      "canonical_label": "incident postmortems",
+      "cil_alias_target_topic_id": "topic:incident-postmortems",
+      "graph_compound_parent_id": "tc:incident-postmortems",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "incident postmortems",
+          "similarity_to_centroid": 0.929843,
+          "topic_id": "topic:incident-postmortems"
+        },
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "postmortem focus",
+          "similarity_to_centroid": 0.929843,
+          "topic_id": "topic:postmortem-focus"
+        }
+      ]
+    },
+    {
+      "canonical_label": "institutional credibility",
+      "cil_alias_target_topic_id": "topic:institutional-credibility",
+      "graph_compound_parent_id": "tc:institutional-credibility",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "institutional credibility",
+          "similarity_to_centroid": 0.883193,
+          "topic_id": "topic:institutional-credibility"
+        },
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "institutional data infrastructure",
+          "similarity_to_centroid": 0.883193,
+          "topic_id": "topic:institutional-data-infrastructure"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ipcc data integration",
+      "cil_alias_target_topic_id": "topic:ipcc-data-integration",
+      "graph_compound_parent_id": "tc:ipcc-data-integration",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "ipcc data integration",
+          "similarity_to_centroid": 0.879419,
+          "topic_id": "topic:ipcc-data-integration"
+        },
+        {
+          "episode_ids": [
+            "ep-4d94c63887afbd1a"
+          ],
+          "label": "ipcc teams",
+          "similarity_to_centroid": 0.879419,
+          "topic_id": "topic:ipcc-teams"
+        }
+      ]
+    },
+    {
+      "canonical_label": "newsroom operations",
+      "cil_alias_target_topic_id": "topic:newsroom-operations",
+      "graph_compound_parent_id": "tc:newsroom-operations",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045",
+            "ep-b3570c1ceb5eca41",
+            "ep-d428e906f5affc60",
+            "ep-efc13989b676df9d"
+          ],
+          "label": "journalism",
+          "similarity_to_centroid": 0.769854,
+          "topic_id": "topic:journalism"
+        },
+        {
+          "episode_ids": [
+            "ep-b3570c1ceb5eca41"
+          ],
+          "label": "newsroom operations",
+          "similarity_to_centroid": 0.873783,
+          "topic_id": "topic:newsroom-operations"
+        },
+        {
+          "episode_ids": [
+            "ep-b3570c1ceb5eca41"
+          ],
+          "label": "newsroom reliability",
+          "similarity_to_centroid": 0.859752,
+          "topic_id": "topic:newsroom-reliability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "land management",
+      "cil_alias_target_topic_id": "topic:land-management",
+      "graph_compound_parent_id": "tc:land-management",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae",
+            "ep-7072d2e85dcd5233",
+            "ep-8dce4ec000757097",
+            "ep-e2231244311ca964"
+          ],
+          "label": "land management",
+          "similarity_to_centroid": 0.958144,
+          "topic_id": "topic:land-management"
+        },
+        {
+          "episode_ids": [
+            "ep-c0ab3bfb1ebdab6d"
+          ],
+          "label": "land management planning",
+          "similarity_to_centroid": 0.903535,
+          "topic_id": "topic:land-management-planning"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae",
+            "ep-7072d2e85dcd5233",
+            "ep-8dce4ec000757097",
+            "ep-c0ab3bfb1ebdab6d",
+            "ep-db8f44d2e07a22bd",
+            "ep-e2231244311ca964"
+          ],
+          "label": "land stewardship",
+          "similarity_to_centroid": 0.824557,
+          "topic_id": "topic:land-stewardship"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae",
+            "ep-8dce4ec000757097"
+          ],
+          "label": "territory management",
+          "similarity_to_centroid": 0.836128,
+          "topic_id": "topic:territory-management"
+        }
+      ]
+    },
+    {
+      "canonical_label": "language alternation",
+      "cil_alias_target_topic_id": "topic:language-alternation",
+      "graph_compound_parent_id": "tc:language-alternation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-26eaa57651247221"
+          ],
+          "label": "language alternation",
+          "similarity_to_centroid": 0.883515,
+          "topic_id": "topic:language-alternation"
+        },
+        {
+          "episode_ids": [
+            "ep-26eaa57651247221"
+          ],
+          "label": "multilingual input",
+          "similarity_to_centroid": 0.883515,
+          "topic_id": "topic:multilingual-input"
+        }
+      ]
+    },
+    {
+      "canonical_label": "systems thinking",
+      "cil_alias_target_topic_id": "topic:systems-thinking",
+      "graph_compound_parent_id": "tc:systems-thinking",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-2e3fcd5d8c418fb4"
+          ],
+          "label": "linear systems",
+          "similarity_to_centroid": 0.723325,
+          "topic_id": "topic:linear-systems"
+        },
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9"
+          ],
+          "label": "linear task management",
+          "similarity_to_centroid": 0.653157,
+          "topic_id": "topic:linear-task-management"
+        },
+        {
+          "episode_ids": [
+            "ep-a884b153355070f0"
+          ],
+          "label": "systems problem",
+          "similarity_to_centroid": 0.810947,
+          "topic_id": "topic:systems-problem"
+        },
+        {
+          "episode_ids": [
             "ep-16ff698c1bd21087",
             "ep-18ede6ffbd63f18f",
             "ep-1979e93514355ea6",
             "ep-1abf911df5bea2c3",
-            "ep-1e526e495918fb27",
-            "ep-2a703b6f57d9020f",
             "ep-2cd5c6d11325a312",
-            "ep-35f04bce441bf827",
+            "ep-3158b8ff3e943b1e",
             "ep-362f5d463b877d2c",
             "ep-4a1a673a7005a6b5",
             "ep-4d94c63887afbd1a",
-            "ep-60d667843dc40fca",
-            "ep-6351d18dc6f1ff70",
-            "ep-64ef09a7ee543045",
             "ep-8aa4d883afa10fa4",
             "ep-916dab1698f88aec",
             "ep-919c77e84ad37664",
-            "ep-a05e37624721d37c",
-            "ep-a0a7f86b34a4de26",
-            "ep-a1342cd495b1165b",
             "ep-a86da8f148d3bf29",
-            "ep-a884b153355070f0",
-            "ep-b3570c1ceb5eca41",
-            "ep-bccfce5798a83a6e",
-            "ep-d428e906f5affc60",
-            "ep-d8cc458a5f0049a8",
-            "ep-db8f44d2e07a22bd",
-            "ep-de59d003651d9e5d",
-            "ep-efc13989b676df9d"
+            "ep-de59d003651d9e5d"
           ],
-          "label": "risk management",
-          "similarity_to_centroid": 0.790322,
-          "topic_id": "topic:risk-management"
+          "label": "systems thinking",
+          "similarity_to_centroid": 0.864725,
+          "topic_id": "topic:systems-thinking"
         },
         {
           "episode_ids": [
-            "ep-2a703b6f57d9020f",
-            "ep-916dab1698f88aec",
-            "ep-a0a7f86b34a4de26",
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "systems thinking integration",
+          "similarity_to_centroid": 0.757678,
+          "topic_id": "topic:systems-thinking-integration"
+        }
+      ]
+    },
+    {
+      "canonical_label": "listener trust",
+      "cil_alias_target_topic_id": "topic:listener-trust",
+      "graph_compound_parent_id": "tc:listener-trust",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045"
+          ],
+          "label": "listener perception",
+          "similarity_to_centroid": 0.664318,
+          "topic_id": "topic:listener-perception"
+        },
+        {
+          "episode_ids": [
+            "ep-efc13989b676df9d"
+          ],
+          "label": "listener trust",
+          "similarity_to_centroid": 0.881863,
+          "topic_id": "topic:listener-trust"
+        },
+        {
+          "episode_ids": [
+            "ep-b3570c1ceb5eca41"
+          ],
+          "label": "trust as asset",
+          "similarity_to_centroid": 0.752372,
+          "topic_id": "topic:trust-as-asset"
+        },
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "trust in public systems",
+          "similarity_to_centroid": 0.805763,
+          "topic_id": "topic:trust-in-public-systems"
+        }
+      ]
+    },
+    {
+      "canonical_label": "long form",
+      "cil_alias_target_topic_id": "topic:long-form",
+      "graph_compound_parent_id": "tc:long-form",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-a89e6a42509c9af0",
+            "ep-f4b940a095192621"
+          ],
+          "label": "long form",
+          "similarity_to_centroid": 0.883745,
+          "topic_id": "topic:long-form"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df"
+          ],
+          "label": "long form conversation",
+          "similarity_to_centroid": 0.753839,
+          "topic_id": "topic:long-form-conversation"
+        },
+        {
+          "episode_ids": [
+            "ep-f4b940a095192621"
+          ],
+          "label": "long form intersection",
+          "similarity_to_centroid": 0.713714,
+          "topic_id": "topic:long-form-intersection"
+        },
+        {
+          "episode_ids": [
+            "ep-a89e6a42509c9af0"
+          ],
+          "label": "long form posture",
+          "similarity_to_centroid": 0.735849,
+          "topic_id": "topic:long-form-posture"
+        }
+      ]
+    },
+    {
+      "canonical_label": "machine vs hand built",
+      "cil_alias_target_topic_id": "topic:machine-vs-hand-built",
+      "graph_compound_parent_id": "tc:machine-vs-hand-built",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-7072d2e85dcd5233"
+          ],
+          "label": "machine made vs handmade",
+          "similarity_to_centroid": 0.886361,
+          "topic_id": "topic:machine-made-vs-handmade"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae"
+          ],
+          "label": "machine vs hand built",
+          "similarity_to_centroid": 0.929908,
+          "topic_id": "topic:machine-vs-hand-built"
+        },
+        {
+          "episode_ids": [
+            "ep-8dce4ec000757097",
+            "ep-c0ab3bfb1ebdab6d",
+            "ep-db8f44d2e07a22bd",
+            "ep-e2231244311ca964"
+          ],
+          "label": "machine vs hand built trails",
+          "similarity_to_centroid": 0.839839,
+          "topic_id": "topic:machine-vs-hand-built-trails"
+        }
+      ]
+    },
+    {
+      "canonical_label": "macro policy",
+      "cil_alias_target_topic_id": "topic:macro-policy",
+      "graph_compound_parent_id": "tc:macro-policy",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "macro as risk management",
+          "similarity_to_centroid": 0.865524,
+          "topic_id": "topic:macro-as-risk-management"
+        },
+        {
+          "episode_ids": [
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "macro forecasting",
+          "similarity_to_centroid": 0.796455,
+          "topic_id": "topic:macro-forecasting"
+        },
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "macro policy",
+          "similarity_to_centroid": 0.910879,
+          "topic_id": "topic:macro-policy"
+        },
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "macro policy tools",
+          "similarity_to_centroid": 0.86112,
+          "topic_id": "topic:macro-policy-tools"
+        }
+      ]
+    },
+    {
+      "canonical_label": "pronunciation reliability",
+      "cil_alias_target_topic_id": "topic:pronunciation-reliability",
+      "graph_compound_parent_id": "tc:pronunciation-reliability",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045"
+          ],
+          "label": "mispronunciation signal",
+          "similarity_to_centroid": 0.764756,
+          "topic_id": "topic:mispronunciation-signal"
+        },
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045"
+          ],
+          "label": "pronunciation",
+          "similarity_to_centroid": 0.823284,
+          "topic_id": "topic:pronunciation"
+        },
+        {
+          "episode_ids": [
+            "ep-efc13989b676df9d"
+          ],
+          "label": "pronunciation reliability",
+          "similarity_to_centroid": 0.916808,
+          "topic_id": "topic:pronunciation-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045"
+          ],
+          "label": "voice reliability",
+          "similarity_to_centroid": 0.76255,
+          "topic_id": "topic:voice-reliability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "model rebuilding",
+      "cil_alias_target_topic_id": "topic:model-rebuilding",
+      "graph_compound_parent_id": "tc:model-rebuilding",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "model rebuilding",
+          "similarity_to_centroid": 0.90493,
+          "topic_id": "topic:model-rebuilding"
+        },
+        {
+          "episode_ids": [
+            "ep-3158b8ff3e943b1e",
+            "ep-d428e906f5affc60"
+          ],
+          "label": "rebuilding from scratch",
+          "similarity_to_centroid": 0.90493,
+          "topic_id": "topic:rebuilding-from-scratch"
+        }
+      ]
+    },
+    {
+      "canonical_label": "structural angle",
+      "cil_alias_target_topic_id": "topic:structural-angle",
+      "graph_compound_parent_id": "tc:structural-angle",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a89e6a42509c9af0",
+            "ep-d8cc458a5f0049a8",
+            "ep-f4b940a095192621",
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "operational angle",
+          "similarity_to_centroid": 0.895106,
+          "topic_id": "topic:operational-angle"
+        },
+        {
+          "episode_ids": [
+            "ep-f4b940a095192621"
+          ],
+          "label": "structural angle",
+          "similarity_to_centroid": 0.895107,
+          "topic_id": "topic:structural-angle"
+        }
+      ]
+    },
+    {
+      "canonical_label": "parser robustness testing",
+      "cil_alias_target_topic_id": "topic:parser-robustness-testing",
+      "graph_compound_parent_id": "tc:parser-robustness-testing",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-26eaa57651247221"
+          ],
+          "label": "parser robustness",
+          "similarity_to_centroid": 0.893364,
+          "topic_id": "topic:parser-robustness"
+        },
+        {
+          "episode_ids": [
+            "ep-0c46a67a56b05689"
+          ],
+          "label": "parser robustness testing",
+          "similarity_to_centroid": 0.913569,
+          "topic_id": "topic:parser-robustness-testing"
+        },
+        {
+          "episode_ids": [
+            "ep-26eaa57651247221"
+          ],
+          "label": "robustness testing",
+          "similarity_to_centroid": 0.807673,
+          "topic_id": "topic:robustness-testing"
+        },
+        {
+          "episode_ids": [
+            "ep-26eaa57651247221"
+          ],
+          "label": "transcription robustness",
+          "similarity_to_centroid": 0.698506,
+          "topic_id": "topic:transcription-robustness"
+        }
+      ]
+    },
+    {
+      "canonical_label": "planetary risk scale",
+      "cil_alias_target_topic_id": "topic:planetary-risk-scale",
+      "graph_compound_parent_id": "tc:planetary-risk-scale",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1979e93514355ea6"
+          ],
+          "label": "planetary risk scale",
+          "similarity_to_centroid": 0.904129,
+          "topic_id": "topic:planetary-risk-scale"
+        },
+        {
+          "episode_ids": [
             "ep-a884b153355070f0"
           ],
-          "label": "safety practices",
-          "similarity_to_centroid": 0.796536,
-          "topic_id": "topic:safety-practices"
+          "label": "planetary scale",
+          "similarity_to_centroid": 0.904129,
+          "topic_id": "topic:planetary-scale"
+        }
+      ]
+    },
+    {
+      "canonical_label": "platform integration",
+      "cil_alias_target_topic_id": "topic:platform-integration",
+      "graph_compound_parent_id": "tc:platform-integration",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "platform adoption",
+          "similarity_to_centroid": 0.840821,
+          "topic_id": "topic:platform-adoption"
+        },
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827",
+            "ep-bccfce5798a83a6e",
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "platform integration",
+          "similarity_to_centroid": 0.845554,
+          "topic_id": "topic:platform-integration"
+        },
+        {
+          "episode_ids": [
+            "ep-f4b940a095192621",
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "platform specific patterns",
+          "similarity_to_centroid": 0.780122,
+          "topic_id": "topic:platform-specific-patterns"
+        },
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "platforms in policy analysis",
+          "similarity_to_centroid": 0.783576,
+          "topic_id": "topic:platforms-in-policy-analysis"
+        }
+      ]
+    },
+    {
+      "canonical_label": "tooling impact",
+      "cil_alias_target_topic_id": "topic:tooling-impact",
+      "graph_compound_parent_id": "tc:tooling-impact",
+      "member_count": 13,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a89e6a42509c9af0"
+          ],
+          "label": "platform tooling",
+          "similarity_to_centroid": 0.71116,
+          "topic_id": "topic:platform-tooling"
+        },
+        {
+          "episode_ids": [
+            "ep-a884b153355070f0"
+          ],
+          "label": "tool adoption",
+          "similarity_to_centroid": 0.751195,
+          "topic_id": "topic:tool-adoption"
+        },
+        {
+          "episode_ids": [
+            "ep-7072d2e85dcd5233"
+          ],
+          "label": "tool integration",
+          "similarity_to_centroid": 0.745477,
+          "topic_id": "topic:tool-integration"
+        },
+        {
+          "episode_ids": [
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "tool selection",
+          "similarity_to_centroid": 0.822105,
+          "topic_id": "topic:tool-selection"
+        },
+        {
+          "episode_ids": [
+            "ep-c0ab3bfb1ebdab6d"
+          ],
+          "label": "tooling access",
+          "similarity_to_centroid": 0.839981,
+          "topic_id": "topic:tooling-access"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "tooling class differences",
+          "similarity_to_centroid": 0.699005,
+          "topic_id": "topic:tooling-class-differences"
+        },
+        {
+          "episode_ids": [
+            "ep-efc13989b676df9d"
+          ],
+          "label": "tooling failure mode",
+          "similarity_to_centroid": 0.729675,
+          "topic_id": "topic:tooling-failure-mode"
+        },
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
+          "label": "tooling failure modes",
+          "similarity_to_centroid": 0.781073,
+          "topic_id": "topic:tooling-failure-modes"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae"
+          ],
+          "label": "tooling impact",
+          "similarity_to_centroid": 0.847447,
+          "topic_id": "topic:tooling-impact"
+        },
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "tooling impact on reliability",
+          "similarity_to_centroid": 0.800084,
+          "topic_id": "topic:tooling-impact-on-reliability"
+        },
+        {
+          "episode_ids": [
+            "ep-9b36e2e3b959298d",
+            "ep-db8f44d2e07a22bd"
+          ],
+          "label": "tooling platforms",
+          "similarity_to_centroid": 0.814665,
+          "topic_id": "topic:tooling-platforms"
+        },
+        {
+          "episode_ids": [
+            "ep-a89e6a42509c9af0"
+          ],
+          "label": "tooling replacement",
+          "similarity_to_centroid": 0.829473,
+          "topic_id": "topic:tooling-replacement"
         },
         {
           "episode_ids": [
             "ep-d8cc458a5f0049a8"
           ],
-          "label": "security design",
-          "similarity_to_centroid": 0.73958,
-          "topic_id": "topic:security-design"
+          "label": "tooling visibility",
+          "similarity_to_centroid": 0.744726,
+          "topic_id": "topic:tooling-visibility"
+        }
+      ]
+    },
+    {
+      "canonical_label": "regime change positioning",
+      "cil_alias_target_topic_id": "topic:regime-change-positioning",
+      "graph_compound_parent_id": "tc:regime-change-positioning",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "regime change positioning",
+          "similarity_to_centroid": 0.924365,
+          "topic_id": "topic:regime-change-positioning"
+        },
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "regime change risk",
+          "similarity_to_centroid": 0.924365,
+          "topic_id": "topic:regime-change-risk"
+        }
+      ]
+    },
+    {
+      "canonical_label": "second order effects",
+      "cil_alias_target_topic_id": "topic:second-order-effects",
+      "graph_compound_parent_id": "tc:second-order-effects",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1979e93514355ea6",
+            "ep-64ef09a7ee543045",
+            "ep-a1342cd495b1165b",
+            "ep-a89e6a42509c9af0",
+            "ep-efc13989b676df9d",
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "second order effect",
+          "similarity_to_centroid": 0.947924,
+          "topic_id": "topic:second-order-effect"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-1abf911df5bea2c3",
+            "ep-1e526e495918fb27",
+            "ep-28614332add8c2ae",
+            "ep-3158b8ff3e943b1e",
+            "ep-60d667843dc40fca",
+            "ep-7072d2e85dcd5233",
+            "ep-7ccfb108302b3faa",
+            "ep-8aa4d883afa10fa4",
+            "ep-8dce4ec000757097",
+            "ep-9b36e2e3b959298d",
+            "ep-a0a7f86b34a4de26",
+            "ep-a341174daaf88193",
+            "ep-a884b153355070f0",
+            "ep-b3570c1ceb5eca41",
+            "ep-bccfce5798a83a6e",
+            "ep-c0ab3bfb1ebdab6d",
+            "ep-ca65ab78f4c50f2a",
+            "ep-d8cc458a5f0049a8",
+            "ep-db8f44d2e07a22bd",
+            "ep-e2231244311ca964"
+          ],
+          "label": "second order effects",
+          "similarity_to_centroid": 0.962839,
+          "topic_id": "topic:second-order-effects"
+        },
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069"
+          ],
+          "label": "secondary effects",
+          "similarity_to_centroid": 0.846358,
+          "topic_id": "topic:secondary-effects"
+        }
+      ]
+    },
+    {
+      "canonical_label": "suspension service intervals",
+      "cil_alias_target_topic_id": "topic:suspension-service-intervals",
+      "graph_compound_parent_id": "tc:suspension-service-intervals",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "service intervals",
+          "similarity_to_centroid": 0.585659,
+          "topic_id": "topic:service-intervals"
+        },
+        {
+          "episode_ids": [
+            "ep-88fec846e9003e86",
+            "ep-ca65ab78f4c50f2a"
+          ],
+          "label": "suspension adjustment",
+          "similarity_to_centroid": 0.763699,
+          "topic_id": "topic:suspension-adjustment"
+        },
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "suspension service",
+          "similarity_to_centroid": 0.886018,
+          "topic_id": "topic:suspension-service"
+        },
+        {
+          "episode_ids": [
+            "ep-a341174daaf88193",
+            "ep-d005b87f4d3b1c0e"
+          ],
+          "label": "suspension service intervals",
+          "similarity_to_centroid": 0.920018,
+          "topic_id": "topic:suspension-service-intervals"
+        },
+        {
+          "episode_ids": [
+            "ep-60d667843dc40fca",
+            "ep-7ccfb108302b3faa"
+          ],
+          "label": "suspension tuning",
+          "similarity_to_centroid": 0.740015,
+          "topic_id": "topic:suspension-tuning"
+        }
+      ]
+    },
+    {
+      "canonical_label": "shimano component use",
+      "cil_alias_target_topic_id": "topic:shimano-component-use",
+      "graph_compound_parent_id": "tc:shimano-component-use",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-ec0bf35da3719170"
+          ],
+          "label": "shimano component use",
+          "similarity_to_centroid": 0.969665,
+          "topic_id": "topic:shimano-component-use"
+        },
+        {
+          "episode_ids": [
+            "ep-1d733f650ad9bff9",
+            "ep-2e3fcd5d8c418fb4"
+          ],
+          "label": "shimano components",
+          "similarity_to_centroid": 0.969665,
+          "topic_id": "topic:shimano-components"
+        }
+      ]
+    },
+    {
+      "canonical_label": "white balance correction",
+      "cil_alias_target_topic_id": "topic:white-balance-correction",
+      "graph_compound_parent_id": "tc:white-balance-correction",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "small value tilt",
+          "similarity_to_centroid": 0.826507,
+          "topic_id": "topic:small-value-tilt"
+        },
+        {
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "white balance correction",
+          "similarity_to_centroid": 0.826507,
+          "topic_id": "topic:white-balance-correction"
+        }
+      ]
+    },
+    {
+      "canonical_label": "team structure",
+      "cil_alias_target_topic_id": "topic:team-structure",
+      "graph_compound_parent_id": "tc:team-structure",
+      "member_count": 7,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-3158b8ff3e943b1e"
+          ],
+          "label": "substack teams",
+          "similarity_to_centroid": 0.651073,
+          "topic_id": "topic:substack-teams"
+        },
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045",
+            "ep-efc13989b676df9d"
+          ],
+          "label": "team consistency",
+          "similarity_to_centroid": 0.860894,
+          "topic_id": "topic:team-consistency"
+        },
+        {
+          "episode_ids": [
+            "ep-916dab1698f88aec"
+          ],
+          "label": "team coordination",
+          "similarity_to_centroid": 0.867938,
+          "topic_id": "topic:team-coordination"
+        },
+        {
+          "episode_ids": [
+            "ep-88fec846e9003e86"
+          ],
+          "label": "team performance consistency",
+          "similarity_to_centroid": 0.855114,
+          "topic_id": "topic:team-performance-consistency"
+        },
+        {
+          "episode_ids": [
+            "ep-7fd3ec879c8c2b44",
+            "ep-ca65ab78f4c50f2a"
+          ],
+          "label": "team performance patterns",
+          "similarity_to_centroid": 0.829976,
+          "topic_id": "topic:team-performance-patterns"
+        },
+        {
+          "episode_ids": [
+            "ep-60d667843dc40fca"
+          ],
+          "label": "team strategy",
+          "similarity_to_centroid": 0.865179,
+          "topic_id": "topic:team-strategy"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae"
+          ],
+          "label": "team structure",
+          "similarity_to_centroid": 0.88613,
+          "topic_id": "topic:team-structure"
+        }
+      ]
+    },
+    {
+      "canonical_label": "sustainability",
+      "cil_alias_target_topic_id": "topic:sustainability",
+      "graph_compound_parent_id": "tc:sustainability",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1979e93514355ea6",
+            "ep-1abf911df5bea2c3",
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "sustainability",
+          "similarity_to_centroid": 0.948131,
+          "topic_id": "topic:sustainability"
+        },
+        {
+          "episode_ids": [
+            "ep-362f5d463b877d2c"
+          ],
+          "label": "sustainability discipline",
+          "similarity_to_centroid": 0.921743,
+          "topic_id": "topic:sustainability-discipline"
+        },
+        {
+          "episode_ids": [
+            "ep-a86da8f148d3bf29"
+          ],
+          "label": "sustainability interventions",
+          "similarity_to_centroid": 0.89871,
+          "topic_id": "topic:sustainability-interventions"
+        }
+      ]
+    },
+    {
+      "canonical_label": "tire pressure selection",
+      "cil_alias_target_topic_id": "topic:tire-pressure-selection",
+      "graph_compound_parent_id": "tc:tire-pressure-selection",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-ec0bf35da3719170"
+          ],
+          "label": "tire pressure importance",
+          "similarity_to_centroid": 0.945172,
+          "topic_id": "topic:tire-pressure-importance"
+        },
+        {
+          "episode_ids": [
+            "ep-16fcdef77d624069",
+            "ep-60d667843dc40fca",
+            "ep-7ccfb108302b3faa",
+            "ep-7fd3ec879c8c2b44",
+            "ep-88fec846e9003e86",
+            "ep-ca65ab78f4c50f2a"
+          ],
+          "label": "tire pressure selection",
+          "similarity_to_centroid": 0.945172,
+          "topic_id": "topic:tire-pressure-selection"
+        }
+      ]
+    },
+    {
+      "canonical_label": "trade off transparency",
+      "cil_alias_target_topic_id": "topic:trade-off-transparency",
+      "graph_compound_parent_id": "tc:trade-off-transparency",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "trade off transparency",
+          "similarity_to_centroid": 0.903211,
+          "topic_id": "topic:trade-off-transparency"
+        },
+        {
+          "episode_ids": [
+            "ep-1979e93514355ea6",
+            "ep-8aa4d883afa10fa4",
+            "ep-9f97daef33906cf6",
+            "ep-a884b153355070f0"
+          ],
+          "label": "trade off visibility",
+          "similarity_to_centroid": 0.903211,
+          "topic_id": "topic:trade-off-visibility"
+        }
+      ]
+    },
+    {
+      "canonical_label": "trail durability",
+      "cil_alias_target_topic_id": "topic:trail-durability",
+      "graph_compound_parent_id": "tc:trail-durability",
+      "member_count": 6,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-8dce4ec000757097"
+          ],
+          "label": "trail benching",
+          "similarity_to_centroid": 0.778819,
+          "topic_id": "topic:trail-benching"
+        },
+        {
+          "episode_ids": [
+            "ep-28614332add8c2ae",
+            "ep-7072d2e85dcd5233",
+            "ep-8dce4ec000757097",
+            "ep-c0ab3bfb1ebdab6d",
+            "ep-db8f44d2e07a22bd",
+            "ep-e2231244311ca964"
+          ],
+          "label": "trail building",
+          "similarity_to_centroid": 0.801352,
+          "topic_id": "topic:trail-building"
+        },
+        {
+          "episode_ids": [
+            "ep-e2231244311ca964"
+          ],
+          "label": "trail durability",
+          "similarity_to_centroid": 0.864468,
+          "topic_id": "topic:trail-durability"
+        },
+        {
+          "episode_ids": [
+            "ep-7072d2e85dcd5233"
+          ],
+          "label": "trail failure mode",
+          "similarity_to_centroid": 0.794061,
+          "topic_id": "topic:trail-failure-mode"
+        },
+        {
+          "episode_ids": [
+            "ep-db8f44d2e07a22bd"
+          ],
+          "label": "trail longevity",
+          "similarity_to_centroid": 0.82944,
+          "topic_id": "topic:trail-longevity"
+        },
+        {
+          "episode_ids": [
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "trail run as a system",
+          "similarity_to_centroid": 0.800291,
+          "topic_id": "topic:trail-run-as-a-system"
         }
       ]
     }
   ],
-  "fingerprint": "18ec170170cd6f24d95b1e0a6ae62e0cafadc3fa6b91d41930a943436d46554f",
+  "fingerprint": "e11f51a7165db0e4957d13649aff35e0a307dff4c9181d8daf459119073dd8c5",
   "model": "sentence-transformers/all-MiniLM-L6-v2",
   "schema_version": "2",
-  "singletons": 16,
+  "singletons": 32,
   "threshold": 0.35,
-  "topic_count": 50
+  "topic_count": 401
 }

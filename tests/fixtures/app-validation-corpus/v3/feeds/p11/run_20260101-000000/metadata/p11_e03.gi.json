@@ -1,6 +1,51 @@
 {
   "edges": [
     {
+      "from": "insight:470dc9c74f84e138",
+      "to": "topic:maintenance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:470dc9c74f84e138",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8ed6e95dff95ecaa",
+      "to": "topic:maintenance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8ed6e95dff95ecaa",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ec97a16800b77800",
+      "to": "topic:maintenance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:ec97a16800b77800",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "insight:470dc9c74f84e138",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "insight:8ed6e95dff95ecaa",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "insight:ec97a16800b77800",
+      "type": "HAS_INSIGHT"
+    },
+    {
       "from": "episode:ep-ec0bf35da3719170",
       "to": "topic:drivetrain-mechanics",
       "type": "MENTIONS"
@@ -16,109 +61,49 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-ec0bf35da3719170",
-      "to": "topic:endurance-sport",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-ec0bf35da3719170",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-ec0bf35da3719170",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-ec0bf35da3719170",
-      "to": "insight:cedb1bec6a8f8fac",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-ec0bf35da3719170",
-      "to": "insight:cb9f34aeee389ff2",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "episode:ep-ec0bf35da3719170",
-      "to": "insight:493a1dc049dc172f",
-      "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "quote:ddb684ad2534f09f",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cedb1bec6a8f8fac",
-      "to": "quote:ddb684ad2534f09f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:fd96b946c4f9d808",
-      "to": "person:luca-moretti",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cb9f34aeee389ff2",
-      "to": "quote:fd96b946c4f9d808",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2908d7a30efea401",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:493a1dc049dc172f",
-      "to": "quote:2908d7a30efea401",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:1a1ef6de5b902b91",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cedb1bec6a8f8fac",
-      "to": "quote:1a1ef6de5b902b91",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:059643cf63a7916c",
-      "to": "person:luca-moretti",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cb9f34aeee389ff2",
-      "to": "quote:059643cf63a7916c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:00ed922dd7204d7a",
-      "to": "person:giulia-ferrara",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:493a1dc049dc172f",
-      "to": "quote:00ed922dd7204d7a",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:cedb1bec6a8f8fac",
-      "to": "person:giulia-ferrara",
-      "type": "MENTIONS_PERSON"
-    },
-    {
-      "from": "insight:cb9f34aeee389ff2",
+      "from": "insight:470dc9c74f84e138",
       "to": "person:luca-moretti",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:493a1dc049dc172f",
-      "to": "person:giulia-ferrara",
+      "from": "insight:8ed6e95dff95ecaa",
+      "to": "person:luca-moretti",
       "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ec97a16800b77800",
+      "to": "person:luca-moretti",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:4d69b6434bc32682",
+      "to": "person:luca-moretti",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:dc639facfb2fa01b",
+      "to": "person:luca-moretti",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:f9a597d2c37926a8",
+      "to": "person:luca-moretti",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:470dc9c74f84e138",
+      "to": "quote:4d69b6434bc32682",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:8ed6e95dff95ecaa",
+      "to": "quote:f9a597d2c37926a8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:ec97a16800b77800",
+      "to": "quote:dc639facfb2fa01b",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "ep-ec0bf35da3719170",
@@ -157,28 +142,7 @@
       "type": "Topic"
     },
     {
-      "id": "topic:endurance-sport",
-      "properties": {
-        "label": "endurance sport"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:cedb1bec6a8f8fac",
+      "id": "insight:470dc9c74f84e138",
       "properties": {
         "episode_id": "ep-ec0bf35da3719170",
         "grounded": true,
@@ -186,13 +150,13 @@
         "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Notion replaces the dozen tools your team currently uses. Try notion.com today. Before we get into the details, Chiara Ricci was a guest on the previous episode and mentioned that tire pressure is\u2026",
+        "text": "Certainly. The maintenance intervals for the suspension are a risk management decision. If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:cb9f34aeee389ff2",
+      "id": "insight:8ed6e95dff95ecaa",
       "properties": {
         "episode_id": "ep-ec0bf35da3719170",
         "grounded": true,
@@ -200,13 +164,13 @@
         "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Yes, that's correct. And that connects to what we're covering today.",
+        "text": "That's how I see it. The maintenance intervals for the suspension system are a risk management decision. I've seen this pattern repeat itself in three different teams.",
         "tier": 2
       },
       "type": "Insight"
     },
     {
-      "id": "insight:493a1dc049dc172f",
+      "id": "insight:ec97a16800b77800",
       "properties": {
         "episode_id": "ep-ec0bf35da3719170",
         "grounded": true,
@@ -214,41 +178,10 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "I want to point something out \u2013 Chiara Ricci mentioned the same dynamic a few episodes ago. I want to point something out \u2013 Marco Bellini mentioned the same dynamic a few episodes ago.",
+        "text": "Honestly, the maintenance intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone overlooks.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:giulia-ferrara",
-      "properties": {
-        "name": "Giulia Ferrara"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:ddb684ad2534f09f",
-      "properties": {
-        "char_end": 256,
-        "char_start": 16,
-        "episode_id": "ep-ec0bf35da3719170",
-        "speaker_id": "person:speaker-01",
-        "text": "Notion replaces the dozen tools your team currently uses. Try notion.com today. Before we get into the details, Chiara Ricci was a guest on the previous episode and mentioned that tire pressure is more important than suspension adjustments.",
-        "timestamp_end_ms": 30720,
-        "timestamp_start_ms": 15600,
-        "transcript_ref": "transcripts/p11_e03.txt",
-        "translation": {
-          "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0002.u01"
-          ]
-        }
-      },
-      "type": "Quote"
     },
     {
       "id": "person:luca-moretti",
@@ -258,15 +191,15 @@
       "type": "Person"
     },
     {
-      "id": "quote:fd96b946c4f9d808",
+      "id": "quote:4d69b6434bc32682",
       "properties": {
-        "char_end": 339,
-        "char_start": 271,
+        "char_end": 2080,
+        "char_start": 1905,
         "episode_id": "ep-ec0bf35da3719170",
         "speaker_id": "person:speaker-02",
-        "text": "Yes, that's correct. And that connects to what we're covering today.",
-        "timestamp_end_ms": 33840,
-        "timestamp_start_ms": 30720,
+        "text": "Certainly. The maintenance intervals for the suspension are a risk management decision. If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
+        "timestamp_end_ms": 102000,
+        "timestamp_start_ms": 96000,
         "transcript_ref": "transcripts/p11_e03.txt",
         "translation": {
           "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
@@ -275,70 +208,22 @@
           "source_language": "it",
           "translated": true,
           "unit_ids": [
-            "t0003.u01"
+            "t0013.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:2908d7a30efea401",
+      "id": "quote:f9a597d2c37926a8",
       "properties": {
-        "char_end": 540,
-        "char_start": 356,
-        "episode_id": "ep-ec0bf35da3719170",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to point something out \u2013 Chiara Ricci mentioned the same dynamic a few episodes ago. I want to point something out \u2013 Marco Bellini mentioned the same dynamic a few episodes ago.",
-        "timestamp_end_ms": 45420,
-        "timestamp_start_ms": 33840,
-        "transcript_ref": "transcripts/p11_e03.txt",
-        "translation": {
-          "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:1a1ef6de5b902b91",
-      "properties": {
-        "char_end": 648,
-        "char_start": 541,
-        "episode_id": "ep-ec0bf35da3719170",
-        "speaker_id": "person:speaker-01",
-        "text": "I want to delve deeper into this. What were your initial thoughts on this topic, and how have they changed?",
-        "timestamp_end_ms": 214020,
-        "timestamp_start_ms": 210000,
-        "transcript_ref": "transcripts/p11_e03.txt",
-        "translation": {
-          "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
-          "model": "google/translategemma-12b-it",
-          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
-          "source_language": "it",
-          "translated": true,
-          "unit_ids": [
-            "t0004.u01"
-          ]
-        }
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:059643cf63a7916c",
-      "properties": {
-        "char_end": 927,
-        "char_start": 663,
+        "char_end": 3848,
+        "char_start": 3681,
         "episode_id": "ep-ec0bf35da3719170",
         "speaker_id": "person:speaker-02",
-        "text": "It boils down to this: most mysterious squeaks are resolved by cleaning the contact surfaces and tightening them to the specified torque. We've seen this in teams that use Spoke & Wrench. The framing is important because it tells you what trade-offs you're making.",
-        "timestamp_end_ms": 229500,
-        "timestamp_start_ms": 214020,
+        "text": "That's how I see it. The maintenance intervals for the suspension system are a risk management decision. I've seen this pattern repeat itself in three different teams.",
+        "timestamp_end_ms": 186000,
+        "timestamp_start_ms": 180000,
         "transcript_ref": "transcripts/p11_e03.txt",
         "translation": {
           "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
@@ -347,22 +232,22 @@
           "source_language": "it",
           "translated": true,
           "unit_ids": [
-            "t0005.u01"
+            "t0025.u01"
           ]
         }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:00ed922dd7204d7a",
+      "id": "quote:dc639facfb2fa01b",
       "properties": {
-        "char_end": 1029,
-        "char_start": 944,
+        "char_end": 5672,
+        "char_start": 5514,
         "episode_id": "ep-ec0bf35da3719170",
-        "speaker_id": "person:speaker-01",
-        "text": "It's a useful perspective. Where do maintenance and transmission mechanics intersect?",
-        "timestamp_end_ms": 235140,
-        "timestamp_start_ms": 229500,
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, the maintenance intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone overlooks.",
+        "timestamp_end_ms": 258000,
+        "timestamp_start_ms": 252000,
         "transcript_ref": "transcripts/p11_e03.txt",
         "translation": {
           "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
@@ -371,7 +256,7 @@
           "source_language": "it",
           "translated": true,
           "unit_ids": [
-            "t0006.u01"
+            "t0037.u01"
           ]
         }
       },

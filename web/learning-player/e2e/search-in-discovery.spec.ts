@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * Search folded into Discovery (operator 2026-09-20).
+ * Search folded into Discovery (operator 2026-09-20), then moved to Explore (operator 2026-10-11:
+ * looking for something is Explore's job; Discover is being told what to hear next).
  *
  * Search stopped being a top-level destination. `/search` is unchanged — this is navigation, not
  * routing — so what needs covering is where you ENTER from and which tab reads as "you are here".
@@ -21,7 +22,7 @@ test('the phone tab bar has three destinations and Search is not one of them', a
   await page.goto('/')
 
   await expect(page.locator('[data-testid="bottom-nav-search"]')).toHaveCount(0)
-  for (const name of ['home', 'browse', 'library']) {
+  for (const name of ['home', 'browse', 'explore', 'library']) {
     await expect(page.locator(`[data-testid="bottom-nav-${name}"]`)).toHaveCount(1)
   }
 })
@@ -34,10 +35,10 @@ test('search is reachable from any screen, at any width (#1588)', async ({ page 
   await page.goto('/library')
   const mast = page.getByTestId('masthead-search')
   if (testInfo.project.name === 'mobile-chrome') {
-    // Phone: no magnifier in the header (2026-09-30, no room for it). The Discover tab is the way
+    // Phone: no magnifier in the header (2026-09-30, no room for it). The Explore tab is the way
     // in, and it is on this screen too.
     await expect(mast).toBeHidden()
-    await page.getByTestId('bottom-nav-browse').click()
+    await page.getByTestId('bottom-nav-explore').click()
     await page.getByTestId('browse-search-input').fill('risk')
     await page.getByTestId('browse-search-submit').click()
   } else {
@@ -47,9 +48,9 @@ test('search is reachable from any screen, at any width (#1588)', async ({ page 
   await expect(page).toHaveURL(/\/search/)
 })
 
-test('Discovery carries the search box, and it runs the search', async ({ page }, testInfo) => {
+test('Explore carries the search box, and it runs the search', async ({ page }, testInfo) => {
   await signInIsolated(page, 'sid-box', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
 
   const box = page.getByTestId('browse-search-section')
   await expect(box).toBeVisible()
@@ -63,20 +64,21 @@ test('Discovery carries the search box, and it runs the search', async ({ page }
   await expect(page.getByTestId('search-scope')).toBeVisible()
 })
 
-test('the search box sits between Trending shows and Trends', async ({ page }, testInfo) => {
+test('the search box leads Explore, above Trends, and Discover has none', async ({ page }, testInfo) => {
   // Placement is the operator's instruction, so it is asserted by POSITION rather than presence:
-  // "it renders somewhere on Discovery" would stay green if it drifted to the bottom of the page.
+  // "it renders somewhere on Explore" would stay green if it drifted to the bottom of the page.
+  // On a phone the Explore tab IS the way into search, so it leads (operator 2026-10-11).
   await signInIsolated(page, 'sid-order', testInfo)
-  await page.goto('/browse')
-
-  const rail = page.getByTestId('trending-shows-rail')
+  await page.goto('/explore')
   const box = page.getByTestId('browse-search-section')
   const trends = page.getByTestId('discovery-explorer')
-  for (const l of [rail, box, trends]) await expect(l).toBeVisible()
-
-  const y = async (l: typeof rail) => (await l.boundingBox())!.y
-  expect(await y(rail)).toBeLessThan(await y(box))
+  for (const l of [box, trends]) await expect(l).toBeVisible()
+  const y = async (l: typeof box) => (await l.boundingBox())!.y
   expect(await y(box)).toBeLessThan(await y(trends))
+
+  await page.goto('/browse')
+  await expect(page.getByTestId('quote-cards')).toBeVisible()
+  await expect(page.getByTestId('browse-search-section')).toHaveCount(0)
 })
 
 test('the DESKTOP masthead agrees with the phone bar on /search', async ({ page }, testInfo) => {
@@ -92,25 +94,24 @@ test('the DESKTOP masthead agrees with the phone bar on /search', async ({ page 
   await signInIsolated(page, 'sid-desktop', testInfo)
   await page.goto('/search?q=risk')
 
-  // By TESTID, not by label: the label is i18n and reads "Discover", so `aria-label="Browse"`
-  // matched nothing, both projects fell to the else branch, and the desktop assertions below never
-  // ran — 12/12 green while proving nothing about the masthead. Found in review.
-  const browseIcon = page.getByTestId('masthead-browse')
-  if (await browseIcon.isVisible().catch(() => false)) {
-    // Desktop width: Discovery owns /search here too, so the Browse icon carries the marker...
-    await expect(browseIcon).toHaveAttribute('aria-current', 'page')
+  // By TESTID, not by label: a label matched nothing once, both projects fell to the else branch,
+  // and the desktop assertions below never ran — 12/12 green while proving nothing. Found in review.
+  const exploreIcon = page.getByTestId('masthead-explore')
+  if (await exploreIcon.isVisible().catch(() => false)) {
+    // Desktop width: Explore owns /search here too (2026-10-11), so its icon carries the marker...
+    await expect(exploreIcon).toHaveAttribute('aria-current', 'page')
     // ...and the Search icon does NOT, even though it is the link to this very page.
     await expect(page.getByTestId('masthead-search')).not.toHaveAttribute('aria-current', 'page')
   } else {
     // Phone width: the icons are hidden, and the bottom bar carries the answer instead.
-    await expect(page.locator('[data-testid="bottom-nav-browse"]')).toHaveAttribute(
+    await expect(page.locator('[data-testid="bottom-nav-explore"]')).toHaveAttribute(
       'aria-current',
       'page',
     )
   }
 })
 
-test('Discovery stays lit on the search results page', async ({ page }, testInfo) => {
+test('Explore stays lit on the search results page', async ({ page }, testInfo) => {
   /*
    * The operator's call, and it knowingly overrules BottomNav's "a wrong 'you are here' is worse
    * than none". Pinned here as well as in the unit test because this is the user-visible half: a
@@ -120,7 +121,7 @@ test('Discovery stays lit on the search results page', async ({ page }, testInfo
   await signInIsolated(page, 'sid-lit', testInfo)
   await page.goto('/search?q=risk')
 
-  await expect(page.locator('[data-testid="bottom-nav-browse"]')).toHaveAttribute(
+  await expect(page.locator('[data-testid="bottom-nav-explore"]')).toHaveAttribute(
     'aria-current',
     'page',
   )

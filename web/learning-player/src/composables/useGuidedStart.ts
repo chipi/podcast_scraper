@@ -1,18 +1,25 @@
 import { computed, ref } from "vue"
 
+import { useAuthStore } from "../stores/auth"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 
 /** Synced: unset → never run; `active` → running; `restart` → asked for again from Settings; `done`. */
 export const GUIDED_START_PREF = "lp.guidedStart"
 /** Synced: when "Not now" was tapped (ms). A `true` from before the snooze counts as long ago. */
 export const GUIDED_SNOOZED_PREF = "lp.interests.dismissed"
-const SNOOZED_LOCAL_KEY = "lp.interests.dismissed"
+/**
+ * The device's copy of the snooze, PER ACCOUNT (2026-10-11): keyed by device alone, one account's
+ * "Not now" hid the guide from every other account signed in on the same phone.
+ */
+function snoozedLocalKey(): string {
+  return `lp.interests.dismissed:${useAuthStore().user?.user_id ?? "anon"}`
+}
 /** "Not now" is not "never" (operator 2026-10-08): the guide comes back after this long. */
 export const GUIDED_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000
 
 function readLocalSnooze(): number | null {
   try {
-    const v = Number(localStorage.getItem(SNOOZED_LOCAL_KEY))
+    const v = Number(localStorage.getItem(snoozedLocalKey()))
     return Number.isFinite(v) && v > 1 ? v : null
   } catch {
     return null
@@ -42,7 +49,7 @@ export function useGuidedStart() {
   function snooze(now = Date.now()): void {
     localSnooze.value = now
     try {
-      localStorage.setItem(SNOOZED_LOCAL_KEY, String(now))
+      localStorage.setItem(snoozedLocalKey(), String(now))
     } catch {
       /* private mode / storage disabled — the synced preference still carries it */
     }
@@ -52,7 +59,7 @@ export function useGuidedStart() {
   async function restart(): Promise<void> {
     localSnooze.value = null
     try {
-      localStorage.removeItem(SNOOZED_LOCAL_KEY)
+      localStorage.removeItem(snoozedLocalKey())
     } catch {
       /* nothing stored */
     }

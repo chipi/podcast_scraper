@@ -161,6 +161,12 @@ test.describe('queue and capture', () => {
     const cap = await sink.waitForEvent('capture_created', 20_000)
     expect(['highlight', 'note']).toContain(String(cap.data?.kind))
     expect(String(cap.data?.target_kind ?? '')).not.toBe('')
+    // How the player was reached, the same as this visit's episode_open says (Discover arc Step 1.2:
+    // a capture after arriving from a rail is how the rail is judged). In-player ?t= rewrites must
+    // not have reset it to `player`.
+    const open = await sink.waitForEvent('episode_open', 20_000)
+    expect(String(cap.data?.source ?? ''), 'the capture must say how the screen was reached').not.toBe('')
+    expect(cap.data?.source).toBe(open.data?.source)
 
     // The no-free-text rule: a highlight's quoted words are the listener's reading, and a note's body
     // can be anything at all. Neither belongs in an analytics store, so only the SHAPE is reported.

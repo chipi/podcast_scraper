@@ -1,19 +1,12 @@
 {
   "derived": true,
-  "computed_at": "2026-10-13T14:14:28Z",
+  "computed_at": "2026-10-13T15:41:18Z",
   "enricher_id": "guest_coappearance",
   "enricher_version": "1.1.0",
   "schema_version": "1.0",
   "status": "ok",
   "data": {
     "pairs": [
-      {
-        "person_a_id": "person:a-correspondent",
-        "person_b_id": "person:renee-montagne-park",
-        "person_a_name": "A. correspondent",
-        "person_b_name": "Renee Montagne-Park",
-        "episode_count": 4
-      },
       {
         "person_a_id": "person:cam",
         "person_b_id": "person:jordan-park",
@@ -22,115 +15,24 @@
         "episode_count": 4
       },
       {
-        "person_a_id": "person:ethan",
-        "person_b_id": "person:priya-nair",
-        "person_a_name": "Ethan",
-        "person_b_name": "Priya Nair",
-        "episode_count": 4
-      },
-      {
         "person_a_id": "person:daniel-cho",
         "person_b_id": "person:nora",
         "person_a_name": "Daniel Cho",
         "person_b_name": "Nora",
-        "episode_count": 3
-      },
-      {
-        "person_a_id": "person:alex-morgan",
-        "person_b_id": "person:dr-elena-fischer",
-        "person_a_name": "Alex Morgan",
-        "person_b_name": "Dr. Elena Fischer",
         "episode_count": 2
       },
       {
-        "person_a_id": "person:alex-morgan",
-        "person_b_id": "person:skanda-amarnath",
-        "person_a_name": "Alex Morgan",
-        "person_b_name": "Skanda Amarnath",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:ava-lemoine",
-        "person_b_id": "person:leo",
-        "person_a_name": "Ava Lemoine",
-        "person_b_name": "Leo",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:dr-elena-fischer",
-        "person_b_id": "person:sam",
-        "person_a_name": "Dr. Elena Fischer",
-        "person_b_name": "Sam",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:hanna-crebo-rediker",
-        "person_b_id": "person:rina",
-        "person_a_name": "Hanna Crebo-Rediker",
-        "person_b_name": "Rina",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:marco-silva",
-        "person_b_id": "person:rina",
-        "person_a_name": "Marco Silva",
-        "person_b_name": "Rina",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:maya",
-        "person_b_id": "person:sophie-laurent",
-        "person_a_name": "Maya",
-        "person_b_name": "Sophie Laurent",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:nora",
-        "person_b_id": "person:scott-bessent",
-        "person_a_name": "Nora",
-        "person_b_name": "Scott Bessent",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:sam",
-        "person_b_id": "person:skanda-amarnath",
-        "person_a_name": "Sam",
-        "person_b_name": "Skanda Amarnath",
-        "episode_count": 2
-      },
-      {
-        "person_a_id": "person:beatriz-antunes",
-        "person_b_id": "person:ines-carvalho",
-        "person_a_name": "Beatriz Antunes",
-        "person_b_name": "In\u00eas Carvalho",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:beatriz-antunes",
-        "person_b_id": "person:rafael-vasconcelos",
-        "person_a_name": "Beatriz Antunes",
-        "person_b_name": "Rafael Vasconcelos",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:beatriz-antunes",
-        "person_b_id": "person:tiago-moreira",
-        "person_a_name": "Beatriz Antunes",
-        "person_b_name": "Tiago Moreira",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:caller",
-        "person_b_id": "person:ethan",
-        "person_a_name": "Caller",
-        "person_b_name": "Ethan",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:caller",
+        "person_a_id": "person:ethan",
         "person_b_id": "person:priya-nair",
-        "person_a_name": "Caller",
+        "person_a_name": "Ethan",
         "person_b_name": "Priya Nair",
+        "episode_count": 2
+      },
+      {
+        "person_a_id": "person:alex-morgan",
+        "person_b_id": "person:skanda-amarnath",
+        "person_a_name": "Alex Morgan",
+        "person_b_name": "Skanda Amarnath",
         "episode_count": 1
       },
       {
@@ -155,13 +57,6 @@
         "episode_count": 1
       },
       {
-        "person_a_id": "person:chiara-ricci",
-        "person_b_id": "person:giulia-ferrara",
-        "person_a_name": "Chiara Ricci",
-        "person_b_name": "Giulia Ferrara",
-        "episode_count": 1
-      },
-      {
         "person_a_id": "person:daniel-cho",
         "person_b_id": "person:nadia-sereni",
         "person_a_name": "Daniel Cho",
@@ -173,48 +68,6 @@
         "person_b_id": "person:scott-bessent",
         "person_a_name": "Daniel Cho",
         "person_b_name": "Scott Bessent",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:daniel-olufemi",
-        "person_b_id": "person:leo",
-        "person_a_name": "Daniel Olufemi",
-        "person_b_name": "Leo",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:diego-ferrer",
-        "person_b_id": "person:lucia-herrera",
-        "person_a_name": "Diego Ferrer",
-        "person_b_name": "Luc\u00eda Herrera",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:ethan",
-        "person_b_id": "person:jonas-weisenthal",
-        "person_a_name": "Ethan",
-        "person_b_name": "Jonas Weisenthal",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:giulia-ferrara",
-        "person_b_id": "person:luca-moretti",
-        "person_a_name": "Giulia Ferrara",
-        "person_b_name": "Luca Moretti",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:giulia-ferrara",
-        "person_b_id": "person:marco-bellini",
-        "person_a_name": "Giulia Ferrara",
-        "person_b_name": "Marco Bellini",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:javier-benavides",
-        "person_b_id": "person:lucia-herrera",
-        "person_a_name": "Javier Benavides",
-        "person_b_name": "Luc\u00eda Herrera",
         "episode_count": 1
       },
       {
@@ -239,38 +92,17 @@
         "episode_count": 1
       },
       {
-        "person_a_id": "person:leo",
-        "person_b_id": "person:tariq-hassan",
-        "person_a_name": "Leo",
-        "person_b_name": "Tariq Hassan",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:liam",
-        "person_b_id": "person:maya",
-        "person_a_name": "Liam",
-        "person_b_name": "Maya",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:liam-verbeek",
-        "person_b_id": "person:maya",
-        "person_a_name": "Liam Verbeek",
-        "person_b_name": "Maya",
-        "episode_count": 1
-      },
-      {
-        "person_a_id": "person:lucia-herrera",
-        "person_b_id": "person:marta-solis",
-        "person_a_name": "Luc\u00eda Herrera",
-        "person_b_name": "Marta Sol\u00eds",
+        "person_a_id": "person:marco-silva",
+        "person_b_id": "person:rina",
+        "person_a_name": "Marco Silva",
+        "person_b_name": "Rina",
         "episode_count": 1
       },
       {
         "person_a_id": "person:maya",
-        "person_b_id": "person:noah-brier",
+        "person_b_id": "person:sophie-laurent",
         "person_a_name": "Maya",
-        "person_b_name": "Noah Brier",
+        "person_b_name": "Sophie Laurent",
         "episode_count": 1
       },
       {
@@ -282,72 +114,32 @@
       },
       {
         "person_a_id": "person:nora",
-        "person_b_id": "person:richard-clarida",
+        "person_b_id": "person:scott-bessent",
         "person_a_name": "Nora",
-        "person_b_name": "Richard Clarida",
+        "person_b_name": "Scott Bessent",
         "episode_count": 1
       }
     ],
     "episode_count": 55,
     "community_method": "connected_components_threshold",
     "community_min_pair": 2,
-    "community_count": 8,
+    "community_count": 3,
     "communities": [
-      {
-        "community_id": "pco:skanda-amarnath",
-        "community_label": "Skanda Amarnath",
-        "member_ids": [
-          "person:alex-morgan",
-          "person:dr-elena-fischer",
-          "person:sam",
-          "person:skanda-amarnath"
-        ],
-        "member_count": 4
-      },
-      {
-        "community_id": "pco:nora",
-        "community_label": "Nora",
-        "member_ids": [
-          "person:daniel-cho",
-          "person:nora",
-          "person:scott-bessent"
-        ],
-        "member_count": 3
-      },
-      {
-        "community_id": "pco:rina",
-        "community_label": "Rina",
-        "member_ids": [
-          "person:hanna-crebo-rediker",
-          "person:marco-silva",
-          "person:rina"
-        ],
-        "member_count": 3
-      },
-      {
-        "community_id": "pco:renee-montagne-park",
-        "community_label": "Renee Montagne-Park",
-        "member_ids": [
-          "person:a-correspondent",
-          "person:renee-montagne-park"
-        ],
-        "member_count": 2
-      },
-      {
-        "community_id": "pco:leo",
-        "community_label": "Leo",
-        "member_ids": [
-          "person:ava-lemoine",
-          "person:leo"
-        ],
-        "member_count": 2
-      },
       {
         "community_id": "pco:jordan-park",
         "community_label": "Jordan Park",
         "member_ids": [
           "person:cam",
           "person:jordan-park"
+        ],
+        "member_count": 2
+      },
+      {
+        "community_id": "pco:nora",
+        "community_label": "Nora",
+        "member_ids": [
+          "person:daniel-cho",
+          "person:nora"
         ],
         "member_count": 2
       },
@@ -359,15 +151,6 @@
           "person:priya-nair"
         ],
         "member_count": 2
-      },
-      {
-        "community_id": "pco:sophie-laurent",
-        "community_label": "Sophie Laurent",
-        "member_ids": [
-          "person:maya",
-          "person:sophie-laurent"
-        ],
-        "member_count": 2
       }
     ],
     "partial_reason": null
@@ -377,5 +160,5 @@
   "retry_count": 0,
   "circuit_state": null,
   "duration_ms": 0,
-  "records_written": 40
+  "records_written": 16
 }

@@ -251,10 +251,185 @@ test('search', async ({ page }) => {
 
 test('browse', async ({ page }) => {
   await signIn(page)
+  // A listener with a world (a followed storyline, two captures), so Discover shows its personal
+  // rails rather than the cold start. A capture is made only once, so re-shooting does not pile up.
+  await page.request.post(`/api/app/interests/${encodeURIComponent('thc:managing-risk')}`)
+  const had = await (await page.request.get('/api/app/highlights')).json()
+  const captured = new Set(((Array.isArray(had) ? had : had.items) ?? []).map((h: { episode_slug: string }) => h.episode_slug))
+  for (const slug of ['p07-769d04686d', 'p02-8fdd7b7f79'].filter((s) => !captured.has(s))) {
+    const body = await (await page.request.get(`/api/app/episodes/${slug}/insights`)).json()
+    const insight = body.insights?.[0]
+    if (!insight) continue
+    await page.request.post('/api/app/highlights', {
+      data: {
+        episode_slug: slug,
+        kind: 'insight',
+        source_insight_id: insight.id,
+        quote_text: 'kept for later',
+        start_ms: insight.quotes?.[0]?.start_ms ?? 0,
+      },
+    })
+  }
   await page.goto('/browse')
   await expect(page.getByRole('tab').or(page.getByRole('button')).first()).toBeVisible()
   await shoot(page, 'browse')
 })
+
+test('explore', async ({ page }) => {
+  // Trends + Browse (the full Episodes list with its filter bar, as the last release had it).
+  await signIn(page)
+  await page.goto('/explore')
+  await expect(page.getByTestId('discovery-explorer')).toBeVisible()
+  await expect(page.getByTestId('browse-panel-episodes').getByTestId('catalog-from')).toBeVisible()
+  await shoot(page, 'explore')
+})
+
+// The subject pages (operator 2026-10-11): each carries the doors into a reel and a seven-day path.
+for (const [name, path] of [
+  ['topic', `/topic/${encodeURIComponent('topic:systems-thinking')}`],
+  ['theme', `/theme/${encodeURIComponent('tc:reliability')}`],
+  ['storyline', `/storyline/${encodeURIComponent('thc:managing-risk')}`],
+] as const) {
+  test(name, async ({ page }) => {
+    await signIn(page)
+    await page.goto(path)
+    await expect(page.getByTestId('reel-door')).toBeVisible()
+    await expect(page.getByTestId('learn-door')).toBeVisible()
+    await shoot(page, name)
+  })
+}
+
+// What the two doors open (operator 2026-10-11), from the storyline that has both a full reel and a
+// seven-day path on the fixture. The path is the shared design identity's state, so it is stopped
+// again: Discover's shot must not change because this one ran first.
+const DOORS = `/storyline/${encodeURIComponent('thc:second-order-effects')}`
+
+test('reel', async ({ page }) => {
+  await signIn(page)
+  await page.goto(DOORS)
+  await page.getByTestId('reel-door').click()
+  await expect(page.getByTestId('topic-reel-title')).toBeVisible()
+  await expect(page.getByTestId('topic-reel-current')).toContainText('Clip 1 of')
+  await page.getByTestId('topic-reel-next').click()
+  await page.getByTestId('topic-reel-next').click()
+  await expect(page.getByTestId('topic-reel-current')).toContainText('Clip 3 of')
+  await shoot(page, 'reel')
+
+})
+
+/** Stop every path and forget the short listen: the shared design identity's state, so no shot
+ *  depends on which ran first. */
+async function clearStarted(page: Page): Promise<void> {
+  const body = await (await page.request.get('/api/app/discover/learn')).json()
+  for (const p of body.paths ?? []) {
+    await page.request.delete(`/api/app/discover/learn/paths/${encodeURIComponent(p.subject_id)}`)
+  }
+  await page.request.delete('/api/app/discover/reel/progress')
+}
+
+/** Move a path's start back `days` days in the design server's own state file. */
+async function backdate(subjectId: string, days: number): Promise<void> {
+  const fs = await import('node:fs')
+  const path = await import('node:path')
+  const root = 'e2e/.design-state/users'
+  const file = fs
+    .readdirSync(root)
+    .map((u) => path.join(root, u, 'learning_paths.json'))
+    .filter((f) => fs.existsSync(f))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0]
+  const paths = JSON.parse(fs.readFileSync(file, 'utf8')) as Array<{ subject_id: string; started_at: number }>
+  for (const p of paths) if (p.subject_id === subjectId) p.started_at -= days * 86_400
+  fs.writeFileSync(file, JSON.stringify(paths))
+}
+const pathApi = (id: string) => `/api/app/discover/learn/paths/${encodeURIComponent(id)}`
+
+test('learn', async ({ page }) => {
+  await signIn(page)
+  await clearStarted(page)
+  await page.goto(DOORS)
+  await expect(page.getByTestId('learn-door')).toBeVisible()
+  await page.getByTestId('learn-door').click()
+  await expect(page.getByTestId('learn-view-title')).toBeVisible()
+  await shoot(page, 'learn')
+  await clearStarted(page)
+})
+
+// The same path two days in (operator 2026-10-11: "show me day three"): the start is moved back two
+// days in the design server's own state file, and days 1 and 2 are marked done through the API.
+test('learn-day-3', async ({ page }) => {
+  await signIn(page)
+  await clearStarted(page)
+  const started = await page.request.post('/api/app/discover/learn', {
+    data: { subject_id: 'thc:second-order-effects' },
+  })
+  expect(started.ok()).toBeTruthy()
+  await backdate('thc:second-order-effects', 2)
+  for (const i of [0, 1]) {
+    expect((await page.request.post(`${pathApi('thc:second-order-effects')}/steps/${i}/done`)).ok()).toBeTruthy()
+  }
+  await page.goto(`/learn?subject=${encodeURIComponent('thc:second-order-effects')}`)
+  await expect(page.getByText('Day 3 of 7')).toBeVisible()
+  await shoot(page, 'learn-day-3')
+  // An earlier day, tapped open to replay it.
+  await page.locator('[data-testid="learn-step"][data-day="1"]').getByTestId('learn-step-open').click()
+  await expect(page.locator('[data-testid="learn-step"][data-day="1"]')).toHaveAttribute('data-open', 'true')
+  await settle(page)
+  await page.screenshot({ path: dir('learn-day-3-replay-full'), fullPage: true })
+  await clearStarted(page)
+})
+
+// Home's "In progress" (operator 2026-10-11: "show me how a homepage looks with all this in
+// progress stuff"): two paths at different points, and a short listen left at clip 5.
+test('home-in-progress', async ({ page }) => {
+  await signIn(page)
+  await clearStarted(page)
+  for (const id of ['thc:second-order-effects', 'thc:managing-risk']) {
+    expect((await page.request.post('/api/app/discover/learn', { data: { subject_id: id } })).ok()).toBeTruthy()
+  }
+  await backdate('thc:second-order-effects', 2)
+  for (const i of [0, 1]) await page.request.post(`${pathApi('thc:second-order-effects')}/steps/${i}/done`)
+  await page.request.post(`${pathApi('thc:managing-risk')}/steps/0/done`) // today done: "Next day now"
+  await page.request.put('/api/app/discover/reel/progress', {
+    data: { subject_id: 'topic:systems-thinking', index: 4, clips: 9 },
+  })
+  await page.goto('/')
+  await expect(page.getByTestId('in-progress-learn')).toHaveCount(2)
+  await expect(page.getByTestId('in-progress-reel')).toBeVisible()
+  await shoot(page, 'home-in-progress')
+  await clearStarted(page)
+})
+
+test('moments', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Bessent Tape').first().click()
+  await page.getByTestId('player-open-moments').click()
+  await expect(page.getByTestId('moments-card')).toBeVisible()
+  await expect(page.getByTestId('moments-index-item').first()).toBeVisible()
+  await shoot(page, 'moments')
+})
+
+// The same four subjects as SHEETS, opened from an episode's notes (operator 2026-10-11: the overlays
+// must read like the pages). One episode whose notes carry a topic, a person, a theme and a storyline.
+for (const [name, testid] of [
+  ['sheet-topic', 'kp-topic-chip'],
+  ['sheet-person', 'kp-person-chip'],
+  ['sheet-theme', 'kp-theme-link'],
+  ['sheet-storyline', 'kp-storyline-link'],
+] as const) {
+  test(name, async ({ page }) => {
+    await signIn(page)
+    await page.goto('/podcast/p09')
+    await page.getByText('Risk Is a Systems Property').first().click()
+    await page.getByTestId('player-open-insights').click()
+    const panel = page.getByTestId('knowledge-panel')
+    await expect(panel).toBeVisible()
+    await panel.getByTestId(testid).first().click()
+    await expect(page.locator('.lp-sheet').last()).toBeVisible()
+    await settle(page)
+    await page.screenshot({ path: dir(`${name}-viewport`), fullPage: false })
+  })
+}
 
 test('library', async ({ page }) => {
   await signIn(page)

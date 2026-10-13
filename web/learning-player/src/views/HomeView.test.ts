@@ -58,7 +58,9 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/browse', name: 'browse', component: { template: '<div/>' } },
+    { path: '/explore', name: 'explore', component: { template: '<div/>' } },
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
+    { path: '/shows', name: 'shows', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
@@ -100,7 +102,7 @@ beforeEach(() => {
   // card shows for signed-in users as before. Individual tests override for the "already chosen" case.
   vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
   try {
-    localStorage.removeItem('lp.interests.dismissed')
+    localStorage.removeItem('lp.interests.dismissed:u')
   } catch {
     /* happy-dom storage edge — ignore */
   }
@@ -250,7 +252,7 @@ describe('HomeView (discover state, signed out)', () => {
     await flushPromises()
     expect(w.find('[data-testid="home-discovery"]').exists()).toBe(false)
     expect(w.find('[data-testid="discovery-tab-topic"]').exists()).toBe(false)
-    // The way to them stays: the Discover strip deep-links into Discover's Trends.
+    // The way to them stays: the Discover strip deep-links into Explore's Trends.
     expect(w.find('[data-testid="home-browse-nav"]').exists()).toBe(true)
   })
 
@@ -261,10 +263,10 @@ describe('HomeView (discover state, signed out)', () => {
     await flushPromises()
     const nav = w.get('[data-testid="home-browse-nav"]')
     expect(nav.findAll('a').map((a) => a.attributes('href'))).toEqual([
-      '/browse?trends=topic',
-      '/browse?trends=person',
-      '/browse?trends=theme',
-      '/browse?trends=storyline',
+      '/explore?trends=topic',
+      '/explore?trends=person',
+      '/explore?trends=theme',
+      '/explore?trends=storyline',
     ])
   })
 
@@ -615,7 +617,7 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.get('[data-testid="guided-interests-to-go"]').text()).toBe('2 more to go')
     // And NOT because we marked the offer declined — that would suppress it forever, so a user who
     // later cleared their interests would never be offered it again.
-    expect(localStorage.getItem('lp.interests.dismissed')).toBeNull()
+    expect(localStorage.getItem('lp.interests.dismissed:u')).toBeNull()
   })
 
   // Compact Discover strip (renamed from Browse topics/people, operator 2026-09-14): chips
@@ -627,9 +629,9 @@ describe('HomeView interests card (3.5)', () => {
     const nav = w.get('[data-testid="home-browse-nav"]')
     const links = nav.findAll('a')
     const hrefs = links.map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/browse?trends=topic')
-    expect(hrefs).toContain('/browse?trends=storyline')
-    expect(hrefs).toContain('/browse?trends=person')
+    expect(hrefs).toContain('/explore?trends=topic')
+    expect(hrefs).toContain('/explore?trends=storyline')
+    expect(hrefs).toContain('/explore?trends=person')
     expect(nav.text()).toContain('Explore what people are talking about')
   })
 
@@ -839,14 +841,11 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     ).toBe(false)
   })
 
-  it("a What's-new row is one player link and reports no ranking click (operator 2026-10-07)", async () => {
-    // What's new is no longer the ranked /discover feed, so a click on it is not a ranking
-    // impression to score — reporting one would credit a feed the listener never saw.
+  it("a What's-new row is one player link (operator 2026-10-07)", async () => {
     readCached.mockImplementation(async (k: string) =>
       k === 'home.whatsnew.v2' ? { items: [ep('feat-0', 'Featured'), ep('row-one', 'Row One')], scope: 'all' } : null,
     )
     vi.spyOn(api, 'getWhatsNew').mockRejectedValue(new Error('offline'))
-    const rec = vi.spyOn(api, 'recordDiscoverClick').mockReturnValue(undefined)
     const w = mountKeptAlive()
     await flushPromises()
 
@@ -855,8 +854,6 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     const epLink = rowLinks.find((a) => a.attributes('href')?.includes('row-one'))
     expect(epLink, 'the row should carry an episode link').toBeTruthy()
     expect(rowLinks.length, 'the row is a single link (no away-navigating show link)').toBe(1)
-    await epLink!.trigger('click')
-    expect(rec).not.toHaveBeenCalled()
   })
 
   it("labels What's new by whose it is, and Recommended by why (operator 2026-10-07)", async () => {

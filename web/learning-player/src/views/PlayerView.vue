@@ -9,6 +9,7 @@
  * zone doubles as a live intelligence surface (speaking-now + grounded signal); per-show
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
+import { returnFocus } from '../utils/inputModality'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
 import { sourceOfCurrentNavigation } from '../services/provenance'
@@ -102,6 +103,7 @@ import { formatDuration, formatPublishDate, speakerLabel } from '../utils/format
 import { episodePlayerArtwork } from '../utils/episode'
 import { getPlayerViewSnapshot, setPlayerViewSnapshot } from './player-view-cache'
 import QueueButton from '../components/QueueButton.vue'
+import { setLearnOrigin } from '../services/captureSource'
 
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
@@ -308,7 +310,8 @@ watch(panelOpen, (open) => {
  */
 function onPanelClose(): void {
   panelOpen.value = false
-  void nextTick(() => insightsOpener.value?.focus())
+  // Back to the opener, with the keyboard ring only after a key (utils/inputModality).
+  void nextTick(() => returnFocus(insightsOpener.value))
 }
 
 /**
@@ -1196,6 +1199,17 @@ watch(
   },
 )
 
+// Opened from a learning day (`?from=learn`): a highlight saved on this episode counts as saved
+// while learning (stats, operator 2026-10-12). Opening another episode without it ends that.
+watch(
+  () => [props.slug, route.query.from] as const,
+  ([slug, from], previous) => {
+    if (from === 'learn') setLearnOrigin(slug)
+    else if (previous && previous[0] !== slug) setLearnOrigin(null)
+  },
+  { immediate: true },
+)
+
 // --- Moments (operator 2026-10-10) ------------------------------------------------------------
 // `?moments=1` turns this page into the Moments view: the episode's strongest moments, back to back.
 // The reel itself lives in the player store; this page loads the moments and swaps its left column.
@@ -1226,7 +1240,8 @@ watch(
   },
   { immediate: true },
 )
-const momentsActive = computed(() => player.reel?.slug === props.slug)
+// An episode reel only: a topic reel's clips are from many episodes and play on their own page.
+const momentsActive = computed(() => player.reel?.slug === props.slug && !player.reel?.topic)
 /** "Nora, host" on the current moment: hosts and guests from the episode's people. */
 const speakerRoles = computed<Record<string, string>>(() => {
   const out: Record<string, string> = {}

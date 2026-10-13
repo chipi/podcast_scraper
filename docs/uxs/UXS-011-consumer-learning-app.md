@@ -336,7 +336,9 @@ start. (A serif was tried and rejected during the earlier design phase.)
     N episodes" at full width, then notes.
 - **Topic page sections:**
   - **Similar topics** have no section heading: "N similar topics" is a small kicker label at the
-    start of the pill row (the label-then-pills style of the show page's topic groups).
+    start of the pill row (the label-then-pills style of the show page's topic groups). They show
+    only when the topic has **no theme link** (operator 2026-10-12): they are the theme's other
+    topics, and the theme lists them.
   - **Theme and storyline links** have no "Part of a theme / storyline" heading — the link card is
     the section, and its caption names the kind ("THEME · 3 TOPICS", "STORYLINE · 4 TOPICS") so the
     two are not told apart by colour alone. "Not part of a storyline yet" when there is none.
@@ -467,7 +469,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   tick; never the accent).
 - **Ways into Moments** (operator 2026-10-10): **Play moments** leads the shared ⋯ menu on every
   episode with insights; on browsing rows (Discover and show-page cards, search episode results,
-  Downloads, Discover 2 cards) a small amber text action, `MomentsLink` ("▶ Moments" — no box, no
+  Downloads) a small amber text action, `MomentsLink` ("▶ Moments" — no box, no
   count, no extra height; the boxed chip was rejected as heavy and repeated on every row); the
   Brief offers a **Play moments** button right after the Summary. Not on Home tiles (too small) or
   passage results (already a moment). Downloaded episodes play their reel offline: the moments are
@@ -476,7 +478,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   reopens the episode with the reel playing; the end card offers the next queued episode's moments, so reels chain
   through a queue; each clip fades in over 250 ms instead of cutting in. Step: the insight the
   listener is in stands out on the density strip (taller, full strength). "▶ Moments" also sits on
-  topic, person, storyline, theme and org episode rows and every Discover 2 episode card. Offline
+  topic, person, storyline, theme and org episode rows. Offline
   it works on downloaded episodes and greys for the rest (inert, saying why), like every offline
   action.
 - **Step and the reel, finished** (2026-10-10): a left swipe on the insight card is next, a right
@@ -504,10 +506,16 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
   **Search this episode is for what a listener remembers** (operator 2026-10-10; eval
   `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`): it searches only this episode, and its results come
-  in two groups — **In the transcript** (the words verbatim first, then by meaning; each result cut
-  to the sentence holding the words, the words marked, "Play from" where it was said, and
-  **Highlight**, which saves that sentence) and **Insights**. The episode's own summary,
-  description and title are left out of the results; the Brief already shows them.
+  in two groups — **In the transcript** (the words verbatim first, then the words in any order or
+  form; each result cut to the sentence holding the words, the words marked, "Play from" where it
+  was said, and the bookmark, the app's highlight control, which saves that sentence) and **Insights**. The episode's own
+  summary, description and title are left out of the results; the Brief already shows them. It is a
+  **word search** (operator 2026-10-12): a result without every typed word, in some form
+  ("interventions" for "intervention"), is not shown, however close its meaning. It reads the
+  episode's own files — every passage of its timed transcript and every insight the Brief lists —
+  with no search index and **no limit**: filtered at the source, not ranked by meaning and cut. The results sit in
+  one **Search results** section that folds like the Brief's other sections, its count in the
+  header; the two groups inside it are headings, always shown.
 - **Episode description** (operator 2026-10-10): the obi's About door opens
   `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
   text, and the player had no way to read it. The sheet is a native `<dialog>`: a bottom sheet on
@@ -672,8 +680,9 @@ the player surface** — see "Player-surface Queue & Recent" below):
 - **Following** — the shows and interest tokens (`topic:`/`tc:`/`thc:`/`person:`) the user
   follows. All four are followable; `tc:` is a Theme and `thc:` a Storyline — see UXS-013
   §Vocabulary, because the wire names invert against the reader-facing ones.
-- **Collections** ("Boards") — its own first-class tab (was nested under Saved); see "Collections"
-  below. It also holds **Your notes**: every note the user has written, beside their boards. The
+- **Collections** — its own first-class tab (was nested under Saved; called "Boards" until
+  2026-10-13); see "Collections" below. Its two sections are headed **Boards** and **Notes** — no
+  "Your", the tab already says whose: every note the user has written, beside their boards. The
   section is topped by the shared kind-filter strip (UXS-014) whose chips are the **entity each note
   is attached to** — Highlight / Insight / Episode / Show / Topic / Person / Storyline — with a chip
   only for kinds that actually have notes, and each row labelled `KIND · DATE` in the same words as
@@ -1099,6 +1108,26 @@ oldest-pinned-first and opens the first. An **Add to collection** button rides e
 cards, search results and the podcast page. Empty state: "No collections yet". Auth-gated (empty when
 signed out). Own first-class Library tab.
 
+**A board's Brief and its short listen (`BoardBrief`, RFC-119 amendment 2026-10-12, #2340).** Not
+shown by default: each board's header carries a small **Brief** button (beside its cover and drag
+handle), and the Brief opens in a sheet laid out exactly as the episode's — grab handle, "Brief"
+with ✕, the board's name with one line of what it holds ("3 episodes · 1 saved moment · 1 show"),
+its **Summary** when one has been written (one paragraph on the whole board, made in the background
+by a model on our own servers, RFC-127; "Summarised Oct 13", and "the board changed since" until
+the next one), **▶ Play N moments** into the board's own short listen, **Top voices** (who speaks across its
+episodes, the topic page's grid — a board has no host or guest of its own), **Key points** (each
+episode's, opening the episode where it is said), and **What this board’s about**, the show page's
+band: a row each for storylines, themes and topics, most episodes first, no numbers on the pills.
+The short listen plays the saved moments first, exactly as saved, then the strongest clip of each
+saved episode that has no saved moment; while it plays, the nav lights Library. Only what is saved
+on the board counts: a saved show, topic or person is not expanded into its episodes. A board with
+no episodes says it has nothing to brief yet. Anything that navigates closes the sheet first.
+
+**Your boards in Search (#2341).** Search lists the listener's boards beside their notes: a board
+whose name holds every word first, then one holding something that does, each row saying what
+matched ("Name matches", "Episode: <title>"). A row opens the board, open, in Library. Signed out,
+the section is absent.
+
 ### Settings (#8)
 
 A **Settings** surface (`SettingsView`) surfaces the app version / build info and the client control
@@ -1184,24 +1213,41 @@ over-correction and was walked back — it made a working control read as dead.
 
 ### The look-back: recap panel and Home prompt
 
-- **`ListeningRecap`** (Profile → "Your listening") — a window toggle (Week · Month · This year),
-  per-day BARS (discrete days read better as bars than as a line), what kept coming up with its
-  movement (`↑2`, `↓3`, `new` — a delta of zero renders nothing, since an "unchanged" marker is
-  noise on every chip that did not move), and the line the listener saved, linking to the MOMENT it
-  came from.
-  **It always states its coverage while the window is partial** ("Recorded 3 of 7 days"), and the
-  line disappears on its own as coverage fills in.
-- **`RecapPrompt`** (Home, under Your Week) — deliberately NOT the recap: one line, one tap,
-  pointing at Profile. Profile is the permanent home you can always go to; this is the periodic
-  reminder that it is there. It self-hides when signed out, when the request fails, and when
-  nothing was listened to — a row reading "0h · 0 episodes" spends space telling the user what they
-  already know.
+**Profile › Stats is one story** (operator 2026-10-12: "take a holistic look … harmony, not more
+stuff"), top to bottom: the window's listening, then learning, then what was kept.
 
-**A number that was removed.** Profile's "Your listening" previously showed a headline `Xh` fed by
-`sum(position_seconds)` — a lifetime snapshot of furthest-position-reached. It rose when you seeked
-forward without hearing anything and did not move when you re-listened. It is gone; the panel below
-is retitled **"Your activity"**, because opens-over-time is a different question from time listened
-and conflating them is how the first number went unexamined for so long.
+- **`ListeningRecap`** (Profile → "Your listening") — a window toggle (Week · Month · This year)
+  over four tiles, one per way of listening: **Listened** (full episodes; minutes under an hour —
+  "0.0h" beside five episodes read as broken), **Moments** (short-listen clips heard to their end,
+  with their time), **Learning days**, and **Episodes** ("3 shows · 2 finished" as its second line).
+  Then ONE day chart, bars, full episodes and moments stacked (a short listen accrues no listening
+  time, so a day of moments was a blank bar); the streaks in one line ("Day streak: 4 days ·
+  Learning streak: 2 days", only those running); "2 of 5 episodes you heard as moments, you went on
+  to play in full"; **What it was about** — the topics and people of the episodes heard and the
+  subjects of the short listens and learning days, one row, each pill naming its kind
+  (`KindWord`), showing its total with its movement (`↑2`, `↓3`, `new`; zero renders nothing),
+  its spoken name saying what the total is made of; and the line the listener saved, linking to
+  the MOMENT it came from. **It always states its coverage while the window is partial**
+  ("Recorded 3 of 7 days").
+- **`LearningStats`** (Profile → "Learning") — each path on now with its kind, "Day 3 of 7 · 2 done"
+  and a bar of days done, linked to its week; then "2 finished · 1 left · 16 learning days in all".
+  A path left, or swapped out at the three-path cap, is kept server-side with its days, so these
+  can be said at all. Hidden for a listener who never learned.
+- **What you've kept** — as before, plus where highlights were saved: in episodes, in moments, on
+  learning days (a highlight carries `source`).
+- **What was folded in, not added:** the old all-time "Your activity" tiles — streak, episodes,
+  shows, and a 14-day sparkline of opens — went into the recap (the streak into its line, shows and
+  finishes into the Episodes tile, the one day chart is the recap's), so the tab no longer carries
+  two charts and two episode counts.
+- **`RecapPrompt`** (Home, under Your Week) — deliberately NOT the recap: the same week in one
+  line, one tap, pointing at Profile — "4.2h · 5 episodes · 9 moments · 2 learning days" (moments
+  and learning only when there were any), the week's top subject, then the next three as pills in
+  their kind's colours with their kind word. It self-hides when signed out, when the request fails,
+  and when nothing was heard at all.
+
+**Recording behind it.** `POST /me/moments-heard` records a clip heard to its end (not one skipped)
+and "Keep listening" from a clip into its episode; learning days carry when they were done; ended
+paths are kept with how they ended. Clearing listening history clears the moments log too.
 
 ### Deep links
 
@@ -1342,7 +1388,7 @@ Search gained entry points rather than losing them:
 
 | Entry point | Where | Notes |
 | --- | --- | --- |
-| Discovery's search box | `/browse`, between Trending shows and Trends | Same `lp-search` control as Home's, not a second dialect of it. **On a phone this is the always-available way in**: the Discover tab is on every screen, one tap away |
+| Explore's search box | `/explore`, first, above Trends (moved from Discover 2026-10-11) | Same `lp-search` control as Home's, not a second dialect of it. **On a phone this is the always-available way in**: the Explore tab is on every screen, one tap away |
 | Home's "Ask" box | Home | Unchanged |
 | Masthead magnifier | **Desktop only** (`sm:` and up) | Desktop has no bottom bar, so the magnifier is its route to search from any screen. It was visible at every width from 2026-09-20 to 2026-09-30; it left the phone header because there was no room for it: "Close Listening" ran under it at 360px |
 
@@ -1387,6 +1433,7 @@ review or rebuild it.
 | `TermsOfUse` | The terms of use, first version (2026-10-05), on the About › Terms page; public, and `/terms` redirects there | Written from what the app actually does — beta, 16+, podcasts belong to their creators, automatically generated content can be wrong and is not professional advice, your notes stay yours, connected agents act on your behalf, fair use, deletion. Same visible draft notice as the privacy policy for what is not decided (the company, the governing law, legal review). English only, for the same reason |
 | `ThirdPartySoftware` | The third-party software list, on the About › Third-party page | NOT hand-written: `scripts/third-party.mjs` regenerates `public/third-party.json` from npm's production dependency tree (direct and transitive) on every `npm run build`, minus build-only tooling (`@capacitor/cli`, which never ships), plus the native iOS pods and Android release-classpath libraries from the committed snapshot `scripts/third-party-native.json` (regenerated on the Mac with `make third-party-native`; `src/__checks__/third-party-native.test.ts` fails when the native dependency files change without a regenerate), plus the self-hosted Google Sans font, so it cannot drift from what ships. Fetched when the page opens, not bundled. Grouped by name prefix (operator 2026-10-05): a scope or Maven-group row (`@vue`, `androidx.core` …) expands to its members, named without the prefix; an unscoped package is its own row; native rows carry an iOS / Android badge. Every row carries a ▸/▾ chevron and opens in place to the project link, a labelled "Licence text" box, and a "Notice" box when the library ships a NOTICE file (Apache-2.0). The copy counts "libraries" (npm packages, pods and Maven artifacts alike). Android lists what the release APK links: Kotlin Multiplatform "umbrella" coordinates (a POM + a `.module` redirecting to the `-jvm` / `-android` build, which is listed) and BOMs ship no code, so they are not rows; every listed archive is searched for a LICENSE / NOTICE, and the generator names any whose archive is not in the Gradle cache. If the list cannot be fetched (offline) the page says so ("Couldn't load the list — it needs a connection.") |
 | `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
+| `BoardBrief` | A board's Brief (#2340), in a sheet opened from the board's **Brief** button: what it holds, Play N moments, Top voices, Key points, What this board’s about | Laid out as the episode's Brief; reads only what is saved on the board, never expanding a saved show, topic or person; a board with no episodes says so rather than showing empty sections |
 | `HighlightsView` | Everything captured, with export | The listener's own words — export must be lossless and must never require a network round trip to read |
 
 ### Remaining shared components
@@ -1397,6 +1444,10 @@ review or rebuild it.
 - **`QueueButton`** — the ONE add/remove-to-queue control, everywhere. Renders for signed-out
   visitors (#1590). Since the 2026-09 offline arc it stays ENABLED with no connection: adding and
   removing are item-level and replay safely; only reordering needs a live list.
+- **`SuggestedLessList`** — the end of Profile › Interests: "Suggested less", what the listener
+  hid from Discover with "Less like this" (ADR-163 §6), one pill per subject; tapping one undoes it.
+  Hidden when nothing is hidden; a failed load says so rather than reading as "nothing hidden". The
+  Discover picker also opens with `trigger: discover_cold_start` (UXS-012, cold start).
 - **`InterestsPicker`** — the onboarding sheet: the same four `InterestSections` as Profile ›
   Interests, saved once on Save. Modal a11y matches the entity card exactly; "Not now" must be as
   easy to reach as "Save", because a picker that traps someone into choosing is a picker they will

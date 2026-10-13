@@ -26,7 +26,7 @@ test('Home shows your boards, and a tile opens that board expanded', async ({ pa
   const name = `Home teaser ${Date.now().toString(36)}`
 
   // --- 1. create a board with a member, so it has a cover and a count -------------------------
-  await page.goto('/browse')
+  await page.goto('/explore')
   await page.waitForLoadState('networkidle')
   const firstRow = page.locator('article').first()
   await expect(firstRow).toBeVisible()

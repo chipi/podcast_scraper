@@ -85,7 +85,7 @@ public class OfflineAutoAdvanceTests extends UITestCase {
                     + Journey.labelledInventory(24), Journey.scrollTo("Downloaded", false));
             assertNotNull("no downloaded episode listed offline. On screen: "
                             + Journey.labelledInventory(24),
-                    Journey.scrollTo("Downloaded — tap to remove", false));
+                    Journey.scrollTo("Downloaded — tap to remove", true));
 
             // 3. It opens and plays OFF DISK.
             AppSession.openEpisode("p06-7217050bc6");

@@ -23,23 +23,30 @@
  */
 export const OWNED_ROUTES: Record<string, readonly string[]> = {
   home: ['home'],
-  browse: [
-    'browse',
-    'search',
-    'catalog',
-    'podcast',
-    'browse-shows',
-    'browse-topics',
-    'browse-people',
-  ],
+  browse: ['browse', 'podcast', 'topic-reel', 'learn'],
+  // Explore (operator 2026-10-11): Trends and the Episodes · Shows catalog, and the catalog's own
+  // "see all" lists, which moved there from Discover (ADR-163 §1).
+  // Search too, since its box leads Explore (operator 2026-10-11).
+  explore: ['explore', 'search', 'catalog', 'shows', 'browse-shows', 'browse-topics', 'browse-people'],
   library: ['library'],
   // The masthead's queue control (operator 2026-09-23). One route, no gathering: the queue is a
   // destination, not a hub.
   queue: ['queue'],
 }
 
-/** True when `routeName` belongs to the nav destination `owner`. */
-export function ownsRoute(owner: string, routeName: string | null | undefined): boolean {
+/** True when `routeName` belongs to the nav destination `owner`.
+ *
+ * `params` settles the one route two destinations share: a short listen (`topic-reel`) is
+ * Discover's, but a BOARD's own short listen (`board:<id>`, #2340) is opened from Library and lights
+ * Library, as the board it plays does. */
+export function ownsRoute(
+  owner: string,
+  routeName: string | null | undefined,
+  params?: Record<string, unknown>,
+): boolean {
   if (!routeName) return false
+  if (routeName === 'topic-reel' && String(params?.id ?? '').startsWith('board:')) {
+    return owner === 'library'
+  }
   return OWNED_ROUTES[owner]?.includes(routeName) ?? false
 }

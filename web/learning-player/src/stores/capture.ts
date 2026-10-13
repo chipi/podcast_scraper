@@ -28,6 +28,7 @@ import {
   unretireHighlight,
 } from '../services/api'
 import { newCaptureId } from '../services/captureIds'
+import { captureSource } from '../services/captureSource'
 import { serialWrites } from '../services/serialWrites'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
@@ -293,7 +294,12 @@ export const useCaptureStore = defineStore('capture', {
     async _capture(body: HighlightCreate): Promise<boolean> {
       const generation = identityEpoch()
       const client_id = newCaptureId('h')
-      const withId: HighlightCreate = { ...body, client_id }
+      // Where it was saved, for stats (operator 2026-10-12): a caller that knows says so.
+      const withId: HighlightCreate = {
+        source: captureSource(body.episode_slug),
+        ...body,
+        client_id,
+      }
       // Shown immediately, and shaped like the server's row so nothing downstream has to know
       // which of the two it is holding.
       const optimistic: Highlight = {

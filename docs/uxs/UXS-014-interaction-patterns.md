@@ -388,6 +388,15 @@ highlight it, then add the highlight to a board (`kind: highlight` is a first-cl
 item). Do not add a second control to a fragment to shortcut that; add it to the board from the
 highlight.
 
+**An episode card opens the episode, paused — the whole card (operator 2026-10-11).** Everywhere
+an episode is a card or a row (rails, Discover, search, Saved, Downloaded, boards, Your Week, Learn,
+Continue), a tap anywhere on it opens the episode in the player WITHOUT playing. The title's link
+stretches over the card (`after:absolute after:inset-0`); the card's own controls (save, queue, ⋯,
+download, Moments, "Play from", "Less like this", Remove) sit above it (`relative z-30`). Only a
+control that says so plays: Resume, "▶ Play from mm:ss", Play moments. **The show is named, not
+linked** on an episode card: the player leads to the show, so a card has one destination and no
+small target competing with it. Show tiles and show rows still open the show — they ARE the show.
+
 **The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · queue inline
 plus a `⋯` overflow carrying download · add-to-collection, via the one component. Two inline + `⋯` is
 120px and fits the artwork-width card column in one row; four inline (176px of 44px targets) wrapped
@@ -395,6 +404,9 @@ to a second row, and shrinking below the 44px floor (#1594) is barred, so the fi
 shrink (operator 2026-09-13). Download self-hides on web (`DownloadButton` is native-only), so on web
 the `⋯` carries add-to-collection alone. The top-level count is a uniform three (favourite/queue/`⋯`)
 across web and native — parity, not a per-surface omission.
+*2026-10-12 (operator):* download is back in the `⋯` everywhere but Up next. The 2026-10-11 change
+that put it inline on every episode is reverted: it added a control to every row in every list (Home,
+Browse, Queue's Recently played) and wrapped them onto a second line.
 
 **Overflow (`⋯`) where space is tight** — one component, `OverflowMenu` (teleported, `role="menu"`,
 keyboard-roaming, Escape/outside-click dismiss). Primary actions sit inline; anything that does not fit is

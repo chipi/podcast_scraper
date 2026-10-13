@@ -142,3 +142,77 @@ def test_consumer_podcast_signals_unknown_feed_is_empty(tmp_path: Path) -> None:
     body = r.json()
     assert body["episode_count"] == 0
     assert body["top_topics"] == [] and body["key_people"] == []
+
+
+def test_themes_and_storylines_carry_how_distinctive_they_are(tmp_path: Path) -> None:
+    """Distinctive themes and storylines, not only topics (operator 2026-10-12).
+
+    Two shows; "finance" topics run through every episode of show F and none of show G, while
+    "learning" runs through every episode of both. The finance theme and storyline are twice as
+    common on F as across the library (lift 2.0); the learning one is wallpaper (lift 1.0).
+    """
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    for i in range(2):
+        _write_ep(
+            meta,
+            f"f{i}",
+            "showf",
+            f"f{i}",
+            [_topic("topic:bonds", "bonds"), _topic("topic:learning", "learning")],
+        )
+        _write_ep(meta, f"g{i}", "showg", f"g{i}", [_topic("topic:learning", "learning")])
+    finance = [{"topic_id": "topic:bonds"}, {"topic_id": "topic:stocks"}]
+    learning = [{"topic_id": "topic:learning"}]
+    _enrich(
+        tmp_path,
+        "topic_theme_clusters",
+        {
+            "clusters": [
+                {
+                    "graph_compound_parent_id": "thc:fin",
+                    "canonical_label": "Money",
+                    "members": finance,
+                },
+                {
+                    "graph_compound_parent_id": "thc:learn",
+                    "canonical_label": "Study",
+                    "members": learning,
+                },
+            ]
+        },
+    )
+    search = tmp_path / "search"
+    search.mkdir()
+    (search / "topic_clusters.json").write_text(
+        json.dumps(
+            {
+                "clusters": [
+                    {
+                        "graph_compound_parent_id": "tc:fin",
+                        "canonical_label": "investing",
+                        "members": finance,
+                    },
+                    {
+                        "graph_compound_parent_id": "tc:learn",
+                        "canonical_label": "learning",
+                        "members": learning,
+                    },
+                ]
+            }
+        ),
+        "utf-8",
+    )
+    body = _authed_client(tmp_path).get("/api/app/podcasts/showf/signals").json()
+    themes = {t["theme_id"]: t for t in body["dominant_themes"]}
+    assert themes["tc:fin"] == {
+        "theme_id": "tc:fin",
+        "label": "investing",
+        "topic_count": 1,
+        "episode_count": 2,
+        "lift": 2.0,
+    }
+    assert themes["tc:learn"]["lift"] == 1.0
+    storylines = {s["storyline_id"]: s for s in body["dominant_storylines"]}
+    assert (storylines["thc:fin"]["episode_count"], storylines["thc:fin"]["lift"]) == (2, 2.0)
+    assert storylines["thc:learn"]["lift"] == 1.0

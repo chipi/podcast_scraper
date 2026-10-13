@@ -13,26 +13,37 @@ import time
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Path as PathParam, Query, Request
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.storylines import top_storylines_by_member_count
 from podcast_scraper.search.topic_clusters import top_themes_by_member_count
 from podcast_scraper.server import (
     app_ranking_config_store,
-    app_ranking_telemetry,
     app_user_state,
 )
+from podcast_scraper.server.app_another_view_rail import engaged_topics
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_discover_rails import (
+    FIRST,
+    first_pages,
+    MINE_RAILS,
+    page_of,
+    rail_cards,
+    RAIL_MAX,
+    RailContext,
+    rails_for,
+)
 from podcast_scraper.server.app_discover_view import (
     build_discover_pool,
     interest_relpaths,
     rank_discover,
     whats_new_rows,
 )
+from podcast_scraper.server.app_goal_reel import goal_reel, reel_selection, reel_subject, ReelKind
 from podcast_scraper.server.app_momentum import (
     MomentumConfig,
     resolve_as_of_week,
@@ -46,12 +57,12 @@ from podcast_scraper.server.app_ranking_config import (
 )
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
-from podcast_scraper.server.app_trending_episodes import trending_episodes
+from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
+from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.app_user_corpus import (
     derive_interests,
     personal_entity_ids,
     user_episode_set,
-    world_episode_set,
 )
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import (
@@ -60,17 +71,33 @@ from podcast_scraper.server.routes.app_auth import (
     get_optional_user,
 )
 from podcast_scraper.server.schemas import (
-    AppDiscoverClickBody,
+    AppDiscoverRail,
+    AppDiscoverRailsResponse,
     AppEpisodesResponse,
+    AppInProgress,
     AppInterestCluster,
     AppInterestClustersResponse,
     AppInterestSearchResponse,
+    AppLearningPath,
+    AppLearnResponse,
+    AppLearnStart,
+    AppLearnSubject,
+    AppPathStep,
+    AppReason,
     AppRecommendedResponse,
+    AppReelClip,
+    AppReelProgress,
+    AppReelProgressIn,
+    AppReelTopic,
+    AppReelTopicsResponse,
     AppStoryline,
     AppStorylinesResponse,
+    AppSuggestLessBody,
+    AppSuggestLessItem,
+    AppSuggestLessResponse,
+    AppTopicReelResponse,
     AppTrendingEntity,
     AppTrendingEpisodeCard,
-    AppTrendingEpisodesResponse,
     AppTrendingResponse,
     AppWhatsNewResponse,
 )
@@ -106,7 +133,14 @@ def top_themes(
 ) -> AppInterestClustersResponse:
     """Top themes by corpus prevalence — the picker's choices (PRD-043 FR4)."""
     root = corpus_root_or_503(request)
-    items = [AppInterestCluster(**c) for c in top_themes_by_member_count(root, limit)]
+    # An umbrella is no choice at all (#1669/#2247): following it re-ranks nothing. Left out, and
+    # the next themes take their places.
+    umbrellas = umbrella_tokens(root)
+    items = [
+        AppInterestCluster(**c)
+        for c in top_themes_by_member_count(root, limit + len(umbrellas))
+        if c["id"] not in umbrellas
+    ][:limit]
     return AppInterestClustersResponse(items=items)
 
 
@@ -128,7 +162,12 @@ def top_storylines(
     the two cannot drift.
     """
     root = corpus_root_or_503(request)
-    items = [AppStoryline(**s) for s in top_storylines_by_member_count(root, limit)]
+    umbrellas = umbrella_tokens(root)  # as for /themes
+    items = [
+        AppStoryline(**s)
+        for s in top_storylines_by_member_count(root, limit + len(umbrellas))
+        if s["id"] not in umbrellas
+    ][:limit]
     return AppStorylinesResponse(items=items)
 
 
@@ -155,6 +194,37 @@ async def interest_search(
 _TRENDING_NS = "app_trending_corpus"
 
 
+#: Every trending entity of a kind is ranked once; pages are slices of that list.
+_TRENDING_ALL = 10_000
+
+
+def corpus_trending(
+    root: Path,
+    data_dir: Path | None,
+    kind: str,
+    window: str | None,
+    config: MomentumConfig,
+) -> list[Any]:
+    """Everyone's trending ``kind``, the whole ranked list, shared by every caller.
+
+    The same for everyone and slow to change, but each build reads the corpus AND every user's
+    engagement: ~0.6 s on prod (measured 2026-10-08), and one Discover load asked for five (the
+    Short listens row and the Learn offers). Cached until the corpus changes or 5 minutes pass —
+    engagement moves without the corpus changing."""
+    token = float(hash((perf_cache.corpus_mtime(root), int(time.time() // 300))))
+    key = (str(root), kind, window, repr(config))
+    return list(
+        perf_cache.get_or_compute(
+            _TRENDING_NS,
+            key,
+            token,
+            lambda: trending(
+                root, data_dir, kind=kind, limit=_TRENDING_ALL, window=window, config=config
+            ),
+        )
+    )
+
+
 @router.get("/trending", response_model=AppTrendingResponse)
 def app_trending(
     request: Request,
@@ -162,6 +232,11 @@ def app_trending(
     scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
     window: str = Query(default="3m", description="Trend window: 1m | 3m | 6m | 1y (RFC-103 R2)."),
     limit: int = Query(default=12, ge=1, le=50),
+    offset: int = Query(default=0, ge=0, le=10_000),
+    sort: Literal["score", "rising", "trending"] = Query(
+        default="score",
+        description="score (velocity × volume) | rising (velocity) | trending (volume).",
+    ),
     user: User = Depends(get_current_user),
 ) -> AppTrendingResponse:
     """Trending entities of ``kind`` — monthly momentum over the selected ``window`` (RFC-103 R2).
@@ -170,6 +245,9 @@ def app_trending(
     month; the list is floored at ``min_total`` and ranked by velocity × volume. Blends corpus
     content (mentions) with engagement (saves/plays/opens/follows); ``scope=mine`` ranks the
     signed-in user's own engagement.
+
+    Paged on the server (operator 2026-10-11: "Show more" is the next page, never a reveal):
+    ``sort`` orders the whole list, ``offset``/``limit`` slice it, ``total`` is its length.
     """
     if kind not in _TRENDING_KINDS:
         raise HTTPException(status_code=400, detail=f"kind must be one of {_TRENDING_KINDS}.")
@@ -190,29 +268,25 @@ def app_trending(
     )
     config = _momentum_config(request)
 
-    def compute() -> list[Any]:
-        return trending(
+    if eff_scope == "corpus":
+        ranked = corpus_trending(root, data_dir, kind, window, config)
+    else:
+        ranked = trending(
             root,
             data_dir,
             kind=kind,
             scope=eff_scope,
             user_id=uid,
-            limit=limit,
+            limit=_TRENDING_ALL,
             window=window,
             config=config,
             restrict_to=mine,
         )
-
-    if eff_scope == "corpus":
-        # Corpus-wide trends are the same for everyone and change slowly, but each call rebuilt the
-        # series from the corpus AND every user's engagement: ~0.6 s on prod, four at once on
-        # Profile → Interests (measured 2026-10-08). Cached until the corpus changes or 5 minutes
-        # pass, whichever is first — engagement moves without the corpus changing.
-        token = float(hash((perf_cache.corpus_mtime(root), int(time.time() // 300))))
-        key = (str(root), kind, window, limit, repr(config))
-        rows = perf_cache.get_or_compute(_TRENDING_NS, key, token, compute)
-    else:
-        rows = compute()
+    if sort == "rising":
+        ranked = sorted(ranked, key=lambda r: -r.velocity)
+    elif sort == "trending":
+        ranked = sorted(ranked, key=lambda r: -r.volume)
+    rows = ranked[offset : offset + limit]
     items = [AppTrendingEntity(**vars(r)) for r in rows]
     if kind == "person":
         # Hydrate the person avatar so the people-browse chips can show a face (value + space).
@@ -231,56 +305,643 @@ def app_trending(
         as_of_week=resolve_as_of_week(),
         window=window,
         items=items,
+        total=len(ranked),
     )
 
 
-@router.get("/trending/episodes", response_model=AppTrendingEpisodesResponse)
-def app_trending_episodes(
-    request: Request,
-    scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
-    limit: int = Query(default=8, ge=1, le=20),
-    user: User = Depends(get_current_user),
-) -> AppTrendingEpisodesResponse:
-    """Trending episodes as quote cards (operator 2026-10-10): episodes speaking to a rising topic,
-    interleaved with the ones listened to, opened and saved most over four weeks. Under
-    ``scope=mine`` both keep to the listener's world (ADR-162)."""
+def _rail_context(request: Request, scope: str, user: User) -> RailContext:
     root = corpus_root_or_503(request)
     raw_dir = getattr(request.app.state, "app_data_dir", None)
-    data_dir = Path(raw_dir) if raw_dir is not None else None
-    eff_scope = "mine" if (scope == "mine" and user is not None) else "corpus"
-    uid = user.user_id if eff_scope == "mine" and user is not None else None
-    entities = world = None
-    if uid is not None and data_dir is not None:
-        entities = personal_entity_ids(root, data_dir, uid)
-        world = world_episode_set(root, data_dir, uid)
-    cards = trending_episodes(
-        root,
-        data_dir,
-        scope=eff_scope,
-        user_id=uid,
-        restrict_entities=entities,
-        world=world,
-        limit=limit,
+    return RailContext(
+        root=root,
+        data_dir=Path(raw_dir) if raw_dir is not None else None,
+        user_id=user.user_id if user is not None else None,
+        scope="mine" if scope == "mine" else "corpus",
         config=_momentum_config(request),
     )
+
+
+def _project(root: Path, cards: list[TrendingEpisodeCard]) -> list[AppTrendingEpisodeCard]:
     items: list[AppTrendingEpisodeCard] = []
     for card in cards:
         row = resolve_slug(root, card.slug)
+        if row is not None:
+            items.append(
+                AppTrendingEpisodeCard(
+                    why=AppReason.model_validate(card.why.to_dict()),
+                    episode=row_to_summary(root, row),
+                )
+            )
+    return items
+
+
+@router.get("/discover/rails", response_model=AppDiscoverRailsResponse)
+def app_discover_rails(
+    request: Request,
+    scope: str = Query(default="corpus", description="corpus (Everyone) | mine."),
+    first: int = Query(default=FIRST, ge=1, le=RAIL_MAX),
+    user: User = Depends(get_current_user),
+) -> AppDiscoverRailsResponse:
+    """Discover's rails (ADR-163), first page each, in page order: the quote cards, then — under
+    Mine — more from what you captured, continue the thread, people you keep hearing, hear another
+    view. One card per episode across the page (the highest rail keeps it); a rail left with
+    nothing is not returned. ``total`` is what "Show more" can page through
+    (``/discover/rails/{rail}``). Under Mine with an empty world, the quote rail is Everyone's,
+    ``fallback``."""
+    ctx = _rail_context(request, scope, user)
+    pages = first_pages(ctx, first)
+    return AppDiscoverRailsResponse(
+        scope="mine" if ctx.mine else "corpus",
+        rails=[
+            AppDiscoverRail(
+                rail=p.rail, items=_project(ctx.root, p.items), total=p.total, fallback=p.fallback
+            )
+            for p in pages
+        ],
+    )
+
+
+@router.get("/discover/rails/{rail}", response_model=AppDiscoverRail)
+def app_discover_rail_page(
+    request: Request,
+    rail: str,
+    scope: str = Query(default="corpus"),
+    offset: int = Query(default=0, ge=0, le=RAIL_MAX),
+    limit: int = Query(default=4, ge=1, le=RAIL_MAX),
+    exclude: list[str] = Query(default=[], max_length=RAIL_MAX * len(MINE_RAILS)),
+    user: User = Depends(get_current_user),
+) -> AppDiscoverRail:
+    """One page of one rail — what "Show more" asks for. ``exclude`` is the episodes the rails
+    above it showed first, so the page stays one card per episode; ``offset`` counts after them."""
+    ctx = _rail_context(request, scope, user)
+    if rail not in rails_for(ctx):
+        raise HTTPException(status_code=404, detail=f"No rail {rail!r} under this scope.")
+    cards, fallback = rail_cards(ctx, rail)
+    items, total = page_of(cards, exclude, offset, limit)
+    return AppDiscoverRail(
+        rail=rail, items=_project(ctx.root, items), total=total, fallback=fallback
+    )
+
+
+def _topic_label(root: Path, topic_id: str, slugs: list[str]) -> str:
+    """The topic's display label, from the KG of an episode that names it; else the id's words."""
+    from podcast_scraper.server.app_corpus_access import load_json_artifact
+    from podcast_scraper.server.app_kg_view import entities_from_kg
+
+    for slug in slugs[:3]:
+        row = resolve_slug(root, slug)
+        if row is None or not row.has_kg:
+            continue
+        _p, _o, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+        label = next((t.label for t in topics if t.id == topic_id and t.label), None)
+        if label:
+            return label
+    return topic_id.split(":", 1)[-1].replace("-", " ")
+
+
+@router.get("/discover/reel", response_model=AppTopicReelResponse)
+def app_discover_reel(
+    request: Request,
+    subject: str = Query(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):"),
+    minutes: int = Query(default=15, ge=1, le=60),
+    _user: User = Depends(get_current_user),
+) -> AppTopicReelResponse:
+    """N minutes on a topic, theme or storyline (ADR-163 §8 amendment; goal-shaped listening): the
+    strongest clips ABOUT it (a theme or storyline: about any member topic) across episodes, breadth
+    first, within ``minutes``. ``total_seconds`` is what it actually runs — a small corpus gives
+    less than the budget, and the client says so."""
+    root = corpus_root_or_503(request)
+    config = getattr(request.app.state, "moments_config", None)
+    about = reel_subject(root, subject)
+    clips = goal_reel(root, subject, minutes=minutes, config=config)
+    out: list[AppReelClip] = []
+    for c in clips:
+        row = resolve_slug(root, c.episode_slug)
         if row is None:
             continue
-        items.append(
-            AppTrendingEpisodeCard(
-                reason=card.reason,  # type: ignore[arg-type]
-                quote=card.quote,
-                speaker=card.speaker,
-                start_ms=card.start_ms,
-                topic_id=card.topic_id,
-                topic_label=card.topic_label,
-                events=card.events,
+        m = c.moment
+        out.append(
+            AppReelClip(
                 episode=row_to_summary(root, row),
+                insight_id=m.insight_id,
+                text=m.text,
+                quote_text=m.quote_text,
+                speaker=m.speaker,
+                start_ms=m.start_ms,
+                end_ms=m.end_ms,
             )
         )
-    return AppTrendingEpisodesResponse(scope=eff_scope, items=items)
+    return AppTopicReelResponse(
+        subject_id=subject,
+        subject_kind=about.kind,
+        subject_label=about.label or _topic_label(root, subject, [c.episode.slug for c in out]),
+        minutes=minutes,
+        total_seconds=round(sum(c.end_ms - c.start_ms for c in out) / 1000.0, 1),
+        clips=out,
+    )
+
+
+#: Chips on Discover's "15 minutes on…" row, and how many candidates of each kind are tried.
+#:
+#: Tried, not taken: the row walks down each rising list until it has ``REEL_TOPICS`` subjects
+#: WITH a reel, up to this many. It took the first 8 and gave up, so a list led by topics too new
+#: to have two clips offered nothing of that kind — on the natural test corpus (2026-10-12) the
+#: rising topics and themes were all one-episode newcomers and the row showed storylines only,
+#: while subjects with full reels sat a few places further down. The cap bounds a cold cache.
+REEL_TOPICS = 4
+REEL_TOPIC_CANDIDATES = 48
+#: A reel of one clip is not "minutes on" anything.
+REEL_MIN_CLIPS = 2
+
+
+@router.get("/discover/reel-topics", response_model=AppReelTopicsResponse)
+def app_discover_reel_topics(
+    request: Request,
+    scope: str = Query(default="corpus", description="corpus | mine"),
+    user: User = Depends(get_current_user),
+) -> AppReelTopicsResponse:
+    """What Discover offers "15 minutes on": topics, themes and storylines taking turns. Under
+    Mine the listener's own (their top topics, umbrellas skipped; the themes and storylines of their
+    world by momentum), under Everyone the rising ones. Each is kept only if its reel has at least
+    ``REEL_MIN_CLIPS`` clips, so a chip never opens an empty reel."""
+    from podcast_scraper.server.app_rail_turns import take_turns
+
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    data_dir = Path(raw_dir) if raw_dir is not None else None
+    eff = "mine" if scope == "mine" and data_dir is not None else "corpus"
+    mine_entities = (
+        personal_entity_ids(root, data_dir, user.user_id)
+        if eff == "mine" and data_dir is not None
+        else None
+    )
+
+    def rising(kind: str) -> list[tuple[str, str]]:
+        if eff == "corpus":
+            found = corpus_trending(root, data_dir, kind, None, _momentum_config(request))
+        else:
+            found = trending(
+                root,
+                data_dir,
+                kind=kind,
+                scope=eff,
+                user_id=user.user_id,
+                limit=REEL_TOPIC_CANDIDATES,
+                config=_momentum_config(request),
+                restrict_to=mine_entities,
+            )
+        return [(t.entity_id, t.label) for t in found[:REEL_TOPIC_CANDIDATES]]
+
+    if eff == "mine" and data_dir is not None:
+        topics = engaged_topics(root, data_dir, user.user_id)[:REEL_TOPIC_CANDIDATES]
+    else:
+        topics = rising("topic")
+    kinds: dict[ReelKind, list[tuple[str, str]]] = {
+        "topic": topics,
+        "theme": rising("theme"),
+        "storyline": rising("storyline"),
+    }
+    # What the listener asked to see less of is not offered either (ADR-163 §6), in either scope:
+    # the row sits on the same page as the rails that already leave it out.
+    hidden = (
+        app_user_state.suggest_less_tokens(data_dir, user.user_id)
+        if data_dir is not None
+        else set()
+    )
+    config = getattr(request.app.state, "moments_config", None)
+
+    def with_reels(kind: ReelKind, cands: list[tuple[str, str]]) -> list[tuple[str, AppReelTopic]]:
+        """``(the reel's clips as a key, the chip)`` for each candidate with a real reel."""
+        kept: list[tuple[str, AppReelTopic]] = []
+        for sid, label in cands:
+            if len(kept) >= REEL_TOPICS:
+                break
+            if sid in hidden:
+                continue
+            clips = reel_selection(root, sid, minutes=15, config=config)
+            if len(clips) >= REEL_MIN_CLIPS:
+                seconds = sum(c.end_ms - c.start_ms for _ep, c in clips) / 1000.0
+                same = "|".join(sorted(f"{ep.slug}@{c.start_ms}" for ep, c in clips))
+                kept.append(
+                    (
+                        same,
+                        AppReelTopic(
+                            subject_id=sid,
+                            subject_kind=kind,
+                            subject_label=label,
+                            clips=len(clips),
+                            total_seconds=round(seconds, 1),
+                        ),
+                    )
+                )
+        return kept
+
+    # Keyed on the clips: a theme whose reel is its one topic's reel is the same offer, once.
+    items = [
+        chip
+        for _same, chip in take_turns(
+            [with_reels(k, c) for k, c in kinds.items()], limit=REEL_TOPICS, key=lambda i: i[0]
+        )
+    ]
+    return AppReelTopicsResponse(scope=eff, items=items)
+
+
+#: Subjects Discover offers a path through, and how many candidates of each kind are tried —
+#: walked until ``LEARN_SUBJECTS`` with a path are found, as for the reel row above (2026-10-12).
+LEARN_SUBJECTS = 3
+LEARN_CANDIDATES = 48
+
+
+def _gone_steps(root: Path, path: dict[str, Any]) -> frozenset[int]:
+    """Step indexes whose episode has left the corpus: never shown, never doable."""
+    return frozenset(
+        i
+        for i, st in enumerate(path.get("steps") or [])
+        if resolve_slug(root, str(st.get("episode_slug") or "")) is None
+    )
+
+
+def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
+    from podcast_scraper.server.app_learning_path import can_open_next, next_opens_at, open_days
+
+    opened = open_days(path)
+    done = {int(i) for i in path.get("done") or []}
+    gone = _gone_steps(root, path)
+    steps: list[AppPathStep] = []
+    for i, st in enumerate(path.get("steps") or []):
+        row = resolve_slug(root, str(st.get("episode_slug") or "")) if i not in gone else None
+        if row is None:
+            continue  # the episode left the corpus; the other days stand, each keeping its day
+        steps.append(
+            AppPathStep(
+                day=i + 1,
+                episode=row_to_summary(root, row),
+                insight_id=str(st.get("insight_id") or ""),
+                text=str(st.get("text") or ""),
+                quote_text=str(st.get("quote_text") or ""),
+                speaker=st.get("speaker"),
+                start_ms=int(st.get("start_ms") or 0),
+                end_ms=int(st.get("end_ms") or 0),
+                unlocked=i < opened,
+                done=i in done,
+            )
+        )
+    return AppLearningPath(
+        subject_id=str(path["subject_id"]),
+        subject_kind=path.get("subject_kind") or "topic",
+        subject_label=str(path.get("subject_label") or path["subject_id"]),
+        started_at=int(path.get("started_at") or 0),
+        day=max(1, opened),
+        can_open_next=can_open_next(path, gone=gone),
+        next_opens_at=next_opens_at(path),
+        steps=steps,
+    )
+
+
+@router.get("/discover/learn", response_model=AppLearnResponse)
+def app_discover_learn(
+    request: Request,
+    scope: str = Query(default="corpus", description="corpus | mine: whose subjects to offer."),
+    user: User = Depends(get_current_user),
+) -> AppLearnResponse:
+    """Learn X this week (operator 2026-10-11): the listener's paths (up to ``MAX_PATHS``), and —
+    below the cap — the themes and storylines they could start one on (under Mine those of their
+    world, under Everyone the rising ones), each only with enough good episodes for a path and
+    none they are already learning."""
+    from podcast_scraper.server.app_learning_path import MAX_PATHS, path_plan
+
+    root = corpus_root_or_503(request)
+    data_dir = _data_dir(request)
+    mine_paths = app_user_state.get_learning_paths(data_dir, user.user_id)
+    paths = [_path_out(root, p) for p in mine_paths]
+    if len(mine_paths) >= MAX_PATHS:
+        return AppLearnResponse(paths=paths, max_paths=MAX_PATHS)
+    learning = {str(p.get("subject_id")) for p in mine_paths}
+    mine = scope == "mine"
+    restrict = personal_entity_ids(root, data_dir, user.user_id) if mine else None
+    # "Less like this" is the listener's, in either scope (operator 2026-10-11).
+    hidden = app_user_state.suggest_less_tokens(data_dir, user.user_id)
+    config = getattr(request.app.state, "moments_config", None)
+
+    def offered(kind: ReelKind) -> list[AppLearnSubject]:
+        if mine:
+            found = trending(
+                root,
+                data_dir,
+                kind=kind,
+                scope="mine",
+                user_id=user.user_id,
+                limit=LEARN_CANDIDATES,
+                config=_momentum_config(request),
+                restrict_to=restrict,
+            )
+        else:
+            found = corpus_trending(root, data_dir, kind, None, _momentum_config(request))
+        found = found[:LEARN_CANDIDATES]
+        out: list[AppLearnSubject] = []
+        for t in found:
+            if len(out) >= LEARN_SUBJECTS:
+                break
+            if t.entity_id in hidden or t.entity_id in learning:
+                continue
+            steps = path_plan(root, t.entity_id, config)
+            if steps:
+                out.append(
+                    AppLearnSubject(
+                        subject_id=t.entity_id,
+                        subject_kind=kind,
+                        subject_label=t.label,
+                        steps=len(steps),
+                    )
+                )
+        return out
+
+    from podcast_scraper.server.app_rail_turns import take_turns
+
+    picks = take_turns(
+        [offered("theme"), offered("storyline")],
+        limit=LEARN_SUBJECTS,
+        key=lambda s: s.subject_id,
+    )
+    return AppLearnResponse(paths=paths, candidates=picks, max_paths=MAX_PATHS)
+
+
+@router.get("/discover/learn/subjects/{subject_id}", response_model=AppLearnSubject)
+def app_learn_subject(
+    request: Request,
+    subject_id: str = PathParam(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):"),
+    _user: User = Depends(get_current_user),
+) -> AppLearnSubject:
+    """Whether a topic, theme or storyline can be learned in a week, and in how many days — what a
+    topic card or theme / storyline page asks before offering "Learn this in a week" (404: too few
+    good episodes for a path)."""
+    from podcast_scraper.server.app_learning_path import path_plan, subject_label
+
+    root = corpus_root_or_503(request)
+    steps = path_plan(root, subject_id, getattr(request.app.state, "moments_config", None))
+    if not steps:
+        raise HTTPException(status_code=404, detail="Too few episodes on this for a path.")
+    kind, label = subject_label(root, subject_id)
+    return AppLearnSubject(
+        subject_id=subject_id, subject_kind=kind, subject_label=label, steps=len(steps)
+    )
+
+
+@router.post("/discover/learn", response_model=AppLearningPath)
+def app_start_learning_path(
+    request: Request,
+    body: AppLearnStart,
+    user: User = Depends(get_current_user),
+) -> AppLearningPath:
+    """Start a path through the subject (one already being learned is returned unchanged). 409 at
+    ``MAX_PATHS`` unless ``replace`` names one to stop; 422 with too few good episodes."""
+    from podcast_scraper.server.app_learning_path import start_path
+
+    root = corpus_root_or_503(request)
+    status, path = start_path(
+        root,
+        _data_dir(request),
+        user.user_id,
+        body.subject_id,
+        config=getattr(request.app.state, "moments_config", None),
+        replace=body.replace,
+    )
+    if status == "at_cap":
+        raise HTTPException(status_code=409, detail="at_cap")
+    if path is None:
+        raise HTTPException(status_code=422, detail="Too few episodes on this for a path.")
+    return _path_out(root, path)
+
+
+_SUBJECT = PathParam(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
+
+
+def _own_path(request: Request, user: User, subject_id: str) -> dict[str, Any]:
+    path = app_user_state.get_learning_path(_data_dir(request), user.user_id, subject_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="No path on this.")
+    return path
+
+
+@router.get("/discover/learn/paths/{subject_id}", response_model=AppLearningPath)
+def app_learning_path(
+    request: Request, subject_id: str = _SUBJECT, user: User = Depends(get_current_user)
+) -> AppLearningPath:
+    """One of the listener's paths (404: not learning it)."""
+    return _path_out(corpus_root_or_503(request), _own_path(request, user, subject_id))
+
+
+@router.post(
+    "/discover/learn/paths/{subject_id}/steps/{index}/done", response_model=AppLearningPath
+)
+def app_learning_step_done(
+    request: Request,
+    index: int,
+    subject_id: str = _SUBJECT,
+    user: User = Depends(get_current_user),
+) -> AppLearningPath:
+    """Mark a step done. A step opens on its day (or when opened early): one not yet open cannot be
+    done (409)."""
+    from podcast_scraper.server.app_learning_path import unlocked
+
+    root = corpus_root_or_503(request)
+    path = _own_path(request, user, subject_id)
+    if not 0 <= index < len(path.get("steps") or []):
+        raise HTTPException(status_code=404, detail="No such day on this path.")
+    if not unlocked(path, index):
+        raise HTTPException(status_code=409, detail="That day has not come yet.")
+    updated = app_user_state.mark_learning_step_done(
+        _data_dir(request), user.user_id, subject_id, index
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="No path on this.")
+    return _path_out(root, updated)
+
+
+@router.post("/discover/learn/paths/{subject_id}/next", response_model=AppLearningPath)
+def app_open_next_learning_day(
+    request: Request, subject_id: str = _SUBJECT, user: User = Depends(get_current_user)
+) -> AppLearningPath:
+    """Open the next day now (operator 2026-10-11: a day a day is the rhythm, not a wall). Only
+    once the newest open day is done (409 before; 404 without that path)."""
+    root = corpus_root_or_503(request)
+    gone = _gone_steps(root, _own_path(request, user, subject_id))
+    updated = app_user_state.open_next_learning_day(
+        _data_dir(request), user.user_id, subject_id, gone
+    )
+    if updated is None:
+        raise HTTPException(status_code=409, detail="Finish the open day first.")
+    return _path_out(root, updated)
+
+
+@router.delete("/discover/learn/paths/{subject_id}", status_code=204)
+def app_stop_learning_path(
+    request: Request, subject_id: str = _SUBJECT, user: User = Depends(get_current_user)
+) -> None:
+    """Stop one path (404: not learning it)."""
+    if not app_user_state.remove_learning_path(_data_dir(request), user.user_id, subject_id):
+        raise HTTPException(status_code=404, detail="No path on this.")
+
+
+def _reel_progress_out(
+    root: Path,
+    progress: dict[str, Any],
+    config: Any = None,
+    *,
+    data_dir: Path | None = None,
+    user_id: str | None = None,
+) -> AppReelProgress | None:
+    """The saved place, with the clip it resumes at (the reel is cached per corpus version, so
+    this costs nothing once it was played). A board's short listen is rebuilt from the board
+    (RFC-119 amendment 2026-10-12); None when that board is gone, so there is nothing to resume."""
+    from podcast_scraper.server import app_board_view
+    from podcast_scraper.server.app_learning_path import subject_label
+
+    subject_id = str(progress["subject_id"])
+    index = int(progress.get("index") or 0)
+    minutes = int(progress.get("minutes") or 15)
+    kind: Literal["topic", "theme", "storyline", "board"]
+    if subject_id.startswith(app_board_view.BOARD_SUBJECT_PREFIX):
+        board = (
+            app_board_view.load_board(
+                data_dir, user_id, subject_id[len(app_board_view.BOARD_SUBJECT_PREFIX) :]
+            )
+            if data_dir is not None and user_id is not None
+            else None
+        )
+        if board is None:
+            return None
+        kind, label = "board", str(board.meta.get("name") or "")
+        clips = app_board_view.board_reel(root, board, minutes=minutes, config=config)
+    else:
+        kind, label = subject_label(root, subject_id)
+        clips = goal_reel(root, subject_id, minutes=minutes, config=config)
+    at = clips[min(index, len(clips) - 1)] if clips else None
+    row = resolve_slug(root, at.episode_slug) if at else None
+    return AppReelProgress(
+        subject_id=subject_id,
+        subject_kind=kind,
+        subject_label=label,
+        index=index,
+        clips=int(progress.get("clips") or 1),
+        minutes=minutes,
+        updated_at=int(progress.get("updated_at") or 0),
+        episode=row_to_summary(root, row) if row is not None else None,
+        speaker=at.moment.speaker if at else None,
+        quote_text=(at.moment.quote_text or at.moment.text) if at else "",
+    )
+
+
+@router.put("/discover/reel/progress", response_model=AppReelProgress)
+def app_put_reel_progress(
+    request: Request, body: AppReelProgressIn, user: User = Depends(get_current_user)
+) -> AppReelProgress:
+    """Remember where a short listen is, so Home can resume it (operator 2026-10-11: the last one
+    left unfinished). A newer short listen replaces it."""
+    import time
+
+    root = corpus_root_or_503(request)
+    progress = {
+        "subject_id": body.subject_id,
+        "index": min(body.index, body.clips - 1),
+        "clips": body.clips,
+        "minutes": body.minutes,
+        "updated_at": int(time.time()),
+    }
+    data_dir = _data_dir(request)
+    out = _reel_progress_out(
+        root,
+        progress,
+        getattr(request.app.state, "moments_config", None),
+        data_dir=data_dir,
+        user_id=user.user_id,
+    )
+    if out is None:
+        raise HTTPException(status_code=404, detail="No such board.")
+    app_user_state.set_reel_progress(data_dir, user.user_id, progress)
+    return out
+
+
+@router.delete("/discover/reel/progress", status_code=204)
+def app_delete_reel_progress(
+    request: Request,
+    subject: str = Query(
+        min_length=4, max_length=200, pattern=r"^((topic|tc|thc):|board:col_[a-z0-9]{1,32}$)"
+    ),
+    user: User = Depends(get_current_user),
+) -> None:
+    """That short listen was finished or closed: nothing of it to resume. Only clears the saved
+    one if it is ``subject``'s — another, kept since (another device), stays."""
+    app_user_state.clear_reel_progress(_data_dir(request), user.user_id, subject)
+
+
+@router.get("/discover/in-progress", response_model=AppInProgress)
+def app_in_progress(request: Request, user: User = Depends(get_current_user)) -> AppInProgress:
+    """What the listener started and has not finished (operator 2026-10-11, Home's "In progress"):
+    their Learn paths, and the last short listen left unfinished."""
+    root = corpus_root_or_503(request)
+    data_dir = _data_dir(request)
+    reel = app_user_state.get_reel_progress(data_dir, user.user_id)
+    return AppInProgress(
+        paths=[
+            _path_out(root, p) for p in app_user_state.get_learning_paths(data_dir, user.user_id)
+        ],
+        reel=(
+            _reel_progress_out(
+                root,
+                reel,
+                getattr(request.app.state, "moments_config", None),
+                data_dir=data_dir,
+                user_id=user.user_id,
+            )
+            if reel
+            else None
+        ),
+    )
+
+
+def _data_dir(request: Request) -> Path:
+    # get_current_user has already guaranteed app_data_dir is configured.
+    return Path(request.app.state.app_data_dir)
+
+
+def _valid_less_token(token: str) -> str:
+    token = token.strip()
+    if len(token) > 200 or not token.startswith(app_user_state.SUGGEST_LESS_PREFIXES):
+        raise HTTPException(status_code=422, detail="Not a topic, person, storyline or theme.")
+    return token
+
+
+@router.get("/discover/suggest-less", response_model=AppSuggestLessResponse)
+def app_get_suggest_less(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppSuggestLessResponse:
+    """What the listener asked Discover to suggest less of (ADR-163 §6), for Profile to list."""
+    rows = app_user_state.get_suggest_less(_data_dir(request), user.user_id)
+    return AppSuggestLessResponse(items=[AppSuggestLessItem(**r) for r in rows])
+
+
+@router.post("/discover/suggest-less/{token}", response_model=AppSuggestLessResponse)
+def app_add_suggest_less(
+    request: Request,
+    token: str,
+    body: AppSuggestLessBody,
+    user: User = Depends(get_current_user),
+) -> AppSuggestLessResponse:
+    """ "Suggest less" on a card: hide the subject its reason names from every rail. Idempotent."""
+    rows = app_user_state.add_suggest_less(
+        _data_dir(request), user.user_id, _valid_less_token(token), body.label, int(time.time())
+    )
+    return AppSuggestLessResponse(items=[AppSuggestLessItem(**r) for r in rows])
+
+
+@router.delete("/discover/suggest-less/{token}", response_model=AppSuggestLessResponse)
+def app_remove_suggest_less(
+    request: Request, token: str, user: User = Depends(get_current_user)
+) -> AppSuggestLessResponse:
+    """Undo a "suggest less" (Profile › Interests, or the card's Undo). No-op if absent."""
+    rows = app_user_state.remove_suggest_less(_data_dir(request), user.user_id, token)
+    return AppSuggestLessResponse(items=[AppSuggestLessItem(**r) for r in rows])
 
 
 @router.get("/discover", response_model=AppEpisodesResponse)
@@ -336,18 +997,6 @@ def discover(
     items = rank_discover(
         root, interests, pool, limit=limit, config=config, derived_interests=derived
     )
-
-    # #11 telemetry: log what the feed showed (slugs in rank order) + the effective variant, so
-    # clicks can later be compared against the configured rank. Signed-in only; best-effort.
-    if user is not None and data_dir is not None:
-        variant = "personalized" if (personalized and interests) else "recency"
-        app_ranking_telemetry.record_impressions(
-            data_dir,
-            user.user_id,
-            shown=[it.slug for it in items],
-            variant=variant,
-            ts=int(time.time()),
-        )
     return AppEpisodesResponse(
         items=items, page=1, page_size=limit, total=len(items), has_more=False
     )
@@ -459,39 +1108,3 @@ def put_ranking_config(
         {"action": "ranking_config_set", "by": admin.user_id, "before": before, "after": after},
     )
     return after
-
-
-@router.post("/discover/click", status_code=204)
-def discover_click(
-    request: Request,
-    body: AppDiscoverClickBody,
-    user: User = Depends(get_current_user),
-) -> Response:
-    """Record a click on a discovery-feed episode for ranking telemetry (#11).
-
-    No-op (still 204) when signed out or without a data dir, so the client can fire-and-forget.
-    """
-    data_dir = getattr(request.app.state, "app_data_dir", None)
-    if user is not None and data_dir is not None:
-        # The variant of the feed that PRODUCED this click, read back off the impression log
-        # rather than recomputed. Recomputing used only the personalized_ranking flag, while the
-        # impression side also required the user to actually have interests — so a flag-on user
-        # with no interests logged `recency` impressions and `personalized` clicks, corrupting any
-        # CTR-by-variant comparison before an experiment could start. The impression variant also
-        # depends on DERIVED interests, which cost real KG loads to recompute; this beacon must
-        # stay cheap. Falling back to the flag keeps a click loggable when no impression precedes
-        # it (deep link, cleared log).
-        variant = app_ranking_telemetry.last_impression_variant(Path(data_dir), user.user_id) or (
-            "personalized"
-            if bool(getattr(request.app.state, "personalized_ranking", False))
-            else "recency"
-        )
-        app_ranking_telemetry.record_click(
-            Path(data_dir),
-            user.user_id,
-            slug=body.slug,
-            position=body.position,
-            variant=variant,
-            ts=int(time.time()),
-        )
-    return Response(status_code=204)

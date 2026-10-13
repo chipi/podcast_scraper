@@ -43,6 +43,7 @@ import CollectionsTeaser from "../components/CollectionsTeaser.vue"
 import RevisitRail from "../components/RevisitRail.vue"
 import SectionHeading from "../components/SectionHeading.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
+import InProgressStrip from "../components/InProgressStrip.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import CardRail from "../components/CardRail.vue"
 import SectionStatus from "../components/SectionStatus.vue"
@@ -244,12 +245,8 @@ const rank = (i: number): string => String(i + 2).padStart(2, "0")
 // "Browse all" opens the WHOLE list What's new is the top of (operator 2026-10-10: 20 shows with 20
 // new episodes showed 5): your shows, unplayed, when it is yours; every episode when it fell back.
 const whatsNewAllTo = computed(() => ({
-  name: "browse",
-  query:
-    whatsNew.data.value.scope === "yours"
-      ? { tab: "episodes", from: "following", state: "unplayed" }
-      : { tab: "episodes" },
-  hash: "#catalog",
+  name: "catalog",
+  query: whatsNew.data.value.scope === "yours" ? { from: "following", state: "unplayed" } : {},
 }))
 const whatsNewKicker = computed(() => {
   const scope =
@@ -400,6 +397,9 @@ async function loadContinue(): Promise<void> {
          and silently blank the resume hero, so a user mid-episode lost their place (#1591, S7); it
          now shows the error skeleton below instead. (The old "discover hero" fallback in this slot
          was removed when search moved down — H.3; the top is resume-or-error now.) -->
+    <!-- The door into what was started (operator 2026-10-11): Learn paths and the last unfinished
+         short listen, above Continue listening. -->
+    <InProgressStrip v-if="auth.isAuthenticated" />
     <SectionStatus
       v-if="auth.isAuthenticated && !continueSection.isReady.value"
       :phase="continueSection.phase.value"
@@ -425,8 +425,14 @@ async function loadContinue(): Promise<void> {
       />
       <div class="relative p-5">
         <span class="lp-kicker text-grounded">{{ t("home.continue") }}</span>
+        <!-- The whole card opens the episode, PAUSED, like every episode card (operator 2026-10-11):
+             the title's link stretches over it; Resume sits above and is the one control that plays. -->
         <h1 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
-          {{ resumeTop.detail.title }}
+          <RouterLink
+            :to="{ name: 'player', params: { slug: resumeTop.detail.slug } }"
+            class="text-canvas-foreground no-underline after:absolute after:inset-0"
+            data-testid="home-resume-open"
+          >{{ resumeTop.detail.title }}</RouterLink>
         </h1>
         <p class="lp-show-name mt-1 text-sm text-muted" :title="resumeTop.detail.podcast_title ?? undefined">{{ resumeTop.detail.podcast_title }}</p>
         <div class="mt-3 h-1 rounded bg-overlay">
@@ -449,7 +455,7 @@ async function loadContinue(): Promise<void> {
              more reach than a control that only exists while something is in progress — the exact
              gap it was added for in the first place (2026-09-19). Two ways in, one of them
              conditional, is one too many. -->
-        <div class="mt-3 flex items-center gap-2">
+        <div class="relative z-30 mt-3 flex items-center gap-2">
           <RouterLink
             :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
             data-testid="home-resume"
@@ -556,7 +562,8 @@ async function loadContinue(): Promise<void> {
     </section>
 
     <!-- Discover entry points: a small title line over one row of four chips, each deep-linking
-         into Browse's Trends section on its kind (`?trends=<kind>` selects and scrolls to it).
+         into Explore's Trends on its kind (`?trends=<kind>` selects and scrolls to it; Trends moved
+         off Discover to Explore, ADR-163 §1).
 
          Operator 2026-10-08: the inline "Discover" lead-in pushed the fourth chip onto a second
          row, and plain grey chips said nothing about the kind. The lead-in is now a title above, so
@@ -569,7 +576,7 @@ async function loadContinue(): Promise<void> {
         <RouterLink
           v-for="chip in DISCOVER_CHIPS"
           :key="chip.kind"
-          :to="{ name: 'browse', query: { trends: chip.kind } }"
+          :to="{ name: 'explore', query: { trends: chip.kind } }"
           :data-testid="chip.testid"
           class="shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-semibold no-underline transition hover:brightness-125"
           :class="kindPill(chip.kind)"
@@ -628,7 +635,7 @@ async function loadContinue(): Promise<void> {
           <!-- Shared EpisodeActions row (favourite/queue/download/collect) in the artwork's upper-right;
            sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
            four icons fit without wrapping. -->
-          <EpisodeActions :slug="wnFeatured.slug" :moments="!!wnFeatured.has_moments" overlay class="absolute right-3 top-3 z-30" />
+          <EpisodeActions :slug="wnFeatured.slug" :episode-title="wnFeatured.title" :moments="!!wnFeatured.has_moments" overlay class="absolute right-3 top-3 z-30" />
           <!-- Tapping the card OPENS the episode, paused, like every episode card. Only Resume starts
                playback (operator 2026-10-05). -->
           <RouterLink
@@ -704,7 +711,7 @@ async function loadContinue(): Promise<void> {
                  Resume plays). Outside the link — never an interactive inside an interactive. A
                  vertical stack costs height, not width, so the title keeps the row's width; side by
                  side, a cluster like this once crushed it to one word per line. -->
-            <EpisodeActions :slug="ep.slug" :moments="!!ep.has_moments" hide-favorite class="shrink-0 flex-col" />
+            <EpisodeActions :slug="ep.slug" :episode-title="ep.title" :moments="!!ep.has_moments" hide-favorite class="shrink-0 flex-col" />
           </li>
         </ul>
       </template>

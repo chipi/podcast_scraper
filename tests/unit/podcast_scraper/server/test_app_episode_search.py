@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from podcast_scraper.server.app_episode_search import exact_passages, time_transcript_hits
+from podcast_scraper.server.app_episode_search import (
+    exact_passages,
+    time_transcript_hits,
+    word_matches,
+)
 
 SEGS = [
     (0, 4_000, "Welcome back to the show."),
@@ -122,3 +126,17 @@ def test_other_results_and_exact_passages_are_left_alone():
     time_transcript_hits([insight, exact], SEGS)
     assert insight.metadata["timestamp_start_ms"] == 12_345
     assert exact.metadata["timestamp_start_ms"] == 9_000
+
+
+def test_word_search_keeps_results_with_every_word_in_some_form():
+    """Words, not meaning (operator 2026-10-12)."""
+    kept = _hit("Top-down interventions rarely hold, and the policy failed.", doc_type="insight")
+    one_word = _hit("Interventions are hard.", doc_type="insight")
+    meaning = _hit("Welcome back, today we talk about systems thinking.")
+    out = word_matches([meaning, kept, one_word], "the interventions policies")
+    assert out == [kept]
+    assert kept.metadata["marks"] == ["interventions", "policy"]
+
+
+def test_word_search_with_no_words_finds_nothing():
+    assert word_matches([_hit("anything")], "  ") == []

@@ -21,21 +21,6 @@
       "type": "MENTIONS"
     },
     {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:personal-finance",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:lifelong-learning",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ep-bccfce5798a83a6e",
-      "to": "topic:expert-interviews",
-      "type": "MENTIONS"
-    },
-    {
       "source": "episode:ep-bccfce5798a83a6e",
       "target": "topic:behavioral-risk-management",
       "type": "MENTIONS"
@@ -141,30 +126,6 @@
       "properties": {
         "label": "frame",
         "slug": "frame"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:personal-finance",
-      "properties": {
-        "label": "personal finance",
-        "slug": "personal-finance"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:lifelong-learning",
-      "properties": {
-        "label": "lifelong learning",
-        "slug": "lifelong-learning"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:expert-interviews",
-      "properties": {
-        "label": "expert interviews",
-        "slug": "expert-interviews"
       },
       "type": "Topic"
     },

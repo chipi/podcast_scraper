@@ -4,24 +4,24 @@
   "data": {
     "counts": {
       "negative": 1,
-      "neutral": 1,
-      "positive": 1
+      "neutral": 0,
+      "positive": 2
     },
     "episode_id": "ep-64ef09a7ee543045",
     "insights": [
       {
-        "compound": 0.0,
-        "insight_id": "insight:12fcd1b7633f8e06",
-        "label": "neutral"
+        "compound": 0.0828,
+        "insight_id": "insight:52b96ce237a68ec2",
+        "label": "positive"
       },
       {
-        "compound": -0.264,
-        "insight_id": "insight:cca71f9f55c49b78",
+        "compound": -0.2212,
+        "insight_id": "insight:9432ab8e8bcff3a7",
         "label": "negative"
       },
       {
-        "compound": 0.1154,
-        "insight_id": "insight:bcd5c55df58f8228",
+        "compound": 0.128,
+        "insight_id": "insight:95e0327e57d72641",
         "label": "positive"
       }
     ],

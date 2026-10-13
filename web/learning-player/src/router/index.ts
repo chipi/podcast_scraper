@@ -183,13 +183,55 @@ const routes: RouteRecordRaw[] = [
     path: '/browse',
     name: 'browse',
     component: () => import('../views/BrowseView.vue'),
+    // Trends and the Episodes · Shows catalog moved to Explore (ADR-163 §1, 2026-10-11). Old links
+    // into them — `?trends=`, `?tab=`, `#catalog` — keep working by landing there.
+    beforeEnter: (to) =>
+      to.query.trends || to.query.tab || to.hash === '#catalog' || to.hash === '#trends'
+        ? { name: 'explore', query: to.query, hash: to.hash }
+        : true,
   },
   {
-    // Discover 2 — a PREVIEW of the reworked Discover, side by side with the current one so the
-    // operator can compare them (2026-10-10). Built from existing APIs; not the final design.
-    path: '/discover2',
-    name: 'discover2',
-    component: () => import('../views/DiscoverV2View.vue'),
+    path: '/explore',
+    name: 'explore',
+    component: () => import('../views/ExploreView.vue'),
+    // Explore embeds the full Episodes and Shows lists; a link that carries a list's filters opens
+    // that list on its own page, already filtered.
+    beforeEnter: (to) => {
+      const q = to.query
+      if (q.tab === 'shows' && (q.sort || q.view)) return { name: 'shows', query: q }
+      if ((q.tab === 'episodes' || !q.tab) && (q.from || q.state)) return { name: 'catalog', query: q }
+      return true
+    },
+  },
+  {
+    // The full show list on its own page: trending shows' "See all" on Discover.
+    path: '/shows',
+    name: 'shows',
+    component: () => import('../views/ShowBrowseView.vue'),
+    props: (route) => ({
+      initialSort: route.query.sort === 'trending' ? 'trending' : undefined,
+      initialView: route.query.view === 'list' ? 'list' : undefined,
+    }),
+  },
+  {
+    // Learn X this week: one path's whole week (`?subject=`), or with none named every path the
+    // listener is on (operator 2026-10-11: up to three at once).
+    path: '/learn',
+    name: 'learn',
+    component: () => import('../views/LearnPathView.vue'),
+    props: (route) => ({ subject: typeof route.query.subject === 'string' ? route.query.subject : undefined }),
+  },
+  {
+    // N minutes on a topic: clips across episodes (ADR-163 §8 amendment). `:id` is the topic id.
+    path: '/listen/topic/:id',
+    name: 'topic-reel',
+    component: () => import('../views/TopicReelView.vue'),
+    props: (route) => ({
+      id: String(route.params.id),
+      minutes: Number(route.query.minutes) > 0 ? Number(route.query.minutes) : undefined,
+      // Resume a short listen at this clip (1-based; Home's "In progress").
+      at: Number(route.query.at) > 0 ? Number(route.query.at) : undefined,
+    }),
   },
   {
     // #2273. PUBLIC on purpose: Google Play's listing needs a web address that explains deletion
@@ -228,7 +270,7 @@ const routes: RouteRecordRaw[] = [
    * tab lit) and tests — so they were reachable by URL alone. Redirecting keeps those URLs working
    * while making the hub the only Browse there is.
    */
-  { path: '/browse/shows', name: 'browse-shows', redirect: { name: 'browse', query: { tab: 'shows' } } },
+  { path: '/browse/shows', name: 'browse-shows', redirect: { name: 'shows' } },
   { path: '/browse/topics', name: 'browse-topics', redirect: { name: 'browse', query: { tab: 'topics' } } },
   { path: '/browse/people', name: 'browse-people', redirect: { name: 'browse', query: { tab: 'people' } } },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
@@ -422,5 +464,5 @@ router.afterEach((to, from) => {
   // Remember where this navigation came FROM, for events that cannot be emitted until later —
   // `episode_open` needs the episode's feed to know whether the show is followed, and by then the
   // previous route is gone. See services/provenance.ts.
-  noteNavigation(from)
+  noteNavigation(from, sameScreen)
 })

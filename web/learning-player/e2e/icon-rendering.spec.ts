@@ -55,7 +55,7 @@ test('a sheet dismiss control renders a drawn ✕', async ({ page }, testInfo) =
 
   // Open an entity card from the show's signals band; its dismiss is the control that was showing
   // "?" on device for every sheet in the app.
-  const chip = page.getByTestId('ps-distinctive-topic').first()
+  const chip = page.locator('[data-testid="ps-topic"][data-distinctive]').first()
   await expect(chip).toBeVisible()
   await chip.click()
 
