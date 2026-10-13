@@ -634,6 +634,11 @@
             "topic_label": "tire pressure selection"
           },
           {
+            "similarity": 0.892857,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
+          },
+          {
             "similarity": 0.883333,
             "topic_id": "topic:erosion-patterns",
             "topic_label": "erosion patterns"
@@ -644,14 +649,9 @@
             "topic_label": "compliance automation"
           },
           {
-            "similarity": 0.683333,
-            "topic_id": "topic:equipment-performance",
-            "topic_label": "equipment performance"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:setup-compromises",
-            "topic_label": "setup compromises"
+            "similarity": 0.721429,
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion"
           }
         ],
         "topic_id": "topic:braking-technique",
@@ -919,11 +919,6 @@
           },
           {
             "similarity": 0.75,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.75,
             "topic_id": "topic:frame-geometry",
             "topic_label": "frame geometry"
           },
@@ -931,6 +926,11 @@
             "similarity": 0.75,
             "topic_id": "topic:linear-systems",
             "topic_label": "linear systems"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:maintenance-flow",
+            "topic_label": "maintenance flow"
           }
         ],
         "topic_id": "topic:chain-wear",
@@ -950,18 +950,18 @@
           },
           {
             "similarity": 0.75,
+            "topic_id": "topic:drivetrain-mechanics",
+            "topic_label": "drivetrain mechanics"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance"
+          },
+          {
+            "similarity": 0.75,
             "topic_id": "topic:maintenance-intervals",
             "topic_label": "maintenance intervals"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:bike-silence",
-            "topic_label": "bike silence"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:component-reliability",
-            "topic_label": "component reliability"
           }
         ],
         "topic_id": "topic:chain-wear-indicator",
@@ -1166,6 +1166,11 @@
             "topic_label": "tire pressure selection"
           },
           {
+            "similarity": 0.721429,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
+          },
+          {
             "similarity": 0.683333,
             "topic_id": "topic:equipment-brand-impact",
             "topic_label": "equipment brand impact"
@@ -1174,11 +1179,6 @@
             "similarity": 0.683333,
             "topic_id": "topic:equipment-ecosystem",
             "topic_label": "equipment ecosystem"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:erosion-patterns",
-            "topic_label": "erosion patterns"
           }
         ],
         "topic_id": "topic:compliance-automation",
@@ -1281,16 +1281,6 @@
         "top_k": [
           {
             "similarity": 0.95,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.95,
-            "topic_id": "topic:maintenance",
-            "topic_label": "maintenance"
-          },
-          {
-            "similarity": 0.95,
             "topic_id": "topic:maintenance-flow",
             "topic_label": "maintenance flow"
           },
@@ -1303,6 +1293,16 @@
             "similarity": 0.95,
             "topic_id": "topic:service-intervals",
             "topic_label": "service intervals"
+          },
+          {
+            "similarity": 0.95,
+            "topic_id": "topic:suspension-service",
+            "topic_label": "suspension service"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:chain-wear",
+            "topic_label": "chain wear"
           }
         ],
         "topic_id": "topic:component-wear",
@@ -2850,9 +2850,9 @@
             "topic_label": "machine vs hand built trails"
           },
           {
-            "similarity": 0.816667,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
+            "similarity": 0.75,
+            "topic_id": "topic:soil-structure",
+            "topic_label": "soil structure"
           }
         ],
         "topic_id": "topic:drainage-design",
@@ -2924,28 +2924,28 @@
         "top_k": [
           {
             "similarity": 0.95,
-            "topic_id": "topic:component-wear",
-            "topic_label": "component wear"
-          },
-          {
-            "similarity": 0.95,
             "topic_id": "topic:maintenance",
             "topic_label": "maintenance"
           },
           {
-            "similarity": 0.95,
-            "topic_id": "topic:maintenance-flow",
-            "topic_label": "maintenance flow"
+            "similarity": 0.75,
+            "topic_id": "topic:chain-wear-indicator",
+            "topic_label": "chain wear indicator"
           },
           {
-            "similarity": 0.95,
-            "topic_id": "topic:mystery-creaks",
-            "topic_label": "mystery creaks"
+            "similarity": 0.75,
+            "topic_id": "topic:maintenance-intervals",
+            "topic_label": "maintenance intervals"
           },
           {
-            "similarity": 0.95,
-            "topic_id": "topic:service-intervals",
-            "topic_label": "service intervals"
+            "similarity": 0.75,
+            "topic_id": "topic:transmission-mechanics",
+            "topic_label": "transmission mechanics"
+          },
+          {
+            "similarity": 0.683333,
+            "topic_id": "topic:bicycle-silence",
+            "topic_label": "bicycle silence"
           }
         ],
         "topic_id": "topic:drivetrain-mechanics",
@@ -3197,29 +3197,29 @@
       {
         "top_k": [
           {
-            "similarity": 0.75,
-            "topic_id": "topic:crash-causation-patterns",
-            "topic_label": "crash causation patterns"
+            "similarity": 0.892857,
+            "topic_id": "topic:braking-technique",
+            "topic_label": "braking technique"
           },
           {
-            "similarity": 0.75,
-            "topic_id": "topic:error-propagation",
-            "topic_label": "error propagation"
+            "similarity": 0.892857,
+            "topic_id": "topic:tire-pressure-selection",
+            "topic_label": "tire pressure selection"
           },
           {
-            "similarity": 0.75,
-            "topic_id": "topic:failure-mode-analysis",
-            "topic_label": "failure mode analysis"
+            "similarity": 0.835714,
+            "topic_id": "topic:erosion-patterns",
+            "topic_label": "erosion patterns"
           },
           {
-            "similarity": 0.75,
-            "topic_id": "topic:financial-risk-analogy",
-            "topic_label": "financial risk analogy"
+            "similarity": 0.721429,
+            "topic_id": "topic:compliance-automation",
+            "topic_label": "compliance automation"
           },
           {
-            "similarity": 0.75,
-            "topic_id": "topic:performance-through-design",
-            "topic_label": "performance through design"
+            "similarity": 0.71,
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion"
           }
         ],
         "topic_id": "topic:enduro-racing",
@@ -3455,6 +3455,11 @@
             "topic_label": "tire pressure selection"
           },
           {
+            "similarity": 0.835714,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
+          },
+          {
             "similarity": 0.71,
             "topic_id": "topic:setup-compromises",
             "topic_label": "setup compromises"
@@ -3463,11 +3468,6 @@
             "similarity": 0.71,
             "topic_id": "topic:suspension-adjustment",
             "topic_label": "suspension adjustment"
-          },
-          {
-            "similarity": 0.71,
-            "topic_id": "topic:suspension-tuning",
-            "topic_label": "suspension tuning"
           }
         ],
         "topic_id": "topic:erosion-patterns",
@@ -3704,11 +3704,6 @@
           },
           {
             "similarity": 0.75,
-            "topic_id": "topic:enduro-racing",
-            "topic_label": "enduro racing"
-          },
-          {
-            "similarity": 0.75,
             "topic_id": "topic:equipment-performance",
             "topic_label": "equipment performance"
           },
@@ -3716,6 +3711,11 @@
             "similarity": 0.75,
             "topic_id": "topic:suspension-tuning",
             "topic_label": "suspension tuning"
+          },
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:erosion-patterns",
+            "topic_label": "erosion patterns"
           }
         ],
         "topic_id": "topic:failure-mode-analysis",
@@ -5418,9 +5418,9 @@
             "topic_label": "territory management"
           },
           {
-            "similarity": 0.727778,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
+            "similarity": 0.71,
+            "topic_id": "topic:soil-structure",
+            "topic_label": "soil structure"
           }
         ],
         "topic_id": "topic:land-management",
@@ -5480,9 +5480,9 @@
             "topic_label": "machine vs hand built trails"
           },
           {
-            "similarity": 0.816667,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
+            "similarity": 0.75,
+            "topic_id": "topic:soil-structure",
+            "topic_label": "soil structure"
           }
         ],
         "topic_id": "topic:land-stewardship",
@@ -6069,9 +6069,9 @@
             "topic_label": "slope management"
           },
           {
-            "similarity": 0.727778,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
+            "similarity": 0.71,
+            "topic_id": "topic:failure-mode-identification",
+            "topic_label": "failure mode identification"
           }
         ],
         "topic_id": "topic:machine-vs-hand-built-trails",
@@ -6267,28 +6267,28 @@
         "top_k": [
           {
             "similarity": 0.95,
-            "topic_id": "topic:component-wear",
-            "topic_label": "component wear"
-          },
-          {
-            "similarity": 0.95,
             "topic_id": "topic:drivetrain-mechanics",
             "topic_label": "drivetrain mechanics"
           },
           {
-            "similarity": 0.95,
-            "topic_id": "topic:maintenance-flow",
-            "topic_label": "maintenance flow"
+            "similarity": 0.75,
+            "topic_id": "topic:chain-wear-indicator",
+            "topic_label": "chain wear indicator"
           },
           {
-            "similarity": 0.95,
-            "topic_id": "topic:mystery-creaks",
-            "topic_label": "mystery creaks"
+            "similarity": 0.75,
+            "topic_id": "topic:maintenance-intervals",
+            "topic_label": "maintenance intervals"
           },
           {
-            "similarity": 0.95,
-            "topic_id": "topic:service-intervals",
-            "topic_label": "service intervals"
+            "similarity": 0.75,
+            "topic_id": "topic:transmission-mechanics",
+            "topic_label": "transmission mechanics"
+          },
+          {
+            "similarity": 0.683333,
+            "topic_id": "topic:bicycle-silence",
+            "topic_label": "bicycle silence"
           }
         ],
         "topic_id": "topic:maintenance",
@@ -6334,16 +6334,6 @@
           },
           {
             "similarity": 0.95,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.95,
-            "topic_id": "topic:maintenance",
-            "topic_label": "maintenance"
-          },
-          {
-            "similarity": 0.95,
             "topic_id": "topic:mystery-creaks",
             "topic_label": "mystery creaks"
           },
@@ -6351,6 +6341,16 @@
             "similarity": 0.95,
             "topic_id": "topic:service-intervals",
             "topic_label": "service intervals"
+          },
+          {
+            "similarity": 0.95,
+            "topic_id": "topic:suspension-service",
+            "topic_label": "suspension service"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:chain-wear",
+            "topic_label": "chain wear"
           }
         ],
         "topic_id": "topic:maintenance-flow",
@@ -6830,16 +6830,6 @@
           },
           {
             "similarity": 0.95,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.95,
-            "topic_id": "topic:maintenance",
-            "topic_label": "maintenance"
-          },
-          {
-            "similarity": 0.95,
             "topic_id": "topic:maintenance-flow",
             "topic_label": "maintenance flow"
           },
@@ -6847,6 +6837,16 @@
             "similarity": 0.95,
             "topic_id": "topic:service-intervals",
             "topic_label": "service intervals"
+          },
+          {
+            "similarity": 0.95,
+            "topic_id": "topic:suspension-service",
+            "topic_label": "suspension service"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:chain-wear",
+            "topic_label": "chain wear"
           }
         ],
         "topic_id": "topic:mystery-creaks",
@@ -8101,18 +8101,18 @@
           },
           {
             "similarity": 0.75,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.75,
-            "topic_id": "topic:maintenance",
-            "topic_label": "maintenance"
-          },
-          {
-            "similarity": 0.75,
             "topic_id": "topic:maintenance-flow",
             "topic_label": "maintenance flow"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:mystery-creaks",
+            "topic_label": "mystery creaks"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:service-intervals",
+            "topic_label": "service intervals"
           }
         ],
         "topic_id": "topic:predictable-bike-feel",
@@ -9149,6 +9149,11 @@
             "topic_label": "reliability"
           },
           {
+            "similarity": 0.640323,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
+          },
+          {
             "similarity": 0.633721,
             "topic_id": "topic:second-order-effects",
             "topic_label": "second order effects"
@@ -9157,11 +9162,6 @@
             "similarity": 0.627419,
             "topic_id": "topic:braking-technique",
             "topic_label": "braking technique"
-          },
-          {
-            "similarity": 0.627419,
-            "topic_id": "topic:tire-pressure-selection",
-            "topic_label": "tire pressure selection"
           }
         ],
         "topic_id": "topic:risk-management",
@@ -9387,7 +9387,7 @@
       {
         "top_k": [
           {
-            "similarity": 0.695455,
+            "similarity": 0.71,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
@@ -9548,16 +9548,6 @@
           },
           {
             "similarity": 0.95,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.95,
-            "topic_id": "topic:maintenance",
-            "topic_label": "maintenance"
-          },
-          {
-            "similarity": 0.95,
             "topic_id": "topic:maintenance-flow",
             "topic_label": "maintenance flow"
           },
@@ -9565,6 +9555,16 @@
             "similarity": 0.95,
             "topic_id": "topic:mystery-creaks",
             "topic_label": "mystery creaks"
+          },
+          {
+            "similarity": 0.95,
+            "topic_id": "topic:suspension-service",
+            "topic_label": "suspension service"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:chain-wear",
+            "topic_label": "chain wear"
           }
         ],
         "topic_id": "topic:service-intervals",
@@ -9883,29 +9883,29 @@
       {
         "top_k": [
           {
-            "similarity": 0.816667,
+            "similarity": 0.721429,
+            "topic_id": "topic:braking-technique",
+            "topic_label": "braking technique"
+          },
+          {
+            "similarity": 0.721429,
             "topic_id": "topic:drainage-design",
             "topic_label": "drainage design"
           },
           {
-            "similarity": 0.816667,
+            "similarity": 0.721429,
             "topic_id": "topic:land-stewardship",
             "topic_label": "land stewardship"
           },
           {
-            "similarity": 0.816667,
+            "similarity": 0.721429,
+            "topic_id": "topic:tire-pressure-selection",
+            "topic_label": "tire pressure selection"
+          },
+          {
+            "similarity": 0.721429,
             "topic_id": "topic:trail-building",
             "topic_label": "trail building"
-          },
-          {
-            "similarity": 0.727778,
-            "topic_id": "topic:land-management",
-            "topic_label": "land management"
-          },
-          {
-            "similarity": 0.727778,
-            "topic_id": "topic:machine-vs-hand-built-trails",
-            "topic_label": "machine vs hand built trails"
           }
         ],
         "topic_id": "topic:soil-erosion",
@@ -10023,13 +10023,13 @@
           },
           {
             "similarity": 0.683333,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
+            "topic_id": "topic:frame-geometry",
+            "topic_label": "frame geometry"
           },
           {
             "similarity": 0.683333,
-            "topic_id": "topic:frame-geometry",
-            "topic_label": "frame geometry"
+            "topic_id": "topic:linear-systems",
+            "topic_label": "linear systems"
           }
         ],
         "topic_id": "topic:spoke-wrench",
@@ -10411,16 +10411,6 @@
           },
           {
             "similarity": 0.95,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.95,
-            "topic_id": "topic:maintenance",
-            "topic_label": "maintenance"
-          },
-          {
-            "similarity": 0.95,
             "topic_id": "topic:maintenance-flow",
             "topic_label": "maintenance flow"
           },
@@ -10428,6 +10418,16 @@
             "similarity": 0.95,
             "topic_id": "topic:mystery-creaks",
             "topic_label": "mystery creaks"
+          },
+          {
+            "similarity": 0.95,
+            "topic_id": "topic:service-intervals",
+            "topic_label": "service intervals"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:chain-wear",
+            "topic_label": "chain wear"
           }
         ],
         "topic_id": "topic:suspension-service",
@@ -11005,11 +11005,6 @@
           },
           {
             "similarity": 0.75,
-            "topic_id": "topic:enduro-racing",
-            "topic_label": "enduro racing"
-          },
-          {
-            "similarity": 0.75,
             "topic_id": "topic:equipment-performance",
             "topic_label": "equipment performance"
           },
@@ -11017,6 +11012,11 @@
             "similarity": 0.75,
             "topic_id": "topic:suspension-tuning",
             "topic_label": "suspension tuning"
+          },
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:erosion-patterns",
+            "topic_label": "erosion patterns"
           }
         ],
         "topic_id": "topic:team-strategy",
@@ -11185,6 +11185,11 @@
             "topic_label": "braking technique"
           },
           {
+            "similarity": 0.892857,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
+          },
+          {
             "similarity": 0.883333,
             "topic_id": "topic:erosion-patterns",
             "topic_label": "erosion patterns"
@@ -11195,14 +11200,9 @@
             "topic_label": "compliance automation"
           },
           {
-            "similarity": 0.683333,
-            "topic_id": "topic:equipment-performance",
-            "topic_label": "equipment performance"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:setup-compromises",
-            "topic_label": "setup compromises"
+            "similarity": 0.721429,
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion"
           }
         ],
         "topic_id": "topic:tire-pressure-selection",
@@ -11656,11 +11656,6 @@
           },
           {
             "similarity": 0.75,
-            "topic_id": "topic:enduro-racing",
-            "topic_label": "enduro racing"
-          },
-          {
-            "similarity": 0.75,
             "topic_id": "topic:equipment-performance",
             "topic_label": "equipment performance"
           },
@@ -11668,6 +11663,11 @@
             "similarity": 0.75,
             "topic_id": "topic:suspension-tuning",
             "topic_label": "suspension tuning"
+          },
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:erosion-patterns",
+            "topic_label": "erosion patterns"
           }
         ],
         "topic_id": "topic:track-line-optimization",
@@ -11820,9 +11820,9 @@
             "topic_label": "machine vs hand built trails"
           },
           {
-            "similarity": 0.816667,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
+            "similarity": 0.75,
+            "topic_id": "topic:soil-structure",
+            "topic_label": "soil structure"
           }
         ],
         "topic_id": "topic:trail-building",
@@ -11997,18 +11997,18 @@
           },
           {
             "similarity": 0.75,
+            "topic_id": "topic:drivetrain-mechanics",
+            "topic_label": "drivetrain mechanics"
+          },
+          {
+            "similarity": 0.75,
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance"
+          },
+          {
+            "similarity": 0.75,
             "topic_id": "topic:maintenance-intervals",
             "topic_label": "maintenance intervals"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:bike-silence",
-            "topic_label": "bike silence"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:component-reliability",
-            "topic_label": "component reliability"
           }
         ],
         "topic_id": "topic:transmission-mechanics",

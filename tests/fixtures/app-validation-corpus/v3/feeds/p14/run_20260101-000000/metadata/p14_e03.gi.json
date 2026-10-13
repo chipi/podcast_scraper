@@ -1,34 +1,59 @@
 {
   "edges": [
     {
-      "from": "insight:2d649c0978f260ed",
+      "from": "insight:0054dafa5d967d33",
+      "to": "topic:maintenance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:0054dafa5d967d33",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
-      "from": "insight:cc066d39b209017b",
+      "from": "insight:8f2b5bbbe1d80e66",
+      "to": "topic:maintenance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:8f2b5bbbe1d80e66",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
-      "from": "insight:d072d60e999ba251",
+      "from": "insight:d80c849e492dd734",
+      "to": "topic:maintenance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d80c849e492dd734",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:2d649c0978f260ed",
+      "to": "insight:0054dafa5d967d33",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:cc066d39b209017b",
+      "to": "insight:8f2b5bbbe1d80e66",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
-      "to": "insight:d072d60e999ba251",
+      "to": "insight:d80c849e492dd734",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-1d733f650ad9bff9",
@@ -36,33 +61,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:21688a51b3c91243",
+      "from": "insight:0054dafa5d967d33",
+      "to": "person:tiago-moreira",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:8f2b5bbbe1d80e66",
+      "to": "person:tiago-moreira",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:d80c849e492dd734",
+      "to": "person:tiago-moreira",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:8c64c58f0000afc6",
       "to": "person:tiago-moreira",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:8c907ba3149140f1",
+      "from": "quote:e430cadd5f1fa714",
       "to": "person:tiago-moreira",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:c8144b603b04e917",
+      "from": "quote:e45a3d2f71e32d43",
       "to": "person:tiago-moreira",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:2d649c0978f260ed",
-      "to": "quote:21688a51b3c91243",
+      "from": "insight:0054dafa5d967d33",
+      "to": "quote:8c64c58f0000afc6",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:cc066d39b209017b",
-      "to": "quote:c8144b603b04e917",
+      "from": "insight:8f2b5bbbe1d80e66",
+      "to": "quote:e45a3d2f71e32d43",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:d072d60e999ba251",
-      "to": "quote:8c907ba3149140f1",
+      "from": "insight:d80c849e492dd734",
+      "to": "quote:e430cadd5f1fa714",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -75,10 +115,24 @@
         "duration_ms": 422000,
         "feed_id": "p14",
         "podcast_id": "p14",
-        "publish_date": "2025-12-18T00:00:00",
+        "publish_date": "2025-06-25T00:00:00",
         "title": "A Mec\u00e2nica de Uma Bicicleta Silenciosa e R\u00e1pida"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:risk-management",
@@ -88,11 +142,46 @@
       "type": "Topic"
     },
     {
-      "id": "person:beatriz-antunes",
+      "id": "insight:8f2b5bbbe1d80e66",
       "properties": {
-        "name": "Beatriz Antunes"
+        "episode_id": "ep-1d733f650ad9bff9",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Certainly. The maintenance intervals for the suspension are a risk management decision. If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d80c849e492dd734",
+      "properties": {
+        "episode_id": "ep-1d733f650ad9bff9",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That's how I see it. The maintenance intervals for the suspension are a risk management decision. I observed this pattern repeating itself in three different teams.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0054dafa5d967d33",
+      "properties": {
+        "episode_id": "ep-1d733f650ad9bff9",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, the maintenance intervals for the suspension are a risk management decision. And the secondary effect is the part that almost everyone overlooks.",
+        "tier": 2
+      },
+      "type": "Insight"
     },
     {
       "id": "person:tiago-moreira",
@@ -102,86 +191,74 @@
       "type": "Person"
     },
     {
-      "id": "insight:2d649c0978f260ed",
+      "id": "quote:e45a3d2f71e32d43",
       "properties": {
+        "char_end": 2098,
+        "char_start": 1921,
         "episode_id": "ep-1d733f650ad9bff9",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Claro. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Se ignorares isso, acabas a reconstruir tudo de zero um ano depois.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:cc066d39b209017b",
-      "properties": {
-        "episode_id": "ep-1d733f650ad9bff9",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Vejo assim. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:d072d60e999ba251",
-      "properties": {
-        "episode_id": "ep-1d733f650ad9bff9",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Sinceramente, os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. E o efeito de segunda ordem \u00e9 a parte que quase todos deixam passar.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:21688a51b3c91243",
-      "properties": {
-        "char_end": 2268,
-        "char_start": 2117,
-        "episode_id": "ep-1d733f650ad9bff9",
-        "speaker_id": "person:tiago-moreira",
-        "text": "Claro. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Se ignorares isso, acabas a reconstruir tudo de zero um ano depois.",
+        "speaker_id": "person:speaker-02",
+        "text": "Certainly. The maintenance intervals for the suspension are a risk management decision. If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
         "timestamp_end_ms": 102000,
         "timestamp_start_ms": 96000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0013.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:c8144b603b04e917",
+      "id": "quote:e430cadd5f1fa714",
       "properties": {
-        "char_end": 4183,
-        "char_start": 4041,
+        "char_end": 3911,
+        "char_start": 3747,
         "episode_id": "ep-1d733f650ad9bff9",
-        "speaker_id": "person:tiago-moreira",
-        "text": "Vejo assim. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
+        "speaker_id": "person:speaker-02",
+        "text": "That's how I see it. The maintenance intervals for the suspension are a risk management decision. I observed this pattern repeating itself in three different teams.",
         "timestamp_end_ms": 186000,
         "timestamp_start_ms": 180000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0025.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:8c907ba3149140f1",
+      "id": "quote:8c64c58f0000afc6",
       "properties": {
-        "char_end": 5876,
-        "char_start": 5717,
+        "char_end": 5720,
+        "char_start": 5565,
         "episode_id": "ep-1d733f650ad9bff9",
-        "speaker_id": "person:tiago-moreira",
-        "text": "Sinceramente, os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. E o efeito de segunda ordem \u00e9 a parte que quase todos deixam passar.",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, the maintenance intervals for the suspension are a risk management decision. And the secondary effect is the part that almost everyone overlooks.",
         "timestamp_end_ms": 258000,
         "timestamp_start_ms": 252000,
-        "transcript_ref": "transcripts/p14_e03.txt"
+        "transcript_ref": "transcripts/p14_e03.txt",
+        "translation": {
+          "en_sha256": "4645e049d78f8c3e83fb76420107f05cf7393b52217d5c4a6ee704d3b6c3cb32",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "pt",
+          "translated": true,
+          "unit_ids": [
+            "t0037.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

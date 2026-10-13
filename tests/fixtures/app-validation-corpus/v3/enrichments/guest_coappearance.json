@@ -1,6 +1,6 @@
 {
   "derived": true,
-  "computed_at": "2026-10-12T13:47:20Z",
+  "computed_at": "2026-10-13T15:41:18Z",
   "enricher_id": "guest_coappearance",
   "enricher_version": "1.1.0",
   "schema_version": "1.0",
@@ -36,6 +36,27 @@
         "episode_count": 1
       },
       {
+        "person_a_id": "person:camille-dubois",
+        "person_b_id": "person:elodie-chevalier",
+        "person_a_name": "Camille Dubois",
+        "person_b_name": "\u00c9lodie Chevalier",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:camille-dubois",
+        "person_b_id": "person:julien-mercier",
+        "person_a_name": "Camille Dubois",
+        "person_b_name": "Julien Mercier",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:camille-dubois",
+        "person_b_id": "person:mathieu-lefevre",
+        "person_a_name": "Camille Dubois",
+        "person_b_name": "Mathieu Lef\u00e8vre",
+        "episode_count": 1
+      },
+      {
         "person_a_id": "person:daniel-cho",
         "person_b_id": "person:nadia-sereni",
         "person_a_name": "Daniel Cho",
@@ -47,6 +68,27 @@
         "person_b_id": "person:scott-bessent",
         "person_a_name": "Daniel Cho",
         "person_b_name": "Scott Bessent",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:jonas-richter",
+        "person_b_id": "person:katrin-vogel",
+        "person_a_name": "Jonas Richter",
+        "person_b_name": "Katrin Vogel",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:katrin-vogel",
+        "person_b_id": "person:lena-hofmann",
+        "person_a_name": "Katrin Vogel",
+        "person_b_name": "Lena Hofmann",
+        "episode_count": 1
+      },
+      {
+        "person_a_id": "person:katrin-vogel",
+        "person_b_id": "person:stefan-brandt",
+        "person_a_name": "Katrin Vogel",
+        "person_b_name": "Stefan Brandt",
         "episode_count": 1
       },
       {
@@ -118,5 +160,5 @@
   "retry_count": 0,
   "circuit_state": null,
   "duration_ms": 0,
-  "records_written": 10
+  "records_written": 16
 }

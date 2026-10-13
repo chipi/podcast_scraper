@@ -1,18 +1,23 @@
 {
   "edges": [
     {
+      "from": "insight:da3888c1595e902e",
+      "to": "topic:drainage-design",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-e2231244311ca964",
-      "to": "insight:a4efd1647a8a49ef",
+      "to": "insight:293196864151186f",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "insight:a6210765a88b7d1a",
+      "to": "insight:da3888c1595e902e",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-e2231244311ca964",
-      "to": "insight:f4836ac7d6d1c79c",
+      "to": "insight:dda88ea423270723",
       "type": "HAS_INSIGHT"
     },
     {
@@ -31,33 +36,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:619c4a4f78e5851b",
+      "from": "insight:293196864151186f",
+      "to": "person:marco-bellini",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:da3888c1595e902e",
+      "to": "person:marco-bellini",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:dda88ea423270723",
+      "to": "person:marco-bellini",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:416d56160e4aef71",
       "to": "person:marco-bellini",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:a4338b44ed0d2556",
+      "from": "quote:579de23bad9d1285",
       "to": "person:marco-bellini",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:b67ae0ec49ba8c07",
+      "from": "quote:d3d2e98ebaeb998f",
       "to": "person:marco-bellini",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:a4efd1647a8a49ef",
-      "to": "quote:a4338b44ed0d2556",
+      "from": "insight:293196864151186f",
+      "to": "quote:d3d2e98ebaeb998f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:a6210765a88b7d1a",
-      "to": "quote:619c4a4f78e5851b",
+      "from": "insight:da3888c1595e902e",
+      "to": "quote:416d56160e4aef71",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:f4836ac7d6d1c79c",
-      "to": "quote:b67ae0ec49ba8c07",
+      "from": "insight:dda88ea423270723",
+      "to": "quote:579de23bad9d1285",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -70,7 +90,7 @@
         "duration_ms": 390000,
         "feed_id": "p11",
         "podcast_id": "p11",
-        "publish_date": "2025-10-01T00:00:00",
+        "publish_date": "2024-10-01T00:00:00",
         "title": "Costruire Sentieri Che Durano"
       },
       "type": "Episode"
@@ -97,11 +117,46 @@
       "type": "Topic"
     },
     {
-      "id": "person:giulia-ferrara",
+      "id": "insight:da3888c1595e902e",
       "properties": {
-        "name": "Giulia Ferrara"
+        "episode_id": "ep-e2231244311ca964",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different\u2026",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
+    },
+    {
+      "id": "insight:293196864151186f",
+      "properties": {
+        "episode_id": "ep-e2231244311ca964",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yes, see \u2013 the most common mistake that beginner builders make is digging with a slope that is too steep. Once you understand that, the rest of the decisions become easier.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:dda88ea423270723",
+      "properties": {
+        "episode_id": "ep-e2231244311ca964",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Certainly. Discussions about land management should take place before any excavation begins. We've seen it on teams that use RockShox. The frame is important because it tells you what compromises y\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
     },
     {
       "id": "person:marco-bellini",
@@ -111,88 +166,83 @@
       "type": "Person"
     },
     {
-      "id": "quote:619c4a4f78e5851b",
+      "id": "quote:416d56160e4aef71",
       "properties": {
-        "char_end": 746,
-        "char_start": 539,
+        "char_end": 371,
+        "char_start": 168,
         "episode_id": "ep-e2231244311ca964",
         "speaker_id": "person:speaker-02",
-        "text": "Sinceramente, il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse.",
+        "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different teams.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p11_e01.txt"
+        "transcript_ref": "transcripts/p11_e01.txt",
+        "translation": {
+          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "insight:a6210765a88b7d1a",
+      "id": "quote:d3d2e98ebaeb998f",
       "properties": {
+        "char_end": 657,
+        "char_start": 485,
         "episode_id": "ep-e2231244311ca964",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Sinceramente, il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadr\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:a4efd1647a8a49ef",
-      "properties": {
-        "episode_id": "ep-e2231244311ca964",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:a4338b44ed0d2556",
-      "properties": {
-        "char_end": 1054,
-        "char_start": 870,
-        "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:marco-bellini",
-        "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile.",
+        "speaker_id": "person:speaker-02",
+        "text": "Yes, see \u2013 the most common mistake that beginner builders make is digging with a slope that is too steep. Once you understand that, the rest of the decisions become easier.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p11_e01.txt"
+        "transcript_ref": "transcripts/p11_e01.txt",
+        "translation": {
+          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "insight:f4836ac7d6d1c79c",
+      "id": "quote:579de23bad9d1285",
       "properties": {
+        "char_end": 982,
+        "char_start": 772,
         "episode_id": "ep-e2231244311ca964",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Certo. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano RockShox. Il quadro conta perch\u00e9 ti dice quali compromessi stai fac\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:b67ae0ec49ba8c07",
-      "properties": {
-        "char_end": 1379,
-        "char_start": 1177,
-        "episode_id": "ep-e2231244311ca964",
-        "speaker_id": "person:marco-bellini",
-        "text": "Certo. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano RockShox. Il quadro conta perch\u00e9 ti dice quali compromessi stai facendo.",
+        "speaker_id": "person:speaker-02",
+        "text": "Certainly. Discussions about land management should take place before any excavation begins. We've seen it on teams that use RockShox. The frame is important because it tells you what compromises you're making.",
         "timestamp_end_ms": 54000,
         "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p11_e01.txt"
+        "transcript_ref": "transcripts/p11_e01.txt",
+        "translation": {
+          "en_sha256": "4821c4ac5b790a23b59f1252ab3e8b7a0cc0c80218ae9f9ad99cc669385e0af4",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "it",
+          "translated": true,
+          "unit_ids": [
+            "t0007.u01"
+          ]
+        }
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

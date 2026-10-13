@@ -46,33 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:09b7a5ba745c15d1",
+      "from": "insight:141f8e7ab6b9a12f",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:149be35a939e40cb",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:eaabf34ef9742990",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:0d30538ff00f6d93",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:545a6b381374b926",
+      "from": "quote:246991415090e01b",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:917c50808f1d85cc",
+      "from": "quote:2f00ff3583c2508e",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:141f8e7ab6b9a12f",
-      "to": "quote:917c50808f1d85cc",
+      "to": "quote:2f00ff3583c2508e",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:149be35a939e40cb",
-      "to": "quote:09b7a5ba745c15d1",
+      "to": "quote:246991415090e01b",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:eaabf34ef9742990",
-      "to": "quote:545a6b381374b926",
+      "to": "quote:0d30538ff00f6d93",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -112,34 +127,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:hanna-crebo-rediker",
-      "properties": {
-        "name": "Hanna Crebo-Rediker"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:rina",
-      "properties": {
-        "name": "Rina"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:917c50808f1d85cc",
-      "properties": {
-        "char_end": 977,
-        "char_start": 781,
-        "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:141f8e7ab6b9a12f",
       "properties": {
         "episode_id": "ep-a884b153355070f0",
@@ -168,20 +155,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:09b7a5ba745c15d1",
-      "properties": {
-        "char_end": 1585,
-        "char_start": 1391,
-        "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:hanna-crebo-rediker",
-        "text": "Yeah, so \u2014 Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:eaabf34ef9742990",
       "properties": {
         "episode_id": "ep-a884b153355070f0",
@@ -196,12 +169,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:545a6b381374b926",
+      "id": "person:hanna-crebo-rediker",
+      "properties": {
+        "name": "Hanna Crebo-Rediker"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2f00ff3583c2508e",
+      "properties": {
+        "char_end": 977,
+        "char_start": 781,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:246991415090e01b",
+      "properties": {
+        "char_end": 1585,
+        "char_start": 1391,
+        "episode_id": "ep-a884b153355070f0",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0d30538ff00f6d93",
       "properties": {
         "char_end": 2355,
         "char_start": 2121,
         "episode_id": "ep-a884b153355070f0",
-        "speaker_id": "person:hanna-crebo-rediker",
+        "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making.",
         "timestamp_end_ms": 114000,
         "timestamp_start_ms": 108000,

@@ -26,9 +26,11 @@ in place, per episode:
 6. an insight that names a topic is ABOUT it (plural-aware), including a storyline member the
    episode's knowledge graph carries but its GI never listed; only adds, at most two per insight.
 
-A non-English episode's insights are in its source language, so they are grounded in the
-source-language segments (``<stem>.<lang>.segments.json``); the translation is read only to say
-what an opening line means.
+A translated episode's GI is built on its English ad-free body (D-44), so its insights are English
+and are grounded in the English turns the builder built them from (``_translated_analysis``: on the
+source timeline, indexing ``<stem>.adfree.txt``), and a re-grounded quote gets the translation
+provenance the builder's carry. The source-language pairing below is used only when an episode has
+no captured English render.
 
     .venv/bin/python scripts/tools/realign_fixture_gi.py            # report
     .venv/bin/python scripts/tools/realign_fixture_gi.py --apply    # write
@@ -46,8 +48,11 @@ from typing import Any, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_app_validation_corpus import (  # noqa: E402
+    _attach_captured_provenance,
     _insight_density_envelope,
     _insight_sentiment_envelope,
+    _segments_of,
+    _translated_analysis,
     authored_quote_anchor,
     has_failure_mode,
     is_ad_copy,
@@ -120,8 +125,11 @@ class _Episode:
         transcript: str,
         turns: Optional[dict[str, list[str]]],
         english: Optional[list[str]] = None,
+        transcript_ref: Optional[str] = None,
     ) -> None:
         self.gi = gi
+        # The builder's run-relative ref; an episode whose builder GI had no quote has none to copy.
+        self.transcript_ref = transcript_ref
         self.segments = segments
         self.transcript = transcript
         self.turns = turns
@@ -344,7 +352,7 @@ class _Episode:
                     for q in self.nodes
                     if q.get("type") == "Quote" and q["properties"].get("transcript_ref")
                 ),
-                None,
+                self.transcript_ref,
             ),
         }
         pid = self.speaker_of(seg)
@@ -442,9 +450,10 @@ def realign(
     low_grounding: bool = False,
     extra_topics: Optional[list[tuple[str, str]]] = None,
     english: Optional[list[str]] = None,
+    transcript_ref: Optional[str] = None,
 ) -> dict[str, int]:
     """Re-ground one episode's GI in place (the module docstring's steps)."""
-    episode = _Episode(gi, segments, transcript, turns, english)
+    episode = _Episode(gi, segments, transcript, turns, english, transcript_ref)
     return episode.realign(low_grounding, extra_topics)
 
 
@@ -499,8 +508,14 @@ def _episode_inputs(
     if not translation.is_file():
         segments = json.loads((tdir / f"{stem}.segments.json").read_text("utf-8"))
         return segments, (tdir / f"{stem}.txt").read_text(encoding="utf-8"), None, None
+    # D-44: a translated episode's GI is built on its ENGLISH ad-free body, so its insights are
+    # English and are grounded in the same English turns, on the source timeline, that the builder
+    # built them from (``_translated_analysis``); the quotes' offsets index ``<stem>.adfree.txt``.
     tr = json.loads(translation.read_text("utf-8"))
     lang = str(tr.get("source_language") or "")
+    _captured, segments = _translated_inputs(gi_path)
+    if segments:
+        return segments, (tdir / f"{stem}.adfree.txt").read_text(encoding="utf-8"), None, None
     turns: dict[str, list[str]] = {}
     for u in tr.get("units") or []:
         turns.setdefault(str(u.get("turn_id")), []).extend(
@@ -510,6 +525,24 @@ def _episode_inputs(
     render = json.loads((tdir / f"{stem}.segments.json").read_text("utf-8"))
     english = _english_by_segment(segments, render if isinstance(render, list) else [])
     return segments, (tdir / f"{stem}.{lang}.txt").read_text(encoding="utf-8"), turns, english
+
+
+def _translated_inputs(gi_path: Path) -> tuple[Optional[dict[str, Any]], list[dict[str, Any]]]:
+    """The builder's (captured render, English analysis turns) for a translated episode, else
+    (None, [])."""
+    tdir = gi_path.parent.parent / "transcripts"
+    stem = gi_path.name[: -len(".gi.json")]
+    translation = tdir / f"{stem}.translation.json"
+    if not translation.is_file():
+        return None, []
+    lang = str(json.loads(translation.read_text("utf-8")).get("source_language") or "")
+    version = Path("tests/fixtures/FIXTURES_VERSION").read_text(encoding="utf-8").strip()
+    return _translated_analysis(
+        stem,
+        version,
+        _segments_of(json.loads((tdir / f"{stem}.{lang}.segments.json").read_text("utf-8"))),
+        (tdir / f"{stem}.{lang}.txt").read_text("utf-8").splitlines(),
+    )
 
 
 def rederive_episode_enrichments(gi_path: Path, gi: dict[str, Any]) -> list[Path]:
@@ -552,8 +585,12 @@ def main() -> int:
         extra = storyline_members_on(
             gi_path.with_name(gi_path.name.replace(".gi.json", ".kg.json"))
         )
-        for k, v in realign(gi, segments, transcript, turns, low, extra, english).items():
+        ref = f"transcripts/{gi_path.name[: -len('.gi.json')]}.txt"
+        for k, v in realign(gi, segments, transcript, turns, low, extra, english, ref).items():
             total[k] = total.get(k, 0) + v
+        # A re-grounded quote is a new node: it gets the translation provenance the builder's
+        # quotes carry (idempotent, so an unchanged quote keeps the block it has).
+        _attach_captured_provenance(gi, *_translated_inputs(gi_path))
         if json.dumps(gi, sort_keys=True) != before:
             changed += 1
             if args.apply:

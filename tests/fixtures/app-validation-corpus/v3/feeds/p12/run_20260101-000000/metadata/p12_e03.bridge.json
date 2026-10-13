@@ -2,6 +2,14 @@
   "episode_id": "ep-2e3fcd5d8c418fb4",
   "identities": [
     {
+      "display_name": "drivetrain mechanics",
+      "id": "topic:drivetrain-mechanics"
+    },
+    {
+      "display_name": "maintenance",
+      "id": "topic:maintenance"
+    },
+    {
       "display_name": "risk management",
       "id": "topic:risk-management"
     }

@@ -51,33 +51,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:781d99a753e8d643",
+      "from": "insight:52b96ce237a68ec2",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:9432ab8e8bcff3a7",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:95e0327e57d72641",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:1df59e20b41a3052",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:c2777a06a7115a78",
+      "from": "quote:4cfae8c548be9ae8",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:de66527ddd96f06c",
+      "from": "quote:96eb8398e8235c39",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:52b96ce237a68ec2",
-      "to": "quote:781d99a753e8d643",
+      "to": "quote:96eb8398e8235c39",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:9432ab8e8bcff3a7",
-      "to": "quote:de66527ddd96f06c",
+      "to": "quote:4cfae8c548be9ae8",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:95e0327e57d72641",
-      "to": "quote:c2777a06a7115a78",
+      "to": "quote:1df59e20b41a3052",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -124,20 +139,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:renee-montagne-park",
-      "properties": {
-        "name": "Renee Montagne-Park"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:a-correspondent",
-      "properties": {
-        "name": "A. correspondent"
-      },
-      "type": "Person"
-    },
-    {
       "id": "insight:52b96ce237a68ec2",
       "properties": {
         "episode_id": "ep-64ef09a7ee543045",
@@ -166,34 +167,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:781d99a753e8d643",
-      "properties": {
-        "char_end": 1260,
-        "char_start": 1131,
-        "episode_id": "ep-64ef09a7ee543045",
-        "speaker_id": "person:renee-montagne-park",
-        "text": "Yeah, so \u2014 Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p08_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:de66527ddd96f06c",
-      "properties": {
-        "char_end": 2146,
-        "char_start": 2005,
-        "episode_id": "ep-64ef09a7ee543045",
-        "speaker_id": "person:renee-montagne-park",
-        "text": "It comes down to this: Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 96000,
-        "timestamp_start_ms": 90000,
-        "transcript_ref": "transcripts/p08_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:95e0327e57d72641",
       "properties": {
         "episode_id": "ep-64ef09a7ee543045",
@@ -208,12 +181,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:c2777a06a7115a78",
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:96eb8398e8235c39",
+      "properties": {
+        "char_end": 1260,
+        "char_start": 1131,
+        "episode_id": "ep-64ef09a7ee543045",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4cfae8c548be9ae8",
+      "properties": {
+        "char_end": 2146,
+        "char_start": 2005,
+        "episode_id": "ep-64ef09a7ee543045",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 96000,
+        "timestamp_start_ms": 90000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1df59e20b41a3052",
       "properties": {
         "char_end": 2987,
         "char_start": 2845,
         "episode_id": "ep-64ef09a7ee543045",
-        "speaker_id": "person:renee-montagne-park",
+        "speaker_id": "person:speaker-02",
         "text": "Honestly, Reliability of voice is partly preparation, partly humility. If you ignore that, you end up rebuilding it from scratch a year later.",
         "timestamp_end_ms": 132000,
         "timestamp_start_ms": 126000,

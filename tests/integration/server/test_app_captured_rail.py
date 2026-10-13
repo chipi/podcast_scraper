@@ -86,7 +86,8 @@ def test_top_results_are_pinned(tmp_path: Path) -> None:
     assert got == [
         ("p09-db2d39ef2e", "p07-769d04686d", "topic"),
         ("p09-a4bbb5dde3", "p02-8fdd7b7f79", "topic"),
-        ("p01-74565a3a19", "p07-769d04686d", "storyline"),
+        # p01_e04 rather than p01_e02 since 2026-10-13 (the corpus rebuilt on main's D-44).
+        ("p01-f2b497cfa3", "p07-769d04686d", "storyline"),
     ]
 
 

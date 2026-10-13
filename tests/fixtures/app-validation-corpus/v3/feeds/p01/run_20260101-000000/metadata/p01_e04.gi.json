@@ -47,11 +47,16 @@
     },
     {
       "from": "insight:5e35fb7106d60df7",
-      "to": "person:sophie-laurent",
+      "to": "person:maya",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:81318986adbd8e69",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ad8ec142fe95887e",
       "to": "person:maya",
       "type": "MENTIONS_PERSON"
     },
@@ -66,12 +71,12 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:2d281afff9d60e11",
+      "from": "quote:8f87874856617d80",
       "to": "person:maya",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:87a875c631835729",
+      "from": "quote:a319096bc89d13cb",
       "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
@@ -86,23 +91,23 @@
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:e2af62f685104787",
+      "from": "quote:c689c41c5bef3446",
       "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5e35fb7106d60df7",
-      "to": "quote:2d281afff9d60e11",
+      "to": "quote:8f87874856617d80",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:81318986adbd8e69",
-      "to": "quote:87a875c631835729",
+      "to": "quote:c689c41c5bef3446",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:ad8ec142fe95887e",
-      "to": "quote:e2af62f685104787",
+      "to": "quote:a319096bc89d13cb",
       "type": "SUPPORTED_BY"
     },
     {
@@ -156,8 +161,8 @@
       "properties": {
         "episode_id": "ep-de59d003651d9e5d",
         "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "People think racing is about nerve. You say it's about risk.",
@@ -170,8 +175,8 @@
       "properties": {
         "episode_id": "ep-de59d003651d9e5d",
         "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger\u2026",
@@ -180,11 +185,18 @@
       "type": "Insight"
     },
     {
-      "id": "person:sophie-laurent",
+      "id": "insight:ad8ec142fe95887e",
       "properties": {
-        "name": "Sophie Laurent"
+        "episode_id": "ep-de59d003651d9e5d",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always\u2026",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
     },
     {
       "id": "person:maya",
@@ -194,7 +206,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:2d281afff9d60e11",
+      "id": "quote:8f87874856617d80",
       "properties": {
         "char_end": 336,
         "char_start": 276,
@@ -208,7 +220,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:87a875c631835729",
+      "id": "person:sophie-laurent",
+      "properties": {
+        "name": "Sophie Laurent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c689c41c5bef3446",
       "properties": {
         "char_end": 560,
         "char_start": 353,
@@ -222,7 +241,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e2af62f685104787",
+      "id": "quote:a319096bc89d13cb",
       "properties": {
         "char_end": 777,
         "char_start": 560,
@@ -243,9 +262,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "The crash that ends your season is the boring risk you didn't name.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -271,9 +290,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "You ride the whole run as a system; the mistakes come from how sections interact.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -290,20 +309,6 @@
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"
-    },
-    {
-      "id": "insight:ad8ec142fe95887e",
-      "properties": {
-        "episode_id": "ep-de59d003651d9e5d",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
     }
   ],
   "prompt_version": "n/a",

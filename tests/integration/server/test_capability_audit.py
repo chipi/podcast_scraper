@@ -207,7 +207,9 @@ class TestPickerDiscrimination:
         # 177 since 2026-10-12, the natural corpus: the stamped topics are gone and the themes are
         # clustered over every topic the episodes carry (82 clusters, not 14), so far more tokens
         # are episode-specific — inside the band rather than above its ceiling.
-        assert picker["band_candidates"] == 177
+        # 179 since 2026-10-13: main's corpus refresh gave the ten non-English `e02`/`e03` episodes
+        # their ground-truth topics (`enduro-racing`, `soil-erosion`, …) in place of placeholders.
+        assert picker["band_candidates"] == 179
         # THE TWO CAUSES COMPOUND, which is why this number is measured rather than inherited.
         # The branch asserted 75 (the corpus took REAL extracted topics from a pipeline run
         # alongside its authored ones) and main asserted 53 (the real clusters added 12 `tc:`
@@ -241,7 +243,12 @@ class TestPickerDiscrimination:
         # (its broadest member), so the two give one feed set between them, not two.
         # 11 since 2026-10-12: with the stamps gone the top 12 is led by themes and topics that
         # genuinely differ in which shows carry them.
-        assert picker["band_distinct_feeds"] == 11
+        # 9 since 2026-10-13, the same mechanism as 2026-10-11: main's ground-truth topics put
+        # `soil-erosion` on p10-p14 `e02` as on their English counterpart p01_e02, so
+        # topic:soil-erosion and thc:building-trails reach 14 episodes, enter the top 12 beside
+        # tc:soil-erosion with the SAME 14 episodes (one feed set for three tokens), and push out
+        # topic:systems-thinking (14, last on the tie) and tc:tooling-impact (13). Measured.
+        assert picker["band_distinct_feeds"] == 9
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""
@@ -888,12 +895,16 @@ class TestTopicMomentum:
         # month, each on one or two episodes — under the mention floor, so they never render (the
         # report lists them as `high_ratio_below_min_total`). Among those that do, reliability
         # still leads at 3.0.
+        # 2026-10-13: the translated shows' `e02`/`e03` knowledge graphs carried publish dates
+        # months off their metadata (p14_e02: 2025-12-19 against 2025-02-15); the rebuilt corpus
+        # writes the metadata's date, so the late-2025 weeks thinned. Reliability falls to 1.5 and
+        # `topic:iterative-improvement` (3 mentions, at the floor) leads at 6.0.
         assert mom["max_velocity"] == pytest.approx(6.0, abs=0.01)
         assert mom["headroom_to_gate"] == pytest.approx(-6.0, abs=0.01)
         assert mom["would_render"][0] == {
-            "topic": "topic:reliability",
-            "velocity": 3.0,
-            "total": 17,
+            "topic": "topic:iterative-improvement",
+            "velocity": 6.0,
+            "total": 3,
         }
         assert "short by" not in format_report(report)
 

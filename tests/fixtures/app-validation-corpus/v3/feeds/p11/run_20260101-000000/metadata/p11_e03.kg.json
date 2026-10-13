@@ -2,6 +2,16 @@
   "edges": [
     {
       "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
       "to": "topic:risk-management",
       "type": "MENTIONS"
     },
@@ -63,7 +73,7 @@
   ],
   "episode_id": "ep-ec0bf35da3719170",
   "extraction": {
-    "extracted_at": "2025-12-27T00:00:00",
+    "extracted_at": "2025-03-25T00:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p11_e03.txt"
   },
@@ -72,10 +82,26 @@
       "id": "episode:ep-ec0bf35da3719170",
       "properties": {
         "podcast_id": "p11",
-        "publish_date": "2025-12-27T00:00:00",
+        "publish_date": "2025-03-25T00:00:00",
         "title": "La Meccanica di Una Bici Silenziosa e Veloce"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics",
+        "slug": "drivetrain-mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance",
+        "slug": "maintenance"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:risk-management",

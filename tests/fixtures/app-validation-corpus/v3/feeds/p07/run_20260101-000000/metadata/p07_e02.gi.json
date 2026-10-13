@@ -46,33 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:10ee0a33b4a3ea2a",
+      "from": "insight:7a8b2bd11d3e7b9c",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:a4d557ec1ddf9ecb",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:e7ac419ad5a412ef",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:1bb5bfcd6f21b027",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:8f93e29d01913260",
+      "from": "quote:a7ce070362f1ef6c",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:9cd57b6a7078d69f",
+      "from": "quote:f78a40de9d85911f",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7a8b2bd11d3e7b9c",
-      "to": "quote:9cd57b6a7078d69f",
+      "to": "quote:1bb5bfcd6f21b027",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:a4d557ec1ddf9ecb",
-      "to": "quote:8f93e29d01913260",
+      "to": "quote:f78a40de9d85911f",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:e7ac419ad5a412ef",
-      "to": "quote:10ee0a33b4a3ea2a",
+      "to": "quote:a7ce070362f1ef6c",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -112,20 +127,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:skanda-amarnath",
-      "properties": {
-        "name": "Skanda Amarnath"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:alex-morgan",
-      "properties": {
-        "name": "Alex Morgan"
-      },
-      "type": "Person"
-    },
-    {
       "id": "insight:a4d557ec1ddf9ecb",
       "properties": {
         "episode_id": "ep-2cd5c6d11325a312",
@@ -154,34 +155,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:8f93e29d01913260",
-      "properties": {
-        "char_end": 1296,
-        "char_start": 1148,
-        "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:skanda-amarnath",
-        "text": "Honestly, Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:10ee0a33b4a3ea2a",
-      "properties": {
-        "char_end": 1646,
-        "char_start": 1433,
-        "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:skanda-amarnath",
-        "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 78000,
-        "timestamp_start_ms": 72000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:7a8b2bd11d3e7b9c",
       "properties": {
         "episode_id": "ep-2cd5c6d11325a312",
@@ -196,12 +169,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:9cd57b6a7078d69f",
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f78a40de9d85911f",
+      "properties": {
+        "char_end": 1296,
+        "char_start": 1148,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a7ce070362f1ef6c",
+      "properties": {
+        "char_end": 1646,
+        "char_start": 1433,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1bb5bfcd6f21b027",
       "properties": {
         "char_end": 2690,
         "char_start": 2518,
         "episode_id": "ep-2cd5c6d11325a312",
-        "speaker_id": "person:skanda-amarnath",
+        "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Systems thinking in macro means watching feedback loops, not point estimates. If you ignore that, you end up rebuilding it from scratch a year later.",
         "timestamp_end_ms": 132000,
         "timestamp_start_ms": 126000,

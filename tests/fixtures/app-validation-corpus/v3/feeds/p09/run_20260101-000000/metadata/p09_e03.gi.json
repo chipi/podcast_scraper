@@ -11,9 +11,9 @@
       "type": "ABOUT"
     },
     {
-      "from": "episode:ep-919c77e84ad37664",
-      "to": "insight:0605b90752bdc08b",
-      "type": "HAS_INSIGHT"
+      "from": "insight:b6a08ff88d833801",
+      "to": "topic:labor-markets",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ep-919c77e84ad37664",
@@ -23,6 +23,11 @@
     {
       "from": "episode:ep-919c77e84ad37664",
       "to": "insight:90ae1acc06309c16",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "insight:b6a08ff88d833801",
       "type": "HAS_INSIGHT"
     },
     {
@@ -41,38 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "insight:0605b90752bdc08b",
-      "to": "person:sam",
+      "from": "insight:8b3f1e28aa50a40e",
+      "to": "person:skanda-amarnath",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:0ad420387b656203",
+      "from": "insight:90ae1acc06309c16",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b6a08ff88d833801",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:9aefd1c2419e51c1",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:4a847efb125f2fa5",
+      "from": "quote:cbc6c2b83732be27",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:a2a24d8ed3e94fde",
+      "from": "quote:d2613e0c070960b0",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0605b90752bdc08b",
-      "to": "quote:0ad420387b656203",
-      "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:8b3f1e28aa50a40e",
-      "to": "quote:a2a24d8ed3e94fde",
+      "to": "quote:cbc6c2b83732be27",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:90ae1acc06309c16",
-      "to": "quote:4a847efb125f2fa5",
+      "to": "quote:d2613e0c070960b0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b6a08ff88d833801",
+      "to": "quote:9aefd1c2419e51c1",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -112,7 +127,35 @@
       "type": "Topic"
     },
     {
-      "id": "insight:0605b90752bdc08b",
+      "id": "insight:90ae1acc06309c16",
+      "properties": {
+        "episode_id": "ep-919c77e84ad37664",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yeah, so \u2014 Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:8b3f1e28aa50a40e",
+      "properties": {
+        "episode_id": "ep-919c77e84ad37664",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b6a08ff88d833801",
       "properties": {
         "episode_id": "ep-919c77e84ad37664",
         "grounded": true,
@@ -120,7 +163,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy.",
+        "text": "Honestly, Labor markets are where macro stops being abstract. We've seen this play out at teams using BloombergNEF. If you ignore that, you end up rebuilding it from scratch a year later.",
         "tier": 2
       },
       "type": "Insight"
@@ -133,47 +176,12 @@
       "type": "Person"
     },
     {
-      "id": "person:sam",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:0ad420387b656203",
-      "properties": {
-        "char_end": 782,
-        "char_start": 662,
-        "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:speaker-02",
-        "text": "Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p09_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:90ae1acc06309c16",
-      "properties": {
-        "episode_id": "ep-919c77e84ad37664",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Yeah, so \u2014 Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:4a847efb125f2fa5",
+      "id": "quote:d2613e0c070960b0",
       "properties": {
         "char_end": 1107,
         "char_start": 927,
         "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:skanda-amarnath",
+        "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.",
         "timestamp_end_ms": 60000,
         "timestamp_start_ms": 54000,
@@ -182,29 +190,29 @@
       "type": "Quote"
     },
     {
-      "id": "insight:8b3f1e28aa50a40e",
-      "properties": {
-        "episode_id": "ep-919c77e84ad37664",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:a2a24d8ed3e94fde",
+      "id": "quote:cbc6c2b83732be27",
       "properties": {
         "char_end": 1912,
         "char_start": 1732,
         "episode_id": "ep-919c77e84ad37664",
-        "speaker_id": "person:skanda-amarnath",
+        "speaker_id": "person:speaker-02",
         "text": "Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
         "timestamp_end_ms": 102000,
         "timestamp_start_ms": 96000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9aefd1c2419e51c1",
+      "properties": {
+        "char_end": 2674,
+        "char_start": 2487,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Labor markets are where macro stops being abstract. We've seen this play out at teams using BloombergNEF. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 138000,
+        "timestamp_start_ms": 132000,
         "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"

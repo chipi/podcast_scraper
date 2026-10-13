@@ -20,6 +20,11 @@
         "label": "negative"
       },
       {
+        "compound": 0.3612,
+        "insight_id": "insight:aa0b1ec0ef608c72",
+        "label": "positive"
+      },
+      {
         "compound": 0.0,
         "insight_id": "insight:authored-p02_e04-0",
         "label": "neutral"
@@ -28,11 +33,6 @@
         "compound": -0.4939,
         "insight_id": "insight:authored-p02_e04-1",
         "label": "negative"
-      },
-      {
-        "compound": 0.3612,
-        "insight_id": "insight:aa0b1ec0ef608c72",
-        "label": "positive"
       }
     ],
     "total_insights": 5

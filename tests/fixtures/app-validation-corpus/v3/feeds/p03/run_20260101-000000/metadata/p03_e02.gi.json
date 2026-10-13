@@ -31,33 +31,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:1582f0da1fe3b3ed",
+      "from": "insight:6874463f5b7f4934",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:8e7b63ae8b5204cb",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:d5a264d508b11355",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:32c5b7a90fba22b7",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:19f5aa7eeb80abf9",
+      "from": "quote:db0fb920895fd9de",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:656c6b3c411f064b",
+      "from": "quote:e7665d0e1a00aa32",
       "to": "person:hanna-crebo-rediker",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6874463f5b7f4934",
-      "to": "quote:656c6b3c411f064b",
+      "to": "quote:e7665d0e1a00aa32",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:8e7b63ae8b5204cb",
-      "to": "quote:1582f0da1fe3b3ed",
+      "to": "quote:32c5b7a90fba22b7",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:d5a264d508b11355",
-      "to": "quote:19f5aa7eeb80abf9",
+      "to": "quote:db0fb920895fd9de",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -97,34 +112,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:hanna-crebo-rediker",
-      "properties": {
-        "name": "Hanna Crebo-Rediker"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:rina",
-      "properties": {
-        "name": "Rina"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:19f5aa7eeb80abf9",
-      "properties": {
-        "char_end": 893,
-        "char_start": 729,
-        "episode_id": "ep-a0a7f86b34a4de26",
-        "speaker_id": "person:speaker-02",
-        "text": "Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p03_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:d5a264d508b11355",
       "properties": {
         "episode_id": "ep-a0a7f86b34a4de26",
@@ -153,20 +140,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:656c6b3c411f064b",
-      "properties": {
-        "char_end": 1126,
-        "char_start": 1002,
-        "episode_id": "ep-a0a7f86b34a4de26",
-        "speaker_id": "person:hanna-crebo-rediker",
-        "text": "Yeah, so \u2014 Erosion in coastal areas drives sediment plumes. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
-        "transcript_ref": "transcripts/p03_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:8e7b63ae8b5204cb",
       "properties": {
         "episode_id": "ep-a0a7f86b34a4de26",
@@ -181,12 +154,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:1582f0da1fe3b3ed",
+      "id": "person:hanna-crebo-rediker",
+      "properties": {
+        "name": "Hanna Crebo-Rediker"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:db0fb920895fd9de",
+      "properties": {
+        "char_end": 893,
+        "char_start": 729,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e7665d0e1a00aa32",
+      "properties": {
+        "char_end": 1126,
+        "char_start": 1002,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Erosion in coastal areas drives sediment plumes. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 60000,
+        "timestamp_start_ms": 54000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:32c5b7a90fba22b7",
       "properties": {
         "char_end": 1445,
         "char_start": 1257,
         "episode_id": "ep-a0a7f86b34a4de26",
-        "speaker_id": "person:hanna-crebo-rediker",
+        "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Most reef damage from divers isn't fin contact \u2014 it's anchor strikes. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.",
         "timestamp_end_ms": 72000,
         "timestamp_start_ms": 66000,

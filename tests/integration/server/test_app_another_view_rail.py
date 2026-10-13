@@ -75,16 +75,21 @@ def test_offers_speakers_not_yet_heard_on_the_topic(tmp_path: Path) -> None:
 
 
 def test_the_answer_is_pinned(tmp_path: Path) -> None:
-    """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it."""
+    """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it.
+
+    2026-10-13: the corpus rebuilt on main's D-44 (translated episodes analysed in their English)
+    and main's claim ranking. A translated show's guest (Chiara Ricci, p11) now has a risk-
+    management line and takes Daniel Cho's place; Sophie Laurent's card is her own episode (p01_e04)
+    and Scott Bessent's is p05_e04. Re-measured."""
     _seed(tmp_path, "u1")
     got = [
         (c.slug, c.why.subject.label, c.why.quote.speaker)  # type: ignore[union-attr]
         for c in another_view_rail(ROOT, tmp_path, "u1")
     ]
     assert got == [
-        ("p01-74565a3a19", "risk management", "Sophie Laurent"),
-        ("p05-693ecaa09e", "systems thinking", "Scott Bessent"),
-        ("p05-25cb576153", "risk management", "Daniel Cho"),
+        ("p01-f2b497cfa3", "risk management", "Sophie Laurent"),
+        ("p05-25cb576153", "systems thinking", "Scott Bessent"),
+        ("p11-238df75776", "risk management", "Chiara Ricci"),
         ("p03-5b8ca67393", "systems thinking", "Marco Silva"),
     ]
 
@@ -92,17 +97,17 @@ def test_the_answer_is_pinned(tmp_path: Path) -> None:
 def test_a_speaker_recorded_as_agreeing_with_one_heard_is_not_another_view(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The fixture records no agreement involving the speakers here, so one is supplied: Daniel
-    Cho agreeing with Dr. Elena Fischer (heard) on risk management takes him off the rail."""
+    """The fixture records no agreement involving the speakers here, so one is supplied: Chiara
+    Ricci agreeing with Dr. Elena Fischer (heard) on risk management takes her off the rail."""
     import podcast_scraper.server.app_another_view_rail as av
 
     _seed(tmp_path, "u1")
     before = [c.why.quote.speaker for c in another_view_rail(ROOT, tmp_path, "u1")]  # type: ignore[union-attr]
-    assert "Daniel Cho" in before
-    pair = ("topic:risk-management", frozenset({"person:daniel-cho", "person:dr-elena-fischer"}))
+    assert "Chiara Ricci" in before
+    pair = ("topic:risk-management", frozenset({"person:chiara-ricci", "person:dr-elena-fischer"}))
     monkeypatch.setattr(av, "agreeing_pairs", lambda root: {pair})
     speakers = [c.why.quote.speaker for c in another_view_rail(ROOT, tmp_path, "u1")]  # type: ignore[union-attr]
-    assert "Daniel Cho" not in speakers
+    assert "Chiara Ricci" not in speakers
 
 
 def test_the_fixture_records_agreement_pairs(tmp_path: Path) -> None:

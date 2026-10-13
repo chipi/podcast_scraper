@@ -62,12 +62,17 @@
     },
     {
       "from": "insight:07dcf9af0368ccff",
-      "to": "person:ethan",
+      "to": "person:priya-nair",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:87d008bfa722a799",
-      "to": "person:priya-nair",
+      "to": "person:ethan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:aa0b1ec0ef608c72",
+      "to": "person:ethan",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -81,18 +86,13 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:3f623cc708ffcce2",
+      "from": "quote:124280557b476791",
       "to": "person:priya-nair",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:493b89eb3e734cb8",
+      "from": "quote:821a1ce578bc0dff",
       "to": "person:priya-nair",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:85c07b522d318f07",
-      "to": "person:ethan",
       "type": "SPOKEN_BY"
     },
     {
@@ -106,18 +106,23 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:fd2e2410694d06ef",
+      "to": "person:ethan",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:07dcf9af0368ccff",
-      "to": "quote:3f623cc708ffcce2",
+      "to": "quote:124280557b476791",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:87d008bfa722a799",
-      "to": "quote:493b89eb3e734cb8",
+      "to": "quote:821a1ce578bc0dff",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:aa0b1ec0ef608c72",
-      "to": "quote:85c07b522d318f07",
+      "to": "quote:fd2e2410694d06ef",
       "type": "SUPPORTED_BY"
     },
     {
@@ -178,8 +183,8 @@
       "properties": {
         "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in\u2026",
@@ -192,11 +197,25 @@
       "properties": {
         "episode_id": "ep-18ede6ffbd63f18f",
         "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was prett\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:aa0b1ec0ef608c72",
+      "properties": {
+        "episode_id": "ep-18ede6ffbd63f18f",
+        "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was prett\u2026",
+        "text": "That sounds a lot like what the investing folks say about a portfolio.",
         "tier": 2
       },
       "type": "Insight"
@@ -209,14 +228,7 @@
       "type": "Person"
     },
     {
-      "id": "person:ethan",
-      "properties": {
-        "name": "Ethan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:493b89eb3e734cb8",
+      "id": "quote:821a1ce578bc0dff",
       "properties": {
         "char_end": 653,
         "char_start": 423,
@@ -230,7 +242,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:3f623cc708ffcce2",
+      "id": "quote:124280557b476791",
       "properties": {
         "char_end": 869,
         "char_start": 653,
@@ -244,6 +256,27 @@
       "type": "Quote"
     },
     {
+      "id": "person:ethan",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:fd2e2410694d06ef",
+      "properties": {
+        "char_end": 1296,
+        "char_start": 1226,
+        "episode_id": "ep-18ede6ffbd63f18f",
+        "speaker_id": "person:speaker-01",
+        "text": "That sounds a lot like what the investing folks say about a portfolio.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p02_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
       "id": "insight:authored-p02_e04-0",
       "properties": {
         "episode_id": "ep-18ede6ffbd63f18f",
@@ -251,9 +284,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Reliability is a property of the whole system, not of any one component.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -279,9 +312,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Risk management in production is naming the risk before it names you.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -295,34 +328,6 @@
         "text": "It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud.",
         "timestamp_end_ms": 48000,
         "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p02_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:aa0b1ec0ef608c72",
-      "properties": {
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "That sounds a lot like what the investing folks say about a portfolio.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:85c07b522d318f07",
-      "properties": {
-        "char_end": 1296,
-        "char_start": 1226,
-        "episode_id": "ep-18ede6ffbd63f18f",
-        "speaker_id": "person:ethan",
-        "text": "That sounds a lot like what the investing folks say about a portfolio.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"

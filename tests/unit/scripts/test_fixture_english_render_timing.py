@@ -107,11 +107,18 @@ def test_a_point_is_still_a_claim() -> None:
     assert not realign.is_not_a_claim("Sinceramente, el drenaje es la decisión.", point)
 
 
-def test_every_translated_line_has_its_english() -> None:
+def test_a_translated_episode_is_grounded_in_its_english_turns() -> None:
+    """D-44: a translated episode's GI is built on its English ad-free body, so the realign grounds
+    it in the same English turns the builder used (not the source lines it paired with English
+    before D-44 reached this corpus), on the source timeline, indexing ``<stem>.adfree.txt``."""
     sys.path.insert(0, str(ROOT / "scripts" / "tools"))
     import realign_fixture_gi as realign  # noqa: E402
 
     gi = TRANSCRIPTS.parent / "metadata" / "p10_e02.gi.json"
-    segments, _, _, english = realign._episode_inputs(gi)
-    assert english is not None and len(english) == len(segments)
-    assert all(english), "a source line with no English would skip the claim test"
+    segments, body, turns, english = realign._episode_inputs(gi)
+    assert turns is None and english is None, "English insights need no pairing"
+    assert body == (TRANSCRIPTS / "p10_e02.adfree.txt").read_text("utf-8")
+    assert segments and all(body[s["char_start"] : s["char_end"]] == s["text"] for s in segments)
+    source = json.loads((TRANSCRIPTS / "p10_e02.es.segments.json").read_text("utf-8"))
+    end = max(float(s["end"]) for s in source)
+    assert all(0.0 <= float(s["start"]) <= float(s["end"]) <= end + 0.01 for s in segments)

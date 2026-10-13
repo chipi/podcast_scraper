@@ -84,24 +84,31 @@ test('Step: › in the episode view jumps to the next insight', async ({ page },
   // The Bessent Tape's first insight is at 1:00 (2026-10-12): the host's closing "thanks for the
   // conversation" stopped being an insight and the episode's next claim, at 1:00, took its place.
   // (1:24 since ADR-165, 2026-10-11 — the 0:06 one was a guest's greeting.)
-  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(59.5)
-  await expect.poll(() => audioTime(page)).toBeLessThan(66)
-  // The jump is never unexplained: "› Jumped to 1:00" for a moment.
-  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 1:0\d/)
+  // 1:24 again since 2026-10-13: the corpus rebuilt on main's claim ranking puts the episode's
+  // first insight at 84 s (the GI's first SUPPORTED_BY quote).
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(83.5)
+  await expect.poll(() => audioTime(page)).toBeLessThan(90)
+  // The jump is never unexplained: "› Jumped to 1:24" for a moment.
+  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 1:2\d/)
 })
 
 test('Step: a left swipe on the insight card is next, a right swipe previous', async ({ page }, testInfo) => {
   await openEpisode(page, testInfo, 'swipe')
   const swipe = async (dx: number) => {
     const card = page.locator('[data-testid="player-zone-d-live"], [data-testid="player-zone-d-rest"]').first()
-    const box = (await card.boundingBox())!
+    // A swipe that lands on an insight swaps the rest card for the live one (a keyed transition);
+    // measuring in between returned null under a loaded parallel run. Wait for a card with a box.
+    let box: { x: number; y: number; width: number; height: number } | null = null
+    await expect.poll(async () => (box = await card.boundingBox()) !== null).toBe(true)
+    box = box!
     const x = box.x + box.width / 2
     const y = box.y + box.height / 2
     await card.dispatchEvent('pointerdown', { pointerType: 'touch', clientX: x, clientY: y, isPrimary: true })
     await card.dispatchEvent('pointerup', { pointerType: 'touch', clientX: x + dx, clientY: y + 4, isPrimary: true })
   }
   await swipe(-80)
-  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(5.5)
+  // The first insight, at 1:24 (see the step test above).
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(83.5)
   const afterNext = await audioTime(page)
   await swipe(-80)
   await expect.poll(() => audioTime(page)).toBeGreaterThan(afterNext + 1)

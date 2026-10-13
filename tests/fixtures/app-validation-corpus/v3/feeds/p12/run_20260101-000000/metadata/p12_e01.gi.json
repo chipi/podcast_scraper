@@ -1,18 +1,23 @@
 {
   "edges": [
     {
+      "from": "insight:5cc24d0bffa08f0c",
+      "to": "topic:drainage-design",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:1463dcac5efa2026",
+      "to": "insight:5cc24d0bffa08f0c",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:6df483410ee7f431",
+      "to": "insight:9e6fb3b6d2b83f6d",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-8dce4ec000757097",
-      "to": "insight:da7522fadb10009a",
+      "to": "insight:d3e92fbac0f31905",
       "type": "HAS_INSIGHT"
     },
     {
@@ -31,33 +36,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:1888bdb1bd495f0d",
+      "from": "insight:5cc24d0bffa08f0c",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:9e6fb3b6d2b83f6d",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:d3e92fbac0f31905",
+      "to": "person:julien-mercier",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:03a9247fad988477",
       "to": "person:julien-mercier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:ddc4d35da9cf4460",
+      "from": "quote:622c49977b18a36f",
       "to": "person:julien-mercier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:f386d7d97f90fcba",
-      "to": "person:julien-mercier",
+      "from": "quote:a58a83663be4a55b",
+      "to": "person:camille-dubois",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:1463dcac5efa2026",
-      "to": "quote:f386d7d97f90fcba",
+      "from": "insight:5cc24d0bffa08f0c",
+      "to": "quote:622c49977b18a36f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:6df483410ee7f431",
-      "to": "quote:1888bdb1bd495f0d",
+      "from": "insight:9e6fb3b6d2b83f6d",
+      "to": "quote:a58a83663be4a55b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:da7522fadb10009a",
-      "to": "quote:ddc4d35da9cf4460",
+      "from": "insight:d3e92fbac0f31905",
+      "to": "quote:03a9247fad988477",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -70,7 +90,7 @@
         "duration_ms": 401000,
         "feed_id": "p12",
         "podcast_id": "p12",
-        "publish_date": "2025-11-01T00:00:00",
+        "publish_date": "2024-11-01T00:00:00",
         "title": "Construire Des Sentiers Qui Durent"
       },
       "type": "Episode"
@@ -97,11 +117,46 @@
       "type": "Topic"
     },
     {
-      "id": "person:camille-dubois",
+      "id": "insight:5cc24d0bffa08f0c",
       "properties": {
-        "name": "Camille Dubois"
+        "episode_id": "ep-8dce4ec000757097",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d3e92fbac0f31905",
+      "properties": {
+        "episode_id": "ep-8dce4ec000757097",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yes, listen \u2013 the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9e6fb3b6d2b83f6d",
+      "properties": {
+        "episode_id": "ep-8dce4ec000757097",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It's settled.\nOr:\nIt's a done deal.\nOr:\nThat's confirmed.\nOr:\nIt's arranged.\nOr:\nIt's agreed.\n(The best option depends on the context.)",
+        "tier": 2
+      },
+      "type": "Insight"
     },
     {
       "id": "person:julien-mercier",
@@ -111,88 +166,90 @@
       "type": "Person"
     },
     {
-      "id": "quote:1888bdb1bd495f0d",
+      "id": "quote:622c49977b18a36f",
       "properties": {
-        "char_end": 808,
-        "char_start": 582,
+        "char_end": 364,
+        "char_start": 168,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
-        "text": "Honn\u00eatement, le drainage est la d\u00e9cision de conception la plus d\u00e9terminante sur n'importe quel sentier. On l'a vu dans des \u00e9quipes qui utilisent l'Alliance Cascadia. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
+        "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "insight:6df483410ee7f431",
+      "id": "quote:03a9247fad988477",
       "properties": {
+        "char_end": 650,
+        "char_start": 478,
         "episode_id": "ep-8dce4ec000757097",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Honn\u00eatement, le drainage est la d\u00e9cision de conception la plus d\u00e9terminante sur n'importe quel sentier. On l'a vu dans des \u00e9quipes qui utilisent l'Alliance Cascadia. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter da\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:da7522fadb10009a",
-      "properties": {
-        "episode_id": "ep-8dce4ec000757097",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Oui, \u00e9coute \u2014 l'erreur la plus courante des constructeurs d\u00e9butants est de creuser avec une pente trop forte. Une fois que tu as int\u00e9gr\u00e9 \u00e7a, le reste des d\u00e9cisions devient plus simple.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:ddc4d35da9cf4460",
-      "properties": {
-        "char_end": 1128,
-        "char_start": 944,
-        "episode_id": "ep-8dce4ec000757097",
-        "speaker_id": "person:julien-mercier",
-        "text": "Oui, \u00e9coute \u2014 l'erreur la plus courante des constructeurs d\u00e9butants est de creuser avec une pente trop forte. Une fois que tu as int\u00e9gr\u00e9 \u00e7a, le reste des d\u00e9cisions devient plus simple.",
+        "speaker_id": "person:speaker-02",
+        "text": "Yes, listen \u2013 the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "insight:1463dcac5efa2026",
+      "id": "person:camille-dubois",
       "properties": {
-        "episode_id": "ep-8dce4ec000757097",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Bien s\u00fbr. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des \u00e9quipes qui utilisent RockShox. Le cadre compte parce qu'il te dit que\u2026",
-        "tier": 2
+        "name": "Camille Dubois"
       },
-      "type": "Insight"
+      "type": "Person"
     },
     {
-      "id": "quote:f386d7d97f90fcba",
+      "id": "quote:a58a83663be4a55b",
       "properties": {
-        "char_end": 1473,
-        "char_start": 1255,
+        "char_end": 3320,
+        "char_start": 3185,
         "episode_id": "ep-8dce4ec000757097",
-        "speaker_id": "person:julien-mercier",
-        "text": "Bien s\u00fbr. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des \u00e9quipes qui utilisent RockShox. Le cadre compte parce qu'il te dit quels compromis tu fais.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p12_e01.txt"
+        "speaker_id": "person:speaker-01",
+        "text": "It's settled.\nOr:\nIt's a done deal.\nOr:\nThat's confirmed.\nOr:\nIt's arranged.\nOr:\nIt's agreed.\n(The best option depends on the context.)",
+        "timestamp_end_ms": 168000,
+        "timestamp_start_ms": 162000,
+        "transcript_ref": "transcripts/p12_e01.txt",
+        "translation": {
+          "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0026.u01"
+          ]
+        }
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",

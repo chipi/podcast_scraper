@@ -81,17 +81,17 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:0f91d4752baf32fd",
+      "from": "quote:3dc7aa9281860a1b",
       "to": "person:rina",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:15d229b8edce998f",
+      "from": "quote:74bd2be937edcc83",
       "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:abecc7a7e3e95b61",
+      "from": "quote:ac670460e3b9ad16",
       "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
@@ -107,12 +107,12 @@
     },
     {
       "from": "insight:8d5667985a6bf6f1",
-      "to": "quote:abecc7a7e3e95b61",
+      "to": "quote:ac670460e3b9ad16",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:a7c9178cc26caaf1",
-      "to": "quote:0f91d4752baf32fd",
+      "to": "quote:3dc7aa9281860a1b",
       "type": "SUPPORTED_BY"
     },
     {
@@ -127,7 +127,7 @@
     },
     {
       "from": "insight:c1a333a563abe849",
-      "to": "quote:15d229b8edce998f",
+      "to": "quote:74bd2be937edcc83",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -209,13 +209,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:marco-silva",
-      "properties": {
-        "name": "Marco Silva"
-      },
-      "type": "Person"
-    },
-    {
       "id": "person:rina",
       "properties": {
         "name": "Rina"
@@ -223,7 +216,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:0f91d4752baf32fd",
+      "id": "quote:3dc7aa9281860a1b",
       "properties": {
         "char_end": 363,
         "char_start": 302,
@@ -237,7 +230,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:15d229b8edce998f",
+      "id": "person:marco-silva",
+      "properties": {
+        "name": "Marco Silva"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:74bd2be937edcc83",
       "properties": {
         "char_end": 579,
         "char_start": 377,
@@ -251,7 +251,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:abecc7a7e3e95b61",
+      "id": "quote:ac670460e3b9ad16",
       "properties": {
         "char_end": 803,
         "char_start": 579,
@@ -272,9 +272,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },
@@ -300,9 +300,9 @@
         "insight_type": "claim",
         "position_hint": 0.5,
         "routing_tag": "surface",
-        "salience": 0.7667,
+        "salience": 1.0,
         "text": "You plan the whole dive as one system; accidents live in the interactions.",
-        "tier": 2
+        "tier": 3
       },
       "type": "Insight"
     },

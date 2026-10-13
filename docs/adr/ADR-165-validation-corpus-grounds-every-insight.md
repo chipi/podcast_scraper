@@ -42,10 +42,12 @@ an episode was recommended, and a topic reel had almost nothing it could honestl
 4. **Authored claims are anchored.** An authored claim's quote is the one segment that contains it;
    a paraphrase gets the verbatim line it paraphrases (that speaker's segment sharing the most words,
    at least a third), and the insight keeps the paraphrase. No time is invented.
-5. **Non-English episodes are grounded in their own language.** Insights are matched against the
-   source-language segments (`<stem>.<lang>.segments.json`). A line is classified through its
-   English translation only in the opening run, where index pairing with the translation's turns
-   is verified by a shared name; further in, the pairing drifts.
+5. **Translated episodes are grounded in their English (amended 2026-10-13).** A translated
+   episode's GI is built on its English ad-free body (D-44), as the pipeline builds it, so its
+   insights are English and are matched against the same English turns, on the source timeline;
+   quote offsets index `<stem>.adfree.txt` and each quote carries translation provenance. (Until
+   the rebase onto D-44 they were matched against the source-language segments and classified
+   through the translation's turns.)
 6. **The builder's grounding variation is kept.** In `low_grounding_dialogue` episodes every second
    pipeline insight stays ungrounded, so the grounding-rate enricher still has variation to measure.
 7. **The builder and the committed corpus follow the same rules.** The builder is fixed
@@ -58,6 +60,11 @@ an episode was recommended, and a topic reel had almost nothing it could honestl
    - the corpus `grounding_rate` and `guest_coappearance`, with `cli enrich`. This also moves
      `grounding_rate` to the per-episode shape the server has read since #1927;
    - the search sidecar, which is gitignored and rebuilt by the tests' index fixture.
+
+   Since 2026-10-13 the committed corpus IS a rebuild followed by the realign: rebasing onto main's
+   D-44 corpus, it was regenerated from the builder (which now gives `build_gi` every segment, so
+   it grounds all 178 insights itself) and the realign applied on top; a second realign changes
+   nothing. The procedure is in the corpus README.
 
 **Result** (2026-10-11):
 

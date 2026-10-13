@@ -8,7 +8,7 @@ import { signInIsolated } from './helpers'
  * two sequential boundingBox() reads let a section settling above them fake an overlap.
  */
 const TOPIC = `/topic/${encodeURIComponent('topic:risk-management')}`
-const THEME = `/theme/${encodeURIComponent('tc:safety-practices')}`
+const THEME = `/theme/${encodeURIComponent('tc:risk-management')}`
 const STORYLINE = `/storyline/${encodeURIComponent('topic:risk-management')}`
 const NORA = `/person/${encodeURIComponent('person:nora')}`
 const MAYA = `/person/${encodeURIComponent('person:maya')}`

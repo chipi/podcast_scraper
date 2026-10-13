@@ -46,33 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:b679f3d43ac108b2",
+      "from": "insight:4cfb4432e8e1fa37",
+      "to": "person:ava-lemoine",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b016febad91803c7",
+      "to": "person:ava-lemoine",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:bfb716eef9159918",
+      "to": "person:ava-lemoine",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:0a721468477abf62",
       "to": "person:ava-lemoine",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:b886f0df5d377820",
+      "from": "quote:2267a82059796ee4",
       "to": "person:ava-lemoine",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:c6ac109660ca7dda",
+      "from": "quote:34c1211d6dc0a52a",
       "to": "person:ava-lemoine",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:4cfb4432e8e1fa37",
-      "to": "quote:b886f0df5d377820",
+      "to": "quote:0a721468477abf62",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:b016febad91803c7",
-      "to": "quote:c6ac109660ca7dda",
+      "to": "quote:2267a82059796ee4",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:bfb716eef9159918",
-      "to": "quote:b679f3d43ac108b2",
+      "to": "quote:34c1211d6dc0a52a",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -112,20 +127,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:ava-lemoine",
-      "properties": {
-        "name": "Ava Lemoine"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:leo",
-      "properties": {
-        "name": "Leo"
-      },
-      "type": "Person"
-    },
-    {
       "id": "insight:4cfb4432e8e1fa37",
       "properties": {
         "episode_id": "ep-9b36e2e3b959298d",
@@ -154,34 +155,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:b886f0df5d377820",
-      "properties": {
-        "char_end": 1544,
-        "char_start": 1420,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:ava-lemoine",
-        "text": "Honestly, Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 78000,
-        "timestamp_start_ms": 72000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:c6ac109660ca7dda",
-      "properties": {
-        "char_end": 2888,
-        "char_start": 2763,
-        "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:ava-lemoine",
-        "text": "Yeah, so \u2014 Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 144000,
-        "timestamp_start_ms": 138000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:bfb716eef9159918",
       "properties": {
         "episode_id": "ep-9b36e2e3b959298d",
@@ -196,12 +169,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:b679f3d43ac108b2",
+      "id": "person:ava-lemoine",
+      "properties": {
+        "name": "Ava Lemoine"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0a721468477abf62",
+      "properties": {
+        "char_end": 1544,
+        "char_start": 1420,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 78000,
+        "timestamp_start_ms": 72000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2267a82059796ee4",
+      "properties": {
+        "char_end": 2888,
+        "char_start": 2763,
+        "episode_id": "ep-9b36e2e3b959298d",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Frame and light decisions converge across genres. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 144000,
+        "timestamp_start_ms": 138000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:34c1211d6dc0a52a",
       "properties": {
         "char_end": 4130,
         "char_start": 3985,
         "episode_id": "ep-9b36e2e3b959298d",
-        "speaker_id": "person:ava-lemoine",
+        "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Frame and light decisions converge across genres. The framing matters because it tells you which trade-offs you're making.",
         "timestamp_end_ms": 204000,
         "timestamp_start_ms": 198000,

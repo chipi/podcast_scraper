@@ -43,18 +43,23 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
 
     2026-10-12, later: a clip ends where its speaker does (the next voice was a host's native ad or a
     sponsor credit as often as a question), and 62 connective templates stopped being insights, so
-    the translated shows' guests now speak on these subjects."""
+    the translated shows' guests now speak on these subjects.
+
+    2026-10-13, eleven clips: the corpus rebuilt on main's D-44 (a translated episode is analysed in
+    its English), main's claim ranking, and every insight grounded in the line that says it;
+    re-measured, not traced clip by clip."""
     reel = goal_reel(ROOT, "topic:systems-thinking", minutes=15)
     assert [(c.episode_slug, c.moment.speaker) for c in reel] == [
         ("p02-8fdd7b7f79", "Priya Nair"),
         ("p07-a5eb82076a", "Dr. Elena Fischer"),
+        ("p07-2aceab172c", "Skanda Amarnath"),
         ("p07-3f1584920f", "Skanda Amarnath"),
         ("p07-769d04686d", "Dr. Elena Fischer"),
-        ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p09-db2d39ef2e", "Dr. Elena Fischer"),
-        ("p07-2aceab172c", "Skanda Amarnath"),
+        ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p05-25cb576153", "Scott Bessent"),
         ("p05-693ecaa09e", "Scott Bessent"),
+        ("p07-2aceab172c", "Skanda Amarnath"),
         ("p07-3f1584920f", "Skanda Amarnath"),
     ]
     # Breadth first: every episode's first clip comes before any episode's second.
@@ -110,8 +115,9 @@ def test_a_storyline_reel_is_clips_about_any_of_its_member_topics() -> None:
     }
     reel = goal_reel(ROOT, "thc:managing-risk", minutes=15)
     # 39 clips from 27 episodes since 2026-10-12: the translated shows' guests' risk-management
-    # lines are insights now (they were connective templates), and clips are shorter.
-    assert len(reel) == 39 and len({c.episode_slug for c in reel}) == 27
+    # lines are insights now (they were connective templates), and clips are shorter. 38 from 26
+    # since 2026-10-13: the corpus rebuilt on main's D-44 English analysis (re-measured).
+    assert len(reel) == 38 and len({c.episode_slug for c in reel}) == 26
     assert_no_repeats(reel)
     one_member = {c.episode_slug for c in goal_reel(ROOT, "topic:risk-management", minutes=15)}
     assert len({c.episode_slug for c in reel}) > len(one_member)
@@ -138,7 +144,7 @@ def test_the_route_names_a_storyline_reel_by_its_storyline(tmp_path: Path) -> No
         "storyline",
         "Managing risk across domains",
     )
-    assert len(body["clips"]) == 39
+    assert len(body["clips"]) == 38
 
 
 def _client(data_dir: Path) -> tuple[TestClient, str]:
@@ -161,8 +167,9 @@ def test_the_route_reports_what_the_reel_actually_runs(tmp_path: Path) -> None:
     assert (body["subject_label"], body["subject_kind"]) == ("systems thinking", "topic")
     assert body["minutes"] == 15
     # The small fixture: far less than the budget. 78 since 2026-10-12: clips stop before an ad
-    # break and where their speaker does (in this fixture a turn is often one 6 s line).
-    assert body["total_seconds"] == 78.0
+    # break and where their speaker does (in this fixture a turn is often one 6 s line). 84 since
+    # 2026-10-13: one clip more (the rebuilt corpus, see the pinned reel above).
+    assert body["total_seconds"] == 84.0
     first = body["clips"][0]
     assert first["episode"]["slug"] == "p02-8fdd7b7f79" and first["end_ms"] > first["start_ms"]
     assert client.get("/api/app/discover/reel", params={"subject": "person:x"}).status_code == 422
@@ -181,11 +188,12 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
     # with no reel, so the row only fills because it walks past them (REEL_TOPIC_CANDIDATES); when
     # it took the first 8 and stopped, this was the two storylines alone. tc:reliability's reel is
     # topic:reliability's, so it is the same offer and appears once.
+    # Counts re-measured 2026-10-13 on the rebuilt corpus; the order and the offers are unchanged.
     assert [(i["subject_id"], i["subject_kind"], i["clips"]) for i in everyone["items"]] == [
-        ("topic:reliability", "topic", 15),
-        ("tc:risk-management", "theme", 33),
-        ("thc:managing-risk", "storyline", 39),
-        ("topic:systems-thinking", "topic", 10),
+        ("topic:reliability", "topic", 16),
+        ("tc:risk-management", "theme", 32),
+        ("thc:managing-risk", "storyline", 38),
+        ("topic:systems-thinking", "topic", 11),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(
@@ -245,19 +253,28 @@ def test_a_long_reel_is_trimmed_to_its_budget_breadth_first() -> None:
     assert len(set(episodes[:distinct])) == distinct
 
 
-def test_a_storyline_with_too_few_episodes_has_a_short_reel_and_no_path(tmp_path: Path) -> None:
-    """thc:building-trails (2026-10-11): two grounded clips from one episode — a short listen, but
-    too few episodes for a path, so the Learn door on its page stays away (since the ABOUT rule
-    became plural-aware, "Drainage is…" is about "drainage design"; it had no reel before)."""
+def test_the_trail_storyline_reaches_the_translated_shows(tmp_path: Path) -> None:
+    """thc:building-trails had two clips from one episode and no path (2026-10-11). Since the
+    translated shows are analysed in their English (D-44, 2026-10-13), their guests' lines about
+    trails and drainage are insights about its topics: four episodes, three of them translated, so
+    it has a short listen in three languages and a path. (A subject too short for a path is
+    covered in test_app_learning_path: ``test_a_subject_with_too_few_good_episodes_has_no_path``.)
+    """
     from podcast_scraper.server.app_goal_reel import reel_subject
     from podcast_scraper.server.app_learning_path import build_path
 
     subject = reel_subject(ROOT, "thc:building-trails")
     assert subject.kind == "storyline" and len(subject.topics) == 4
-    assert len(goal_reel(ROOT, "thc:building-trails", minutes=15)) == 2
-    assert build_path(ROOT, "thc:building-trails") == []
+    reel = goal_reel(ROOT, "thc:building-trails", minutes=15)
+    assert len(reel) == 5 and len({c.episode_slug for c in reel}) == 4
+    assert sorted({c.moment.translated_from for c in reel if c.moment.translated_from}) == [
+        "de",
+        "es",
+        "fr",
+    ]
+    assert len(build_path(ROOT, "thc:building-trails")) == 4
     client, _uid = _client(tmp_path)
-    assert client.get("/api/app/discover/learn/subjects/thc:building-trails").status_code == 404
+    assert client.get("/api/app/discover/learn/subjects/thc:building-trails").status_code == 200
 
 
 # --- scale (2026-10-11: 2,500 episodes on prod, 10,000 planned) -----------------------------------
@@ -358,14 +375,14 @@ def test_a_storyline_anchor_has_clips_of_its_own() -> None:
     other members' (2026-10-11). Insights that name it now link to it."""
     own = goal_reel(ROOT, "topic:second-order-effects", minutes=15)
     # Seven since 2026-10-12, when filler stopped being insights and real lines took their places.
+    # Five since 2026-10-13, one of them a translated show's guest (Diego Ferrer, D-44 English
+    # analysis): the corpus rebuilt on main's claim ranking (re-measured).
     assert sorted((c.episode_slug, c.moment.speaker) for c in own) == [
         ("p02-5f961d7e1c", "Priya Nair"),
         ("p05-693ecaa09e", "Scott Bessent"),
-        ("p05-693ecaa09e", "Scott Bessent"),
-        ("p05-ee8e47b94b", "Daniel Cho"),
-        ("p05-fa4fd4b684", "Richard Clarida"),
         ("p05-fa4fd4b684", "Richard Clarida"),
         ("p08-72169222b1", "Renee Montagne-Park"),
+        ("p10-d9d02f5622", "Diego Ferrer"),
     ]
     storyline = {
         c.moment.insight_id for c in goal_reel(ROOT, "thc:second-order-effects", minutes=15)

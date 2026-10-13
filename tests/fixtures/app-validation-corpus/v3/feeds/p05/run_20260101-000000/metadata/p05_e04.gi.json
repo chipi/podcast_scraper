@@ -66,6 +66,21 @@
       "type": "MENTIONS"
     },
     {
+      "from": "insight:4db6ad82bb47e6fe",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:75d4d3871f97dc92",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:7d4413f14e9648e9",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
       "from": "insight:authored-p05_e04-0",
       "to": "person:daniel-cho",
       "type": "MENTIONS_PERSON"
@@ -86,13 +101,8 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:8e5165d8a6fb1da5",
+      "from": "quote:749c23faa96e328d",
       "to": "person:daniel-cho",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:8fbb96dce62c6027",
-      "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
@@ -116,18 +126,28 @@
       "type": "SPOKEN_BY"
     },
     {
+      "from": "quote:e925f95e21462dde",
+      "to": "person:scott-bessent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:fad2912d7c1e9448",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:4db6ad82bb47e6fe",
-      "to": "quote:8e5165d8a6fb1da5",
+      "to": "quote:749c23faa96e328d",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:75d4d3871f97dc92",
-      "to": "quote:8fbb96dce62c6027",
+      "to": "quote:fad2912d7c1e9448",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:7d4413f14e9648e9",
-      "to": "quote:authored-p05_e04-3",
+      "to": "quote:e925f95e21462dde",
       "type": "SUPPORTED_BY"
     },
     {
@@ -194,153 +214,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:daniel-cho",
-      "properties": {
-        "name": "Daniel Cho"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:scott-bessent",
-      "properties": {
-        "name": "Scott Bessent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:nora",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:8e5165d8a6fb1da5",
-      "properties": {
-        "char_end": 1139,
-        "char_start": 927,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:speaker-02",
-        "text": "And I want to be precise: risk management for individuals is mostly behavioral. The math is easy. Sitting still while a holding gets cut in half is the hard part \u2014 and diversification is what makes it survivable.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:authored-p05_e04-0",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:authored-p05_e04-0",
-      "properties": {
-        "char_end": 781,
-        "char_start": 688,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:daniel-cho",
-        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:authored-p05_e04-1",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:authored-p05_e04-1",
-      "properties": {
-        "char_end": 116,
-        "char_start": 0,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:scott-bessent",
-        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:authored-p05_e04-2",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:authored-p05_e04-2",
-      "properties": {
-        "char_end": 1970,
-        "char_start": 1865,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:daniel-cho",
-        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:authored-p05_e04-3",
-      "properties": {
-        "episode_id": "ep-16ff698c1bd21087",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:authored-p05_e04-3",
-      "properties": {
-        "char_end": 1379,
-        "char_start": 1155,
-        "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:scott-bessent",
-        "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ignorance, evenly distributed.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:4db6ad82bb47e6fe",
       "properties": {
         "episode_id": "ep-16ff698c1bd21087",
@@ -383,15 +256,176 @@
       "type": "Insight"
     },
     {
-      "id": "quote:8fbb96dce62c6027",
+      "id": "person:daniel-cho",
+      "properties": {
+        "name": "Daniel Cho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:749c23faa96e328d",
+      "properties": {
+        "char_end": 1139,
+        "char_start": 927,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-02",
+        "text": "And I want to be precise: risk management for individuals is mostly behavioral. The math is easy. Sitting still while a holding gets cut in half is the hard part \u2014 and diversification is what makes it survivable.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:scott-bessent",
+      "properties": {
+        "name": "Scott Bessent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e925f95e21462dde",
+      "properties": {
+        "char_end": 1379,
+        "char_start": 1155,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:speaker-03",
+        "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ignorance, evenly distributed.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:fad2912d7c1e9448",
       "properties": {
         "char_end": 1827,
         "char_start": 1666,
         "episode_id": "ep-16ff698c1bd21087",
-        "speaker_id": "person:nora",
+        "speaker_id": "person:speaker-01",
         "text": "Let me sharpen it, because the disagreement is real. Daniel, Scott says your safety is an illusion. Scott, Daniel says your edge won't survive your own behavior.",
         "timestamp_end_ms": 60000,
         "timestamp_start_ms": 54000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p05_e04-0",
+      "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 1.0,
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
+        "tier": 3
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-0",
+      "properties": {
+        "char_end": 781,
+        "char_start": 688,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:daniel-cho",
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p05_e04-1",
+      "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 1.0,
+        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
+        "tier": 3
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-1",
+      "properties": {
+        "char_end": 116,
+        "char_start": 0,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:scott-bessent",
+        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p05_e04-2",
+      "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 1.0,
+        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
+        "tier": 3
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-2",
+      "properties": {
+        "char_end": 1970,
+        "char_start": 1865,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:daniel-cho",
+        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p05_e04-3",
+      "properties": {
+        "episode_id": "ep-16ff698c1bd21087",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 1.0,
+        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge.",
+        "tier": 3
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p05_e04-3",
+      "properties": {
+        "char_end": 1379,
+        "char_start": 1155,
+        "episode_id": "ep-16ff698c1bd21087",
+        "speaker_id": "person:scott-bessent",
+        "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ignorance, evenly distributed.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"

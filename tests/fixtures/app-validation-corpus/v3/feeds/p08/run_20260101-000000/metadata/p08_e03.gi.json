@@ -56,38 +56,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "insight:641561d0d2786ae5",
-      "to": "person:a-correspondent",
+      "from": "insight:16ab7f0c5943a59f",
+      "to": "person:renee-montagne-park",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:3c8cedfe192d75b5",
+      "from": "insight:4c16af5d407280a4",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:641561d0d2786ae5",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:37a8411555d86806",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:3dfe9d701a07b0d9",
+      "from": "quote:c2de0180709f83f4",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:9c50a7c9be05b99d",
+      "from": "quote:f26fd37480528ebf",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:16ab7f0c5943a59f",
-      "to": "quote:3dfe9d701a07b0d9",
+      "to": "quote:c2de0180709f83f4",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:4c16af5d407280a4",
-      "to": "quote:9c50a7c9be05b99d",
+      "to": "quote:37a8411555d86806",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:641561d0d2786ae5",
-      "to": "quote:3c8cedfe192d75b5",
+      "to": "quote:f26fd37480528ebf",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -138,42 +148,14 @@
       "properties": {
         "episode_id": "ep-b3570c1ceb5eca41",
         "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:renee-montagne-park",
-      "properties": {
-        "name": "Renee Montagne-Park"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:a-correspondent",
-      "properties": {
-        "name": "A. correspondent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:3c8cedfe192d75b5",
-      "properties": {
-        "char_end": 713,
-        "char_start": 533,
-        "episode_id": "ep-b3570c1ceb5eca41",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p08_e03.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "insight:16ab7f0c5943a59f",
@@ -190,20 +172,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:3dfe9d701a07b0d9",
-      "properties": {
-        "char_end": 1570,
-        "char_start": 1354,
-        "episode_id": "ep-b3570c1ceb5eca41",
-        "speaker_id": "person:renee-montagne-park",
-        "text": "Let me give you the version I actually believe. A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
-        "transcript_ref": "transcripts/p08_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:4c16af5d407280a4",
       "properties": {
         "episode_id": "ep-b3570c1ceb5eca41",
@@ -218,12 +186,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:9c50a7c9be05b99d",
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f26fd37480528ebf",
+      "properties": {
+        "char_end": 713,
+        "char_start": 533,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c2de0180709f83f4",
+      "properties": {
+        "char_end": 1570,
+        "char_start": 1354,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:37a8411555d86806",
       "properties": {
         "char_end": 2394,
         "char_start": 2217,
         "episode_id": "ep-b3570c1ceb5eca41",
-        "speaker_id": "person:renee-montagne-park",
+        "speaker_id": "person:speaker-02",
         "text": "It comes down to this: A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. And the second-order effect is the part most people miss.",
         "timestamp_end_ms": 108000,
         "timestamp_start_ms": 102000,

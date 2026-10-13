@@ -46,33 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:0cf5f4be2c2a6c34",
+      "from": "insight:51ade54b94b5adfb",
+      "to": "person:daniel-olufemi",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:97022a591e10b5b6",
+      "to": "person:daniel-olufemi",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:aab36db87df1f001",
+      "to": "person:daniel-olufemi",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:2f2a358a9f187918",
       "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:76b8d8b8582cbe7e",
+      "from": "quote:798db860b158de8d",
       "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:92b5161d5f008c22",
+      "from": "quote:fe0646f99d83efbe",
       "to": "person:daniel-olufemi",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:51ade54b94b5adfb",
-      "to": "quote:92b5161d5f008c22",
+      "to": "quote:2f2a358a9f187918",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:97022a591e10b5b6",
-      "to": "quote:0cf5f4be2c2a6c34",
+      "to": "quote:fe0646f99d83efbe",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:aab36db87df1f001",
-      "to": "quote:76b8d8b8582cbe7e",
+      "to": "quote:798db860b158de8d",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -112,20 +127,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:daniel-olufemi",
-      "properties": {
-        "name": "Daniel Olufemi"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:leo",
-      "properties": {
-        "name": "Leo"
-      },
-      "type": "Person"
-    },
-    {
       "id": "insight:aab36db87df1f001",
       "properties": {
         "episode_id": "ep-9f97daef33906cf6",
@@ -154,34 +155,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:76b8d8b8582cbe7e",
-      "properties": {
-        "char_end": 1205,
-        "char_start": 1045,
-        "episode_id": "ep-9f97daef33906cf6",
-        "speaker_id": "person:daniel-olufemi",
-        "text": "Honestly, Frame and light are inseparable. We've seen this play out at teams using Capture One. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p04_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:92b5161d5f008c22",
-      "properties": {
-        "char_end": 2839,
-        "char_start": 2670,
-        "episode_id": "ep-9f97daef33906cf6",
-        "speaker_id": "person:daniel-olufemi",
-        "text": "Yeah, so \u2014 Frame and light are inseparable. We've seen this play out at teams using Peak Design. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 132000,
-        "timestamp_start_ms": 126000,
-        "transcript_ref": "transcripts/p04_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:97022a591e10b5b6",
       "properties": {
         "episode_id": "ep-9f97daef33906cf6",
@@ -196,12 +169,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:0cf5f4be2c2a6c34",
+      "id": "person:daniel-olufemi",
+      "properties": {
+        "name": "Daniel Olufemi"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:798db860b158de8d",
+      "properties": {
+        "char_end": 1205,
+        "char_start": 1045,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Frame and light are inseparable. We've seen this play out at teams using Capture One. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 54000,
+        "timestamp_start_ms": 48000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2f2a358a9f187918",
+      "properties": {
+        "char_end": 2839,
+        "char_start": 2670,
+        "episode_id": "ep-9f97daef33906cf6",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Frame and light are inseparable. We've seen this play out at teams using Peak Design. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 132000,
+        "timestamp_start_ms": 126000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fe0646f99d83efbe",
       "properties": {
         "char_end": 4356,
         "char_start": 4192,
         "episode_id": "ep-9f97daef33906cf6",
-        "speaker_id": "person:daniel-olufemi",
+        "speaker_id": "person:speaker-02",
         "text": "Sure. Frame and light are inseparable. We've seen this play out at teams using Peak Design. The framing matters because it tells you which trade-offs you're making.",
         "timestamp_end_ms": 204000,
         "timestamp_start_ms": 198000,

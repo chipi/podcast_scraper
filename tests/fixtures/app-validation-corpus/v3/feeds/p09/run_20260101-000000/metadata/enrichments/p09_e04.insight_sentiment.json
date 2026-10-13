@@ -15,16 +15,6 @@
         "label": "positive"
       },
       {
-        "compound": -0.2732,
-        "insight_id": "insight:authored-p09_e04-0",
-        "label": "negative"
-      },
-      {
-        "compound": -0.2732,
-        "insight_id": "insight:authored-p09_e04-1",
-        "label": "negative"
-      },
-      {
         "compound": 0.1217,
         "insight_id": "insight:ed074a5090bf3658",
         "label": "positive"
@@ -32,6 +22,16 @@
       {
         "compound": -0.2144,
         "insight_id": "insight:8c2fc2a6f39c0ae1",
+        "label": "negative"
+      },
+      {
+        "compound": -0.2732,
+        "insight_id": "insight:authored-p09_e04-0",
+        "label": "negative"
+      },
+      {
+        "compound": -0.2732,
+        "insight_id": "insight:authored-p09_e04-1",
         "label": "negative"
       }
     ],

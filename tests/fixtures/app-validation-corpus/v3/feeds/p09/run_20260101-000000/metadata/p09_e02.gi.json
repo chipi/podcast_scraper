@@ -46,33 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:5ba9cd281bb23d9d",
+      "from": "insight:2c1a7c3926e33f30",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b39864ca42f543aa",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:c51f06353ae883fb",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:12f425b0524a4b05",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:e9aa48c742ef44e6",
+      "from": "quote:2314f145647a6d3d",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:fbbde1792f770162",
+      "from": "quote:95f030860f034ed0",
       "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:2c1a7c3926e33f30",
-      "to": "quote:fbbde1792f770162",
+      "to": "quote:12f425b0524a4b05",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:b39864ca42f543aa",
-      "to": "quote:e9aa48c742ef44e6",
+      "to": "quote:2314f145647a6d3d",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:c51f06353ae883fb",
-      "to": "quote:5ba9cd281bb23d9d",
+      "to": "quote:95f030860f034ed0",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -112,20 +127,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:skanda-amarnath",
-      "properties": {
-        "name": "Skanda Amarnath"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:sam",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
       "id": "insight:2c1a7c3926e33f30",
       "properties": {
         "episode_id": "ep-a1342cd495b1165b",
@@ -154,34 +155,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:fbbde1792f770162",
-      "properties": {
-        "char_end": 1367,
-        "char_start": 1200,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:skanda-amarnath",
-        "text": "Let me give you the version I actually believe. Reliability of data trumps cleverness of model. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:5ba9cd281bb23d9d",
-      "properties": {
-        "char_end": 2186,
-        "char_start": 2043,
-        "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:skanda-amarnath",
-        "text": "It comes down to this: Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 108000,
-        "timestamp_start_ms": 102000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:b39864ca42f543aa",
       "properties": {
         "episode_id": "ep-a1342cd495b1165b",
@@ -196,12 +169,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:e9aa48c742ef44e6",
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:12f425b0524a4b05",
+      "properties": {
+        "char_end": 1367,
+        "char_start": 1200,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Reliability of data trumps cleverness of model. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 66000,
+        "timestamp_start_ms": 60000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:95f030860f034ed0",
+      "properties": {
+        "char_end": 2186,
+        "char_start": 2043,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 108000,
+        "timestamp_start_ms": 102000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2314f145647a6d3d",
       "properties": {
         "char_end": 2985,
         "char_start": 2854,
         "episode_id": "ep-a1342cd495b1165b",
-        "speaker_id": "person:skanda-amarnath",
+        "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
         "timestamp_end_ms": 144000,
         "timestamp_start_ms": 138000,

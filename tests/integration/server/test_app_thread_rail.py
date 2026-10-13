@@ -61,14 +61,19 @@ def test_top_results_are_pinned(tmp_path: Path) -> None:
     """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it.
 
     2026-10-12: the translated shows' risk-management lines are insights now (they were connective
-    templates), so their episodes continue the storyline's thread, newest first."""
+    templates), so their episodes continue the storyline's thread, newest first.
+
+    2026-10-13, on the corpus rebuilt on main's D-44 and claim ranking: the same episodes are about
+    the storyline's topics as before, and the five are now strictly the newest (2026-07-16,
+    2025-12-24, 2025-08-17, 2025-08-06, 2025-07-09); p07_e04 and p07_e03 now qualify ahead of the
+    older translated episodes. Re-measured."""
     app_user_state.add_interest(tmp_path, "u1", STORYLINE)
     assert [c.slug for c in thread_rail(ROOT, tmp_path, "u1", limit=5)] == [
         "p09-a4bbb5dde3",
-        "p10-454ffbe29d",
+        "p07-2aceab172c",
         "p10-d9d02f5622",
-        "p11-238df75776",
-        "p11-d56d57b070",
+        "p07-a5eb82076a",
+        "p03-5b8ca67393",
     ]
 
 

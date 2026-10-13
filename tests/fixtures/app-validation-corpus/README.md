@@ -151,21 +151,28 @@ make enrich CORPUS=tests/fixtures/app-validation-corpus/v3 # corpus-scope + per-
 Prefix both commands with `HF_HUB_OFFLINE=1` — the build is deterministic and must not reach
 the network for models.
 
-**A rebuild does not reproduce the committed corpus** (2026-10-11: 153 files differ — later fixes
-live only in the committed files). Corpus-wide corrections are therefore MIGRATIONS of the
-committed files, with the builder fixed to the same rules so a future rebuild agrees:
+**The committed corpus is a rebuild followed by the realign** (2026-10-13). Until then a rebuild
+did not reproduce it (2026-10-11: 153 files differ — later fixes lived only in the committed files),
+so corpus-wide corrections were MIGRATIONS of the committed files. On 2026-10-13 the corpus was
+rebuilt from the builder (rebasing onto main's D-44 English analysis of translated episodes) and
+the realign applied on top; a second realign changes nothing. To regenerate:
 
 ```sh
-.venv/bin/python scripts/tools/realign_fixture_gi.py            # report (dry run)
-.venv/bin/python scripts/tools/realign_fixture_gi.py --apply    # GI + per-episode envelopes
-.venv/bin/python -m podcast_scraper.cli enrich --output-dir tests/fixtures/app-validation-corpus/v3 \
+S=$(mktemp -d); cp -R tests/fixtures/app-validation-corpus/v3 $S/v3
+rm -rf $S/v3/search/lance_index $S/v3/search/episode_fingerprints.json
+HF_HUB_OFFLINE=1 .venv/bin/python scripts/build_app_validation_corpus.py --output $S
+.venv/bin/python scripts/tools/realign_fixture_gi.py --corpus $S/v3 --apply  # GI + envelopes
+.venv/bin/python scripts/tools/realign_fixture_gi.py --corpus $S/v3          # must change 0
+HF_HUB_OFFLINE=1 PYTHONPATH=src .venv/bin/python -m podcast_scraper.cli enrich --output-dir $S/v3 \
   --only grounding_rate,guest_coappearance --corpus-only --force   # the corpus enrichers on GI
+# then copy the changed files back into tests/fixtures/app-validation-corpus/v3
 ```
 
 `realign_fixture_gi.py` grounds every insight in the transcript line that says it (ADR-165):
 insights are claims (no questions, greetings, sponsor reads, connective templates or host
-prompts), chosen speaker-balanced and topical first; non-English episodes are grounded in their
-source-language segments. It is idempotent — a second `--apply` changes nothing.
+prompts), chosen speaker-balanced and topical first; a translated episode is grounded in its
+English ad-free turns (D-44), as the builder builds its GI, and its quotes carry translation
+provenance. It is idempotent — a second `--apply` changes nothing.
 
 A translated line is judged through its English: the English render's sentences inside the line's
 time span (the renders are on the source timeline, below). Until 2026-10-12 only an opening stretch

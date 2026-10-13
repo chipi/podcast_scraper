@@ -46,38 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "insight:76efa51983cb01ba",
-      "to": "person:a-correspondent",
+      "from": "insight:3559cb3c82225cfc",
+      "to": "person:renee-montagne-park",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:0da3d316385a111f",
+      "from": "insight:76efa51983cb01ba",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:fbdf3c7d7786a0b4",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:49af1234915b2af0",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:8d09cd871d3448e6",
+      "from": "quote:a894964b91f42c81",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:ab060b2a71127a53",
+      "from": "quote:ed336c14edbd1aca",
       "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:3559cb3c82225cfc",
-      "to": "quote:8d09cd871d3448e6",
+      "to": "quote:49af1234915b2af0",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:76efa51983cb01ba",
-      "to": "quote:0da3d316385a111f",
+      "to": "quote:ed336c14edbd1aca",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:fbdf3c7d7786a0b4",
-      "to": "quote:ab060b2a71127a53",
+      "to": "quote:a894964b91f42c81",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -128,11 +138,39 @@
       "properties": {
         "episode_id": "ep-d428e906f5affc60",
         "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:fbdf3c7d7786a0b4",
+      "properties": {
+        "episode_id": "ep-d428e906f5affc60",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3559cb3c82225cfc",
+      "properties": {
+        "episode_id": "ep-d428e906f5affc60",
+        "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "text": "Sure. A correction is a reliability signal, not a failure. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later.",
         "tier": 2
       },
       "type": "Insight"
@@ -145,14 +183,7 @@
       "type": "Person"
     },
     {
-      "id": "person:a-correspondent",
-      "properties": {
-        "name": "A. correspondent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:0da3d316385a111f",
+      "id": "quote:ed336c14edbd1aca",
       "properties": {
         "char_end": 700,
         "char_start": 521,
@@ -166,57 +197,29 @@
       "type": "Quote"
     },
     {
-      "id": "insight:3559cb3c82225cfc",
+      "id": "quote:a894964b91f42c81",
       "properties": {
+        "char_end": 1010,
+        "char_start": 836,
         "episode_id": "ep-d428e906f5affc60",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Sure. A correction is a reliability signal, not a failure. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:8d09cd871d3448e6",
-      "properties": {
-        "char_end": 2369,
-        "char_start": 2194,
-        "episode_id": "ep-d428e906f5affc60",
-        "speaker_id": "person:renee-montagne-park",
-        "text": "Sure. A correction is a reliability signal, not a failure. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 108000,
-        "timestamp_start_ms": 102000,
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p08_e04.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "insight:fbdf3c7d7786a0b4",
+      "id": "quote:49af1234915b2af0",
       "properties": {
+        "char_end": 2369,
+        "char_start": 2194,
         "episode_id": "ep-d428e906f5affc60",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:ab060b2a71127a53",
-      "properties": {
-        "char_end": 1010,
-        "char_start": 836,
-        "episode_id": "ep-d428e906f5affc60",
-        "speaker_id": "person:renee-montagne-park",
-        "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. A correction is a reliability signal, not a failure. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 108000,
+        "timestamp_start_ms": 102000,
         "transcript_ref": "transcripts/p08_e04.txt"
       },
       "type": "Quote"

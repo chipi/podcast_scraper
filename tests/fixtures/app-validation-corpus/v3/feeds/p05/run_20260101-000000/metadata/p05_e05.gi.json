@@ -26,43 +26,48 @@
       "type": "MENTIONS"
     },
     {
+      "from": "insight:3a31d1998ec91fe3",
+      "to": "person:nadia-sereni",
+      "type": "MENTIONS_PERSON"
+    },
+    {
       "from": "insight:c11987a8cd7a8e4f",
-      "to": "person:daniel-cho",
+      "to": "person:nora",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:f818d436e535b5ee",
-      "to": "person:nadia-sereni",
+      "to": "person:daniel-cho",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:136da402d36e012b",
+      "from": "quote:95a0e65b1c0721a8",
+      "to": "person:nadia-sereni",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:c1fc54e251b0269c",
       "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:5de4b388d6736c65",
-      "to": "person:nadia-sereni",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "quote:6859a95eee7bf0bc",
+      "from": "quote:e9cf224e7334327a",
       "to": "person:nora",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:3a31d1998ec91fe3",
-      "to": "quote:136da402d36e012b",
+      "to": "quote:c1fc54e251b0269c",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:c11987a8cd7a8e4f",
-      "to": "quote:6859a95eee7bf0bc",
+      "to": "quote:e9cf224e7334327a",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:f818d436e535b5ee",
-      "to": "quote:5de4b388d6736c65",
+      "to": "quote:95a0e65b1c0721a8",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -99,8 +104,8 @@
       "properties": {
         "episode_id": "ep-6351d18dc6f1ff70",
         "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016.",
@@ -113,8 +118,8 @@
       "properties": {
         "episode_id": "ep-6351d18dc6f1ff70",
         "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
+        "insight_type": "observation",
+        "position_hint": 0.35,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "Leverage feels free until the day it isn't.",
@@ -123,11 +128,18 @@
       "type": "Insight"
     },
     {
-      "id": "person:daniel-cho",
+      "id": "insight:3a31d1998ec91fe3",
       "properties": {
-        "name": "Daniel Cho"
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way.",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
     },
     {
       "id": "person:nora",
@@ -137,7 +149,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:6859a95eee7bf0bc",
+      "id": "quote:e9cf224e7334327a",
       "properties": {
         "char_end": 426,
         "char_start": 321,
@@ -158,7 +170,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:5de4b388d6736c65",
+      "id": "quote:95a0e65b1c0721a8",
       "properties": {
         "char_end": 484,
         "char_start": 441,
@@ -172,26 +184,19 @@
       "type": "Quote"
     },
     {
-      "id": "insight:3a31d1998ec91fe3",
+      "id": "person:daniel-cho",
       "properties": {
-        "episode_id": "ep-6351d18dc6f1ff70",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way.",
-        "tier": 2
+        "name": "Daniel Cho"
       },
-      "type": "Insight"
+      "type": "Person"
     },
     {
-      "id": "quote:136da402d36e012b",
+      "id": "quote:c1fc54e251b0269c",
       "properties": {
         "char_end": 602,
         "char_start": 497,
         "episode_id": "ep-6351d18dc6f1ff70",
-        "speaker_id": "person:daniel-cho",
+        "speaker_id": "person:speaker-02",
         "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,

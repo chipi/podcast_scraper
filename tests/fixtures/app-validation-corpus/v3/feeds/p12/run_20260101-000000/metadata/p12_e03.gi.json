@@ -1,34 +1,49 @@
 {
   "edges": [
     {
-      "from": "insight:288ff4855264b7b3",
+      "from": "insight:1a240ee286eda0af",
+      "to": "topic:maintenance",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:1a240ee286eda0af",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
-      "from": "insight:c5452d37c87d6f74",
-      "to": "topic:risk-management",
+      "from": "insight:fc759377ce3b1866",
+      "to": "topic:maintenance",
       "type": "ABOUT"
     },
     {
-      "from": "insight:ebf81331044fb3b6",
+      "from": "insight:fc759377ce3b1866",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "insight:288ff4855264b7b3",
+      "to": "insight:186a06f0e5a3242d",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "insight:c5452d37c87d6f74",
+      "to": "insight:1a240ee286eda0af",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
-      "to": "insight:ebf81331044fb3b6",
+      "to": "insight:fc759377ce3b1866",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-2e3fcd5d8c418fb4",
@@ -36,33 +51,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:0d86007d66dd2e3f",
+      "from": "insight:186a06f0e5a3242d",
+      "to": "person:mathieu-lefevre",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1a240ee286eda0af",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:fc759377ce3b1866",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:654c1789b0ebe719",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:709f633b6b2f4abf",
       "to": "person:mathieu-lefevre",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:13ffad3b2699a9cd",
+      "from": "quote:7e7940d46718a488",
       "to": "person:mathieu-lefevre",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:70863bc54c4b2d15",
-      "to": "person:mathieu-lefevre",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:288ff4855264b7b3",
-      "to": "quote:13ffad3b2699a9cd",
+      "from": "insight:186a06f0e5a3242d",
+      "to": "quote:654c1789b0ebe719",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:c5452d37c87d6f74",
-      "to": "quote:70863bc54c4b2d15",
+      "from": "insight:1a240ee286eda0af",
+      "to": "quote:7e7940d46718a488",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:ebf81331044fb3b6",
-      "to": "quote:0d86007d66dd2e3f",
+      "from": "insight:fc759377ce3b1866",
+      "to": "quote:709f633b6b2f4abf",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -72,13 +102,27 @@
     {
       "id": "episode:ep-2e3fcd5d8c418fb4",
       "properties": {
-        "duration_ms": 375000,
+        "duration_ms": 358000,
         "feed_id": "p12",
         "podcast_id": "p12",
-        "publish_date": "2025-12-24T00:00:00",
+        "publish_date": "2025-06-29T00:00:00",
         "title": "La M\u00e9canique d'un V\u00e9lo Silencieux et Rapide"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:risk-management",
@@ -88,11 +132,46 @@
       "type": "Topic"
     },
     {
-      "id": "person:camille-dubois",
+      "id": "insight:1a240ee286eda0af",
       "properties": {
-        "name": "Camille Dubois"
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Of course. The maintenance intervals for the suspension are a risk management decision. If you ignore that, you'll end up having to rebuild everything from scratch a year later.",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
+    },
+    {
+      "id": "insight:186a06f0e5a3242d",
+      "properties": {
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:fc759377ce3b1866",
+      "properties": {
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That's how I see it. The maintenance intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.",
+        "tier": 2
+      },
+      "type": "Insight"
     },
     {
       "id": "person:mathieu-lefevre",
@@ -102,86 +181,81 @@
       "type": "Person"
     },
     {
-      "id": "insight:ebf81331044fb3b6",
+      "id": "quote:7e7940d46718a488",
       "properties": {
+        "char_end": 2133,
+        "char_start": 1956,
         "episode_id": "ep-2e3fcd5d8c418fb4",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Bien s\u00fbr. Les intervalles d'entretien de la suspension sont une d\u00e9cision de gestion du risque. Si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:288ff4855264b7b3",
-      "properties": {
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Voil\u00e0 comment je le vois. Les intervalles d'entretien de la suspension sont une d\u00e9cision de gestion du risque. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:c5452d37c87d6f74",
-      "properties": {
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Honn\u00eatement, les intervalles d'entretien de la suspension sont une d\u00e9cision de gestion du risque. Et l'effet de second ordre est la partie que presque tout le monde rate.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:0d86007d66dd2e3f",
-      "properties": {
-        "char_end": 2369,
-        "char_start": 2201,
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "speaker_id": "person:mathieu-lefevre",
-        "text": "Bien s\u00fbr. Les intervalles d'entretien de la suspension sont une d\u00e9cision de gestion du risque. Si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard.",
+        "speaker_id": "person:speaker-02",
+        "text": "Of course. The maintenance intervals for the suspension are a risk management decision. If you ignore that, you'll end up having to rebuild everything from scratch a year later.",
         "timestamp_end_ms": 102000,
         "timestamp_start_ms": 96000,
-        "transcript_ref": "transcripts/p12_e03.txt"
+        "transcript_ref": "transcripts/p12_e03.txt",
+        "translation": {
+          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0013.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:13ffad3b2699a9cd",
+      "id": "person:camille-dubois",
       "properties": {
-        "char_end": 4460,
-        "char_start": 4289,
+        "name": "Camille Dubois"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:654c1789b0ebe719",
+      "properties": {
+        "char_end": 3560,
+        "char_start": 3470,
         "episode_id": "ep-2e3fcd5d8c418fb4",
-        "speaker_id": "person:mathieu-lefevre",
-        "text": "Voil\u00e0 comment je le vois. Les intervalles d'entretien de la suspension sont une d\u00e9cision de gestion du risque. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
+        "speaker_id": "person:speaker-01",
+        "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.",
+        "timestamp_end_ms": 168000,
+        "timestamp_start_ms": 162000,
+        "transcript_ref": "transcripts/p12_e03.txt",
+        "translation": {
+          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0022.u01"
+          ]
+        }
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:709f633b6b2f4abf",
+      "properties": {
+        "char_end": 4061,
+        "char_start": 3901,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-02",
+        "text": "That's how I see it. The maintenance intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.",
         "timestamp_end_ms": 186000,
         "timestamp_start_ms": 180000,
-        "transcript_ref": "transcripts/p12_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:70863bc54c4b2d15",
-      "properties": {
-        "char_end": 6329,
-        "char_start": 6159,
-        "episode_id": "ep-2e3fcd5d8c418fb4",
-        "speaker_id": "person:mathieu-lefevre",
-        "text": "Honn\u00eatement, les intervalles d'entretien de la suspension sont une d\u00e9cision de gestion du risque. Et l'effet de second ordre est la partie que presque tout le monde rate.",
-        "timestamp_end_ms": 258000,
-        "timestamp_start_ms": 252000,
-        "transcript_ref": "transcripts/p12_e03.txt"
+        "transcript_ref": "transcripts/p12_e03.txt",
+        "translation": {
+          "en_sha256": "33708eb383a92ff8cef3306a123f7f2918953e55a9105c67e0f8c2ef2e4a0bd8",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0025.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

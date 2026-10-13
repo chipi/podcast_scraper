@@ -15,14 +15,14 @@
         "label": "positive"
       },
       {
-        "compound": 0.643,
-        "insight_id": "insight:3559cb3c82225cfc",
-        "label": "positive"
-      },
-      {
         "compound": -0.6369,
         "insight_id": "insight:fbdf3c7d7786a0b4",
         "label": "negative"
+      },
+      {
+        "compound": 0.643,
+        "insight_id": "insight:3559cb3c82225cfc",
+        "label": "positive"
       }
     ],
     "total_insights": 3

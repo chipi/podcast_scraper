@@ -31,38 +31,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "insight:5787ea53983e25b0",
+      "from": "insight:3eeee2959fa7f7e9",
       "to": "person:jordan-park",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:09a777f63594ef42",
+      "from": "insight:510254a60310a8d3",
       "to": "person:cam",
-      "type": "SPOKEN_BY"
+      "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:d8165cf46badc892",
+      "from": "insight:5787ea53983e25b0",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:831e68fd32020315",
       "to": "person:jordan-park",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:dd8a6ac8306e3e39",
+      "from": "quote:d0e88f865d39719e",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:e568f10e63974a81",
       "to": "person:jordan-park",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:3eeee2959fa7f7e9",
-      "to": "quote:d8165cf46badc892",
+      "to": "quote:e568f10e63974a81",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:510254a60310a8d3",
-      "to": "quote:09a777f63594ef42",
+      "to": "quote:d0e88f865d39719e",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:5787ea53983e25b0",
-      "to": "quote:dd8a6ac8306e3e39",
+      "to": "quote:831e68fd32020315",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -106,56 +116,14 @@
       "properties": {
         "episode_id": "ep-034d8bc4204034df",
         "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
+        "insight_type": "claim",
+        "position_hint": 0.2,
         "routing_tag": "surface",
         "salience": 0.7667,
         "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
         "tier": 2
       },
       "type": "Insight"
-    },
-    {
-      "id": "person:jordan-park",
-      "properties": {
-        "name": "Jordan Park"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:cam",
-      "properties": {
-        "name": "Cam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:dd8a6ac8306e3e39",
-      "properties": {
-        "char_end": 608,
-        "char_start": 433,
-        "episode_id": "ep-034d8bc4204034df",
-        "speaker_id": "person:speaker-02",
-        "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p06_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d8165cf46badc892",
-      "properties": {
-        "char_end": 871,
-        "char_start": 721,
-        "episode_id": "ep-034d8bc4204034df",
-        "speaker_id": "person:speaker-02",
-        "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p06_e03.txt"
-      },
-      "type": "Quote"
     },
     {
       "id": "insight:3eeee2959fa7f7e9",
@@ -186,12 +154,54 @@
       "type": "Insight"
     },
     {
-      "id": "quote:09a777f63594ef42",
+      "id": "person:jordan-park",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:831e68fd32020315",
+      "properties": {
+        "char_end": 608,
+        "char_start": 433,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e568f10e63974a81",
+      "properties": {
+        "char_end": 871,
+        "char_start": 721,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:cam",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d0e88f865d39719e",
       "properties": {
         "char_end": 1797,
         "char_start": 1743,
         "episode_id": "ep-034d8bc4204034df",
-        "speaker_id": "person:cam",
+        "speaker_id": "person:speaker-01",
         "text": "There's something almost \u2014 I don't know. Hard to name.",
         "timestamp_end_ms": 102000,
         "timestamp_start_ms": 96000,

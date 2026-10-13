@@ -2,6 +2,16 @@
   "edges": [
     {
       "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
       "to": "topic:risk-management",
       "type": "MENTIONS"
     },
@@ -63,7 +73,7 @@
   ],
   "episode_id": "ep-1d733f650ad9bff9",
   "extraction": {
-    "extracted_at": "2025-12-18T00:00:00",
+    "extracted_at": "2025-06-25T00:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p14_e03.txt"
   },
@@ -72,10 +82,26 @@
       "id": "episode:ep-1d733f650ad9bff9",
       "properties": {
         "podcast_id": "p14",
-        "publish_date": "2025-12-18T00:00:00",
+        "publish_date": "2025-06-25T00:00:00",
         "title": "A Mec\u00e2nica de Uma Bicicleta Silenciosa e R\u00e1pida"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics",
+        "slug": "drivetrain-mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance",
+        "slug": "maintenance"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:risk-management",

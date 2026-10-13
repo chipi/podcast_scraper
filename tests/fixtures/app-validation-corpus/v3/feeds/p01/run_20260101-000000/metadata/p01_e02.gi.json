@@ -46,33 +46,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:036b82a4cbf8f826",
+      "from": "insight:a1ad5bb4a40a80ea",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:cc41260927b6ceab",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:cdbaab6e27b2b665",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:2268e42ae75dc3a0",
       "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:59d5f8fe6488b96a",
+      "from": "quote:779f295d98434376",
       "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:a966103defd7a5c2",
+      "from": "quote:9303ee3f60b84596",
       "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:a1ad5bb4a40a80ea",
-      "to": "quote:a966103defd7a5c2",
+      "to": "quote:2268e42ae75dc3a0",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:cc41260927b6ceab",
-      "to": "quote:59d5f8fe6488b96a",
+      "to": "quote:779f295d98434376",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:cdbaab6e27b2b665",
-      "to": "quote:036b82a4cbf8f826",
+      "to": "quote:9303ee3f60b84596",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -112,20 +127,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:sophie-laurent",
-      "properties": {
-        "name": "Sophie Laurent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:maya",
-      "properties": {
-        "name": "Maya"
-      },
-      "type": "Person"
-    },
-    {
       "id": "insight:a1ad5bb4a40a80ea",
       "properties": {
         "episode_id": "ep-60d667843dc40fca",
@@ -154,34 +155,6 @@
       "type": "Insight"
     },
     {
-      "id": "quote:a966103defd7a5c2",
-      "properties": {
-        "char_end": 1526,
-        "char_start": 1301,
-        "episode_id": "ep-60d667843dc40fca",
-        "speaker_id": "person:sophie-laurent",
-        "text": "Honestly, Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
-        "transcript_ref": "transcripts/p01_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:036b82a4cbf8f826",
-      "properties": {
-        "char_end": 3309,
-        "char_start": 3093,
-        "episode_id": "ep-60d667843dc40fca",
-        "speaker_id": "person:sophie-laurent",
-        "text": "Yeah, so \u2014 Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 156000,
-        "timestamp_start_ms": 150000,
-        "transcript_ref": "transcripts/p01_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "insight:cc41260927b6ceab",
       "properties": {
         "episode_id": "ep-60d667843dc40fca",
@@ -196,12 +169,47 @@
       "type": "Insight"
     },
     {
-      "id": "quote:59d5f8fe6488b96a",
+      "id": "person:sophie-laurent",
+      "properties": {
+        "name": "Sophie Laurent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2268e42ae75dc3a0",
+      "properties": {
+        "char_end": 1526,
+        "char_start": 1301,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 72000,
+        "timestamp_start_ms": 66000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9303ee3f60b84596",
+      "properties": {
+        "char_end": 3309,
+        "char_start": 3093,
+        "episode_id": "ep-60d667843dc40fca",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 156000,
+        "timestamp_start_ms": 150000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:779f295d98434376",
       "properties": {
         "char_end": 4918,
         "char_start": 4659,
         "episode_id": "ep-60d667843dc40fca",
-        "speaker_id": "person:sophie-laurent",
+        "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams.",
         "timestamp_end_ms": 228000,
         "timestamp_start_ms": 222000,

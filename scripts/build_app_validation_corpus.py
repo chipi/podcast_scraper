@@ -516,51 +516,35 @@ def _is_ad_read(text: str) -> bool:
     return "sponsor" in low or "use code pod" in low or "brought to you by" in low
 
 
-def _speaker_balanced_quotes(segments: list[dict[str, Any]], k: int = 6) -> list[dict[str, Any]]:
-    """The ``k`` quote segments ``build_gi`` should ground in: every speaker first, then in order.
-
-    ``build_gi`` caps quotes at its first six non-filler segments, while its own comment promises
-    that "each speaker is represented". On a host-heavy opening those six are all the host — p04_e04
-    gave all six to Leo, Ava Lemoine's 17 lines none — and the speaker-coherence invariant then
-    reads the fixture as a mis-attributed episode. Selecting here keeps the shared helper's output
-    unchanged for the viewer corpus.
-
-    Ad reads and non-person voices (``Ad:``) are never quotes: the pipeline cuts ads before GI
-    runs, so a sponsor read can never become somebody's words. Without this, p06_e04's ``Ad:``
-    line became a quote and ``person:ad`` a co-appearing guest.
-    """
-    usable = [
-        s
-        for s in segments
-        if not is_greeting_or_filler(str(s.get("text") or ""))
-        and not _is_ad_read(str(s.get("text") or ""))
-        and str(s.get("speaker_label") or "").lower() not in _NON_PERSON_LABELS
-    ]
-    picked: list[int] = []
-    seen: set[str] = set()
-    for i, seg in enumerate(usable):
-        label = str(seg.get("speaker_label") or "")
-        if label and label.lower() not in _NON_PERSON_LABELS and label not in seen:
-            seen.add(label)
-            picked.append(i)
-    for i in range(len(usable)):
-        if len(picked) >= k:
-            break
-        if i not in picked:
-            picked.append(i)
-    return [usable[i] for i in sorted(picked[:k])] or segments
-
-
-def _translated_analysis(ep_label: str, version: str) -> tuple[dict[str, Any] | None, list]:
+def _translated_analysis(
+    ep_label: str,
+    version: str,
+    source_segments: list[dict[str, Any]],
+    source_turns: list[str],
+) -> tuple[dict[str, Any] | None, list]:
     """(captured render, English ad-free segments) for a translated episode, else (None, []).
 
-    Outside ``main`` because ``main`` is at the flake8 complexity ceiling.
+    The segments are on the SOURCE timeline (:func:`render_times`), as the replayed render is
+    (:func:`retime_english_render`): with the captured run's own times, p10_e01's quotes sat at
+    20.9 s and 214.4 s on a 294 s episode, and a short listen cut from the render played another
+    line. Outside ``main`` because ``main`` is at the flake8 complexity ceiling.
     """
     captured = _captured_render_for(ep_label, version)
     if not captured:
         return None, []
-    body = (captured.get("stack") or {}).get("adfree.txt") or ""
-    return captured, _merge_sentences_into_turns(_english_analysis_segments(captured), body)
+    stack = captured.get("stack") or {}
+    try:
+        times = render_times(
+            json.loads(stack.get("translation.json") or "{}"), source_segments, source_turns
+        )
+    except ValueError:
+        times = {}
+    segments = _english_analysis_segments(captured)
+    for seg in segments:
+        new = times.get(str(seg.get("sent_id") or ""))
+        if new:
+            seg["start"], seg["end"] = new
+    return captured, _merge_sentences_into_turns(segments, stack.get("adfree.txt") or "")
 
 
 def _english_analysis_segments(captured: dict[str, Any]) -> list[dict[str, Any]]:
@@ -699,11 +683,22 @@ def english_render_times(run_tr_dir: Path, ep_label: str) -> dict[str, tuple[flo
     lang = str(tr.get("source_language") or "")
     src_path = run_tr_dir / f"{ep_label}.{lang}.segments.json"
     turns_path = run_tr_dir / f"{ep_label}.{lang}.txt"
-    units = tr.get("units") or []
     if not (lang and src_path.is_file() and turns_path.is_file()):
         return {}
-    turns = turns_path.read_text("utf-8").splitlines()
-    source = _segments_of(json.loads(src_path.read_text("utf-8")))
+    return render_times(
+        tr,
+        _segments_of(json.loads(src_path.read_text("utf-8"))),
+        turns_path.read_text("utf-8").splitlines(),
+    )
+
+
+def render_times(
+    tr: dict[str, Any], source: list[dict[str, Any]], turns: list[str]
+) -> dict[str, tuple[float, float]]:
+    """:func:`english_render_times` on what it reads: ``translation.json``, the source segments and
+    the source turns. The builder calls it before those files are written, so the GI's English
+    quotes and the replayed render land on the same timeline."""
+    units = tr.get("units") or []
     if len(turns) != len(units):
         return {}
     by_turn: list[list[dict[str, Any]]] = [[] for _ in turns]
@@ -1703,7 +1698,13 @@ def _clean_insight_quote_excerpts(
         # shipped as 31 of the corpus's insights (2026-10-11 fixture review).
         if txt.rstrip().endswith("?") or "? " in txt:
             continue
-        sentences.append(txt if len(txt) <= 200 else txt[:197].rstrip() + "…")
+        line = txt if len(txt) <= 200 else txt[:197].rstrip() + "…"
+        # A line said twice is one insight: its node id hashes the text, so p06_e02 and p08_e04
+        # carried the same Insight node twice (2026-10-13), and the realign's every-second-one
+        # grounding flipped on the second pass, when the duplicate had been dropped.
+        if line in sentences:
+            continue
+        sentences.append(line)
         speakers.append(str(seg.get("speaker_label") or ""))
     topic_pairs = [(f"topic:{slug(t)}", t) for t in topics]
     chosen = speaker_balanced(
@@ -2554,7 +2555,9 @@ def main() -> int:
             extracted = [t for t in _captured_topics_for(ep_label, version) if t not in topics]
             # Insights/quotes from CLEAN diarized utterances (not the raw header block). A
             # translated episode takes them from its captured ENGLISH ad-free body (D-44).
-            captured, en_segments = _translated_analysis(ep_label, version)
+            captured, en_segments = _translated_analysis(
+                ep_label, version, _raw_canonical_segments(offset_segs), raw_text.splitlines()
+            )
             excerpts = _clean_insight_quote_excerpts(en_segments or diar_segments, topics)
 
             # ONE duration, resolved ONCE, before anything that carries it is built. It used to be
@@ -2579,7 +2582,9 @@ def main() -> int:
                 episode_title,
                 publish + _PUBLISH_TIME_OF_DAY,
                 excerpts,
-                quote_segments=_speaker_balanced_quotes(en_segments or offset_segs),
+                # Every segment: build_gi grounds each insight in the one that says it (ADR-165),
+                # and an insight's own filters already keep ads and non-person voices out.
+                quote_segments=en_segments or offset_segs,
                 roster=roster,
                 transcript_ref=transcript_run_rel,
                 metadata_relative_path=metadata_rel,

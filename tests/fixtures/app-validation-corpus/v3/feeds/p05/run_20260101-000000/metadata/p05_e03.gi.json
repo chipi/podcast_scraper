@@ -11,13 +11,13 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:b21aec04b8f02bf6",
-      "to": "topic:second-order-effects",
+      "from": "insight:be774a32be7c6c0f",
+      "to": "topic:systems-thinking",
       "type": "ABOUT"
     },
     {
-      "from": "insight:be774a32be7c6c0f",
-      "to": "topic:systems-thinking",
+      "from": "insight:da16e87c69448b45",
+      "to": "topic:reliability",
       "type": "ABOUT"
     },
     {
@@ -27,12 +27,12 @@
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "insight:b21aec04b8f02bf6",
+      "to": "insight:be774a32be7c6c0f",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "insight:be774a32be7c6c0f",
+      "to": "insight:da16e87c69448b45",
       "type": "HAS_INSIGHT"
     },
     {
@@ -56,33 +56,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:591901461f00073d",
+      "from": "insight:8f15068b7064df00",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:be774a32be7c6c0f",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:da16e87c69448b45",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:e17c7f00b621495f",
       "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:7ad50444fc3fd1a4",
+      "from": "quote:fa6c17a486224a47",
       "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:ee466978d35f01cd",
+      "from": "quote:fba0d21cf7a5543f",
       "to": "person:scott-bessent",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:8f15068b7064df00",
-      "to": "quote:7ad50444fc3fd1a4",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "insight:b21aec04b8f02bf6",
-      "to": "quote:591901461f00073d",
+      "to": "quote:fa6c17a486224a47",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:be774a32be7c6c0f",
-      "to": "quote:ee466978d35f01cd",
+      "to": "quote:e17c7f00b621495f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:da16e87c69448b45",
+      "to": "quote:fba0d21cf7a5543f",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -129,20 +144,6 @@
       "type": "Topic"
     },
     {
-      "id": "person:scott-bessent",
-      "properties": {
-        "name": "Scott Bessent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "person:nora",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
       "id": "insight:8f15068b7064df00",
       "properties": {
         "episode_id": "ep-8aa4d883afa10fa4",
@@ -171,12 +172,33 @@
       "type": "Insight"
     },
     {
-      "id": "quote:7ad50444fc3fd1a4",
+      "id": "insight:da16e87c69448b45",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's how I think about it. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Bloomberg. I've watched this pattern hold across three di\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:scott-bessent",
+      "properties": {
+        "name": "Scott Bessent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:fa6c17a486224a47",
       "properties": {
         "char_end": 1805,
         "char_start": 1618,
         "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:scott-bessent",
+        "speaker_id": "person:speaker-02",
         "text": "Sure. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss.",
         "timestamp_end_ms": 90000,
         "timestamp_start_ms": 84000,
@@ -185,15 +207,29 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ee466978d35f01cd",
+      "id": "quote:e17c7f00b621495f",
       "properties": {
         "char_end": 2289,
         "char_start": 2106,
         "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:scott-bessent",
+        "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Systems thinking applies \u2014 the dollar is a system, not a price. If you ignore that, you end up rebuilding it from scratch a year later.",
         "timestamp_end_ms": 114000,
         "timestamp_start_ms": 108000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fba0d21cf7a5543f",
+      "properties": {
+        "char_end": 3401,
+        "char_start": 3190,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Reliability of expectations is the underrated piece of macro analysis. We've seen this play out at teams using Bloomberg. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 168000,
+        "timestamp_start_ms": 162000,
         "transcript_ref": "transcripts/p05_e03.txt"
       },
       "type": "Quote"
@@ -204,34 +240,6 @@
         "label": "second-order effects"
       },
       "type": "Topic"
-    },
-    {
-      "id": "insight:b21aec04b8f02bf6",
-      "properties": {
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Here's how I think about it. Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most pe\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:591901461f00073d",
-      "properties": {
-        "char_end": 1301,
-        "char_start": 1094,
-        "episode_id": "ep-8aa4d883afa10fa4",
-        "speaker_id": "person:scott-bessent",
-        "text": "Here's how I think about it. Macro is mostly about not being on the wrong side of a regime change. We've seen this play out at teams using Bloomberg. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
-        "transcript_ref": "transcripts/p05_e03.txt"
-      },
-      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

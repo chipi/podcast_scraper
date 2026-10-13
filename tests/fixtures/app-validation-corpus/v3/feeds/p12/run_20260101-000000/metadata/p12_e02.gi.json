@@ -1,34 +1,34 @@
 {
   "edges": [
     {
-      "from": "insight:04a5c0e684f7614a",
+      "from": "insight:696b3d2567c50efa",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
-      "from": "insight:06e5ab95a40575ff",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:2f37e677d756ccb3",
+      "from": "insight:cb7371e3b83b6df6",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-16fcdef77d624069",
-      "to": "insight:04a5c0e684f7614a",
+      "to": "insight:696b3d2567c50efa",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-16fcdef77d624069",
-      "to": "insight:06e5ab95a40575ff",
+      "to": "insight:a94cc4467f27bd6d",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-16fcdef77d624069",
-      "to": "insight:2f37e677d756ccb3",
+      "to": "insight:cb7371e3b83b6df6",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-16fcdef77d624069",
@@ -36,33 +36,53 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:3ff7e86fa527d5b1",
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "insight:696b3d2567c50efa",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:a94cc4467f27bd6d",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:cb7371e3b83b6df6",
+      "to": "person:elodie-chevalier",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:b051e8e53723ece8",
       "to": "person:elodie-chevalier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:8c1bd4bf90d22b02",
+      "from": "quote:c00dab0ed548dfe6",
       "to": "person:elodie-chevalier",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:b098048c06825b72",
-      "to": "person:elodie-chevalier",
+      "from": "quote:fadda2aa24506fc9",
+      "to": "person:camille-dubois",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:04a5c0e684f7614a",
-      "to": "quote:3ff7e86fa527d5b1",
+      "from": "insight:696b3d2567c50efa",
+      "to": "quote:c00dab0ed548dfe6",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:06e5ab95a40575ff",
-      "to": "quote:b098048c06825b72",
+      "from": "insight:a94cc4467f27bd6d",
+      "to": "quote:fadda2aa24506fc9",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:2f37e677d756ccb3",
-      "to": "quote:8c1bd4bf90d22b02",
+      "from": "insight:cb7371e3b83b6df6",
+      "to": "quote:b051e8e53723ece8",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -72,13 +92,27 @@
     {
       "id": "episode:ep-16fcdef77d624069",
       "properties": {
-        "duration_ms": 364000,
+        "duration_ms": 344000,
         "feed_id": "p12",
         "podcast_id": "p12",
-        "publish_date": "2025-12-25T00:00:00",
+        "publish_date": "2025-03-11T00:00:00",
         "title": "Le Pilotage Enduro Sans le Battage"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:risk-management",
@@ -88,11 +122,46 @@
       "type": "Topic"
     },
     {
-      "id": "person:camille-dubois",
+      "id": "insight:696b3d2567c50efa",
       "properties": {
-        "name": "Camille Dubois"
+        "episode_id": "ep-16fcdef77d624069",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore that, you end up having\u2026",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
+    },
+    {
+      "id": "insight:cb7371e3b83b6df6",
+      "properties": {
+        "episode_id": "ep-16fcdef77d624069",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've seen this pattern repeat itself\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:a94cc4467f27bd6d",
+      "properties": {
+        "episode_id": "ep-16fcdef77d624069",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\n(The best option depends on the specific context.)",
+        "tier": 2
+      },
+      "type": "Insight"
     },
     {
       "id": "person:elodie-chevalier",
@@ -102,86 +171,81 @@
       "type": "Person"
     },
     {
-      "id": "insight:04a5c0e684f7614a",
+      "id": "quote:c00dab0ed548dfe6",
       "properties": {
+        "char_end": 1401,
+        "char_start": 1156,
         "episode_id": "ep-16fcdef77d624069",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Honn\u00eatement, la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent Shimano. Si tu ignores \u00e7a, tu\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:06e5ab95a40575ff",
-      "properties": {
-        "episode_id": "ep-16fcdef77d624069",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Oui, alors \u2014 la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent RockShox. J'ai vu ce sch\u00e9ma se\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:2f37e677d756ccb3",
-      "properties": {
-        "episode_id": "ep-16fcdef77d624069",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Je te donne la version \u00e0 laquelle je crois vraiment. La gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:3ff7e86fa527d5b1",
-      "properties": {
-        "char_end": 1753,
-        "char_start": 1504,
-        "episode_id": "ep-16fcdef77d624069",
-        "speaker_id": "person:elodie-chevalier",
-        "text": "Honn\u00eatement, la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent Shimano. Si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard.",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore that, you end up having to rebuild everything from scratch a year later.",
         "timestamp_end_ms": 72000,
         "timestamp_start_ms": 66000,
-        "transcript_ref": "transcripts/p12_e02.txt"
+        "transcript_ref": "transcripts/p12_e02.txt",
+        "translation": {
+          "en_sha256": "1ca6eb18a2c2d81cb4a66b5dee16fb0a7e60719df4a69861a9062aec3423ac23",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0009.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:b098048c06825b72",
+      "id": "quote:b051e8e53723ece8",
       "properties": {
-        "char_end": 3816,
-        "char_start": 3579,
+        "char_end": 2916,
+        "char_start": 2694,
         "episode_id": "ep-16fcdef77d624069",
-        "speaker_id": "person:elodie-chevalier",
-        "text": "Oui, alors \u2014 la gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent RockShox. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
+        "speaker_id": "person:speaker-02",
+        "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've seen this pattern repeat itself in three different teams.",
         "timestamp_end_ms": 156000,
         "timestamp_start_ms": 150000,
-        "transcript_ref": "transcripts/p12_e02.txt"
+        "transcript_ref": "transcripts/p12_e02.txt",
+        "translation": {
+          "en_sha256": "1ca6eb18a2c2d81cb4a66b5dee16fb0a7e60719df4a69861a9062aec3423ac23",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0021.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:8c1bd4bf90d22b02",
+      "id": "person:camille-dubois",
       "properties": {
-        "char_end": 5685,
-        "char_start": 5402,
+        "name": "Camille Dubois"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:fadda2aa24506fc9",
+      "properties": {
+        "char_end": 4896,
+        "char_start": 4755,
         "episode_id": "ep-16fcdef77d624069",
-        "speaker_id": "person:elodie-chevalier",
-        "text": "Je te donne la version \u00e0 laquelle je crois vraiment. La gestion du risque en course n'est pas d'\u00e9viter les chutes \u2014 c'est de choisir quelles chutes sont survivables. On l'a vu dans les \u00e9quipes qui utilisent Spoke & Wrench. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
-        "timestamp_end_ms": 228000,
-        "timestamp_start_ms": 222000,
-        "transcript_ref": "transcripts/p12_e02.txt"
+        "speaker_id": "person:speaker-01",
+        "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\n(The best option depends on the specific context.)",
+        "timestamp_end_ms": 234000,
+        "timestamp_start_ms": 228000,
+        "transcript_ref": "transcripts/p12_e02.txt",
+        "translation": {
+          "en_sha256": "1ca6eb18a2c2d81cb4a66b5dee16fb0a7e60719df4a69861a9062aec3423ac23",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "fr",
+          "translated": true,
+          "unit_ids": [
+            "t0034.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

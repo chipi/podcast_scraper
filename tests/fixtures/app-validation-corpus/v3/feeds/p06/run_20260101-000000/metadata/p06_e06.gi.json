@@ -32,7 +32,7 @@
     },
     {
       "from": "insight:7c6a6d43bdeed31f",
-      "to": "person:liam",
+      "to": "person:maya",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -41,7 +41,7 @@
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:2ccd746becaa242d",
+      "from": "quote:5a9449c867744134",
       "to": "person:maya",
       "type": "SPOKEN_BY"
     },
@@ -52,7 +52,7 @@
     },
     {
       "from": "insight:7c6a6d43bdeed31f",
-      "to": "quote:2ccd746becaa242d",
+      "to": "quote:5a9449c867744134",
       "type": "SUPPORTED_BY"
     },
     {
@@ -139,14 +139,7 @@
       "type": "Quote"
     },
     {
-      "id": "person:liam",
-      "properties": {
-        "name": "Liam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:2ccd746becaa242d",
+      "id": "quote:5a9449c867744134",
       "properties": {
         "char_end": 179,
         "char_start": 122,

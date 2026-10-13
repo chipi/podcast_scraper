@@ -1,34 +1,39 @@
 {
   "edges": [
     {
-      "from": "insight:619a8d4863958b56",
+      "from": "insight:883be254a403a626",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
-      "from": "insight:8c44e103da62b753",
-      "to": "topic:risk-management",
-      "type": "ABOUT"
-    },
-    {
-      "from": "insight:95784df1ce380437",
+      "from": "insight:f41f858d3fd93bea",
       "to": "topic:risk-management",
       "type": "ABOUT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:619a8d4863958b56",
+      "to": "insight:883be254a403a626",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:8c44e103da62b753",
+      "to": "insight:9b50b4751f5febaa",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
-      "to": "insight:95784df1ce380437",
+      "to": "insight:f41f858d3fd93bea",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
     },
     {
       "from": "episode:ep-d005b87f4d3b1c0e",
@@ -36,33 +41,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:0418f60317a71647",
+      "from": "insight:883be254a403a626",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:9b50b4751f5febaa",
+      "to": "person:jonas-richter",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:f41f858d3fd93bea",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:017de168433460cf",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:a9f55f79097b88ca",
       "to": "person:jonas-richter",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:42c3614f0d8f029d",
+      "from": "quote:a9f74f0a2708c66d",
       "to": "person:jonas-richter",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:ef655ee792c3b5c2",
-      "to": "person:jonas-richter",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:619a8d4863958b56",
-      "to": "quote:0418f60317a71647",
+      "from": "insight:883be254a403a626",
+      "to": "quote:a9f55f79097b88ca",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:8c44e103da62b753",
-      "to": "quote:ef655ee792c3b5c2",
+      "from": "insight:9b50b4751f5febaa",
+      "to": "quote:017de168433460cf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:95784df1ce380437",
-      "to": "quote:42c3614f0d8f029d",
+      "from": "insight:f41f858d3fd93bea",
+      "to": "quote:a9f74f0a2708c66d",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -75,10 +95,24 @@
         "duration_ms": 419000,
         "feed_id": "p13",
         "podcast_id": "p13",
-        "publish_date": "2025-12-21T00:00:00",
+        "publish_date": "2025-07-02T00:00:00",
         "title": "Die Mechanik Eines Leisen, Schnellen Bikes"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:risk-management",
@@ -88,11 +122,46 @@
       "type": "Topic"
     },
     {
-      "id": "person:katrin-vogel",
+      "id": "insight:f41f858d3fd93bea",
       "properties": {
-        "name": "Katrin Vogel"
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sure. Service intervals for the suspension are a decision made by the risk management team. If you ignore that, you'll have to rebuild it from scratch a year later.",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9b50b4751f5febaa",
+      "properties": {
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:883be254a403a626",
+      "properties": {
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That's how I see it. The service intervals for the suspension are a decision made by the risk management team. I have observed this pattern in three different teams.",
+        "tier": 2
+      },
+      "type": "Insight"
     },
     {
       "id": "person:jonas-richter",
@@ -102,86 +171,81 @@
       "type": "Person"
     },
     {
-      "id": "insight:95784df1ce380437",
+      "id": "quote:a9f74f0a2708c66d",
       "properties": {
+        "char_end": 2028,
+        "char_start": 1864,
         "episode_id": "ep-d005b87f4d3b1c0e",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Klar. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:619a8d4863958b56",
-      "properties": {
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "So sehe ich das. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:8c44e103da62b753",
-      "properties": {
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Ehrlich gesagt, Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:42c3614f0d8f029d",
-      "properties": {
-        "char_end": 2305,
-        "char_start": 2150,
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:jonas-richter",
-        "text": "Klar. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf.",
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. Service intervals for the suspension are a decision made by the risk management team. If you ignore that, you'll have to rebuild it from scratch a year later.",
         "timestamp_end_ms": 102000,
         "timestamp_start_ms": 96000,
-        "transcript_ref": "transcripts/p13_e03.txt"
+        "transcript_ref": "transcripts/p13_e03.txt",
+        "translation": {
+          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0013.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "quote:0418f60317a71647",
+      "id": "person:katrin-vogel",
       "properties": {
-        "char_end": 4343,
-        "char_start": 4187,
+        "name": "Katrin Vogel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:017de168433460cf",
+      "properties": {
+        "char_end": 3360,
+        "char_start": 3289,
         "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:jonas-richter",
-        "text": "So sehe ich das. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
+        "speaker_id": "person:speaker-01",
+        "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
+        "timestamp_end_ms": 168000,
+        "timestamp_start_ms": 162000,
+        "transcript_ref": "transcripts/p13_e03.txt",
+        "translation": {
+          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0022.u01"
+          ]
+        }
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a9f55f79097b88ca",
+      "properties": {
+        "char_end": 3852,
+        "char_start": 3687,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-02",
+        "text": "That's how I see it. The service intervals for the suspension are a decision made by the risk management team. I have observed this pattern in three different teams.",
         "timestamp_end_ms": 186000,
         "timestamp_start_ms": 180000,
-        "transcript_ref": "transcripts/p13_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:ef655ee792c3b5c2",
-      "properties": {
-        "char_end": 6145,
-        "char_start": 5981,
-        "episode_id": "ep-d005b87f4d3b1c0e",
-        "speaker_id": "person:jonas-richter",
-        "text": "Ehrlich gesagt, Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen.",
-        "timestamp_end_ms": 258000,
-        "timestamp_start_ms": 252000,
-        "transcript_ref": "transcripts/p13_e03.txt"
+        "transcript_ref": "transcripts/p13_e03.txt",
+        "translation": {
+          "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0025.u01"
+          ]
+        }
       },
       "type": "Quote"
     }

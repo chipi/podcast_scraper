@@ -6,8 +6,8 @@
       "type": "ABOUT"
     },
     {
-      "from": "insight:450b6aa41c4b371b",
-      "to": "topic:second-order-effects",
+      "from": "insight:b5ed57cacca5cb7f",
+      "to": "topic:frame",
       "type": "ABOUT"
     },
     {
@@ -22,7 +22,7 @@
     },
     {
       "from": "episode:ep-bccfce5798a83a6e",
-      "to": "insight:450b6aa41c4b371b",
+      "to": "insight:b5ed57cacca5cb7f",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,38 +51,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "insight:450b6aa41c4b371b",
-      "to": "person:nora",
+      "from": "insight:058777af848d6ae8",
+      "to": "person:daniel-cho",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "quote:b05d1d1efa059547",
+      "from": "insight:b5ed57cacca5cb7f",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:bb22f9e4540eef0f",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:2a639ff7d5f2dd4e",
       "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:de55dda648cc6fbb",
+      "from": "quote:a84f0224c14697bb",
       "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:e7f46d03b3ca9b22",
+      "from": "quote:ddd7a54d3ff0e06d",
       "to": "person:daniel-cho",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:058777af848d6ae8",
-      "to": "quote:b05d1d1efa059547",
+      "to": "quote:ddd7a54d3ff0e06d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:450b6aa41c4b371b",
-      "to": "quote:e7f46d03b3ca9b22",
+      "from": "insight:b5ed57cacca5cb7f",
+      "to": "quote:a84f0224c14697bb",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "insight:bb22f9e4540eef0f",
-      "to": "quote:de55dda648cc6fbb",
+      "to": "quote:2a639ff7d5f2dd4e",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -129,7 +139,35 @@
       "type": "Topic"
     },
     {
-      "id": "insight:450b6aa41c4b371b",
+      "id": "insight:058777af848d6ae8",
+      "properties": {
+        "episode_id": "ep-bccfce5798a83a6e",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the de\u2026",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:bb22f9e4540eef0f",
+      "properties": {
+        "episode_id": "ep-bccfce5798a83a6e",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b5ed57cacca5cb7f",
       "properties": {
         "episode_id": "ep-bccfce5798a83a6e",
         "grounded": true,
@@ -137,7 +175,7 @@
         "position_hint": 0.5,
         "routing_tag": "surface",
         "salience": 0.7667,
-        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the par\u2026",
+        "text": "Let me give you the version I actually believe. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Bloomberg. On\u2026",
         "tier": 2
       },
       "type": "Insight"
@@ -150,47 +188,12 @@
       "type": "Person"
     },
     {
-      "id": "person:nora",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:e7f46d03b3ca9b22",
-      "properties": {
-        "char_end": 736,
-        "char_start": 520,
-        "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:speaker-02",
-        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "insight:058777af848d6ae8",
-      "properties": {
-        "episode_id": "ep-bccfce5798a83a6e",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the de\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:b05d1d1efa059547",
+      "id": "quote:ddd7a54d3ff0e06d",
       "properties": {
         "char_end": 1292,
         "char_start": 1076,
         "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:daniel-cho",
+        "speaker_id": "person:speaker-02",
         "text": "Sure. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 54000,
         "timestamp_start_ms": 48000,
@@ -199,36 +202,29 @@
       "type": "Quote"
     },
     {
-      "id": "topic:second-order-effects",
-      "properties": {
-        "label": "second-order effects"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "insight:bb22f9e4540eef0f",
-      "properties": {
-        "episode_id": "ep-bccfce5798a83a6e",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:de55dda648cc6fbb",
+      "id": "quote:2a639ff7d5f2dd4e",
       "properties": {
         "char_end": 1725,
         "char_start": 1588,
         "episode_id": "ep-bccfce5798a83a6e",
-        "speaker_id": "person:daniel-cho",
+        "speaker_id": "person:speaker-02",
         "text": "Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.",
         "timestamp_end_ms": 78000,
         "timestamp_start_ms": 72000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a84f0224c14697bb",
+      "properties": {
+        "char_end": 3128,
+        "char_start": 2869,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Frame the market reaction first, then look at fundamentals \u2014 most decisions get this backwards. We've seen this play out at teams using Bloomberg. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 144000,
+        "timestamp_start_ms": 138000,
         "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"

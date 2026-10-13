@@ -1,18 +1,23 @@
 {
   "edges": [
     {
+      "from": "insight:8c09dca3d4c8912d",
+      "to": "topic:drainage-design",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:0c23da46860be896",
+      "to": "insight:546fd61344b09ece",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:68cb8db85f670504",
+      "to": "insight:8c09dca3d4c8912d",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
-      "to": "insight:76e8859a9163e6cb",
+      "to": "insight:9b50b4751f5febaa",
       "type": "HAS_INSIGHT"
     },
     {
@@ -31,33 +36,48 @@
       "type": "MENTIONS"
     },
     {
-      "from": "quote:93bde665caf68046",
+      "from": "insight:546fd61344b09ece",
+      "to": "person:stefan-brandt",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:8c09dca3d4c8912d",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:9b50b4751f5febaa",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "quote:50853e98b84fcb26",
       "to": "person:stefan-brandt",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:be014c3cb0b233e8",
+      "from": "quote:94746af9cadecf1f",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "quote:e431bb3da66e2fff",
       "to": "person:stefan-brandt",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "quote:ce6b0e46b2e87752",
-      "to": "person:stefan-brandt",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:0c23da46860be896",
-      "to": "quote:ce6b0e46b2e87752",
+      "from": "insight:546fd61344b09ece",
+      "to": "quote:e431bb3da66e2fff",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:68cb8db85f670504",
-      "to": "quote:93bde665caf68046",
+      "from": "insight:8c09dca3d4c8912d",
+      "to": "quote:50853e98b84fcb26",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:76e8859a9163e6cb",
-      "to": "quote:be014c3cb0b233e8",
+      "from": "insight:9b50b4751f5febaa",
+      "to": "quote:94746af9cadecf1f",
       "type": "SUPPORTED_BY"
     }
   ],
@@ -70,7 +90,7 @@
         "duration_ms": 420000,
         "feed_id": "p13",
         "podcast_id": "p13",
-        "publish_date": "2025-12-01T00:00:00",
+        "publish_date": "2024-12-01T00:00:00",
         "title": "Wege Bauen, Die Bleiben"
       },
       "type": "Episode"
@@ -97,11 +117,46 @@
       "type": "Topic"
     },
     {
-      "id": "person:katrin-vogel",
+      "id": "insight:8c09dca3d4c8912d",
       "properties": {
-        "name": "Katrin Vogel"
+        "episode_id": "ep-c0ab3bfb1ebdab6d",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project. We've seen this with teams that use the Cascadia Alliance. I've observed this pattern\u2026",
+        "tier": 2
       },
-      "type": "Person"
+      "type": "Insight"
+    },
+    {
+      "id": "insight:546fd61344b09ece",
+      "properties": {
+        "episode_id": "ep-c0ab3bfb1ebdab6d",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yes, see \u2013 a common mistake that new path builders make is digging with too much of a slope. Once you understand that, the other decisions become easier.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9b50b4751f5febaa",
+      "properties": {
+        "episode_id": "ep-c0ab3bfb1ebdab6d",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
+        "tier": 2
+      },
+      "type": "Insight"
     },
     {
       "id": "person:stefan-brandt",
@@ -111,88 +166,90 @@
       "type": "Person"
     },
     {
-      "id": "quote:93bde665caf68046",
+      "id": "quote:50853e98b84fcb26",
       "properties": {
-        "char_end": 747,
-        "char_start": 516,
+        "char_end": 329,
+        "char_start": 107,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-02",
-        "text": "Ehrlich gesagt ist die Entw\u00e4sserung die Gestaltungsentscheidung mit der gr\u00f6\u00dften Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die die Cascadia-Allianz nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.",
+        "text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project. We've seen this with teams that use the Cascadia Alliance. I've observed this pattern in three different teams.",
         "timestamp_end_ms": 30000,
         "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0003.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "insight:68cb8db85f670504",
+      "id": "quote:e431bb3da66e2fff",
       "properties": {
+        "char_end": 603,
+        "char_start": 450,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "grounded": true,
-        "insight_type": "claim",
-        "position_hint": 0.2,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Ehrlich gesagt ist die Entw\u00e4sserung die Gestaltungsentscheidung mit der gr\u00f6\u00dften Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die die Cascadia-Allianz nutzen. Ich habe dieses Muster in dr\u2026",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "insight:76e8859a9163e6cb",
-      "properties": {
-        "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "grounded": true,
-        "insight_type": "observation",
-        "position_hint": 0.35,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Ja, schau \u2014 der h\u00e4ufigste Fehler neuer Wegebauer ist, mit zu starkem Gef\u00e4lle zu graben. Wenn man das einmal verinnerlicht hat, werden die \u00fcbrigen Entscheidungen leichter.",
-        "tier": 2
-      },
-      "type": "Insight"
-    },
-    {
-      "id": "quote:be014c3cb0b233e8",
-      "properties": {
-        "char_end": 1059,
-        "char_start": 889,
-        "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "speaker_id": "person:stefan-brandt",
-        "text": "Ja, schau \u2014 der h\u00e4ufigste Fehler neuer Wegebauer ist, mit zu starkem Gef\u00e4lle zu graben. Wenn man das einmal verinnerlicht hat, werden die \u00fcbrigen Entscheidungen leichter.",
+        "speaker_id": "person:speaker-02",
+        "text": "Yes, see \u2013 a common mistake that new path builders make is digging with too much of a slope. Once you understand that, the other decisions become easier.",
         "timestamp_end_ms": 42000,
         "timestamp_start_ms": 36000,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0005.u01"
+          ]
+        }
       },
       "type": "Quote"
     },
     {
-      "id": "insight:0c23da46860be896",
+      "id": "person:katrin-vogel",
       "properties": {
-        "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "grounded": true,
-        "insight_type": "recommendation",
-        "position_hint": 0.5,
-        "routing_tag": "surface",
-        "salience": 0.7667,
-        "text": "Klar. Die Gespr\u00e4che \u00fcber Landpflege m\u00fcssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die RockShox nutzen. Der Rahmen z\u00e4hlt, weil er dir sagt, welche Abw\u00e4gungen du tri\u2026",
-        "tier": 2
+        "name": "Katrin Vogel"
       },
-      "type": "Insight"
+      "type": "Person"
     },
     {
-      "id": "quote:ce6b0e46b2e87752",
+      "id": "quote:94746af9cadecf1f",
       "properties": {
-        "char_end": 1365,
-        "char_start": 1163,
+        "char_end": 3241,
+        "char_start": 3170,
         "episode_id": "ep-c0ab3bfb1ebdab6d",
-        "speaker_id": "person:stefan-brandt",
-        "text": "Klar. Die Gespr\u00e4che \u00fcber Landpflege m\u00fcssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die RockShox nutzen. Der Rahmen z\u00e4hlt, weil er dir sagt, welche Abw\u00e4gungen du triffst.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
-        "transcript_ref": "transcripts/p13_e01.txt"
+        "speaker_id": "person:speaker-01",
+        "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
+        "timestamp_end_ms": 168000,
+        "timestamp_start_ms": 162000,
+        "transcript_ref": "transcripts/p13_e01.txt",
+        "translation": {
+          "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
+          "model": "google/translategemma-12b-it",
+          "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81",
+          "source_language": "de",
+          "translated": true,
+          "unit_ids": [
+            "t0026.u01"
+          ]
+        }
       },
       "type": "Quote"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design"
+      },
+      "type": "Topic"
     }
   ],
   "prompt_version": "n/a",
