@@ -466,13 +466,16 @@ services:
   # builds the provider from the profile exactly as the pipeline does, and summarises only boards
   # that changed, have been quiet, and were not summarised in the last day, within per-user and
   # per-sweep caps and a budget of $0 (the DGX profile costs nothing; a paid profile stops it).
-  # The pipeline-llm image, because it carries the [llm] SDKs and the profiles; the api image
-  # deliberately does not.
+  # It is the pipeline's container, run as the pipeline is run: the pipeline-llm image with its own
+  # entrypoint (secrets shim -> entrypoint.sh -> opentelemetry-instrument when tracing is on), the
+  # pipeline's DSN, the pipeline's OTEL settings, and the same startup as the CLI (Sentry, OTEL,
+  # logging). Only the command differs. The DGX is called exactly as the pipeline calls it: no
+  # VLLM_API_KEY, so the provider's own bearer, which is what the DGX is served under.
   board-summarizer:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     user: "1000:1000"
-    entrypoint: ["python", "/app/board_summarizer.py"]
+    command: ["python", "/app/board_summarizer.py"]
     environment:
       APP_DATA_DIR: /app/appdata
       BOARD_SUMMARY_CORPUS_ROOT: /app/output
@@ -480,14 +483,26 @@ services:
       BOARD_SUMMARY_INTERVAL_SECONDS: "300"
       BOARD_SUMMARY_DAILY_BUDGET_USD: "0"
       BOARD_SUMMARY_HEARTBEAT_FILE: /heartbeat/tick
-      # The DGX vLLM's bearer is a file, /run/secrets/vllm_api_key, mounted into this service only
-      # by docker-compose.player-secrets.yml. It is never in an env file or any environment.
+      # The pipeline-llm service's runtime env (docker-compose.stack.yml), as it is there.
+      PODCAST_SCRAPER_WORK_DIR: /app
+      PYTHONUNBUFFERED: "1"
       PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      PODCAST_GIT_SHA: ${PODCAST_GIT_SHA:-}
+      OTEL_SERVICE_NAME: podcast-pipeline
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
     # The DGX by its tailnet IP, resolved fresh at each deploy by deploy-player.sh (Docker's DNS
     # cannot resolve MagicDNS). Loopback by default, so an unresolved name fails closed: the
     # sidecar logs model_unreachable and summarises nothing.
     extra_hosts:
       - "dgx-llm-1:${DGX_TAILNET_IP:-127.0.0.1}"
+      # The traces endpoint, as the api reaches it.
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     volumes:
       - corpus_data:/app/output:ro
       - ${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}:/app/appdata

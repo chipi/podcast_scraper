@@ -23,6 +23,7 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import json
+import logging
 import os
 import time
 from collections import Counter
@@ -35,6 +36,8 @@ from filelock import FileLock
 from podcast_scraper.server import app_collections_store
 from podcast_scraper.server.app_board_view import Board, board_episode_slugs, load_board
 from podcast_scraper.server.app_user_store import _is_safe_user_id
+
+_LOGGER = logging.getLogger(__name__)
 
 #: The ``llm_cost`` stage, so a summary is never counted as pipeline work.
 STAGE = "board_summary"
@@ -353,6 +356,9 @@ def sweep(
                 if _unreachable(exc):
                     result.stopped = "model_unreachable"
                     return result
+                # At ERROR, as the pipeline logs a failed stage: Sentry's logging integration
+                # reports it where Sentry is on (the sidecar), and it is a log line everywhere.
+                _LOGGER.exception("board summary failed for board %s", board.meta.get("id"))
                 result.counts["failed"] += 1
                 continue
             _record_spend(data_dir, t, cost)

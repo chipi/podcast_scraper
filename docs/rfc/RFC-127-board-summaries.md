@@ -69,13 +69,20 @@ LLM. Giving the operator plane the player's user data would join two planes kept
 
 A new service in `docker-compose.player-public.yml`, shaped like `digest-scheduler`:
 
-- **Image**: the pipeline image (it has `[llm]` and the profiles), not the API image.
+- **Run as the pipeline is run**: the `pipeline-llm` image with its own entrypoint (secrets shim →
+  `entrypoint.sh` → `opentelemetry-instrument` when tracing is on), the pipeline-llm service's
+  runtime env (`PODCAST_ENV`, `PODCAST_RELEASE`, `PODCAST_GIT_SHA`, the `OTEL_*` settings,
+  `OTEL_SERVICE_NAME=podcast-pipeline`), and the CLI's startup (`init_sentry("pipeline")`,
+  `init_otel()`, console logging at INFO). Only the command differs. So its `llm_cost` lines,
+  traces and errors arrive where the pipeline's do, told apart by `stage=board_summary`.
 - **Mounts**: the corpus **read-only**; the player appdata **read-write** (it writes summaries).
 - **Network**: egress to the profile's model endpoint only — the DGX vLLM over the tailnet
   (`vllm_api_base`, `dgx-llm-1:8003`). No inbound port, no docker.sock.
-- **Secrets**: the DGX vLLM bearer only, as a file secret mounted into this service alone
-  (`/run/secrets/vllm_api_key`, staged by `deploy-player.yml` from the `prod` environment secret `VLLM_API_KEY`;
-  `docker-compose.player-secrets.yml`). The API container never sees it. No other provider's key.
+- **Secrets**: the pipeline's GlitchTip DSN (`PROD_SENTRY_DSN_PIPELINE`, staged by
+  `deploy-player.yml` into the player tenant's dir and mounted into this service only). No model
+  key: the DGX is called as the pipeline calls it, with no `VLLM_API_KEY`, so with the provider's
+  own bearer, which is what the DGX vLLM is served under (`docs/guides/PIPELINE_CHECK.md`).
+- **Logs**: `player.alloy` keeps `player-board-summarizer-*` and labels it `surface=pipeline`.
 - **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 300, offset 60 s so it never
   wakes with the digest), does one sweep, sleeps. A sweep with nothing changed reads files only.
 - **DGX availability**: the `:8003` slot is up only in the GPU's research mode. A sweep that cannot
@@ -251,7 +258,8 @@ the section is absent. A failed or skipped run leaves the last good summary in p
 - **Vitest + Playwright**: the sheet shows the summary, the date, and the stale note; with no
   summary, no section.
 - **Live, manual** (done 2026-10-13): sweeps against the DGX vLLM from a dev machine and from the
-  `pipeline-llm` image (read-only, uid 1000, the key as a file secret); SummLlama and BART/LED
+  `pipeline-llm` image through its own entrypoint (read-only, uid 1000, no key; the `llm_cost`
+  line with `stage=board_summary` in `docker logs`); SummLlama and BART/LED
   locally. The DGX and SummLlama write a usable paragraph; BART-base, which follows no
   instructions, repeats itself and stops mid-sentence.
 
@@ -286,9 +294,9 @@ same day for the beta).
   note when the board changed since.
 - The privacy policy says boards are summarised by a model on our own servers.
 
-Not done, and needed before it runs in prod: create the `prod` environment secret `VLLM_API_KEY`
-(the DGX vLLM key, one name for every consumer; operator approval); confirm the player host reaches `dgx-llm-1:8003` (prod resolves the name; a
-`GET /v1/models` from the player host has not been run); the first sweep on prod.
+Not done, and needed before it runs in prod: confirm the player host reaches `dgx-llm-1:8003`
+(prod resolves the name; a `GET /v1/models` from the player host has not been run); the first
+sweep on prod. Routing the DGX through LiteLLM, as every other model is: #2342.
 
 ## References
 

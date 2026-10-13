@@ -12,8 +12,9 @@ Each cycle:
 2. Builds the provider from the profile, exactly as the pipeline does
    (``Config(profile=...)`` → ``create_summarization_provider``). The profile is
    ``BOARD_SUMMARY_PROFILE``, default ``prod_dgx_full``: the model on our DGX, costing nothing.
-   ``initialize()`` checks the DGX serves that model; if it cannot be reached the cycle ends and
-   the next one tries again (the ``:8003`` slot is up only in the GPU's research mode).
+   It calls the DGX exactly as the pipeline does. ``initialize()``, which asks the DGX which model
+   it serves, runs only before the first call a sweep makes; if the DGX cannot be reached the
+   sweep ends and the next one tries again (the ``:8003`` slot is up only in research mode).
 3. Runs one ``board_summaries.sweep``: only boards that changed, have been quiet, were not
    summarised in the last day; per-user and per-sweep caps; every call priced first with the
    pipeline's pricing table against a budget of zero by default, so a paid profile stops the job.
@@ -27,6 +28,7 @@ start, a bad cycle never kills the loop, a heartbeat file for the container heal
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -40,7 +42,7 @@ INTERVAL_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_SECONDS", "300"))
 # Under the interval, and off the digest's (120 s past the hour): with a 300 s interval this wakes
 # at :01, :06, :11 …, never with the digest. A sweep with nothing changed reads files only.
 OFFSET_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_OFFSET_SECONDS", "60"))
-KEY_FILE = Path(os.environ.get("BOARD_SUMMARY_VLLM_KEY_FILE", "/run/secrets/vllm_api_key"))
+_LOGGER = logging.getLogger("podcast_scraper.board_summarizer")
 
 
 def _log(msg: str) -> None:
@@ -59,16 +61,6 @@ def _beat() -> None:
         _log(f"heartbeat write failed: {exc}")
 
 
-def _vllm_key() -> Optional[str]:
-    """The DGX vLLM's bearer, from the file only this sidecar has mounted (RFC-127). Read here and
-    handed to the provider, never exported: no environment of any process carries it."""
-    try:
-        key = KEY_FILE.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    return key or None
-
-
 def _provider() -> tuple[Any, Any]:
     """The profile's provider, built as the pipeline builds it — with no failover, and NOT yet
     initialised: building it touches no network, initialising it does (the vLLM provider asks the
@@ -82,8 +74,7 @@ def _provider() -> tuple[Any, Any]:
     from podcast_scraper import config
     from podcast_scraper.summarization.factory import create_summarization_provider
 
-    # vllm_api_key None is the field's own default: the provider then falls back as it always does.
-    cfg = config.Config(profile=PROFILE, vllm_api_key=_vllm_key(), summary_fallback_providers=[])
+    cfg = config.Config(profile=PROFILE, summary_fallback_providers=[])
     return cfg, create_summarization_provider(cfg)
 
 
@@ -235,12 +226,26 @@ def _sleep_to_next_interval(sleep: Callable[[float], object] = time.sleep) -> No
 def _cycle() -> None:
     try:
         _run_once()
-    except Exception as exc:  # noqa: BLE001 — a bad cycle must never kill the loop
-        _log(f"cycle error: {exc!r}")
+    except Exception:  # noqa: BLE001 — a bad cycle must never kill the loop
+        # ERROR through logging, so Sentry's logging integration reports it, as for the pipeline.
+        _LOGGER.exception("board summary cycle failed")
     _beat()
 
 
+def _startup() -> None:
+    """What the pipeline CLI does before any work (``cli.main``): Sentry as the pipeline, OTEL,
+    and logging to the console at INFO, so the ``llm_cost`` events reach stdout and Alloy."""
+    from podcast_scraper.utils.otel_init import init_otel
+    from podcast_scraper.utils.sentry_init import init_sentry
+    from podcast_scraper.workflow.orchestration import apply_log_level
+
+    init_sentry("pipeline")
+    init_otel()
+    apply_log_level("INFO")
+
+
 def main() -> NoReturn:
+    _startup()
     _log(
         f"start: corpus={CORPUS_ROOT} data_dir={DATA_DIR} profile={PROFILE} "
         f"interval={INTERVAL_S}s offset={OFFSET_S}s heartbeat={HEARTBEAT}"

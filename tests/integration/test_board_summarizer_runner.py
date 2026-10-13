@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -88,10 +89,13 @@ def test_the_dgx_profile_builds_the_vllm_provider_with_no_failover(
 
     _offline(monkeypatch)
     mod = _load(tmp_path, monkeypatch)
-    monkeypatch.setattr(mod, "KEY_FILE", tmp_path / "absent")
+    monkeypatch.delenv("VLLM_API_KEY", raising=False)
     cfg, provider = mod._provider()
     assert type(provider) is VLLMProvider
     assert cfg.summary_provider == "vllm" and list(cfg.summary_fallback_providers or []) == []
+    # As the prod pipeline: no VLLM_API_KEY anywhere, so the provider's own bearer, which is what
+    # the DGX is served under.
+    assert provider._resolve_api_key(cfg) == "EMPTY"
 
 
 def test_a_provider_that_would_fail_over_is_refused(
@@ -202,7 +206,6 @@ def test_a_full_cycle_on_the_dgx_profile_writes_the_summary_at_no_cost(
     monkeypatch.setenv("BOARD_SUMMARY_CORPUS_ROOT", str(_CORPUS))
     mod = _load(tmp_path, monkeypatch)
     monkeypatch.setattr(mod, "CORPUS_ROOT", _CORPUS)
-    monkeypatch.setattr(mod, "KEY_FILE", tmp_path / "absent")
     uid, cid = _board_with_two_episodes(tmp_path)
     client = Mock()
     client.chat.completions.create.return_value = _chat_reply("A board about risk and couplings.")
@@ -341,7 +344,6 @@ def test_a_cycle_with_nothing_changed_never_talks_to_the_model_server(
     monkeypatch.setenv("BOARD_SUMMARY_CORPUS_ROOT", str(_CORPUS))
     mod = _load(tmp_path, monkeypatch)
     monkeypatch.setattr(mod, "CORPUS_ROOT", _CORPUS)
-    monkeypatch.setattr(mod, "KEY_FILE", tmp_path / "absent")
     client = Mock()
     client.chat.completions.create.return_value = _chat_reply("A board about risk.")
     real = mod._provider
@@ -378,7 +380,92 @@ def test_a_provider_that_cannot_get_ready_ends_the_sweep_as_unreachable(
     monkeypatch.setenv("BOARD_SUMMARY_CORPUS_ROOT", str(_CORPUS))
     mod = _load(tmp_path, monkeypatch)
     monkeypatch.setattr(mod, "CORPUS_ROOT", _CORPUS)
-    monkeypatch.setattr(mod, "KEY_FILE", tmp_path / "absent")
     _board_with_two_episodes(tmp_path)
     mod._run_once()
     assert '"stopped": "model_unreachable"' in capsys.readouterr().out
+
+
+def test_it_starts_up_as_the_pipeline_cli_does(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """cli.main: Sentry as ``pipeline``, then OTEL, then console logging at INFO."""
+    from podcast_scraper.utils import otel_init, sentry_init
+    from podcast_scraper.workflow import orchestration
+
+    mod = _load(tmp_path, monkeypatch)
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(sentry_init, "init_sentry", lambda c: calls.append(("sentry", c)))
+    monkeypatch.setattr(otel_init, "init_otel", lambda: calls.append(("otel",)))
+    monkeypatch.setattr(orchestration, "apply_log_level", lambda lvl: calls.append(("log", lvl)))
+    mod._startup()
+    assert calls == [("sentry", "pipeline"), ("otel",), ("log", "INFO")]
+
+
+def test_a_summary_emits_the_llm_cost_event_with_its_stage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The episode summary's own cost event (``record_provider_call_cost``), tagged
+    ``stage=board_summary`` so dashboards and the obs MCP tell the two apart."""
+    _offline(monkeypatch)
+    monkeypatch.setenv("BOARD_SUMMARY_CORPUS_ROOT", str(_CORPUS))
+    mod = _load(tmp_path, monkeypatch)
+    monkeypatch.setattr(mod, "CORPUS_ROOT", _CORPUS)
+    _board_with_two_episodes(tmp_path)
+    client = Mock()
+    client.chat.completions.create.return_value = _chat_reply("A board about risk.")
+    real = mod._provider
+
+    def provider() -> Any:
+        cfg, prov = real()
+        prov.client = client
+        return cfg, prov
+
+    monkeypatch.setattr(mod, "_provider", provider)
+    with caplog.at_level("INFO", logger="podcast_scraper.workflow.cost_monitoring"):
+        mod._run_once()
+    events = [json.loads(r.getMessage()) for r in caplog.records if '"llm_cost"' in r.getMessage()]
+    assert len(events) == 1
+    assert events[0]["stage"] == "board_summary" and events[0]["provider"] == "vllm"
+
+
+def test_after_startup_info_lines_reach_the_console(tmp_path: Path) -> None:
+    """In the image nothing else gives root a console handler, so before ``_startup`` the INFO
+    ``llm_cost`` line was dropped (Python's last-resort handler prints WARNING and up only) and
+    Alloy had nothing to ship. A fresh interpreter, as in the container."""
+    import subprocess
+    import sys
+
+    program = f"""
+import importlib.util, logging
+spec = importlib.util.spec_from_file_location("bsr", {str(_RUNNER)!r})
+mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+logging.getLogger("podcast_scraper.workflow.cost_monitoring").info("BEFORE-STARTUP")
+mod._startup()
+logging.getLogger("podcast_scraper.workflow.cost_monitoring").info("AFTER-STARTUP")
+"""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("OTEL_", "PODCAST_SENTRY"))}
+    env.update(
+        BOARD_SUMMARY_HEARTBEAT_FILE=str(tmp_path / "hb"),
+        APP_DATA_DIR=str(tmp_path / "app"),
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", program], capture_output=True, text=True, timeout=120, env=env
+    )
+    assert out.returncode == 0, out.stderr[-2000:]
+    logs = out.stdout + out.stderr
+    assert "AFTER-STARTUP" in logs and "BEFORE-STARTUP" not in logs
+
+
+def test_a_failed_cycle_is_logged_at_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """ERROR through logging is what Sentry's logging integration reports, as for the pipeline."""
+    mod = _load(tmp_path, monkeypatch)
+
+    def broken() -> None:
+        raise RuntimeError("something unexpected")
+
+    monkeypatch.setattr(mod, "_run_once", broken)
+    with caplog.at_level("ERROR"):
+        mod._cycle()
+    assert any(r.levelname == "ERROR" and r.exc_info for r in caplog.records)

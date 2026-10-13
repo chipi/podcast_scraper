@@ -378,13 +378,19 @@ def test_a_model_that_is_away_ends_the_sweep_and_keeps_the_last_summary(tmp_path
     assert bs.read_summaries(tmp_path, U1)[cid]["text"] == "Old."
 
 
-def test_one_board_failing_does_not_stop_the_others(tmp_path: Path) -> None:
+def test_one_board_failing_does_not_stop_the_others(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     _board(tmp_path, U1, "B", _episodes(2))
     _board(tmp_path, U2, "C", _episodes(2))
     model = Model()
     model.raise_ = ValueError("the model said something odd")
-    result = _sweep(tmp_path, model)
+    with caplog.at_level("ERROR", logger="podcast_scraper.server.board_summaries"):
+        result = _sweep(tmp_path, model)
     assert result.counts["failed"] == 2 and result.stopped is None
+    # Each failure at ERROR with its traceback: what Sentry's logging integration reports.
+    errors = [r for r in caplog.records if r.levelname == "ERROR" and r.exc_info]
+    assert len(errors) == 2
 
 
 def test_an_answer_too_long_to_be_a_paragraph_is_not_stored(tmp_path: Path) -> None:

@@ -77,7 +77,7 @@ for s in $SELECTED; do
             printf '%s' "${PLAYER_APP_SESSION_SECRET}"      > "$t/app_session_secret"
             printf '%s' "${PROD_SENTRY_DSN_PLAYER_API:-}"   > "$t/podcast_sentry_dsn_api"
             printf '%s' "${PLAYER_INTERNAL_OUTBOX_TOKEN:-}" > "$t/internal_outbox_token"
-            printf '%s' "${VLLM_API_KEY:-}"          > "$t/vllm_api_key"
+            printf '%s' "${PROD_SENTRY_DSN_PIPELINE:-}"   > "$t/podcast_sentry_dsn_pipeline"
             push_dir player-secrets "$t"
             ;;
         *)
