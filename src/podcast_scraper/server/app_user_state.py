@@ -1370,11 +1370,15 @@ def mark_learning_step_done(
 
 
 def open_next_learning_day(
-    data_dir: Path, user_id: str, subject_id: str, gone: frozenset[int] = frozenset()
+    data_dir: Path,
+    user_id: str,
+    subject_id: str,
+    gone: frozenset[int] = frozenset(),
+    now: float | None = None,
 ) -> dict[str, Any] | None:
     """Open that path's next day early (``app_learning_path.can_open_next`` checked under the
-    lock; ``gone``: steps whose episode left the corpus); the path, or ``None`` without it or when
-    the next day may not be opened."""
+    lock; ``gone``: steps whose episode left the corpus; ``now``: the clock, wall time by default);
+    the path, or ``None`` without it or when the next day may not be opened."""
     from podcast_scraper.server.app_learning_path import can_open_next
 
     return _update_learning_path(
@@ -1382,7 +1386,9 @@ def open_next_learning_day(
         user_id,
         subject_id,
         lambda p: (
-            {**p, "ahead": int(p.get("ahead") or 0) + 1} if can_open_next(p, gone=gone) else None
+            {**p, "ahead": int(p.get("ahead") or 0) + 1}
+            if can_open_next(p, now=now, gone=gone)
+            else None
         ),
     )
 

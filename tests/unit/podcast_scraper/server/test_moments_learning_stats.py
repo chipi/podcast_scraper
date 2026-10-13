@@ -154,6 +154,8 @@ def test_the_day_a_path_is_on_counts_days_opened_early(tmp_path: Path) -> None:
         tmp_path, "u", _path("tc:rel", "theme", "reliability", 7, NOW), cap=3
     )
     app_user_state.mark_learning_step_done(tmp_path, "u", "tc:rel", 0, now=NOW)
-    app_user_state.open_next_learning_day(tmp_path, "u", "tc:rel")
+    # On the test's clock: on the wall clock, from a day after NOW the second day is open by itself
+    # and undone, so nothing more opens (this failed on 2026-10-13, the day after it was written).
+    assert app_user_state.open_next_learning_day(tmp_path, "u", "tc:rel", now=NOW) is not None
     stats = app_stats.compute_user_stats(tmp_path, "u", now=NOW)
     assert stats["learning_now"][0]["day"] == 2
