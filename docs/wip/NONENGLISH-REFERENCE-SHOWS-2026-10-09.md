@@ -61,8 +61,9 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 
 ## What we are not yet happy with (input to the arc)
 
-1. Non-English ASR accuracy is unmeasured (RFC-124 Q10).
-2. Translation quality is unmeasured; the model pick is provisional (#2251).
+1. Non-English ASR accuracy is unmeasured (RFC-124 Q10). Measured since: gates A and B, 2026-10-12.
+2. Translation quality is unmeasured; the model pick is provisional (#2251). Measured since: all five
+   languages judged (Italian 2026-10-13); the model pick is still provisional.
 3. Speaker naming: es hosts on first names or nicknames are swapped, de near-identical names
    merge, it and pt-PT guests unnamed, pt-BR introductions on one voice
    (`2187-NAMING-HANDOVER-2026-10-08.md`).
@@ -74,7 +75,7 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 
 ## The next arc — plan
 
-**Status (2026-10-09):** plan accepted by the operator; work started. Decisions:
+**Status (2026-10-13):** steps 1-5 done for es, pt-BR, fr, de and it; step 6 is the operator's. See the handover below. Decisions:
 
 - Translation quality is judged by a **stronger model as judge** (operator, 2026-10-09).
 - The measuring code lives in the eval repo (`eval-data/`, private) as reusable tools, not one-offs
@@ -97,9 +98,48 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 | 1 | reference harness: fetch, clean, coverage-check the human transcripts | no | done |
 | 2 | episode set, ~12 episodes, references verified to cover their audio | no | done, 12 |
 | 3 | pipeline runs on `prod_dgx_full`, transcript kept after every step | yes (operator's yes for > 2 episodes) | done: baseline, ASR-only, translation retest, relabel (see Results) |
-| 4 | scoring: ASR WER, per-step effect, naming, translation (model judge) | judge only | WER, per-step effect, naming scored; judge waits for its key |
-| 5 | gap list and fixes | — | D1-D21 below; D6, D15, D16, D20 open for the operator |
-| 6 | readiness call per language | — | operator |
+| 4 | scoring: ASR WER, per-step effect, naming, translation (model judge) | judge only | done: ASR gates A and B on all 30 reference episodes (2026-10-12); translation judged for es, pt-BR, fr, de (2026-10-10) and it (2026-10-13) |
+| 5 | gap list and fixes | — | done: D1-D37 below; open D29 (naming), D37 (first-pass tail loops) |
+| 6 | readiness call per language | — | operator (handover below) |
+
+**Handover (2026-10-13): where this arc stands.** The measuring is done; what is left is decisions.
+
+- **Done and measured** (runbook sections 4 and 6; Results below):
+  - ASR gate B passes for Italiano ON-Air (it), Radio Ambulante (es), RFI (fr), SWR (de), Senado and
+    Rádio Novelo (pt-BR; Novelo on its bar).
+  - El Hilo (es) is over by 0.0019, on one episode. Camera (it) is over, mostly from its edited
+    stenographic reference. It stays in the gate.
+  - Gate A: no language mismatch; what is left is read and recorded.
+  - Translation: every episode of the re-run is complete. Quality is judged for all five languages:
+    adequacy 3.4-4.8, Italian 4.24-4.68 on scripted speech and 3.42-3.64 on the parliament. The
+    remaining errors are the model's.
+- **Decisions for the operator** (none blocks merging this branch):
+  1. The two shows over gate B. The runbook's rule: a language failing only on plain misheard
+     words gets one model comparison (#2251); else the gap is recorded and the language moves on.
+  2. Translation is measured but has no pass mark. Whether it is good enough is a judgement, and
+     its remaining errors point to the same model comparison (#2251).
+  3. Held for the end of the arc (2026-10-09): the RFC-124 §5.3 all-or-nothing translation gate.
+     On the re-run 0 of 24 translated episodes lost a unit after the retries (6 units retried: 3
+     commentary refusals, 3 line-count mismatches).
+  4. Step 6, readiness per language: which languages to enable on prod, with which known limits.
+  5. Open from earlier: D6 (feed transcript first or our ASR), D8 (prod translation concurrency),
+     and the three naming decisions under "Why the rest stays unnamed".
+- **Known and not fixed:**
+  - D29 (a wrong host name from the naming model, no deterministic signal).
+  - D37 (invented lines at the end of a first-pass transcript; the audio-backed rule is the
+    candidate).
+  - Foreign tape is not transcribed, by the no-language-detection rule.
+  - The digital-silence threshold is checked on the 30 reference files only.
+  - `host_acts_are_all_bled` reads English only: on other feeds it never fires, the safe direction.
+- **Next stages, not this arc:** naming (tier 3, `2187-NAMING-HANDOVER-2026-10-08.md`) and prod
+  enablement.
+- **Where things are:**
+  - Public branch `feat/nonenglish-reference-analysis` (PR #2324).
+  - Eval repo branch of the same name: datasets, runner, scorers, judge.
+  - Run outputs under the eval repo's ignored `cache/dataset_runs/`: re-run
+    `20261012T083505Z_full` (en), `20261012T195734Z_full` (it, with the Italian judgement),
+    `20261012T114048Z_full` (12 non-English), `20261012T173101Z_full` (6 non-English).
+  - The judge runs from the public repo's `.venv` (the eval venv lacks `anthropic`).
 
 **Goal:** know, per language, how good our transcript, speaker names and translation are against a
 human reference, and which gaps block enabling that language on prod.
