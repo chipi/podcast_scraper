@@ -179,7 +179,8 @@ def storyline_member_lift(corpus_root: Path) -> Dict[str, Dict[str, float]]:
 
 
 def _anchor_topic_id(members: list[Any]) -> Optional[str]:
-    """Most-central member of a theme cluster — highest ``lift_to_cluster`` (tie: topic_id asc).
+    """The member marked ``"anchor": true`` (kept by the storyline registry, RFC-128), else the
+    most-central member — highest ``lift_to_cluster`` (tie: topic_id asc).
 
     The Home "Storylines" rail opens this topic's card on tap; every member's card shows the same
     "discussed together" set, so the anchor just picks the most representative entry. Falls back to
@@ -193,6 +194,8 @@ def _anchor_topic_id(members: list[Any]) -> Optional[str]:
         tid = m.get("topic_id")
         if not isinstance(tid, str) or not tid.strip():
             continue
+        if m.get("anchor") is True:
+            return tid.strip()
         lift_raw = m.get("lift_to_cluster")
         lift = float(lift_raw) if isinstance(lift_raw, (int, float)) else 0.0
         if best_id is None or lift > best_lift or (lift == best_lift and tid.strip() < best_id):

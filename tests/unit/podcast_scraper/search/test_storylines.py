@@ -320,3 +320,13 @@ def test_a_quiet_storyline_is_offered_after_the_active_ones(tmp_path) -> None:
     )
     ids = [s["id"] for s in top_storylines_by_member_count(tmp_path, 12)]
     assert ids == ["thc:small-active", "thc:big-quiet"]
+
+
+def test_a_member_marked_anchor_wins_over_a_higher_lift() -> None:
+    from podcast_scraper.search.storylines import _anchor_topic_id
+
+    members = [
+        {"topic_id": "topic:high", "lift_to_cluster": 9.0},
+        {"topic_id": "topic:kept", "lift_to_cluster": 1.0, "anchor": True},
+    ]
+    assert _anchor_topic_id(members) == "topic:kept"

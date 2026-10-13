@@ -105,3 +105,30 @@ def test_the_same_input_gives_the_same_registry() -> None:
     a = _run(copy.deepcopy(props), None, 0.0)
     b = _run(list(reversed(copy.deepcopy(props))), None, 0.0)
     assert a[0] == b[0]
+
+
+def _anchor(story: dict) -> str | None:
+    from podcast_scraper.search.storylines import _anchor_topic_id
+
+    return _anchor_topic_id(story["members"])
+
+
+def test_migration_keeps_the_anchor_a_storyline_page_is_routed_by() -> None:
+    """Storyline pages are routed by the anchor; the first registry run must not move it (the
+    prod copy moved 22 of 99 when every seeded topic started at the same strength)."""
+    old = _prop("risk", ["topic:a", "topic:z"], ["e1", "e2"])
+    for m in old["members"]:
+        m["lift_to_cluster"] = 9.0 if m["topic_id"] == "topic:z" else 1.0
+    grown = _prop("risk", ["topic:a", "topic:b"], ["e1", "e2", "e3"])
+    stories, state = _run([grown], {"clusters": [old]}, 0.0, extra_topics=("topic:z",))
+    assert _anchor(stories[0]) == "topic:z"
+    stories, state = _run([grown], state, 40 * DAY, extra_topics=("topic:z",))
+    assert _anchor(stories[0]) == "topic:z", "a later run keeps it too"
+
+
+def test_the_anchor_moves_only_when_its_topic_leaves_the_corpus() -> None:
+    old = _prop("risk", ["topic:a", "topic:z"], ["e1", "e2"])
+    old["members"][1]["lift_to_cluster"] = 9.0
+    _, state = _run([], {"clusters": [old]}, 0.0, extra_topics=("topic:a", "topic:z"))
+    stories, _ = _run([], state, 1 * DAY, extra_topics=("topic:a",))
+    assert _anchor(stories[0]) == "topic:a"

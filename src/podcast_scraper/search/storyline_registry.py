@@ -20,9 +20,10 @@ Here a storyline is a record that outlives any run:
   active again. Only one whose every topic has left the corpus stops being published (and is then
   ``gone`` in ``id_history``, for the reference pass).
 
-The published anchor of a storyline (``lift_to_cluster``, read by ``search.storylines``) is its
-topic strength, so the anchor is its most durable topic rather than the topic that ranked highest
-in one run: storyline pages are routed by their anchor.
+Storyline pages are routed by their anchor topic, so the registry keeps it: the anchor a storyline
+had before the registry, or its most-episode topic when created. It moves only when that topic
+leaves the storyline, to the strongest remaining one. The published member carries
+``"anchor": true`` (read by ``search.storylines``); ``lift_to_cluster`` is the topic's strength.
 """
 
 from __future__ import annotations
@@ -30,6 +31,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
+
+from podcast_scraper.search.storylines import _anchor_topic_id
 
 _DAY_S = 86400.0
 
@@ -73,6 +76,7 @@ def _seed(prior: Mapping[str, Any], now: float) -> dict[str, Any]:
             "name": str(c.get("canonical_label") or sid),
             "aliases": [],
             "topics": {t: 1.0 for t in _members(c)},
+            "anchor": _anchor_topic_id(list(c.get("members") or [])),
             "episodes": sorted(_episodes(c)),
             "created_at": now,
             "last_active_at": now,
@@ -173,6 +177,7 @@ def reconcile(
                 "name": c["label"],
                 "aliases": [],
                 "topics": {t: 1.0 for t in c["topics"]},
+                "anchor": min(c["topics"], key=lambda t: (-len(topic_eps.get(t) or []), t)),
                 "episodes": sorted(c["episodes"]),
                 "created_at": now,
                 "last_active_at": now,
@@ -192,6 +197,8 @@ def reconcile(
         if not strengths:
             gone.append(sid)
             continue
+        if e.get("anchor") not in strengths:
+            e["anchor"] = min(strengths, key=lambda t: (-strengths[t], t))
         last = e.get("last_active_at")
         quiet = now - float(now if last is None else last) >= p.quiet_days * _DAY_S
         members = [
@@ -199,9 +206,8 @@ def reconcile(
                 "topic_id": t,
                 "label": topic_label.get(t, t),
                 "episode_ids": sorted(set(topic_eps.get(t, []))),
-                # The anchor (``search.storylines``) is the most durable topic: storyline pages
-                # are routed by it, so it must not follow one run's ranking.
                 "lift_to_cluster": round(w, 4),
+                **({"anchor": True} if t == e["anchor"] else {}),
             }
             for t, w in sorted(strengths.items(), key=lambda kv: (-kv[1], kv[0]))
         ]

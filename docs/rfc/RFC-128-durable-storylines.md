@@ -144,7 +144,9 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
 
 - `search/storyline_registry.py` — `reconcile(proposals, prior, …, now)`: attach at a 0.5 topic
   share, topic strength ×0.85 per 30 days (held at 0.2), bar 2 topics / 5 episodes / 28 days,
-  rename after 60 days, quiet after 90 days. The anchor a page routes by is the most durable topic.
+  rename after 60 days, quiet after 90 days. The anchor a page routes by is kept in the
+  registry (the pre-registry anchor, or the most-episode topic at creation) and moves only when its
+  topic leaves; the member is marked `"anchor": true`.
 - `enrichers/topic_theme_clusters.py` (1.3.0) — this run's clusters are proposals; the registry is
   carried in `topic_theme_clusters.json` (`registry`, plus `state` and `aliases` per storyline);
   super-themes are computed over the registry's storylines.
@@ -155,7 +157,9 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
 ## Migration
 
 The first run with the registry seeds it from the previous artifact's storylines (ids and names
-kept, all 99 on production; a corpus's very first run seeds from its own clusters). New storylines
+kept, all 99 on production; a corpus's very first run seeds from its own clusters), and each
+storyline's current anchor, so no storyline page moves (simulated on the production copy: 99 of 99
+ids, names and anchors unchanged over two runs). New storylines
 then need the 28-day bar, so for four weeks none appears; existing ones keep growing. #2345's `id_history` maps every id the
 registry ever retired, so stored references keep resolving. No user state is rewritten by this
 change; the reference pass keeps running.
