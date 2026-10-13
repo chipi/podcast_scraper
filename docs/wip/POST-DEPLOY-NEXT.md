@@ -232,3 +232,22 @@ episodes (S5, #2332) and The Rest Is History's 30 (F7), parked.
   returns 256-dim `speaker_embeddings` for each speaker, keys = segment speakers.
 - Step 10: the two alert rules are drafted (`scratchpad/homelab-naming-alerts.diff`); install after
   the first nightly writes the coverage metric, or the stale rule fires at once.
+
+### 2026-10-13 morning
+
+- 22:09 (10-12) step 10: coverage snapshot written by hand with `measure_and_record` (operator OK) so the
+  alerts had a metric; run as root it came out `root:600` and the api (uid 1000) could not read it —
+  chowned to `podcast`. Alert rules pushed to homelab main `060785a`, pulled on the mini, provisioning
+  reloaded: both rules evaluate `inactive`/`ok` (22:15 UTC).
+- Nightly `1c5cbf3c` 23:00-01:45 UTC succeeded; enrichment after. o11y review: 0 GlitchTip issues, 0
+  error spans; 6 x "insight(s) cannot be surfaced because a voice went unnamed and a name WAS available".
+- 16 new episodes: decision_trace on all; licence filled at ingest on all; voice embeddings (256-dim,
+  keys = voices) on 15 — the 16th (Odd Lots, Nate Soares) is a publisher transcript, never diarized.
+- Coverage snapshot rewritten by the nightly (01:23): 2,635 episodes, 274 nameless, named quotes 160,584.
+- Step 6: all 32 fingerprints back (re-embedded); no prune refusal; `257da0ba` insight rows 111 -> 55.
+- Naming to look at (new episodes, not fixed here): Macro Musings has the guest John Rolle placed as
+  host and David Beckworth unplaced; Round Table China lists "Yushan" and "Yushun" as two people; BizNews
+  Daybreak's record holds junk unplaced names ("Africa Bitcoin Corporation board", "Japanese owners").
+- Step 11: backfill resumed (batch 12's 2 unfinished eps re-pooled); batch 13 run 38352733770, 3 eps /
+  5.7 audio-h, approved 05:42 under the standing approval. DGX idle (translate load gone).
+- Post-deploy plan: every step done.
