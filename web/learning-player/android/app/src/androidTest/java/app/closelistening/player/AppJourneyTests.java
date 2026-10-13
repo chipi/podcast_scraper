@@ -332,11 +332,11 @@ public class AppJourneyTests extends UITestCase {
         assertTrue("Library tab did not open", Journey.openTab("Library"));
         Journey.sleep(4_000);
 
-        // Collections live on the Library tab called "Boards" (library.collections = 'Boards').
-        // NOT "Collections" — that is the API name and matches nothing on screen.
-        boolean boardsTab = Journey.tap("Boards", false, 12_000);
+        // Boards and notes live on the Library tab called "Collections" (library.collections; it
+        // was "Boards" until 2026-10-13).
+        boolean boardsTab = Journey.tap("Collections", false, 12_000);
         if (!boardsTab) {
-            fail("no Boards tab in Library. On screen: " + Journey.labelledInventory(80));
+            fail("no Collections tab in Library. On screen: " + Journey.labelledInventory(80));
         }
         Journey.sleep(3_000);
 

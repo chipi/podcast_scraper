@@ -161,7 +161,7 @@ final class BoardsShotTests: UITestCase {
     let app = Journey.launch()
     Journey.openTab(app, "Library")
     sleep(4)
-    _ = Journey.tap(app, labels: ["Boards"], contains: true, timeout: 12)
+    _ = Journey.tap(app, labels: ["Collections"], timeout: 12)
     sleep(4)
     Journey.shot(self, "b1-boards")
     // Grid ("board") view — the reordered sequence must read the same here as in the list.

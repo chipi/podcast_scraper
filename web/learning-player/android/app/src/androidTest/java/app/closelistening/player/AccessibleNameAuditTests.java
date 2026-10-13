@@ -346,7 +346,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // lives on — `NativeCapabilityTests` reaches the composer only to assert a mic exists.
         audit("player ▸ Brief", Journey.tap(Arrays.asList("Brief"), false, 15_000), findings);
         // Notes are the LAST section of a long panel. Scrolling to the textarea's aria-label
-        // ("Your notes" = notes.title) rather than the placeholder, because aria-label wins over
+        // ("Notes" = notes.title) rather than the placeholder, because aria-label wins over
         // placeholder here — matching 'Add a note…' finds nothing, on both platforms.
         //
         // Deliberately NOT clicking the textarea: focusing it opens the soft keyboard, and Android's
@@ -354,7 +354,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // the tree at exactly the moment it is drawn. That is what made the dictation test flake
         // 1-pass/2-fail in suite against 4/0 solo, and an audit that did it would report the mic and
         // Add button as missing rather than as unnamed.
-        audit("player ▸ notes", Journey.scrollTo("Your notes", false) != null, findings);
+        audit("player ▸ notes", Journey.scrollTo("Notes", false) != null, findings);
 
         assertTrue(
                 "These controls are tappable but carry no name a person could act on, so a screen "

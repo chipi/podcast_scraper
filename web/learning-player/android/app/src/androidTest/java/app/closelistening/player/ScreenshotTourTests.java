@@ -143,7 +143,7 @@ public class ScreenshotTourTests extends UITestCase {
             frame("t04-library-following");
             String[][] tabs = {
                 { "Saved", "t05-library-saved" },
-                { "Boards", "t06-library-boards" },
+                { "Collections", "t06-library-boards" },
                 { "Revisit", "t07-library-revisit" },
             };
             for (String[] t : tabs) {

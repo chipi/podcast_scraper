@@ -480,8 +480,8 @@ services:
       BOARD_SUMMARY_INTERVAL_SECONDS: "3600"
       BOARD_SUMMARY_DAILY_BUDGET_USD: "0"
       BOARD_SUMMARY_HEARTBEAT_FILE: /heartbeat/tick
-      # The DGX vLLM's bearer, when it has one — the same variable the pipeline reads.
-      VLLM_API_KEY: ${VLLM_API_KEY:-}
+      # The DGX vLLM's bearer is a file, /run/secrets/vllm_api_key, mounted into this service only
+      # by docker-compose.player-secrets.yml. It is never in an env file or any environment.
       PODCAST_ENV: ${PODCAST_ENV:-dev}
     # The DGX by its tailnet IP, resolved fresh at each deploy by deploy-player.sh (Docker's DNS
     # cannot resolve MagicDNS). Loopback by default, so an unresolved name fails closed: the

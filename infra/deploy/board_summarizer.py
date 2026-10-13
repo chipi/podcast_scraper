@@ -37,6 +37,7 @@ PROFILE = os.environ.get("BOARD_SUMMARY_PROFILE", "prod_dgx_full").strip() or "p
 INTERVAL_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_SECONDS", "3600"))
 # Off the digest's offset, so the two sidecars never wake in the same second.
 OFFSET_S = int(os.environ.get("BOARD_SUMMARY_INTERVAL_OFFSET_SECONDS", "900"))
+KEY_FILE = Path(os.environ.get("BOARD_SUMMARY_VLLM_KEY_FILE", "/run/secrets/vllm_api_key"))
 
 
 def _log(msg: str) -> None:
@@ -55,12 +56,23 @@ def _beat() -> None:
         _log(f"heartbeat write failed: {exc}")
 
 
+def _vllm_key() -> Optional[str]:
+    """The DGX vLLM's bearer, from the file only this sidecar has mounted (RFC-127). Read here and
+    handed to the provider, never exported: no environment of any process carries it."""
+    try:
+        key = KEY_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return key or None
+
+
 def _provider() -> tuple[Any, Any]:
     """The profile's provider, built and initialised as the pipeline builds it."""
     from podcast_scraper import config
     from podcast_scraper.summarization.factory import create_summarization_provider
 
-    cfg = config.Config(profile=PROFILE)
+    # None is the field's own default: the provider then falls back as it always does.
+    cfg = config.Config(profile=PROFILE, vllm_api_key=_vllm_key())
     provider = create_summarization_provider(cfg)
     provider.initialize()
     return cfg, provider
@@ -71,7 +83,7 @@ def _pricer(cfg: Any) -> Callable[[str, int], Optional[float]]:
     from podcast_scraper.workflow.helpers import calculate_provider_cost
 
     def price(prompt: str, max_tokens: int) -> Optional[float]:
-        return calculate_provider_cost(
+        cost: Optional[float] = calculate_provider_cost(
             cfg=cfg,
             provider_type=str(cfg.summary_provider),
             capability="summarization",
@@ -79,6 +91,7 @@ def _pricer(cfg: Any) -> Callable[[str, int], Optional[float]]:
             prompt_tokens=max(1, len(prompt) // 3),
             completion_tokens=max_tokens,
         )
+        return cost
 
     return price
 

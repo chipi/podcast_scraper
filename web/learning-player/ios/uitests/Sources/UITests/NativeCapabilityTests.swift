@@ -128,16 +128,16 @@ final class NativeCapabilityTests: UITestCase {
       }
     }
     sleep(5)
-    // "Your notes" — the textarea's aria-label, which is what WebKit exposes as the accessible
+    // "Notes" — the textarea's aria-label, which is what WebKit exposes as the accessible
     // name. Matching the PLACEHOLDER ("Add a note…") found nothing, because an aria-label wins over
     // a placeholder. Notes are also the LAST section of a long card, so this needs more swipes than
     // the default (2026-09-16).
-    guard Journey.scrollTo(app, labels: ["Your notes"], maxSwipes: 16) != nil else {
+    guard Journey.scrollTo(app, labels: ["Notes"], maxSwipes: 16) != nil else {
       Journey.inventory(app, "topic-no-note-composer")
       XCTFail("no note composer on the topic card")
       return
     }
-    guard Journey.tap(app, labels: ["Your notes"], timeout: 8) else {
+    guard Journey.tap(app, labels: ["Notes"], timeout: 8) else {
       Journey.inventory(app, "note-composer-untappable")
       XCTFail("the note composer was found but could not be tapped")
       return

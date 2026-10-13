@@ -244,11 +244,11 @@ final class AppJourneyTests: UITestCase {
     Journey.inventory(app, "library")
     Journey.shot(self, "05-library")
 
-    // Collections live on the Library tab called "Boards" — NOT "Collections", which is the
-    // internal/API name and matched nothing on screen. The fixture account starts with none.
-    guard Journey.tap(app, labels: ["Boards"], timeout: 12) else {
-      Journey.inventory(app, "library-no-boards")
-      XCTFail("no Boards tab in Library")
+    // Boards and notes live on the Library tab called "Collections" (library.collections; it was
+    // "Boards" until 2026-10-13). The fixture account starts with no boards.
+    guard Journey.tap(app, labels: ["Collections"], timeout: 12) else {
+      Journey.inventory(app, "library-no-collections")
+      XCTFail("no Collections tab in Library")
       return
     }
     sleep(3)

@@ -154,7 +154,7 @@ final class ScreenshotTourTests: UITestCase {
       _ = Journey.tap(app, labels: ["Following"], timeout: 8)
       sleep(3)
       frame("t04-library-following")
-      for (i, tab) in ["Saved", "Boards", "Revisit"].enumerated() {
+      for (i, tab) in ["Saved", "Collections", "Revisit"].enumerated() {
         if Journey.tap(app, labels: [tab], timeout: 10) {
           sleep(3)
           frame(String(format: "t0%d-library-%@", 5 + i, tab.lowercased()))
