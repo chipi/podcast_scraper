@@ -450,6 +450,7 @@ nav:
       - RFC-125 Translation Confidence and Claim Verification: rfc/RFC-125-translation-confidence-and-claim-verification.md
       - RFC-126 Discover Rails, Reasons, Paging and Reels: rfc/RFC-126-discover-rails-reasons-paging-and-reels.md
       - RFC-127 Board Summaries: rfc/RFC-127-board-summaries.md
+      - RFC-128 Durable Storylines: rfc/RFC-128-durable-storylines.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
