@@ -700,13 +700,16 @@ def keep_prior_names(
         for c in prior_clusters
         if c.get("graph_compound_parent_id")
     }
+    held_now = {str(c.get("canonical_label") or "") for c in clusters}
     for c in clusters:
         name = before.get(str(c.get("graph_compound_parent_id")), "")
-        if not name or name == c.get("canonical_label"):
-            continue
+        if not name or name == c.get("canonical_label") or name in held_now:
+            continue  # unchanged, or another theme is called that now: two would share it
         if name in {str(m.get("label")) for m in c.get("members") or []}:
+            held_now.discard(str(c.get("canonical_label") or ""))
             c["canonical_label"] = name
             c["cil_alias_target_topic_id"] = topic_node_id_from_slug(slugify_label(name))
+            held_now.add(name)
 
 
 def topic_id_aliases_from_clusters_payload(

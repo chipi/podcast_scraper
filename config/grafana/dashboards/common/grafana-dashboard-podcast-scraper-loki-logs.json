@@ -1,18 +1,8 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_LOKI",
-      "label": "Loki",
-      "description": "Grafana Cloud Logs / Loki for podcast_scraper docker logs",
-      "type": "datasource",
-      "pluginId": "loki",
-      "pluginName": "Loki"
-    }
-  ],
   "annotations": {
     "list": []
   },
-  "description": "Log-centric Loki dashboard for podcast_scraper (Grafana Agent → Loki). Import in Grafana → choose your Loki datasource when prompted. Queries expect stream labels env and service_name (typical for Grafana Cloud after docker_sd shipping). If your stack uses service instead of service_name, use Explore → Label browser, then replace service_name with service in each panel expression.",
+  "description": "Log-centric dashboard for the podcast app containers in VictoriaLogs (instance=prod-podcast, app=podcast; `surface` is api, pipeline or web). Pick a surface with the selector. The error-pattern panels run a case-insensitive regex over the lines, so keep the time range to a day or so (a 7-day range takes ~20 s of the 30 s query limit). The provider-failure panels match UNAVAILABLE / high demand / provider_retry / `All N attempts failed`; the bare `503` of the Loki version was dropped because it matched the millisecond field of every timestamp (',503').",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -35,8 +25,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -91,17 +81,16 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (count_over_time({env=\"$env\", service_name=~\"$service\"} [$__auto]))",
-          "legendFormat": "{{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:~\"$surface\" | stats by (surface) count() lines",
+          "legendFormat": "{{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         }
       ],
-      "title": "Log lines per service",
+      "title": "Log lines per surface",
       "type": "timeseries"
     },
     {
@@ -119,8 +108,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -161,23 +150,22 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (count_over_time({env=\"$env\", service_name=~\"$service\"} |~ \"(?i)(ERROR|Exception|Traceback|CRITICAL|FATAL)\" [$__auto]))",
-          "legendFormat": "{{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(?i)(ERROR|Exception|Traceback|CRITICAL|FATAL)\" | stats by (surface) count() error_lines",
+          "legendFormat": "{{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         }
       ],
-      "title": "Error-pattern lines by service",
+      "title": "Error-pattern lines by surface",
       "type": "timeseries"
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -221,23 +209,22 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (count_over_time({env=\"$env\", service_name=~\".*pipeline.*\"} |~ \"(?i)(503|UNAVAILABLE|high demand|provider_retry|All [0-9]+ attempts failed)\" [$__auto]))",
-          "legendFormat": "{{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(?i)(UNAVAILABLE|high demand|provider_retry|All [0-9]+ attempts failed)\" | stats by (surface) count() provider_lines",
+          "legendFormat": "{{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         }
       ],
-      "title": "Pipeline: Gemini / 503 / retry exhaustion (stacked)",
+      "title": "Pipeline: provider unavailable / retry exhaustion (stacked)",
       "type": "timeseries"
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -291,22 +278,21 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum(count_over_time({env=\"$env\", service_name=~\".*pipeline.*\"} |~ \"(?i)(503|UNAVAILABLE|All [0-9]+ attempts failed)\" [1h]))",
-          "queryType": "instant",
+          "expr": "_time:1h AND instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(?i)(UNAVAILABLE|high demand|provider_retry|All [0-9]+ attempts failed)\" | stats count() provider_lines",
+          "queryType": "stats",
           "refId": "A"
         }
       ],
-      "title": "Pipeline 503 / exhausted retries (last 1h)",
+      "title": "Pipeline provider failures / exhausted retries (last 1h)",
       "type": "stat"
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -356,12 +342,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum(count_over_time({env=\"$env\", service_name=\"api\"} |~ \"/api/jobs\" [1h]))",
-          "queryType": "instant",
+          "expr": "_time:1h AND instance:prod-podcast AND app:podcast AND surface:api AND \"/api/jobs\" | stats count() jobs_lines",
+          "queryType": "stats",
           "refId": "A"
         }
       ],
@@ -370,8 +355,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -399,12 +384,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum(count_over_time({env=\"$env\", service_name=~\"$service\"} |~ \"(?i)(ERROR|Exception|Traceback)\" [24h]))",
-          "queryType": "instant",
+          "expr": "_time:24h AND instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(?i)(ERROR|Exception|Traceback)\" | stats count() error_lines",
+          "queryType": "stats",
           "refId": "A"
         }
       ],
@@ -426,8 +410,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "gridPos": {
         "h": 12,
@@ -450,22 +434,21 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "{env=\"$env\", service_name=~\"$service\"} |~ \"(?i)(error|exception|traceback|fatal|503|failed|unavailable)\"",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(?i)(error|exception|traceback|fatal|failed|unavailable)\"",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
-      "title": "Filtered logs (errors / 503 / failed)",
+      "title": "Filtered logs (errors / failed / unavailable)",
       "type": "logs"
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "gridPos": {
         "h": 12,
@@ -484,22 +467,21 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "{env=\"$env\", service_name=~\".*pipeline.*\"} |~ \"(?i)(gemini|503|unavailable|provider_retry|attempts failed|WARNING|ERROR)\"",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(?i)(gemini|unavailable|provider_retry|attempts failed|WARNING|ERROR)\"",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
-      "title": "Pipeline detail (Gemini / retries)",
+      "title": "Pipeline detail (provider / retries)",
       "type": "logs"
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "gridPos": {
         "h": 10,
@@ -518,12 +500,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "{env=\"$env\", service_name=\"api\"} |= \"/api/jobs\"",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:api AND \"/api/jobs\"",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -535,76 +516,47 @@
   "schemaVersion": 39,
   "tags": [
     "podcast-scraper",
-    "loki",
+    "victorialogs",
     "logs"
   ],
   "templating": {
     "list": [
       {
-        "current": {},
-        "hide": 0,
-        "includeAll": false,
-        "label": "Loki data source",
-        "multi": false,
-        "name": "DS_LOKI",
-        "options": [],
-        "query": "loki",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "datasource"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": "prod",
-          "value": "prod"
-        },
-        "hide": 0,
-        "includeAll": false,
-        "label": "env",
-        "multi": false,
-        "name": "env",
-        "options": [
-          {
-            "selected": true,
-            "text": "prod",
-            "value": "prod"
-          },
-          {
-            "selected": false,
-            "text": "preprod",
-            "value": "preprod"
-          }
-        ],
-        "query": "prod,preprod",
-        "skipUrlSync": false,
-        "type": "custom"
-      },
-      {
-        "allValue": ".*",
+        "name": "surface",
+        "label": "surface",
+        "type": "custom",
+        "query": "All : .* , api : api , pipeline : pipeline , web : web",
         "current": {
           "selected": true,
           "text": "All",
-          "value": "$__all"
+          "value": ".*"
         },
-        "datasource": {
-          "type": "loki",
-          "uid": "${DS_LOKI}"
-        },
-        "definition": "label_values({env=\"$env\"}, service_name)",
+        "includeAll": false,
+        "multi": false,
         "hide": 0,
-        "includeAll": true,
-        "label": "service_name",
-        "multi": true,
-        "name": "service",
-        "options": [],
-        "query": "label_values({env=\"$env\"}, service_name)",
-        "refresh": 2,
-        "regex": "",
         "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": ".*"
+          },
+          {
+            "selected": false,
+            "text": "api",
+            "value": "api"
+          },
+          {
+            "selected": false,
+            "text": "pipeline",
+            "value": "pipeline"
+          },
+          {
+            "selected": false,
+            "text": "web",
+            "value": "web"
+          }
+        ]
       }
     ]
   },
@@ -614,8 +566,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Podcast scraper — log-centric (Loki)",
+  "title": "Podcast scraper — log-centric (VictoriaLogs)",
   "uid": "podcast-scraper-loki-logcentric",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

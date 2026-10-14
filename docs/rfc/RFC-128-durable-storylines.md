@@ -299,6 +299,17 @@ user state is rewritten; the reference pass keeps running.
   episode on "risk naming" can join "risk management" (#2351).
 - Which storyline's name survives a merge: today the larger by episodes; the name the clustering
   proposes for the pair may be the better one.
-- Child storylines (see Duplicates and merges): not built; revisit with a news-heavier corpus.
+- Child storylines (see Duplicates and merges): not built. Looked at again on production's 99
+  storylines (2026-10-14): one smaller storyline sits mostly inside a bigger one's episodes
+  ("geopolitical uncertainty", 4 episodes, inside "inflation expectations"), but 39 pairs are
+  close in meaning while sharing almost no episodes — siblings under one area, e.g. "reward
+  hacking", "model distillation", "recursive self-improvement", "ai regulation", "open-source
+  models" (0.85-0.89, 0-11 shared episodes). The parent is a level above storylines, not a
+  storyline: the existing super-theme rollup groups by shared episodes and leaves 88 of 99 in
+  "other themes"; grouping by meaning would find these families. Both depend on #2351 first:
+  storylines form only from topic pairs repeated in 2+ episodes, and with 21,126 of 22,884 topics
+  on one episode the whole corpus has 289 such pairs — most threads, and most children, cannot
+  form at all yet. Order: #2351 (less specific topics), rebuild storylines (the registry keeps
+  ids and follows through it), then measure families.
 - Whether a quiet storyline is offered to new listeners at all, or only kept for followers.
 - How a child storyline appears on its parent's page.

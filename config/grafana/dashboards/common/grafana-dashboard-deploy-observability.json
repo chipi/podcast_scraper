@@ -4,42 +4,55 @@
   "tags": ["podcast-scraper", "deploys", "observability"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
-  "description": "Import into Grafana Cloud podcast-scraper folder. Requires deploy_event log lines pushed by deploy-prod.yml (#803 D1): {app=\"podcast_scraper\", event_type=\"deploy_event\"} with JSON {status, sha, duration_ms, triggered_by}. MTTR (failed→next-success) is deferred — it needs correlation a single LogQL panel can't express.",
+  "version": 2,
+  "time": { "from": "now-30d", "to": "now" },
+  "description": "Deploys from the deploy events that deploy-prod.yml and the player/operator/config deploy workflows push to VictoriaLogs through scripts/ops/emit_ops_event.sh (ops_event/v1: event_type=deploy, status, surface, sha, triggered_by). duration_ms is only set by the prod operator deploy, so the duration panel covers those. Retention is 30 days. MTTR (failed -> next success) is not shown: it needs correlation a single LogsQL panel cannot express.",
   "panels": [
     {
       "id": 1,
-      "title": "Deploys per week (12w)",
+      "title": "Deploys over time (30d)",
       "type": "timeseries",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} [1w]))",
-          "legendFormat": "deploys/week"
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "queryType": "statsRange",
+          "expr": "app:podcast_scraper AND event_type:deploy AND schema:\"ops_event/v1\" | stats count() deploys"
         }
       ]
     },
     {
       "id": 2,
-      "title": "Failure rate (4w)",
+      "title": "Failure rate (30d)",
       "type": "stat",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} | json | status != \"success\" [4w])) / sum(count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} [4w]))",
-          "legendFormat": "failed / total"
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "queryType": "stats",
+          "expr": "app:podcast_scraper AND event_type:deploy AND schema:\"ops_event/v1\" | stats count() total, count() if (status:!success) failed | math failed / total failure_rate | fields failure_rate"
         }
       ]
     },
     {
       "id": 3,
-      "title": "p95 deploy duration (4w, ms)",
+      "title": "p95 deploy duration (30d, ms)",
       "type": "stat",
+      "description": "Only the prod operator deploy records duration_ms.",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "quantile_over_time(0.95, {app=\"podcast_scraper\", event_type=\"deploy_event\"} | json | unwrap duration_ms [4w])",
-          "legendFormat": "p95 ms"
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "queryType": "stats",
+          "expr": "app:podcast_scraper AND event_type:deploy AND schema:\"ops_event/v1\" AND duration_ms:>0 | stats quantile(0.95, duration_ms) p95_ms"
         }
       ]
     },
@@ -47,11 +60,14 @@
       "id": 4,
       "title": "Deploys by status over time",
       "type": "timeseries",
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "sum by (status) (count_over_time({app=\"podcast_scraper\", event_type=\"deploy_event\"} | json [1d]))",
-          "legendFormat": "{{status}}"
+          "refId": "A",
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+          "queryType": "statsRange",
+          "expr": "app:podcast_scraper AND event_type:deploy AND schema:\"ops_event/v1\" | stats by (status) count() deploys"
         }
       ]
     }

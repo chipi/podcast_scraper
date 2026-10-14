@@ -465,3 +465,19 @@ def test_a_theme_keeps_its_name_while_the_topic_it_is_named_after_stays() -> Non
         "topic:ai-safety",
     )
     assert left["canonical_label"] == "alignment research", "its topic left: the new name stands"
+
+
+def test_a_kept_name_never_takes_a_name_another_theme_holds_now() -> None:
+    """The storyline registry made two storylines with one name through a rename (#2349); a theme
+    keeping its previous name must not do the same."""
+    from podcast_scraper.search.topic_clusters import keep_prior_names
+
+    prior = [{"graph_compound_parent_id": "tc:a", "canonical_label": "ai safety"}]
+    kept = {
+        "graph_compound_parent_id": "tc:a",
+        "canonical_label": "alignment research",
+        "members": [{"label": "alignment research"}, {"label": "ai safety"}],
+    }
+    other = {"graph_compound_parent_id": "tc:b", "canonical_label": "ai safety", "members": []}
+    keep_prior_names([kept, other], prior)
+    assert kept["canonical_label"] == "alignment research"

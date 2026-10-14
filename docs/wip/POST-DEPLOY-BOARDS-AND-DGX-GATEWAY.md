@@ -173,7 +173,10 @@ kept is used.
    ("Storylines per run", "Themes per build"), its fixed "LLM cost (24h, pipeline)" panel (the
    query asked for a `job` label pipeline lines never carry), and the LLM cost dashboard
    (`common/grafana-dashboard-llm-cost.json`, rewritten from Loki LogQL to VictoriaLogs; its
-   queries read events from before and after the Alloy reload). Dry run, then apply:
+   queries read events from before and after the Alloy reload), and the other seven `common/`
+   dashboards (pipeline execution, pipeline stage, deploy observability, ingestion ×2, logs, DGX),
+   which were Grafana Cloud exports and rendered nothing here — each query checked against
+   production data (2026-10-14). Dry run, then apply:
 
    ```sh
    make obs-sync              # lists what would change
