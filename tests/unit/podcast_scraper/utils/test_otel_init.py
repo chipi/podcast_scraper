@@ -184,3 +184,20 @@ def test_explicit_service_name_is_never_overridden(monkeypatch):
     import os
 
     assert os.environ["OTEL_SERVICE_NAME"] == "player-api"
+
+
+@pytest.mark.parametrize(
+    "argv,expected",
+    [
+        (["mcp", "--transport", "http"], "player-mcp"),
+        (["serve", "--port", "8000"], "podcast-api"),
+        (["--rss", "https://example.com/feed.xml"], "podcast-pipeline"),
+        ([], "podcast-pipeline"),
+    ],
+)
+def test_cli_names_the_process_by_subcommand(argv, expected):
+    # main() initialises tracing before dispatching, so the subcommand picks the default name
+    # (prod sets OTEL_SERVICE_NAME explicitly; this is what an unset dev process calls itself).
+    from podcast_scraper import cli
+
+    assert cli._default_service_name(argv) == expected

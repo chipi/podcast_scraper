@@ -72,10 +72,14 @@ def test_run_server_http_wires_otel_sentry_and_serves(monkeypatch: pytest.Monkey
     import podcast_scraper.utils.otel_init as otel_init
     import podcast_scraper.utils.sentry_init as sentry_init
 
-    seen: dict = {"otel": 0, "sentry": None, "served": None}
+    seen: dict = {"otel": 0, "otel_name": None, "sentry": None, "served": None}
+
+    def _init_otel(default_service_name: str = "") -> None:
+        seen["otel"] += 1
+        seen["otel_name"] = default_service_name
 
     monkeypatch.setattr(srv, "build_http_app", lambda corpus: {"app": corpus})
-    monkeypatch.setattr(otel_init, "init_otel", lambda: seen.__setitem__("otel", seen["otel"] + 1))
+    monkeypatch.setattr(otel_init, "init_otel", _init_otel)
     monkeypatch.setattr(sentry_init, "init_sentry", lambda comp: seen.__setitem__("sentry", comp))
 
     import uvicorn
@@ -89,6 +93,7 @@ def test_run_server_http_wires_otel_sentry_and_serves(monkeypatch: pytest.Monkey
     srv.run_server(_CORPUS, transport="http", host="127.0.0.1", port=8009)
 
     assert seen["otel"] == 1
+    assert seen["otel_name"] == "player-mcp"  # its name when OTEL_SERVICE_NAME is unset (dev)
     assert seen["sentry"] == "mcp"  # GlitchTip component tag
     assert seen["served"] == (True, "127.0.0.1", 8009)  # a callable ASGI app was served
 

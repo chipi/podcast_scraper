@@ -5102,6 +5102,16 @@ def _run_corpus_cost_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     return 0
 
 
+def _default_service_name(argv: Sequence[str]) -> str:
+    """The OTel service name this process takes when ``OTEL_SERVICE_NAME`` is unset.
+
+    ``main`` initialises tracing before it dispatches, so the subcommand decides: the same names
+    the prod compose services set explicitly.
+    """
+    sub = argv[0] if argv else ""
+    return {"mcp": "player-mcp", "serve": "podcast-api"}.get(sub, "podcast-pipeline")
+
+
 def main(  # noqa: C901 - main function handles multiple command paths
     argv: Optional[Sequence[str]] = None,
     *,
@@ -5125,7 +5135,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
     # so a bare `python -m …cli` run traces without the opentelemetry-instrument launcher.
     from podcast_scraper.utils.otel_init import init_otel
 
-    init_otel()
+    init_otel(default_service_name=_default_service_name(argv))
     # Metrics push (ADR-119): a bare CLI run has no long-lived FastAPI process, so the in-process
     # Prometheus registry (notably ``inference_guardrail_violations_total``) would otherwise die on
     # exit unscraped. Start the same dev pusher the API uses; it registers an atexit final-snapshot
