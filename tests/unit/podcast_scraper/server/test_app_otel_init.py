@@ -14,7 +14,7 @@ def test_init_api_otel_delegates_to_init_otel():
 
     with patch("podcast_scraper.utils.otel_init.init_otel") as m:
         app._init_api_otel()
-    m.assert_called_once()
+    m.assert_called_once_with(default_service_name="podcast-api")
 
 
 @pytest.mark.unit

@@ -450,7 +450,7 @@ def _init_api_otel() -> None:
     try:
         from podcast_scraper.utils.otel_init import init_otel
 
-        init_otel()
+        init_otel(default_service_name="podcast-api")
     except Exception:  # pragma: no cover - never block API startup on tracing
         pass
 

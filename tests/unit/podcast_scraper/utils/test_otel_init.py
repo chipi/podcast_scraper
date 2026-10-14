@@ -160,3 +160,27 @@ def test_log_correlation_skipped_when_launcher_already_did_it(monkeypatch):
     _fake_logging_module(monkeypatch, instrumented=True)
     m._instrument_logging()
     assert _FakeLoggingInstrumentor.calls == []
+
+
+def test_default_service_name_fills_only_an_unset_name(monkeypatch):
+    # Every process names itself: the CLI is the pipeline, the server passes podcast-api.
+    # Runs even when tracing is off, because the dev log/metric push reads the same name.
+    m = _fresh(monkeypatch)
+    monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+    m.init_otel()
+    import os
+
+    assert os.environ["OTEL_SERVICE_NAME"] == "podcast-pipeline"
+    monkeypatch.setenv("OTEL_SERVICE_NAME", "  ")
+    m.init_otel(default_service_name="podcast-api")
+    assert os.environ["OTEL_SERVICE_NAME"] == "podcast-api"
+
+
+def test_explicit_service_name_is_never_overridden(monkeypatch):
+    # prod compose sets OTEL_SERVICE_NAME for every service (player-api, player-mcp, ...)
+    m = _fresh(monkeypatch)
+    monkeypatch.setenv("OTEL_SERVICE_NAME", "player-api")
+    m.init_otel(default_service_name="podcast-api")
+    import os
+
+    assert os.environ["OTEL_SERVICE_NAME"] == "player-api"
