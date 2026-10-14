@@ -214,7 +214,7 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_transcribe_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(increase(podcast_pipeline_run_avg_transcribe_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p95 transcribe",
           "range": true,
           "refId": "A"
@@ -225,7 +225,7 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_summarize_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(increase(podcast_pipeline_run_avg_summarize_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p95 summarize",
           "range": true,
           "refId": "B"
@@ -236,7 +236,7 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_gi_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(increase(podcast_pipeline_run_avg_gi_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p95 GI",
           "range": true,
           "refId": "C"
@@ -247,13 +247,13 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_kg_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(increase(podcast_pipeline_run_avg_kg_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p95 KG",
           "range": true,
           "refId": "D"
         }
       ],
-      "title": "Stage averages — p95",
+      "title": "Stage averages — p95 (rolling 1d)",
       "type": "timeseries"
     },
     {
@@ -322,7 +322,7 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_duration_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(increase(podcast_pipeline_run_duration_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p95 run_duration",
           "range": true,
           "refId": "A"
@@ -333,13 +333,13 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(podcast_pipeline_run_duration_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(increase(podcast_pipeline_run_duration_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p50 run_duration",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Run duration (from run.json)",
+      "title": "Run duration (from run.json) (rolling 1d)",
       "type": "timeseries"
     },
     {
@@ -396,7 +396,7 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_time_transcription_wait_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(increase(podcast_pipeline_run_time_transcription_wait_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p95 transcription wait",
           "range": true,
           "refId": "A"
@@ -407,13 +407,13 @@
             "uid": "victoriametrics"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_time_summarization_wait_seconds_bucket{instance=\"prod-podcast\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(increase(podcast_pipeline_run_time_summarization_wait_seconds_bucket{instance=\"prod-podcast\"}[1d])) by (le))",
           "legendFormat": "p95 summarization wait",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Transcription vs summarization wait — p95",
+      "title": "Transcription vs summarization wait — p95 (rolling 1d)",
       "type": "timeseries"
     },
     {

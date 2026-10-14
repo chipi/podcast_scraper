@@ -168,7 +168,7 @@
         "uid": "victorialogs"
       },
       "fieldConfig": {
-        "defaults": {
+        "defaults": { "noValue": "0 (no provider failures in range)",
           "color": {
             "mode": "palette-classic"
           },
@@ -489,7 +489,7 @@
         "x": 0,
         "y": 35
       },
-      "id": 12,
+      "id": 12, "fieldConfig": { "defaults": { "noValue": "No /api/jobs requests in range" }, "overrides": [] },
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,

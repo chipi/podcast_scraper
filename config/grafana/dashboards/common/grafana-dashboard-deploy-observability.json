@@ -16,7 +16,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
-          "refId": "A",
+          "refId": "A", "legendFormat": "deploys",
           "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
           "queryType": "statsRange",
           "expr": "app:podcast_scraper AND event_type:deploy AND schema:\"ops_event/v1\" | stats count() deploys"
@@ -64,7 +64,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "refId": "A",
+          "refId": "A", "legendFormat": "{{status}}",
           "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
           "queryType": "statsRange",
           "expr": "app:podcast_scraper AND event_type:deploy AND schema:\"ops_event/v1\" | stats by (status) count() deploys"

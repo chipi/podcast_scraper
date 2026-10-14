@@ -44,7 +44,7 @@
       "datasource": { "type": "prometheus", "uid": "victoriametrics" },
       "fieldConfig": { "defaults": { "unit": "reqps", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.01 } ] } }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "sum(rate(http_requests_total{instance=\"prod-podcast\",job=\"api\",status=~\"5..\"}[$__rate_interval]))" } ]
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "(sum(rate(http_requests_total{instance=\"prod-podcast\",job=\"api\",status=~\"5..\"}[$__rate_interval]))) or vector(0)" } ]
     },
     {
       "id": 4, "type": "stat", "title": "LLM cost (24h, pipeline)",
@@ -60,7 +60,7 @@
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 50 } }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast AND job:~\"$surface\" | stats by (job) count() events" } ]
+      "targets": [ { "refId": "A", "legendFormat": "{{job}}", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast AND job:~\"$surface\" | stats by (job) count() events" } ]
     },
     {
       "id": 6, "type": "timeseries", "title": "API latency p50/p95 (s)",
@@ -85,18 +85,18 @@
       "description": "One 'storylines: run' log line per storyline run (the storylines.run event from a job container arrives unparsed). The alert enrich-common-storyline-registry-bad fires on a health=bad run. The viewer dashboard's Storylines & themes card shows the same counts with names.",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
-      "fieldConfig": { "defaults": { "unit": "short", "custom": { "showPoints": "always", "spanNulls": true } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "noValue": "No storyline runs in range", "unit": "short", "custom": { "showPoints": "always", "spanNulls": true } }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast \"storylines: run storylines=\" | extract \"storylines: run storylines=<storylines> active=<active> quiet=<quiet> candidates=<candidates> \" | stats max(storylines) storylines, max(active) active, max(quiet) quiet, max(candidates) candidates" } ]
+      "targets": [ { "refId": "A", "legendFormat": "{{__name__}}", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast \"storylines: run storylines=\" | extract \"storylines: run storylines=<storylines> active=<active> quiet=<quiet> candidates=<candidates> \" | stats max(storylines) storylines, max(active) active, max(quiet) quiet, max(candidates) candidates" } ]
     },
     {
       "id": 9, "type": "timeseries", "title": "Themes per build",
       "description": "One 'themes: build' log line per theme build: how many themes, how many kept their id from the previous build, how many ids went.",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
-      "fieldConfig": { "defaults": { "unit": "short", "custom": { "showPoints": "always", "spanNulls": true } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "noValue": "No theme builds in range", "unit": "short", "custom": { "showPoints": "always", "spanNulls": true } }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast \"themes: build themes=\" | extract \"themes: build themes=<themes> topics=<topics> kept=<kept> gone=<gone>\" | stats max(themes) themes, max(kept) kept, max(gone) gone" } ]
+      "targets": [ { "refId": "A", "legendFormat": "{{__name__}}", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast \"themes: build themes=\" | extract \"themes: build themes=<themes> topics=<topics> kept=<kept> gone=<gone>\" | stats max(themes) themes, max(kept) kept, max(gone) gone" } ]
     }
   ]
 }

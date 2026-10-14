@@ -572,7 +572,7 @@
       },
       "description": "`rate_limit_sleep_sec` is `null` on every episode_metrics line in the 30-day retention (2545 of 2545 lines), so this stays empty until a provider rate-limits a run.",
       "fieldConfig": {
-        "defaults": {
+        "defaults": { "noValue": "0 (no rate-limit sleeps logged)",
           "color": {
             "mode": "palette-classic"
           },

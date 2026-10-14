@@ -32,7 +32,7 @@
       },
       "targets": [
         {
-          "refId": "A",
+          "refId": "A", "legendFormat": "{{stage}}",
           "datasource": {
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": 2, "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns", "valueLabel": "__name__" } }, { "id": "merge", "options": {} }, { "id": "organize", "options": { "excludeByName": { "Time": true } } }], "options": { "xField": "run_id" },
       "title": "Per-run cost (top 20)",
       "type": "barchart",
       "datasource": {
@@ -85,7 +85,7 @@
       },
       "targets": [
         {
-          "refId": "A",
+          "refId": "A", "legendFormat": "{{stage}}",
           "datasource": {
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
@@ -96,7 +96,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": 4, "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns", "valueLabel": "__name__" } }, { "id": "merge", "options": {} }, { "id": "organize", "options": { "excludeByName": { "Time": true } } }],
       "title": "Method-version inventory (reprocess key) — stage writes per stage×version",
       "type": "table",
       "datasource": {
