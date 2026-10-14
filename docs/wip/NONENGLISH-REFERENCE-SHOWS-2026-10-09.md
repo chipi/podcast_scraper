@@ -142,6 +142,42 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
     `20261012T114048Z_full` (12 non-English), `20261012T173101Z_full` (6 non-English).
   - The judge runs from the public repo's `.venv` (the eval venv lacks `anthropic`).
 
+**Handover (2026-10-14): built after the merge, and what the deploy needs.**
+
+- **On main** (`c0d73d217`..`fbd270f7b`, CI green on `fbd270f7b`):
+  - D8: translation runs 4 units in flight in `prod_dgx_full`.
+  - D6: a feed gets our ASR instead of the publisher's transcript when it sets
+    `use_publisher_transcripts: false` in prod's `feeds.spec.yaml`. Nothing sets it by default.
+    Set it on every non-English feed as you add it.
+  - D-36 slice b: a quote whose text came from the translator says "Translated from <language>".
+    It shows on app quotes, insights, Moments, topic takes, Saved, share cards, notes and export,
+    and in the digest, nudge and push. It keys on the quote's `translation` block (`translated:
+    true`, source language not `en`), so English content is unchanged everywhere.
+  - Not labelled, by the operator's decision (2026-10-13): search results and MCP tools. The page
+    a result opens carries the label.
+  - Delivery contract: `digestItem` gains the optional `quote_translated_from` and
+    `quote_translated_label` fields (`docs/api/delivery-envelope.schema.json`).
+  - The app fixture corpus: translated episodes (p10..p14) now hold English GI with provenance.
+    It is rebuilt by `scripts/build_app_validation_corpus.py`. Non-English episodes are dated 365
+    days earlier, so the risk/systems storyline stays the freshest.
+- **Homelab** (`agentic-ai-homelab` `a8707b5`, on origin): the delivery templates render the label.
+  Its vendored schema has the two new fields.
+  - Deployed on the mini 2026-10-14, image `aef387acbd89`. Rollback tag
+    `closelistening-delivery:pre-a8707b5`.
+  - After the restart, all three workers were healthy and `/metrics` answered 200.
+- **Deploy order: either is safe.** The worker does not check envelopes against the schema; only
+  the contract test does (`delivery/envelope.py`). It ignores unknown fields, so an older worker
+  renders a translated item without its label.
+- **After the podcast deploy, read-only checks:**
+  - Open a translated episode: the label shows under its quotes. An English episode shows none.
+  - Not yet seen in prod: a real digest, nudge or push carrying a translated pick and rendering
+    its label.
+  - Not verified: whether translated episodes already on prod carry the `translation` block. One
+    translated before the provenance block existed shows no label; that is the safe direction.
+- **Before pushing to main:** `make ci-fast`, `make test-integration`, and the full app
+  Playwright suite. CI on PRs skips the full integration suite.
+- **Operator's, later:** #2346 (Strava ad residue the ad filter missed).
+
 **Goal:** know, per language, how good our transcript, speaker names and translation are against a
 human reference, and which gaps block enabling that language on prod.
 
