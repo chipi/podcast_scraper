@@ -31,7 +31,7 @@
       "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "stats", "expr": "instance:prod-podcast AND job:~\"$surface\" | stats count() logs" } ]
     },
     {
-      "id": 2, "type": "stat", "title": "API request rate",
+      "id": 2, "type": "stat", "title": "API request rate", "links": [{"title": "Traces for these API requests (VictoriaTraces)", "url": "/explore?orgId=1&schemaVersion=1&panes=%7B%22traces%22%3A%7B%22datasource%22%3A%22victoriatraces-tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22victoriatraces-tempo%22%7D%2C%22queryType%22%3A%22traceql%22%2C%22query%22%3A%22%7Bresource.service.name%3D~%5C%22podcast-api%7Cplayer-api%7Coperator-public-api%5C%22%7D%22%2C%22limit%22%3A50%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D", "targetBlank": false}],
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "victoriametrics" },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
@@ -39,7 +39,7 @@
       "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "victoriametrics" }, "expr": "sum(rate(http_requests_total{instance=\"prod-podcast\",job=\"api\"}[$__rate_interval]))" } ]
     },
     {
-      "id": 3, "type": "stat", "title": "API 5xx rate",
+      "id": 3, "type": "stat", "title": "API 5xx rate", "links": [{"title": "Error traces (VictoriaTraces)", "url": "/explore?orgId=1&schemaVersion=1&panes=%7B%22traces%22%3A%7B%22datasource%22%3A%22victoriatraces-tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22victoriatraces-tempo%22%7D%2C%22queryType%22%3A%22traceql%22%2C%22query%22%3A%22%7Bresource.service.name%3D~%5C%22podcast-api%7Cplayer-api%7Coperator-public-api%5C%22%20%26%26%20status%3Derror%7D%22%2C%22limit%22%3A50%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D", "targetBlank": false}, {"title": "Traces for these API requests (VictoriaTraces)", "url": "/explore?orgId=1&schemaVersion=1&panes=%7B%22traces%22%3A%7B%22datasource%22%3A%22victoriatraces-tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22victoriatraces-tempo%22%7D%2C%22queryType%22%3A%22traceql%22%2C%22query%22%3A%22%7Bresource.service.name%3D~%5C%22podcast-api%7Cplayer-api%7Coperator-public-api%5C%22%7D%22%2C%22limit%22%3A50%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D", "targetBlank": false}],
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "victoriametrics" },
       "fieldConfig": { "defaults": { "unit": "reqps", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.01 } ] } }, "overrides": [] },
@@ -63,7 +63,7 @@
       "targets": [ { "refId": "A", "legendFormat": "{{job}}", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast AND job:~\"$surface\" | stats by (job) count() events" } ]
     },
     {
-      "id": 6, "type": "timeseries", "title": "API latency p50/p95 (s)",
+      "id": 6, "type": "timeseries", "title": "API latency p50/p95 (s)", "links": [{"title": "Traces for these API requests (VictoriaTraces)", "url": "/explore?orgId=1&schemaVersion=1&panes=%7B%22traces%22%3A%7B%22datasource%22%3A%22victoriatraces-tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22victoriatraces-tempo%22%7D%2C%22queryType%22%3A%22traceql%22%2C%22query%22%3A%22%7Bresource.service.name%3D~%5C%22podcast-api%7Cplayer-api%7Coperator-public-api%5C%22%7D%22%2C%22limit%22%3A50%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D", "targetBlank": false}],
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "victoriametrics" },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
