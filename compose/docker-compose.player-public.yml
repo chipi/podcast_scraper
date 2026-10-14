@@ -318,10 +318,11 @@ services:
       # Traces: the SAME endpoint the player api exports spans to (its origin is the read base).
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
     extra_hosts:
-      # Needed for traces: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is http://homelab:10428/..., and
-      # Docker DNS cannot resolve `homelab`. The tailnet ACL allows prod -> homelab:10428 (and
-      # :8428) but DROPS :9428 and :3000 — which is why logs and grafana go through their tailnet
-      # nodes above instead (#2188, measured 2026-09-29).
+      # Traces now use the vtraces tailnet node (deploy-*.yml: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT),
+      # which the containers resolve themselves; this pin is for anything still addressing `homelab`
+      # (Docker DNS cannot resolve it). The tailnet ACL allows prod -> homelab:10428 (and :8428)
+      # but DROPS :9428 and :3000 — which is why logs and grafana go through their tailnet nodes
+      # above (#2188, measured 2026-09-29).
       - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     ports:
       # Loopback only — the Caddy edge (obs.caddy) is the public front (ADR-114).

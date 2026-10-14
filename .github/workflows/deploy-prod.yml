@@ -288,6 +288,7 @@ jobs:
         # so the host never sees a partial file.
         if: steps.preflight.outputs.skip != 'true'
         env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           # ADR-115 Option A (#1250): when '1', drop the LLM keys + DSNs from .env
           # (delivered as tmpfs files instead). Default empty = today's behaviour.
@@ -325,6 +326,16 @@ jobs:
           PROD_JOB_WEBHOOK_URL:         ${{ secrets.PROD_JOB_WEBHOOK_URL }}
         run: |
           set -euo pipefail
+          # Traces go to the VictoriaTraces tailnet TLS node, not http://homelab:10428: the homelab host
+          # port is lima's ssh forwarder, which hung 7 of 300 OTLP exports when probed (each a dropped
+          # span batch); the TLS node lost 0 of 240 (2026-10-14). The tailnet suffix comes from
+          # PROD_TAILNET_FQDN — never committed (identifier deny-list).
+          TRACES_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          if [ -z "${TRACES_DOMAIN}" ] || [ "${TRACES_DOMAIN}" = "${PROD_TAILNET_FQDN}" ]; then
+            echo "::error::cannot build the traces endpoint: PROD_TAILNET_FQDN has no domain part"
+            exit 1
+          fi
+          OTEL_TRACES_ENDPOINT_URL="https://vtraces.${TRACES_DOMAIN}/insert/opentelemetry/v1/traces"
           ENVTMP=$(mktemp -p /dev/shm prod-env.XXXXXX)
           trap 'shred -u "$ENVTMP" 2>/dev/null || rm -f "$ENVTMP"' EXIT
           chmod 600 "$ENVTMP"
@@ -350,7 +361,7 @@ jobs:
             # homelab, addressed by its Tailscale MagicDNS name (resolved in-container
             # via the overlay's extra_hosts homelab:<ip>). Non-secret. A box migration
             # is a one-line flip of the host here (DGX stopgap was dgx-llm-1:10428).
-            printf '%s=%s\n' OTEL_EXPORTER_OTLP_TRACES_ENDPOINT 'http://homelab:10428/insert/opentelemetry/v1/traces'
+            printf '%s=%s\n' OTEL_EXPORTER_OTLP_TRACES_ENDPOINT "${OTEL_TRACES_ENDPOINT_URL}"
             # VictoriaMetrics read endpoint for the Ops view's Prod-LLM spend card (#53,
             # ADR-142): the /api/ops/llm-gateway route queries per-key litellm spend from
             # homelab VictoriaMetrics via podcast_obs. Non-secret; same tailnet as OTEL above.

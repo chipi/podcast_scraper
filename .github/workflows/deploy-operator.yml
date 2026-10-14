@@ -190,6 +190,7 @@ jobs:
       - name: Stage .env.operator (secrets via /dev/shm scp, never inline over ssh)
         if: steps.preflight.outputs.skip != 'true'
         env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           OPERATOR_DOMAIN: ${{ vars.OPERATOR_DOMAIN }}
           PODCAST_CORPUS_VOLUME: ${{ vars.PODCAST_CORPUS_VOLUME }}
@@ -227,6 +228,16 @@ jobs:
           PLAYER_RELEASED_VERSION: ${{ vars.PLAYER_RELEASED_VERSION }}
         run: |
           set -euo pipefail
+          # Traces go to the VictoriaTraces tailnet TLS node, not http://homelab:10428: the homelab host
+          # port is lima's ssh forwarder, which hung 7 of 300 OTLP exports when probed (each a dropped
+          # span batch); the TLS node lost 0 of 240 (2026-10-14). The tailnet suffix comes from
+          # PROD_TAILNET_FQDN — never committed (identifier deny-list).
+          TRACES_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          if [ -z "${TRACES_DOMAIN}" ] || [ "${TRACES_DOMAIN}" = "${PROD_TAILNET_FQDN}" ]; then
+            echo "::error::cannot build the traces endpoint: PROD_TAILNET_FQDN has no domain part"
+            exit 1
+          fi
+          OTEL_TRACES_ENDPOINT_URL="https://vtraces.${TRACES_DOMAIN}/insert/opentelemetry/v1/traces"
           ENVTMP="$(mktemp -p /dev/shm)"
           {
             echo "OPERATOR_DOMAIN=${OPERATOR_DOMAIN}"
@@ -253,7 +264,7 @@ jobs:
             # spans on so a user-triggered error on the operator surface pivots to its trace.
             # The homelab tailnet IP for extra_hosts is resolved on the box by deploy-operator.sh.
             echo "OTEL_TRACES_EXPORTER=otlp"
-            echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://homelab:10428/insert/opentelemetry/v1/traces"
+            echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_TRACES_ENDPOINT_URL}"
             # Pin the api image to the resolved newest-published sha (never stale :main).
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
