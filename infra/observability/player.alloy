@@ -101,12 +101,13 @@ loki.process "player_denoise" {
 	}
 
 	// homelab log standard (agentic-ai-homelab/infra/observability/LOG-STANDARD.md):
-	// extract the 32-hex trace id from a traceparent/sentry-trace pattern into
+	// extract the 32-hex trace id (trace_id=<id>, "trace_id":"<id>", trace=<id>, traceparent,
+	// sentry-trace — every shape the apps write; same pattern as Grafana's derived field) into
 	// structured_metadata (a queryable field, NOT a high-cardinality stream label).
 	// Inlined here (rather than referencing base's homelab_std) so this drop-in
 	// deploys independently of a base.alloy rollout.
 	stage.regex {
-		expression = "(?:00-)?(?P<trace_id>[a-f0-9]{32})-[a-f0-9]{16}"
+		expression = "(?:trace_id[=\":\\s]+|trace=|00-|sentry-trace[=\":\\s]+)(?P<trace_id>[a-f0-9]{32})"
 	}
 	stage.structured_metadata {
 		values = {trace_id = ""}

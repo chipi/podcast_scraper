@@ -74,6 +74,26 @@ def _instrument_http() -> None:
             _LOGGER.debug("otel instrument %s skipped", cls, exc_info=True)
 
 
+def _instrument_logging() -> None:
+    """Put the trace/span id on every log line when ``OTEL_PYTHON_LOG_CORRELATION=true``.
+
+    The api and pipeline get this from the ``opentelemetry-instrument`` launcher; player-mcp
+    starts without it (plain ``python -m``), so its env flag did nothing and its lines carried no
+    trace id — no way from an MCP log line to its trace in Grafana. Skipped when the launcher has
+    already instrumented logging (a second ``instrument()`` only logs a warning).
+    """
+    if os.environ.get("OTEL_PYTHON_LOG_CORRELATION", "").strip().lower() != "true":
+        return
+    try:
+        from opentelemetry.instrumentation.logging import LoggingInstrumentor
+
+        instrumentor = LoggingInstrumentor()
+        if not instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.instrument(set_logging_format=True)
+    except Exception:  # noqa: BLE001 — a missing/failed instrumentor must not break tracing
+        _LOGGER.debug("otel log correlation skipped", exc_info=True)
+
+
 def init_otel() -> bool:
     """Initialise OTLP tracing if the env asks for it. Returns True when activated, else False.
 
@@ -99,6 +119,7 @@ def init_otel() -> bool:
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
         trace.set_tracer_provider(provider)
         _instrument_http()
+        _instrument_logging()
         atexit.register(_bounded_shutdown, provider)
     except Exception:  # noqa: BLE001 — telemetry must never break the app
         _LOGGER.debug("otel init failed", exc_info=True)

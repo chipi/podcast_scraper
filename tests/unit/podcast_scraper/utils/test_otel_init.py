@@ -109,3 +109,47 @@ def test_wrap_with_current_context_propagates_span_into_worker_thread(monkeypatc
 
     assert naive != expected  # naive worker lost the span context (the bug)
     assert wrapped == expected  # wrapper restored it (the fix)
+
+
+def test_log_correlation_off_leaves_logging_alone(monkeypatch):
+    li = pytest.importorskip("opentelemetry.instrumentation.logging")
+    m = _fresh(monkeypatch)
+    monkeypatch.delenv("OTEL_PYTHON_LOG_CORRELATION", raising=False)
+    inst = li.LoggingInstrumentor()
+    was = inst.is_instrumented_by_opentelemetry
+    m._instrument_logging()
+    assert inst.is_instrumented_by_opentelemetry == was
+
+
+def test_log_correlation_puts_trace_id_on_records(monkeypatch):
+    # player-mcp starts without the opentelemetry-instrument launcher; with the env flag set,
+    # init_otel's logging step must still stamp the active trace id on log records.
+    import logging
+
+    li = pytest.importorskip("opentelemetry.instrumentation.logging")
+    sdk_trace = pytest.importorskip("opentelemetry.sdk.trace")
+    m = _fresh(monkeypatch, OTEL_PYTHON_LOG_CORRELATION="true")
+    inst = li.LoggingInstrumentor()
+    if inst.is_instrumented_by_opentelemetry:
+        inst.uninstrument()
+    try:
+        m._instrument_logging()
+        assert inst.is_instrumented_by_opentelemetry
+        tracer = sdk_trace.TracerProvider().get_tracer("test")
+        seen = []
+
+        class _Grab(logging.Handler):
+            def emit(self, record):
+                seen.append(record)
+
+        log = logging.getLogger("otel-correlation-test")
+        log.addHandler(_Grab())
+        log.setLevel(logging.INFO)
+        with tracer.start_as_current_span("s") as span:
+            log.info("inside")
+        want = format(span.get_span_context().trace_id, "032x")
+        assert seen and seen[-1].otelTraceID == want
+        m._instrument_logging()  # second call is a quiet no-op
+        assert inst.is_instrumented_by_opentelemetry
+    finally:
+        inst.uninstrument()
