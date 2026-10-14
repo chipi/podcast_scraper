@@ -187,13 +187,24 @@ def corpus_clustering_health(
     root_dir = safe_resolve_directory(root) if root is not None else None
     if root_dir is None:
         raise HTTPException(status_code=400, detail="Invalid corpus path.")
-    root_dir = Path(root_dir)
+    root_s = os.path.normpath(str(root_dir))
 
-    story_rows = clustering_history.read(root_dir, "storyline")
-    theme_rows = clustering_history.read(root_dir, "theme")
+    def under(rel: Path) -> Path:
+        # Same guard as ``corpus_storylines`` above: a constant relative path, joined and
+        # normalised, must stay under the validated corpus root (CODEQL_DISMISSALS.md Type 1).
+        joined = os.path.normpath(os.path.join(root_s, *rel.parts))
+        if not joined.startswith(root_s + os.sep):
+            raise HTTPException(status_code=400, detail="Invalid corpus path.")
+        return Path(joined)
+
+    history = under(clustering_history.HISTORY)
+    backfill = under(clustering_history.BACKFILL)
+    artifact = under(Path(_STORYLINES_REL))
+    story_rows = clustering_history.read_files(history, backfill, "storyline")
+    theme_rows = clustering_history.read_files(history, backfill, "theme")
     health = None
     try:
-        raw = json.loads((root_dir / _STORYLINES_REL).read_text(encoding="utf-8"))
+        raw = json.loads(artifact.read_text(encoding="utf-8"))
         data = raw.get("data", raw) if isinstance(raw, dict) else {}
         health = data.get("registry_health") if isinstance(data, dict) else None
     except (OSError, ValueError):
@@ -212,7 +223,9 @@ def corpus_clustering_health(
             "storylines": {
                 "latest": story_rows[-1] if story_rows else None,
                 "health": health,
-                "seed": clustering_history.seed_status(root_dir),
+                "seed": clustering_history.seed_status_files(
+                    under(clustering_history.SEED), artifact
+                ),
                 "series": _series(story_rows, story_keys),
             },
             "themes": {

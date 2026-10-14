@@ -69,28 +69,33 @@ def _rows(path: Path) -> list[dict[str, Any]]:
 def read(corpus_root: Path, kind: str) -> list[dict[str, Any]]:
     """Every row of ``kind`` (``storyline`` or ``theme``), oldest first: the backfill, then the
     runs recorded since (a backfill row at or after the first recorded run is dropped)."""
-    runs = [r for r in _rows(Path(corpus_root) / HISTORY) if r.get("kind") == kind]
+    return read_files(Path(corpus_root) / HISTORY, Path(corpus_root) / BACKFILL, kind)
+
+
+def read_files(history: Path, backfill: Path, kind: str) -> list[dict[str, Any]]:
+    """:func:`read` from explicit files (a server route passes paths it has checked)."""
+    runs = [r for r in _rows(history) if r.get("kind") == kind]
     runs.sort(key=lambda r: float(r.get("ts") or 0))
     first = float(runs[0].get("ts") or 0) if runs else float("inf")
-    back = [
-        r
-        for r in _rows(Path(corpus_root) / BACKFILL)
-        if r.get("kind") == kind and float(r.get("ts") or 0) < first
-    ]
+    back = [r for r in _rows(backfill) if r.get("kind") == kind and float(r.get("ts") or 0) < first]
     back.sort(key=lambda r: float(r.get("ts") or 0))
     return back + runs
 
 
 def seed_status(corpus_root: Path) -> dict[str, Any]:
     """``{"state": "none" | "pending" | "taken", "id"}`` of the storyline history seed."""
-    root = Path(corpus_root)
+    return seed_status_files(Path(corpus_root) / SEED, Path(corpus_root) / STORYLINES)
+
+
+def seed_status_files(seed_file: Path, storylines_file: Path) -> dict[str, Any]:
+    """:func:`seed_status` from explicit files (a server route passes paths it has checked)."""
     try:
-        seed = json.loads((root / SEED).read_text(encoding="utf-8"))
+        seed = json.loads(seed_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         seed = None
     taken: Optional[str] = None
     try:
-        raw = json.loads((root / STORYLINES).read_text(encoding="utf-8"))
+        raw = json.loads(storylines_file.read_text(encoding="utf-8"))
         data = raw.get("data", raw) if isinstance(raw, dict) else {}
         registry = data.get("registry") if isinstance(data, dict) else None
         if isinstance(registry, dict):
@@ -163,6 +168,8 @@ __all__ = [
     "append",
     "changes",
     "read",
+    "read_files",
     "seed_status",
+    "seed_status_files",
     "write_backfill",
 ]
