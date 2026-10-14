@@ -70,6 +70,50 @@ loki.source.docker "podcast" {
 	labels     = {app = "podcast"}
 }
 
+// The PUBLIC operator stack (compose/docker-compose.operator-public.yml, operator.closelistening.app):
+// a separate composition whose containers are operator-api-1 / operator-viewer-1, so the keep-filter
+// above never matched them and the internet-facing operator shipped no logs at all (found
+// 2026-10-14: 0 lines in 7 days). Its own source, NOT a wider regex above: adding targets to the
+// "podcast" source would change its read positions and re-read every log it tails. app=operator +
+// surface=public-api|public-web gives service=operator-public-api, the OTel service.name.
+discovery.relabel "operator_public" {
+	targets = discovery.docker.app.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(operator-api-1|operator-viewer-1)"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/operator-api-1"
+		target_label  = "surface"
+		replacement   = "public-api"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/operator-viewer-1"
+		target_label  = "surface"
+		replacement   = "public-web"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		target_label  = "container"
+		regex         = "/(.*)"
+		replacement   = "$1"
+	}
+}
+
+loki.source.docker "operator_public" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.operator_public.output
+	forward_to = [loki.process.podcast_denoise.receiver]
+	labels     = {app = "operator"}
+}
+
 // Drop the uvicorn access-log NOISE for successful health/metrics polls (probes +
 // Prometheus scrapes hit these every few seconds). Matches only 2xx (`" 2`), so a FAILING
 // health check (4xx/5xx) is still kept as a signal.
