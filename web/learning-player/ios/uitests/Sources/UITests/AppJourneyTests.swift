@@ -113,9 +113,11 @@ final class AppJourneyTests: UITestCase {
     if Journey.tap(app, labels: ["Topics"], timeout: 15) { sleep(3) }
     Journey.showEveryonesTrends(app)
     Journey.inventory(app, "home-topics-rail")
-    // The top Rising topics at the pinned trend date: the newest episode's own subjects (natural
-    // corpus, 2026-10-12 — "risk management" led only while it was stamped on every show).
-    if Journey.tap(app, labels: ["canonical labeling", "code switching", "coupling vs components"], contains: true, timeout: 12) {
+    // The first Rising topic, whichever it is: a row reads "<topic> — N× momentum". Not named
+    // ones: everyone's trends blend in engagement, and the episodes earlier tests in this run open
+    // move which tied topics lead (2026-10-14: "canonical labeling" & co. fell from 6.0 to 5.1 once
+    // their episode had been opened, and the named tap found nothing).
+    if Journey.tap(app, labels: ["× momentum"], contains: true, timeout: 12) {
       sleep(5)
       Journey.shot(self, "03-topic")
       Journey.inventory(app, "topic-page")
