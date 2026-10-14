@@ -755,7 +755,7 @@ def run_server(
     try:
         from podcast_scraper.utils.otel_init import init_otel
 
-        init_otel()
+        init_otel(default_service_name="player-mcp")
     except Exception:  # noqa: BLE001 - never block serving on tracing
         logger.debug("mcp otel init skipped", exc_info=True)
     try:
@@ -770,7 +770,18 @@ def run_server(
 
     warm_entity_resolver(corpus_dir)
 
-    uvicorn.run(_instrument_asgi(_with_metrics(build_http_app(corpus_dir))), host=host, port=port)
+    uvicorn.run(_http_stack(build_http_app(corpus_dir)), host=host, port=port)
+
+
+def _http_stack(app: Any) -> Any:
+    """OTel server spans outermost, then ``/metrics``, then the trace-correlated access log.
+
+    The access log sits INSIDE the OTel middleware so the request's span is still active when it
+    reads the trace id (uvicorn's own access line runs after the span closes and never has one).
+    """
+    from podcast_scraper.utils.access_log import AccessLogMiddleware
+
+    return _instrument_asgi(_with_metrics(AccessLogMiddleware(app)))
 
 
 def _with_metrics(app: Any) -> Any:

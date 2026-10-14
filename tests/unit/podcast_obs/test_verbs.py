@@ -25,7 +25,7 @@ def test_surface_pipeline_fans_signals_no_http_metrics(monkeypatch) -> None:
     sig = r["data"]["signals"]
     # pipeline is a subprocess → NO http RED metrics (job=None); has pipeline_stage + cost extras
     assert set(sig) == {"errors", "logs", "traces", "pipeline_stage", "cost"}
-    assert r["data"]["trace_service"] == "pipeline"  # live-verified Jaeger service
+    assert r["data"]["trace_service"] == "podcast-pipeline"  # prod + dev OTEL_SERVICE_NAME
     assert r["data"]["job"] is None
 
 
@@ -91,3 +91,60 @@ def test_investigate_by_run_id_includes_pipeline_stage(monkeypatch) -> None:
     assert "pipeline_stage" in r["data"]["signals"]
     assert "trace" in r["data"]["signals"] and "cost" in r["data"]["signals"]
     assert "errors" in r["data"]["signals"] and "logs" in r["data"]["signals"]
+
+
+def test_surface_logs_use_the_surfaces_own_log_selector(monkeypatch) -> None:
+    # The log label `surface` is a sub-part (api/mcp/app/obs/pipeline/web), not the MCP surface:
+    # `surface:player` / `surface:operator` matched nothing and `surface:api` mixed both APIs
+    # (prod, 2026-10-14: player and operator logs read 0 while player-api logs ~15k/day).
+    seen = {}
+
+    def _logs(target, **kw):
+        seen[kw.get("selector")] = kw
+        return ok("logs", {"count": 0})
+
+    for fn in ("red_metrics", "traces_recent", "events"):
+        monkeypatch.setattr(aggregate.victoria, fn, _ok(fn))
+    monkeypatch.setattr(aggregate.victoria, "recent_logs", _logs)
+    monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))
+    for fn in ("events", "stats", "active"):
+        monkeypatch.setattr(aggregate.umami, fn, _ok(f"umami_{fn}"))
+    for name in ("api", "pipeline", "player", "operator"):
+        aggregate.surface(_t(), name)
+    assert set(seen) == {
+        "app:podcast AND surface:api",
+        "surface:pipeline",
+        "app:player",
+        "app:operator",
+    }
+
+
+def test_player_and_operator_read_their_own_umami_site(monkeypatch) -> None:
+    # One website id per target meant `surface player` read the operator's analytics (or the
+    # reverse). Each frontend is its own Umami site.
+    seen = []
+
+    def _rec(source):
+        def _f(target, **kw):
+            seen.append((source, target.umami_website_id))
+            return ok(source, {})
+
+        return _f
+
+    for fn in ("red_metrics", "recent_logs", "traces_recent", "events"):
+        monkeypatch.setattr(aggregate.victoria, fn, _ok(fn))
+    monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))
+    for fn in ("events", "stats", "active"):
+        monkeypatch.setattr(aggregate.umami, fn, _rec(fn))
+    t = _t(umami_website_id="default", umami_website_ids={"player": "P", "operator": "O"})
+    aggregate.surface(t, "player")
+    assert {w for _, w in seen} == {"P"}
+    seen.clear()
+    aggregate.surface(t, "operator")
+    assert {w for _, w in seen} == {"O"}
+    seen.clear()
+    aggregate.analytics(t, frontend="player")
+    assert {w for _, w in seen} == {"P"}
+    seen.clear()
+    aggregate.analytics(t)  # no frontend -> the target's default site
+    assert {w for _, w in seen} == {"default"}

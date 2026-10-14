@@ -58,6 +58,7 @@ def _served_matches(expected: str, served: Set[str]) -> bool:
 class LiteLLMProvider(OpenAICompatibleProvider):
     """OpenAI-compatible provider for the homelab LiteLLM gateway (alias-routed, multi-vendor)."""
 
+    _SENDS_JOIN_METADATA = True  # its server takes nested metadata (gateway → Langfuse)
     _CONFIG_NS: str = "litellm"
     _TELEMETRY_PROVIDER: str = "litellm"
     _PROVIDER_LABEL: str = "LiteLLM"

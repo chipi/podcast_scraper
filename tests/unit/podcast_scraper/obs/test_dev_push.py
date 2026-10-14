@@ -122,3 +122,9 @@ def test_emit_event_triggers_push_when_enabled(dev_push, monkeypatch):
         events.emit_event("search_query", query_type="semantic")
         dev_push._flush_logs()
     assert post.called
+
+
+def test_service_falls_back_to_the_prod_pipeline_name(dev_push, monkeypatch):
+    # Same value prod uses (compose OTEL_SERVICE_NAME), so dev and prod join on one name.
+    monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+    assert dev_push.obs_labels()["service"] == "podcast-pipeline"

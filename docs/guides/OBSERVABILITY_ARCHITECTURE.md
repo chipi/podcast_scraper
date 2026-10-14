@@ -202,13 +202,14 @@ request / episode / person. IDs the app propagates:
 Navigation recipes:
 
 - **Log → trace:** click the `trace_id` on a log line in Explore — the VictoriaLogs
-  derivedField renders a "View trace" link into VictoriaTraces. (Live for logs that carry a
-  trace id — pipeline logs today; API access logs once the G1 middleware ships.)
-- **Trace → logs:** the Tempo datasource's `tracesToLogsV2` (G3a, 2026-07-24) — one click
-  from a span to its logs; no more manual copy-paste of the trace id.
+  derivedField renders a "View trace" link into VictoriaTraces. (Pipeline lines and the api /
+  player-api access log carry an id; player-mcp from the next deploy.)
+- **Trace → logs:** the span's "Logs for this trace" link, a Grafana correlation (homelab
+  `backend/grafana/correlations/`). `tracesToLogsV2` (G3a) never rendered for VictoriaLogs.
 - **Error → trace:** the GlitchTip event's `trace_id` tag opens the same trace.
-- **Whole run:** filter every signal by `run_id` — logs `run_id:<id>`, cost events,
-  Langfuse `run_seed`, Sentry `run_id` tag — to see the run end-to-end.
+- **Whole run:** filter every signal by `run_id` — logs `run_id:<id>`, cost events, the
+  pipeline spans' `run_id` tag, Langfuse `session_id` (gateway calls, from the next deploy) —
+  to see the run end-to-end.
 - **Per person / per provider call:** `user_id` (serving) / `request_id` (LLM).
 
 `run_id` joins at **run** granularity (always present in a pipeline run); `trace_id`

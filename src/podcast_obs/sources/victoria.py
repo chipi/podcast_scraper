@@ -124,13 +124,20 @@ def recent_logs(
     window: str = "1h",
     limit: int = 50,
     contains: Optional[str] = None,
+    selector: Optional[str] = None,
 ) -> dict:
-    """Recent container log lines (error-ish by default), optionally scoped to a surface."""
+    """Recent container log lines (error-ish by default), optionally scoped to a surface.
+
+    ``selector`` is a LogsQL filter that replaces the ``surface`` one — what the MCP surfaces use,
+    because the log label ``surface`` is a sub-part (api/mcp/app/…), not an MCP surface.
+    """
     base = target.victorialogs_url
     if not base:
         return err(_LOGSRAW, "victorialogs_url not configured", configured=False)
     filters = [f"_time:{window}"]
-    if surface:
+    if selector:
+        filters.append(f"({selector})")
+    elif surface:
         filters.append(f"(surface:{_q(surface)} OR component:{_q(surface)})")
     if level and level.lower() == "error":
         filters.append(f"_msg:~{_q(_ERROR_RE)}")
@@ -235,7 +242,7 @@ def traces_by_run(
     target: TargetConfig,
     run_id: str,
     *,
-    service: str = "pipeline",
+    service: str = "podcast-pipeline",
     window: str = "24h",
     limit: int = 20,
 ) -> dict:

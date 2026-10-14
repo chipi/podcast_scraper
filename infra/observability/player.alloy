@@ -93,7 +93,7 @@ loki.source.docker "player" {
 // Prometheus scrapes hit these every few seconds and drown real requests in VictoriaLogs.
 // Matches only 2xx (`" 2`), so a FAILING health check (4xx/5xx) is still kept as a signal.
 loki.process "player_denoise" {
-	forward_to = [loki.write.logs_sink.receiver]
+	forward_to = [loki.relabel.naming.receiver]
 
 	stage.drop {
 		expression          = "\"(GET|HEAD) /(api/(app/)?)?(health|metrics) HTTP/1[^\"]*\" 2"
@@ -154,6 +154,24 @@ discovery.relabel "player_mcp_metrics" {
 	rule {
 		target_label = "surface"
 		replacement  = "mcp"
+	}
+
+	// The scrape address is the container's docker-network IP, which became `instance`
+	// (172.20.0.x:8009) — unlike every other prod series. Name the box, and give the series
+	// the same service / environment as the player-mcp traces.
+	rule {
+		target_label = "instance"
+		replacement  = "prod-podcast"
+	}
+
+	rule {
+		target_label = "service"
+		replacement  = "player-mcp"
+	}
+
+	rule {
+		target_label = "environment"
+		replacement  = "prod"
 	}
 }
 

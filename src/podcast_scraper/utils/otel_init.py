@@ -94,14 +94,21 @@ def _instrument_logging() -> None:
         _LOGGER.debug("otel log correlation skipped", exc_info=True)
 
 
-def init_otel() -> bool:
+def init_otel(default_service_name: str = "podcast-pipeline") -> bool:
     """Initialise OTLP tracing if the env asks for it. Returns True when activated, else False.
 
     Idempotent no-op on repeat calls, when the env signal is absent, or when the ``[otel]`` extra
     is not installed. ``Resource.create()`` picks up ``OTEL_SERVICE_NAME`` + ``OTEL_RESOURCE_
     ATTRIBUTES``; the OTLP exporter picks up ``OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`` + protocol.
+
+    ``default_service_name`` names this process when ``OTEL_SERVICE_NAME`` is unset (dev: one
+    shared .env serves the CLI and the server). Applied even with tracing off, because the dev
+    log/metric push labels with the same name; an explicit name (every prod compose service
+    sets one) always wins.
     """
     global _initialized
+    if not os.environ.get("OTEL_SERVICE_NAME", "").strip():
+        os.environ["OTEL_SERVICE_NAME"] = default_service_name
     if _initialized or not otel_tracing_enabled():
         return False
     try:

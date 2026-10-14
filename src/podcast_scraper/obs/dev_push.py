@@ -58,7 +58,7 @@ def _instance() -> str:
 def obs_labels() -> dict[str, str]:
     """Common OTLP resource labels (service / environment / instance) for dev pushes."""
     return {
-        "service": (os.environ.get("OTEL_SERVICE_NAME", "").strip() or "pipeline"),
+        "service": (os.environ.get("OTEL_SERVICE_NAME", "").strip() or "podcast-pipeline"),
         "environment": (os.environ.get("PODCAST_ENV", "dev").strip() or "dev"),
         "instance": _instance(),
     }

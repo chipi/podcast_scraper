@@ -65,7 +65,7 @@ loki.source.docker "litellm" {
 // hit by the deploy health-gate + any monitor). Matches only 2xx (`" 2`), so a FAILING health
 // check (4xx/5xx) is still kept as a signal.
 loki.process "litellm_denoise" {
-	forward_to = [loki.write.logs_sink.receiver]
+	forward_to = [loki.relabel.naming.receiver]
 
 	stage.drop {
 		expression          = "\"(GET|HEAD) /health/(liveliness|readiness)[^\"]*\" 2"

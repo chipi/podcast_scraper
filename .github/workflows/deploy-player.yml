@@ -280,11 +280,27 @@ jobs:
           # SENTRY_AUTH_TOKEN above returns HTTP 401 against the GlitchTip API, so it cannot back
           # that source. Empty -> `errors` reports "not configured"; nothing else is affected.
           PODCAST_OBS_SENTRY_TOKEN: ${{ secrets.PODCAST_OBS_SENTRY_TOKEN }}
+          # obs `traces` source (Langfuse podcast-prod): the gateway's own project keys, so obs
+          # reads exactly the project prod's LLM calls land in. Empty -> "not configured".
+          PODCAST_OBS_LANGFUSE_PUBLIC_KEY: ${{ secrets.LITELLM_LANGFUSE_PUBLIC_KEY }}
+          PODCAST_OBS_LANGFUSE_SECRET_KEY: ${{ secrets.LITELLM_LANGFUSE_SECRET_KEY }}
+          # obs Umami read user (view-only `podcast-obs`, the two frontends' sites only).
+          PODCAST_OBS_UMAMI_PASSWORD: ${{ secrets.PODCAST_OBS_UMAMI_PASSWORD }}
           # The tailnet suffix for the obs read URLs below — derived, never committed
           # (identifier-denylist). Already a required var of this workflow (preflight checks it).
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
+          # Traces go to the VictoriaTraces tailnet TLS node, not http://homelab:10428: the homelab host
+          # port is lima's ssh forwarder, which hung 7 of 300 OTLP exports when probed (each a dropped
+          # span batch); the TLS node lost 0 of 240 (2026-10-14). The tailnet suffix comes from
+          # PROD_TAILNET_FQDN — never committed (identifier deny-list).
+          TRACES_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          if [ -z "${TRACES_DOMAIN}" ] || [ "${TRACES_DOMAIN}" = "${PROD_TAILNET_FQDN}" ]; then
+            echo "::error::cannot build the traces endpoint: PROD_TAILNET_FQDN has no domain part"
+            exit 1
+          fi
+          OTEL_TRACES_ENDPOINT_URL="https://vtraces.${TRACES_DOMAIN}/insert/opentelemetry/v1/traces"
           # OBS READ URLS (#2188) — rendered here, the way every other prod container gets its
           # observability endpoints, instead of hardcoded in config/observability.prod.yaml. Built
           # exactly as deploy-vps-observability-endpoints.yml builds Alloy's write URLs: node names
@@ -305,9 +321,10 @@ jobs:
           . infra/observability/vps-observability.endpoints.env
           GRAFANA_NODE=grafana
           GLITCHTIP_NODE=glitchtip
+          UMAMI_NODE=umami
           TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
           if [ -z "${LOGS_NODE:-}" ] || [ -z "${METRICS_NODE:-}" ] || [ -z "${GRAFANA_NODE:-}" ] \
-            || [ -z "${GLITCHTIP_NODE:-}" ] || [ -z "${TAILNET_DOMAIN}" ] \
+            || [ -z "${GLITCHTIP_NODE:-}" ] || [ -z "${UMAMI_NODE:-}" ] || [ -z "${TAILNET_DOMAIN}" ] \
             || [ "${TAILNET_DOMAIN}" = "${PROD_TAILNET_FQDN}" ]; then
             echo "::error::cannot build obs read URLs (node names missing, or PROD_TAILNET_FQDN has no domain part)"
             exit 1
@@ -316,9 +333,10 @@ jobs:
           OBS_METRICS_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}"
           OBS_GRAFANA_URL="https://${GRAFANA_NODE}.${TAILNET_DOMAIN}"
           OBS_SENTRY_URL="https://${GLITCHTIP_NODE}.${TAILNET_DOMAIN}"
+          OBS_UMAMI_URL="https://${UMAMI_NODE}.${TAILNET_DOMAIN}"
           # Fail loud on a malformed URL BEFORE it reaches the box — a bad value otherwise lands
           # silently and that obs source just reads "failed".
-          for u in "$OBS_LOGS_URL" "$OBS_METRICS_URL" "$OBS_GRAFANA_URL" "$OBS_SENTRY_URL"; do
+          for u in "$OBS_LOGS_URL" "$OBS_METRICS_URL" "$OBS_GRAFANA_URL" "$OBS_SENTRY_URL" "$OBS_UMAMI_URL"; do
             case "$u" in https://*.*.*) : ;; *) echo "::error::malformed obs URL: $u"; exit 1 ;; esac
           done
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -342,10 +360,9 @@ jobs:
             # so a user-triggered error on the player surface pivots to its trace. The
             # homelab tailnet IP for extra_hosts is resolved on the box by deploy-player.sh.
             echo "OTEL_TRACES_EXPORTER=otlp"
-            echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://homelab:10428/insert/opentelemetry/v1/traces"
-            # Env-tag every span (api + mcp) so staging (laptop) and prod (VPS) split in Grafana —
-            # parity with the GlitchTip `environment` tag (#1505 staging↔prod separation).
-            echo "OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod"
+            echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_TRACES_ENDPOINT_URL}"
+            # Spans are env-tagged from PODCAST_ENV (staged above) in the compose file — api + mcp —
+            # so staging (laptop) and prod (VPS) split in Grafana (#1505); no separate var here.
             # #2342: the LiteLLM gateway the board summarizer reaches the DGX through — the same
             # value deploy-prod writes for the pipeline.
             echo "LITELLM_API_BASE=${{ vars.PROD_LITELLM_API_BASE }}"
@@ -438,6 +455,9 @@ jobs:
             echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN}"
             echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
             echo "PODCAST_OBS_SENTRY_TOKEN=${PODCAST_OBS_SENTRY_TOKEN}"
+            echo "PODCAST_OBS_LANGFUSE_PUBLIC_KEY=${PODCAST_OBS_LANGFUSE_PUBLIC_KEY}"
+            echo "PODCAST_OBS_LANGFUSE_SECRET_KEY=${PODCAST_OBS_LANGFUSE_SECRET_KEY}"
+            echo "PODCAST_OBS_UMAMI_PASSWORD=${PODCAST_OBS_UMAMI_PASSWORD}"
             # Obs read URLs, built and validated at the top of this step (#2188). Traces need no
             # line here: obs reuses OTEL_EXPORTER_OTLP_TRACES_ENDPOINT above, the same value the
             # player api exports spans to.
@@ -445,6 +465,7 @@ jobs:
             echo "PODCAST_OBS_VICTORIAMETRICS_URL=${OBS_METRICS_URL}"
             echo "PODCAST_OBS_GRAFANA_URL=${OBS_GRAFANA_URL}"
             echo "PODCAST_OBS_SENTRY_URL=${OBS_SENTRY_URL}"
+            echo "PODCAST_OBS_UMAMI_URL=${OBS_UMAMI_URL}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \

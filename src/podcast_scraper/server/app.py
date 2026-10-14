@@ -9,7 +9,6 @@ import math
 import os
 import re
 import threading
-import time
 from pathlib import Path
 from typing import Any, AsyncIterator, cast
 
@@ -17,7 +16,6 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from podcast_scraper import __version__
 from podcast_scraper.server import app_access_store, app_roles
@@ -90,7 +88,7 @@ from podcast_scraper.server.routes import (
     usage as usage_routes,
 )
 from podcast_scraper.server.spa import SpaStaticFiles
-from podcast_scraper.utils.correlation import current_trace_id
+from podcast_scraper.utils.access_log import AccessLogMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -314,49 +312,8 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
     app.include_router(mcp_oauth.wellknown_router)
 
 
-class _AccessLogMiddleware:
-    """Pure-ASGI request access log with trace correlation (ADR-119, G1 correlation).
-
-    Deliberately NOT a Starlette ``BaseHTTPMiddleware`` (``@app.middleware("http")``): that
-    wrapper buffers the response and BREAKS endpoint background tasks — which silently
-    dropped queue-add / favourite persistence (caught by the auth-queue + library-saved
-    e2e). A pure ASGI middleware wraps ``send`` without touching the body or the
-    background-task lifecycle.
-
-    Logs ONE line per request. The trace id is captured at ``http.response.start`` — the
-    span is still active there (uvicorn's own access log runs AFTER the span closes, so it
-    can only ever see ``"-"``) — so a VictoriaLogs line pivots to its VictoriaTraces span.
-    ``trace=-`` when tracing is off, so it is a no-op-safe structured access log in every
-    environment; ``/health`` + ``/metrics`` are skipped to keep the log readable.
-    """
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-        self._logger = logging.getLogger("podcast.access")
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        path = scope.get("path", "")
-        if scope.get("type") != "http" or path.endswith("/health") or path == "/metrics":
-            await self.app(scope, receive, send)
-            return
-        start = time.perf_counter()
-        captured = {"status": 0, "trace": "-"}
-
-        async def _send(message: Message) -> None:
-            if message["type"] == "http.response.start":
-                captured["status"] = message["status"]
-                captured["trace"] = current_trace_id()
-            await send(message)
-
-        await self.app(scope, receive, _send)
-        self._logger.info(
-            "%s %s -> %s in %.1fms trace=%s",
-            scope.get("method", "?"),
-            path,
-            captured["status"],
-            (time.perf_counter() - start) * 1000.0,
-            captured["trace"],
-        )
+# Shared with the MCP server (podcast_scraper.utils.access_log); the old name stays for callers.
+_AccessLogMiddleware = AccessLogMiddleware
 
 
 #: Query parameters whose VALUE must never reach a log line. `token` is the magic-link credential
@@ -450,7 +407,7 @@ def _init_api_otel() -> None:
     try:
         from podcast_scraper.utils.otel_init import init_otel
 
-        init_otel()
+        init_otel(default_service_name="podcast-api")
     except Exception:  # pragma: no cover - never block API startup on tracing
         pass
 

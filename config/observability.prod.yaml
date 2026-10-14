@@ -47,8 +47,8 @@ targets:
     # player-api (which accepts it for reads only, app_operator_guard) and into obs here.
     operator_key_file: /run/secrets/app_operator_read_key
 
-    # Deploy history (recent deploy-prod runs). Needs an Actions:read PAT — deliberately not
-    # provisioned; this source reports "not configured".
+    # Deploy history (recent deploy-prod runs). An Actions:read fine-grained PAT in secret
+    # PODCAST_OBS_GITHUB_TOKEN (set 2026-10-14; the ci-ops-poller's read-only token).
     github:
       repo: chipi/podcast_scraper
       token_env: PODCAST_OBS_GITHUB_TOKEN
@@ -65,3 +65,19 @@ targets:
     # Alerts — Grafana. Read-only (Viewer) service-account token.
     grafana:
       token_env: PODCAST_OBS_GRAFANA_TOKEN
+    # LLM traces (Langfuse project podcast-prod, where the gateway records prod's LLM calls). The
+    # keys are the gateway's own (secrets LITELLM_LANGFUSE_*), staged by deploy-player.yml; absent
+    # keys degrade this source to "not configured". Reachable from prod: the ACL allows :4000.
+    # User-action analytics (ADR-126): read-only Umami user `podcast-obs` (role view-only, member
+    # of the observability-read team that owns these two sites; nothing else visible). The URL is
+    # rendered at deploy time (PODCAST_OBS_UMAMI_URL — the tailnet node name is never committed).
+    umami:
+      username: podcast-obs
+      password_env: PODCAST_OBS_UMAMI_PASSWORD
+      website_ids:
+        player: cd384a3e-fd25-476e-affa-08985b73d4da
+        operator: a5a60c25-a555-4c2d-b096-c9814c21d25c
+    langfuse:
+      base_url: http://homelab:4000
+      public_key_env: PODCAST_OBS_LANGFUSE_PUBLIC_KEY
+      secret_key_env: PODCAST_OBS_LANGFUSE_SECRET_KEY

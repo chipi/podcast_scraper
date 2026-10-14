@@ -591,6 +591,12 @@ class OpenAICompatibleProvider:
                 "credentials are never logged."
             )
 
+    # Join keys for the LiteLLM gateway's Langfuse callback (session_id = run, trace_metadata =
+    # run / episode / OTel trace). Only providers whose server takes a nested ``metadata`` turn
+    # this on — the DGX vLLM and the gateway do (verified 2026-10-14); OpenAI's own ``metadata``
+    # takes flat strings only.
+    _SENDS_JOIN_METADATA: bool = False
+
     def __init__(self, cfg: config.Config):
         """Initialize unified OpenAI provider.
 
@@ -782,6 +788,38 @@ class OpenAICompatibleProvider:
         # per-model table would go stale silently the moment a model is swapped behind an
         # alias, and the server already knows the true number.
         self._context_limits: Dict[str, int] = {}
+        # Cleared the first time a server rejects the join metadata, so it is not sent again.
+        self._join_metadata_ok = self._SENDS_JOIN_METADATA
+
+    def _attach_join_metadata(self, kwargs: Dict[str, Any]) -> None:
+        """Add the run / episode / OTel trace ids to ``extra_body.metadata`` (gateway → Langfuse).
+
+        Never overwrites a key the caller set; adds nothing when no id is known.
+        """
+        if not self._join_metadata_ok:
+            return
+        from ...utils import correlation
+
+        run_id = correlation.get_run_id()
+        trace_id = correlation.current_trace_id()
+        trace_md = {
+            k: v
+            for k, v in (
+                ("run_id", run_id),
+                ("episode_id", correlation.get_episode_id()),
+                ("otel_trace_id", trace_id if trace_id and trace_id != "-" else None),
+            )
+            if v
+        }
+        if not trace_md:
+            return
+        body = dict(kwargs.get("extra_body") or {})
+        md = dict(body.get("metadata") or {})
+        if run_id:
+            md.setdefault("session_id", run_id)
+        md.setdefault("trace_metadata", trace_md)
+        body["metadata"] = md
+        kwargs["extra_body"] = body
 
     def _chat_create(self, **kwargs: Any) -> Any:
         """``chat.completions.create`` that survives models which fixed ``temperature`` at default.
@@ -804,10 +842,25 @@ class OpenAICompatibleProvider:
         # #1893: clamp the OUTPUT budget against a context limit we have learned for this model,
         # before the call. Prevention rather than reaction — see _learn_context_limit_from_error.
         _context_clamp_token_budget(kwargs, self._context_limits.get(str(model or "")))
+        self._attach_join_metadata(kwargs)
         try:
             return self.client.chat.completions.create(**kwargs)
         except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is a known case
             msg = str(exc).lower()
+            # A server that validates `metadata` as flat strings (older vLLM) 400s the join keys:
+            # drop them for this provider and retry, so telemetry can never fail an LLM call.
+            if "metadata" in msg and "metadata" in (kwargs.get("extra_body") or {}):
+                self._join_metadata_ok = False
+                kwargs["extra_body"] = {
+                    k: v for k, v in kwargs["extra_body"].items() if k != "metadata"
+                }
+                if not kwargs["extra_body"]:
+                    kwargs.pop("extra_body")
+                logger.warning(
+                    "%s: server rejected the Langfuse join metadata; sending calls without it",
+                    self._PROVIDER_LABEL,
+                )
+                return self._chat_create(**kwargs)
             # #1893: "maximum context length is N tokens ... requested M output tokens and your
             # prompt contains at least P input tokens". Production hit this 56 times in a 13
             # SECOND burst — every episode in flight failing the same way, because nothing in

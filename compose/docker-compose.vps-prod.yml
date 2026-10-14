@@ -33,7 +33,9 @@ services:
   # passthrough, so there is no hardcoded backend IP in this file. deploy-prod.yml
   # writes that key into the prod .env; it currently targets the self-hosted
   # homelab VictoriaTraces OTLP ingest:
-  #   active:  http://homelab:10428/insert/opentelemetry/v1/traces
+  #   active:  https://vtraces.<tailnet>/insert/opentelemetry/v1/traces (the tailnet TLS
+  #            node; http://homelab:10428 is lima's ssh forwarder on the mini and hung 7 of 300
+  #            posts on 2026-10-14, dropping span batches)
   #   (DGX stopgap was http://dgx-llm-1:10428/insert/opentelemetry/v1/traces)
   # A box migration is a one-line flip of that host in deploy-prod.yml's render.
   # Only the VPS gets these — stack-test/Codespaces never load this overlay.

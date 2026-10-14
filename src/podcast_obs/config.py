@@ -14,7 +14,7 @@ Secrets in YAML use ``<field>_env: ENV_VAR_NAME`` indirection so tokens stay out
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
@@ -81,6 +81,9 @@ class TargetConfig:
     umami_token: Optional[str] = None
     umami_username: Optional[str] = None
     umami_password: Optional[str] = None
+    # Per-frontend Umami sites (surface name -> website id); falls back to umami_website_id. The
+    # player and the operator viewer are separate sites, so one id read the wrong frontend.
+    umami_website_ids: dict[str, str] = field(default_factory=dict)
     env_label: str = "prod"  # the deploy's metrics ``env`` label (PODCAST_ENV)
     timeout: float = DEFAULT_TIMEOUT
 
@@ -406,8 +409,10 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         langfuse_base_url=(
             langfuse.get("base_url") or _bare("LANGFUSE_BASE_URL") or _bare("LANGFUSE_HOST")
         ),
-        umami_url=umami.get("url"),
+        # Rendered at deploy time like the other read URLs (tailnet node names are never committed).
+        umami_url=umami.get("url") or _env("UMAMI_URL"),
         umami_website_id=umami.get("website_id"),
+        umami_website_ids={str(k): str(v) for k, v in (umami.get("website_ids") or {}).items()},
         umami_token=_secret(umami, "token"),
         umami_username=umami.get("username"),
         umami_password=_secret(umami, "password"),

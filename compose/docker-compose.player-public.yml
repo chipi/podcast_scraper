@@ -137,6 +137,10 @@ services:
       # host-side by deploy-player.sh (never hardcoded); default `none` = tracing off, and
       # an unreachable endpoint is non-fatal (the SDK logs + drops, the app keeps serving).
       OTEL_SERVICE_NAME: player-api
+      # Every span carries the environment, from PODCAST_ENV (deploy-player stages prod) — it
+      # was staged as OTEL_RESOURCE_ATTRIBUTES but never passed to this service, so prod
+      # player-api spans had no deployment.environment.
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
       OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
       # Metrics/logs OTLP export OFF (like the operator, stack.yml): metrics already flow via
       # Alloy scrape, and — crucially — the default OTLP exporter is gRPC (`otlp_proto_grpc`),
@@ -228,7 +232,7 @@ services:
       OTEL_PYTHON_LOG_CORRELATION: "true"
       # Env-tag traces so staging (laptop) and prod (VPS) split in Grafana (parity with the
       # GlitchTip `environment` tag, which init_sentry already sets from PODCAST_ENV).
-      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
       PODCAST_SENTRY_DSN_MCP: ${PODCAST_SENTRY_DSN_MCP:-}
       # Umami server-side analytics (#1505): each tool call is an event, like a page view. Website
       # id + collect URL from deploy; both empty → no-op. Hostname stamps the event's origin.
@@ -296,12 +300,18 @@ services:
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       # What obs reads. Tokens come by NAME from the YAML (`<field>_env:`); each source degrades to
       # "not configured" when its token is absent. Grafana: Viewer SA token. Errors: a dedicated
-      # GlitchTip API token (SENTRY_AUTH_TOKEN returns 401 on that API). GitHub: not provisioned.
+      # GlitchTip API token (SENTRY_AUTH_TOKEN returns 401 on that API). GitHub: Actions:read PAT.
       PODCAST_OBS_CONFIG: /config/observability.yaml
       PODCAST_OBS_GRAFANA_TOKEN: ${PODCAST_OBS_GRAFANA_TOKEN:-}
       PODCAST_OBS_GITHUB_TOKEN: ${PODCAST_OBS_GITHUB_TOKEN:-}
       PODCAST_OBS_SENTRY_TOKEN: ${PODCAST_OBS_SENTRY_TOKEN:-}
       SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+      # LLM traces (config: langfuse.*_env) — the podcast-prod project keys the gateway uses.
+      PODCAST_OBS_LANGFUSE_PUBLIC_KEY: ${PODCAST_OBS_LANGFUSE_PUBLIC_KEY:-}
+      PODCAST_OBS_LANGFUSE_SECRET_KEY: ${PODCAST_OBS_LANGFUSE_SECRET_KEY:-}
+      # Umami analytics (config: umami.*): view-only read user + the deploy-rendered node URL.
+      PODCAST_OBS_UMAMI_PASSWORD: ${PODCAST_OBS_UMAMI_PASSWORD:-}
+      PODCAST_OBS_UMAMI_URL: ${PODCAST_OBS_UMAMI_URL:-}
       # Backend READ URLs — rendered at deploy time by deploy-player.yml, like every other prod
       # container's observability endpoints (#2188). The YAML carries none; the loader falls back to
       # these. They MUST be declared here: compose passes a container only what this block names,
@@ -314,10 +324,11 @@ services:
       # Traces: the SAME endpoint the player api exports spans to (its origin is the read base).
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
     extra_hosts:
-      # Needed for traces: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is http://homelab:10428/..., and
-      # Docker DNS cannot resolve `homelab`. The tailnet ACL allows prod -> homelab:10428 (and
-      # :8428) but DROPS :9428 and :3000 — which is why logs and grafana go through their tailnet
-      # nodes above instead (#2188, measured 2026-09-29).
+      # Traces now use the vtraces tailnet node (deploy-*.yml: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT),
+      # which the containers resolve themselves; this pin is for anything still addressing `homelab`
+      # (Docker DNS cannot resolve it). The tailnet ACL allows prod -> homelab:10428 (and :8428)
+      # but DROPS :9428 and :3000 — which is why logs and grafana go through their tailnet nodes
+      # above (#2188, measured 2026-09-29).
       - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     ports:
       # Loopback only — the Caddy edge (obs.caddy) is the public front (ADR-114).
