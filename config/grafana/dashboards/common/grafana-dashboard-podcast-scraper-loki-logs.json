@@ -153,7 +153,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
           },
-          "expr": "instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(?i)(ERROR|Exception|Traceback|CRITICAL|FATAL)\" | stats by (surface) count() error_lines",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(ERROR|Exception|EXCEPTION|Traceback|TRACEBACK|CRITICAL|FATAL)\" | stats by (surface) count() error_lines",
           "legendFormat": "{{surface}}",
           "queryType": "statsRange",
           "refId": "A"
@@ -212,7 +212,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
           },
-          "expr": "instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(?i)(UNAVAILABLE|high demand|provider_retry|All [0-9]+ attempts failed)\" | stats by (surface) count() provider_lines",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(UNAVAILABLE|high demand|High demand|HIGH DEMAND|provider_retry|Provider_retry|PROVIDER_RETRY|All [0-9]+ attempts failed|ALL [0-9]+ ATTEMPTS FAILED)\" | stats by (surface) count() provider_lines",
           "legendFormat": "{{surface}}",
           "queryType": "statsRange",
           "refId": "A"
@@ -281,7 +281,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
           },
-          "expr": "_time:1h AND instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(?i)(UNAVAILABLE|high demand|provider_retry|All [0-9]+ attempts failed)\" | stats count() provider_lines",
+          "expr": "_time:1h AND instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(UNAVAILABLE|high demand|High demand|HIGH DEMAND|provider_retry|Provider_retry|PROVIDER_RETRY|All [0-9]+ attempts failed|ALL [0-9]+ ATTEMPTS FAILED)\" | stats count() provider_lines",
           "queryType": "stats",
           "refId": "A"
         }
@@ -387,7 +387,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
           },
-          "expr": "_time:24h AND instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(?i)(ERROR|Exception|Traceback)\" | stats count() error_lines",
+          "expr": "_time:24h AND instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(ERROR|Exception|EXCEPTION|Traceback|TRACEBACK)\" | stats count() error_lines",
           "queryType": "stats",
           "refId": "A"
         }
@@ -437,7 +437,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
           },
-          "expr": "instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(?i)(error|exception|traceback|fatal|failed|unavailable)\"",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:~\"$surface\" AND ~\"(error|Error|ERROR|exception|Exception|EXCEPTION|traceback|Traceback|TRACEBACK|fatal|Fatal|FATAL|failed|Failed|FAILED|unavailable|Unavailable|UNAVAILABLE)\"",
           "queryType": "instant",
           "refId": "A"
         }
@@ -470,7 +470,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
           },
-          "expr": "instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(?i)(gemini|unavailable|provider_retry|attempts failed|WARNING|ERROR)\"",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:pipeline AND ~\"(gemini|Gemini|GEMINI|unavailable|Unavailable|UNAVAILABLE|provider_retry|Provider_retry|PROVIDER_RETRY|attempts failed|Attempts failed|ATTEMPTS FAILED|WARNING|ERROR)\"",
           "queryType": "instant",
           "refId": "A"
         }

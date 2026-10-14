@@ -38,7 +38,7 @@
             "uid": "victorialogs"
           },
           "queryType": "stats",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (stage) sum(cost_usd) usd"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats by (stage) sum(cost_usd) usd"
         }
       ]
     },
@@ -64,7 +64,7 @@
             "uid": "victorialogs"
           },
           "queryType": "stats",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (run_id) sum(cost_usd) usd | sort by (usd desc) | limit 20"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats by (run_id) sum(cost_usd) usd | sort by (usd desc) | limit 20"
         }
       ]
     },
@@ -91,7 +91,7 @@
             "uid": "victorialogs"
           },
           "queryType": "statsRange",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | filter duration_s:* | stats by (stage) sum(duration_s) seconds"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | filter duration_s:* | stats by (stage) sum(duration_s) seconds"
         }
       ]
     },
@@ -118,7 +118,7 @@
             "uid": "victorialogs"
           },
           "queryType": "stats",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (stage, method_version) count() writes | sort by (stage)"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:pipeline_stage OR \"\\\"event_type\\\": \\\"pipeline_stage\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats by (stage, method_version) count() writes | sort by (stage)"
         }
       ]
     },

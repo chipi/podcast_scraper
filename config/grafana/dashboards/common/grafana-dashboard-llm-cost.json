@@ -36,7 +36,7 @@
             "uid": "victorialogs"
           },
           "queryType": "statsRange",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (provider) count() calls"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats by (provider) count() calls"
         }
       ]
     },
@@ -62,7 +62,7 @@
             "uid": "victorialogs"
           },
           "queryType": "statsRange",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats sum(prompt_tokens) prompt_tokens, sum(completion_tokens) completion_tokens"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats sum(prompt_tokens) prompt_tokens, sum(completion_tokens) completion_tokens"
         }
       ]
     },
@@ -94,7 +94,7 @@
             "uid": "victorialogs"
           },
           "queryType": "stats",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats sum(estimated_cost_usd) usd"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats sum(estimated_cost_usd) usd"
         }
       ]
     },
@@ -120,7 +120,7 @@
             "uid": "victorialogs"
           },
           "queryType": "stats",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (stage) count() calls, sum(prompt_tokens) prompt_tokens, sum(completion_tokens) completion_tokens, sum(estimated_cost_usd) usd | sort by (calls desc)"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats by (stage) count() calls, sum(prompt_tokens) prompt_tokens, sum(completion_tokens) completion_tokens, sum(estimated_cost_usd) usd | sort by (calls desc)"
         }
       ]
     },
@@ -146,7 +146,7 @@
             "uid": "victorialogs"
           },
           "queryType": "stats",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (run_id) count() calls, sum(prompt_tokens) prompt_tokens, sum(estimated_cost_usd) usd | sort by (prompt_tokens desc) | limit 20"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats by (run_id) count() calls, sum(prompt_tokens) prompt_tokens, sum(estimated_cost_usd) usd | sort by (prompt_tokens desc) | limit 20"
         }
       ]
     },
@@ -172,7 +172,7 @@
             "uid": "victorialogs"
           },
           "queryType": "stats",
-          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (feed_id) count() calls, sum(prompt_tokens) prompt_tokens, sum(estimated_cost_usd) usd | sort by (prompt_tokens desc)"
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract \"{\\\"ts\\\"<rest>\" | format \"{\\\"ts\\\"<rest>\" as ev | unpack_json from ev | stats by (feed_id) count() calls, sum(prompt_tokens) prompt_tokens, sum(estimated_cost_usd) usd | sort by (prompt_tokens desc)"
         }
       ]
     }
