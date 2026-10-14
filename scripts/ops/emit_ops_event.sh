@@ -7,17 +7,20 @@
 # :9428 `/insert/jsonline` over the tailnet (no token; tailnet-gated). Swapping the
 # sink is a URL change, not a code change.
 #
-# Envelope (ADR-119): {_time, schema, event_type, app, env, ...fields, _msg}.
-# Low-cardinality stream fields = {app, env, event_type}; volatile values (status,
+# Envelope (ADR-119): {_time, schema, event_type, app, env, service, environment, ...fields, _msg}.
+# Low-cardinality stream fields = {app, env, service, environment, event_type}: service/environment
+# are the keys traces and metrics use (homelab LOG-STANDARD); app/env stay for existing queries.
+# Volatile values (status,
 # sha, duration_ms, …) are searchable JSON fields via `--field k=v`.
 #
 # Env (required): VICTORIALOGS_URL  (e.g. http://homelab:9428)
-# Args: --event-type T (required) [--app A] [--env E] [--msg M] [--field k=v ...]
+# Args: --event-type T (required) [--app A] [--env E] [--service S] [--msg M] [--field k=v ...]
 set -euo pipefail
 
 event_type=""
 app="podcast_scraper"
 env_label="prod"
+service="podcast-ci"
 msg=""
 fields=()
 
@@ -26,6 +29,7 @@ while [ "$#" -gt 0 ]; do
     --event-type) event_type="$2"; shift 2 ;;
     --app)        app="$2";        shift 2 ;;
     --env)        env_label="$2";  shift 2 ;;
+    --service)    service="$2";    shift 2 ;;
     --msg)        msg="$2";        shift 2 ;;
     --field)      fields+=("$2");  shift 2 ;;
     *) echo "emit_ops_event: unknown arg: $1" >&2; exit 2 ;;
@@ -38,17 +42,17 @@ done
 base="${VICTORIALOGS_URL%/}"
 # Normalise if a caller passed the full ingest path already.
 base="${base%/insert/jsonline}"
-ingest="${base}/insert/jsonline?_stream_fields=app,env,event_type&_time_field=_time&_msg_field=_msg"
+ingest="${base}/insert/jsonline?_stream_fields=app,env,service,environment,event_type&_time_field=_time&_msg_field=_msg"
 
 # Build the JSONL line with python: safe escaping + best-effort scalar coercion so
 # duration_ms/attempt land as numbers (queryable with >/< in LogsQL), not strings.
-line="$(python3 - "$app" "$env_label" "$event_type" "$msg" ${fields[@]+"${fields[@]}"} <<'PY'
+line="$(python3 - "$app" "$env_label" "$service" "$event_type" "$msg" ${fields[@]+"${fields[@]}"} <<'PY'
 import json
 import sys
 from datetime import datetime, timezone
 
-app, env, event_type, msg = sys.argv[1:5]
-raw_fields = sys.argv[5:]
+app, env, service, event_type, msg = sys.argv[1:6]
+raw_fields = sys.argv[6:]
 
 obj = {
     "_time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -56,6 +60,8 @@ obj = {
     "event_type": event_type,
     "app": app,
     "env": env,
+    "service": service,
+    "environment": env,
 }
 for kv in raw_fields:
     if "=" not in kv:
@@ -79,4 +85,4 @@ PY
 
 curl -fsS -H 'Content-Type: application/stream+json' \
   -X POST "$ingest" --data-binary "$line"
-echo "emit_ops_event: pushed event_type=$event_type app=$app env=$env_label -> $base"
+echo "emit_ops_event: pushed event_type=$event_type service=$service environment=$env_label -> $base"
