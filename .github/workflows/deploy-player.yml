@@ -343,9 +343,8 @@ jobs:
             # homelab tailnet IP for extra_hosts is resolved on the box by deploy-player.sh.
             echo "OTEL_TRACES_EXPORTER=otlp"
             echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://homelab:10428/insert/opentelemetry/v1/traces"
-            # Env-tag every span (api + mcp) so staging (laptop) and prod (VPS) split in Grafana —
-            # parity with the GlitchTip `environment` tag (#1505 staging↔prod separation).
-            echo "OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod"
+            # Spans are env-tagged from PODCAST_ENV (staged above) in the compose file — api + mcp —
+            # so staging (laptop) and prod (VPS) split in Grafana (#1505); no separate var here.
             # #2342: the LiteLLM gateway the board summarizer reaches the DGX through — the same
             # value deploy-prod writes for the pipeline.
             echo "LITELLM_API_BASE=${{ vars.PROD_LITELLM_API_BASE }}"
