@@ -397,6 +397,14 @@ STAGES_THAT_NEVER_TRANSCRIBE = frozenset(
     {"relabel_only", "rediarize_only", "retranscript_only", "translate_only"}
 )
 
+# The one reprocess stage that DOES call a transcription provider, and only for clips:
+# ``repunctuate_only`` re-transcribes the flagged 10-minute windows of an existing transcript
+# through the provider's ``transcribe_clip`` and splices the accepted ones in. It is deliberately
+# NOT in ``STAGES_THAT_NEVER_TRANSCRIBE``: that set swallows a provider that cannot be built
+# (orchestration._create_transcription_provider), and for this stage a swallowed failure is a silent
+# all-skip run that exits 0. It must fail at startup instead.
+STAGES_CALLING_ASR_CLIPS_ONLY = frozenset({"repunctuate_only"})
+
 # TWO PREDICATES, AND CONFLATING THEM COST 48 EPISODES.
 #
 # The set ABOVE is named for "never calls an ASR provider" but DEFINED by a mechanism: stages that
@@ -406,8 +414,8 @@ STAGES_THAT_NEVER_TRANSCRIBE = frozenset(
 #
 # The predicate below is the OTHER one, and it is what most callers actually want: "this stage
 # works from an artifact already on disk, so do not fetch anything for it, and its existing
-# metadata/transcript is the INPUT rather than a reason to skip." All four reprocess stages satisfy
-# it, ``rederive_only`` included.
+# metadata/transcript is the INPUT rather than a reason to skip." All six reprocess stages satisfy
+# it, ``rederive_only`` and ``repunctuate_only`` included.
 #
 # Before this existed, three call sites wrote ``... in STAGES_THAT_NEVER_TRANSCRIBE or stage ==
 # "rederive_only"`` — the same workaround three times, which is the shape of a missing concept
@@ -417,7 +425,9 @@ STAGES_THAT_NEVER_TRANSCRIBE = frozenset(
 #
 # Keep in step with ``server.jobs.PIPELINE_STAGES_REPROCESS`` — there is a test asserting they are
 # equal, because a stage added to one and not the other silently loses its reuse behaviour.
-STAGES_REUSING_ON_DISK_ARTIFACTS = STAGES_THAT_NEVER_TRANSCRIBE | frozenset({"rederive_only"})
+STAGES_REUSING_ON_DISK_ARTIFACTS = (
+    STAGES_THAT_NEVER_TRANSCRIBE | frozenset({"rederive_only"}) | STAGES_CALLING_ASR_CLIPS_ONLY
+)
 
 # Old stage names still accepted on profiles and command lines, mapped to the canonical
 # one in ``_coerce_pipeline_stage_before``. ``enrich_only`` was renamed 2026-09-01: it
@@ -4456,6 +4466,7 @@ class Config(BaseModel):
         "rediarize_only",
         "retranscript_only",
         "translate_only",
+        "repunctuate_only",
     ] = Field(
         default="full",
         alias="pipeline_stage",
@@ -4483,6 +4494,14 @@ class Config(BaseModel):
             "KEPT, so already-translated units cost no GPU and only the missing ones are sent. "
             "Pair with --fresh-translation to discard that memory when the MODEL changed — see "
             "`translation_discard_memory`.\n"
+            "  repunctuate_only — RE-TRANSCRIBE ONLY THE WINDOWS still flagged unpunctuated "
+            "(`unpunctuated_windows`) from the archived audio, with the punctuated prompt, and "
+            "splice the ones that pass the repair guards into the existing transcript. Speaker "
+            "labels are carried from the existing segments (no re-diarize, no re-naming), the "
+            "derived transcript files are rewritten, and summary/GI/KG cascade for that episode. "
+            "An episode with no flagged window is left untouched (no fetch, no write). Needs "
+            "transcription_provider=tailnet_dgx_whisper (the clip call) and an audio archive; "
+            "repeatable, since the windows are re-measured from the transcript on every run.\n"
             "  audio_only      — transcribe + media only, no metadata/summary/GI/KG.\n"
             "  download_only   — download + cache raw audio, then stop.\n"
             "  enrich_only     — DEPRECATED alias for rederive_only. Renamed because it "
@@ -5112,6 +5131,7 @@ class Config(BaseModel):
             "relabel_only",
             "rediarize_only",
             "retranscript_only",
+            "repunctuate_only",
         ):
             return merged
         message: Optional[str] = None
@@ -5187,6 +5207,18 @@ class Config(BaseModel):
             message = (
                 "pipeline_stage=retranscript_only: re-fetching and re-parsing the publisher "
                 "transcript, then re-resolving names (no audio, no re-ASR, no re-diarize)."
+            )
+        elif stage == "repunctuate_only":
+            # Same routing trick as relabel_only (transcribe_missing=true only so the episode
+            # reaches the transcription stage and the reprocess dispatch intercepts it), but this
+            # stage DOES call the provider -- for clips. The repair switch is forced on because the
+            # stage is that repair: left off by a profile it would run, skip every window and report
+            # success. diarize is NOT forced: speakers are carried from the existing segments.
+            merged["transcribe_missing"] = True
+            merged["transcription_repair_unpunctuated_windows"] = True
+            message = (
+                "pipeline_stage=repunctuate_only: re-transcribing only the windows still flagged "
+                "unpunctuated, from the archived audio (no full ASR, no re-diarize, no re-naming)."
             )
         if message is not None:
             # Compute the once-per-process gate inside the lock, but log outside it
@@ -6696,6 +6728,32 @@ class Config(BaseModel):
                 "MagicDNS name (e.g. dgx-llm-1) in the profile or operator YAML — with the "
                 "placeholder the DGX is unreachable and the run silently falls back to cloud "
                 "ASR while reporting the DGX profile."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_repunctuate_only_contract(self) -> "Config":
+        """``repunctuate_only`` cuts clips out of the audio at the TRANSCRIPT's timestamps.
+
+        Two things make that wrong, so each is refused at validation rather than found per episode:
+        a provider with no clip call (only the DGX Whisper provider has ``transcribe_clip``; with
+        any other the stage would skip every window and still exit 0), and preprocessing that
+        removes silence (it shifts the audio timeline, so a window's seconds would cut the wrong
+        speech out of the file).
+        """
+        if self.pipeline_stage not in STAGES_CALLING_ASR_CLIPS_ONLY:
+            return self
+        if self.transcription_provider != "tailnet_dgx_whisper":
+            raise ValueError(
+                f"pipeline_stage={self.pipeline_stage} re-transcribes clips through the "
+                "provider's transcribe_clip, which only transcription_provider="
+                f"'tailnet_dgx_whisper' has (got {self.transcription_provider!r})."
+            )
+        if self.preprocessing_enabled and self.preprocessing_silence_removal:
+            raise ValueError(
+                f"pipeline_stage={self.pipeline_stage} cuts clips at the transcript's timestamps, "
+                "and preprocessing_silence_removal shifts the audio timeline they refer to. "
+                "Set preprocessing_silence_removal=false (or preprocessing_enabled=false)."
             )
         return self
 

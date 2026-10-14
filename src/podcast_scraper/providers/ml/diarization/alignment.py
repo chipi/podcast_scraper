@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
-from .base import DiarizationResult
+from .base import DiarizationResult, DiarizationSegment
 
 # Overlaps below this (seconds) are float-boundary noise, not real shared speech.
 # Without it, a segment ending at 5.0000001 vs a turn starting at 5.0 yields a
@@ -55,3 +55,48 @@ def align_segments_to_speakers(
         aligned.append((whisper_segment, speaker_id))
 
     return aligned
+
+
+#: What names a voice on a stored segment. ``speaker`` is the diarizer's voice id and is None on
+#: corpora that only kept ``speaker_label``; the rest are what naming added on top of it.
+IDENTITY_FIELDS = ("speaker", "speaker_label", "speaker_role", "voice_type", "stated_speaker")
+
+
+def carry_speaker_identity(
+    new_segments: Sequence[Mapping[str, Any]],
+    reference_segments: Sequence[Mapping[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Copies of ``new_segments`` with the voice identity of the reference segments they overlap.
+
+    For re-transcribed audio whose speakers are already known: no diarizer is run and nothing is
+    renamed. Each distinct identity (all of ``IDENTITY_FIELDS`` together, so two voices that share a
+    label but differ in role stay apart) becomes one voice in a :class:`DiarizationResult` built
+    from the reference segments' own times, and ``align_segments_to_speakers`` assigns by overlap.
+    A new segment that overlaps no reference segment (speech the old decode dropped) takes the
+    identity of the previous new segment, as in any alignment; the first takes the earliest
+    reference voice. Reference segments without times or without any identity field are ignored;
+    with no usable reference the segments come back unlabelled.
+    """
+    out = [dict(seg) for seg in new_segments]
+    voices: Dict[Tuple[Any, ...], str] = {}
+    turns: List[DiarizationSegment] = []
+    for ref in reference_segments:
+        identity = tuple(ref.get(field) for field in IDENTITY_FIELDS)
+        if all(value is None for value in identity):
+            continue
+        try:
+            start, end = float(ref["start"]), float(ref["end"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        voice = voices.setdefault(identity, f"VOICE_{len(voices):03d}")
+        turns.append(DiarizationSegment(start=start, end=end, speaker=voice))
+    if not turns:
+        return out
+    by_voice = {voice: identity for identity, voice in voices.items()}
+    diarization = DiarizationResult(segments=turns, num_speakers=len(voices))
+    placed = {id(seg): voice for seg, voice in align_segments_to_speakers(out, diarization)}
+    for seg in out:
+        for field, value in zip(IDENTITY_FIELDS, by_voice[placed[id(seg)]]):
+            if value is not None:
+                seg[field] = value
+    return out

@@ -753,7 +753,7 @@ def _reprocess_existing_episodes(
             )
         elif episode.on_disk_transcript:
             _resolution = Path(episode.on_disk_transcript).name
-        elif str(getattr(cfg, "pipeline_stage", "") or "") in config.STAGES_THAT_NEVER_TRANSCRIBE:
+        elif cfg.pipeline_stage in config.STAGES_REUSING_ON_DISK_ARTIFACTS:
             # Only these stages NEED an existing transcript, so only for them is "no transcript"
             # a skip. `_existing_transcript_for` refuses rather than falling back to the idx
             # search, and this is the one line per episode an operator reads, so it must not

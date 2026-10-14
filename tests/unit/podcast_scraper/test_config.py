@@ -1331,6 +1331,71 @@ class TestDiarizationRequirements(unittest.TestCase):
         self.assertTrue(cfg.screenplay)
 
 
+class TestRepunctuateOnlyStage(unittest.TestCase):
+    """``repunctuate_only`` (#2187): coercion, and the two things it refuses at validation."""
+
+    _DGX = {
+        "rss_url": "https://example.com/feed.xml",
+        "transcription_provider": "tailnet_dgx_whisper",
+        "transcription_fallback_provider": "openai",
+        "openai_api_key": "sk-test",
+        "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+        "pipeline_stage": "repunctuate_only",
+    }
+
+    def _cfg(self, **over) -> Config:
+        return Config.model_validate({**self._DGX, **over})
+
+    def test_it_reaches_the_dispatch_and_forces_the_repair_on(self) -> None:
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = self._cfg(transcribe_missing=False, transcription_repair_unpunctuated_windows=False)
+        self.assertTrue(cfg.transcribe_missing)
+        self.assertTrue(cfg.transcription_repair_unpunctuated_windows)
+
+    def test_it_does_not_force_diarization_or_skip_existing(self) -> None:
+        cfg = self._cfg(diarize=False, skip_existing=False)
+        self.assertFalse(cfg.diarize)
+        self.assertFalse(cfg.skip_existing)
+
+    def test_it_is_a_valid_pipeline_stage_value(self) -> None:
+        import typing
+
+        allowed = typing.get_args(Config.model_fields["pipeline_stage"].annotation)
+        self.assertIn("repunctuate_only", allowed)
+
+    def test_a_provider_without_a_clip_call_is_refused(self) -> None:
+        for provider, extra in (("whisper", {}), ("openai", {"openai_api_key": "sk-test"})):
+            with self.subTest(provider=provider):
+                with self.assertRaises(ValidationError) as ctx:
+                    Config.model_validate(
+                        {
+                            "rss_url": "https://example.com/feed.xml",
+                            "pipeline_stage": "repunctuate_only",
+                            "transcription_provider": provider,
+                            **extra,
+                        }
+                    )
+                self.assertIn("transcribe_clip", str(ctx.exception))
+
+    def test_silence_removal_is_refused_unless_preprocessing_is_off(self) -> None:
+        with self.assertRaises(ValidationError) as ctx:
+            self._cfg(preprocessing_enabled=True, preprocessing_silence_removal=True)
+        self.assertIn("preprocessing_silence_removal", str(ctx.exception))
+        cfg = self._cfg(preprocessing_enabled=False, preprocessing_silence_removal=True)
+        self.assertEqual(cfg.pipeline_stage, "repunctuate_only")
+
+    def test_other_stages_are_not_held_to_the_clip_contract(self) -> None:
+        cfg = Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "pipeline_stage": "relabel_only",
+                "transcription_provider": "whisper",
+                "preprocessing_silence_removal": True,
+            }
+        )
+        self.assertEqual(cfg.pipeline_stage, "relabel_only")
+
+
 class TestPipelineStage(unittest.TestCase):
     """Wave 3 pipeline_stage coercion."""
 

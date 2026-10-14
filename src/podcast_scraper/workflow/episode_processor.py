@@ -473,7 +473,9 @@ def download_media_for_transcription(
     # transcribe_media_to_text reaches the relabel branch (which loads from disk).
     # retranscript_only takes the same exit for the same reason: its input is the publisher's
     # transcript URL over the network, and downloading the audio it will never open would make
-    # the cheap repair as expensive as the one it exists to avoid.
+    # the cheap repair as expensive as the one it exists to avoid. repunctuate_only takes it
+    # because most episodes it is asked about have nothing to repair, and one that does fetches
+    # its own audio from the archive.
     if audio_route_leaves_before_skip_existing(cfg):
         speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
         return TranscriptionJob(  # type: ignore[no-any-return]
@@ -4131,8 +4133,9 @@ def _maybe_dispatch_reprocess_stage(
     """Intercept the transcribe stage for the reprocess modes that must NOT re-ASR.
 
     ``relabel_only`` re-resolves names on frozen diarization; ``rediarize_only`` re-diarizes the
-    audio and aligns to the existing transcript. Returns the stage result, or ``None`` to continue
-    with normal transcription.
+    audio and aligns to the existing transcript; ``repunctuate_only`` re-decodes only the windows
+    still flagged unpunctuated. Returns the stage result, or ``None`` to continue with normal
+    transcription.
     """
     if cfg.pipeline_stage == "relabel_only":
         return _relabel_existing_transcript(
@@ -4148,6 +4151,12 @@ def _maybe_dispatch_reprocess_stage(
         )
     if cfg.pipeline_stage == "translate_only":
         return _retranslate_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
+    if cfg.pipeline_stage == "repunctuate_only":
+        # Ahead of the transcript cache by construction (this runs before it): a cache hit would
+        # re-serve the pre-repair text this stage exists to replace.
+        return _repunctuate_existing_transcript(
             job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
         )
     return None
@@ -4239,6 +4248,617 @@ def _retranslate_existing_transcript(
     return _relabel_existing_transcript(
         job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
     )
+
+
+class _SegmentsFile(NamedTuple):
+    """A transcript's ``.segments.json`` as found: where, its exact bytes, and its segment dicts."""
+
+    path: Path
+    raw: bytes
+    segments: List[Dict[str, Any]]
+
+
+def _mark_reprocess_nothing_to_do(
+    episode: Any,
+    cfg: config.Config,
+    pipeline_metrics: Any,
+    stage: str,
+    *,
+    error_type: str,
+    detail: str,
+    satisfied: bool = False,
+) -> None:
+    """Ledger row for a reprocess stage that looked at an episode and, by design, did nothing.
+
+    The counterpart of ``_record_unresolved_transcript`` for the outcomes that are not failures:
+    a clean transcript has nothing to repunctuate, and a window the repair guards refuse is the
+    guards working. ``skipped`` with its own ``error_type`` keeps them countable (a run that
+    repaired 3 of 40 must say what happened to the other 37) without turning them into ``failed``.
+
+    ``satisfied`` marks the work-list entry as done: the request was "make this episode right" and
+    it already is. Without it a repeat of a finished repair repaired "0 of N" and exited 1
+    (``WorklistReport.repaired_nothing``), which would make the stage unrepeatable by the one
+    property it is for. A refused window is NOT satisfied -- the episode is still wrong, and a run
+    that repaired none of what it was asked to is a failed run.
+
+    Never raises: a metrics problem must not turn a skip into a failure.
+    """
+    if episode is None:
+        return
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode, update_metric_safely
+
+    try:
+        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    except Exception:  # noqa: BLE001 — an unidentifiable episode has no row to write
+        logger.warning(
+            "could not identify the episode for the %s outcome", error_type, exc_info=True
+        )
+        episode_id = None
+    if satisfied:
+        # Independent of the metrics object: whether the request counts as met must not depend on
+        # one being passed, or a clean episode silently reads as unfinished again.
+        from podcast_scraper.workflow.worklist_report import get_worklist_report
+
+        guid_el = episode.item.find("guid") if getattr(episode, "item", None) is not None else None
+        get_worklist_report().mark_already_right(episode_id, getattr(guid_el, "text", None))
+    if pipeline_metrics is None or episode_id is None:
+        return
+    try:
+        pipeline_metrics.update_episode_status(
+            episode_id=episode_id,
+            status="skipped",
+            stage=stage,
+            error_type=error_type,
+            error_message=redact_for_log(detail, max_len=500),
+        )
+        update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+    except Exception:  # noqa: BLE001 — telemetry must never break a skip
+        logger.debug("failed to record the reprocess skip", exc_info=True)
+
+
+def _repunctuate_source_segments(
+    txt_path: Path, language: Optional[str]
+) -> Optional[_SegmentsFile]:
+    """The segments ``repunctuate_only`` works on: the SOURCE-language ones.
+
+    On a translated episode the canonical ``.txt`` / ``.segments.json`` hold the English render
+    (D-44) and the source pair sits beside them under a language tag. Repunctuating the English
+    render would patch words nobody said; the tagged pair is read WITHOUT swapping, so that a
+    no-op run (or a refused one) leaves the episode exactly as it was.
+
+    ``None`` when there is no readable segments file. A tagged pair that exists but cannot be read
+    is ``None`` too, never a fall-through to the canonical file: that one is the translation.
+    """
+    path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
+    if language and primary_language(language) != "en":
+        from ..translation.artifacts import source_segments_relpath
+
+        root = txt_path.parent.parent
+        rel = os.path.relpath(str(txt_path), str(root))
+        tagged = root / source_segments_relpath(rel, language)
+        if tagged.is_file():
+            path = tagged
+    try:
+        raw = path.read_bytes()
+        doc = json.loads(raw)
+    except (OSError, ValueError):
+        return None
+    rows = doc.get("segments") if isinstance(doc, dict) else doc
+    if not isinstance(rows, list):
+        return None
+    return _SegmentsFile(path, raw, [row for row in rows if isinstance(row, dict)])
+
+
+def _flagged_windows(segments: Sequence[Mapping[str, Any]]) -> Tuple[List[List[float]], bool]:
+    """``(windows, whole)``: the windows still judged unpunctuated, and whether the WHOLE text is.
+
+    ``unpunctuated_windows`` answers ``[]`` for both "nothing is wrong" and "everything is wrong"
+    (the whole-episode case it leaves to a full re-transcription); the second flag keeps them apart
+    so the ledger does not report a wholly unpunctuated transcript as clean.
+    """
+    from ..transcription.punctuation import is_unpunctuated, unpunctuated_windows
+
+    windows = unpunctuated_windows(segments)
+    if windows:
+        return windows, False
+    whole = is_unpunctuated(" ".join(str(s.get("text", "")) for s in segments))
+    return [], whole
+
+
+def _nothing_to_repunctuate(whole: bool) -> Tuple[str, str]:
+    """``(error_type, detail)`` for an episode with no flagged window."""
+    if whole:
+        return (
+            "WholeTranscriptUnpunctuated",
+            "the whole transcript is unpunctuated, which is not a window repair; it needs a full "
+            "re-transcription",
+        )
+    return "NothingToRepunctuate", "no 10-minute window of the transcript is unpunctuated"
+
+
+def repunctuate_nothing_to_do(episode: Any, cfg: config.Config, pipeline_metrics: Any) -> bool:
+    """True, with a ledger row, when ``repunctuate_only`` has nothing to do for ``episode``.
+
+    Asked before speaker detection (one LLM call per episode, for a stage that names nobody), from
+    the episode's own transcript record and nothing else: a read of its segments file. Anything
+    unclear — no recorded transcript, no segments, a window flagged — answers False and leaves the
+    decision to the stage itself, which re-checks and records the refusals.
+    """
+    if cfg.pipeline_stage != "repunctuate_only":
+        return False
+    known = getattr(episode, "on_disk_transcript", None)
+    if not known or not str(known).endswith(".txt"):
+        return False
+    source = _repunctuate_source_segments(Path(str(known)), transcription_language(cfg))
+    if source is None:
+        return False
+    windows, whole = _flagged_windows(source.segments)
+    if windows:
+        return False
+    error_type, detail = _nothing_to_repunctuate(whole)
+    logger.info("[%s] repunctuate_only: %s; left untouched", episode.idx, detail)
+    _mark_reprocess_nothing_to_do(
+        episode,
+        cfg,
+        pipeline_metrics,
+        "repunctuate_only",
+        error_type=error_type,
+        detail=detail,
+        satisfied=not whole,
+    )
+    return True
+
+
+def _archived_audio_for_repunctuate(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    effective_output_dir: str,
+    work_dir: str,
+    pipeline_metrics: Any,
+) -> Optional[Tuple[str, str]]:
+    """``(path, source)`` of this episode's audio in ``work_dir``, or ``None``.
+
+    The archive, by guid, comes first: it is why this stage exists (re-running whole episodes
+    through the publisher is what it replaces). The publisher is the fallback, and only for an
+    episode that still has a ``media_url``; one reconstructed from disk after ageing out of its
+    feed has none, and the archive is then the only audio there is.
+    """
+    from ..rss import extract_item_guid
+    from ..utils import audio_cache
+
+    episode = job.episode
+    if episode is None:
+        return None
+    dest = os.path.join(
+        work_dir,
+        "episode" + derive_media_extension(episode.media_type, episode.media_url or ""),
+    )
+    guid = extract_item_guid(episode.item) if getattr(episode, "item", None) is not None else None
+    try:
+        archive = audio_cache.resolve_backend(cfg, effective_output_dir)
+    except Exception as exc:  # noqa: BLE001 — a misconfigured remote is this episode's miss
+        logger.error("[%s] repunctuate_only: audio archive unavailable: %s", job.idx, exc)
+        archive = None
+    if archive is not None and guid and audio_cache.fetch_into(archive, guid, dest):
+        if os.path.isfile(dest) and os.path.getsize(dest) > 0:
+            return dest, "archive"
+    if episode.media_url:
+        ok, _size, _elapsed = _download_or_reuse_media(
+            episode, cfg, dest, pipeline_metrics, effective_output_dir
+        )
+        if ok:
+            return dest, "download"
+    return None
+
+
+def _splice_repunctuated_segments(
+    original: Sequence[Mapping[str, Any]], repaired: Mapping[str, Any]
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """``(segments, invented)``: the repaired transcript's segments, labelled like the old ones.
+
+    The repair keeps every segment outside an accepted window as the very object it was given, so a
+    spliced segment is whatever is NOT one of ``original`` -- not whatever carries
+    ``punctuation_repaired``, which an earlier repair left on segments that are already labelled.
+    Spliced segments are checked for invented lines (a fresh decode can carry one) and take their
+    speaker identity from the old segments they overlap. Every segment loses ``char_start`` /
+    ``char_end``: they index the text before the splice.
+    """
+    from ..providers.ml.diarization.alignment import carry_speaker_identity
+    from ..transcription.invented_lines import drop_invented_lines
+
+    original_ids = {id(seg) for seg in original}
+    merged = [seg for seg in (repaired.get("segments") or []) if isinstance(seg, Mapping)]
+    fresh = [seg for seg in merged if id(seg) not in original_ids]
+    checked = drop_invented_lines({"text": "", "segments": fresh})
+    kept = list(checked.get("segments") or [])
+    labelled = {id(src): dst for src, dst in zip(kept, carry_speaker_identity(kept, original))}
+    segments: List[Dict[str, Any]] = []
+    for seg in merged:
+        out = dict(seg) if id(seg) in original_ids else labelled.get(id(seg))
+        if out is None:
+            continue
+        out.pop("char_start", None)
+        out.pop("char_end", None)
+        segments.append(out)
+    return segments, list(checked.get("asr_invented_lines") or [])
+
+
+def _remove_stale_derivatives(txt_path: Path) -> None:
+    """Delete the files derived from the OLD transcript text, before the new ones are written.
+
+    ``.cleaned.txt`` is rewritten by the next summary; ``.adfree.*`` and ``.anon.txt`` by
+    ``_produce_transcript_sidecars`` -- but only when it produces them. With
+    ``save_adfree_transcript`` off, on a non-English episode, or when nothing is excised, it writes
+    nothing and a stale ``.adfree.txt`` stays on disk, where GI reads it in preference to the
+    transcript (``load_processing_transcript``) and extracts from words that have since been
+    replaced.
+    """
+    stem = txt_path.name[: -len(".txt")]
+    for suffix in (
+        ".cleaned.txt",
+        ".anon.txt",
+        ".adfree.txt",
+        ".adfree.segments.json",
+        ".adfree.admap.json",
+        ".adfree.turns.json",
+    ):
+        try:
+            txt_path.with_name(stem + suffix).unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning("repunctuate_only: could not remove stale %s%s: %s", stem, suffix, exc)
+
+
+def _write_json_atomically(path: Path, doc: Any, *, indent: int) -> None:
+    tmp = path.with_name(path.name + ".repunct.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, indent=indent, allow_nan=False)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _commit_repunctuated_transcript(
+    txt_path: Path,
+    source: _SegmentsFile,
+    segments: List[Dict[str, Any]],
+    text: str,
+    language: Optional[str],
+) -> None:
+    """Replace the transcript text and its segments together, or leave both as they were.
+
+    Both new files are staged next to the old ones first, so a failure while staging touches
+    nothing. Only then is a translated episode's source swapped back to the canonical names (the
+    stale English render goes away; the translation stage rebuilds it) and the two files renamed
+    into place. Should the second rename fail, the first is undone from the bytes read at the
+    start. The segments are written by ``_save_transcript_segments_file`` and the text staged
+    beside them, so a temp name stands in for the transcript to keep the writer's path rules.
+    """
+    root = str(txt_path.parent.parent)
+    rel = os.path.relpath(str(txt_path), root)
+    stage_rel = os.path.join(os.path.dirname(rel), "." + txt_path.stem + ".repunct.txt")
+    staged_segments = Path(root) / (os.path.splitext(stage_rel)[0] + ".segments.json")
+    staged_text = txt_path.with_name(txt_path.name + ".repunct.tmp")
+    canonical_segments = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
+    try:
+        _save_transcript_segments_file(segments, stage_rel, root)
+        if not staged_segments.is_file():
+            raise OSError(f"could not stage {staged_segments.name}")
+        staged_text.write_text(text, encoding="utf-8")
+        if language and primary_language(language) != "en":
+            _invalidate_translation(rel, root, language)
+        os.replace(staged_segments, canonical_segments)
+        try:
+            os.replace(staged_text, txt_path)
+        except OSError:
+            canonical_segments.write_bytes(source.raw)
+            raise
+    finally:
+        staged_segments.unlink(missing_ok=True)
+        staged_text.unlink(missing_ok=True)
+
+
+def _patch_asr_provenance(
+    txt_path: Path,
+    asr: Dict[str, Any],
+    attempts: List[Dict[str, Any]],
+    remaining: List[List[float]],
+    invented: List[Dict[str, Any]],
+) -> None:
+    """Add this pass to ``.asr.json`` and change nothing else in it.
+
+    The file is read, patched and written back whole: rebuilding it from this pass's result would
+    drop the failover, recovery and coverage records of the original transcription, which are the
+    only account of how the transcript was made. Best-effort: the transcript is already replaced
+    and a provenance write that fails is said, not raised.
+    """
+    doc = dict(asr)
+    doc["punctuation_repair"] = [*(asr.get("punctuation_repair") or []), *attempts]
+    if remaining:
+        doc["unpunctuated_windows"] = remaining
+    else:
+        doc.pop("unpunctuated_windows", None)
+    if invented:
+        doc["invented_lines_removed"] = [*(asr.get("invented_lines_removed") or []), *invented]
+    path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".asr.json")
+    try:
+        _write_json_atomically(path, doc, indent=2)
+    except OSError as exc:
+        logger.warning("repunctuate_only: could not update %s: %s", path.name, exc)
+
+
+def _patch_manifest_asr_block(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    txt_path: Path,
+    repaired: int,
+    remaining: int,
+    run_id: Optional[str],
+) -> None:
+    """Record this pass in the manifest's ``asr`` block, keeping everything else in it.
+
+    ``_write_processing_manifest`` builds the block from a transcription result and this stage has
+    only the windows it touched; handing it that would replace the original transcription's model,
+    coverage and failover with a partial record. So the recorded block is read back and two of its
+    metrics change. The flag ``asr_partly_unpunctuated`` is DROPPED once no window is left: flags
+    only merge, and a flag that says the transcript has a broken window must not outlive the repair.
+    """
+    from . import processing_manifest as pm
+
+    root = str(txt_path.parent.parent)
+    rel = os.path.relpath(str(txt_path), root)
+    block = pm.read_stage(root, rel, "asr")
+    if block is None:
+        logger.info("repunctuate_only: no asr block in the manifest for %s; left alone", rel)
+        return
+    metrics = dict(block.get("metrics") or {})
+    metrics["unpunctuated_windows"] = remaining
+    metrics["punctuation_windows_repaired"] = int(
+        metrics.get("punctuation_windows_repaired") or 0
+    ) + int(repaired)
+    block["metrics"] = metrics
+    episode_id, _idx = _episode_id_and_idx_for_incident(job, cfg)
+    pm.update_stage(
+        root,
+        rel,
+        "asr",
+        block,
+        episode_id=episode_id,
+        feed_id=getattr(cfg, "rss_url", None),
+        run_id=run_id,
+        quality_flags=["asr_punctuation_repaired"] if repaired else (),
+        drop_flags=() if remaining else ("asr_partly_unpunctuated",),
+    )
+
+
+def _refusal_summary(report: Sequence[Mapping[str, Any]]) -> str:
+    """``"3 windows refused: lost_words x2, repetitive"`` -- why nothing was accepted."""
+    reasons: Dict[str, int] = {}
+    for row in report:
+        key = str(row.get("reason") or row.get("error") or row.get("status") or "unknown")
+        reasons[key] = reasons.get(key, 0) + 1
+    why = ", ".join(f"{k} x{n}" if n > 1 else k for k, n in sorted(reasons.items()))
+    return f"{len(report)} window(s) re-transcribed, none accepted ({why or 'no attempt made'})"
+
+
+def _repunctuate_existing_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> tuple[bool, Optional[str], int]:
+    """pipeline_stage=repunctuate_only: re-transcribe ONLY the windows still flagged unpunctuated.
+
+    48 windows on prod were refused by the repair guards; the guards have since been corrected and
+    about 25 of them now pass. Running whole episodes again (full Whisper, diarization, naming) to
+    reach them would cost an episode each, so this stage reads the stored transcript, measures its
+    windows again, decodes only those from the archived audio with the punctuated prompt, and
+    splices in the ones that pass. Speakers are carried over from the segments they replace: no
+    diarization, no roster, no LLM. It returns ``True`` only when a window was accepted -- the
+    caller then cascades metadata, summary, GI and KG for that episode -- and an episode with
+    nothing to repair is not fetched and not written. Windows are measured from the transcript, not
+    from a record of earlier attempts, so running it again after the guards change is the intended
+    use.
+    """
+    from ..transcription.punctuation import unpunctuated_windows, window_prompt
+    from ..utils import correlation
+
+    txt_path = _existing_transcript_for(job, effective_output_dir, "repunctuate_only")
+    if txt_path is None:
+        _record_unresolved_transcript(job, cfg, pipeline_metrics, "repunctuate_only")
+        return False, None, 0
+    language = transcription_language(cfg)
+    source = _repunctuate_source_segments(txt_path, language)
+    if source is None:
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="NoSegments",
+            detail="no readable .segments.json to repunctuate",
+        )
+        return False, None, 0
+    # A PLAIN transcript (no speaker labels) is not re-renderable: the served text is not the join
+    # of its segments, so writing it back would change words outside the repaired window. Measured
+    # on prod 2026-10-14: 88 of 96 plain transcripts differ from that join, while 3,367 of 3,375
+    # diarized ones re-render byte for byte. None of the 32 episodes this stage was built for is
+    # plain; refusing one costs nothing and never rewrites text nobody asked to change.
+    if not any(isinstance(s, Mapping) and s.get("speaker_label") for s in source.segments):
+        _mark_reprocess_nothing_to_do(
+            job.episode,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="PlainTranscript",
+            detail="no speaker labels: a plain transcript cannot be re-rendered without changing "
+            "text outside the repaired window",
+        )
+        return False, None, 0
+    windows, whole = _flagged_windows(source.segments)
+    if not windows:
+        error_type, detail = _nothing_to_repunctuate(whole)
+        logger.info("[%s] repunctuate_only: %s; left untouched", job.idx, detail)
+        _mark_reprocess_nothing_to_do(
+            job.episode,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type=error_type,
+            detail=detail,
+            satisfied=not whole,
+        )
+        return False, None, 0
+    prompt = window_prompt(language)
+    if prompt is None:
+        _mark_reprocess_nothing_to_do(
+            job.episode,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="NoPromptForLanguage",
+            detail=f"there is no punctuated prompt for language {language!r}",
+        )
+        return False, None, 0
+    asr_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".asr.json")
+    try:
+        asr = json.loads(asr_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        asr = None
+    if not isinstance(asr, dict):
+        _mark_reprocess_nothing_to_do(
+            job.episode,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="NoAsrProvenance",
+            detail="no readable .asr.json: this transcript was not made by our ASR, or its "
+            "provenance is gone, so there is nothing to patch and no language to check",
+        )
+        return False, None, 0
+    language_record = asr.get("language")
+    recorded = language_record.get("requested") if isinstance(language_record, dict) else None
+    if recorded and primary_language(str(recorded)) != primary_language(language or ""):
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="LanguageChanged",
+            detail=f"transcribed as {recorded!r}, this run would decode the windows as "
+            f"{language!r}",
+        )
+        return False, None, 0
+    if not callable(getattr(transcription_provider, "transcribe_clip", None)):
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="NoClipProvider",
+            detail="the transcription provider has no transcribe_clip",
+        )
+        return False, None, 0
+
+    work_dir = tempfile.mkdtemp(prefix="repunct_")
+    try:
+        fetched = _archived_audio_for_repunctuate(
+            job, cfg, effective_output_dir, work_dir, pipeline_metrics
+        )
+        if fetched is None:
+            _record_unresolved_transcript(
+                job,
+                cfg,
+                pipeline_metrics,
+                "repunctuate_only",
+                error_type="NoArchivedAudio",
+                detail="the audio is not in the archive and the episode has no media_url",
+            )
+            return False, None, 0
+        audio_path, audio_source = fetched
+        media = _preprocess_audio_if_needed(job, cfg, audio_path, pipeline_metrics)
+        repaired = _repair_punctuation_windows(
+            {
+                "text": " ".join(str(s.get("text", "")) for s in source.segments),
+                "segments": list(source.segments),
+            },
+            windows,
+            media,
+            cfg,
+            transcription_provider,
+        )
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+    report = [dict(row) for row in (repaired.get("asr_punctuation_repair") or [])]
+    accepted = sum(1 for row in report if row.get("status") == "repaired")
+    if not accepted:
+        _mark_reprocess_nothing_to_do(
+            job.episode,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="NoWindowAccepted",
+            detail=_refusal_summary(report),
+        )
+        return False, None, 0
+
+    segments, invented = _splice_repunctuated_segments(source.segments, repaired)
+    result: Dict[str, Any] = {
+        "text": " ".join(str(s.get("text", "")).strip() for s in segments if s.get("text")),
+        "segments": segments,
+    }
+    new_text = _format_transcript_if_needed(
+        result, cfg, job.detected_speaker_names, transcription_provider
+    )
+    segments = result["segments"]
+    try:
+        _commit_repunctuated_transcript(txt_path, source, segments, new_text, language)
+    except OSError as exc:
+        logger.error("[%s] repunctuate_only: could not write the transcript: %s", job.idx, exc)
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "repunctuate_only",
+            error_type="WriteFailed",
+            detail=f"could not replace the transcript ({type(exc).__name__}); it is unchanged",
+        )
+        return False, None, 0
+
+    root = str(txt_path.parent.parent)
+    rel = os.path.relpath(str(txt_path), root)
+    remaining = unpunctuated_windows(segments)
+    run_id = correlation.get_run_id() or getattr(cfg, "run_id", None)
+    attempts = [
+        {
+            **row,
+            "pass": "repunctuate_only",
+            "run_id": run_id,
+            "repair_model": getattr(cfg, "dgx_whisper_model", None),
+            "original_model": asr.get("model"),
+            # The archive may hold a different encode (dynamic ad insertion) than the audio the
+            # transcript was decoded from; nothing here can tell.
+            "audio_source": audio_source,
+            "audio_identity_verified": False,
+        }
+        for row in report
+    ]
+    _remove_stale_derivatives(txt_path)
+    _patch_asr_provenance(txt_path, asr, attempts, remaining, invented)
+    _produce_transcript_sidecars(cfg, new_text, segments, rel, root, episode=job.episode)
+    _patch_manifest_asr_block(job, cfg, txt_path, accepted, len(remaining), run_id)
+    logger.info(
+        "[%s] repunctuate_only: %d of %d window(s) repaired, %d still unpunctuated -> %s",
+        job.idx,
+        accepted,
+        len(report),
+        len(remaining),
+        rel,
+    )
+    return True, os.path.relpath(str(txt_path), effective_output_dir), 0
 
 
 def _maybe_speech_coverage_failover(
@@ -5250,12 +5870,18 @@ def audio_route_leaves_before_skip_existing(cfg: config.Config) -> bool:
 
     relabel_only reuses the on-disk transcript + diarization and re-runs only speaker-name
     resolution; retranscript_only's input is the publisher's transcript URL; translate_only's is
-    the on-disk SOURCE transcript (a re-translation costs no ASR and no audio). None needs the
-    audio, and each must reach its stage even for an episode already in the corpus. Shared by
-    ``download_media_for_transcription`` and ``presence_skip_evidence`` (#2290) so a stage added
-    here is honoured by both.
+    the on-disk SOURCE transcript (a re-translation costs no ASR and no audio). repunctuate_only
+    fetches its audio itself, by guid and only for an episode that has a window to repair. None
+    needs the audio here, and each must reach its stage even for an episode already in the
+    corpus. Shared by ``download_media_for_transcription`` and ``presence_skip_evidence`` (#2290)
+    so a stage added here is honoured by both.
     """
-    return cfg.pipeline_stage in ("relabel_only", "retranscript_only", "translate_only")
+    return cfg.pipeline_stage in (
+        "relabel_only",
+        "retranscript_only",
+        "translate_only",
+        "repunctuate_only",
+    )
 
 
 def publisher_transcript_choice(

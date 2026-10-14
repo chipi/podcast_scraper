@@ -112,6 +112,19 @@ guards the scale run against regressions.
 - **LLM serving is external** (DGX / homelab) and its topology is operationally transient —
   the methodology depends on *a* served candidate set, not a fixed host.
 
+## Addendum (2026-10-14): `repunctuate_only` — a window-scoped single-variable reprocess
+
+The ladder above changes one producing variable per corpus version. `repunctuate_only` (#2187)
+applies the same discipline inside one episode: the single variable is the **punctuation of the
+windows still flagged unpunctuated**; the ASR text and timestamps outside those windows, the
+diarization and the naming are frozen, and the speaker identity of a re-decoded window is carried
+from the segments it replaces rather than re-derived. Reprocess-once economics decide the shape:
+48 windows were refused on prod by guards that have since been corrected, about 25 now pass, and
+re-running whole episodes to reach them would pay Whisper, diarization and naming for each. It is
+the first reprocess stage that calls a transcription provider (for clips only), which is why it is
+registered in `STAGES_CALLING_ASR_CLIPS_ONLY` and **not** in `STAGES_THAT_NEVER_TRANSCRIBE`. How to
+run it and what each outcome means: [Corpus reprocessing runbook](../guides/CORPUS_REPROCESSING.md#re-punctuate-only).
+
 ## References
 
 - [ADR-123: quality-gate transcription failover](ADR-123-quality-gate-transcription-failover.md)

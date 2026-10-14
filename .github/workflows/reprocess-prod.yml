@@ -56,6 +56,10 @@ on:
           recoverable episodes needs, and without this input that repair had no prod command at
           all. `rediarize_only` re-runs diarization against the existing text (downloads audio,
           needs GPU). `retranscript_only` re-fetches the publisher transcript.
+          `repunctuate_only` re-transcribes ONLY the windows still flagged unpunctuated (from the
+          archived audio, DGX clip calls) and splices the accepted ones into the existing
+          transcript, then cascades summary/GI/KG; an episode with no flagged window is left
+          untouched. Repeatable: windows are re-measured from the transcript on every run.
         type: choice
         options:
           - full
@@ -63,6 +67,7 @@ on:
           - rediarize_only
           - retranscript_only
           - rederive_only
+          - repunctuate_only
         default: full
       use_transcript_cache:
         description: >-
@@ -376,7 +381,9 @@ jobs:
 
           # STAGE. Empty = the full reprocess this workflow has always run. A reprocess stage
           # reuses what is on disk, so the cache warning above is moot for them — `relabel_only`
-          # never reaches ASR at all (STAGES_THAT_NEVER_TRANSCRIBE).
+          # never reaches ASR at all (STAGES_THAT_NEVER_TRANSCRIBE); `repunctuate_only` reaches it
+          # for clips only (STAGES_CALLING_ASR_CLIPS_ONLY) and never asks the cache. The cache
+          # still holds the PRE-repair text, though, so keep it off for any later full run.
           # `full` is the sentinel for "no --pipeline-stage flag at all"; an empty choice
           # option is not valid GHA (actionlint: "string should not be empty").
           if [ -n "${PIPELINE_STAGE}" ] && [ "${PIPELINE_STAGE}" != "full" ]; then

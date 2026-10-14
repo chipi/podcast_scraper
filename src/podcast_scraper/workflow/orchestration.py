@@ -134,8 +134,20 @@ def _create_transcription_provider(
         factory_func = _get_factory_function(
             "create_transcription_provider", _create_transcription_provider_factory
         )
-        provider = factory_func(cfg)
+        # A clip-only stage needs the DGX provider ITSELF. Neither the coverage-gated nor the
+        # fallback-chain wrapper forwards ``transcribe_clip`` (deliberately: under failover the
+        # primary may be the dead endpoint and every clip would wait out its timeout), and
+        # ``_clip_call_of`` answers a wrapper with one INFO line and no repair -- so the stage
+        # would skip every window and exit 0.
+        clip_only = cfg.pipeline_stage in config.STAGES_CALLING_ASR_CLIPS_ONLY
+        provider = factory_func(cfg, _wrap_fallback=False) if clip_only else factory_func(cfg)
         provider.initialize()
+        if clip_only and not callable(getattr(provider, "transcribe_clip", None)):
+            raise RuntimeError(
+                f"pipeline_stage={cfg.pipeline_stage} needs a transcription provider with "
+                f"transcribe_clip; {type(provider).__name__} has none, so every flagged window "
+                "would be skipped and the run would still exit 0."
+            )
         logger.debug(
             "Transcription provider initialized: %s",
             type(provider).__name__,

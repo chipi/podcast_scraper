@@ -125,3 +125,28 @@ class TestArgv:
     def test_existing_only_is_not_duplicated(self, corpus):
         argv = _argv(corpus, pipeline_stage="rederive_only")
         assert argv.count("--reprocess-existing-only") == 1
+
+
+class TestRepunctuateOnly:
+    """``repunctuate_only`` is offered by the API, accepted by the CLI, and paired with scoping."""
+
+    def test_it_is_a_reprocess_stage_not_a_partial_one(self):
+        assert "repunctuate_only" in PIPELINE_STAGES_REPROCESS
+        assert normalize_pipeline_stage("repunctuate_only") == "repunctuate_only"
+
+    def test_the_cli_accepts_it_and_the_route_documents_it(self):
+        import argparse
+
+        from podcast_scraper import cli
+        from podcast_scraper.server.routes import jobs as jobs_route
+
+        parser = argparse.ArgumentParser()
+        cli._add_pipeline_stage_arguments(parser)
+        action = next(a for a in parser._actions if a.dest == "pipeline_stage")
+        assert "repunctuate_only" in action.choices
+        assert "repunctuate_only" in Path(jobs_route.__file__).read_text(encoding="utf-8")
+
+    def test_it_is_scoped_to_the_episodes_already_in_the_corpus(self, corpus):
+        argv = _argv(corpus, pipeline_stage="repunctuate_only")
+        assert argv[argv.index("--pipeline-stage") + 1] == "repunctuate_only"
+        assert argv.count("--reprocess-existing-only") == 1

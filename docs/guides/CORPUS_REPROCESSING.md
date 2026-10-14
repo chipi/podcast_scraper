@@ -27,6 +27,7 @@ same pipeline that produced the corpus**, scoped to the episodes already on disk
 | **Fix speakers / full rebuild** (correct diarization + named screenplays, current ASR, re-clean, re-extract) | full reprocess | yes | yes | `make migrate-diarization` |
 | **Re-name speakers only** (re-resolve names on the FROZEN diarization; re-render + cascade GI/KG) | `--pipeline-stage relabel_only` | no | no | see [Re-name / re-diarize only](#re-name-re-diarize-only) |
 | **Re-diarize only** (fresh diarization aligned to the existing ASR; no re-transcribe; re-name + cascade) | `--pipeline-stage rediarize_only` | no | yes | see [Re-name / re-diarize only](#re-name-re-diarize-only) |
+| **Re-punctuate only** (re-decode just the 10-minute windows still flagged unpunctuated, from the archived audio; splice the accepted ones in; speakers carried over; cascade summary/GI/KG) | `--pipeline-stage repunctuate_only` | clips only | no | see [Re-punctuate only](#re-punctuate-only) |
 | **Re-extract only** (reuse transcript + diarization; re-run cleaning + GI + KG on the existing base) | `--pipeline-stage rederive_only` | no | no | see [Re-extract only](#re-extract-only) |
 | **Enrich gaps** (fill missing corpus-level enrichments) | `cli enrich` | no | no | `make enrich CORPUS=<corpus>` |
 
@@ -134,6 +135,79 @@ reprocess:
 
 Each stage freezes everything below it, so the run is a clean single-variable before/after gate
 against the prior corpus.
+
+---
+
+## Re-punctuate only
+
+When Whisper lost its punctuation part-way through an episode (a 10-minute window with no
+sentence ends while the rest has them, `unpunctuated_windows` in `.asr.json`), the full pipeline
+already re-decodes that window once with a punctuated prompt and keeps the result only if the repair
+guards accept it (`transcription/punctuation_repair.py`). On prod 2026-10-14 the guards had refused
+48 windows; they have since been corrected and about 25 now pass. Running the whole episode again
+(Whisper, diarization, naming) to reach them costs an episode each, so:
+
+- **`--pipeline-stage repunctuate_only`** reads the stored transcript, measures its windows again,
+  fetches the audio from the archive **by guid**, decodes **only** the still-flagged windows
+  through the DGX provider's clip call, and splices in the ones that pass. Speaker labels are
+  carried from the segments each new segment overlaps (`carry_speaker_identity`): no diarization,
+  no roster, no LLM naming. The screenplay, `.segments.json` and `.turns.json` are rewritten,
+  `.adfree.*` / `.anon.txt` are rebuilt where the pipeline builds them (and removed otherwise, so GI
+  never reads a stale one), `.cleaned.txt` is removed (the summary stage rewrites it),
+  `.asr.json` and the manifest's `asr` block are **patched**, and summary / GI / KG cascade for
+  that episode.
+
+```bash
+.venv/bin/python -m podcast_scraper.cli \
+  --config config/profiles/prod_dgx_full.yaml \
+  --output-dir <corpus> \
+  --pipeline-stage repunctuate_only \
+  --reprocess-episode-ids <ids.txt> --skip-existing --no-transcript-cache
+```
+
+On prod: **Reprocess prod corpus** workflow, `pipeline_stage = repunctuate_only`,
+`selection = episode_ids_worklist`. Take a corpus backup first, as for any reprocess.
+
+**Requirements** (checked at config validation or at startup, not per episode): the profile's
+`transcription_provider` is `tailnet_dgx_whisper` (the only provider with a clip call), and
+`preprocessing_silence_removal` is off (it shifts the timeline the clips are cut on). The provider
+is built **without** its coverage-gate / fallback wrappers, because neither forwards the clip
+call; a provider that cannot be built stops the run instead of skipping every window.
+
+**What each episode ends as** (the ledger row; none of these is silent):
+
+| Outcome | Ledger | Files |
+| --- | --- | --- |
+| A window accepted | `ok` (set by the cascade that follows) | rewritten as above |
+| No flagged window | `skipped` `NothingToRepunctuate` (done for the work-list, reported as "already right") | none touched, no fetch |
+| Whole transcript unpunctuated | `skipped` `WholeTranscriptUnpunctuated` | none touched; needs a full re-transcription |
+| Windows decoded, none accepted | `skipped` `NoWindowAccepted` (reasons in the detail) | none touched |
+| No punctuated prompt for the language / no `.asr.json` | `skipped` `NoPromptForLanguage` / `NoAsrProvenance` | none touched |
+| No archived audio and no `media_url` | `failed` `NoArchivedAudio` | none touched |
+| Language changed since transcription | `failed` `LanguageChanged` | none touched |
+
+A run in which **no** listed episode finishes (every one refused, say) exits 1, like any
+work-list repair that repaired nothing; a mix exits 0 and logs the unfinished ids at ERROR.
+
+**Repeatable.** Windows are measured from the transcript, not from a record of earlier attempts. A
+repaired window is no longer flagged, so a second run does nothing; after the guards change, the
+same work-list reaches the windows they used to refuse. Each attempt is appended to
+`.asr.json["punctuation_repair"]` tagged `pass: "repunctuate_only"` with the run id,
+`repair_model` (the DGX model now serving) and `original_model`, so model drift between the
+original decode and the repair is visible.
+
+**Known limits.**
+
+- The archived audio is not verified byte-identical to the audio the transcript was decoded from
+  (dynamic ad insertion can differ); each attempt records `audio_identity_verified: false`.
+- A **non-English** episode is repaired from its SOURCE pair (`<base>.<lang>.segments.json`), read
+  without swapping. When a window is accepted the source is swapped back to the canonical names and
+  the stale English render is discarded; the translation stage rebuilds it in the cascade. This
+  path is covered by unit tests only, not by a corpus run.
+- The transcript cache keeps the **pre-repair** text. This stage never asks the cache, but a later
+  full run with the cache enabled would re-serve it: keep `--no-transcript-cache` (the prod
+  workflow default) for any repair.
+- `--dry-run` reports and stops before the stage: no clip is decoded and nothing is written.
 
 ---
 

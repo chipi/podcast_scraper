@@ -117,6 +117,11 @@ class TestNoAsrCredentialIsDemanded:
         assert config.STAGES_THAT_NEVER_TRANSCRIBE == frozenset(
             {"relabel_only", "rediarize_only", "retranscript_only", "translate_only"}
         )
+        # ``repunctuate_only`` reaches the same dispatch by the same trick but DOES call the
+        # provider (for clips), so it is deliberately outside: this set also swallows a provider
+        # that could not be built, which for it would be a silent all-skip run.
+        assert "repunctuate_only" not in config.STAGES_THAT_NEVER_TRANSCRIBE
+        assert config.STAGES_CALLING_ASR_CLIPS_ONLY == frozenset({"repunctuate_only"})
 
     def test_translate_only_earns_its_place_in_that_set(self):
         """The two properties the set's membership rule names, asserted rather than assumed."""

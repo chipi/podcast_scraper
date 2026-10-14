@@ -44,6 +44,7 @@ from ..episode_processor import (
     _mark_episode_skipped_existing as mark_episode_skipped_existing,
     presence_skip_evidence,
     process_episode_download as factory_process_episode_download,
+    repunctuate_nothing_to_do,
 )
 
 
@@ -2235,6 +2236,7 @@ def prepare_episode_download_args(
              transcription_jobs, transcription_jobs_lock, detected_speaker_names)
     """
     download_args = []
+    nothing_to_do = 0
     for episode in episodes:
         # PRESENCE FIRST (#2290): nothing per-episode -- not the size probe (an HTTP HEAD), not
         # speaker detection (an LLM call) -- runs for an episode the corpus already holds.
@@ -2252,6 +2254,11 @@ def prepare_episode_download_args(
             mark_episode_skipped_existing(
                 episode, cfg, pipeline_metrics, f"already present in corpus: {present}"
             )
+            continue
+        # NOTHING TO REPUNCTUATE, BEFORE THE LLM CALL. Speaker detection is one LLM call per
+        # episode and this stage never names anyone; a clean episode must cost a file read.
+        if repunctuate_nothing_to_do(episode, cfg, pipeline_metrics):
+            nothing_to_do += 1
             continue
         size_skip = _check_episode_size_skip(cfg, episode)
         if size_skip.skip_episode:
@@ -2324,18 +2331,14 @@ def prepare_episode_download_args(
     # Only fires when the run EXPLICITLY asked for reprocessing. A normal incremental run where
     # everything is already ingested reaches here legitimately, and warning on that would make
     # the counter noise — non-zero on healthy nightly runs, which is how a signal gets ignored.
-    reprocess_stages = {
-        "rederive_only",
-        "relabel_only",
-        "rediarize_only",
-        "retranscript_only",
-        "translate_only",
-    }
     asked_for_reprocess = (
         bool(getattr(cfg, "reprocess_existing_only", False))
-        or str(getattr(cfg, "pipeline_stage", "full") or "full") in reprocess_stages
+        or str(getattr(cfg, "pipeline_stage", "full") or "full")
+        in config.STAGES_REUSING_ON_DISK_ARTIFACTS
     )
-    if episodes and not download_args and asked_for_reprocess:
+    # An episode `repunctuate_only` ruled out above (nothing flagged) is a decision, not a stage
+    # that built no work -- and a corpus that is clean is the good outcome of this stage.
+    if episodes and not download_args and asked_for_reprocess and nothing_to_do < len(episodes):
         logger.warning(
             "SELECTED %d episode(s) for a REPROCESS but produced ZERO processing jobs — this "
             "run will do no work and still exit 0. pipeline_stage=%s reprocess_existing_only=%s "

@@ -93,11 +93,23 @@ def _cfg(
         "rediarize_only",
         "retranscript_only",
         "rederive_only",
+        "repunctuate_only",
     ] = "full",
 ) -> config.Config:
+    # The clip-calling stage needs the provider that has a clip call; the rest need none.
+    provider = (
+        {
+            "transcription_provider": "tailnet_dgx_whisper",
+            "transcription_fallback_provider": "openai",
+            "openai_api_key": "sk-test-not-a-key",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+        }
+        if pipeline_stage == "repunctuate_only"
+        else {"transcription_provider": "whisper"}
+    )
     return config.Config(
         rss="https://example.com/feed.xml",
-        transcription_provider="whisper",
+        **provider,  # type: ignore[arg-type]
         diarize=True,
         screenplay=True,
         hf_token="hf-test",
@@ -660,7 +672,8 @@ def test_relabel_keeps_prose_colons_in_the_cleaned_transcript(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize(
-    "stage", ["relabel_only", "retranscript_only", "rediarize_only", "rederive_only"]
+    "stage",
+    ["relabel_only", "retranscript_only", "rediarize_only", "rederive_only", "repunctuate_only"],
 )
 def test_a_reprocess_stage_never_redownloads_a_publisher_transcript(
     tmp_path: Path, monkeypatch, stage

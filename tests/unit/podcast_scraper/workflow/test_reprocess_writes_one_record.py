@@ -54,17 +54,29 @@ def _corpus(tmp_path: Path, *, with_transcript: bool) -> Path:
 
 
 def _cfg(stage: str, corpus: Path) -> config.Config:
+    # The clip-calling stage needs the provider that has a clip call; the rest need none.
+    provider = (
+        {
+            "transcription_provider": "tailnet_dgx_whisper",
+            "transcription_fallback_provider": "openai",
+            "openai_api_key": "sk-test-not-a-key",
+            "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+        }
+        if stage in config.STAGES_CALLING_ASR_CLIPS_ONLY
+        else {"transcription_provider": "whisper"}
+    )
     return config.Config(
         rss="https://example.com/feed.xml",
-        transcription_provider="whisper",
         pipeline_stage=stage,  # type: ignore[arg-type]
         output_dir=str(corpus),
         single_feed_uses_corpus_layout=True,
+        **provider,  # type: ignore[arg-type]
     )
 
 
 @pytest.mark.parametrize(
-    "stage", ["relabel_only", "rediarize_only", "retranscript_only", "rederive_only"]
+    "stage",
+    ["relabel_only", "rediarize_only", "retranscript_only", "rederive_only", "repunctuate_only"],
 )
 def test_a_reprocess_stage_writes_the_record_where_the_episode_lives(
     tmp_path: Path, stage: str, monkeypatch

@@ -1876,6 +1876,7 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
             "rediarize_only",
             "retranscript_only",
             "translate_only",
+            "repunctuate_only",
             "enrich_only",  # deprecated alias for rederive_only
         ),
         default=None,
@@ -1898,6 +1899,11 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
             "names from the fresh English render and cascade GI/KG; no audio, no ASR, no "
             "re-diarize. The content-keyed translation memory is KEPT so only missing units are "
             "sent — add --fresh-translation to discard it after a model change. "
+            "repunctuate_only: re-transcribe ONLY the windows still flagged unpunctuated from the "
+            "archived audio and splice in the ones that pass the repair guards; speaker labels "
+            "are carried from the existing segments (no re-diarize, no re-naming), then "
+            "summary/GI/KG cascade. An episode with no flagged window is left untouched. Needs "
+            "transcription_provider=tailnet_dgx_whisper. "
             "audio_only: transcribe + media only. "
             "download_only: download + cache raw audio, then stop. "
             "enrich_only: DEPRECATED alias for rederive_only (renamed because it collided with "

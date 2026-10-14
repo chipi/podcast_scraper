@@ -74,6 +74,9 @@ PIPELINE_STAGES_REPROCESS = frozenset(
         # RFC-124 §5.2's retry for a `translation_pending` episode. Reprocess, not partial: it
         # reuses the on-disk transcript and never re-runs ASR.
         "translate_only",
+        # Re-transcribes only the windows still flagged unpunctuated and splices the accepted ones
+        # in. Reprocess, not partial: it works from the on-disk transcript and an archived clip.
+        "repunctuate_only",
     }
 )
 PIPELINE_STAGES_PARTIAL = frozenset({"audio_only", "download_only"})
@@ -530,7 +533,7 @@ def build_pipeline_argv(
        defaults — same as today's pre-RFC-081 behavior).
 
     *pipeline_stage* selects a REPROCESS mode (``rederive_only``, ``relabel_only``,
-    ``retranscript_only``,
+    ``retranscript_only``, ``translate_only``, ``repunctuate_only``,
     ``rediarize_only``) or a partial run (``audio_only``, ``download_only``). Validated against
     :data:`PIPELINE_STAGES_ALLOWED` and dropped with a warning if unknown — this argv is handed
     to a subprocess, so an unvalidated caller string must never reach it.

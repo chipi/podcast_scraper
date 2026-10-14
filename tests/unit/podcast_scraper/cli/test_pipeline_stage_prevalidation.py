@@ -114,6 +114,37 @@ class TestExplicitFlagBeatsTheFile:
         self._merge(self._YAML, ["--pipeline-stage", "rederive_only"], monkeypatch)
 
 
+class TestTheClipStageReachesPreValidation:
+    """``repunctuate_only`` is validated against a PROVIDER, so the flag has to arrive early too.
+
+    A YAML pinning ``full`` on a provider with no clip call is valid; the same YAML under
+    ``--pipeline-stage repunctuate_only`` is not, and must be refused at startup rather than
+    after the first episode has been selected.
+    """
+
+    _YAML = {
+        "rss_url": "https://example.com/feed.xml",
+        "transcription_provider": "tailnet_dgx_whisper",
+        "transcription_fallback_provider": "openai",
+        "openai_api_key": "sk-test-not-a-key",
+        "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+        "pipeline_stage": "full",
+    }
+
+    def test_the_flag_overrides_the_pin_and_is_accepted_on_the_dgx_provider(self, monkeypatch):
+        args = TestExplicitFlagBeatsTheFile._merge(
+            self._YAML, ["--pipeline-stage", "repunctuate_only"], monkeypatch
+        )
+        assert args.pipeline_stage == "repunctuate_only"
+
+    def test_it_is_refused_at_startup_on_a_provider_with_no_clip_call(self, monkeypatch):
+        yaml = {**self._YAML, "transcription_provider": "whisper"}
+        with pytest.raises(ValueError, match="transcribe_clip"):
+            TestExplicitFlagBeatsTheFile._merge(
+                yaml, ["--pipeline-stage", "repunctuate_only"], monkeypatch
+            )
+
+
 class TestEndToEndEnrichOnlyNeedsNoAsrCredential:
     def test_rederive_only_config_builds_without_a_deepgram_key(self, monkeypatch):
         """The whole point, in one assertion: the two halves compose."""

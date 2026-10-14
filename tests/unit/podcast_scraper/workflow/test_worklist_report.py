@@ -207,3 +207,45 @@ def test_orphan_only_worklist_logs_warning_not_error(caplog) -> None:
     errors = [rec for rec in caplog.records if rec.levelno >= logging.ERROR]
     assert not errors, f"orphan-only worklist logged at ERROR (should be WARNING) #1855: {errors}"
     assert [rec for rec in caplog.records if rec.levelno == logging.WARNING]
+
+
+def test_an_episode_that_was_already_right_is_complete_but_not_called_repaired() -> None:
+    """A repeat of a finished repair: nothing is left unrepaired (so the run must not fail as
+    'repaired nothing'), but the line must not claim work that was not done either."""
+    r = get_worklist_report()
+    r.request(["ep1", "ep2"])
+    r.mark_matched(["ep1", "ep2"])
+    r.mark_completed("ep1")
+    r.mark_already_right("ep2")
+
+    assert r.completed == {"ep1", "ep2"} and r.already_right == {"ep2"}
+    assert not r.repaired_nothing
+    assert "repaired 2/2 (1 of them already right, nothing to repair)" in r.summary()
+    assert r.as_dict()["already_right"] == 1
+
+
+def test_a_worklist_of_only_already_right_episodes_is_not_a_failed_run() -> None:
+    r = get_worklist_report()
+    r.request(["ep1"])
+    r.mark_matched(["ep1"])
+    r.mark_already_right("ep1")
+
+    assert not r.repaired_nothing and "all requested episodes repaired" in r.summary()
+
+
+def test_already_right_matches_on_guid_and_ignores_ids_nobody_requested() -> None:
+    r = get_worklist_report()
+    r.request(["guid-1"])
+    r.mark_already_right("derived-id-not-requested", "guid-1")
+    r.mark_already_right("stray", "also-stray")
+
+    assert r.already_right == {"guid-1"}
+
+
+def test_the_summary_is_unchanged_when_nothing_was_already_right() -> None:
+    r = get_worklist_report()
+    r.request(["ep1"])
+    r.mark_matched(["ep1"])
+    r.mark_completed("ep1")
+
+    assert r.summary() == "work-list: repaired 1/1 · all requested episodes repaired"

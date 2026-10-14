@@ -38,8 +38,9 @@ MODULE = (
 
 RECORDER = "_record_unresolved_transcript"
 # A policy skip (provider payload limit) writes its row as "skipped", not "failed"; it is a ledger
-# write all the same.
-LEDGER_WRITERS = {RECORDER, "_mark_episode_skipped_policy"}
+# write all the same. So is a reprocess stage's "looked at it, nothing to do" (repunctuate_only).
+NOTHING_TO_DO = "_mark_reprocess_nothing_to_do"
+LEDGER_WRITERS = {RECORDER, "_mark_episode_skipped_policy", NOTHING_TO_DO}
 
 # The refusal signature: these helpers report "I could not do this" as a 3-tuple.
 REFUSAL_RETURNS = {"(False, None, 0)", "False, None, 0"}
@@ -66,6 +67,21 @@ EXPECTED_ERROR_TYPES = {
     # provider raising (Camera seduta 717, 2026-10-12, reported ok) and a validation failure.
     "TranscriptionFailed",
     "TranscriptionValidationFailed",
+    # repunctuate_only: the refusals that are failures (the episode needs someone's attention)...
+    "LanguageChanged",
+    "NoClipProvider",
+    "NoArchivedAudio",
+    "WriteFailed",
+}
+
+# ...and the ones that are decisions, written as ``skipped`` by ``_mark_reprocess_nothing_to_do``.
+EXPECTED_NOTHING_TO_DO_TYPES = {
+    "NothingToRepunctuate",
+    "WholeTranscriptUnpunctuated",
+    "NoPromptForLanguage",
+    "NoAsrProvenance",
+    "NoWindowAccepted",
+    "PlainTranscript",
 }
 
 
@@ -193,6 +209,30 @@ def test_each_distinct_refusal_reason_is_still_distinguishable(error_type: str):
         ):
             found = True  # the default, used by the bare calls
     assert found, f"no refusal records error_type={error_type!r} any more"
+
+
+@pytest.mark.parametrize("error_type", sorted(EXPECTED_NOTHING_TO_DO_TYPES))
+def test_each_repunctuate_decision_is_still_distinguishable(error_type: str):
+    """ "Nothing flagged", "everything flagged" and "flagged but refused" call for different
+    follow-ups (none, a full re-transcription, wait for the guards to change): one bucket would
+    make the ledger unable to say which episodes to try again.
+
+    Two shapes record one: a literal ``error_type=`` on the writer call, or a value returned by
+    ``_nothing_to_repunctuate`` (which the writer call passes through).
+    """
+    literals = set()
+    for node in ast.walk(_tree()):
+        if isinstance(node, ast.FunctionDef) and node.name == "_nothing_to_repunctuate":
+            literals |= {c.value for c in ast.walk(node) if isinstance(c, ast.Constant)}
+        if isinstance(node, ast.Call):
+            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if name == NOTHING_TO_DO:
+                literals |= {
+                    kw.value.value
+                    for kw in node.keywords
+                    if kw.arg == "error_type" and isinstance(kw.value, ast.Constant)
+                }
+    assert error_type in literals, f"no skip records error_type={error_type!r} any more"
 
 
 def test_the_recorder_itself_keys_on_the_canonical_episode_id():

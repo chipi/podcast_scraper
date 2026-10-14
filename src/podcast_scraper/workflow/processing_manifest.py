@@ -352,6 +352,19 @@ def _load(path: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def read_stage(
+    effective_output_dir: str, rel_transcript_path: str, stage: str
+) -> Optional[Dict[str, Any]]:
+    """The manifest's current ``stages[stage]`` block, or ``None`` when there is no such block.
+
+    For a stage that PATCHES its block: it starts from what is recorded and changes only what it
+    measured, so a field it does not own survives instead of being rebuilt from a partial result.
+    """
+    data = _load(manifest_path(effective_output_dir, rel_transcript_path))
+    block = (data or {}).get("stages", {}).get(stage)
+    return dict(block) if isinstance(block, dict) else None
+
+
 def _init_manifest(
     episode_id: Optional[str], feed_id: Optional[str], run_id: Optional[str]
 ) -> Dict[str, Any]:
@@ -379,11 +392,16 @@ def update_stage(
     feed_id: Optional[str] = None,
     run_id: Optional[str] = None,
     quality_flags: Sequence[str] = (),
+    drop_flags: Sequence[str] = (),
 ) -> Optional[str]:
     """Read-modify-write the episode manifest: set ``stages[stage]``, merge flags, roll up cost.
 
     Called by the stage that produced ``block`` (stage ownership). Never raises into the pipeline —
     a manifest write failing must not lose the episode. Returns the path written, or ``None``.
+
+    Flags are MERGED add-only, which is right for a stage that re-measures its own episode from
+    scratch and wrong for one that REPAIRS a finding: a flag that was true before the repair would
+    stay on the episode for good. ``drop_flags`` removes those, after ``quality_flags`` is merged.
     """
     if not rel_transcript_path or not stage:
         return None
@@ -409,6 +427,8 @@ def update_stage(
                 if flag not in QUALITY_FLAGS:
                     logger.debug("processing_manifest: out-of-vocab quality flag %r", flag)
                 existing.append(flag)
+    if drop_flags:
+        data["quality_flags"] = [f for f in data.get("quality_flags", []) if f not in drop_flags]
     data["cost_usd_total"] = _sum_cost(stages)
     data["pipeline_composition_version"] = pipeline_composition_version(stages.keys())
     data["updated_at"] = _utcnow()

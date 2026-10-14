@@ -75,13 +75,19 @@ class TestTheStageExists:
 
     def test_it_counts_as_asking_for_reprocessing(self) -> None:
         """Otherwise `processing.py`'s "you asked to reprocess and nothing was downloadable"
-        warning would never fire for this mode."""
+        warning would never fire for this mode.
+
+        That warning asks ``config.STAGES_REUSING_ON_DISK_ARTIFACTS`` rather than keeping a list of
+        its own (the hard-coded copy had already missed a stage once), so the stage is a member of
+        that set and the warning reads that set.
+        """
         from pathlib import Path as _P
 
         src = (
             _P(__file__).resolve().parents[4] / "src/podcast_scraper/workflow/stages/processing.py"
         ).read_text(encoding="utf-8")
-        assert '"translate_only",' in src
+        assert "config.STAGES_REUSING_ON_DISK_ARTIFACTS" in src
+        assert "translate_only" in config.STAGES_REUSING_ON_DISK_ARTIFACTS
 
 
 class TestItDownloadsNoAudio:

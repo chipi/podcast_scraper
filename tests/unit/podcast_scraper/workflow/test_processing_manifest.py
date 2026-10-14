@@ -141,6 +141,53 @@ class TestProcessingManifestModule(unittest.TestCase):
         data = json.load(open(pm.manifest_path(d, rel)))
         self.assertEqual(data["quality_flags"], ["asr_failover"])  # no dup
 
+    def test_drop_flags_removes_a_flag_a_repair_made_false_and_keeps_the_others(self):
+        """Flags merge add-only, so a repaired finding stayed on the episode for good."""
+        d, rel = self._tmp()
+        pm.update_stage(
+            d,
+            rel,
+            "asr",
+            pm.stage_block(ran=True),
+            quality_flags=["asr_partly_unpunctuated", "asr_failover"],
+        )
+        pm.update_stage(
+            d,
+            rel,
+            "asr",
+            pm.stage_block(ran=True),
+            quality_flags=["asr_punctuation_repaired"],
+            drop_flags=["asr_partly_unpunctuated", "never_there"],
+        )
+        data = json.load(open(pm.manifest_path(d, rel)))
+        self.assertEqual(data["quality_flags"], ["asr_failover", "asr_punctuation_repaired"])
+
+    def test_a_flag_both_added_and_dropped_in_one_write_is_dropped(self):
+        d, rel = self._tmp()
+        pm.update_stage(
+            d,
+            rel,
+            "asr",
+            pm.stage_block(ran=True),
+            quality_flags=["asr_failover"],
+            drop_flags=["asr_failover"],
+        )
+        self.assertEqual(json.load(open(pm.manifest_path(d, rel)))["quality_flags"], [])
+
+    def test_read_stage_returns_a_copy_of_the_recorded_block_or_none(self):
+        d, rel = self._tmp()
+        self.assertIsNone(pm.read_stage(d, rel, "asr"), "no manifest at all")
+        pm.update_stage(d, rel, "naming", pm.stage_block(ran=True, method_version="naming-4"))
+        self.assertIsNone(pm.read_stage(d, rel, "asr"), "a manifest without that stage")
+        pm.update_stage(
+            d, rel, "asr", pm.stage_block(ran=True, model="turbo", metrics={"speech_coverage": 0.9})
+        )
+        block = pm.read_stage(d, rel, "asr")
+        assert block is not None
+        self.assertEqual((block["model"], block["metrics"]), ("turbo", {"speech_coverage": 0.9}))
+        block["model"] = "mutated"
+        self.assertEqual(pm.read_stage(d, rel, "asr")["model"], "turbo")  # type: ignore[index]
+
     def test_no_rel_path_is_noop(self):
         self.assertIsNone(pm.update_stage("/out", "", "asr", pm.stage_block(ran=True)))
 

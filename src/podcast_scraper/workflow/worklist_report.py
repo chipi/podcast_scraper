@@ -38,6 +38,10 @@ class WorklistReport:
     requested: Set[str] = field(default_factory=set)
     matched: Set[str] = field(default_factory=set)
     completed: Set[str] = field(default_factory=set)
+    # Requested episodes that needed nothing: counted as completed (the request was met) but said
+    # apart, because "repaired 5/5" over a corpus the stage did not touch is the overstatement this
+    # module exists to avoid. Always a subset of ``completed``.
+    already_right: Set[str] = field(default_factory=set)
     # 2026-08-28: "NOT FOUND in any feed's corpus" was claimed even when the batch halted
     # (cost cap) before some feeds ever ran selection — an episode in an unsearched feed is
     # not absent, it is unsearched. The batch driver declares how many feeds it PLANS; each
@@ -96,6 +100,20 @@ class WorklistReport:
                 if key and key in self.requested:
                     self.completed.add(key)
 
+    def mark_already_right(self, episode_id: Optional[str], guid: Optional[str] = None) -> None:
+        """Record that a requested episode needed no work: complete, but not repaired.
+
+        For a reprocess whose goal state may already hold (``repunctuate_only`` on an episode with
+        no unpunctuated window). Without it a repeat of a finished repair would read "repaired 0/N"
+        and fail the run, which is wrong: nothing is left unrepaired.
+        """
+        with self._lock:
+            for candidate in (episode_id, guid):
+                key = str(candidate or "").strip()
+                if key and key in self.requested:
+                    self.completed.add(key)
+                    self.already_right.add(key)
+
     @property
     def active(self) -> bool:
         """True only when this run was given a work-list; otherwise there is nothing to report."""
@@ -147,6 +165,8 @@ class WorklistReport:
             total = len(self.requested)
             done = len(self.completed)
             line = f"work-list: repaired {done}/{total}"
+            if self.already_right:
+                line += f" ({len(self.already_right)} of them already right, nothing to repair)"
             unmatched = sorted(self.requested - self.matched)
             incomplete = sorted(self.matched - self.completed)
             if unmatched:
@@ -183,6 +203,7 @@ class WorklistReport:
                 "requested": len(self.requested),
                 "matched": len(self.matched),
                 "completed": len(self.completed),
+                "already_right": len(self.already_right),
                 "unmatched_ids": sorted(self.requested - self.matched),
                 "incomplete_ids": sorted(self.matched - self.completed),
                 "feeds_planned": self.feeds_planned,
