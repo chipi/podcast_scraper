@@ -111,45 +111,52 @@ def test_wrap_with_current_context_propagates_span_into_worker_thread(monkeypatc
     assert wrapped == expected  # wrapper restored it (the fix)
 
 
+class _FakeLoggingInstrumentor:
+    """Stands in for opentelemetry's LoggingInstrumentor (unit tests use [dev] extras only)."""
+
+    instrumented = False
+    calls: list = []
+
+    @property
+    def is_instrumented_by_opentelemetry(self):
+        return type(self).instrumented
+
+    def instrument(self, **kw):
+        type(self).calls.append(kw)
+        type(self).instrumented = True
+
+
+def _fake_logging_module(monkeypatch, instrumented=False):
+    import sys
+    import types
+
+    _FakeLoggingInstrumentor.instrumented = instrumented
+    _FakeLoggingInstrumentor.calls = []
+    mod = types.ModuleType("opentelemetry.instrumentation.logging")
+    mod.LoggingInstrumentor = _FakeLoggingInstrumentor
+    monkeypatch.setitem(sys.modules, "opentelemetry.instrumentation.logging", mod)
+
+
 def test_log_correlation_off_leaves_logging_alone(monkeypatch):
-    li = pytest.importorskip("opentelemetry.instrumentation.logging")
     m = _fresh(monkeypatch)
     monkeypatch.delenv("OTEL_PYTHON_LOG_CORRELATION", raising=False)
-    inst = li.LoggingInstrumentor()
-    was = inst.is_instrumented_by_opentelemetry
+    _fake_logging_module(monkeypatch)
     m._instrument_logging()
-    assert inst.is_instrumented_by_opentelemetry == was
+    assert _FakeLoggingInstrumentor.calls == []
 
 
-def test_log_correlation_puts_trace_id_on_records(monkeypatch):
+def test_log_correlation_on_instruments_logging_with_trace_format(monkeypatch):
     # player-mcp starts without the opentelemetry-instrument launcher; with the env flag set,
-    # init_otel's logging step must still stamp the active trace id on log records.
-    import logging
-
-    li = pytest.importorskip("opentelemetry.instrumentation.logging")
-    sdk_trace = pytest.importorskip("opentelemetry.sdk.trace")
+    # init_otel's logging step must instrument logging itself (trace_id/span_id in the format).
     m = _fresh(monkeypatch, OTEL_PYTHON_LOG_CORRELATION="true")
-    inst = li.LoggingInstrumentor()
-    if inst.is_instrumented_by_opentelemetry:
-        inst.uninstrument()
-    try:
-        m._instrument_logging()
-        assert inst.is_instrumented_by_opentelemetry
-        tracer = sdk_trace.TracerProvider().get_tracer("test")
-        seen = []
+    _fake_logging_module(monkeypatch)
+    m._instrument_logging()
+    assert _FakeLoggingInstrumentor.calls == [{"set_logging_format": True}]
 
-        class _Grab(logging.Handler):
-            def emit(self, record):
-                seen.append(record)
 
-        log = logging.getLogger("otel-correlation-test")
-        log.addHandler(_Grab())
-        log.setLevel(logging.INFO)
-        with tracer.start_as_current_span("s") as span:
-            log.info("inside")
-        want = format(span.get_span_context().trace_id, "032x")
-        assert seen and seen[-1].otelTraceID == want
-        m._instrument_logging()  # second call is a quiet no-op
-        assert inst.is_instrumented_by_opentelemetry
-    finally:
-        inst.uninstrument()
+def test_log_correlation_skipped_when_launcher_already_did_it(monkeypatch):
+    # api/pipeline: the launcher instrumented logging first; a second instrument() only warns.
+    m = _fresh(monkeypatch, OTEL_PYTHON_LOG_CORRELATION="true")
+    _fake_logging_module(monkeypatch, instrumented=True)
+    m._instrument_logging()
+    assert _FakeLoggingInstrumentor.calls == []
