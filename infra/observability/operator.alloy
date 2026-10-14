@@ -74,7 +74,7 @@ loki.source.docker "podcast" {
 // Prometheus scrapes hit these every few seconds). Matches only 2xx (`" 2`), so a FAILING
 // health check (4xx/5xx) is still kept as a signal.
 loki.process "podcast_denoise" {
-	forward_to = [loki.write.logs_sink.receiver]
+	forward_to = [loki.relabel.naming.receiver]
 
 	stage.drop {
 		expression          = "\"(GET|HEAD) /(api/(app/)?)?(health|metrics) HTTP/1[^\"]*\" 2"
