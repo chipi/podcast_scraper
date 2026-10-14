@@ -19,11 +19,14 @@ from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, um
 # OTEL_SERVICE_NAME; 33.9k spans in 7 days, 2026-10-14) and in dev (init_otel's default) —
 # "pipeline" was the old dev-only name and found no prod run. A surface with no HTTP metrics
 # (the pipeline subprocess) has job=None.
+# ``logs`` is the surface's LogsQL selector. The log label ``surface`` is a sub-part of an app
+# (api/mcp/app/obs/pipeline/web, LOG-STANDARD), so the MCP surface name is not a log filter:
+# ``surface:player`` matched nothing and ``surface:api`` mixed the podcast and player APIs.
 _SURFACE: dict[str, dict[str, str | None]] = {
-    "api": {"job": "api", "trace": "podcast-api"},
-    "pipeline": {"job": None, "trace": "podcast-pipeline"},
-    "player": {"job": "player", "trace": "player-api"},
-    "operator": {"job": "operator", "trace": "operator-public-api"},
+    "api": {"job": "api", "trace": "podcast-api", "logs": "app:podcast AND surface:api"},
+    "pipeline": {"job": None, "trace": "podcast-pipeline", "logs": "surface:pipeline"},
+    "player": {"job": "player", "trace": "player-api", "logs": "app:player"},
+    "operator": {"job": "operator", "trace": "operator-public-api", "logs": "app:operator"},
 }
 
 # (label, probe) — each probe takes a TargetConfig and returns a result envelope.
@@ -116,7 +119,12 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
     probes: dict[str, Callable[[], dict]] = {
         "errors": lambda: sentry.recent_errors(target, window=window, limit=10),
         "logs": lambda: victoria.recent_logs(
-            target, surface=name, level="error", window=window, limit=20
+            target,
+            surface=name,
+            selector=mapping.get("logs"),
+            level="error",
+            window=window,
+            limit=20,
         ),
         "traces": lambda: victoria.traces_recent(target, trace_service, window=window, limit=10),
     }

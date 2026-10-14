@@ -91,3 +91,29 @@ def test_investigate_by_run_id_includes_pipeline_stage(monkeypatch) -> None:
     assert "pipeline_stage" in r["data"]["signals"]
     assert "trace" in r["data"]["signals"] and "cost" in r["data"]["signals"]
     assert "errors" in r["data"]["signals"] and "logs" in r["data"]["signals"]
+
+
+def test_surface_logs_use_the_surfaces_own_log_selector(monkeypatch) -> None:
+    # The log label `surface` is a sub-part (api/mcp/app/obs/pipeline/web), not the MCP surface:
+    # `surface:player` / `surface:operator` matched nothing and `surface:api` mixed both APIs
+    # (prod, 2026-10-14: player and operator logs read 0 while player-api logs ~15k/day).
+    seen = {}
+
+    def _logs(target, **kw):
+        seen[kw.get("selector")] = kw
+        return ok("logs", {"count": 0})
+
+    for fn in ("red_metrics", "traces_recent", "events"):
+        monkeypatch.setattr(aggregate.victoria, fn, _ok(fn))
+    monkeypatch.setattr(aggregate.victoria, "recent_logs", _logs)
+    monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))
+    for fn in ("events", "stats", "active"):
+        monkeypatch.setattr(aggregate.umami, fn, _ok(f"umami_{fn}"))
+    for name in ("api", "pipeline", "player", "operator"):
+        aggregate.surface(_t(), name)
+    assert set(seen) == {
+        "app:podcast AND surface:api",
+        "surface:pipeline",
+        "app:player",
+        "app:operator",
+    }

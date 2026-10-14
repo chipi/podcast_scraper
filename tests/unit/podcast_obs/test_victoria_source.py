@@ -203,3 +203,16 @@ def test_env_populates_victoria_and_sentry_url(monkeypatch) -> None:
     assert t.victoriametrics_url == "http://h/victoriametrics_url"
     assert t.victoriatraces_url == "http://h/victoriatraces_url"
     assert t.sentry_url == "http://h/sentry_url"
+
+
+def test_recent_logs_selector_replaces_the_surface_filter(monkeypatch) -> None:
+    seen = {}
+
+    def _fake(url, **kw):
+        seen["query"] = kw["params"]["query"]
+        return []
+
+    monkeypatch.setattr(victoria, "get_ndjson", _fake)
+    victoria.recent_logs(_t(victorialogs_url="http://h:9428"), selector="app:player", level="error")
+    assert "(app:player)" in seen["query"]
+    assert "surface:" not in seen["query"]
