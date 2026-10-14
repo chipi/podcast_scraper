@@ -125,6 +125,14 @@ loki.process "podcast_denoise" {
 		drop_counter_reason = "healthcheck_noise"
 	}
 
+	// The viewer's own container healthcheck (nginx: `127.0.0.1 … "GET / HTTP/1.1" 200 … "Wget"`,
+	// every 30 s) was ~99% of compose-viewer-1's shipped lines (5,752/day, 2026-10-14). Only a
+	// local Wget GET / that succeeded: real traffic comes through Caddy, a failing check is kept.
+	stage.drop {
+		expression          = "^127\\.0\\.0\\.1 - - \\[[^]]+\\] \"GET / HTTP/1\\.1\" 200 .*\"Wget\""
+		drop_counter_reason = "healthcheck_noise"
+	}
+
 	// homelab log standard (agentic-ai-homelab/infra/observability/LOG-STANDARD.md):
 	// extract the 32-hex trace id (trace_id=<id>, "trace_id":"<id>", trace=<id>, traceparent,
 	// sentry-trace — every shape the apps write; same pattern as Grafana's derived field) into
