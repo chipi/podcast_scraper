@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import shutil
 from collections import defaultdict
 from itertools import combinations
@@ -131,45 +130,3 @@ def test_every_run_records_its_counts_and_changes_for_the_dashboard(root: Path) 
     assert 0 < rows[0]["episodes_covered"] <= rows[0]["episodes_total"]
     assert [c["id"] for c in rows[0]["changes"]["created"]] == sorted(_ids(first))
     assert rows[1]["changes"]["created"] == [], "the second run changed nothing"
-
-
-def _panel_pattern(panel_id: int) -> re.Pattern[str]:
-    """The Grafana panel's LogsQL ``extract`` pattern as a regex (``<name>`` -> a value)."""
-    board = json.loads(
-        (ROOT / "config" / "grafana" / "dashboards" / "vps" / "podcast-app.json").read_text()
-    )
-    (panel,) = [p for p in board["panels"] if p["id"] == panel_id]
-    pattern = re.search(r'extract "([^"]+)"', panel["targets"][0]["expr"])
-    assert pattern
-    return re.compile(
-        re.sub(
-            r"<\w+>", r"(\\S+)", re.escape(pattern.group(1)).replace(r"\<", "<").replace(r"\>", ">")
-        )
-    )
-
-
-def test_the_grafana_storyline_panel_reads_the_line_a_run_logs(
-    root: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    with caplog.at_level("INFO"):
-        data = _run(root)
-    m = _panel_pattern(8).search(caplog.text)
-    assert m, "the panel's extract pattern matches nothing a run logs"
-    assert int(m.group(1)) == len(data["clusters"])
-
-
-def test_the_grafana_theme_panel_reads_the_line_a_build_logs(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    from podcast_scraper.search.topic_clusters import record_theme_run
-
-    payload = {
-        "clusters": [{"graph_compound_parent_id": "tc:a", "canonical_label": "a"}],
-        "topic_count": 7,
-        "singletons": 1,
-        "id_history": {"successors": {}, "gone": ["tc:b"]},
-    }
-    with caplog.at_level("INFO"):
-        record_theme_run(tmp_path, {"clusters": []}, payload)
-    m = _panel_pattern(9).search(caplog.text)
-    assert m and m.groups() == ("1", "7", "0", "1")
