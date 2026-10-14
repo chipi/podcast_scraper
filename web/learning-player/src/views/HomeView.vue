@@ -255,8 +255,8 @@ const whatsNewKicker = computed(() => {
     : scope
 })
 const resumeTop = computed(() => continueItems.value[0] ?? null)
-// "Jump back in" (H.5): every OTHER in-progress listen beyond the resume hero, so multiple active
-// episodes are all reachable (cap a handful for the rail).
+// Every OTHER in-progress listen beyond the resume hero, for "In progress" (H.5, folded into it
+// 2026-10-14), so multiple active episodes are all reachable (cap a handful for the rail).
 const jumpBackIn = computed(() => continueItems.value.slice(1, 8))
 const resumeArt = episodeArtwork
 const epArt = episodeArtwork
@@ -396,9 +396,6 @@ async function loadContinue(): Promise<void> {
          and silently blank the resume hero, so a user mid-episode lost their place (#1591, S7); it
          now shows the error skeleton below instead. (The old "discover hero" fallback in this slot
          was removed when search moved down — H.3; the top is resume-or-error now.) -->
-    <!-- The door into what was started (operator 2026-10-11): Learn paths and the last unfinished
-         short listen, above Continue listening. -->
-    <InProgressStrip v-if="auth.isAuthenticated" />
     <SectionStatus
       v-if="auth.isAuthenticated && !continueSection.isReady.value"
       :phase="continueSection.phase.value"
@@ -465,7 +462,7 @@ async function loadContinue(): Promise<void> {
             ▶ {{ t("home.resume") }}
           </RouterLink>
           <!-- Mark as played, beside Resume in the same style (operator 2026-10-14): heard enough, or
-               heard it elsewhere. It leaves this card and Jump back in at once (`continueItems`
+               heard it elsewhere. It leaves this card and In progress at once (`continueItems`
                filters on `isPlayed`), the queue too, and the server's in-progress list. -->
           <button
             type="button"
@@ -479,6 +476,10 @@ async function loadContinue(): Promise<void> {
         </div>
       </div>
     </div>
+    <!-- One "In progress" for everything started (operator 2026-10-14), under Continue listening:
+         Learn paths, the last unfinished short listen, then every OTHER episode partway through —
+         "Jump back in" folded in. Two sections had grown from two features built apart. -->
+    <InProgressStrip v-if="auth.isAuthenticated" :episodes="jumpBackIn" />
     <!-- The "Ask across every episode" title + the search box + its topic chips are ONE unit and
          moved together, LOWER on the page (H.3) — see the Search section below Your Week. The top of
          Home is now the resume hero (when resuming) then Jump-back-in + the trending rails (H.4). -->
@@ -512,29 +513,6 @@ async function loadContinue(): Promise<void> {
          reports the state is the one being unmounted). It TEACHES IN ONE LINE instead, exactly as
          the set-your-interests offer above it does since #1964: an explanation is a line, not an
          announcement. Populated, it renders in full as before. -->
-    <!-- Jump back in (H.5): every OTHER in-progress listen beyond the resume hero, so more than one
-         active episode is reachable, not just the most recent. -->
-    <!-- Kicker carries the QUANTITY, title says what the section is (operator 2026-09-18).
-         A kicker that names the category ("IN PROGRESS" over "Jump back in") says the same thing
-         twice, which is the redundancy the ask block had. A number does not. -->
-    <section v-if="jumpBackIn.length" class="mt-7" data-testid="home-jump-back-in">
-      <SectionHeading
-        :title="t('home.jumpBackIn')"
-        :kicker="t('home.jumpBackInCount', jumpBackIn.length, { named: { count: jumpBackIn.length } })"
-      />
-      <!-- The standard rail and the standard episode tile (operator 2026-10-05: every rail looks the
-           same on every page). This was the one episode rail that hand-rolled its tile — square art,
-           2-line title, show name UNDER the title, no actions — and drifted from every other rail. -->
-      <CardRail>
-        <li v-for="it in jumpBackIn" :key="it.detail.slug" class="lp-rail-item">
-          <EpisodeTile
-            :episode="it.detail"
-            :progress="it.position / (it.detail.duration_seconds || 1)"
-            mark-played
-          />
-        </li>
-      </CardRail>
-    </section>
 
     <!-- Your Week — the personal digest LEADS the content, right under Continue / Jump-back-in
          (operator review): the forward-looking "what to play next" is the reason to open Home.

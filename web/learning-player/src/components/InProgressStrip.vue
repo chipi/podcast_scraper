@@ -16,8 +16,16 @@ import { track } from '../services/analytics'
 import { learnDayRoute } from '../services/learnPlay'
 import { episodeArtwork } from '../utils/episode'
 import CalendarMark from './CalendarMark.vue'
+import EpisodeActions from './EpisodeActions.vue'
 import { formatTime } from '../player/transcriptSync'
+import type { EpisodeDetail } from '../services/types'
 
+/** The episodes the listener is partway through, beyond Continue listening's hero, most recent
+ *  first (operator 2026-10-14: one "In progress" for everything started; "Jump back in" folded in).
+ *  Home owns them — they are its continue list — and a "Mark as played" takes one out at once. */
+const props = withDefaults(defineProps<{ episodes?: { detail: EpisodeDetail; position: number }[] }>(), {
+  episodes: () => [],
+})
 const { t } = useI18n()
 const paths = ref<LearningPath[]>([])
 const reel = ref<ReelProgress | null>(null)
@@ -65,6 +73,20 @@ const cards = computed(() =>
   }),
 )
 const reelArt = computed(() => (reel.value?.episode ? episodeArtwork(reel.value.episode) : null))
+const episodeCards = computed(() =>
+  props.episodes.map(({ detail, position }) => {
+    const total = detail.duration_seconds || 0
+    return {
+      slug: detail.slug,
+      title: detail.title,
+      show: detail.podcast_title ?? '',
+      moments: !!detail.has_moments,
+      art: episodeArtwork(detail),
+      pct: total > 0 ? Math.min(100, Math.round((position / total) * 100)) : 0,
+      minutesLeft: total > 0 ? Math.max(1, Math.round((total - position) / 60)) : 0,
+    }
+  }),
+)
 const reelPct = computed(() =>
   reel.value ? Math.round((100 * reel.value.index) / Math.max(1, reel.value.clips)) : 0,
 )
@@ -94,10 +116,10 @@ async function openNext(path: LearningPath): Promise<void> {
 </script>
 
 <template>
-  <section v-if="cards.length || reel" class="mb-8" data-testid="home-in-progress">
+  <section v-if="cards.length || reel || episodes.length" class="mt-7" data-testid="home-in-progress">
     <div class="mb-3 flex items-baseline justify-between gap-3">
       <h2 class="lp-section">{{ t('inProgress.title') }}</h2>
-      <span class="font-mono text-xs tabular-nums text-muted">{{ cards.length + (reel ? 1 : 0) }}</span>
+      <span class="font-mono text-xs tabular-nums text-muted">{{ cards.length + (reel ? 1 : 0) + episodes.length }}</span>
     </div>
     <!-- A swipe of cards on a phone, a grid from md: each card is the door back into one thing. -->
     <ul class="lp-rail flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-3">
@@ -188,6 +210,42 @@ async function openNext(path: LearningPath): Promise<void> {
                 data-testid="in-progress-reel-resume"
                 @click="track('reel_open', { source: 'in_progress', kind: reel.subject_kind })"
               >▶ {{ t('inProgress.resume') }} · {{ t('inProgress.clipN', { n: reel.index + 1 }) }}</RouterLink>
+            </div>
+          </div>
+        </article>
+      </li>
+      <!-- Episodes partway through, after the paths and the short listen (operator 2026-10-14): the
+           same card, its show over its title, how far, Resume, and ⋯ with Mark as played. -->
+      <li v-for="e in episodeCards" :key="e.slug" class="w-[84%] shrink-0 snap-start md:w-auto">
+        <article
+          class="relative flex h-full flex-col overflow-hidden rounded-2xl border border-accent/30 bg-surface"
+          :data-slug="e.slug"
+          data-testid="in-progress-episode"
+        >
+          <img v-if="e.art" :src="e.art" alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
+          <div class="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/80 to-canvas/30" />
+          <div class="relative flex flex-1 flex-col p-4">
+            <div class="flex items-start justify-between gap-2">
+              <p class="min-w-0 truncate font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
+                {{ e.show }}
+              </p>
+              <EpisodeActions :slug="e.slug" :episode-title="e.title" :moments="e.moments" mark-played class="relative z-30 -mt-2 -mr-2" />
+            </div>
+            <RouterLink
+              :to="{ name: 'player', params: { slug: e.slug } }"
+              class="mt-1 line-clamp-2 font-display text-xl font-extrabold leading-tight tracking-tight text-canvas-foreground no-underline after:absolute after:inset-0"
+              data-testid="in-progress-episode-open"
+            >{{ e.title }}</RouterLink>
+            <p v-if="e.minutesLeft" class="mt-1 text-sm text-muted">{{ t('inProgress.minutesLeft', { n: e.minutesLeft }) }}</p>
+            <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-overlay" aria-hidden="true">
+              <div class="h-full rounded-full bg-accent" :style="{ width: `${e.pct}%` }" />
+            </div>
+            <div class="relative z-30 mt-auto flex items-center gap-3 pt-3">
+              <RouterLink
+                :to="{ name: 'player', params: { slug: e.slug }, query: { play: '1' } }"
+                class="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
+                data-testid="in-progress-episode-resume"
+              >▶ {{ t('inProgress.resume') }}</RouterLink>
             </div>
           </div>
         </article>

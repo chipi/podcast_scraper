@@ -126,13 +126,13 @@ test('started offline, finished back ONLINE: same answer', async ({ page, contex
     })
     .toContain(slug)
 
-  // It must also LEAVE "Jump back in": that rail is for episodes with something left to resume, and
-  // one that ran out has nothing. This was the visible half of the report.
+  // It must also LEAVE Home's In progress (Jump back in until 2026-10-14): that rail is for episodes
+  // with something left to resume, and one that ran out has nothing. The visible half of the report.
   await page.goto('/')
   await expect
     .poll(
-      () => page.locator(`[data-testid="home-jump-back-in"] a[href="/episode/${slug}"]`).count(),
-      { timeout: 20_000, message: 'a finished episode is still offered in Jump back in' },
+      () => page.locator(`[data-testid="in-progress-episode"][data-slug="${slug}"]`).count(),
+      { timeout: 20_000, message: 'a finished episode is still offered in In progress' },
     )
     .toBe(0)
 })

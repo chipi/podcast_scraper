@@ -765,17 +765,12 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     expect(recommendedSection, 'the grid rebuilt its own tile again').not.toMatch(/aspect-square/)
   })
 
-  it('Jump back in is the standard rail of the standard tile (operator 2026-10-05)', () => {
-    // It hand-rolled its own tile — 2-line title, show name UNDER the title, no actions — and was
-    // the one episode rail that looked different from every other.
-    const jump = homeViewSource.slice(
-      homeViewSource.indexOf("t('home.jumpBackIn')"),
-      homeViewSource.indexOf('</section>', homeViewSource.indexOf("t('home.jumpBackIn')")),
-    )
-    expect(jump).toMatch(/<CardRail>/)
-    expect(jump).toMatch(/class="lp-rail-item"/)
-    expect(jump).toMatch(/<EpisodeTile[\s\S]*:progress=/)
-    expect(jump, 'Jump back in rebuilt its own tile').not.toMatch(/aspect-square/)
+  it('one "In progress": the episodes beyond the hero are in it, not in a Jump back in (2026-10-14)', () => {
+    // Two sections had grown from two features built apart (operator 2026-10-14).
+    expect(homeViewSource).not.toMatch(/home-jump-back-in|t\(['"]home\.jumpBackIn['"]\)/)
+    expect(homeViewSource).toMatch(/<InProgressStrip[^>]*:episodes="jumpBackIn"/)
+    // Under Continue listening, not above it.
+    expect(homeViewSource.indexOf('<InProgressStrip')).toBeGreaterThan(homeViewSource.indexOf('data-testid="home-resume"'))
   })
 
   it('keeps the grid even — the cell-filling requirement moved to the tile, it did not lapse', () => {
@@ -1156,7 +1151,7 @@ describe('marking the resume episode played', () => {
     expect(wrapper.text(), 'the next in-progress one takes the card').toContain('Next In Line')
   })
 
-  it('a Jump back in tile offers it in its ⋯, and the tile leaves the rail at once', async () => {
+  it('an In progress episode offers it in its ⋯, and the card leaves the rail at once', async () => {
     signIn()
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
     vi.spyOn(api, 'getEpisode').mockImplementation(
@@ -1165,7 +1160,7 @@ describe('marking the resume episode played', () => {
     const mark = vi.spyOn(api, 'markCompleted').mockResolvedValue(['ep-2'] as never)
     const { wrapper } = mountReturnable()
     await flushPromises()
-    const rail = wrapper.get('[data-testid="home-jump-back-in"]')
+    const rail = wrapper.get('[data-testid="in-progress-episode"]')
     expect(rail.text()).toContain('Next In Line')
     await rail.get('[aria-haspopup="menu"]').trigger('click')
     await flushPromises()
@@ -1175,7 +1170,7 @@ describe('marking the resume episode played', () => {
     item!.click()
     await flushPromises()
     expect(mark).toHaveBeenCalledWith('ep-2')
-    expect(wrapper.find('[data-testid="home-jump-back-in"]').exists(), 'the rail kept it').toBe(false)
+    expect(wrapper.find('[data-testid="in-progress-episode"]').exists(), 'the rail kept it').toBe(false)
     expect(wrapper.text(), 'the resume card is untouched').toContain('Half Finished')
   })
 })

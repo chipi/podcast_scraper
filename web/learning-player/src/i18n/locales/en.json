@@ -74,8 +74,6 @@
     "collectionsCount": "1 board | {count} boards",
     "revisitMarkReviewed": "Mark as reviewed",
     "revisitMute": "Stop resurfacing this",
-    "jumpBackInCount": "1 in progress | {count} in progress",
-    "jumpBackIn": "Jump back in",
     "yourWeek": "Your week in review",
     "yourWeekCount": "1 this week | {count} this week",
     "yourWeekShowMore": "Show more",
@@ -1389,7 +1387,8 @@
     "reelKicker": "Short listen · clip {n} of {total}",
     "resume": "Resume",
     "clipN": "clip {n}",
-    "resumeLabel": "Resume {subject} at clip {n}"
+    "resumeLabel": "Resume {subject} at clip {n}",
+    "minutesLeft": "{n} min left"
   },
   "explore": {
     "title": "Explore",

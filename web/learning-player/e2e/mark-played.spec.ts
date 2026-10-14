@@ -4,7 +4,7 @@ import { signInIsolated } from './helpers'
 
 /**
  * "Mark as played" where things wait to be heard (operator 2026-10-14): beside Resume on Continue
- * listening, in the ⋯ of a Jump back in tile, and in the ⋯ of an Up next card. Marking takes the
+ * listening, in the ⋯ of an In progress episode card (Jump back in until 2026-10-14), and in the ⋯ of an Up next card. Marking takes the
  * episode out of where it is at once, and out of the server's in-progress list and the queue, so a
  * reload agrees. Through the real app and API: positions and the queue are written over HTTP the
  * way the player writes them.
@@ -92,7 +92,7 @@ test('Continue listening: Mark as played beside Resume moves the card on, and a 
   await expect.poll(() => resumeSlug(page)).toBe(kept)
 })
 
-test('Jump back in: Mark as played in a tile ⋯ takes the tile out of the rail', async ({
+test('In progress: Mark as played in an episode card ⋯ takes the card out of the rail', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'mark-played-jump-back', testInfo)
@@ -102,8 +102,9 @@ test('Jump back in: Mark as played in a tile ⋯ takes the tile out of the rail'
   await expect.poll(() => resumeSlug(page)).toBe(second)
   const onCard = second!
 
-  const rail = page.getByTestId('home-jump-back-in')
-  await expect(rail).toBeVisible()
+  // "Jump back in" is folded into In progress (operator 2026-10-14): the other episode is a card there.
+  const rail = page.getByTestId('in-progress-episode')
+  await expect(rail).toHaveCount(1)
   await rail.getByRole('button', { name: /^More actions/ }).first().click()
   await page.getByTestId('episode-mark-played').click()
   await expect(rail).toHaveCount(0)
