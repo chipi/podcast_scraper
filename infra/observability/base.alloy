@@ -135,8 +135,10 @@ loki.source.file "app_events" {
   forward_to = [loki.write.logs_sink.receiver]
 }
 
-// ---------- LOGS: host journal (sshd / fail2ban — edge security) -> VictoriaLogs ----------
+// ---------- LOGS: host journal (sshd — edge security) -> VictoriaLogs ----------
 // Alloy runs with pid:host + /:/rootfs, so the persistent journal is visible.
+// fail2ban is NOT in the journal: Ubuntu's fail2ban logs to /var/log/fail2ban.log
+// (logtarget), so it has its own file source below.
 loki.relabel "journal" {
   forward_to = []
   rule {
@@ -155,6 +157,13 @@ loki.source.journal "security" {
 // ---------- LOGS: Caddy edge access log (T-11 security signal) -> VictoriaLogs ----------
 loki.source.file "caddy" {
   targets    = [{ __path__ = "/rootfs/var/log/caddy/access.log", job = "caddy" }]
+  forward_to = [loki.write.logs_sink.receiver]
+}
+
+// ---------- LOGS: fail2ban bans/unbans (edge security) -> VictoriaLogs ----------
+// The homelab "Edge Security" dashboard's fail2ban panel reads job=fail2ban.
+loki.source.file "fail2ban" {
+  targets    = [{ __path__ = "/rootfs/var/log/fail2ban.log", job = "fail2ban" }]
   forward_to = [loki.write.logs_sink.receiver]
 }
 
