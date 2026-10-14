@@ -125,12 +125,11 @@ public class AppJourneyTests extends UITestCase {
         // ("You") — empty for a fresh account. Switch to everyone's first (2026-10-07).
         Journey.showEveryonesTrends();
 
-        // Any topic row from the rail: the top Rising topics at the pinned trend date are the
-        // newest episode's own subjects (natural corpus, 2026-10-12 — "risk management" led only
-        // while it was stamped on every show).
-        boolean topicTapped = Journey.tap(
-                Arrays.asList("canonical labeling", "code switching", "coupling vs components"),
-                true, 12_000);
+        // The first Rising topic, whichever it is: a row reads "<topic> — N× momentum". Not named
+        // ones: everyone's trends blend in engagement, and the episodes earlier tests in the run
+        // open move which tied topics lead (2026-10-14: on iOS "canonical labeling" & co. fell from
+        // 6.0 to 5.1 once their episode had been opened, and the named tap found nothing).
+        boolean topicTapped = Journey.tap(Arrays.asList("× momentum"), true, 12_000);
         if (topicTapped) {
             Journey.sleep(5_000);
         } else {
