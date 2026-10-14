@@ -142,7 +142,9 @@ VPS (prod-podcast, tailnet)                 TLS nodes (caddy-tailscale)    homel
                                                                             Grafana :3000  (dashboards + Explore)
 ```
 
-> Traces (`:10428`) still go direct (no TLS node yet). The metrics/logs ingest URLs live in the
+> Traces go to the **`vtraces` tailnet TLS node** (deploy-*.yml `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`;
+> before 2026-10-14 `homelab:10428`, which is lima's ssh forwarder on the mini and hung 7 of 300
+> exports when probed — each a dropped span batch). The metrics/logs ingest URLs live in the
 > Alloy `REMOTE_WRITE_URL`/`LOGS_WRITE_URL` (GitOps'd by `deploy-vps-observability-endpoints.yml`);
 > the GlitchTip/Umami ingest is the player Caddy vhosts (`__TAILNET__` sed'd by `deploy-config.yml`).
 
@@ -176,13 +178,16 @@ Legend: ✅ live+verified · ❌ not flowing · — n/a.
 2. **Podcast Operator/Player → Overview** — which route? 5xx rate + p95 latency
    (`http_request_duration_seconds` by `handler`,`method`).
 3. **Explore → VictoriaTraces (Tempo)**, service `podcast-api` — open the slow/failing
-   span; from the span **→ logs** (tracesToLogsV2, G3a: the "Logs for this span" button runs
-   `${__trace.traceId}` against VictoriaLogs).
+   span; from the span **→ logs**: the span's **"Logs for this trace"** link (a Grafana
+   correlation, homelab `backend/grafana/correlations/`) runs a phrase search for the trace id
+   in VictoriaLogs.
 4. **GlitchTip** `:8090` (project `podcast` / `player`) — the exception + stacktrace.
 
 **Incident: a specific error (from GlitchTip)**
 
-- The GlitchTip event's `trace_id` tag → open that trace in VictoriaTraces → its logs.
+- The GlitchTip event's **`trace_id` tag** (the OTel id) → open that trace in VictoriaTraces →
+  its logs. Not `contexts.trace.trace_id`: that is the Sentry SDK's own id and is never in
+  VictoriaTraces.
 
 **Investigate a whole pipeline run**
 
@@ -191,12 +196,21 @@ Legend: ✅ live+verified · ❌ not flowing · — n/a.
 
 **The pivots (bidirectional where wired):**
 
-- **log → trace:** a log line with `trace=<hex>` / `"trace_id":"<hex>"` shows a **"View
-  trace"** link (VictoriaLogs `derivedFields`). *Live for pipeline logs; API access logs
-  don't carry a trace id yet — see gaps.*
-- **trace → logs:** the Tempo datasource `tracesToLogsV2` (G3a, added 2026-07-24). ✅
-- **error → trace:** Sentry `before_send` stamps `trace_id`.
-- **metric → trace:** ❌ no exemplars (gap).
+- **log → trace:** a line carrying the id as `trace=<hex>`, `trace_id=<hex>`,
+  `"trace_id":"<hex>"`, traceparent or sentry-trace shows a **"View trace"** link (VictoriaLogs
+  `derivedFields`, all five shapes since 2026-10-14). Pipeline lines and the api / player-api
+  access log carry one; player-mcp's own access log with the next deploy. On prod the
+  `trace_id` *field* is extracted by Alloy only from the next deploy (the old regex matched
+  none of these shapes).
+- **trace → logs:** the span's "Logs for this trace" correlation (verified 2026-10-14). The
+  Tempo datasource's `tracesToLogsV2` (G3a) never worked: Grafana 11.6 builds it only for Loki-
+  family datasources.
+- **trace → metrics:** span links "Request rate / p95 / 5xx (this service)".
+- **error → trace:** Sentry `before_send` stamps the OTel `trace_id` tag.
+- **metric → trace:** panel links on the Operator / Player overview and app dashboards' API
+  panels (VictoriaMetrics has no exemplars).
+- **LLM call → Langfuse:** gateway traces carry `session_id` = run id and `trace_metadata`
+  (run / episode / OTel trace id) from the next deploy.
 
 **Quick CLI checks (tailnet, run against `homelab`):**
 
@@ -381,8 +395,8 @@ crib's `docker exec glitchtip-postgres-1 psql … api_tokens_apitoken` read.
 - Backends: `infra/observability/docker-compose.yml` (VictoriaMetrics/Logs/Traces, Grafana,
   GlitchTip, cadvisor, alloy).
 - Grafana provisioning: `infra/observability/backend/grafana/provisioning/datasources/`
-  (`victorialogs.yml` = derivedFields log→trace; `victoriatraces.yml` = tracesToLogsV2
-  trace→logs [G3a]) + `…/dashboards/` (folders: Homelab, Production Infra, Podcast Operator,
+  (`victorialogs.yml` = derivedFields log→trace; `victoriatraces.yml` = tracesToMetrics;
+  trace→logs is a correlation in `backend/grafana/correlations/`) + `…/dashboards/` (folders: Homelab, Production Infra, Podcast Operator,
   Podcast Player, Orrery).
 - Homelab-node Alloy: `infra/observability/config.alloy` (host/GPU/vLLM metrics).
 

@@ -1,9 +1,12 @@
 # Observability correlation: traces ⇄ logs ⇄ metrics
 
 **Status:** In progress (reconstructed 2026-07-23). G0 + G1 + G4 implemented this-repo
-(held, pending a player deploy / main-image for G1); **G3a DONE** — `tracesToLogsV2`
-trace→logs applied on the homelab Grafana 2026-07-24 (pending the homelab-repo commit; the
-log→trace derivedField already existed). G5 + metric exemplars open. Live-state assessment:
+(held, pending a player deploy / main-image for G1). **G3a: corrected 2026-10-14** — the
+`tracesToLogsV2` applied 2026-07-24 never rendered (Grafana 11.6 builds it only for Loki-family
+datasources) and the derivedField regex matched none of the app's id shapes. Both are fixed in
+the homelab repo (derivedField reads all five shapes; trace→logs is a Grafana correlation;
+trace→metrics and metric→trace panel links added), verified in the browser. Metric exemplars:
+not possible (VictoriaMetrics has none). G5 open. Homelab plan: `agentic-ai-homelab/docs/wip/otel-pipeline-end-to-end.md`. Live-state assessment:
 `docs/guides/OBSERVABILITY_RUNBOOK.md`.
 **Owner:** Marko
 **Scope:** self-hosted o11y (VictoriaLogs + VictoriaTraces + VictoriaMetrics behind Grafana)
