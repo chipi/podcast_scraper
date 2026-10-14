@@ -80,6 +80,8 @@ from podcast_scraper.server.schemas import (
     AppInterestCluster,
     AppInterestClustersResponse,
     AppInterestSearchResponse,
+    AppLearningHistory,
+    AppLearningHistoryEntry,
     AppLearningPath,
     AppLearnResponse,
     AppLearnStart,
@@ -597,7 +599,13 @@ def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
         can_open_next=can_open_next(path, gone=gone),
         next_opens_at=next_opens_at(path),
         steps=steps,
+        finished_at=_epoch_or_none(path.get("finished_at")),
     )
+
+
+def _epoch_or_none(value: Any) -> int | None:
+    """An epoch-seconds field as stored, or None when it is not a number."""
+    return int(value) if isinstance(value, (int, float)) else None
 
 
 @router.get("/discover/learn", response_model=AppLearnResponse)
@@ -616,9 +624,12 @@ def app_discover_learn(
     data_dir = _data_dir(request)
     mine_paths = app_user_state.get_learning_paths(data_dir, user.user_id)
     paths = [_path_out(root, p) for p in mine_paths]
-    if len(mine_paths) >= MAX_PATHS:
+    # A finished path (on for its week) is not one being learned: it neither fills the cap nor
+    # keeps its subject from being offered again (operator 2026-10-14).
+    active = [p for p in mine_paths if app_user_state.learning_path_active(p)]
+    if len(active) >= MAX_PATHS:
         return AppLearnResponse(paths=paths, max_paths=MAX_PATHS)
-    learning = {str(p.get("subject_id")) for p in mine_paths}
+    learning = {str(p.get("subject_id")) for p in active}
     mine = scope == "mine"
     restrict = personal_entity_ids(root, data_dir, user.user_id) if mine else None
     # "Less like this" is the listener's, in either scope (operator 2026-10-11).
@@ -723,6 +734,35 @@ def _own_path(request: Request, user: User, subject_id: str) -> dict[str, Any]:
     if path is None:
         raise HTTPException(status_code=404, detail="No path on this.")
     return path
+
+
+@router.get("/discover/learn/history", response_model=AppLearningHistory)
+def app_learning_history(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppLearningHistory:
+    """Every path the listener has ended, the most recent first (operator 2026-10-14: finished
+    paths are kept as history). From the learning history, which records a path when its last
+    day is done or when it is left; no corpus read, so it stands when an episode has gone."""
+    out: list[AppLearningHistoryEntry] = []
+    for h in app_user_state.get_learning_history(_data_dir(request), user.user_id):
+        kind = h.get("subject_kind")
+        outcome = h.get("outcome")
+        if kind not in ("topic", "theme", "storyline") or outcome not in ("finished", "left"):
+            continue
+        out.append(
+            AppLearningHistoryEntry(
+                subject_id=str(h.get("subject_id") or ""),
+                subject_kind=kind,
+                subject_label=str(h.get("subject_label") or h.get("subject_id") or ""),
+                started_at=int(h.get("started_at") or 0),
+                ended_at=int(h.get("ended_at") or 0),
+                days=int(h.get("steps") or 0),
+                done=int(h.get("done") or 0),
+                outcome=outcome,
+            )
+        )
+    out.sort(key=lambda e: -e.ended_at)
+    return AppLearningHistory(paths=out)
 
 
 @router.get("/discover/learn/paths/{subject_id}", response_model=AppLearningPath)

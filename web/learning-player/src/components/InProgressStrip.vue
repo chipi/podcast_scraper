@@ -110,7 +110,13 @@ async function openNext(path: LearningPath): Promise<void> {
           <div class="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/80 to-canvas/30" />
           <div class="relative flex flex-1 flex-col p-4">
             <p class="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-learn">
-              <CalendarMark />{{ t('inProgress.learnKicker', { n: c.path.day, total: c.path.steps.length }) }}
+              <!-- A finished path stays here a week, saying so (operator 2026-10-14); then it is only
+                   in the learning history (Profile → Stats). -->
+              <CalendarMark />{{
+                c.finished
+                  ? t('inProgress.recentlyFinished')
+                  : t('inProgress.learnKicker', { n: c.path.day, total: c.path.steps.length })
+              }}
             </p>
             <RouterLink
               :to="{ name: 'learn', query: { subject: c.path.subject_id } }"

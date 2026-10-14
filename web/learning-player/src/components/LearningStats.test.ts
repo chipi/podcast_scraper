@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
@@ -48,5 +48,20 @@ describe('LearningStats (operator 2026-10-12)', () => {
     expect(w.find('[data-testid="stats-learning-path"]').exists()).toBe(false)
     // Only the counts that are not zero: no "0 left".
     expect(w.get('[data-testid="stats-learning-totals"]').text()).toBe('1 path finished · 7 learning days in all')
+  })
+
+  it('lists the paths finished, the most recent first, and not the ones left (2026-10-14)', async () => {
+    const api = await import('../services/api')
+    const spy = vi.spyOn(api, 'getLearningHistory').mockResolvedValue([
+      { subject_id: 'thc:a', subject_kind: 'storyline', subject_label: 'Managing risk', started_at: 1, ended_at: 1_790_000_000, days: 7, done: 7, outcome: 'finished' },
+      { subject_id: 'tc:b', subject_kind: 'theme', subject_label: 'reliability', started_at: 1, ended_at: 1_789_000_000, days: 7, done: 2, outcome: 'left' },
+    ])
+    const w = mountIt(stats({ paths_finished: 1, paths_left: 1, learning_days_total: 9 }))
+    await flushPromises()
+    const items = w.findAll('[data-testid="stats-learning-history-item"]')
+    expect(items).toHaveLength(1)
+    expect(items[0].text()).toContain('Storyline Managing risk')
+    expect(items[0].text()).toMatch(/7 days · [A-Z][a-z]{2} \d+/)
+    spy.mockRestore()
   })
 })

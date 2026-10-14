@@ -130,7 +130,9 @@ def _learning_and_moments(
                 "days": len(p.get("steps") or []),
                 "done": len(p.get("done") or []),
             }
+            # A finished path stays on for a week, but it is not being learned (2026-10-14).
             for p in paths
+            if app_user_state.learning_path_active(p)
         ],
         "learning_days_total": len(done),
         "learning_streak": _day_streak(done_days, today),

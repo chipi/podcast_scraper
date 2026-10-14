@@ -1229,12 +1229,39 @@ def remove_suggest_less(data_dir: Path, user_id: str, token: str) -> list[dict[s
 # subject, oldest first (``learning_paths.json``); and the last unfinished short listen.
 
 
-def get_learning_paths(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
-    """The listener's paths (``app_learning_path``), the oldest started first."""
+#: A finished path stays on (Home's "Recently finished", its week) this long, then leaves the
+#: listener's paths; the learning history keeps it (operator 2026-10-14).
+FINISHED_PATH_KEEP_S = 7 * 86_400
+
+
+def learning_path_retired(path: dict[str, Any], now: float | None = None) -> bool:
+    """Finished more than ``FINISHED_PATH_KEEP_S`` ago: no longer one of the listener's paths."""
+    finished = path.get("finished_at")
+    if not isinstance(finished, (int, float)):
+        return False
+    return (now if now is not None else time.time()) - finished > FINISHED_PATH_KEEP_S
+
+
+def learning_path_active(path: dict[str, Any]) -> bool:
+    """Not yet finished: counts toward the cap of paths at once."""
+    return not path.get("finished_at")
+
+
+def get_learning_paths(
+    data_dir: Path, user_id: str, now: float | None = None
+) -> list[dict[str, Any]]:
+    """The listener's paths (``app_learning_path``), the oldest started first: every unfinished one,
+    and a finished one for a week after its last day (it is in the learning history from then)."""
     data = _read(data_dir, user_id, "learning_paths", [])
     if not isinstance(data, list):
         return []
-    return [p for p in data if isinstance(p, dict) and isinstance(p.get("steps"), list)]
+    return [
+        p
+        for p in data
+        if isinstance(p, dict)
+        and isinstance(p.get("steps"), list)
+        and not learning_path_retired(p, now)
+    ]
 
 
 def get_learning_path(data_dir: Path, user_id: str, subject_id: str) -> dict[str, Any] | None:
@@ -1255,17 +1282,22 @@ def add_learning_path(
 ) -> dict[str, Any] | None:
     """Add ``path``; the path kept, or ``None`` at ``cap`` paths with nothing to ``replace``.
 
-    A subject already being learned keeps its path (starting it again changes nothing).
-    ``replace`` names a path to stop in the same write, so one at the cap can swap."""
+    A subject already being learned keeps its path (starting it again changes nothing); one
+    finished is started afresh (the finished one is in the learning history). ``replace`` names a
+    path to stop in the same write, so one at the cap can swap. Only unfinished paths count toward
+    ``cap``. Other rows are never rewritten here: a finished path past its week is only hidden on
+    read (``get_learning_paths``)."""
     with _user_lock(data_dir, user_id, "learning_paths"):
         paths = _rows_for_update(data_dir, user_id, "learning_paths")
         same = next((p for p in paths if p.get("subject_id") == path.get("subject_id")), None)
-        if same is not None:
+        if same is not None and learning_path_active(same):
             return same
+        # A finished path on the same subject is this subject's row: the new start replaces it.
+        paths = [p for p in paths if p is not same]
         replaced = [p for p in paths if replace and p.get("subject_id") == replace]
         if replace:
             paths = [p for p in paths if p.get("subject_id") != replace]
-        if len(paths) >= cap:
+        if sum(1 for p in paths if learning_path_active(p)) >= cap:
             return None
         _write(data_dir, user_id, "learning_paths", [*paths, path])
     # A path swapped out at the cap ended too: it goes to the history like one left.

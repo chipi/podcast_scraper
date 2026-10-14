@@ -150,10 +150,24 @@ GET    /api/app/discover/learn/paths/{subject_id}           → path (404: not l
 POST   /api/app/discover/learn/paths/{subject_id}/steps/{i}/done → path (409: not open yet)
 POST   /api/app/discover/learn/paths/{subject_id}/next      → path (409: newest open day not done)
 DELETE /api/app/discover/learn/paths/{subject_id}           → 204
+GET    /api/app/discover/learn/history → { paths: [{subject_id, kind, label, started_at, ended_at, days, done, outcome}] }
 PUT    /api/app/discover/reel/progress {subject_id, index, clips, minutes} → the place
 DELETE /api/app/discover/reel/progress?subject=             → 204 (finished or ✕; only that one)
 GET    /api/app/discover/in-progress   → { paths, reel: {subject, index, clips, episode, quote} | null }
 ```
+
+**Finished** (operator 2026-10-14): the last day done sets the path's `finished_at` and writes it to
+the learning history (`learning_history.json`, with paths left early). A finished path stays one of
+the listener's paths for a week (Home's card reads "Recently finished", the week says "All N days
+done ✓"), counts toward neither the cap nor what Discover stops offering, and starting its subject
+again starts afresh; a week after its last day only the history has it
+(`FINISHED_PATH_KEEP_S`, hidden on read; no other row is rewritten). Profile → Stats lists the
+finished paths from `GET /discover/learn/history` ("Paths you finished").
+
+A day's **Play** (operator 2026-10-14) opens `/episode/<slug>?learn=<subject>&day=<n>`: the day's
+clip plays as a one-clip reel and stops at its end; heard to the end (80% of it actually played) the
+app does the day through `…/steps/{i}/done`, and the end card offers Back to Learn or Keep listening.
+"Play all" on the week plays every day not done back to back, doing each and opening the next.
 
 **In progress** (operator 2026-10-11): Home's door into what was started reads
 `/discover/in-progress` — every path, and the last short listen left unfinished

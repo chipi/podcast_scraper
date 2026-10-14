@@ -1018,6 +1018,23 @@ export interface LearningPath {
   /** When the next day opens by itself (epoch seconds); null with every day open. */
   next_opens_at?: number | null
   steps: PathStep[]
+  /** When its last day was done (epoch seconds); null while unfinished. On for a week after. */
+  finished_at?: number | null
+}
+/** A path that ended: every day done, or left early (GET /discover/learn/history). */
+export interface LearningHistoryEntry {
+  subject_id: string
+  subject_kind: ReelKind
+  subject_label: string
+  started_at: number
+  ended_at: number
+  days: number
+  done: number
+  outcome: 'finished' | 'left'
+}
+/** Every path the listener has ended, the most recent first (operator 2026-10-14). */
+export async function getLearningHistory(): Promise<LearningHistoryEntry[]> {
+  return (await getJSON<{ paths: LearningHistoryEntry[] }>('/discover/learn/history')).paths ?? []
 }
 export interface LearnSubject {
   subject_id: string

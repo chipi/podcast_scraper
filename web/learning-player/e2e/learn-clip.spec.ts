@@ -70,6 +70,16 @@ test('"Play all" plays every day back to back and does each one', async ({ page 
   // The week shows it without a reload, and there is nothing left to play.
   await expect(page.getByTestId('learn-step-done-mark')).toHaveCount(4)
   await expect(page.getByTestId('learn-play-all')).toHaveCount(0)
+  await expect(page.getByTestId('learn-view-finished')).toHaveText('All 4 days done ✓')
+
+  // Finished (operator 2026-10-14): Home says so for the week after, and Stats keeps it as history.
+  await page.goto('/')
+  const card = page.getByTestId('in-progress-learn').filter({ hasText: 'Building trails that last' })
+  await expect(card).toContainText('Recently finished')
+  await page.goto('/profile?tab=stats')
+  await expect(page.getByTestId('stats-learning-history-item').filter({ hasText: 'Building trails that last' })).toContainText(
+    '4 days ·',
+  )
 })
 
 test('a stop in "Play all" leaves the week where it is; the next one starts at the first day not done', async ({ page }, testInfo) => {

@@ -135,7 +135,8 @@ def start_path(
     from podcast_scraper.server import app_user_state
 
     existing = app_user_state.get_learning_path(data_dir, user_id, subject_id)
-    if existing is not None:
+    # One finished is started afresh (operator 2026-10-14); it is in the learning history.
+    if existing is not None and app_user_state.learning_path_active(existing):
         return "ok", existing
     steps = build_path(root, subject_id, config)
     if not steps:

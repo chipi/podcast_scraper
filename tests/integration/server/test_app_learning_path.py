@@ -356,3 +356,76 @@ def test_the_offer_counts_the_days_the_path_has() -> None:
     steps = build_path(ROOT, "thc:second-order-effects")
     assert len(plan) == len(steps) == 7
     assert [e.slug for e in plan] == [s.episode_slug for s in steps]
+
+
+def _age_path(data_dir: Path, user_id: str, subject_id: str, **seconds_ago: int) -> None:
+    """Move a stored path's clock fields back, as if that much time had passed."""
+    now = int(time.time())
+    app_user_state._update_learning_path(
+        data_dir,
+        user_id,
+        subject_id,
+        lambda p: {**p, **{k: now - v for k, v in seconds_ago.items()}},
+    )
+
+
+def test_a_finished_path_stays_a_week_frees_its_place_and_is_kept_as_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Operator 2026-10-14: a path whose every day is done is finished. It stays on Home for a week
+    ("Recently finished"), no longer counts toward the three at once, can be started afresh, and is
+    kept as history; a week after its last day only the history has it."""
+    # What Discover offers is what is rising: pin the clock and the floor, as the offer test does.
+    monkeypatch.setenv("APP_TRENDING_NOW", "2026-07-20")
+    monkeypatch.setenv("APP_MOMENTUM_MIN_TOTAL", "1")
+    client, uid = _client(tmp_path)
+    sid = "thc:managing-risk"
+    assert client.post("/api/app/discover/learn", json={"subject_id": sid}).status_code == 200
+    _age_path(tmp_path, uid, sid, started_at=8 * _DAY)  # every day open
+    for i in range(7):
+        assert client.post(f"/api/app/discover/learn/paths/{sid}/steps/{i}/done").status_code == 200
+
+    path = client.get(f"/api/app/discover/learn/paths/{sid}").json()
+    assert isinstance(path["finished_at"], int)
+    on_home = client.get("/api/app/discover/in-progress").json()["paths"]
+    assert [(p["subject_id"], p["finished_at"] is not None) for p in on_home] == [(sid, True)]
+
+    # Not one being learned: three more fit beside it, and its subject is offered again.
+    offer = client.get("/api/app/discover/learn").json()
+    assert sid in {c["subject_id"] for c in offer["candidates"]}
+    for other in ("thc:second-order-effects", "tc:reliability", "tc:risk-management"):
+        r = client.post("/api/app/discover/learn", json={"subject_id": other})
+        assert r.status_code == 200, r.text
+
+    history = client.get("/api/app/discover/learn/history").json()["paths"]
+    assert [(h["subject_id"], h["outcome"], h["days"], h["done"]) for h in history] == [
+        (sid, "finished", 7, 7)
+    ]
+
+    # A week after its last day: off Home and the paths, still in the history.
+    _age_path(tmp_path, uid, sid, finished_at=8 * _DAY)
+    assert sid not in {
+        p["subject_id"] for p in client.get("/api/app/discover/in-progress").json()["paths"]
+    }
+    assert client.get(f"/api/app/discover/learn/paths/{sid}").status_code == 404
+    assert [
+        h["subject_id"] for h in client.get("/api/app/discover/learn/history").json()["paths"]
+    ] == [sid]
+
+
+def test_a_finished_path_is_started_afresh(tmp_path: Path) -> None:
+    client, uid = _client(tmp_path)
+    sid = "thc:managing-risk"
+    client.post("/api/app/discover/learn", json={"subject_id": sid})
+    _age_path(tmp_path, uid, sid, started_at=8 * _DAY)
+    for i in range(7):
+        client.post(f"/api/app/discover/learn/paths/{sid}/steps/{i}/done")
+    again = client.post("/api/app/discover/learn", json={"subject_id": sid}).json()
+    assert again["finished_at"] is None and not any(s["done"] for s in again["steps"])
+    assert again["day"] == 1
+    paths = client.get("/api/app/discover/learn").json()["paths"]
+    assert [p["subject_id"] for p in paths] == [sid]  # one row per subject, the new one
+    # The finished one stays in the history.
+    assert [
+        h["outcome"] for h in client.get("/api/app/discover/learn/history").json()["paths"]
+    ] == ["finished"]

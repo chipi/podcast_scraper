@@ -1286,6 +1286,11 @@ class AppLearningPath(BaseModel):
         "start); None with every day open.",
     )
     steps: list[AppPathStep] = Field(default_factory=list)
+    finished_at: int | None = Field(
+        default=None,
+        description="When its last day was done (epoch seconds); None while unfinished. A finished "
+        'path stays on for a week (Home\'s "Recently finished"), then only the history has it.',
+    )
 
 
 class AppLearnSubject(BaseModel):
@@ -1346,6 +1351,25 @@ class AppReelProgress(BaseModel):
     )
     speaker: str | None = None
     quote_text: str = ""
+
+
+class AppLearningHistoryEntry(BaseModel):
+    """One learning path that ended: finished (every day done) or left early."""
+
+    subject_id: str
+    subject_kind: Literal["topic", "theme", "storyline"]
+    subject_label: str
+    started_at: int = Field(description="When it started (epoch seconds).")
+    ended_at: int = Field(description="When its last day was done, or when it was left.")
+    days: int = Field(description="Days on the path.")
+    done: int = Field(description="Days done.")
+    outcome: Literal["finished", "left"]
+
+
+class AppLearningHistory(BaseModel):
+    """GET /discover/learn/history: every path that ended, the most recent first."""
+
+    paths: list[AppLearningHistoryEntry] = Field(default_factory=list)
 
 
 class AppInProgress(BaseModel):

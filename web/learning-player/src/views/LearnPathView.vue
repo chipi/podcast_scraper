@@ -163,7 +163,10 @@ function goBack(): void {
     <template v-if="path">
       <p class="lp-kicker mt-4">{{ t('learn.kicker') }}</p>
       <h1 class="font-display text-3xl font-extrabold tracking-tight" data-testid="learn-view-title">{{ path.subject_label }}</h1>
-      <p class="mt-1 text-sm text-muted">{{ t('learn.dayOf', { n: path.day, total: path.steps.length }) }}</p>
+      <p v-if="path.finished_at" class="mt-1 text-sm font-bold text-learn" data-testid="learn-view-finished">
+        {{ t('inProgress.finished', { total: path.steps.length }) }}
+      </p>
+      <p v-else class="mt-1 text-sm text-muted">{{ t('learn.dayOf', { n: path.day, total: path.steps.length }) }}</p>
       <!-- Play all (operator 2026-10-14): the days still to do, back to back. -->
       <div v-if="playingAll && playingDay" class="mt-4 flex flex-wrap items-center gap-3" data-testid="learn-play-all-live">
         <button
