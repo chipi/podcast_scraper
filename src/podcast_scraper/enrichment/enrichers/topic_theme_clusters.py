@@ -501,6 +501,7 @@ def _compute(
             m["lift_to_cluster"] = round(degree(ti, members), 4) if ti is not None else 0.0
     _save_registry_copy(corpus_root, registry, id_history)
     health = _registry_health(prior, clusters_out, id_history, source, len(proposals))
+    _record_run(corpus_root, prior, clusters_out, id_history, registry, health, n_eps)
     _assign_super_themes(clusters_out, cluster_member_sets, weight)
 
     # #1208 no-silent-fail contract (see grounding_rate / temporal_velocity), extended for #1929.
@@ -653,6 +654,67 @@ def _save_registry_copy(
         )
     except OSError as exc:
         _logger.error("storylines: could not write %s: %s", REGISTRY_COPY, exc)
+
+
+def _record_run(
+    corpus_root: Path,
+    prior: dict[str, Any],
+    storylines: list[dict[str, Any]],
+    id_history: dict[str, Any],
+    registry: dict[str, Any],
+    health: dict[str, Any],
+    episode_total: int,
+) -> None:
+    """One row in the clustering history (the viewer dashboard's chart and change list) and one
+    ``storylines.run`` event (Grafana): counts, health, coverage and this run's changes."""
+    from podcast_scraper.obs.events import emit_event
+    from podcast_scraper.search import clustering_history
+
+    covered = {e for c in storylines for m in c["members"] for e in m.get("episode_ids") or []}
+    counts = {
+        "storylines": health["storylines"],
+        "active": health["storylines"] - health["quiet"],
+        "quiet": health["quiet"],
+        "candidates": len(registry.get("candidates") or []),
+        "proposals": health["proposals"],
+        "shared_topics": health["shared_topics"],
+        "vanished": len(health["vanished"]),
+        "episodes_covered": len(covered),
+        "episodes_total": episode_total,
+    }
+    changed = clustering_history.changes(
+        prior.get("clusters") or [], storylines, prior.get("id_history"), id_history
+    )
+    clustering_history.append(
+        corpus_root,
+        {
+            "ts": _now(),
+            "kind": "storyline",
+            "source": health["source"],
+            "ok": health["ok"],
+            **counts,
+            "changes": changed,
+        },
+    )
+    fields: dict[str, Any] = {"source": health["source"], "ok": health["ok"], **counts}
+    fields.update({f"{k}_count": len(v) for k, v in changed.items()})
+    emit_event("storylines.run", **fields)
+    # The same counts as one plain line: an event from a one-off job container reaches
+    # VictoriaLogs as text with its JSON unparsed, and the Grafana panel extracts these instead.
+    _logger.info(
+        "storylines: run storylines=%d active=%d quiet=%d candidates=%d covered=%d total=%d "
+        "created=%d renamed=%d absorbed=%d gone=%d",
+        counts["storylines"],
+        counts["active"],
+        counts["quiet"],
+        counts["candidates"],
+        counts["episodes_covered"],
+        counts["episodes_total"],
+        len(changed["created"]),
+        len(changed["renamed"]),
+        len(changed["absorbed"]),
+        len(changed["gone"]),
+    )
 
 
 def _registry_health(

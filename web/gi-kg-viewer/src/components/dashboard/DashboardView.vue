@@ -22,6 +22,7 @@ import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicBriefingCards from './TopicBriefingCards.vue'
 import QueryActivityChart from './QueryActivityChart.vue'
 import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
+import ClusteringHealthCard from './ClusteringHealthCard.vue'
 import PipelineAdExcisionMetrics from './PipelineAdExcisionMetrics.vue'
 import PipelineCleanupMetrics from './PipelineCleanupMetrics.vue'
 import PipelineFeedHistoryGrid from './PipelineFeedHistoryGrid.vue'
@@ -422,6 +423,7 @@ function openLibraryFailures(): void {
           </div>
           <div class="xl:col-span-2"><TopicBriefingCards :digest="digestIntel" /></div>
           <div class="xl:col-span-2"><TopicClustersStatusBlock /></div>
+          <div class="xl:col-span-4"><ClusteringHealthCard /></div>
         </div>
       </section>
 

@@ -185,6 +185,49 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
 - `scripts/eval/replay_storylines.py` — the replay above, driving the production enricher (old
   rule: each month from scratch; new rule: each month reconciled against the previous one).
 
+### Watching storylines and themes over time (2026-10-14)
+
+Both artifacts are rewritten every run, so on their own they cannot say how storylines and themes
+moved. Each storyline run and each theme build now appends one row to
+`enrichments/clustering_history.jsonl` (counts, health, coverage, and the run's changes by id and
+name: created, renamed, went quiet, woke, absorbed, gone); the history seed writes the storyline
+rows before any run was recorded (`clustering_history.backfill.jsonl`, one per replayed month).
+
+- **Viewer dashboard**, Intelligence tab: the **Storylines & themes** card
+  (`GET /api/corpus/clustering/health`) — counts, the share of episodes in a storyline, registry
+  health and source, the seed's state, a chart of each over time, the last run's changes by name,
+  and the actions: re-run storylines, rebuild themes, preview / apply / undo the history seed
+  (`POST /api/corpus/storylines/seed`, operator surface only).
+- **Grafana** (`vps/podcast-app.json`): "Storylines per run" and "Themes per build", extracted from
+  one plain log line per run (`storylines: run …`, `themes: build …`). The `storylines.run` /
+  `themes.run` events are emitted too, but an event from a one-off job container reaches
+  VictoriaLogs as text with its JSON unparsed (checked on production), so the panels read the line.
+- **Alert** `enrich-common-storyline-registry-bad` on `storylines: registry health=bad`.
+
+## Themes: closer to storylines, not as durable (2026-10-14)
+
+Operator: themes should lose fewer follows to "No longer available", without becoming storylines.
+A theme stays a snapshot of meaning, rebuilt every run: no registry, no lifecycle, no creation
+bar, no memory beyond the previous run. Measured on production (read-only: the 23,166 topic
+vectors, the 2026-10-10 and 2026-10-14 theme artifacts, and the 17 theme ids listeners reference):
+
+- **Member overlap already works run to run**: 2,253 of 2,442 themes kept their id over four days.
+  The 12 theme follows that point at nothing died before 2026-10-10, in an earlier clustering — no
+  run-to-run matching could have kept them.
+- **Matching by meaning, after overlap** (`stable_cluster_ids`, themes only): a theme inherits a
+  previous id when their centroids are >= 0.9 similar, and a vanished theme's nearest theme >= 0.8
+  is its successor. 2,253 -> 2,294 kept, gone 107 -> 97. Mostly the same theme ("protein structure
+  prediction", "geopolitical chip control"); a few land on a close neighbour ("ai welfare
+  speculation" -> "ai ethics in design", successor "ai in trading" -> "machine learning").
+- **Sticky names**: a theme that kept its id keeps its name while the topic it is named after is
+  still a member. Kept themes whose name changed in four days: 846 of 2,253 -> 34 of 2,294.
+- **The topic a gone id is named after** (reference pass, themes and storylines): `tc:X` resolves
+  to the theme holding `topic:X` now (canonical map applied). Recovers 5 of the 12 gone theme
+  follows and 1 of 6 gone storyline follows on production. The other 7 name topics that no longer
+  exist; embedding the id's words placed them unreliably (0.58-0.77, some wrong in kind), and a
+  guess would move a follow onto something the listener did not choose, so they stay "No longer
+  available".
+
 ## Migration
 
 Operator, 2026-10-14: build the registry from history, and keep every storyline published today.
@@ -215,7 +258,8 @@ user state is rewritten; the reference pass keeps running.
 
 ## Not in scope
 
-- Themes (`tc:`): they stay a per-run semantic grouping.
+- A registry for themes (`tc:`): they stay a per-run semantic grouping, with only the lighter
+  fixes above.
 - Editorial curation of storylines (naming by hand, pinning); possible later on top of the registry.
 
 ## Open questions

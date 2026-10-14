@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
+from podcast_scraper.search import clustering_history
 from podcast_scraper.search.storylines import _anchor_topic_id
 from podcast_scraper.utils.atomic_io import write_json_atomic
 
@@ -82,8 +83,14 @@ def run_month(bundles: list[Any], state_dir: Path, now: float) -> dict[str, Any]
     return data
 
 
-def replay_registry(bundles: list[Any], min_episodes: int = 50) -> dict[str, Any]:
-    """The registry as if it had run at every month's end of the corpus's history."""
+def replay_registry(
+    bundles: list[Any], min_episodes: int = 50
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """``(registry, monthly rows)``: the registry as if it had run at every month's end of the
+    corpus's history, and each month's run as the clustering history records it (``source:
+    replay``) — the storyline chart's past, before any run was recorded."""
+    from podcast_scraper.search import clustering_history
+
     dated = [(_published(b)[:7], b) for b in bundles]
     months = sorted({m for m, _ in dated if m})
     data: dict[str, Any] = {}
@@ -92,8 +99,11 @@ def replay_registry(bundles: list[Any], min_episodes: int = 50) -> dict[str, Any
             sub = [b for m, b in dated if m and m <= month]
             if len(sub) >= min_episodes:
                 data = run_month(sub, Path(state), _month_end(month))
+        rows = [
+            {**r, "source": "replay"} for r in clustering_history.read(Path(state), "storyline")
+        ]
     registry = data.get("registry")
-    return dict(registry) if isinstance(registry, Mapping) else {}
+    return (dict(registry) if isinstance(registry, Mapping) else {}), rows
 
 
 def _topics(cluster: Mapping[str, Any]) -> set[str]:
@@ -232,8 +242,9 @@ def seed(corpus: Path, *, apply: bool, now: Optional[float] = None) -> dict[str,
         for b in bundles
         if getattr(b, "episode_id", None) and (ts := _date_ts(_published(b))) is not None
     }
+    replayed, months = replay_registry(bundles)
     registry, report = merge(
-        replay_registry(bundles),
+        replayed,
         list(data.get("clusters") or []),
         episode_dates=episode_dates,
         now=now,
@@ -241,6 +252,10 @@ def seed(corpus: Path, *, apply: bool, now: Optional[float] = None) -> dict[str,
     sid = _seed_id(registry)
     report["seed_id"] = sid
     report["already_taken"] = _taken_seed(corpus) == sid
+    report["history_months"] = len(months)
+    if apply:
+        # The chart's past: rewritten whole, so applying again never duplicates it.
+        clustering_history.write_backfill(corpus, months)
     if apply and not report["already_taken"]:
         write_json_atomic(
             _seed_path(corpus),

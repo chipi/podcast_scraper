@@ -115,3 +115,49 @@ def test_an_old_artifact_maps_to_the_current_ids_without_changing_them() -> None
     history = map_prior_ids(old, current)
     assert current == snapshot, "the current artifact is read, never changed"
     assert history == {"successors": {"thc:risk": "thc:managing-risk"}, "gone": ["thc:pair"]}
+
+
+def _unit(*xs: float) -> list[float]:
+    n = sum(x * x for x in xs) ** 0.5
+    return [x / n for x in xs]
+
+
+# Topics in a 2-d "meaning" space: a* and b* point one way, z* far off.
+_VEC = {
+    "a1": _unit(1.0, 0.0),
+    "a2": _unit(0.99, 0.1),
+    "b1": _unit(0.98, 0.15),
+    "b2": _unit(1.0, 0.05),
+    "m1": _unit(0.85, 0.53),  # ~0.85 from the a/b direction: successor, not the same theme
+    "z1": _unit(0.0, 1.0),
+    "z2": _unit(0.1, 0.99),
+}
+
+
+def test_a_theme_that_swapped_its_topics_but_means_the_same_keeps_its_id() -> None:
+    """#2349: no member overlap at all, but the centroids agree (>= 0.9): the id is kept."""
+    prior = [_c("tc:ai-safety", "a1", "a2")]
+    new = [_c("tc:alignment", "b1", "b2"), _c("tc:poetry", "z1", "z2")]
+    history = carry_cluster_ids(new, prior, vectors=_VEC)
+    assert [c["graph_compound_parent_id"] for c in new] == ["tc:ai-safety", "tc:poetry"]
+    assert history == {"successors": {}, "gone": []}
+
+
+def test_a_theme_near_in_meaning_is_the_successor_and_a_far_one_is_gone() -> None:
+    """Between 0.8 and 0.9 the nearest theme is the successor (the id is not kept); below 0.8,
+    and with no member in common, the id is gone."""
+    centroid = _unit(*(x + y for x, y in zip(_VEC["a1"], _VEC["a2"])))
+    sim = sum(x * y for x, y in zip(_VEC["m1"], centroid))
+    assert 0.8 <= sim < 0.9, f"fixture: m1 must sit between the two bars, got {sim:.3f}"
+    prior = [_c("tc:ai-safety", "a1", "a2"), _c("tc:sonnets", "z1", "z2")]
+    new = [_c("tc:governance", "m1")]
+    history = carry_cluster_ids(new, prior, vectors=_VEC)
+    assert new[0]["graph_compound_parent_id"] == "tc:governance"
+    assert history == {"successors": {"tc:ai-safety": "tc:governance"}, "gone": ["tc:sonnets"]}
+
+
+def test_without_vectors_meaning_plays_no_part() -> None:
+    prior = [_c("tc:ai-safety", "a1", "a2")]
+    new = [_c("tc:alignment", "b1", "b2")]
+    assert carry_cluster_ids(new, prior)["gone"] == ["tc:ai-safety"]
+    assert new[0]["graph_compound_parent_id"] == "tc:alignment"

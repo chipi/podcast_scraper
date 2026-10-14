@@ -52,6 +52,8 @@ class Resolver:
     episodes: set[str] | None = None
     #: ``topic id -> storyline id`` now: an older save stored a storyline by its anchor topic.
     storyline_of_topic: Mapping[str, str] = field(default_factory=dict)
+    #: ``topic id -> theme id`` now, for a gone theme named after a topic (see ``resolve``).
+    theme_of_topic: Mapping[str, str] = field(default_factory=dict)
 
     def resolve(self, ref: str) -> tuple[str, str | None]:
         """``("ok", ref)``, ``("rekey", new)``, ``("gone", None)``, or ``("unknown", ref)`` for an
@@ -66,6 +68,17 @@ class Resolver:
                 hop = self.successors[hop]
             if hop != ref and hop in current:
                 return "rekey", hop
+            # A grouping's id is the slug of the topic it was named after (``tc:open-source-ai``
+            # -> ``topic:open-source-ai``). One gone before any history recorded it still has that
+            # topic, and the grouping holding it now is where the follow belongs (#2349). Nothing
+            # looser: a guess would move a follow onto something the listener did not choose.
+            topic = "topic:" + ref.split(":", 1)[1]
+            topic = str(self.canonical.get(topic) or topic)
+            holder = (
+                self.theme_of_topic if ref.startswith("tc:") else self.storyline_of_topic
+            ).get(topic)
+            if holder and holder in current:
+                return "rekey", holder
             return "gone", None
         if ref.startswith(("topic:", "person:")):
             known = self.topics if ref.startswith("topic:") else self.persons
@@ -110,9 +123,16 @@ def build_resolver(root: Path, extra_history: Mapping[str, Any] | None = None) -
     from podcast_scraper.server.app_slugs import slug_for_row
 
     root = Path(root)
-    themes, theme_history = _cluster_ids_and_history(
-        _load_json(root / "search" / "topic_clusters.json")
-    )
+    theme_payload = _load_json(root / "search" / "topic_clusters.json")
+    themes, theme_history = _cluster_ids_and_history(theme_payload)
+    theme_data = theme_payload.get("data", theme_payload)
+    theme_of_topic = {
+        str(m.get("topic_id")): str(c.get("graph_compound_parent_id"))
+        for c in (theme_data.get("clusters") or [] if isinstance(theme_data, Mapping) else [])
+        if isinstance(c, Mapping) and c.get("graph_compound_parent_id")
+        for m in c.get("members") or []
+        if isinstance(m, Mapping) and m.get("topic_id")
+    }
     story_payload = _load_json(root / "enrichments" / "topic_theme_clusters.json")
     storylines, story_history = _cluster_ids_and_history(story_payload)
     story_data = story_payload.get("data", story_payload)
@@ -150,6 +170,7 @@ def build_resolver(root: Path, extra_history: Mapping[str, Any] | None = None) -
         canonical=canonical,
         episodes={slug_for_row(row) for row in cached_catalog(root)},
         storyline_of_topic=storyline_of_topic,
+        theme_of_topic=theme_of_topic,
     )
 
 

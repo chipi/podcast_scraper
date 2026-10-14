@@ -13,13 +13,22 @@ stored by id (follows, favorites, "Less like this", paths, boards) then pointed 
 - the previous ``id_history`` is carried forward through the new map, so a reference several
   generations old still resolves.
 
+With ``vectors`` (themes, which group topics by meaning), two more steps follow the overlap, each
+only for what overlap left unmatched — measured on production (2026-10-10 -> 10-14), overlap keeps
+2,253 of 2,442 themes and these add about a dozen, every one checked by eye to be the same theme:
+
+- a new cluster inherits a previous id when their centroids (mean topic vector) are at least
+  ``MEANING_CARRY`` similar, one to one, most similar first;
+- a previous id still unmatched gets the new cluster whose centroid is nearest as its successor,
+  when at least ``MEANING_SUCCESSOR`` similar.
+
 The result is published in the artifact as ``id_history: {successors: {old: new}, gone: [...]}``
 for the reference-integrity pass (``server/reference_integrity.py``).
 """
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 #: Member overlap (Jaccard) at which a new cluster keeps a previous cluster's id (operator,
 #: 2026-10-13). On three days of prod snapshots it kept 80 of 251 renamed themes and 3 of 10
@@ -28,6 +37,15 @@ MIN_JACCARD = 0.5
 
 #: Share of a vanished cluster's members one new cluster must hold to be its successor.
 MIN_SUCCESSOR_SHARE = 0.5
+
+#: Centroid similarity at which a theme keeps a previous theme's id when overlap did not decide.
+#: Lowest pair kept on production at 0.9: "emergent behavior" -> "emergent intelligence" (0.917).
+MEANING_CARRY = 0.9
+
+#: Centroid similarity at which the nearest theme becomes a vanished theme's successor. On
+#: production 0.8 admitted "china-us summit optics" -> "u s -china summit diplomacy" (0.83); below
+#: it came "british naval blockade" -> "maritime strategy" (0.76), a different theme.
+MEANING_SUCCESSOR = 0.8
 
 ID_KEY = "graph_compound_parent_id"
 
@@ -54,14 +72,79 @@ def _unique(base: str, taken: set[str]) -> str:
     return f"{base}-{k}"
 
 
+def _centroids(
+    groups: Sequence[frozenset[str]], vectors: Mapping[str, Sequence[float]]
+) -> tuple[list[int], Any]:
+    """``(indexes of the groups with a centroid, unit centroid matrix)``. numpy is imported here:
+    only the theme builder passes vectors, and it already depends on it."""
+    import numpy as np
+
+    keep, rows = [], []
+    for k, members in enumerate(groups):
+        vs = [vectors[t] for t in sorted(members) if t in vectors]
+        if not vs:
+            continue
+        mean = np.mean(np.asarray(vs, dtype=np.float64), axis=0)
+        norm = float(np.linalg.norm(mean))
+        if norm > 1e-12:
+            keep.append(k)
+            rows.append(mean / norm)
+    return keep, (np.vstack(rows) if rows else None)
+
+
+def _inherit_by_meaning(
+    prior: list[tuple[str, frozenset[str]]],
+    new: list[tuple[int, frozenset[str]]],
+    clusters: list[dict[str, Any]],
+    inherited: dict[int, str],
+    used_old: set[str],
+    vectors: Mapping[str, Sequence[float]],
+    meaning_carry: float,
+    meaning_successor: float,
+) -> dict[str, dict[int, float]]:
+    """Inherit by centroid similarity what overlap left (in place); return, per previous id, the
+    new clusters similar enough to be its successor."""
+    similar: dict[str, dict[int, float]] = {}
+    old_keep, old_mat = _centroids([m for _id, m in prior], vectors)
+    new_keep, new_mat = _centroids([m for _i, m in new], vectors)
+    if old_mat is not None and new_mat is not None:
+        sims = old_mat @ new_mat.T
+        floor = min(meaning_carry, meaning_successor)
+        for a, k in enumerate(old_keep):
+            row = {new_keep[b]: float(sims[a, b]) for b in range(len(new_keep))}
+            similar[prior[k][0]] = {i: v for i, v in row.items() if v >= floor}
+    near = sorted(
+        (
+            (-v, old_id, i)
+            for old_id, row in similar.items()
+            if old_id not in used_old
+            for i, v in row.items()
+            if i not in inherited and v >= meaning_carry
+        ),
+        key=lambda p: (p[0], p[1], _cluster_id(clusters[p[2]])),
+    )
+    for _neg, old_id, i in near:
+        if i in inherited or old_id in used_old:
+            continue
+        inherited[i] = old_id
+        used_old.add(old_id)
+    return similar
+
+
 def carry_cluster_ids(
     clusters: list[dict[str, Any]],
     prior_clusters: Iterable[Mapping[str, Any]],
     *,
     prior_history: Mapping[str, Any] | None = None,
     min_jaccard: float = MIN_JACCARD,
+    vectors: Mapping[str, Sequence[float]] | None = None,
+    meaning_carry: float = MEANING_CARRY,
+    meaning_successor: float = MEANING_SUCCESSOR,
 ) -> dict[str, Any]:
-    """Rewrite ``clusters``' ids in place to keep previous ids, and return the ``id_history``."""
+    """Rewrite ``clusters``' ids in place to keep previous ids, and return the ``id_history``.
+
+    ``vectors`` (``topic_id`` -> unit vector) adds the matching by meaning described above.
+    """
     prior = [(c_id, _members(c)) for c in prior_clusters if (c_id := _cluster_id(c))]
     new = [(i, _members(c)) for i, c in enumerate(clusters)]
 
@@ -82,6 +165,12 @@ def carry_cluster_ids(
             continue
         inherited[i] = old_id
         used_old.add(old_id)
+
+    similar: dict[str, dict[int, float]] = {}
+    if vectors:
+        similar = _inherit_by_meaning(
+            prior, new, clusters, inherited, used_old, vectors, meaning_carry, meaning_successor
+        )
 
     taken = set(inherited.values())
     for i, cluster in enumerate(clusters):
@@ -104,8 +193,14 @@ def carry_cluster_ids(
                 best_id, best_share = _cluster_id(c), share
         if best_id and best_share >= MIN_SUCCESSOR_SHARE:
             successors[old_id] = best_id
-        else:
-            gone.add(old_id)
+            continue
+        row = similar.get(old_id) or {}
+        if row:
+            sim, neg_i = max((v, -i) for i, v in row.items())
+            if sim >= meaning_successor:
+                successors[old_id] = _cluster_id(clusters[-neg_i])
+                continue
+        gone.add(old_id)
 
     # Carry the older history forward through this run's map.
     history = prior_history or {}

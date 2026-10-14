@@ -159,8 +159,11 @@ kept is used.
    Undo: `... storyline_history --corpus /app/output --undo` withdraws a seed not yet taken; once
    taken, it writes a seed that puts back the registry the seed replaced (none, if the seed was
    taken by the first run on the new code — then there is nothing to go back to).
-5. **Sync the alert rule** `enrich-common-storyline-registry-bad` (fires on any `storylines:
-   registry health=bad` line). Dry run, then apply:
+   The seed can also be previewed, applied and undone from the viewer dashboard (Intelligence →
+   **Storylines & themes**), which calls the same code.
+5. **Sync Grafana**: the alert rule `enrich-common-storyline-registry-bad` (fires on any
+   `storylines: registry health=bad` line) and the two new panels on `vps/podcast-app.json`
+   ("Storylines per run", "Themes per build"). Dry run, then apply:
 
    ```sh
    make obs-sync              # lists what would change
@@ -170,7 +173,10 @@ kept is used.
 6. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
    a storyline the seed gave an old name (10 on the copy) says "Also called …" under its title,
    and searching that old name opens it; a quiet one says "Quiet since …";
-   `GET /api/app/discover/references/gone` answers for the smoke account.
+   `GET /api/app/discover/references/gone` answers for the smoke account. In the viewer
+   dashboard the Storylines & themes card shows the counts, the chart back to 2024 (from the seed)
+   and the last run's changes; after the next theme rebuild, its "Kept their id" is close to the
+   theme count (themes now keep their id by meaning too, and their names stick).
 
 ## Carried over (operator items, not deploy steps; from the 2026-10-12/13 plan)
 

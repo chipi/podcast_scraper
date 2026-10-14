@@ -668,9 +668,15 @@ def build_topic_clusters_payload(
         )
 
     prior = prior_payload or {}
+    # Themes group topics by MEANING, so where member overlap does not decide, the centroid does
+    # (#2349): a theme that swapped half its topics but means the same keeps its id.
     id_history = carry_cluster_ids(
-        clusters_out, prior.get("clusters") or [], prior_history=prior.get("id_history")
+        clusters_out,
+        prior.get("clusters") or [],
+        prior_history=prior.get("id_history"),
+        vectors={r.topic_id: r.vector for r in rows},
     )
+    keep_prior_names(clusters_out, prior.get("clusters") or [])
     return {
         "schema_version": TOPIC_CLUSTERS_SCHEMA_VERSION,
         "model": embedding_model,
@@ -682,6 +688,25 @@ def build_topic_clusters_payload(
         "fingerprint": current_fp,
         "id_history": id_history,
     }
+
+
+def keep_prior_names(
+    clusters: List[Dict[str, Any]], prior_clusters: Sequence[Mapping[str, Any]]
+) -> None:
+    """A theme that kept its id keeps its name while the topic it is named after is still a member
+    (#2349), instead of taking whichever member sits nearest the centroid this run."""
+    before = {
+        str(c.get("graph_compound_parent_id")): str(c.get("canonical_label") or "")
+        for c in prior_clusters
+        if c.get("graph_compound_parent_id")
+    }
+    for c in clusters:
+        name = before.get(str(c.get("graph_compound_parent_id")), "")
+        if not name or name == c.get("canonical_label"):
+            continue
+        if name in {str(m.get("label")) for m in c.get("members") or []}:
+            c["canonical_label"] = name
+            c["cil_alias_target_topic_id"] = topic_node_id_from_slug(slugify_label(name))
 
 
 def topic_id_aliases_from_clusters_payload(
@@ -802,7 +827,47 @@ def build_topic_clusters_for_corpus(
         payload["cluster_count"],
         payload["singletons"],
     )
+    record_theme_run(root, prior_payload or {}, payload)
     return payload
+
+
+def record_theme_run(
+    corpus_root: Path, prior_payload: Mapping[str, Any], payload: Mapping[str, Any]
+) -> None:
+    """One row in the clustering history (viewer dashboard) and one ``themes.run`` event."""
+    import time
+
+    from podcast_scraper.obs.events import emit_event
+    from podcast_scraper.search import clustering_history
+
+    clusters = list(payload.get("clusters") or [])
+    changed = clustering_history.changes(
+        prior_payload.get("clusters") or [],
+        clusters,
+        prior_payload.get("id_history"),
+        payload.get("id_history"),
+    )
+    kept = {str(c.get("graph_compound_parent_id")) for c in prior_payload.get("clusters") or []}
+    counts = {
+        "themes": len(clusters),
+        "topics": int(payload.get("topic_count") or 0),
+        "singletons": int(payload.get("singletons") or 0),
+        "kept": sum(1 for c in clusters if str(c.get("graph_compound_parent_id")) in kept),
+    }
+    clustering_history.append(
+        corpus_root, {"ts": time.time(), "kind": "theme", **counts, "changes": changed}
+    )
+    fields: Dict[str, Any] = dict(counts)
+    fields.update({f"{k}_count": len(v) for k, v in changed.items()})
+    emit_event("themes.run", **fields)
+    # One plain line for the Grafana panel (see the storyline run's matching line for why).
+    logger.info(
+        "themes: build themes=%d topics=%d kept=%d gone=%d",
+        counts["themes"],
+        counts["topics"],
+        counts["kept"],
+        len(changed["gone"]),
+    )
 
 
 def load_validation_yaml(path: Path) -> Dict[str, Any]:

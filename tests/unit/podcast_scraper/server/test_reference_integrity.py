@@ -213,3 +213,20 @@ def test_a_storyline_the_registry_absorbed_takes_its_followers_along(tmp_path: P
     assert state._read(data, U, "interests", []) == ["thc:big"]
     assert boards._read(data, U)["items"]["col_a"] == [{"kind": "storyline", "ref": "thc:big"}]
     assert gone_references(data, U) == []
+
+
+def test_a_gone_theme_or_storyline_follows_the_topic_it_was_named_after() -> None:
+    """#2349: on production, 5 of 12 gone theme follows and 1 of 6 gone storyline follows name a
+    topic (``tc:open-source-ai`` -> ``topic:open-source-ai``) that a current grouping holds. The
+    follow moves there; with no such topic it stays gone (a guess would change what was chosen)."""
+    r = Resolver(
+        themes={"tc:open-source-models"},
+        storylines={"thc:reward-hacking"},
+        canonical={"topic:open-source-ai-models": "topic:open-source-ai"},
+        theme_of_topic={"topic:open-source-ai": "tc:open-source-models"},
+        storyline_of_topic={"topic:ai-alignment": "thc:reward-hacking"},
+    )
+    assert r.resolve("tc:open-source-ai") == ("rekey", "tc:open-source-models")
+    assert r.resolve("tc:open-source-ai-models") == ("rekey", "tc:open-source-models")
+    assert r.resolve("thc:ai-alignment") == ("rekey", "thc:reward-hacking")
+    assert r.resolve("tc:stock-markets") == ("gone", None)
