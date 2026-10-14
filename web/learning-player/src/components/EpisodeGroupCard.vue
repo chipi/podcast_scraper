@@ -27,6 +27,7 @@ import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import EpisodeActions from "./EpisodeActions.vue"
+import PlayedBadge from "./PlayedBadge.vue"
 import LanguageBadge from "./LanguageBadge.vue"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { episodeArtwork } from "../utils/episode"
@@ -91,6 +92,9 @@ const { badgeShown } = useCorpusLanguages()
               :title="episode.title"
               data-testid="episode-group-title"
             >{{ episode.title }}</span>
+            <!-- Played, as on every episode card and tile (operator 2026-10-14: search results,
+                 Saved and Revisit did not say it). Renders nothing for an episode not heard. -->
+            <PlayedBadge v-if="episode.slug" :slug="episode.slug" class="mt-1" />
             <slot name="extra" />
           </span>
         </RouterLink>

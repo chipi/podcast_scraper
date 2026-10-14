@@ -279,6 +279,9 @@ def test_reel_topics_leave_out_a_short_listen_already_heard(
     assert sid in offered(), "half heard is still to hear"
     hear(clips[half:-1])  # all but one: a skip does not keep it on offer
     assert sid not in offered()
+    # The reel itself says which clips were heard (its door on the subject page says "heard ✓").
+    again = client.get("/api/app/discover/reel", params={"subject": sid, "minutes": 15}).json()
+    assert [c["heard"] for c in again["clips"]] == [True] * (len(clips) - 1) + [False]
     assert offered(), "the other short listens are still offered"
 
 

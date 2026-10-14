@@ -179,7 +179,7 @@ replaces it). A path's day whose episode left the corpus is not shown and counts
 start, not calendar days). Everyone's trending for the Short listens row and the Learn offers is
 the cached list `/trending` uses (`corpus_trending`), not five fresh builds per Discover load.
 
-**What was heard is not offered** (operator 2026-10-14: Discover proposes what is still to hear): the Short listens row leaves out a reel whose clips the listener has heard to their end (`REEL_HEARD_SHARE`, 80% of them, from the clip-heard events `POST /me/moments-heard` records), and comes back only when new clips make it a new listen; the Learn offers leave out a subject whose path was finished (it can still be started from its subject page).
+**What was heard is not offered** (operator 2026-10-14: Discover proposes what is still to hear): the Short listens row leaves out a reel whose clips the listener has heard to their end (`REEL_HEARD_SHARE`, 80% of them, from the clip-heard events `POST /me/moments-heard` records), and comes back only when new clips make it a new listen; the Learn offers leave out a subject whose path was finished (it can still be started from its subject page). Where the listener goes on purpose, it is said rather than hidden: a subject page's short-listen door reads "heard ✓" (each reel clip carries `heard`), its Learn door "✓ Learned · learn again", and the Brief's "Play N moments" says how many were heard (`GET /me/moments-heard?slug=`, which also ticks the Moments list).
 
 Candidates are themes and storylines taking turns, three at most, none already being learned, each
 only with a path, and none at the cap: under

@@ -1237,6 +1237,10 @@ class AppReelClip(BaseModel):
     speaker: str | None = None
     start_ms: int
     end_ms: int
+    heard: bool = Field(
+        default=False,
+        description="The listener has heard this clip to its end before (operator 2026-10-14).",
+    )
 
 
 class AppTopicReelResponse(BaseModel):

@@ -959,7 +959,12 @@ export interface ReelClip {
   speaker: string | null
   start_ms: number
   end_ms: number
+  /** Heard to its end before (operator 2026-10-14). */
+  heard?: boolean
 }
+/** The share of a short listen's clips heard to their end that makes it heard (server's
+ *  `REEL_HEARD_SHARE`): Discover stops offering it, and its door says so. */
+export const REEL_HEARD_SHARE = 0.8
 /** What a reel is about: a topic, or a theme's or storyline's member topics. */
 export type ReelKind = "topic" | "theme" | "storyline"
 /** A short listen plays a subject's reel, or a board's own moments (`board:<collection id>`,

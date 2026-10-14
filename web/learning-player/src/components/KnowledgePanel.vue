@@ -66,6 +66,8 @@ const props = withDefaults(
     focusNotes?: boolean
     /** The episode's moments once loaded ("Play 8 moments · 3½ min"); null while unknown. */
     momentsCount?: number | null
+    /** Of those, heard to their end before (operator 2026-10-14). */
+    momentsHeard?: number
     momentsSeconds?: number
     /**
      * The episode's timed transcript, as the player loaded it: search results are cut to the
@@ -770,7 +772,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <span class="min-w-0">
             <template v-if="momentsCount">
               <span class="block text-sm font-bold">{{ t("moments.playCount", { count: momentsCount }, momentsCount) }}</span>
-              <span class="block text-xs text-muted">{{ t("moments.playCountHint", { length: t("moments.minutes", { n: minutesValue(momentsSeconds) }) }) }}</span>
+              <span class="block text-xs text-muted" data-testid="kp-play-moments-hint">{{ t("moments.playCountHint", { length: t("moments.minutes", { n: minutesValue(momentsSeconds) }) }) }}<template v-if="momentsHeard"> · {{ t("moments.heardOf", { heard: momentsHeard, count: momentsCount }) }}</template></span>
             </template>
             <template v-else>
               <span class="block text-sm font-bold">{{ t("moments.play_moments") }}</span>

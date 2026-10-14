@@ -403,12 +403,24 @@ def _topic_label(root: Path, topic_id: str, slugs: list[str]) -> str:
     return topic_id.split(":", 1)[-1].replace("-", " ")
 
 
+def _clips_heard(request: Request, user_id: str) -> set[tuple[str, str]]:
+    """``(episode slug, insight id)`` of every clip the listener heard to its end, ever."""
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    if raw_dir is None:
+        return set()
+    return {
+        (str(m.get("slug")), str(m.get("insight_id")))
+        for m in app_user_state.list_moments_heard(Path(raw_dir), user_id)
+        if m.get("kind") == "clip" and m.get("insight_id")
+    }
+
+
 @router.get("/discover/reel", response_model=AppTopicReelResponse)
 def app_discover_reel(
     request: Request,
     subject: str = Query(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):"),
     minutes: int = Query(default=15, ge=1, le=60),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> AppTopicReelResponse:
     """N minutes on a topic, theme or storyline (ADR-163 §8 amendment; goal-shaped listening): the
     strongest clips ABOUT it (a theme or storyline: about any member topic) across episodes, breadth
@@ -418,6 +430,7 @@ def app_discover_reel(
     config = getattr(request.app.state, "moments_config", None)
     about = reel_subject(root, subject)
     clips = goal_reel(root, subject, minutes=minutes, config=config)
+    heard = _clips_heard(request, user.user_id)
     out: list[AppReelClip] = []
     for c in clips:
         row = resolve_slug(root, c.episode_slug)
@@ -433,6 +446,7 @@ def app_discover_reel(
                 speaker=m.speaker,
                 start_ms=m.start_ms,
                 end_ms=m.end_ms,
+                heard=(c.episode_slug, m.insight_id) in heard,
             )
         )
     return AppTopicReelResponse(
@@ -518,15 +532,7 @@ def app_discover_reel_topics(
     config = getattr(request.app.state, "moments_config", None)
     # Discover offers what is still to hear (operator 2026-10-14): a short listen whose clips the
     # listener has heard to their end is not offered again, until new clips make it a new listen.
-    heard = (
-        {
-            (str(m.get("slug")), str(m.get("insight_id")))
-            for m in app_user_state.list_moments_heard(data_dir, user.user_id)
-            if m.get("kind") == "clip" and m.get("insight_id")
-        }
-        if data_dir is not None
-        else set()
-    )
+    heard = _clips_heard(request, user.user_id)
 
     def with_reels(kind: ReelKind, cands: list[tuple[str, str]]) -> list[tuple[str, AppReelTopic]]:
         """``(the reel's clips as a key, the chip)`` for each candidate with a real reel."""

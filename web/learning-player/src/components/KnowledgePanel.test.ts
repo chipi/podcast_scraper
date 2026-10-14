@@ -95,6 +95,7 @@ function mountPanel(props: {
   activeInsightId?: string | null
   momentsCount?: number | null
   momentsSeconds?: number
+  momentsHeard?: number
 } = {}) {
   return mount(KnowledgePanel, {
     props: {
@@ -1257,6 +1258,13 @@ describe("the Brief offers Play moments after its Summary (operator 2026-10-10)"
     const text = mountPanel({ momentsCount: 8, momentsSeconds: 205 }).get('[data-testid="kp-play-moments"]').text()
     expect(text).toContain("Play 8 moments")
     expect(text).toContain("3½ min · the strongest moments, in order")
+  })
+
+  it("says how many were heard before (operator 2026-10-14), and nothing when none were", () => {
+    const hint = (heard: number) =>
+      mountPanel({ momentsCount: 3, momentsSeconds: 60, momentsHeard: heard }).get('[data-testid="kp-play-moments-hint"]').text()
+    expect(hint(2)).toBe("1 min · the strongest moments, in order · 2 of 3 heard")
+    expect(hint(0)).toBe("1 min · the strongest moments, in order")
   })
 
   it("is absent when the episode turned out to have no moments", () => {

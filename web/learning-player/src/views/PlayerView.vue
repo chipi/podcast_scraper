@@ -1245,14 +1245,15 @@ watch(
 )
 // An episode reel only: a topic reel's clips are from many episodes and play on their own page.
 const momentsActive = computed(() => player.reel?.slug === props.slug && !player.reel?.topic)
-// The moments heard to their end, ever (operator 2026-10-14): ticked in the Moments list. From the
-// server once the list shows, then each clip as it ends here.
+// The moments heard to their end, ever (operator 2026-10-14): ticked in the Moments list and
+// counted on the Brief's "Play moments". From the server once the episode is known to have
+// moments, then each clip as it ends here.
 const momentsHeard = ref<Set<string>>(new Set())
 const momentsHeardFor = ref<string | null>(null)
 watch(
-  () => [momentsActive.value, props.slug, auth.isAuthenticated] as const,
-  async ([active, slug, signedIn]) => {
-    if (!active || !signedIn || momentsHeardFor.value === slug) return
+  () => [!!episode.value?.has_moments || momentsActive.value, props.slug, auth.isAuthenticated] as const,
+  async ([hasMoments, slug, signedIn]) => {
+    if (!hasMoments || !signedIn || momentsHeardFor.value === slug) return
     momentsHeardFor.value = slug
     const ids = await getMomentsHeard(slug).catch(() => [] as string[])
     if (props.slug === slug) momentsHeard.value = new Set([...momentsHeard.value, ...ids])
@@ -2499,6 +2500,7 @@ const { badgeShown } = useCorpusLanguages()
           :focus-notes="focusNotes"
           :segments="segments"
           :moments-count="momentsFor === slug ? episodeMoments.length : null"
+          :moments-heard="episodeMoments.filter((m) => momentsHeard.has(m.insightId)).length"
           :moments-seconds="reelSeconds(episodeMoments)"
           @seek="seekContent"
           @play-from="playFromContent"

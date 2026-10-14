@@ -13,7 +13,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { BOARD_REEL_PREFIX, getTopicReel, type ShortListenKind } from '../services/api'
+import { BOARD_REEL_PREFIX, getTopicReel, REEL_HEARD_SHARE, type ShortListenKind } from '../services/api'
 import { track } from '../services/analytics'
 import { reelMinutes } from '../utils/reelLength'
 
@@ -36,6 +36,8 @@ const MINUTES = 15
 const MIN_CLIPS = 2
 const ready = ref(false)
 const minutes = ref(MINUTES)
+/** Heard before (operator 2026-10-14): the door says so, rather than hide. */
+const heard = ref(false)
 
 let latest = 0
 async function check(): Promise<void> {
@@ -45,6 +47,8 @@ async function check(): Promise<void> {
   if (run !== latest) return
   ready.value = (reel?.clips.length ?? 0) >= MIN_CLIPS
   minutes.value = reelMinutes(reel?.total_seconds ?? 0, MINUTES)
+  const clips = reel?.clips ?? []
+  heard.value = clips.length > 0 && clips.filter((c) => c.heard).length / clips.length >= REEL_HEARD_SHARE
 }
 watch(() => props.subjectId, check, { immediate: true })
 </script>
@@ -56,8 +60,9 @@ watch(() => props.subjectId, check, { immediate: true })
     class="lp-tap inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold no-underline transition bg-listen/15 text-listen ring-1 ring-inset ring-listen/40 hover:bg-listen/25"
     :aria-label="t('reel.doorLabel', { minutes, topic: label }, minutes)"
     data-testid="reel-door"
+    :data-heard="heard ? 'true' : undefined"
     @click="track('reel_open', { source, kind })"
   >
-    <span aria-hidden="true">▶ {{ t('reel.door', { minutes }) }}</span>
+    <span aria-hidden="true">▶ {{ t('reel.door', { minutes }) }}<template v-if="heard"> · {{ t('reel.heard') }}</template></span>
   </RouterLink>
 </template>

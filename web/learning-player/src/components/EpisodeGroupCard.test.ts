@@ -97,3 +97,20 @@ describe('EpisodeGroupCard and Moments (operator 2026-10-10)', () => {
     expect(card({ moments: true }).find('[data-testid="moments-link"]').exists()).toBe(false)
   })
 })
+
+describe('EpisodeGroupCard: played, as every episode card says it (operator 2026-10-14)', () => {
+  it('marks an episode heard, and nothing on one not heard', async () => {
+    const { useCompletedStore } = await import('../stores/completed')
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useCompletedStore().slugs = ['ep-1']
+    const mountWith = (slug: string) =>
+      mount(EpisodeGroupCard, {
+        props: { episode: { ...episode, slug }, itemCount: 0 },
+        global: { plugins: [i18n, router, pinia] },
+      })
+    expect(mountWith('ep-1').find('[data-testid="played-badge"]').exists()).toBe(true)
+    expect(mountWith('ep-2').find('[data-testid="played-badge"]').exists()).toBe(false)
+  })
+})
+

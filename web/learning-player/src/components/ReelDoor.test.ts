@@ -66,4 +66,21 @@ describe('ReelDoor', () => {
     await flushPromises()
     expect(failed.find('[data-testid="reel-door"]').exists()).toBe(false)
   })
+
+  it('says a short listen was heard, rather than hide it (operator 2026-10-14)', async () => {
+    const clips = (heard: number, of: number) => ({
+      clips: Array.from({ length: of }, (_, i) => ({ heard: i < heard })),
+      total_seconds: 144,
+    })
+    api.getTopicReel.mockResolvedValueOnce(clips(4, 5))
+    const most = mount(ReelDoor, { props: { subjectId: 'topic:a', label: 'a' }, global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(most.get('[data-testid="reel-door"]').attributes('data-heard')).toBe('true')
+    expect(most.get('[data-testid="reel-door"]').text()).toBe('▶ 2 min on this · heard ✓')
+    api.getTopicReel.mockResolvedValueOnce(clips(2, 5))
+    const some = mount(ReelDoor, { props: { subjectId: 'topic:b', label: 'b' }, global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(some.get('[data-testid="reel-door"]').attributes('data-heard')).toBeUndefined()
+    expect(some.get('[data-testid="reel-door"]').text()).toBe('▶ 2 min on this')
+  })
 })

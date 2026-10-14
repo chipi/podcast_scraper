@@ -8,7 +8,12 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 
-const api = vi.hoisted(() => ({ getLearn: vi.fn(), getLearnSubject: vi.fn(), startLearn: vi.fn() }))
+const api = vi.hoisted(() => ({
+  getLearn: vi.fn(),
+  getLearnSubject: vi.fn(),
+  startLearn: vi.fn(),
+  getLearningHistory: vi.fn(async () => [] as unknown[]),
+}))
 vi.mock('../services/api', async (orig) => ({ ...(await orig<typeof import('../services/api')>()), ...api }))
 const tracked = vi.hoisted(() => [] as Array<{ name: string; props: unknown }>)
 vi.mock('../services/analytics', async (orig) => ({
@@ -93,5 +98,43 @@ describe('LearnDoor', () => {
     api.getLearnSubject.mockResolvedValueOnce(null)
     const none = await mountDoor()
     expect(none.w.find('[data-testid="learn-door"]').exists()).toBe(false)
+  })
+
+  it('says a subject was learned, and starts it afresh (operator 2026-10-14)', async () => {
+    api.getLearnSubject.mockResolvedValue(subject)
+    // Finished and only in the history now.
+    api.getLearn.mockResolvedValue({ paths: [], candidates: [], max_paths: 3 })
+    api.getLearningHistory.mockResolvedValueOnce([
+      { subject_id: 'thc:risk', subject_kind: 'storyline', subject_label: 'Managing risk', started_at: 1, ended_at: 2, days: 7, done: 7, outcome: 'finished' },
+    ])
+    api.startLearn.mockResolvedValue({})
+    const { w } = await mountDoor()
+    const door = w.get('[data-testid="learn-door"]')
+    expect(door.attributes('data-learned')).toBe('true')
+    expect(door.text()).toBe('✓ Learned · learn again')
+    await door.trigger('click')
+    await flushPromises()
+    expect(api.startLearn).toHaveBeenCalledWith('thc:risk', undefined)
+  })
+
+  it('a finished path on for its week reads learned, and does not fill the three at once', async () => {
+    api.getLearnSubject.mockResolvedValue(subject)
+    api.getLearn.mockResolvedValue({
+      paths: [
+        { ...pathOn('thc:risk', 'Managing risk'), finished_at: 5 },
+        pathOn('tc:a', 'A'),
+        pathOn('tc:b', 'B'),
+      ],
+      candidates: [],
+      max_paths: 3,
+    })
+    api.startLearn.mockResolvedValue({})
+    const { w } = await mountDoor()
+    expect(w.get('[data-testid="learn-door"]').text()).toBe('✓ Learned · learn again')
+    await w.get('[data-testid="learn-door"]').trigger('click')
+    await flushPromises()
+    // Two being learned: no "replaces the oldest" question.
+    expect(w.find('[data-testid="learn-door-confirm"]').exists()).toBe(false)
+    expect(api.startLearn).toHaveBeenCalledWith('thc:risk', undefined)
   })
 })
