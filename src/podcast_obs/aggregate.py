@@ -15,11 +15,13 @@ from .result import err, ok
 from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, umami, victoria
 
 # A surface name → its metrics ``job`` label and its Jaeger trace ``service`` name. These differ
-# and are LIVE-VERIFIED against homelab (metrics carry job="api"; Jaeger service is "pipeline",
-# not "podcast-pipeline"). A surface with no HTTP metrics (the pipeline subprocess) has job=None.
+# (metrics carry job="api"). The pipeline traces as "podcast-pipeline" in prod (compose
+# OTEL_SERVICE_NAME; 33.9k spans in 7 days, 2026-10-14) and in dev (init_otel's default) —
+# "pipeline" was the old dev-only name and found no prod run. A surface with no HTTP metrics
+# (the pipeline subprocess) has job=None.
 _SURFACE: dict[str, dict[str, str | None]] = {
     "api": {"job": "api", "trace": "podcast-api"},
-    "pipeline": {"job": None, "trace": "pipeline"},
+    "pipeline": {"job": None, "trace": "podcast-pipeline"},
     "player": {"job": "player", "trace": "player-api"},
     "operator": {"job": "operator", "trace": "operator-public-api"},
 }
@@ -42,7 +44,7 @@ _PROBES: list[tuple[str, Callable[[TargetConfig], dict]]] = [
     ("errors", sentry.recent_errors),  # GlitchTip issues (optional; error LOGS come via `logs`)
     ("alerts", grafana.recent_alerts),
     # compact for the glance — recent pipeline spans from VictoriaTraces
-    ("traces", lambda target: victoria.traces_recent(target, "pipeline", limit=5)),
+    ("traces", lambda target: victoria.traces_recent(target, "podcast-pipeline", limit=5)),
     # RFC-088 enrichment-layer surface — the deploy's last status, health, and a compact
     # tail of events round out the control-plane glance.
     ("enrichment_status", enrichment.run_status),

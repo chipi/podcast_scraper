@@ -235,7 +235,7 @@ def traces_by_run(
     target: TargetConfig,
     run_id: str,
     *,
-    service: str = "pipeline",
+    service: str = "podcast-pipeline",
     window: str = "24h",
     limit: int = 20,
 ) -> dict:

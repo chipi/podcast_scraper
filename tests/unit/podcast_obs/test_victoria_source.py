@@ -175,7 +175,7 @@ def test_traces_by_run_filters_by_run_id_tag(monkeypatch) -> None:
     r = victoria.traces_by_run(_t(victoriatraces_url="http://h:10428"), "run-9")
     assert r["ok"] and r["data"]["count"] == 1 and r["data"]["run_id"] == "run-9"
     assert seen["url"].endswith("/select/jaeger/api/traces")
-    assert seen["params"]["service"] == "pipeline"
+    assert seen["params"]["service"] == "podcast-pipeline"
     assert seen["params"]["tags"] == '{"run_id": "run-9"}'
 
 

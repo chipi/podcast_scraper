@@ -25,7 +25,7 @@ def test_surface_pipeline_fans_signals_no_http_metrics(monkeypatch) -> None:
     sig = r["data"]["signals"]
     # pipeline is a subprocess → NO http RED metrics (job=None); has pipeline_stage + cost extras
     assert set(sig) == {"errors", "logs", "traces", "pipeline_stage", "cost"}
-    assert r["data"]["trace_service"] == "pipeline"  # live-verified Jaeger service
+    assert r["data"]["trace_service"] == "podcast-pipeline"  # prod + dev OTEL_SERVICE_NAME
     assert r["data"]["job"] is None
 
 
