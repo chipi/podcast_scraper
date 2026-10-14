@@ -33,8 +33,10 @@ test('Resume shows the saved position while the audio is still loading', async (
     const b = page.getByRole('button', { name, exact: true })
     if (await b.isVisible().catch(() => false)) await b.click().catch(() => {})
   }
+  // The Resume pill is just "Resume" since 2026-10-14 (operator: the time made two pills wrap); the
+  // saved position this test is about is asserted where it matters, in the player below.
   const resume = page.getByTestId('home-resume')
-  await expect(resume).toContainText('3:20')
+  await expect(resume).toHaveText(/Resume/)
   await resume.click()
 
   const shown = page.getByTestId('player-times').locator('span').first()

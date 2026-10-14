@@ -18,7 +18,6 @@ import {
   getRelated,
 } from "../services/api"
 import type { EpisodeDetail, EpisodeSummary } from "../services/types"
-import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
@@ -459,9 +458,9 @@ async function loadContinue(): Promise<void> {
           <RouterLink
             :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
             data-testid="home-resume"
-            class="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
+            class="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
           >
-            ▶ {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
+            ▶ {{ t("home.resume") }}
           </RouterLink>
           <!-- Mark as played, beside Resume in the same style (operator 2026-10-14): heard enough, or
                heard it elsewhere. It leaves this card and Jump back in at once (`continueItems`
@@ -469,10 +468,11 @@ async function loadContinue(): Promise<void> {
           <button
             type="button"
             data-testid="home-resume-mark-played"
-            class="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground"
+            class="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 font-bold text-accent-foreground"
+            :aria-label="t('player.markPlayed')"
             @click="togglePlayed(resumeTop.detail.slug)"
           >
-            ✓ {{ t("player.markPlayed") }}
+            ✓ {{ t("home.markPlayedShort") }}
           </button>
         </div>
       </div>

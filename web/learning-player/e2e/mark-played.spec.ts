@@ -60,10 +60,30 @@ test('Continue listening: Mark as played beside Resume moves the card on, and a 
   await startTwo(page, older!, newest!)
   await home(page)
 
-  const marked = await resumeSlug(page)
-  const kept = marked === older ? newest! : older!
+  // Wait for the newest listen on the card: until both are loaded the card can show the other one,
+  // and reading it early marked the wrong episode (2026-10-14).
+  await expect.poll(() => resumeSlug(page)).toBe(newest)
+  const marked = newest!
+  const kept = older!
   const mark = page.getByTestId('home-resume-mark-played')
   await expect(mark).toBeVisible()
+  // Both pills on one line of text each, side by side, inside the screen — down to a 320 px phone.
+  const resume = page.getByTestId('home-resume')
+  for (const width of [page.viewportSize()!.width, 320]) {
+    await page.setViewportSize({ width, height: page.viewportSize()!.height })
+    const [r, m] = [(await resume.boundingBox())!, (await mark.boundingBox())!]
+    const row = (await resume.locator('..').boundingBox())!
+    expect(r.height).toBeLessThanOrEqual(48)
+    expect(m.height).toBeLessThanOrEqual(48)
+    expect(Math.abs(r.y - m.y)).toBeLessThan(2)
+    expect(m.x).toBeGreaterThan(r.x + r.width - 1)
+    // Inside the row, not just the screen: the card clips what overflows it ("Mark played" was cut
+    // off at 320 while still inside the screen).
+    expect(m.x + m.width).toBeLessThanOrEqual(row.x + row.width + 0.5)
+    if (process.env.MARK_PLAYED_SHOTS) {
+      await page.screenshot({ path: `${process.env.MARK_PLAYED_SHOTS}/resume-${testInfo.project.name}-${width}.png` })
+    }
+  }
   await mark.click()
   await expect.poll(() => resumeSlug(page)).toBe(kept)
   await expect.poll(() => inProgress(page)).toEqual([kept])
@@ -79,7 +99,8 @@ test('Jump back in: Mark as played in a tile ⋯ takes the tile out of the rail'
   const [first, second] = await episodes(page, 2)
   await startTwo(page, first!, second!)
   await home(page)
-  const onCard = await resumeSlug(page)
+  await expect.poll(() => resumeSlug(page)).toBe(second)
+  const onCard = second!
 
   const rail = page.getByTestId('home-jump-back-in')
   await expect(rail).toBeVisible()
