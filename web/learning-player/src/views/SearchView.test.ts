@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
+import { computed } from "vue"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createI18n } from "vue-i18n"
 import { createMemoryHistory, createRouter } from "vue-router"
@@ -1304,8 +1305,14 @@ describe("SearchView: Moments on episode results (operator 2026-10-10)", () => {
     }
   }
   it("offers ▶ Moments only on episodes that have moments; passages never carry it", async () => {
-    const { reportServerReachable } = await import("../composables/useOnline")
-    reportServerReachable(true)
+    const online = await import("../composables/useOnline")
+    // Pin the precondition, do not just reset it. Connectivity is module-wide state, and this file's
+    // unmocked requests answer 503 (src/test/setup.ts): any two that land during this mount mark the
+    // server down and render the OFFLINE door. CI rendered exactly that door once (2026-10-14).
+    // This test is about which episodes offer Moments; the offline door is tested in
+    // MomentsEntry.test.ts.
+    const real = online.useOnline()
+    vi.spyOn(online, "useOnline").mockReturnValue({ ...real, isOnline: computed(() => true) })
     vi.spyOn(api, "searchCorpus").mockResolvedValue({
       query: "risk",
       error: null,
