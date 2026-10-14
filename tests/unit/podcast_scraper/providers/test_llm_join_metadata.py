@@ -28,7 +28,7 @@ _TRACE = "0123456789abcdef0123456789abcdef"
 def _vllm() -> VLLMProvider:
     p = VLLMProvider(
         Config(
-            rss_url="https://example.com/feed.xml",
+            rss="https://example.com/feed.xml",
             summary_provider="vllm",
             generate_summaries=True,
             vllm_api_base="http://homelab:4001/v1",
@@ -48,7 +48,7 @@ def ids(monkeypatch):
 
 def _sent(p) -> Dict[str, Any]:
     _, kwargs = p.client.chat.completions.create.call_args
-    return kwargs
+    return dict(kwargs)
 
 
 def test_gateway_call_carries_session_and_trace_metadata(ids):
