@@ -201,7 +201,9 @@ def _fuzzy_reconcile(
                         "similarity": round(best_sim, 4),
                     }
                 )
-                logger.info(
+                # DEBUG, not INFO: a corpus-wide rebuild makes thousands of these (24,780 INFO
+                # lines in one hour from player-mcp, 2026-10-13). The returned list is the audit.
+                logger.debug(
                     "Fuzzy merge: %s (%s) ← %s (%s) [sim=%.3f]",
                     gi_nid,
                     gi_display,
@@ -210,6 +212,10 @@ def _fuzzy_reconcile(
                     best_sim,
                 )
 
+    if merges:
+        logger.info(
+            "Fuzzy reconcile: merged %d identities (threshold %.2f)", len(merges), threshold
+        )
     return merges
 
 

@@ -148,3 +148,35 @@ def test_fuzzy_reconcile_reuses_process_embedding_cache(monkeypatch: pytest.Monk
     build_bridge("ep-2", gi, kg, fuzzy_reconcile=True)
 
     assert len(loads) == 1
+
+
+def test_fuzzy_reconcile_logs_one_info_summary_not_one_line_per_merge(caplog) -> None:
+    """Per-merge lines are DEBUG; INFO gets one summary. player-mcp's entity-resolver rebuild
+    logged 24,780 INFO lines in one hour (prod, 2026-10-13 20:00 UTC) — ~8x a normal day."""
+    import logging
+
+    from podcast_scraper.builders.bridge_builder import _fuzzy_reconcile
+
+    class SameVector:
+        def encode(self, texts: list[str], normalize_embeddings: bool = True, **kwargs: Any):
+            return np.tile(np.array([1.0, 0.0, 0.0]), (len(texts), 1))
+
+    identities = {}
+    for i in range(3):
+        identities[f"person:gi{i}"] = {
+            "type": "person",
+            "display_name": f"Name {i}",
+            "sources": {"gi": True},
+            "aliases": [],
+        }
+        identities[f"person:kg{i}"] = {
+            "type": "person",
+            "display_name": f"Name {i}",
+            "sources": {"kg": True},
+            "aliases": [],
+        }
+    caplog.set_level(logging.INFO, logger="podcast_scraper.builders.bridge_builder")
+    merges = _fuzzy_reconcile(identities, threshold=0.9, embedder=SameVector())
+    assert len(merges) == 3
+    info = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+    assert info == ["Fuzzy reconcile: merged 3 identities (threshold 0.90)"]
