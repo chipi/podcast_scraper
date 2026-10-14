@@ -7,6 +7,7 @@ automatically join the summary and the CLI.
 
 from __future__ import annotations
 
+import dataclasses
 from functools import partial
 from typing import Callable, Optional
 
@@ -107,6 +108,12 @@ def _collect(probes: dict) -> dict:
     }
 
 
+def _umami_site(target: TargetConfig, frontend: Optional[str]) -> TargetConfig:
+    """The target pointed at *frontend*'s own Umami site (player and operator are separate)."""
+    site = target.umami_website_ids.get(frontend or "")
+    return dataclasses.replace(target, umami_website_id=site) if site else target
+
+
 def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
     """Observe ONE surface (api / pipeline / player / operator): its five-signal snapshot.
 
@@ -139,11 +146,11 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
         )
     if name in ("operator", "player"):
         # The user-action lens (ADR-126 Umami): what people actually DID on this frontend — the
-        # typed custom events, page/visitor totals, and who's live now. The website_id is per-env
-        # (operator-dev/-prod), so this reads whichever site this target's env is pointed at.
-        probes["user_actions"] = lambda: umami.events(target, window=window)
-        probes["page_analytics"] = lambda: umami.stats(target, window=window)
-        probes["active_users"] = lambda: umami.active(target)
+        # typed custom events, page/visitor totals, and who's live now — from THIS frontend's site.
+        site = _umami_site(target, name)
+        probes["user_actions"] = lambda: umami.events(site, window=window)
+        probes["page_analytics"] = lambda: umami.stats(site, window=window)
+        probes["active_users"] = lambda: umami.active(site)
     collected = _collect(probes)
     return ok(
         "surface",
@@ -158,7 +165,7 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
     )
 
 
-def analytics(target: TargetConfig, *, window: str = "24h") -> dict:
+def analytics(target: TargetConfig, *, window: str = "24h", frontend: Optional[str] = None) -> dict:
     """Umami user-action analytics — what people DID on a frontend (ADR-126), joined in one call.
 
     The direct verb behind ``surface operator``'s Umami signals: the typed custom events (user
@@ -166,12 +173,16 @@ def analytics(target: TargetConfig, *, window: str = "24h") -> dict:
     (operator-dev/-prod), so this reads whichever site this target's env is pointed at. Degrades
     to ``configured=False`` when Umami read creds aren't wired.
     """
+    site = _umami_site(target, frontend)
     probes: dict[str, Callable[[], dict]] = {
-        "user_actions": lambda: umami.events(target, window=window),
-        "page_analytics": lambda: umami.stats(target, window=window),
-        "active_users": lambda: umami.active(target),
+        "user_actions": lambda: umami.events(site, window=window),
+        "page_analytics": lambda: umami.stats(site, window=window),
+        "active_users": lambda: umami.active(site),
     }
-    return ok("analytics", {"target": target.name, "window": window, **_collect(probes)})
+    return ok(
+        "analytics",
+        {"target": target.name, "frontend": frontend, "window": window, **_collect(probes)},
+    )
 
 
 def investigate(

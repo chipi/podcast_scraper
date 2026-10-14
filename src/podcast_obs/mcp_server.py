@@ -181,12 +181,15 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         Each signal degrades independently (configured=false when its backend isn't wired)."""
         return _run(config, target, lambda t: _surface(t, surface, window=window))
 
-    def obs_analytics(target: Optional[str] = None, window: str = "24h") -> dict:
+    def obs_analytics(
+        target: Optional[str] = None, window: str = "24h", frontend: Optional[str] = None
+    ) -> dict:
         """User-action analytics from Umami (ADR-126) — what people actually DID on the operator
         viewer / player: the typed custom events (user_actions), page/visitor totals
         (page_analytics), and who's live now (active_users). The website_id is per-environment
-        (operator-dev/-prod). Degrades to configured=false when Umami read creds aren't wired."""
-        return _run(config, target, lambda t: _analytics(t, window=window))
+        (operator-dev/-prod). `frontend` (player / operator) picks that frontend's own site.
+        Degrades to configured=false when Umami read creds aren't wired."""
+        return _run(config, target, lambda t: _analytics(t, window=window, frontend=frontend))
 
     def obs_investigate(
         target: Optional[str] = None,

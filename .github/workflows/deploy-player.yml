@@ -284,6 +284,8 @@ jobs:
           # reads exactly the project prod's LLM calls land in. Empty -> "not configured".
           PODCAST_OBS_LANGFUSE_PUBLIC_KEY: ${{ secrets.LITELLM_LANGFUSE_PUBLIC_KEY }}
           PODCAST_OBS_LANGFUSE_SECRET_KEY: ${{ secrets.LITELLM_LANGFUSE_SECRET_KEY }}
+          # obs Umami read user (view-only `podcast-obs`, the two frontends' sites only).
+          PODCAST_OBS_UMAMI_PASSWORD: ${{ secrets.PODCAST_OBS_UMAMI_PASSWORD }}
           # The tailnet suffix for the obs read URLs below — derived, never committed
           # (identifier-denylist). Already a required var of this workflow (preflight checks it).
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
@@ -319,9 +321,10 @@ jobs:
           . infra/observability/vps-observability.endpoints.env
           GRAFANA_NODE=grafana
           GLITCHTIP_NODE=glitchtip
+          UMAMI_NODE=umami
           TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
           if [ -z "${LOGS_NODE:-}" ] || [ -z "${METRICS_NODE:-}" ] || [ -z "${GRAFANA_NODE:-}" ] \
-            || [ -z "${GLITCHTIP_NODE:-}" ] || [ -z "${TAILNET_DOMAIN}" ] \
+            || [ -z "${GLITCHTIP_NODE:-}" ] || [ -z "${UMAMI_NODE:-}" ] || [ -z "${TAILNET_DOMAIN}" ] \
             || [ "${TAILNET_DOMAIN}" = "${PROD_TAILNET_FQDN}" ]; then
             echo "::error::cannot build obs read URLs (node names missing, or PROD_TAILNET_FQDN has no domain part)"
             exit 1
@@ -330,9 +333,10 @@ jobs:
           OBS_METRICS_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}"
           OBS_GRAFANA_URL="https://${GRAFANA_NODE}.${TAILNET_DOMAIN}"
           OBS_SENTRY_URL="https://${GLITCHTIP_NODE}.${TAILNET_DOMAIN}"
+          OBS_UMAMI_URL="https://${UMAMI_NODE}.${TAILNET_DOMAIN}"
           # Fail loud on a malformed URL BEFORE it reaches the box — a bad value otherwise lands
           # silently and that obs source just reads "failed".
-          for u in "$OBS_LOGS_URL" "$OBS_METRICS_URL" "$OBS_GRAFANA_URL" "$OBS_SENTRY_URL"; do
+          for u in "$OBS_LOGS_URL" "$OBS_METRICS_URL" "$OBS_GRAFANA_URL" "$OBS_SENTRY_URL" "$OBS_UMAMI_URL"; do
             case "$u" in https://*.*.*) : ;; *) echo "::error::malformed obs URL: $u"; exit 1 ;; esac
           done
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -453,6 +457,7 @@ jobs:
             echo "PODCAST_OBS_SENTRY_TOKEN=${PODCAST_OBS_SENTRY_TOKEN}"
             echo "PODCAST_OBS_LANGFUSE_PUBLIC_KEY=${PODCAST_OBS_LANGFUSE_PUBLIC_KEY}"
             echo "PODCAST_OBS_LANGFUSE_SECRET_KEY=${PODCAST_OBS_LANGFUSE_SECRET_KEY}"
+            echo "PODCAST_OBS_UMAMI_PASSWORD=${PODCAST_OBS_UMAMI_PASSWORD}"
             # Obs read URLs, built and validated at the top of this step (#2188). Traces need no
             # line here: obs reuses OTEL_EXPORTER_OTLP_TRACES_ENDPOINT above, the same value the
             # player api exports spans to.
@@ -460,6 +465,7 @@ jobs:
             echo "PODCAST_OBS_VICTORIAMETRICS_URL=${OBS_METRICS_URL}"
             echo "PODCAST_OBS_GRAFANA_URL=${OBS_GRAFANA_URL}"
             echo "PODCAST_OBS_SENTRY_URL=${OBS_SENTRY_URL}"
+            echo "PODCAST_OBS_UMAMI_URL=${OBS_UMAMI_URL}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \

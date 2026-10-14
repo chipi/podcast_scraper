@@ -309,6 +309,9 @@ services:
       # LLM traces (config: langfuse.*_env) — the podcast-prod project keys the gateway uses.
       PODCAST_OBS_LANGFUSE_PUBLIC_KEY: ${PODCAST_OBS_LANGFUSE_PUBLIC_KEY:-}
       PODCAST_OBS_LANGFUSE_SECRET_KEY: ${PODCAST_OBS_LANGFUSE_SECRET_KEY:-}
+      # Umami analytics (config: umami.*): view-only read user + the deploy-rendered node URL.
+      PODCAST_OBS_UMAMI_PASSWORD: ${PODCAST_OBS_UMAMI_PASSWORD:-}
+      PODCAST_OBS_UMAMI_URL: ${PODCAST_OBS_UMAMI_URL:-}
       # Backend READ URLs — rendered at deploy time by deploy-player.yml, like every other prod
       # container's observability endpoints (#2188). The YAML carries none; the loader falls back to
       # these. They MUST be declared here: compose passes a container only what this block names,

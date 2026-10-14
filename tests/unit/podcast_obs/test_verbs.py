@@ -117,3 +117,34 @@ def test_surface_logs_use_the_surfaces_own_log_selector(monkeypatch) -> None:
         "app:player",
         "app:operator",
     }
+
+
+def test_player_and_operator_read_their_own_umami_site(monkeypatch) -> None:
+    # One website id per target meant `surface player` read the operator's analytics (or the
+    # reverse). Each frontend is its own Umami site.
+    seen = []
+
+    def _rec(source):
+        def _f(target, **kw):
+            seen.append((source, target.umami_website_id))
+            return ok(source, {})
+
+        return _f
+
+    for fn in ("red_metrics", "recent_logs", "traces_recent", "events"):
+        monkeypatch.setattr(aggregate.victoria, fn, _ok(fn))
+    monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))
+    for fn in ("events", "stats", "active"):
+        monkeypatch.setattr(aggregate.umami, fn, _rec(fn))
+    t = _t(umami_website_id="default", umami_website_ids={"player": "P", "operator": "O"})
+    aggregate.surface(t, "player")
+    assert {w for _, w in seen} == {"P"}
+    seen.clear()
+    aggregate.surface(t, "operator")
+    assert {w for _, w in seen} == {"O"}
+    seen.clear()
+    aggregate.analytics(t, frontend="player")
+    assert {w for _, w in seen} == {"P"}
+    seen.clear()
+    aggregate.analytics(t)  # no frontend -> the target's default site
+    assert {w for _, w in seen} == {"default"}

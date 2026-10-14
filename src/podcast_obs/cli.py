@@ -112,6 +112,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "analytics", help="Umami user-action analytics for a frontend (operator/player)."
     )
     analytics.add_argument("--window", default="24h", help="Lookback window (default 24h).")
+    analytics.add_argument(
+        "--frontend", default=None, help="player or operator: that frontend's own Umami site."
+    )
     serve = sub.add_parser("serve", help="Run the MCP server (agent-facing) over the core.")
     serve.add_argument(
         "--transport",
@@ -192,7 +195,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             limit=args.limit,
         )
     elif args.command == "analytics":
-        result = _analytics(target, window=args.window)
+        result = _analytics(target, window=args.window, frontend=args.frontend)
     elif args.command == "metrics":
         result = victoria.metrics_instant(target, args.query)
     elif args.command == "spans":
