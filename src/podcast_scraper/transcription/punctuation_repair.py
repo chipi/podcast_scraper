@@ -47,6 +47,9 @@ MAX_WORD_RATIO = 1.3
 #: Where the old decode had NO text, new words at most this fast: fast conversational speech is
 #: ~3.5 words/s; the recovered English holes ran 1.8-4.4 (35-88 words in 18-24 s).
 MAX_NEW_WORDS_PER_S = 4.5
+#: Hesitations the unpunctuated decode writes out and a punctuated decode leaves out. They are not
+#: speech the repair lost: 32 "um" and 6 "uh" alone refused a clean repair (prod 2026-10-14).
+_FILLERS = frozenset({"um", "umm", "uh", "uhm", "uhh", "er", "erm", "ah", "hmm", "mm", "mhm"})
 
 _TOKEN = re.compile(r"[^\w]+", re.UNICODE)
 
@@ -199,7 +202,10 @@ def _verdict(
         return "repetitive"
     old_bag, new_bag = _bag(old_text), _bag(new_text)
     old_n = sum(old_bag.values())
-    if old_n and sum((old_bag & new_bag).values()) / old_n < MIN_RETAINED:
+    spoken = Counter({w: n for w, n in old_bag.items() if w not in _FILLERS})
+    spoken_n = sum(spoken.values())
+    retained = sum((spoken & new_bag).values()) / spoken_n if spoken_n else 1.0
+    if spoken_n and retained < MIN_RETAINED:
         return "lost_words"
     covered = _merged([(float(s["start"]), float(s["end"])) for s in old])
     inside_n = outside_n = 0
