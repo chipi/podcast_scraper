@@ -191,20 +191,41 @@ kept is used.
    and the last run's changes; after the next theme rebuild, its "Kept their id" is close to the
    theme count (themes now keep their id by meaning too, and their names stick).
 
+### 8. Naming, punctuation and the MCP (2026-10-13/14 changes) — each prod step needs the operator's go
+
+The deploy carries: Phase C naming (#2347), K8 (`ee4d19961`), F7 storyteller seats (`2fd6411dc`),
+the punctuation filler rule (`81e3e8610`), the MCP entity-resolver refresh (`e6cc51be2`) and the
+new `repunctuate_only` reprocess stage. The code only changes NEW episodes; served ones keep their
+old names and text until steps 3 and 4.
+
+1. **MCP:** after the restart the log shows the entity registry warming at startup; then one
+   `resolve_entity` call (e.g. "reward hacking") answers in seconds, not a 2-3 minute timeout.
+2. **First nightly:** read the new episodes' rosters (no promo voice named as a guest, hosts named);
+   compare the naming-coverage gauge with the day before.
+3. **`repunctuate_only`** on the 32 episodes still flagged unpunctuated (25 of their 48 windows are
+   expected to pass, measured 2026-10-14 with `scripts/measure/punctuation_refusals.py`). ONE
+   episode first, read its diff, then the rest. Through `reprocess-prod.yml` with
+   `pipeline_stage=repunctuate_only` and the episode ids (newline- or space-separated); not inside
+   a backfill batch. An episode with nothing left to repair is recorded and not touched.
+4. **Relabel the served episodes whose names change** (Phase C, K8, F7: the replays list them):
+   `relabel_only` batch, the LLM on the DGX — operator decides.
+5. **F7 A2:** re-diarize The Rest Is History (`rediarize_only`, approved 2026-10-14, AFTER this
+   deploy so the new naming code names them) to capture voice embeddings for the 15 storyteller
+   seats nothing in the text names.
+
 ## Carried over (operator items, not deploy steps; from the 2026-10-12/13 plan)
 
-- **A10 calendar, 2026-10-25:** nightly cron `0 23 * * *` → `0 0 * * *` (DST).
-- **#2187 backfill decisions (owed):** 8 episode ids containing a comma (`reprocess-prod.yml`
-  splits inline ids on commas — route via an `episode_ids_file` on the box, a prod change); 2
-  episodes out of `feeds.spec.yaml` scope; 3 The Gray Area episodes (feed not in the spec); the
-  refused repair windows (16+ by 10-10).
-- **Phase C (operator decides):** proposed order voice identity → K8 with its cross-post guard
-  (#2338) → embeddings rebuild only if measured worth it; S5 (#2332, 96 publisher-transcript
-  episodes) and F7 (The Rest Is History, 30) parked.
-- **P5 entity search:** after an enrichment, search a new storyline/theme name (snapshots
-  `~deploy/topic_*clusters.snapshot-20261010.json`).
-- **person_web (#2111):** 281 misses (TTL 30 days from 2026-09-17) reconsidered from 2026-10-17;
-  `refresh=true` does it now. Whether a refresh already ran: not checked.
+- **A10 DST cron:** DONE 2026-10-13 (`cron: 0 0 * * *`, scheduler reloaded).
+- **#2187 backfill decisions:** DONE 2026-10-13/14 — the comma ids go through the chain (inline ids
+  split on whitespace, `60631f53d`); The Gray Area is back in `feeds.spec.yaml`; the "2 out of
+  spec" did not exist; the refused repair windows → step 8.3.
+- **Phase C / K8 / F7:** shipped in this deploy (step 8). S5 (#2332): `relabel_only` cost trial on
+  2 episodes approved 2026-10-14. F7 A2 → step 8.5.
+- **P5 entity search:** checked 2026-10-14 through the MCP; found the registry never refreshed and
+  built inside the first request → fixed in `e6cc51be2` (step 8.1).
+- **person_web (#2111):** DONE 2026-10-14 — the 304 misses written before the Wikidata resolver
+  were removed (backup `/app/output/.backups/person_web_pre_wikidata_misses-20261013.tgz`); the
+  14 Oct nightly re-looked up 129 people, 72 found.
 
 ## Dev (done 2026-10-13, for reference)
 
