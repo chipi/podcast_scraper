@@ -53,11 +53,17 @@ const reelLabel = computed(() => {
   const r = player.reel
   if (!r) return null
   const at = { n: r.index + 1, total: r.moments.length }
+  // A learning day's clip (or "Play all") is a day of a path, not the episode's Moments (2026-10-14).
+  if (r.learn) return t('learn.clipKicker', { n: r.learn.day })
   return r.topic ? t('reel.mini', { topic: r.topic.label, ...at }) : t('moments.mini', at)
 })
 // A topic reel opens its own page (its clips are from many episodes), an episode reel its episode.
+// "Play all" opens its week; a single learning day its episode, where the clip plays in the artwork
+// (not `?moments=1`, which would start the episode's own Moments).
 const openTo = computed(() => {
   const r = player.reel
+  if (r?.learn?.all) return { name: 'learn', query: { subject: r.learn.subjectId } }
+  if (r?.learn) return { name: 'player', params: { slug: currentSlug.value } }
   if (r?.topic) return { name: 'topic-reel', params: { id: r.topic.id }, query: { minutes: String(r.topic.minutes) } }
   return r
     ? { name: 'player', params: { slug: currentSlug.value }, query: { moments: '1' } }

@@ -17,12 +17,23 @@
  * Renders NOTHING when unplayed — an "Unplayed" badge on every row would be noise on the common
  * case, and absence already reads as unplayed.
  */
+import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlayed } from '../composables/usePlayed'
+import { useAuthStore } from '../stores/auth'
+import { useCompletedStore } from '../stores/completed'
 
 const props = defineProps<{ slug: string }>()
 const { t } = useI18n()
 const { isPlayed } = usePlayed()
+// The badge loads what it reads (2026-10-14): only Home, the catalogue, a show page and the player
+// loaded the played set, so on search results, Saved and Revisit the badge was blank until one of
+// those had been opened. One load at a time (the store's in-flight guard), once per session.
+const auth = useAuthStore()
+const completed = useCompletedStore()
+onMounted(() => {
+  if (auth.isAuthenticated) void completed.ensureLoaded().catch(() => {})
+})
 </script>
 
 <template>

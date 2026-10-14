@@ -4,7 +4,7 @@ import type { LearnEnd } from '../stores/player'
 import { watchLearnDayHeard } from './learnDayHeard'
 
 const api = vi.hoisted(() => ({ learnStepDone: vi.fn(), learnOpenNext: vi.fn() }))
-vi.mock('./api', () => api)
+vi.mock('./api', async (orig) => ({ ...(await orig<typeof import('./api')>()), ...api }))
 vi.mock('./analytics', () => ({ track: vi.fn() }))
 
 async function settled(): Promise<void> {
@@ -74,4 +74,18 @@ describe('a learning day\'s clip heard to its end (operator 2026-10-14)', () => 
     expect(api.learnOpenNext).not.toHaveBeenCalled()
     stop()
   })
+
+  it('"Play all" into a day not yet open: opens it, then does it (2026-10-14)', async () => {
+    const { ApiError } = await import('./api')
+    api.learnStepDone.mockRejectedValueOnce(new ApiError(409, 'not yet')).mockResolvedValueOnce({})
+    const stop = watchLearnDayHeard({ event: () => end.value, settle })
+    fire({ day: 2, all: true })
+    await settled()
+    await settled()
+    expect(api.learnOpenNext).toHaveBeenCalledWith('thc:x')
+    expect(api.learnStepDone).toHaveBeenCalledTimes(2)
+    expect(end.value?.status).toBe('done')
+    stop()
+  })
 })
+

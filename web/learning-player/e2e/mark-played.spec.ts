@@ -130,3 +130,23 @@ test('Up next: Mark as played in a card ⋯ takes it out of the queue', async ({
   await expect.poll(queueNow).toEqual(before.slice(1))
   await expect(page.getByRole('button', { name: /^More actions/ })).toHaveCount(before.length - 1)
 })
+
+test('a played episode says so in search results, on a fresh visit to search (2026-10-14)', async ({ page }, testInfo) => {
+  // Search, Saved and Revisit never loaded the played set themselves: the badge was blank there
+  // until Home or a show page had been opened. Straight to search, it must say Played.
+  await signInIsolated(page, 'played-in-search', testInfo)
+  await page.goto('/search?q=risk&scope=all')
+  const groups = page.getByTestId('episode-group')
+  await expect(groups.first()).toBeVisible()
+  const href = (await groups.first().getByTestId('episode-group-link').getAttribute('href'))!
+  const slug = decodeURIComponent(href.split('/').pop()!)
+  expect((await page.request.put(`/api/app/completed/${encodeURIComponent(slug)}`)).ok()).toBe(true)
+
+  await page.goto('/search?q=risk&scope=all') // a fresh load: nothing else has loaded the set
+  // The episode can head more than one group (a passage section, an insight section): each says it.
+  const played = page.getByTestId('episode-group').filter({ has: page.locator(`a[href="${href}"]`) })
+  await expect(played.first().getByTestId('played-badge')).toBeVisible()
+  const groupsOfIt = await played.count()
+  await expect(page.getByTestId('played-badge')).toHaveCount(groupsOfIt)
+})
+

@@ -98,4 +98,10 @@ test('a stop in "Play all" leaves the week where it is; the next one starts at t
   await page.reload()
   await expect(page.getByTestId('learn-play-all')).toHaveText('▶ Play all from day 2')
   expect(await daysDone(page)).toEqual([1])
+
+  // Picking up again starts at day 2, which has not opened yet: it is opened and done as it is
+  // heard (2026-10-14: the first build left it "failed" — the server refused a day not yet open).
+  await page.getByTestId('learn-play-all').click()
+  await expect(page.getByTestId('learn-play-all-toggle')).toContainText('Day 2')
+  await expect.poll(() => daysDone(page), { timeout: 45_000 }).toEqual([1, 2])
 })

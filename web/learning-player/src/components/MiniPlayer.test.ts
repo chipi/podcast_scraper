@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
@@ -14,6 +15,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: { template: '<div />' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div />' } },
+    { path: '/learn', name: 'learn', component: { template: '<div />' } },
   ],
 })
 
@@ -210,5 +212,26 @@ describe('MiniPlayer during a Moments reel (2026-10-10)', () => {
     expect(w.get('[data-testid="mini-player-moments"]').text()).toBe('Moments · 2 / 3')
     expect(w.text()).not.toContain('The Show')
     expect(w.get('[data-testid="mini-player-open"]').attributes('href')).toBe('/episode/ep-1?moments=1')
+  })
+
+  it('a learning day says its day, and goes back to its clip or its week (2026-10-14)', async () => {
+    const player = nowPlaying()
+    const clip = { insightId: 'a', text: 'a', speaker: null, startMs: 0, endMs: 1 }
+    player.reel = {
+      slug: 'ep-1',
+      moments: [clip],
+      index: 0,
+      returnTo: 0,
+      done: false,
+      learn: { subjectId: 'thc:x', kind: 'storyline', day: 2 },
+    }
+    const one = await mountMini()
+    expect(one.get('[data-testid="mini-player-moments"]').text()).toBe('Learn · day 2')
+    // Not ?moments=1: that would start the episode's own Moments.
+    expect(one.get('[data-testid="mini-player-open"]').attributes('href')).toBe('/episode/ep-1')
+    player.reel = { ...player.reel, learn: { subjectId: 'thc:x', kind: 'storyline', day: 3, all: true } }
+    await nextTick()
+    expect(one.get('[data-testid="mini-player-moments"]').text()).toBe('Learn · day 3')
+    expect(one.get('[data-testid="mini-player-open"]').attributes('href')).toBe('/learn?subject=thc:x')
   })
 })

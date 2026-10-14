@@ -7,7 +7,7 @@
  */
 import { watch, type WatchStopHandle } from 'vue'
 import type { LearnEnd } from '../stores/player'
-import { learnOpenNext, learnStepDone } from './api'
+import { ApiError, learnOpenNext, learnStepDone } from './api'
 import { track } from './analytics'
 
 export function watchLearnDayHeard(source: {
@@ -25,7 +25,13 @@ export function watchLearnDayHeard(source: {
         return
       }
       try {
-        await learnStepDone(e.subjectId, e.day - 1)
+        await learnStepDone(e.subjectId, e.day - 1).catch(async (err: unknown) => {
+          // "Play all" from a day not yet open (the one before it done, the next not opened):
+          // the server answers 409 "that day has not come yet". Open it, then do it.
+          if (!(err instanceof ApiError) || err.status !== 409) throw err
+          await learnOpenNext(e.subjectId)
+          await learnStepDone(e.subjectId, e.day - 1)
+        })
         track('learn_path', { action: 'step_done', kind: e.kind, day: e.day, source: 'clip_end' })
       } catch {
         source.settle(e.seq, 'failed')
