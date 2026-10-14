@@ -300,7 +300,7 @@ services:
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       # What obs reads. Tokens come by NAME from the YAML (`<field>_env:`); each source degrades to
       # "not configured" when its token is absent. Grafana: Viewer SA token. Errors: a dedicated
-      # GlitchTip API token (SENTRY_AUTH_TOKEN returns 401 on that API). GitHub: not provisioned.
+      # GlitchTip API token (SENTRY_AUTH_TOKEN returns 401 on that API). GitHub: Actions:read PAT.
       PODCAST_OBS_CONFIG: /config/observability.yaml
       PODCAST_OBS_GRAFANA_TOKEN: ${PODCAST_OBS_GRAFANA_TOKEN:-}
       PODCAST_OBS_GITHUB_TOKEN: ${PODCAST_OBS_GITHUB_TOKEN:-}

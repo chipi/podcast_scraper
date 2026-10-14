@@ -47,8 +47,8 @@ targets:
     # player-api (which accepts it for reads only, app_operator_guard) and into obs here.
     operator_key_file: /run/secrets/app_operator_read_key
 
-    # Deploy history (recent deploy-prod runs). Needs an Actions:read PAT — deliberately not
-    # provisioned; this source reports "not configured".
+    # Deploy history (recent deploy-prod runs). An Actions:read fine-grained PAT in secret
+    # PODCAST_OBS_GITHUB_TOKEN (set 2026-10-14; the ci-ops-poller's read-only token).
     github:
       repo: chipi/podcast_scraper
       token_env: PODCAST_OBS_GITHUB_TOKEN
