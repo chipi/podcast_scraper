@@ -454,11 +454,13 @@ async function loadContinue(): Promise<void> {
              more reach than a control that only exists while something is in progress — the exact
              gap it was added for in the first place (2026-09-19). Two ways in, one of them
              conditional, is one too many. -->
+        <!-- Under 360 px the pills give up some padding: at 320 px CI's Linux fonts set "✓ Played"
+             10 px past the card's edge, where macOS fit it (2026-10-14). -->
         <div class="relative z-30 mt-3 flex items-center gap-2">
           <RouterLink
             :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
             data-testid="home-resume"
-            class="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
+            class="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline max-[359px]:px-3.5"
           >
             ▶ {{ t("home.resume") }}
           </RouterLink>
@@ -468,7 +470,7 @@ async function loadContinue(): Promise<void> {
           <button
             type="button"
             data-testid="home-resume-mark-played"
-            class="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 font-bold text-accent-foreground"
+            class="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 font-bold text-accent-foreground max-[359px]:px-3.5"
             :aria-label="t('player.markPlayed')"
             @click="togglePlayed(resumeTop.detail.slug)"
           >
