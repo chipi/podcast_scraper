@@ -240,6 +240,48 @@ def test_reel_topics_leave_out_what_the_listener_asked_to_see_less_of(
     assert mine["items"], "the other topics are still offered"
 
 
+def test_reel_topics_leave_out_a_short_listen_already_heard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Operator 2026-10-14: Discover proposes what is still to hear. A short listen whose clips were
+    heard to their end (most of them: a skip does not keep it) is not offered again; half heard,
+    it still is."""
+    monkeypatch.setenv("APP_TRENDING_NOW", "2026-07-20")
+    monkeypatch.setenv("APP_MOMENTUM_MIN_TOTAL", "1")
+    client, _uid = _client(tmp_path)
+    sid = "topic:reliability"
+
+    def offered() -> list[str]:
+        items = client.get("/api/app/discover/reel-topics").json()["items"]
+        return [i["subject_id"] for i in items]
+
+    assert sid in offered()
+    clips = client.get("/api/app/discover/reel", params={"subject": sid, "minutes": 15}).json()[
+        "clips"
+    ]
+    assert len(clips) >= 5
+
+    def hear(cs: list[dict]) -> None:
+        for c in cs:
+            r = client.post(
+                "/api/app/me/moments-heard",
+                json={
+                    "kind": "clip",
+                    "slug": c["episode"]["slug"],
+                    "insight_id": c["insight_id"],
+                    "seconds": 6,
+                },
+            )
+            assert r.status_code == 204, r.text
+
+    half = len(clips) // 2
+    hear(clips[:half])
+    assert sid in offered(), "half heard is still to hear"
+    hear(clips[half:-1])  # all but one: a skip does not keep it on offer
+    assert sid not in offered()
+    assert offered(), "the other short listens are still offered"
+
+
 def test_a_long_reel_is_trimmed_to_its_budget_breadth_first() -> None:
     """A budget against a reel longer than it (2026-10-11): the 22-clip storyline runs 4:24 uncut,
     so two minutes must cut it — every episode's first clip still before any second."""

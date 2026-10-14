@@ -456,6 +456,9 @@ REEL_TOPICS = 4
 REEL_TOPIC_CANDIDATES = 48
 #: A reel of one clip is not "minutes on" anything.
 REEL_MIN_CLIPS = 2
+#: The share of a short listen's clips heard to their end that makes it heard: no longer offered
+#: (operator 2026-10-14). As for a learning day's clip, a skip or two does not keep it on offer.
+REEL_HEARD_SHARE = 0.8
 
 
 @router.get("/discover/reel-topics", response_model=AppReelTopicsResponse)
@@ -513,6 +516,17 @@ def app_discover_reel_topics(
         else set()
     )
     config = getattr(request.app.state, "moments_config", None)
+    # Discover offers what is still to hear (operator 2026-10-14): a short listen whose clips the
+    # listener has heard to their end is not offered again, until new clips make it a new listen.
+    heard = (
+        {
+            (str(m.get("slug")), str(m.get("insight_id")))
+            for m in app_user_state.list_moments_heard(data_dir, user.user_id)
+            if m.get("kind") == "clip" and m.get("insight_id")
+        }
+        if data_dir is not None
+        else set()
+    )
 
     def with_reels(kind: ReelKind, cands: list[tuple[str, str]]) -> list[tuple[str, AppReelTopic]]:
         """``(the reel's clips as a key, the chip)`` for each candidate with a real reel."""
@@ -523,6 +537,10 @@ def app_discover_reel_topics(
             if sid in hidden:
                 continue
             clips = reel_selection(root, sid, minutes=15, config=config)
+            if clips and heard:
+                done = sum(1 for ep, c in clips if (ep.slug, c.insight_id) in heard)
+                if done / len(clips) >= REEL_HEARD_SHARE:
+                    continue
             if len(clips) >= REEL_MIN_CLIPS:
                 seconds = sum(c.end_ms - c.start_ms for _ep, c in clips) / 1000.0
                 same = "|".join(sorted(f"{ep.slug}@{c.start_ms}" for ep, c in clips))
@@ -624,12 +642,17 @@ def app_discover_learn(
     data_dir = _data_dir(request)
     mine_paths = app_user_state.get_learning_paths(data_dir, user.user_id)
     paths = [_path_out(root, p) for p in mine_paths]
-    # A finished path (on for its week) is not one being learned: it neither fills the cap nor
-    # keeps its subject from being offered again (operator 2026-10-14).
+    # A finished path (on for its week) is not one being learned: it does not fill the cap. Nor is
+    # what was learned offered again (operator 2026-10-14: Discover proposes what is still to hear);
+    # the listener can still start it from its subject page.
     active = [p for p in mine_paths if app_user_state.learning_path_active(p)]
     if len(active) >= MAX_PATHS:
         return AppLearnResponse(paths=paths, max_paths=MAX_PATHS)
-    learning = {str(p.get("subject_id")) for p in active}
+    learning = {str(p.get("subject_id")) for p in mine_paths} | {
+        str(h.get("subject_id"))
+        for h in app_user_state.get_learning_history(data_dir, user.user_id)
+        if h.get("outcome") == "finished"
+    }
     mine = scope == "mine"
     restrict = personal_entity_ids(root, data_dir, user.user_id) if mine else None
     # "Less like this" is the listener's, in either scope (operator 2026-10-11).

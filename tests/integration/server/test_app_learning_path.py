@@ -390,9 +390,10 @@ def test_a_finished_path_stays_a_week_frees_its_place_and_is_kept_as_history(
     # Off Home's In progress at once (operator 2026-10-14); its week stays readable.
     assert client.get("/api/app/discover/in-progress").json()["paths"] == []
 
-    # Not one being learned: three more fit beside it, and its subject is offered again.
+    # Not one being learned: three more fit beside it. Learned, it is not offered again
+    # (Discover proposes what is still to hear).
     offer = client.get("/api/app/discover/learn").json()
-    assert sid in {c["subject_id"] for c in offer["candidates"]}
+    assert offer["candidates"] and sid not in {c["subject_id"] for c in offer["candidates"]}
     for other in ("thc:second-order-effects", "tc:reliability", "tc:risk-management"):
         r = client.post("/api/app/discover/learn", json={"subject_id": other})
         assert r.status_code == 200, r.text
