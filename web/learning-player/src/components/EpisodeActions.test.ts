@@ -62,3 +62,44 @@ describe('EpisodeActions: the controls name their episode', () => {
     expect(names.some((n) => n.includes(':'))).toBe(false)
   })
 })
+
+/** "Mark as played" in the ⋯ of Jump back in and Up next (operator 2026-10-14). */
+describe('EpisodeActions: Mark as played', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    useAuthStore().user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+  })
+
+  function mountWith(markPlayed: boolean) {
+    return mount(EpisodeActions, {
+      props: { slug: 'p09-a4bbb5dde3', episodeTitle: 'Risk', markPlayed },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+  }
+
+  it('is offered only where a surface asks for it', async () => {
+    for (const [asked, present] of [
+      [true, true],
+      [false, false],
+    ] as const) {
+      const w = mountWith(asked)
+      await w.get('[aria-haspopup="menu"]').trigger('click')
+      expect(w.find('[data-testid="episode-mark-played"]').exists()).toBe(present)
+      w.unmount()
+    }
+  })
+
+  it('marks the episode played, then offers to undo it', async () => {
+    const api = await import('../services/api')
+    const mark = vi.spyOn(api, 'markCompleted').mockResolvedValue(['p09-a4bbb5dde3'] as never)
+    const w = mountWith(true)
+    await w.get('[aria-haspopup="menu"]').trigger('click')
+    const item = w.get('[data-testid="episode-mark-played"]')
+    expect(item.text()).toBe(en.player.markPlayed)
+    await item.trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mark).toHaveBeenCalledWith('p09-a4bbb5dde3')
+    await w.get('[aria-haspopup="menu"]').trigger('click')
+    expect(w.get('[data-testid="episode-mark-played"]').text()).toBe(en.player.markUnplayed)
+  })
+})

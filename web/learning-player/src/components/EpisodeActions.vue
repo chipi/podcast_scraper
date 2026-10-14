@@ -35,6 +35,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useOnline } from '../composables/useOnline'
 import { useDownloadsStore } from '../stores/downloads'
+import { usePlayed } from '../composables/usePlayed'
 import { track } from '../services/analytics'
 import { openShareSheet } from '../services/native'
 import { copyText } from '../utils/clipboard'
@@ -104,8 +105,15 @@ defineProps<{
    * screen still shows only the icons.
    */
   episodeTitle?: string
+  /**
+   * Offer "Mark as played" (or "Mark as unplayed") in the ⋯ — on the surfaces that list what is
+   * still to be heard: Jump back in and Up next (operator 2026-10-14). Marking it takes the episode
+   * out of every in-progress rail and the queue at once (see `usePlayed`). Opt-in, like Share.
+   */
+  markPlayed?: boolean
 }>()
 const { t } = useI18n()
+const { isPlayed, togglePlayed } = usePlayed()
 const router = useRouter()
 const { isOnline } = useOnline()
 const downloads = useDownloadsStore()
@@ -172,6 +180,17 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
           variant="menuitem"
         />
         <QueueButton v-if="hideQueue" :slug="slug" variant="menuitem" />
+        <button
+          v-if="markPlayed"
+          type="button"
+          role="menuitem"
+          data-menuitem=""
+          class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay"
+          data-testid="episode-mark-played"
+          @click="close(); void togglePlayed(slug)"
+        >
+          {{ isPlayed(slug) ? t('player.markUnplayed') : t('player.markPlayed') }}
+        </button>
         <button
           v-if="shareTitle"
           type="button"

@@ -71,6 +71,8 @@ const props = defineProps<{
   hideQueue?: boolean
   /** Forwarded to `EpisodeActions`: promote download into the visible row (Up next). */
   showDownload?: boolean
+  /** Forwarded to `EpisodeActions`: offer "Mark as played" in the ⋯ (Up next). */
+  markPlayed?: boolean
   /**
    * Drop the played marker.
    *
@@ -219,6 +221,7 @@ const { badgeShown } = useCorpusLanguages()
         :hide-favorite="hideFavorite"
         :hide-queue="hideQueue"
         :show-download="showDownload"
+        :mark-played="markPlayed"
         :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 w-32'"
       >
         <template #lead><slot name="lead-action" /></template>

@@ -107,3 +107,25 @@ describe('QueueView', () => {
     expect(w.text()).toContain('Your queue is empty.')
   })
 })
+
+describe('QueueView: Mark as played (operator 2026-10-14)', () => {
+  it('each card offers it, and marking one played takes it out of Up next at once', async () => {
+    vi.spyOn(api, 'getQueue').mockResolvedValue(['a-1', 'b-2'])
+    vi.spyOn(api, 'getEpisode').mockImplementation(async (s: string) =>
+      s === 'a-1' ? detail('a-1', 'Alpha') : detail('b-2', 'Beta'),
+    )
+    const mark = vi.spyOn(api, 'markCompleted').mockResolvedValue(['a-1'] as never)
+    const w = mount(QueueView, {
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    await flushPromises()
+    const menus = w.findAll('[aria-haspopup="menu"]')
+    expect(menus.length).toBeGreaterThan(0)
+    await menus[0]!.trigger('click')
+    await w.get('[data-testid="episode-mark-played"]').trigger('click')
+    await flushPromises()
+    expect(mark).toHaveBeenCalledWith('a-1')
+    expect(w.text(), 'a played episode is still waiting in Up next').not.toContain('Alpha')
+    expect(w.text()).toContain('Beta')
+  })
+})

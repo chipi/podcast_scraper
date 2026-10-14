@@ -162,8 +162,8 @@ final class DownloadThroughUITests: UITestCase {
     pageOverflow(app).tap()
 
     // `role="menuitem"` maps to MenuItem, not Button — see `Journey.control`.
-    let already = menuItem(app, "Downloaded — tap to remove")
-    if already.waitForExistence(timeout: 10) {
+    let already = waitForMenuItem(app, "Downloaded — tap to remove", timeout: 10)
+    if already.exists {
       already.tap()
       // Removal deletes the file and rewrites the registry; give it room, and CONFIRM the control
       // actually went back to offering a download rather than assuming the tap took.
@@ -174,7 +174,7 @@ final class DownloadThroughUITests: UITestCase {
       // the panel by design. The control we then waited 30s for was not slow, it was off-screen.
       _ = Journey.control(app, label: "More actions").waitForExistence(timeout: 10)
       pageOverflow(app).tap()
-      if !menuItem(app, "Download for offline").waitForExistence(timeout: 30) {
+      if !waitForMenuItem(app, "Download for offline", timeout: 30).exists {
         print("=====REMOVE_TREE_START====="); print(app.debugDescription); print("=====REMOVE_TREE_END=====")
         XCTFail("removing the existing download never restored the Download control for \(title)")
         return
@@ -214,8 +214,8 @@ final class DownloadThroughUITests: UITestCase {
       )
       return
     }
-    let downloadButton = menuItem(app, "Download for offline")
-    if !downloadButton.waitForExistence(timeout: 20) {
+    let downloadButton = waitForMenuItem(app, "Download for offline", timeout: 20)
+    if !downloadButton.exists {
       print("=====NO_DOWNLOAD_CONTROL_TREE_START====="); print(app.debugDescription)
       print("=====NO_DOWNLOAD_CONTROL_TREE_END=====")
       // No longer conflated (the issue asked for this split): reaching here means the page
@@ -228,7 +228,9 @@ final class DownloadThroughUITests: UITestCase {
           + "Ceiling: \(Int(aboveTransport(app))). Menu items: \(app.menuItems.allElementsBoundByIndex.map { $0.label }). "
           + "All elements: \(app.descendants(matching: .any).count). Other menu item present: "
           + "\(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Mark as")).count). "
-          + "Last 6 labelled: \(app.descendants(matching: .any).allElementsBoundByIndex.suffix(40).map { $0.label }.filter { !$0.isEmpty }.suffix(6)). "
+          // Not a walk of every element by index: a re-render mid-walk ("No matches found for
+          // Element at index 130", 2026-10-14) threw from inside this message and hid the failure
+          // it was explaining. The inventory snapshots once.
           + "Labelled elements on screen: \(Journey.labelledInventory(app))"
       )
       return
@@ -250,7 +252,7 @@ final class DownloadThroughUITests: UITestCase {
     ]
     var lastSeen = "<never observed>"
     for _ in 0..<9 {
-      if menuItem(app, "Downloaded — tap to remove").waitForExistence(timeout: 2) {
+      if waitForMenuItem(app, "Downloaded — tap to remove", timeout: 2).exists {
         settled = true
         break
       }
@@ -375,6 +377,28 @@ final class DownloadThroughUITests: UITestCase {
   /// not on the next (the recording showed the menu open with the item; `app.menuItems` was empty).
   /// Position can: the menu drops down under the page's ⋯, above the player's transport, and every
   /// card sits below it. So: a matching element that is on screen, above the transport.
+  /**
+   * `menuItem`, re-resolved until the item is on screen or `timeout` runs out.
+   *
+   * `menuItem` decides once, when it is called: if the panel has not rendered yet it hands back
+   * its never-matching fallback, so `waitForExistence` on the result waits on nothing. Called
+   * straight after tapping ⋯ — the menu still opening — that is what happened (2026-10-14): the
+   * panel plainly showed "Downloaded — tap to remove" (screen recording at 2:05-2:10) while the
+   * 10s wait for it failed, the removal was skipped, and the test then waited for a "Download for
+   * offline" that could not appear.
+   */
+  private func waitForMenuItem(
+    _ app: XCUIApplication, _ label: String, timeout: TimeInterval
+  ) -> XCUIElement {
+    let deadline = Date().addingTimeInterval(timeout)
+    var item = menuItem(app, label)
+    while !item.exists && Date() < deadline {
+      _ = item.waitForExistence(timeout: 0.5)
+      item = menuItem(app, label)
+    }
+    return item
+  }
+
   private func menuItem(_ app: XCUIApplication, _ label: String) -> XCUIElement {
     let ceiling = aboveTransport(app)
     let all = app.descendants(matching: .any)

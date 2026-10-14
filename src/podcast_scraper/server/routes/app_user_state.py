@@ -99,12 +99,21 @@ def list_playback(
         for r in rows
     ]
     wanted = set(slugs)
-    # "In progress" is Home's rule: past the first second and not finished.
+    # "In progress" is Home's rule: past the first second, not finished, and not marked played by
+    # hand — "Mark as played" on an unfinished episode takes it out of every in-progress rail while
+    # its position is kept (unmarking brings it back where it was).
+    played = (
+        set(app_user_state.get_completed(_data_dir(request), user.user_id))
+        if in_progress
+        else set()
+    )
     selected = [
         p
         for p in items
         if (not wanted or p.slug in wanted)
-        and (not in_progress or (p.position_seconds > 1 and not p.finished))
+        and (
+            not in_progress or (p.position_seconds > 1 and not p.finished and p.slug not in played)
+        )
     ]
     return PlaybackListResponse(items=selected[offset : offset + limit], total=len(selected))
 

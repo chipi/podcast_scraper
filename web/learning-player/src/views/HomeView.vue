@@ -56,7 +56,7 @@ const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
 const interests = useInterestsStore()
 const completed = useCompletedStore()
-const { isPlayed } = usePlayed()
+const { isPlayed, togglePlayed } = usePlayed()
 
 // What's new is the listener's own world, newest first (operator 2026-10-07) — `scope` says
 // whether it is (`yours`) or the every-show fallback (`all`), and the kicker says the same.
@@ -463,6 +463,17 @@ async function loadContinue(): Promise<void> {
           >
             ▶ {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
           </RouterLink>
+          <!-- Mark as played, beside Resume in the same style (operator 2026-10-14): heard enough, or
+               heard it elsewhere. It leaves this card and Jump back in at once (`continueItems`
+               filters on `isPlayed`), the queue too, and the server's in-progress list. -->
+          <button
+            type="button"
+            data-testid="home-resume-mark-played"
+            class="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground"
+            @click="togglePlayed(resumeTop.detail.slug)"
+          >
+            ✓ {{ t("player.markPlayed") }}
+          </button>
         </div>
       </div>
     </div>
@@ -517,6 +528,7 @@ async function loadContinue(): Promise<void> {
           <EpisodeTile
             :episode="it.detail"
             :progress="it.position / (it.detail.duration_seconds || 1)"
+            mark-played
           />
         </li>
       </CardRail>

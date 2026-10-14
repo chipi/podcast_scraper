@@ -1119,3 +1119,63 @@ describe("HomeView: What's new offers Moments only where there is a moment (2026
     }
   })
 })
+
+/** "Mark as played" beside Resume (operator 2026-10-14): heard enough, so it leaves Home at once. */
+describe('marking the resume episode played', () => {
+  const POS = [
+    { slug: 'ep-1', position_seconds: 120, finished: false, updated_at: 3 },
+    { slug: 'ep-2', position_seconds: 60, finished: false, updated_at: 2 },
+  ]
+
+  beforeEach(() => {
+    allPositions.mockReset().mockReturnValue([])
+    localKnowledgeFor.mockReset().mockResolvedValue(null)
+    readCached.mockReset().mockResolvedValue(null)
+  })
+
+  it('sits beside Resume in the same style, and the card moves on to the next at once', async () => {
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
+    vi.spyOn(api, 'getEpisode').mockImplementation(
+      async (slug: string) => ep(slug, slug === 'ep-1' ? 'Half Finished' : 'Next In Line') as never,
+    )
+    const mark = vi.spyOn(api, 'markCompleted').mockResolvedValue(['ep-1'] as never)
+    const { wrapper } = mountReturnable()
+    await flushPromises()
+
+    const resume = wrapper.get('[data-testid="home-resume"]')
+    const button = wrapper.get('[data-testid="home-resume-mark-played"]')
+    expect(button.classes()).toEqual(expect.arrayContaining(['h-11', 'rounded-full', 'bg-accent']))
+    expect(resume.element.parentElement).toBe(button.element.parentElement)
+    expect(wrapper.text()).toContain('Half Finished')
+
+    await button.trigger('click')
+    await flushPromises()
+    expect(mark).toHaveBeenCalledWith('ep-1')
+    expect(wrapper.text(), 'the marked episode still shows').not.toContain('Half Finished')
+    expect(wrapper.text(), 'the next in-progress one takes the card').toContain('Next In Line')
+  })
+
+  it('a Jump back in tile offers it in its ⋯, and the tile leaves the rail at once', async () => {
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
+    vi.spyOn(api, 'getEpisode').mockImplementation(
+      async (slug: string) => ep(slug, slug === 'ep-1' ? 'Half Finished' : 'Next In Line') as never,
+    )
+    const mark = vi.spyOn(api, 'markCompleted').mockResolvedValue(['ep-2'] as never)
+    const { wrapper } = mountReturnable()
+    await flushPromises()
+    const rail = wrapper.get('[data-testid="home-jump-back-in"]')
+    expect(rail.text()).toContain('Next In Line')
+    await rail.get('[aria-haspopup="menu"]').trigger('click')
+    await flushPromises()
+    // The ⋯ panel teleports to <body> (it escapes clipped ancestors), so it is not in `wrapper`.
+    const item = document.body.querySelector<HTMLElement>('[data-testid="episode-mark-played"]')
+    expect(item, 'the tile ⋯ has no Mark as played').not.toBeNull()
+    item!.click()
+    await flushPromises()
+    expect(mark).toHaveBeenCalledWith('ep-2')
+    expect(wrapper.find('[data-testid="home-jump-back-in"]').exists(), 'the rail kept it').toBe(false)
+    expect(wrapper.text(), 'the resume card is untouched').toContain('Half Finished')
+  })
+})

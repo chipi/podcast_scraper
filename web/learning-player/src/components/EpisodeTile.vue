@@ -56,6 +56,8 @@ const props = defineProps<{
   > & { has_moments?: boolean }
   /** 0..1 — how far the listener got. Drawn under the artwork (Jump back in). */
   progress?: number
+  /** Offer "Mark as played" in the ⋯ (Jump back in) — see `EpisodeActions`. */
+  markPlayed?: boolean
 }>()
 
 // Absolutised via the shared helper — a raw relative URL 404s against `capacitor://localhost`.
@@ -71,6 +73,7 @@ const artwork = computed(() => episodeArtwork(props.episode))
       :slug="episode.slug"
       :episode-title="episode.title"
       :moments="!!episode.has_moments"
+      :mark-played="markPlayed"
       overlay
       class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
     />

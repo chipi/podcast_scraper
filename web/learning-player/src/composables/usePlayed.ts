@@ -25,6 +25,7 @@
  */
 import { localPosition, recordPosition } from '../services/playbackPositions'
 import { useCompletedStore } from '../stores/completed'
+import { useQueueStore } from '../stores/queue'
 
 export function usePlayed(): {
   isPlayed: (slug: string) => boolean
@@ -44,7 +45,14 @@ export function usePlayed(): {
    * (`DELETE /completed/{slug}` retracts the finish record); this clears ours.
    */
   async function togglePlayed(slug: string): Promise<boolean> {
-    if (!isPlayed(slug)) return completed.mark(slug)
+    if (!isPlayed(slug)) {
+      // Played is done: it leaves "Up next" too, whichever surface marked it (operator 2026-10-14).
+      // The in-progress rails drop it by reading `isPlayed` (and the server's in-progress list now
+      // leaves it out), so the queue is the one place that holds it by membership.
+      const queue = useQueueStore()
+      if (queue.items.includes(slug)) void queue.remove(slug)
+      return completed.mark(slug)
+    }
     const local = localPosition(slug)
     if (local?.finished) {
       // Keep the resume point: un-playing says "I did not finish it", not "I was never here".

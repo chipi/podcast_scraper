@@ -481,3 +481,25 @@ def test_mark_unplayed_actually_un_plays_a_FINISHED_episode(tmp_path: Path) -> N
     rec = client.get("/api/app/playback/ep-heard").json()
     assert rec["finished"] is False
     assert rec["position_seconds"] == 1800.0, "unplaying must not lose the resume point"
+
+
+def test_an_episode_marked_played_leaves_continue_listening(tmp_path: Path) -> None:
+    """Marking an episode played by hand (the ⋯ "Mark as played") takes it out of every in-progress
+    rail — Continue listening and Jump back in read this list — though its position is unfinished.
+    Unmarking puts it back where it was."""
+    client = _authed_client(tmp_path)
+    client.put("/api/app/playback/started", json={"position_seconds": 300.0})
+    client.put("/api/app/playback/other", json={"position_seconds": 60.0})
+
+    def started() -> set[str]:
+        body = client.get("/api/app/playback", params={"in_progress": True}).json()
+        assert body["total"] == len(body["items"])
+        return {p["slug"] for p in body["items"]}
+
+    assert started() == {"started", "other"}
+    assert client.put("/api/app/completed/started").status_code == 200
+    assert started() == {"other"}
+    position = client.get("/api/app/playback", params={"slugs": "started"}).json()["items"]
+    assert position[0]["position_seconds"] == 300.0, "the place is kept, only the rail drops it"
+    assert client.delete("/api/app/completed/started").status_code == 200
+    assert started() == {"started", "other"}

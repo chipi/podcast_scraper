@@ -86,3 +86,30 @@ describe('usePlayed', () => {
     expect(localPosition('ep-flight')?.finished).toBe(false)
   })
 })
+
+describe('usePlayed — marking played leaves the queue (operator 2026-10-14)', () => {
+  beforeEach(async () => {
+    setActivePinia(createPinia())
+    __resetPositions()
+    await hydratePositions('u1')
+  })
+
+  it('takes a queued episode out of Up next when it is marked played, and only then', async () => {
+    const { useQueueStore } = await import('../stores/queue')
+    const queue = useQueueStore()
+    queue.items = ['ep-a', 'ep-b']
+    queue.loaded = true
+    const remove = vi.spyOn(queue, 'remove').mockResolvedValue(true)
+    const played = usePlayed()
+
+    await played.togglePlayed('ep-a')
+    expect(remove).toHaveBeenCalledWith('ep-a')
+    expect(useCompletedStore().has('ep-a')).toBe(true)
+
+    remove.mockClear()
+    await played.togglePlayed('ep-a') // un-playing does not put it back in the queue
+    expect(remove).not.toHaveBeenCalled()
+    await played.togglePlayed('ep-c') // not queued: nothing to remove
+    expect(remove).not.toHaveBeenCalled()
+  })
+})
