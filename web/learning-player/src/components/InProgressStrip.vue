@@ -13,6 +13,7 @@ import { clearReelProgress, getInProgress, learnOpenNext, type LearningPath, typ
 import { useGoneReferencesStore } from '../stores/goneReferences'
 import GoneBadge from './GoneBadge.vue'
 import { track } from '../services/analytics'
+import { learnDayRoute } from '../services/learnPlay'
 import { episodeArtwork } from '../utils/episode'
 import CalendarMark from './CalendarMark.vue'
 import { formatTime } from '../player/transcriptSync'
@@ -75,11 +76,6 @@ function opensIn(path: LearningPath): string {
     ? t('inProgress.opensSoon', { n: path.day + 1 })
     : t('inProgress.opensIn', { n: path.day + 1, h: hours })
 }
-const playTo = (slug: string, startMs: number) => ({
-  name: 'player',
-  params: { slug },
-  query: { t: String(Math.floor(startMs / 1000)), play: '1' },
-})
 
 async function openNext(path: LearningPath): Promise<void> {
   if (busy.value) return
@@ -139,7 +135,7 @@ async function openNext(path: LearningPath): Promise<void> {
               <template v-if="c.now">
                 <!-- The Resume hero's oval (operator 2026-10-11: one play control across Home). -->
                 <RouterLink
-                  :to="playTo(c.now.episode.slug, c.now.start_ms)"
+                  :to="learnDayRoute(c.path.subject_id, c.now)"
                   class="inline-flex h-11 items-center gap-2 rounded-full bg-learn px-5 font-bold text-canvas no-underline"
                   data-testid="in-progress-learn-play"
                   @click="track('learn_path', { action: 'step_play', kind: c.path.subject_kind, day: c.now.day, source: 'in_progress' })"

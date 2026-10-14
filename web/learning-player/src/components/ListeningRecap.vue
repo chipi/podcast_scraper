@@ -27,6 +27,8 @@ import TranslatedFrom from './TranslatedFrom.vue'
 import { formatListened } from '../utils/format'
 import { kindPill } from '../utils/interests'
 import KindWord from './KindWord.vue'
+import Tabs from './Tabs.vue'
+import type { TabSpec } from './tabs'
 import type { UserStats } from '../services/types'
 
 const { t } = useI18n()
@@ -36,6 +38,7 @@ const props = defineProps<{ stats?: UserStats | null }>()
 // `ytd` rather than `year`: a rolling 365 days is not a thing anyone thinks about, and "your 2026
 // so far" is honest TODAY in a way a complete-year recap cannot be until the year has been lived.
 const WINDOWS: RecapWindow[] = ['week', 'month', 'ytd']
+const windowTabs = computed<TabSpec<RecapWindow>[]>(() => WINDOWS.map((w) => ({ key: w, label: t(`recap.${w}`) })))
 const window_ = ref<RecapWindow>('week')
 const recap = ref<RecapResponse | null>(null)
 const loading = ref(true)
@@ -187,19 +190,18 @@ const lineTarget = computed(() => {
     class="rounded-2xl border border-border p-5"
     data-testid="stats-recap"
   >
-    <div class="mb-4 flex items-baseline justify-between gap-2">
-      <h2 class="lp-section">{{ t('recap.title') }}</h2>
-      <div class="flex gap-1" role="group" :aria-label="t('recap.window')">
-        <button
-          v-for="w in WINDOWS"
-          :key="w"
-          type="button"
-          class="rounded-full px-3 py-1 text-xs font-bold transition"
-          :class="window_ === w ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted'"
-          :aria-pressed="window_ === w"
-          @click="window_ = w"
-        >{{ t(`recap.${w}`) }}</button>
-      </div>
+    <!-- The window is the shared segmented control, as the settings' choices are, every label on
+         one line (operator 2026-10-14); the title wraps above it rather than beside it. -->
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <h2 class="lp-section whitespace-nowrap">{{ t('recap.title') }}</h2>
+      <Tabs
+        v-model="window_"
+        :tabs="windowTabs"
+        :label="t('recap.window')"
+        id-prefix="recap-window"
+        variant="segment"
+        pattern="radio"
+      />
     </div>
     <!-- Four numbers for the window, one per way of listening (operator 2026-10-12): full
          episodes, short listens, learning days — and what was heard, with its shows and finishes

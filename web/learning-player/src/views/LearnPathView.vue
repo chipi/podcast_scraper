@@ -14,6 +14,8 @@ import BackIcon from '../components/BackIcon.vue'
 import LearnStep from '../components/LearnStep.vue'
 import { getLearn, getLearningPath, learnOpenNext, learnStepDone, stopLearn, type LearningPath } from '../services/api'
 import { track } from '../services/analytics'
+import { resolveNextUpForSlug } from '../services/nextUp'
+import { usePlayerStore } from '../stores/player'
 
 const props = defineProps<{ subject?: string }>()
 const { t } = useI18n()
@@ -57,6 +59,55 @@ async function load(): Promise<void> {
   loaded.value = true
 }
 watch(() => props.subject, load, { immediate: true })
+
+// --- Play all (operator 2026-10-14) -------------------------------------------------------------
+// Headphones on, the whole week in one go: every day not yet done, its clip on its own episode, back
+// to back. Each clip heard to its end does its day and opens the next (`learnDayHeard`), so a stop
+// leaves the week where it is and the next "Play all" starts at the first day not done.
+const player = usePlayerStore()
+const toDo = computed(() => (path.value?.steps ?? []).filter((s) => !s.done))
+const playingAll = computed(
+  () => !!path.value && player.reel?.learn?.all === true && player.reel.learn.subjectId === path.value.subject_id,
+)
+const playingDay = computed(() => (playingAll.value && !player.reel?.done ? player.reel?.learn?.day ?? null : null))
+async function playAll(): Promise<void> {
+  const p = path.value
+  if (!p || !toDo.value.length) return
+  track('learn_path', { action: 'step_play', kind: p.subject_kind, day: toDo.value[0].day, source: 'play_all' })
+  await player.startLearnReel(
+    { subjectId: p.subject_id, kind: p.subject_kind as 'topic' | 'theme' | 'storyline', day: toDo.value[0].day },
+    toDo.value.map((s) => ({
+      insightId: s.insight_id,
+      text: s.quote_text || s.text,
+      speaker: s.speaker,
+      startMs: s.start_ms,
+      endMs: s.end_ms,
+      slug: s.episode.slug,
+      episodeTitle: s.episode.title,
+      showTitle: s.episode.podcast_title,
+      day: s.day,
+    })),
+    resolveNextUpForSlug,
+  )
+}
+function togglePlayAll(): void {
+  if (player.playing) player.el?.pause()
+  else player.resumeAfterInterruption()
+}
+function stopPlayAll(): void {
+  player.exitReel(false)
+}
+// A day done while the week is on screen (by its clip, here or on the episode page): show it.
+watch(
+  () => player.learnEnd?.status,
+  async (status) => {
+    const e = player.learnEnd
+    const p = path.value
+    if (status !== 'done' || !e || !p || e.subjectId !== p.subject_id) return
+    const fresh = await getLearningPath(p.subject_id).catch(() => null)
+    if (fresh && path.value?.subject_id === fresh.subject_id) path.value = fresh
+  },
+)
 
 async function markDone(index: number): Promise<void> {
   if (busy.value || !path.value) return
@@ -113,6 +164,25 @@ function goBack(): void {
       <p class="lp-kicker mt-4">{{ t('learn.kicker') }}</p>
       <h1 class="font-display text-3xl font-extrabold tracking-tight" data-testid="learn-view-title">{{ path.subject_label }}</h1>
       <p class="mt-1 text-sm text-muted">{{ t('learn.dayOf', { n: path.day, total: path.steps.length }) }}</p>
+      <!-- Play all (operator 2026-10-14): the days still to do, back to back. -->
+      <div v-if="playingAll && playingDay" class="mt-4 flex flex-wrap items-center gap-3" data-testid="learn-play-all-live">
+        <button
+          type="button"
+          class="inline-flex h-11 items-center gap-2 rounded-full bg-learn px-5 font-bold text-canvas"
+          data-testid="learn-play-all-toggle"
+          @click="togglePlayAll"
+        >{{ player.playing ? '❚❚' : '▶' }} {{ t('learn.playingDay', { n: playingDay }) }}</button>
+        <button type="button" class="lp-tap min-h-[44px] text-sm font-bold" data-testid="learn-play-all-stop" @click="stopPlayAll">
+          {{ t('learn.playAllStop') }}
+        </button>
+      </div>
+      <button
+        v-else-if="toDo.length"
+        type="button"
+        class="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-learn px-5 font-bold text-canvas"
+        data-testid="learn-play-all"
+        @click="playAll"
+      >▶ {{ toDo.length === path.steps.length ? t('learn.playAll') : t('learn.playAllFrom', { n: toDo[0].day }) }}</button>
       <!-- At the top of a storyline's path (#2344): what the thread is, before its seven days. -->
       <StorylineSummary
         v-if="path.subject_kind === 'storyline'"
@@ -120,8 +190,9 @@ function goBack(): void {
         class="mt-5"
       />
       <ol class="mt-6 flex flex-col gap-3">
-        <li v-for="s in path.steps" :key="s.day"><LearnStep
+        <li v-for="s in path.steps" :key="s.day" :data-playing="playingDay === s.day ? 'true' : undefined"><LearnStep
             :step="s"
+            :subject-id="path.subject_id"
             :busy="busy"
             :kind="path.subject_kind"
             :open="isOpen(s.day)"

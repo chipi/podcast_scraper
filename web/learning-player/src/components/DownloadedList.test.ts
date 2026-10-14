@@ -120,7 +120,7 @@ describe('DownloadedList', () => {
     expect(text).toContain('1 episodes')
   })
 
-  it('"▶ Moments" on every downloaded episode, except one whose saved copy has no moments', async () => {
+  it('no "▶ Moments" on a downloaded row (operator 2026-10-14): the episode page has it', async () => {
     localKnowledgeFor.mockImplementation(async (slug: string) =>
       slug === 'none' ? { moments: [] } : slug === 'some' ? { moments: [{ insight_id: 'a' }] } : null,
     )
@@ -135,6 +135,6 @@ describe('DownloadedList', () => {
     await flushPromises()
     const rows = w.findAll('[data-testid="downloaded-item"]')
     const hasLink = (i: number) => rows[i].find('[data-testid="moments-link"], [data-testid="moments-link-offline"]').exists()
-    expect([hasLink(0), hasLink(1), hasLink(2)]).toEqual([true, false, true])
+    expect([hasLink(0), hasLink(1), hasLink(2)]).toEqual([false, false, false])
   })
 })

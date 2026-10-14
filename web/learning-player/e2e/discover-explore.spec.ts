@@ -334,7 +334,7 @@ test('Learn X this week: start on Discover, do today, go ahead, find it on Home,
   await expect(page.getByTestId('learn-view-title')).toHaveText(label)
   const today = page.locator('[data-testid="learn-step"][data-open="true"]')
   await expect(today).toHaveAttribute('data-day', '1')
-  await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1&from=learn$/)
+  await expect(today.getByTestId('learn-step-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?learn=thc(:|%3A)[^&]+&day=1&from=learn$/)
   await today.getByTestId('learn-step-mark-done').click()
   await expect(today.getByTestId('learn-step-done-mark')).toBeVisible()
   // A day a day is the rhythm, not a wall: once today's is done, the next can open now.
@@ -346,7 +346,7 @@ test('Learn X this week: start on Discover, do today, go ahead, find it on Home,
   await page.goto('/')
   const card = page.getByTestId('in-progress-learn').filter({ hasText: label })
   await expect(card).toContainText('Learn · day 2 of 7')
-  await expect(card.getByTestId('in-progress-learn-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?t=\d+&play=1$/)
+  await expect(card.getByTestId('in-progress-learn-play')).toHaveAttribute('href', /\/episode\/[^/?]+\?learn=thc(:|%3A)[^&]+&day=2&from=learn$/)
   await card.getByTestId('in-progress-learn-open').click()
   await expect(page).toHaveURL(/\/learn\?subject=thc/)
 

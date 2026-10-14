@@ -187,7 +187,7 @@ describe("EntityEpisodeList paged on the server (2026-10-08)", () => {
 
 
 describe("EntityEpisodeList offers each episode's Moments (2026-10-10)", () => {
-  it('"▶ Moments" beside an episode with moments, nothing beside one without', async () => {
+  it('no "▶ Moments" on a row: the row opens the episode (operator 2026-10-14)', async () => {
     const { createPinia, setActivePinia } = await import('pinia')
     const { reportServerReachable } = await import('../composables/useOnline')
     setActivePinia(createPinia())
@@ -198,7 +198,8 @@ describe("EntityEpisodeList offers each episode's Moments (2026-10-10)", () => {
     const eps = [{ ...ep(0), has_gi: true, has_moments: true }, { ...ep(1), has_gi: true, has_moments: false }]
     const w = mount(EntityEpisodeList, { props: { episodes: eps }, global: { plugins: [i18n, router] } })
     const r = w.findAll('[data-testid="episode-row"]')
-    expect(r[0].find('[data-testid="moments-link"]').exists()).toBe(true)
+    expect(r[0].find('[data-testid="moments-link"]').exists()).toBe(false)
     expect(r[1].find('[data-testid="moments-link"]').exists()).toBe(false)
+    expect(r[0].get('a').attributes('href')).toBe(`/episode/${eps[0].slug}`)
   })
 })

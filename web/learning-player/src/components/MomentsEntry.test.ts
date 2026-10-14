@@ -1,6 +1,6 @@
 /**
  * The entrances to an episode's Moments reel (operator 2026-10-10): "Play moments" first in the
- * shared ⋯ menu, the "▶ Moments" text action on browsing rows, and the Brief's button.
+ * shared ⋯ menu, and the Brief's button (the "▶ Moments" text on rows is gone, 2026-10-14).
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -9,7 +9,6 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import EpisodeActions from './EpisodeActions.vue'
-import MomentsLink from './MomentsLink.vue'
 import { setForcedOffline } from '../composables/useOnline'
 import { useDownloadsStore } from '../stores/downloads'
 import { afterEach } from 'vitest'
@@ -58,35 +57,33 @@ describe('"Play moments" in the ⋯ menu', () => {
   })
 })
 
-describe('"▶ Moments" on a row', () => {
-  it('is small text pointing at the Moments view, with a full accessible name', () => {
-    const w = mount(MomentsLink, { props: { slug: 'ep-1' }, global: { plugins: [i18n, router] } })
-    const a = w.get('[data-testid="moments-link"]')
-    expect(a.attributes('href')).toBe('/episode/ep-1?moments=1')
-    expect(a.attributes('aria-label')).toBe('Play moments')
-    expect(a.text()).toBe('▶ Moments')
-    // No count, no box (operator 2026-10-10): text only.
-    expect(a.classes()).not.toContain('border')
-  })
-})
-
-
-describe('"▶ Moments" offline (2026-10-10)', () => {
+describe('"Play moments" offline (2026-10-10)', () => {
+  // The ⋯ menu is the one entrance on a list row now (operator 2026-10-14: "▶ Moments" competed
+  // with the show's name). Offline it is greyed and says why, unless the episode is downloaded.
   afterEach(() => setForcedOffline(false))
+  async function menuItem() {
+    const w = mount(EpisodeActions, {
+      props: { slug: 'ep-1', moments: true },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+      attachTo: document.body,
+    })
+    await w.get('[data-testid="overflow-trigger"]').trigger('click')
+    return { w, item: w.get('[data-testid="episode-play-moments"]') }
+  }
 
-  it('greys out, inert and saying why, for an episode that is not downloaded', () => {
+  it('greys out, inert and saying why, for an episode that is not downloaded', async () => {
     setForcedOffline(true)
-    const w = mount(MomentsLink, { props: { slug: 'ep-1' }, global: { plugins: [i18n, router] } })
-    expect(w.find('[data-testid="moments-link"]').exists()).toBe(false)
-    const off = w.get('[data-testid="moments-link-offline"]')
-    expect(off.attributes('aria-disabled')).toBe('true')
-    expect(off.attributes('aria-label')).toContain('need a connection')
+    const { w, item } = await menuItem()
+    expect(item.attributes('disabled')).toBeDefined()
+    expect(item.text()).toContain('need a connection')
+    w.unmount()
   })
 
-  it('still plays a downloaded episode\'s reel', () => {
+  it('still plays a downloaded episode\'s reel', async () => {
     setForcedOffline(true)
     useDownloadsStore().entries['ep-1'] = { slug: 'ep-1', state: 'downloaded', updatedAt: 1 } as never
-    const w = mount(MomentsLink, { props: { slug: 'ep-1' }, global: { plugins: [i18n, router] } })
-    expect(w.get('[data-testid="moments-link"]').attributes('href')).toBe('/episode/ep-1?moments=1')
+    const { w, item } = await menuItem()
+    expect(item.attributes('disabled')).toBeUndefined()
+    w.unmount()
   })
 })

@@ -91,7 +91,7 @@ describe('InProgressStrip', () => {
     expect(learn.text()).toContain('Episode 3')
     expect(learn.get('[data-testid="in-progress-learn-open"]').attributes('href')).toBe('/learn?subject=thc:a')
     const play = learn.get('[data-testid="in-progress-learn-play"]')
-    expect(play.attributes('href')).toBe('/episode/ep-3?t=84&play=1')
+    expect(play.attributes('href')).toBe('/episode/ep-3?learn=thc:a&day=3&from=learn')
     await play.trigger('click')
     expect(tracked.at(-1)).toEqual({
       name: 'learn_path',
@@ -127,7 +127,7 @@ describe('InProgressStrip', () => {
     await flushPromises()
     expect(api.learnOpenNext).toHaveBeenCalledWith('thc:a')
     expect(w.findAll('[data-testid="in-progress-learn"]')[0].get('[data-testid="in-progress-learn-play"]').attributes('href')).toBe(
-      '/episode/ep-3?t=84&play=1',
+      '/episode/ep-3?learn=thc:a&day=3&from=learn',
     )
     expect(tracked.at(-1)).toEqual({
       name: 'learn_path',

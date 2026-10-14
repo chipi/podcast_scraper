@@ -74,9 +74,11 @@ import {
   getEpisodeStats,
   getEpisodeRecap,
   getInsights,
+  getLearningPath,
   getPlayback,
   getRelated,
   getSegments,
+  learnStepDone,
   markSurfaced,
 } from '../services/api'
 import { localPosition, shouldPush } from '../services/playbackPositions'
@@ -1296,8 +1298,75 @@ function onMomentsClose(): void {
   player.exitReel(false)
   leaveMomentsQuery()
 }
+// --- A learning day's clip (operator 2026-10-14) ------------------------------------------------
+// `?learn=<subject>&day=<n>`: the day's clip plays as a one-clip reel in the artwork and stops at its
+// end; heard to the end it marks the day done (`learnDayHeard`, in the shell), and the end card
+// offers the way back to the week or the rest of the episode.
+const learnActive = computed(() => momentsActive.value && !!player.reel?.learn)
+const learnEnd = computed(() => {
+  const e = player.learnEnd
+  const r = player.reel?.learn
+  return e && r && e.subjectId === r.subjectId && e.day === r.day ? e : null
+})
+function leaveLearnQuery(): void {
+  const query = { ...route.query }
+  delete query.learn
+  delete query.day
+  void router.replace({ query })
+}
+watch(
+  () => [route.query.learn, route.query.day, player.currentSlug, duration.value, startReady.value] as const,
+  async ([subject, day, slug, d, ready]) => {
+    if (typeof subject !== 'string' || !subject || momentsActive.value || !ready || !d) return
+    if (slug !== props.slug || startApplied !== props.slug) return
+    const n = Number(day)
+    const path = await getLearningPath(subject).catch(() => null)
+    if (route.query.learn !== subject || player.currentSlug !== props.slug || momentsActive.value) return
+    const step = path?.steps.find((s) => s.day === n)
+    // The path or the day is gone, or names another episode: just the episode, nothing broken.
+    if (!path || !step || step.episode.slug !== props.slug || step.end_ms <= step.start_ms) {
+      leaveLearnQuery()
+      return
+    }
+    player.startReel(
+      props.slug,
+      [
+        {
+          insightId: step.insight_id,
+          text: step.quote_text || step.text,
+          speaker: step.speaker,
+          startMs: step.start_ms,
+          endMs: step.end_ms,
+        },
+      ],
+      0,
+      { subjectId: path.subject_id, kind: path.subject_kind as 'topic' | 'theme' | 'storyline', day: n },
+    )
+  },
+)
+function onLearnBack(): void {
+  const subject = player.reel?.learn?.subjectId
+  player.exitReel(false)
+  void router.push(subject ? { name: 'learn', query: { subject } } : { name: 'learn' })
+}
+function onLearnKeep(): void {
+  player.exitReel(true)
+  leaveLearnQuery()
+}
+/** The day was not done by the clip (skipped through, or the call failed): the listener's Done. */
+async function onLearnMarkDone(): Promise<void> {
+  const e = learnEnd.value
+  if (!e) return
+  try {
+    await learnStepDone(e.subjectId, e.day - 1)
+    if (player.learnEnd?.seq === e.seq) player.learnEnd = { ...player.learnEnd, status: 'done' }
+  } catch {
+    // Not recorded: the button stays.
+  }
+}
+
 // The end card chains reels through the queue: the next queued episode's moments.
-const reelNextSlug = computed(() => (momentsActive.value ? queue.nextAfter(props.slug) : null))
+const reelNextSlug = computed(() => (momentsActive.value && !learnActive.value ? queue.nextAfter(props.slug) : null))
 const reelNextTitle = ref<string | null>(null)
 watch(
   reelNextSlug,
@@ -2086,12 +2155,16 @@ const { badgeShown } = useCorpusLanguages()
                 :episode-seconds="duration"
                 :next-title="reelNextTitle"
                 :speaker-roles="speakerRoles"
+                :learn-day="player.reel.learn?.day"
+                :learn-status="learnEnd?.status"
                 @prev="player.reelPrev"
                 @next="player.reelNext"
-                @keep="onMomentsKeep"
+                @keep="learnActive ? onLearnKeep() : onMomentsKeep()"
                 @back="onMomentsClose"
                 @from-start="onMomentsFromStart"
                 @next-episode="onMomentsNextEpisode"
+                @learn-back="onLearnBack"
+                @learn-mark-done="onLearnMarkDone"
               />
             </div>
           </div>
@@ -2198,7 +2271,7 @@ const { badgeShown } = useCorpusLanguages()
         <!-- Moments (operator 2026-10-10): every moment of the reel, under the transport while it
              plays — the artwork shows the current one. -->
         <MomentsIndex
-          v-if="momentsActive && player.reel"
+          v-if="momentsActive && !learnActive && player.reel"
           :moments="player.reel.moments"
           :index="player.reel.index"
           :done="player.reel.done"
@@ -2454,10 +2527,14 @@ const { badgeShown } = useCorpusLanguages()
 .lp-obi-door + .lp-obi-door {
   border-top: 1px solid var(--lp-border);
 }
-.lp-obi-door:hover {
-  background-color: var(--lp-overlay);
+@media (hover: hover) and (pointer: fine) {
+  .lp-obi-door:hover {
+    background-color: var(--lp-overlay);
+  }
+  .lp-obi-door:hover .lp-obi-label {
+    color: var(--lp-canvas-foreground);
+  }
 }
-.lp-obi-door:hover .lp-obi-label,
 .lp-obi-door:focus-visible .lp-obi-label {
   color: var(--lp-canvas-foreground);
 }

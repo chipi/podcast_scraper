@@ -57,6 +57,8 @@ export interface ReelMoment {
   translatedFrom?: string | null
   /** A topic reel's clip names its episode; an episode reel's clips are all on the loaded one. */
   slug?: string
+  /** A learning path's clip: its 1-based day ("Play all"). */
+  day?: number
   episodeTitle?: string | null
   showTitle?: string | null
   artwork?: string | null
@@ -95,7 +97,34 @@ export interface ReelState {
   returnTo: number
   /** The last moment has played; the view shows its end card. */
   done: boolean
+  /** Set for a learning day's clip (operator 2026-10-14): a one-clip reel whose end marks the day. */
+  learn?: LearnDay
 }
+
+/** The learning day a clip reel plays: its path (subject) and 1-based day. */
+export interface LearnDay {
+  subjectId: string
+  kind: 'topic' | 'theme' | 'storyline'
+  day: number
+  /** "Play all" (operator 2026-10-14): every day still to do, back to back, across episodes. */
+  all?: boolean
+}
+
+/**
+ * A learning day's clip came to its end (operator 2026-10-14). `heard` is whether most of it
+ * actually played (`LEARN_HEARD_SHARE`): a clip skipped through to its end does not do the day.
+ * `status` is what became of the day — set by the shell (`learnDayHeard`), which owns the API call.
+ */
+export interface LearnEnd extends LearnDay {
+  seq: number
+  heard: boolean
+  /** "Play all" goes on to a later day: open it once this one is done. */
+  openNext: boolean
+  status: 'pending' | 'done' | 'not_heard' | 'failed'
+}
+
+/** The share of a learning clip that must actually play for the day to count as done. */
+export const LEARN_HEARD_SHARE = 0.8
 
 export interface NextUp {
   slug: string
@@ -529,12 +558,28 @@ export const usePlayerStore = defineStore('player', () => {
     syncPositionState()
     const r = reel.value
     if (r) {
+      // What of this clip actually played: steps of normal playback count, a seek does not.
+      const step = currentTime.value - reelLastTime
+      reelLastTime = currentTime.value
+      const rate = el.value?.playbackRate || 1
+      if (!r.done && !reelSwitching && step > 0 && step <= REEL_HEARD_STEP_S * rate) reelHeardS += step
       // The reel plays clip windows: past the current one's end, on to the next (or the end card).
       // No position saves and no milestones while it runs — a reel must not move the resume point
       // or count as listening.
       if (!r.done && !reelSwitching && currentTime.value * 1000 >= r.moments[r.index].endMs) {
         // Played to its end, not skipped: that is a clip heard (stats, operator 2026-10-12).
         const clip = r.moments[r.index]
+        if (r.learn) {
+          const span = Math.max(0.001, (clip.endMs - clip.startMs) / 1000)
+          const after = r.moments[r.index + 1]
+          learnEnd.value = {
+            ...r.learn,
+            seq: (learnEnd.value?.seq ?? 0) + 1,
+            heard: reelHeardS / span >= LEARN_HEARD_SHARE,
+            openNext: !!(r.learn.all && after?.day && after.day > r.learn.day),
+            status: 'pending',
+          }
+        }
         momentHeard.value = {
           seq: (momentHeard.value?.seq ?? 0) + 1,
           kind: 'clip',
@@ -652,11 +697,12 @@ export const usePlayerStore = defineStore('player', () => {
   /** Within this many seconds of a moment's start, ‹ goes to the previous one (a music player). */
   const REEL_PREV_RESTART_S = 3
 
-  /** Start a reel on the LOADED episode; false if it is not loaded or there are no moments. */
-  function startReel(slug: string, moments: ReelMoment[], startIndex = 0): boolean {
+  /** Start a reel on the LOADED episode; false if it is not loaded or there are no moments.
+   *  ``learn`` makes it a learning day's clip: its end reports the day (``learnEnd``). */
+  function startReel(slug: string, moments: ReelMoment[], startIndex = 0, learn?: LearnDay): boolean {
     if (currentSlug.value !== slug || moments.length === 0) return false
     const returnTo = el.value?.currentTime ?? currentTime.value
-    reel.value = { slug, moments, index: 0, returnTo, done: false }
+    reel.value = { slug, moments, index: 0, returnTo, done: false, ...(learn ? { learn } : {}) }
     void reelGo(startIndex)
     return true
   }
@@ -676,7 +722,37 @@ export const usePlayerStore = defineStore('player', () => {
     await reelGo(at)
     return true
   }
+  /** "Play all" on a learning path (operator 2026-10-14): each day's clip, on its own episode, back
+   *  to back. Each clip's end reports its day (``learnEnd``), so a stop leaves the week where it is
+   *  and the next "Play all" picks up at the first day not done. False with no clips. */
+  async function startLearnReel(
+    learn: LearnDay,
+    moments: ReelMoment[],
+    resolve: (slug: string) => Promise<NextUp | null>,
+  ): Promise<boolean> {
+    const playable = moments.filter((m) => m.slug && m.day)
+    if (!playable.length) return false
+    reelResolve = resolve
+    const first = playable[0]
+    reel.value = {
+      slug: first.slug!,
+      moments: playable,
+      index: 0,
+      returnTo: 0,
+      done: false,
+      learn: { ...learn, day: first.day!, all: true },
+    }
+    await reelGo(0)
+    return true
+  }
   let reelResolve: ((slug: string) => Promise<NextUp | null>) | null = null
+  /** Seconds of the current clip that actually played, and the position they were last counted at. */
+  let reelHeardS = 0
+  let reelLastTime = 0
+  /** A `timeupdate` step longer than this is a seek, not playback (they fire every ~250 ms). */
+  const REEL_HEARD_STEP_S = 1.5
+  /** The last learning day whose clip came to its end; watched from the shell (`learnDayHeard`). */
+  const learnEnd = ref<LearnEnd | null>(null)
   /** True while a topic reel loads the next clip's episode: the old one's `timeupdate`s must not
    *  move the reel on in the meantime. */
   let reelSwitching = false
@@ -686,18 +762,23 @@ export const usePlayerStore = defineStore('player', () => {
     if (!r) return
     const i = Math.max(0, Math.min(r.moments.length - 1, index))
     const clip = r.moments[i]
-    if (r.topic && clip.slug && clip.slug !== currentSlug.value) {
+    const acrossEpisodes = !!r.topic || !!r.learn?.all
+    if (acrossEpisodes && clip.slug && clip.slug !== currentSlug.value) {
       reelSwitching = true
       try {
         const next = await reelResolve?.(clip.slug)
-        if (!next || reel.value?.topic !== r.topic) return // unplayable, or the reel was left
+        // Unplayable, or the reel was left (or another started) while it loaded.
+        if (!next || reel.value?.topic !== r.topic || reel.value?.learn?.subjectId !== r.learn?.subjectId) return
         load(next)
       } finally {
         reelSwitching = false
       }
     }
-    reel.value = { ...r, slug: clip.slug ?? r.slug, index: i, done: false }
+    const learn = r.learn && clip.day ? { ...r.learn, day: clip.day } : r.learn
+    reel.value = { ...r, slug: clip.slug ?? r.slug, index: i, done: false, ...(learn ? { learn } : {}) }
     seek(clip.startMs / 1000)
+    reelHeardS = 0
+    reelLastTime = clip.startMs / 1000
     // Each clip fades in rather than cutting in mid-breath: from one speaker's sentence to
     // another's is a jump, and a quarter second of fade is what makes it read as a transition.
     fadeIn(REEL_FADE_MS)
@@ -762,8 +843,9 @@ export const usePlayerStore = defineStore('player', () => {
       return
     }
     el.value?.pause()
-    // A topic reel moved across episodes: there is no one place to go back to, so ✕ just stops.
-    if (!r.topic) seek(r.returnTo)
+    // A topic reel (or "Play all") moved across episodes: there is no one place to go back to, so
+    // ✕ just stops.
+    if (!r.topic && !r.learn?.all) seek(r.returnTo)
   }
 
   /**
@@ -1130,8 +1212,10 @@ export const usePlayerStore = defineStore('player', () => {
     reel,
     reelLeft,
     momentHeard,
+    learnEnd,
     inReel,
     startReel,
+    startLearnReel,
     startTopicReel,
     reelGo,
     reelNext,

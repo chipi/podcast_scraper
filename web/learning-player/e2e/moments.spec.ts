@@ -119,13 +119,15 @@ test('Step: a left swipe on the insight card is next, a right swipe previous', a
 })
 
 test.describe('the ways into Moments', () => {
-  test('the show page: "▶ Moments" on the card\'s show line', async ({ page }, testInfo) => {
+  test('the show page: no "▶ Moments" on the show line; the card opens the episode', async ({ page }, testInfo) => {
+    // Operator 2026-10-14: "▶ Moments" competed with the show's name; it is the ⋯ item now.
     await signInIsolated(page, 'moments-entry-show', testInfo)
     await page.goto('/podcast/p05')
     const card = page.getByTestId('episode-card').filter({ hasText: 'The Bessent Tape' }).first()
-    await card.getByTestId('moments-link').click()
-    await expect(page).toHaveURL(/moments=1/)
-    await expect(page.getByTestId('moments-card')).toBeVisible()
+    await expect(card).toBeVisible()
+    await expect(card).not.toContainText('Moments')
+    await card.getByRole('link', { name: /The Bessent Tape/ }).first().click()
+    await expect(page).toHaveURL(/\/episode\/[^?]+$/)
   })
 
   test('any card: "Play moments" leads the ⋯ menu', async ({ page }, testInfo) => {
@@ -161,12 +163,13 @@ test.describe('the ways into Moments', () => {
     await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 
-  test('search results: "▶ Moments" on an episode result', async ({ page }, testInfo) => {
+  test('search results: "Play moments" in an episode result\'s ⋯ menu', async ({ page }, testInfo) => {
     await signInIsolated(page, 'moments-entry-search', testInfo)
     await page.goto('/search?q=risk&scope=all')
-    const link = page.getByTestId('moments-link').first()
-    await expect(link).toBeVisible()
-    await link.click()
+    const group = page.getByTestId('episode-group').first()
+    await expect(group).toBeVisible()
+    await group.getByTestId('overflow-trigger').click()
+    await page.getByTestId('episode-play-moments').click()
     await expect(page).toHaveURL(/moments=1/)
     await expect(page.getByTestId('moments-card')).toBeVisible()
   })
@@ -230,7 +233,8 @@ test.describe('Moments, everything around the reel', () => {
       await expect(q).toBeVisible()
       await q.click()
     }
-    await page.locator('article').filter({ hasText: 'The Bessent Tape' }).first().getByTestId('moments-link').click()
+    await page.locator('article').filter({ hasText: 'The Bessent Tape' }).first().getByTestId('overflow-trigger').click()
+    await page.getByTestId('episode-play-moments').click()
     await expect(page.getByTestId('moments-card')).toBeVisible()
     await page.getByTestId('moments-index-item').last().click()
     await page.getByTestId('moments-next').click()
@@ -241,28 +245,29 @@ test.describe('Moments, everything around the reel', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('The Risk Panel')
   })
 
-  test('offline: an episode that is not downloaded shows "▶ Moments" greyed, saying why', async ({ page, context }, testInfo) => {
+  test('offline: "Play moments" greys for an episode that is not downloaded, saying why', async ({ page, context }, testInfo) => {
     await signInIsolated(page, 'moments-offline', testInfo)
     await page.goto('/podcast/p05')
-    await expect(page.getByTestId('moments-link').first()).toBeVisible()
+    const card = page.getByTestId('episode-card').filter({ hasText: 'The Bessent Tape' }).first()
+    await expect(card).toBeVisible()
     // The network drops while the page is open (the browser's offline event): no downloads on the
-    // web, so every "▶ Moments" greys in place, inert and saying why.
+    // web, so the ⋯ item greys in place, inert and saying why.
     await context.setOffline(true)
-    const off = page.getByTestId('moments-link-offline').first()
-    await expect(off).toBeVisible()
-    await expect(off).toHaveAttribute('aria-disabled', 'true')
-    await expect(page.getByTestId('moments-link')).toHaveCount(0)
+    await card.getByTestId('overflow-trigger').click()
+    const item = page.getByTestId('episode-play-moments')
+    await expect(item).toBeDisabled()
+    await expect(item).toContainText('need a connection')
     await context.setOffline(false)
-    await expect(page.getByTestId('moments-link').first()).toBeVisible()
   })
 
-  test('a topic page offers each episode\'s moments', async ({ page }, testInfo) => {
+  test('a topic page\'s episode rows open the episode (no "▶ Moments" beside them)', async ({ page }, testInfo) => {
     await signInIsolated(page, 'moments-topic', testInfo)
     await page.goto('/topic/' + encodeURIComponent('topic:risk-management'))
     await expect(page.getByTestId('topic-view')).toBeVisible()
-    const link = page.getByTestId('episode-row').getByTestId('moments-link').first()
-    await expect(link).toBeVisible()
-    await link.click()
-    await expect(page.getByTestId('moments-card')).toBeVisible()
+    const row = page.getByTestId('episode-row').first()
+    await expect(row).toBeVisible()
+    await expect(row).not.toContainText('Moments')
+    await row.getByRole('link').first().click()
+    await expect(page).toHaveURL(/\/episode\/[^?]+$/)
   })
 })

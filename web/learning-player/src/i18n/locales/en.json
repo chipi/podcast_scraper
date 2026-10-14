@@ -1359,7 +1359,21 @@
     "door": "Learn this in {days} days",
     "doorDay": "Learning · day {n} of {total}",
     "doorStart": "Start",
-    "doorCancel": "Not now"
+    "doorCancel": "Not now",
+    "clipKicker": "Learn · day {n}",
+    "clipDone": "Day {n} done ✓",
+    "clipEnd": "Day {n}",
+    "clipDoneTitle": "That was today's moment.",
+    "clipSaving": "Saving your day…",
+    "clipNotHeard": "You skipped through this one. Done anyway?",
+    "clipFailed": "Couldn't save the day. Try again?",
+    "clipMarkDone": "Mark day {n} done",
+    "backToLearn": "Back to Learn",
+    "playAll": "Play all",
+    "playAllFrom": "Play all from day {n}",
+    "playingDay": "Day {n}",
+    "playAllStop": "Stop",
+    "keepListening": "Keep listening"
   },
   "inProgress": {
     "remove": "Remove",

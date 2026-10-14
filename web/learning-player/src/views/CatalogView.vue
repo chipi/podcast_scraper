@@ -371,7 +371,7 @@ onMounted(async () => {
       <template v-if="view === 'list'">
         <template v-for="group in grouped" :key="group.key">
           <h2 v-if="group.label" class="lp-kicker mb-2 mt-6 first:mt-0">{{ group.label }}</h2>
-          <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" moments-link />
+          <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" />
         </template>
       </template>
       <!-- 3 columns on a phone, 4 from `sm` — the same shape the Shows grid and Library already use

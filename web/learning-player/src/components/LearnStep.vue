@@ -17,9 +17,12 @@ import { RouterLink } from 'vue-router'
 import { formatTime } from '../player/transcriptSync'
 import type { PathStep } from '../services/api'
 import { track } from '../services/analytics'
+import { learnDayRoute } from '../services/learnPlay'
 
 const props = defineProps<{
   step: PathStep
+  /** The path's subject: the day's Play link names it. */
+  subjectId: string
   busy?: boolean
   kind?: 'topic' | 'theme' | 'storyline'
   /** Show the clip, Play and Done (today's day, or an earlier one the listener opened). */
@@ -30,12 +33,8 @@ const props = defineProps<{
 const emit = defineEmits<{ done: []; toggle: []; next: [] }>()
 const { t } = useI18n()
 const time = computed(() => formatTime(props.step.start_ms / 1000))
-const playTo = computed(() => ({
-  name: 'player',
-  params: { slug: props.step.episode.slug },
-  // `from=learn`: a highlight saved there counts as saved on a learning day (stats, 2026-10-12).
-  query: { t: String(Math.floor(props.step.start_ms / 1000)), play: '1', from: 'learn' },
-}))
+// The day's clip, stopping at its end and marking the day (operator 2026-10-14).
+const playTo = computed(() => learnDayRoute(props.subjectId, props.step))
 </script>
 
 <template>

@@ -86,6 +86,7 @@ import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
 import { watchReelProgress } from './services/reelProgress'
 import { watchMomentsHeard } from './services/momentsHeard'
+import { watchLearnDayHeard } from './services/learnDayHeard'
 import { setShortListenProbe } from './services/captureSource'
 import { useCaptureStore } from './stores/capture'
 import { useLibraryStore } from './stores/library'
@@ -118,6 +119,13 @@ watchReelProgress({
 })
 // Short listens heard, for stats; and a highlight saved during one says so (operator 2026-10-12).
 watchMomentsHeard({ event: () => player.momentHeard, signedIn: () => !!auth.user })
+// A learning day's clip heard to its end marks the day done (operator 2026-10-14).
+watchLearnDayHeard({
+  event: () => player.learnEnd,
+  settle: (seq, status) => {
+    if (player.learnEnd?.seq === seq) player.learnEnd = { ...player.learnEnd, status }
+  },
+})
 setShortListenProbe(() => !!player.reel)
 
 // Native launch overlay: shown briefly after the native splash hands off, while the app + its first

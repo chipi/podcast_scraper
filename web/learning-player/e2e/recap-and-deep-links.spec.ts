@@ -77,8 +77,8 @@ test('the recap panel replaces the fabricated Hours tile and states its coverage
   // The recap panel is present and names the window it is describing.
   const recap = page.getByRole('heading', { name: 'Your listening' })
   await expect(recap).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Week', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'This year', exact: true })).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Week', exact: true })).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'This year', exact: true })).toBeVisible()
 
   // It ALWAYS says how much of the window it actually has while that is partial — recording
   // started recently, so a bare total would be a lie of omission.

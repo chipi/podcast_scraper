@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils"
+import EpisodeActions from "../components/EpisodeActions.vue"
 import { createPinia, setActivePinia } from "pinia"
 import { computed } from "vue"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -1323,9 +1324,10 @@ describe("SearchView: Moments on episode results (operator 2026-10-10)", () => {
     expect(groups).toHaveLength(2)
     const withGi = groups.find((g) => g.text().includes("Title with-gi"))!
     const noGi = groups.find((g) => g.text().includes("Title no-gi"))!
-    expect(withGi.get('[data-testid="moments-link"]').attributes("href")).toBe("/episode/with-gi?moments=1")
-    expect(noGi.find('[data-testid="moments-link"]').exists()).toBe(false)
-    expect(w.get('[data-testid="episode-group-body"]').find('[data-testid="moments-link"]').exists()).toBe(false)
+    // In the ⋯ menu, not on the row (operator 2026-10-14).
+    expect(withGi.findComponent(EpisodeActions).props("moments")).toBe(true)
+    expect(noGi.findComponent(EpisodeActions).props("moments")).toBe(false)
+    expect(w.find('[data-testid="moments-link"]').exists()).toBe(false)
   })
 })
 

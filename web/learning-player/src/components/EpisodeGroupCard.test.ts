@@ -93,13 +93,7 @@ describe('EpisodeGroupCard and Moments (operator 2026-10-10)', () => {
     const { reportServerReachable } = await import('../composables/useOnline')
     reportServerReachable(true)
   })
-  it('Search: "▶ Moments" on the meta row when asked for the link', () => {
-    expect(card({ moments: true, momentsLink: true }).find('[data-testid="moments-link"]').exists()).toBe(true)
-  })
-  it('Saved / Revisit: the reel is in the ⋯ menu only, no link on the row', () => {
+  it('the reel is in the ⋯ menu only, never a link on the row (operator 2026-10-14)', () => {
     expect(card({ moments: true }).find('[data-testid="moments-link"]').exists()).toBe(false)
-  })
-  it('no moments, no link even when asked', () => {
-    expect(card({ momentsLink: true }).find('[data-testid="moments-link"]').exists()).toBe(false)
   })
 })

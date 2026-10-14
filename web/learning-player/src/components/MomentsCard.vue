@@ -33,6 +33,10 @@ const props = defineProps<{
   nextTitle?: string | null
   /** Speaker name → their role in this episode ("host" / "guest"): "Nora, host". */
   speakerRoles?: Record<string, string>
+  /** A learning day's clip (operator 2026-10-14): its 1-based day; the card speaks as that day. */
+  learnDay?: number
+  /** What became of the day once its clip ended (`LearnEnd.status`). */
+  learnStatus?: 'pending' | 'done' | 'not_heard' | 'failed'
 }>()
 
 const emit = defineEmits<{
@@ -42,6 +46,8 @@ const emit = defineEmits<{
   (e: 'back'): void
   (e: 'from-start'): void
   (e: 'next-episode'): void
+  (e: 'learn-back'): void
+  (e: 'learn-mark-done'): void
 }>()
 
 const { t } = useI18n()
@@ -83,7 +89,42 @@ function segState(i: number): 'done' | 'now' | 'todo' {
   <div class="absolute inset-x-0 bottom-0 z-10" data-testid="moments-card">
     <div class="relative h-16"><div class="moments-scrim absolute inset-0" /></div>
     <div class="moments-body px-4 pb-4 pt-1">
-      <template v-if="done">
+      <!-- A learning day's end (operator 2026-10-14): the day done, back to the week, or the rest of
+           the episode. Not done by the clip (skipped through, or the save failed): the listener's own. -->
+      <div v-if="done && learnDay" data-testid="learn-clip-done" :data-status="learnStatus ?? 'pending'">
+        <p class="lp-kicker" :class="learnStatus === 'done' ? 'text-learn' : ''" data-testid="learn-clip-kicker">
+          {{ learnStatus === 'done' ? t('learn.clipDone', { n: learnDay }) : t('learn.clipEnd', { n: learnDay }) }}
+        </p>
+        <p class="mt-1 font-display text-base font-bold leading-snug text-canvas-foreground">
+          {{
+            learnStatus === 'done'
+              ? t('learn.clipDoneTitle')
+              : learnStatus === 'not_heard'
+                ? t('learn.clipNotHeard')
+                : learnStatus === 'failed'
+                  ? t('learn.clipFailed')
+                  : t('learn.clipSaving')
+          }}
+        </p>
+        <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+          <button
+            v-if="learnStatus === 'not_heard' || learnStatus === 'failed'"
+            type="button"
+            class="lp-moments-action text-learn"
+            data-testid="learn-clip-mark-done"
+            @click="emit('learn-mark-done')"
+          >
+            {{ t('learn.clipMarkDone', { n: learnDay }) }}
+          </button>
+          <button type="button" class="lp-moments-action text-accent" data-testid="learn-clip-back" @click="emit('learn-back')">
+            {{ t('learn.backToLearn') }}
+          </button>
+          <button type="button" class="lp-moments-action" data-testid="learn-clip-keep" @click="emit('keep')">
+            {{ t('learn.keepListening') }}
+          </button>
+        </div>
+      </div>
+      <template v-else-if="done">
         <div data-testid="moments-done">
           <p class="lp-kicker">{{ t('moments.doneKicker') }}</p>
           <p class="mt-1 font-display text-base font-bold leading-snug text-canvas-foreground">
@@ -116,7 +157,10 @@ function segState(i: number): 'done' | 'now' | 'todo' {
         </div>
       </template>
       <div v-else-if="current" data-testid="moments-current">
-        <div class="flex items-center gap-2">
+        <p v-if="learnDay" class="lp-kicker" data-testid="learn-clip-kicker">
+          {{ t('learn.clipKicker', { n: learnDay }) }} · {{ formatTime(current.startMs / 1000) }}
+        </p>
+        <div v-else class="flex items-center gap-2">
           <button
             type="button"
             class="lp-moments-step"

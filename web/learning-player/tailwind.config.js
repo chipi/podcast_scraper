@@ -60,6 +60,10 @@ import defaultTheme from 'tailwindcss/defaultTheme'
 
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
+  // `hover:` only where a pointer can hover (operator 2026-10-14: an orange card border "only when
+  // we drag the screen"). iOS applies :hover to whatever a touch lands on, a drag's start included,
+  // and keeps it until the next tap elsewhere; on a phone every `hover:` style was a stuck state.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       // Posture bridge, part two: whitespace follows `--lp-density`. Same trick as the radius

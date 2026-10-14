@@ -200,7 +200,7 @@ describe('ListeningRecap', () => {
     const spy = vi.spyOn(api, 'getRecap').mockResolvedValue(recap())
     const w = mountRecap()
     await flushPromises()
-    await w.findAll('button')[1].trigger('click')
+    await w.findAll('[role="radio"]')[1].trigger('click')
     await flushPromises()
     expect(spy).toHaveBeenLastCalledWith('month')
   })

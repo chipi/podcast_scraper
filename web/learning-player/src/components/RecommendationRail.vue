@@ -9,8 +9,8 @@
  * for more; "Show more (N)" fetches the next page (`GET /discover/rails/{rail}`), N being what the
  * server says is left. "Show less" returns to the first page.
  *
- * - The card opens the episode; "Play from" opens it playing at the quote (ADR-163 §8); "▶ Moments"
- *   (the shared `MomentsLink`, only when the episode has moments) samples it.
+ * - The card opens the episode; "Play from" opens it playing at the quote (ADR-163 §8); Moments is
+ *   in its ⋯ menu.
  * - "Less like this" (ADR-163 §6), on a card whose reason names a subject: hides that topic, person
  *   or storyline from every rail (server-side), drops its cards here at once, and offers Undo —
  *   which asks the page to reload. Not offered on the cold-start fallback (Everyone's).

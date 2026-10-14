@@ -1185,3 +1185,109 @@ describe('Moments reel — clips fade in (2026-10-10)', () => {
     vi.useRealTimers()
   })
 })
+
+describe('a learning day\'s clip (operator 2026-10-14)', () => {
+  const DAY = { subjectId: 'thc:x', kind: 'storyline' as const, day: 2 }
+  const CLIP = { insightId: 'a', text: 'a', speaker: 'Ann', startMs: 30_000, endMs: 40_000 }
+  let el: HTMLAudioElement & { __emit: (k: string) => void }
+  let p: ReturnType<typeof usePlayerStore>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    p = usePlayerStore()
+    el = stubAudio({ currentTime: 0, duration: 1800 })
+    loaded(p, el)
+  })
+  afterEach(() => vi.unstubAllGlobals())
+  function at(seconds: number): void {
+    ;(el as unknown as { currentTime: number }).currentTime = seconds
+    p.onTimeUpdate()
+  }
+  function playThrough(from: number, to: number): void {
+    for (let s = from; s <= to; s += 0.25) at(s)
+  }
+
+  it('stops at the clip\'s end and reports the day heard', () => {
+    p.startReel('ep-1', [CLIP], 0, DAY)
+    playThrough(30, 40)
+    expect(p.reel).toMatchObject({ done: true, learn: DAY })
+    expect(el.pause).toHaveBeenCalled()
+    expect(p.learnEnd).toMatchObject({ ...DAY, heard: true, openNext: false, status: 'pending' })
+  })
+
+  it('a clip skipped through to its end is not heard', () => {
+    p.startReel('ep-1', [CLIP], 0, DAY)
+    playThrough(30, 31)
+    at(40) // a seek to the end
+    expect(p.reel?.done).toBe(true)
+    expect(p.learnEnd).toMatchObject({ heard: false })
+  })
+
+  it('counts most of the clip, not all of it: a seek over its last 20% still does the day', () => {
+    p.startReel('ep-1', [CLIP], 0, DAY)
+    playThrough(30, 38)
+    at(40)
+    expect(p.learnEnd?.heard).toBe(true)
+  })
+
+  it('a faster playback rate is playback, not a seek', () => {
+    ;(el as unknown as { playbackRate: number }).playbackRate = 2
+    p.startReel('ep-1', [CLIP], 0, DAY)
+    for (let s = 30; s <= 40; s += 2) at(s)
+    expect(p.learnEnd?.heard).toBe(true)
+  })
+
+  it('an episode reel says nothing about learning', () => {
+    p.startReel('ep-1', [CLIP])
+    playThrough(30, 40)
+    expect(p.learnEnd).toBeNull()
+  })
+})
+
+describe('"Play all" on a learning path (operator 2026-10-14)', () => {
+  const LEARN = { subjectId: 'thc:x', kind: 'storyline' as const, day: 3 }
+  const DAYS = [
+    { insightId: 'a', text: 'a', speaker: 'Ann', startMs: 30_000, endMs: 34_000, slug: 'ep-a', day: 3 },
+    { insightId: 'b', text: 'b', speaker: 'Bo', startMs: 90_000, endMs: 94_000, slug: 'ep-b', day: 4 },
+  ]
+  let el: HTMLAudioElement & { __emit: (k: string) => void }
+  let p: ReturnType<typeof usePlayerStore>
+  const resolve = vi.fn(async (slug: string) => ({ slug, url: `https://x/${slug}.mp3`, title: slug }))
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    p = usePlayerStore()
+    el = stubAudio({ currentTime: 0, duration: 1800 })
+    resolve.mockClear()
+  })
+  afterEach(() => vi.unstubAllGlobals())
+  function at(seconds: number): void {
+    ;(el as unknown as { currentTime: number }).currentTime = seconds
+    p.onTimeUpdate()
+  }
+
+  it('plays each day\'s clip on its own episode and reports each day; the last has nothing after', async () => {
+    expect(await p.startLearnReel(LEARN, DAYS, resolve)).toBe(true)
+    expect(p.currentSlug).toBe('ep-a')
+    expect(el.currentTime).toBe(30)
+    for (let s = 30; s <= 34; s += 0.25) at(s)
+    expect(p.learnEnd).toMatchObject({ day: 3, heard: true, openNext: true, all: true })
+    await drainMicrotasks()
+    expect(p.currentSlug).toBe('ep-b')
+    expect(p.reel).toMatchObject({ index: 1, learn: { day: 4 } })
+    for (let s = 90; s <= 94; s += 0.25) at(s)
+    expect(p.learnEnd).toMatchObject({ day: 4, heard: true, openNext: false })
+    expect(p.reel?.done).toBe(true)
+  })
+
+  it('a stop just stops: it does not seek back across episodes', async () => {
+    await p.startLearnReel(LEARN, DAYS, resolve)
+    at(32)
+    p.exitReel(false)
+    expect(p.reel).toBeNull()
+    expect(el.currentTime).toBe(32)
+  })
+
+  it('refuses a path with no playable day', async () => {
+    expect(await p.startLearnReel(LEARN, [{ ...DAYS[0], slug: undefined }], resolve)).toBe(false)
+    expect(p.reel).toBeNull()
+  })
+})

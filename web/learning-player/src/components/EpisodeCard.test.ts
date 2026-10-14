@@ -412,14 +412,14 @@ describe("Read more on a compact card", () => {
 describe("EpisodeCard: the Moments door follows has_moments, not has_gi (2026-10-10)", () => {
   function card(over: Partial<EpisodeSummary>) {
     return mount(EpisodeCard, {
-      props: { episode: makeEpisode(over), momentsLink: true },
+      props: { episode: makeEpisode(over) },
       global: { plugins: [i18n, router], stubs: { teleport: true } },
       attachTo: document.body,
     })
   }
-  it("an episode with a moment shows ▶ Moments and the ⋯ item", async () => {
+  it("an episode with a moment offers it in the ⋯ menu, not on the show line (2026-10-14)", async () => {
     const w = card({ has_gi: true, has_moments: true })
-    expect(w.find('[data-testid="moments-link"]').exists()).toBe(true)
+    expect(w.find('[data-testid="moments-link"]').exists()).toBe(false)
     await w.get('[data-testid="overflow-trigger"]').trigger("click")
     expect(w.find('[data-testid="episode-play-moments"]').exists()).toBe(true)
     w.unmount()

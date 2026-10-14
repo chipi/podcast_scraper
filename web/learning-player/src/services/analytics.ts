@@ -452,7 +452,8 @@ export type EventProps = {
     action: 'start' | 'open' | 'step_play' | 'step_done' | 'open_next' | 'stop'
     kind: 'topic' | 'theme' | 'storyline'
     day?: number
-    source?: 'discover' | 'subject_page' | 'in_progress'
+    /** `clip_end`: a step done by its clip being heard to the end, not by the Done button. */
+    source?: 'discover' | 'subject_page' | 'in_progress' | 'clip_end' | 'play_all'
   }
   /** A short listen opened: from Discover's Short listens row, a subject page's "N min on this", or
    *  resumed from Home's "In progress". */

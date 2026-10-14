@@ -61,7 +61,7 @@ test('operator recap: listen on a real corpus → Profile reports it honestly', 
   await page.screenshot({ path: 'validation-results/recap-02-profile.png', fullPage: true })
 
   // The window toggle re-queries rather than re-rendering the same numbers.
-  await page.getByRole('button', { name: 'This year', exact: true }).click()
+  await page.getByRole('radio', { name: 'This year', exact: true }).click()
   // Year-to-date: the window is 1 Jan → today, a different length every day. It is asserted
   // RELATIVE to the month window rather than against a floor, because "more than 31 days" is
   // false for the whole of January — the previous version would have failed every new year

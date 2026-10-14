@@ -45,15 +45,12 @@ import { formatDuration, formatPublishDate } from "../utils/format"
 import { borderClass } from "../utils/highlightColors"
 import { episodeArtwork } from "../utils/episode"
 import EpisodeActions from "./EpisodeActions.vue"
-import MomentsLink from "./MomentsLink.vue"
 import LanguageBadge from "./LanguageBadge.vue"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import PlayedBadge from "./PlayedBadge.vue"
 
 const props = defineProps<{
   episode: EpisodeSummary
-  /** Show "▶ Moments" on the show line — browsing surfaces only (Discover, show pages). */
-  momentsLink?: boolean
   /**
    * NARROW containers — the "More like this" rail (`w-56`, 224px) and the queue's recent list.
    *
@@ -239,14 +236,13 @@ const { badgeShown } = useCorpusLanguages()
     <div class="lp-media-body">
       <!-- Show name — full column width; only ellipsizes when genuinely long. Named, not linked
            (operator 2026-10-11): the whole card opens the episode, and the player leads to the show. -->
-      <!-- The show line also carries "▶ Moments" on browsing surfaces (Discover, show pages;
-           operator 2026-10-10): on a row that already exists, so the card grows no taller. -->
+      <!-- No "▶ Moments" on the show line any more (operator 2026-10-14: it competed with the show's
+           name): Moments is in the ⋯ menu, and the card opens the episode. -->
       <div class="flex items-center justify-between gap-2">
         <span v-if="episode.podcast_title" class="lp-kicker block min-w-0 truncate" :title="episode.podcast_title">
           {{ episode.podcast_title }}
         </span>
         <span v-else />
-        <MomentsLink v-if="momentsLink && episode.has_moments" :slug="episode.slug" />
       </div>
 
       <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->

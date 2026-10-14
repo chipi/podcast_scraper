@@ -476,8 +476,12 @@
     text-decoration: none;
     transition: color calc(0.15s * var(--lp-motion)) ease;
   }
-  .lp-nav:hover {
-    color: var(--lp-surface-foreground);
+  /* Every `:hover` here sits behind (hover: hover) and (pointer: fine), as Tailwind's `hover:` does
+     (`hoverOnlyWhenSupported`): on a touch screen :hover sticks to whatever was last touched. */
+  @media (hover: hover) and (pointer: fine) {
+    .lp-nav:hover {
+      color: var(--lp-surface-foreground);
+    }
   }
 
   /* Segmented control — ONE track, ONE selected pill. Use for every two-or-three-way
@@ -506,12 +510,16 @@
     border-radius: 9999px;
     padding: 0.25rem 0.75rem;
     font-weight: 600;
+    /* One line, always: "This year" broke over two in the stats (operator 2026-10-14). */
+    white-space: nowrap;
     color: var(--lp-muted);
     transition: color calc(150ms * var(--lp-motion)),
       background-color calc(150ms * var(--lp-motion));
   }
-  .lp-segment-option:hover {
-    color: var(--lp-canvas-foreground);
+  @media (hover: hover) and (pointer: fine) {
+    .lp-segment-option:hover {
+      color: var(--lp-canvas-foreground);
+    }
   }
   /* Both states, because this class now serves both patterns (#1594 item 7).
 
@@ -534,8 +542,10 @@
   .lp-storyline-chip {
     background-color: color-mix(in srgb, var(--lp-storyline) 22%, transparent);
   }
-  .lp-storyline-chip:hover {
-    background-color: color-mix(in srgb, var(--lp-storyline) 32%, transparent);
+  @media (hover: hover) and (pointer: fine) {
+    .lp-storyline-chip:hover {
+      background-color: color-mix(in srgb, var(--lp-storyline) 32%, transparent);
+    }
   }
 
   /* Favorite (heart) toggle — ONE canonical affordance everywhere a thing can be saved (UXS-014). */
@@ -561,8 +571,10 @@
     cursor: pointer;
     transition: border-color calc(0.15s * var(--lp-motion)) ease;
   }
-  .lp-check:hover {
-    border-color: var(--lp-muted);
+  @media (hover: hover) and (pointer: fine) {
+    .lp-check:hover {
+      border-color: var(--lp-muted);
+    }
   }
   .lp-check::before {
     content: "";
@@ -596,8 +608,10 @@
     transition: color calc(0.15s * var(--lp-motion)) ease,
       transform calc(0.1s * var(--lp-motion)) ease;
   }
-  .lp-fav:hover {
-    color: var(--lp-accent);
+  @media (hover: hover) and (pointer: fine) {
+    .lp-fav:hover {
+      color: var(--lp-accent);
+    }
   }
   .lp-fav:active {
     transform: scale(0.85);

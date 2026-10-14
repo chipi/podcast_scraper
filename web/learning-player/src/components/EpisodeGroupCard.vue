@@ -27,7 +27,6 @@ import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import EpisodeActions from "./EpisodeActions.vue"
-import MomentsLink from "./MomentsLink.vue"
 import LanguageBadge from "./LanguageBadge.vue"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { episodeArtwork } from "../utils/episode"
@@ -48,8 +47,6 @@ const props = defineProps<{
   itemCount: number
   /** The episode has a Moments reel: "Play moments" leads the ⋯ menu. */
   moments?: boolean
-  /** Also show "▶ Moments" on the meta row — where people decide (Search), not on Saved / Revisit. */
-  momentsLink?: boolean
   testid?: string
   toggleTestid?: string
 }>()
@@ -117,7 +114,6 @@ const { badgeShown } = useCorpusLanguages()
         <p v-if="$slots.meta" class="lp-kicker min-w-0 flex-1" data-testid="episode-group-meta">
           <slot name="meta" />
         </p>
-        <MomentsLink v-if="moments && momentsLink" :slug="episode.slug" />
         <button
           v-if="itemCount > 0"
           type="button"
