@@ -93,6 +93,31 @@ discovery.relabel "api" {
     target_label  = "surface"
     replacement   = "${1}"
   }
+  // `service` = the OTel service.name of the same process, so a trace and its request metrics
+  // join on one value (traces -> metrics in Grafana). `surface` above stays as it is: alerts
+  // and dashboards read it.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/compose-api-1"
+    target_label  = "service"
+    replacement   = "podcast-api"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/player-api-1"
+    target_label  = "service"
+    replacement   = "player-api"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/operator-api-1"
+    target_label  = "service"
+    replacement   = "operator-public-api"
+  }
+  rule {
+    target_label = "environment"
+    replacement  = "prod"
+  }
 }
 
 prometheus.scrape "api" {
