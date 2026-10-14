@@ -126,7 +126,8 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
      via `use_publisher_transcripts: false` per non-English feed), D8 (4 in flight) and D-36 slice b
      (translated quotes labelled in the app) were decided and built 2026-10-13.
 - **Known and not fixed:**
-  - D29 (a wrong host name from the naming model, no deterministic signal).
+  - D29 (a wrong host name from the naming model, no deterministic signal). Tracked with the
+    two V.6b naming defects in #2352.
   - D37 (invented lines at the end of a first-pass transcript; the audio-backed rule is the
     candidate).
   - Foreign tape is not transcribed, by the no-language-detection rule.

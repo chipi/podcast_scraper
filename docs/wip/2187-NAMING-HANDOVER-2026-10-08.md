@@ -1,5 +1,7 @@
 # Speaker-naming defects found by V.6b — handover (#2187, 2026-10-08)
 
+Open 1, Open 2 and D29 are tracked in #2352 (2026-10-14).
+
 V.6b ran the production profile on six real non-English episodes (one each from es, it, fr, de,
 pt-PT, pt-BR shows). Checking who is named what, against the transcript text and the speaker
 decision traces, found the defects below. One is fixed on `feat/2187-a2-gap-recovery`; the rest
@@ -45,8 +47,10 @@ them for coming.
   `name: <host>` with `llm_said: <co-host>` — the LLM named the co-host correctly, and the merge
   snapped it onto the stated host, whose surname differs by two letters. Guest naming then refused
   it as `name_already_on_another_voice`; `summary.unbound_names` lists the co-host.
-- **Cause**: the near-identical-host snap (`_snap_near_identical_host`) exists for ASR misspellings
-  of one host's name, and cannot tell that from two different people with similar names.
+- **Cause** (corrected 2026-10-14, #2352): the `llm_merge` step passes the LLM's answer through
+  `_canonicalize_to_known_host`, which returns the FIRST near match in list order even when the
+  exact name is in the list. `_snap_near_identical_host`, named here before, does not snap this
+  pair and is not what `llm_merge` calls.
 - **Direction**: do not snap a name that is itself in the episode's stated names
   (`metadata_named` holds the co-host here) — a stated name is a person, not a misspelling.
 
