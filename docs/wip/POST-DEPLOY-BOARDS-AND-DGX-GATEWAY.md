@@ -194,17 +194,24 @@ kept is used.
 ### 8. Naming, punctuation and the MCP (2026-10-13/14 changes) — each prod step needs the operator's go
 
 The deploy carries: Phase C naming (#2347), K8 (`ee4d19961`), F7 storyteller seats (`2fd6411dc`),
-the punctuation filler rule (`81e3e8610`), the MCP entity-resolver refresh (`e6cc51be2`) and the
-new `repunctuate_only` reprocess stage. The code only changes NEW episodes; served ones keep their
+the punctuation filler rule (`81e3e8610`), the MCP entity-resolver refresh (`e6cc51be2`), the
+new `repunctuate_only` reprocess stage, and the 2026-10-14 naming fixes (`19da42c29`: a new promo
+for another show is an ad voice, "I'm <role> <stated name>" names a stand-in presenter, the BBC
+opener hail counts). The code only changes NEW episodes; served ones keep their
 old names and text until steps 3 and 4.
 
 1. **MCP:** after the restart the log shows the entity registry warming at startup; then one
    `resolve_entity` call (e.g. "reward hacking") answers in seconds, not a 2-3 minute timeout.
 2. **First nightly:** read the new episodes' rosters (no promo voice named as a guest, hosts named);
    compare the naming-coverage gauge with the day before.
-3. **`repunctuate_only`** on the 32 episodes still flagged unpunctuated (25 of their 48 windows are
-   expected to pass, measured 2026-10-14 with `scripts/measure/punctuation_refusals.py`). ONE
-   episode first, read its diff, then the rest. Through `reprocess-prod.yml` with
+3. **`repunctuate_only`** on the episodes still flagged unpunctuated (32 measured on 2026-10-14;
+   25 of their 48 windows are expected to pass, `scripts/measure/punctuation_refusals.py`).
+   REBUILD the list right before the run: Ottoman History's "Hebrew Orientalism" was reprocessed
+   after the measurement and belongs on it. The 1-episode trial is DONE (2026-10-14, In Our Time
+   "Archive: The Measurement of Time", run from a source tree before the deploy): only the flagged
+   window changed (the other 983 segments byte-identical), 0 -> 114 sentence ends, same 4
+   speakers, words 1,769 -> 1,727 (mostly "clock making" -> "clockmaking"; it is a re-decode, so
+   wording can shift slightly: "was" -> "is"), summary/GI regenerated, $0. So: the rest directly. Through `reprocess-prod.yml` with
    `pipeline_stage=repunctuate_only` and the episode ids (newline- or space-separated); not inside
    a backfill batch. An episode with nothing left to repair is recorded and not touched.
 4. **Relabel the served episodes whose names change** (Phase C, K8, F7: the replays list them):
@@ -213,14 +220,51 @@ old names and text until steps 3 and 4.
    deploy so the new naming code names them) to capture voice embeddings for the 15 storyteller
    seats nothing in the text names.
 
+6. **Gray Area "How trauma became a status symbol":** never reprocessed — it was in backfill
+   batch 2 on 2026-10-10, before the feed was back in the spec, so the chain counts it done. Put
+   it in a backfill batch by hand.
+7. **Live spec:** `account.live.spec.ts` now expects the Library tab "Collections" (renamed
+   2026-10-13, #2327). Prod before this deploy still says "Boards": a manual `smoke-player` run
+   BEFORE the deploy fails on that one line; after the deploy it must pass.
+
+## After the deploy: open work (2026-10-14 handover)
+
+- **Naming leftovers (#2304), to work on after the deploy:**
+  - **Phantom Pain** and **Welcoming Misha Glenny** (Curious Cases / In Our Time): the host voice
+    carries the merged BBC ad tag and its first turns name nobody ("That is a phantom pain.",
+    "why do you think you're the right person for this role?"), so the opener rule cannot seat
+    it. Needs a new signal (who asks the questions?).
+  - **StarTalk's Patreon supporters** ("I'm Joel Cherico, and I support StarTalk on Patreon")
+    stay named as guests: the episode descriptions list them, so the promo rule treats them as
+    stated people. Needs a "supporter shout-out" rule.
+  - **Kara Swisher's Gray Area promo** is not caught by the promo rule (no self-introduction +
+    promo cue pair in that voice). Read the voice, find what marks it.
+- **The 19 episodes a full backfill reprocess left unpunctuated:** 17 are on the
+  `repunctuate_only` list (step 8.3) — 11 of their 31 windows pass with main's checks, 20 still
+  refuse (mostly `lost_words`, retained 73-90%). 9 of the 15 `lost_words` windows are the
+  episode's last, short window: hypothesis to test — the clip decode drops the end of the audio.
+- **S5 (#2332) answered:** `relabel_only` cannot name the 95 episodes without diagnostics; they
+  are publisher transcripts with no diarization ("segments carry no speaker identity"; trial run
+  38557754426, $0, nothing changed). The route is `rediarize_only` (audio + DGX) — operator decides.
+- **DR drill red (10-07, 10-14):** restore works; `stack-playwright`'s Firefox graph test times
+  out — the data loads in ~16 s, then >45 s of browser graph merge/layout for 1.9k nodes (it
+  passed at 56.7 s of 60 on 09-30). Operator decides: profile and fix the viewer's graph load, or
+  raise the timeout. Next drill 2026-10-21.
+- **GI observation:** regenerated GI repeats some quote texts as separate Quote nodes (2 -> 7 on
+  the trial episode); the old GI did it too. Not investigated.
+- **Cleanup, each path needs the operator's OK:** prod `compose-api-1:/tmp/nc` (gold sets +
+  replay kit, real data — keep until the post-deploy naming checks and F7 A2 are read), host
+  `/tmp/punct` (measurement scripts and outputs, real text), `/app/output/repunct_trial_ids.txt`,
+  the `python:3.12-alpine` image; local scratchpad `gtrees`, `gv`, `k8trees`, `f7trees`.
+
 ## Carried over (operator items, not deploy steps; from the 2026-10-12/13 plan)
 
 - **A10 DST cron:** DONE 2026-10-13 (`cron: 0 0 * * *`, scheduler reloaded).
 - **#2187 backfill decisions:** DONE 2026-10-13/14 — the comma ids go through the chain (inline ids
   split on whitespace, `60631f53d`); The Gray Area is back in `feeds.spec.yaml`; the "2 out of
   spec" did not exist; the refused repair windows → step 8.3.
-- **Phase C / K8 / F7:** shipped in this deploy (step 8). S5 (#2332): `relabel_only` cost trial on
-  2 episodes approved 2026-10-14. F7 A2 → step 8.5.
+- **Phase C / K8 / F7:** shipped in this deploy (step 8). S5 (#2332): trial DONE 2026-10-14, see
+  "After the deploy". F7 A2 → step 8.5.
 - **P5 entity search:** checked 2026-10-14 through the MCP; found the registry never refreshed and
   built inside the first request → fixed in `e6cc51be2` (step 8.1).
 - **person_web (#2111):** DONE 2026-10-14 — the 304 misses written before the Wikidata resolver
