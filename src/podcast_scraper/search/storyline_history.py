@@ -13,18 +13,22 @@ the storylines published today:
 - a current storyline with no replayed match is kept as it is, dated by its episodes;
 - a replayed storyline with no current match is added (it cleared the bar in the replay).
 
-Only the artifact's ``registry`` is written; the next enricher run publishes from it. Dry run by
-default; ``--apply`` keeps a backup next to the artifact (undo: copy it back).
+Nothing here writes the storyline artifact: ``--apply`` writes the merged registry as a *seed*
+(``enrichments/storyline_registry.seed.json``) and the enricher takes it in at its next run, so the
+seed cannot race a run. Its id is the hash of the registry, so applying the same seed twice is a
+no-op. ``--undo`` withdraws a seed not yet taken; once taken, it writes a seed that puts back the
+registry the enricher replaced (kept as ``storyline_registry.pre-seed-<id>.json``). Dry run by
+default.
 
-    python -m podcast_scraper.search.storyline_history --corpus <corpus root> [--apply]
+    python -m podcast_scraper.search.storyline_history --corpus <corpus root> [--apply | --undo]
 """
 
 from __future__ import annotations
 
 import argparse
 import calendar
+import hashlib
 import json
-import shutil
 import sys
 import tempfile
 import time
@@ -33,6 +37,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 from podcast_scraper.search.storylines import _anchor_topic_id
+from podcast_scraper.utils.atomic_io import write_json_atomic
 
 _ARTIFACT = Path("enrichments") / "topic_theme_clusters.json"
 
@@ -193,13 +198,33 @@ def merge(
     return registry, report
 
 
+def _seed_path(corpus: Path) -> Path:
+    from podcast_scraper.enrichment.enrichers.topic_theme_clusters import REGISTRY_SEED
+
+    return corpus / "enrichments" / REGISTRY_SEED
+
+
+def _seed_id(registry: Mapping[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(registry, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+
+def _taken_seed(corpus: Path) -> Optional[str]:
+    """The seed id the registry in the published artifact was built from, if any."""
+    try:
+        raw = json.loads((corpus / _ARTIFACT).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    data = raw.get("data", raw) if isinstance(raw, dict) else {}
+    registry = data.get("registry") if isinstance(data, dict) else None
+    return registry.get("seeded_from") if isinstance(registry, dict) else None
+
+
 def seed(corpus: Path, *, apply: bool, now: Optional[float] = None) -> dict[str, Any]:
-    """Replay, merge, and (with ``apply``) write the registry into the corpus's artifact."""
+    """Replay and merge; with ``apply``, write the seed the next enricher run takes in."""
     from podcast_scraper.enrichment.paths import discover_episode_bundles
 
     now = time.time() if now is None else now
-    art = corpus / _ARTIFACT
-    raw = json.loads(art.read_text(encoding="utf-8"))
+    raw = json.loads((corpus / _ARTIFACT).read_text(encoding="utf-8"))
     data = raw.get("data", raw)
     bundles = discover_episode_bundles(corpus)
     episode_dates = {
@@ -213,26 +238,54 @@ def seed(corpus: Path, *, apply: bool, now: Optional[float] = None) -> dict[str,
         episode_dates=episode_dates,
         now=now,
     )
-    if apply:
-        backup = art.with_name(f"{art.name}.pre-history-{int(now)}")
-        shutil.copy2(art, backup)
-        data["registry"] = registry
-        tmp = art.with_name(art.name + ".tmp")
-        tmp.write_text(json.dumps(raw if "data" in raw else data), encoding="utf-8")
-        shutil.copymode(art, tmp)
-        tmp.replace(art)
-        report["backup"] = str(backup)
-    report["applied"] = apply
+    sid = _seed_id(registry)
+    report["seed_id"] = sid
+    report["already_taken"] = _taken_seed(corpus) == sid
+    if apply and not report["already_taken"]:
+        write_json_atomic(
+            _seed_path(corpus),
+            {"id": sid, "created_at": now, "registry": registry, "report": report},
+        )
+        report["seed"] = str(_seed_path(corpus))
+    report["applied"] = apply and not report["already_taken"]
     return report
 
 
+def undo(corpus: Path) -> dict[str, Any]:
+    """Withdraw a seed not yet taken, or seed back the registry a taken seed replaced."""
+    path = _seed_path(corpus)
+    try:
+        pending = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pending = None
+    taken = _taken_seed(corpus)
+    if isinstance(pending, dict) and pending.get("id") and pending["id"] != taken:
+        path.unlink()
+        return {"undone": "withdrawn", "seed_id": pending["id"]}
+    if not taken:
+        return {"undone": "nothing", "reason": "no seed pending or taken"}
+    before = corpus / "enrichments" / f"storyline_registry.pre-seed-{taken[:12]}.json"
+    try:
+        kept = json.loads(before.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"undone": "nothing", "reason": f"{before.name} not found; the seed replaced none"}
+    registry = dict(kept.get("registry") or {})
+    registry.pop("seeded_from", None)
+    sid = _seed_id(registry)
+    write_json_atomic(path, {"id": sid, "registry": registry, "report": {"undoes": taken}})
+    return {"undone": "restore seeded", "seed_id": sid, "undoes": taken}
+
+
 def main(argv: Optional[list[str]] = None) -> int:
-    """The command: replay and merge; print the report; write only with ``--apply``."""
+    """The command: replay and merge, print the report; write only with ``--apply``."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--corpus", type=Path, required=True)
-    ap.add_argument("--apply", action="store_true", help="write the registry (default: dry run)")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true", help="write the seed (default: dry run)")
+    mode.add_argument("--undo", action="store_true", help="withdraw or reverse the seed")
     args = ap.parse_args(argv)
-    print(json.dumps(seed(args.corpus, apply=args.apply), indent=2))
+    result = undo(args.corpus) if args.undo else seed(args.corpus, apply=args.apply)
+    print(json.dumps(result, indent=2))
     return 0
 
 

@@ -108,24 +108,56 @@ def _corpus(tmp_path: Path) -> Path:
     return root
 
 
-def test_dry_run_writes_nothing_and_apply_writes_only_the_registry_with_a_backup(
+def _data(root: Path) -> dict:
+    raw = json.loads((root / "enrichments" / "topic_theme_clusters.json").read_text("utf-8"))
+    return dict(raw["data"])
+
+
+def _run(root: Path, now: float) -> dict:
+    from podcast_scraper.enrichment.paths import discover_episode_bundles
+
+    data: dict = h.run_month(discover_episode_bundles(root), root, now)
+    return data
+
+
+def test_the_seed_never_writes_the_artifact_and_the_next_run_takes_it_once(
     tmp_path: Path,
 ) -> None:
     root = _corpus(tmp_path)
     art = root / "enrichments" / "topic_theme_clusters.json"
-    before = art.read_text(encoding="utf-8")
-    assert json.loads(before)["data"]["clusters"], "the fixture corpus has storylines"
+    before = art.read_bytes()
+    published = {c["graph_compound_parent_id"] for c in _data(root)["clusters"]}
+    assert published, "the fixture corpus has storylines"
+    files = sorted(p.name for p in art.parent.iterdir())
 
-    report = h.seed(root, apply=False, now=100 * DAY)
-    assert report["applied"] is False and art.read_text(encoding="utf-8") == before
-    assert list(art.parent.iterdir()) == [art]
+    dry = h.seed(root, apply=False, now=100 * DAY)
+    assert dry["applied"] is False and art.read_bytes() == before
+    assert sorted(p.name for p in art.parent.iterdir()) == files
 
     report = h.seed(root, apply=True, now=100 * DAY)
-    backup = Path(report["backup"])
-    assert backup.read_text(encoding="utf-8") == before
-    old, new = json.loads(before)["data"], json.loads(art.read_text(encoding="utf-8"))["data"]
-    assert {k: v for k, v in new.items() if k != "registry"} == {
-        k: v for k, v in old.items() if k != "registry"
-    }
-    published = {c["graph_compound_parent_id"] for c in old["clusters"]}
-    assert published <= set(new["registry"]["entries"]), "every published storyline is kept"
+    assert report["applied"] and art.read_bytes() == before, "only the seed file is written"
+
+    data = _run(root, 100 * DAY)
+    assert data["registry"]["seeded_from"] == report["seed_id"]
+    assert data["registry_health"]["source"] == "seed" and data["registry_health"]["ok"]
+    assert published <= {c["graph_compound_parent_id"] for c in data["clusters"]}
+
+    again = h.seed(root, apply=True, now=100 * DAY)
+    assert again["already_taken"] and not again["applied"], "the same seed twice is a no-op"
+    assert _run(root, 101 * DAY)["registry_health"]["source"] == "artifact"
+
+
+def test_undo_withdraws_a_pending_seed_and_reverses_a_taken_one(tmp_path: Path) -> None:
+    root = _corpus(tmp_path)
+    seed_file = root / "enrichments" / "storyline_registry.seed.json"
+    h.seed(root, apply=True, now=100 * DAY)
+    assert h.undo(root)["undone"] == "withdrawn" and not seed_file.exists()
+
+    replaced = _data(root)["registry"]["entries"]
+    taken = h.seed(root, apply=True, now=100 * DAY)["seed_id"]
+    _run(root, 100 * DAY)
+    result = h.undo(root)
+    assert result["undone"] == "restore seeded" and result["undoes"] == taken
+    data = _run(root, 101 * DAY)
+    assert data["registry"]["seeded_from"] == result["seed_id"]
+    assert set(replaced) <= set(data["registry"]["entries"])

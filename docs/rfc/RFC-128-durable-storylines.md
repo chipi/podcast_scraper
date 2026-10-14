@@ -164,9 +164,24 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
   faded into others is recorded as their successor in `id_history`, for the reference pass.
 - `search/storyline_history.py` — the one-time history seed (Migration).
 - `enrichers/topic_theme_clusters.py` (1.3.0) — this run's clusters are proposals; the registry is
-  carried in `topic_theme_clusters.json` (`registry`, plus `state` and `aliases` per storyline);
-  super-themes are computed over the registry's storylines.
-- `search/storylines.py` — quiet storylines are offered after active ones.
+  carried in `topic_theme_clusters.json` (`registry`, plus `state`, `aliases`, `created_at`,
+  `last_active_at` per storyline, and each member's `strength`); super-themes are computed over the
+  registry's storylines. Each member's `lift_to_cluster` keeps its meaning: its co-occurrence lift
+  to the other members published.
+- **The registry cannot be lost silently.** The executor writes every envelope atomically; the
+  enricher also keeps the registry's last-good copy (`enrichments/storyline_registry.json`) and
+  continues from it if the artifact is unreadable. Each run logs one line,
+  `storylines: registry health=ok|bad source=… storylines=… quiet=… shared_topics=… vanished=…`
+  (also `registry_health` in the artifact); `bad` (the copy was used, the registry started over, a
+  topic in two storylines, a storyline gone with no successor or gone record) logs at ERROR and
+  fires the alert `enrich-common-storyline-registry-bad`.
+- `search/storylines.py` — quiet storylines are offered after active ones on the Home rail. The
+  other surfaces need no rule: momentum and trending already fall with no new episode, and a
+  storyline's page, its 15 minutes, an episode's or a show's storylines, and search keep showing a
+  quiet one, which is the point.
+- **Shown to listeners:** the storyline page says "Also called …" (its aliases) and "Quiet since
+  …"; searching an old name opens the storyline under its current one (entity resolution and the
+  search index); the card flags the anchor the page is routed by.
 - `scripts/eval/replay_storylines.py` — the replay above, driving the production enricher (old
   rule: each month from scratch; new rule: each month reconciled against the previous one).
 
@@ -174,17 +189,22 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
 
 Operator, 2026-10-14: build the registry from history, and keep every storyline published today.
 
-`python -m podcast_scraper.search.storyline_history --corpus <root> [--apply]`, once, after the
-deploy: it replays the registry month by month over the corpus (no model; seconds on production),
+`python -m podcast_scraper.search.storyline_history --corpus <root> [--apply | --undo]`, once,
+after the deploy: it replays the registry month by month over the corpus (no model; seconds on
+production),
 then merges the result with the storylines published today. A replayed storyline that shares half
 of its topics, or of a current storyline's, with a current one folds into it: the current one takes
 the replayed history (created, last active, topic strengths; a different replayed name becomes an
 alias) and keeps its own id, name and anchor. A current storyline with no replayed match is dated
-by its episodes; a replayed one with no current match is added. Only `data.registry` is written,
-with a backup next to the artifact (undo: copy it back). Dry run by default.
+by its episodes; a replayed one with no current match is added. It never writes the artifact:
+`--apply` writes a seed (`enrichments/storyline_registry.seed.json`, its id the hash of the
+registry) that the next enricher run takes in, so it cannot race a run, and the same seed twice is
+a no-op. `--undo` withdraws a seed not yet taken, or seeds back the registry a taken one replaced.
+Dry run by default.
 
-Simulated on the production copy, seed then two nightly runs: 99 of 99 ids, names and anchors
-unchanged, so no page, follow or save moves; 17 quiet; no topic in two storylines; all 59 replayed
+Simulated on the production copy, seed then two nightly runs (`health=ok`, `source=seed` then
+`artifact`): 99 of 99 ids, names and anchors unchanged, and the card flags the routed anchor on all
+99, so no page, follow or save moves; 17 quiet; no topic in two storylines; all 59 replayed
 storylines folded in (none added); 6 storylines trade a few topics with each other; 47 candidates
 carried on, so new storylines do not wait four weeks from deploy.
 

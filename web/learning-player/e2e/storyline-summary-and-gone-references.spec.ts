@@ -112,3 +112,31 @@ test.describe('a reference the corpus no longer has (#2345)', () => {
       .not.toContain('thc:dissolved-thread')
   })
 })
+
+test.describe('a durable storyline (RFC-128, #2349)', () => {
+  test('says what it was called before and that it is quiet', async ({ page }, testInfo) => {
+    // The fixture corpus is one run, so no storyline there has been renamed or gone quiet. The
+    // card comes from the real API; only those two registry fields are added to its response.
+    await page.route('**/api/app/storylines/*', async (route) => {
+      if (route.request().url().includes('/summary')) return route.fallback()
+      const response = await route.fetch()
+      const card = await response.json()
+      await route.fulfill({
+        response,
+        json: { ...card, aliases: ['hedging the downside'], state: 'quiet', last_active_at: '2026-01-14' },
+      })
+    })
+    await signInIsolated(page, 'storyline-durable', testInfo)
+    await page.goto(`/storyline/${encodeURIComponent(ANCHOR)}`)
+    await expect(page.getByTestId('storyline-aliases')).toHaveText('Also called hedging the downside')
+    await expect(page.getByTestId('storyline-quiet')).toContainText('Quiet since Jan 2026')
+  })
+
+  test('shows neither line for a storyline that is active and kept its name', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'storyline-durable-active', testInfo)
+    await page.goto(`/storyline/${encodeURIComponent(ANCHOR)}`)
+    await expect(page.locator('h1')).not.toHaveText('…')
+    await expect(page.getByTestId('storyline-aliases')).toHaveCount(0)
+    await expect(page.getByTestId('storyline-quiet')).toHaveCount(0)
+  })
+})

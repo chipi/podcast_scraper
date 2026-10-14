@@ -899,6 +899,24 @@ class AppClusterCard(BaseModel):
             "exists ('these two keep turning up together'), which is not what a theme claims."
         ),
     )
+    aliases: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Storylines only: names this storyline had before (RFC-128 — a name changes only "
+            "after another led for 60 days). Empty for a theme."
+        ),
+    )
+    state: Literal["active", "quiet"] | None = Field(
+        default=None,
+        description=(
+            "Storylines only: ``quiet`` when no new episode has joined for 90 days (it stays, "
+            "and wakes with the next one). None for a theme or a pre-registry artifact."
+        ),
+    )
+    last_active_at: str | None = Field(
+        default=None,
+        description="Storylines only: the day (YYYY-MM-DD) an episode last joined it.",
+    )
 
 
 class AppMonthCount(BaseModel):

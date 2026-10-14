@@ -139,12 +139,11 @@ kept is used.
    ```
 
    Needs the DGX in research mode (the `:8003` slot), like the board summaries; $0 budget holds.
-4. **Durable storylines (RFC-128, #2349): seed the registry from history**, after the deploy and
-   ideally before the first nightly on the new code (after it is fine too: the seed reads the
-   published storylines either way). Replays the registry month by month over the corpus (no
-   model, seconds) and merges it with today's storylines; writes only `data.registry` in
-   `enrichments/topic_theme_clusters.json`, with a backup next to it (undo: copy the backup back).
-   Dry run, read the counts, then apply:
+4. **Durable storylines (RFC-128, #2349): seed the registry from history.** Any time after the
+   deploy. Replays the registry month by month over the corpus (no model, seconds) and merges it
+   with today's storylines. It never writes the storyline artifact: `--apply` writes
+   `enrichments/storyline_registry.seed.json`, and the next enricher run takes it in, so it cannot
+   race the nightly. Applying the same seed twice is a no-op. Dry run, read the counts, then apply:
 
    ```sh
    docker exec compose-api-1 python -m podcast_scraper.search.storyline_history --corpus /app/output
@@ -152,11 +151,25 @@ kept is used.
    ```
 
    Expect, as on the 2026-10-14 copy: `current` 99, `replayed` 59, `with_history` 51, `folded` 59,
-   `added_from_history` [], `candidates` 47. After the next nightly: 99 storylines with the same
-   ids, names and anchors (pages and follows do not move), about 17 `quiet`, no topic in two
-   storylines; 6 storylines trade a few topics with each other. Re-run
-   `scripts/eval/replay_storylines.py` on a copy to compare.
-5. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
+   `added_from_history` [], `candidates` 47. After the next nightly, the log line
+   `storylines: registry health=ok source=seed storylines=99 quiet=17 ... shared_topics=0
+   vanished=0`; then `source=artifact` on every later run. 99 storylines with the same ids, names
+   and anchors (pages and follows do not move); 6 trade a few topics with each other.
+
+   Undo: `... storyline_history --corpus /app/output --undo` withdraws a seed not yet taken; once
+   taken, it writes a seed that puts back the registry the seed replaced (none, if the seed was
+   taken by the first run on the new code — then there is nothing to go back to).
+5. **Sync the alert rule** `enrich-common-storyline-registry-bad` (fires on any `storylines:
+   registry health=bad` line). Dry run, then apply:
+
+   ```sh
+   make obs-sync              # lists what would change
+   make obs-sync APPLY=1
+   ```
+
+6. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
+   a storyline the seed gave an old name (10 on the copy) says "Also called …" under its title,
+   and searching that old name opens it; a quiet one says "Quiet since …";
    `GET /api/app/discover/references/gone` answers for the smoke account.
 
 ## Carried over (operator items, not deploy steps; from the 2026-10-12/13 plan)

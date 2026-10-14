@@ -127,6 +127,37 @@ groups:
               expression: failed
               conditions: [{ evaluator: { type: gt, params: [0] } }]
 
+      # --- Storyline registry unhealthy (RFC-128, #2349) ----------------------------
+      # topic_theme_clusters logs one "storylines: registry health=ok|bad ..." line per run
+      # (pipeline surface, same process as "enrichment: run complete"). health=bad means the
+      # run continued from the registry's copy because the artifact was unreadable
+      # (source=copy), started the registry over (source=rebuilt — the storyline history is
+      # lost), published a topic in two storylines, or dropped a storyline with no successor
+      # or gone record. None of these should ever happen; each one breaks follows, pages or
+      # Learn paths. noDataState=OK: no line means no run, which the staleness rule owns.
+      - uid: enrich-common-storyline-registry-bad
+        title: "Storyline registry unhealthy"
+        condition: threshold
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels: { app: podcast, severity: warning, kind: enrichment }
+        annotations:
+          summary: "A storyline run logged health=bad: the registry came from its copy or started over, a topic is in two storylines, or a storyline vanished. Read the line's source= and vanished= fields; RFC-128."
+        data:
+          - refId: bad
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'instance:prod-podcast "storylines: registry health=bad" | stats count() as n'
+              queryType: stats
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: bad
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
 # NOT YET COVERED (deliberately, so it isn't a silent gap):
 #   - PIPELINE job failures (ingest/reprocess exiting non-zero without an enrichment
 #     completion line): the api-side registry mutation logs nothing (server/jobs.py

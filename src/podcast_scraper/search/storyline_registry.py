@@ -26,7 +26,8 @@ Here a storyline is a record that outlives any run:
 Storyline pages are routed by their anchor topic, so the registry keeps it: the anchor a storyline
 had before the registry, or its most-episode topic when created. It moves only when that topic
 leaves the storyline, to the strongest remaining one. The published member carries
-``"anchor": true`` (read by ``search.storylines``); ``lift_to_cluster`` is the topic's strength.
+``"anchor": true`` (read by ``search.storylines``) and its ``strength`` here; its co-occurrence
+lift (``lift_to_cluster``) is the enricher's to compute, over the members published.
 """
 
 from __future__ import annotations
@@ -198,7 +199,9 @@ def reconcile(
         "successors": {k: v for k, v in sorted(successors.items()) if v in published},
         "gone": sorted((set(history.get("gone") or []) | set(gone)) - published),
     }
-    state = {"as_of": now, "entries": entries, "candidates": kept_candidates}
+    state: dict[str, Any] = {"as_of": now, "entries": entries, "candidates": kept_candidates}
+    if registry.get("seeded_from"):
+        state["seeded_from"] = registry["seeded_from"]  # the history seed it took (seed id)
     return storylines, state, id_history
 
 
@@ -251,7 +254,7 @@ def _publish(
                 "topic_id": t,
                 "label": topic_label.get(t, t),
                 "episode_ids": sorted(set(topic_eps.get(t, []))),
-                "lift_to_cluster": round(w, 4),
+                "strength": round(w, 4),
                 **({"anchor": True} if t == e["anchor"] else {}),
             }
             for t, w in sorted(strengths.items(), key=lambda kv: (-kv[1], kv[0]))

@@ -161,3 +161,55 @@ def test_a_storyline_saved_by_its_anchor_topic_becomes_its_storyline_id(tmp_path
     refs = [f["ref"] for f in state._read(tmp_path, U, "favorites", [])]
     assert refs == ["thc:managing-risk", "topic:orphaned"]
     assert {"ref": "topic:orphaned", "kind": "storyline"} in gone_references(tmp_path, U)
+
+
+def test_a_storyline_the_registry_absorbed_takes_its_followers_along(tmp_path: Path) -> None:
+    """RFC-128, end to end: the registry folds a storyline into another (its topics faded into
+    it), records the successor, and the reference pass moves the follow and the board item —
+    from the artifact the enricher writes, not a hand-built resolver."""
+    import json
+
+    from podcast_scraper.search.storyline_registry import reconcile
+    from podcast_scraper.server.reference_integrity import build_resolver
+
+    def prop(label: str, topics: list[str], eps: list[str]) -> dict:
+        return {
+            "canonical_label": label,
+            "graph_compound_parent_id": "thc:" + label,
+            "members": [{"topic_id": t, "episode_ids": eps} for t in topics],
+        }
+
+    labels = {t: t for t in ("topic:a", "topic:b", "topic:x", "topic:y")}
+    eps = {t: ["e1", "e2"] for t in labels}
+    first = [
+        prop("big", ["topic:a", "topic:b"], ["e1"]),
+        prop("small", ["topic:x", "topic:y"], ["e2"]),
+    ]
+    stories, registry, history = reconcile(first, None, topic_label=labels, topic_eps=eps, now=0.0)
+    registry["entries"]["thc:small"]["topics"] = {"topic:x": 0.1, "topic:y": 0.1}
+    prior = {"clusters": stories, "registry": registry, "id_history": history}
+    merged = [prop("big", ["topic:a", "topic:b", "topic:x", "topic:y"], ["e1", "e2"])]
+    stories, registry, history = reconcile(
+        merged, prior, topic_label=labels, topic_eps=eps, now=86400.0
+    )
+    assert history["successors"] == {"thc:small": "thc:big"}
+
+    root = tmp_path / "corpus"
+    (root / "enrichments").mkdir(parents=True)
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps({"data": {"clusters": stories, "id_history": history, "registry": registry}})
+    )
+    data = tmp_path / "appdata"
+    state._write(data, U, "interests", ["thc:small"])
+    boards._write(
+        data,
+        U,
+        {
+            "collections": [{"id": "col_a", "name": "A", "created_at": 1}],
+            "items": {"col_a": [{"kind": "storyline", "ref": "thc:small"}]},
+        },
+    )
+    repair_user(data, U, build_resolver(root))
+    assert state._read(data, U, "interests", []) == ["thc:big"]
+    assert boards._read(data, U)["items"]["col_a"] == [{"kind": "storyline", "ref": "thc:big"}]
+    assert gone_references(data, U) == []

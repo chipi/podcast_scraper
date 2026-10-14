@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
 
 from podcast_scraper.search.storylines import (
+    storyline_anchors,
+    storyline_lifecycle,
     storyline_map_by_topic,
     storyline_member_lift,
     storyline_siblings_by_topic,
@@ -365,6 +367,18 @@ def _storyline_ref_by_norm_at(root: Path, _token: float) -> Mapping[str, AppEnti
         norm = normalize_label(label)
         if norm:
             out.setdefault(norm, AppEntityRef(id=anchor, kind="storyline", label=label))
+    # A name a storyline had before (RFC-128) resolves to it under its current name — after every
+    # current name, so no old name can take a name another storyline holds now.
+    lifecycle = storyline_lifecycle(root)
+    for s in top_storylines_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
+        label = str(s.get("label") or "").strip()
+        anchor = str(s.get("anchor_topic_id") or "").strip()
+        if not label or not anchor:
+            continue
+        for alias in (lifecycle.get(str(s.get("id"))) or {}).get("aliases") or []:
+            norm = normalize_label(alias)
+            if norm:
+                out.setdefault(norm, AppEntityRef(id=anchor, kind="storyline", label=label))
     return out
 
 
@@ -595,6 +609,7 @@ def _build_cluster_card(
     id_key: str,
     label_key: str,
     lift: Mapping[str, float] | None = None,
+    anchor: str | None = None,
     rows: Sequence[CatalogEpisodeRow] | None = None,
     top_k: int = _DEFAULT_TOP_K,
 ) -> (
@@ -693,6 +708,10 @@ def _build_cluster_card(
         ordered = sorted(member_ids, key=lambda t: (-lift.get(t, 0.0), -episodes_per_member[t], t))
     else:
         ordered = sorted(member_ids, key=lambda t: (-episodes_per_member[t], t))
+    # A storyline's anchor is the topic its page is routed by, kept by the storyline registry
+    # (RFC-128); the card must flag that one, not whichever member leads on lift this run.
+    if anchor in ordered:
+        ordered = [anchor, *(t for t in ordered if t != anchor)]
     # The split is the grouping's OWN median episode date, not a fixed window: a six-month corpus
     # and a six-year one should both read sensibly, and "last 12 months" would brand every member of
     # a young corpus `new`.
@@ -727,7 +746,7 @@ def _build_cluster_card(
                 episode_count=episodes_per_member[tid],
                 # Only a lift-ordered grouping has an anchor. A theme is symmetric — "means the same
                 # thing" has no centre — so flagging one of its members would invent a hierarchy.
-                anchor=bool(lift) and i == 0,
+                anchor=(tid == anchor) if anchor in ordered else bool(lift) and i == 0,
                 first_seen=first,
                 last_seen=last,
                 trend=state,  # type: ignore[arg-type]  # _trend returns the Literal's values
@@ -822,12 +841,14 @@ def build_storyline_card(
         id_key="storyline_id",
         label_key="storyline_label",
         lift=storyline_member_lift(root).get(resolved_id),
+        anchor=storyline_anchors(root).get(resolved_id),
         rows=rows,
         top_k=top_k,
     )
     if built is None:
         return None
     label, members, about, people, pair = built
+    life = storyline_lifecycle(root).get(resolved_id) or {}
     return AppClusterCard(
         id=resolved_id,
         label=label,
@@ -836,6 +857,9 @@ def build_storyline_card(
         episodes=_sorted_episode_cards(root, about),
         related_people=people,
         strongest_pair=pair,
+        aliases=list(life.get("aliases") or []),
+        state=life.get("state"),
+        last_active_at=life.get("last_active_at"),
     )
 
 

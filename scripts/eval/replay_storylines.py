@@ -47,8 +47,9 @@ def _month_end(month: str) -> float:
 
 def _run(bundles: list[Any], state_dir: Path, now: float, carry: bool) -> dict[str, Any]:
     art = state_dir / "enrichments" / "topic_theme_clusters.json"
-    if not carry:
+    if not carry:  # from scratch: neither the artifact nor the registry's copy
         art.unlink(missing_ok=True)
+        (art.parent / ttc.REGISTRY_COPY).unlink(missing_ok=True)
     ttc._now = lambda: now  # the run's clock (the enricher's own hook)
     ctx = type("Ctx", (), {"run_id": "replay", "enricher_id": "topic_theme_clusters"})()
     data: dict[str, Any] = ttc._compute(None, state_dir, bundles, {}, ctx)

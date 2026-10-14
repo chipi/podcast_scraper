@@ -1111,6 +1111,12 @@ export interface ClusterCard {
   related_people: Entity[]
   /** Null for a theme: "means the same thing" makes no co-occurrence claim to evidence. */
   strongest_pair?: ClusterPair | null
+  /** Storylines only (RFC-128): names it had before. Empty for a theme. */
+  aliases?: string[]
+  /** Storylines only: `quiet` = no new episode for 90 days; it wakes with the next one. */
+  state?: 'active' | 'quiet' | null
+  /** Storylines only: the day (YYYY-MM-DD) an episode last joined it. */
+  last_active_at?: string | null
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */

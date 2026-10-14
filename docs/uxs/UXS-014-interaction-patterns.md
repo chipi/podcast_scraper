@@ -515,6 +515,15 @@ a longer one also how it developed and where the voices differ. Under it: when i
 and "the storyline grew since, an update follows" when its episodes changed. Until one is written
 the section is simply absent.
 
+### A storyline that changed its name or went quiet — RFC-128, 2026-10-14
+
+A storyline is never deleted and rarely renamed (RFC-128), so a listener who followed it finds it
+again. Under its title, in muted text, its page says the two things that could otherwise confuse
+them: **"Also called prompt engineering"** when it had another name before, and **"Quiet since Jan
+2026. It comes back when a new episode joins."** when no new episode has joined for 90 days.
+Searching an old name opens it under its current one. Neither line shows for an active storyline
+that kept its name.
+
 ## Insight type marks (#2004 item 8)
 
 `InsightTypeMark.vue` — how one insight is told from another in a list that can hold 36 of them.

@@ -330,3 +330,45 @@ def test_a_member_marked_anchor_wins_over_a_higher_lift() -> None:
         {"topic_id": "topic:kept", "lift_to_cluster": 1.0, "anchor": True},
     ]
     assert _anchor_topic_id(members) == "topic:kept"
+
+
+def _registry_artifact(tmp_path: Path) -> None:
+    """A storyline as the registry (RFC-128) publishes it: renamed once, quiet."""
+    cl = _cluster(
+        "thc:prompt-engineering",
+        "agentic engineering",
+        [
+            {"topic_id": "topic:agents", "label": "agents", "anchor": True},
+            {"topic_id": "topic:prompts", "label": "prompts"},
+        ],
+    )
+    cl.update({"aliases": ["prompt engineering"], "state": "quiet", "last_active_at": 1767225600})
+    _write(tmp_path, {"data": {"clusters": [cl]}})
+
+
+def test_lifecycle_carries_aliases_state_and_the_day_last_active(tmp_path: Path) -> None:
+    from podcast_scraper.search.storylines import storyline_lifecycle
+
+    _registry_artifact(tmp_path)
+    assert storyline_lifecycle(tmp_path) == {
+        "thc:prompt-engineering": {
+            "aliases": ["prompt engineering"],
+            "state": "quiet",
+            "last_active_at": "2026-01-01",
+        }
+    }
+
+
+def test_lifecycle_of_a_pre_registry_artifact_is_empty_not_wrong(tmp_path: Path) -> None:
+    from podcast_scraper.search.storylines import storyline_lifecycle
+
+    _write(tmp_path, {"data": {"clusters": [_cluster("thc:x", "X", [{"topic_id": "topic:x"}])]}})
+    assert storyline_lifecycle(tmp_path) == {
+        "thc:x": {"aliases": [], "state": None, "last_active_at": None}
+    }
+
+
+def test_a_storyline_is_found_by_a_name_it_had_before(tmp_path: Path) -> None:
+    _registry_artifact(tmp_path)
+    ((_id, text, _meta),) = storyline_index_rows(tmp_path)
+    assert text.startswith("agentic engineering prompt engineering")

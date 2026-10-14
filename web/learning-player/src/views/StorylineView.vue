@@ -37,6 +37,7 @@ import LearnDoor from "../components/LearnDoor.vue"
 import ReelDoor from "../components/ReelDoor.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
+import { formatMonthYear } from "../utils/format"
 
 type Member = { id: string; label: string; episodeCount: number; anchor: boolean; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
 
@@ -83,7 +84,7 @@ function openPerspective(p: { kind: "person" | "topic"; id: string }): void {
 // When embedded in the overlay sheet the ✕ lives in THIS header's action row (unified with the
 // topic/person card), so the close intent has to reach StorylineCard. Standalone ignores it.
 const emit = defineEmits<{ (e: "close"): void }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const interests = useInterestsStore()
@@ -113,6 +114,10 @@ const moreEpisodes = (offset: number, limit: number) =>
 const storylineId = ref<string | null>(null)
 /** The most co-occurring pair — the storyline's evidence, in one line. */
 const pair = ref<ClusterPair | null>(null)
+/** Names it had before (RFC-128): someone who followed the old name sees it is the same thread. */
+const aliases = ref<string[]>([])
+/** "Quiet since …" when no new episode has joined for 90 days (RFC-128); empty when active. */
+const quietSince = ref("")
 
 async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
@@ -144,6 +149,9 @@ async function load(anchorTopicId: string): Promise<void> {
       trend: tp.trend,
     }))
     pair.value = card.strongest_pair ?? null
+    aliases.value = card.aliases ?? []
+    quietSince.value =
+      card.state === "quiet" ? formatMonthYear(card.last_active_at, locale.value) ?? "" : ""
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
     episodeCount.value = card.episode_count ?? episodes.value.length
@@ -217,6 +225,12 @@ function goBack(): void {
       <h1 class="lp-subject-title">
         {{ label || "…" }}
       </h1>
+      <p v-if="aliases.length" class="mt-1 text-sm text-muted" data-testid="storyline-aliases">
+        {{ t("home.storylineAliases", { names: aliases.join(", ") }) }}
+      </p>
+      <p v-if="quietSince" class="mt-1 text-sm text-muted" data-testid="storyline-quiet">
+        {{ t("home.storylineQuiet", { date: quietSince }) }}
+      </p>
       <!-- Actions on their OWN row, AFTER the title, in the topic and theme pages' order: Follow
            first, then save, board, share (operator 2026-10-11: the three tops are identical). Save
            (heart) is a per-kind favorite, distinct from Follow, which subscribes to the cluster. -->
