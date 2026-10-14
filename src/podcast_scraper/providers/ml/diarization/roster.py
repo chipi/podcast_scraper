@@ -1161,6 +1161,7 @@ def _ad_voices_for(
     voice_texts: Optional[Dict[str, str]],
     recurring_text: Optional[set],
     diarization_provider: Optional[str],
+    stated_people: Sequence[str] = (),
 ) -> set:
     """The full ad-voice set: edge ads (``_edge_ad_voices``) plus the cross-episode recurring-ad
     voices the edge rule cannot see (#1188 — a mid-roll house ad read from the same script weekly).
@@ -1173,7 +1174,48 @@ def _ad_voices_for(
         ad = ad | strategy.recorded_voices(
             ordered_turns or [], voice_texts or {}, _talk_time(diarization), recurring_text
         )
-    return ad
+    return ad | _self_introduced_promo_voices(
+        voice_texts or {}, _talk_time(diarization), stated_people
+    )
+
+
+#: A promo's own words: another show's tour, tickets, a sign-up. The recurring-ad strategy learns a
+#: promo only once it has run in earlier episodes, so a NEW campaign was named for its first
+#: nights: The Gray Area 2026-10-14, "I'm Phoebe Judge, host of the podcast Criminal ... this fall
+#: I'm headed out on the road", "I'm Kara Swisher ... a live tour in November" -- both published
+#: as guests on all three new episodes.
+_PROMO_CUE = re.compile(
+    r"\b(?:live tour|on tour|tour in|tickets?|on the road|come out and see|come see us|"
+    r"see (?:us|her|him|me) (?:in person|live)|on patreon|wherever you get your podcasts|"
+    r"subscribe (?:to|now)|sign up (?:at|now|for))\b",
+    re.IGNORECASE,
+)
+#: Case-blind on the cue words only: the NAME must be capitalised, else "I'm in this class" and
+#: "This is the fifth" read as introductions (MLST, NVIDIA; replay 2026-10-14).
+_SELF_INTRO_CUE = re.compile(r"\b(?i:i'?m|i am|my name is|this is)\s+[A-Z]")
+#: Longer than this and the voice is a participant who also mentions a tour, not a promo.
+_PROMO_MAX_TALK_S = 90.0
+
+
+def _self_introduced_promo_voices(
+    texts: Mapping[str, str], talk: Mapping[str, float], stated_people: Sequence[str] = ()
+) -> set:
+    """Short voices that introduce themselves AND speak a promo's lines: ads for another show.
+
+    Both halves are needed. A short self-introduction alone is a kid's question or a vox pop
+    (Curious Cases, The Journal); promo words alone are any host's ad read inside their own long
+    cluster. And a voice that says a person THIS episode states is promoting this show, not another
+    one: "I'm Lane Florsheim ... follow us on Spotify", "join us on Patreon" (The Journal, Why This
+    Universe; replay 2026-10-14)."""
+    stated = [n for n in stated_people if n and len(n.split()) >= 2]
+    return {
+        v
+        for v, text in texts.items()
+        if talk.get(v, 0.0) < _PROMO_MAX_TALK_S
+        and _SELF_INTRO_CUE.search(text or "")
+        and _PROMO_CUE.search(text or "")
+        and not any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", text, re.IGNORECASE) for n in stated)
+    }
 
 
 def classify_voices(
@@ -1186,6 +1228,7 @@ def classify_voices(
     diarization_provider: Optional[str] = None,
     cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
     ad_signatures: Optional[Any] = None,
+    stated_people: Sequence[str] = (),
 ) -> VoiceCleaning:
     """Classify every diarized voice as ad / cameo / commercial / real (see :class:`VoiceCleaning`).
 
@@ -1195,7 +1238,12 @@ def classify_voices(
     and the roster share.
     """
     ad = _ad_voices_for(
-        diarization, ordered_turns, voice_texts, recurring_text, diarization_provider
+        diarization,
+        ordered_turns,
+        voice_texts,
+        recurring_text,
+        diarization_provider,
+        stated_people,
     )
     if ad_signatures is not None and voice_texts:
         # Cross-show evidence (ad_signatures.py): script other shows also carry, or a voice in a
@@ -2474,6 +2522,48 @@ def _metadata_anchored_self_intro(
         )
         if name:
             return name
+    if language == TARGET_LANGUAGE:
+        return _role_phrase_self_intro(text, stated)
+    return None
+
+
+#: "I'm Vox reporter and producer Miles Bryan, sitting in for Sean today" (The Gray Area,
+#: 2026-10-14): a ROLE PHRASE stands between "I'm" and the name, so the window above starts on
+#: "vox" and never reaches it, and the stand-in presenter stayed unnamed. The clause runs from the
+#: self-introduction to the first punctuation mark, on the folded form.
+_ROLE_CLAUSE_MF = re.compile(r"\b(?:i'm|i am)\s+([a-z][a-z'\- ]*?)\s*(?=[,.!?;]|$)")
+_ROLE_NOUNS_MF = frozenset(
+    "host co-host cohost reporter producer correspondent editor writer journalist columnist "
+    "contributor anchor presenter".split()
+)
+#: Words that make the clause about SOMEBODY ELSE: "I'm joined by producer Jane Doe", "I'm here
+#: with reporter Jane Doe", "I'm your host and today's guest is novelist Jane Doe".
+_ROLE_GAP_STOP_MF = frozenset(
+    "with by to of for from about joined joining talking speaking here sitting meet interviewing "
+    "is are was were has have joins welcome introducing".split()
+)
+_ROLE_GAP_MAX_TOKENS = 6
+
+
+def _role_phrase_self_intro(folded: str, stated: Sequence[Tuple[str, List[str]]]) -> Optional[str]:
+    """A STATED name that closes an "I'm <role phrase> <Name>" clause. Three conditions together:
+    the gap names a role, it holds no word that introduces somebody else, and the name ends the
+    clause, so "I'm a reporter and Miles Bryan is a producer" binds nobody. The name must match a
+    stated name token for token; there is no fuzzy surname here, the gap already loosened the form.
+    """
+    for m in _ROLE_CLAUSE_MF.finditer(folded):
+        toks = m.group(1).split()
+        for name, stoks in stated:
+            n = len(stoks)
+            if n < 2 or len(toks) <= n or toks[-n:] != stoks:
+                continue
+            gap = toks[:-n]
+            if (
+                len(gap) <= _ROLE_GAP_MAX_TOKENS
+                and _ROLE_NOUNS_MF.intersection(gap)
+                and not _ROLE_GAP_STOP_MF.intersection(gap)
+            ):
+                return name
     return None
 
 
@@ -5231,16 +5321,34 @@ def _opener_presents(
     with the network's merged ad tag ("This BBC podcast is supported by ads outside the UK.") or a
     cold-open soundbite, and neither names the show or a stated person.
     """
-    head = " ".join([t for v, t in ordered_turns or () if v == opener][:_OPENER_HEAD_TURNS])
+    own = [t for v, t in ordered_turns or () if v == opener]
+    # The network's ad tag merged into the opening turn is not how anyone OPENS (BBC: "This BBC
+    # podcast is supported by ads outside the UK."); it hid Curious Cases' host behind the tag.
+    while own and _NETWORK_AD_TAG.search(own[0]) and len(own[0].split()) <= _AD_TAG_MAX_WORDS:
+        own = own[1:]
+    # Stripped: turns arrive with a leading space, which hid a hail at the very start of a turn
+    # ("Jonathan, let's start with the basics.") from the punctuation-anchored vocative reader.
+    head = " ".join(t.strip() for t in own[:_OPENER_HEAD_TURNS])
     if not head:
         return False
     show = show_name_pattern(feed_title)
     if show and re.search(rf"(?<!\w)(?:{show})(?!\w)", head, re.IGNORECASE):
         return True
     return any(
-        len(n.split()) >= 2 and re.search(rf"(?<!\w){re.escape(n)}(?!\w)", head, re.IGNORECASE)
+        (len(n.split()) >= 2 and re.search(rf"(?<!\w){re.escape(n)}(?!\w)", head, re.IGNORECASE))
+        # ...or hands the floor to a stated guest by first name ("First of all, Tamar, can you
+        # explain..." -- Curious Cases' host on "Phantom Pain", 2026-10-14).
+        or (len(n.split()) >= 2 and _vocative_count(head, n) >= 1)
         for n in stated_people
     )
+
+
+#: A network's pre-roll tag that diarization merges into the next voice's first turn.
+_NETWORK_AD_TAG = re.compile(
+    r"\bpodcast is supported by (?:ads|adverts|advertising|advertisers)", re.IGNORECASE
+)
+#: The tag turn is a sentence; a long turn that happens to contain it is speech, kept.
+_AD_TAG_MAX_WORDS = 15
 
 
 def _select_host_voices(
@@ -5967,7 +6075,12 @@ def resolve_speaker_roster(
         set(cleaning.ad)
         if cleaning is not None
         else _ad_voices_for(
-            diarization, ordered_turns, voice_texts, recurring_text, diarization_provider
+            diarization,
+            ordered_turns,
+            voice_texts,
+            recurring_text,
+            diarization_provider,
+            [*(known_hosts or ()), *(metadata_named or ())],
         )
     )
 

@@ -169,16 +169,6 @@ def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) ->
     feed_cfg: Any = SimpleNamespace(output_dir=str(ep["feed_dir"]))
     recurring = P._feed_recurring_text(feed_cfg)
     extra = {"ad_signatures": ad_signatures} if ad_signatures is not None else {}
-    cleaning = roster.classify_voices(
-        dz,
-        ad_intervals,
-        voice_texts=voice_texts,
-        ordered_turns=turns,
-        recurring_text=recurring,
-        diarization_provider="tailnet_dgx",
-        cameo_max_talk_s=20.0,
-        **extra,
-    )
     voices = ep["diag"].get("voices") or []
     llm = [v for v in voices if v.get("source") == "llm_resolution"]
     tried = ep["diag"].get("tried") or {}
@@ -188,6 +178,20 @@ def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) ->
         repool(hosts_mod, ep, tried)
         if REPOOL and hosts_mod is not None
         else list(tried.get("known_hosts") or [])
+    )
+    # The pipeline hands the cleaning the people the episode states; a variant without the
+    # parameter replays exactly as before.
+    if "stated_people" in inspect.signature(roster.classify_voices).parameters:
+        extra["stated_people"] = [*known_hosts, *(tried.get("metadata_named") or [])]
+    cleaning = roster.classify_voices(
+        dz,
+        ad_intervals,
+        voice_texts=voice_texts,
+        ordered_turns=turns,
+        recurring_text=recurring,
+        diarization_provider="tailnet_dgx",
+        cameo_max_talk_s=20.0,
+        **extra,
     )
     return dict(
         diarization=dz,

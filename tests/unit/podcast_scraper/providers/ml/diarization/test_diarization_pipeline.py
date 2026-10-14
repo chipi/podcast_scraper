@@ -423,3 +423,37 @@ def test_strip_ad_segments_is_a_noop_without_ad_intervals() -> None:
 
     aligned = [({"start": 1.0, "end": 60.0, "text": "x"}, "S0")]
     assert _strip_ad_segments(aligned, []) is aligned  # unchanged object, ad-blind fallback
+
+
+@patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
+def test_the_cleaning_is_told_who_the_episode_states(mock_create_provider) -> None:
+    """A short self-introduced promo is an ad only when it is not a person this episode states (a
+    host's own "follow us" outro is not another show's promo), so the cleaning needs those names."""
+    from podcast_scraper.providers.ml.diarization import pipeline as P
+
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00")],
+        num_speakers=1,
+        model_name="test",
+    )
+    mock_create_provider.return_value = mock_provider
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        screenplay=True,
+        hf_token="hf-test",
+        known_hosts=["Someone Else"],
+    )
+    with patch.object(P, "classify_voices", wraps=P.classify_voices) as spy:
+        apply_diarization_to_result(
+            {"text": "Hello.", "segments": [{"start": 0.0, "end": 60.0, "text": "Hello."}]},
+            "/tmp/audio.wav",
+            cfg,
+            None,
+            feed_hosts=["Casey Newton"],
+            metadata_named=["Jane Doe"],
+        )
+    stated = spy.call_args.kwargs["stated_people"]
+    assert {"Someone Else", "Casey Newton", "Jane Doe"} <= set(stated)
