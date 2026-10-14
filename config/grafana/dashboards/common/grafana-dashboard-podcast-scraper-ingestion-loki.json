@@ -1,18 +1,8 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_LOKI",
-      "label": "Loki",
-      "description": "Loki for pipeline episode_metrics logs",
-      "type": "datasource",
-      "pluginId": "loki",
-      "pluginName": "Loki"
-    }
-  ],
   "annotations": {
     "list": []
   },
-  "description": "Ingestion throughput and stage timings from **pipeline container logs** already shipped to Loki (Grafana Agent → docker logs). Parses stdout lines containing `episode_metrics:` from `orchestration._log_episode_metrics` (transcribe_sec, summary_sec, audio_sec, retries, tokens, estimated_cost). **No new deploy required** if your prod stack already labels streams with **env** and **service_name** (see `compose/grafana-agent.yaml`). **Not in these log lines:** separate GI vs KG seconds, run-level `run.json` aggregates, or API Prometheus histograms — use Explore to confirm your label names if panels are empty.",
+  "description": "Ingestion throughput and stage timings from the pipeline container logs in VictoriaLogs (instance=prod-podcast, surface=pipeline). Parses stdout lines containing `episode_metrics:` from `orchestration._log_episode_metrics` (transcribe_sec, summary_sec, audio_sec, retries, tokens, estimated_cost; `null` values filtered out). Series are grouped by `surface` because container names are per-run. **Not in these log lines:** separate GI vs KG seconds, run-level `run.json` aggregates, or API Prometheus histograms; see the ingestion (Prometheus) dashboard for those.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -35,8 +25,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "description": "One sample per `episode_metrics:` line (episode finished through the metrics logger).",
       "fieldConfig": {
@@ -83,13 +73,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (count_over_time({env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:` [$__auto]))",
-          "legendFormat": "{{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\" | stats by (surface) count() episodes",
+          "legendFormat": "{{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         }
       ],
@@ -98,8 +87,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "description": "Multi-feed CLI entry only; single-feed viewer runs do not emit this line.",
       "fieldConfig": {
@@ -146,13 +135,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (count_over_time({env=\"$env\", service_name=~\"$service\"} |= `Starting multi-feed podcast scrape` [$__auto]))",
-          "legendFormat": "{{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"Starting multi-feed podcast scrape\" | stats by (surface) count() batches",
+          "legendFormat": "{{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         }
       ],
@@ -174,10 +162,10 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
-      "description": "Numeric fields only; `null` durations omitted by regexp.",
+      "description": "Numeric fields only; `null` durations are filtered out.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -222,24 +210,22 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "quantile_over_time(0.95, {env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:` | regexp `transcribe_sec=(?P<transcribe_sec>[0-9]+(?:\\.[0-9]+)?)` | unwrap transcribe_sec [5m]) by (service_name)",
-          "legendFormat": "p95 transcribe {{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\" | extract \"episode_metrics: audio_sec=<audio_sec>, transcribe_sec=<transcribe_sec>, summary_sec=<summary_sec>, retries=<retries>, rate_limit_sleep_sec=<rate_limit_sleep_sec>, prompt_tokens=<prompt_tokens>, completion_tokens=<completion_tokens>, estimated_cost=<estimated_cost>\" | filter transcribe_sec:!null | stats by (surface) quantile(0.95, transcribe_sec) p95_transcribe_sec",
+          "legendFormat": "p95 transcribe {{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         },
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "quantile_over_time(0.95, {env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:` | regexp `summary_sec=(?P<summary_sec>[0-9]+(?:\\.[0-9]+)?)` | unwrap summary_sec [5m]) by (service_name)",
-          "legendFormat": "p95 summary {{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\" | extract \"episode_metrics: audio_sec=<audio_sec>, transcribe_sec=<transcribe_sec>, summary_sec=<summary_sec>, retries=<retries>, rate_limit_sleep_sec=<rate_limit_sleep_sec>, prompt_tokens=<prompt_tokens>, completion_tokens=<completion_tokens>, estimated_cost=<estimated_cost>\" | filter summary_sec:!null | stats by (surface) quantile(0.95, summary_sec) p95_summary_sec",
+          "legendFormat": "p95 summary {{surface}}",
+          "queryType": "statsRange",
           "refId": "B"
         }
       ],
@@ -248,8 +234,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -295,13 +281,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "quantile_over_time(0.95, {env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:` | regexp `audio_sec=(?P<audio_sec>[0-9]+(?:\\.[0-9]+)?)` | unwrap audio_sec [5m]) by (service_name)",
-          "legendFormat": "{{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\" | extract \"episode_metrics: audio_sec=<audio_sec>, transcribe_sec=<transcribe_sec>, summary_sec=<summary_sec>, retries=<retries>, rate_limit_sleep_sec=<rate_limit_sleep_sec>, prompt_tokens=<prompt_tokens>, completion_tokens=<completion_tokens>, estimated_cost=<estimated_cost>\" | filter audio_sec:!null | stats by (surface) quantile(0.95, audio_sec) p95_audio_sec",
+          "legendFormat": "{{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         }
       ],
@@ -323,8 +308,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -370,34 +355,33 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "avg_over_time({env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:` | regexp `retries=(?P<retries>[0-9]+)` | unwrap retries [5m]) by (service_name)",
-          "legendFormat": "avg retries {{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\" | extract \"episode_metrics: audio_sec=<audio_sec>, transcribe_sec=<transcribe_sec>, summary_sec=<summary_sec>, retries=<retries>, rate_limit_sleep_sec=<rate_limit_sleep_sec>, prompt_tokens=<prompt_tokens>, completion_tokens=<completion_tokens>, estimated_cost=<estimated_cost>\" | filter retries:!null | stats by (surface) avg(retries) avg_retries",
+          "legendFormat": "avg retries {{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         },
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (sum_over_time({env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:` | regexp `rate_limit_sleep_sec=(?P<rate_limit_sleep_sec>[0-9]+(?:\\.[0-9]+)?)` | unwrap rate_limit_sleep_sec [$__auto]))",
-          "legendFormat": "rate_limit sleep sum {{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\" | extract \"episode_metrics: audio_sec=<audio_sec>, transcribe_sec=<transcribe_sec>, summary_sec=<summary_sec>, retries=<retries>, rate_limit_sleep_sec=<rate_limit_sleep_sec>, prompt_tokens=<prompt_tokens>, completion_tokens=<completion_tokens>, estimated_cost=<estimated_cost>\" | filter rate_limit_sleep_sec:!null | stats by (surface) sum(rate_limit_sleep_sec) rate_limit_sleep_sec",
+          "legendFormat": "rate_limit sleep sum {{surface}}",
+          "queryType": "statsRange",
           "refId": "B"
         }
       ],
       "title": "Retries & rate-limit sleep",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Avg retries per interval and rate-limit sleep summed per interval. rate_limit_sleep_sec is `null` on every episode_metrics line in the 30-day retention (2545 of 2545), so that series stays empty until a provider rate-limits a run."
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "fieldConfig": {
         "defaults": {
@@ -443,18 +427,18 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (sum_over_time({env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:` | regexp `estimated_cost=(?P<estimated_cost>[0-9]+(?:\\.[0-9]+)?)` | unwrap estimated_cost [$__auto]))",
-          "legendFormat": "{{service_name}}",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\" | extract \"episode_metrics: audio_sec=<audio_sec>, transcribe_sec=<transcribe_sec>, summary_sec=<summary_sec>, retries=<retries>, rate_limit_sleep_sec=<rate_limit_sleep_sec>, prompt_tokens=<prompt_tokens>, completion_tokens=<completion_tokens>, estimated_cost=<estimated_cost>\" | filter estimated_cost:!null | stats by (surface) sum(estimated_cost) estimated_cost_usd",
+          "legendFormat": "{{surface}}",
+          "queryType": "statsRange",
           "refId": "A"
         }
       ],
       "title": "estimated_cost sum / interval",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Sum of `estimated_cost` per step. The value is 0.0000 on every line so far: the prod pipeline runs self-hosted models."
     },
     {
       "collapsed": false,
@@ -471,8 +455,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
       },
       "gridPos": {
         "h": 12,
@@ -492,12 +476,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
           },
-          "editorMode": "code",
-          "expr": "{env=\"$env\", service_name=~\"$service\"} |= `episode_metrics:`",
-          "queryType": "range",
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"episode_metrics:\"",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -509,85 +492,12 @@
   "schemaVersion": 39,
   "tags": [
     "podcast-scraper",
-    "loki",
+    "victorialogs",
     "ingestion",
     "pipeline"
   ],
   "templating": {
-    "list": [
-      {
-        "current": {},
-        "hide": 0,
-        "includeAll": false,
-        "label": "Loki data source",
-        "multi": false,
-        "name": "DS_LOKI",
-        "options": [],
-        "query": "loki",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "datasource"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": "prod",
-          "value": "prod"
-        },
-        "hide": 0,
-        "includeAll": false,
-        "label": "env",
-        "multi": false,
-        "name": "env",
-        "options": [
-          {
-            "selected": true,
-            "text": "prod",
-            "value": "prod"
-          },
-          {
-            "selected": false,
-            "text": "preprod",
-            "value": "preprod"
-          }
-        ],
-        "query": "prod,preprod",
-        "skipUrlSync": false,
-        "type": "custom"
-      },
-      {
-        "allValue": ".*",
-        "current": {
-          "selected": true,
-          "text": [
-            "pipeline-llm",
-            "pipeline"
-          ],
-          "value": [
-            "pipeline-llm",
-            "pipeline"
-          ]
-        },
-        "datasource": {
-          "type": "loki",
-          "uid": "${DS_LOKI}"
-        },
-        "definition": "label_values({env=\"$env\"}, service_name)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "service_name",
-        "multi": true,
-        "name": "service",
-        "options": [],
-        "query": "label_values({env=\"$env\"}, service_name)",
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      }
-    ]
+    "list": []
   },
   "time": {
     "from": "now-7d",
@@ -595,8 +505,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Podcast scraper — ingestion performance (Loki, live)",
+  "title": "Podcast scraper — ingestion performance (VictoriaLogs, live)",
   "uid": "podcast-scraper-ingestion-loki-live",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

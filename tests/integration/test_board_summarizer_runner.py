@@ -227,12 +227,14 @@ def test_a_full_cycle_on_the_dgx_profile_writes_the_summary_at_no_cost(
     assert '"event": "board_summary.written"' in out
     stored = board_summaries.read_summaries(tmp_path / "app", uid)[cid]
     assert stored["text"] == "A board about risk and couplings."
-    assert stored["model"] == client.chat.completions.create.call_args.kwargs["model"]
+    assert stored["model"] == client.chat.completions.create.call_args_list[0].kwargs["model"]
     assert stored["prompt"].startswith("openai/summarization/board_system_v1@")
     assert "+openai/summarization/board_user_v1@" in stored["prompt"]
-    kwargs = client.chat.completions.create.call_args.kwargs
-    assert kwargs["max_tokens"] == 400
-    assert "a short summary of a listener's board" in kwargs["messages"][0]["content"]
+    # The cycle also summarises the fixture's storylines (#2344); the board's call is the one
+    # with the board prompt.
+    calls = [c.kwargs for c in client.chat.completions.create.call_args_list]
+    board_calls = [k for k in calls if "a listener's board" in k["messages"][0]["content"]]
+    assert len(board_calls) == 1 and board_calls[0]["max_tokens"] == 400
     assert board_summaries.spent_today(tmp_path / "app", time.time()) == 0.0
 
 
@@ -359,16 +361,21 @@ def test_a_cycle_with_nothing_changed_never_talks_to_the_model_server(
 
     monkeypatch.setattr(mod, "_provider", provider)
 
-    mod._run_once()  # no boards at all
-    assert checks == [] and client.chat.completions.create.call_count == 0
+    # The first cycle writes the fixture's three storyline summaries (#2344): one served-model
+    # check, three calls.
+    mod._run_once()
+    assert checks == ["models"] and client.chat.completions.create.call_count == 3
+
+    mod._run_once()  # no boards, storylines unchanged: nothing reaches the server
+    assert checks == ["models"] and client.chat.completions.create.call_count == 3
 
     _board_with_two_episodes(tmp_path)
     mod._run_once()  # one changed board: one check, one call
-    assert checks == ["models"] and client.chat.completions.create.call_count == 1
+    assert checks == ["models", "models"] and client.chat.completions.create.call_count == 4
 
     capsys.readouterr()
     mod._run_once()  # nothing changed since
-    assert checks == ["models"] and client.chat.completions.create.call_count == 1
+    assert checks == ["models", "models"] and client.chat.completions.create.call_count == 4
     assert '"unchanged": 1' in capsys.readouterr().out
 
 
@@ -428,8 +435,10 @@ def test_a_summary_emits_the_llm_cost_event_with_its_stage(
     with caplog.at_level("INFO", logger="podcast_scraper.workflow.cost_monitoring"):
         mod._run_once()
     events = [json.loads(r.getMessage()) for r in caplog.records if '"llm_cost"' in r.getMessage()]
-    assert len(events) == 1
-    assert events[0]["stage"] == "board_summary" and events[0]["provider"] == "vllm"
+    stages = [e["stage"] for e in events]
+    # One board, and the fixture's three storylines (#2344), each tagged with its own stage.
+    assert stages.count("board_summary") == 1 and stages.count("storyline_summary") == 3
+    assert {e["provider"] for e in events} == {"vllm"}
 
 
 def test_after_startup_info_lines_reach_the_console(tmp_path: Path) -> None:
@@ -473,3 +482,77 @@ def test_a_failed_cycle_is_logged_at_error(
     with caplog.at_level("ERROR"):
         mod._cycle()
     assert any(r.levelname == "ERROR" and r.exc_info for r in caplog.records)
+
+
+def test_each_cycle_runs_the_reference_pass_first_and_its_failure_never_stops_the_summaries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2345: the reference pass runs before the summaries, whether or not they are on."""
+    mod = _load(tmp_path, monkeypatch)
+    order: list[str] = []
+
+    def failing_refs() -> None:
+        order.append("references")
+        raise RuntimeError("corpus unreadable")
+
+    monkeypatch.setattr(mod, "_references_once", failing_refs)
+    monkeypatch.setattr(mod, "_run_once", lambda: order.append("summaries"))
+    monkeypatch.setattr(mod, "_beat", lambda: order.append("beat"))
+    mod._cycle()
+    assert order == ["references", "summaries", "beat"]
+
+
+def test_the_reference_pass_rekeys_a_renamed_storyline_from_the_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End to end through the sidecar: id_history in the storyline artifact → a follow re-keyed."""
+    from podcast_scraper.server import app_user_state
+
+    mod = _load(tmp_path, monkeypatch)
+    root = tmp_path / "corpus"
+    (root / "enrichments").mkdir(parents=True)
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(
+            {
+                "data": {
+                    "clusters": [{"graph_compound_parent_id": "thc:new", "members": []}],
+                    "id_history": {"successors": {"thc:old": "thc:new"}, "gone": []},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(mod, "CORPUS_ROOT", root)
+    app_user_state.add_interest(mod.DATA_DIR, "u1", "thc:old")
+    mod._references_once()
+    assert app_user_state.get_interests(mod.DATA_DIR, "u1") == ["thc:new"]
+
+
+def test_the_storyline_backfill_dry_runs_then_fills_every_storyline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#2344: the operator's one-shot fill after a deploy, dry run first."""
+    from podcast_scraper.server import storyline_summaries
+
+    _offline(monkeypatch)
+    mod = _load(tmp_path, monkeypatch)
+    monkeypatch.setattr(mod, "CORPUS_ROOT", _CORPUS)
+    n = len(storyline_summaries.load_storylines(_CORPUS))
+    assert mod.backfill_storylines(apply=False) == 0
+    assert f"would summarise {n} storylines" in capsys.readouterr().out
+    assert storyline_summaries.read_summaries(tmp_path / "app") == {}
+
+    client = Mock()
+    client.chat.completions.create.return_value = _chat_reply("A thread on risk.")
+    real = mod._provider
+
+    def provider() -> Any:
+        cfg, prov = real()
+        prov.client = client
+        return cfg, prov
+
+    monkeypatch.setattr(mod, "_provider", provider)
+    assert mod.backfill_storylines(apply=True) == 0
+    assert len(storyline_summaries.read_summaries(tmp_path / "app")) == n
+    calls = client.chat.completions.create.call_args_list
+    assert len(calls) == n and "a storyline" in calls[0].kwargs["messages"][0]["content"]

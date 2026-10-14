@@ -52,7 +52,7 @@
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
       "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "stats", "expr": "instance:prod-podcast AND job:podcast-pipeline AND event_type:llm_cost | stats sum(estimated_cost_usd) cost" } ]
+      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "stats", "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats sum(estimated_cost_usd) cost" } ]
     },
     {
       "id": 5, "type": "timeseries", "title": "App event volume over time ($surface)",
@@ -79,6 +79,24 @@
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
       "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
       "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "instant", "expr": "instance:prod-podcast AND job:~\"$surface\"" } ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Storylines per run (RFC-128)",
+      "description": "One 'storylines: run' log line per storyline run (the storylines.run event from a job container arrives unparsed). The alert enrich-common-storyline-registry-bad fires on a health=bad run. The viewer dashboard's Storylines & themes card shows the same counts with names.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "showPoints": "always", "spanNulls": true } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast \"storylines: run storylines=\" | extract \"storylines: run storylines=<storylines> active=<active> quiet=<quiet> candidates=<candidates> \" | stats max(storylines) storylines, max(active) active, max(quiet) quiet, max(candidates) candidates" } ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Themes per build",
+      "description": "One 'themes: build' log line per theme build: how many themes, how many kept their id from the previous build, how many ids went.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "showPoints": "always", "spanNulls": true } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "statsRange", "expr": "instance:prod-podcast \"themes: build themes=\" | extract \"themes: build themes=<themes> topics=<topics> kept=<kept> gone=<gone>\" | stats max(themes) themes, max(kept) kept, max(gone) gone" } ]
     }
   ]
 }

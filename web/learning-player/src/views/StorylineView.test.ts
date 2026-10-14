@@ -120,6 +120,40 @@ describe('StorylineView', () => {
     expect(voices[0].find('img').attributes('src')).toBe('https://img.example/p0.jpg')
   })
 
+  it('says what a storyline was called before and that it is quiet (RFC-128)', async () => {
+    vi.spyOn(api, 'getStorylineCard').mockResolvedValue({
+      id: 'thc:prompt-engineering',
+      label: 'agentic engineering',
+      member_topics: [{ id: 'topic:agents', label: 'agents', episode_count: 3, anchor: true }],
+      episode_count: 3,
+      episodes: [],
+      related_people: [],
+      aliases: ['prompt engineering'],
+      state: 'quiet',
+      last_active_at: '2026-01-14',
+    })
+    const w = await mountView()
+    expect(w.get('[data-testid="storyline-aliases"]').text()).toBe('Also called prompt engineering')
+    expect(w.get('[data-testid="storyline-quiet"]').text()).toContain('Quiet since Jan 2026')
+  })
+
+  it('shows neither line for an active storyline that kept its name', async () => {
+    vi.spyOn(api, 'getStorylineCard').mockResolvedValue({
+      id: 'thc:energy',
+      label: 'Energy transition',
+      member_topics: [{ id: 'topic:energy', label: 'Energy', episode_count: 1, anchor: true }],
+      episode_count: 1,
+      episodes: [],
+      related_people: [],
+      aliases: [],
+      state: 'active',
+      last_active_at: '2026-10-01',
+    })
+    const w = await mountView()
+    expect(w.find('[data-testid="storyline-aliases"]').exists()).toBe(false)
+    expect(w.find('[data-testid="storyline-quiet"]').exists()).toBe(false)
+  })
+
   it('offers Share once the storyline has loaded (#2036)', async () => {
     mockCard('thc:energy')
     const w = await mountView()

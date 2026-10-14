@@ -143,8 +143,8 @@ def storyline_map_by_topic(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
 def storyline_member_lift(corpus_root: Path) -> Dict[str, Dict[str, float]]:
     """``storyline_id`` -> ``{topic_id: lift_to_cluster}``.
 
-    The enricher computes a per-member co-occurrence lift and nothing reads it. It is the only
-    measure of HOW MUCH a topic belongs to its storyline — episode count says which member is
+    The enricher computes each member's co-occurrence lift to the rest of its storyline. It is the
+    only measure of HOW MUCH a topic belongs to its storyline — episode count says which member is
     biggest, lift says which one holds the grouping together, and those are different questions.
     Two members with the same episode count can have different lift, so this is also the only way
     to break that tie non-arbitrarily.
@@ -178,8 +178,57 @@ def storyline_member_lift(corpus_root: Path) -> Dict[str, Dict[str, float]]:
     return out
 
 
+def storyline_lifecycle(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
+    """``storyline_id`` -> ``{"aliases", "state", "last_active_at"}`` from the storyline registry.
+
+    ``aliases`` are the names a storyline had before (RFC-128: a name changes only after another
+    led for 60 days); ``state`` is ``active`` or ``quiet`` (no new episode for 90 days), ``None``
+    on an artifact from before the registry; ``last_active_at`` is a ``YYYY-MM-DD`` date or
+    ``None``. Empty when the artifact is missing/invalid.
+    """
+    from datetime import datetime, timezone
+
+    payload = _load_storylines_payload(corpus_root)
+    out: Dict[str, Dict[str, Any]] = {}
+    for cl in (payload or {}).get("clusters") or []:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = cl.get("graph_compound_parent_id")
+        if not isinstance(gpid, str) or not gpid.strip():
+            continue
+        aliases = [str(a).strip() for a in cl.get("aliases") or [] if str(a).strip()]
+        state = cl.get("state") if cl.get("state") in ("active", "quiet") else None
+        last = cl.get("last_active_at")
+        last_day = (
+            datetime.fromtimestamp(float(last), tz=timezone.utc).strftime("%Y-%m-%d")
+            if isinstance(last, (int, float))
+            else None
+        )
+        out[gpid.strip()] = {"aliases": aliases, "state": state, "last_active_at": last_day}
+    return out
+
+
+def storyline_anchors(corpus_root: Path) -> Dict[str, str]:
+    """``storyline_id`` -> the anchor topic its page is routed by (see :func:`_anchor_topic_id`).
+
+    Empty when the artifact is missing/invalid.
+    """
+    payload = _load_storylines_payload(corpus_root)
+    out: Dict[str, str] = {}
+    for cl in (payload or {}).get("clusters") or []:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = cl.get("graph_compound_parent_id")
+        members = cl.get("members")
+        anchor = _anchor_topic_id(members) if isinstance(members, list) else None
+        if isinstance(gpid, str) and gpid.strip() and anchor:
+            out[gpid.strip()] = anchor
+    return out
+
+
 def _anchor_topic_id(members: list[Any]) -> Optional[str]:
-    """Most-central member of a theme cluster — highest ``lift_to_cluster`` (tie: topic_id asc).
+    """The member marked ``"anchor": true`` (kept by the storyline registry, RFC-128), else the
+    most-central member — highest ``lift_to_cluster`` (tie: topic_id asc).
 
     The Home "Storylines" rail opens this topic's card on tap; every member's card shows the same
     "discussed together" set, so the anchor just picks the most representative entry. Falls back to
@@ -193,6 +242,8 @@ def _anchor_topic_id(members: list[Any]) -> Optional[str]:
         tid = m.get("topic_id")
         if not isinstance(tid, str) or not tid.strip():
             continue
+        if m.get("anchor") is True:
+            return tid.strip()
         lift_raw = m.get("lift_to_cluster")
         lift = float(lift_raw) if isinstance(lift_raw, (int, float)) else 0.0
         if best_id is None or lift > best_lift or (lift == best_lift and tid.strip() < best_id):
@@ -267,10 +318,18 @@ def top_storylines_by_member_count(
     raw = payload.get("clusters")
     if not isinstance(raw, list):
         return []
-    out = [s for cl in raw if isinstance(cl, Mapping) and (s := _storyline_summary(cl))]
+    quiet: set[str] = set()
+    out = []
+    for cl in raw:
+        if isinstance(cl, Mapping) and (s := _storyline_summary(cl)):
+            out.append(s)
+            if cl.get("state") == "quiet":
+                quiet.add(s["id"])
     if min_members > 1:
         out = [c for c in out if c["size"] >= min_members]
-    out.sort(key=lambda c: c["size"], reverse=True)
+    # A QUIET storyline (RFC-128: no new episode in 90 days) is offered after the active ones,
+    # never dropped: it is still a thread, and still followable.
+    out.sort(key=lambda c: (c["id"] in quiet, -c["size"]))
     return out[: max(top_n, 0)]
 
 
@@ -419,8 +478,11 @@ def storyline_index_rows(corpus_root: Path) -> list[tuple[str, str, Dict[str, An
         ]
         sid = str(summary["id"])
         label = str(summary["label"])
+        # A name it had before (RFC-128) still finds it: someone who followed "prompt engineering"
+        # searches for that, not for what the storyline is called now.
+        aliases = [str(a).strip() for a in cl.get("aliases") or [] if str(a).strip()]
         # Label first so a name query matches strongly; members after so a member query reaches it.
-        text = " ".join([label, *labels]).strip()
+        text = " ".join([label, *aliases, *labels]).strip()
         if not text:
             continue
         rows.append(
@@ -448,5 +510,6 @@ __all__ = [
     "storyline_siblings_by_topic",
     "storyline_episode_ids",
     "storyline_index_rows",
+    "storyline_lifecycle",
     "top_storylines_by_member_count",
 ]

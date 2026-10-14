@@ -4,6 +4,8 @@
  * per-kind sections — episodes, insights, …) · Highlights · Revisit · Queue · Recent. One place,
  * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
+import { useGoneReferencesStore } from '../stores/goneReferences'
+import GoneBadge from '../components/GoneBadge.vue'
 import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue'
 import { interestKind } from '../utils/interests'
 import { useI18n } from 'vue-i18n'
@@ -47,6 +49,8 @@ import { matchesQuery } from '../utils/textFilter'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
+const gone = useGoneReferencesStore()
+void gone.ensureLoaded()
 
 /** Route to a saved entity's page, or null when the kind has none. */
 function entityRoute(e: FavoriteEntity): { name: string; params: Record<string, string> } | null {
@@ -733,10 +737,15 @@ onMounted(async () => {
                 v-for="e in grp.page.entities"
                 :key="e.kind + ':' + e.ref"
                 class="flex items-center gap-2 border-b border-border py-2"
+                :class="{ 'opacity-60': gone.isGone(e.ref) }"
                 data-testid="saved-entity"
               >
+                <!-- Gone from the corpus (#2345): no page to open; the save stays until removed. -->
+                <span v-if="gone.isGone(e.ref)" class="min-w-0 flex-1 truncate text-sm font-semibold"
+                  >{{ e.label }} · <GoneBadge
+                /></span>
                 <RouterLink
-                  v-if="entityRoute(e)"
+                  v-else-if="entityRoute(e)"
                   :to="entityRoute(e)!"
                   class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
                 >{{ e.label }}</RouterLink>

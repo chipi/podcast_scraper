@@ -106,6 +106,91 @@ Stages two new files in `/dev/shm/player-secrets/`: `podcast_sentry_dsn_pipeline
 
 As usual: run green, `llm_cost` per stage, now also in Langfuse `podcast-prod`; GlitchTip quiet.
 
+### 7. Stable references and storyline summaries (#2345, #2344) — each step needs the operator's go
+
+From `feat/2344-2345-refs-and-storyline-summaries`. The sidecar runs both on its own every 5
+minutes (the reference pass first, no model; then boards; then storylines, capped at 20 a sweep).
+These are the one-time fills, so nothing waits on the cap and the history from before ids were
+kept is used.
+
+1. **After the first nightly on the new code**, both artifacts carry `id_history`:
+   `topic_theme_clusters.json` (`data.id_history`) and `search/topic_clusters.json`. Check both.
+2. **Re-key existing user state**, with the renames from before ids were kept read from the
+   2026-10-10 snapshots' artifacts. Dry run, read the counts, then apply (receipts in
+   `<appdata>/rekey_user_references.jsonl`; `--undo` puts back what the apply wrote):
+
+   ```sh
+   # the two snapshot artifacts into the sidecar (it mounts the corpus read-only)
+   docker cp <snapshot>/enrichments/topic_theme_clusters.json player-board-summarizer-1:/tmp/prior-storylines.json
+   docker cp <snapshot>/search/topic_clusters.json player-board-summarizer-1:/tmp/prior-themes.json
+   docker exec player-board-summarizer-1 python -m podcast_scraper.server.rekey_references \
+     --appdata /app/appdata --corpus /app/output \
+     --prior-storylines /tmp/prior-storylines.json --prior-themes /tmp/prior-themes.json   # dry run
+   ...                                                                                   # then --apply
+   ```
+
+   Expect: renames re-keyed silently, the rest flagged "No longer available" in the player,
+   nothing deleted.
+3. **Fill every storyline's summary** (99 on prod), dry run first:
+
+   ```sh
+   docker exec player-board-summarizer-1 python /app/board_summarizer.py --storylines-backfill
+   docker exec player-board-summarizer-1 python /app/board_summarizer.py --storylines-backfill --apply
+   ```
+
+   Needs the DGX in research mode (the `:8003` slot), like the board summaries; $0 budget holds.
+4. **Durable storylines (RFC-128, #2349): seed the registry from history.** Any time after the
+   deploy. Replays the registry month by month over the corpus (no model, seconds) and merges it
+   with today's storylines. It never writes the storyline artifact: `--apply` writes
+   `enrichments/storyline_registry.seed.json`, and the next enricher run takes it in, so it cannot
+   race the nightly. Applying the same seed twice is a no-op. Dry run, read the counts, then apply:
+
+   ```sh
+   docker exec compose-api-1 python -m podcast_scraper.search.storyline_history --corpus /app/output
+   docker exec compose-api-1 python -m podcast_scraper.search.storyline_history --corpus /app/output --apply
+   ```
+
+   Expect, as on the 2026-10-14 copy: `current` 99, `replayed` 59, `with_history` 51, `folded` 59,
+   `added_from_history` [], `candidates` 47. After the next nightly, the log line
+   `storylines: registry health=ok source=seed storylines=99 quiet=17 ... shared_topics=0
+   vanished=0`; then `source=artifact` on every later run. 99 storylines with the same ids, names
+   and anchors (pages and follows do not move); 6 trade a few topics with each other.
+
+   Undo: `... storyline_history --corpus /app/output --undo` withdraws a seed not yet taken; once
+   taken, it writes a seed that puts back the registry the seed replaced (none, if the seed was
+   taken by the first run on the new code — then there is nothing to go back to).
+   The seed can also be previewed, applied and undone from the viewer dashboard (Intelligence →
+   **Storylines & themes**), which calls the same code.
+5. **Reload Alloy on prod** with `infra/observability/operator.alloy`: its new last stage ships an
+   emitted event's JSON alone, so VictoriaLogs unpacks `llm_cost` (and every pipeline event) into
+   fields — before, they arrived behind the log prefix and `event_type:` matched nothing. The
+   config passes `alloy fmt` (checked in the prod container, 2026-10-14); whether the stage
+   behaves in the running pipeline is proven only by this reload. Check after: `_time:1h
+   instance:prod-podcast AND event_type:llm_cost | stats count()` in VictoriaLogs is above 0 once
+   a pipeline run has called a model.
+6. **Sync Grafana**: the alert rule `enrich-common-storyline-registry-bad` (fires on any
+   `storylines: registry health=bad` line), the two new panels on `vps/podcast-app.json`
+   ("Storylines per run", "Themes per build"), its fixed "LLM cost (24h, pipeline)" panel (the
+   query asked for a `job` label pipeline lines never carry), and the LLM cost dashboard
+   (`common/grafana-dashboard-llm-cost.json`, rewritten from Loki LogQL to VictoriaLogs; its
+   queries read events from before and after the Alloy reload), and the other seven `common/`
+   dashboards (pipeline execution, pipeline stage, deploy observability, ingestion ×2, logs, DGX),
+   which were Grafana Cloud exports and rendered nothing here — each query checked against
+   production data (2026-10-14). Dry run, then apply:
+
+   ```sh
+   make obs-sync              # lists what would change
+   make obs-sync APPLY=1
+   ```
+
+7. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
+   a storyline the seed gave an old name (10 on the copy) says "Also called …" under its title,
+   and searching that old name opens it; a quiet one says "Quiet since …";
+   `GET /api/app/discover/references/gone` answers for the smoke account. In the viewer
+   dashboard the Storylines & themes card shows the counts, the chart back to 2024 (from the seed)
+   and the last run's changes; after the next theme rebuild, its "Kept their id" is close to the
+   theme count (themes now keep their id by meaning too, and their names stick).
+
 ## Carried over (operator items, not deploy steps; from the 2026-10-12/13 plan)
 
 - **A10 calendar, 2026-10-25:** nightly cron `0 23 * * *` → `0 0 * * *` (DST).

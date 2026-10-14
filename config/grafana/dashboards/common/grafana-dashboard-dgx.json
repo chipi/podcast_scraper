@@ -1,18 +1,8 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_PROMETHEUS",
-      "label": "Prometheus",
-      "description": "Prometheus datasource (Grafana Cloud) scraping the DGX exporters via Grafana Agent.",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
   "annotations": {
     "list": []
   },
-  "description": "DGX observability (#943). Scrapes: **dcgm-exporter** (:9400, per-GPU util/mem/temp/power), **node-exporter** (:9100, host CPU/mem/disk/net), **cAdvisor** (:8080, per-container resource use), **pyannote-server** (:8001/metrics, app-side request rate / latency). Wired into the existing `compose/grafana-agent.yaml`. Free-tier sizing: ~175 active series, ~420 MB ingest/mo. See `docs/guides/DGX_RUNBOOK.md` § DGX observability for the budget breakdown.",
+  "description": "DGX observability (#943). Series come from the DGX (instance=dgx-llm-1) into VictoriaMetrics: **dcgm-exporter** (per-GPU util/temp/power), **node-exporter** (host CPU/mem), **cAdvisor** (per-container resource use), **pyannote-server** (app-side request rate / latency), plus the dgx_gpu_* nvidia-smi gauges for GPU memory (GB10 unified memory: DCGM exposes no framebuffer used/free). See `docs/guides/DGX_RUNBOOK.md` § DGX observability.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
@@ -27,14 +17,15 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "Per-GPU utilization percentage. GB10 has 1 GPU; series count = 1.",
       "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 1},
       "id": 1,
       "targets": [
         {
-          "expr": "DCGM_FI_DEV_GPU_UTIL{host=\"dgx\"}",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "DCGM_FI_DEV_GPU_UTIL{instance=\"dgx-llm-1\"}",
           "legendFormat": "GPU {{gpu}} ({{modelName}})",
           "refId": "A"
         }
@@ -43,35 +34,38 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "description": "GPU memory used vs total. Free-tier-cheap: 2 series per GPU.",
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+      "description": "GPU memory in use (nvidia-smi gauge dgx_gpu_memory_used_bytes) and the split per container (dgx_gpu_process_memory_bytes). GB10 shares one unified CPU+GPU pool, so DCGM has no framebuffer used/free; host-side headroom is the Host memory panel below.",
       "fieldConfig": {"defaults": {"unit": "decbytes"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 1},
       "id": 2,
       "targets": [
         {
-          "expr": "DCGM_FI_DEV_FB_USED{host=\"dgx\"} * 1048576",
-          "legendFormat": "Used ({{gpu}})",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "dgx_gpu_memory_used_bytes{instance=\"dgx-llm-1\"}",
+          "legendFormat": "Used (total)",
           "refId": "A"
         },
         {
-          "expr": "DCGM_FI_DEV_FB_FREE{host=\"dgx\"} * 1048576",
-          "legendFormat": "Free ({{gpu}})",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "sum by (container) (dgx_gpu_process_memory_bytes{instance=\"dgx-llm-1\"})",
+          "legendFormat": "{{container}}",
           "refId": "B"
         }
       ],
-      "title": "GPU memory (used vs free)",
+      "title": "GPU memory (used, per container)",
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "GPU temperature in °C. Alert candidate: sustained > 80°C indicates fan/airflow problem.",
       "fieldConfig": {"defaults": {"unit": "celsius", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 75}, {"color": "red", "value": 85}]}}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 9},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
       "id": 3,
       "targets": [
         {
-          "expr": "DCGM_FI_DEV_GPU_TEMP{host=\"dgx\"}",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "DCGM_FI_DEV_GPU_TEMP{instance=\"dgx-llm-1\"}",
           "legendFormat": "GPU {{gpu}}",
           "refId": "A"
         }
@@ -80,35 +74,20 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "GPU power draw (Watts). GB10 nominal envelope is well below 450W; helps detect runaway workloads.",
       "fieldConfig": {"defaults": {"unit": "watt"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 9},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
       "id": 4,
       "targets": [
         {
-          "expr": "DCGM_FI_DEV_POWER_USAGE{host=\"dgx\"}",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "DCGM_FI_DEV_POWER_USAGE{instance=\"dgx-llm-1\"}",
           "legendFormat": "GPU {{gpu}}",
           "refId": "A"
         }
       ],
       "title": "GPU power",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "description": "SM occupancy (active compute units). Low SM during high power = inefficient kernel; useful for vLLM tuning.",
-      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 9},
-      "id": 5,
-      "targets": [
-        {
-          "expr": "DCGM_FI_PROF_SM_ACTIVE{host=\"dgx\"} * 100",
-          "legendFormat": "GPU {{gpu}} SM active",
-          "refId": "A"
-        }
-      ],
-      "title": "GPU SM active",
       "type": "timeseries"
     },
     {
@@ -120,19 +99,21 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "Host RAM used vs available. **GB10 has 121 GiB unified CPU+GPU memory** — cap was the load-bearing finding behind #963 (vLLM 0.92 OOM'd the host).",
       "fieldConfig": {"defaults": {"unit": "decbytes"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 18},
       "id": 6,
       "targets": [
         {
-          "expr": "node_memory_MemTotal_bytes{host=\"dgx\"} - node_memory_MemAvailable_bytes{host=\"dgx\"}",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "node_memory_MemTotal_bytes{instance=\"dgx-llm-1\"} - node_memory_MemAvailable_bytes{instance=\"dgx-llm-1\"}",
           "legendFormat": "Used (host)",
           "refId": "A"
         },
         {
-          "expr": "node_memory_MemAvailable_bytes{host=\"dgx\"}",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "node_memory_MemAvailable_bytes{instance=\"dgx-llm-1\"}",
           "legendFormat": "Available (host)",
           "refId": "B"
         }
@@ -141,14 +122,15 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "Per-mode CPU usage on the host. Pyannote and Whisper drive `system` + `iowait`; vLLM drives `user`.",
       "fieldConfig": {"defaults": {"unit": "percentunit", "max": 1.0, "min": 0}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 18},
       "id": 7,
       "targets": [
         {
-          "expr": "avg by (mode) (rate(node_cpu_seconds_total{host=\"dgx\",mode!=\"idle\"}[5m]))",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "avg by (mode) (rate(node_cpu_seconds_total{instance=\"dgx-llm-1\",mode!=\"idle\"}[5m]))",
           "legendFormat": "{{mode}}",
           "refId": "A"
         }
@@ -165,14 +147,15 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "Per-container memory usage. Helps split GB10's 121 GiB pool: vLLM ≈ 0.75 × 121 = 91 GB; pyannote/whisper a few GB each; cAdvisor a few hundred MB.",
       "fieldConfig": {"defaults": {"unit": "decbytes"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 27},
       "id": 8,
       "targets": [
         {
-          "expr": "container_memory_working_set_bytes{host=\"dgx\",name!=\"\"}",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "container_memory_working_set_bytes{instance=\"dgx-llm-1\",name!=\"\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -181,14 +164,15 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "Per-container CPU rate. Watch this during catastrophic-tail incidents from #963/#996 — a stuck whisper-openai container shows up as flat-pegged CPU.",
       "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 27},
       "id": 9,
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{host=\"dgx\",name!=\"\"}[5m])",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "rate(container_cpu_usage_seconds_total{instance=\"dgx-llm-1\",name!=\"\"}[5m])",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -205,14 +189,15 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "Request rate per handler. /v1/diarize is the only meaningful one; health-check rate confirms scrape reachability.",
       "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36},
       "id": 10,
       "targets": [
         {
-          "expr": "sum by (handler) (rate(http_requests_total{service=\"pyannote-server\"}[5m]))",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "sum by (handler) (rate(http_requests_total{service=\"pyannote\"}[5m]))",
           "legendFormat": "{{handler}}",
           "refId": "A"
         }
@@ -221,24 +206,27 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {"type": "prometheus", "uid": "victoriametrics"},
       "description": "Pyannote /v1/diarize p50 + p95 + p99 latency. Pair with #954 client-side timeout (180s default).",
       "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36},
       "id": 11,
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"pyannote-server\",handler=\"/v1/diarize\"}[5m])))",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"pyannote\",handler=\"/v1/diarize\"}[5m])))",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"pyannote-server\",handler=\"/v1/diarize\"}[5m])))",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"pyannote\",handler=\"/v1/diarize\"}[5m])))",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"pyannote-server\",handler=\"/v1/diarize\"}[5m])))",
+          "datasource": {"type": "prometheus", "uid": "victoriametrics"},
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"pyannote\",handler=\"/v1/diarize\"}[5m])))",
           "legendFormat": "p99",
           "refId": "C"
         }

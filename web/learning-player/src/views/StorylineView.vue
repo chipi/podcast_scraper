@@ -8,6 +8,7 @@
  * `storyline_*` + `storyline_sibling_topics` + `related_people` + `episodes`), so the route param is
  * the anchor topic id and everything derives from `getTopicCard`.
  */
+import StorylineSummary from '../components/StorylineSummary.vue'
 import CollapsibleSection from "../components/CollapsibleSection.vue"
 import { computed, ref, watch, defineAsyncComponent } from "vue"
 import BackIcon from "../components/BackIcon.vue"
@@ -36,6 +37,7 @@ import LearnDoor from "../components/LearnDoor.vue"
 import ReelDoor from "../components/ReelDoor.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
+import { formatMonthYear } from "../utils/format"
 
 type Member = { id: string; label: string; episodeCount: number; anchor: boolean; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
 
@@ -82,7 +84,7 @@ function openPerspective(p: { kind: "person" | "topic"; id: string }): void {
 // When embedded in the overlay sheet the ✕ lives in THIS header's action row (unified with the
 // topic/person card), so the close intent has to reach StorylineCard. Standalone ignores it.
 const emit = defineEmits<{ (e: "close"): void }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const interests = useInterestsStore()
@@ -112,6 +114,10 @@ const moreEpisodes = (offset: number, limit: number) =>
 const storylineId = ref<string | null>(null)
 /** The most co-occurring pair — the storyline's evidence, in one line. */
 const pair = ref<ClusterPair | null>(null)
+/** Names it had before (RFC-128): someone who followed the old name sees it is the same thread. */
+const aliases = ref<string[]>([])
+/** "Quiet since …" when no new episode has joined for 90 days (RFC-128); empty when active. */
+const quietSince = ref("")
 
 async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
@@ -143,6 +149,9 @@ async function load(anchorTopicId: string): Promise<void> {
       trend: tp.trend,
     }))
     pair.value = card.strongest_pair ?? null
+    aliases.value = card.aliases ?? []
+    quietSince.value =
+      card.state === "quiet" ? formatMonthYear(card.last_active_at, locale.value) ?? "" : ""
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
     episodeCount.value = card.episode_count ?? episodes.value.length
@@ -216,6 +225,12 @@ function goBack(): void {
       <h1 class="lp-subject-title">
         {{ label || "…" }}
       </h1>
+      <p v-if="aliases.length" class="mt-1 text-sm text-muted" data-testid="storyline-aliases">
+        {{ t("home.storylineAliases", { names: aliases.join(", ") }) }}
+      </p>
+      <p v-if="quietSince" class="mt-1 text-sm text-muted" data-testid="storyline-quiet">
+        {{ t("home.storylineQuiet", { date: quietSince }) }}
+      </p>
       <!-- Actions on their OWN row, AFTER the title, in the topic and theme pages' order: Follow
            first, then save, board, share (operator 2026-10-11: the three tops are identical). Save
            (heart) is a per-kind favorite, distinct from Follow, which subscribes to the cluster. -->
@@ -227,8 +242,11 @@ function goBack(): void {
           :label="label || undefined"
           @toggle="toggleFollow"
         />
-        <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
-        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
+        <!-- Saved by the storyline's own id (#2345): the route's anchor topic can move to another
+             storyline when the corpus is re-clustered, and the save would then open that one. So,
+             like Follow, they wait for the card that names the storyline. -->
+        <FavoriteButton v-if="storylineId" :item="{ kind: 'storyline', ref: storylineId, label: label || id }" />
+        <AddToCollectionButton v-if="storylineId" :item="{ kind: 'storyline', ref: storylineId }" />
         <!-- Share (card / link / text) — #2036. -->
         <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
       </div>
@@ -256,6 +274,8 @@ function goBack(): void {
     </p>
 
     <template v-else>
+      <!-- The storyline's summary (#2344), first, as the episode Brief leads with its own. -->
+      <StorylineSummary v-if="storylineId" :storyline-id="storylineId" class="mt-6" />
       <!-- Member topics, an ordered list (SL.1). -->
       <!-- ORDER (operator 2026-10-05): members + top voices -> what they SAID -> episodes.
            Top voices moved up beside the member list — side by side, half the width each, on the
@@ -379,7 +399,7 @@ function goBack(): void {
       <!-- Notes on this storyline (SL.3). Shown in the sheet too (operator 2026-09-16): the sheet is
            no longer a preview of the page, it IS the page's content, so withholding notes here was
            the last thing making the two differ. -->
-      <NoteComposer target="storyline" :target-id="id" />
+      <NoteComposer v-if="storylineId" target="storyline" :target-id="storylineId" />
     </template>
 
     <!-- A topic or person opened FROM this sheet, layered on top. Its own history key, or it would

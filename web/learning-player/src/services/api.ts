@@ -1214,6 +1214,34 @@ export async function undoSuggestLess(token: string): Promise<SuggestLessItem[]>
 }
 
 /** Everything the listener asked to see less of, for Profile › Interests. */
+/** One paragraph on what a storyline is about (#2344), written in the background. */
+export interface StorylineSummary {
+  text: string
+  created_at: number
+  stale: boolean
+}
+
+/** A storyline's summary, by its `thc:` id or one of its topics; null until one is written. */
+export async function getStorylineSummary(id: string): Promise<StorylineSummary | null> {
+  try {
+    return await getJSON<StorylineSummary>(`/storylines/${encodeURIComponent(id)}/summary`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
+
+/** A stored reference the corpus no longer has (#2345): shown muted, with its remove action. */
+export interface GoneReference {
+  ref: string
+  kind: string
+}
+
+/** The listener's references the last reference pass found gone; a renamed one was re-keyed. */
+export async function getGoneReferences(): Promise<GoneReference[]> {
+  return (await getJSON<{ items: GoneReference[] }>("/discover/references/gone")).items
+}
+
 export async function getSuggestLess(): Promise<SuggestLessItem[]> {
   return (await getJSON<{ items: SuggestLessItem[] }>("/discover/suggest-less")).items
 }

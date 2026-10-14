@@ -9,7 +9,9 @@
 import { computed, onActivated, onDeactivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { getInProgress, learnOpenNext, type LearningPath, type ReelProgress } from '../services/api'
+import { clearReelProgress, getInProgress, learnOpenNext, type LearningPath, type ReelProgress } from '../services/api'
+import { useGoneReferencesStore } from '../stores/goneReferences'
+import GoneBadge from './GoneBadge.vue'
 import { track } from '../services/analytics'
 import { episodeArtwork } from '../utils/episode'
 import CalendarMark from './CalendarMark.vue'
@@ -19,6 +21,7 @@ const { t } = useI18n()
 const paths = ref<LearningPath[]>([])
 const reel = ref<ReelProgress | null>(null)
 const busy = ref(false)
+const gone = useGoneReferencesStore()
 
 let latest = 0
 async function load(): Promise<void> {
@@ -28,7 +31,18 @@ async function load(): Promise<void> {
   paths.value = got.paths
   reel.value = got.reel
 }
-onMounted(load)
+onMounted(() => {
+  void gone.ensureLoaded()
+  void load()
+})
+
+/** A short listen whose subject the corpus no longer has cannot resume (#2345): remove it. */
+async function removeReel(): Promise<void> {
+  if (!reel.value) return
+  const id = reel.value.subject_id
+  await clearReelProgress(id).catch(() => undefined)
+  if (reel.value?.subject_id === id) reel.value = null
+}
 // Home is kept alive; a day done or a reel finished elsewhere must show on return.
 let leftOnce = false
 onDeactivated(() => {
@@ -108,6 +122,8 @@ async function openNext(path: LearningPath): Promise<void> {
               data-testid="in-progress-learn-open"
               @click="track('learn_path', { action: 'open', kind: c.path.subject_kind, source: 'in_progress' })"
             >{{ c.path.subject_label }}</RouterLink>
+            <!-- The path is frozen and still plays; only its subject page is gone (#2345). -->
+            <GoneBadge v-if="gone.isGone(c.path.subject_id)" class="mt-0.5" />
             <p v-if="c.now" class="mt-1 line-clamp-1 text-sm text-muted">{{ c.now.episode.title }}</p>
             <p v-else-if="!c.finished" class="mt-1 text-sm text-muted">{{ t('inProgress.doneToday', { n: c.path.day }) }}</p>
             <!-- The week, a segment a day: done, open, not yet. -->
@@ -156,13 +172,22 @@ async function openNext(path: LearningPath): Promise<void> {
               ▶ {{ t('inProgress.reelKicker', { n: reel.index + 1, total: reel.clips }) }}
             </p>
             <p class="mt-1 line-clamp-2 font-display text-xl font-extrabold leading-tight tracking-tight text-canvas-foreground">{{ reel.subject_label }}</p>
+            <GoneBadge v-if="gone.isGone(reel.subject_id)" class="mt-0.5" />
             <p v-if="reel.quote_text" class="mt-1 line-clamp-2 text-sm text-muted">“{{ reel.quote_text }}”</p>
             <p v-if="reel.speaker" class="text-xs text-muted">— {{ reel.speaker }}</p>
             <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-overlay" role="img" :aria-label="t('inProgress.reelKicker', { n: reel.index + 1, total: reel.clips })">
               <div class="h-full rounded-full bg-listen" :style="{ width: `${reelPct}%` }" />
             </div>
             <div class="relative z-30 mt-auto flex items-center gap-3 pt-3">
+              <button
+                v-if="gone.isGone(reel.subject_id)"
+                type="button"
+                class="relative z-30 inline-flex h-11 items-center rounded-full border border-border px-5 font-bold text-canvas-foreground"
+                data-testid="in-progress-reel-remove"
+                @click="removeReel"
+              >{{ t('inProgress.remove') }}</button>
               <RouterLink
+                v-else
                 :to="{ name: 'topic-reel', params: { id: reel.subject_id }, query: { minutes: String(reel.minutes ?? 15), at: String(reel.index + 1) } }"
                 class="inline-flex h-11 items-center gap-2 rounded-full bg-listen px-5 font-bold text-canvas no-underline after:absolute after:inset-0"
                 :aria-label="t('inProgress.resumeLabel', { subject: reel.subject_label, n: reel.index + 1 })"

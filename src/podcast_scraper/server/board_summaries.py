@@ -165,15 +165,37 @@ def write_summary(data_dir: Path, user_id: str, board_id: str, record: dict[str,
         _write_json(path, doc)
 
 
-def content_fingerprint(board: Board) -> str:
+def drop_summaries(data_dir: Path, user_id: str, board_ids: list[str]) -> None:
+    """Remove these boards' summaries under the user's file lock."""
+    if not _is_safe_user_id(user_id):
+        return
+    path = _summaries_path(data_dir, user_id)
+    with FileLock(str(path) + ".lock", timeout=5.0):
+        doc = _read_json(path)
+        for board_id in board_ids:
+            doc.pop(board_id, None)
+        _write_json(path, doc)
+
+
+def content_fingerprint(board: Board, root: Optional[Path] = None) -> str:
     """What the summary is OF: the board's episodes and its saved moments. A show, a topic, a link
-    or a search added to the board changes nothing the summary reads, so it calls nothing."""
+    or a search added to the board changes nothing the summary reads, so it calls nothing.
+
+    With ``root``, only episodes still in the corpus count (#2344): one that left the corpus
+    changes what the summary can be written from, so it is redone; without it, every slug."""
+    from podcast_scraper.server.app_slugs import resolve_slug
+
     moments = sorted(str(m.get("ref")) for m in board.items if m.get("kind") == "highlight")
-    payload = json.dumps({"episodes": sorted(board_episode_slugs(board)), "moments": moments})
+    slugs = board_episode_slugs(board)
+    if root is not None:
+        slugs = [s for s in slugs if resolve_slug(root, s) is not None]
+    payload = json.dumps({"episodes": sorted(slugs), "moments": moments})
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
 
-def summary_for_brief(data_dir: Path, user_id: str, board: Board) -> Optional[dict[str, Any]]:
+def summary_for_brief(
+    data_dir: Path, user_id: str, board: Board, root: Optional[Path] = None
+) -> Optional[dict[str, Any]]:
     """The stored summary for the Brief, with ``stale`` when the board changed since. None when
     there is none yet. Never calls a model."""
     rec = read_summaries(data_dir, user_id).get(str(board.meta["id"]))
@@ -182,7 +204,7 @@ def summary_for_brief(data_dir: Path, user_id: str, board: Board) -> Optional[di
     return {
         "text": str(rec["text"]),
         "created_at": int(rec.get("created_at") or 0),
-        "stale": rec.get("fingerprint") != content_fingerprint(board),
+        "stale": rec.get("fingerprint") != content_fingerprint(board, root),
     }
 
 
@@ -315,13 +337,21 @@ def sweep(
     day_start = t - (t % 86400)
     for user_id in _user_ids(data_dir):
         stored = read_summaries(data_dir, user_id)
+        boards = app_collections_store.list_collections(data_dir, user_id)
+        # A deleted board's summary is dropped (#2344): nothing reads it, and it would outlive
+        # the board in the user's data.
+        orphans = sorted(set(stored) - {str(b["id"]) for b in boards})
+        if orphans:
+            drop_summaries(data_dir, user_id, orphans)
+            result.counts["orphan_dropped"] += len(orphans)
+            stored = {k: v for k, v in stored.items() if k not in orphans}
         made_today = sum(1 for r in stored.values() if float(r.get("created_at") or 0) >= day_start)
-        for row in app_collections_store.list_collections(data_dir, user_id):
+        for row in boards:
             board = load_board(data_dir, user_id, str(row["id"]))
             if board is None:
                 continue
             rec = stored.get(str(board.meta["id"])) or {}
-            fp = content_fingerprint(board)
+            fp = content_fingerprint(board, root)
             if (
                 rec.get("fingerprint") == fp
                 and rec.get("prompt") == prompt

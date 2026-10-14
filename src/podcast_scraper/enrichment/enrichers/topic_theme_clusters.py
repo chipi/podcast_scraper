@@ -42,8 +42,10 @@ same consumer / graph code can read it, but tags each cluster
 
 from __future__ import annotations
 
+import json
 import logging
 import re
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -62,6 +64,8 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     sync_enricher,
 )
+from podcast_scraper.search import storyline_registry
+from podcast_scraper.utils.atomic_io import write_json_atomic
 
 _logger = logging.getLogger(__name__)
 
@@ -473,6 +477,31 @@ def _compute(
         )
         cluster_member_sets.append(members)
 
+    # RFC-128 (#2349): this run's clusters are PROPOSALS. The storyline registry, carried in this
+    # artifact from run to run, decides what the storylines are: a proposal attaches to the
+    # storyline that already holds half its topics; a new one is created only past the bar; none is
+    # deleted (a quiet one stays); a name changes only when another label leads for 60 days.
+    prior, source = _registry_prior(corpus_root)
+    proposals = clusters_out
+    clusters_out, registry, id_history = storyline_registry.reconcile(
+        proposals,
+        prior,
+        topic_label=topic_label,
+        topic_eps=topic_eps,
+        now=_now(),
+    )
+    cluster_member_sets = [
+        {index[m["topic_id"]] for m in c["members"] if m["topic_id"] in index} for c in clusters_out
+    ]
+    # The registry decides membership; lift keeps its meaning — how strongly a topic co-occurs
+    # with the rest of the storyline it is published in (the storyline card orders by it).
+    for c, members in zip(clusters_out, cluster_member_sets):
+        for m in c["members"]:
+            ti = index.get(m["topic_id"])
+            m["lift_to_cluster"] = round(degree(ti, members), 4) if ti is not None else 0.0
+    _save_registry_copy(corpus_root, registry, id_history)
+    health = _registry_health(prior, clusters_out, id_history, source, len(proposals))
+    _record_run(corpus_root, prior, clusters_out, id_history, registry, health, n_eps)
     _assign_super_themes(clusters_out, cluster_member_sets, weight)
 
     # #1208 no-silent-fail contract (see grounding_rate / temporal_velocity), extended for #1929.
@@ -481,7 +510,7 @@ def _compute(
     # refusing to run. Only the last one is a capability failure, and it was previously
     # indistinguishable from the other two.
     partial_reason: str | None = None
-    if not clusters_out:
+    if not proposals:
         if len(idx_topics) > _MAX_LINKAGE_TOPICS:
             partial_reason = "linkage_cap_exceeded"
         elif not idx_topics:
@@ -527,7 +556,212 @@ def _compute(
             {c["super_theme_id"] for c in clusters_out if c.get("super_theme_id")}
         ),
         "super_theme_method": "cross_cluster_lift_avg_linkage",
+        "id_history": id_history,
+        # RFC-128: the registry the next run reconciles against, and what this run proposed.
+        "registry": registry,
+        "proposal_count": len(proposals),
+        "registry_health": health,
     }
+
+
+def _now() -> float:
+    """The run's clock (a function, so the replay and the tests can set it)."""
+    return time.time()
+
+
+#: The registry's last-good copy, written every run next to the artifact (RFC-128). If the
+#: artifact is ever unreadable, the next run continues from this instead of starting over.
+REGISTRY_COPY = "storyline_registry.json"
+#: A registry built from the corpus's history (``search.storyline_history``), taken in by the
+#: next run. Only this enricher writes the artifact, so the seed can never race a run.
+REGISTRY_SEED = "storyline_registry.seed.json"
+
+
+def _read_json(path: Path) -> tuple[Any, bool]:
+    """``(document or None, the file exists)``."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), True
+    except FileNotFoundError:
+        return None, False
+    except (OSError, ValueError):
+        return None, True
+
+
+def _registry_prior(corpus_root: Path) -> tuple[dict[str, Any], str]:
+    """``(prior, source)``: the previous artifact's data with the registry this run continues.
+
+    ``source`` says where the registry came from: ``seed`` (a history seed not yet taken),
+    ``artifact``, ``copy`` (the artifact was unreadable or had none — an error), ``clusters`` (an
+    artifact from before the registry: the one-time migration), ``proposals`` (a corpus's first
+    run) or ``rebuilt`` (an artifact existed but neither it nor the copy held a registry — the
+    history is lost, an error).
+    """
+    enrichments = Path(corpus_root) / "enrichments"
+    raw, art_exists = _read_json(enrichments / "topic_theme_clusters.json")
+    data = raw.get("data", raw) if isinstance(raw, dict) else None
+    prior: dict[str, Any] = dict(data) if isinstance(data, dict) else {}
+    copy, _ = _read_json(enrichments / REGISTRY_COPY)
+    copy = copy if isinstance(copy, dict) else {}
+    current = prior.get("registry") if isinstance(prior.get("registry"), dict) else None
+    source = "artifact" if current else ""
+    if current is None and isinstance(copy.get("registry"), dict):
+        current, source = copy["registry"], "copy"
+        prior.setdefault("id_history", copy.get("id_history") or {})
+        _logger.error(
+            "storylines: the registry was not in topic_theme_clusters.json (exists=%s); "
+            "continuing from %s",
+            art_exists,
+            REGISTRY_COPY,
+        )
+
+    seed, _ = _read_json(enrichments / REGISTRY_SEED)
+    if (
+        isinstance(seed, dict)
+        and isinstance(seed.get("registry"), dict)
+        and seed.get("id")
+        and (current or {}).get("seeded_from") != seed["id"]
+    ):
+        if current is not None:
+            write_json_atomic(
+                enrichments / f"storyline_registry.pre-seed-{str(seed['id'])[:12]}.json",
+                {"registry": current, "id_history": prior.get("id_history") or {}},
+            )
+        prior["registry"] = {**seed["registry"], "seeded_from": seed["id"]}
+        _logger.info("storylines: taking the history seed %s", seed["id"])
+        return prior, "seed"
+    if current is not None:
+        prior["registry"] = current
+        return prior, source
+    if prior.get("clusters"):
+        return prior, "clusters"
+    if art_exists:
+        _logger.error(
+            "storylines: topic_theme_clusters.json is unreadable and %s has no registry; "
+            "the registry starts over from this run",
+            REGISTRY_COPY,
+        )
+        return prior, "rebuilt"
+    return prior, "proposals"
+
+
+def _save_registry_copy(
+    corpus_root: Path, registry: dict[str, Any], id_history: dict[str, Any]
+) -> None:
+    try:
+        write_json_atomic(
+            Path(corpus_root) / "enrichments" / REGISTRY_COPY,
+            {"registry": registry, "id_history": id_history},
+        )
+    except OSError as exc:
+        _logger.error("storylines: could not write %s: %s", REGISTRY_COPY, exc)
+
+
+def _record_run(
+    corpus_root: Path,
+    prior: dict[str, Any],
+    storylines: list[dict[str, Any]],
+    id_history: dict[str, Any],
+    registry: dict[str, Any],
+    health: dict[str, Any],
+    episode_total: int,
+) -> None:
+    """One row in the clustering history (the viewer dashboard's chart and change list) and one
+    ``storylines.run`` event (Grafana): counts, health, coverage and this run's changes."""
+    from podcast_scraper.obs.events import emit_event
+    from podcast_scraper.search import clustering_history
+
+    covered = {e for c in storylines for m in c["members"] for e in m.get("episode_ids") or []}
+    counts = {
+        "storylines": health["storylines"],
+        "active": health["storylines"] - health["quiet"],
+        "quiet": health["quiet"],
+        "candidates": len(registry.get("candidates") or []),
+        "proposals": health["proposals"],
+        "shared_topics": health["shared_topics"],
+        "vanished": len(health["vanished"]),
+        "episodes_covered": len(covered),
+        "episodes_total": episode_total,
+    }
+    changed = clustering_history.changes(
+        prior.get("clusters") or [], storylines, prior.get("id_history"), id_history
+    )
+    clustering_history.append(
+        corpus_root,
+        {
+            "ts": _now(),
+            "kind": "storyline",
+            "source": health["source"],
+            "ok": health["ok"],
+            **counts,
+            "changes": changed,
+        },
+    )
+    fields: dict[str, Any] = {"source": health["source"], "ok": health["ok"], **counts}
+    fields.update({f"{k}_count": len(v) for k, v in changed.items()})
+    emit_event("storylines.run", **fields)
+    # The same counts as one plain line: an event from a one-off job container reaches
+    # VictoriaLogs as text with its JSON unparsed, and the Grafana panel extracts these instead.
+    _logger.info(
+        "storylines: run storylines=%d active=%d quiet=%d candidates=%d covered=%d total=%d "
+        "created=%d renamed=%d absorbed=%d gone=%d",
+        counts["storylines"],
+        counts["active"],
+        counts["quiet"],
+        counts["candidates"],
+        counts["episodes_covered"],
+        counts["episodes_total"],
+        len(changed["created"]),
+        len(changed["renamed"]),
+        len(changed["absorbed"]),
+        len(changed["gone"]),
+    )
+
+
+def _registry_health(
+    prior: dict[str, Any],
+    storylines: list[dict[str, Any]],
+    id_history: dict[str, Any],
+    source: str,
+    proposals: int,
+) -> dict[str, Any]:
+    """What this run did to the storylines, logged on one line the alert rules read.
+
+    Bad (logged at ERROR, ``health=bad``): the registry came from the copy or started over, a
+    topic is published in two storylines, or a storyline published last run is gone without a
+    successor or a ``gone`` record — none of which the registry should ever do.
+    """
+    published = {str(c["graph_compound_parent_id"]) for c in storylines}
+    before = {
+        str(c.get("graph_compound_parent_id"))
+        for c in prior.get("clusters") or []
+        if c.get("graph_compound_parent_id")
+    }
+    accounted = set((id_history.get("successors") or {}).keys()) | set(id_history.get("gone") or [])
+    vanished = sorted(before - published - accounted)
+    topics = [m["topic_id"] for c in storylines for m in c["members"]]
+    shared = len(topics) - len(set(topics))
+    health: dict[str, Any] = {
+        "source": source,
+        "storylines": len(storylines),
+        "quiet": sum(1 for c in storylines if c.get("state") == "quiet"),
+        "proposals": proposals,
+        "shared_topics": shared,
+        "vanished": vanished,
+    }
+    bad = source in ("copy", "rebuilt") or shared > 0 or bool(vanished)
+    health["ok"] = not bad
+    (_logger.error if bad else _logger.info)(
+        "storylines: registry health=%s source=%s storylines=%d quiet=%d proposals=%d "
+        "shared_topics=%d vanished=%d",
+        "bad" if bad else "ok",
+        source,
+        health["storylines"],
+        health["quiet"],
+        proposals,
+        shared,
+        len(vanished),
+    )
+    return health
 
 
 _enrich_async = sync_enricher(_compute)
@@ -538,7 +772,8 @@ class TopicThemeClustersEnricher:
 
     manifest = EnricherManifest(
         id="topic_theme_clusters",
-        version="1.2.0",  # long-tail super-theme + partial_reason/linkage_* fields (#1929/#1932)
+        # 1.3.0: the storyline registry (RFC-128) — durable ids, sticky names, quiet not deleted.
+        version="1.3.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],

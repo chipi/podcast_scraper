@@ -161,3 +161,76 @@ def corpus_storylines(
         min_members,
     )
     return JSONResponse(content=payload)
+
+
+def _series(rows: list[dict], keys: tuple[str, ...]) -> list[dict]:
+    return [
+        {"ts": r.get("ts"), "source": r.get("source"), **{k: r.get(k) for k in keys}} for r in rows
+    ]
+
+
+@router.get("/corpus/clustering/health")
+def corpus_clustering_health(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus output dir. Omit for default."),
+) -> JSONResponse:
+    """Storylines and themes over time, for the viewer dashboard (RFC-128, #2349).
+
+    From ``enrichments/clustering_history*.jsonl`` (one row per run; the storyline backfill from
+    the history seed's replay) and the storyline artifact's ``registry_health``: the latest run,
+    its changes by name, the series to chart, and whether a history seed is pending or taken.
+    """
+    from podcast_scraper.search import clustering_history
+
+    fallback = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, fallback)
+    root_dir = safe_resolve_directory(root) if root is not None else None
+    if root_dir is None:
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
+    root_s = os.path.normpath(str(root_dir))
+
+    def under(rel: Path) -> Path:
+        # Same guard as ``corpus_storylines`` above: a constant relative path, joined and
+        # normalised, must stay under the validated corpus root (CODEQL_DISMISSALS.md Type 1).
+        joined = os.path.normpath(os.path.join(root_s, *rel.parts))
+        if not joined.startswith(root_s + os.sep):
+            raise HTTPException(status_code=400, detail="Invalid corpus path.")
+        return Path(joined)
+
+    history = under(clustering_history.HISTORY)
+    backfill = under(clustering_history.BACKFILL)
+    artifact = under(Path(_STORYLINES_REL))
+    story_rows = clustering_history.read_files(history, backfill, "storyline")
+    theme_rows = clustering_history.read_files(history, backfill, "theme")
+    health = None
+    try:
+        raw = json.loads(artifact.read_text(encoding="utf-8"))
+        data = raw.get("data", raw) if isinstance(raw, dict) else {}
+        health = data.get("registry_health") if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        pass
+    story_keys = (
+        "storylines",
+        "active",
+        "quiet",
+        "candidates",
+        "episodes_covered",
+        "episodes_total",
+        "ok",
+    )
+    return JSONResponse(
+        {
+            "storylines": {
+                "latest": story_rows[-1] if story_rows else None,
+                "health": health,
+                "seed": clustering_history.seed_status_files(
+                    under(clustering_history.SEED), artifact
+                ),
+                "series": _series(story_rows, story_keys),
+            },
+            "themes": {
+                "latest": theme_rows[-1] if theme_rows else None,
+                "series": _series(theme_rows, ("themes", "topics", "kept")),
+            },
+        }
+    )

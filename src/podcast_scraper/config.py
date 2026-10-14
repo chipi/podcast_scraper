@@ -2035,6 +2035,31 @@ class Config(BaseModel):
         alias="board_summary_max_tokens",
         description="Reply budget for a board summary, in tokens.",
     )
+    # #2344: the storyline summary, the same use case with its own prompts (operator 2026-10-13:
+    # every storyline, the prompt adapting to how many episodes the thread spans).
+    storyline_summary_system_prompt: str = Field(
+        default="summarization/storyline_system_v1",
+        alias="storyline_summary_system_prompt",
+        description="System prompt for storyline summaries (logical prompt_store name).",
+    )
+    storyline_summary_user_prompt: str = Field(
+        default="summarization/storyline_user_v1",
+        alias="storyline_summary_user_prompt",
+        description="User prompt for storyline summaries (logical prompt_store name).",
+    )
+    storyline_summary_document_prompt: str = Field(
+        default="summarization/storyline_document_v1",
+        alias="storyline_summary_document_prompt",
+        description="Storyline material written as prose, for seq2seq summarizers (BART/LED) "
+        "(logical prompt_store name).",
+    )
+    storyline_summary_max_tokens: int = Field(
+        default=400,
+        ge=50,
+        le=4000,
+        alias="storyline_summary_max_tokens",
+        description="Reply budget for a storyline summary, in tokens.",
+    )
     openai_speaker_system_prompt: Optional[str] = Field(
         default=None,
         alias="openai_speaker_system_prompt",

@@ -112,6 +112,7 @@ from podcast_scraper.enrichment.staleness import (
 )
 from podcast_scraper.enrichment.status import write_idle, write_status
 from podcast_scraper.obs.events import emit_event
+from podcast_scraper.utils.atomic_io import write_json_atomic
 from podcast_scraper.utils.otel_init import enrichment_span
 
 logger = logging.getLogger(__name__)
@@ -1187,8 +1188,10 @@ class EnrichmentExecutor:
         else:
             path = corpus_enrichment_path(self._corpus_root, manifest.writes)
         try:
-            ensure_directory(path.parent)
-            path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            # Atomic: a crash mid-write must leave the previous envelope, never a truncated one.
+            # The next run reads its own previous output (the storyline registry, RFC-128, lives
+            # in it), and a half-written file would read as "no previous run".
+            write_json_atomic(path, payload, indent=2)
         except OSError as exc:
             logger.warning(
                 "enrichment envelope write failed: %s (enricher=%s, path=%s)",

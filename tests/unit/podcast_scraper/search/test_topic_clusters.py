@@ -437,3 +437,47 @@ def test_load_topic_clusters_payload_rejects_unsafe_corpus_root() -> None:
     assert top_themes_by_member_count(bad_root) == []
     assert theme_siblings_by_topic(bad_root, "topic:ai") == []
     assert load_theme_enrichment_map(bad_root) == {}
+
+
+def test_a_theme_keeps_its_name_while_the_topic_it_is_named_after_stays() -> None:
+    """#2349: a theme that kept its id keeps its name while that topic is still a member, instead
+    of whichever member sits nearest the centroid this run (prod copy: 846 of 2,253 kept themes
+    changed name in 4 days without this, 34 with it)."""
+    from podcast_scraper.search.topic_clusters import keep_prior_names
+
+    prior = [{"graph_compound_parent_id": "tc:a", "canonical_label": "ai safety"}]
+    stays = {
+        "graph_compound_parent_id": "tc:a",
+        "canonical_label": "alignment research",
+        "cil_alias_target_topic_id": "topic:alignment-research",
+        "members": [{"label": "alignment research"}, {"label": "ai safety"}],
+    }
+    left = {
+        "graph_compound_parent_id": "tc:a",
+        "canonical_label": "alignment research",
+        "cil_alias_target_topic_id": "topic:alignment-research",
+        "members": [{"label": "alignment research"}, {"label": "interpretability"}],
+    }
+    keep_prior_names([stays], prior)
+    keep_prior_names([left], prior)
+    assert (stays["canonical_label"], stays["cil_alias_target_topic_id"]) == (
+        "ai safety",
+        "topic:ai-safety",
+    )
+    assert left["canonical_label"] == "alignment research", "its topic left: the new name stands"
+
+
+def test_a_kept_name_never_takes_a_name_another_theme_holds_now() -> None:
+    """The storyline registry made two storylines with one name through a rename (#2349); a theme
+    keeping its previous name must not do the same."""
+    from podcast_scraper.search.topic_clusters import keep_prior_names
+
+    prior = [{"graph_compound_parent_id": "tc:a", "canonical_label": "ai safety"}]
+    kept = {
+        "graph_compound_parent_id": "tc:a",
+        "canonical_label": "alignment research",
+        "members": [{"label": "alignment research"}, {"label": "ai safety"}],
+    }
+    other = {"graph_compound_parent_id": "tc:b", "canonical_label": "ai safety", "members": []}
+    keep_prior_names([kept, other], prior)
+    assert kept["canonical_label"] == "alignment research"

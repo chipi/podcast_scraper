@@ -899,6 +899,24 @@ class AppClusterCard(BaseModel):
             "exists ('these two keep turning up together'), which is not what a theme claims."
         ),
     )
+    aliases: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Storylines only: names this storyline had before (RFC-128 — a name changes only "
+            "after another led for 60 days). Empty for a theme."
+        ),
+    )
+    state: Literal["active", "quiet"] | None = Field(
+        default=None,
+        description=(
+            "Storylines only: ``quiet`` when no new episode has joined for 90 days (it stays, "
+            "and wakes with the next one). None for a theme or a pre-registry artifact."
+        ),
+    )
+    last_active_at: str | None = Field(
+        default=None,
+        description="Storylines only: the day (YYYY-MM-DD) an episode last joined it.",
+    )
 
 
 class AppMonthCount(BaseModel):
@@ -1366,6 +1384,20 @@ class AppSuggestLessBody(BaseModel):
     """POST /discover/suggest-less/{token} — the label shown on the card."""
 
     label: str = Field(min_length=1, max_length=200)
+
+
+class AppGoneReference(BaseModel):
+    """A reference the listener stored that no longer exists in the corpus (#2345)."""
+
+    ref: str
+    kind: str = Field(description="topic | person | theme | storyline | episode")
+
+
+class AppGoneReferencesResponse(BaseModel):
+    """The listener's stored references found gone by the last reference pass (#2345): shown
+    muted, "No longer available", with a remove action. Empty before the first pass."""
+
+    items: list[AppGoneReference] = Field(default_factory=list)
 
 
 class AppSuggestLessResponse(BaseModel):
@@ -2385,6 +2417,15 @@ class AppBoardSummary(BaseModel):
     text: str
     created_at: int = Field(description="When it was written (unix seconds).")
     stale: bool = Field(description="The board's episodes or saved moments changed since.")
+
+
+class AppStorylineSummary(BaseModel):
+    """One paragraph on what a storyline is about (#2344), written by the board-summarizer
+    sidecar for every storyline; read by its page and the top of its Learn path."""
+
+    text: str
+    created_at: int = Field(description="When it was written (unix seconds).")
+    stale: bool = Field(description="The storyline's episodes or topics changed since.")
 
 
 class AppBoardVoice(BaseModel):

@@ -109,4 +109,23 @@ loki.process "podcast_denoise" {
 	stage.structured_metadata {
 		values = {trace_id = "", run_id = "", episode_id = ""}
 	}
+
+	// Events emitted to stdout (emit_event, sink="log") arrive behind the app's text log prefix
+	// (`<time> INFO <logger> [run=…]: {"ts": …, "event_type": …}`), so VictoriaLogs could not
+	// unpack them: on prod, event_type:llm_cost matched nothing while the lines were there
+	// (2026-10-14), and the LLM cost panels stayed empty. Ship the event's JSON object alone —
+	// VictoriaLogs unpacks a line that is one JSON object into fields, as it does the app event
+	// files (base.alloy). Last, so the stages above still read the full line; a line that is
+	// already bare JSON (the api's) is captured whole and passes unchanged.
+	stage.match {
+		selector = "{app=\"podcast\"} |= \"\\\"event_type\\\": \""
+
+		stage.regex {
+			expression = "(?P<event_json>\\{\"ts\": \".*\\})\\s*$"
+		}
+
+		stage.output {
+			source = "event_json"
+		}
+	}
 }

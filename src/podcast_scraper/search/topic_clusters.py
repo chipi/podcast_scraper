@@ -38,6 +38,7 @@ from podcast_scraper.search.corpus_scope import (
     episode_root_from_metadata_path,
 )
 from podcast_scraper.search.indexer import _kg_path, _load_metadata_file
+from podcast_scraper.search.stable_cluster_ids import carry_cluster_ids
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
@@ -568,8 +569,12 @@ def build_topic_clusters_payload(
     threshold: float,
     embedding_model: str,
     prior_fingerprint: Optional[str] = None,
+    prior_payload: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build ``topic_clusters.json`` body from aggregated topic rows.
+
+    *prior_payload* is the previous file: a theme keeps its ``tc:`` id when its members largely
+    stay, and the ids that went are mapped in ``id_history`` (#2345, ``stable_cluster_ids``).
 
     When *prior_fingerprint* matches the current rows' fingerprint, clustering is
     skipped and the returned dict carries ``skipped_unchanged: True`` so callers
@@ -662,6 +667,16 @@ def build_topic_clusters_payload(
             }
         )
 
+    prior = prior_payload or {}
+    # Themes group topics by MEANING, so where member overlap does not decide, the centroid does
+    # (#2349): a theme that swapped half its topics but means the same keeps its id.
+    id_history = carry_cluster_ids(
+        clusters_out,
+        prior.get("clusters") or [],
+        prior_history=prior.get("id_history"),
+        vectors={r.topic_id: r.vector for r in rows},
+    )
+    keep_prior_names(clusters_out, prior.get("clusters") or [])
     return {
         "schema_version": TOPIC_CLUSTERS_SCHEMA_VERSION,
         "model": embedding_model,
@@ -671,7 +686,30 @@ def build_topic_clusters_payload(
         "topic_count": len(ids),
         "cluster_count": len(clusters_out),
         "fingerprint": current_fp,
+        "id_history": id_history,
     }
+
+
+def keep_prior_names(
+    clusters: List[Dict[str, Any]], prior_clusters: Sequence[Mapping[str, Any]]
+) -> None:
+    """A theme that kept its id keeps its name while the topic it is named after is still a member
+    (#2349), instead of taking whichever member sits nearest the centroid this run."""
+    before = {
+        str(c.get("graph_compound_parent_id")): str(c.get("canonical_label") or "")
+        for c in prior_clusters
+        if c.get("graph_compound_parent_id")
+    }
+    held_now = {str(c.get("canonical_label") or "") for c in clusters}
+    for c in clusters:
+        name = before.get(str(c.get("graph_compound_parent_id")), "")
+        if not name or name == c.get("canonical_label") or name in held_now:
+            continue  # unchanged, or another theme is called that now: two would share it
+        if name in {str(m.get("label")) for m in c.get("members") or []}:
+            held_now.discard(str(c.get("canonical_label") or ""))
+            c["canonical_label"] = name
+            c["cil_alias_target_topic_id"] = topic_node_id_from_slug(slugify_label(name))
+            held_now.add(name)
 
 
 def topic_id_aliases_from_clusters_payload(
@@ -759,10 +797,12 @@ def build_topic_clusters_for_corpus(
     # Load prior fingerprint from the existing output file (if present) for the skip-gate.
     target = out_path if out_path is not None else idx / TOPIC_CLUSTERS_FILENAME
     prior_fp: Optional[str] = None
+    prior_payload: Optional[Dict[str, Any]] = None
     if target.is_file():
         try:
             existing_raw = json.loads(target.read_text(encoding="utf-8"))
             if isinstance(existing_raw, dict):
+                prior_payload = existing_raw
                 fp_val = existing_raw.get("fingerprint")
                 if isinstance(fp_val, str) and fp_val:
                     prior_fp = fp_val
@@ -770,7 +810,11 @@ def build_topic_clusters_for_corpus(
             pass
 
     payload = build_topic_clusters_payload(
-        rows, threshold=threshold, embedding_model=model, prior_fingerprint=prior_fp
+        rows,
+        threshold=threshold,
+        embedding_model=model,
+        prior_fingerprint=prior_fp,
+        prior_payload=prior_payload,
     )
 
     if payload.get("skipped_unchanged"):
@@ -786,7 +830,47 @@ def build_topic_clusters_for_corpus(
         payload["cluster_count"],
         payload["singletons"],
     )
+    record_theme_run(root, prior_payload or {}, payload)
     return payload
+
+
+def record_theme_run(
+    corpus_root: Path, prior_payload: Mapping[str, Any], payload: Mapping[str, Any]
+) -> None:
+    """One row in the clustering history (viewer dashboard) and one ``themes.run`` event."""
+    import time
+
+    from podcast_scraper.obs.events import emit_event
+    from podcast_scraper.search import clustering_history
+
+    clusters = list(payload.get("clusters") or [])
+    changed = clustering_history.changes(
+        prior_payload.get("clusters") or [],
+        clusters,
+        prior_payload.get("id_history"),
+        payload.get("id_history"),
+    )
+    kept = {str(c.get("graph_compound_parent_id")) for c in prior_payload.get("clusters") or []}
+    counts = {
+        "themes": len(clusters),
+        "topics": int(payload.get("topic_count") or 0),
+        "singletons": int(payload.get("singletons") or 0),
+        "kept": sum(1 for c in clusters if str(c.get("graph_compound_parent_id")) in kept),
+    }
+    clustering_history.append(
+        corpus_root, {"ts": time.time(), "kind": "theme", **counts, "changes": changed}
+    )
+    fields: Dict[str, Any] = dict(counts)
+    fields.update({f"{k}_count": len(v) for k, v in changed.items()})
+    emit_event("themes.run", **fields)
+    # One plain line for the Grafana panel (see the storyline run's matching line for why).
+    logger.info(
+        "themes: build themes=%d topics=%d kept=%d gone=%d",
+        counts["themes"],
+        counts["topics"],
+        counts["kept"],
+        len(changed["gone"]),
+    )
 
 
 def load_validation_yaml(path: Path) -> Dict[str, Any]:

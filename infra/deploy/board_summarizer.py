@@ -21,6 +21,11 @@ Each cycle:
    The call itself is the provider's own ``summarize`` with the board use case
    (``providers/common/summary_use_case.py``): the episode summary's flow, its prompts excepted.
 
+Before the summaries, each cycle also runs the reference pass (#2345,
+``server/reference_integrity.py``): listeners' stored theme, storyline, topic and person ids are
+re-keyed when the corpus renamed them and flagged when they are gone. No model is involved, so it
+runs whether or not summaries are switched on.
+
 The loop and its heartbeat follow ``digest_scheduler.py``: interval-aligned wakes, one cycle at
 start, a bad cycle never kills the loop, a heartbeat file for the container healthcheck.
 """
@@ -84,14 +89,17 @@ class _BoardUseCase:
     prompt names come from the profile (``board_summary_*_prompt``), resolved under the provider's
     prompt folder with the ``prompts/shared/`` fallback."""
 
+    #: The Config fields this use case reads: ``<prefix>_{system,user,document}_prompt`` and
+    #: ``<prefix>_max_tokens``.
+    PREFIX = "board_summary"
+
     def __init__(self, cfg: Any, provider: Any, kind: str) -> None:
         from podcast_scraper.providers.common.summary_use_case import use_case_prompt_metadata
-        from podcast_scraper.server.board_summaries import STAGE
 
         self.cfg = cfg
         self.provider = provider
         self.ready = False
-        self.stage = STAGE
+        self.stage = self._stage()
         # "chat": system + user prompts; "document": a seq2seq model's prose input (BART/LED).
         self.kind = kind
         # The model the provider calls, as its own metadata records it — not ``cfg.summary_model``,
@@ -112,13 +120,21 @@ class _BoardUseCase:
         from podcast_scraper.providers.common.summary_use_case import SummaryUseCase
 
         return SummaryUseCase(
-            system_prompt=str(self.cfg.board_summary_system_prompt),
-            user_prompt=str(self.cfg.board_summary_user_prompt),
+            system_prompt=str(self._field("system_prompt")),
+            user_prompt=str(self._field("user_prompt")),
             stage=self.stage,
-            max_length=int(self.cfg.board_summary_max_tokens),
+            max_length=int(self._field("max_tokens")),
             params=material,
-            document_prompt=str(self.cfg.board_summary_document_prompt),
+            document_prompt=str(self._field("document_prompt")),
         )
+
+    def _field(self, name: str) -> Any:
+        return getattr(self.cfg, f"{self.PREFIX}_{name}")
+
+    def _stage(self) -> str:
+        from podcast_scraper.server.board_summaries import STAGE
+
+        return str(STAGE)
 
     def _initialize(self) -> None:
         """Once, before the first call of the sweep, never before. A provider that cannot get
@@ -157,9 +173,20 @@ class _BoardUseCase:
             capability="summarization",
             model=self.model,
             prompt_tokens=max(1, (len(system) + len(user)) // 3),
-            completion_tokens=int(self.cfg.board_summary_max_tokens),
+            completion_tokens=int(self._field("max_tokens")),
         )
         return cost
+
+
+class _StorylineUseCase(_BoardUseCase):
+    """The storyline summary (#2344): the same use case with the ``storyline_summary_*`` prompts."""
+
+    PREFIX = "storyline_summary"
+
+    def _stage(self) -> str:
+        from podcast_scraper.server.storyline_summaries import STAGE
+
+        return str(STAGE)
 
 
 def _run_once() -> None:
@@ -216,6 +243,55 @@ def _run_once() -> None:
         f"[{', '.join(f'{k}={v}' for k, v in sorted(result.counts.items()))}]"
         + (f" stopped={result.stopped}" if result.stopped else "")
     )
+    if result.stopped in ("model_unreachable", "budget", "price_unknown"):
+        return
+    _storylines_once(cfg, provider, kind, ts, ready=board.ready)
+
+
+def _storylines_once(cfg: Any, provider: Any, kind: str, ts: int, *, ready: bool) -> None:
+    """The storyline summaries (#2344), after the boards, with the same provider and budget.
+    ``ready``: the board sweep already initialised the provider this cycle; not again."""
+    from podcast_scraper.server import board_summaries, storyline_summaries
+
+    story = _StorylineUseCase(cfg, provider, kind)
+    story.ready = ready
+    result = storyline_summaries.sweep(
+        CORPUS_ROOT,
+        DATA_DIR,
+        summarize=story.summarize,
+        price=story.price,
+        model=story.model,
+        prompt=story.prompt,
+        limits=storyline_summaries.Limits.from_env(),
+        daily_budget_usd=board_summaries.Limits.from_env().daily_budget_usd,
+    )
+    for sid in result.summarised:
+        _log_json(event="storyline_summary.written", storyline=sid, ts=ts)
+    _log_json(
+        event="storyline_summary.tick",
+        model=story.model,
+        prompt=story.prompt,
+        counts=dict(result.counts),
+        stopped=result.stopped,
+        ts=ts,
+    )
+    _log(
+        f"storylines: summarised {len(result.summarised)} "
+        f"[{', '.join(f'{k}={v}' for k, v in sorted(result.counts.items()))}]"
+        + (f" stopped={result.stopped}" if result.stopped else "")
+    )
+
+
+def _references_once() -> None:
+    """The reference pass (#2345): every listener's stored ids re-keyed or flagged."""
+    from podcast_scraper.server import reference_integrity
+
+    ts = int(time.time())
+    results = reference_integrity.repair_all(DATA_DIR, CORPUS_ROOT)
+    rekeyed = sum(len(r.receipts) for r in results)
+    flagged = sum(len(r.flagged) for r in results)
+    _log_json(event="references.tick", users=len(results), rekeyed=rekeyed, flagged=flagged, ts=ts)
+    _log(f"references: {len(results)} users, {rekeyed} re-keyed, {flagged} flagged")
 
 
 def _sleep_to_next_interval(sleep: Callable[[float], object] = time.sleep) -> None:
@@ -224,6 +300,10 @@ def _sleep_to_next_interval(sleep: Callable[[float], object] = time.sleep) -> No
 
 
 def _cycle() -> None:
+    try:
+        _references_once()
+    except Exception:  # noqa: BLE001 — the summaries still run
+        _LOGGER.exception("reference pass failed")
     try:
         _run_once()
     except Exception:  # noqa: BLE001 — a bad cycle must never kill the loop
@@ -244,7 +324,58 @@ def _startup() -> None:
     apply_log_level("INFO")
 
 
+def backfill_storylines(apply: bool) -> int:
+    """The one-shot storyline fill (#2344), for the operator after a deploy: every storyline that
+    needs a summary, with no per-sweep cap. Dry run unless ``apply``; the kill switch and the
+    zero-dollar budget still hold. Returns the exit code."""
+    from podcast_scraper.server import board_summaries, storyline_summaries
+
+    if not apply:
+        result = storyline_summaries.sweep(
+            CORPUS_ROOT,
+            DATA_DIR,
+            summarize=lambda m: "",
+            price=lambda m: 0.0,
+            model="",
+            prompt="",
+            limits=storyline_summaries.Limits(max_per_sweep=10_000),
+            dry_run=True,
+        )
+        print(
+            f"dry run: would summarise {len(result.summarised)} storylines; {dict(result.counts)}"
+        )
+        return 0
+    cfg, provider = _provider()
+    from podcast_scraper.providers.common.summary_use_case import use_case_input_kind
+
+    kind = use_case_input_kind(provider)
+    if kind is None:
+        print(f"profile {PROFILE}: its summarizer runs no use case")
+        return 1
+    story = _StorylineUseCase(cfg, provider, kind)
+    result = storyline_summaries.sweep(
+        CORPUS_ROOT,
+        DATA_DIR,
+        summarize=story.summarize,
+        price=story.price,
+        model=story.model,
+        prompt=story.prompt,
+        limits=storyline_summaries.Limits(max_per_sweep=10_000),
+        daily_budget_usd=board_summaries.Limits.from_env().daily_budget_usd,
+    )
+    print(
+        f"summarised {len(result.summarised)} storylines; {dict(result.counts)}"
+        + (f"; stopped={result.stopped}" if result.stopped else "")
+    )
+    return 0 if result.stopped is None else 1
+
+
 def main() -> NoReturn:
+    import sys
+
+    if "--storylines-backfill" in sys.argv[1:]:
+        _startup()
+        sys.exit(backfill_storylines(apply="--apply" in sys.argv[1:]))
     _startup()
     _log(
         f"start: corpus={CORPUS_ROOT} data_dir={DATA_DIR} profile={PROFILE} "

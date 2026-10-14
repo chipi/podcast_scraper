@@ -1096,6 +1096,40 @@ class TestWhatHoldsAStorylineTogether:
             "is the key — pick a storyline where a smaller member has the higher lift"
         )
 
+    def test_the_anchor_the_page_is_routed_by_leads_even_when_it_is_not_the_lift_leader(
+        self, tmp_path: Path
+    ) -> None:
+        """The storyline registry (RFC-128) keeps a storyline's anchor across runs, so it need
+        not lead on lift. The card must flag the topic the page is routed by — on the production
+        copy it flagged another one on 24 of 99 storylines."""
+        import json
+        import shutil
+
+        from podcast_scraper.search.storylines import storyline_anchors, storyline_member_lift
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        root = tmp_path / "corpus"
+        shutil.copytree(self.FIXTURE, root)
+        art = root / "enrichments" / "topic_theme_clusters.json"
+        raw = json.loads(art.read_text("utf-8"))
+        storyline = "thc:second-order-effects"
+        cl = next(c for c in raw["data"]["clusters"] if c["graph_compound_parent_id"] == storyline)
+        kept = min(cl["members"], key=lambda m: m["lift_to_cluster"])["topic_id"]
+        for m in cl["members"]:
+            m.pop("anchor", None)
+            if m["topic_id"] == kept:
+                m["anchor"] = True
+        art.write_text(json.dumps(raw), "utf-8")
+
+        assert storyline_anchors(root)[storyline] == kept
+        card = build_storyline_card(root, storyline)
+        assert card is not None
+        assert [m.id for m in card.member_topics if m.anchor] == [kept]
+        assert card.member_topics[0].id == kept
+        lift = storyline_member_lift(root)[storyline]
+        rest = [lift[m.id] for m in card.member_topics[1:]]
+        assert rest == sorted(rest, reverse=True), "the rest stay in lift order"
+
     def test_strongest_pair_is_the_storylines_evidence(self) -> None:
         from podcast_scraper.server.app_relational_view import build_storyline_card
 
@@ -1292,3 +1326,41 @@ class TestAGroupingMovesOverTime:
 
         assert build_cluster_perspectives(self.FIXTURE, "tc:lifelong-learning", "theme") is None
         assert build_cluster_perspectives(self.FIXTURE, "tc:nope", "theme") is None
+
+
+def _renamed_quiet_storyline(tmp_path: Path) -> tuple[Path, str, str]:
+    """A copy of the fixture corpus whose ``thc:managing-risk`` the registry renamed and marked
+    quiet (RFC-128). Returns ``(root, storyline id, old name)``."""
+    import json
+    import shutil
+
+    root = tmp_path / "corpus"
+    shutil.copytree(Path("tests/fixtures/app-validation-corpus/v3"), root)
+    art = root / "enrichments" / "topic_theme_clusters.json"
+    raw = json.loads(art.read_text("utf-8"))
+    cl = next(
+        c for c in raw["data"]["clusters"] if c["graph_compound_parent_id"] == "thc:managing-risk"
+    )
+    cl.update({"aliases": ["hedging the downside"], "state": "quiet", "last_active_at": 1767225600})
+    art.write_text(json.dumps(raw), "utf-8")
+    return root, "thc:managing-risk", "hedging the downside"
+
+
+def test_a_storyline_resolves_by_a_name_it_had_before(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_relational_view import build_storyline_card, resolve_entity
+
+    root, sid, old = _renamed_quiet_storyline(tmp_path)
+    ref = resolve_entity(root, old)
+    card = build_storyline_card(root, sid)
+    assert ref is not None and card is not None
+    assert ref.kind == "storyline" and ref.label == card.label, "found under its current name"
+
+
+def test_the_storyline_card_says_what_it_was_called_and_that_it_is_quiet(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_relational_view import build_storyline_card
+
+    root, sid, old = _renamed_quiet_storyline(tmp_path)
+    card = build_storyline_card(root, sid)
+    assert card is not None
+    assert card.aliases == [old]
+    assert (card.state, card.last_active_at) == ("quiet", "2026-01-01")

@@ -506,6 +506,24 @@ There is no storyline endpoint; the anchor topic's card carries it, so the route
 anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
 "theme cluster", which is the opposite of what a reader means by theme.
 
+### The storyline's summary (`StorylineSummary`) — #2344, 2026-10-13
+
+**Every storyline has one paragraph on what the thread is**, written in the background (never on
+a tap), first on its page and at the top of its Learn path. Every storyline, so no listener
+wonders why one has a summary and another does not; a short thread says what each episode adds,
+a longer one also how it developed and where the voices differ. Under it: when it was written,
+and "the storyline grew since, an update follows" when its episodes changed. Until one is written
+the section is simply absent.
+
+### A storyline that changed its name or went quiet — RFC-128, 2026-10-14
+
+A storyline is never deleted and rarely renamed (RFC-128), so a listener who followed it finds it
+again. Under its title, in muted text, its page says the two things that could otherwise confuse
+them: **"Also called prompt engineering"** when it had another name before, and **"Quiet since Jan
+2026. It comes back when a new episode joins."** when no new episode has joined for 90 days.
+Searching an old name opens it under its current one. Neither line shows for an active storyline
+that kept its name.
+
 ## Insight type marks (#2004 item 8)
 
 `InsightTypeMark.vue` — how one insight is told from another in a list that can hold 36 of them.
@@ -646,6 +664,22 @@ translation provenance the pipeline writes on each quote.
 
 **Not yet labelled** (operator, 2026-10-13): search results and the MCP tools. The page a search
 result opens carries the label.
+
+## Gone references (`GoneBadge`) — #2345, 2026-10-13
+
+**What a listener kept is never silently dropped.** A theme, storyline, topic or person they
+followed, saved, put on a board, wrote a note on or started a path on can leave the corpus. A
+rename is re-keyed on the server and the listener never sees it. What is truly gone stays in
+its list, muted, with "No longer available" and that list's own remove action.
+
+| Surface | What happens |
+| --- | --- |
+| Following (`FollowedInterests`) | Chip muted; the open button disabled; × unfollows |
+| Less like this (`SuggestedLessList`) | Chip muted; a tap still undoes it |
+| Saved subjects (Library) | Row muted, not a link; the ♥ removes it |
+| Board items, notes (`CollectionsView`) | Not a link; Remove / delete as before |
+| Learn path (`InProgressStrip`) | The path is frozen and still plays; the badge sits under its name |
+| Last short listen (`InProgressStrip`) | Resume replaced by Remove: the reel cannot be rebuilt |
 
 ## Destructive confirmation (#1594)
 

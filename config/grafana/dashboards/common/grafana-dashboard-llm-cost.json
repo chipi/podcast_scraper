@@ -1,57 +1,178 @@
 {
   "title": "Podcast Scraper — LLM cost (#804)",
   "uid": "podcast-scraper-llm-cost",
-  "tags": ["podcast-scraper", "cost"],
+  "tags": [
+    "podcast-scraper",
+    "cost"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
-  "description": "Import into Grafana Cloud podcast-scraper folder. Requires JSON log lines with event_type=llm_cost (#804).",
+  "version": 2,
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "description": "LLM calls, tokens and spend from the pipeline's llm_cost events (#804), in VictoriaLogs. Each query reads both the event lines shipped before the Alloy unwrap stage (JSON behind the log prefix, extracted here) and after it (fields). Spend is $0 on self-hosted models.",
   "panels": [
     {
       "id": 1,
-      "title": "Cumulative LLM spend (7d)",
+      "title": "LLM calls by provider",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
-          "expr": "sum(sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [7d]))",
-          "legendFormat": "USD"
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "statsRange",
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (provider) count() calls"
         }
       ]
     },
     {
       "id": 2,
-      "title": "Per-run cost (last 20)",
-      "type": "barchart",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "title": "Tokens",
+      "type": "timeseries",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
       "targets": [
         {
-          "expr": "sum by (run_id) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
-          "legendFormat": "{{run_id}}"
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "statsRange",
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats sum(prompt_tokens) prompt_tokens, sum(completion_tokens) completion_tokens"
         }
       ]
     },
     {
       "id": 3,
-      "title": "Per-stage cost mix",
-      "type": "piechart",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "title": "Spend (USD)",
+      "type": "stat",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
       "targets": [
         {
-          "expr": "sum by (stage) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
-          "legendFormat": "{{stage}}"
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats sum(estimated_cost_usd) usd"
         }
       ]
     },
     {
       "id": 4,
-      "title": "Per-feed lifetime spend",
+      "title": "Per stage",
       "type": "table",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 6,
+        "y": 8
+      },
       "targets": [
         {
-          "expr": "sum by (feed_id) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
-          "legendFormat": "{{feed_id}}"
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (stage) count() calls, sum(prompt_tokens) prompt_tokens, sum(completion_tokens) completion_tokens, sum(estimated_cost_usd) usd | sort by (calls desc)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Per run (top 20 by tokens)",
+      "type": "table",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (run_id) count() calls, sum(prompt_tokens) prompt_tokens, sum(estimated_cost_usd) usd | sort by (prompt_tokens desc) | limit 20"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Per feed",
+      "type": "table",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats by (feed_id) count() calls, sum(prompt_tokens) prompt_tokens, sum(estimated_cost_usd) usd | sort by (prompt_tokens desc)"
         }
       ]
     }

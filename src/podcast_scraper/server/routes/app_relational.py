@@ -37,6 +37,7 @@ from podcast_scraper.server.schemas import (
     AppMonthCount,
     AppOrgCard,
     AppPersonCard,
+    AppStorylineSummary,
     AppTopicCard,
     AppTopicConversationArcResponse,
     AppTopicPerspectivesResponse,
@@ -389,6 +390,23 @@ async def storyline_card(
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown storyline id.")
     return _page_episodes(card, episodes_offset, episodes_limit)
+
+
+@router.get("/storylines/{storyline_id}/summary", response_model=AppStorylineSummary)
+def storyline_summary(
+    request: Request, storyline_id: str, user: User = Depends(get_current_user)
+) -> AppStorylineSummary:
+    """The storyline's summary (#2344), by its ``thc:`` id or one of its topics, as the card.
+    404 until the background job has written one; reading it never calls a model."""
+    from podcast_scraper.server.storyline_summaries import summary_for
+
+    data_dir = getattr(request.app.state, "app_data_dir", None)
+    if data_dir is None:
+        raise HTTPException(status_code=404, detail="No summary.")
+    got = summary_for(corpus_root_or_503(request), Path(data_dir), storyline_id.strip())
+    if got is None:
+        raise HTTPException(status_code=404, detail="No summary yet.")
+    return AppStorylineSummary(**got)
 
 
 @router.get("/themes/{theme_id}", response_model=AppClusterCard)
