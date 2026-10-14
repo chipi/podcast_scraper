@@ -248,8 +248,9 @@ old names and text until steps 3 and 4.
   38557754426, $0, nothing changed). The route is `rediarize_only` (audio + DGX) — operator decides.
 - **DR drill red (10-07, 10-14):** restore works; `stack-playwright`'s Firefox graph test times
   out — the data loads in ~16 s, then >45 s of browser graph merge/layout for 1.9k nodes (it
-  passed at 56.7 s of 60 on 09-30). Operator decides: profile and fix the viewer's graph load, or
-  raise the timeout. Next drill 2026-10-21.
+  passed at 56.7 s of 60 on 09-30). Operator chose (2026-10-14) to RAISE the timeout now: the
+  canvas wait is 150 s (test budget 240 s) in `tests/stack-test/stack-viewer.spec.ts`. Verify on
+  the next drill, 2026-10-21. The slow graph load itself is still open (profile the viewer).
 - **GI observation:** regenerated GI repeats some quote texts as separate Quote nodes (2 -> 7 on
   the trial episode); the old GI did it too. Not investigated.
 - **Cleanup, each path needs the operator's OK:** prod `compose-api-1:/tmp/nc` (gold sets +

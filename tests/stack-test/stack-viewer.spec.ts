@@ -45,6 +45,8 @@ test.describe("Stack smoke test", () => {
     page,
     request,
   }) => {
+    // The config's 120 s per-test budget is shorter than the canvas wait below.
+    test.setTimeout(240_000)
     // Pre-seed the corpus path so the viewer's auto-graph-sync flow can
     // resolve a non-empty selection; skip the first-run gesture overlay
     // so it doesn't cover the canvas once it mounts (parity with the
@@ -101,8 +103,13 @@ test.describe("Stack smoke test", () => {
 
     // Then wait for the canvas itself, which only mounts once
     // ``artifacts.displayArtifact`` is non-null.
+    //
+    // 150 s, not 60: on the DR drill's restored prod corpus (22 episodes, 1.9k nodes) the data
+    // arrives in ~16 s and Firefox then spends 45+ s merging and laying out the graph. It passed
+    // at 56.7 s on 2026-09-30 and timed out on 10-07 and 10-14 (visible at 60-87 s). Raised by
+    // operator decision 2026-10-14; the slow graph load itself is still open (docs/wip handover).
     await expect(page.locator(".graph-canvas")).toBeVisible({
-      timeout: 60_000,
+      timeout: 150_000,
     })
 
     if (consoleErrors.length) {
