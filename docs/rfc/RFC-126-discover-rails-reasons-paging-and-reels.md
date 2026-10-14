@@ -158,8 +158,8 @@ GET    /api/app/discover/in-progress   → { paths, reel: {subject, index, clips
 
 **Finished** (operator 2026-10-14): the last day done sets the path's `finished_at` and writes it to
 the learning history (`learning_history.json`, with paths left early). A finished path stays one of
-the listener's paths for a week (Home's card reads "Recently finished", the week says "All N days
-done ✓"), counts toward neither the cap nor what Discover stops offering, and starting its subject
+the listener's paths for a week (its week says "All N days done ✓"; it leaves Home's In progress at
+once — `/discover/in-progress` lists only unfinished paths), counts toward neither the cap nor what Discover stops offering, and starting its subject
 again starts afresh; a week after its last day only the history has it
 (`FINISHED_PATH_KEEP_S`, hidden on read; no other row is rewritten). Profile → Stats lists the
 finished paths from `GET /discover/learn/history` ("Paths you finished").

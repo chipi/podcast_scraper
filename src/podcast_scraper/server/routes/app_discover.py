@@ -920,13 +920,16 @@ def app_delete_reel_progress(
 @router.get("/discover/in-progress", response_model=AppInProgress)
 def app_in_progress(request: Request, user: User = Depends(get_current_user)) -> AppInProgress:
     """What the listener started and has not finished (operator 2026-10-11, Home's "In progress"):
-    their Learn paths, and the last short listen left unfinished."""
+    their Learn paths not yet finished (a finished one leaves Home at once, operator 2026-10-14;
+    its week and the history keep it), and the last short listen left unfinished."""
     root = corpus_root_or_503(request)
     data_dir = _data_dir(request)
     reel = app_user_state.get_reel_progress(data_dir, user.user_id)
     return AppInProgress(
         paths=[
-            _path_out(root, p) for p in app_user_state.get_learning_paths(data_dir, user.user_id)
+            _path_out(root, p)
+            for p in app_user_state.get_learning_paths(data_dir, user.user_id)
+            if app_user_state.learning_path_active(p)
         ],
         reel=(
             _reel_progress_out(

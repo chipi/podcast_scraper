@@ -1289,7 +1289,8 @@ class AppLearningPath(BaseModel):
     finished_at: int | None = Field(
         default=None,
         description="When its last day was done (epoch seconds); None while unfinished. A finished "
-        'path stays on for a week (Home\'s "Recently finished"), then only the history has it.',
+        "path leaves Home's In progress at once; its week stays readable for a week, then only "
+        "the history has it.",
     )
 
 

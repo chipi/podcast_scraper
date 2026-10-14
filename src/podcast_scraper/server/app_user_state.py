@@ -1229,8 +1229,8 @@ def remove_suggest_less(data_dir: Path, user_id: str, token: str) -> list[dict[s
 # subject, oldest first (``learning_paths.json``); and the last unfinished short listen.
 
 
-#: A finished path stays on (Home's "Recently finished", its week) this long, then leaves the
-#: listener's paths; the learning history keeps it (operator 2026-10-14).
+#: A finished path stays one of the listener's paths (its week readable; not on Home's In progress)
+#: this long, then only the learning history keeps it (operator 2026-10-14).
 FINISHED_PATH_KEEP_S = 7 * 86_400
 
 

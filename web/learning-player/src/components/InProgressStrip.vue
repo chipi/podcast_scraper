@@ -53,14 +53,15 @@ onActivated(() => {
   if (leftOnce) void load()
 })
 
+// A finished path is not in progress: off Home at once (operator 2026-10-14); its week and
+// Profile → Stats keep it. The server leaves it out; this covers a day done while Home was open.
 const cards = computed(() =>
-  paths.value.map((p) => {
+  paths.value.filter((p) => !p.finished_at && !(p.steps.length > 0 && p.steps.every((s) => s.done))).map((p) => {
     const now = p.steps.find((s) => s.unlocked && !s.done) ?? null
-    const finished = p.steps.length > 0 && p.steps.every((s) => s.done)
     // The day to do, else the newest open one: its episode's artwork is the card's.
     const face = now ?? [...p.steps].reverse().find((s) => s.unlocked) ?? p.steps[0] ?? null
     const done = p.steps.filter((s) => s.done).length
-    return { path: p, now, finished, done, art: face ? episodeArtwork(face.episode) : null }
+    return { path: p, now, done, art: face ? episodeArtwork(face.episode) : null }
   }),
 )
 const reelArt = computed(() => (reel.value?.episode ? episodeArtwork(reel.value.episode) : null))
@@ -110,13 +111,7 @@ async function openNext(path: LearningPath): Promise<void> {
           <div class="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/80 to-canvas/30" />
           <div class="relative flex flex-1 flex-col p-4">
             <p class="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-learn">
-              <!-- A finished path stays here a week, saying so (operator 2026-10-14); then it is only
-                   in the learning history (Profile → Stats). -->
-              <CalendarMark />{{
-                c.finished
-                  ? t('inProgress.recentlyFinished')
-                  : t('inProgress.learnKicker', { n: c.path.day, total: c.path.steps.length })
-              }}
+              <CalendarMark />{{ t('inProgress.learnKicker', { n: c.path.day, total: c.path.steps.length }) }}
             </p>
             <RouterLink
               :to="{ name: 'learn', query: { subject: c.path.subject_id } }"
@@ -127,7 +122,7 @@ async function openNext(path: LearningPath): Promise<void> {
             <!-- The path is frozen and still plays; only its subject page is gone (#2345). -->
             <GoneBadge v-if="gone.isGone(c.path.subject_id)" class="mt-0.5" />
             <p v-if="c.now" class="mt-1 line-clamp-1 text-sm text-muted">{{ c.now.episode.title }}</p>
-            <p v-else-if="!c.finished" class="mt-1 text-sm text-muted">{{ t('inProgress.doneToday', { n: c.path.day }) }}</p>
+            <p v-else class="mt-1 text-sm text-muted">{{ t('inProgress.doneToday', { n: c.path.day }) }}</p>
             <!-- The week, a segment a day: done, open, not yet. -->
             <div class="mt-3 flex gap-1" role="img" :aria-label="t('learn.progress', { done: c.done, total: c.path.steps.length })">
               <span
@@ -147,9 +142,6 @@ async function openNext(path: LearningPath): Promise<void> {
                   @click="track('learn_path', { action: 'step_play', kind: c.path.subject_kind, day: c.now.day, source: 'in_progress' })"
                 >▶ {{ t('inProgress.playDay', { n: c.now.day }) }} · {{ formatTime(c.now.start_ms / 1000) }}</RouterLink>
               </template>
-              <p v-else-if="c.finished" class="text-sm font-bold text-learn" data-testid="in-progress-learn-finished">
-                {{ t('inProgress.finished', { total: c.path.steps.length }) }}
-              </p>
               <template v-else>
                 <button
                   v-if="c.path.can_open_next"

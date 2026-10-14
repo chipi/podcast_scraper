@@ -372,9 +372,9 @@ def _age_path(data_dir: Path, user_id: str, subject_id: str, **seconds_ago: int)
 def test_a_finished_path_stays_a_week_frees_its_place_and_is_kept_as_history(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Operator 2026-10-14: a path whose every day is done is finished. It stays on Home for a week
-    ("Recently finished"), no longer counts toward the three at once, can be started afresh, and is
-    kept as history; a week after its last day only the history has it."""
+    """Operator 2026-10-14: a path whose every day is done is finished. It leaves Home's In progress
+    at once, no longer counts toward the three at once, can be started afresh, and is kept as
+    history; its week stays readable for a week after its last day, then only the history has it."""
     # What Discover offers is what is rising: pin the clock and the floor, as the offer test does.
     monkeypatch.setenv("APP_TRENDING_NOW", "2026-07-20")
     monkeypatch.setenv("APP_MOMENTUM_MIN_TOTAL", "1")
@@ -387,8 +387,8 @@ def test_a_finished_path_stays_a_week_frees_its_place_and_is_kept_as_history(
 
     path = client.get(f"/api/app/discover/learn/paths/{sid}").json()
     assert isinstance(path["finished_at"], int)
-    on_home = client.get("/api/app/discover/in-progress").json()["paths"]
-    assert [(p["subject_id"], p["finished_at"] is not None) for p in on_home] == [(sid, True)]
+    # Off Home's In progress at once (operator 2026-10-14); its week stays readable.
+    assert client.get("/api/app/discover/in-progress").json()["paths"] == []
 
     # Not one being learned: three more fit beside it, and its subject is offered again.
     offer = client.get("/api/app/discover/learn").json()

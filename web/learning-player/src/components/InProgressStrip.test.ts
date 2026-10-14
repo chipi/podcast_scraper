@@ -122,10 +122,9 @@ describe('InProgressStrip', () => {
     // Days count 24 h from the start, not calendar days: the copy says when, not "tomorrow".
     expect(cards[1].get('[data-testid="in-progress-learn-later"]').text()).toBe('Day 3 opens in 14 h')
     expect(cards[0].text()).toContain('Day 2 done ✓')
-    expect(cards[2].get('[data-testid="in-progress-learn-finished"]').text()).toBe('All 7 days done ✓')
-    // On Home for the week after (the server drops it then), saying so (operator 2026-10-14).
-    expect(cards[2].text()).toContain('Recently finished')
-    expect(cards[0].text()).not.toContain('Recently finished')
+    // A finished path is not in progress: off Home at once (operator 2026-10-14).
+    expect(cards).toHaveLength(2)
+    expect(w.text()).not.toContain('All 7 days done')
     await cards[0].get('[data-testid="in-progress-learn-next"]').trigger('click')
     await flushPromises()
     expect(api.learnOpenNext).toHaveBeenCalledWith('thc:a')

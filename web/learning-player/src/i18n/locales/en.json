@@ -1381,7 +1381,6 @@
     "remove": "Remove",
     "title": "In progress",
     "learnKicker": "Learn · day {n} of {total}",
-    "recentlyFinished": "Recently finished",
     "playDay": "Play day {n}",
     "doneToday": "Day {n} done ✓",
     "opensIn": "Day {n} opens in {h} h",

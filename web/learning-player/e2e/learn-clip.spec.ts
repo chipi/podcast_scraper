@@ -72,10 +72,12 @@ test('"Play all" plays every day back to back and does each one', async ({ page 
   await expect(page.getByTestId('learn-play-all')).toHaveCount(0)
   await expect(page.getByTestId('learn-view-finished')).toHaveText('All 4 days done ✓')
 
-  // Finished (operator 2026-10-14): Home says so for the week after, and Stats keeps it as history.
+  // Finished (operator 2026-10-14): off Home's In progress at once, kept as history in Stats.
+  const inProgress = await (await page.request.get('/api/app/discover/in-progress')).json()
+  expect(inProgress.paths).toEqual([])
   await page.goto('/')
-  const card = page.getByTestId('in-progress-learn').filter({ hasText: 'Building trails that last' })
-  await expect(card).toContainText('Recently finished')
+  await page.waitForLoadState('networkidle')
+  await expect(page.getByTestId('in-progress-learn')).toHaveCount(0)
   await page.goto('/profile?tab=stats')
   await expect(page.getByTestId('stats-learning-history-item').filter({ hasText: 'Building trails that last' })).toContainText(
     '4 days ·',
