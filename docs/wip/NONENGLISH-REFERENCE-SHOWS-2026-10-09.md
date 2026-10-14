@@ -129,7 +129,7 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
   - D29 (a wrong host name from the naming model, no deterministic signal). Tracked with the
     two V.6b naming defects in #2352.
   - D37 (invented lines at the end of a first-pass transcript; the audio-backed rule is the
-    candidate).
+    candidate). Tracked in #2353.
   - Foreign tape is not transcribed, by the no-language-detection rule.
   - The digital-silence threshold is checked on the 30 reference files only.
   - `host_acts_are_all_bled` reads English only: on other feeds it never fires, the safe direction.
@@ -376,7 +376,7 @@ commit against the baseline run.
 | D34 | Up First 10-09 (en) | a punctuation repair of 602-768 s refused as repetitive, the window left unpunctuated | Whisper's reported ratio for the clip's last decode window counts lines it re-emitted over the silent end and never put in a segment | fixed: lines an earlier window holds are dropped from the last window; repetitive needs the reported ratio and the segments' own text both over 2.4. Repaired on the re-run |
 | D35 | Camera seduta 714 (it), RFI 10-09 (fr) | recovered text read "l 'ordine", "l 'intégralité" | recovered words were stripped and re-spaced, splitting every elision | fixed: joined as Whisper wrote them. Replay: 11 recovered segments change, Camera 714 0.0896 -> 0.0882 |
 | D36 | Italiano ON-Air (it), eval runner | the three episodes scored as absent | Buzzsprout redeclares Atom as the default namespace on one element; registering that empty prefix moved the served feed's item and guid into Atom; the pipeline read no guid (and no date or link) | fixed in the eval repo; the scorer now names every episode the run was given and wrote nothing for |
-| D37 | Up First 10-08 (en), RFI 10-09, SWR 10-07 | invented lines at the end of a first-pass transcript ("and we'll see you next time" x13 in one segment) | Whisper repeats outro lines over the end of a file | OPEN: text and timing alone do not separate them from real repeated speech on the prod corpus (829 matches in 337 of 2,628 transcripts, mixed); the generalising signal is the audio (no diarized voice under the line). Long insertions are out of the adjusted figures |
+| D37 | Up First 10-08 (en), RFI 10-09, SWR 10-07 | invented lines at the end of a first-pass transcript ("and we'll see you next time" x13 in one segment) | Whisper repeats outro lines over the end of a file | OPEN: text and timing alone do not separate them from real repeated speech on the prod corpus (829 matches in 337 of 2,628 transcripts, mixed); the generalising signal is the audio (no diarized voice under the line). Long insertions are out of the adjusted figures. #2353 |
 
 **Discussion held for the end of the arc (operator, 2026-10-09):** the RFC-124 §5.3 all-or-nothing
 translation gate. At the baseline one refused unit in ~80 withheld a Spanish episode's whole English
