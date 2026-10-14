@@ -306,6 +306,9 @@ services:
       PODCAST_OBS_GITHUB_TOKEN: ${PODCAST_OBS_GITHUB_TOKEN:-}
       PODCAST_OBS_SENTRY_TOKEN: ${PODCAST_OBS_SENTRY_TOKEN:-}
       SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+      # LLM traces (config: langfuse.*_env) — the podcast-prod project keys the gateway uses.
+      PODCAST_OBS_LANGFUSE_PUBLIC_KEY: ${PODCAST_OBS_LANGFUSE_PUBLIC_KEY:-}
+      PODCAST_OBS_LANGFUSE_SECRET_KEY: ${PODCAST_OBS_LANGFUSE_SECRET_KEY:-}
       # Backend READ URLs — rendered at deploy time by deploy-player.yml, like every other prod
       # container's observability endpoints (#2188). The YAML carries none; the loader falls back to
       # these. They MUST be declared here: compose passes a container only what this block names,

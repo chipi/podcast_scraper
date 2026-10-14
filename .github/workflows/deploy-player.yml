@@ -280,6 +280,10 @@ jobs:
           # SENTRY_AUTH_TOKEN above returns HTTP 401 against the GlitchTip API, so it cannot back
           # that source. Empty -> `errors` reports "not configured"; nothing else is affected.
           PODCAST_OBS_SENTRY_TOKEN: ${{ secrets.PODCAST_OBS_SENTRY_TOKEN }}
+          # obs `traces` source (Langfuse podcast-prod): the gateway's own project keys, so obs
+          # reads exactly the project prod's LLM calls land in. Empty -> "not configured".
+          PODCAST_OBS_LANGFUSE_PUBLIC_KEY: ${{ secrets.LITELLM_LANGFUSE_PUBLIC_KEY }}
+          PODCAST_OBS_LANGFUSE_SECRET_KEY: ${{ secrets.LITELLM_LANGFUSE_SECRET_KEY }}
           # The tailnet suffix for the obs read URLs below — derived, never committed
           # (identifier-denylist). Already a required var of this workflow (preflight checks it).
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
@@ -447,6 +451,8 @@ jobs:
             echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN}"
             echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
             echo "PODCAST_OBS_SENTRY_TOKEN=${PODCAST_OBS_SENTRY_TOKEN}"
+            echo "PODCAST_OBS_LANGFUSE_PUBLIC_KEY=${PODCAST_OBS_LANGFUSE_PUBLIC_KEY}"
+            echo "PODCAST_OBS_LANGFUSE_SECRET_KEY=${PODCAST_OBS_LANGFUSE_SECRET_KEY}"
             # Obs read URLs, built and validated at the top of this step (#2188). Traces need no
             # line here: obs reuses OTEL_EXPORTER_OTLP_TRACES_ENDPOINT above, the same value the
             # player api exports spans to.
