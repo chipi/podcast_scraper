@@ -2683,6 +2683,13 @@ class LearningNowStat(BaseModel):
     done: int = Field(ge=0, description="Days done.")
 
 
+class MomentsHeardOut(BaseModel):
+    """GET /api/app/me/moments-heard?slug= — the episode's moments heard to their end, ever."""
+
+    slug: str
+    insight_ids: list[str] = Field(default_factory=list)
+
+
 class MomentHeard(BaseModel):
     """Body for POST /api/app/me/moments-heard — one short-listen event (operator 2026-10-12)."""
 

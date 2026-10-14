@@ -51,6 +51,26 @@ test('the Moments door opens the Moments view and the reel plays its moments in 
   await expect(page.getByTestId('moments-current')).toContainText('Moment 3 of 3')
 })
 
+test('a moment heard to its end is ticked, and still is on the next visit (operator 2026-10-14)', async ({ page }, testInfo) => {
+  await openEpisode(page, testInfo, 'heard-tick')
+  await page.getByTestId('player-open-moments').click()
+  const first = page.getByTestId('moments-index-mark').first()
+  await expect(first).toHaveAttribute('data-state', 'now')
+  // Played to its end (not skipped): moment 2 starts, and moment 1 is ticked.
+  await expect(page.getByTestId('moments-current')).toContainText('Moment 2 of 3', { timeout: 30_000 })
+  await expect(first).toHaveAttribute('data-state', 'heard')
+  await expect(first).toHaveText('✓')
+  // Skipped: moment 2 keeps its number.
+  await page.getByTestId('moments-next').click()
+  await expect(page.getByTestId('moments-index-mark').nth(1)).toHaveAttribute('data-state', 'todo')
+
+  await page.reload()
+  await expect(page.getByTestId('moments-index-mark').first()).toHaveAttribute('data-state', /now|heard/)
+  await expect(page.getByTestId('moments-index-mark').nth(1)).toHaveAttribute('data-state', 'todo')
+  await page.getByTestId('moments-index-item').nth(2).click()
+  await expect(page.getByTestId('moments-index-mark').first()).toHaveAttribute('data-state', 'heard')
+})
+
 test('Keep listening here returns to the episode at that moment, still playing', async ({ page }, testInfo) => {
   await openEpisode(page, testInfo, 'keep')
   await page.getByTestId('player-open-moments').click()

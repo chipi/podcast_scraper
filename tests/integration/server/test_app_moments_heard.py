@@ -82,3 +82,23 @@ def test_a_highlight_keeps_where_it_was_saved(tmp_path: Path) -> None:
     assert saved.status_code == 201
     assert saved.json()["source"] == "moment"
     assert client.get("/api/app/me/stats").json()["capture_from_moment"] == 1
+
+
+def test_an_episode_says_which_of_its_moments_were_heard(tmp_path: Path) -> None:
+    """Operator 2026-10-14: the player ticks the moments heard to their end, ever. Only that
+    episode's, only clips (not "Keep listening"), each once."""
+    client = _client(tmp_path)
+    for body in (
+        {"kind": "clip", "slug": "ep1", "insight_id": "b", "seconds": 6},
+        {"kind": "clip", "slug": "ep1", "insight_id": "a", "seconds": 6},
+        {"kind": "clip", "slug": "ep1", "insight_id": "a", "seconds": 6},
+        {"kind": "clip", "slug": "ep2", "insight_id": "c", "seconds": 6},
+        {"kind": "keep", "slug": "ep1"},
+    ):
+        assert client.post("/api/app/me/moments-heard", json=body).status_code == 204
+    got = client.get("/api/app/me/moments-heard", params={"slug": "ep1"}).json()
+    assert got == {"slug": "ep1", "insight_ids": ["a", "b"]}
+    assert (
+        client.get("/api/app/me/moments-heard", params={"slug": "ep3"}).json()["insight_ids"] == []
+    )
+    assert client.get("/api/app/me/moments-heard").status_code == 422

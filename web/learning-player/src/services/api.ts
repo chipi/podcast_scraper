@@ -1137,6 +1137,10 @@ export async function postMomentHeard(body: {
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /me/moments-heard → ${resp.status}`)
 }
+/** Which of an episode's moments the listener has heard to their end, ever (operator 2026-10-14). */
+export async function getMomentsHeard(slug: string): Promise<string[]> {
+  return (await getJSON<{ insight_ids: string[] }>('/me/moments-heard', { slug })).insight_ids ?? []
+}
 /** Remember where a short listen is, so Home can resume it. */
 export async function putReelProgress(
   subjectId: string,

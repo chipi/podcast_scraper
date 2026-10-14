@@ -75,6 +75,7 @@ import {
   getEpisodeRecap,
   getInsights,
   getLearningPath,
+  getMomentsHeard,
   getPlayback,
   getRelated,
   getSegments,
@@ -1244,6 +1245,35 @@ watch(
 )
 // An episode reel only: a topic reel's clips are from many episodes and play on their own page.
 const momentsActive = computed(() => player.reel?.slug === props.slug && !player.reel?.topic)
+// The moments heard to their end, ever (operator 2026-10-14): ticked in the Moments list. From the
+// server once the list shows, then each clip as it ends here.
+const momentsHeard = ref<Set<string>>(new Set())
+const momentsHeardFor = ref<string | null>(null)
+watch(
+  () => [momentsActive.value, props.slug, auth.isAuthenticated] as const,
+  async ([active, slug, signedIn]) => {
+    if (!active || !signedIn || momentsHeardFor.value === slug) return
+    momentsHeardFor.value = slug
+    const ids = await getMomentsHeard(slug).catch(() => [] as string[])
+    if (props.slug === slug) momentsHeard.value = new Set([...momentsHeard.value, ...ids])
+  },
+  { immediate: true },
+)
+watch(
+  () => props.slug,
+  () => {
+    momentsHeard.value = new Set()
+    momentsHeardFor.value = null
+  },
+)
+watch(
+  () => player.momentHeard,
+  (e) => {
+    if (e?.kind === 'clip' && e.slug === props.slug && e.insightId) {
+      momentsHeard.value = new Set([...momentsHeard.value, e.insightId])
+    }
+  },
+)
 /** "Nora, host" on the current moment: hosts and guests from the episode's people. */
 const speakerRoles = computed<Record<string, string>>(() => {
   const out: Record<string, string> = {}
@@ -2275,6 +2305,7 @@ const { badgeShown } = useCorpusLanguages()
           :moments="player.reel.moments"
           :index="player.reel.index"
           :done="player.reel.done"
+          :heard="momentsHeard"
           @go="player.reelGo"
         />
       </div>

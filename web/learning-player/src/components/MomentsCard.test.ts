@@ -81,9 +81,9 @@ describe('MomentsCard: the reel inside the artwork (operator 2026-10-10)', () =>
 })
 
 describe('MomentsIndex: every moment, under the transport', () => {
-  it('lists them with their times; played ticked, current marked; a tap goes there', async () => {
+  it('lists them with their times; heard ticked, current marked; a tap goes there', async () => {
     const w = mount(MomentsIndex, {
-      props: { moments: MOMENTS, index: 1, done: false },
+      props: { moments: MOMENTS, index: 1, done: false, heard: new Set([MOMENTS[0].insightId]) },
       global: { plugins: [i18n] },
     })
     expect(w.get('[data-testid="moments-episode"]').text()).toContain('3 moments · 3½ min')
@@ -93,5 +93,18 @@ describe('MomentsIndex: every moment, under the transport', () => {
     expect(items[1].attributes('aria-current')).toBe('true')
     await items[2].trigger('click')
     expect(w.emitted('go')![0]).toEqual([2])
+  })
+
+  it('ticks a moment heard to its end, ever — not one merely passed (operator 2026-10-14)', () => {
+    const marks = (heard: Set<string>, index: number, done = false) =>
+      mount(MomentsIndex, { props: { moments: MOMENTS, index, done, heard }, global: { plugins: [i18n] } })
+        .findAll('[data-testid="moments-index-mark"]')
+        .map((m) => m.attributes('data-state'))
+    // Skipped past the first: it keeps its number.
+    expect(marks(new Set(), 2)).toEqual(['todo', 'todo', 'now'])
+    // Heard on an earlier visit, before this run reached it.
+    expect(marks(new Set([MOMENTS[2].insightId]), 0)).toEqual(['now', 'todo', 'heard'])
+    // The reel over: only what was heard is ticked.
+    expect(marks(new Set([MOMENTS[1].insightId]), 2, true)).toEqual(['todo', 'heard', 'todo'])
   })
 })

@@ -36,6 +36,7 @@ from podcast_scraper.server.schemas import (
     LibraryResponse,
     ListenEventBody,
     MomentHeard,
+    MomentsHeardOut,
     PlaybackListResponse,
     PlaybackPosition,
     PlaybackProgressBody,
@@ -236,6 +237,22 @@ def log_moment_heard(
     app_user_state.append_moment_heard(
         _data_dir(request), user.user_id, body.model_dump(exclude={"client_ts"}), at
     )
+
+
+@router.get("/me/moments-heard", response_model=MomentsHeardOut)
+def my_moments_heard(
+    request: Request,
+    slug: str = Query(..., min_length=1, max_length=512, description="The episode."),
+    user: User = Depends(get_current_user),
+) -> MomentsHeardOut:
+    """Which of an episode's moments the listener has heard to their end, ever (operator
+    2026-10-14: the player ticks them in the Moments list). From the clip-heard events above."""
+    ids = {
+        str(m.get("insight_id"))
+        for m in app_user_state.list_moments_heard(_data_dir(request), user.user_id)
+        if m.get("kind") == "clip" and m.get("slug") == slug and m.get("insight_id")
+    }
+    return MomentsHeardOut(slug=slug, insight_ids=sorted(ids))
 
 
 @router.get("/me/stats", response_model=UserStatsResponse)
