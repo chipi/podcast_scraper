@@ -1,7 +1,7 @@
-Summarise this storyline: "{{ label }}". It spans {{ episode_count }} episode{{ "s" if episode_count != 1 else "" }}{% if topics %}, on {{ topics | join(", ") }}{% endif %}.{% if episode_count > episodes | length %} The {{ episodes | length }} below are spread across its time.{% endif %}
+Summarise this storyline: "{{ label }}". It spans {{ episode_count }} episode{{ "s" if episode_count != 1 else "" }}{% if topics %}, on {{ topics | join(", ") }}{% endif %}.{% if episode_count > episodes | length %} The episodes below are a sample spread across its time.{% endif %}
 {% for ep in episodes %}
 
-<episode n={{ loop.index }}{% if ep.date %} date={{ ep.date }}{% endif %}>
+<episode{% if ep.date %} date={{ ep.date }}{% endif %}>
 Title: {{ ep.title }}
 {% if ep.show %}Show: {{ ep.show }}
 {% endif %}{% if ep.summary %}Summary: {{ ep.summary }}

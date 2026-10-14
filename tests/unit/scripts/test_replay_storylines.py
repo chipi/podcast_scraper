@@ -53,4 +53,6 @@ def test_the_new_rule_never_drops_a_storyline_it_published(replayed: dict) -> No
 
 def test_the_new_rule_keeps_one_storyline_per_topic(replayed: dict) -> None:
     for month, snap in replayed["new"]:
-        assert _mod.summarise([(month, snap)])["topics_in_two_storylines"] == 0, month
+        got = _mod.summarise([(month, snap)])
+        assert got["topics_in_two_storylines"] == 0, month
+        assert got["storylines_sharing_a_name"] == 0, month

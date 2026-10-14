@@ -169,3 +169,70 @@ def test_a_storyline_whose_topics_all_went_to_others_has_a_successor() -> None:
     stories, state = _run([merged], state, 1 * DAY)
     assert "thc:small" not in _ids(stories)
     assert state["id_history"]["successors"] == {"thc:small": "thc:big"}
+
+
+def _bar(state: dict, props: list[dict], start_day: int) -> tuple[list[dict], dict]:
+    """Propose ``props`` long enough for a candidate to clear the bar (28 days)."""
+    stories: list[dict] = []
+    for day in (start_day, start_day + 30):
+        stories, state = _run(props, state, day * DAY)
+    return stories, state
+
+
+def test_a_candidate_with_an_existing_storylines_name_joins_it_not_a_duplicate() -> None:
+    """Replay over production: a second "ai regulation" was created next to the first (#2349)."""
+    base = _prop("ai regulation", ["topic:a", "topic:b", "topic:c"], ["e1", "e2"])
+    _, state = _run([base], None, 0.0)
+    again = _prop(
+        "ai regulation", ["topic:c", "topic:x", "topic:y"], ["n1", "n2", "n3", "n4", "n5"]
+    )
+    stories, state = _bar(state, [base, again], 1)
+    assert [s["canonical_label"] for s in stories] == ["ai regulation"]
+    (s,) = stories
+    assert {"topic:x", "topic:y"} <= {m["topic_id"] for m in s["members"]}
+
+
+def test_a_candidate_overlapping_a_storyline_by_a_third_joins_it() -> None:
+    base = _prop("risk", ["topic:a", "topic:b", "topic:c"], ["e1", "e2"])
+    _, state = _run([base], None, 0.0)
+    near = _prop("hedging", ["topic:a", "topic:x", "topic:y"], ["n1", "n2", "n3", "n4", "n5"])
+    stories, state = _bar(state, [base, near], 1)
+    assert _ids(stories) == {"thc:risk"}
+
+
+def test_a_rename_never_takes_a_name_another_storyline_holds() -> None:
+    """Replay: "world models" was renamed to "reinforcement learning", which another storyline
+    was already called — two storylines with one name (#2349)."""
+    rl = _prop("reinforcement learning", ["topic:r", "topic:s"], ["e1", "e2"])
+    wm = _prop("world models", ["topic:w", "topic:v"], ["e3", "e4"])
+    _, state = _run([rl, wm], None, 0.0)
+    wm_as_rl = _prop("reinforcement learning", ["topic:w", "topic:v"], ["e3", "e4", "e5"])
+    for day in (1, 40, 70):
+        stories, state = _run([rl, wm_as_rl], state, day * DAY)
+    names = sorted(s["canonical_label"] for s in stories)
+    assert names == ["reinforcement learning", "world models"]
+
+
+def test_two_storylines_proposed_as_one_for_thirty_days_merge() -> None:
+    big = _prop("model distillation", ["topic:m", "topic:n", "topic:o"], ["e1", "e2", "e3", "e4"])
+    small = _prop("ai scaling laws", ["topic:s", "topic:t"], ["e5", "e6"])
+    _, state = _run([big, small], None, 0.0)
+    both = _prop("model distillation", ["topic:m", "topic:n", "topic:s", "topic:t"], ["e1", "e5"])
+    stories, state = _run([both], state, 1 * DAY)
+    assert _ids(stories) == {"thc:model-distillation", "thc:ai-scaling-laws"}, "not yet: 1 day"
+    stories, state = _run([both], state, 31 * DAY)
+    (s,) = stories
+    assert s["graph_compound_parent_id"] == "thc:model-distillation"
+    assert "ai scaling laws" in s["aliases"]
+    assert state["id_history"]["successors"] == {"thc:ai-scaling-laws": "thc:model-distillation"}
+
+
+def test_a_merge_needs_the_pair_proposed_together_on_every_run() -> None:
+    big = _prop("model distillation", ["topic:m", "topic:n", "topic:o"], ["e1", "e2", "e3", "e4"])
+    small = _prop("ai scaling laws", ["topic:s", "topic:t"], ["e5", "e6"])
+    _, state = _run([big, small], None, 0.0)
+    both = _prop("model distillation", ["topic:m", "topic:n", "topic:s", "topic:t"], ["e1", "e5"])
+    _, state = _run([both], state, 1 * DAY)
+    _, state = _run([big, small], state, 15 * DAY)  # apart again: the clock restarts
+    stories, state = _run([both], state, 32 * DAY)
+    assert len(stories) == 2

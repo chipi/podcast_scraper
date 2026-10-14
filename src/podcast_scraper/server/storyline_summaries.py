@@ -22,6 +22,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
@@ -239,6 +240,34 @@ class SweepResult:
     stopped: Optional[str] = None
 
 
+#: The summary's limits (operator decision 6, 2026-10-13). The prompt asks for them; the prod
+#: model exceeded them on 8 of 9 storylines in the first real run (93-143 words, 2026-10-14), so
+#: they are also enforced here.
+MAX_SENTENCES = 3
+MAX_WORDS = 80
+
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[\"'“A-Z0-9])")
+
+
+def fit_summary(text: str, *, sentences: int = MAX_SENTENCES, words: int = MAX_WORDS) -> str:
+    """Whole sentences, at most ``sentences`` of them and ``words`` words in all. A first sentence
+    already longer than ``words`` is cut at the last word that fits, with an ellipsis — every
+    storyline keeps a summary."""
+    parts = [p for p in _SENTENCE_END.split(" ".join(text.split())) if p]
+    kept: list[str] = []
+    count = 0
+    for part in parts[:sentences]:
+        n = len(part.split())
+        if kept and count + n > words:
+            break
+        kept.append(part)
+        count += n
+    out = " ".join(kept)
+    if len(out.split()) > words:
+        out = " ".join(out.split()[:words]).rstrip(",;:") + "…"
+    return out
+
+
 def sweep(
     root: Path,
     data_dir: Path,
@@ -308,7 +337,7 @@ def sweep(
             result.stopped = "budget"
             return result
         try:
-            text = " ".join(summarize(material).split())
+            text = fit_summary(summarize(material))
         except Exception as exc:  # noqa: BLE001 — one storyline's failure must not end the sweep
             if board_summaries._unreachable(exc):
                 result.stopped = "model_unreachable"

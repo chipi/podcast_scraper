@@ -52,7 +52,7 @@
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
       "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "stats", "expr": "instance:prod-podcast AND job:podcast-pipeline AND event_type:llm_cost | stats sum(estimated_cost_usd) cost" } ]
+      "targets": [ { "refId": "A", "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "queryType": "stats", "expr": "instance:prod-podcast AND surface:pipeline AND (event_type:llm_cost OR \"\\\"event_type\\\": \\\"llm_cost\\\"\") | extract_regexp `(?P<ev>\\{\"ts\": .*\\})` | unpack_json from ev | stats sum(estimated_cost_usd) cost" } ]
     },
     {
       "id": 5, "type": "timeseries", "title": "App event volume over time ($surface)",

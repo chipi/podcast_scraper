@@ -185,6 +185,37 @@ together in two or more episodes, which is exactly the set in no storyline. Trac
 - `scripts/eval/replay_storylines.py` — the replay above, driving the production enricher (old
   rule: each month from scratch; new rule: each month reconciled against the previous one).
 
+### Duplicates and merges (2026-10-14)
+
+Measured over the production history, the registry as first built made three pairs of storylines
+with one name ("reinforcement learning", "ai in education", "ai regulation"): a new storyline was
+created next to one it overlapped by about a third, under the 0.5 bar to attach, and one rename took
+a name another storyline held. Fixed:
+
+- **No duplicates.** A candidate proposed under an existing storyline's name (or a name it had),
+  or holding 0.3 of its topics in one, joins that storyline instead of becoming a second. A rename
+  never takes a name another storyline holds.
+- **Merges.** One proposal covering 0.3 of each of two storylines' published topics proposes them
+  as one; proposed as one on every run across 30 days, the smaller (fewer episodes) merges into the
+  larger: topics, episodes and history join, its name becomes an alias, its id the larger's
+  successor, so its followers move with it (reference pass). A run that proposes them apart
+  restarts the clock.
+
+Replay after the fix: 51 storylines, none sharing a name, none under 5 episodes, 0 topics in two
+storylines, follows kept 18/18 (a merged storyline's follow counts as kept through its successor).
+It merged "ai ethics" and "embodied cognition" into "ai in education" and "vibe coding" into
+"human-ai collaboration" — the larger by episodes keeps its name, which a listener may know less
+well. On the path production will take (the history seed, then nightly runs), all 99 storylines
+keep their id, name and anchor through day 31; by day 62 one merges ("moat discovery" into "vibe
+coding", which took three of its topics at the seed).
+
+**Child storylines** (a narrower thread inside a broader one, like a blockade inside a war) were
+measured and not built: of 57 storylines created over the history, 6 overlapped an existing one by
+0.2-0.5 — three were the duplicates above, two were one thread superseding another (merges), and
+one was close ("banco master scandal", Brazil's Supreme Court crisis, beside "political
+polarization", a general theme rather than a news thread). This corpus is mostly ongoing discussion
+rather than news events; revisit with more news shows or after #2351.
+
 ### Watching storylines and themes over time (2026-10-14)
 
 Both artifacts are rewritten every run, so on their own they cannot say how storylines and themes
@@ -266,7 +297,8 @@ user state is rewritten; the reference pass keeps running.
 
 - Matching proposals to storylines by THEME (semantic grouping) rather than exact topic ids, so an
   episode on "risk naming" can join "risk management" (#2351).
-- Automatic merges of two storylines that keep proposing together (v1 folds a proposal into its
-  best match and leaves the other to go quiet).
+- Which storyline's name survives a merge: today the larger by episodes; the name the clustering
+  proposes for the pair may be the better one.
+- Child storylines (see Duplicates and merges): not built; revisit with a news-heavier corpus.
 - Whether a quiet storyline is offered to new listeners at all, or only kept for followers.
 - How a child storyline appears on its parent's page.

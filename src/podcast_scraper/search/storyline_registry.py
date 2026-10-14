@@ -54,6 +54,13 @@ class Params:
     bar_days: float = 28.0
     quiet_days: float = 90.0
     candidate_forget_days: float = 90.0
+    #: A candidate holding this share of its topics in an existing storyline, or proposed under its
+    #: name, joins it instead of becoming a second one (replay: three same-name pairs, #2349).
+    join_share: float = 0.3
+    #: One proposal holding this share of EACH of two storylines' published topics proposes them as
+    #: one; proposed as one on every run across ``merge_days``, the smaller merges into the larger.
+    together_share: float = 0.3
+    merge_days: float = 30.0
 
 
 def _slug(label: str) -> str:
@@ -126,6 +133,14 @@ def reconcile(
 
     # The largest proposal attached to an entry decides which label it is proposed under.
     attached_label: dict[str, tuple[int, str]] = {}
+    together_now: set[tuple[str, str]] = set()
+    # What each storyline published last run: a topic one storyline took from another by
+    # attachment does not make every later proposal of the other "together" with it.
+    owned = {
+        str(c.get("graph_compound_parent_id")): _members(c)
+        for c in prior.get("clusters") or []
+        if c.get("graph_compound_parent_id") in entries
+    }
     for prop in sorted(
         proposals, key=lambda c: (-len(_episodes(c)), str(c.get("canonical_label")))
     ):
@@ -134,11 +149,17 @@ def reconcile(
             continue
         label = str(prop.get("canonical_label") or "")
         best_id, best = None, 0.0
+        hit = sorted(
+            sid
+            for sid, mine in owned.items()
+            if mine and len(topics & mine) / len(mine) >= p.together_share
+        )
         for sid in sorted(entries):
             held = {t for t, w in entries[sid]["topics"].items() if w >= p.held_strength}
             share = len(topics & held) / len(topics)
             if share > best:
                 best_id, best = sid, share
+        together_now |= {(a, b) for i, a in enumerate(hit) for b in hit[i + 1 :]}
         if best_id is not None and best >= p.attach_share:
             e = entries[best_id]
             for t in topics:
@@ -156,6 +177,8 @@ def reconcile(
         e = entries[sid]
         if label == e["name"] or not label:
             e["rename"] = None
+        elif any(o != sid and entries[o]["name"] == label for o in entries):
+            e["rename"] = None  # another storyline holds that name: two would share it
         elif (e.get("rename") or {}).get("label") == label:
             if now - float(e["rename"]["since"]) >= p.rename_days * _DAY_S:
                 e["aliases"] = [*e["aliases"], e["name"]]
@@ -163,7 +186,10 @@ def reconcile(
         else:
             e["rename"] = {"label": label, "since": now}
 
-    taken = set(entries) | {f"thc:{_slug(a)}" for e in entries.values() for a in e["aliases"]}
+    retired = set(registry.get("retired") or [])
+    taken = (
+        set(entries) | retired | {f"thc:{_slug(a)}" for e in entries.values() for a in e["aliases"]}
+    )
     kept_candidates = []
     for c in candidates:
         ready = (
@@ -172,6 +198,8 @@ def reconcile(
             and now - float(c["first_seen"]) >= p.bar_days * _DAY_S
             and float(c["last_seen"]) == now
         )
+        if ready and _join_existing(entries, c, p, now):
+            continue
         if ready:
             base, sid, k = f"thc:{_slug(c['label'])}", f"thc:{_slug(c['label'])}", 1
             while sid in taken:
@@ -190,19 +218,105 @@ def reconcile(
         elif now - float(c["last_seen"]) <= p.candidate_forget_days * _DAY_S:
             kept_candidates.append(c)
 
+    together, merged = _merge_together(
+        entries, dict(registry.get("together") or {}), together_now, p, now
+    )
     storylines, gone, absorbed = _publish(entries, p, topic_label, topic_eps, now)
 
     history = dict(prior.get("id_history") or {})
-    successors = {**dict(history.get("successors") or {}), **absorbed}
+    successors = {**dict(history.get("successors") or {}), **absorbed, **merged}
     published = {s["graph_compound_parent_id"] for s in storylines}
     id_history = {
         "successors": {k: v for k, v in sorted(successors.items()) if v in published},
         "gone": sorted((set(history.get("gone") or []) | set(gone)) - published),
     }
-    state: dict[str, Any] = {"as_of": now, "entries": entries, "candidates": kept_candidates}
+    state: dict[str, Any] = {
+        "as_of": now,
+        "entries": entries,
+        "candidates": kept_candidates,
+        "together": together,
+        "retired": sorted(retired | set(merged)),
+    }
     if registry.get("seeded_from"):
         state["seeded_from"] = registry["seeded_from"]  # the history seed it took (seed id)
     return storylines, state, id_history
+
+
+def _join_existing(
+    entries: dict[str, dict[str, Any]], c: Mapping[str, Any], p: Params, now: float
+) -> bool:
+    """A candidate ready to become a storyline joins an existing one instead when it is proposed
+    under that storyline's name (or a name it had), or holds ``join_share`` of its topics there:
+    the same thread, which would otherwise be published twice."""
+    topics, label = set(c["topics"]), str(c.get("label") or "").strip().lower()
+    target, best = None, 0.0
+    for sid in sorted(entries):
+        e = entries[sid]
+        names = {str(n).strip().lower() for n in [e["name"], *e.get("aliases", [])]}
+        held = {t for t, w in e["topics"].items() if w >= p.held_strength}
+        share = len(topics & held) / len(topics) if topics else 0.0
+        score = 2.0 if label and label in names else share
+        if score > best:
+            target, best = sid, score
+    if target is None or best < p.join_share:
+        return False
+    e = entries[target]
+    for t in topics:
+        e["topics"][t] = max(e["topics"].get(t, 0.0), 1.0)
+    known = set(e.get("episodes") or [])
+    if set(c["episodes"]) - known:
+        e["last_active_at"] = now
+    e["episodes"] = sorted(known | set(c["episodes"]))
+    return True
+
+
+def _merge_together(
+    entries: dict[str, dict[str, Any]],
+    together: dict[str, float],
+    together_now: set[tuple[str, str]],
+    p: Params,
+    now: float,
+) -> tuple[dict[str, float], dict[str, str]]:
+    """``(pairs still proposed together -> since, {merged id: survivor})``.
+
+    A pair proposed as one on this run keeps its start; a pair that was not is forgotten, so a
+    merge needs the two proposed together on every run across ``merge_days``. Then the smaller
+    (fewer episodes; then the younger, then the id) merges into the larger: its topics, episodes
+    and history join, its name becomes an alias, and its id becomes the larger's successor.
+    """
+    kept: dict[str, float] = {}
+    merged: dict[str, str] = {}
+    for a, b in sorted(together_now):
+        key = f"{a}|{b}"
+        since = float(together.get(key, now))
+        if a in merged or b in merged or a not in entries or b not in entries:
+            continue
+        if now - since < p.merge_days * _DAY_S:
+            kept[key] = since
+            continue
+
+        def rank(sid: str) -> tuple[int, float, str]:
+            e = entries[sid]
+            return (len(e.get("episodes") or []), -float(e["created_at"]), sid)
+
+        keep, drop = (a, b) if rank(a) >= rank(b) else (b, a)
+        k, d = entries[keep], entries.pop(drop)
+        for t, w in d["topics"].items():
+            k["topics"][t] = max(k["topics"].get(t, 0.0), w)
+        k["episodes"] = sorted(set(k.get("episodes") or []) | set(d.get("episodes") or []))
+        k["aliases"] = [
+            n
+            for n in dict.fromkeys([*k["aliases"], d["name"], *d.get("aliases", [])])
+            if n != k["name"]
+        ]
+        k["created_at"] = min(float(k["created_at"]), float(d["created_at"]))
+        k["last_active_at"] = max(float(k["last_active_at"]), float(d["last_active_at"]))
+        merged[drop] = keep
+    for sid, into in list(merged.items()):  # a chain merged this run points at its end
+        while into in merged:
+            into = merged[into]
+        merged[sid] = into
+    return kept, merged
 
 
 def _publish(

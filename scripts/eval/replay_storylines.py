@@ -70,12 +70,14 @@ def _snapshot(data: dict[str, Any]) -> dict[str, tuple[str, frozenset[str], froz
     }
 
 
-def replay(corpus: Path, min_episodes: int = 50) -> dict[str, list[tuple[str, dict]]]:
-    """``{rule: [(month, {id: (name, episodes)})]}`` for both rules."""
+def replay(corpus: Path, min_episodes: int = 50) -> dict[str, Any]:
+    """``{rule: [(month, {id: (name, episodes, topics)})]}`` for both rules, and under
+    ``successors`` each rule's last ``id_history`` successors (a merged storyline's follows move
+    to its successor)."""
     bundles = discover_episode_bundles(corpus)
     dated = [(_month(b), b) for b in bundles]
     months = sorted({m for m, _ in dated if m})
-    out: dict[str, list[tuple[str, dict]]] = {"old": [], "new": []}
+    out: dict[str, Any] = {"old": [], "new": [], "successors": {"old": {}, "new": {}}}
     with tempfile.TemporaryDirectory() as old_dir, tempfile.TemporaryDirectory() as new_dir:
         for month in months:
             sub = [b for m, b in dated if m and m <= month]
@@ -83,18 +85,35 @@ def replay(corpus: Path, min_episodes: int = 50) -> dict[str, list[tuple[str, di
                 continue
             now = _month_end(month)
             out["old"].append((month, _snapshot(_run(sub, Path(old_dir), now, carry=False))))
-            out["new"].append((month, _snapshot(_run(sub, Path(new_dir), now, carry=True))))
+            new = _run(sub, Path(new_dir), now, carry=True)
+            out["new"].append((month, _snapshot(new)))
+            out["successors"]["new"] = dict((new.get("id_history") or {}).get("successors") or {})
     return out
 
 
-def summarise(snaps: list[tuple[str, dict]], follow_months: int = 6) -> dict[str, Any]:
-    """The RFC-128 measures for one rule's snapshots."""
+def summarise(
+    snaps: list[tuple[str, dict]],
+    follow_months: int = 6,
+    successors: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """The RFC-128 measures for one rule's snapshots. A follow is kept when its storyline is still
+    published, or its id has a published successor (a merge moves its followers there)."""
     final = snaps[-1][1]
+    succ = successors or {}
+
+    def kept(sid: str) -> bool:
+        seen_ids = {sid}
+        while sid not in final and sid in succ and succ[sid] not in seen_ids:
+            sid = succ[sid]
+            seen_ids.add(sid)
+        return sid in final
+
     renamed: set[str] = set()
     for (_m, prev), (_n, cur) in zip(snaps, snaps[1:]):
         renamed |= {i for i in cur if i in prev and cur[i][0] != prev[i][0]}
     start = snaps[max(0, len(snaps) - 1 - follow_months)][1]
     seen = [t for _n, _e, topics in final.values() for t in topics]
+    names = [n for n, _e, _t in final.values()]
     return {
         "month": snaps[-1][0],
         "storylines": len(final),
@@ -102,11 +121,12 @@ def summarise(snaps: list[tuple[str, dict]], follow_months: int = 6) -> dict[str
         "episodes_covered": len(set().union(*(e for _n, e, _t in final.values()))),
         # Today's clustering is a partition; the registry must stay one (RFC-128).
         "topics_in_two_storylines": len(seen) - len(set(seen)),
+        "storylines_sharing_a_name": len(names) - len(set(names)),
         "widest": max((len(t) for _n, _e, t in final.values()), default=0),
         # Same id, new name. Under the old rule a new name is a new id, so its renames show as
         # follows lost instead.
         "names_changed_same_id": len(renamed),
-        "follows_kept": f"{sum(1 for i in start if i in final)}/{len(start)}",
+        "follows_kept": f"{sum(1 for i in start if kept(i))}/{len(start)}",
     }
 
 
@@ -118,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     result = replay(args.corpus)
     for rule in ("old", "new"):
-        print(rule, json.dumps(summarise(result[rule])))
+        print(rule, json.dumps(summarise(result[rule], successors=result["successors"][rule])))
     for probe in args.probe:
         for rule in ("old", "new"):
             seen = [

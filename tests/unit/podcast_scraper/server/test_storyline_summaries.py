@@ -136,3 +136,37 @@ def test_the_prompt_adapts_to_the_threads_size() -> None:
         episodes=[{"title": "T", "date": "2025-01-01"}],
     )
     assert "spans 30 episodes, on risk, systems" in user and "spread across its time" in user
+
+
+def test_a_summary_is_held_to_three_sentences_and_eighty_words() -> None:
+    """Decision 6 (2026-10-13). The prod model wrote 93-143 words on 8 of 9 storylines in the
+    first real run (2026-10-14), so the limit is enforced on what comes back, by whole sentences."""
+    from podcast_scraper.server.storyline_summaries import fit_summary
+
+    four = "One two three. Four five six. Seven eight nine. Ten eleven twelve."
+    assert fit_summary(four) == "One two three. Four five six. Seven eight nine."
+    long_second = "Short first sentence. Then " + " ".join(["word"] * 90) + "."
+    assert fit_summary(long_second) == "Short first sentence."
+    only_long = " ".join(f"w{i}" for i in range(100)) + "."
+    out = fit_summary(only_long)
+    assert len(out.split()) == 80 and out.endswith("…"), "a storyline keeps a summary"
+    assert fit_summary('He said "Yes." Then it ended.') == 'He said "Yes." Then it ended.'
+
+
+def test_the_prompts_give_the_model_no_episode_numbers_to_repeat() -> None:
+    """The first real run numbered episodes ("Ep2", "episode 3") and leaked the sample size
+    ("key insights from 12"): the material numbered them and said how many it showed."""
+    from podcast_scraper.prompts.store import render_prompt
+
+    user = render_prompt(
+        "shared/summarization/storyline_user_v1",
+        label="risk",
+        episode_count=30,
+        topics=["risk"],
+        episodes=[{"title": "A", "date": "2026-01-01"}, {"title": "B", "date": "2026-02-01"}],
+    )
+    assert "n=" not in user and "<episode date=2026-01-01>" in user
+    assert "The episodes below are a sample spread across its time." in user
+    assert "2 below" not in user
+    system = render_prompt("shared/summarization/storyline_system_v1")
+    assert "Never number or count episodes" in system

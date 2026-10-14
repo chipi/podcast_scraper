@@ -161,16 +161,26 @@ kept is used.
    taken by the first run on the new code — then there is nothing to go back to).
    The seed can also be previewed, applied and undone from the viewer dashboard (Intelligence →
    **Storylines & themes**), which calls the same code.
-5. **Sync Grafana**: the alert rule `enrich-common-storyline-registry-bad` (fires on any
-   `storylines: registry health=bad` line) and the two new panels on `vps/podcast-app.json`
-   ("Storylines per run", "Themes per build"). Dry run, then apply:
+5. **Reload Alloy on prod** with `infra/observability/operator.alloy`: its new last stage ships an
+   emitted event's JSON alone, so VictoriaLogs unpacks `llm_cost` (and every pipeline event) into
+   fields — before, they arrived behind the log prefix and `event_type:` matched nothing. The
+   config passes `alloy fmt` (checked in the prod container, 2026-10-14); whether the stage
+   behaves in the running pipeline is proven only by this reload. Check after: `_time:1h
+   instance:prod-podcast AND event_type:llm_cost | stats count()` in VictoriaLogs is above 0 once
+   a pipeline run has called a model.
+6. **Sync Grafana**: the alert rule `enrich-common-storyline-registry-bad` (fires on any
+   `storylines: registry health=bad` line), the two new panels on `vps/podcast-app.json`
+   ("Storylines per run", "Themes per build"), its fixed "LLM cost (24h, pipeline)" panel (the
+   query asked for a `job` label pipeline lines never carry), and the LLM cost dashboard
+   (`common/grafana-dashboard-llm-cost.json`, rewritten from Loki LogQL to VictoriaLogs; its
+   queries read events from before and after the Alloy reload). Dry run, then apply:
 
    ```sh
    make obs-sync              # lists what would change
    make obs-sync APPLY=1
    ```
 
-6. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
+7. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
    a storyline the seed gave an old name (10 on the copy) says "Also called …" under its title,
    and searching that old name opens it; a quiet one says "Quiet since …";
    `GET /api/app/discover/references/gone` answers for the smoke account. In the viewer
