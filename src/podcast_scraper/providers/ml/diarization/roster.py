@@ -3162,6 +3162,71 @@ def _name_a_talkative_host_once_the_guests_are_placed(
         used_lower.add(role.name.lower())
 
 
+def _stated_guest_who_owns_the_talk(
+    metadata_named: Sequence[str],
+    unassigned: Sequence[str],
+    talk: Mapping[str, float],
+    roster_names: Sequence[str],
+    known_hosts: Sequence[str],
+    host_names_lower: AbstractSet[str],
+    voice_texts: Mapping[str, str],
+) -> Optional[Tuple[str, str]]:
+    """The ONE person the metadata states, on the ONE unnamed voice that holds most of the talk.
+
+    This narrows a reverted design (the "NOT DONE" note below: drawing from ``metadata_named``
+    admitted people never in the room, HB Reese among them). Three conditions keep it narrow:
+
+    - exactly one stated full name is unplaced (not a host, not the same person as any name on the
+      roster), so there is no choice between people;
+    - exactly one unnamed non-host voice holds at least ``_DOMINANT_SHARE`` of the talk, so a
+      discussed person cannot land on a clip or a cameo;
+    - the person's SURNAME is spoken in the episode, and no roster name shares it — the floor the
+      reverted design lacked. The Physical AI episode, where the description names Qasar Younis
+      and nobody says "Younis", stays our defect
+      (``test_a_stated_name_we_failed_to_place_is_our_DEFECT``).
+
+    Gold (dev+val, before the surname floor): 27 right, 1 wrong (a guest-hosted BRAVE episode).
+    The forced-name loop still applies the third-person refusal to the voice.
+    """
+    roster_surnames = {str(r).split()[-1].lower() for r in roster_names if str(r).split()}
+    stated = [
+        n
+        for n in dict.fromkeys(str(m).strip() for m in metadata_named)
+        if len(n.split()) >= 2
+        and n.lower() not in host_names_lower
+        and not any(_same_person(n, h) for h in known_hosts)
+        and not any(_same_person(n, r) or n.lower() == str(r).lower() for r in roster_names)
+    ]
+    if len(stated) != 1:
+        return None
+    name = stated[0]
+    surname = re.sub(r"\W", "", name.split()[-1]).lower()
+    if len(surname) < 3 or surname in roster_surnames:
+        return None
+    episode = " ".join(voice_texts.values()).lower()
+    if not re.search(rf"\b{re.escape(surname)}\b", episode):
+        return None
+    total = sum(talk.values()) or 1.0
+    owners = [v for v in unassigned if talk.get(v, 0.0) / total >= _DOMINANT_SHARE]
+    if len(owners) != 1:
+        return None
+    # A CROSS-POST: the stated person is the host of ANOTHER show and the feed's own host is the
+    # guest there. BRAVE E720: "Jeremy was recently a guest on Rohit Malhotra's show" -- the
+    # interviewer's name landed on Jeremy Au's 88% voice. The episode says whose show it is.
+    if _named_as_another_shows_host(name, episode):
+        return None
+    return name, owners[0]
+
+
+def _named_as_another_shows_host(name: str, text: str) -> bool:
+    """*text* calls *name* the owner of a show ("Rohit Malhotra's show", "a guest on Rohit ...")."""
+    n = re.escape(name.lower())
+    return bool(
+        re.search(rf"\b{n}['\u2019]s\s+(?:show|podcast)\b", text)
+        or re.search(rf"\bguest\s+on\s+{n}\b", text)
+    )
+
+
 def _name_guest_voices(
     voices_by_total: Sequence[str],
     assigned: Dict[str, SpeakerRole],
@@ -3181,6 +3246,7 @@ def _name_guest_voices(
     language: Optional[str] = TARGET_LANGUAGE,
     introduced_named: AbstractSet[str] = frozenset(),
     ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
+    metadata_named: Sequence[str] = (),
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -3306,6 +3372,19 @@ def _name_guest_voices(
             forced = spare[0]
             unassigned = [picked]
             forced_by = "host_elimination"
+    if forced is None and not spare and talk:
+        owner = _stated_guest_who_owns_the_talk(
+            metadata_named,
+            unassigned,
+            talk,
+            roster_names,
+            known_hosts,
+            host_names_lower,
+            voice_texts or {},
+        )
+        if owner is not None:
+            forced, unassigned = owner[0], [owner[1]]
+            forced_by = "stated_guest_owns_the_talk"
     tr.note(
         "guest_naming_forced",
         spare_names=list(spare),
@@ -6353,6 +6432,7 @@ def resolve_speaker_roster(
             trace=tr,
             language=language,
             ordered_turns=ordered_turns,
+            metadata_named=metadata_named or (),
         )
     )
     _bv_before = dict(by_voice)

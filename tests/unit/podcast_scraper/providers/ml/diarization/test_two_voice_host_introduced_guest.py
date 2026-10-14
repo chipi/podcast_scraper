@@ -67,9 +67,14 @@ def test_the_guest_the_host_introduces_is_named(intro: str) -> None:
     assert roster.by_voice["SPEAKER_01"].role == "guest"
 
 
-def test_a_mention_without_an_introduction_names_nobody() -> None:
+def test_a_mentioned_stated_guest_who_owns_the_talk_is_named() -> None:
+    """K8 (#2338): the ONE person the metadata states, spoken of in the episode, on the ONE voice
+    holding most of the talk. This test used to pin "a mention names nobody"; measured 2026-10-14
+    the strict reading (an introduction required) kept 2 of the 12 names this rule adds on prod,
+    all 12 read right on their text, and the gold sets were 1/0 (dev) and 2/0 (val_v1)."""
     roster = _roster(_interview(f"I have been reading {GUEST}'s new book all week."))
-    assert roster.by_voice["SPEAKER_01"].name != GUEST
+    assert roster.by_voice["SPEAKER_01"].name == GUEST
+    assert roster.by_voice["SPEAKER_00"].name == HOST
 
 
 def test_two_stated_people_is_a_guess_and_names_nobody() -> None:
@@ -79,12 +84,31 @@ def test_two_stated_people_is_a_guess_and_names_nobody() -> None:
     assert roster.by_voice["SPEAKER_01"].name != GUEST
 
 
-def test_a_third_substantial_voice_names_nobody() -> None:
+def test_a_short_third_voice_does_not_stop_the_voice_that_owns_the_talk() -> None:
+    """K8 (#2338): a 90 s archive clip next to a voice holding 80% of the talk is no competitor;
+    the clip itself is never named (this test used to pin "a third voice names nobody")."""
     turns = _interview(f"With me today is {GUEST}.") + [
         ("SPEAKER_02", "A listener's question, recorded at the archive.", 90.0)
     ]
     roster = _roster(turns)
-    assert all(r.name != GUEST for r in roster.by_voice.values())
+    assert roster.by_voice["SPEAKER_01"].name == GUEST
+    assert roster.by_voice["SPEAKER_02"].name != GUEST
+
+
+def test_a_cross_post_never_names_the_feed_host_after_the_interviewer() -> None:
+    """K8 guard: the feed's host is the GUEST on someone else's show, and the metadata names that
+    show's host (BRAVE E720, "a guest on Rohit Malhotra's show")."""
+    interviewer = "Henrik Sallow"
+    turns = [
+        ("SPEAKER_02", f"Now, {HOST} was recently a guest on {interviewer}'s show.", 20.0),
+        ("SPEAKER_00", "You know, Tobias, you've had a very interesting journey.", 60.0),
+        ("SPEAKER_01", "Thanks. I started as an engineer and then moved into investing.", 600.0),
+        ("SPEAKER_00", "And what did founding teach you?", 30.0),
+        ("SPEAKER_01", "That distribution matters more than the product, most of the time.", 600.0),
+    ]
+    roster = _roster(turns, metadata_named=(interviewer,))
+    assert all(r.name != interviewer for v, r in roster.by_voice.items() if v != "SPEAKER_00")
+    assert roster.by_voice["SPEAKER_01"].name != interviewer
 
 
 def test_the_remaining_voice_that_talks_about_the_guest_in_the_third_person_is_not_them() -> None:

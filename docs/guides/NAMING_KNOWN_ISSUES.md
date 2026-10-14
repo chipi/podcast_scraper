@@ -93,7 +93,27 @@ title or transcript.
 - **Why:** a full name said on air also matches products and segments ("Project Astra", "Cosmic
   Queries", "Surge AI"); requiring first-name ADDRESS is what keeps those out. Issue #2329.
 
-### K8. A metadata-stated guest who owns the talk (parked rule)
+### K8. A metadata-stated guest who owns the talk (SHIPPED 2026-10-14, with a cross-post guard)
+
+- **Shipped as variant V5 of five measured one at a time (2026-10-14, prod corpus, 2,632 served
+  episodes, every variant replayed back to back against main, every changed voice read):**
+
+  | Variant | Corpus vs main | dev_v1 | val_v1 |
+  | --- | --- | --- | --- |
+  | V1 the 2026-10-12 rule | +12 names | 1/0 | 2/1 (BRAVE) |
+  | V2 + guard: an unplaced feed host hailed by first name from another voice | +11 | 1/0 | 1/0 (lost Paul Rouse) |
+  | V3 + strict: the stated name must be introduced, not only mentioned | +2 | 0/0 | 0/0 |
+  | V4 + guard needing 2+ hails | +12 | 1/0 | 2/1 (BRAVE's gold run hails once) |
+  | **V5 + guard: the episode calls the stated person another show's host** | **+12** | **1/0** | **2/0** |
+
+  V5 val_v2 (scored once): 1 better / 0 worse (John Jumper). The guard reads "<Name>'s show /
+  podcast" or "a guest on <Name>" (BRAVE E720: "Jeremy was recently a guest on Rohit Malhotra's
+  show"). The two tests that pinned "a mention names nobody" and "a third voice names nobody" now
+  pin the measured behaviour: V3 shows the strict reading throws away 10 of the 12 right names.
+- **Caveat:** V4 and V5 were shaped by reading two `val_v1` cases (v297 BRAVE, v318 The Rest Is
+  History), so their `val_v1` numbers are optimistic; the corpus read and `val_v2` are not.
+
+**History (2026-10-12, parked):**
 
 - **Candidate:** one spare metadata person, and exactly one unnamed non-host voice with more than
   half the talk, so that voice is the person. Gold (dev+val): 27 right, 1 wrong (BRAVE,
@@ -114,7 +134,7 @@ title or transcript.
   (`test_a_mention_without_an_introduction_names_nobody`,
   `test_a_third_substantial_voice_names_nobody`): a surname the host merely mentions passes the
   floor. The Qasar test stays green. Shipping it needs both a guard for the cross-post shape and
-  the operator's decision on those two tests. Issue #2338; the code is `docs/wip/K8-stated-guest-owns-talk-2026-10-12.patch`.
+  the operator's decision on those two tests. Issue #2338.
 
 ### K9. An unpublishable self-introduction with no alternative holds the host seat
 
