@@ -199,7 +199,7 @@
             "uid": "victorialogs"
           },
           "queryType": "instant",
-          "expr": "instance:prod-podcast AND surface:pipeline AND \"pipeline_stage\" AND \"quality_flags\""
+          "expr": "instance:prod-podcast AND surface:pipeline AND \"pipeline_stage\" AND \"quality_flags\" | sort by (_time) desc limit 200"
         }
       ]
     }
