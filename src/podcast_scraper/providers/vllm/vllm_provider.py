@@ -59,6 +59,7 @@ class VLLMProvider(OpenAICompatibleProvider):
     inherited unchanged from the shared transport base.
     """
 
+    _SENDS_JOIN_METADATA = True  # its server takes nested metadata (gateway → Langfuse)
     _CONFIG_NS: str = "vllm"
     _TELEMETRY_PROVIDER: str = "vllm"
     _PROVIDER_LABEL: str = "vLLM"
