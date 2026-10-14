@@ -2878,6 +2878,7 @@ def _name_host_voices(
             else _pair_by_address(
                 texts_, unnamed_seats[0], unnamed_seats[1], [n for n, _ in unclaimed]
             )
+            or _pair_by_dominant_address(texts_, unnamed_seats, [n for n, _ in unclaimed])
         )
         if pair and any(
             _speaks_of_by_first_name(texts_.get(v, ""), n, feed_title) for v, n in pair.items()
@@ -4542,6 +4543,43 @@ def host_copresence_from_diagnostics(
     }
 
 
+def _storyteller_candidates(
+    substantial: Sequence[str],
+    present: AbstractSet[str],
+    excluded: AbstractSet[str],
+    ad_voices: AbstractSet[str],
+    *,
+    guest_present: bool,
+) -> List[str]:
+    """Substantial voices present across the episode that nothing marks as anyone else -- none
+    while somebody besides the stated hosts is in the room."""
+    if guest_present:
+        return []
+    return [v for v in substantial if v in present and v not in excluded and v not in ad_voices]
+
+
+def _cohost_in_the_room(
+    texts: Mapping[str, str],
+    host_voices: Sequence[str],
+    candidates: Sequence[str],
+    unclaimed_hosts: Sequence[str],
+    fillable: int,
+    ad_voices: AbstractSet[str],
+) -> bool:
+    """Evidence in THIS episode that the unclaimed co-host is present, so the feed's co-presence
+    history is not needed to fill the seat."""
+    if any(_cohost_named_present(texts, h, set(ad_voices)) for h in unclaimed_hosts):
+        return True
+    if _address_pair(texts, list(host_voices), list(candidates), list(unclaimed_hosts), fillable):
+        return True
+    # A candidate that keeps hailing one stated host is talking TO a co-host: the feed's history
+    # (which the storyteller gap itself kept low on The Rest Is History) is not needed.
+    return any(
+        _seat_by_cohost_address(texts.get(v, ""), list(unclaimed_hosts)) is not None
+        for v in candidates
+    )
+
+
 def _copresence_allows(host_copresence: Optional[Mapping[int, float]], k: int) -> bool:
     """May the k-th host seat be filled by arithmetic (no name-bearing evidence) on this feed?"""
     if k <= 1 or host_copresence is None:
@@ -4880,6 +4918,26 @@ def _pair_by_address(
     if len(said[a]) != 1 or len(said[b]) != 1 or said[a][0] == said[b][0]:
         return None
     return {a: said[b][0], b: said[a][0]}
+
+
+def _pair_by_dominant_address(
+    texts: Mapping[str, str], seats: Sequence[str], names: Sequence[str]
+) -> Optional[Dict[str, str]]:
+    """Two seats that each MOSTLY hail a different one of the two stated hosts.
+
+    The strict pair (`_pair_by_address`) refuses a seat that ever says both names, and the
+    storyteller's long cluster always carries a stray one: on The Rest Is History "Italy's Doomed
+    Campaign" the 84% voice says "Tom" 6 times and "Dom" once, the 16% voice "Dom" 3 times. Each
+    seat is read with the lone-seat ratio rule (`_seat_by_cohost_address`) and named only when
+    BOTH resolve, to different hosts (F7, 2026-10-14)."""
+    if len(seats) != 2:
+        return None
+    a, b = seats
+    x = _seat_by_cohost_address(texts.get(a, ""), names)
+    y = _seat_by_cohost_address(texts.get(b, ""), names)
+    if x is None or y is None or x == y:
+        return None
+    return {a: x, b: y}
 
 
 def _address_pair(
@@ -5497,6 +5555,21 @@ def _select_host_voices(
             and v not in heard_as_guest
             and v not in named_as_other
         ]
+        guest_present = (
+            len(substantial) > len(host_pool) or bool(heard_as_guest) or bool(named_as_other)
+        )
+        # THE STORYTELLER (F7, The Rest Is History). One host tells the story for 75-89% of the
+        # episode and never speaks in the opening window, so it was no candidate at all and only
+        # the interjecting co-host held a seat (29 of 51 episodes, 2026-10-14). With nobody but
+        # the stated hosts in the room, a substantial voice present across the episode is one --
+        # still subject to the address filter below.
+        candidates = candidates or _storyteller_candidates(
+            substantial,
+            present,
+            set(host_voices) | set(heard_as_guest) | named_as_other,
+            set(ad_voices),
+            guest_present=guest_present,
+        )
         claimed = {n.lower() for v, n in voice_intro.items() if v in host_voices and n}
         seated_names = [h for h in host_names if h.lower() in claimed]
         absent = _hosts_said_absent(texts, known_hosts, set(host_voices))
@@ -5517,9 +5590,6 @@ def _select_host_voices(
                 )
             )
         ]
-        guest_present = (
-            len(substantial) > len(host_pool) or bool(heard_as_guest) or bool(named_as_other)
-        )
         if guest_present:
             # The voice that OWNS the talk while somebody besides the hosts is in the room is the
             # interviewee; it also accounts for one of the people the episode names but nobody
@@ -5555,9 +5625,14 @@ def _select_host_voices(
                 or sum(_vocative_count(texts.get(v, ""), g) for g in seated_names) >= 2
             ]
             candidates = picked if len(picked) == fillable else []
-        cohost_present = any(
-            _cohost_named_present(texts, h, set(ad_voices)) for h in unclaimed_hosts
-        ) or _address_pair(texts, host_voices, candidates, unclaimed_hosts, fillable)
+        cohost_present = _cohost_in_the_room(
+            texts,
+            host_voices,
+            candidates,
+            unclaimed_hosts,
+            fillable,
+            set(ad_voices),
+        )
         tr.note(
             "host_seat_step_4",
             empty_seats=empty,
