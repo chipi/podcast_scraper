@@ -31,9 +31,43 @@ steps below:
 - Step 7: 7.1, 7.2, 7.3, 7.4 and 7.5 done (themes `id_history` present after batch 26's rebuild,
   07:38). 7.6 done by the homelab session (the Grafana items were already live;
   `vps/podcast-app.json` pushed as v3). 7.7 checked (see "After the deploy").
-- Step 8: run one at a time after backfill batch 26 (run 38689720595): 8.3 (24 episodes, list
-  rebuilt 2026-10-15), 8.6, 8.4, 8.5; then the backfill chain resumes at batch 27. A batch of 5
-  episodes took 18-19 minutes per episode.
+- Step 8 (one run at a time; batch 26, run 38689720595, finished green 07:38, 18-19 min per
+  episode):
+  - **8.1 / 8.7 done**; 8.2 waits for the first nightly.
+  - **8.3 done** (run 38700512700, 09:52): 24 episodes, 7 repaired, 17 left as they were (every
+    window refused), 0 failed. Only 9 of 38 windows passed (the plan expected about half):
+    refused `lost_words` 13, `too_many_new_words` 10, `word_count_changed` 4, `repetitive` 1,
+    `still_unpunctuated` 1. Look at the refusals before re-running these 17.
+  - **BizNews "BN Daybreak"** (never attempted, outside every list): `repunctuate_only`, 1 of 1
+    window repaired (run 38719287784).
+  - **8.6 done** (run 38716746982): Gray Area "How trauma became a status symbol", full reprocess,
+    repaired 1/1, host named, 1 window repaired. Its corpus dir is the old Vox feed
+    `feeds.megaphone.fm/theezrakleinshow`.
+  - **Re-scan after these (by episode guid, 2,530 episodes):** the 8.3 list missed nothing. 333
+    asr records match no metadata file; 332 are older copies of episodes whose newest record does
+    match, 1 has no unpunctuated window. Still flagged: the 18 above, plus 12 in the backfill pool.
+  - **Next, after the next app deploy** (operator, 2026-10-15: a deploy during a reprocess is
+    untested, and 4ae796413 gives each episode its own Langfuse trace with named stages):
+    1. Backfill batches 27+: 15 episodes, 1,149 audio-min, about 5 h in 3 batches (measured about
+       4x real time).
+    2. 8.4 relabel: 91 episodes, list in hand (replay `c6cdc5d` vs `aaadbb2` modules, 2,684
+       episodes: 101 voices change; 40 gain a name, 57 promo/ad voices lose a wrong one, 4 other
+       losses). First a 5-episode batch to measure (6-11 h for all is a guess: no relabel run has
+       been timed), then the rest in batches that fit the runner and the nightly. No overlap with
+       the backfill pool.
+    3. 8.5: recompute after 8.4 (Rest Is History episodes whose host seat is still unnamed).
+       The original 15-seat list was in the replay kit and did not survive the container
+       recreation.
+- **Gateway:** `deploy-litellm` from c3b716195 at 09:53 sets `LANGFUSE_TRACING_ENVIRONMENT=prod`.
+  Smoke: 11 aliases served, completions end to end. Still LiteLLM 1.95.0. Homelab confirmed
+  environment=prod on the first traces (10:07). The image tag is pinned since e20cd3e59 (was
+  `main-stable`, which had moved past the running image).
+- **Edge:** Caddy reloads through a 0600 admin unix socket instead of restarting (60dea6847,
+  ADR-114 amended, THREAT_MODEL T-02). Rolled out 08:03 UTC: `apply-edge.sh` / `verify-edge.sh`
+  refreshed from main as root, once (backups in `/root/*.bak-20261015`; the installed copies were
+  from July and still installed a Grafana Cloud systemd Alloy), then one last restart (1 of 150
+  requests got a 521). After: a reload under load answered 150/150, verify-edge 15 pass. Orrery's
+  vhost script reloads too (orrery 4ca9fdd4795).
 
 ## What the deploy carries
 
@@ -289,8 +323,25 @@ old names and text until steps 3 and 4.
   - 2 are neither: Gray Area "How trauma became a status symbol" (step 8.6) and BizNews "BN
     Daybreak: Swimming SA crisis …".
 
-  The scan could not match 439 asr records to their metadata file (different file stems), so it
-  can miss episodes.
+  The 439 unmatched asr records were the scan's own pattern (it missed the `_285e51f2` run-dir
+  suffix); the re-scan finds nothing missed (see Status above).
+
+- **From the 8.4 replay (read 2026-10-15), naming quality:**
+  - "Matt Iglesias" for Matthew Yglesias (Capitalisn't "Why Matthew Yglesias Is Skeptical…"): the
+    name in the middle of a title is not extracted as a stated name (titles like "…, with X" or
+    "X | Y" are), so the host's spoken "Matt Iglesias" is published as heard. With the stated
+    name, the canonicalizer would snap it (Matt↔Matthew nickname, surname 1 edit). Fix = title name
+    extraction plus a corpus replay. Parked.
+  - Capitalisn't "Japan, with Takeo Hoshi": served "Luigi Zingales" sits on the voice that opens
+    with a cold-open quote; the new code drops the name (unidentified). Unresolved from the text.
+  - a16z "The Infrastructure Behind the Machine Age": not a served loss (SPEAKER_03 is unnamed on
+    prod already); but the served roster is wrong elsewhere ("Ben Horowitz" is the voice that says
+    "Ben, Martin, Ragu, welcome", i.e. the interviewer).
+- **Host seat typed commercial** (mobile session, fixture timeline change, local branch): agreed
+  the guard belongs in `classify_voices` (shared cleaning, ADR-137), by talk share, since the
+  cleaning runs before naming; prod has no commercial voice above 6.5% of its episode.
+- **Batch 26 "Dr. Sharon Blackie"** (The Living Philosophy): 1 of 2 voices named, no host resolved
+  (`empty_host_anchor`), 29% of the talk unattributed.
 
 - **Naming leftovers (#2304), to work on after the deploy:**
   - **Phantom Pain** and **Welcoming Misha Glenny** (Curious Cases / In Our Time): the host voice
