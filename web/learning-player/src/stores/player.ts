@@ -1,3 +1,4 @@
+import { captureMessage } from '@sentry/capacitor'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
@@ -600,13 +601,33 @@ export const usePlayerStore = defineStore('player', () => {
     syncPositionState()
   }
   function onError(): void {
-    // #2267. What the LISTENER saw: audio that would not play. Sentry/GlitchTip records the
-    // exception; this records the user-visible failure, which is the one the beta's friction rate
-    // counts. `network` because that is what a media element error overwhelmingly is — a missing
-    // or unreachable file — and the element does not tell us more than that.
+    // #2267. What the LISTENER saw: audio that would not play. This records the user-visible
+    // failure, which is the one the beta's friction rate counts. `network` because that is what a
+    // media element error overwhelmingly is — a missing or unreachable file — and the element does
+    // not tell us more than that.
     track('error_shown', { surface: 'player', kind: 'network' })
+    reportAudioError()
     audioError.value = true
     void stopBackgroundAudio()
+  }
+  /**
+   * A media-element error is not an exception, so GlitchTip never saw one: on 2026-10-15 a beta
+   * listener hit four in a row and only Umami knew. One issue per media error code and audio host
+   * (the host, never the URL — feed URLs can carry tokens); a no-op when Sentry is not initialised.
+   */
+  function reportAudioError(): void {
+    const code = String(el.value?.error?.code ?? 'unknown')
+    let host = 'unknown'
+    try {
+      host = new URL(el.value?.currentSrc || el.value?.src || '').host || 'local'
+    } catch {
+      /* no or unparsable src */
+    }
+    captureMessage(`Audio would not play (media error ${code})`, {
+      level: 'error',
+      fingerprint: ['audio-playback-failed', code, host],
+      tags: { surface: 'player', media_error: code, audio_host: host },
+    })
   }
   /**
    * Advance to the next queued episode when one ends.

@@ -1350,3 +1350,33 @@ describe('"Play all" on a learning path (operator 2026-10-14)', () => {
     expect(p.reel).toBeNull()
   })
 })
+
+describe('audio that will not play', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('is reported to GlitchTip as well as counted, one issue per media error and host', async () => {
+    // 2026-10-15 beta session: four error_shown{surface:player,kind:network} in Umami and nothing
+    // in GlitchTip — every API call behind them was a 200, so the audio itself failed and no one
+    // could see why. A media-element error is not an exception; nothing captured it.
+    const sentry = await import('@sentry/capacitor')
+    const capture = vi.spyOn(sentry, 'captureMessage').mockImplementation(() => '')
+    const analytics = await import('../services/analytics')
+    const track = vi.spyOn(analytics, 'track')
+    const p = usePlayerStore()
+    const el = stubAudio({ error: { code: 4, message: 'MEDIA_ELEMENT_ERROR: Format error' } } as never)
+    p.load({ slug: 'ep-1', url: 'https://cdn.example.com/feeds/ep1.mp3?token=secret', title: 'An Episode' })
+    ;(el as unknown as { __emit: (k: string) => void }).__emit('error')
+
+    expect(track).toHaveBeenCalledWith('error_shown', { surface: 'player', kind: 'network' })
+    expect(capture).toHaveBeenCalledOnce()
+    const [msg, ctx] = capture.mock.calls[0] as [string, Record<string, unknown>]
+    expect(msg).toBe('Audio would not play (media error 4)')
+    expect(ctx).toMatchObject({
+      level: 'error',
+      fingerprint: ['audio-playback-failed', '4', 'cdn.example.com'],
+      tags: { surface: 'player', media_error: '4', audio_host: 'cdn.example.com' },
+    })
+    expect(JSON.stringify(ctx)).not.toContain('secret') // host only: never the URL or its query
+  })
+})
