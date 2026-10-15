@@ -1,6 +1,7 @@
 # Multi-tenant observability registry (ADR-117). Drives `make obs-sync`.
 #
-# Each tenant syncs its Grafana dashboards+alerts and Sentry alert rules to an ACCOUNT.
+# Each tenant syncs its Grafana dashboards and Sentry alert rules to an ACCOUNT (Grafana alert
+# rules are owned by agentic-ai-homelab's alerting rules.yaml, not synced from here).
 # `grafana.account` / `sentry.account` name the account KEY; the sync scripts resolve the
 # real endpoint + token from env (NEVER committed here):
 #   GRAFANA_<ACCOUNT>_URL   + GRAFANA_<ACCOUNT>_TOKEN   (account upper-cased, - -> _)
@@ -8,13 +9,19 @@
 #
 # `account: common` = the shared infra account (folder isolation). A tenant with its own
 # account gets full isolation (§3a). Config for tenant <t> lives under
-# config/grafana/{dashboards,alerts}/<t>/ and config/sentry/<t>/.
+# config/grafana/dashboards/<t>/ and config/sentry/<t>/.
 
 tenants:
   # Infra-owned box + edge plane (host metrics, sshd/fail2ban/Caddy/firewall security, T-11).
   common:
     grafana: { account: common, folder: "Common (Box & Edge)" }
     sentry: { account: common } # optional; box errors are few
+
+  # The VPS app/edge dashboards (podcast-app, traces, containers, edge, overview). The folder's
+  # slug is the live "VPS — Podcast" folder uid (vps-podcast). Replaces
+  # scripts/ops/push-grafana-dashboards.sh (removed), which pushed vps/ with its own token.
+  vps:
+    grafana: { account: common, folder: "VPS — Podcast" }
 
   # Static PWA (Goal 1). Starts in the shared `common` account (its signal is mostly the
   # shared Caddy's view of its vhost). Change to account: orrery for full independence.

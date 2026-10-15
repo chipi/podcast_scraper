@@ -118,7 +118,7 @@ use; matches the vanilla / minimal-infra ethos and the "version here, upload the
 ```text
 config/obs/tenants.yaml                        # tenant -> {grafana: shared|<account-id>, sentry_org, folder}
 config/grafana/dashboards/<tenant>/*.json      # dashboards (existing ones move under common/)
-config/grafana/alerts/<tenant>/*.json          # alert rules (Grafana alerting provisioning fmt)
+# alert rules: owned by agentic-ai-homelab's Grafana alerting rules.yaml (2026-10-15), not synced from here
 config/grafana/contact-points/*.json           # where alerts route (operator supplies targets)
 config/sentry/<tenant>/alerts.yaml             # Sentry issue-alert rules per project
 scripts/obs/grafana_sync.sh                     # per tenant: POST folder+dashboards+rules -> that tenant's Grafana account

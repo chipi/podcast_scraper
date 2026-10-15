@@ -517,8 +517,9 @@ overlay.
 
 ### Dashboard
 
-Importable: `config/grafana/dashboards/common/grafana-dashboard-dgx.json`. 11 panels in
-4 rows (GPU / System / Containers / App). The DGX panels reference the
+The DGX dashboard (uid `dgx-observability-943`) is owned by `agentic-ai-homelab`
+(`infra/observability/backend/grafana/dashboards/Homelab/dgx-observability-943.json`) and
+file-provisioned into the homelab Grafana's Homelab folder. The DGX panels reference the
 existing Prometheus datasource — no new datasource setup needed.
 
 ### GlitchTip integration (#942)
@@ -547,8 +548,8 @@ verbatim — same DSN, same tags, same `before_send` filter.
 4. Verify scrape from the pipeline VPS:
    `curl http://your-dgx.tailnet.ts.net:9400/metrics | head` (DCGM),
    same for `:9100`, `:8080`, `:8001/metrics`.
-5. Import `config/grafana/dashboards/common/grafana-dashboard-dgx.json` into Grafana
-   at **<http://homelab:3000>** (Dashboards → New → Import → upload JSON).
+5. Open the DGX dashboard in Grafana at **<http://homelab:3000>** (Homelab folder;
+   provisioned from `agentic-ai-homelab`, nothing to import).
 
 ### Higher-fidelity metrics (investigation mode)
 

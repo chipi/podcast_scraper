@@ -112,9 +112,9 @@ The prod-podcast **Alloy** collector (homelab repo
 - **Traces:** *not* via Alloy by default — the app exports OTLP directly (env-var
   driven). See the homelab o11y handover docs (`agentic-ai-homelab`).
 
-Dashboards are owned in-repo (`config/grafana/dashboards/vps/`) and pushed to the
-shared Grafana `VPS — Podcast` folder with `scripts/ops/push-grafana-dashboards.sh`
-(token in gitignored `.env`).
+Dashboards are owned in-repo (`config/grafana/dashboards/<tenant>/`) and pushed to the
+homelab Grafana by `make obs-sync` (ADR-117), one folder per tenant (`vps/` → `VPS — Podcast`).
+The homelab operator runs it; its token stays on the homelab side, never in this repo.
 
 ## How to point observability somewhere else (forkability)
 

@@ -108,27 +108,15 @@ def test_lift_is_co_occurrence_lift_over_the_published_members(root: Path) -> No
 def test_the_alert_rule_matches_the_line_a_bad_run_logs(
     root: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    import re
-
-    import yaml
-
-    rules = yaml.safe_load(
-        (ROOT / "config" / "grafana" / "alerts" / "common" / "enrichment.yaml").read_text()
-    )
-    (rule,) = [
-        r
-        for g in rules["groups"]
-        for r in g["rules"]
-        if r["uid"] == "enrich-common-storyline-registry-bad"
-    ]
-    expr = next(d["model"]["expr"] for d in rule["data"] if d["refId"] == "bad")
-    phrase = re.search(r'"([^"]+)"', expr)
-    assert phrase
+    # The rule (uid enrich-common-storyline-registry-bad) lives in agentic-ai-homelab's
+    # infra/observability/backend/grafana/provisioning/alerting/rules.yaml and matches this
+    # phrase; change both together.
+    phrase = "storylines: registry health=bad"
     _run(root)
     (root / "enrichments" / "topic_theme_clusters.json").write_text("x", "utf-8")
     with caplog.at_level("ERROR"):
         _run(root)
-    assert phrase.group(1) in caplog.text
+    assert phrase in caplog.text
 
 
 def test_every_run_records_its_counts_and_changes_for_the_dashboard(root: Path) -> None:

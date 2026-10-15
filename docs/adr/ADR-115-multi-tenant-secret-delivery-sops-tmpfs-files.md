@@ -150,6 +150,6 @@ gh secret set PROD_OPENAI_API_KEY --repo chipi/podcast_scraper   # paste new val
 - No `sops`, no touching the box by hand, no re-keying. Deploy re-renders the tmpfs files
   from GH Secrets every time.
 - **Grafana push token** rotates the same way but is a **CI/workstation** secret (used by
-  `push-grafana-dashboards.sh`), **not** a container secret — it is *not* in the tmpfs set.
+  `make obs-sync`), **not** a container secret — it is *not* in the tmpfs set.
 - Under the future private-infra model (#1251) with sops, rotation becomes
   `sops edit infra/secrets/prod.enc.yaml` + commit (private) + redeploy.

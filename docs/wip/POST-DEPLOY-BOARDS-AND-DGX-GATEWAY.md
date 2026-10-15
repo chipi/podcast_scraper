@@ -183,6 +183,13 @@ kept is used.
    make obs-sync APPLY=1
    ```
 
+   **Done 2026-10-15 by the homelab side** (prod needs no token for this). All of the above was
+   already live in Grafana; podcast-app was re-pushed for the metrics→traces links. The dry run now
+   diffs the live Grafana (NEW / CHANGED / MOVE / UNCHANGED) when `GRAFANA_<ACCOUNT>_URL`/`TOKEN`
+   are set. Alert rules (including the storyline-registry rule) are owned by agentic-ai-homelab's
+   Grafana alerting `rules.yaml` and are no longer synced from here. The two storyline/theme panels
+   stay empty until the first storylines run / theme build after this deploy.
+
 7. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
    a storyline the seed gave an old name (10 on the copy) says "Also called …" under its title,
    and searching that old name opens it; a quiet one says "Quiet since …";

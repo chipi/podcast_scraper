@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Sync Grafana dashboards + alert rules to each tenant's account (ADR-117).
+"""Sync Grafana dashboards to each tenant's account (ADR-117).
 
 Config-as-code → upload. Reads ``config/obs/tenants.yaml`` and, per tenant, pushes
-``config/grafana/dashboards/<tenant>/*.json`` and ``config/grafana/alerts/<tenant>/*.yaml``
-to that tenant's Grafana account. The account's endpoint + token come from env (never
-committed): ``GRAFANA_<ACCOUNT>_URL`` / ``GRAFANA_<ACCOUNT>_TOKEN`` (account upper-cased,
-``-`` → ``_``); the alert-rule ``${LOKI_UID}`` placeholder from ``GRAFANA_<ACCOUNT>_LOKI_UID``.
+``config/grafana/dashboards/<tenant>/*.json`` into that tenant's ``folder`` in its Grafana
+account. The account's endpoint + token come from env (never committed):
+``GRAFANA_<ACCOUNT>_URL`` / ``GRAFANA_<ACCOUNT>_TOKEN`` (account upper-cased, ``-`` → ``_``).
 
-Default is a DRY RUN (prints what it would POST); pass ``--apply`` to actually upload.
+Alert rules are not synced from here: since 2026-10-15 agentic-ai-homelab's Grafana alerting
+``rules.yaml`` owns them (with a drift check), so a podcast alert is added there.
+
+Default is a DRY RUN. With the account's URL + token set it reads the live Grafana and prints,
+per dashboard, NEW / CHANGED / MOVE (same content, other folder) / UNCHANGED, without writing
+anything. Without them it prints what it would POST. Pass ``--apply`` to actually upload.
 """
 
 from __future__ import annotations
@@ -68,6 +72,41 @@ def _post(url: str, token: str, path: str, payload: dict, *, apply: bool) -> int
     return _api(url, token, "POST", path, payload, apply=apply)
 
 
+def _get(url: str, token: str, path: str) -> Any:
+    """GET *path* from the live Grafana; ``None`` when it answers 404."""
+    req = urllib.request.Request(  # noqa: S310 - operator-configured Grafana URL
+        url.rstrip("/") + path, headers={"Authorization": f"Bearer {token}"}, method="GET"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310
+            return json.loads(r.read() or b"null")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+_VOLATILE = {"id", "version", "iteration"}
+
+
+def _same(a: dict, b: dict) -> bool:
+    def norm(d: dict) -> str:
+        return json.dumps({k: v for k, v in d.items() if k not in _VOLATILE}, sort_keys=True)
+
+    return norm(a) == norm(b)
+
+
+def _dashboard_state(url: str, token: str, dash: dict, folder_uid: str) -> str:
+    live = _get(url, token, f"/api/dashboards/uid/{dash.get('uid')}")
+    if not live:
+        return "NEW      "
+    if not _same(dash, live.get("dashboard") or {}):
+        return "CHANGED  "
+    if (live.get("meta") or {}).get("folderUid", "") != folder_uid:
+        return "MOVE     "
+    return "UNCHANGED"
+
+
 def _sync_tenant(name: str, cfg: dict, *, apply: bool) -> None:
     if cfg.get("enabled") is False:
         print(f"[{name}] disabled — skipping")
@@ -77,59 +116,36 @@ def _sync_tenant(name: str, cfg: dict, *, apply: bool) -> None:
     folder = gcfg.get("folder", name)
     url = os.environ.get(_acct_env(account, "URL"), "")
     token = os.environ.get(_acct_env(account, "TOKEN"), "")
-    loki_uid = os.environ.get(_acct_env(account, "LOKI_UID"), "${LOKI_UID}")
     if apply and not (url and token):
         print(f"[{name}] missing {_acct_env(account, 'URL')}/TOKEN — skipping", file=sys.stderr)
         return
+    live = bool(url and token)
 
     # Deterministic folder UID: create the folder with a slug-derived uid so we KNOW it (a plain
-    # ``{title}`` POST returns a random uid we'd have to GET back, and 409s on re-sync). Alert
-    # rules require ``folderUID`` — without it the provisioning API rejects every rule with
-    # "folderUID must be set", which is why alerts (security + enrichment) never synced before.
+    # ``{title}`` POST returns a random uid we'd have to GET back, and 409s on re-sync).
     folder_uid = _slug(folder)
     where = "set" if url else "(dry)"
     print(f"[{name}] account={account} folder={folder!r} uid={folder_uid} url={where}")
-    _post(url, token, "/api/folders", {"uid": folder_uid, "title": folder}, apply=apply)
+    dash_files = sorted((REPO / "config" / "grafana" / "dashboards" / name).glob("*.json"))
+    if dash_files and (apply or not live):  # no empty folder for a tenant with no dashboards
+        _post(url, token, "/api/folders", {"uid": folder_uid, "title": folder}, apply=apply)
 
-    dash_dir = REPO / "config" / "grafana" / "dashboards" / name
-    for f in sorted(dash_dir.glob("*.json")):
+    for f in dash_files:
         try:
             dash = json.loads(f.read_text())
         except json.JSONDecodeError as e:
             print(f"  SKIP {f.name}: invalid JSON ({e})", file=sys.stderr)
             continue
-        _post(url, token, "/api/dashboards/db", {"dashboard": dash, "overwrite": True}, apply=apply)
-
-    alert_dir = REPO / "config" / "grafana" / "alerts" / name
-    for f in sorted(alert_dir.glob("*.yaml")):
-        raw = f.read_text().replace("${LOKI_UID}", loki_uid)
-        doc = yaml.safe_load(raw) or {}
-        for group in doc.get("groups", []):
-            group_name = str(group.get("name") or name)
-            for rule in group.get("rules", []):
-                # The provisioning API needs folderUID + ruleGroup on each rule. Upsert by uid
-                # (PUT) so a changed threshold actually updates instead of 409-ing forever.
-                rule_uid = str(rule.get("uid") or "")
-                # The provisioning API requires noDataState + execErrState; a rule that omits them
-                # is rejected with a 500. Default them (Grafana's own defaults) when absent.
-                payload = {
-                    "noDataState": "NoData",
-                    "execErrState": "Error",
-                    **rule,
-                    "folderUID": folder_uid,
-                    "ruleGroup": group_name,
-                }
-                # Create; if it already exists (409), update in place by uid.
-                code = _post(url, token, "/api/v1/provisioning/alert-rules", payload, apply=apply)
-                if code == 409 and rule_uid:
-                    _api(
-                        url,
-                        token,
-                        "PUT",
-                        f"/api/v1/provisioning/alert-rules/{rule_uid}",
-                        payload,
-                        apply=apply,
-                    )
+        if live and not apply:
+            print(f"  {_dashboard_state(url, token, dash, folder_uid)} {f.name}")
+            continue
+        _post(
+            url,
+            token,
+            "/api/dashboards/db",
+            {"dashboard": {**dash, "id": None}, "folderUid": folder_uid, "overwrite": True},
+            apply=apply,
+        )
 
 
 def main() -> int:

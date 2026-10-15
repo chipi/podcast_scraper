@@ -136,9 +136,8 @@ and security logs (sshd/fail2ban/Caddy) to **VictoriaLogs** on the DGX
 `remote_write` that used to be baked into cloud-init (removed 2026-07 with the
 `grafana_cloud_*` terraform vars and the `alloy_enabled` blocks).
 
-Dashboards are owned in-repo (`config/grafana/dashboards/vps/`) and pushed to the
-shared Grafana with `scripts/ops/push-grafana-dashboards.sh` (token in gitignored
-`.env`). Full coverage plan: `docs/wip/observability-app-surface-plan.md`.
+Dashboards are owned in-repo (`config/grafana/dashboards/<tenant>/`) and pushed to the
+homelab Grafana by `make obs-sync` (ADR-117; the token lives on the mini, not in this repo). Full coverage plan: `docs/wip/observability-app-surface-plan.md`.
 
 ## State encryption model
 
