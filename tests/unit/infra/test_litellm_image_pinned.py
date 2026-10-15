@@ -21,7 +21,7 @@ MOVING = {"main-stable", "main-latest", "latest", "main", "stable"}
 
 
 def _image() -> str:
-    return yaml.safe_load(COMPOSE.read_text())["services"]["litellm"]["image"]
+    return str(yaml.safe_load(COMPOSE.read_text())["services"]["litellm"]["image"])
 
 
 def test_the_gateway_image_is_overridable_with_a_pinned_default() -> None:
