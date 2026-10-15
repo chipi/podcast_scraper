@@ -1308,6 +1308,38 @@ describe("the Brief's search, for what a listener remembers (operator 2026-10-10
     expect(w.get('[data-testid="kp-search-results"]').text()).not.toContain("The summary text")
   })
 
+  it("shows a few per group, then Show more (operator 2026-10-15)", async () => {
+    const insights = Array.from({ length: 8 }, (_, i) => ({
+      doc_id: `i${i}`,
+      score: 1,
+      text: `Insight number ${i}`,
+      metadata: { doc_type: "insight" },
+    }))
+    const w = await searchFor("free lunch", insights)
+    const shown = () => w.get('[data-testid="kp-search-insights"]').findAll("li").length
+    expect(shown()).toBe(3)
+    const more = w.get('[data-testid="kp-search-insights-more"]')
+    expect(more.text()).toContain("5")
+    await more.trigger("click")
+    expect(shown()).toBe(8)
+    // Every one out: the same control folds them back.
+    await w.get('[data-testid="kp-search-insights-more"]').trigger("click")
+    expect(shown()).toBe(3)
+    // A group that fits has no control.
+    expect(w.find('[data-testid="kp-search-transcript-more"]').exists()).toBe(false)
+  })
+
+  it("names each insight result's type, as the Insights section does (operator 2026-10-15)", async () => {
+    const w = await searchFor("free lunch", [
+      { doc_id: "x1", score: 1, text: "A recommendation", metadata: { doc_type: "insight", insight_type: "recommendation" } },
+      // The episode search's own shape: no type, the id is "insight:" + the episode's insight id
+      // (2026-10-15, /episodes/{slug}/search on the fixture) — i1, a claim.
+      { doc_id: "insight:i1", score: 1, text: "Sleep consolidates memory.", metadata: { doc_type: "insight" } },
+    ])
+    const types = w.findAll('[data-testid="kp-search-insight-type"]').map((e) => e.text())
+    expect(types).toEqual(["recommendation", "claim"])
+  })
+
   it("shows the sentence with the words, marked, played from where it was said", async () => {
     const w = await searchFor("free lunch", [
       { doc_id: "c1", score: 1, text: "long passage", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
@@ -1317,6 +1349,31 @@ describe("the Brief's search, for what a listener remembers (operator 2026-10-10
     expect(piece.findAll("mark").map((m) => m.text())).toEqual(["free", "lunch"])
     await piece.findAll("button").find((b) => b.text().includes("0:05"))!.trigger("click")
     expect(w.emitted("play-from")?.at(-1)).toEqual([5])
+  })
+
+  it("an insight result marks the asked words and saves as the Insights section does (2026-10-15)", async () => {
+    const auth = useAuthStore()
+    auth.user = { user_id: "u1", email: "a@b.c", name: "A" }
+    vi.spyOn(api, "getHighlights").mockResolvedValue([])
+    vi.spyOn(api, "getNotes").mockResolvedValue([])
+    const create = vi.spyOn(api, "createHighlight").mockResolvedValue({ id: "h1" } as never)
+    const w = await searchFor("memory", [
+      { doc_id: "insight:i1", score: 1, text: "Sleep consolidates memory.", metadata: { doc_type: "insight" } },
+    ])
+    const text = w.get('[data-testid="kp-search-insight-text"]')
+    expect(text.findAll("mark").map((m) => m.text())).toEqual(["memory"])
+    await w.get('[data-testid="kp-search-insight-highlight"]').trigger("click")
+    await flushPromises()
+    // The same highlight as saving i1 from the Insights section.
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ kind: "insight", source_insight_id: "i1" }))
+    auth.user = null
+  })
+
+  it("an insight result the episode does not hold gets no save", async () => {
+    const w = await searchFor("memory", [
+      { doc_id: "insight:elsewhere", score: 1, text: "Memory elsewhere.", metadata: { doc_type: "insight" } },
+    ])
+    expect(w.find('[data-testid="kp-search-insight-highlight"]').exists()).toBe(false)
   })
 
   it("the bookmark saves exactly the sentence's segments", async () => {

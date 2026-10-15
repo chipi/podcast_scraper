@@ -25,6 +25,8 @@ import type {
 import { formatTime } from "../player/transcriptSync"
 import { hitStartSeconds, insightStartSeconds } from "../player/insights"
 import { groupBriefResults, markTerms, searchTerms } from "../player/briefSearch"
+import ShowAllToggle from "./ShowAllToggle.vue"
+import { useCappedSections } from "../composables/useCappedSections"
 import { spanFromParagraph, type ParagraphSpan } from "../player/transcriptCapture"
 import { minutesValue } from "../services/moments"
 import { speakerLabel } from "../utils/format"
@@ -556,6 +558,31 @@ const searchInput = ref<HTMLInputElement | null>(null)
 const askedQuery = ref("")
 const askedTerms = computed(() => searchTerms(askedQuery.value))
 const grouped = computed(() => groupBriefResults(results.value, props.segments, askedQuery.value))
+// A few per group, then "Show more (N)" (operator 2026-10-15), as main search's sections page; a
+// new search starts each group at its first few again.
+const searchCaps = useCappedSections(3, 5)
+/** An insight result's type, as the Insights section shows it (operator 2026-10-15). The episode
+ *  search's insight rows carry no type, so it is the episode's own insight's: the row's id is
+ *  `insight:` + that insight's id. A row that does carry `insight_type` is taken at its word. */
+function hitInsightType(hit: { doc_id: string; metadata?: Record<string, unknown> | null }): { insight_type?: string | null } {
+  const md = (hit.metadata ?? {}) as Record<string, unknown>
+  if (typeof md.insight_type === "string" && md.insight_type) return { insight_type: md.insight_type }
+  return { insight_type: hitInsight(hit)?.insight_type ?? null }
+}
+/** The words to mark in an insight result: what was asked, and the result's own `marks` — as a
+ *  transcript result marks them (operator 2026-10-15). */
+function hitMarks(hit: { metadata?: Record<string, unknown> | null }): string[] {
+  const m = (hit.metadata ?? {}) as Record<string, unknown>
+  const own = Array.isArray(m.marks) ? m.marks.filter((x): x is string => typeof x === "string") : []
+  return [...askedTerms.value, ...own]
+}
+/** The episode's own insight an insight result is: saved from here, it is the same highlight as
+ *  from the Insights section (operator 2026-10-15), so each shows the other's save. */
+function hitInsight(hit: { doc_id: string }): Insight | undefined {
+  const id = hit.doc_id.replace(/^insight:/, "")
+  return props.insights.find((i) => i.id === id)
+}
+watch(askedQuery, () => searchCaps.revealed.clear())
 
 /**
  * Collapse hits whose text is identical.
@@ -875,7 +902,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInTranscript") }}</h4>
               <ul class="flex flex-col gap-2">
                 <li
-                  v-for="p in grouped.transcript"
+                  v-for="p in searchCaps.visible('transcript', grouped.transcript)"
                   :key="p.key"
                   class="rounded-xl border border-border p-3"
                   data-testid="kp-search-piece"
@@ -905,24 +932,68 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   </div>
                 </li>
               </ul>
+              <ShowAllToggle
+                v-if="searchCaps.overflows(grouped.transcript.length, false, 'transcript')"
+                :expanded="searchCaps.remaining('transcript', grouped.transcript.length) === 0"
+                :count="grouped.transcript.length"
+                :remaining="searchCaps.remaining('transcript', grouped.transcript.length)"
+                data-testid="kp-search-transcript-more"
+                @toggle="searchCaps.toggle('transcript', grouped.transcript.length)"
+              />
             </section>
             <section v-if="grouped.insights.length" data-testid="kp-search-insights">
               <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInsights") }}</h4>
               <ul class="flex flex-col gap-2">
                 <li
-                  v-for="hit in grouped.insights"
+                  v-for="hit in searchCaps.visible('insights', grouped.insights)"
                   :key="hit.doc_id"
                   class="rounded-xl border border-border p-3"
                 >
-                  <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
-                  <PlayFrom
-                    v-if="hitStartSeconds(hit) != null"
-                    class="mt-1 inline-block"
-                    :seconds="hitStartSeconds(hit)"
-                    @click="emit('play-from', hitStartSeconds(hit) as number)"
-                  />
+                  <span
+                    v-if="insightTypeLabel(hitInsightType(hit))"
+                    class="lp-kicker mb-1 inline-flex items-center gap-1.5"
+                    :title="insightTypeHint(hitInsightType(hit))"
+                    data-testid="kp-search-insight-type"
+                  >
+                    <InsightTypeMark :type="insightTypeLabel(hitInsightType(hit))" />
+                    {{ insightTypeLabel(hitInsightType(hit)) }}
+                  </span>
+                  <p class="text-sm text-surface-foreground" data-testid="kp-search-insight-text"><template
+                      v-for="(run, i) in markTerms(hit.text, hitMarks(hit))"
+                      :key="i"
+                    ><mark
+                        v-if="run.mark"
+                        class="rounded-sm bg-canvas-foreground/15 px-0.5 font-semibold text-canvas-foreground"
+                      >{{ run.text }}</mark><template v-else>{{ run.text }}</template></template></p>
+                  <!-- Play from and the save, as a transcript result has them (operator 2026-10-15). -->
+                  <div class="mt-1 flex flex-wrap items-center justify-between gap-x-4">
+                    <PlayFrom
+                      v-if="hitStartSeconds(hit) != null"
+                      :seconds="hitStartSeconds(hit)"
+                      @click="emit('play-from', hitStartSeconds(hit) as number)"
+                    />
+                    <span v-else />
+                    <HighlightToggle
+                      v-if="hitInsight(hit)"
+                      context="insight"
+                      :size="20"
+                      :label="hit.text.slice(0, 60)"
+                      :saved="savedInsightIds.has(hitInsight(hit)!.id)"
+                      :gated="isGated"
+                      data-testid="kp-search-insight-highlight"
+                      @toggle="captureInsight(hitInsight(hit)!)"
+                    />
+                  </div>
                 </li>
               </ul>
+              <ShowAllToggle
+                v-if="searchCaps.overflows(grouped.insights.length, false, 'insights')"
+                :expanded="searchCaps.remaining('insights', grouped.insights.length) === 0"
+                :count="grouped.insights.length"
+                :remaining="searchCaps.remaining('insights', grouped.insights.length)"
+                data-testid="kp-search-insights-more"
+                @toggle="searchCaps.toggle('insights', grouped.insights.length)"
+              />
             </section>
           </div>
           </CollapsibleSection>
