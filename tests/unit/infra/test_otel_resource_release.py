@@ -29,7 +29,9 @@ _ComposeLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
 def _traced_services() -> list[tuple[str, str, str]]:
     out = []
     for f in COMPOSE:
-        services = (yaml.load(f.read_text(), Loader=_ComposeLoader) or {}).get("services") or {}
+        # _ComposeLoader is a SafeLoader subclass; bandit cannot see through the subclass.
+        data = yaml.load(f.read_text(), Loader=_ComposeLoader)  # nosec B506
+        services = (data or {}).get("services") or {}
         for name, svc in services.items():
             env = (svc or {}).get("environment") or {}
             if isinstance(env, dict) and "OTEL_RESOURCE_ATTRIBUTES" in env:
