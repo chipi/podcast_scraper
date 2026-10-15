@@ -40,6 +40,10 @@ import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 import { kindPill } from "../utils/interests"
 import { useCaptureStore } from "../stores/capture"
+import { useAuthStore } from "../stores/auth"
+import HighlightToggle from "../components/HighlightToggle.vue"
+import InsightTypeMark from "../components/InsightTypeMark.vue"
+import { markTerms, searchTerms } from "../player/briefSearch"
 import EntityCard from "../components/EntityCard.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
 import { useNotesPage } from "../composables/useNotesPage"
@@ -294,6 +298,58 @@ function groupLanguage(g: EpisodeGroup, feedId: unknown): string | null {
 }
 
 const md = (h: SearchHit) => h.metadata as Record<string, unknown>
+
+// --- What a passage carries, as the Brief's search has it (operator 2026-10-15) -----------------
+/** The words the search ran on, marked in each passage. */
+const askedTerms = computed(() => searchTerms(ranTerm.value))
+/** An insight's type (claim, recommendation, …) from the index; "" when it has none. */
+function passageInsightType(h: SearchHit): string {
+  if (hitCategory(h) !== "insights") return ""
+  const type = String(md(h).insight_type ?? "").toLowerCase()
+  return type && type !== "unknown" ? type : ""
+}
+function insightTypeHint(type: string): string {
+  const key = `kp.insightType.${type}`
+  const hint = t(key)
+  return hint === key ? t("kp.insightType.other") : hint
+}
+const msOf = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null)
+/** Whether a passage can be saved as a highlight: an insight, or a timed piece of the conversation. */
+function canSave(g: EpisodeGroup, h: SearchHit): boolean {
+  if (!g.slug) return false
+  if (hitCategory(h) === "insights") return Boolean(md(h).source_id)
+  return hitCategory(h) === "transcript" && hitStartSeconds(h) != null
+}
+function isSaved(g: EpisodeGroup, h: SearchHit): boolean {
+  if (hitCategory(h) === "insights") return capture.savedInsightIds.has(String(md(h).source_id ?? ""))
+  return capture.highlights.some((x) => x.kind === "span" && x.episode_slug === g.slug && x.quote_text === h.text)
+}
+/** The same saves as the Brief: an insight highlight, or a span highlight of the passage. */
+function toggleSave(g: EpisodeGroup, h: SearchHit): void {
+  const slug = g.slug
+  if (!slug) return
+  const start = hitStartSeconds(h)
+  void gated(async () => {
+    if (hitCategory(h) === "insights") {
+      await capture.captureInsight(slug, {
+        id: String(md(h).source_id),
+        text: h.text,
+        start_ms: start != null ? Math.round(start * 1000) : null,
+      })
+      return
+    }
+    const startMs = Math.round((start ?? 0) * 1000)
+    await capture.captureSpan(slug, {
+      start_ms: startMs,
+      end_ms: msOf(md(h).end_ms) ?? msOf(md(h).timestamp_end_ms) ?? startMs,
+      segment_ids: [],
+      char_start: msOf(md(h).char_start) ?? 0,
+      char_end: msOf(md(h).char_end) ?? 0,
+      quote_text: h.text,
+      speaker: null,
+    })
+  })()
+}
 const hitSlug = (h: SearchHit) => (md(h).episode_slug as string | undefined) ?? null
 const hitEpisode = (h: SearchHit) => (md(h).episode_title as string | undefined) ?? null
 const hitShow = (h: SearchHit) => (md(h).podcast_title as string | undefined) ?? null
@@ -506,6 +562,15 @@ const PER_EPISODE_KIND = 2
 const EPISODES_PAGE = 5
 const episodesShown = ref(EPISODES_PAGE)
 const shownGroups = computed(() => groups.value.slice(0, episodesShown.value))
+// Each shown episode's highlights, so a saved passage shows its bookmark filled.
+const searchAuth = useAuthStore()
+watch(
+  () => shownGroups.value.map((g) => g.slug).filter((x): x is string => Boolean(x)),
+  (slugs) => {
+    if (!searchAuth.isAuthenticated) return
+    for (const slug of slugs) void capture.ensureEpisode(slug).catch(() => undefined)
+  },
+)
 /** Whether the server holds more of any kind than has been fetched. */
 const moreOnServer = computed(() => Object.values(categoryMore.value).some(Boolean))
 const moreEpisodes = computed(() => groups.value.length > episodesShown.value || moreOnServer.value)
@@ -1240,25 +1305,49 @@ const showMineEmpty = computed(
                     class="border-b border-border py-3"
                     data-testid="search-passage"
                   >
+                    <!-- What the Brief's search shows (operator 2026-10-15): an insight's type, the
+                         asked words marked, Play from and the bookmark under the text. -->
+                    <span
+                      v-if="passageInsightType(row)"
+                      class="lp-kicker mb-1 inline-flex items-center gap-1.5"
+                      :title="insightTypeHint(passageInsightType(row))"
+                      data-testid="search-passage-type"
+                    >
+                      <InsightTypeMark :type="passageInsightType(row)" />
+                      {{ passageInsightType(row) }}
+                    </span>
                     <p
                       class="line-clamp-2 text-sm leading-relaxed"
                       :class="hitKind(row) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
-                    >
-                      {{ row.text }}
-                    </p>
-                    <!-- Under the text, as the Brief's search has it: the passage is read first. -->
-                    <PlayFrom
-                      v-if="hitStartSeconds(row) != null && g.slug"
-                      class="mt-1"
-                      :seconds="hitStartSeconds(row)"
-                      :aria-label="
-                        t('search.jumpTo', {
-                          time: formatTime(hitStartSeconds(row) ?? 0),
-                          episode: g.title,
-                        })
-                      "
-                      @click="openEpisode(g.slug, row, gi + 1)"
-                    />
+                      data-testid="search-passage-text"
+                    ><template v-for="(run, ri) in markTerms(row.text, askedTerms)" :key="ri"><mark
+                        v-if="run.mark"
+                        class="rounded-sm bg-canvas-foreground/15 px-0.5 font-semibold text-canvas-foreground"
+                      >{{ run.text }}</mark><template v-else>{{ run.text }}</template></template></p>
+                    <div class="mt-1 flex flex-wrap items-center justify-between gap-x-4">
+                      <PlayFrom
+                        v-if="hitStartSeconds(row) != null && g.slug"
+                        :seconds="hitStartSeconds(row)"
+                        :aria-label="
+                          t('search.jumpTo', {
+                            time: formatTime(hitStartSeconds(row) ?? 0),
+                            episode: g.title,
+                          })
+                        "
+                        @click="openEpisode(g.slug, row, gi + 1)"
+                      />
+                      <span v-else />
+                      <HighlightToggle
+                        v-if="canSave(g, row)"
+                        :context="hitCategory(row) === 'insights' ? 'insight' : 'line'"
+                        :size="20"
+                        :label="row.text.slice(0, 60)"
+                        :saved="isSaved(g, row)"
+                        :gated="isGated"
+                        data-testid="search-passage-highlight"
+                        @toggle="toggleSave(g, row)"
+                      />
+                    </div>
                   </li>
                 </ul>
                 <ShowAllToggle

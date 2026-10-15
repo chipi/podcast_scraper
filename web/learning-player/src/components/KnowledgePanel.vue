@@ -887,9 +887,9 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
           <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
           <!-- One folding "Search results" section (operator 2026-10-12), its count in the header,
-               and inside it the two groups (operator 2026-10-10), always shown: the transcript —
-               the sentence holding the words, the words marked, Play from and Highlight — then the
-               insights. -->
+               and inside it the two groups (operator 2026-10-10), always shown: the insights, then
+               the conversation — the sentence holding the words, the words marked, Play from and
+               Highlight (that order since 2026-10-15). -->
           <CollapsibleSection
             v-else-if="grouped.transcript.length || grouped.insights.length"
             :title="t('kp.searchResults')"
@@ -898,51 +898,10 @@ watch(() => auth.isAuthenticated, loadCaptures)
             class="mt-3"
           >
           <div class="flex flex-col gap-4" data-testid="kp-search-results">
-            <section v-if="grouped.transcript.length" data-testid="kp-search-transcript">
-              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInTranscript") }}</h4>
-              <ul class="flex flex-col gap-2">
-                <li
-                  v-for="p in searchCaps.visible('transcript', grouped.transcript)"
-                  :key="p.key"
-                  class="rounded-xl border border-border p-3"
-                  data-testid="kp-search-piece"
-                >
-                  <p class="text-sm text-surface-foreground"><template
-                      v-for="(run, i) in markTerms(p.text, [...askedTerms, ...p.marks])"
-                      :key="i"
-                    ><mark
-                        v-if="run.mark"
-                        class="rounded-sm bg-canvas-foreground/15 px-0.5 font-semibold text-canvas-foreground"
-                      >{{ run.text }}</mark><template v-else>{{ run.text }}</template></template></p>
-                  <!-- Save as a highlight with the app's one highlight control, the bookmark
-                       (operator 2026-10-12): it was the word "Highlight", the only place the action
-                       was a word. Filled once those segments are saved, like a transcript line. -->
-                  <div class="mt-1 flex flex-wrap items-center justify-between gap-x-4">
-                    <PlayFrom v-if="p.start != null" :seconds="p.start" @click="emit('play-from', p.start)" />
-                    <HighlightToggle
-                      v-if="p.segments.length"
-                      context="line"
-                      :size="20"
-                      :label="p.text.slice(0, 60)"
-                      :saved="p.segments.some((seg) => capture.savedSegmentIds.has(seg.id))"
-                      :gated="isGated"
-                      data-testid="kp-search-highlight"
-                      @toggle="emit('capture-span', spanFromParagraph(p.segments, null))"
-                    />
-                  </div>
-                </li>
-              </ul>
-              <ShowAllToggle
-                v-if="searchCaps.overflows(grouped.transcript.length, false, 'transcript')"
-                :expanded="searchCaps.remaining('transcript', grouped.transcript.length) === 0"
-                :count="grouped.transcript.length"
-                :remaining="searchCaps.remaining('transcript', grouped.transcript.length)"
-                data-testid="kp-search-transcript-more"
-                @toggle="searchCaps.toggle('transcript', grouped.transcript.length)"
-              />
-            </section>
+            <!-- Insights first, then what is said in the conversation, each under a label chip — as
+                 main search orders and labels an episode's matches (operator 2026-10-15). -->
             <section v-if="grouped.insights.length" data-testid="kp-search-insights">
-              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInsights") }}</h4>
+              <h4 class="inline-block mb-1.5 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-grounded">{{ t("kp.searchInsights") }}</h4>
               <ul class="flex flex-col gap-2">
                 <li
                   v-for="hit in searchCaps.visible('insights', grouped.insights)"
@@ -993,6 +952,49 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 :remaining="searchCaps.remaining('insights', grouped.insights.length)"
                 data-testid="kp-search-insights-more"
                 @toggle="searchCaps.toggle('insights', grouped.insights.length)"
+              />
+            </section>
+            <section v-if="grouped.transcript.length" data-testid="kp-search-transcript">
+              <h4 class="inline-block mb-1.5 rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-canvas-foreground">{{ t("kp.searchInTranscript") }}</h4>
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="p in searchCaps.visible('transcript', grouped.transcript)"
+                  :key="p.key"
+                  class="rounded-xl border border-border p-3"
+                  data-testid="kp-search-piece"
+                >
+                  <p class="text-sm text-surface-foreground"><template
+                      v-for="(run, i) in markTerms(p.text, [...askedTerms, ...p.marks])"
+                      :key="i"
+                    ><mark
+                        v-if="run.mark"
+                        class="rounded-sm bg-canvas-foreground/15 px-0.5 font-semibold text-canvas-foreground"
+                      >{{ run.text }}</mark><template v-else>{{ run.text }}</template></template></p>
+                  <!-- Save as a highlight with the app's one highlight control, the bookmark
+                       (operator 2026-10-12): it was the word "Highlight", the only place the action
+                       was a word. Filled once those segments are saved, like a transcript line. -->
+                  <div class="mt-1 flex flex-wrap items-center justify-between gap-x-4">
+                    <PlayFrom v-if="p.start != null" :seconds="p.start" @click="emit('play-from', p.start)" />
+                    <HighlightToggle
+                      v-if="p.segments.length"
+                      context="line"
+                      :size="20"
+                      :label="p.text.slice(0, 60)"
+                      :saved="p.segments.some((seg) => capture.savedSegmentIds.has(seg.id))"
+                      :gated="isGated"
+                      data-testid="kp-search-highlight"
+                      @toggle="emit('capture-span', spanFromParagraph(p.segments, null))"
+                    />
+                  </div>
+                </li>
+              </ul>
+              <ShowAllToggle
+                v-if="searchCaps.overflows(grouped.transcript.length, false, 'transcript')"
+                :expanded="searchCaps.remaining('transcript', grouped.transcript.length) === 0"
+                :count="grouped.transcript.length"
+                :remaining="searchCaps.remaining('transcript', grouped.transcript.length)"
+                data-testid="kp-search-transcript-more"
+                @toggle="searchCaps.toggle('transcript', grouped.transcript.length)"
               />
             </section>
           </div>

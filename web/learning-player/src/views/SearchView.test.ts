@@ -729,6 +729,53 @@ describe("SearchView", () => {
     expect(router.currentRoute.value.name).toBe("login")
   })
 
+  it("a passage shows what the Brief's does: an insight's type, the asked words marked, and a save (operator 2026-10-15)", async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: "u1", email: "a@b.c", name: "A" }
+    vi.spyOn(api, "getHighlightsPage").mockResolvedValue({ items: [], total: 0 } as never)
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "risk",
+      error: null,
+      results: [
+        {
+          doc_id: "insight:x:ins-1",
+          score: 0.9,
+          text: "Risk is a property of the whole system.",
+          source_tier: "insight",
+          metadata: { doc_type: "insight", insight_type: "claim", source_id: "ins-1", episode_slug: "ep-1", episode_title: "Ep", podcast_title: "Show", timestamp_start_ms: 42_000 },
+        },
+        {
+          doc_id: "t1",
+          score: 0.8,
+          text: "We talked about risk at length.",
+          source_tier: "segment",
+          metadata: { doc_type: "transcript", episode_slug: "ep-1", episode_title: "Ep", podcast_title: "Show", start_ms: 60_000, end_ms: 66_000, char_start: 10, char_end: 41 },
+        },
+      ],
+    })
+    const router = makeRouter()
+    router.push({ name: "search", query: { q: "risk", scope: "all" } })
+    await router.isReady()
+    const w = mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
+    await flushPromises()
+    const insight = w.get('[data-testid="search-episode-kind"][data-kind="insights"]')
+    expect(insight.get('[data-testid="search-passage-type"]').text()).toBe("claim")
+    expect(insight.get('[data-testid="search-passage-text"] mark').text()).toBe("Risk")
+    const { useCaptureStore } = await import("../stores/capture")
+    const store = useCaptureStore()
+    const saveInsight = vi.spyOn(store, "captureInsight").mockResolvedValue(true)
+    const saveSpan = vi.spyOn(store, "captureSpan").mockResolvedValue(true)
+    await insight.get('[data-testid="search-passage-highlight"]').trigger("click")
+    await flushPromises()
+    expect(saveInsight).toHaveBeenCalledWith("ep-1", { id: "ins-1", text: "Risk is a property of the whole system.", start_ms: 42_000 })
+    const said = w.get('[data-testid="search-episode-kind"][data-kind="transcript"]')
+    expect(said.find('[data-testid="search-passage-type"]').exists()).toBe(false)
+    await said.get('[data-testid="search-passage-highlight"]').trigger("click")
+    await flushPromises()
+    expect(saveSpan).toHaveBeenCalledWith("ep-1", expect.objectContaining({ start_ms: 60_000, end_ms: 66_000, quote_text: "We talked about risk at length." }))
+  })
+
   it("signed-in: My corpus scope searches scope=mine and shows a recall-specific empty message", async () => {
     const pinia = createPinia()
     setActivePinia(pinia)

@@ -1303,9 +1303,12 @@ describe("the Brief's search, for what a listener remembers (operator 2026-10-10
       { doc_id: "sum", score: 1, text: "The summary text", metadata: { doc_type: "summary" } },
       { doc_id: "c1", score: 1, text: "long passage", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
     ])
-    expect(w.get('[data-testid="kp-search-transcript"]').text()).toContain("In the transcript")
+    expect(w.get('[data-testid="kp-search-transcript"]').text()).toContain("In the conversation")
     expect(w.get('[data-testid="kp-search-insights"]').text()).toContain("An insight")
     expect(w.get('[data-testid="kp-search-results"]').text()).not.toContain("The summary text")
+    // Insights first, then the conversation — main search's order (operator 2026-10-15).
+    const order = w.findAll('[data-testid="kp-search-results"] > section').map((x) => x.attributes("data-testid"))
+    expect(order).toEqual(["kp-search-insights", "kp-search-transcript"])
   })
 
   it("shows a few per group, then Show more (operator 2026-10-15)", async () => {

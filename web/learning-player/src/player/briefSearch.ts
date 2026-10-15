@@ -5,7 +5,7 @@
  * gave the transcript a third of the slots — insights and their own supporting quotes took the rest
  * — and showed a transcript hit as a ~300-word block. So:
  *
- * * Two groups (C): **In the transcript** — verbatim passages first, then quotes and passages — and
+ * * Two groups (C): **In the conversation** (shown after Insights since 2026-10-15) — verbatim passages first, then quotes and passages — and
  *   **Insights**. The episode's own title / summary / description hits are left out: the Brief
  *   already shows them.
  * * The sentence, not the passage (D): a transcript result is cut to the segment that holds the
