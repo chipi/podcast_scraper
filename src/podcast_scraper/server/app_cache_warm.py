@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -113,11 +114,20 @@ def warm_caches(root: Path, *, moments_config: Any = None) -> None:
         # reel routes fill the same cache themselves if a reader gets there first.
         ("reel_clips", lambda: _warm_reel_clips(root, moments_config)),
     )
+    # ONE INFO line per warm, with every step's time: the 2026-10-15 post-deploy smokes failed while
+    # the APIs sat above 100% CPU after a restart, and nothing said how long the warmer itself held
+    # them. One line, not one per step: the warm re-runs on every corpus change during a backfill.
+    timings: list[str] = []
+    started = time.monotonic()
     for label, fn in steps:
+        t0 = time.monotonic()
         try:
             fn()
+            timings.append(f"{label} {time.monotonic() - t0:.1f}s")
         except Exception as exc:  # noqa: BLE001 - warming is advisory; the request path re-reports
+            timings.append(f"{label} skipped")
             logger.debug("cache warm %s skipped: %s", label, exc)
+    logger.info("cache warm done in %.1fs: %s", time.monotonic() - started, ", ".join(timings))
 
 
 def _warm_loop(

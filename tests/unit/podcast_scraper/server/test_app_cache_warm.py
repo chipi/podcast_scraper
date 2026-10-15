@@ -107,6 +107,32 @@ def test_a_failing_digest_warm_does_not_skip_the_rest(monkeypatch, tmp_path) -> 
     assert entity == [1]
 
 
+def test_a_warm_logs_one_info_line_with_every_steps_time(monkeypatch, tmp_path, caplog) -> None:
+    """2026-10-15: the APIs sat above 100% CPU after a restart and nothing said how long the
+    warmer held them. One line per warm (it re-runs on every corpus change during a backfill)."""
+    monkeypatch.setattr(
+        app_cache_warm,
+        "_warm_corpus_digest",
+        lambda root: (_ for _ in ()).throw(RuntimeError("no index")),
+    )
+    monkeypatch.setattr(app_cache_warm, "_warm_entity_id_map", lambda root: None)
+    with caplog.at_level("INFO", logger=app_cache_warm.logger.name):
+        app_cache_warm.warm_caches(tmp_path)
+    lines = [r.getMessage() for r in caplog.records if r.levelname == "INFO"]
+    assert len(lines) == 1 and lines[0].startswith("cache warm done in ")
+    for step in (
+        "catalog",
+        "search_paths",
+        "slug_index",
+        "entity_id_map",
+        "kg_index",
+        "reel_clips",
+    ):
+        assert step in lines[0]
+    assert "corpus_digest skipped" in lines[0]
+    assert "entity_id_map 0.0s" in lines[0]
+
+
 def test_the_digest_warm_fills_the_cache_a_request_reads(monkeypatch, tmp_path) -> None:
     """Through the real route: after a warm, the same request is served from the catalog-rows
     cache (the builder runs once, not twice)."""
