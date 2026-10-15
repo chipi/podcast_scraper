@@ -1215,7 +1215,9 @@ const showMineEmpty = computed(
         class="mt-5"
         :data-testid="`search-category-${cat.id}`"
       >
-      <h3 class="lp-kicker" data-testid="search-category-title">{{ t(`search.category.${cat.id}`) }}</h3>
+      <!-- A category heading, as the Library's Saved sections head theirs (operator 2026-10-15):
+           the uppercase kicker read as one more show name. -->
+      <h3 class="lp-section mb-2" data-testid="search-category-title">{{ t(`search.category.${cat.id}`) }}</h3>
       <template v-for="section in cat.yearSections" :key="section.year">
         <h2
           v-if="cat.showYearHeaders"

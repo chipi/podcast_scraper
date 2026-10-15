@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { closeListSearch, listSearch, signInIsolated } from './helpers'
 
 /**
  * Explore's Browse — every control of both lists, ON Explore (operator 2026-10-11).
@@ -29,11 +29,12 @@ test('Episodes: text filter, which episodes, state, sort and list ⇄ grid all w
   const all = await cards.count()
 
   // Text filter narrows the list to what matches, and clearing it brings the list back.
-  const search = panel.getByTestId('list-toolbar-search')
+  const search = await listSearch(panel)
   await search.fill('Bessent')
   await expect(cards.first()).toContainText('Bessent')
   await expect.poll(() => cards.count()).toBeLessThan(all)
   await search.fill('')
+  await closeListSearch(panel)
   // Back to the whole list: at least the first page it showed before (a search loads the rest).
   await expect.poll(() => cards.count()).toBeGreaterThanOrEqual(all)
 
@@ -80,10 +81,12 @@ test('Shows: text filter, sort, language and list ⇄ grid all work on Explore',
   expect(all).toBeGreaterThan(3)
 
   // Text filter.
-  await panel.getByTestId('show-browse-search').fill('Drift')
+  const showSearch = await listSearch(panel, 'show-browse-search')
+  await showSearch.fill('Drift')
   await expect(tiles).toHaveCount(1)
   await expect(tiles.first()).toContainText('The Drift')
-  await panel.getByTestId('show-browse-search').fill('')
+  await showSearch.fill('')
+  await closeListSearch(panel, 'show-browse-search')
   await expect.poll(() => tiles.count()).toBe(all)
 
   // Sort: A–Z then Z–A reverse the order.

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated, expectSignedIn } from './helpers'
+import { signInIsolated, expectSignedIn, listSearch } from './helpers'
 
 /**
  * Browse (Catalog) and Profile — two whole VIEWS that had no dedicated spec
@@ -22,7 +22,7 @@ test('Explore renders the discovery explorer and both content tabs', async ({ pa
 
   // Content band — Episodes and Shows only (topics/people/storylines surface via the explorer).
   await page.getByTestId('browse-tab-shows').click()
-  await expect(page.getByTestId('browse-panel-shows').getByTestId('show-browse-search')).toBeVisible()
+  await listSearch(page.getByTestId('browse-panel-shows'), 'show-browse-search')
 
   await page.getByTestId('browse-tab-episodes').click()
   await expect(page.getByTestId('browse-panel-episodes')).toBeVisible()
@@ -33,8 +33,7 @@ test('the shows index can be searched and sorted', async ({ page }, testInfo) =>
   await page.goto('/shows')
 
   await expect(page.getByTestId('show-browse-grid')).toBeVisible()
-  const search = page.getByTestId('show-browse-search')
-  await expect(search).toBeVisible()
+  const search = await listSearch(page, 'show-browse-search')
   await search.fill('zzzz-no-such-show')
   // An index that filters to nothing must SAY so rather than render an empty grid, which reads as
   // a loading state that never finishes.

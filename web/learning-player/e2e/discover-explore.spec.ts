@@ -44,11 +44,12 @@ test('Explore holds Trends and the catalog, one tap from Discover', async ({ pag
   await expect(page.getByTestId('browse-tab-episodes')).toHaveAttribute('aria-selected', 'true')
   // Browse: the FULL lists with their filter bars, as in the last release (operator 2026-10-11).
   const episodes = page.getByTestId('browse-panel-episodes')
-  await expect(episodes.getByPlaceholder('Filter episodes…')).toBeVisible()
+  // The filter field is there (on a phone behind its 🔍 circle, operator 2026-10-15), and so are the chips.
+  await expect(episodes.getByTestId('list-toolbar-search')).toHaveAttribute('placeholder', 'Filter episodes…')
   await expect(episodes.getByTestId('catalog-from')).toBeVisible()
   await page.getByTestId('browse-tab-shows').click()
   const shows = page.getByTestId('browse-panel-shows')
-  await expect(shows.getByTestId('show-browse-search')).toBeVisible()
+  await expect(shows.getByTestId('show-browse-search')).toHaveCount(1)
   await expect(shows.getByTestId('show-browse-sort')).toBeVisible()
   await expect(shows.getByTestId('show-view')).toBeVisible()
 })

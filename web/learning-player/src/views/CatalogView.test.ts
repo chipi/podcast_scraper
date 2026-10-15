@@ -90,6 +90,32 @@ describe('CatalogView', () => {
     expect(loadMore()).toBeUndefined()
   })
 
+  it('a Language chip, as on the Shows list, once the shows span two languages (operator 2026-10-15)', async () => {
+    vi.spyOn(api, 'listEpisodes').mockResolvedValue({
+      items: [{ ...ep('a-1', 'Trails'), language: 'en' }, { ...ep('a-2', 'Senderos'), language: 'es' }],
+      page: 1, page_size: 20, total: 2, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcastsPage').mockResolvedValue({ items: [], total: 0, languages: ['en', 'es'] } as never)
+    const w = mountView()
+    await flushPromises()
+    const chip = w.get('[data-testid="catalog-language"]')
+    expect(chip.text()).toBe('All languages')
+    await chip.trigger('click')
+    const spanish = w.findAll('[role="menuitemradio"], [role="menuitem"], li button').find((b) => b.text().includes('Spanish'))!
+    await spanish.trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('Senderos')
+    expect(w.text()).not.toContain('Trails')
+  })
+
+  it('no Language chip when every show speaks one language', async () => {
+    vi.spyOn(api, 'listEpisodes').mockResolvedValue({ items: [ep('a-1', 'First')], page: 1, page_size: 20, total: 1, has_more: false })
+    vi.spyOn(api, 'getPodcastsPage').mockResolvedValue({ items: [], total: 0, languages: ['en'] } as never)
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="catalog-language"]').exists()).toBe(false)
+  })
+
   it('shows Load more and appends the next page', async () => {
     const spy = vi.spyOn(api, 'listEpisodes')
     spy.mockResolvedValueOnce({ items: [ep('a-1', 'First')], page: 1, page_size: 20, total: 2, has_more: true })

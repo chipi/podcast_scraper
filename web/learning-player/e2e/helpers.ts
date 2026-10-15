@@ -217,3 +217,23 @@ export async function listenToOne(page: Page): Promise<string> {
   }
   return slug
 }
+
+/**
+ * A list toolbar's search field (ListToolbar), opened first where it starts as a 🔍 circle — a
+ * phone-width viewport (operator 2026-10-15). From `lg` up the field is always there.
+ */
+export async function listSearch(scope: Page | Locator, testid = 'list-toolbar-search'): Promise<Locator> {
+  const open = scope.getByTestId(`${testid}-open`)
+  const field = scope.getByTestId(testid)
+  // Whichever this width shows: the circle (phone) or the field (lg up). Both are in the DOM.
+  await expect.poll(async () => (await open.isVisible()) || (await field.isVisible())).toBe(true)
+  if (await open.isVisible()) await open.click()
+  await expect(field).toBeVisible()
+  return field
+}
+
+/** Close a list toolbar's search where it is a 🔍 circle, so the chips beside it are back. */
+export async function closeListSearch(scope: Page | Locator, testid = 'list-toolbar-search'): Promise<void> {
+  const close = scope.getByTestId(`${testid}-close`)
+  if (await close.isVisible()) await close.click()
+}

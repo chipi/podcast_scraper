@@ -41,6 +41,28 @@ describe('ListToolbar', () => {
     expect(w.find('[data-testid="list-toolbar-filter"]').exists()).toBe(false)
   })
 
+  it('on a phone the search is a 🔍 circle: tapped it takes the row, × closes and clears (operator 2026-10-15)', async () => {
+    const w = mountBar()
+    const field = () => w.get('[data-testid="list-toolbar-search"]').element.parentElement!
+    // Closed: the circle shows; the field waits for lg (CSS), the chips hold the row.
+    expect(w.find('[data-testid="list-toolbar-search-open"]').exists()).toBe(true)
+    expect(field().className).toContain('hidden lg:flex')
+    await w.get('[data-testid="list-toolbar-search-open"]').trigger('click')
+    expect(w.find('[data-testid="list-toolbar-search-open"]').exists()).toBe(false)
+    expect(field().className).not.toContain('hidden')
+    expect(w.get('[data-testid="list-toolbar-sort"]').element.closest('div.items-center')!.className).toContain('hidden lg:flex')
+    await w.get('[data-testid="list-toolbar-search-close"]').trigger('click')
+    expect(w.find('[data-testid="list-toolbar-search-open"]').exists()).toBe(true)
+  })
+
+  it('stays open while it holds text, so a filtered list never hides its query', async () => {
+    const w = mountBar({ search: 'memory' })
+    expect(w.find('[data-testid="list-toolbar-search-open"]').exists()).toBe(false)
+    // × clears it (and with it the filter), which is what closes it.
+    await w.get('[data-testid="list-toolbar-search-close"]').trigger('click')
+    expect(w.emitted('update:search')?.at(-1)).toEqual([''])
+  })
+
   it('two-way-binds search via v-model (update:search)', async () => {
     const w = mountBar()
     await w.find('input[type="search"]').setValue('memory')

@@ -23,6 +23,7 @@ import { useDownloadsStore } from "../stores/downloads"
 import { useAuthStore } from "../stores/auth"
 import { isNative } from "../services/native"
 import { listSortOptions } from "../utils/listSort"
+import { languageOptions as buildLanguageOptions } from "../utils/languageOptions"
 import type { EpisodeSummary } from "../services/types"
 
 // `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
@@ -32,7 +33,7 @@ const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: fa
 // Embedded in the Discover band the list is a dispatch surface, so it reveals in a small chunk with
 // a "Load more" (operator 2026-09-14); the standalone catalog keeps the larger page (20/page).
 const PAGE_SIZE = props.embedded ? 10 : 20
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const episodes = ref<EpisodeSummary[]>([])
 const page = ref(0)
 const hasMore = ref(false)
@@ -132,9 +133,14 @@ const filterOptions = computed(() => {
 // The shared four-way sort (Newest / Oldest / A–Z / Z–A) — identical to Browse › Shows.
 const sortOptions = computed(() => listSortOptions(t))
 const shows = ref<{ id: string; label: string }[]>([])
+// Language (operator 2026-10-15): as on the Shows list — the shows say which languages there are.
+const language = ref("")
+const allLanguages = ref<string[]>([])
+const languageOptions = computed(() => buildLanguageOptions(allLanguages.value, locale.value, t("list.languageAll")))
 const controlsActive = computed(
   () =>
     search.value.trim() !== "" ||
+    language.value !== "" ||
     sort.value !== "newest" ||
     filter.value !== "all" ||
     from.value !== "all" ||
@@ -218,6 +224,7 @@ const visible = computed<EpisodeSummary[]>(() => {
     list = w ? list.filter((e) => w.has(e.slug)) : []
   }
   if (show.value) list = list.filter((e) => e.feed_id === show.value)
+  if (language.value) list = list.filter((e) => (e.language ?? "").split("-")[0] === language.value)
   const byDate = (e: EpisodeSummary) => e.publish_date ?? ""
   const sorted = [...list]
   if (sort.value === "newest") sorted.sort((a, b) => byDate(b).localeCompare(byDate(a)))
@@ -245,7 +252,7 @@ const visible = computed<EpisodeSummary[]>(() => {
  * Load more (operator 2026-10-05). So the matches are revealed a page at a time too.
  */
 const displayCount = ref(PAGE_SIZE)
-watch([search, sort, filter, from, show], () => {
+watch([search, sort, filter, from, show, language], () => {
   displayCount.value = PAGE_SIZE
 })
 const shown = computed<EpisodeSummary[]>(() =>
@@ -306,11 +313,9 @@ onMounted(async () => {
   // followed show's episodes on page two were missing (browse-filters.spec, 2026-10-10).
   if (controlsActive.value && hasMore.value) void loadAll()
   // The filter's show names only — every show, without descriptions (2026-10-08).
-  shows.value = (
-    await getPodcastsPage({ compact: true, limit: 200, sort: "az" })
-      .then((p) => p.items)
-      .catch(() => [])
-  )
+  const page = await getPodcastsPage({ compact: true, limit: 200, sort: "az" }).catch(() => null)
+  allLanguages.value = page?.languages ?? []
+  shows.value = (page?.items ?? [])
     .filter((p) => p.feed_id)
     .map((p) => ({ id: p.feed_id, label: p.title ?? p.feed_id }))
 })
@@ -344,7 +349,10 @@ onMounted(async () => {
         v-model:search="search"
         v-model:sort="sort"
         v-model:filter="filter"
+        v-model:language="language"
         v-model:view="view"
+        :language-options="languageOptions"
+        language-testid="catalog-language"
         :from="from"
         :from-options="auth.isAuthenticated ? fromOptions : undefined"
         :from-label="t('browse.fromLabel')"

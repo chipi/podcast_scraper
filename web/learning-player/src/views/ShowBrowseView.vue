@@ -22,6 +22,7 @@ import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useLibraryStore } from "../stores/library"
 import { useSignInGate } from "../composables/useSignInGate"
 import type { Podcast, TrendingEntity } from "../services/types"
+import { languageOptions as buildLanguageOptions } from "../utils/languageOptions"
 
 // Shows adds one sort the shared list util does not carry (operator 2026-09-14): "Trending" orders
 // by the show's momentum velocity (RFC-103, GET /api/app/trending?kind=show) and blends a sparkline
@@ -109,27 +110,10 @@ const categoryOptions = computed(() => [
   ...categories.value.map((c) => ({ value: c, label: c })),
 ])
 
-// Language facet (operator 2026-10-10): offered only when the catalogue spans two or more
-// languages — one language has nothing to choose between. Options are named in the reader's
-// language ("English", "Spanish"), the codes the server filters by as values.
+// Language facet (operator 2026-10-10): see `languageOptions` — shared with the Episodes list.
 const languageFilter = ref<string>("")
 const allLanguages = ref<string[]>([])
-function languageName(code: string): string {
-  try {
-    const name = new Intl.DisplayNames([locale.value], { type: "language" }).of(code) ?? code
-    return name.charAt(0).toUpperCase() + name.slice(1)
-  } catch {
-    return code.toUpperCase()
-  }
-}
-const languageOptions = computed(() =>
-  allLanguages.value.length >= 2
-    ? [
-        { value: "", label: t("list.languageAll") },
-        ...allLanguages.value.map((c) => ({ value: c, label: languageName(c) })),
-      ]
-    : undefined,
-)
+const languageOptions = computed(() => buildLanguageOptions(allLanguages.value, locale.value, t("list.languageAll")))
 
 /** The rows on screen — exactly what the server returned, in its order. */
 const visible = computed(() => shows.value)

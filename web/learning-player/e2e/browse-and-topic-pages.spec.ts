@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated, showEveryonesTrends } from './helpers'
+import { signInIsolated, showEveryonesTrends, listSearch } from './helpers'
 
 /**
  * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
@@ -176,16 +176,21 @@ for (const viewport of [
     await page.setViewportSize(viewport)
     const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
     for (const [url, placeholder, rowXpath] of [
-      ['/catalog', 'Filter episodes…', 'xpath=..'],
+      ['/catalog', 'Filter episodes…', 'xpath=../..'],
       ['/search?q=reliability', 'Search across every episode…', 'xpath=ancestor::form[1]'],
     ] as const) {
       await page.goto(url)
+      // The episodes toolbar's search is a 🔍 circle on a phone (operator 2026-10-15): open it.
+      if (url === '/catalog') await listSearch(page)
       const input = page.getByPlaceholder(placeholder)
       await expect(input).toBeVisible()
       const row = input.locator(rowXpath)
-      const lastControl = await row.locator('xpath=./*[last()]').boundingBox()
+      // The row's last SHOWN control: on a phone the chips step aside while the search is open.
+      const lastRight = await row.evaluate((r) =>
+        Math.max(...Array.from(r.children, (c) => c.getBoundingClientRect()).filter((b) => b.width > 0).map((b) => b.right)),
+      )
       const area = await row.locator('xpath=..').boundingBox()
-      expect(Math.abs(right(lastControl) - right(area)), url).toBeLessThanOrEqual(1)
+      expect(Math.abs(Math.round(lastRight) - right(area)), url).toBeLessThanOrEqual(1)
     }
   })
 }

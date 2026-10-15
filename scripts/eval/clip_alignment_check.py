@@ -178,6 +178,13 @@ def main() -> int:
         "--model", default="base.en", help="Whisper model name (cached in ~/.cache/whisper)."
     )
     ap.add_argument("--json", type=Path, default=None, help="Write every clip's result here.")
+    ap.add_argument(
+        "--exact",
+        action="store_true",
+        help="Download each episode's audio and decode it to WAV first, so every cut is "
+        "sample-exact. Without it, ffmpeg seeks the (often VBR) MP3 directly, which can land "
+        "seconds off — the same estimate a browser makes when it seeks.",
+    )
     args = ap.parse_args()
 
     import whisper  # noqa: PLC0415 — heavy; only once the arguments are good
@@ -197,7 +204,28 @@ def main() -> int:
         if source is None:
             print(f"{slug_for_row(row)}: no audio", file=sys.stderr)
             continue
-        for c in check_episode(model, args.corpus, row, source, config):
+        with tempfile.TemporaryDirectory() as dl:
+            if args.exact:
+                wav = Path(dl) / "episode.wav"
+                cmd = [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-y",
+                    "-i",
+                    source,
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "16000",
+                    str(wav),
+                ]
+                if subprocess.run(cmd, check=False).returncode != 0:
+                    print(f"{slug_for_row(row)}: download failed", file=sys.stderr)
+                    continue
+                source = str(wav)
+            checks = check_episode(model, args.corpus, row, source, config)
+        for c in checks:
             results.append(c)
             off = "  n/a" if c.offset_s is None else f"{c.offset_s:+5.1f}"
             span = f"{c.start_s:7.1f}-{c.end_s:7.1f}s"

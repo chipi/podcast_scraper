@@ -402,6 +402,7 @@
   },
   "list": {
     "search": "Filter this list…",
+    "searchClose": "Close search",
     "sort": "Sort",
     "sortNewest": "Newest",
     "sortOldest": "Oldest",
