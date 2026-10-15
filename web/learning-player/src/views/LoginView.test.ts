@@ -42,12 +42,17 @@ describe('LoginView: the DEV/PROD switch (2026-10-10)', () => {
   it('sits on the sign-in screen in the native internal app, which starts on PROD with no dev login', async () => {
     tierSwitchEnabled.mockReturnValue(true)
     const w = await mountLogin()
-    expect(w.find('[data-testid="login-tier-switch"]').exists()).toBe(true)
+    // The switch is an async component (a release build drops its import): let it load.
+    await vi.dynamicImportSettled()
+    await flushPromises()
+    expect(w.find('[data-testid="tier-switch"]').exists()).toBe(true)
   })
 
   it('is absent on the web and in a release build: no empty row above the title', async () => {
     tierSwitchEnabled.mockReturnValue(false)
     const w = await mountLogin()
-    expect(w.find('[data-testid="login-tier-switch"]').exists()).toBe(false)
+    expect(w.find('[data-testid="tier-switch"]').exists()).toBe(false)
+    // No empty row either: the row exists only around a rendered switch.
+    expect(w.find('[data-testid="login-view"] > .mb-3.flex.justify-end').exists()).toBe(false)
   })
 })

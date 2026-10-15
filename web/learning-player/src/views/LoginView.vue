@@ -115,7 +115,10 @@ function signInCustom(): void {
        ~1000px and the e-mail button edge to edge. `max-w-md` (448px) is wider than any phone, so on
        a phone it still fills the screen. -->
   <section class="lp-page mx-auto max-w-md sm:pt-8" data-testid="login-view">
-    <div v-if="showTierSwitch" class="mb-3 flex justify-end" data-testid="login-tier-switch">
+    <!-- No wrapper of its own: a release build drops the TierSwitch import, and a labelled row
+         around it would still ship its label (the release bundle check greps for `tier-switch`,
+         2026-10-15). The switch carries its own row layout instead. -->
+    <div v-if="showTierSwitch" class="mb-3 flex justify-end">
       <component :is="TierSwitch" />
     </div>
     <div class="text-center">
