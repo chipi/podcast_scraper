@@ -201,8 +201,13 @@ title or transcript.
   signal at all, and val_v2 precision is 0.88. On the 2026-10-15 snapshot, 221 served episodes
   still get no host on current code (`docs/wip/HOST-SEAT-BY-QUESTIONS-2366.md`); two-host pools
   (25 with a signal) and shows with no stated host (33) are not seated by it.
-- **Rosters wrong beyond a missing name** (#2367): a16z Machine Age (the interviewer named after
-  the person it addresses), Capitalisn't Japan (a host name on a cold-open quote).
+- **Rosters wrong beyond a missing name** (#2367), read on the 2026-10-15 snapshot with the current
+  roster. a16z Machine Age: the narrator lists three guests, the next voice is the interviewer
+  greeting them ("Ben, Martin, Ragu, welcome"), and `intro_reader` names it Ben Horowitz; a veto on
+  a voice that addresses the introduced person was replayed and rejected (below). Capitalisn't
+  Japan: the stored wrong name (Luigi Zingales on the guest's voice) is gone on current code; the
+  co-host's own voice is unseated because step 4 has no candidate, and the only evidence is the
+  other host addressing "Luigi" (the rejected address rule), so the guest stays unnamed too.
 - **Commercial typing of a host seat** (#2362): guarded since `c2ac9fcfa`. The 2026-10-15 snapshot
   replay changes no voice and the three gold gates are 0 better / 0 worse.
 
@@ -217,6 +222,8 @@ step; nothing here is built.
 | A host who never names anyone (#2366) | no name, no formula; the question rate (v25) covers one-host pools only, at 0.88-0.95 precision held out | Phantom Pain, Misha Glenny, Sharon Blackie; two-host pools; shows with no stated host |
 | A credited host who does not speak this episode (D29, #2352) | the name is uttered (credits), so "never uttered" cannot refuse it | El Hilo 2026-10-02 |
 | A cold-open quote merged into a host cluster (#2367) | the quote's words are the guest's, the cluster's voice is the host's | Capitalisn't Japan |
+| Which voice a host introduces when the introduction lists several people (#2367) | "speaks next" fails when the next voice greets them; addressing the person also happens inside the guest's own voice (merged greetings) | a16z Machine Age |
+| Seating a co-host who never introduces themself (#2367) | the other host's "Luigi" is the only evidence, and address is too noisy to force a name (55 right / 13 wrong) | Capitalisn't Japan |
 
 ## Changes tried and rejected (so they are not tried again blind)
 
@@ -241,6 +248,7 @@ The 2026-10-03/04 rows come from `docs/wip/NAMING_SCOREBOARD.md` on branch `feat
 | Which of two hosts by first-name address of the other | 6 right / 3 wrong on 33 seats; "addressed as" 55 right / 13 wrong corpus-wide: real signal, too noisy to force a name |
 | Filter the stored "Host" placeholder out of the people in the room | 4 of 7 corpus gains wrong: the seat goes to a second cluster of the other host |
 | Stated-guest binding with a narrowed third-person surname check (PARKED) | corpus read ~31 better / ~15 worse: junk stated-guest names ("China Belt", "AI White House") the broad match had refused by accident |
+| No introduced name on a voice that addresses that person by first name (#2367, 2026-10-15) | snapshot replay: 42 names lost, 2 gained; most losses are correct guests whose own voice carries the host's merged greeting ("David Shankine, welcome to The Long Run. Luke, thank you for having me back") |
 
 ## Measurement caveats
 
