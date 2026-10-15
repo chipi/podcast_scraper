@@ -61,3 +61,38 @@ def test_only_the_latest_run_is_listed_and_only_it_costs_a_publish_date(
     latest = {f"feeds/f/run_3/metadata/ep{s}" for s in (".bridge.json", ".gi.json", ".kg.json")}
     assert [a["relative_path"] for a in resp.json()["artifacts"]] == sorted(latest)
     assert sorted(dated) == sorted(latest)
+
+
+def test_concurrent_listings_of_one_corpus_compute_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Retries while a listing runs share it instead of starting another (2026-10-15 pile-up)."""
+    import threading
+    import time
+
+    import podcast_scraper.server.routes.artifacts as route
+
+    path = tmp_path / f"{LIVE}.gi.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
+    real, calls = route._list_artifacts, []
+
+    def slow(base):
+        calls.append(1)
+        time.sleep(0.5)
+        return real(base)
+
+    monkeypatch.setattr(route, "_list_artifacts", slow)
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    codes: list = []
+
+    def get():
+        codes.append(client.get("/api/artifacts", params={"path": str(tmp_path)}).status_code)
+
+    threads = [threading.Thread(target=get) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert codes == [200] * 5
+    assert calls == [1]

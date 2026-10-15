@@ -14,6 +14,7 @@ from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
 from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_artifact_listing
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
+from podcast_scraper.server.single_flight import single_flight
 from podcast_scraper.utils.corpus_episode_paths import corpus_search_parent_hint
 from podcast_scraper.utils.corpus_walk import corpus_files_with_suffixes
 
@@ -66,6 +67,11 @@ def list_artifacts(
     """List ``*.gi.json``, ``*.kg.json``, and ``*.bridge.json`` under the directory (recursive)."""
     anchor = getattr(request.app.state, "output_dir", None)
     base = resolve_corpus_path_param(path, anchor)
+    # Concurrent callers for one corpus share ONE listing (single_flight.py: retries piled up).
+    return single_flight(("artifacts", str(base)), lambda: _list_artifacts(base))
+
+
+def _list_artifacts(base: Path) -> ArtifactListResponse:
     # One walk for all three kinds, then the latest-run filter BEFORE any per-file work: on prod
     # (2026-10-15) three walks plus a publish date for every one of 9,531 files took 8.5 s, while
     # only the latest run of each feed (1,191 files) is listed. The 10 s post-deploy smoke timed

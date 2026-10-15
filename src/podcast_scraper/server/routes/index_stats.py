@@ -17,6 +17,7 @@ from podcast_scraper.server.schemas import (
     IndexTimeseriesMonth,
     IndexTimeseriesResponse,
 )
+from podcast_scraper.server.single_flight import single_flight
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,15 @@ def index_stats(
     root = _resolve_corpus_root(path, fallback)
     if root is None:
         return IndexStatsEnvelope(available=False, reason="no_corpus_path")
+    # Concurrent callers for one corpus + model share ONE computation (single_flight.py: the
+    # 2026-10-15 operator smoke saw this at ~200 s per call while retries piled up).
+    return single_flight(
+        ("index_stats", str(root), embedding_model),
+        lambda: _index_stats(request, root, embedding_model),
+    )
 
+
+def _index_stats(request: Request, root: Path, embedding_model: str | None) -> IndexStatsEnvelope:
     rb_prog, rb_err = rebuild_status_snapshot(request.app, root)
     index_dir = (root / "search").resolve()
     lance_dir = index_dir / "lance_index"
