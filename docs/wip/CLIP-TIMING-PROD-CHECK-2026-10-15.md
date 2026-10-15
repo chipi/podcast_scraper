@@ -79,3 +79,37 @@ get a different ad load, and every clip after a changed ad slot plays other word
 * Only Moments clip windows were measured; an insight's "Play from" in the Brief uses the same
   quote times and is exposed to the same shift, but was not measured.
 * Non-English episodes were left out (Whisper `base.en`).
+
+## How common it is (evening, 2026-10-15; #2359 step 1)
+
+**Served length vs transcript end.** 402 prod episodes, up to 15 per audio host (30 hosts; 13
+more unreadable), `ffprobe` on the stream as served now. 64 (16%) run more than 20 s past their
+transcript's end, all on ad-inserting hosts: BBC 10/15 (median +73.5 s), podtrac 9/15 and 4/15, acast
+8/15 (+20 s), cohst 8/15 (+51 s), pdst.fm 6/15. Plain-file hosts show none (substack, libsyn,
+buzzsprout, simplecast, blubrry). Some hosts serve SHORTER than the transcript (swap.fm, median
+−25 s), which only a changed ad load explains.
+
+**Length alone does not prove drift**: a fixed outro or end ad the transcript never covered makes
+the stream longer without moving any clip. So 10 of those episodes were listened to with the clip
+checker (`--exact`, 48 clips):
+
+| Host | Episode | Clips on target | Where the quote really is |
+|---|---|---|---|
+| acast | 2 episodes | 4/4, 2/2 | 0 to +7 s: a fixed tail, no drift |
+| swap.fm | 2 episodes | 5/5, 2/4 | on target, one clip −16 s |
+| cohst | 2 episodes | 2/5, 2/5 | the rest not found in the audio: inconclusive |
+| podtrac | "Is starting a family becoming impossible" | 0/10 | +9 s, then +47 to +52 s after a mid-roll |
+| BBC | "Archive: Plato's Republic" | 0/8 | a constant +8.7 s (a changed opening) |
+| BBC | "Furnishing with Fungi" | 0/5 | −11 s growing to −23 s |
+
+Drift is real and per episode: on podtrac and BBC every clip of these episodes plays the wrong
+moment; acast's extra length is a harmless tail. A fixed per-host correction cannot work (BBC
+alone moved +8.7 s on one episode and −23 s on another).
+
+### Not covered
+
+* 10 episodes listened to, on 5 hosts. The share of prod clips that play the wrong moment is not
+  measured; 64/402 is an upper bound for "length changed", not a count of drifted clips.
+* The stream was fetched once, from one place, with one user agent; ad loads can differ by region,
+  device and time.
+* cohst's clips that were not found could be drift or a checker miss.
