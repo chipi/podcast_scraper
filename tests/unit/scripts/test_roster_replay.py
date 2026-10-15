@@ -57,6 +57,19 @@ def _run(corpus: Path, old: dict, new: dict) -> list:
     return list(rr.compare(rr.corpus_episodes(corpus), rr.load_variant(old), rr.load_variant(new)))
 
 
+def test_a_path_from_the_corpus_it_was_written_in_reads_under_this_copy(tmp_path: Path) -> None:
+    # Prod records can store "/app/output/feeds/...": on a copy of the corpus the episode was
+    # skipped (FileNotFoundError, swallowed by corpus_episodes) instead of replayed.
+    corpus = _corpus(tmp_path)
+    meta = corpus / "feeds" / "river" / "run_1" / "metadata" / "1.metadata.json"
+    doc = json.loads(meta.read_text())
+    doc["content"]["transcript_file_path"] = "/app/output/feeds/river/run_1/transcripts/1.txt"
+    meta.write_text(json.dumps(doc))
+    ep = rr.load_episode(meta)
+    assert len(ep["segs"]) == 4
+    assert ep["diag"]["tried"]["known_hosts"] == ["Tobias Wren"]
+
+
 def test_identical_code_reports_no_change(tmp_path: Path) -> None:
     out = _run(_corpus(tmp_path), {}, {})
     assert out == [{"summary": {"episodes": 1}}]

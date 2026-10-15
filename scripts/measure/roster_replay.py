@@ -51,6 +51,12 @@ def load_episode(meta: Path) -> Dict[str, Any]:
     doc = json.loads(meta.read_text(encoding="utf-8"))
     rel = str((doc.get("content") or {}).get("transcript_file_path") or "")
     run = meta.parent.parent
+    # Some records store the absolute path of the corpus they were written in ("/app/output/feeds/
+    # ..."): on a copy of the corpus that path does not exist, and 121 of 2,685 episodes were
+    # skipped (prod snapshot 2026-10-15). Read it under THIS corpus's root instead.
+    parts = Path(rel).parts
+    if Path(rel).is_absolute() and "feeds" in parts:
+        rel = str(meta.parents[4].joinpath(*parts[parts.index("feeds") :]))
     segs = json.loads((run / rel.replace(".txt", ".segments.json")).read_text(encoding="utf-8"))
     segs = segs if isinstance(segs, list) else segs.get("segments", [])
     diag_path = run / rel.replace(".txt", ".speakers.diagnostics.json")
