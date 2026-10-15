@@ -37,6 +37,7 @@ if [ ! -f "$LITELLM_ENV" ]; then
     echo "LANGFUSE_HOST=http://homelab:4000"
     echo "LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}"
     echo "LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}"
+    echo "LANGFUSE_TRACING_ENVIRONMENT=prod"
     echo "SENTRY_DSN=${SENTRY_DSN:-}"
     echo "HOMELAB_TAILNET_IP="
   } >"$LITELLM_ENV"
