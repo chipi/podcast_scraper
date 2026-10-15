@@ -71,7 +71,9 @@ _AD_PATTERN_SOURCES: Dict[str, Tuple[str, ...]] = {
         r"\bthanks (?:to )?our sponsors?\b",
         r"\bsupport the (?:show|podcast)\b",
         # Spoken-URL signatures (Whisper output).
-        r"\b\w+\s+dot\s+com\b",  # "ramp dot com"
+        # "ramp dot com" -- but not "indeed dot com is ...": a site named in conversation carries on
+        # with a verb, a call to action does not (#2360, Odd Lots).
+        r"\b\w+\s+dot\s+com\b(?!\s+(?:is|was|has|had|and|are|were)\b)",
         r"\bdot\s+com\s+slash\b",  # "dot com slash promo"
         r"\bslash\s+(?:promo|code|deal|free|trial|save|offer|pod)\b",
         r"\bgo to\s+\w+\s+dot\s+com\b",
@@ -90,7 +92,11 @@ _AD_PATTERN_SOURCES: Dict[str, Tuple[str, ...]] = {
         r"\b(?:promo|use)\s+code\s+\w+",
         r"\bsave\s+(?:up to\s+)?\d+\s*(?:percent|%)\b",
         r"\bget\s+\d+\s*(?:percent|%)\s*off\b",
-        r"\b\d+\s*(?:percent|%)\s*off\b",  # bare "20% off" (discount offer)
+        # bare "20% off your first order" (discount offer) -- but not "0.5% off record high" or "5%
+        # off of its high": market talk names a price move, an offer says what the discount is on
+        # (#2360, Odd Lots).
+        r"\b\d+\s*(?:percent|%)\s*off\s+(?:your|you|the first|first|all|any|every|everything|"
+        r"sitewide|site-wide|when|with|orders?|today|annual|a\b|an\b)",
         r"\bfree (?:trial|month|shipping|delivery)\b",
         r"\bfor a limited time\b",
         r"\bsign up\s+(?:today|now)\b",

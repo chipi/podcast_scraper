@@ -278,7 +278,9 @@ class TestTheEnglishRowsAreWhatShipped:
         for shipped in (
             r"\bbrought to you by\b",
             r"\bsponsored by\b",
-            r"\b\w+\s+dot\s+com\b",
+            # Narrowed on purpose (#2360): not before "is/was/has ..." -- a site named in
+            # conversation, not a call to action. Replayed over 3,508 prod episodes.
+            r"\b\w+\s+dot\s+com\b(?!\s+(?:is|was|has|had|and|are|were)\b)",
             r"\bdot\s+com\s+slash\b",
             r"\b\w+\.(?:com|ai|io|co)\s+slash\b",
             r"\b(?:promo|use)\s+code\s+\w+",

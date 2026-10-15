@@ -320,3 +320,37 @@ class TestPrerollLeadIn:
         text = _PREROLL_AD_TEXT + _CONTENT_BLOCK
         _, _, meta = excise_ad_regions(text)
         assert meta.excised_ranges and meta.excised_ranges[0][0] == 0
+
+
+@pytest.mark.unit
+class TestAdPatternsInConversation:
+    """#2360 cause 2: patterns that fired on hosts talking (Odd Lots: "indeed dot com is",
+    "0.5% off record high"), making conversation the "ad block" the pre-roll cut ran to."""
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "go to ramp dot com slash invest",
+            "visit workos dot com.",
+            "get 20% off your first order",
+            "20 percent off with the code PODCAST",
+            "save 30% off all plans",
+        ],
+    )
+    def test_a_call_to_action_still_counts(self, phrase):
+        from podcast_scraper.gi.ad_regions import _distinct_hits
+
+        assert _distinct_hits(phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "a site like indeed dot com is where people look for jobs",
+            "the S&P 500 was 0.5% off record high",
+            "the index is about 1.5% off of its high",
+        ],
+    )
+    def test_conversation_does_not(self, phrase):
+        from podcast_scraper.gi.ad_regions import _distinct_hits
+
+        assert not _distinct_hits(phrase)
