@@ -745,7 +745,7 @@
         "role": "host",
         "source": "raw",
         "voice": "SPEAKER_00",
-        "voice_type": "commercial"
+        "voice_type": "unidentified"
       },
       {
         "named": true,
@@ -971,7 +971,7 @@
         "role": "host",
         "source": "raw",
         "voice": "SPEAKER_00",
-        "voice_type": "unidentified"
+        "voice_type": "cameo"
       }
     ]
   },
@@ -990,7 +990,7 @@
         "role": "host",
         "source": "raw",
         "voice": "SPEAKER_00",
-        "voice_type": "unidentified"
+        "voice_type": "cameo"
       },
       {
         "named": false,

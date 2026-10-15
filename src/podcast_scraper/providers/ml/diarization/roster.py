@@ -116,6 +116,13 @@ CAMEO_MAX_TALK_S = 20.0
 MONTAGE_CLIP_MAX_TALK_S = INTRO_WINDOW_SECONDS
 # An unnamed voice whose turns sit mostly inside ad regions is an ad read, not a person.
 COMMERCIAL_AD_FRACTION = 0.6
+# ...unless it carries this share of the episode's talk: an ad read is a few minutes of an hour, and
+# a voice holding a quarter of the episode is a host or guest who also reads the ads (2026-10-15).
+# Measured on prod (3,095 commercial voices, 3,412 episodes): none above 6.5% of its episode. The
+# app fixture's three-minute episodes tripped it: the ad-region detector clusters the pre-roll and
+# the break into one region from 0 s (CLUSTER_GAP is absolute, 750 chars, a large share of a short
+# episode but not of an hour), which put 63% of a HOST's talk "inside ads".
+COMMERCIAL_MAX_TALK_SHARE = 0.25
 
 # A voice that speaks only at the very top (or very bottom) of the episode and then is never heard
 # again is an AD READ, whatever it calls itself — and it does not need `ad_intervals` to be spotted.
@@ -1108,8 +1115,9 @@ def _classify_voice_types(
             # Single source of truth (ADR-137): the shared classifier already decided noise.
             is_commercial, is_cameo = v in cleaning.commercial, v in cleaning.cameo
         else:
-            ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
-            is_commercial = bool(ad_intervals) and ad_frac >= COMMERCIAL_AD_FRACTION
+            is_commercial = bool(ad_intervals) and _mostly_ads(
+                ad_by_voice.get(v, 0.0), total, sum(talk.values())
+            )
             is_cameo = total < cameo_max_talk_s
         if is_commercial:
             vt = VOICE_COMMERCIAL
@@ -1218,6 +1226,17 @@ def _self_introduced_promo_voices(
     }
 
 
+def _mostly_ads(in_ads: float, total: float, episode_talk: float) -> bool:
+    """A voice is commercial by its ad overlap: at least ``COMMERCIAL_AD_FRACTION`` of its talk in
+    ad regions, and less than ``COMMERCIAL_MAX_TALK_SHARE`` of the episode's talk (a host who reads
+    the ads stays a person; the ad lines themselves are still cut as ad regions)."""
+    if not total:
+        return False
+    if episode_talk and total / episode_talk >= COMMERCIAL_MAX_TALK_SHARE:
+        return False
+    return in_ads / total >= COMMERCIAL_AD_FRACTION
+
+
 def classify_voices(
     diarization: DiarizationResult,
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
@@ -1254,13 +1273,13 @@ def classify_voices(
         ad |= {v for v, t in voice_texts.items() if ad_signatures.is_ad_voice(t, ep_lang)}
     talk = _talk_time(diarization)
     ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
+    episode_talk = sum(talk.values())
     cameo: Set[str] = set()
     commercial: Set[str] = set()
     for v, total in talk.items():
         if v in ad:
             continue
-        ad_frac = (ad_by_voice.get(v, 0.0) / total) if total else 0.0
-        if ad_intervals and ad_frac >= COMMERCIAL_AD_FRACTION:
+        if ad_intervals and _mostly_ads(ad_by_voice.get(v, 0.0), total, episode_talk):
             commercial.add(v)
         elif total < cameo_max_talk_s:
             cameo.add(v)
