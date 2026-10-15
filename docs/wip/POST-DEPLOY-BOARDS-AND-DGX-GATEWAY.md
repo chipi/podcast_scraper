@@ -18,17 +18,19 @@ steps below:
   placeholders, so the first gateway deploy got 401 from Langfuse (about 10 minutes of traces
   lost). They were set from the mini's key file and the gateway redeployed. Check the secrets'
   lengths before a gateway deploy.
-- **`deploy-config.yml` restarts Caddy** whenever `operator.caddy` is staged. Run during the
-  player smoke, it caused a 521 on that smoke; a re-run passed. Do not run it while a smoke runs.
+- **`deploy-config.yml` restarts Caddy when a vhost file changed** (it did at 05:57 on
+  2026-10-15, with the new `operator.caddy`; a later run with nothing changed logs "no vhost
+  changed — caddy not restarted"). That restart, during the player smoke, caused a 521 on that
+  smoke; a re-run passed. Read the dry run's vhost lines first, and do not run it while a smoke runs.
 - **MCP warm-up:** for about 3 minutes after an API restart, entity lookups block while the
   registry warms (step 8.1). Wait for it before running a smoke or an MCP check.
-- **`litellm.alloy` is not shipped by `deploy-config.yml`:** only `infra/deploy/deploy-litellm.sh`
-  copies it. On 2026-10-15 the prod copy was the 2026-10-14 13:18 one, so litellm logs carry no
-  `service` label (found by the homelab session). Pending the operator's go: install main's file
-  and reload Alloy.
-- Step 7: 7.1 (storylines half; the themes `id_history` is checked after batch 26), 7.2, 7.3, 7.4 and 7.5 done. 7.6 done by the homelab session (the
-  Grafana items were already live; `vps/podcast-app.json` pushed as v3). 7.7 checked (see "After
-  the deploy").
+- **`litellm.alloy` now ships with `deploy-config.yml`** (host level, every surface; 3e3d836e6,
+  b55358321). Before, only `infra/deploy/deploy-litellm.sh` copied it, so the box ran a stale copy
+  and litellm logs had no `service` label. Live since 07:38 UTC (run 38700011300). The Alloy step
+  now validates the whole set first and fails on a refused reload.
+- Step 7: 7.1, 7.2, 7.3, 7.4 and 7.5 done (themes `id_history` present after batch 26's rebuild,
+  07:38). 7.6 done by the homelab session (the Grafana items were already live;
+  `vps/podcast-app.json` pushed as v3). 7.7 checked (see "After the deploy").
 - Step 8: run one at a time after backfill batch 26 (run 38689720595): 8.3 (24 episodes, list
   rebuilt 2026-10-15), 8.6, 8.4, 8.5; then the backfill chain resumes at batch 27. A batch of 5
   episodes took 18-19 minutes per episode.
@@ -219,7 +221,9 @@ kept is used.
 
 7. **Check in the player:** a storyline page and a storyline's Learn path start with the summary;
    a storyline the seed gave an old name (10 on the copy) says "Also called …" under its title,
-   and searching that old name opens it; a quiet one says "Quiet since …";
+   and searching its current or old name lists it under the search's storylines (the card at the
+   top is the topic of that name: storylines are named after a member topic); a quiet one says
+   "Quiet since …";
    `GET /api/app/discover/references/gone` answers for the smoke account. In the viewer
    dashboard the Storylines & themes card shows the counts, the chart back to 2024 (from the seed)
    and the last run's changes; after the next theme rebuild, its "Kept their id" is close to the
@@ -268,10 +272,15 @@ old names and text until steps 3 and 4.
   - 10 carry old names (12 in all) and 1 is quiet ("parental responsibility", since 2026-07-03);
   - `/discover/references/gone` answers 200 (0 items).
 
-  NOT as planned: searching an old name never opens the storyline. All 12 old names are also live
-  TOPIC names (e.g. "nominal gdp targeting", now "inflation expectations"), and the entity resolver
-  checks topics before storylines, so search opens the topic. Not checked: the browser view, the
-  Learn path's first screen, and the viewer dashboard card.
+  Search by a storyline's name, as the player calls it (`per_category=3`), 33 names (21 current,
+  12 old): the storyline led its category for 29, was lower for 2, missing for 2 ("model
+  distillation"; old name "embodied cognition" of "ai in education"). The card at the top is
+  always the TOPIC of that name: a storyline is named after one of its member topics, and the
+  resolver checks topics first; the topic card links to its storyline. Fix: an exact current or
+  old name now puts the storyline first in its category (`_storylines_named`, app_search.py) —
+  reaches prod with the next app deploy. (An earlier note here said search never shows the
+  storyline; that was tested on the plain search mode, not the player's, and was wrong.)
+  Not checked: the browser view, the Learn path's first screen, and the viewer dashboard card.
 - **8.3 list rebuilt 2026-10-15:**
   - Prod corpus, newest record per episode guid: 2,497 episodes, 37 with an unpunctuated window
     (81 windows).
