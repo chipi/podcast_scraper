@@ -354,3 +354,26 @@ class TestAdPatternsInConversation:
         from podcast_scraper.gi.ad_regions import _distinct_hits
 
         assert not _distinct_hits(phrase)
+
+
+@pytest.mark.unit
+class TestMidRollReads:
+    """#2168: the head and tail windows never saw a sponsor read in the middle of an episode."""
+
+    _MID_READ = (
+        " Let's take a quick break. This episode is brought to you by Granola. "
+        "Head to granola.ai slash podcast and use the code LISTEN for three months free. "
+    )
+
+    def test_a_read_in_the_middle_is_cut(self):
+        text = _CONTENT_BLOCK * 6 + self._MID_READ + _CONTENT_BLOCK * 6
+        assert len(_CONTENT_BLOCK * 6) > 5000  # outside the old head and tail windows
+        cleaned, _, meta = excise_ad_regions(text)
+        assert "granola" not in cleaned.lower()
+        assert cleaned.count("Hello and welcome") == text.count("Hello and welcome")
+
+    def test_a_site_named_once_in_conversation_is_not_cut(self):
+        talk = " I read about it on wikipedia dot com last week, which surprised me. "
+        text = _PREROLL_AD_TEXT + _CONTENT_BLOCK * 6 + talk + _CONTENT_BLOCK * 6
+        cleaned, _, _ = excise_ad_regions(text)
+        assert "wikipedia dot com" in cleaned

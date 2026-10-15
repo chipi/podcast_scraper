@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .filters import _AD_PATTERNS
 
@@ -78,6 +78,9 @@ PREROLL_LEADIN = 1000
 # first; the cut reaches back over at most this many chars for the pitch. The longest pure pitch
 # before a first pattern on prod was 546 chars.
 PREROLL_PITCH = 600
+# A block in the middle of the episode is cut only when it holds at least this many KINDS of ad cue
+# (a URL and a code, an opener and a URL ...): a single "dot com" in conversation is not a read.
+MIDROLL_MIN_KINDS = 2
 # Ad patterns that OPEN a read ("brought to you by", "sponsored by", "our sponsor" ...): when the
 # block's first pattern is one of these, the ad starts there and nothing before it is pitch.
 _AD_OPENER = re.compile(
@@ -132,6 +135,18 @@ def _distinct_hits(text: str) -> List[Tuple[int, int]]:
     return hits
 
 
+def _all_hits(text: str) -> List[Tuple[int, int, int]]:
+    """Every ad-pattern match in ``text`` as ``(start, end, pattern_index)``, sorted.
+
+    :func:`_distinct_hits` keeps one match per pattern, which is right for counting how many KINDS
+    of cue an episode has but blind to a second read that repeats a pattern already seen (#2168)."""
+    hits = [
+        (m.start(), m.end(), i) for i, pat in enumerate(_AD_PATTERNS) for m in pat.finditer(text)
+    ]
+    hits.sort()
+    return hits
+
+
 def _snap_forward_to_sentence_end(text: str, pos: int) -> int:
     """Move ``pos`` forward to the end of the current sentence, bounded by
     ``SENTENCE_BOUNDARY_LOOKAHEAD`` chars. Falls back to ``pos`` if no
@@ -176,10 +191,19 @@ def _preroll_start(text: str, first: int, sentence_start: int) -> int:
     """
     if first <= PREROLL_LEADIN:
         return 0
+    return _read_start(text, first, sentence_start, floor=0)
+
+
+def _read_start(text: str, first: int, sentence_start: int, floor: int) -> int:
+    """Where an ad read whose first pattern is at ``first`` starts, never before ``floor``.
+
+    An opener ("sponsored by") starts the read at its own sentence; a call to action ("check out
+    ramp.com") was pitched first, so the read reaches back at most ``PREROLL_PITCH`` chars to a
+    sentence start (#2360, #2168)."""
     if _AD_OPENER.match(text, first):
-        return sentence_start
-    reach = max(0, first - PREROLL_PITCH)
-    return min(sentence_start, _snap_forward_to_sentence_end(text, reach))
+        return max(floor, sentence_start)
+    reach = max(floor, first - PREROLL_PITCH)
+    return max(floor, min(sentence_start, _snap_forward_to_sentence_end(text, reach)))
 
 
 def _hits_are_clustered(hits: List[Tuple[int, int]], threshold: int) -> bool:
@@ -213,14 +237,14 @@ def _merge_ranges(ranges: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
 
 
 def _cluster_hits(
-    hits: List[Tuple[int, int]], max_gap: int = CLUSTER_GAP
-) -> List[List[Tuple[int, int]]]:
+    hits: Sequence[Tuple[int, ...]], max_gap: int = CLUSTER_GAP
+) -> List[List[Tuple[int, ...]]]:
     """Group sorted ``(start, end)`` hits into clusters. A gap larger than ``max_gap`` between one
     hit's end and the next hit's start starts a new cluster — i.e., a run of nearby ad-pattern hits
     is one ad block; a stretch of real content between hits splits the blocks apart."""
-    clusters: List[List[Tuple[int, int]]] = []
+    clusters: List[List[Tuple[int, ...]]] = []
     for hit in sorted(hits):
-        if clusters and hit[0] - clusters[-1][-1][1] <= max_gap:
+        if clusters and hit[0] - max(h[1] for h in clusters[-1]) <= max_gap:
             clusters[-1].append(hit)
         else:
             clusters.append([hit])
@@ -250,19 +274,19 @@ def detect_ad_cut_ranges(
     """
     if not text:
         return []
-    head_hits = _distinct_hits(text[:scan_chars])
-    tail_start = max(0, len(text) - scan_chars)
-    tail_hits = [(tail_start + s, tail_start + e) for s, e in _distinct_hits(text[tail_start:])]
-    # De-dupe by position (a hit found in both windows on short transcripts) and gate on distinct
-    # PATTERN count — Σ head+tail distinct patterns — so a strong ad signal is required to cut.
-    all_hits = sorted(set(head_hits) | set(tail_hits))
-    if len(all_hits) < threshold:
+    # The WHOLE text, every match (#2168): the head and tail windows alone never saw a sponsor read
+    # in the middle of an episode, and one match per pattern hid a second read of the same kind.
+    # The episode gate adds up the distinct cue KINDS of each block, as the old head + tail count
+    # did (a show whose pre-roll and post-roll use the same two cues still has 4, not 2).
+    hits = _all_hits(text)
+    clusters = _cluster_hits(hits)
+    if sum(len({h[2] for h in c}) for c in clusters) < threshold:
         return []
     ranges: List[Tuple[int, int]] = []
     prev_end = 0
-    for i, cluster in enumerate(_cluster_hits(all_hits)):
+    for i, cluster in enumerate(clusters):
         first = cluster[0][0]
-        last = cluster[-1][1]
+        last = max(h[1] for h in cluster)
         start = _snap_backward_to_sentence_start(text, first)
         end = _snap_forward_to_sentence_end(text, last)
         # Post-roll ONLY when the cut reaches the very end of the text (measured vs len, not
@@ -274,6 +298,15 @@ def detect_ad_cut_ranges(
             end = len(text)
         elif i == 0 and first < scan_chars:
             start = _preroll_start(text, first, start)
+        elif len({kind for _, _, kind in cluster}) < MIDROLL_MIN_KINDS:
+            # A lone cue in the middle of an episode ("as I said on cnn dot com") is talk, not a
+            # read: a mid-roll needs two kinds of cue together (#2168).
+            continue
+        else:
+            # Mid-episode, the cut starts at the read's first cue sentence and reaches no further
+            # back: read on 12 prod mid-rolls, the pre-roll's pitch reach took the guest's talk
+            # before a call to action in 4 of them. A little pitch left in beats talk cut out.
+            start = max(prev_end, start)
         ranges.append((start, end))
         prev_end = end
     return _merge_ranges(ranges)
