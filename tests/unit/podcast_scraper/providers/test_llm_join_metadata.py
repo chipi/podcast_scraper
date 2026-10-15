@@ -118,3 +118,102 @@ def test_openai_never_sends_join_metadata(ids):
     p.client = MagicMock()
     p._chat_create(model="gpt-4o-mini", messages=[])
     assert "metadata" not in (_sent(p).get("extra_body") or {})
+
+
+# --- the Langfuse shape (2026-10-15) --------------------------------------------------------
+#
+# With only ``session_id``, LiteLLM keys the Langfuse trace on the run: one run's 76 calls sat in
+# ONE trace whose metadata named only the first call's episode, and every generation was called
+# ``litellm:proj-podcast-prod``. LiteLLM (1.95.0 prod, 1.96.2 homelab; integrations/langfuse)
+# pops ``trace_id`` / ``trace_name`` / ``generation_name`` out of the request metadata. Verified
+# on the homelab gateway: the trace id becomes the OTel trace id, so a VictoriaTraces id opens
+# the Langfuse trace, the session stays the run, and each generation is named after its stage.
+
+
+def test_the_langfuse_trace_is_the_otel_trace(ids):
+    p = _vllm()
+    p._chat_create(model=_MODEL, messages=[])
+    md = _sent(p)["extra_body"]["metadata"]
+    assert md["trace_id"] == _TRACE
+    assert md["trace_name"] == "episode ep-1"
+    assert md["session_id"] == "run-20261014T120000Z"
+
+
+def test_without_an_otel_trace_no_trace_id_is_sent(monkeypatch):
+    # LiteLLM then keys the trace on the session (the run), as before.
+    monkeypatch.setattr(correlation, "get_run_id", lambda: "run-1")
+    monkeypatch.setattr(correlation, "get_episode_id", lambda: "ep-1")
+    monkeypatch.setattr(correlation, "current_trace_id", lambda: "-")
+    p = _vllm()
+    p._chat_create(model=_MODEL, messages=[])
+    md = _sent(p)["extra_body"]["metadata"]
+    assert "trace_id" not in md and "trace_name" not in md
+    assert md["session_id"] == "run-1"
+
+
+def test_the_generation_is_named_after_its_stage_and_the_stage_is_not_sent_to_the_api(ids):
+    p = _vllm()
+    p._chat_create(model=_MODEL, messages=[], _lf_stage="kg")
+    sent = _sent(p)
+    assert "_lf_stage" not in sent
+    assert sent["extra_body"]["metadata"]["generation_name"] == "kg"
+
+
+def test_a_stage_alone_still_names_the_generation(monkeypatch):
+    monkeypatch.setattr(correlation, "get_run_id", lambda: None)
+    monkeypatch.setattr(correlation, "get_episode_id", lambda: None)
+    monkeypatch.setattr(correlation, "current_trace_id", lambda: "-")
+    p = _vllm()
+    p._chat_create(model=_MODEL, messages=[], _lf_stage="storyline_summary")
+    assert _sent(p)["extra_body"]["metadata"] == {"generation_name": "storyline_summary"}
+
+
+def test_openai_drops_the_stage_too(ids):
+    p = OpenAIProvider(
+        Config(
+            rss="https://example.com/feed.xml",
+            summary_provider="openai",
+            openai_summary_model="gpt-4o-mini",
+            openai_api_key="test-api-key-123",
+        )
+    )
+    p.client = MagicMock()
+    p._chat_create(model="gpt-4o-mini", messages=[], _lf_stage="kg")
+    sent = _sent(p)
+    assert "_lf_stage" not in sent
+    assert "metadata" not in (sent.get("extra_body") or {})
+
+
+def test_every_chat_call_names_its_stage():
+    # A call site added without a stage would land in Langfuse as an unnamed generation.
+    import ast
+    import inspect
+
+    from podcast_scraper.providers.openai import openai_provider
+
+    tree = ast.parse(inspect.getsource(openai_provider))
+    missing = [
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and getattr(node.func, "attr", None) == "_chat_create"
+        and not any(kw.arg == "_lf_stage" for kw in node.keywords)
+        and not any(kw.arg is None for kw in node.keywords)  # the retry passes **kwargs on
+    ]
+    starred = [
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and getattr(node.func, "attr", None) == "_chat_create"
+        and any(kw.arg is None for kw in node.keywords)
+        and not any(kw.arg == "_lf_stage" for kw in node.keywords)
+    ]
+    retry_lines = [
+        c.lineno
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "_chat_create"
+        for c in ast.walk(n)
+        if isinstance(c, ast.Call) and getattr(c.func, "attr", None) == "_chat_create"
+    ]
+    assert missing == []
+    assert sorted(set(starred) - set(retry_lines)) == []

@@ -209,8 +209,12 @@ Legend: ✅ live+verified · ❌ not flowing · — n/a.
 - **error → trace:** Sentry `before_send` stamps the OTel `trace_id` tag.
 - **metric → trace:** panel links on the Operator / Player overview and app dashboards' API
   panels (VictoriaMetrics has no exemplars).
-- **LLM call → Langfuse:** gateway traces carry `session_id` = run id and `trace_metadata`
-  (run / episode / OTel trace id) from the next deploy.
+- **LLM call → Langfuse:** a Langfuse session is a run, and a Langfuse trace is an OTel trace:
+  its id IS the OTel trace id, so a VictoriaTraces trace id opens `/project/<id>/traces/<trace id>`.
+  The trace is named `episode <episode_id>` and carries `trace_metadata` (run / episode / OTel
+  trace id). Each generation is named after its stage (`kg`, `gi`, `summarization`,
+  `storyline_summary`, …). The board-summarizer's cycles are runs too
+  (`board-summarizer-<UTC>`). A call with no active span is keyed on its run, as before.
 
 **Quick CLI checks (tailnet, run against `homelab`):**
 

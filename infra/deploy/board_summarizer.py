@@ -32,6 +32,7 @@ start, a bad cycle never kills the loop, a heartbeat file for the container heal
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -299,16 +300,38 @@ def _sleep_to_next_interval(sleep: Callable[[float], object] = time.sleep) -> No
     sleep(INTERVAL_S - (now % INTERVAL_S) + OFFSET_S)
 
 
+def _cycle_span() -> Any:
+    """An OTEL span for the cycle, so its gateway calls carry a trace id (no-op without OTEL)."""
+    try:
+        from opentelemetry import trace
+
+        return trace.get_tracer("board_summarizer").start_as_current_span("board_summarizer.cycle")
+    except Exception:  # noqa: BLE001 — telemetry never stops the cycle
+        return contextlib.nullcontext()
+
+
 def _cycle() -> None:
+    from podcast_scraper.utils import correlation
+
+    # Each cycle is a run: its gateway calls share one Langfuse session, and its llm_cost events
+    # and log lines carry the run id. Without it the storyline summaries reached Langfuse with
+    # no run, episode or trace to group or join them.
+    run_id = correlation.resolve_run_id(None).replace("run-", "board-summarizer-", 1)
+    correlation.set_run_id(run_id)
     try:
-        _references_once()
-    except Exception:  # noqa: BLE001 — the summaries still run
-        _LOGGER.exception("reference pass failed")
-    try:
-        _run_once()
-    except Exception:  # noqa: BLE001 — a bad cycle must never kill the loop
-        # ERROR through logging, so Sentry's logging integration reports it, as for the pipeline.
-        _LOGGER.exception("board summary cycle failed")
+        with _cycle_span():
+            try:
+                _references_once()
+            except Exception:  # noqa: BLE001 — the summaries still run
+                _LOGGER.exception("reference pass failed")
+            try:
+                _run_once()
+            except Exception:  # noqa: BLE001 — a bad cycle must never kill the loop
+                # ERROR through logging, so Sentry's logging integration reports it, as for the
+                # pipeline.
+                _LOGGER.exception("board summary cycle failed")
+    finally:
+        correlation.set_run_id(None)
     _beat()
 
 

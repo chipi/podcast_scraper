@@ -556,3 +556,24 @@ def test_the_storyline_backfill_dry_runs_then_fills_every_storyline(
     assert len(storyline_summaries.read_summaries(tmp_path / "app")) == n
     calls = client.chat.completions.create.call_args_list
     assert len(calls) == n and "a storyline" in calls[0].kwargs["messages"][0]["content"]
+
+
+def test_each_cycle_is_a_run_with_its_own_trace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2026-10-15: the sidecar's storyline summaries reached Langfuse with no run, episode or trace
+    # (112 of them), so nothing grouped them and nothing joined them to a trace. Each cycle is now
+    # a run (`board-summarizer-<UTC>`): the gateway calls share its session, and its events and
+    # logs carry the run id.
+    from podcast_scraper.utils import correlation
+
+    mod = _load(tmp_path, monkeypatch)
+    seen: list = []
+    monkeypatch.setattr(mod, "_references_once", lambda: None)
+    monkeypatch.setattr(mod, "_run_once", lambda: seen.append(correlation.get_run_id()))
+    monkeypatch.setattr(mod, "_beat", lambda: None)
+    mod._cycle()
+    mod._cycle()
+    assert len(seen) == 2
+    assert all(r and r.startswith("board-summarizer-") for r in seen)
+    assert correlation.get_run_id() is None  # nothing leaks past the cycle

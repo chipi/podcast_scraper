@@ -791,33 +791,45 @@ class OpenAICompatibleProvider:
         # Cleared the first time a server rejects the join metadata, so it is not sent again.
         self._join_metadata_ok = self._SENDS_JOIN_METADATA
 
-    def _attach_join_metadata(self, kwargs: Dict[str, Any]) -> None:
-        """Add the run / episode / OTel trace ids to ``extra_body.metadata`` (gateway → Langfuse).
+    def _attach_join_metadata(self, kwargs: Dict[str, Any], stage: Optional[str] = None) -> None:
+        """Add the Langfuse join keys to ``extra_body.metadata`` (gateway → Langfuse).
 
-        Never overwrites a key the caller set; adds nothing when no id is known.
+        LiteLLM's Langfuse logger pops these out of the request metadata: ``session_id`` (the run),
+        ``trace_id`` (the OTel trace id, so a VictoriaTraces id opens the Langfuse trace),
+        ``trace_name``, ``generation_name`` (the stage) and ``trace_metadata``. Without
+        ``trace_id`` it keys the trace on the session, and one run became one trace.
+        Never overwrites a key the caller set; adds nothing when nothing is known.
         """
         if not self._join_metadata_ok:
             return
         from ...utils import correlation
 
         run_id = correlation.get_run_id()
-        trace_id = correlation.current_trace_id()
+        episode_id = correlation.get_episode_id()
+        raw_trace = correlation.current_trace_id()
+        trace_id = raw_trace if raw_trace and raw_trace != "-" else None
         trace_md = {
             k: v
             for k, v in (
                 ("run_id", run_id),
-                ("episode_id", correlation.get_episode_id()),
-                ("otel_trace_id", trace_id if trace_id and trace_id != "-" else None),
+                ("episode_id", episode_id),
+                ("otel_trace_id", trace_id),
             )
             if v
         }
-        if not trace_md:
+        if not trace_md and not stage:
             return
         body = dict(kwargs.get("extra_body") or {})
         md = dict(body.get("metadata") or {})
         if run_id:
             md.setdefault("session_id", run_id)
-        md.setdefault("trace_metadata", trace_md)
+        if trace_id:
+            md.setdefault("trace_id", trace_id)
+            md.setdefault("trace_name", f"episode {episode_id}" if episode_id else run_id or stage)
+        if stage:
+            md.setdefault("generation_name", stage)
+        if trace_md:
+            md.setdefault("trace_metadata", trace_md)
         body["metadata"] = md
         kwargs["extra_body"] = body
 
@@ -835,6 +847,8 @@ class OpenAICompatibleProvider:
         # client read timeout is max(summarization, transcription) = >= the deadline). setdefault so
         # an explicit per-call value still wins; kwargs is mutated once so the temperature-retry
         # below carries the same timeout.
+        # ``_lf_stage``: the call's stage, only for the Langfuse generation name; never sent.
+        stage = kwargs.pop("_lf_stage", None)
         kwargs.setdefault("timeout", self._chat_request_timeout)
         model = kwargs.get("model")
         if model in self._temp_fixed_at_default:
@@ -842,7 +856,7 @@ class OpenAICompatibleProvider:
         # #1893: clamp the OUTPUT budget against a context limit we have learned for this model,
         # before the call. Prevention rather than reaction — see _learn_context_limit_from_error.
         _context_clamp_token_budget(kwargs, self._context_limits.get(str(model or "")))
-        self._attach_join_metadata(kwargs)
+        self._attach_join_metadata(kwargs, stage)
         try:
             return self.client.chat.completions.create(**kwargs)
         except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is a known case
@@ -1639,6 +1653,7 @@ class OpenAICompatibleProvider:
                     # `_receive_response_headers` while the same server answered a fresh
                     # request in 116 ms. Bounding it turns the hang into a retry.
                     timeout=get_small_chat_call_timeout(self.cfg),
+                    _lf_stage="speaker_detection",
                 ),
                 max_retries=2,
                 initial_delay=1.0,
@@ -2083,7 +2098,9 @@ class OpenAICompatibleProvider:
                 }
                 if self.summary_seed is not None:
                     kwargs["seed"] = self.summary_seed
-                return self._chat_create(**kwargs)
+                return self._chat_create(
+                    **kwargs, _lf_stage=use_case_stage(use_case) or "summarization"
+                )
 
             try:
                 response = retry_with_metrics(
@@ -2328,7 +2345,7 @@ class OpenAICompatibleProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self._chat_create(**kwargs)
+            return self._chat_create(**kwargs, _lf_stage="summarization")
 
         try:
             resp = retry_with_metrics(
@@ -2435,7 +2452,7 @@ class OpenAICompatibleProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self._chat_create(**kwargs)
+            return self._chat_create(**kwargs, _lf_stage="summarization")
 
         try:
             resp = retry_with_metrics(
@@ -2532,7 +2549,7 @@ class OpenAICompatibleProvider:
                 kwargs["response_format"] = {"type": "json_object"}
             if self.summary_seed is not None:
                 kwargs["seed"] = self.summary_seed
-            return self._chat_create(**kwargs)
+            return self._chat_create(**kwargs, _lf_stage="summarization")
 
         try:
             response = retry_with_metrics(
@@ -2717,6 +2734,7 @@ class OpenAICompatibleProvider:
                 ),
                 temperature=insight_temperature,
                 **self._token_kwarg(insight_max_tokens),
+                _lf_stage="gi",
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             # Cost computed up-front so it can be emitted on both happy-path
@@ -2842,6 +2860,7 @@ class OpenAICompatibleProvider:
                 temperature=0.0,
                 **self._token_kwarg(gate_max_tokens),
                 response_format={"type": "json_object"},
+                _lf_stage="gi",
             )
             # 2026-08-24 cost audit: value-gate calls emitted no llm_cost event.
             # Inside _call so a guardrail re-roll's second call is also counted.
@@ -2888,6 +2907,7 @@ class OpenAICompatibleProvider:
                 temperature=0.0,
                 **self._token_kwarg(800),
                 response_format={"type": "json_object"},
+                _lf_stage="speaker_detection",
             )
             # 2026-08-24 cost audit: ADR-110 resolver completions emitted no llm_cost
             # event. Inside _call so a re-roll's second call is also counted.
@@ -2978,6 +2998,7 @@ class OpenAICompatibleProvider:
                     ),
                     temperature=0.1,
                     **self._token_kwarg(2048),
+                    _lf_stage="kg",
                 )
 
             def _attempt() -> tuple[str, Any, Optional[Dict[str, Any]]]:
@@ -3108,6 +3129,7 @@ class OpenAICompatibleProvider:
                     ),
                     temperature=0.0,
                     **self._token_kwarg(config_constants.GI_QUOTE_RESPONSE_TOKENS),
+                    _lf_stage="extract_quotes",
                 )
 
             try:
@@ -3217,6 +3239,7 @@ class OpenAICompatibleProvider:
                     ],
                     temperature=0.0,
                     **self._token_kwarg(10),
+                    _lf_stage="score_entailment",
                 )
 
             try:
@@ -3349,7 +3372,7 @@ class OpenAICompatibleProvider:
                 call_kwargs["response_format"] = self._bundled_quote_response_format(
                     len(insight_texts), max_out
                 )
-            return self._chat_create(**call_kwargs)
+            return self._chat_create(**call_kwargs, _lf_stage="extract_quotes")
 
         try:
             response = retry_with_metrics(
@@ -3562,6 +3585,7 @@ class OpenAICompatibleProvider:
                 ],
                 temperature=0.0,
                 **self._token_kwarg(max_out),
+                _lf_stage="score_entailment",
             )
 
         try:
@@ -3828,6 +3852,7 @@ class OpenAICompatibleProvider:
                         ),
                         model=self.cleaning_model,
                     ),
+                    _lf_stage="cleaning",
                 )
 
             try:
