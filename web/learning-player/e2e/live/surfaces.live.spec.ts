@@ -88,9 +88,12 @@ test.describe('signed-in UI surfaces', () => {
     await page.goto('/preview')
     await page.goto('/search?q=ai')
     await expect(page).toHaveURL(/\/search/)
-    // Either passages rendered ("N passages across M episodes") or an honest "No matches found." —
-    // never a broken page. Data-agnostic: both are acceptable outcomes on prod.
-    await expect(page.getByText(/passages across|No matches found/i).first()).toBeVisible()
+    // Either the episode results rendered ("Episodes · N", one card per episode since 7894ad89f
+    // replaced "N passages across M episodes") or an honest "No matches found." — never a broken
+    // page. Data-agnostic: both are acceptable outcomes on prod.
+    await expect(
+      page.getByTestId('search-section-episodes').or(page.getByText(/No matches found/i)).first()
+    ).toBeVisible()
   })
 
   test('Explore renders Trends + the Episodes/Shows catalog taste', async ({ page }) => {
