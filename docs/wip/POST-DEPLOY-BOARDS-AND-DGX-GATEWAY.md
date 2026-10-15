@@ -6,6 +6,33 @@ Written 2026-10-13 for the deploy of `feat/player-1.0.4` (109 commits ahead of `
 migrations, no new env beyond what is listed below. Every step that touches prod needs the
 operator's OK, one at a time. Read the state again before starting.
 
+## Status 2026-10-15: deployed
+
+`main` was deployed as `sha-aaadbb2` (`deploy-all-prod.yml`, which runs `deploy-prod.yml` and
+`deploy-player.yml`), then `deploy-config.yml` and `deploy-litellm.yml`. What differs from the
+steps below:
+
+- **Step 1 is superseded:** Orrery got its own Langfuse projects, `orrery-prod` (its prod key) and
+  `orrery-dev` (dev default), instead of staying in `agents`.
+- **Step 2, secrets:** the GH secrets `LITELLM_LANGFUSE_PUBLIC_KEY/SECRET_KEY` held `-`
+  placeholders, so the first gateway deploy got 401 from Langfuse (about 10 minutes of traces
+  lost). They were set from the mini's key file and the gateway redeployed. Check the secrets'
+  lengths before a gateway deploy.
+- **`deploy-config.yml` restarts Caddy** whenever `operator.caddy` is staged. Run during the
+  player smoke, it caused a 521 on that smoke; a re-run passed. Do not run it while a smoke runs.
+- **MCP warm-up:** for about 3 minutes after an API restart, entity lookups block while the
+  registry warms (step 8.1). Wait for it before running a smoke or an MCP check.
+- **`litellm.alloy` is not shipped by `deploy-config.yml`:** only `infra/deploy/deploy-litellm.sh`
+  copies it. On 2026-10-15 the prod copy was the 2026-10-14 13:18 one, so litellm logs carry no
+  `service` label (found by the homelab session). Pending the operator's go: install main's file
+  and reload Alloy.
+- Step 7: 7.1 (storylines half; the themes `id_history` is checked after batch 26), 7.2, 7.3, 7.4 and 7.5 done. 7.6 done by the homelab session (the
+  Grafana items were already live; `vps/podcast-app.json` pushed as v3). 7.7 checked (see "After
+  the deploy").
+- Step 8: run one at a time after backfill batch 26 (run 38689720595): 8.3 (24 episodes, list
+  rebuilt 2026-10-15), 8.6, 8.4, 8.5; then the backfill chain resumes at batch 27. A batch of 5
+  episodes took 18-19 minutes per episode.
+
 ## What the deploy carries
 
 App (server + player), checked in "After the app deploy" below:
@@ -235,6 +262,26 @@ old names and text until steps 3 and 4.
    BEFORE the deploy fails on that one line; after the deploy it must pass.
 
 ## After the deploy: open work (2026-10-14 handover)
+
+- **7.7 checked 2026-10-15** (API as the smoke listener):
+  - all 21 storylines on the rail have a summary;
+  - 10 carry old names (12 in all) and 1 is quiet ("parental responsibility", since 2026-07-03);
+  - `/discover/references/gone` answers 200 (0 items).
+
+  NOT as planned: searching an old name never opens the storyline. All 12 old names are also live
+  TOPIC names (e.g. "nominal gdp targeting", now "inflation expectations"), and the entity resolver
+  checks topics before storylines, so search opens the topic. Not checked: the browser view, the
+  Learn path's first screen, and the viewer dashboard card.
+- **8.3 list rebuilt 2026-10-15:**
+  - Prod corpus, newest record per episode guid: 2,497 episodes, 37 with an unpunctuated window
+    (81 windows).
+  - 24 of the 37 had a repair refused → the `repunctuate_only` list.
+  - 9 never had a repair attempt and are in the backfill pool; 2 are in batch 26.
+  - 2 are neither: Gray Area "How trauma became a status symbol" (step 8.6) and BizNews "BN
+    Daybreak: Swimming SA crisis …".
+
+  The scan could not match 439 asr records to their metadata file (different file stems), so it
+  can miss episodes.
 
 - **Naming leftovers (#2304), to work on after the deploy:**
   - **Phantom Pain** and **Welcoming Misha Glenny** (Curious Cases / In Our Time): the host voice
