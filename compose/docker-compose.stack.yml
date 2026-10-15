@@ -117,7 +117,7 @@ services:
       OTEL_LOGS_EXPORTER: none
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
       # VictoriaMetrics READ endpoint for the Ops /api/ops/llm-gateway spend card (#53,
       # ADR-142): the tailnet control-plane api reads per-key LiteLLM spend from homelab
       # VictoriaMetrics via podcast_obs. No-op unless prod .env sets it (deploy-prod.yml
@@ -202,7 +202,7 @@ services:
       OTEL_LOGS_EXPORTER: none
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
 
   # Optional: same Dockerfile with ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**) for cloud-thin profiles.
   pipeline-llm:
@@ -280,7 +280,7 @@ services:
       OTEL_LOGS_EXPORTER: none
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
 
 volumes:
   corpus_data:

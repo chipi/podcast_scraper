@@ -141,7 +141,7 @@ services:
       # Every span carries the environment, from PODCAST_ENV (deploy-player stages prod) — it
       # was staged as OTEL_RESOURCE_ATTRIBUTES but never passed to this service, so prod
       # player-api spans had no deployment.environment.
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
       OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
       # Metrics/logs OTLP export OFF (like the operator, stack.yml): metrics already flow via
       # Alloy scrape, and — crucially — the default OTLP exporter is gRPC (`otlp_proto_grpc`),
@@ -234,7 +234,7 @@ services:
       OTEL_PYTHON_LOG_CORRELATION: "true"
       # Env-tag traces so staging (laptop) and prod (VPS) split in Grafana (parity with the
       # GlitchTip `environment` tag, which init_sentry already sets from PODCAST_ENV).
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
       PODCAST_SENTRY_DSN_MCP: ${PODCAST_SENTRY_DSN_MCP:-}
       # Umami server-side analytics (#1505): each tool call is an event, like a page view. Website
       # id + collect URL from deploy; both empty → no-op. Hostname stamps the event's origin.
@@ -510,7 +510,7 @@ services:
       OTEL_LOGS_EXPORTER: none
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
       # The LiteLLM gateway, as the pipeline gets it (deploy-player writes it from the same
       # vars.PROD_LITELLM_API_BASE deploy-prod uses). The key arrives as the litellm_api_key secret.
       LITELLM_API_BASE: ${LITELLM_API_BASE:-}

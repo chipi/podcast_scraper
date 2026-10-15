@@ -66,7 +66,7 @@ services:
       # OTEL tracing (ADR-119) — mirror the operator/player api. Exporter + endpoint + homelab
       # tailnet IP staged host-side by the deploy script; default `none` = off (non-fatal).
       OTEL_SERVICE_NAME: operator-public-api
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev}
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
       OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
