@@ -1018,6 +1018,7 @@ def apply_diarization_to_result(
                 x for x in (episode_title or "", episode_description or "") if x
             ).strip()
             or None,
+            episode_title=episode_title or None,
             trace=trace,
             # THE SOURCE LANGUAGE, because everything the roster reads is ASR output and the ASR
             # output is in whatever was spoken. `transcription_language` is the one reader (S0.6)

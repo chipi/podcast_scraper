@@ -62,6 +62,7 @@ from ....speaker_detectors.hosts import (
     _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE,
     _NAME_FIRST_TAIL_BY_LANGUAGE,
     _NAME_RE as _INTRO_NAME_RE,
+    _NOT_A_NAME_TOKEN,
     _opens_its_sentence,
     _STATED_UC,
     _uc,
@@ -589,6 +590,53 @@ _TITLE_TAIL = (
     ),
 )
 _TITLE_TAIL_SPAN = 160
+
+
+#: Title-case words that open or join a title's phrases and are never part of a name.
+_TITLE_FUNCTION_WORDS = frozenset(
+    "why how what when who whom where which vs versus ep episode part can could will would should "
+    "inside behind beyond under over against between without through".split()
+)
+
+
+def _title_person_spellings(
+    episode_title: Optional[str], language: Optional[str] = TARGET_LANGUAGE
+) -> List[str]:
+    """Every two- or three-word capitalised run in the title that has a person's shape.
+
+    A SPELLING REFERENCE for the stated-name snap, never a candidate: the title readers above take a
+    guest only from a title's opening or tail, so "Why Matthew X Is Skeptical Of ..." stated nobody
+    and the guest's heard "Matt X" was published (prod 2026-10-15). Permissive on purpose ("Big
+    Tech" has the shape too): a reference only respells a published name already close to it.
+    """
+    runs: List[List[str]] = [[]]
+    for raw in (episode_title or "").split():
+        # A bracket is its own phrase: "| Grant Lee (CEO)" read as "Grant Lee CEO" respelled the
+        # guest's correct "Grant Lee" (drill replay 2026-10-15).
+        if raw[:1] in "([":
+            runs.append([])
+        tok = raw.strip("\"“”‘'()[]")
+        ends = bool(re.search(r"[:,;?!|.—–)\]]$", raw)) or bool(re.search(r"['’]s$", tok))
+        tok = re.sub(r"['’]s$", "", tok).strip(":,;?!|.—–")
+        low = tok.lower()
+        if (
+            tok[:1].isupper()
+            and not (len(tok) >= 2 and tok.isupper())
+            and low not in _TITLE_FUNCTION_WORDS
+            and low not in _NOT_A_NAME_TOKEN
+        ):
+            runs[-1].append(tok)
+        else:
+            runs.append([])
+        if ends:
+            runs.append([])
+    out: List[str] = []
+    for run in runs:
+        name = " ".join(run)
+        if len(run) <= 3 and looks_like_a_person_name(name, language):
+            if not is_network_or_org_author(name, language) and name not in out:
+                out.append(name)
+    return plausible_person_names(out)
 
 
 def _greets_by_given_name(texts: Iterable[str], name: str) -> bool:
@@ -6025,6 +6073,9 @@ def resolve_speaker_roster(
     # The feed's title: lets a voice that presents THIS show by name take a host seat, and drops a
     # pool entry that is the show's own name. None = no opinion.
     feed_title: Optional[str] = None,
+    # The episode's own title, alone: its people are spelling references for the stated-name snap
+    # (`_title_person_spellings`). None = none.
+    episode_title: Optional[str] = None,
     # Pure observer (#2276): each stage records what it proposed / accepted / refused / overrode,
     # per voice and per name, for the diagnostics sidecar. Never changes a decision.
     trace: Optional[NamingTrace] = None,
@@ -6701,8 +6752,14 @@ def resolve_speaker_roster(
     # Corroborated refs (known_hosts, detected_guests) precede metadata_named so a mangle closer to
     # a person we confirmed is in the room wins over one that merely matches someone the episode is
     # ABOUT (metadata_named carries un-corroborated subjects — see _recover_stated_names guards).
+    # The title's people come LAST: a spelling the metadata or the feed gives wins over the title's.
     stated_refs = list(
-        dict.fromkeys(list(known_hosts) + list(detected_guests or ()) + list(metadata_named or ()))
+        dict.fromkeys(
+            list(known_hosts)
+            + list(detected_guests or ())
+            + list(metadata_named or ())
+            + _title_person_spellings(episode_title, language)
+        )
     )
     if stated_refs:
         _recover_stated_names(

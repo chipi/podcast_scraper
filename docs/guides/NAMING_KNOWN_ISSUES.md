@@ -183,6 +183,34 @@ title or transcript.
   no forced guest name on a voice that reads an ad (real guests' clusters carry merged mid-roll ads:
   Simon Willison, Kent Beck, Fiona Fung lost their names).
 
+### K14. Open after the 2026-10-14/15 deploy (each has an issue)
+
+- **A person named in the middle of a title** (#2363): "Why Matthew Yglesias Is Skeptical ..." is
+  read by no title rule, so the heard "Matt Iglesias" was published. In progress: title people as
+  spelling references (ladder v23).
+- **Patreon supporter shout-outs as guests** (#2364): StarTalk's descriptions list the
+  supporters, so the promo rule treats them as stated people and keeps them.
+- **A promo without a self-introduction + promo-cue pair** (#2365): Kara Swisher's Gray Area promo.
+- **A host who never self-introduces or names anyone** (#2366): Phantom Pain, Welcoming Misha
+  Glenny (merged BBC ad tag), Dr. Sharon Blackie (`empty_host_anchor`, 29% unattributed).
+- **Rosters wrong beyond a missing name** (#2367): a16z Machine Age (the interviewer named after
+  the person it addresses), Capitalisn't Japan (a host name on a cold-open quote).
+- **Commercial typing of a host seat** (#2362): guarded since `c2ac9fcfa`; the served-corpus replay
+  and gold gates are still owed.
+
+## Problems an LLM would solve better than a rule
+
+Cases where text rules stall: the signal is meaning, not a word pattern. Kept as input for a model
+step; nothing here is built.
+
+| Class | Why rules stall | Where seen |
+| --- | --- | --- |
+| Who is the interviewer vs the interviewee (K1 swaps, #2367) | a swap-by-address rule breaks more correct pairs than it fixes at every threshold (K1); question-asking is not measured | co-host and two-guest panels; a16z Machine Age |
+| A host who never names anyone (#2366) | no name, no formula; only the conversation's shape says who leads | Phantom Pain, Misha Glenny, Sharon Blackie |
+| A promo read without a fixed cue (#2365) | a cue list only catches wordings already seen (expected, not yet measured on the corpus) | Kara Swisher on The Gray Area |
+| A credited host who does not speak this episode (D29, #2352) | the name is uttered (credits), so "never uttered" cannot refuse it | El Hilo 2026-10-02 |
+| A cold-open quote merged into a host cluster (#2367) | the quote's words are the guest's, the cluster's voice is the host's | Capitalisn't Japan |
+
 ## Changes tried and rejected (so they are not tried again blind)
 
 | Change | What the replay showed |

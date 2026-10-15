@@ -223,6 +223,8 @@ def _optional_inputs(
     out: Dict[str, Any] = {}
     if "feed_title" in params:
         out["feed_title"] = (ep["meta"].get("feed") or {}).get("title")
+    if "episode_title" in params:
+        out["episode_title"] = (ep["meta"].get("episode") or {}).get("title")
     if "host_copresence" in params and hasattr(roster, "host_copresence_from_diagnostics"):
         siblings = [
             d for m, d in _SIBLINGS.get(str(ep["feed_dir"]), []) if m != ep.get("meta_path")

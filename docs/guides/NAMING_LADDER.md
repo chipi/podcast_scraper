@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 21 |
-| Last updated | 2026-10-12 |
+| Doc version | 23 |
+| Last updated | 2026-10-15 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `42ced70ceecd` (see below) |
+| Code content hash | `0744c67535af` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -27,6 +27,37 @@
 
 **Changelog**
 
+- **v23, 2026-10-15.** One reference widened (#2363): the final ADR-130 snap
+  (`recover_stated_names`) also takes the people in the episode TITLE as spelling references
+  (`_title_person_spellings`: every two- or three-word capitalised run with a person's shape; a
+  bracket, a function word or an all-caps token ends a run). They come LAST, after the feed's
+  hosts and the metadata's people, and they never name a voice: they only respell a name a voice
+  already carries ("Matt Iglesias" -> "Matthew Yglesias", Capitalisn't). `resolve_speaker_roster`
+  takes `episode_title`; `roster_replay.py` passes it only to a variant that accepts it.
+- **v22, 2026-10-15 (catch-up: changes on main after v21 that this doc had not recorded).**
+  - Phase C (`66eaedd0c`, #2347): feed-stated hosts stay in the pool even when heard in an ad
+    (the ad-reader filter applies only to names guessed from the transcript);
+    `plausible_person_names` drops group and institution phrases at the roster's entry; step
+    `3_opener` seats an opener beside an already seated host only when its first 3 turns name the
+    show or a stated person in full (`_opener_presents`); a lone unnamed host seat with two
+    unclaimed stated hosts is the one it does not keep addressing (`_seat_by_cohost_address`,
+    trace note `host_naming_by_cohost_address`).
+  - K8 (`ee4d19961`, #2338): a last forced-guest rung, `forced_by: stated_guest_owns_the_talk`.
+    Exactly one metadata-stated full name is unplaced, its surname is spoken, and exactly one
+    unnamed non-host voice holds at least half the talk; never when the episode calls that person
+    another show's host (`_named_as_another_shows_host`).
+  - F7 (`2fd6411dc`): step 4 takes a substantial voice present across the episode as a candidate
+    when no opening-window candidate exists and no guest is present (`_storyteller_candidates`);
+    two unnamed seats that the strict pair refuses are named by each seat's dominant address,
+    both or neither (`_pair_by_dominant_address`, inside `host_naming_pair`).
+  - `19da42c29`: a voice under 90 s that introduces itself AND speaks a promo's lines is an ad
+    voice (`_self_introduced_promo_voices`, in `inputs.ad_voices`), unless it says a person this
+    episode states; "I'm <role> <stated name>" names a stand-in; the opener's hail at a turn start
+    counts.
+  - `c2ac9fcfa`: the shared cleaning types a voice `commercial` by ad overlap only below 25% of
+    the episode's talk (`COMMERCIAL_MAX_TALK_SHARE`).
+  - #2324 (non-English onboarding) made the per-language cue rows reach every reader (D1-D28 in
+    `docs/wip/NONENGLISH-REFERENCE-SHOWS-2026-10-09.md`); English behaviour unchanged.
 - **v21, 2026-10-12.** Two guards (#2304 Track B audit, K13): `title_subject` does not declare the
   title's OPENING guest while a host seat holds over half the talk (as the tail already did), and the
   forced host name skips a seat under 5% of the talk beside a voice of 20% or more
@@ -240,21 +271,22 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `presenter_evidence` | episode note | branded / introducer / copresenter voices; conversation guests |
 | `host_pool` | input, plus per name `never_names` | the pool with each name's source |
 | `host_seat_guards` | episode note | every veto set the seat steps consult, and the cap |
-| `host_seat_step` | per voice `seated` (`step`) | WHICH step seated it: `1_named_as_a_stated_host`, `1b_presents_on_own_evidence`, `1c_unnamed_introducer`, `2_performs_host_role`, `3_opener`, `4_count_fill`, `5_llm_host_no_pool`, `6_stand_in_interviewer` |
+| `host_seat_step` | per voice `seated` (`step`) | WHICH step seated it: `1_named_as_a_stated_host`, `1b_presents_on_own_evidence`, `1c_unnamed_introducer`, `2_performs_host_role`, `3_opener`, `4_count_fill`, `5_llm_host_no_pool`, `6_stand_in_interviewer`. `3_opener` beside an already seated host needs the opener to present (`_opener_presents`); `4_count_fill` may draw a storyteller candidate (`_storyteller_candidates`) |
 | `host_seat_opener`, `host_seat_step_4` | episode notes | the opener; step 4's arithmetic (empty seats, unclaimed / said-absent hosts, fillable, candidates, guest present, third-party excess, co-host said present) |
 | `host_seats` / `host_seat` | episode note, per voice `order` | final seats in order |
 | `host_naming_forced_gates` | episode note | spare names before/after the feed-history and said-absent filters, unnamed seats, guest-hosted episode, one-name-one-seat, seat owns the talk (not when the seat narrates: below 70% of the talk with at least two more substantial voices than the feed has hosts — The Flip, `b3fb1c941`), better presenter elsewhere |
-| `host_naming_pair` | episode note (`performs_guest_act`, `named`) | two unnamed seats and two unclaimed pool names, each seat addressing the other's host by name (`_pair_by_address`, The Rest Is History) |
+| `host_naming_pair` | episode note (`performs_guest_act`, `named`) | two unnamed seats and two unclaimed pool names, each seat addressing the other's host by name (`_pair_by_address`, The Rest Is History); when that strict pair refuses, each seat's dominant address, named only when both resolve to different hosts (`_pair_by_dominant_address`, F7) |
+| `host_naming_by_cohost_address` | episode note (`seat`, `named`, `performs_guest_act`) | one unnamed seat, two unclaimed stated hosts: the seat is the host it does not keep addressing (`_seat_by_cohost_address`, Phase C, Hard Fork) |
 | `host_naming` | per seat `named_from_earlier_rung` / `forced_pool_name` (`by: address_pair` when the pair rule named it) / `unnamed` (`intro_name_taken`), plus `forced_name_vetoes` (guest act, greeted by that name, rescued from bleed, forced) | how each seat was named or why not |
 | `host_introduction_harvest`, `two_voice_interview` | per name `added` / `refused` | guest names harvested from the host's introduction |
 | `guest_pool` | per name `excluded` (reason), episode note | the guest pool and why declared names left it |
-| `guest_naming_forced` | episode note | spare names, candidates above the cameo floor, forced name, `forced_by` = `one_name_one_voice` / `only_voice_left_below_cameo_floor` / `dominant_unassigned_voice` / `host_elimination`, forced voice |
+| `guest_naming_forced` | episode note | spare names, candidates above the cameo floor, forced name, `forced_by` = `one_name_one_voice` / `only_voice_left_below_cameo_floor` / `dominant_unassigned_voice` / `host_elimination` / `stated_guest_owns_the_talk` (K8), forced voice |
 | `guest_naming` | per voice `named_from_earlier_rung` / `forced_name` (`forced_by`) / `unnamed` (`role`, `intro_name_refused`, `forced_name_refused`, `role_evidence`) | how each remaining voice was named or why not. `forced_name_refused: says_that_name_in_the_third_person` is NOT given when another voice hails the name's first name and this voice answers the next turn, unless this voice hails it itself or says the full name (`_refuted_unless_hailed`, `64654a8c9`) |
 | `talkative_host`, `ad_voice_placeholder`, `stated_spelling_snap`, `recover_stated_names` | role diff | changes only |
 | `publish_gate` | per voice `prefix_stripped` / `refused`, per name `refused` | the final plausibility gate. Every published name is also canonical (`canonical_person_name`): a trailing credential after a comma, or written in capitals without one (`SC`, `QC`, `MD`, `PhD`; not `Ma`, `Do`, nor `KC`, a Nepali surname), is dropped (`aee17d79e`) |
 | `one_name_per_person` | role diff, per voice `bare_first_name_joins`, episode note per group (`unified`: names, roles, kept name + `kept_because`, role + `role_reason`; or `kept_apart`) | one person, one name, one role |
 | `nameable` | episode note | nameable voices, leftover / unbound names |
-| `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why |
+| `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why. `commercial` by ad overlap needs 60% of the voice's talk in ads AND under 25% of the episode's talk (`c2ac9fcfa`) |
 | `non_regression`, `inputs.baseline_without_llm` | pipeline | names the additive contract restored; the rules-only roster |
 
 **Sources a voice's name can carry** (`voices[].source`). `_NAME_EVIDENCE_RANK` ranks four of them,
@@ -285,7 +317,7 @@ Where each acts:
 | Rung | Rule |
 | --- | --- |
 | `self_intro`, `host_seat_guards` (`stated_non_host`) | A leading title is not the given name (`_core_name_tokens` drops it while a given name and a surname remain). `_snap_near_identical_host` maps a self-introduction to the stated host when they differ only by a title, by one letter (5+ letter surname), or by two adjacent swapped letters ("Wiesenthal" / "Weisenthal"). A voice that says "I'm Professor Hannah Fry" on Hannah Fry's show is therefore not a stated non-host. |
-| `recover_stated_names` | A guest never takes a stated HOST's spelling (N1, "Kevin Ross" / "Kevin Roose") — unless the episode also names that person as a participant (`detected_guests` / `metadata_named`): then the host pool is the polluted source ("Lucas Kaiser" -> Lukasz Kaiser, guest, The a16z Show). When the fuzzy canonicaliser finds nothing, `_stated_participant_spelling` gives the voice the ONE stated participant it is a respelling of by the one-episode rule, if no other voice holds that name ("Scholastic Gatobu" -> "Schola Gatobu", "Charming Lai" -> "Chiamin Lai"). A name the episode already states is never re-spelt. |
+| `recover_stated_names` | A guest never takes a stated HOST's spelling (N1, "Kevin Ross" / "Kevin Roose") — unless the episode also names that person as a participant (`detected_guests` / `metadata_named`): then the host pool is the polluted source ("Lucas Kaiser" -> Lukasz Kaiser, guest, The a16z Show). When the fuzzy canonicaliser finds nothing, `_stated_participant_spelling` gives the voice the ONE stated participant it is a respelling of by the one-episode rule, if no other voice holds that name ("Scholastic Gatobu" -> "Schola Gatobu", "Charming Lai" -> "Chiamin Lai"). A name the episode already states is never re-spelt. The references, in priority order: feed hosts, detected guests, metadata people, then the people in the episode title (`_title_person_spellings`, v23), which only respell and never name. |
 | `guest_pool` (`same_person_as_a_named_voice`) | A declared guest name is not spare when it is the same person as a voice's name by `_same_spoken_person` OR the one-episode rule ("Andy Ratcliffe" beside "Andy Rachleff", The Long Run). |
 | `one_name_per_person` | Voices grouped by the one-episode rule take one name and one role. |
 | record (`metadata_generation._unplaced_speakers`) | An unplaced entry is dropped when it is the same person as a placed or earlier entry by EITHER predicate. Not a roster rung: not in the trace. |
