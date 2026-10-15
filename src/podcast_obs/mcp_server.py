@@ -108,7 +108,7 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         return _run(config, target, prod_api.recent_pipeline_runs, limit=limit)
 
     def prod_recent_deploys(target: Optional[str] = None, limit: int = 10) -> dict:
-        """Recent deploy-prod.yml runs (GitHub Actions) with conclusions + failure rate."""
+        """Recent prod deploy runs across every deploy workflow, with conclusions + failure rate."""
         return _run(config, target, github.recent_deploys, limit=limit)
 
     def prod_cost_today(target: Optional[str] = None) -> dict:

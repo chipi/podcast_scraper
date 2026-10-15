@@ -48,7 +48,9 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("version", help="Running code version + corpus stamp the deploy serves.")
     runs = sub.add_parser("runs", help="Recent pipeline runs (/api/jobs), newest first.")
     runs.add_argument("--limit", type=int, default=10, help="Max runs to return (default 10).")
-    deploys = sub.add_parser("deploys", help="Recent deploy-prod.yml runs (GitHub Actions).")
+    deploys = sub.add_parser(
+        "deploys", help="Recent prod deploy runs, all deploy workflows (GitHub Actions)."
+    )
     deploys.add_argument("--limit", type=int, default=10, help="Max deploys (default 10).")
     sub.add_parser("cost-today", help="LLM cost events over the last 24h (VictoriaLogs).")
     logs = sub.add_parser("logs", help="Recent logs — error-ish by default (VictoriaLogs).")

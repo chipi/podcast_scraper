@@ -109,7 +109,7 @@ Connect with: `claude mcp add --transport http podcast-obs https://obs.closelist
 | --- | --- | --- | --- |
 | GlitchTip / Sentry errors | `SENTRY_AUTH_TOKEN` | host `.env`, staged by deploy | `/api/0/organizations/` → 401; `errors` source dark |
 | Grafana alerts | `PODCAST_OBS_GRAFANA_TOKEN` | host `.env` (read-scoped service account) | `alerts` source dark |
-| GitHub deploys | `PODCAST_OBS_GITHUB_TOKEN` | repo secret | **not needed on a workstation** — `gh run list --workflow=deploy-prod.yml` covers it when `gh` is authed |
+| GitHub deploys | `PODCAST_OBS_GITHUB_TOKEN` | repo secret | **not needed on a workstation** — `gh run list --workflow=<deploy-*.yml>` covers it when `gh` is authed |
 
 ### Control-plane coverage (`python -m podcast_obs`)
 

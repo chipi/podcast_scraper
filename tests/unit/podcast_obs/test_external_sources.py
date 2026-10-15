@@ -15,8 +15,76 @@ def _t(**kw) -> TargetConfig:
 # --- github.recent_deploys ---------------------------------------------------------
 
 
+def _only(payload: dict, workflow: str = "deploy-prod.yml"):
+    """A get_json fake: *payload* for *workflow*'s runs, no runs for every other workflow."""
+    return lambda url, **_: payload if f"/workflows/{workflow}/" in url else {"workflow_runs": []}
+
+
 def test_deploys_not_configured() -> None:
     assert github.recent_deploys(_t())["configured"] is False
+
+
+def test_deploys_cover_every_prod_deploy_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 2026-10-15: the source read only deploy-prod.yml (control plane), so the one-sha
+    # deploy-all-prod and deploy-config runs that day were invisible ("last deploy 09-29").
+    runs = {
+        "deploy-prod.yml": [{"run_number": 60, "created_at": "2026-09-29T19:12:48Z"}],
+        "deploy-all-prod.yml": [
+            {"run_number": 7, "conclusion": "failure", "created_at": "2026-10-15T05:42:52Z"}
+        ],
+        "deploy-config.yml": [
+            {"run_number": 30, "conclusion": "success", "created_at": "2026-10-15T05:56:17Z"}
+        ],
+    }
+
+    def fake(url: str, **_):
+        wf = url.split("/workflows/")[1].split("/")[0]
+        return {"workflow_runs": runs.get(wf, [])}
+
+    monkeypatch.setattr(github, "get_json", fake)
+    data = github.recent_deploys(_t(github_token="x"), limit=10)["data"]
+    assert [(d["workflow"], d["run_number"]) for d in data["deploys"]] == [
+        ("deploy-config.yml", 30),
+        ("deploy-all-prod.yml", 7),
+        ("deploy-prod.yml", 60),
+    ]  # newest first, across workflows
+
+
+def test_deploys_limit_applies_after_merge(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake(url: str, **_):
+        wf = url.split("/workflows/")[1].split("/")[0]
+        return {
+            "workflow_runs": [{"run_number": 1, "created_at": f"2026-10-0{len(wf) % 9}T00:00:00Z"}]
+        }
+
+    monkeypatch.setattr(github, "get_json", fake)
+    data = github.recent_deploys(_t(github_token="x"), limit=2)["data"]
+    assert data["count"] == 2
+
+
+def test_deploys_one_workflow_failing_does_not_hide_the_rest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake(url: str, **_):
+        if "/workflows/deploy-player.yml/" in url:
+            raise RuntimeError("boom")
+        if "/workflows/deploy-prod.yml/" in url:
+            return {"workflow_runs": [{"run_number": 1, "created_at": "2026-10-01T00:00:00Z"}]}
+        return {"workflow_runs": []}
+
+    monkeypatch.setattr(github, "get_json", fake)
+    result = github.recent_deploys(_t(github_token="x"))
+    assert result["ok"] is True
+    assert result["data"]["count"] == 1
+    assert "deploy-player.yml" in result["data"]["errors"][0]
+
+
+def test_deploys_all_workflows_failing_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(url: str, **_):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(github, "get_json", boom)
+    assert github.recent_deploys(_t(github_token="x"))["ok"] is False
 
 
 def test_deploys_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -42,7 +110,7 @@ def test_deploys_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
             },
         ]
     }
-    monkeypatch.setattr(github, "get_json", lambda url, **_: payload)
+    monkeypatch.setattr(github, "get_json", _only(payload))
     data = github.recent_deploys(_t(github_token="x"), limit=10)["data"]
     assert data["count"] == 2
     assert data["deploys"][0]["sha"] == "abcdef1"  # truncated to 7
@@ -185,7 +253,7 @@ def test_deploys_duration_none_for_in_progress(monkeypatch: pytest.MonkeyPatch) 
             }
         ]
     }
-    monkeypatch.setattr(github, "get_json", lambda url, **_: payload)
+    monkeypatch.setattr(github, "get_json", _only(payload))
     data = github.recent_deploys(_t(github_token="x"))["data"]
     assert data["deploys"][0]["duration_s"] is None  # C3 regression guard
     assert data["failure_rate"] is None  # nothing concluded
@@ -203,5 +271,5 @@ def test_deploys_duration_bad_iso_is_none(monkeypatch: pytest.MonkeyPatch) -> No
             }
         ]
     }
-    monkeypatch.setattr(github, "get_json", lambda url, **_: payload)
+    monkeypatch.setattr(github, "get_json", _only(payload))
     assert github.recent_deploys(_t(github_token="x"))["data"]["deploys"][0]["duration_s"] is None

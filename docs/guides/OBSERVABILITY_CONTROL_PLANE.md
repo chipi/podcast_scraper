@@ -89,7 +89,7 @@ python -m podcast_obs summary    --target prod      # control-plane glance, all 
 python -m podcast_obs health     --target local
 python -m podcast_obs version    --target prod
 python -m podcast_obs runs        --limit 5         # recent pipeline runs (/api/jobs)
-python -m podcast_obs deploys     --limit 5         # deploy-prod.yml runs + failure rate
+python -m podcast_obs deploys     --limit 5         # prod deploy runs (all deploy workflows) + failure rate
 python -m podcast_obs cost-today                     # 24h LLM spend (Loki)
 python -m podcast_obs logs --service pipeline --window 6h --contains OOM
 python -m podcast_obs errors --window 24h            # Sentry issues
