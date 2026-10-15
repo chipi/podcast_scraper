@@ -377,3 +377,28 @@ class TestMidRollReads:
         text = _PREROLL_AD_TEXT + _CONTENT_BLOCK * 6 + talk + _CONTENT_BLOCK * 6
         cleaned, _, _ = excise_ad_regions(text)
         assert "wikipedia dot com" in cleaned
+
+
+@pytest.mark.unit
+class TestTranslatedReadKeepsNoPitch:
+    """#2346: a translated read renders its call to action as a written URL ("Start at
+    strava.com/podcast"); only the "sponsored by" sentence was cut and the pitch stayed."""
+
+    def test_the_whole_read_goes(self):
+        read = (
+            "This episode is sponsored by Strava. Strava is the home of athletes. "
+            "Start at strava.com/podcast. Use the code TRAILS for a free month. "
+        )
+        text = read + _CONTENT_BLOCK
+        cleaned, _, _ = excise_ad_regions(text)
+        assert "strava" not in cleaned.lower()
+        assert "Hello and welcome" in cleaned
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["I saw him at youtube.com/hardfork last week.", "The test is at npr.org/summerschool."],
+    )
+    def test_a_show_naming_its_own_page_is_not_a_cue(self, phrase):
+        from podcast_scraper.gi.ad_regions import _distinct_hits
+
+        assert not _distinct_hits(phrase)

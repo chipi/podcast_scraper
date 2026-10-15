@@ -89,6 +89,11 @@ _AD_PATTERN_SOURCES: Dict[str, Tuple[str, ...]] = {
         r"\blearn more at\s+\w+\.(?:com|ai|io|co)\b",  # "Learn more at rogo.ai"
         r"\bhead (?:over )?to\s+\w+\.(?:com|ai|io|co)\b",
         # Promo / CTA phrases — common in ad reads.
+        # "Start at strava.com/podcast": the one call-to-action verb the address patterns did not
+        # know. A translated read rendered its CTA that way, so only its "sponsored by" sentence was
+        # cut and the pitch stayed in the English text (#2346). The other verbs (go to, visit, head
+        # to, check out, learn more at) already have their own address patterns.
+        r"\bstart at\s+(?:www\.)?[\w-]+\.(?:com|ai|io|co|org|net|fm)\b",
         r"\b(?:promo|use)\s+code\s+\w+",
         r"\bsave\s+(?:up to\s+)?\d+\s*(?:percent|%)\b",
         r"\bget\s+\d+\s*(?:percent|%)\s*off\b",
