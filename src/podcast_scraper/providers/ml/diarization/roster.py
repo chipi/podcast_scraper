@@ -1251,6 +1251,23 @@ _PROMO_CUE = re.compile(
 _SELF_INTRO_CUE = re.compile(r"\b(?i:i'?m|i am|my name is|this is)\s+[A-Z]")
 #: Longer than this and the voice is a participant who also mentions a tour, not a promo.
 _PROMO_MAX_TALK_S = 90.0
+_SELF_INTRO_NAME = re.compile(
+    r"\b(?i:i'?m|i am|my name is|this is)\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,2})"
+)
+
+
+def _introduces_itself_as_stated(text: str, stated: Sequence[str]) -> bool:
+    """The voice introduces ITSELF as a person this episode states, in any ASR spelling the
+    stated-name snap accepts ("I'm Lane Florshime" for Lane Florsheim). Saying a stated name in the
+    third person ("This is StarTalk with Neil deGrasse Tyson") is not that."""
+    stated_lower = {s.lower() for s in stated}
+    for m in _SELF_INTRO_NAME.finditer(text):
+        toks = m.group(1).split()
+        for n in range(len(toks), 1, -1):
+            cand = " ".join(toks[:n])
+            if _canonicalize_to_stated_name(cand, stated).lower() in stated_lower:
+                return True
+    return False
 
 
 def _self_introduced_promo_voices(
@@ -1260,17 +1277,22 @@ def _self_introduced_promo_voices(
 
     Both halves are needed. A short self-introduction alone is a kid's question or a vox pop
     (Curious Cases, The Journal); promo words alone are any host's ad read inside their own long
-    cluster. And a voice that says a person THIS episode states is promoting this show, not another
-    one: "I'm Lane Florsheim ... follow us on Spotify", "join us on Patreon" (The Journal, Why This
-    Universe; replay 2026-10-14)."""
+    cluster. And a voice that introduces itself as a person THIS episode states is promoting this
+    show, not another one: "I'm Lane Florsheim ... follow us on Spotify", "join us on Patreon" (The
+    Journal, Why This Universe; replay 2026-10-14). Naming a stated person is not enough: a
+    supporter's "I support StarTalk on Patreon. This is StarTalk with Neil deGrasse Tyson" was
+    published as a guest (prod snapshot 2026-10-15)."""
     stated = [n for n in stated_people if n and len(n.split()) >= 2]
+    # One space between words: joined segments leave two at each seam, and "on  Patreon" was no
+    # cue (prod snapshot 2026-10-15). The cleaning runs before the roster normalises its texts.
+    one_spaced = {v: " ".join((t or "").split()) for v, t in texts.items()}
     return {
         v
-        for v, text in texts.items()
+        for v, text in one_spaced.items()
         if talk.get(v, 0.0) < _PROMO_MAX_TALK_S
         and _SELF_INTRO_CUE.search(text or "")
         and _PROMO_CUE.search(text or "")
-        and not any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", text, re.IGNORECASE) for n in stated)
+        and not _introduces_itself_as_stated(text, stated)
     }
 
 

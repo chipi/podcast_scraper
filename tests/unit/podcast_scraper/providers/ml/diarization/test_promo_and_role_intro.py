@@ -59,6 +59,32 @@ def test_a_stated_person_promoting_this_show_is_not_an_ad() -> None:
     assert _self_introduced_promo_voices({"S1": text}, talk, ["Lane"]) == {"S1"}  # full names only
 
 
+def test_saying_the_hosts_name_is_not_being_the_host() -> None:
+    # A supporter shout-out names the show's host in the third person; it is not the show's own
+    # person promoting the show (StarTalk, prod snapshot 2026-10-15: 3 shout-outs named as guests).
+    text = (
+        "I'm Dana Okafor, and I support the show on Patreon. This is Night Sky with Ada Brightwell."
+    )
+    assert _self_introduced_promo_voices({"S0": text}, {"S0": 8.2}, ["Ada Brightwell"]) == {"S0"}
+
+
+def test_a_stated_person_introducing_themselves_in_the_asr_spelling_is_still_this_show() -> None:
+    text = "I'm Lane Florshime. Follow us on Spotify or wherever you get your podcasts."
+    assert _self_introduced_promo_voices({"S1": text}, {"S1": 86.0}, ["Lane Florsheim"]) == set()
+
+
+def test_a_three_word_stated_name_is_read_whole() -> None:
+    text = "I'm Ana Ruiz Okafor. Subscribe now wherever you get your podcasts."
+    assert _self_introduced_promo_voices({"S1": text}, {"S1": 40.0}, ["Ana Ruiz Okafor"]) == set()
+
+
+def test_a_cue_split_across_two_segments_is_still_a_cue() -> None:
+    # Joined segments leave two spaces at the seam: "support the show on  Patreon" read as no
+    # promo cue, and a 10 s supporter shout-out was named as a guest (prod snapshot 2026-10-15).
+    text = " Hi, I'm Dana Okafor from Ohio.  We listen every night and support the show on  Patreon"
+    assert _self_introduced_promo_voices({"S0": text}, {"S0": 9.7}) == {"S0"}
+
+
 def test_the_boundary_is_strict() -> None:
     assert _self_introduced_promo_voices({"S5": PROMO}, {"S5": 90.0}) == set()
 

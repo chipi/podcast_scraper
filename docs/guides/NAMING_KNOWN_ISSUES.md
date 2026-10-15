@@ -188,8 +188,9 @@ title or transcript.
 - **A person named in the middle of a title** (#2363): "Why Matthew Yglesias Is Skeptical ..." is
   read by no title rule, so the heard "Matt Iglesias" was published. In progress: title people as
   spelling references (ladder v23).
-- **Patreon supporter shout-outs as guests** (#2364): StarTalk's descriptions list the
-  supporters, so the promo rule treats them as stated people and keeps them.
+- **Patreon supporter shout-outs as guests** (#2364): fixed in ladder v24. The cause was not the
+  descriptions (the supporters are not stated): the clips say the host's name, which exempted
+  them, and one cue split across two segments was never read.
 - **A promo without a self-introduction + promo-cue pair** (#2365): Kara Swisher's Gray Area promo.
 - **A host who never self-introduces or names anyone** (#2366): Phantom Pain, Welcoming Misha
   Glenny (merged BBC ad tag), Dr. Sharon Blackie (`empty_host_anchor`, 29% unattributed).
