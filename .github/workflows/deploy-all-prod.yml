@@ -124,6 +124,19 @@ jobs:
             echo "::error::image_sha must match ^[a-f0-9]{7,40}$ after an optional sha- prefix (got: ${SHA})"
             exit 1
           fi
+          # Images are tagged sha-<7>. A longer sha passed the check above and then failed all
+          # three surfaces at their manifest check, minutes later, as "manifest unknown"
+          # (2026-10-15 run 38752921829: image_sha=f35a446b8). Shorten it here, and prove the tag
+          # is published BEFORE anything deploys.
+          S="${S:0:7}"
+          TOKEN=$(curl -fsS "https://ghcr.io/token?scope=repository:${OWNER}/${PKG}:pull" | jq -r .token)
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.v2+json' \
+            "https://ghcr.io/v2/${OWNER}/${PKG}/manifests/sha-${S}")
+          if [ "$CODE" != "200" ]; then
+            echo "::error::ghcr.io/${OWNER}/${PKG}:sha-${S} is not published (HTTP ${CODE}). Use the sha from a green Stack test run of main."
+            exit 1
+          fi
           echo "sha=$S" >> "$GITHUB_OUTPUT"
           echo "::notice::all surfaces will be pinned to sha-${S}"
 
