@@ -56,9 +56,14 @@ the orrery repo (`ops/caddy` + `ops/deploy_caddy_vhosts.sh`, shipped by orrery's
 `__*_PREVIEW_COOKIE__` secret, exactly as the deploy scripts' `sed`), scp's to the box, cp's
 into `/etc/caddy/sites/`, runs `caddy validate` (with the box's `CADDY_BIND_ADDRS` /
 `GLITCHTIP_UPSTREAM` systemd env), and **restarts caddy only if valid** (rollback the vhost
-files if not — caddy never restarts on a broken config). Alloy drop-ins scp to `config.d/` +
-HUP. A `dry_run` toggle stages + validates without restarting. Gated: `environment: prod` +
-typed `DEPLOY_CONFIG`.
+files if not — caddy never restarts on a broken config). Alloy drop-ins scp to a staging dir;
+`scripts/ops/deploy_config_alloy.sh` validates them together with everything already in
+`config.d/` (Alloy loads the directory as one config), installs only the changed files, HUPs,
+and reads Alloy's verdict from its `alloy_config_last_load_*` metrics, rolling back on a refused
+reload (amended 2026-10-15: a refused HUP had kept the old config running unnoticed). The
+host-level drop-ins `selfmon.alloy`, `base.alloy` and `litellm.alloy` ship on every surface.
+A `dry_run` toggle stages + validates without restarting or installing. Gated:
+`environment: prod` + typed `DEPLOY_CONFIG`.
 
 **The base `Caddyfile` stays in `apply-edge.sh`.** It is root-owned (`deploy@` can write
 `/etc/caddy/sites/` but not `/etc/caddy/Caddyfile`), and it is bundled with the host-level
