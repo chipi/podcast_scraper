@@ -69,6 +69,57 @@ steps below:
   requests got a 521). After: a reload under load answered 150/150, verify-edge 15 pass. Orrery's
   vhost script reloads too (orrery 4ca9fdd4795).
 
+## Next deploy (candidate `0bc13f92c`, 2026-10-15) — steps, each on the operator's go
+
+**What it carries since `aaadbb2`:**
+- the search fix `5426067f8` (a storyline's exact or old name leads its category);
+- the work-list "declined" report `d0f4951ce`;
+- Langfuse trace = OTel trace, with stage-named generations (`4ae796413`);
+- the o11y MCP fixes (`2399f5c14`, `8c74a140d`);
+- GlitchTip grouping and release tags (`0bc13f92c`);
+- the source audio length (#2359, `bd37c9189`, new episodes only);
+- the reload-not-restart edge scripts (`60dea6847`);
+- the e2e fixture re-timing.
+
+No vhost or Alloy file changed, so no `deploy-config` this time.
+
+**Before:**
+- No reprocess runs and no smoke during the deploy (a deploy during a reprocess is untested).
+- Main's CI green on the candidate (Python, Docker, Snyk, CodeQL).
+
+**Deploy:** `deploy-all-prod.yml` with `image_sha`.
+
+**After, checks in order:**
+1. **Containers and smokes.**
+   - All containers healthy; player and operator smokes green.
+   - **First deploy that RELOADS Caddy:** `deploy-player.sh` and `deploy-operator.sh` must log the reload, not a restart. The smokes running right after are the test: no 521.
+2. **GlitchTip (`0bc13f92c`).**
+   - operator-api, player-api and player-mcp log `sentry init complete … release=sha-<short>` (was `podcast-scraper@2.7.0.dev0`).
+   - Player web reports release `sha-<7>`.
+   - Over the next days, one GlitchTip issue per error (podcast-pipeline had 424 issues for 72 errors).
+3. **Search (`5426067f8`).** Re-run the 33-name storyline check as the smoke listener (`per_category=3`): expect every name, current and old, to lead the storylines category, including "model distillation" and the old name "embodied cognition".
+4. **o11y MCP** (homelab's checks, inside player-obs-1):
+   - `python -m podcast_obs deploys`: the newest entries are today's deploys, each with a `workflow` field.
+   - `python -m podcast_obs surface pipeline --window 1h`: its errors list differs from `--window 14d`.
+5. **Langfuse (`4ae796413`):** podcast-prod traces keyed by OTel ids with stage-named generations, and `board-summarizer-*` sessions. Homelab confirms.
+6. **Work-list (`d0f4951ce`):** the next reprocess with refusals logs "left as they were by design (…)" at WARNING, not ERROR.
+7. **#2359:** the first newly processed episode has `source_audio_duration_s` in its `.asr.json` and in the manifest's asr metrics. A reprocessed episode counts, since the backfill re-transcribes.
+8. **Then the long runs, one at a time:**
+   - backfill batch 27+ (15 episodes, about 5 h);
+   - the 8.4 relabel: 5 episodes to measure, then the rest in batches;
+   - 8.5, recomputed after 8.4.
+
+**Separately: `deploy-litellm`, any time the gateway is idle, on the operator's go.**
+- What it changes: `LITELLM_SENTRY_DSN` now points at GlitchTip project litellm-prod (27) over the tailnet HTTPS node (the old one was a deleted project at an address the VPS can't reach, so gateway errors went nowhere), and `SENTRY_ENVIRONMENT=prod`.
+- The image stays pinned at v1.95.0 (`e20cd3e59`).
+- Check after:
+  - `docker exec litellm printenv SENTRY_ENVIRONMENT` → `prod`;
+  - the deploy smoke (aliases served, completions end to end);
+  - `_time:10m AND app:litellm AND -service:*` → 0;
+  - a real gateway error lands in litellm-prod.
+
+**DGX: the homelab session owns it.** pyannote and faster-whisper read `SENTRY_ENVIRONMENT` from env files under `/opt/*/` on the DGX, which still say `production`; moss's is in `infra/dgx/converge/deploy.py`. Homelab changes them during a DGX converge window.
+
 ## What the deploy carries
 
 App (server + player), checked in "After the app deploy" below:
