@@ -69,6 +69,45 @@ steps below:
   requests got a 521). After: a reload under load answered 150/150, verify-edge 15 pass. Orrery's
   vhost script reloads too (orrery 4ca9fdd4795).
 
+## Deploy of `sha-f35a446` (2026-10-15 14:36–16:02 UTC) — what failed, and the fixes
+
+Prod ended healthy on `sha-f35a446`: every container, all smokes green on the re-runs, player
+smoke 52/52 (`smoke-player` run 38765316477). The way there:
+
+1. **Run 38752921829 failed at the manifest check:** dispatched with `image_sha=f35a446b8`
+   (9 characters), but the images are tagged `sha-<7>`. Prod was untouched. Fix: `e9396defb`
+   (the guard shortens to 7 characters and checks the tag is published before deploying).
+2. **Control-plane smoke, `/api/artifacts`:** it took about 8.5 s per call (three corpus walks,
+   plus a publish date for 9,531 files when 1,191 are listed), against the smoke's 10 s limit.
+   Under start-up load it went over, and every 15 s retry started another listing, so calls piled
+   up to about 600 s with the API above 100% CPU. A re-run on the idle API passed. Fixes:
+   `c90537ff0` (1.6 s, identical listing, proven on prod) and `b26c2bf0f` (concurrent calls share
+   one computation).
+3. **Operator smoke, read plane:** `/api/index/stats` hit about 200 s in the same pile-up (homelab
+   traces). Fixes: `c3069005a` (one corpus walk instead of two, cold call about 5.6 s) and
+   `b26c2bf0f`. The remaining 3.3 s newest-file scan is parked: it needs a change to the shared
+   `discover_metadata_files` rule.
+4. **Player smoke, "Search renders grouped results":** failed on both browsers. `7894ad89f`
+   replaced the "N passages across M episodes" line with "Episodes · N", which the smoke still
+   waited for. Fix: `4ba2f9878`. (`85f98f448` reformatted the spec with default Prettier and was
+   reverted in `1a2b47b09`.)
+5. **Caddy reloaded, not restarted:** `ActiveEnterTimestamp` is still 08:03:11 after both deploys
+   (a fallback restart would have moved it). The scripts don't log which path they took.
+
+Not measured: how long the API's cache warmer keeps it busy after a start. It logs no step
+timings, only its start and failures at DEBUG.
+
+## Next deploy (candidate: main after `e9396defb`) — extra checks beyond the list below
+
+- No uvicorn `INFO:     <ip>` access lines in the API logs (`8ec79649e`).
+- player-api, player-mcp and podcast-pipeline traces carry `service.version=sha-<7>`
+  (`5d90d71f8`).
+- Langfuse traces carry `release` (`a0747249c`); the run-level trace is named "run <id>"
+  (`a96c56a1d`).
+- An operator smoke failure lands in GlitchTip project podcast-api, not player-api (`2343dea12`).
+- The control-plane smoke's `/api/artifacts` probe answers on its first attempt.
+- `3819acff6` changes `AppProcessPlugin.java`, so it reaches Android users only with a new build.
+
 ## Next deploy (candidate `0bc13f92c`, 2026-10-15) — steps, each on the operator's go
 
 **What it carries since `aaadbb2`:**
