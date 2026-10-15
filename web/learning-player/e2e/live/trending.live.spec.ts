@@ -72,7 +72,8 @@ test.describe('trending (RFC-103 R2)', () => {
 
   test('the discovery window selector defaults to 3M and switches', async ({ page }) => {
     await page.goto('/preview')
-    await page.goto('/browse')
+    // Trends live on Explore since ADR-163 §1 (2026-10-11); /browse is Discover and has no trends.
+    await page.goto('/explore')
     // Topics live in the shared DiscoveryExplorer now (Topics is its default tab); it renders ONE
     // DiscoveryList at a time, so its single trend-window-tabs is unambiguous — scope to it anyway.
     const panel = page.getByTestId('discovery-explorer')
