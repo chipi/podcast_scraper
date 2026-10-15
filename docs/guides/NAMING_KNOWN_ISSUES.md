@@ -196,7 +196,11 @@ title or transcript.
   2026-10-15 snapshot, the current roster types all 5 voices carrying the promo as ads (4 on The
   Gray Area, 1 elsewhere); 4 served records still carry the old name until a relabel.
 - **A host who never self-introduces or names anyone** (#2366): Phantom Pain, Welcoming Misha
-  Glenny (merged BBC ad tag), Dr. Sharon Blackie (`empty_host_anchor`, 29% unattributed).
+  Glenny (merged BBC ad tag), Dr. Sharon Blackie (`empty_host_anchor`, 29% unattributed). Partly
+  addressed in ladder v25 (`7_question_lead`): only one-host pools, about half of episodes give a
+  signal at all, and val_v2 precision is 0.88. On the 2026-10-15 snapshot, 221 served episodes
+  still get no host on current code (`docs/wip/HOST-SEAT-BY-QUESTIONS-2366.md`); two-host pools
+  (25 with a signal) and shows with no stated host (33) are not seated by it.
 - **Rosters wrong beyond a missing name** (#2367): a16z Machine Age (the interviewer named after
   the person it addresses), Capitalisn't Japan (a host name on a cold-open quote).
 - **Commercial typing of a host seat** (#2362): guarded since `c2ac9fcfa`. The 2026-10-15 snapshot
@@ -210,7 +214,7 @@ step; nothing here is built.
 | Class | Why rules stall | Where seen |
 | --- | --- | --- |
 | Who is the interviewer vs the interviewee (K1 swaps, #2367) | a swap-by-address rule breaks more correct pairs than it fixes at every threshold (K1); question-asking is not measured | co-host and two-guest panels; a16z Machine Age |
-| A host who never names anyone (#2366) | no name, no formula; only the conversation's shape says who leads | Phantom Pain, Misha Glenny, Sharon Blackie |
+| A host who never names anyone (#2366) | no name, no formula; the question rate (v25) covers one-host pools only, at 0.88-0.95 precision held out | Phantom Pain, Misha Glenny, Sharon Blackie; two-host pools; shows with no stated host |
 | A credited host who does not speak this episode (D29, #2352) | the name is uttered (credits), so "never uttered" cannot refuse it | El Hilo 2026-10-02 |
 | A cold-open quote merged into a host cluster (#2367) | the quote's words are the guest's, the cluster's voice is the host's | Capitalisn't Japan |
 

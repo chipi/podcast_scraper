@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 24 |
+| Doc version | 25 |
 | Last updated | 2026-10-15 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `3aca6614ef1b` (see below) |
+| Code content hash | `0b60909af3fd` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -27,6 +27,13 @@
 
 **Changelog**
 
+- **v25, 2026-10-15.** One host seat step added (#2366): `host_seat_step` `7_question_lead`. When
+  every step above seated nobody and the pool holds exactly one publishable name, the voice that
+  asks questions at least twice as often as every other voice with 10% or more of the non-ad talk
+  (`_question_lead_voice`, "?" per 1,000 words, a transcript with at least 20 full stops) takes the
+  seat, under step 6's guards; the forced naming then gives it the pool's one name. Measured in
+  `docs/wip/HOST-SEAT-BY-QUESTIONS-2366.md`: the voice picked is the host in 47/48 (dev_v1),
+  177/186 (val_v1), 56/64 (val_v2). Snapshot replay: 6 voices change, all better.
 - **v24, 2026-10-15.** The promo rule (`_self_introduced_promo_voices`, in `inputs.ad_voices`),
   two fixes (#2364): it reads each voice with one space between words (two segments joined at
   "on  Patreon" were no cue), and its exemption needs the voice to introduce ITSELF as a stated
@@ -277,7 +284,7 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `presenter_evidence` | episode note | branded / introducer / copresenter voices; conversation guests |
 | `host_pool` | input, plus per name `never_names` | the pool with each name's source |
 | `host_seat_guards` | episode note | every veto set the seat steps consult, and the cap |
-| `host_seat_step` | per voice `seated` (`step`) | WHICH step seated it: `1_named_as_a_stated_host`, `1b_presents_on_own_evidence`, `1c_unnamed_introducer`, `2_performs_host_role`, `3_opener`, `4_count_fill`, `5_llm_host_no_pool`, `6_stand_in_interviewer`. `3_opener` beside an already seated host needs the opener to present (`_opener_presents`); `4_count_fill` may draw a storyteller candidate (`_storyteller_candidates`) |
+| `host_seat_step` | per voice `seated` (`step`) | WHICH step seated it: `1_named_as_a_stated_host`, `1b_presents_on_own_evidence`, `1c_unnamed_introducer`, `2_performs_host_role`, `3_opener`, `4_count_fill`, `5_llm_host_no_pool`, `6_stand_in_interviewer`, `7_question_lead`. `3_opener` beside an already seated host needs the opener to present (`_opener_presents`); `4_count_fill` may draw a storyteller candidate (`_storyteller_candidates`) |
 | `host_seat_opener`, `host_seat_step_4` | episode notes | the opener; step 4's arithmetic (empty seats, unclaimed / said-absent hosts, fillable, candidates, guest present, third-party excess, co-host said present) |
 | `host_seats` / `host_seat` | episode note, per voice `order` | final seats in order |
 | `host_naming_forced_gates` | episode note | spare names before/after the feed-history and said-absent filters, unnamed seats, guest-hosted episode, one-name-one-seat, seat owns the talk (not when the seat narrates: below 70% of the talk with at least two more substantial voices than the feed has hosts — The Flip, `b3fb1c941`), better presenter elsewhere |

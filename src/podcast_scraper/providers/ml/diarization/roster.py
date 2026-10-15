@@ -5900,8 +5900,76 @@ def _select_host_voices(
                 host_voices.append(v)
                 break
     tr.appended("host_seat_step", host_voices, _n, "seated", step="6_stand_in_interviewer")
+    _n = len(host_voices)
+
+    # 7. THE VOICE THAT ASKS THE QUESTIONS (#2366). A host who never introduces themselves and
+    #    names nobody leaves every rung above without words to read, so the show's one stated host
+    #    was never seated. Only when everything above seated nobody and the pool holds exactly one
+    #    publishable name, so the forced naming has a single answer; never a heard guest nor a
+    #    positional non-host (an ad voice is never a candidate: `share` leaves ads out).
+    #    Measured on the gold sets (docs/wip/HOST-SEAT-BY-QUESTIONS-2366.md): the voice picked is
+    #    the host in 47/48 (dev_v1), 177/186 (val_v1), 56/64 (val_v2).
+    host_voices.extend(
+        _question_lead_seat(
+            host_voices,
+            host_pool,
+            texts,
+            share,
+            blocked=set(conv_guests) | positional_non_host,
+            language=language,
+        )
+    )
+    tr.appended("host_seat_step", host_voices, _n, "seated", step="7_question_lead")
 
     return host_voices
+
+
+#: Step 7 of `_select_host_voices`: a candidate holds at least this share of the non-ad talk...
+_QUESTION_LEAD_MIN_SHARE = 0.10
+#: ...and asks questions at least this many times as often as every other candidate...
+_QUESTION_LEAD_MARGIN = 2.0
+#: ...in a transcript punctuated enough for "?" to mean something.
+_QUESTION_LEAD_MIN_STOPS = 20
+
+
+def _question_lead_seat(
+    host_voices: Sequence[str],
+    host_pool: Sequence[Tuple[str, str]],
+    voice_texts: Mapping[str, str],
+    share: Mapping[str, float],
+    *,
+    blocked: AbstractSet[str],
+    language: Optional[str],
+) -> List[str]:
+    """Step 7's seat: ``[voice]`` or ``[]``. Only when no host is seated and the pool's one
+    name is publishable, so the forced naming has a single answer."""
+    if host_voices or len(host_pool) != 1:
+        return []
+    if not is_publishable_speaker_name(host_pool[0][0], language=language):
+        return []
+    lead = _question_lead_voice(voice_texts, share)
+    return [lead] if lead is not None and lead not in blocked else []
+
+
+def _question_lead_voice(
+    voice_texts: Mapping[str, str], share: Mapping[str, float]
+) -> Optional[str]:
+    """The one voice that asks markedly more questions than every other substantial voice, if any.
+
+    Questions per 1,000 words, so a long talker is not favoured; no names and no language words.
+    """
+    candidates = [v for v, s in share.items() if s >= _QUESTION_LEAD_MIN_SHARE]
+    if len(candidates) < 2:
+        return None
+    texts = {v: voice_texts.get(v, "") for v in candidates}
+    if sum(t.count(".") for t in texts.values()) < _QUESTION_LEAD_MIN_STOPS:
+        return None
+    rate = {
+        v: (t.count("?") + t.count("？")) * 1000 / max(1, len(t.split())) for v, t in texts.items()
+    }
+    ranked = sorted(candidates, key=lambda v: rate[v], reverse=True)
+    top, runner_up = rate[ranked[0]], max(rate[ranked[1]], 0.1)
+    return ranked[0] if top >= _QUESTION_LEAD_MARGIN * runner_up else None
 
 
 def _yield_unstated_introductions(
