@@ -398,7 +398,7 @@ watch(openPanelFromLink, (on) => { if (on) panelOpen.value = true }, { immediate
 // persistence additionally has to pair the slug and the time from one object (see the store).
 const player = usePlayerStore()
 const downloads = useDownloadsStore()
-const { playing, currentTime, duration, rate, audioError, justFinished } = storeToRefs(player)
+const { playing, currentTime, duration, rate, audioError, audioInsecure, justFinished } = storeToRefs(player)
 
 // Raise the post-episode recap when THIS page's episode finishes (RFC-122 #2038). The store sets
 // `justFinished` to the slug that crossed the line — on `ended` or past the 95% threshold — even
@@ -2233,8 +2233,12 @@ const { badgeShown } = useCorpusLanguages()
             @advance="advanceFromRecap"
             @stay="stayOnRecap"
           />
-          <p v-else-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
-            {{ t('player.audioError') }}
+          <p
+            v-else-if="audioError"
+            class="rounded-2xl border border-border bg-surface p-4 text-danger"
+            :data-testid="audioInsecure ? 'player-audio-insecure' : 'player-audio-error'"
+          >
+            {{ audioInsecure ? t('player.audioInsecure') : t('player.audioError') }}
           </p>
           <PlayerControls
             v-else-if="audioUrl"

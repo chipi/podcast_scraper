@@ -478,6 +478,8 @@
     "audioUnavailable": "Audio isn’t available for this episode yet.",
     "audioError": "Couldn’t load the audio from the source. Try again later.",
     "audioErrorShort": "Audio unavailable",
+    "audioInsecure": "This show serves its audio only over an insecure (http) connection, which your browser blocks, so it can’t play here. We’re working on it.",
+    "audioInsecureShort": "Blocked by the browser",
     "transcriptLanguage": "Transcript",
     "transcriptLanguageEnglish": "English",
     "transcriptPending": "Transcript pending — audio still plays.",

@@ -1,6 +1,8 @@
+import { Capacitor } from '@capacitor/core'
 import { captureMessage } from '@sentry/capacitor'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { isInsecureAudio } from '../player/insecureAudio'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
 
 /**
@@ -234,6 +236,17 @@ export const usePlayerStore = defineStore('player', () => {
   })
   const rate = ref(1)
   const audioError = ref(false)
+  /**
+   * The audio failed because the page is https and the episode's audio is http only (BBC's feeds,
+   * 2026-10-15): a browser blocks it, or upgrades it to an https address the host refuses. Nothing
+   * a retry can fix, so the player says where it does play instead of "try again later". Web only:
+   * the apps load their own bundle, where this is a different question.
+   */
+  const audioInsecure = ref(false)
+  function insecureSource(): boolean {
+    if (typeof window === 'undefined') return false
+    return isInsecureAudio(window.location.protocol, el.value?.src || '', Capacitor.isNativePlatform())
+  }
 
   // In-app volume level (low/med/high), a multiplier ON TOP of the OS/hardware volume, persisted.
   // Set via `audio.volume` (0–1) — works on any source, same- or cross-origin, no Web Audio needed.
@@ -415,6 +428,7 @@ export const usePlayerStore = defineStore('player', () => {
         // cleared by resetForLoad(). Left set, the view keeps "Couldn't load the audio" and hides
         // Play over a perfectly good local file — the second half of the same device failure.
         audioError.value = false
+        audioInsecure.value = false
         audio.src = local
         if (at > 0) {
           audio.addEventListener(
@@ -607,6 +621,7 @@ export const usePlayerStore = defineStore('player', () => {
     // not tell us more than that.
     track('error_shown', { surface: 'player', kind: 'network' })
     reportAudioError()
+    audioInsecure.value = insecureSource()
     audioError.value = true
     void stopBackgroundAudio()
   }
@@ -950,6 +965,7 @@ export const usePlayerStore = defineStore('player', () => {
   function playElement(): void {
     el.value?.play().catch((err: unknown) => {
       if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'AbortError')) return
+      audioInsecure.value = insecureSource()
       audioError.value = true
       void stopBackgroundAudio()
     })
@@ -1105,6 +1121,7 @@ export const usePlayerStore = defineStore('player', () => {
     elementDuration.value = 0
     durationHint.value = 0
     audioError.value = false
+    audioInsecure.value = false
     // A new episode gets its own milestones. Without this, episode two would inherit episode one's
     // "already reported" set and emit nothing at all.
     reportedMilestones.clear()
@@ -1271,6 +1288,7 @@ export const usePlayerStore = defineStore('player', () => {
     rate,
     volumeLevel,
     audioError,
+    audioInsecure,
     routeAvailable,
     playingRemotely,
     showRoutePicker,

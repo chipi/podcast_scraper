@@ -39,6 +39,7 @@ const {
   currentShowTitle,
   currentArtwork,
   audioError,
+  audioInsecure,
 } = storeToRefs(player)
 
 const onPlayerPage = computed(
@@ -131,7 +132,7 @@ const progress = computed(() =>
             data-testid="mini-player-error"
             role="status"
             class="block truncate text-[0.6875rem] text-danger"
-          >{{ t('player.audioErrorShort') }}</span>
+          >{{ audioInsecure ? t('player.audioInsecureShort') : t('player.audioErrorShort') }}</span>
         </span>
       </RouterLink>
 
