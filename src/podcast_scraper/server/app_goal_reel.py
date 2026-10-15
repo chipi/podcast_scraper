@@ -90,11 +90,15 @@ def reel_subject(root: Path, subject_id: str) -> ReelSubject:
 
 
 def _episode_rows(root: Path, topics: frozenset[str]) -> list:
+    from podcast_scraper.server.app_audio_drift import drifted_episodes
     from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_discover_view import interest_episode_index
 
     index = interest_episode_index(root)
     paths = set().union(*(index.get(t, set()) for t in topics)) if topics else set()
+    # An episode whose served audio no longer matches what we transcribed plays the wrong moment
+    # for a stitched clip (#2359): short listens and Learn leave it out.
+    paths -= drifted_episodes(root)
     return [r for r in cached_catalog(root) if r.metadata_relative_path in paths and r.has_gi]
 
 
@@ -297,6 +301,8 @@ def _subject_token(root: Path) -> float:
         "search/lance_index",
         "enrichments/topic_theme_clusters.json",
         "search/topic_clusters.json",
+        # Which episodes' audio has drifted (#2359): they leave the list.
+        "audio_timing_drift.json",
     ):
         stamps.append(_mtime(str(root / rel)))
     return float(hash(tuple(stamps)))
