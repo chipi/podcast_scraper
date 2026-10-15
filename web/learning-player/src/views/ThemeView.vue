@@ -47,7 +47,7 @@ import type { ClusterMember, Entity, EpisodeSummary } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 
-type Member = { id: string; label: string; episodeCount: number; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
+type Member = { id: string; label: string; lead: boolean; episodeCount: number; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
 
 // `embedded` — rendered INSIDE the theme overlay sheet (ThemeCard) rather than as a page. Same
 // contract as StorylineView: the two are the same kind of object and must behave the same when a
@@ -119,13 +119,14 @@ async function load(themeId: string): Promise<void> {
     const card = await getThemeCard(themeId, { limit: 5 })
     pagedFrom.value = themeId
     label.value = card.label
-    // No `anchor` and no pair line, unlike the storyline. A theme groups topics that MEAN the same
-    // thing — symmetric, no centre — so flagging one member or claiming a co-occurrence would both
-    // assert something the grouping does not say. The count still earns its place: it shows how
-    // much of the theme each member actually carries.
+    // No anchor and no pair line, unlike the storyline: a theme groups topics that MEAN the same
+    // thing, so a co-occurrence claim would assert something the grouping does not say. It does
+    // have a LEAD (operator 2026-10-15): the member it is named after, else its biggest, first and
+    // marked; the rest follow by movement (new and growing, steady, fading, gone), biggest first.
     topics.value = (card.member_topics ?? []).map((tp) => ({
       id: tp.id,
       label: tp.label,
+      lead: tp.lead === true,
       episodeCount: tp.episode_count,
       firstSeen: tp.first_seen ?? null,
       lastSeen: tp.last_seen ?? null,
@@ -253,8 +254,8 @@ function goBack(): void {
     </p>
 
     <template v-else>
-      <!-- The members, ranked by how much of the corpus each carries, so the first row is the one a
-           reader is most likely to recognise. The heading is the product distinction: these mean
+      <!-- The members: the lead (the one the theme is named after) first, then by movement and
+           size, in the server's order. The heading is the product distinction: these mean
            the same thing, as against a storyline's "discussed together". -->
       <!-- ORDER (operator 2026-10-05): members + top voices -> what they SAID -> episodes.
            Top voices moved up beside the member list — side by side, half the width each, on the
@@ -277,6 +278,13 @@ function goBack(): void {
                 <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
                   tp.label
                 }}</span>
+                <span
+                  v-if="tp.lead"
+                  class="shrink-0 rounded-full bg-accent px-1.5 py-px text-[0.625rem] font-bold uppercase tracking-wide text-canvas"
+                  data-testid="theme-lead"
+                  role="img"
+                  :aria-label="t('home.themeLeadName')"
+                ><span aria-hidden="true">{{ t('home.themeLead') }}</span></span>
                 <MemberTrendBadge
                   :trend="tp.trend"
                   :first-seen="tp.firstSeen"

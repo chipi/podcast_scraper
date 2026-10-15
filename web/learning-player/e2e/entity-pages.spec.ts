@@ -122,6 +122,34 @@ test.describe('theme and storyline pages', () => {
       expect(eps.width).toBeGreaterThan(members.width + voices.width)
     })
   }
+
+  // Member order (operator 2026-10-15): the lead first and marked, then by movement — gone last.
+  test('the theme lead is the first member and is marked; gone members close the list', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'entity-theme-lead', testInfo)
+    await page.goto(THEME)
+    const list = page.getByTestId('theme-view').getByTestId('theme-topics')
+    const rows = list.getByRole('listitem')
+    await expect(rows.first()).toContainText('risk management')
+    await expect(rows.first().getByTestId('theme-lead')).toHaveAccessibleName("The theme's lead topic")
+    await expect(list.getByTestId('theme-lead')).toHaveCount(1)
+    // Five more per press, until the whole theme is listed.
+    const more = list.getByTestId('members-more')
+    for (let i = 0; i < 10 && /Show more/.test((await more.textContent()) ?? ''); i++) await more.click()
+    await expect(more).toHaveText(/Show less/)
+    await expect(rows.last().getByTestId('member-trend')).toHaveAttribute('data-trend', 'gone')
+  })
+
+  test('storyline: the anchor leads; a growing member sits above a bigger steady one', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'entity-storyline-order', testInfo)
+    await page.goto(`/storyline/${encodeURIComponent('topic:second-order-effects')}`)
+    const rows = page.getByTestId('storyline-topics').getByRole('listitem')
+    await expect(rows).toHaveCount(4)
+    await expect(rows.first().getByTestId('storyline-anchor')).toBeVisible()
+    await expect(rows.nth(1)).toContainText('iteration practice')
+    await expect(rows.nth(1).getByTestId('member-trend')).toHaveText('↗growing')
+    await expect(rows.nth(2)).toContainText('reliability')
+    await expect(rows.nth(3).getByTestId('member-trend')).toHaveAttribute('data-trend', 'gone')
+  })
 })
 
 test.describe('person page', () => {

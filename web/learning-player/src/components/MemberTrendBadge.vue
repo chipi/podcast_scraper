@@ -9,9 +9,11 @@
  * Renders NOTHING for `steady`, which is most members most of the time. A badge on every row is a
  * badge that says nothing; these earn attention by being rare.
  *
- * `gone` and `fading` are shown in the muted colour and `new`/`growing` in the accent, because the
- * interesting direction is the one adding to the grouping — but neither is a value judgement. A
- * topic leaving a storyline is how a storyline moves on, not a failure.
+ * `new`/`growing` in the accent, `fading` in the app's cooling colour (`--lp-trend-cooling`, the
+ * "↓ Cooling" pill's) and `gone` muted (operator 2026-10-15: fading sits above gone in the list and
+ * needs a mark that tells the two apart — the warning token read as the accent in dark mode). Growing
+ * and fading carry an arrow, so the direction reads without the colour. Neither is a value
+ * judgement: a topic leaving a storyline is how a storyline moves on, not a failure.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -36,13 +38,16 @@ const LABEL: Record<string, string> = {
 
 const show = computed(() => !!props.trend && props.trend !== 'steady')
 const label = computed(() => (props.trend ? t(LABEL[props.trend] ?? '') : ''))
+const ARROW: Record<string, string> = { growing: '↗', fading: '↘' }
+const arrow = computed(() => (props.trend ? ARROW[props.trend] ?? '' : ''))
 
-/** Accent for what is arriving, muted for what is leaving. */
-const tone = computed(() =>
-  props.trend === 'new' || props.trend === 'growing'
-    ? 'text-accent ring-accent/30'
-    : 'text-muted ring-border',
-)
+/** Accent for what is arriving, the cooling colour for what is leaving, muted for what has left. */
+const tone = computed(() => {
+  if (props.trend === 'new' || props.trend === 'growing') return 'text-accent ring-accent/30'
+  if (props.trend === 'fading') return 'ring-current'
+  return 'text-muted ring-border'
+})
+const toneStyle = computed(() => (props.trend === 'fading' ? { color: 'var(--lp-trend-cooling)' } : undefined))
 
 /** A date a reader can read, not an ISO string. Falls back to the raw value if it will not parse. */
 function human(iso?: string | null): string {
@@ -66,9 +71,11 @@ const title = computed(() => {
     v-if="show"
     class="shrink-0 rounded-full px-1.5 py-px text-[0.625rem] font-bold uppercase tracking-wide ring-1 ring-inset"
     :class="tone"
+    :style="toneStyle"
     :title="title"
+    :data-trend="trend"
     data-testid="member-trend"
   >
-    {{ label }}
+    <span v-if="arrow" aria-hidden="true" class="mr-0.5">{{ arrow }}</span>{{ label }}
   </span>
 </template>

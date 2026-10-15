@@ -31,6 +31,17 @@ describe('MemberTrendBadge', () => {
     )
   })
 
+  it('marks fading apart from gone: an arrow and the cooling colour (operator 2026-10-15)', () => {
+    const fading = mountBadge({ trend: 'fading' }).find('[data-testid="member-trend"]')
+    const gone = mountBadge({ trend: 'gone' }).find('[data-testid="member-trend"]')
+    expect(fading.text()).toBe('↘fading') // the space is a margin on the arrow
+    expect(fading.attributes('style')).toContain('var(--lp-trend-cooling)')
+    expect(gone.text()).toBe('gone')
+    expect(gone.classes()).toContain('text-muted')
+    expect(mountBadge({ trend: 'growing' }).find('[data-testid="member-trend"]').text()).toBe('↗growing')
+    expect(mountBadge({ trend: 'new' }).find('[data-testid="member-trend"]').text()).toBe('new')
+  })
+
   /**
    * The regression that shipped: the title asked vue-i18n for `d(date, 'monthYear')` and the app
    * registers no `datetimeFormats` at all, so every tooltip fell through the catch to a raw ISO

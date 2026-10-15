@@ -1037,64 +1037,48 @@ class TestWhatHoldsAStorylineTogether:
         assert len(anchors) == 1, f"expected one anchor, got {[m.label for m in anchors]}"
         assert card.member_topics[0].anchor, "the anchor must be the first row it labels"
 
-    def test_ordered_by_lift_not_by_size(self) -> None:
-        """Asserts the ORDER comes from lift. On this fixture the two agree on the sequence, so the
-        check is that the anchor is the highest-lift member rather than the biggest — they happen
-        to coincide here, and the tie-break below is where the two genuinely differ."""
-        from podcast_scraper.search.storylines import storyline_member_lift
+    @staticmethod
+    def _assert_lead_then_movement(members: list) -> None:
+        """The order the operator asked for (2026-10-15): the lead, then new and growing, steady,
+        fading, gone — biggest first within each, ties by name."""
+        tier = {"new": 0, "growing": 0, "steady": 1, "fading": 2, "gone": 3}
+        assert members and members[0].lead, "the lead must be the first row"
+        assert sum(m.lead for m in members) == 1
+        rest = members[1:]
+        keys = [(tier.get(m.trend, 1), -m.episode_count, m.label.casefold()) for m in rest]
+        got = [(m.label, m.trend, m.episode_count) for m in rest]
+        assert keys == sorted(keys), f"members after the lead not in movement order: {got}"
+
+    def test_storyline_members_follow_the_anchor_by_movement_then_size(self) -> None:
         from podcast_scraper.server.app_relational_view import build_storyline_card
 
-        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
-        lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
+        for storyline in (self.STORYLINE, "thc:second-order-effects"):
+            card = build_storyline_card(self.FIXTURE, storyline)
+            assert card is not None
+            assert card.member_topics[0].anchor and card.member_topics[0].lead
+            self._assert_lead_then_movement(card.member_topics)
+        # Movement outranks size: `iteration practice` (growing, 7) above `reliability`
+        # (steady, 17), and `incident response` (gone) last.
+        card = build_storyline_card(self.FIXTURE, "thc:second-order-effects")
         assert card is not None
-        got = [lift[m.id] for m in card.member_topics]
-        assert got == sorted(got, reverse=True), f"members not in lift order: {got}"
+        labels = [m.label for m in card.member_topics]
+        assert labels.index("iteration practice") < labels.index("reliability")
+        assert card.member_topics[-1].trend == "gone"
 
-    def test_lift_outranks_episode_count(self) -> None:
-        """Storyline members are ordered by LIFT, and a bigger member does not jump the queue.
+    def test_theme_lead_is_the_member_whose_name_it_carries(self) -> None:
+        """A theme has no anchor: its lead is the member it is named after, else its biggest."""
+        from podcast_scraper.server.app_relational_view import _label_key, build_theme_card
 
-        THE PREVIOUS VERSION ASSERTED A WEAKER AND SLIGHTLY WRONG THING. It looked for two members
-        tied on `episode_count` and checked lift broke the tie, describing lift as a tiebreaker.
-        The sort key is `(-lift, -episodes, id)` — lift is PRIMARY — so "tie on size, ordered by
-        lift" only ever described a fixture where the two happened to co-vary. When the five
-        non-English counterpart shows merged in they took `endurance sport` from 4 episodes to 9
-        (each carries it as an authored topic), the tie vanished, and the test failed with its own
-        message: "fixture no longer has a tie; this test needs a new example".
-
-        Asserted on `thc:second-order-effects` since the natural corpus (2026-10-12): `incident
-        response` has 2 episodes and `iteration practice` 7, yet incident response ranks HIGHER
-        (lift 1.6 against 1.4). `thc:managing-risk` no longer has such a pair — its members now
-        fall in size order too — so on it this test could not fail for the right reason. Asserted
-        over the whole list rather than one hand-picked pair, so it cannot go stale the way the
-        tie did.
-        """
-        from podcast_scraper.search.storylines import storyline_member_lift
-        from podcast_scraper.server.app_relational_view import build_storyline_card
-
-        storyline = "thc:second-order-effects"
-        card = build_storyline_card(self.FIXTURE, storyline)
-        lift = storyline_member_lift(self.FIXTURE)[storyline]
+        card = build_theme_card(self.FIXTURE, self.THEME)
         assert card is not None
-        members = card.member_topics
-        assert len(members) >= 2, "a single member cannot demonstrate an ordering"
-
-        lifts = [lift.get(m.id, 0.0) for m in members]
-        assert lifts == sorted(lifts, reverse=True), (
-            "storyline members are not ordered by lift descending: "
-            f"{[(m.label, lift.get(m.id)) for m in members]}"
-        )
-        # The case that makes the ordering load-bearing: at least one member outranks a LARGER one.
-        # Without this the assertion above would also pass on a fixture where lift and size agree,
-        # which is exactly how the old tie-based version became untrue without failing.
-        inversions = [
-            (a.label, a.episode_count, b.label, b.episode_count)
-            for a, b in zip(members, members[1:])
-            if a.episode_count < b.episode_count
-        ]
-        assert inversions, (
-            "every member is also ordered by episode count, so this fixture cannot show that lift "
-            "is the key — pick a storyline where a smaller member has the higher lift"
-        )
+        self._assert_lead_then_movement(card.member_topics)
+        lead = card.member_topics[0]
+        named = [m for m in card.member_topics if _label_key(m.label) == _label_key(card.label)]
+        if named:
+            assert lead is named[0]
+        else:
+            assert lead.episode_count == max(m.episode_count for m in card.member_topics)
+        assert not any(m.anchor for m in card.member_topics), "a theme has no anchor"
 
     def test_the_anchor_the_page_is_routed_by_leads_even_when_it_is_not_the_lift_leader(
         self, tmp_path: Path

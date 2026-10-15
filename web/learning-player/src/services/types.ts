@@ -1086,6 +1086,9 @@ export interface ClusterMember {
   episode_count: number
   /** Holds the grouping together (highest co-occurrence lift). Storylines only — a theme is symmetric. */
   anchor: boolean
+  /** The first row: a storyline's anchor; a theme's member whose name the theme carries, else its
+   *  biggest. The rest follow by movement — new and growing, steady, fading, gone. */
+  lead?: boolean
   /** Publish date of this member's earliest / most recent episode (YYYY-MM-DD). */
   first_seen?: string | null
   last_seen?: string | null

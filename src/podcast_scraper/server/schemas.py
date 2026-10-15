@@ -816,6 +816,14 @@ class AppClusterMember(BaseModel):
             "with no centre, so every theme member has anchor=False."
         ),
     )
+    lead: bool = Field(
+        default=False,
+        description=(
+            "The first row (operator 2026-10-15): a storyline's anchor; a theme's member whose "
+            "name the theme carries, else its biggest. The rest follow by movement — new and "
+            "growing, steady, fading, gone — biggest first within each."
+        ),
+    )
     first_seen: str | None = Field(
         default=None, description="Publish date (YYYY-MM-DD) of this member's earliest episode."
     )

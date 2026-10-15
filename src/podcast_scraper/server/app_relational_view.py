@@ -12,6 +12,7 @@ endpoints). The scan is the cost; cache later if the corpus grows large enough t
 from __future__ import annotations
 
 import os
+import re
 import urllib.parse
 from collections import Counter
 from functools import lru_cache
@@ -736,9 +737,39 @@ def _build_cluster_card(
             state = "steady"
         return ds[0], ds[-1], state
 
+    trends = {tid: _trend(tid) for tid in ordered}
+    resolved_label = label or cluster_id.split(":", 1)[-1].replace("-", " ")
+    anchor_id = anchor if anchor in ordered else (ordered[0] if lift and ordered else None)
+    # The LEAD row (operator 2026-10-15): a storyline's anchor; a theme's member whose name it
+    # carries, else its biggest — so the first row says what the grouping is, even when a
+    # one-episode newcomer would otherwise top it.
+    lead: str | None
+    if anchor_id is not None:
+        lead = anchor_id
+    else:
+        named = [t for t in ordered if _label_key(labels.get(t) or t) == _label_key(resolved_label)]
+        lead = (
+            named[0]
+            if named
+            else max(ordered, key=lambda t: (episodes_per_member[t], t), default=None)
+        )
+    # Then by movement, biggest first within each (operator 2026-10-15): what is arriving (new,
+    # growing), what holds (steady), what is leaving (fading), and what has left (gone) at the end.
+    tier = {"new": 0, "growing": 0, "steady": 1, "fading": 2, "gone": 3}
+    rest = sorted(
+        (t for t in ordered if t != lead),
+        key=lambda t: (
+            tier.get(trends[t][2], 1),
+            -episodes_per_member[t],
+            (labels.get(t) or t).casefold(),
+            t,
+        ),
+    )
+    shown = ([lead] if lead is not None else []) + rest
+
     members = []
-    for i, tid in enumerate(ordered):
-        first, last, state = _trend(tid)
+    for tid in shown:
+        first, last, state = trends[tid]
         members.append(
             AppClusterMember(
                 id=tid,
@@ -746,7 +777,8 @@ def _build_cluster_card(
                 episode_count=episodes_per_member[tid],
                 # Only a lift-ordered grouping has an anchor. A theme is symmetric — "means the same
                 # thing" has no centre — so flagging one of its members would invent a hierarchy.
-                anchor=(tid == anchor) if anchor in ordered else bool(lift) and i == 0,
+                anchor=tid == anchor_id,
+                lead=tid == lead,
                 first_seen=first,
                 last_seen=last,
                 trend=state,  # type: ignore[arg-type]  # _trend returns the Literal's values
@@ -772,6 +804,11 @@ def _build_cluster_card(
 
     resolved = label or cluster_id.split(":", 1)[-1].replace("-", " ")
     return resolved, members, about, related_people, pair
+
+
+def _label_key(text: str) -> str:
+    """ "Soil erosion" and "soil-erosion" name one thing: the theme's name-giving member."""
+    return re.sub(r"[\W_]+", " ", text.split(":", 1)[-1].casefold()).strip()
 
 
 def build_theme_card(
