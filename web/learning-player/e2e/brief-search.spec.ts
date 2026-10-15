@@ -62,3 +62,22 @@ test('a word search: every result holds a typed word, and each group folds', asy
   await toggle.click()
   await expect(pieces.first()).toBeVisible()
 })
+
+// Operator 2026-10-15: an insight result carries what the Insights section shows — its type (mark and
+// word), the asked word marked, and the bookmark that saves the same highlight.
+test('an insight result shows its type, marks the asked word, and saves as a highlight', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'brief-search-insight', testInfo)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Bessent Tape').first().click()
+  await page.getByTestId('player-open-insights').click()
+  await page.locator('#kp-ask').fill('reliability')
+  await page.locator('#kp-ask').press('Enter')
+
+  const insight = page.getByTestId('kp-search-insights').locator('li').first()
+  await expect(insight.getByTestId('kp-search-insight-type')).toHaveText(/recommendation/i)
+  await expect(insight.getByTestId('kp-search-insight-text').locator('mark')).toHaveText(/reliability/i)
+  const save = insight.getByTestId('kp-search-insight-highlight')
+  await save.click()
+  await expect(save).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Saved to highlights — tap to remove').first()).toBeAttached()
+})
