@@ -181,12 +181,13 @@ export default defineConfig({
         // (and Google's redirect back to /api/app/auth/callback) got index.html instead
         // of the backend 307, so the OAuth flow dead-ended on the home page. /preview is
         // the coming-soon gate's server-side redirect and must reach the edge too.
-        navigateFallbackDenylist: [/^\/api\//, /^\/preview\b/],
+        // The release notes (/releases/) are static pages next to the app, not app routes.
+        navigateFallbackDenylist: [/^\/api\//, /^\/preview\b/, /^\/releases\b/],
         // Precache the SHELL ONLY (js/css/fonts/small icons). Never precache
         // large media — that's the guide's #1 shipping trap. Artwork + audio
         // stay on the runtime path.
         globPatterns: ['**/*.{js,css,html,woff2,ico,svg}'],
-        globIgnores: ['**/artwork/**', '**/audio/**'],
+        globIgnores: ['**/artwork/**', '**/audio/**', 'releases/**'],
         // Hard per-entry cap — belt-and-suspenders against a large asset
         // accidentally ending up in dist/ and inflating the precache.
         maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,

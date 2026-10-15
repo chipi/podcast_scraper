@@ -122,6 +122,13 @@ describe('SettingsView (#8)', () => {
     expect(w.find('[data-testid="settings-privacy"]').attributes('href')).toBe('/about/privacy')
     expect(w.find('[data-testid="settings-terms"]').attributes('href')).toBe('/about/terms')
   })
+
+  it("What's new opens the release notes beside the app, not an app route", async () => {
+    const w = await mountView()
+    const link = w.find('[data-testid="settings-release-notes"]')
+    expect(link.text()).toContain("What's new")
+    expect(link.attributes('href')).toBe('/releases/index.html')
+  })
 })
 
 describe('Settings › Privacy (#2265)', () => {

@@ -471,6 +471,17 @@ async function openHelp(): Promise<void> {
           <span>{{ t('about.support') }}</span>
           <span class="shrink-0 text-muted" aria-hidden="true">↗</span>
         </button>
+        <!-- The release notes are static pages shipped beside the app (public/releases/), not a
+             route: a full navigation, which the app's own bundle serves on iOS and Android, so they
+             open offline and need no sign-in there. -->
+        <a
+          href="/releases/index.html"
+          class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
+          data-testid="settings-release-notes"
+        >
+          <span>{{ t('about.releaseNotes') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+        </a>
         <RouterLink
           :to="{ name: 'about-page', params: { page: 'third-party' } }"
           class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
