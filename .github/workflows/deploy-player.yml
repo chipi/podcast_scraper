@@ -410,17 +410,16 @@ jobs:
             # (GlitchTip ingest accepts both, so a curl test misleads). See the same note in
             # stack-test.yml (viewer). 2026-07-22.
             echo "VITE_SENTRY_DSN_PLAYER=${PROD_SENTRY_DSN_PLAYER_WEB}"
-            # Player BACKEND (server-side) errors -> GlitchTip project 5 (same as the browser
-            # today; independently repointable via PROD_SENTRY_DSN_PLAYER_API). RUNTIME secret
+            # Player BACKEND (server-side) errors -> GlitchTip project `player-api` (since
+            # 2026-10-15; the browser keeps `player`). PROD_SENTRY_DSN_PLAYER_API. RUNTIME secret
             # -> delivered as a file under Option A, so DROPPED from .env.player when
             # PLAYER_SECRETS_VIA_FILES=1. (VITE_SENTRY_DSN_PLAYER above is a build-time FRONTEND
             # var, baked public into the bundle — always kept.)
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "PODCAST_SENTRY_DSN_API=${PROD_SENTRY_DSN_PLAYER_API}"
             fi
-            # MCP-surface backend DSN (#1505). Falls back to the player API DSN so MCP errors land
-            # in the shared GlitchTip project tagged `component=mcp` + `environment` (no new project
-            # / UI needed) until a dedicated PROD_SENTRY_DSN_PLAYER_MCP is set to repoint it.
+            # MCP-surface backend DSN (#1505): GlitchTip project `player-mcp` via
+            # PROD_SENTRY_DSN_PLAYER_MCP (set 2026-10-15). Falls back to the player API DSN if unset.
             echo "PODCAST_SENTRY_DSN_MCP=${PROD_SENTRY_DSN_PLAYER_MCP:-${PROD_SENTRY_DSN_PLAYER_API}}"
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
