@@ -159,7 +159,7 @@ VPS (prod-podcast, tailnet)                 TLS nodes (caddy-tailscale)    homel
 
 | Surface | Metrics | Logs (in VictoriaLogs) | Traces (in VictoriaTraces) | Errors (GlitchTip) |
 | --- | --- | --- | --- | --- |
-| **operator api** (`compose-api-1`) | ✅ `job=api,instance=prod-podcast` | ✅ `app=podcast,surface=api` (uvicorn access, **no trace_id**) | ✅ `service.name=podcast-api` | ✅ project `podcast` (1) |
+| **operator api** (`compose-api-1`) | ✅ `job=api,instance=prod-podcast` | ✅ `app=podcast,surface=api` (`podcast.access` request lines with `trace_id`; uvicorn's own access log off since 2026-10-15) | ✅ `service.name=podcast-api` | ✅ project `podcast` (1) |
 | **operator viewer** (`compose-viewer-1`) | — | ✅ `app=podcast,surface=web` | — | browser → project 1 (client) |
 | **player api** | ✅ (same instrumentator) | ✅ `app=player` | ✅ `service.name=player-api` (verified 2026-08-28: 1k+ spans/h in VictoriaTraces) | ✅ project **player (5)** |
 | **player frontend** | — | ✅ `app=player,surface=web` | — | ✅ browser SDK → `telemetry.closelistening.app` → project 5 |
@@ -341,11 +341,11 @@ crib's `docker exec glitchtip-postgres-1 psql … api_tokens_apitoken` read.
 
 **Correlation gaps** (these limit prod debugging today):
 
-1. **API request logs carry NO `trace_id`.** They're uvicorn access lines
-   (`INFO: … "GET /… HTTP/1.1" 200`). The log→trace pivot is therefore **dark for API
-   logs** (works only for pipeline logs). Fix built but **held**: the G1 pure-ASGI
-   access-log middleware (`server/app.py::_AccessLogMiddleware`) stamps `trace=<hex>`. It's
-   **API code → needs a main-branch image build** to reach prod (see the correlation plan).
+1. ~~**API request logs carry NO `trace_id`.**~~ Resolved: the G1 access-log middleware
+   (`utils/access_log.py`, logger `podcast.access`) logs every request with its trace id, and
+   VictoriaLogs has it as the `trace_id` field (checked on prod 2026-10-15). uvicorn's own
+   access line, which repeated each request with the client IP and the raw query and no trace
+   id, is turned off (`access_log=False` in `serve` and the MCP) from 2026-10-15.
 2. **Player API is not traced.** `OTEL_TRACES_EXPORTER` is unset on the player (G0 config
    held on `production`). A user-triggered player error has **no trace** in VictoriaTraces
    yet. Fix is config (deploy-time env + `homelab` extra_hosts) — held.

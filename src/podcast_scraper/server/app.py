@@ -326,10 +326,11 @@ class _RedactSecretQuery(logging.Filter):
     """Redact credential values from uvicorn's access log (`"GET /path?token=… HTTP/1.1" 307`).
 
     Our own `_AccessLogMiddleware` logs the path WITHOUT the query, but uvicorn's access logger logs
-    the full request target, and prod ships those lines off the box (5,850 from player-api-1 in one
-    day, measured 2026-10-03). Without this every magic-link verify would put a usable sign-in
+    the full request target, and prod shipped those lines off the box (5,850 from player-api-1 in
+    one day, measured 2026-10-03). Without this every magic-link verify would put a usable sign-in
     token — and, base64-encoded inside it, the address the flow is built never to log — into
-    VictoriaLogs.
+    VictoriaLogs. ``serve`` runs uvicorn with ``access_log=False`` since 2026-10-15; the filter
+    stays as the backstop for a uvicorn started any other way.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:

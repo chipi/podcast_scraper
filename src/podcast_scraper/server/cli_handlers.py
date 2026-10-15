@@ -172,6 +172,7 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
             reload=True,
             proxy_headers=True,
             forwarded_allow_ips=forwarded_allow_ips,
+            access_log=False,
         )
         return 0
 
@@ -195,5 +196,8 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
         reload=False,
         proxy_headers=True,
         forwarded_allow_ips=forwarded_allow_ips,
+        # The app's AccessLogMiddleware (podcast.access) logs each request with its trace id;
+        # uvicorn's own access line repeated it with the client IP and the raw query.
+        access_log=False,
     )
     return 0

@@ -65,3 +65,12 @@ def test_serve_reload_mode_also_passes_proxy_headers(monkeypatch, tmp_path) -> N
     assert kw.get("factory") is True
     assert kw.get("proxy_headers") is True
     assert kw.get("forwarded_allow_ips") == "*"
+
+
+@pytest.mark.parametrize("reload", [False, True])
+def test_serve_turns_uvicorns_access_log_off(monkeypatch, tmp_path, reload: bool) -> None:
+    # Our access middleware (podcast.access) logs every request with its trace id. uvicorn's
+    # access log repeated each one with the client's full IP and the raw query (2026-10-15 prod:
+    # 11,404 player-api lines in 46 min, half of them uvicorn's), and nothing read it.
+    kw = _run(monkeypatch, tmp_path, forwarded_env=None, reload=reload)
+    assert kw.get("access_log") is False

@@ -770,7 +770,8 @@ def run_server(
 
     warm_entity_resolver(corpus_dir)
 
-    uvicorn.run(_http_stack(build_http_app(corpus_dir)), host=host, port=port)
+    # AccessLogMiddleware (in _http_stack) logs requests; uvicorn's duplicate line stays off.
+    uvicorn.run(_http_stack(build_http_app(corpus_dir)), host=host, port=port, access_log=False)
 
 
 def _http_stack(app: Any) -> Any:

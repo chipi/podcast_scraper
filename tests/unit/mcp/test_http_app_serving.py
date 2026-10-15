@@ -87,7 +87,7 @@ def test_run_server_http_wires_otel_sentry_and_serves(monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         uvicorn,
         "run",
-        lambda app, host, port: seen.__setitem__("served", (callable(app), host, port)),
+        lambda app, host, port, **kw: seen.__setitem__("served", (callable(app), host, port, kw)),
     )
 
     srv.run_server(_CORPUS, transport="http", host="127.0.0.1", port=8009)
@@ -95,7 +95,8 @@ def test_run_server_http_wires_otel_sentry_and_serves(monkeypatch: pytest.Monkey
     assert seen["otel"] == 1
     assert seen["otel_name"] == "player-mcp"  # its name when OTEL_SERVICE_NAME is unset (dev)
     assert seen["sentry"] == "mcp"  # GlitchTip component tag
-    assert seen["served"] == (True, "127.0.0.1", 8009)  # a callable ASGI app was served
+    # a callable ASGI app was served; uvicorn's access log off (AccessLogMiddleware logs requests)
+    assert seen["served"] == (True, "127.0.0.1", 8009, {"access_log": False})
 
 
 def test_run_server_http_survives_observability_init_failure(
@@ -116,7 +117,9 @@ def test_run_server_http_survives_observability_init_failure(
     import uvicorn
 
     served: dict = {}
-    monkeypatch.setattr(uvicorn, "run", lambda app, host, port: served.update(ok=callable(app)))
+    monkeypatch.setattr(
+        uvicorn, "run", lambda app, host, port, **kw: served.update(ok=callable(app))
+    )
     srv.run_server(_CORPUS, transport="http", host="127.0.0.1", port=8009)
     assert served == {"ok": True}  # served despite both inits raising
 
