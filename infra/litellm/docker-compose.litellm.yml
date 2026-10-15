@@ -16,7 +16,10 @@
 
 services:
   litellm:
-    image: ghcr.io/berriai/litellm-database:main-stable
+    # Pinned: `main-stable` is a moving tag (2026-10-15 it pointed past the running v1.95.0), so a
+    # plain pull upgraded the gateway silently and the LITELLM_IMAGE_TAG override did nothing.
+    # deploy-litellm's `override_image_tag` sets LITELLM_IMAGE_TAG to move it on purpose.
+    image: ghcr.io/berriai/litellm-database:${LITELLM_IMAGE_TAG:-v1.95.0}
     container_name: litellm
     depends_on:
       postgres:

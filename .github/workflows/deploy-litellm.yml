@@ -27,7 +27,7 @@ on:
         description: 'Type LITELLM_DEPLOY to confirm'
         required: true
       override_image_tag:
-        description: 'Optional litellm image tag to pin (blank = compose default main-stable)'
+        description: 'Optional litellm image tag to pin (blank = compose default, the pinned v1.95.0)'
         required: false
 
 concurrency:

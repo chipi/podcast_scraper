@@ -61,7 +61,7 @@ else
 fi
 
 # Pin the image tag when the workflow supplies one (repo convention: pin after first boot);
-# otherwise the compose default (main-stable) applies. Never fail the deploy on an unset tag.
+# otherwise the compose default (the pinned version) applies. Never fail the deploy on an unset tag.
 if [ -n "${LITELLM_IMAGE_TAG:-}" ]; then
   export LITELLM_IMAGE_TAG
   echo "[$(date -u +%FT%TZ)] LITELLM_IMAGE_TAG=${LITELLM_IMAGE_TAG} (pinned)"
