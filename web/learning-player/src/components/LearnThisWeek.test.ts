@@ -126,6 +126,20 @@ describe('LearnStep', () => {
     expect(w.find('[data-testid="learn-step-play"]').exists()).toBe(false)
     expect(w.find('[data-testid="learn-step-mark-done"]').exists()).toBe(false)
   })
+
+  it("shows each day's episode cover, open or closed (operator 2026-10-15)", async () => {
+    const { default: LearnStep } = await import('./LearnStep.vue')
+    const withArt = { ...step(1, true), episode: { ...step(1, true).episode, artwork_url: 'https://img.test/e1.jpg' } }
+    for (const open of [true, false]) {
+      const w = mount(LearnStep, { props: { step: withArt, subjectId: 'tc:x', open }, global: { plugins: [i18n, router] } })
+      const img = w.get('[data-testid="learn-step-art"]')
+      expect(img.attributes('src'), String(open)).toContain('e1.jpg')
+      // Open: the cover fills the card's background; closed: a small square at the left.
+      expect(img.attributes('data-variant')).toBe(open ? 'backdrop' : 'thumb')
+    }
+    const bare = mount(LearnStep, { props: { step: step(2, true), subjectId: 'tc:x' }, global: { plugins: [i18n, router] } })
+    expect(bare.find('[data-testid="learn-step-art"]').exists()).toBe(false)
+  })
 })
 
 describe('LearnThisWeek on a kept-alive Discover', () => {

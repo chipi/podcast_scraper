@@ -204,7 +204,7 @@ The reel, Learn and Explore (2026-10-11; every event checked end to end into the
 
 ```text
 reel_open        { source: discover_row|subject_page|in_progress|board, kind }
-reel_action      { action: start|next|prev|jump|keep|done, kind, clips: CountBucket, clip?: RankBucket }
+reel_action      { action: start|next|prev|jump|keep|keep_start|done, kind, clips: CountBucket, clip?: RankBucket }
 learn_path       { action: start|open|step_play|step_done|open_next|stop, kind, day?, source?: discover|subject_page|in_progress }
 trends_show_more { kind, sort, shown: CountBucket }
 catalog_filter   { list: episodes, value: all|following|mine }

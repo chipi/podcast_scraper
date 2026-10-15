@@ -1222,7 +1222,7 @@ describe('Moments view on the player page (operator 2026-10-10)', () => {
     w.unmount()
   })
 
-  it('while a reel runs it plays inside the artwork of the episode page; Keep listening leaves it and the query', async () => {
+  it('while a reel runs it plays inside the artwork of the episode page; "Play on" leaves it and the query', async () => {
     await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { moments: '1' } })
     const w = await mountPlayer('ep-1')
     const player = usePlayerStore()
@@ -1247,6 +1247,34 @@ describe('Moments view on the player page (operator 2026-10-10)', () => {
     expect(exit).toHaveBeenCalledWith(true)
     expect(router.currentRoute.value.query.moments).toBeUndefined()
     expect(w.find('[data-testid="moments-card"]').exists()).toBe(false)
+  })
+
+  it('"Play from the start" leaves the reel as a listen, at 0:00 (operator 2026-10-15)', async () => {
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { moments: '1' } })
+    const w = await mountPlayer('ep-1')
+    const player = usePlayerStore()
+    vi.spyOn(player, 'startReel').mockReturnValue(true)
+    const order: string[] = []
+    const seek = vi.spyOn(player, 'seek').mockImplementation((to: number) => void order.push(`seek ${to}`))
+    const exit = vi.spyOn(player, 'exitReel').mockImplementation((keep: boolean) => {
+      order.push(`exit ${keep}`)
+      player.reel = null
+    })
+    player.reel = {
+      slug: 'ep-1',
+      moments: [{ insightId: 'i1', text: 'First point', speaker: 'Ann', startMs: 60_000, endMs: 80_000 }],
+      index: 0,
+      returnTo: 0,
+      done: false,
+    }
+    await flushPromises()
+    await w.get('[data-testid="moments-play-start"]').trigger('click')
+    await flushPromises()
+    // To 0:00 first, then out of the reel as a listen ("keep"), the same way "Play on" leaves it.
+    expect(order).toEqual(['seek 0', 'exit true'])
+    expect(seek).toHaveBeenCalledOnce()
+    expect(exit).toHaveBeenCalledOnce()
+    expect(router.currentRoute.value.query.moments).toBeUndefined()
   })
 
   it('an episode with no moments drops ?moments=1 and stays the episode', async () => {

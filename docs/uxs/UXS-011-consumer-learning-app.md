@@ -458,9 +458,14 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   2026-10-10, replacing a separate view with its own header: "the key area stays as on the played
   episode and we just change inside the artwork"). The artwork shows segments across the top and,
   where the live insight card sits otherwise, the current moment in display type with who says it
-  and their role, a thin clip bar, ‹ › and **Keep listening here** (the full episode from this
-  moment); after the last moment, an end card ("Listen from the start", "Back to …", the next
-  queued episode's moments). The obi's top door reads **Episode** and leads out to where the
+  and their role, a thin clip bar, ‹ › and **Listen to the full episode**; after the last moment,
+  an end card ("Play from the start", "Back to …", the next queued episode's moments).
+- **Listen to the full episode** (`EpisodeListenChoice`, operator 2026-10-15): the one way out of
+  clips into the episode itself, the same block on an episode's Moments, a short listen and a
+  learning day's end card (there under Back to Learn). Two choices: **Play on from 12:34** — the
+  episode continues where the clip is (on the learning card, where it stopped), the time in the
+  label — and **Play from the start**, the whole episode from 0:00. Both leave the clips as a
+  listen. It replaced three wordings of "Keep listening", which said neither where nor from when. The obi's top door reads **Episode** and leads out to where the
   listener was; the transport's ↺15 / 30↻ become previous / next moment; every moment is listed
   under the transport, where the transcript is otherwise. A reel is not a listen: no listen
   logged, no position saved, no milestones. Headphone and lock-screen next / previous skip
@@ -1246,7 +1251,7 @@ stuff"), top to bottom: the window's listening, then learning, then what was kep
   and when nothing was heard at all.
 
 **Recording behind it.** `POST /me/moments-heard` records a clip heard to its end (not one skipped)
-and "Keep listening" from a clip into its episode; learning days carry when they were done; ended
+and "Listen to the full episode" (either choice) from a clip into its episode; learning days carry when they were done; ended
 paths are kept with how they ended. Clearing listening history clears the moments log too.
 
 ### Deep links

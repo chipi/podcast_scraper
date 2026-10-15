@@ -1384,6 +1384,11 @@ function onLearnKeep(): void {
   player.exitReel(true)
   leaveLearnQuery()
 }
+function onLearnFromStart(): void {
+  player.seek(0)
+  player.exitReel(true)
+  leaveLearnQuery()
+}
 /** The day was not done by the clip (skipped through, or the call failed): the listener's Done. */
 async function onLearnMarkDone(): Promise<void> {
   const e = learnEnd.value
@@ -1415,10 +1420,10 @@ function onMomentsNextEpisode(): void {
   player.exitReel(false)
   void router.push({ name: 'player', params: { slug }, query: { moments: '1' } })
 }
+/** The whole episode from 0:00 — a listen, as "Play on" is (both leave the reel as `keep`). */
 function onMomentsFromStart(): void {
-  player.exitReel(false)
   player.seek(0)
-  player.play()
+  player.exitReel(true)
   leaveMomentsQuery()
 }
 
@@ -2192,7 +2197,7 @@ const { badgeShown } = useCorpusLanguages()
                 @next="player.reelNext"
                 @keep="learnActive ? onLearnKeep() : onMomentsKeep()"
                 @back="onMomentsClose"
-                @from-start="onMomentsFromStart"
+                @from-start="learnActive ? onLearnFromStart() : onMomentsFromStart()"
                 @next-episode="onMomentsNextEpisode"
                 @learn-back="onLearnBack"
                 @learn-mark-done="onLearnMarkDone"

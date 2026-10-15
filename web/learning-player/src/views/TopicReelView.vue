@@ -6,7 +6,8 @@
  * different episodes, back to back (`GET /discover/reel`,
  * the Moments picker's clip windows). The player store plays them: each clip loads its own episode
  * (`startTopicReel` with the shell's `resolveNextUpForSlug`), and like any reel it never moves a
- * resume point or counts as a listen until "Keep listening to this episode" makes it one.
+ * resume point or counts as a listen until "Listen to the full episode" (on from the clip, or from
+ * the start) makes it one.
  *
  * - The title is the subject; under it what the reel actually runs ("2:24 · 12 clips · 9 episodes"),
  *   never the budget it was asked for (operator 2026-10-11: "real length everywhere").
@@ -24,9 +25,10 @@ import BackIcon from '../components/BackIcon.vue'
 import { getTopicReel, type TopicReel } from '../services/api'
 import { resolveNextUpForSlug } from '../services/nextUp'
 import { formatTime } from '../player/transcriptSync'
+import EpisodeListenChoice from '../components/EpisodeListenChoice.vue'
 import { usePlayerStore, type ReelMoment } from '../stores/player'
 import { toCountBucket, toRankBucket, track } from '../services/analytics'
-import { episodeArtwork } from '../utils/episode'
+import { artworkThumb, episodeArtwork } from '../utils/episode'
 
 const props = defineProps<{ id: string; minutes?: number; at?: number }>()
 const { t } = useI18n()
@@ -98,7 +100,7 @@ const playingNow = computed(() => !!live.value && !live.value.done && player.pla
 
 /** One reel event (operator 2026-10-11: real telemetry for everything new): which action, on which
  *  kind of subject, on which clip — never which subject or episode. */
-function report(action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'done'): void {
+function report(action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'keep_start' | 'done'): void {
   if (!data.value) return
   const at = live.value ? live.value.index + 1 : undefined
   track('reel_action', {
@@ -150,10 +152,12 @@ function jump(i: number): void {
   }
   else void start(i)
 }
-function keepListening(): void {
+/** Out of the clips into the clip's episode: on from here, or the whole episode from 0:00. */
+function listenToEpisode(fromStart: boolean): void {
   const slug = current.value?.slug
   if (!slug) return
-  report('keep')
+  report(fromStart ? 'keep_start' : 'keep')
+  if (fromStart) player.seek(0)
   player.exitReel(true)
   void router.push({ name: 'player', params: { slug } })
 }
@@ -232,7 +236,7 @@ function goBack(): void {
             <blockquote class="mt-4 text-lg leading-snug" data-testid="topic-reel-quote">“{{ shown.text }}”</blockquote>
             <p v-if="shown.speaker" class="mt-1 text-sm text-muted">— {{ shown.speaker }}</p>
             <!-- Centred in the card (operator 2026-10-11, on the phone): the transport is the card's
-                 control, and "Keep listening" sits centred under it as on the episode's Moments. -->
+                 control, and "Listen to the full episode" sits centred under it. -->
             <div class="mt-5 flex items-center justify-center gap-3" data-testid="topic-reel-transport">
               <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :disabled="!live" :aria-label="t('reel.prev')" data-testid="topic-reel-prev" @click="prev">‹</button>
               <button
@@ -244,11 +248,17 @@ function goBack(): void {
               >{{ playingNow ? '❚❚' : '▶' }}</button>
               <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :disabled="!live" :aria-label="t('reel.next')" data-testid="topic-reel-next" @click="next">›</button>
             </div>
-            <div v-if="live" class="mt-3 flex justify-center">
-              <button type="button" class="lp-tap font-bold text-accent" data-testid="topic-reel-keep" @click="keepListening">
-                {{ t('reel.keep') }}
-              </button>
-            </div>
+            <EpisodeListenChoice
+              v-if="live"
+              class="mt-3"
+              centered
+              :time="player.currentTime"
+              testid="topic-reel-listen"
+              keep-testid="topic-reel-keep"
+              start-testid="topic-reel-play-start"
+              @play-on="listenToEpisode(false)"
+              @from-start="listenToEpisode(true)"
+            />
           </article>
 
           <section v-if="upNext.length" class="mt-6">
@@ -257,12 +267,23 @@ function goBack(): void {
               <li v-for="{ m, i } in upNext" :key="`${m.slug}:${m.insightId}`">
                 <button
                   type="button"
-                  class="lp-tap flex w-full min-w-0 items-baseline gap-3 py-2.5 text-left"
+                  class="lp-tap flex w-full min-w-0 items-center gap-3 py-2.5 text-left"
                   :aria-label="t('reel.jump', { n: i + 1, speaker: m.speaker ?? '', episode: m.episodeTitle ?? '' })"
                   data-testid="topic-reel-up-next"
                   @click="jump(i)"
                 >
                   <span class="w-6 shrink-0 font-mono text-xs tabular-nums text-muted">{{ i + 1 }}</span>
+                  <!-- The clip's episode artwork (operator 2026-10-15): the clips come from different
+                       episodes, and the cover says which at a glance. -->
+                  <img
+                    v-if="artworkThumb(m.artwork)"
+                    :src="artworkThumb(m.artwork)!"
+                    alt=""
+                    loading="lazy"
+                    class="h-9 w-9 shrink-0 rounded bg-overlay object-cover"
+                    data-testid="topic-reel-up-next-art"
+                  />
+                  <span v-else class="h-9 w-9 shrink-0 rounded bg-overlay" aria-hidden="true" />
                   <span class="min-w-0 text-sm">
                     <span class="font-semibold">{{ m.speaker }}</span>
                     <span v-if="m.speaker" class="text-muted"> · </span>

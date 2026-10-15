@@ -6,7 +6,8 @@
  * - Written only once something was heard: it played, or the listener moved past clip 1. Opening a
  *   reel page and leaving (or a start the browser blocked) leaves nothing behind.
  * - Each clip change writes the clip; the last clip played to its end clears it.
- * - ✕ (closing the reel) forgets it; "Keep listening to this episode" keeps it to come back to.
+ * - ✕ (closing the reel) forgets it; "Listen to the full episode" (either choice) keeps it to come
+ *   back to.
  * - Clearing names the reel, so finishing one on one device never erases another kept since.
  * - Signed out, nothing is written. Best-effort: a failed write loses a resume point, never the
  *   listening.

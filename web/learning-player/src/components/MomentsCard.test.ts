@@ -51,7 +51,19 @@ describe('MomentsCard: the reel inside the artwork (operator 2026-10-10)', () =>
     await w.get('[data-testid="moments-keep"]').trigger('click')
     expect(Object.keys(w.emitted())).toEqual(expect.arrayContaining(['prev', 'next', 'keep']))
     expect(w.get('[data-testid="moments-prev"]').attributes('aria-label')).toBe('Previous moment')
-    expect(w.get('[data-testid="moments-keep"]').text()).toContain('12:17')
+    expect(w.get('[data-testid="moments-keep"]').text()).toBe('Play on from 12:17')
+    await w.get('[data-testid="moments-play-start"]').trigger('click')
+    expect(w.emitted('from-start')).toHaveLength(1)
+  })
+
+  it("a learning day's end card offers the full episode both ways, under Back to Learn", async () => {
+    const w = card({ done: true, index: 0, moments: [MOMENTS[0]], learnDay: 2, learnStatus: 'done', currentTime: 195 })
+    expect(w.find('[data-testid="learn-clip-back"]').exists()).toBe(true)
+    expect(w.get('[data-testid="learn-clip-keep"]').text()).toBe('Play on from 3:15')
+    await w.get('[data-testid="learn-clip-keep"]').trigger('click')
+    await w.get('[data-testid="learn-clip-play-start"]').trigger('click')
+    expect(w.emitted('keep')).toHaveLength(1)
+    expect(w.emitted('from-start')).toHaveLength(1)
   })
 
   it('names who says it, and their role when the episode knows it', () => {

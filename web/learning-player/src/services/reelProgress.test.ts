@@ -66,7 +66,7 @@ describe('watchReelProgress', () => {
     t.stop()
   })
 
-  it('✕ forgets that reel; "Keep listening" keeps it to come back to', async () => {
+  it('✕ forgets that reel; "Listen to the full episode" keeps it to come back to', async () => {
     const t = setup()
     t.left.value = { id: 'thc:x', how: 'keep' }
     await nextTick()

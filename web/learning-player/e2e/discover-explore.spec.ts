@@ -251,6 +251,8 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   const rightRoom = row.x + row.width - (nextBox.x + nextBox.width)
   expect(Math.abs(leftRoom - rightRoom)).toBeLessThan(2)
   await expect(page.getByTestId('topic-reel-up-next')).toHaveCount(10)
+  // Each clip to come shows its episode's cover (operator 2026-10-15).
+  await expect(page.getByTestId('topic-reel-up-next').first().getByTestId('topic-reel-up-next-art')).toBeVisible()
   // The clip's episode loads asynchronously (resolve, then load): wait for it before comparing.
   const audioSrc = () => page.evaluate(() => document.querySelector('audio')?.src ?? '')
   await expect.poll(audioSrc).toContain('/audio/')
@@ -277,8 +279,24 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   await expect(page).toHaveURL(/\/listen\/topic\/topic(:|%3A)systems-thinking\?minutes=15&at=5/)
   await expect(current).toContainText('Clip 5 of 11')
 
+  await expect(page.getByTestId('topic-reel-keep')).toHaveText(/^Play on from \d+:\d\d$/)
   await page.getByTestId('topic-reel-keep').click()
   await expect(page).toHaveURL(/\/episode\/p07-769d04686d/)
+})
+
+test('a short listen: "Play from the start" opens the clip\'s episode at 0:00, playing', async ({ page }, testInfo) => {
+  // Operator 2026-10-15: "Listen to the full episode" — on from the clip, or from the start.
+  await signInIsolated(page, 'discover-reel-from-start', testInfo)
+  await page.goto('/browse')
+  await showEveryonesTrends(page)
+  await page.getByTestId('reel-topic-chip').filter({ hasText: 'systems thinking' }).click()
+  await expect(page.getByTestId('topic-reel-current')).toContainText('Clip 1 of 11')
+  await expect(page.getByTestId('topic-reel-listen')).toContainText('Listen to the full episode')
+  await expect.poll(() => page.evaluate(() => document.querySelector('audio')?.currentTime ?? 0)).toBeGreaterThan(5)
+  await page.getByTestId('topic-reel-play-start').click()
+  await expect(page).toHaveURL(/\/episode\//)
+  await expect.poll(() => page.evaluate(() => document.querySelector('audio')!.paused)).toBe(false)
+  expect(await page.evaluate(() => document.querySelector('audio')!.currentTime)).toBeLessThan(5)
 })
 
 test('a short listen from a storyline and a theme: clips about any member topic; chips wear their kind', async ({

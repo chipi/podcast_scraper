@@ -30,7 +30,7 @@ const router = createRouter({
   ],
 })
 const clip = (n: number, slug: string) => ({
-  episode: { slug, title: `Episode ${slug}`, podcast_title: 'Show' },
+  episode: { slug, title: `Episode ${slug}`, podcast_title: 'Show', artwork_url: `https://img.test/${slug}.jpg` },
   insight_id: `i${n}`,
   text: `Claim ${n}`,
   quote_text: `Said ${n}`,
@@ -76,6 +76,11 @@ describe('TopicReelView', () => {
     expect(w.get('[data-testid="topic-reel-current"]').text()).toContain('Clip 1 of 3')
     expect(w.get('[data-testid="topic-reel-quote"]').text()).toBe('“Said 1”')
     expect(w.findAll('[data-testid="topic-reel-up-next"]')).toHaveLength(2)
+    // Each clip to come carries its episode's cover (operator 2026-10-15).
+    const art = w.findAll('[data-testid="topic-reel-up-next-art"]').map((i) => i.attributes('src'))
+    expect(art).toHaveLength(2)
+    expect(art[0]).toContain('b.jpg')
+    expect(art[1]).toContain('a.jpg')
     // The browser blocked the sound (no tap behind the open): ▶, and a tap resumes, not restarts.
     expect(player.playing).toBe(false)
     const resumed = vi.spyOn(player, 'resumeAfterInterruption').mockImplementation(() => undefined)
@@ -103,6 +108,25 @@ describe('TopicReelView', () => {
     expect(jumped).toHaveBeenCalledWith(2)
     await flushPromises()
     expect(w.get('[data-testid="topic-reel-current"]').text()).toContain('Clip 3 of 3')
+  })
+
+  it("leaves for the clip's episode on from the clip, or from its start (operator 2026-10-15)", async () => {
+    for (const [id, seeks] of [['topic-reel-keep', 0], ['topic-reel-play-start', 1]] as const) {
+      const { w, player } = await mountView()
+      const seek = vi.spyOn(player, 'seek').mockImplementation(() => undefined)
+      const exit = vi.spyOn(player, 'exitReel').mockImplementation(() => {
+        player.reel = null
+      })
+      expect(w.get('[data-testid="topic-reel-listen"]').text()).toContain('Listen to the full episode')
+      await w.get(`[data-testid="${id}"]`).trigger('click')
+      await flushPromises()
+      expect(exit, id).toHaveBeenCalledWith(true)
+      expect(seek, id).toHaveBeenCalledTimes(seeks)
+      if (seeks) expect(seek).toHaveBeenCalledWith(0)
+      expect(router.currentRoute.value.fullPath, id).toBe('/episode/a')
+      w.unmount()
+      vi.restoreAllMocks()
+    }
   })
 
   it('resumes at the clip Home asks for (`?at=`, 1-based), clamped to the reel', async () => {

@@ -461,10 +461,11 @@ export type EventProps = {
     source: 'discover_row' | 'subject_page' | 'in_progress' | 'board'
     kind: 'topic' | 'theme' | 'storyline' | 'board'
   }
-  /** Inside a reel: started, a clip skipped back or on, a clip to come jumped to, "Keep listening to
-   *  this episode" (it became a listen), or the last clip finished. `clip` is the 1-based clip it happened on, bucketed. */
+  /** Inside a reel: started, a clip skipped back or on, a clip to come jumped to, the clip's episode
+   *  listened to — on from the clip (`keep`) or from its start (`keep_start`) — or the last clip
+   *  finished. `clip` is the 1-based clip it happened on, bucketed. */
   reel_action: {
-    action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'done'
+    action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'keep_start' | 'done'
     kind: 'topic' | 'theme' | 'storyline' | 'board'
     clips: CountBucket
     clip?: RankBucket

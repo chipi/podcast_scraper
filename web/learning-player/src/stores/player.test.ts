@@ -1029,7 +1029,7 @@ describe('Moments reel (operator 2026-10-10)', () => {
     expect(el.pause).toHaveBeenCalled()
   })
 
-  it('a clip heard to its end is a moment heard; a skipped one is not; Keep listening is a keep', () => {
+  it('a clip heard to its end is a moment heard; a skipped one is not; "Play on" is a keep', () => {
     // Stats (operator 2026-10-12): a short listen leaves no position and no listening time, so
     // this event is its only trace.
     p.startReel('ep-1', MOMENTS)
@@ -1073,13 +1073,13 @@ describe('Moments reel (operator 2026-10-10)', () => {
     expect(logged).toEqual([])
     expect(saves).toEqual([])
     expect(track).not.toHaveBeenCalledWith('play_start', expect.anything())
-    // "Keep listening here": the episode carries on, and real playback logs the listen.
+    // "Play on" / "Play from the start": the episode carries on, and real playback logs the listen.
     p.exitReel(true)
     p.onPlay()
     expect(logged).toEqual(['ep-1'])
   })
 
-  it('✕ goes back to where the listener was, paused; Keep listening stays', () => {
+  it('✕ goes back to where the listener was, paused; "Play on" stays', () => {
     p.startReel('ep-1', MOMENTS)
     at(65)
     p.exitReel(false)
@@ -1150,7 +1150,7 @@ describe('topic reel — clips across episodes (ADR-163 §8 amendment, 2026-10-1
     expect(listens).toEqual([])
   })
 
-  it('"Keep listening here" turns the clip into a listen; ✕ stops without seeking back', async () => {
+  it('"Play on" / "Play from the start" turns the clip into a listen; ✕ stops without seeking back', async () => {
     const listens: string[] = []
     p.setListenLogger((slug) => listens.push(slug))
     await p.startTopicReel(TOPIC, CLIPS, resolve)

@@ -46,7 +46,7 @@ test('a day\'s Play stops at the clip\'s end, does the day, and goes back to the
   await expect(page.getByTestId('learn-step-next')).toBeVisible()
 })
 
-test('"Keep listening" on the end card carries on into the episode as a listen', async ({ page }, testInfo) => {
+test('"Play on from …" on the end card carries on into the episode as a listen', async ({ page }, testInfo) => {
   await signInIsolated(page, 'learn-clip-keep', testInfo)
   await startPath(page)
   await page.goto(`/learn?subject=${encodeURIComponent(SUBJECT)}`)
@@ -57,6 +57,21 @@ test('"Keep listening" on the end card carries on into the episode as a listen',
   await expect(page).not.toHaveURL(/learn=/)
   await expect(end).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => document.querySelector('audio')!.paused)).toBe(false)
+})
+
+test('"Play from the start" on the end card plays the whole episode from 0:00', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'learn-clip-start', testInfo)
+  await startPath(page)
+  await page.goto(`/learn?subject=${encodeURIComponent(SUBJECT)}`)
+  await page.locator('[data-testid="learn-step"][data-open="true"]').getByTestId('learn-step-play').click()
+  const end = page.getByTestId('learn-clip-done')
+  await expect(end).toHaveAttribute('data-status', 'done', { timeout: 30_000 })
+  await expect(end.getByTestId('learn-clip-listen')).toContainText('Listen to the full episode')
+  await end.getByTestId('learn-clip-play-start').click()
+  await expect(page).not.toHaveURL(/learn=/)
+  await expect(end).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => document.querySelector('audio')!.paused)).toBe(false)
+  expect(await page.evaluate(() => document.querySelector('audio')!.currentTime)).toBeLessThan(5)
 })
 
 test('"Play all" plays every day back to back and does each one', async ({ page }, testInfo) => {

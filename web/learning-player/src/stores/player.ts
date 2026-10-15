@@ -93,7 +93,7 @@ export interface ReelState {
   topic?: ReelTopic
   moments: ReelMoment[]
   index: number
-  /** Seconds — ✕ returns here; "Keep listening here" does not. */
+  /** Seconds — ✕ returns here; "Play on" / "Play from the start" does not. */
   returnTo: number
   /** The last moment has played; the view shows its end card. */
   done: boolean
@@ -533,7 +533,7 @@ export const usePlayerStore = defineStore('player', () => {
     // First play of this load, whether the user pressed it or auto-advance did. Cleared so a
     // pause/resume, a seek, or a background interruption does not log the same episode twice.
     // A Moments reel is not a listen (operator 2026-10-10): the armed listen waits for real
-    // playback, which "Keep listening here" turns into.
+    // playback, which "Play on" / "Play from the start" turns into.
     if (pendingListen && !reel.value) {
       const slug = pendingListen
       pendingListen = null
@@ -822,10 +822,11 @@ export const usePlayerStore = defineStore('player', () => {
     void reelGo(intoCurrent > REEL_PREV_RESTART_S ? r.index : r.index - 1)
   }
   /**
-   * Leave the reel. ``keepHere`` ("Keep listening here") stays at this moment and keeps playing as
-   * the full episode; otherwise (✕) pause and go back to where the listener was before.
+   * Leave the reel. ``keepHere`` ("Play on"; "Play from the start" seeks to 0:00 first) keeps playing
+   * as the full episode; otherwise (✕) pause and go back to where the listener was before.
    */
-  /** The topic reel the listener last left, and how: ✕ (`close`) or "Keep listening" (`keep`). */
+  /** The topic reel the listener last left, and how: ✕ (`close`) or "Listen to the full episode"
+   *  (`keep`). */
   const reelLeft = ref<{ id: string; how: 'close' | 'keep' } | null>(null)
   /** The last short-listen event, for stats; watched from the app shell (`momentsHeard`). */
   const momentHeard = ref<MomentEvent | null>(null)

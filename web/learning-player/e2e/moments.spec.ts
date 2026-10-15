@@ -7,8 +7,8 @@ import { signInIsolated } from './helpers'
  * to back, INSIDE the artwork — the page stays the episode page (masthead, artwork, transport). The
  * artwork shows the current moment and the reel's segments; the obi's top door reads Episode; the
  * transport's skips become previous / next moment; every moment is listed under the transport.
- * Keep listening here returns to the episode at that moment; Episode returns to where the listener
- * was. Step (‹ ›) moves between insights in the normal episode view.
+ * "Play on from …" returns to the episode at that moment ("Play from the start" to 0:00); Episode
+ * returns to where the listener was. Step (‹ ›) moves between insights in the normal episode view.
  *
  * "The Bessent Tape" has three insights; the e2e stack sets APP_MOMENTS_CONFIG min_gap_seconds=5
  * (playwright.config.ts) because the fixture's quotes are synthetic and bunched in the first 48 s.
@@ -71,7 +71,7 @@ test('a moment heard to its end is ticked, and still is on the next visit (opera
   await expect(page.getByTestId('moments-index-mark').first()).toHaveAttribute('data-state', 'heard')
 })
 
-test('Keep listening here returns to the episode at that moment, still playing', async ({ page }, testInfo) => {
+test('"Play on from …" returns to the episode at that moment, still playing', async ({ page }, testInfo) => {
   await openEpisode(page, testInfo, 'keep')
   await page.getByTestId('player-open-moments').click()
   await expect(page.getByTestId('moments-card')).toBeVisible()
@@ -82,6 +82,21 @@ test('Keep listening here returns to the episode at that moment, still playing',
   await expect(page.getByTestId('player-zone-d-live').or(page.getByTestId('player-zone-d-rest')).first()).toBeVisible()
   await expect(page).not.toHaveURL(/moments=1/)
   expect(await audioTime(page)).toBeGreaterThanOrEqual(5.5)
+  expect(await audioPaused(page)).toBe(false)
+})
+
+test('"Play from the start" leaves the moments for the whole episode from 0:00, playing', async ({ page }, testInfo) => {
+  await openEpisode(page, testInfo, 'start')
+  await page.getByTestId('player-open-moments').click()
+  await expect(page.getByTestId('moments-card')).toBeVisible()
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(5.5)
+  await expect(page.getByTestId('moments-listen')).toContainText('Listen to the full episode')
+  await expect(page.getByTestId('moments-keep')).toHaveText(/^Play on from \d+:\d\d$/)
+
+  await page.getByTestId('moments-play-start').click()
+  await expect(page.getByTestId('moments-card')).toHaveCount(0)
+  await expect(page).not.toHaveURL(/moments=1/)
+  expect(await audioTime(page)).toBeLessThan(5)
   expect(await audioPaused(page)).toBe(false)
 })
 
@@ -229,7 +244,8 @@ test.describe('Moments, everything around the reel', () => {
     }
     await expect(page.getByRole('button', { name: 'Episode', exact: true })).toBeVisible()
     await expect(page.getByTestId('player-transport').getByRole('button', { name: /^(Play|Pause)$/ })).toBeVisible()
-    await expect(card.getByRole('button', { name: /Keep listening here/ })).toBeVisible()
+    await expect(card.getByRole('button', { name: /^Play on from \d+:\d\d$/ })).toBeVisible()
+    await expect(card.getByRole('button', { name: 'Play from the start' })).toBeVisible()
     // The list under the transport says which moment is playing.
     await expect(page.getByTestId('moments-index').locator('[aria-current="true"]')).toHaveCount(1)
   })

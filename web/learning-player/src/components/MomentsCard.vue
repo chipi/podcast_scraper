@@ -7,7 +7,8 @@
  * artwork shows it: segments across the top (how far through the reel), and at the bottom, where
  * the live insight card sits otherwise, the current moment — which of how many and when, the point,
  * who says it and their role, a thin bar for the clip, ‹ › to the moment before or after, and
- * **Keep listening here**. After the last moment the same place shows the end card.
+ * **Listen to the full episode** (play on from here, or from the start). After the last moment the
+ * same place shows the end card.
  *
  * Positioned by its host: a fragment of two absolutely placed blocks inside the artwork box.
  * Presentational: the player store owns the reel; this emits.
@@ -16,6 +17,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ReelMoment } from '../stores/player'
 import { formatTime } from '../player/transcriptSync'
+import EpisodeListenChoice from './EpisodeListenChoice.vue'
 import { minutesValue, reelSeconds } from '../services/moments'
 import TranslatedFrom from './TranslatedFrom.vue'
 
@@ -119,10 +121,16 @@ function segState(i: number): 'done' | 'now' | 'todo' {
           <button type="button" class="lp-moments-action text-accent" data-testid="learn-clip-back" @click="emit('learn-back')">
             {{ t('learn.backToLearn') }}
           </button>
-          <button type="button" class="lp-moments-action" data-testid="learn-clip-keep" @click="emit('keep')">
-            {{ t('learn.keepListening') }}
-          </button>
         </div>
+        <EpisodeListenChoice
+          class="mt-1"
+          :time="currentTime"
+          testid="learn-clip-listen"
+          keep-testid="learn-clip-keep"
+          start-testid="learn-clip-play-start"
+          @play-on="emit('keep')"
+          @from-start="emit('from-start')"
+        />
       </div>
       <template v-else-if="done">
         <div data-testid="moments-done">
@@ -193,9 +201,15 @@ function segState(i: number): 'done' | 'now' | 'todo' {
         <div class="mt-2 h-[3px] rounded-sm bg-canvas-foreground/20" aria-hidden="true">
           <div class="h-full rounded-sm bg-accent" :style="{ width: `${clipProgress * 100}%` }" />
         </div>
-        <button type="button" class="lp-moments-action mt-2 text-accent" data-testid="moments-keep" @click="emit('keep')">
-          {{ t('moments.keepHere', { time: formatTime(currentTime) }) }}
-        </button>
+        <EpisodeListenChoice
+          class="mt-2"
+          :time="currentTime"
+          testid="moments-listen"
+          keep-testid="moments-keep"
+          start-testid="moments-play-start"
+          @play-on="emit('keep')"
+          @from-start="emit('from-start')"
+        />
       </div>
     </div>
   </div>

@@ -532,7 +532,6 @@
     "pause": "Pause",
     "upNext": "Up next",
     "jump": "Play clip {n}: {speaker}, {episode}",
-    "keep": "Keep listening to this episode",
     "done": "That was {topic}. The episodes:",
     "again": "Play again",
     "empty": "Nothing on {topic} to play yet.",
@@ -553,11 +552,10 @@
     "next": "Next moment",
     "play": "Play",
     "pause": "Pause",
-    "keepHere": "Keep listening here · full episode from {time}",
     "index": "All moments",
     "doneKicker": "Moments done",
     "doneTitle": "{count} moments · {length} of a {episode} episode",
-    "fromStart": "Listen from the start",
+    "fromStart": "Play from the start",
     "backTo": "Back to {time}, where you were",
     "nextEpisode": "Next in queue: its moments",
     "mini": "Moments · {n} / {total}",
@@ -1377,8 +1375,12 @@
     "playAll": "Play all",
     "playAllFrom": "Play all from day {n}",
     "playingDay": "Day {n}",
-    "playAllStop": "Stop",
-    "keepListening": "Keep listening"
+    "playAllStop": "Stop"
+  },
+  "listenChoice": {
+    "heading": "Listen to the full episode",
+    "playOn": "Play on from {time}",
+    "fromStart": "Play from the start"
   },
   "inProgress": {
     "remove": "Remove",
