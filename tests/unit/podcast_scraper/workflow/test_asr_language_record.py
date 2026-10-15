@@ -713,3 +713,60 @@ class TestSilentGapRecoveryIsRecorded:
         )
         data = json.load(open(pm.manifest_path(d, rel)))
         assert "recovered_speech_count" not in data["stages"]["asr"]["metrics"]
+
+
+class TestTheTranscribedAudioLengthIsRecorded:
+    """#2359: transcript times are positions in the file we downloaded; its length is recorded so a
+    listener's stream with a different ad load can be detected later."""
+
+    def _setup(self) -> tuple[str, str]:
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        open(os.path.join(d, "transcripts", "0006 - X.txt"), "w").close()
+        return d, "transcripts/0006 - X.txt"
+
+    def test_the_download_is_probed_and_recorded(self) -> None:
+        media = os.path.join(tempfile.mkdtemp(), "ep.mp3")
+        open(media, "wb").close()
+        result: dict = {}
+        with patch(
+            "podcast_scraper.preprocessing.audio.chunker._probe_duration_seconds",
+            return_value=3368.912,
+        ) as probe:
+            episode_processor._attach_source_audio_duration(result, media)
+        probe.assert_called_once_with(media)
+        assert result["source_audio_duration_s"] == 3368.912
+
+    def test_nothing_is_recorded_without_the_file_or_a_length(self) -> None:
+        result: dict = {}
+        episode_processor._attach_source_audio_duration(result, "/no/such/file.mp3")
+        episode_processor._attach_source_audio_duration(result, None)
+        media = os.path.join(tempfile.mkdtemp(), "ep.mp3")
+        open(media, "wb").close()
+        with patch(
+            "podcast_scraper.preprocessing.audio.chunker._probe_duration_seconds",
+            return_value=None,
+        ):
+            episode_processor._attach_source_audio_duration(result, media)
+        assert "source_audio_duration_s" not in result
+
+    def test_asr_json_and_the_manifest_carry_it(self) -> None:
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d, rel = self._setup()
+        result = {"speech_audio_ratio": 0.93, "source_audio_duration_s": 3368.912}
+        episode_processor._save_asr_provenance_file(result, _cfg(), rel, d)
+        rec = json.load(open(os.path.join(d, "transcripts", "0006 - X.asr.json")))
+        assert rec["source_audio_duration_s"] == 3368.912
+        job = TranscriptionJob(idx=6, ep_title="X", ep_title_safe="X", temp_media="", episode=None)
+        episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        assert data["stages"]["asr"]["metrics"]["source_audio_duration_s"] == 3368.912
+
+    def test_the_length_alone_is_worth_an_asr_record(self) -> None:
+        d, rel = self._setup()
+        episode_processor._save_asr_provenance_file(
+            {"source_audio_duration_s": 61.0}, _cfg(transcription_provider=None), rel, d
+        )
+        rec = json.load(open(os.path.join(d, "transcripts", "0006 - X.asr.json")))
+        assert rec["source_audio_duration_s"] == 61.0

@@ -879,6 +879,26 @@ def _attach_speech_audio_ratio(
         result["speech_audio_ratio"] = round(sar, 3)
 
 
+def _attach_source_audio_duration(result: Any, source_media: Optional[str]) -> None:
+    """Attach the length, in seconds, of the audio file we DOWNLOADED and transcribed (#2359).
+
+    Every transcript time is a position in THIS file. Some hosts insert ads when the audio is
+    requested and change them over time, so a listener's stream can be longer or shorter than what
+    we transcribed and every clip after a changed ad slot plays other words. The feed's declared
+    ``duration_seconds`` is the publisher's number, not this file's; without the real one nothing
+    can tell that an episode's stream has drifted. Probed from the original download, not the
+    preprocessed copy (preprocessing preserves the timeline, but the download is what listeners
+    stream). Best-effort: no ffprobe or no file, nothing recorded.
+    """
+    if not isinstance(result, dict) or not source_media or not os.path.exists(source_media):
+        return
+    from ..preprocessing.audio.chunker import _probe_duration_seconds
+
+    seconds = _probe_duration_seconds(source_media)
+    if seconds:
+        result["source_audio_duration_s"] = round(seconds, 3)
+
+
 def _asr_language_record(result: Dict[str, Any], cfg: config.Config) -> Dict[str, Any]:
     """``{requested, reported, mismatch}`` for the ASR call — the #2187 hazard-3 record.
 
@@ -919,7 +939,15 @@ def _save_asr_provenance_file(
     sar = result.get("speech_audio_ratio")
     punct = result.get("punctuation")
     language = _asr_language_record(result, cfg)
-    if cov is None and not failover and sar is None and not punct and not language["requested"]:
+    source_seconds = result.get("source_audio_duration_s")
+    if (
+        cov is None
+        and not failover
+        and sar is None
+        and not punct
+        and not language["requested"]
+        and source_seconds is None
+    ):
         return
     provenance: Dict[str, Any] = {
         "model": (
@@ -933,6 +961,8 @@ def _save_asr_provenance_file(
         "failed_over": bool(failover),
         # What language went to the ASR service and what it said back (#2187).
         "language": language,
+        # The length of the audio this transcript's times are positions in (#2359).
+        "source_audio_duration_s": source_seconds,
     }
     if failover:
         provenance["speech_coverage_failover"] = failover
@@ -1106,6 +1136,8 @@ def _write_processing_manifest(
             metrics={
                 "speech_coverage": cov,
                 "speech_audio_ratio": sar,
+                # #2359: the transcribed audio's length; a stream that differs has drifted.
+                "source_audio_duration_s": result.get("source_audio_duration_s"),
                 "language_requested": _language["requested"],
                 "language_reported": _language["reported"],
                 "untranscribed_speech_count": (
@@ -5312,6 +5344,7 @@ def transcribe_media_to_text(
             # handling live in the helper so this stays one branch.
             result = _apply_native_speaker_roster(result, cfg, job)
         _attach_speech_audio_ratio(result, media_for_transcription, episode_duration_seconds)
+        _attach_source_audio_duration(result, getattr(job, "temp_media", None))
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )
