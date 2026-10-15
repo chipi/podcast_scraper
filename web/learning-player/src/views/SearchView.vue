@@ -33,13 +33,6 @@ import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
 import { formatPublishDate } from "../utils/format"
 import { aggregateRelatedTopics } from "../utils/relatedTopics"
-import {
-  collapseFoldableHits,
-  isFoldedCluster,
-  type CollapsedRow,
-  type FoldedHitCluster,
-} from "../utils/collapseFoldableHits"
-import { summarizeMatchedFields } from "../utils/matchedFields"
 import { groupEpisodesByYear, type YearSection } from "../utils/yearGrouping"
 import { useSignInGate } from "../composables/useSignInGate"
 import { useTrendingScope } from "../composables/useTrendingScope"
@@ -165,7 +158,6 @@ const PER_CATEGORY = 3
 const CATEGORY_ORDER = ["insights", "transcript", "episodes", "mentions"] as const
 /** Whether each category has more than is shown (from the server's `categories`). */
 const categoryMore = ref<Record<string, boolean>>({})
-const categoryLoading = ref<string | null>(null)
 const entity = ref<EntityRef | null>(null)
 const cardTarget = ref<{ kind: "person" | "topic" | "organization"; id: string } | null>(null)
 const searching = ref(false)
@@ -246,9 +238,6 @@ interface EpisodeGroup {
   date: string | null
   art: string | null
   hits: SearchHit[]
-  /** #1261-3: hits collapsed so multiple same-kind foldable rows (transcript,
-   *  title, description, summary) render as one expandable summary row. */
-  rows: CollapsedRow[]
 }
 
 /** An episode result offers its Moments reel when the episode has insights (operator 2026-10-10). */
@@ -338,35 +327,17 @@ function openTopicChip(topicId: string): void {
   cardTarget.value = { kind: "topic", id: topicId }
 }
 
-// #1261-5: shim so the template's inline v-for can call the helper by name.
-// Wrapped so summarizeMatchedFields can be swapped in unit tests independently.
-function matchedFieldChips(hits: SearchHit[]) {
-  return summarizeMatchedFields(hits)
-}
-
-/** Every hit of a group's episode, across the category sections: "Matched: Title · Transcript"
- * says why the EPISODE surfaced, not why it is in this one section. */
-function episodeHits(g: EpisodeGroup): SearchHit[] {
-  return g.slug ? passageResults.value.filter((h) => hitSlug(h) === g.slug) : g.hits
-}
-
 // #1261-7: bucket the episode groups by publish year so the results read as
 // "2026 · 4 episodes" / "2025 · 12 episodes" sections — the mobile-friendly
 // reshape of the operator viewer's timeline chart concept. Sections are only
 // shown when the search spans multiple years; single-year results skip the
 // header to keep the page short.
 const yearSections = computed<YearSection<EpisodeGroup>[]>(() =>
-  groupEpisodesByYear<EpisodeGroup>(groups.value, (g) => g.date)
+  groupEpisodesByYear<EpisodeGroup>(shownGroups.value, (g) => g.date)
 )
 
 function yearLabel(year: number | "unknown"): string {
   return year === "unknown" ? t("search.yearUnknown") : String(year)
-}
-
-// Type-safe key for the collapsed-rows v-for: plain hits carry doc_id,
-// folded clusters use their foldedKind + index (unique within a group).
-function rowKey(row: CollapsedRow, i: number): string {
-  return isFoldedCluster(row) ? `c:${row.foldedKind}:${i}` : `${row.doc_id}:${i}`
 }
 
 // Group passages under their source episode, preserving rank order (results arrive best-first,
@@ -495,16 +466,13 @@ function groupHits(hits: readonly SearchHit[]): EpisodeGroup[] {
         date: hitDate(h),
         art: hitArt(h),
         hits: [],
-        rows: [],
       }
       byKey.set(key, g)
       order.push(key)
     }
     g.hits.push(h)
   }
-  const built = order.map((k) => byKey.get(k)!)
-  for (const g of built) g.rows = collapseFoldableHits(g.hits)
-  return built
+  return order.map((k) => byKey.get(k)!)
 }
 
 /** The server's `SEARCH_CATEGORIES`, for a hit that does not say its own category. */
@@ -523,68 +491,84 @@ function hitCategory(h: SearchHit): string {
   return CATEGORY_OF_DOC_TYPE[String(md(h).doc_type ?? "")] ?? "episodes"
 }
 
-/** The episode results, one section per category with hits, each grouped by episode. */
-const categorySections = computed(() =>
-  CATEGORY_ORDER.map((id) => {
-    const hits = passageResults.value.filter((h) => hitCategory(h) === id)
-    const years = groupEpisodesByYear<EpisodeGroup>(groupHits(hits), (g) => g.date)
-    return {
-      id,
-      count: hits.length,
-      yearSections: years,
-      showYearHeaders: years.length > 1,
-      more: categoryMore.value[id] === true,
-    }
-  }).filter((c) => c.count > 0)
-)
+/**
+ * The episode results (operator 2026-10-15): ONE list of episodes, and inside each episode its
+ * matches by kind — titles and summaries first (what the episode is), then its insights (the points
+ * it makes), then what is said in the conversation (the words themselves). Each kind of an episode
+ * shows its first {@link PER_EPISODE_KIND} with "Show more"; the episodes come
+ * {@link EPISODES_PAGE} at a time with "Show more episodes". The server still answers per kind,
+ * three each (see `PER_CATEGORY`): the episodes are those answers merged, so one kind cannot crowd
+ * the others out. It replaced one section per kind, which listed an episode once per kind it
+ * matched in and counted passages above sections that were not a list of episodes.
+ */
+const EPISODE_KIND_ORDER = ["episodes", "insights", "transcript", "mentions"] as const
+const PER_EPISODE_KIND = 2
+const EPISODES_PAGE = 5
+const episodesShown = ref(EPISODES_PAGE)
+const shownGroups = computed(() => groups.value.slice(0, episodesShown.value))
+/** Whether the server holds more of any kind than has been fetched. */
+const moreOnServer = computed(() => Object.values(categoryMore.value).some(Boolean))
+const moreEpisodes = computed(() => groups.value.length > episodesShown.value || moreOnServer.value)
+/** An episode's matches by kind, in {@link EPISODE_KIND_ORDER}; kinds with none left out. */
+function episodeKinds(g: EpisodeGroup): { id: string; hits: SearchHit[] }[] {
+  return EPISODE_KIND_ORDER.map((id) => ({ id, hits: g.hits.filter((h) => hitCategory(h) === id) })).filter(
+    (k) => k.hits.length > 0
+  )
+}
+/** Kinds of an episode opened past their first {@link PER_EPISODE_KIND}, keyed "<episode>|<kind>". */
+const kindOpen = ref<Set<string>>(new Set())
+function kindKey(g: EpisodeGroup, id: string): string {
+  return `${g.slug ?? g.title}|${id}`
+}
+function toggleKind(g: EpisodeGroup, id: string): void {
+  const next = new Set(kindOpen.value)
+  const key = kindKey(g, id)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  kindOpen.value = next
+}
+function kindHits(g: EpisodeGroup, k: { id: string; hits: SearchHit[] }): SearchHit[] {
+  return kindOpen.value.has(kindKey(g, k.id)) ? k.hits : k.hits.slice(0, PER_EPISODE_KIND)
+}
 
-/** "Show more" under a category: its next page, appended; "Show less" once it is all out. */
-async function showMoreOrLess(id: string): Promise<void> {
-  if (categoryLoading.value) return
-  const mine = results.value.filter((h) => hitCategory(h) === id)
-  if (!categoryMore.value[id]) {
-    // "Show less": back to the first three; what was hidden is there to show again.
-    const keep = new Set(mine.slice(0, PER_CATEGORY))
-    results.value = results.value.filter((h) => hitCategory(h) !== id || keep.has(h))
-    categoryMore.value = { ...categoryMore.value, [id]: true }
-    return
-  }
+/** One kind's next page from the server, appended. */
+async function fetchCategoryPage(id: string): Promise<void> {
   const term = ranTerm.value
-  categoryLoading.value = id
+  const offset = results.value.filter((h) => hitCategory(h) === id).length
+  const resp = await searchCorpus(term, PER_CATEGORY, scope.value, true, {
+    perCategory: PER_CATEGORY,
+    category: id,
+    offset,
+  })
+  if (ranTerm.value !== term) return
+  const seen = new Set(results.value.map((h) => h.doc_id))
+  results.value = [...results.value, ...resp.results.filter((h) => !seen.has(h.doc_id))]
+  const cat = (resp.categories ?? []).find((c) => c.id === id)
+  categoryMore.value = { ...categoryMore.value, [id]: cat?.has_more === true }
+}
+
+/**
+ * "Show more episodes": the next {@link EPISODES_PAGE} of what is fetched; when that runs short,
+ * the next page of every kind with more on the server first, so new episodes can arrive.
+ */
+const loadingMore = ref(false)
+async function showMoreEpisodes(): Promise<void> {
+  if (loadingMore.value) return
+  const want = episodesShown.value + EPISODES_PAGE
+  loadingMore.value = true
   try {
-    const resp = await searchCorpus(term, PER_CATEGORY, scope.value, true, {
-      perCategory: PER_CATEGORY,
-      category: id,
-      offset: mine.length,
-    })
-    if (ranTerm.value !== term) return
-    const seen = new Set(results.value.map((h) => h.doc_id))
-    results.value = [...results.value, ...resp.results.filter((h) => !seen.has(h.doc_id))]
-    const cat = (resp.categories ?? []).find((c) => c.id === id)
-    categoryMore.value = { ...categoryMore.value, [id]: cat?.has_more === true }
+    while (groups.value.length < want && moreOnServer.value) {
+      const before = results.value.length
+      const ids = Object.entries(categoryMore.value).filter(([, more]) => more).map(([id]) => id)
+      await Promise.all(ids.map((id) => fetchCategoryPage(id)))
+      if (results.value.length === before) break
+    }
   } catch {
     // The page stays as it was; the control still offers more.
   } finally {
-    categoryLoading.value = null
+    loadingMore.value = false
+    episodesShown.value = want
   }
-}
-
-// #1261-3: expand/collapse state per folded-cluster row, keyed by "<slug>|<kind>".
-// A Set of expanded keys — reactive because the ref is a plain Set instance and
-// the template mutates via ``clusterExpanded.value = new Set(...)`` on toggle.
-const clusterExpanded = ref<Set<string>>(new Set())
-function clusterKey(groupKey: string | null, cluster: FoldedHitCluster): string {
-  return `${groupKey ?? "nogroup"}|${cluster.foldedKind}`
-}
-function toggleCluster(groupKey: string | null, cluster: FoldedHitCluster): void {
-  const key = clusterKey(groupKey, cluster)
-  const next = new Set(clusterExpanded.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  clusterExpanded.value = next
-}
-function isClusterOpen(groupKey: string | null, cluster: FoldedHitCluster): boolean {
-  return clusterExpanded.value.has(clusterKey(groupKey, cluster))
 }
 
 // Recent searches (SR.3) — the last few terms, shown under the box, cap 8. The ACCOUNT's, synced
@@ -678,6 +662,8 @@ async function run(q: string): Promise<void> {
     if (!current()) return
     results.value = resp.results
     categoryMore.value = Object.fromEntries((resp.categories ?? []).map((c) => [c.id, c.has_more]))
+    episodesShown.value = EPISODES_PAGE
+    kindOpen.value = new Set()
     error.value = Boolean(resp.error)
     // #2267 — NO QUERY TEXT, ever. Only the scope and a BUCKETED hit count: "did search answer
     // them" is the question, and `results: '0'` is what makes an empty search visible to the
@@ -1176,14 +1162,15 @@ const showMineEmpty = computed(
       <!-- The episodes block gets a heading like the notes block has, with the passage/episode count
            as its SUBTITLE rather than standing in for a title (operator 2026-09-17). The count was
            doing both jobs and neither well: it never said what the section was. -->
+      <!-- "Episodes · 8", as the Library heads a section with its count (operator 2026-10-15): the
+           count is of the episodes listed, with a "+" while the server holds more. -->
       <h2 class="lp-section mb-1 mt-4" data-testid="search-section-episodes">
         {{ t("search.typeEpisodes") }}
+        <span class="lp-kicker ml-1 font-normal" data-testid="search-episode-count">{{ groups.length }}{{ moreOnServer ? "+" : "" }}</span>
       </h2>
-      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        <!-- The term is confirmed IN the count row (operator 2026-10-04) — the box can be edited after
-             a search, so the results needed to say what they are results for. -->
-        {{ t("search.summaryFor", { passages: passageResults.length, episodes: groups.length, term: ranTerm }) }}
-      </p>
+      <!-- The term is confirmed under the heading (operator 2026-10-04): the box can be edited after
+           a search, so the results say what they are results for. -->
+      <p class="mb-2 text-xs text-muted">{{ t("search.resultsFor", { term: ranTerm }) }}</p>
 
       <!-- #1261-2: related-topic chip row above the episode groups. Silent
            when the QueryEnricher chain returned nothing (broken corpus, no
@@ -1206,21 +1193,11 @@ const showMineEmpty = computed(
         </button>
       </div>
 
-      <!-- #1261-7: year sections wrap the episode-group list. When the
-           results span a single year, the header is suppressed so the
-           results still read as one flat list. -->
-      <section
-        v-for="cat in categorySections"
-        :key="cat.id"
-        class="mt-5"
-        :data-testid="`search-category-${cat.id}`"
-      >
-      <!-- A category heading, as the Library's Saved sections head theirs (operator 2026-10-15):
-           the uppercase kicker read as one more show name. -->
-      <h3 class="lp-section mb-2" data-testid="search-category-title">{{ t(`search.category.${cat.id}`) }}</h3>
-      <template v-for="section in cat.yearSections" :key="section.year">
+      <!-- #1261-7: year sections wrap the episode list. When the results span a single year, the
+           header is suppressed so the results still read as one flat list. -->
+      <template v-for="section in yearSections" :key="section.year">
         <h2
-          v-if="cat.showYearHeaders"
+          v-if="yearSections.length > 1"
           class="mt-6 mb-2 font-display text-sm font-bold uppercase tracking-wider text-muted"
           data-testid="year-header"
         >
@@ -1232,108 +1209,47 @@ const showMineEmpty = computed(
         <ul class="mt-3 flex flex-col gap-6">
           <!-- The SHARED episode-group header (`EpisodeGroupCard`), also used by Saved and Revisit
                (operator 2026-10-05): artwork, show, title, one meta line, the fold as a chevron.
-               Search's own content rides its slots — when + how many in `#meta`, the matched-field
-               breakdown under the title in `#extra` — and the passages are the body. -->
+               Its body: the episode's matches by kind, each kind under its own label. -->
           <EpisodeGroupCard
             v-for="(g, gi) in section.groups"
             :key="g.slug ?? g.title"
             :episode="groupAsEpisode(g)"
-            :item-count="g.rows.length"
+            :item-count="g.hits.length"
             :moments="hasMoments(g)"
             >
             <template #meta>
               <template v-if="formatPublishDate(g.date, locale)">{{ formatPublishDate(g.date, locale) }} · </template>{{ t("search.matchCount", g.hits.length) }}
             </template>
-            <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
-                 so the listener knows WHY this episode surfaced without tapping through. Hidden
-                 when nothing resolved to an episode-level field. -->
-            <template v-if="matchedFieldChips(episodeHits(g)).length" #extra>
-              <span class="lp-kicker mt-1 block" data-testid="matched-fields">
-                {{ t("search.matchedPrefix") }}
-                <template v-for="(m, mi) in matchedFieldChips(episodeHits(g))" :key="m.label">
-                  <template v-if="mi > 0"> · </template>
-                  <span class="font-semibold text-canvas-foreground">
-                    {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
-                  </span>
-                </template>
-              </span>
-            </template>
-
-            <!-- Matching passages (#1261-3: foldable rows collapse to one
-               expandable summary per (episode, source-kind)). -->
-            <ul class="flex flex-col">
-              <template v-for="(row, i) in g.rows" :key="rowKey(row, i)">
-                <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
-                   title / description / summary) collapsed into one expandable row. -->
-                <li v-if="isFoldedCluster(row)" class="border-b border-border">
-                  <button
-                    type="button"
-                    class="flex w-full items-center gap-2 py-3 text-left"
-                    :aria-expanded="isClusterOpen(g.slug, row)"
-                    :aria-label="
-                      t('search.expandCluster', {
-                        kind: t(`search.foldedKind.${row.foldedKind}`),
-                        count: row.members.length,
-                      })
-                    "
-                    data-testid="folded-cluster-row"
-                    @click="toggleCluster(g.slug, row)"
+            <div class="flex flex-col gap-3">
+              <section
+                v-for="k in episodeKinds(g)"
+                :key="k.id"
+                :data-kind="k.id"
+                data-testid="search-episode-kind"
+              >
+                <!-- A label chip, not the kicker a show name wears (operator 2026-10-15). -->
+                <h4
+                  class="inline-block rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                  :class="k.id === 'insights' ? 'text-grounded' : 'text-canvas-foreground'"
+                  data-testid="search-episode-kind-title"
+                >{{ t(`search.category.${k.id}`) }}</h4>
+                <ul class="flex flex-col">
+                  <li
+                    v-for="(row, i) in kindHits(g, k)"
+                    :key="`${row.doc_id}:${i}`"
+                    class="border-b border-border py-3"
+                    data-testid="search-passage"
                   >
-                    <span
-                      class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-canvas-foreground"
+                    <p
+                      class="line-clamp-2 text-sm leading-relaxed"
+                      :class="hitKind(row) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
                     >
-                      {{ t(`search.foldedKind.${row.foldedKind}`) }}
-                    </span>
-                    <span class="text-xs font-semibold text-muted">
-                      {{ t("search.foldedCount", row.members.length) }}
-                    </span>
-                    <span class="ml-auto text-xs font-bold text-accent">
-                      {{ isClusterOpen(g.slug, row) ? "▲" : "▼" }}
-                    </span>
-                  </button>
-                  <ul v-if="isClusterOpen(g.slug, row)" class="flex flex-col">
-                    <li
-                      v-for="(m, mi) in row.members"
-                      :key="m.doc_id + mi"
-                      class="border-t border-border py-2 pl-4"
-                    >
-                      <div class="flex items-center gap-2">
-                        <PlayFrom
-                          v-if="hitStartSeconds(m) != null && g.slug"
-                          class="ml-auto"
-                          :seconds="hitStartSeconds(m)"
-                          :aria-label="
-                            t('search.jumpTo', {
-                              time: formatTime(hitStartSeconds(m) ?? 0),
-                              episode: g.title,
-                            })
-                          "
-                          @click="openEpisode(g.slug, m, gi + 1)"
-                        />
-                      </div>
-                      <p class="mt-1 line-clamp-2 text-sm leading-relaxed text-surface-foreground">
-                        {{ m.text }}
-                      </p>
-                    </li>
-                  </ul>
-                </li>
-                <!-- Plain hit (insight / kg_topic / kg_entity / lifted transcript). -->
-                <li v-else class="border-b border-border py-3">
-                  <div class="flex items-center gap-2">
-                    <span
-                      class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                      :class="{
-                        'text-grounded': hitKind(row) === 'insight',
-                        'text-canvas-foreground':
-                          hitKind(row) === 'transcript' || hitKind(row) === 'passage',
-                        'text-topic': hitKind(row) === 'topic',
-                      }"
-                    >
-                      {{ t(`search.kind.${hitKind(row)}`) }}
-                    </span>
+                      {{ row.text }}
+                    </p>
+                    <!-- Under the text, as the Brief's search has it: the passage is read first. -->
                     <PlayFrom
                       v-if="hitStartSeconds(row) != null && g.slug"
-                      class="ml-auto"
+                      class="mt-1"
                       :seconds="hitStartSeconds(row)"
                       :aria-label="
                         t('search.jumpTo', {
@@ -1343,33 +1259,32 @@ const showMineEmpty = computed(
                       "
                       @click="openEpisode(g.slug, row, gi + 1)"
                     />
-                  </div>
-                  <p
-                    class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
-                    :class="
-                      hitKind(row) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'
-                    "
-                  >
-                    {{ row.text }}
-                  </p>
-                </li>
-              </template>
-            </ul>
+                  </li>
+                </ul>
+                <ShowAllToggle
+                  v-if="k.hits.length > PER_EPISODE_KIND"
+                  :expanded="kindOpen.has(kindKey(g, k.id))"
+                  :count="k.hits.length"
+                  :remaining="kindOpen.has(kindKey(g, k.id)) ? 0 : k.hits.length - PER_EPISODE_KIND"
+                  data-testid="search-episode-kind-more"
+                  @toggle="toggleKind(g, k.id)"
+                />
+              </section>
+            </div>
           </EpisodeGroupCard>
         </ul>
       </template>
-      <!-- Under the category's last item, as on the rails: its next three, then "Show less". -->
       <ShowAllToggle
-        v-if="cat.more || cat.count > PER_CATEGORY"
-        :expanded="cat.count > PER_CATEGORY"
-        :count="cat.count"
-        :remaining="cat.more ? 1 : 0"
-        :more-label="t('search.categoryMore')"
-        :disabled="categoryLoading === cat.id"
-        :data-testid="`search-category-more-${cat.id}`"
-        @toggle="showMoreOrLess(cat.id)"
+        v-if="moreEpisodes"
+        class="mt-4"
+        :expanded="false"
+        :count="groups.length"
+        :remaining="1"
+        :more-label="t('search.moreEpisodes')"
+        :disabled="loadingMore"
+        data-testid="search-more-episodes"
+        @toggle="showMoreEpisodes"
       />
-      </section>
     </template>
 
     <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is

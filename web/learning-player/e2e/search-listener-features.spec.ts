@@ -81,23 +81,20 @@ test('search results render the "Also about:" enriched-topic chip row', async ({
   await signInIsolated(page, 'search-related-chips', testInfo)
   await stubSearch(page)
   await page.goto('/search?q=risk')
-  await expect(page.getByText('2 passages across 1 episodes')).toBeVisible()
+  await expect(page.getByTestId('search-episode-count')).toHaveText('1')
   const chips = page.getByTestId('related-topic-chips')
   await expect(chips).toBeVisible()
   await expect(chips).toContainText('Systems thinking')
   await expect(chips).toContainText('Portfolio')
 })
 
-test('search results render the "Matched:" kicker on the episode header', async ({ page }, testInfo) => {
-  await signInIsolated(page, 'search-matched-kicker', testInfo)
+test('an episode lists its matches by kind — insights, then what is said in the conversation', async ({ page }, testInfo) => {
+  // Operator 2026-10-15: one card per episode, its matches grouped by kind inside it.
+  await signInIsolated(page, 'search-episode-kinds', testInfo)
   await stubSearch(page)
   await page.goto('/search?q=risk')
-  const matched = page.getByTestId('matched-fields').first()
-  await expect(matched).toBeVisible()
-  await expect(matched).toContainText(/Matched:/)
-  // insight + transcript both resolve to their labels.
-  await expect(matched).toContainText('Insight')
-  await expect(matched).toContainText('Transcript')
+  const kinds = page.getByTestId('episode-group').first().getByTestId('search-episode-kind-title')
+  await expect(kinds).toHaveText(['Insights', 'In the conversation'])
 })
 
 test('an episode group starts expanded and collapses its matches', async ({ page }, testInfo) => {

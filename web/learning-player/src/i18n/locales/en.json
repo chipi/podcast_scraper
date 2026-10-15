@@ -210,7 +210,8 @@
       "episodes": "Titles and summaries",
       "mentions": "Mentions"
     },
-    "categoryMore": "Show more",
+    "moreEpisodes": "Show more episodes",
+    "resultsFor": "Results for “{term}”",
     "noResults": "No matches found.",
     "recallEmpty": "Nothing in your listening on this yet — play or save episodes to build it up.",
     "searchEveryone": "Search every episode instead",
@@ -221,7 +222,6 @@
     "error": "Search is temporarily unavailable — try again in a moment.",
     "jumpTo": "Play from {time} in {episode}",
     "summary": "{passages} passages across {episodes} episodes",
-    "summaryFor": "{passages} passages across {episodes} episodes for “{term}”",
     "playHere": "Play from {time}",
     "viewEntity": "View",
     "matchCount": "1 match | {count} matches",
@@ -234,15 +234,6 @@
     },
     "alsoAbout": "Also about",
     "openTopicChip": "Open {label} topic card",
-    "foldedKind": {
-      "transcript": "Transcript",
-      "episode_title": "Title",
-      "episode_description": "Description",
-      "summary_short": "Summary"
-    },
-    "foldedCount": "1 match | {count} matches",
-    "expandCluster": "Expand {count} {kind} matches",
-    "matchedPrefix": "Matched:",
     "yearEpisodes": "1 episode | {count} episodes",
     "yearUnknown": "Undated",
     "save": "Save",

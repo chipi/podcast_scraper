@@ -142,6 +142,16 @@ In both states the search entry is visually prominent (in or immediately under t
   (Insight / Transcript / Topic). A `▶ "Play from m:ss"` control appears **only when the passage
   carries a real timestamp** (opens the Player there) — otherwise the header opens the episode.
   Bare topic-term matches are de-emphasised (muted italic).*
+- **Episodes, then kinds inside each** (operator 2026-10-15): "Episodes" carries its count ("8",
+  "8+" while the server holds more) and "Results for “…”" under it; ONE card per episode, and
+  inside it the episode's matches by kind, each under a label chip — **Titles and summaries**
+  first (what the episode is), then **Insights** (the points it makes), then **In the
+  conversation** (the words themselves). Two per kind, then "Show more (N)"; five episodes, then
+  "Show more episodes", which fetches the next page of every kind with more. The server still
+  answers per kind, three each (2026-10-13: one shared ranking let topic rows crowd every episode
+  out), and the episodes are those answers merged. "▶ Play from m:ss" sits under each passage. It
+  replaced one section per kind, which listed an episode once per kind it matched in, a
+  "Matched: …" line on every card, and transcript matches folded shut.
 - **No generated prose** (D6) — passages are extractive; no disclaimer needed.
 - **Empty / no-index**: a single `muted` line ("Search needs the library index") — never a
   broken panel. **No results**: "No grounded passages found."

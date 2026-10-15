@@ -873,8 +873,8 @@ describe("SearchView", () => {
     expect(w.find('[data-testid="related-topic-chips"]').exists()).toBe(false)
   })
 
-  // #1261-3: multiple foldable hits on one episode collapse into one summary row
-  it('folds N transcript hits per episode into a single "Transcript · N matches" row that expands on tap', async () => {
+  // Operator 2026-10-15: one list of episodes; inside each, its matches by kind, two each, then "Show more".
+  it("shows an episode's first two conversation matches, and Show more reveals the rest", async () => {
     vi.spyOn(api, "searchCorpus").mockResolvedValue({
       query: "ai",
       error: null,
@@ -918,30 +918,53 @@ describe("SearchView", () => {
       ],
     })
     const { w } = await mountAt("ai")
-    const clusterRows = w.findAll('[data-testid="folded-cluster-row"]')
-    expect(clusterRows).toHaveLength(1)
-    // Collapsed state — only the summary row is present, no excerpts yet.
-    expect(w.text()).toContain("3 matches")
-    expect(w.text()).not.toContain("First matching chunk.")
-    // Expand.
-    await clusterRows[0].trigger("click")
-    expect(w.text()).toContain("First matching chunk.")
-    expect(w.text()).toContain("Second matching chunk.")
-    expect(w.text()).toContain("Third matching chunk.")
-    // Collapse again.
-    await clusterRows[0].trigger("click")
-    expect(w.text()).not.toContain("First matching chunk.")
+    expect(w.findAll('[data-testid="episode-group"]')).toHaveLength(1)
+    const kind = w.get('[data-testid="search-episode-kind"][data-kind="transcript"]')
+    expect(kind.get('[data-testid="search-episode-kind-title"]').text()).toBe("In the conversation")
+    // Open, not folded: the first two passages are there to read.
+    expect(kind.text()).toContain("First matching chunk.")
+    expect(kind.text()).toContain("Second matching chunk.")
+    expect(kind.text()).not.toContain("Third matching chunk.")
+    const more = kind.get('[data-testid="search-episode-kind-more"]')
+    expect(more.text()).toBe("Show more (1)")
+    await more.trigger("click")
+    expect(w.get('[data-testid="search-episode-kind"][data-kind="transcript"]').text()).toContain("Third matching chunk.")
+    await w.get('[data-testid="search-episode-kind-more"]').trigger("click")
+    expect(w.get('[data-testid="search-episode-kind"][data-kind="transcript"]').text()).not.toContain("Third matching chunk.")
   })
 
-  // #1261-5: matched-field kicker on the episode-group header
-  it('renders "Matched: Title · Summary ×2 · Transcript" chips on the episode header', async () => {
+  it("orders an episode's kinds: titles and summaries, then insights, then the conversation — one card per episode", async () => {
     vi.spyOn(api, "searchCorpus").mockResolvedValue({
       query: "x",
       error: null,
       results: [
         {
-          doc_id: "t1",
+          doc_id: "i1",
+          score: 0.95,
+          text: "An insight.",
+          source_tier: "segment",
+          metadata: {
+            doc_type: "insight",
+            episode_slug: "show-x",
+            episode_title: "Ep X",
+            podcast_title: "Show",
+          },
+        },
+        {
+          doc_id: "tr1",
           score: 0.9,
+          text: "Transcript match.",
+          source_tier: "segment",
+          metadata: {
+            doc_type: "transcript",
+            episode_slug: "show-x",
+            episode_title: "Ep X",
+            podcast_title: "Show",
+          },
+        },
+        {
+          doc_id: "t1",
+          score: 0.8,
           text: "Title match.",
           source_tier: "segment",
           metadata: {
@@ -953,7 +976,7 @@ describe("SearchView", () => {
         },
         {
           doc_id: "s1",
-          score: 0.8,
+          score: 0.7,
           text: "Summary 1.",
           source_tier: "segment",
           metadata: {
@@ -963,61 +986,17 @@ describe("SearchView", () => {
             podcast_title: "Show",
           },
         },
-        {
-          doc_id: "s2",
-          score: 0.7,
-          text: "Summary 2.",
-          source_tier: "segment",
-          metadata: {
-            doc_type: "summary_short",
-            episode_slug: "show-x",
-            episode_title: "Ep X",
-            podcast_title: "Show",
-          },
-        },
-        {
-          doc_id: "tr1",
-          score: 0.6,
-          text: "Transcript match.",
-          source_tier: "segment",
-          metadata: {
-            doc_type: "transcript",
-            episode_slug: "show-x",
-            episode_title: "Ep X",
-            podcast_title: "Show",
-          },
-        },
       ],
     })
     const { w } = await mountAt("x")
-    const chips = w.get('[data-testid="matched-fields"]')
-    expect(chips.text()).toContain("Matched:")
-    expect(chips.text()).toContain("Title")
-    expect(chips.text()).toContain("Summary ×2")
-    expect(chips.text()).toContain("Transcript")
-  })
-
-  it("hides the matched-fields kicker when no hit resolves to an episode-level field", async () => {
-    vi.spyOn(api, "searchCorpus").mockResolvedValue({
-      query: "x",
-      error: null,
-      results: [
-        {
-          doc_id: "kg1",
-          score: 0.9,
-          text: "t",
-          source_tier: "kg",
-          metadata: {
-            doc_type: "kg_topic",
-            episode_slug: "show-x",
-            episode_title: "Ep X",
-            podcast_title: "Show",
-          },
-        },
-      ],
-    })
-    const { w } = await mountAt("x")
-    expect(w.find('[data-testid="matched-fields"]').exists()).toBe(false)
+    // Matched in three kinds, listed once.
+    expect(w.findAll('[data-testid="episode-group"]')).toHaveLength(1)
+    expect(w.findAll('[data-testid="search-episode-kind"]').map((k) => k.attributes("data-kind"))).toEqual([
+      "episodes",
+      "insights",
+      "transcript",
+    ])
+    expect(w.get('[data-testid="search-episode-count"]').text()).toBe("1")
   })
 
   // #1261-7: year-header grouping — mobile-friendly reshape of the timeline chart
@@ -1146,7 +1125,7 @@ describe("SearchView", () => {
     expect(w.findAll('[data-testid="year-header"]')).toHaveLength(0)
   })
 
-  it("keeps insight and kg_topic hits out of the fold — they render as standalone rows", async () => {
+  it("shows insight and conversation matches open, each under its kind", async () => {
     vi.spyOn(api, "searchCorpus").mockResolvedValue({
       query: "ai",
       error: null,
@@ -1178,11 +1157,9 @@ describe("SearchView", () => {
       ],
     })
     const { w } = await mountAt("ai")
-    // The insight text shows up without needing to expand anything.
-    expect(w.text()).toContain("A grounded insight.")
-    // The single-transcript-hit cluster is present but collapsed by default.
-    expect(w.findAll('[data-testid="folded-cluster-row"]')).toHaveLength(1)
-    expect(w.text()).not.toContain("A transcript chunk.")
+    // Nothing to expand first (operator 2026-10-15): both kinds are open.
+    expect(w.get('[data-testid="search-episode-kind"][data-kind="insights"]').text()).toContain("A grounded insight.")
+    expect(w.get('[data-testid="search-episode-kind"][data-kind="transcript"]').text()).toContain("A transcript chunk.")
   })
 
   describe("a result header spends its width on the text (#2004 follow-up)", () => {
@@ -1401,7 +1378,7 @@ describe("SearchView: results by category, three each (operator 2026-10-13)", ()
     }
   }
 
-  it("one section per category, in order, each with its own Show more that fetches its next page", async () => {
+  it("the kinds' answers merge into one list of episodes; Show more episodes fetches every kind with more", async () => {
     const { reportServerReachable } = await import("../composables/useOnline")
     reportServerReachable(true)
     const spy = vi.spyOn(api, "searchCorpus").mockResolvedValueOnce({
@@ -1421,15 +1398,9 @@ describe("SearchView: results by category, three each (operator 2026-10-13)", ()
     } as never)
     const { w } = await mountAt("risk")
     expect(spy).toHaveBeenLastCalledWith("risk", 12, "all", true, { perCategory: 3 })
-    const sections = w.findAll('section[data-testid^="search-category-"]')
-    expect(sections.map((s) => s.attributes("data-testid"))).toEqual([
-      "search-category-insights",
-      "search-category-transcript",
-    ])
-    // Only the kind with more offers it; a kind with nothing is not shown at all.
-    expect(w.find('[data-testid="search-category-more-insights"]').text()).toBe("Show more")
-    expect(w.find('[data-testid="search-category-more-transcript"]').exists()).toBe(false)
-    expect(w.find('[data-testid="search-category-episodes"]').exists()).toBe(false)
+    // Episode a matched in two kinds and is listed once, both kinds inside it.
+    expect(w.findAll('[data-testid="episode-group"]')).toHaveLength(3)
+    expect(w.get('[data-testid="search-episode-count"]').text()).toBe("3+")
 
     spy.mockResolvedValueOnce({
       query: "risk",
@@ -1437,18 +1408,14 @@ describe("SearchView: results by category, three each (operator 2026-10-13)", ()
       results: [hit("i4", "insights", "insight", "d")],
       categories: [{ id: "insights", returned: 1, has_more: false }],
     } as never)
-    await w.get('[data-testid="search-category-more-insights"]').trigger("click")
+    await w.get('[data-testid="search-more-episodes"]').trigger("click")
     await flushPromises()
+    // Only the kind with more was asked, from where it left off.
     expect(spy).toHaveBeenLastCalledWith("risk", 3, "all", true, { perCategory: 3, category: "insights", offset: 3 })
-    const insights = w.get('[data-testid="search-category-insights"]')
-    expect(insights.text()).toContain("insights passage i4.")
-    // All out: the control now folds the kind back to three.
-    const toggle = w.get('[data-testid="search-category-more-insights"]')
-    expect(toggle.text()).toBe("Show less")
-    await toggle.trigger("click")
-    await flushPromises()
-    expect(w.get('[data-testid="search-category-insights"]').text()).not.toContain("insights passage i4.")
-    expect(w.get('[data-testid="search-category-more-insights"]').text()).toBe("Show more")
+    expect(w.findAll('[data-testid="episode-group"]')).toHaveLength(4)
+    expect(w.text()).toContain("insights passage i4.")
+    expect(w.get('[data-testid="search-episode-count"]').text()).toBe("4")
+    expect(w.find('[data-testid="search-more-episodes"]').exists()).toBe(false)
   })
 
   it("a hit that does not name its category is placed by its kind", async () => {
@@ -1458,6 +1425,6 @@ describe("SearchView: results by category, three each (operator 2026-10-13)", ()
       results: [{ ...hit("t9", "", "transcript", "a"), metadata: { episode_slug: "a", episode_title: "Title a", doc_type: "transcript" } }],
     } as never)
     const { w } = await mountAt("x")
-    expect(w.get('[data-testid="search-category-transcript"]').text()).toContain("Transcript")
+    expect(w.get('[data-testid="search-episode-kind"][data-kind="transcript"]').text()).toContain("In the conversation")
   })
 })

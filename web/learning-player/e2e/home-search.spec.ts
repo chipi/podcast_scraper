@@ -42,7 +42,7 @@ test('Home shows sections; search routes to /search and returns grounded results
   // which offers everyone's (ADR-162). This spec is about the corpus-wide results.
   await page.getByTestId('search-show-everyone').click()
   await expect(page).toHaveURL(/\/search\?q=investing/)
-  await expect(page.getByText(/\d+ passages across \d+ episodes/)).toBeVisible()
+  await expect(page.getByTestId('search-episode-count')).toHaveText(/^\d+\+?$/)
 })
 
 /**

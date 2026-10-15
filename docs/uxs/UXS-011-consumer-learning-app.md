@@ -495,8 +495,8 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   moment names the speaker's role ("Nora, host"). The Brief's button says how many and how long once loaded ("Play 8 moments ·
   3½ min · the strongest moments, in order") and disappears for an episode with none. "▶ Moments"
   shows on search results only for episodes with insights (the server marks `episode_has_gi`), on
-  the meta row under "Matched:" (the "Matched" line itself sits inside the result's link, and a
-  link inside a link loses its name); Saved and Revisit groups offer the reel in the ⋯ menu only;
+  the meta row under the title (the title sits inside the result's link, and a link inside a
+  link loses its name); Saved and Revisit groups offer the reel in the ⋯ menu only;
   a downloaded episode whose saved copy has no moments shows no "▶ Moments".
 - **Brief** is the panel's name (renamed 2026-10-10; shipped #1091 as "Insights", "Episode notes"
   from 2026-09-30). One word for the band, and plain "Notes" already means the listener's own

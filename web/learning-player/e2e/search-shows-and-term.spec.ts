@@ -19,7 +19,7 @@ test('a show is found by its name, words in any order, and the count row names t
   await expect(shows.getByText('Long Horizon Notes')).toBeVisible()
 
   await page.goto('/search?q=risk%20management&scope=all')
-  await expect(page.getByText(/passages across \d+ episodes for “risk management”/)).toBeVisible()
+  await expect(page.getByText('Results for “risk management”')).toBeVisible()
 })
 
 test('a search from Home shows its own term in the results box, not the previous one', async ({
