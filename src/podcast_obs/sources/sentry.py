@@ -9,13 +9,29 @@ Backend is Sentry-API-compatible: point ``sentry_url`` at self-hosted **GlitchTi
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from .._http import get_json
 from ..config import TargetConfig
 from ..result import err, ok
+from .victoria import _window_seconds
 
 _SOURCE = "sentry.errors"
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _seen_since(issue: dict, cutoff: datetime) -> bool:
+    try:
+        last = datetime.fromisoformat(str(issue.get("lastSeen")).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    return last >= cutoff
 
 
 def _api_base(target: TargetConfig) -> str:
@@ -33,8 +49,13 @@ def recent_errors(
 ) -> dict:
     """Top issues per Sentry project for ``environment=<target.sentry_environment>``.
 
+    ``window`` keeps issues whose ``lastSeen`` falls inside it. GlitchTip ignores
+    ``statsPeriod`` (the 1h, 24h and 14d lists come back identical) and has no lastSeen search
+    term, so the cut is made here; issues arrive newest-``lastSeen`` first.
+
     With ``run_id`` set (#1053), filters to issues tagged ``run_id:<id>`` (and drops the
-    ``is:unresolved`` filter so a run's *full* error picture surfaces for correlation).
+    ``is:unresolved`` filter and the window so a run's *full* error picture surfaces for
+    correlation).
     """
     if not target.sentry_token:
         return err(
@@ -51,6 +72,7 @@ def recent_errors(
     else:
         query = f"is:unresolved environment:{target.sentry_environment}"
     api = _api_base(target)
+    cutoff = None if run_id else _now() - timedelta(seconds=_window_seconds(window, 86400))
     projects: list[dict] = []
     total = 0
     for project in target.sentry_projects:
@@ -75,6 +97,7 @@ def recent_errors(
                 "permalink": issue.get("permalink"),
             }
             for issue in (issues if isinstance(issues, list) else [])
+            if cutoff is None or _seen_since(issue, cutoff)
         ]
         total += len(items)
         projects.append({"project": project, "ok": True, "issues": items})

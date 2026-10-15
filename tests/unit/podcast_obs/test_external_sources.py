@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from typing import Optional
+
 import pytest
 
 from podcast_obs.config import TargetConfig
 from podcast_obs.sources import github, grafana, langfuse, sentry
+
+_NOW = datetime(2026, 6, 1, 1, 0, tzinfo=timezone.utc)
 
 
 def _t(**kw) -> TargetConfig:
@@ -163,6 +168,7 @@ def test_errors_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
             "permalink": "https://sentry/x",
         }
     ]
+    monkeypatch.setattr(sentry, "_now", lambda: _NOW)
     monkeypatch.setattr(sentry, "get_json", lambda url, **_: issues)
     target = _t(sentry_token="x", sentry_org="acme", sentry_projects=("api",))
     data = sentry.recent_errors(target)["data"]
@@ -171,6 +177,48 @@ def test_errors_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     assert issue["title"] == "KeyError: x"
     # the pivot handle: each issue carries its GlitchTip UI permalink so an agent can click through.
     assert issue["permalink"] == "https://sentry/x"
+
+
+def _issue(title: str, last_seen: Optional[str]) -> dict:
+    return {"title": title, "lastSeen": last_seen}
+
+
+def test_errors_window_keeps_only_issues_seen_in_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 2026-10-15: GlitchTip ignores statsPeriod — the 1h, 24h and 14d lists were identical
+    # (issues last seen days ago in a "last hour" answer). The window is applied on lastSeen.
+    issues = [
+        _issue("fresh", "2026-06-01T00:30:00Z"),
+        _issue("this morning", "2026-05-31T20:00:00.123Z"),
+        _issue("last week", "2026-05-25T00:00:00Z"),
+    ]
+    monkeypatch.setattr(sentry, "_now", lambda: _NOW)
+    monkeypatch.setattr(sentry, "get_json", lambda url, **_: issues)
+    target = _t(sentry_token="x", sentry_org="acme", sentry_projects=("api",))
+
+    def titles(window: str) -> list:
+        data = sentry.recent_errors(target, window=window)["data"]
+        return [i["title"] for i in data["projects"][0]["issues"]]
+
+    assert titles("1h") == ["fresh"]
+    assert titles("24h") == ["fresh", "this morning"]
+    assert titles("14d") == ["fresh", "this morning", "last week"]
+
+
+def test_errors_window_drops_issue_without_last_seen(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sentry, "_now", lambda: _NOW)
+    monkeypatch.setattr(sentry, "get_json", lambda url, **_: [_issue("?", None)])
+    target = _t(sentry_token="x", sentry_org="acme", sentry_projects=("api",))
+    assert sentry.recent_errors(target, window="24h")["data"]["total_issues"] == 0
+
+
+def test_errors_run_id_is_not_windowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    # correlate asks for a run's full error picture; a run older than the window keeps its issues.
+    monkeypatch.setattr(sentry, "_now", lambda: _NOW)
+    monkeypatch.setattr(
+        sentry, "get_json", lambda url, **_: [_issue("old", "2026-01-01T00:00:00Z")]
+    )
+    target = _t(sentry_token="x", sentry_org="acme", sentry_projects=("api",))
+    assert sentry.recent_errors(target, run_id="run-1")["data"]["total_issues"] == 1
 
 
 def test_errors_all_projects_failing_is_not_ok(monkeypatch: pytest.MonkeyPatch) -> None:
