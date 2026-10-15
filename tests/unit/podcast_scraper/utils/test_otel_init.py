@@ -201,3 +201,28 @@ def test_cli_names_the_process_by_subcommand(argv, expected):
     from podcast_scraper import cli
 
     assert cli._default_service_name(argv) == expected
+
+
+def test_under_the_auto_instrument_launcher_init_otel_adds_nothing(monkeypatch):
+    """The api image starts under ``opentelemetry-instrument`` and ALSO calls init_otel(). A second
+    provider + a second HTTP instrumentation only logged "Overriding of current TracerProvider is
+    not allowed" and "Attempting to instrument while already instrumented" (2026-10-15 prod: 28
+    lines across podcast-api, operator-api, player-api per deploy). An SDK provider already in
+    place means tracing is on: init_otel keeps it and instruments nothing again."""
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    m = _fresh(
+        monkeypatch,
+        OTEL_TRACES_EXPORTER="otlp",
+        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://backend:10428/insert/opentelemetry/v1/traces",
+    )
+    existing = TracerProvider()
+    set_calls, http_calls = [], []
+    monkeypatch.setattr(trace, "get_tracer_provider", lambda: existing)
+    monkeypatch.setattr(trace, "set_tracer_provider", lambda p: set_calls.append(p))
+    monkeypatch.setattr(m, "_instrument_http", lambda: http_calls.append(1))
+
+    assert m.init_otel() is True
+    assert set_calls == [] and http_calls == []
+    assert m.init_otel() is False  # idempotent

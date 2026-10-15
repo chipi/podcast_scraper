@@ -121,6 +121,12 @@ def init_otel(default_service_name: str = "podcast-pipeline") -> bool:
         _LOGGER.debug("otel tracing requested but the [otel] extra is not installed")
         return False
 
+    if isinstance(trace.get_tracer_provider(), TracerProvider):
+        # Already set up by the ``opentelemetry-instrument`` launcher (the api image): a second
+        # provider is refused and a second HTTP instrumentation only logs warnings.
+        _initialized = True
+        return True
+
     try:
         provider = TracerProvider(resource=Resource.create())
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
