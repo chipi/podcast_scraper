@@ -419,7 +419,7 @@ jobs:
         if: failure()
         continue-on-error: true
         env:
-          SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+          SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_API }}
         run: |
           if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
           # environment/release as the apps report them (ADR-0010); a fixed fingerprint so every
