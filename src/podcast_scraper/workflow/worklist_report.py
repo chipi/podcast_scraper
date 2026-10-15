@@ -42,6 +42,13 @@ class WorklistReport:
     # apart, because "repaired 5/5" over a corpus the stage did not touch is the overstatement this
     # module exists to avoid. Always a subset of ``completed``.
     already_right: Set[str] = field(default_factory=set)
+    # Requested episodes the stage looked at and, BY DESIGN, left as they were: id -> the reason
+    # (``NoWindowAccepted`` when every repair window failed the guards, ``PlainTranscript``, ...).
+    # NOT completed -- the episode is still wrong, so a run of only these still repaired nothing --
+    # but not "did NOT finish" either: they finished, and the guards said no. 2026-10-15: 17 of a
+    # 24-episode ``repunctuate_only`` were refused and logged at ERROR as unfinished, which reads
+    # (and files) as a crash.
+    declined: Dict[str, str] = field(default_factory=dict)
     # 2026-08-28: "NOT FOUND in any feed's corpus" was claimed even when the batch halted
     # (cost cap) before some feeds ever ran selection — an episode in an unsearched feed is
     # not absent, it is unsearched. The batch driver declares how many feeds it PLANS; each
@@ -114,6 +121,20 @@ class WorklistReport:
                     self.completed.add(key)
                     self.already_right.add(key)
 
+    def mark_declined(
+        self, episode_id: Optional[str], guid: Optional[str] = None, *, reason: str
+    ) -> None:
+        """Record that a requested episode ran and the stage, by design, changed nothing.
+
+        Not completed (see ``declined``). A later ``mark_completed`` for the same id wins: an
+        episode the stage both refused and finished is finished.
+        """
+        with self._lock:
+            for candidate in (episode_id, guid):
+                key = str(candidate or "").strip()
+                if key and key in self.requested:
+                    self.declined[key] = reason
+
     @property
     def active(self) -> bool:
         """True only when this run was given a work-list; otherwise there is nothing to report."""
@@ -157,7 +178,13 @@ class WorklistReport:
     def incomplete(self) -> List[str]:
         """Selected but never finished: started and then failed, rather than never started."""
         with self._lock:
-            return sorted(self.matched - self.completed)
+            return sorted(self.matched - self.completed - set(self.declined))
+
+    @property
+    def declined_ids(self) -> List[str]:
+        """Selected, ran, and left as they were by design (not completed, not failed)."""
+        with self._lock:
+            return sorted(set(self.declined) - self.completed)
 
     def summary(self, *, max_listed: int = 20) -> str:
         """The line an operator should be able to read instead of running an audit."""
@@ -168,7 +195,8 @@ class WorklistReport:
             if self.already_right:
                 line += f" ({len(self.already_right)} of them already right, nothing to repair)"
             unmatched = sorted(self.requested - self.matched)
-            incomplete = sorted(self.matched - self.completed)
+            declined = sorted(set(self.declined) - self.completed)
+            incomplete = sorted(self.matched - self.completed - set(declined))
             if unmatched:
                 shown = ", ".join(unmatched[:max_listed])
                 more = (
@@ -192,7 +220,17 @@ class WorklistReport:
                     else ""
                 )
                 line += f" · {len(incomplete)} selected but did NOT finish: [{shown}]{more}"
-            if not unmatched and not incomplete and total:
+            if declined:
+                reasons: Dict[str, int] = {}
+                for key in declined:
+                    reasons[self.declined[key]] = reasons.get(self.declined[key], 0) + 1
+                why = ", ".join(f"{r} {n}" for r, n in sorted(reasons.items()))
+                shown = ", ".join(declined[:max_listed])
+                more = (
+                    f" (+{len(declined) - max_listed} more)" if len(declined) > max_listed else ""
+                )
+                line += f" · {len(declined)} left as they were by design ({why}): [{shown}]{more}"
+            if not unmatched and not incomplete and not declined and total:
                 line += " · all requested episodes repaired"
             return line
 
@@ -205,7 +243,10 @@ class WorklistReport:
                 "completed": len(self.completed),
                 "already_right": len(self.already_right),
                 "unmatched_ids": sorted(self.requested - self.matched),
-                "incomplete_ids": sorted(self.matched - self.completed),
+                "incomplete_ids": sorted(self.matched - self.completed - set(self.declined)),
+                "declined": {
+                    k: v for k, v in sorted(self.declined.items()) if k not in self.completed
+                },
                 "feeds_planned": self.feeds_planned,
                 "feeds_searched": self.feeds_searched,
             }
@@ -242,6 +283,8 @@ def log_worklist_outcome() -> Optional[str]:
     - ``unmatched`` while SOME matched — a few stale / orphaned ids alongside real repairs. Nothing
       lost: every repairable item repaired. So WARNING — visible, but not an error the signal-fleet
       auto-files as a bug on every sweep that carries one stale id.
+    - ``declined`` — episodes the stage ran on and left as they were by design (the repair guards
+      refused every window). Still wrong, so not completed, but nothing crashed. WARNING.
 
     The zero-matched carve-out is why this is not simply "any unmatched → WARNING": collapsing the
     total miss into the stale-id case re-buries the exact incident this guard exists to keep loud.
@@ -252,7 +295,7 @@ def log_worklist_outcome() -> Optional[str]:
     line = report.summary()
     if report.incomplete or (report.unmatched and not report.matched):
         logger.error("%s", line)
-    elif report.unmatched:
+    elif report.unmatched or report.declined_ids:
         logger.warning("%s", line)
     else:
         logger.info("%s", line)

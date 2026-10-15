@@ -505,6 +505,9 @@ def test_a_refused_window_does_not_finish_its_worklist_entry(tmp_path, cuts, arc
     report = _worklist_outcome(disk, Clips(_clip_answer(_window_of(disk, 1), punctuated=False)))
 
     assert report.completed == set() and report.repaired_nothing
+    # ...but it ran and the guards refused: declined, never "did NOT finish" (2026-10-15).
+    assert report.declined_ids == [GUID] and report.incomplete == []
+    assert "left as they were by design (NoWindowAccepted 1)" in report.summary()
 
 
 def test_a_wholly_unpunctuated_episode_does_not_finish_its_worklist_entry(tmp_path, cuts, archive):

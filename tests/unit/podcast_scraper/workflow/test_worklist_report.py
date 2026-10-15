@@ -249,3 +249,88 @@ def test_the_summary_is_unchanged_when_nothing_was_already_right() -> None:
     r.mark_completed("ep1")
 
     assert r.summary() == "work-list: repaired 1/1 · all requested episodes repaired"
+
+
+# --- declined: ran, and the stage left it as it was by design (2026-10-15) ----------------------
+
+
+def _the_8_3_run():
+    """The 2026-10-15 ``repunctuate_only``, small: 2 repaired, 3 refused, 1 crashed."""
+    r = get_worklist_report()
+    r.request(["ok1", "ok2", "ref1", "ref2", "ref3", "crashed"])
+    r.mark_matched(["ok1", "ok2", "ref1", "ref2", "ref3", "crashed"])
+    r.mark_completed("ok1")
+    r.mark_completed("ok2")
+    r.mark_declined("ref1", reason="NoWindowAccepted")
+    r.mark_declined("ref2", reason="NoWindowAccepted")
+    r.mark_declined("ref3", reason="PlainTranscript")
+    return r
+
+
+def test_a_refused_episode_is_declined_not_unfinished() -> None:
+    """It ran and the guards said no: saying 'did NOT finish' reads as a crash."""
+    r = _the_8_3_run()
+    line = r.summary()
+    assert "repaired 2/6" in line
+    assert "1 selected but did NOT finish: [crashed]" in line
+    assert (
+        "3 left as they were by design (NoWindowAccepted 2, PlainTranscript 1): "
+        "[ref1, ref2, ref3]" in line
+    )
+    assert r.incomplete == ["crashed"]
+    assert r.declined_ids == ["ref1", "ref2", "ref3"]
+    d = r.as_dict()
+    assert d["incomplete_ids"] == ["crashed"]
+    assert d["declined"] == {
+        "ref1": "NoWindowAccepted",
+        "ref2": "NoWindowAccepted",
+        "ref3": "PlainTranscript",
+    }
+
+
+def test_declined_is_not_completed_so_a_run_of_only_refusals_still_repaired_nothing() -> None:
+    """The episode is still wrong: a run that repaired none of what it was asked is a failed run."""
+    r = get_worklist_report()
+    r.request(["ref1", "ref2"])
+    r.mark_matched(["ref1", "ref2"])
+    r.mark_declined("ref1", reason="NoWindowAccepted")
+    r.mark_declined("ref2", reason="NoWindowAccepted")
+    assert r.repaired_nothing is True
+    assert r.completed == set()
+    assert "all requested episodes repaired" not in r.summary()
+
+
+def test_refusals_alone_log_at_WARNING_and_a_crash_beside_them_still_logs_at_ERROR(
+    caplog,
+) -> None:
+    import logging
+
+    r = get_worklist_report()
+    r.request(["ok1", "ref1"])
+    r.mark_matched(["ok1", "ref1"])
+    r.mark_completed("ok1")
+    r.mark_declined("ref1", reason="NoWindowAccepted")
+    with caplog.at_level(logging.DEBUG):
+        log_worklist_outcome()
+    assert not [rec for rec in caplog.records if rec.levelno >= logging.ERROR]
+    assert [rec for rec in caplog.records if rec.levelno == logging.WARNING]
+
+    caplog.clear()
+    reset_worklist_report()
+    _the_8_3_run()
+    with caplog.at_level(logging.DEBUG):
+        log_worklist_outcome()
+    assert [rec for rec in caplog.records if rec.levelno >= logging.ERROR]
+
+
+def test_declined_matches_on_guid_ignores_strangers_and_a_completion_wins() -> None:
+    r = get_worklist_report()
+    r.request(["guid-1", "ep2"])
+    r.mark_matched(["guid-1", "ep2"])
+    r.mark_declined("derived-id", "guid-1", reason="NoWindowAccepted")
+    r.mark_declined("stray", "also-stray", reason="NoWindowAccepted")
+    r.mark_declined("ep2", reason="NoWindowAccepted")
+    r.mark_completed("ep2")
+    assert r.declined_ids == ["guid-1"]
+    assert r.incomplete == []
+    assert "repaired 1/2" in r.summary()

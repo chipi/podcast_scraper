@@ -4294,13 +4294,18 @@ def _mark_reprocess_nothing_to_do(
             "could not identify the episode for the %s outcome", error_type, exc_info=True
         )
         episode_id = None
-    if satisfied:
-        # Independent of the metrics object: whether the request counts as met must not depend on
-        # one being passed, or a clean episode silently reads as unfinished again.
-        from podcast_scraper.workflow.worklist_report import get_worklist_report
+    # Independent of the metrics object: whether the request counts as met must not depend on one
+    # being passed, or a clean episode silently reads as unfinished again.
+    from podcast_scraper.workflow.worklist_report import get_worklist_report
 
-        guid_el = episode.item.find("guid") if getattr(episode, "item", None) is not None else None
-        get_worklist_report().mark_already_right(episode_id, getattr(guid_el, "text", None))
+    guid_el = episode.item.find("guid") if getattr(episode, "item", None) is not None else None
+    guid = getattr(guid_el, "text", None)
+    if satisfied:
+        get_worklist_report().mark_already_right(episode_id, guid)
+    else:
+        # Still wrong, so not done -- but it ran and the stage said no; the report must not call
+        # it unfinished (a crash, to anyone reading the ERROR line).
+        get_worklist_report().mark_declined(episode_id, guid, reason=error_type)
     if pipeline_metrics is None or episode_id is None:
         return
     try:
