@@ -3,7 +3,7 @@
  * Screenshots for the release notes (operator 2026-10-15): one phone-sized PNG per change, taken
  * from the running app against the synthetic fixture corpus, so no real episode or person appears.
  *
- *   BASE=http://127.0.0.1:5181 node scripts/release-shots.mjs <out-dir> [shot-name ...]
+ *   BASE=http://127.0.0.1:5181 [SET=1.0.4] node scripts/release-shots.mjs <out-dir> [shot-name ...]
  *
  * BASE is a `vite` dev server whose /api and /audio proxy to the fixture API and the mock audio
  * host (VITE_API_TARGET / VITE_MEDIA_TARGET). Every shot runs on its own; a failure is reported and
@@ -225,24 +225,115 @@ const SHOTS = {
   },
 }
 
-const browser = await chromium.launch()
-const context = await browser.newContext({
+const PHONE = {
   baseURL: BASE,
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 3,
   isMobile: true,
   hasTouch: true,
   colorScheme: 'dark',
-})
-const page = await context.newPage()
-await page.goto(`/api/app/auth/login?as=${encodeURIComponent(`release-notes-${Date.now().toString(36)}`)}`)
-await page.waitForURL((u) => !u.pathname.startsWith('/api/'), { timeout: 15000 }).catch(() => {})
-await seed(page)
+}
+const browser = await chromium.launch()
+
+/** A page signed in as a fresh account; `seeded` makes it a settled listener first. */
+async function account(seeded = true) {
+  const context = await browser.newContext(PHONE)
+  const p = await context.newPage()
+  await p.goto(`/api/app/auth/login?as=${encodeURIComponent(`release-notes-${Date.now().toString(36)}`)}`)
+  await p.waitForURL((u) => !u.pathname.startsWith('/api/'), { timeout: 15000 }).catch(() => {})
+  if (seeded) await seed(p)
+  else await p.request.post('/api/app/profile/name', { data: { name: 'Alex' } })
+  return p
+}
+
+/*
+ * 1.0.3 (SET=1.0.3), shot against that version's own app, server and fixture data (a worktree at
+ * 722d11907): the screens its notes describe, with the test ids that version carried.
+ */
+const SHOTS_103 = {
+  async 'guided-start'() {
+    const p = await account(false)
+    await p.goto('/')
+    await p.getByTestId('guided-skip').or(p.getByTestId('guided-explain')).first().waitFor({ timeout: 15000 })
+    await settle(p, 1500)
+    return p.screenshot()
+  },
+  async notes(page) {
+    await page.goto(`/episode/${EPISODE}`)
+    await page.getByTestId('player-open-insights').click()
+    await page.getByTestId('knowledge-panel').waitFor()
+    await settle(page, 1500)
+    return page.screenshot()
+  },
+  async 'save-to-board'(page) {
+    await page.request.post('/api/app/collections', { data: { name: 'Risk, from every angle' } })
+    await page.request.post('/api/app/collections', { data: { name: 'Systems' } })
+    await page.goto(`/episode/${EPISODE}`)
+    await page.getByTestId('add-to-collection').first().click()
+    await page.getByTestId('add-to-collection-menu').waitFor()
+    await settle(page, 1200)
+    return page.screenshot()
+  },
+  async trends(page) {
+    await page.goto('/browse')
+    await settle(page, 2500)
+    return page.screenshot()
+  },
+  async login() {
+    const context = await browser.newContext(PHONE)
+    const p = await context.newPage()
+    await p.goto('/login')
+    await p.getByTestId('login-view').waitFor()
+    await settle(p, 1200)
+    return p.screenshot()
+  },
+}
+
+/**
+ * A plain screen for the older releases, whose test ids differ: go to `path`, optionally tap the
+ * first control whose name matches `tap`, and photograph the screen (signed out with `signedOut`).
+ */
+function screen(path, { tap, signedOut = false, wait = 2000 } = {}) {
+  return async (page) => {
+    const p = signedOut ? await (await browser.newContext(PHONE)).newPage() : page
+    await p.goto(path)
+    await settle(p, wait)
+    if (tap) {
+      await p.getByRole('button', { name: tap }).or(p.getByRole('tab', { name: tap })).or(p.getByText(tap, { exact: true })).first().click()
+      await settle(p, wait)
+    }
+    return p.screenshot()
+  }
+}
+
+// 1.0.1 (SET=1.0.1) at 7b8a8b4d6, and the first beta, 1.0.0 (SET=1.0.0) at 78fbeb6ad.
+const SHOTS_101 = {
+  interests: screen('/profile', { tap: /^Interests$/ }),
+  'delete-account': screen('/account/delete'),
+  storyline: screen('/storyline/thc%3Amanaging-risk'),
+  'translated-transcript': screen(`/episode/${SPANISH}`, { tap: /transcript/i }),
+}
+const SHOTS_100 = {
+  welcome: screen('/welcome', { signedOut: true }),
+  home: screen('/'),
+  player: screen(`/episode/${EPISODE}`, { wait: 3500 }),
+  notes: screen(`/episode/${EPISODE}`, { tap: /episode notes/i }),
+  library: screen('/library'),
+  storyline: screen('/storyline/thc%3Amanaging-risk'),
+}
+
+const SETS = { '1.0.4': SHOTS, '1.0.3': SHOTS_103, '1.0.1': SHOTS_101, '1.0.0': SHOTS_100 }
+const SET = process.env.SET ?? '1.0.4'
+if (!SETS[SET]) {
+  console.error(`no shot set ${SET}; have ${Object.keys(SETS).join(', ')}`)
+  process.exit(2)
+}
+const page = await account(true)
 await mkdir(OUT, { recursive: true })
 
 let failed = 0
 let ran = 0
-for (const [name, shoot] of Object.entries(SHOTS)) {
+for (const [name, shoot] of Object.entries(SETS[SET])) {
   if (ONLY.size && !ONLY.has(name)) continue
   ran += 1
   try {
