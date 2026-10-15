@@ -120,11 +120,12 @@ test('Step: › in the episode view jumps to the next insight', async ({ page },
   // conversation" stopped being an insight and the episode's next claim, at 1:00, took its place.
   // (1:24 since ADR-165, 2026-10-11 — the 0:06 one was a guest's greeting.)
   // 1:24 again since 2026-10-13: the corpus rebuilt on main's claim ranking puts the episode's
-  // first insight at 84 s (the GI's first SUPPORTED_BY quote).
-  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(83.5)
-  await expect.poll(() => audioTime(page)).toBeLessThan(90)
-  // The jump is never unexplained: "› Jumped to 1:24" for a moment.
-  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 1:2\d/)
+  // first insight at 84 s (the GI's first SUPPORTED_BY quote). 108.5 s since 2026-10-15: the
+  // fixture's transcripts on their audio's real timeline.
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(108)
+  await expect.poll(() => audioTime(page)).toBeLessThan(114)
+  // The jump is never unexplained: "› Jumped to 1:48" for a moment.
+  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 1:4\d/)
 })
 
 test('Step: a left swipe on the insight card is next, a right swipe previous', async ({ page }, testInfo) => {
@@ -142,8 +143,8 @@ test('Step: a left swipe on the insight card is next, a right swipe previous', a
     await card.dispatchEvent('pointerup', { pointerType: 'touch', clientX: x + dx, clientY: y + 4, isPrimary: true })
   }
   await swipe(-80)
-  // The first insight, at 1:24 (see the step test above).
-  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(83.5)
+  // The first insight, at 1:48 (see the step test above).
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(108)
   const afterNext = await audioTime(page)
   await swipe(-80)
   await expect.poll(() => audioTime(page)).toBeGreaterThan(afterNext + 1)

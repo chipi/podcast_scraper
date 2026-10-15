@@ -30,7 +30,9 @@ async function openBoards(page: Page): Promise<void> {
 /** Create a board from Library's own form. */
 async function createBoardInLibrary(page: Page, name: string): Promise<void> {
   await openBoards(page)
-  const form = page.locator('form').filter({ has: page.getByPlaceholder(/board name/i) })
+  // The name field opens from "+ New board" (operator 2026-10-15).
+  await page.getByTestId('collections-new').click()
+  const form = page.getByTestId('collections-create')
   await form.getByPlaceholder(/board name/i).fill(name)
   await form.locator('button[type="submit"]').click()
   await expect(page.getByTestId('collection-open').filter({ hasText: name })).toBeVisible()
