@@ -220,6 +220,8 @@ step; nothing here is built.
 
 ## Changes tried and rejected (so they are not tried again blind)
 
+The 2026-10-03/04 rows come from `docs/wip/NAMING_SCOREBOARD.md` on branch `feat/naming-stated-guest-binding` (not merged).
+
 | Change | What the replay showed |
 | --- | --- |
 | Refuse every unstated introduced name | lost 59 names, many correct |
@@ -232,6 +234,13 @@ step; nothing here is built.
 | No guest role for a voice that names the spare guest | real guests lost the role (bled host introductions) |
 | No forced guest name on a voice that reads an ad | 6 real guests lost their names (merged mid-roll ads) |
 | Title vouched by a full name said on air alone | named "Project Astra", "Cosmic Queries"; lost 4 correct names |
+| A guest phrase counts only in the first 60% of a voice | val 0 better / 3 worse: guests whose only "thanks for having me" is a farewell |
+| LLM guards: drop a model name the voice's own words refute (two loops, 2026-10-04) | corpus read 37 better / 23 worse (8 real hosts lost), then 22 / 10; the refuting text was another speaker's words bled into the voice |
+| Withhold the model's host name from a voice when another voice performs the host role | where another voice performs the role the model is right 12 / wrong 16; on single-host shows it fires 6 times, 2 of them correct hosts lost; two-host swaps 7 right / 8 wrong |
+| Loosen corroboration (title cues, coordinated lists, guest layouts) | dev 0 / 3: a newly corroborated guest feeds the forced placement onto the host's voice |
+| Which of two hosts by first-name address of the other | 6 right / 3 wrong on 33 seats; "addressed as" 55 right / 13 wrong corpus-wide: real signal, too noisy to force a name |
+| Filter the stored "Host" placeholder out of the people in the room | 4 of 7 corpus gains wrong: the seat goes to a second cluster of the other host |
+| Stated-guest binding with a narrowed third-person surname check (PARKED) | corpus read ~31 better / ~15 worse: junk stated-guest names ("China Belt", "AI White House") the broad match had refused by accident |
 
 ## Measurement caveats
 
