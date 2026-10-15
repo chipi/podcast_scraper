@@ -96,7 +96,6 @@ def compute_index_staleness(
     artifact_epoch = newest_index_source_mtime_epoch(corpus_root)
     artifact_iso = _epoch_to_utc_iso(artifact_epoch) if artifact_epoch is not None else None
 
-    has_metadata = bool(discover_metadata_files(corpus_root))
     recommend = False
 
     batch_ok = _read_multi_feed_overall_ok(corpus_root)
@@ -104,6 +103,10 @@ def compute_index_staleness(
         reasons.append(REASON_MULTI_FEED_BATCH_INCOMPLETE)
 
     if not index_available:
+        # Only this branch needs "is there any metadata?", and it is a full corpus walk (2.0 s on
+        # prod, 2026-10-15): computed for every /api/index/stats call, it was the second walk of
+        # an 8.5 s request that the post-deploy operator smoke timed out on.
+        has_metadata = bool(discover_metadata_files(corpus_root))
         if has_metadata and index_reason in ("no_index", "load_failed"):
             reasons.append(REASON_NO_INDEX_BUT_METADATA)
             recommend = True
