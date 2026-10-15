@@ -30,39 +30,47 @@ def apply_word_timestamps(
     """Return ``segments`` with ``start``/``end`` reset from ``words`` (word-accurate times).
 
     ``segments`` and ``words`` are both in transcription order and come from the same pass, so
-    each segment's text maps to a contiguous run of words. For each segment we consume words
-    until their combined (normalized) text covers the segment's text, then take the first
-    consumed word's ``start`` and the last's ``end``. Robust to punctuation/spacing differences
-    between the two granularities.
+    both spell the same text. Each is placed on that text by its CUMULATIVE (normalized)
+    character position, and a segment takes the words overlapping its own span: the first one's
+    ``start``, the last one's ``end``. Robust to punctuation/spacing differences between the two
+    granularities.
+
+    Positions are cumulative, not counted afresh per segment, because the server can cut one word
+    across two segments ("and" | "ocracy") while its word list holds it whole ("andocracy"). Per
+    segment, that word overshoots the first and every later segment takes its neighbour's word;
+    on short segments the error grows into minutes (#2370). Cumulatively, both halves overlap the
+    one word and nothing after it moves.
 
     No-op (returns the input segments unchanged, copied) when ``words`` is empty — so a provider
     that could not produce word timestamps degrades to the old segment-level behaviour.
     """
-    out: List[Dict[str, Any]] = []
     if not words:
         return [dict(s) for s in segments]
 
-    wkeys = [_key(w.get("word", "")) for w in words]
-    wi = 0
-    n = len(words)
+    wend: List[int] = []
+    pos = 0
+    for w in words:
+        pos += len(_key(w.get("word", "")))
+        wend.append(pos)
+    wstart = [e - len(_key(w.get("word", ""))) for e, w in zip(wend, words)]
+
+    out: List[Dict[str, Any]] = []
+    first, at = 0, 0
     for seg in segments:
-        target = _key(seg.get("text", ""))
-        if not target or wi >= n:
+        a = at
+        at += len(_key(seg.get("text", "")))
+        while first < len(words) and wend[first] <= a:
+            first += 1
+        last = first
+        while last < len(words) and wstart[last] < at:
+            last += 1
+        if last == first:
             out.append(dict(seg))
             continue
-        start_wi = wi
-        acc = ""
-        # Consume words until we've covered this segment's text (guard against runaway).
-        while wi < n and len(acc) < len(target):
-            acc += wkeys[wi]
-            wi += 1
-        if wi > start_wi:
-            new = dict(seg)
-            new["start"] = float(words[start_wi].get("start", seg.get("start", 0.0)))
-            new["end"] = float(words[wi - 1].get("end", seg.get("end", 0.0)))
-            out.append(new)
-        else:
-            out.append(dict(seg))
+        new = dict(seg)
+        new["start"] = float(words[first].get("start", seg.get("start", 0.0)))
+        new["end"] = float(words[last - 1].get("end", seg.get("end", 0.0)))
+        out.append(new)
     return out
 
 
