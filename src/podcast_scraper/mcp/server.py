@@ -823,7 +823,9 @@ def _instrument_asgi(app: Any) -> Any:
     try:
         from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 
-        return OpenTelemetryMiddleware(app)
+        # The Prometheus scrape is not a request worth a trace (it was most player-mcp spans).
+        # The middleware has no env default for this, so it is passed explicitly.
+        return OpenTelemetryMiddleware(app, excluded_urls="/metrics$")
     except Exception:  # noqa: BLE001 - no ASGI instrumentor → serve un-instrumented
         logger.debug("mcp ASGI instrumentation skipped", exc_info=True)
         return app

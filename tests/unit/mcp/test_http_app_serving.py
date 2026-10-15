@@ -158,8 +158,9 @@ def test_instrument_asgi_wraps_when_instrumentor_present(monkeypatch: pytest.Mon
     asgi = types.ModuleType("opentelemetry.instrumentation.asgi")
 
     class _FakeMW:
-        def __init__(self, app: object) -> None:
+        def __init__(self, app: object, excluded_urls: object = None) -> None:
             self.app = app
+            self.excluded_urls = excluded_urls
 
     asgi.OpenTelemetryMiddleware = _FakeMW  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "opentelemetry.instrumentation", pkg)
@@ -171,3 +172,6 @@ def test_instrument_asgi_wraps_when_instrumentor_present(monkeypatch: pytest.Mon
     wrapped = srv._instrument_asgi(_app)
     assert isinstance(wrapped, _FakeMW)
     assert wrapped.app is _app
+    # The scrape endpoint is not traced: 2026-10-15 prod, /metrics was ~1500 of 1000-capped
+    # player-mcp spans per 6h. The middleware reads no env default (asgi 0.66b1), so it is passed.
+    assert wrapped.excluded_urls == "/metrics$"
