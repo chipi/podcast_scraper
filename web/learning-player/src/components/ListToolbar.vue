@@ -44,6 +44,9 @@ const props = withDefaults(
     count?: string
     searchPlaceholder?: string
     searchTestid?: string
+    /** The 🔍 circle and the × that closes the search (phone). */
+    openTestid?: string
+    closeTestid?: string
     sortTestid?: string
     filterTestid?: string
     languageTestid?: string
@@ -51,6 +54,8 @@ const props = withDefaults(
   }>(),
   {
     searchTestid: "list-toolbar-search",
+    openTestid: "list-toolbar-search-open",
+    closeTestid: "list-toolbar-search-close",
     sortTestid: "list-toolbar-sort",
     filterTestid: "list-toolbar-filter",
     languageTestid: "list-toolbar-language",
@@ -88,7 +93,7 @@ const viewOptions = computed(() => [
       type="button"
       class="lp-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground lg:hidden"
       :aria-label="searchPlaceholder ?? t('list.search')"
-      :data-testid="`${searchTestid}-open`"
+      :data-testid="props.openTestid"
       @click="openSearch"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true">
@@ -114,7 +119,7 @@ const viewOptions = computed(() => [
         type="button"
         class="lp-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:text-canvas-foreground lg:hidden"
         :aria-label="t('list.searchClose')"
-        :data-testid="`${searchTestid}-close`"
+        :data-testid="props.closeTestid"
         @click="closeSearch"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true">

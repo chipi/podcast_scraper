@@ -242,6 +242,8 @@ onMounted(load)
         language-testid="show-browse-language"
         :search-placeholder="t('browse.filterShows')"
         search-testid="show-browse-search"
+        open-testid="show-browse-search-open"
+        close-testid="show-browse-search-close"
         sort-testid="show-browse-sort"
         filter-testid="show-browse-category"
         view-testid="show-view"
