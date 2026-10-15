@@ -186,18 +186,21 @@ title or transcript.
 ### K14. Open after the 2026-10-14/15 deploy (each has an issue)
 
 - **A person named in the middle of a title** (#2363): "Why Matthew Yglesias Is Skeptical ..." is
-  read by no title rule, so the heard "Matt Iglesias" was published. In progress: title people as
-  spelling references (ladder v23).
+  read by no title rule, so the heard "Matt Iglesias" was published. Fixed in ladder v23 (title
+  people as spelling references); the 2026-10-15 snapshot replay moves 27 heard spellings to the
+  title's spelling of the same person and loses none. Served records change on relabel.
 - **Patreon supporter shout-outs as guests** (#2364): fixed in ladder v24. The cause was not the
   descriptions (the supporters are not stated): the clips say the host's name, which exempted
   them, and one cue split across two segments was never read.
-- **A promo without a self-introduction + promo-cue pair** (#2365): Kara Swisher's Gray Area promo.
+- **Kara Swisher's Pivot tour promo named as a guest** (#2365): does not reproduce. Replayed on the
+  2026-10-15 snapshot, the current roster types all 5 voices carrying the promo as ads (4 on The
+  Gray Area, 1 elsewhere); 4 served records still carry the old name until a relabel.
 - **A host who never self-introduces or names anyone** (#2366): Phantom Pain, Welcoming Misha
   Glenny (merged BBC ad tag), Dr. Sharon Blackie (`empty_host_anchor`, 29% unattributed).
 - **Rosters wrong beyond a missing name** (#2367): a16z Machine Age (the interviewer named after
   the person it addresses), Capitalisn't Japan (a host name on a cold-open quote).
-- **Commercial typing of a host seat** (#2362): guarded since `c2ac9fcfa`; the served-corpus replay
-  and gold gates are still owed.
+- **Commercial typing of a host seat** (#2362): guarded since `c2ac9fcfa`. The 2026-10-15 snapshot
+  replay changes no voice and the three gold gates are 0 better / 0 worse.
 
 ## Problems an LLM would solve better than a rule
 
@@ -208,7 +211,6 @@ step; nothing here is built.
 | --- | --- | --- |
 | Who is the interviewer vs the interviewee (K1 swaps, #2367) | a swap-by-address rule breaks more correct pairs than it fixes at every threshold (K1); question-asking is not measured | co-host and two-guest panels; a16z Machine Age |
 | A host who never names anyone (#2366) | no name, no formula; only the conversation's shape says who leads | Phantom Pain, Misha Glenny, Sharon Blackie |
-| A promo read without a fixed cue (#2365) | a cue list only catches wordings already seen (expected, not yet measured on the corpus) | Kara Swisher on The Gray Area |
 | A credited host who does not speak this episode (D29, #2352) | the name is uttered (credits), so "never uttered" cannot refuse it | El Hilo 2026-10-02 |
 | A cold-open quote merged into a host cluster (#2367) | the quote's words are the guest's, the cluster's voice is the host's | Capitalisn't Japan |
 
