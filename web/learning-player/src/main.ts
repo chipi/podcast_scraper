@@ -98,7 +98,9 @@ if (SENTRY_DSN_PLAYER) {
     {
       dsn: SENTRY_DSN_PLAYER,
       environment: nativeDevTier ? 'dev' : import.meta.env.PROD ? 'prod' : 'dev',
-      release: __BUILD_SHA__ || undefined,
+      // `sha-<7>`, the same release string the api reports (PODCAST_RELEASE), so web and api
+      // errors from one deploy share a release in GlitchTip.
+      release: __BUILD_SHA__ ? `sha-${__BUILD_SHA__.slice(0, 7)}` : undefined,
       // Keep PII off by default.
       sendDefaultPii: false,
       // THE SEARCH TERM REACHES GLITCHTIP THROUGH NAVIGATION BREADCRUMBS (#2264). Umami's

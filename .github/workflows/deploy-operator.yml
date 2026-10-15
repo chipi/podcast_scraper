@@ -247,6 +247,9 @@ jobs:
             # Tags backend Sentry events (+ any env-gated behaviour) as prod — matches the
             # operator api. Without it the backend defaults to environment=dev (sentry_init).
             echo "PODCAST_ENV=prod"
+            # GlitchTip release = the deployed image (sha-<short>), as the control-plane api reports it;
+            # without it init_sentry falls back to the package version (podcast-scraper@2.7.0.dev0).
+            echo "PODCAST_RELEASE=${PODCAST_IMAGE_TAG}"
             # THE operator differentiator: admin emails granting creator access.
             echo "APP_ADMIN_EMAILS=${APP_ADMIN_EMAILS}"
             # Backend sign-in access policy. Default (unset) is allowlist; with an empty
@@ -419,9 +422,14 @@ jobs:
           SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
         run: |
           if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
+          # environment/release as the apps report them (ADR-0010); a fixed fingerprint so every
+          # failure of this smoke is an event in ONE issue, not a new issue per run URL.
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           npx --yes @sentry/cli@2 send-event \
             --level error \
+            --env prod \
+            --release "sha-${GITHUB_SHA::7}" \
+            --fingerprint smoke-failed --fingerprint operator --fingerprint post-deploy-smoke \
             --message "Post-deploy live smoke FAILED — operator prod (sha ${GITHUB_SHA::7}) — ${RUN_URL}" \
             --tag surface:operator \
             --tag stage:post-deploy-smoke || echo "GlitchTip alert failed (non-fatal)"

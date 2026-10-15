@@ -48,6 +48,7 @@ services:
       APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
       # Expose /metrics so the node Alloy can scrape this surface (prometheus_fastapi_
       # instrumentator is already in the image — only this flag was missing, which is why
       # /metrics returned 404 here while the control-plane api returned 200).

@@ -66,12 +66,17 @@ jobs:
           SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
         run: |
           if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
+          # environment/release as the apps report them (ADR-0010); a fixed fingerprint so every
+          # failure of this smoke is an event in ONE issue, not a new issue per run URL.
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           SIM="${{ inputs.simulate_failure }}"
           MSG="Live smoke FAILED — player prod (sha ${GITHUB_SHA::7}) — ${RUN_URL}"
           [ "$SIM" = "true" ] && MSG="[ALERT-PATH TEST] ${MSG}"
           npx --yes @sentry/cli@2 send-event \
             --level error \
+            --env prod \
+            --release "sha-${GITHUB_SHA::7}" \
+            --fingerprint smoke-failed --fingerprint player --fingerprint standalone-smoke --fingerprint "alert_test:$SIM" \
             --message "$MSG" \
             --tag surface:player \
             --tag stage:standalone-smoke \

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Literal, Optional
 
 _LOGGER = logging.getLogger(__name__)
@@ -85,6 +86,49 @@ def _redact_mapping(data: object) -> None:
             data[key] = "[redacted]"
 
 
+# Variable parts of an error message, most specific first. Each becomes a placeholder so the
+# same error groups into ONE GlitchTip issue whatever ids, sizes or amounts it carries.
+_VARIABLE_PARTS = (
+    (re.compile(r"https?://\S+"), "<url>"),
+    (re.compile(r"\brun-\d{8}T\d{6}(?:\.\d+)?Z\b"), "<run>"),
+    (
+        re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I),
+        "<uuid>",
+    ),
+    (re.compile(r"\b(?:0x)?[0-9a-f]{8,}\b", re.I), "<hex>"),
+    (re.compile(r"'[^']*'|\"[^\"]*\""), "<str>"),
+    (re.compile(r"\$?-?\d+(?:[.,]\d+)*%?"), "<n>"),
+)
+
+
+def _normalize_message(message: str) -> str:
+    """The message with its variable parts replaced, so repeats of one error compare equal."""
+    out = message
+    for pattern, placeholder in _VARIABLE_PARTS:
+        out = pattern.sub(placeholder, out)
+    return " ".join(out.split())[:200]
+
+
+def _fingerprint(event: dict) -> Optional[list]:
+    """A grouping key from the logger and the normalized message, or None (default grouping).
+
+    Log-message events otherwise group by their final text, so an error that names a token
+    count, an amount or an episode became a new issue every time (2026-10-15: 424 issues in
+    podcast-pipeline for 72 errors; one of them 194 times). Prefers the logging template
+    (``logentry.message`` when the call used ``%s`` args) over the formatted text.
+    """
+    logentry = event.get("logentry") or {}
+    template = logentry.get("message") if logentry.get("params") else None
+    text = template or logentry.get("formatted") or logentry.get("message")
+    if text:
+        return [str(event.get("logger") or ""), template or _normalize_message(str(text))]
+    values = (event.get("exception") or {}).get("values") or []
+    if values:
+        last = values[-1]
+        return [str(last.get("type") or ""), _normalize_message(str(last.get("value") or ""))]
+    return None
+
+
 def _before_send(event: dict, hint: object) -> dict:
     """Scrub obviously-sensitive keys before an event leaves the app.
 
@@ -103,6 +147,13 @@ def _before_send(event: dict, hint: object) -> dict:
                 _redact_mapping(frame.get("vars"))
     except Exception:  # noqa: BLE001 — a scrub failure must not drop the event
         _LOGGER.debug("sentry before_send scrub skipped", exc_info=True)
+    try:
+        if not event.get("fingerprint"):
+            fingerprint = _fingerprint(event)
+            if fingerprint:
+                event["fingerprint"] = fingerprint
+    except Exception:  # noqa: BLE001 — grouping is a nicety; never drop the event over it
+        _LOGGER.debug("sentry before_send fingerprint skipped", exc_info=True)
     # Tag with the active OTEL trace so an error jumps to its trace in VictoriaTraces
     # (correlation, ADR-119). Guarded — no [otel] / no span → no tag.
     try:

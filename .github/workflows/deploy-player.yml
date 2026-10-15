@@ -348,6 +348,9 @@ jobs:
             # Tags backend Sentry events (+ any env-gated behaviour) as prod — matches the
             # operator api. Without it the backend defaults to environment=dev (sentry_init).
             echo "PODCAST_ENV=prod"
+            # GlitchTip release = the deployed image (sha-<short>), as the control-plane api reports it;
+            # without it init_sentry falls back to the package version (podcast-scraper@2.7.0.dev0).
+            echo "PODCAST_RELEASE=${PODCAST_IMAGE_TAG}"
             # Backend sign-in access policy. Default (unset) is allowlist; with an empty
             # email/domain list that denies EVERYONE ("This account is not allowed to sign
             # in"). Set PLAYER_ALLOWED_EMAILS (or _DOMAINS, or PLAYER_SIGNUP_MODE=open).
@@ -653,9 +656,14 @@ jobs:
           SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
         run: |
           if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
+          # environment/release as the apps report them (ADR-0010); a fixed fingerprint so every
+          # failure of this smoke is an event in ONE issue, not a new issue per run URL.
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           npx --yes @sentry/cli@2 send-event \
             --level error \
+            --env prod \
+            --release "sha-${GITHUB_SHA::7}" \
+            --fingerprint smoke-failed --fingerprint player --fingerprint post-deploy-smoke \
             --message "Post-deploy live smoke FAILED — player prod (sha ${GITHUB_SHA::7}) — ${RUN_URL}" \
             --tag surface:player \
             --tag stage:post-deploy-smoke || echo "GlitchTip alert failed (non-fatal)"
