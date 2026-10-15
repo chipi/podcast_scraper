@@ -90,6 +90,7 @@ No vhost or Alloy file changed, so no `deploy-config` this time.
 **Deploy:** `deploy-all-prod.yml` with `image_sha`.
 
 **After, checks in order:**
+
 1. **Containers and smokes.**
    - All containers healthy; player and operator smokes green.
    - **First deploy that RELOADS Caddy:** `deploy-player.sh` and `deploy-operator.sh` must log the reload, not a restart. The smokes running right after are the test: no 521.
@@ -110,6 +111,7 @@ No vhost or Alloy file changed, so no `deploy-config` this time.
    - 8.5, recomputed after 8.4.
 
 **Separately: `deploy-litellm`, any time the gateway is idle, on the operator's go.**
+
 - What it changes: `LITELLM_SENTRY_DSN` now points at GlitchTip project litellm-prod (27) over the tailnet HTTPS node (the old one was a deleted project at an address the VPS can't reach, so gateway errors went nowhere), and `SENTRY_ENVIRONMENT=prod`.
 - The image stays pinned at v1.95.0 (`e20cd3e59`).
 - Check after:
