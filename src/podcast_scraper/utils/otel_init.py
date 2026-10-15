@@ -113,19 +113,25 @@ def init_otel(default_service_name: str = "podcast-pipeline") -> bool:
         return False
     try:
         from opentelemetry import trace
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError:
         _LOGGER.debug("otel tracing requested but the [otel] extra is not installed")
         return False
 
     if isinstance(trace.get_tracer_provider(), TracerProvider):
         # Already set up by the ``opentelemetry-instrument`` launcher (the api image): a second
-        # provider is refused and a second HTTP instrumentation only logs warnings.
+        # provider is refused and a second HTTP instrumentation only logs warnings. Checked before
+        # the exporter import: knowing a provider is in place needs only the SDK.
         _initialized = True
         return True
+
+    try:
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    except ImportError:
+        _LOGGER.debug("otel tracing requested but the OTLP exporter is not installed")
+        return False
 
     try:
         provider = TracerProvider(resource=Resource.create())
