@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# deploy_config_caddy.sh — install staged Caddy vhosts + validate + restart-if-valid.
+# deploy_config_caddy.sh — install staged Caddy vhosts + validate + reload-if-valid.
 #
-# Runs ON THE BOX as deploy@ (config.d/sites are deploy-writable; `systemctl restart caddy`
-# is the narrow allowlisted grant). Invoked by .github/workflows/deploy-config.yml, which
-# scp's this script + the templated vhosts into /tmp/deploy-config-staging/ first.
+# Runs ON THE BOX as deploy@ (config.d/sites are deploy-writable; `systemctl reload|restart
+# caddy` is the narrow allowlisted grant). Invoked by .github/workflows/deploy-config.yml,
+# which scp's this script + the templated vhosts into /tmp/deploy-config-staging/ first.
 #
 # Contract:
 #   $1..     = vhost basenames to install (e.g. "player player-telemetry")
-#   env DRY_RUN=true  → stage + `caddy validate` only; roll the files back, no restart.
+#   env DRY_RUN=true  → stage + `caddy adapt` only; roll the files back, no reload.
 #   Staged files:   /tmp/deploy-config-staging/<name>.caddy
 #   Installed to:   /etc/caddy/sites/<name>.caddy
 #
-# Safety: Caddy only picks up changes on RESTART (admin off / T-02 → restart, not reload).
-# So an invalid new vhost on disk never affects the running engine — we `caddy validate`
-# first and roll the files back before it could. Rollback restores the prior vhosts.
+# Safety: Caddy picks up vhost files only when it loads its config (reload or restart), so an
+# invalid new vhost on disk never affects the running engine — we `caddy adapt` first and roll
+# the files back before it could. A refused reload also leaves the running config in place.
+# Rollback restores the prior vhosts.
 set -euo pipefail
 
 VHOSTS=("$@")
@@ -88,14 +89,19 @@ if [ "${DRY_RUN:-false}" = "true" ]; then
 fi
 
 if [ "$changed" = 0 ]; then
-  echo "  no vhost changed — caddy not restarted"
+  echo "  no vhost changed — caddy not reloaded"
   exit 0
 fi
 
-if sudo -n /usr/bin/systemctl restart caddy && systemctl is-active --quiet caddy; then
-  echo "  caddy restarted"
+# RELOAD, graceful (admin = 0600 unix socket, T-02); RESTART only when the reload is refused
+# (a box whose base Caddyfile still says `admin off`). A restart drops every tenant's traffic
+# for seconds — on 2026-10-15 it failed the player smoke with a 521.
+if sudo -n /usr/bin/systemctl reload caddy && systemctl is-active --quiet caddy; then
+  echo "  caddy reloaded"
+elif sudo -n /usr/bin/systemctl restart caddy && systemctl is-active --quiet caddy; then
+  echo "  caddy restarted (reload refused — is the base Caddyfile's admin socket live? apply-edge)"
 else
-  echo "::error::caddy failed to restart — rolling back + restarting to last-good"
+  echo "::error::caddy failed to load the vhosts — rolling back + restarting to last-good"
   _restore
   sudo -n /usr/bin/systemctl restart caddy || true
   exit 1

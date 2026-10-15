@@ -122,8 +122,20 @@ def test_player_nginx_rate_limits_api() -> None:
     assert "zone=lp_auth" in conf, "auth endpoints need a tighter rate zone"
 
 
-def test_caddy_admin_api_disabled() -> None:
-    assert "admin off" in CADDYFILE.read_text(), "Caddy admin API must be off (T-02)"
+def test_caddy_admin_api_is_never_on_the_network() -> None:
+    """T-02: the admin API is off or a 0600 unix socket — never TCP (Caddy's default is
+    localhost:2019, and a non-loopback bind is full config control). The socket exists so
+    `systemctl reload caddy` can swap the config without dropping traffic."""
+    directives = [
+        line.split(None, 1)[1].strip() if len(line.split(None, 1)) > 1 else ""
+        for line in (raw.strip() for raw in CADDYFILE.read_text().splitlines())
+        if line.split(None, 1)[:1] == ["admin"]
+    ]
+    assert directives, "the base Caddyfile must set `admin` explicitly (the default is TCP)"
+    for value in directives:
+        assert value == "off" or (
+            value.startswith("unix//") and value.endswith("|0600")
+        ), f"Caddy admin must be off or a 0600 unix socket (T-02), got {value!r}"
 
 
 def test_caddy_hardened_security_headers() -> None:

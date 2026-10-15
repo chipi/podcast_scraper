@@ -6,8 +6,8 @@ jails, SSH hardening, and the metadata-egress SSRF guard.
 
 > **The key fact:** app **deploys do NOT push the base Caddyfile.** `deploy-player` /
 > `deploy-operator` only drop their **per-vhost** `.caddy` file into `/etc/caddy/sites/` and
-> restart Caddy. Anything in the base `infra/cloud-init/Caddyfile` — the `(hardened)` snippet
-> (headers/HSTS), CF `trusted_proxies` ranges, `admin off`, log format — reaches the box
+> reload Caddy. Anything in the base `infra/cloud-init/Caddyfile` — the `(hardened)` snippet
+> (headers/HSTS), CF `trusted_proxies` ranges, the `admin` socket, log format — reaches the box
 > **only** via `apply-edge.sh` (imperative) or a full VPS rebuild (cloud-init). If you edit
 > the base Caddyfile and only deploy, **your change never goes live.**
 
@@ -70,13 +70,23 @@ sudo only** for the exact allowlisted paths `/usr/local/sbin/apply-edge.sh` +
    curl -sI https://operator.closelistening.app/ | grep -iE 'x-frame-options|strict-transport|x-content-type'
    ```
 
-## The one trap (bit us 2026-07-28)
+## Reload, not restart (2026-10-15)
 
-`apply-edge` used `systemctl reload caddy`, but the base Caddyfile sets **`admin off`** (T-02),
-so admin-API-based **reload fails** — a config change needs **`restart`**. If reload fails, Caddy
-keeps running the **old** config (no outage, but your change isn't live). Fixed in the script
-(reload→restart), but if you hit a Caddy that didn't pick up the new config, restart it via the
-allowlisted grant: `ssh deploy@prod-podcast 'sudo -n /usr/bin/systemctl restart caddy'`.
+Until 2026-10-15 the base Caddyfile set **`admin off`** (T-02), so `caddy reload` had no endpoint
+(bit us 2026-07-28) and every config or vhost change **restarted** Caddy, dropping all tenants'
+traffic for seconds (a 521 on the player smoke on 2026-10-15). The admin endpoint is now a
+**0600 unix socket** in caddy's home (`admin unix//var/lib/caddy/admin.sock|0600`): never on the
+network, and `systemctl reload caddy` swaps the config with no dropped request (400/400 across a
+reload, caddy v2.11.4). Deploys reload and restart only if the reload is refused.
+
+- **First apply on a box still running `admin off`:** the reload is refused (no endpoint), so
+  `apply-edge` falls back to one restart, which brings the socket up. Every later change
+  reloads. Do the first apply at a quiet moment, never during a smoke or deploy.
+- **A failed reload keeps the old config running** (no outage, but the change isn't live). Check
+  `journalctl -u caddy` for the reason; the allowlisted fallback is still
+  `ssh deploy@prod-podcast 'sudo -n /usr/bin/systemctl restart caddy'`.
+- **A service-env change** (`CADDY_BIND_ADDRS`, `GLITCHTIP_UPSTREAM`) still needs a restart:
+  systemd reads `Environment` at start.
 
 ## What `apply-edge` does NOT manage
 

@@ -112,6 +112,16 @@ Validate-before-reload turns that silent no-op into a caught deploy failure. A s
 sudoers line (`deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy`, file
 `/etc/sudoers.d/99-caddy-reload`) covers every tenant that deploys as the `deploy@` user.
 
+> **Amended 2026-10-15.** With `admin off` (T-02) there was no endpoint for `caddy reload`,
+> so every tenant deploy RESTARTED Caddy instead, which dropped all tenants' traffic for
+> seconds (a 521 on the player smoke on 2026-10-15). The admin endpoint is now a 0600 unix
+> socket in the caddy user's home (`admin unix//var/lib/caddy/admin.sock|0600`): never on the
+> network, reachable only by caddy and root, and `systemctl reload caddy` (ExecReload runs
+> `caddy reload` as caddy) swaps the config gracefully, as this contract always intended.
+> Measured on caddy v2.11.4: 400/400 requests answered across a reload. Deploys reload and
+> fall back to restart only when the reload is refused (a box whose running config still has
+> `admin off`).
+
 ### 6. Terraform apply semantics — two very different changes
 
 - **(A) Firewall (`hcloud_firewall.main`)** — a real TF resource. Adding inbound 80 + 443

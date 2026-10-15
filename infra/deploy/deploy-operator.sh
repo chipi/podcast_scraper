@@ -163,13 +163,16 @@ if ! caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>
   _rollback_operator_vhost
   exit 2
 fi
-# RESTART, not reload: the base Caddyfile sets `admin off` (T-02), so admin-API-based
-# `caddy reload` fails — a vhost change needs a restart (task #27). If caddy doesn't
+# RELOAD, graceful: the base Caddyfile's admin endpoint is a 0600 unix socket (T-02), so
+# `systemctl reload caddy` swaps the config without dropping any tenant's traffic. A restart
+# did, for seconds, on every deploy. RESTART only when the reload is refused: a box whose
+# base Caddyfile still says `admin off` has no endpoint to reload through. If caddy doesn't
 # come back active, roll back the vhost + restart to the last-good config. (A missing LE
 # cert for a not-yet-DNS'd domain is NON-fatal — caddy still starts and retries issuance
 # in the background.)
-if ! sudo -n /usr/bin/systemctl restart caddy || ! systemctl is-active --quiet caddy; then
-  echo "ERROR: caddy failed to restart with operator vhost; rolling back" >&2
+if ! { sudo -n /usr/bin/systemctl reload caddy || sudo -n /usr/bin/systemctl restart caddy; } \
+  || ! systemctl is-active --quiet caddy; then
+  echo "ERROR: caddy failed to load the operator vhost; rolling back" >&2
   _rollback_operator_vhost
   sudo -n /usr/bin/systemctl restart caddy || true
   exit 2

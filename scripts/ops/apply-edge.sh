@@ -316,11 +316,12 @@ elif [ -e /var/log/caddy/access.log ]; then
   run chmod 0640 /var/log/caddy/access.log
 fi
 
-# Shared reload + restart grants. Reload is used for a plain config/vhost change,
-# but the base Caddyfile sets `admin off` (T-02) so `caddy reload` (admin-API based)
-# fails — a config change therefore needs a RESTART (task #27, resolved by keeping
-# admin off + granting restart rather than reopening the admin surface). Both grants
-# are narrow + engine-level (one line covers all tenants; ADR-114 §5).
+# Shared reload + restart grants. Reload is used for a plain config/vhost change: the
+# base Caddyfile's admin endpoint is a 0600 unix socket in caddy's home (T-02: never on
+# the network), so `caddy reload` swaps the config without dropping traffic. Restart is
+# for an env change (systemd reads Environment at start) and for a box whose running
+# config still has `admin off` (2026-10-15 and before). Both grants are narrow +
+# engine-level (one line covers all tenants; ADR-114 §5).
 write_file /etc/sudoers.d/99-caddy-reload 0440 root:root <<'EOF' || true
 deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy, /usr/bin/systemctl restart caddy
 EOF
@@ -345,13 +346,16 @@ elif CADDY_BIND_ADDRS="$BIND_ADDRS" GLITCHTIP_UPSTREAM="$GT_UPSTREAM" caddy vali
   ok "  Caddyfile valid"
   if ! systemctl is-active --quiet caddy; then
     enable_now caddy
-  elif [ "$bind_changed" = 1 ] || [ "$glitchtip_changed" = 1 ] || [ "$caddy_changed" = 1 ]; then
-    # RESTART, not reload: the base Caddyfile sets ``admin off`` (T-02), so the admin-API
-    # based ``caddy reload`` fails ("admin endpoint disabled"). Any config/env change needs
-    # a restart (mirrors deploy-operator.sh / deploy-player.sh). A bind/glitchtip env change
-    # needs it anyway (systemd reads Environment at start, not reload).
-    change "  restart caddy (config/env changed; reload needs admin API which is off)"
+  elif [ "$bind_changed" = 1 ] || [ "$glitchtip_changed" = 1 ]; then
+    # An env change needs a RESTART: systemd reads Environment at start, not on reload.
+    change "  restart caddy (service env changed)"
     run systemctl restart caddy
+  elif [ "$caddy_changed" = 1 ]; then
+    # Config only: RELOAD through the admin socket (graceful). The running config may still
+    # have ``admin off`` (no endpoint yet) — then the reload is refused and a restart loads
+    # the new base Caddyfile, socket included, once.
+    change "  reload caddy (config changed; restart if the running config has no admin socket)"
+    run systemctl reload caddy || run systemctl restart caddy
   else
     skip "  caddy running"
   fi

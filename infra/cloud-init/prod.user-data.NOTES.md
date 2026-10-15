@@ -122,10 +122,11 @@ Anchors read `[note N — see prod.user-data.NOTES.md]`.
  Shared reload grant — any tenant's deploy (running as ``deploy``) reloads the
  engine after dropping its /etc/caddy/sites/<app>.caddy vhost. Engine-level, so
  one line covers all tenants (mirrors the caddy-reload grant in ADR-114 §5).
- reload for plain config changes; restart because the base Caddyfile sets
- `admin off` (T-02) so admin-API-based `caddy reload` fails — a config/vhost
- change then needs a restart (task #27: keep admin off + grant restart rather
- than reopen the admin surface). Both narrow + engine-level (ADR-114 §5).
+ reload for plain config changes, through the base Caddyfile's admin endpoint:
+ a 0600 unix socket in caddy's home, never on the network (T-02; was `admin off`
+ until 2026-10-15, when every vhost deploy had to restart and dropped traffic);
+ restart for a service-env change and as the fallback when a reload is refused.
+ Both narrow + engine-level (ADR-114 §5).
 ```
 
 ## Note 13 — Edge convergence (ADR-114 Phase 1). Let `deploy` (the agent, via its CI key)

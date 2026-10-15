@@ -5,8 +5,13 @@
 {
 	# ACME account contact for expiry notices (not public-facing, not in certs).
 	email info@orrerylearn.com
-	# T-02: disable the admin API (default localhost:2019) — no live-config surface.
-	admin off
+	# T-02: no NETWORK admin API (the default is TCP localhost:2019). The admin endpoint is a
+	# unix socket, mode 0600, in the caddy user's home (/var/lib/caddy is caddy:caddy 0750), so
+	# only the caddy user and root reach it. It exists for one reason: `systemctl reload caddy`
+	# (ExecReload = `caddy reload`, run as caddy) swaps the config gracefully, where a restart
+	# dropped every tenant's traffic for seconds on each vhost deploy (2026-10-15: a 521 on the
+	# player smoke). Measured on caddy v2.11.4: 400/400 requests answered across a reload.
+	admin unix//var/lib/caddy/admin.sock|0600
 	# ADR-114: bind ONLY the box's public interface(s). Tailscale serve owns :443
 	# on the tailnet IP (ADR-083 admin/deploy plane, unchanged) — an all-interfaces
 	# (:443) bind collides with it ("address already in use"). CADDY_BIND_ADDRS is
