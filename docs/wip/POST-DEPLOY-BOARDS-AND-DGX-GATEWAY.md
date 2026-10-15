@@ -72,6 +72,7 @@ steps below:
 ## Next deploy (candidate `0bc13f92c`, 2026-10-15) — steps, each on the operator's go
 
 **What it carries since `aaadbb2`:**
+
 - the search fix `5426067f8` (a storyline's exact or old name leads its category);
 - the work-list "declined" report `d0f4951ce`;
 - Langfuse trace = OTel trace, with stage-named generations (`4ae796413`);
@@ -84,6 +85,7 @@ steps below:
 No vhost or Alloy file changed, so no `deploy-config` this time.
 
 **Before:**
+
 - No reprocess runs and no smoke during the deploy (a deploy during a reprocess is untested).
 - Main's CI green on the candidate (Python, Docker, Snyk, CodeQL).
 
