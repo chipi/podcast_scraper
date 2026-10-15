@@ -15,7 +15,7 @@ from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_arti
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
 from podcast_scraper.utils.corpus_episode_paths import corpus_search_parent_hint
-from podcast_scraper.utils.corpus_walk import corpus_rglob
+from podcast_scraper.utils.corpus_walk import corpus_files_with_suffixes
 
 router = APIRouter(tags=["artifacts"])
 
@@ -66,39 +66,38 @@ def list_artifacts(
     """List ``*.gi.json``, ``*.kg.json``, and ``*.bridge.json`` under the directory (recursive)."""
     anchor = getattr(request.app.state, "output_dir", None)
     base = resolve_corpus_path_param(path, anchor)
+    # One walk for all three kinds, then the latest-run filter BEFORE any per-file work: on prod
+    # (2026-10-15) three walks plus a publish date for every one of 9,531 files took 8.5 s, while
+    # only the latest run of each feed (1,191 files) is listed. The 10 s post-deploy smoke timed
+    # out under start-up load and its retries piled up to ~600 s per call.
+    found: dict[str, Path] = {}
+    for p in corpus_files_with_suffixes(base, (".gi.json", ".kg.json", ".bridge.json")):
+        try:
+            found.setdefault(p.relative_to(base).as_posix(), p)
+        except ValueError:
+            continue
+    allowed = latest_feed_run_allowed_relpaths(found)
     items: list[ArtifactItem] = []
-    seen: set[Path] = set()
-    for pattern in ("*.gi.json", "*.kg.json", "*.bridge.json"):
-        for p in sorted(corpus_rglob(base, pattern)):
-            if not p.is_file() or p in seen:
-                continue
-            seen.add(p)
-            kind = _kind_for_suffix(p.name)
-            if kind is None:
-                continue
-            try:
-                rel = p.relative_to(base)
-            except ValueError:
-                continue
-            try:
-                st = p.stat()
-            except OSError:
-                continue
-            pub_day = publish_calendar_date_for_artifact_listing(
-                base, rel.as_posix(), float(st.st_mtime)
+    for rel, p in found.items():
+        kind = _kind_for_suffix(p.name)
+        if rel not in allowed or kind is None or not p.is_file():
+            continue
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        items.append(
+            ArtifactItem(
+                name=p.name,
+                relative_path=rel,
+                kind=kind,
+                size_bytes=int(st.st_size),
+                mtime_utc=_mtime_utc_iso(st.st_mtime),
+                publish_date=publish_calendar_date_for_artifact_listing(
+                    base, rel, float(st.st_mtime)
+                ),
             )
-            items.append(
-                ArtifactItem(
-                    name=p.name,
-                    relative_path=rel.as_posix(),
-                    kind=kind,
-                    size_bytes=int(st.st_size),
-                    mtime_utc=_mtime_utc_iso(st.st_mtime),
-                    publish_date=pub_day,
-                )
-            )
-    allowed = latest_feed_run_allowed_relpaths(a.relative_path for a in items)
-    items = [a for a in items if a.relative_path in allowed]
+        )
     items.sort(key=lambda x: (x.relative_path, x.kind))
     hints = corpus_search_parent_hint(base)
     return ArtifactListResponse(path=str(base), artifacts=items, hints=hints)

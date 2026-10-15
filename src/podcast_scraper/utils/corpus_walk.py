@@ -13,8 +13,9 @@ was fixed alone; every corpus scanner now goes through here instead.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import Iterator, List
+from typing import Iterator, List, Sequence
 
 
 def corpus_relpath_is_excluded(rel_posix: str) -> bool:
@@ -61,4 +62,27 @@ def prune_excluded_dirs(dirnames: List[str]) -> None:
     dirnames[:] = [d for d in dirnames if not corpus_relpath_is_excluded(d)]
 
 
-__all__ = ["corpus_relpath_is_excluded", "corpus_rglob", "prune_excluded_dirs"]
+def corpus_files_with_suffixes(root: Path, suffixes: Sequence[str]) -> Iterator[Path]:
+    """Every corpus file whose name ends with one of *suffixes*, in ONE walk that never enters a
+    dot-directory -- the same set as ``corpus_rglob(root, "*<suffix>")`` per suffix, for one pass.
+
+    ``corpus_rglob`` walks INTO ``.podcast_scraper`` / ``.trash`` / ``.viewer`` and filters their
+    files out afterwards, and three suffixes meant three walks: ``/api/artifacts`` spent 5.3 s of
+    its 8.5 s there on prod (9,531 files, 2026-10-15), past the post-deploy smoke's 10 s limit
+    under start-up load. Order is the filesystem's -- sort where order matters.
+    """
+    root = Path(root)
+    ends = tuple(suffixes)
+    for dirpath, dirnames, filenames in os.walk(root):
+        prune_excluded_dirs(dirnames)
+        for name in filenames:
+            if name.endswith(ends) and not name.startswith("."):
+                yield Path(dirpath) / name
+
+
+__all__ = [
+    "corpus_files_with_suffixes",
+    "corpus_relpath_is_excluded",
+    "corpus_rglob",
+    "prune_excluded_dirs",
+]

@@ -16,7 +16,11 @@ import pytest
 
 from podcast_scraper.gi.explore import scan_artifact_paths
 from podcast_scraper.kg.corpus import scan_kg_artifact_paths
-from podcast_scraper.utils.corpus_walk import corpus_rglob, prune_excluded_dirs
+from podcast_scraper.utils.corpus_walk import (
+    corpus_files_with_suffixes,
+    corpus_rglob,
+    prune_excluded_dirs,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -47,6 +51,36 @@ def test_corpus_rglob_skips_every_dot_directory(tmp_path: Path) -> None:
     assert _rels(tmp_path, corpus_rglob(tmp_path, "metadata/*.metadata.json")) == {
         f"{LIVE}.metadata.json"
     }
+
+
+def test_one_walk_finds_what_one_rglob_per_suffix_found(tmp_path: Path) -> None:
+    """The single pruned walk is the same set as ``corpus_rglob`` per suffix -- no backup, trash
+    or dot-file, nothing that only ends like a suffix (2026-10-15, /api/artifacts)."""
+    _corpus(tmp_path)
+    (tmp_path / f"{LIVE}.gi.json.bak").write_text("{}", encoding="utf-8")
+    (tmp_path / "feeds/f/run_1/metadata/.hidden.gi.json").write_text("{}", encoding="utf-8")
+    suffixes = (".gi.json", ".kg.json")
+    one_walk = _rels(tmp_path, corpus_files_with_suffixes(tmp_path, suffixes))
+    per_suffix = set().union(*(_rels(tmp_path, corpus_rglob(tmp_path, f"*{s}")) for s in suffixes))
+    assert one_walk == per_suffix == {f"{LIVE}.gi.json", f"{LIVE}.kg.json"}
+
+
+def test_the_one_walk_never_enters_a_dot_directory(tmp_path: Path, monkeypatch) -> None:
+    import os
+
+    _corpus(tmp_path)
+    entered: List[str] = []
+    real_walk = os.walk
+
+    def spy(top, *args, **kwargs):
+        for dirpath, dirnames, filenames in real_walk(top, *args, **kwargs):
+            entered.append(Path(dirpath).relative_to(tmp_path).as_posix())
+            yield dirpath, dirnames, filenames
+
+    monkeypatch.setattr("podcast_scraper.utils.corpus_walk.os.walk", spy)
+    list(corpus_files_with_suffixes(tmp_path, (".gi.json",)))
+    inside = [d for d in entered if d != "."]
+    assert inside and not [d for d in inside if any(s.startswith(".") for s in d.split("/"))]
 
 
 def test_a_root_that_itself_sits_under_a_dot_directory_is_walked(tmp_path: Path) -> None:
