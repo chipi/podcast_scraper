@@ -258,6 +258,13 @@ final class AppJourneyTests: UITestCase {
     Journey.shot(self, "05-collections-before")
 
     for name in ["Test Board A", "Test Board B"] {
+      // The name field folds in on "+ New board" and folds away after each Create (2026-10-15).
+      guard Journey.tap(app, labels: ["New board"], contains: true, timeout: 12) else {
+        Journey.inventory(app, "collections-no-new-board")
+        XCTFail("no \"+ New board\" button")
+        break
+      }
+      sleep(1)
       guard let field = Journey.find(app, labels: ["Board name"], contains: true, timeout: 12)
         ?? app.textFields.firstMatch as XCUIElement?
       else { XCTFail("no collection-name field"); break }

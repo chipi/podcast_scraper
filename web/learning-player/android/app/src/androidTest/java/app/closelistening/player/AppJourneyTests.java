@@ -340,6 +340,13 @@ public class AppJourneyTests extends UITestCase {
         Journey.sleep(3_000);
 
         for (String name : Arrays.asList("Test Board A", "Test Board B")) {
+            // The name field folds in on "+ New board" and folds away after each Create
+            // (2026-10-15).
+            if (!Journey.tap("New board", true, 12_000)) {
+                fail("no \"+ New board\" button. On screen: " + Journey.labelledInventory(80));
+                break;
+            }
+            Journey.sleep(1_000);
             // The name field: collections.namePlaceholder = 'Board name' (was 'New collection
             // name' until 2026-10-07). On Android the placeholder lands as the contentDescription.
             UiObject2 field = Journey.find("Board name", true, 12_000);
