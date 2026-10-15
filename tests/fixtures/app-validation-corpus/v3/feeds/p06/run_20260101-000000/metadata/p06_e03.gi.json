@@ -168,8 +168,8 @@
         "episode_id": "ep-034d8bc4204034df",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 37195,
+        "timestamp_start_ms": 25664,
         "transcript_ref": "transcripts/p06_e03.txt"
       },
       "type": "Quote"
@@ -182,8 +182,8 @@
         "episode_id": "ep-034d8bc4204034df",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 51725,
+        "timestamp_start_ms": 42259,
         "transcript_ref": "transcripts/p06_e03.txt"
       },
       "type": "Quote"
@@ -203,8 +203,8 @@
         "episode_id": "ep-034d8bc4204034df",
         "speaker_id": "person:speaker-01",
         "text": "There's something almost \u2014 I don't know. Hard to name.",
-        "timestamp_end_ms": 102000,
-        "timestamp_start_ms": 96000,
+        "timestamp_end_ms": 110195,
+        "timestamp_start_ms": 107085,
         "transcript_ref": "transcripts/p06_e03.txt"
       },
       "type": "Quote"

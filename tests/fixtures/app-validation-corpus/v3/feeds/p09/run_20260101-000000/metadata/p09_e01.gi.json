@@ -188,8 +188,8 @@
         "episode_id": "ep-1abf911df5bea2c3",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 60041,
+        "timestamp_start_ms": 43719,
         "transcript_ref": "transcripts/p09_e01.txt"
       },
       "type": "Quote"
@@ -202,8 +202,8 @@
         "episode_id": "ep-1abf911df5bea2c3",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Reliability and sustainability share more vocabulary than I used to admit. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 77837,
+        "timestamp_start_ms": 65879,
         "transcript_ref": "transcripts/p09_e01.txt"
       },
       "type": "Quote"
@@ -216,8 +216,8 @@
         "episode_id": "ep-1abf911df5bea2c3",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 84000,
-        "timestamp_start_ms": 78000,
+        "timestamp_end_ms": 116033,
+        "timestamp_start_ms": 100851,
         "transcript_ref": "transcripts/p09_e01.txt"
       },
       "type": "Quote"

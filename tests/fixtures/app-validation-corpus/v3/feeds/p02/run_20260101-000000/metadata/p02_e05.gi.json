@@ -156,8 +156,8 @@
         "episode_id": "ep-a05e37624721d37c",
         "speaker_id": "person:speaker-01",
         "text": "We opened the phones this week. Here's a question that came in from a listener out in the field.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
+        "timestamp_end_ms": 35441,
+        "timestamp_start_ms": 26542,
         "transcript_ref": "transcripts/p02_e05.txt"
       },
       "type": "Quote"
@@ -177,8 +177,8 @@
         "episode_id": "ep-a05e37624721d37c",
         "speaker_id": "person:speaker-02",
         "text": "Great question. Alert fatigue is a signal-to-noise problem, not a discipline problem. If the team ignores pages, the pages are wrong, not the people.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 51186,
+        "timestamp_start_ms": 39256,
         "transcript_ref": "transcripts/p02_e05.txt"
       },
       "type": "Quote"
@@ -191,8 +191,8 @@
         "episode_id": "ep-a05e37624721d37c",
         "speaker_id": "person:speaker-01",
         "text": "So you'd tune the alerts before you tune the humans.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 54850,
+        "timestamp_start_ms": 51186,
         "transcript_ref": "transcripts/p02_e05.txt"
       },
       "type": "Quote"

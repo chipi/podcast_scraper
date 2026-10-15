@@ -1,373 +1,373 @@
 [
   {
-    "end": 6.0,
+    "end": 17.294,
     "id": 0,
     "speaker_label": "Ethan",
     "start": 0.0,
     "text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being here."
   },
   {
-    "end": 12.0,
+    "end": 20.114,
     "id": 1,
     "speaker_label": "Joll Wisenthal",
-    "start": 6.0,
+    "start": 17.294,
     "text": "Thanks, Ethan. Great to be back."
   },
   {
-    "end": 18.0,
+    "end": 31.599,
     "id": 2,
     "speaker_label": "Ethan",
-    "start": 12.0,
+    "start": 20.114,
     "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast."
   },
   {
-    "end": 24.0,
+    "end": 42.911,
     "id": 3,
     "speaker_label": "Ethan",
-    "start": 18.0,
+    "start": 31.599,
     "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare."
   },
   {
-    "end": 30.0,
+    "end": 47.051,
     "id": 4,
     "speaker_label": "Joll Wisenthal",
-    "start": 24.0,
+    "start": 42.911,
     "text": "Yeah, exactly. And it ties into what we're covering today."
   },
   {
-    "end": 36.0,
+    "end": 54.254,
     "id": 5,
     "speaker_label": "Ethan",
-    "start": 30.0,
+    "start": 47.051,
     "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back."
   },
   {
-    "end": 42.0,
+    "end": 60.816,
     "id": 6,
     "speaker_label": "Ethan",
-    "start": 36.0,
+    "start": 54.254,
     "text": "That's a useful framing. What's the version of the question that actually matters?"
   },
   {
-    "end": 48.0,
+    "end": 73.656,
     "id": 7,
     "speaker_label": "Joll Wisenthal",
-    "start": 42.0,
+    "start": 60.816,
     "text": "Honestly, A great RFC starts with context and constraints, then options. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 54.0,
+    "end": 79.479,
     "id": 8,
     "speaker_label": "Ethan",
-    "start": 48.0,
+    "start": 73.656,
     "text": "Walk me through a concrete example. How does Linear fit into this picture?"
   },
   {
-    "end": 60.0,
+    "end": 87.648,
     "id": 9,
     "speaker_label": "Joll Wisenthal",
-    "start": 54.0,
+    "start": 79.479,
     "text": "Yeah, so \u2014 Writing things down turns disagreement into collaboration. And the second-order effect is the part most people miss."
   },
   {
-    "end": 66.0,
+    "end": 94.212,
     "id": 10,
     "speaker_label": "Ethan",
-    "start": 60.0,
+    "start": 87.648,
     "text": "That's a useful framing. What's something you used to believe about this that you've revised?"
   },
   {
-    "end": 72.0,
+    "end": 107.133,
     "id": 11,
     "speaker_label": "Joll Wisenthal",
-    "start": 66.0,
+    "start": 94.212,
     "text": "It comes down to this: Postmortems that focus on individuals miss the system that made the mistake easy. We've seen this play out at teams using Sentry. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 78.0,
+    "end": 108.799,
     "id": 12,
     "speaker_label": "Ethan",
-    "start": 72.0,
+    "start": 107.133,
     "text": "Say more about that."
   },
   {
-    "end": 84.0,
+    "end": 116.508,
     "id": 13,
     "speaker_label": "Joll Wisenthal",
-    "start": 78.0,
+    "start": 108.799,
     "text": "And when teams adopt Notion in that flow, the trade-off becomes visible \u2014 And the second-order effect is the part most people miss."
   },
   {
-    "end": 90.0,
+    "end": 123.26,
     "id": 14,
     "speaker_label": "Ethan",
-    "start": 84.0,
+    "start": 116.508,
     "text": "What's the one heuristic you keep coming back to? How does Datadog fit into this picture?"
   },
   {
-    "end": 96.0,
+    "end": 131.116,
     "id": 15,
     "speaker_label": "Joll Wisenthal",
-    "start": 90.0,
+    "start": 123.26,
     "text": "Yeah, so \u2014 Architecture decisions are mostly tradeoffs. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 102.0,
+    "end": 137.972,
     "id": 16,
     "speaker_label": "Ethan",
-    "start": 96.0,
+    "start": 131.116,
     "text": "Take me through the decision. What's the structural angle most listeners don't have access to?"
   },
   {
-    "end": 108.0,
+    "end": 149.587,
     "id": 17,
     "speaker_label": "Joll Wisenthal",
-    "start": 102.0,
+    "start": 137.972,
     "text": "Here's how I think about it. Risk management is a communication problem. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 114.0,
+    "end": 153.541,
     "id": 18,
     "speaker_label": "Ethan",
-    "start": 108.0,
+    "start": 149.587,
     "text": "We'll be right back after a quick word from our sponsors."
   },
   {
-    "end": 120.0,
+    "end": 166.528,
     "id": 19,
     "speaker_label": "Ad",
-    "start": 114.0,
+    "start": 153.541,
     "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Visit linear.com/podcast for a free trial."
   },
   {
-    "end": 126.0,
+    "end": 168.392,
     "id": 20,
     "speaker_label": "Ethan",
-    "start": 120.0,
+    "start": 166.528,
     "text": "Welcome back to the show."
   },
   {
-    "end": 132.0,
+    "end": 176.368,
     "id": 21,
     "speaker_label": "Ethan",
-    "start": 126.0,
+    "start": 168.392,
     "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
   },
   {
-    "end": 138.0,
+    "end": 190.868,
     "id": 22,
     "speaker_label": "Joll Wisenthal",
-    "start": 132.0,
+    "start": 176.368,
     "text": "Let me give you the version I actually believe. A great RFC starts with context and constraints, then options. We've seen this play out at teams using PagerDuty. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 144.0,
+    "end": 197.678,
     "id": 23,
     "speaker_label": "Ethan",
-    "start": 138.0,
+    "start": 190.868,
     "text": "What does the failure mode look like? What's the version of the question that actually matters?"
   },
   {
-    "end": 150.0,
+    "end": 206.811,
     "id": 24,
     "speaker_label": "Joll Wisenthal",
-    "start": 144.0,
+    "start": 197.678,
     "text": "Yeah, so \u2014 Writing things down turns disagreement into collaboration. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 156.0,
+    "end": 213.374,
     "id": 25,
     "speaker_label": "Ethan",
-    "start": 150.0,
+    "start": 206.811,
     "text": "That's a useful framing. Where do reliability and engineering communication intersect?"
   },
   {
-    "end": 162.0,
+    "end": 226.156,
     "id": 26,
     "speaker_label": "Joll Wisenthal",
-    "start": 156.0,
+    "start": 213.374,
     "text": "Honestly, Postmortems that focus on individuals miss the system that made the mistake easy. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 168.0,
+    "end": 227.822,
     "id": 27,
     "speaker_label": "Ethan",
-    "start": 162.0,
+    "start": 226.156,
     "text": "Say more about that."
   },
   {
-    "end": 174.0,
+    "end": 235.124,
     "id": 28,
     "speaker_label": "Joll Wisenthal",
-    "start": 168.0,
+    "start": 227.822,
     "text": "Sentry is one of the platforms where this shows up cleanly. The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 180.0,
+    "end": 241.771,
     "id": 29,
     "speaker_label": "Ethan",
-    "start": 174.0,
+    "start": 235.124,
     "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
   },
   {
-    "end": 186.0,
+    "end": 251.14,
     "id": 30,
     "speaker_label": "Joll Wisenthal",
-    "start": 180.0,
+    "start": 241.771,
     "text": "Let me give you the version I actually believe. Architecture decisions are mostly tradeoffs. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 192.0,
+    "end": 258.357,
     "id": 31,
     "speaker_label": "Ethan",
-    "start": 186.0,
+    "start": 251.14,
     "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
   },
   {
-    "end": 198.0,
+    "end": 271.092,
     "id": 32,
     "speaker_label": "Joll Wisenthal",
-    "start": 192.0,
+    "start": 258.357,
     "text": "Let me give you the version I actually believe. Risk management is a communication problem. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 204.0,
+    "end": 276.277,
     "id": 33,
     "speaker_label": "Ethan",
-    "start": 198.0,
+    "start": 271.092,
     "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
   },
   {
-    "end": 210.0,
+    "end": 283.678,
     "id": 34,
     "speaker_label": "Joll Wisenthal",
-    "start": 204.0,
+    "start": 276.277,
     "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
   },
   {
-    "end": 216.0,
+    "end": 291.393,
     "id": 35,
     "speaker_label": "Ethan",
-    "start": 210.0,
+    "start": 283.678,
     "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of engineering communication?"
   },
   {
-    "end": 222.0,
+    "end": 303.862,
     "id": 36,
     "speaker_label": "Joll Wisenthal",
-    "start": 216.0,
+    "start": 291.393,
     "text": "Honestly, A great RFC starts with context and constraints, then options. We've seen this play out at teams using Datadog. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 228.0,
+    "end": 309.302,
     "id": 37,
     "speaker_label": "Ethan",
-    "start": 222.0,
+    "start": 303.862,
     "text": "Let's start there. What's the version of the question that actually matters?"
   },
   {
-    "end": 234.0,
+    "end": 318.984,
     "id": 38,
     "speaker_label": "Joll Wisenthal",
-    "start": 228.0,
+    "start": 309.302,
     "text": "Let me give you the version I actually believe. Writing things down turns disagreement into collaboration. And the second-order effect is the part most people miss."
   },
   {
-    "end": 240.0,
+    "end": 326.457,
     "id": 39,
     "speaker_label": "Ethan",
-    "start": 234.0,
+    "start": 318.984,
     "text": "Push back on the conventional wisdom for me. What's the most underrated piece of engineering communication?"
   },
   {
-    "end": 246.0,
+    "end": 339.908,
     "id": 40,
     "speaker_label": "Joll Wisenthal",
-    "start": 240.0,
+    "start": 326.457,
     "text": "Yeah, so \u2014 Postmortems that focus on individuals miss the system that made the mistake easy. We've seen this play out at teams using Datadog. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 252.0,
+    "end": 342.016,
     "id": 41,
     "speaker_label": "Ethan",
-    "start": 246.0,
+    "start": 339.908,
     "text": "That maps to what I've seen."
   },
   {
-    "end": 258.0,
+    "end": 349.325,
     "id": 42,
     "speaker_label": "Joll Wisenthal",
-    "start": 252.0,
+    "start": 342.016,
     "text": "PagerDuty is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 264.0,
+    "end": 356.646,
     "id": 43,
     "speaker_label": "Ethan",
-    "start": 258.0,
+    "start": 349.325,
     "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?"
   },
   {
-    "end": 270.0,
+    "end": 364.281,
     "id": 44,
     "speaker_label": "Joll Wisenthal",
-    "start": 264.0,
+    "start": 356.646,
     "text": "Yeah, so \u2014 Architecture decisions are mostly tradeoffs. And the second-order effect is the part most people miss."
   },
   {
-    "end": 276.0,
+    "end": 370.577,
     "id": 45,
     "speaker_label": "Ethan",
-    "start": 270.0,
+    "start": 364.281,
     "text": "That's a useful framing. What's the most underrated piece of engineering communication?"
   },
   {
-    "end": 282.0,
+    "end": 381.966,
     "id": 46,
     "speaker_label": "Joll Wisenthal",
-    "start": 276.0,
+    "start": 370.577,
     "text": "It comes down to this: Risk management is a communication problem. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 288.0,
+    "end": 386.407,
     "id": 47,
     "speaker_label": "Ethan",
-    "start": 282.0,
+    "start": 381.966,
     "text": "Before we wrap, what's one thing listeners can try this week?"
   },
   {
-    "end": 294.0,
+    "end": 391.291,
     "id": 48,
     "speaker_label": "Joll Wisenthal",
-    "start": 288.0,
+    "start": 386.407,
     "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
   },
   {
-    "end": 300.0,
+    "end": 402.932,
     "id": 49,
     "speaker_label": "Ethan",
-    "start": 294.0,
+    "start": 391.291,
     "text": "Before we wrap, thanks again to our friends at Datadog. Datadog gives unified observability across logs, metrics, and traces."
   },
   {
-    "end": 306.0,
+    "end": 407.029,
     "id": 50,
     "speaker_label": "Ethan",
-    "start": 300.0,
+    "start": 402.932,
     "text": "Joll Wisenthal, thanks for the conversation."
   },
   {
-    "end": 312.0,
+    "end": 408.526,
     "id": 51,
     "speaker_label": "Joll Wisenthal",
-    "start": 306.0,
+    "start": 407.029,
     "text": "Thanks, Ethan."
   },
   {
-    "end": 318.0,
+    "end": 414.324,
     "id": 52,
     "speaker_label": "Ethan",
-    "start": 312.0,
+    "start": 408.526,
     "text": "That's it for today's episode of Practical Systems. See you next time."
   }
 ]

@@ -178,8 +178,8 @@
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-02",
         "text": "To be honest, risk management in racing isn't about avoiding crashes; it's about choosing which crashes you can survive. We've seen this with teams that use Shimano. If you ignore that, you'll have to rebuild it from scratch a year later.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
+        "timestamp_end_ms": 109996,
+        "timestamp_start_ms": 91736,
         "transcript_ref": "transcripts/p13_e02.txt",
         "translation": {
           "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
@@ -202,8 +202,8 @@
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-02",
         "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.",
-        "timestamp_end_ms": 156000,
-        "timestamp_start_ms": 150000,
+        "timestamp_end_ms": 237248,
+        "timestamp_start_ms": 219873,
         "transcript_ref": "transcripts/p13_e02.txt",
         "translation": {
           "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",
@@ -233,8 +233,8 @@
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-01",
         "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
-        "timestamp_end_ms": 234000,
-        "timestamp_start_ms": 228000,
+        "timestamp_end_ms": 346996,
+        "timestamp_start_ms": 346270,
         "transcript_ref": "transcripts/p13_e02.txt",
         "translation": {
           "en_sha256": "6311e8348381bf67d1f5f6045245974907f9da835b6c38459c0797495003ead1",

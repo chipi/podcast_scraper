@@ -1,7 +1,7 @@
 [
 {
 "start": 0.0,
-"end": 1.18,
+"end": 2.669,
 "speaker_label": "Beatriz Antunes",
 "text": "Welcome back to the Trail Sessions.",
 "char_start": 17,
@@ -10,8 +10,8 @@
 "sent_id": "t0000.s01"
 },
 {
-"start": 1.18,
-"end": 4.65,
+"start": 2.669,
+"end": 10.524,
 "speaker_label": "Beatriz Antunes",
 "text": "Today, we're talking about enduro racing, and I'm joined by Inês Carvalho, an enduro athlete and coach.",
 "char_start": 53,
@@ -20,8 +20,8 @@
 "sent_id": "t0000.s02"
 },
 {
-"start": 4.65,
-"end": 6.0,
+"start": 10.524,
+"end": 13.574,
 "speaker_label": "Beatriz Antunes",
 "text": "Inês Carvalho, thank you for being here.",
 "char_start": 157,
@@ -30,8 +30,8 @@
 "sent_id": "t0000.s03"
 },
 {
-"start": 6.0,
-"end": 9.26,
+"start": 13.574,
+"end": 15.867,
 "speaker_label": "Inês Carvalho",
 "text": "Thank you, Beatriz.",
 "char_start": 213,
@@ -40,8 +40,8 @@
 "sent_id": "t0001.s01"
 },
 {
-"start": 9.26,
-"end": 12.0,
+"start": 15.867,
+"end": 17.798,
 "speaker_label": "Inês Carvalho",
 "text": "Glad to be back.",
 "char_start": 233,
@@ -50,8 +50,8 @@
 "sent_id": "t0001.s02"
 },
 {
-"start": 12.0,
-"end": 13.68,
+"start": 17.798,
+"end": 21.12,
 "speaker_label": "Beatriz Antunes",
 "text": "Today's episode is sponsored by Linear.",
 "char_start": 267,
@@ -60,8 +60,8 @@
 "sent_id": "t0002.s01"
 },
 {
-"start": 13.68,
-"end": 17.09,
+"start": 21.12,
+"end": 27.85,
 "speaker_label": "Beatriz Antunes",
 "text": "Linear is the task management tool built for speed – designed for keyboard use.",
 "char_start": 307,
@@ -70,8 +70,8 @@
 "sent_id": "t0002.s02"
 },
 {
-"start": 17.09,
-"end": 18.0,
+"start": 27.85,
+"end": 29.639,
 "speaker_label": "Beatriz Antunes",
 "text": "Try linear.com today.",
 "char_start": 387,
@@ -80,8 +80,8 @@
 "sent_id": "t0002.s03"
 },
 {
-"start": 18.0,
-"end": 24.0,
+"start": 29.639,
+"end": 40.028,
 "speaker_label": "Beatriz Antunes",
 "text": "Before we get into the topic, Rafael Vasconcelos was on the show to discuss how drainage is the design decision with the biggest impact.",
 "char_start": 409,
@@ -90,8 +90,8 @@
 "sent_id": "t0002.s04"
 },
 {
-"start": 24.0,
-"end": 25.18,
+"start": 40.028,
+"end": 40.858,
 "speaker_label": "Inês Carvalho",
 "text": "Yes, exactly.",
 "char_start": 561,
@@ -100,8 +100,8 @@
 "sent_id": "t0003.s01"
 },
 {
-"start": 25.18,
-"end": 30.0,
+"start": 40.858,
+"end": 44.243,
 "speaker_label": "Inês Carvalho",
 "text": "And it connects to what we're going to discuss today.",
 "char_start": 575,
@@ -110,8 +110,8 @@
 "sent_id": "t0003.s02"
 },
 {
-"start": 30.0,
-"end": 36.0,
+"start": 44.243,
+"end": 51.735,
 "speaker_label": "Beatriz Antunes",
 "text": "I want to point out something – Rafael Vasconcelos mentioned this same dynamic a few episodes ago.",
 "char_start": 646,
@@ -120,8 +120,8 @@
 "sent_id": "t0004.s01"
 },
 {
-"start": 36.0,
-"end": 38.1,
+"start": 51.735,
+"end": 53.937,
 "speaker_label": "Beatriz Antunes",
 "text": "Give me a concrete example.",
 "char_start": 745,
@@ -130,8 +130,8 @@
 "sent_id": "t0004.s02"
 },
 {
-"start": 38.1,
-"end": 42.0,
+"start": 53.937,
+"end": 58.016,
 "speaker_label": "Beatriz Antunes",
 "text": "Where do soil erosion and enduro racing intersect?",
 "char_start": 773,
@@ -140,8 +140,8 @@
 "sent_id": "t0004.s03"
 },
 {
-"start": 42.0,
-"end": 44.69,
+"start": 58.016,
+"end": 64.722,
 "speaker_label": "Inês Carvalho",
 "text": "Honestly, speed comes from braking earlier and more smoothly, not from taking bigger risks.",
 "char_start": 839,
@@ -150,8 +150,8 @@
 "sent_id": "t0005.s01"
 },
 {
-"start": 44.69,
-"end": 45.96,
+"start": 64.722,
+"end": 67.891,
 "speaker_label": "Inês Carvalho",
 "text": "We've seen this in teams that use RockShox.",
 "char_start": 931,
@@ -160,8 +160,8 @@
 "sent_id": "t0005.s02"
 },
 {
-"start": 45.96,
-"end": 48.0,
+"start": 67.891,
+"end": 72.976,
 "speaker_label": "Inês Carvalho",
 "text": "I've observed this pattern repeating itself in three different teams.",
 "char_start": 975,
@@ -170,8 +170,8 @@
 "sent_id": "t0005.s03"
 },
 {
-"start": 48.0,
-"end": 50.39,
+"start": 72.976,
+"end": 75.221,
 "speaker_label": "Beatriz Antunes",
 "text": "I want to delve deeper into that.",
 "char_start": 1062,
@@ -180,8 +180,8 @@
 "sent_id": "t0006.s01"
 },
 {
-"start": 50.39,
-"end": 54.0,
+"start": 75.221,
+"end": 78.622,
 "speaker_label": "Beatriz Antunes",
 "text": "Where do soil erosion and enduro racing intersect?",
 "char_start": 1096,
@@ -190,8 +190,8 @@
 "sent_id": "t0006.s02"
 },
 {
-"start": 54.0,
-"end": 54.3,
+"start": 78.622,
+"end": 79.229,
 "speaker_label": "Inês Carvalho",
 "text": "Certainly.",
 "char_start": 1162,
@@ -200,8 +200,8 @@
 "sent_id": "t0007.s01"
 },
 {
-"start": 54.3,
-"end": 57.26,
+"start": 79.229,
+"end": 85.113,
 "speaker_label": "Inês Carvalho",
 "text": "Tire pressure and the choice of tire casing often matter more than a minor suspension adjustment.",
 "char_start": 1173,
@@ -210,8 +210,8 @@
 "sent_id": "t0007.s02"
 },
 {
-"start": 57.26,
-"end": 60.0,
+"start": 85.113,
+"end": 90.572,
 "speaker_label": "Inês Carvalho",
 "text": "Understanding the setup is important because it tells you what compromises you are making.",
 "char_start": 1271,
@@ -220,8 +220,8 @@
 "sent_id": "t0007.s03"
 },
 {
-"start": 60.0,
-"end": 61.59,
+"start": 90.572,
+"end": 91.999,
 "speaker_label": "Beatriz Antunes",
 "text": "Let's start there.",
 "char_start": 1379,
@@ -230,8 +230,8 @@
 "sent_id": "t0008.s01"
 },
 {
-"start": 61.59,
-"end": 66.0,
+"start": 91.999,
+"end": 95.961,
 "speaker_label": "Beatriz Antunes",
 "text": "Where do soil erosion and enduro racing intersect?",
 "char_start": 1398,
@@ -240,8 +240,8 @@
 "sent_id": "t0008.s02"
 },
 {
-"start": 66.0,
-"end": 68.89,
+"start": 95.961,
+"end": 103.71,
 "speaker_label": "Inês Carvalho",
 "text": "Honestly, risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
 "char_start": 1464,
@@ -250,8 +250,8 @@
 "sent_id": "t0009.s01"
 },
 {
-"start": 68.89,
-"end": 69.94,
+"start": 103.71,
+"end": 106.54,
 "speaker_label": "Inês Carvalho",
 "text": "We've seen this in teams that use Shimano.",
 "char_start": 1580,
@@ -260,8 +260,8 @@
 "sent_id": "t0009.s02"
 },
 {
-"start": 69.94,
-"end": 72.0,
+"start": 106.54,
+"end": 112.066,
 "speaker_label": "Inês Carvalho",
 "text": "If you ignore this, you'll end up rebuilding everything from scratch a year later.",
 "char_start": 1623,
@@ -270,8 +270,8 @@
 "sent_id": "t0009.s03"
 },
 {
-"start": 72.0,
-"end": 78.0,
+"start": 112.066,
+"end": 114.445,
 "speaker_label": "Beatriz Antunes",
 "text": "Where does it stop working?",
 "char_start": 1723,
@@ -280,8 +280,8 @@
 "sent_id": "t0010.s01"
 },
 {
-"start": 78.0,
-"end": 81.1,
+"start": 114.445,
+"end": 119.508,
 "speaker_label": "Inês Carvalho",
 "text": "The Cascadia Alliance is one of the platforms where this is clearly evident.",
 "char_start": 1766,
@@ -290,8 +290,8 @@
 "sent_id": "t0011.s01"
 },
 {
-"start": 81.1,
-"end": 84.0,
+"start": 119.508,
+"end": 124.238,
 "speaker_label": "Inês Carvalho",
 "text": "And the second-order effect is the part that almost everyone overlooks.",
 "char_start": 1843,
@@ -300,8 +300,8 @@
 "sent_id": "t0011.s02"
 },
 {
-"start": 84.0,
-"end": 86.79,
+"start": 124.238,
+"end": 127.139,
 "speaker_label": "Beatriz Antunes",
 "text": "What heuristic do you always go back to?",
 "char_start": 1932,
@@ -310,8 +310,8 @@
 "sent_id": "t0012.s01"
 },
 {
-"start": 86.79,
-"end": 90.0,
+"start": 127.139,
+"end": 130.476,
 "speaker_label": "Beatriz Antunes",
 "text": "How does Spoke & Wrench fit into this picture?",
 "char_start": 1973,
@@ -320,8 +320,8 @@
 "sent_id": "t0012.s02"
 },
 {
-"start": 90.0,
-"end": 90.56,
+"start": 130.476,
+"end": 131.741,
 "speaker_label": "Inês Carvalho",
 "text": "That's how I see it.",
 "char_start": 2035,
@@ -330,8 +330,8 @@
 "sent_id": "t0013.s01"
 },
 {
-"start": 90.56,
-"end": 94.15,
+"start": 131.741,
+"end": 139.839,
 "speaker_label": "Inês Carvalho",
 "text": "The erosion patterns on the track sections can change the optimal racing line between practice sessions and the actual race day.",
 "char_start": 2056,
@@ -340,8 +340,8 @@
 "sent_id": "t0013.s02"
 },
 {
-"start": 94.15,
-"end": 96.0,
+"start": 139.839,
+"end": 144.015,
 "speaker_label": "Inês Carvalho",
 "text": "Once you understand that, the rest of the decisions become easier.",
 "char_start": 2185,
@@ -350,8 +350,8 @@
 "sent_id": "t0013.s03"
 },
 {
-"start": 96.0,
-"end": 100.41,
+"start": 144.015,
+"end": 150.566,
 "speaker_label": "Beatriz Antunes",
 "text": "Before we continue, please support the program by visiting the website of our sponsor.",
 "char_start": 2269,
@@ -360,8 +360,8 @@
 "sent_id": "t0014.s01"
 },
 {
-"start": 100.41,
-"end": 102.0,
+"start": 150.566,
+"end": 152.928,
 "speaker_label": "Beatriz Antunes",
 "text": "Strava is the home of athletes.",
 "char_start": 2356,
@@ -370,8 +370,8 @@
 "sent_id": "t0014.s02"
 },
 {
-"start": 102.0,
-"end": 108.0,
+"start": 152.928,
+"end": 157.03,
 "speaker_label": "Beatriz Antunes",
 "text": "We'll be right back after a short commercial break.",
 "char_start": 2388,
@@ -380,8 +380,8 @@
 "sent_id": "t0014.s03"
 },
 {
-"start": 108.0,
-"end": 109.7,
+"start": 157.03,
+"end": 161.798,
 "speaker_label": "SPEAKER_02",
 "text": "Today's episode is sponsored by Notion.",
 "char_start": 2452,
@@ -390,8 +390,8 @@
 "sent_id": "t0015.s01"
 },
 {
-"start": 109.7,
-"end": 112.17,
+"start": 161.798,
+"end": 168.766,
 "speaker_label": "SPEAKER_02",
 "text": "Notion replaces the dozen tools your team uses every day.",
 "char_start": 2492,
@@ -400,8 +400,8 @@
 "sent_id": "t0015.s02"
 },
 {
-"start": 112.17,
-"end": 114.0,
+"start": 168.766,
+"end": 173.901,
 "speaker_label": "SPEAKER_02",
 "text": "Visit notion.com/podcast for a free trial.",
 "char_start": 2550,
@@ -410,8 +410,8 @@
 "sent_id": "t0015.s03"
 },
 {
-"start": 114.0,
-"end": 120.0,
+"start": 173.901,
+"end": 176.199,
 "speaker_label": "Beatriz Antunes",
 "text": "Welcome back to the program.",
 "char_start": 2610,
@@ -420,8 +420,8 @@
 "sent_id": "t0016.s01"
 },
 {
-"start": 120.0,
-"end": 122.33,
+"start": 176.199,
+"end": 178.3,
 "speaker_label": "Beatriz Antunes",
 "text": "I want to delve deeper into that.",
 "char_start": 2639,
@@ -430,8 +430,8 @@
 "sent_id": "t0016.s02"
 },
 {
-"start": 122.33,
-"end": 126.0,
+"start": 178.3,
+"end": 181.611,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the most important version of that question?",
 "char_start": 2673,
@@ -440,8 +440,8 @@
 "sent_id": "t0016.s03"
 },
 {
-"start": 126.0,
-"end": 127.26,
+"start": 181.611,
+"end": 185.217,
 "speaker_label": "Inês Carvalho",
 "text": "I'm giving you the version that I truly believe in.",
 "char_start": 2741,
@@ -450,8 +450,8 @@
 "sent_id": "t0017.s01"
 },
 {
-"start": 127.26,
-"end": 129.26,
+"start": 185.217,
+"end": 190.944,
 "speaker_label": "Inês Carvalho",
 "text": "Speed comes from braking earlier and more smoothly, not from taking bigger risks.",
 "char_start": 2793,
@@ -460,8 +460,8 @@
 "sent_id": "t0017.s02"
 },
 {
-"start": 129.26,
-"end": 130.32,
+"start": 190.944,
+"end": 193.985,
 "speaker_label": "Inês Carvalho",
 "text": "We've seen this in teams that use RockShox.",
 "char_start": 2875,
@@ -470,8 +470,8 @@
 "sent_id": "t0017.s03"
 },
 {
-"start": 130.32,
-"end": 132.0,
+"start": 193.985,
+"end": 198.793,
 "speaker_label": "Inês Carvalho",
 "text": "And the secondary effect is the part that almost everyone overlooks.",
 "char_start": 2919,
@@ -480,8 +480,8 @@
 "sent_id": "t0017.s04"
 },
 {
-"start": 132.0,
-"end": 133.56,
+"start": 198.793,
+"end": 200.559,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the failure mode?",
 "char_start": 3005,
@@ -490,8 +490,8 @@
 "sent_id": "t0018.s01"
 },
 {
-"start": 133.56,
-"end": 138.0,
+"start": 200.559,
+"end": 205.574,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the operational angle that most listeners don't have access to?",
 "char_start": 3031,
@@ -500,8 +500,8 @@
 "sent_id": "t0018.s02"
 },
 {
-"start": 138.0,
-"end": 141.63,
+"start": 205.574,
+"end": 213.137,
 "speaker_label": "Inês Carvalho",
 "text": "Yes, so – tire pressure and the choice of tire casing often matter more than a minor suspension adjustment.",
 "char_start": 3118,
@@ -510,8 +510,8 @@
 "sent_id": "t0019.s01"
 },
 {
-"start": 141.63,
-"end": 144.0,
+"start": 213.137,
+"end": 218.084,
 "speaker_label": "Inês Carvalho",
 "text": "The setup matters because it tells you what compromises you're making.",
 "char_start": 3226,
@@ -520,8 +520,8 @@
 "sent_id": "t0019.s02"
 },
 {
-"start": 144.0,
-"end": 145.95,
+"start": 218.084,
+"end": 219.908,
 "speaker_label": "Beatriz Antunes",
 "text": "Give me a concrete example.",
 "char_start": 3314,
@@ -530,8 +530,8 @@
 "sent_id": "t0020.s01"
 },
 {
-"start": 145.95,
-"end": 150.0,
+"start": 219.908,
+"end": 223.691,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the version of the question that really matters?",
 "char_start": 3342,
@@ -540,8 +540,8 @@
 "sent_id": "t0020.s02"
 },
 {
-"start": 150.0,
-"end": 153.04,
+"start": 223.691,
+"end": 231.462,
 "speaker_label": "Inês Carvalho",
 "text": "Yes, so – risk management in cycling isn't about avoiding crashes; it's about choosing which crashes are survivable.",
 "char_start": 3414,
@@ -550,8 +550,8 @@
 "sent_id": "t0021.s01"
 },
 {
-"start": 153.04,
-"end": 154.27,
+"start": 231.462,
+"end": 234.611,
 "speaker_label": "Inês Carvalho",
 "text": "We saw this pattern in teams that use RockShox.",
 "char_start": 3531,
@@ -560,8 +560,8 @@
 "sent_id": "t0021.s02"
 },
 {
-"start": 154.27,
-"end": 156.0,
+"start": 234.611,
+"end": 239.032,
 "speaker_label": "Inês Carvalho",
 "text": "I observed this pattern repeating itself in three different teams.",
 "char_start": 3579,
@@ -570,8 +570,8 @@
 "sent_id": "t0021.s03"
 },
 {
-"start": 156.0,
-"end": 162.0,
+"start": 239.032,
+"end": 240.745,
 "speaker_label": "Beatriz Antunes",
 "text": "Tell me more about it.",
 "char_start": 3663,
@@ -580,8 +580,8 @@
 "sent_id": "t0022.s01"
 },
 {
-"start": 162.0,
-"end": 165.21,
+"start": 240.745,
+"end": 246.485,
 "speaker_label": "Inês Carvalho",
 "text": "The Cascadia Alliance is one of the platforms where this is clearly evident.",
 "char_start": 3701,
@@ -590,8 +590,8 @@
 "sent_id": "t0023.s01"
 },
 {
-"start": 165.21,
-"end": 168.0,
+"start": 246.485,
+"end": 251.47,
 "speaker_label": "Inês Carvalho",
 "text": "Once you understand that, the rest of the decisions become easier.",
 "char_start": 3778,
@@ -600,8 +600,8 @@
 "sent_id": "t0023.s02"
 },
 {
-"start": 168.0,
-"end": 169.46,
+"start": 251.47,
+"end": 252.786,
 "speaker_label": "Beatriz Antunes",
 "text": "Let's start there.",
 "char_start": 3862,
@@ -610,8 +610,8 @@
 "sent_id": "t0024.s01"
 },
 {
-"start": 169.46,
-"end": 174.0,
+"start": 252.786,
+"end": 256.882,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the most underestimated aspect of enduro racing?",
 "char_start": 3881,
@@ -620,8 +620,8 @@
 "sent_id": "t0024.s02"
 },
 {
-"start": 174.0,
-"end": 178.08,
+"start": 256.882,
+"end": 265.113,
 "speaker_label": "Inês Carvalho",
 "text": "In essence, the erosion patterns on the track sections influence the choice of trajectory between practice sessions and the actual race day.",
 "char_start": 3953,
@@ -630,8 +630,8 @@
 "sent_id": "t0025.s01"
 },
 {
-"start": 178.08,
-"end": 180.0,
+"start": 265.113,
+"end": 268.993,
 "speaker_label": "Inês Carvalho",
 "text": "I observed this pattern repeating itself in three different teams.",
 "char_start": 4094,
@@ -640,8 +640,8 @@
 "sent_id": "t0025.s02"
 },
 {
-"start": 180.0,
-"end": 186.0,
+"start": 268.993,
+"end": 273.784,
 "speaker_label": "Beatriz Antunes",
 "text": "Let's change the subject – I want to dedicate the final section to risk management.",
 "char_start": 4178,
@@ -650,8 +650,8 @@
 "sent_id": "t0026.s01"
 },
 {
-"start": 186.0,
-"end": 192.0,
+"start": 273.784,
+"end": 282.082,
 "speaker_label": "Inês Carvalho",
 "text": "That's where the conversation gets interesting, because the considerations surrounding risk management are relevant to everything we've discussed.",
 "char_start": 4277,
@@ -660,8 +660,8 @@
 "sent_id": "t0027.s01"
 },
 {
-"start": 192.0,
-"end": 193.52,
+"start": 282.082,
+"end": 283.75,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the failure mode?",
 "char_start": 4441,
@@ -670,8 +670,8 @@
 "sent_id": "t0028.s01"
 },
 {
-"start": 193.52,
-"end": 198.0,
+"start": 283.75,
+"end": 288.689,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the opposing perspective that most listeners don't have access to?",
 "char_start": 4467,
@@ -680,8 +680,8 @@
 "sent_id": "t0028.s02"
 },
 {
-"start": 198.0,
-"end": 198.3,
+"start": 288.689,
+"end": 289.404,
 "speaker_label": "Inês Carvalho",
 "text": "Certainly.",
 "char_start": 4557,
@@ -690,8 +690,8 @@
 "sent_id": "t0029.s01"
 },
 {
-"start": 198.3,
-"end": 200.75,
+"start": 289.404,
+"end": 295.269,
 "speaker_label": "Inês Carvalho",
 "text": "Speed comes from braking earlier and more smoothly, not from taking greater risks.",
 "char_start": 4568,
@@ -700,8 +700,8 @@
 "sent_id": "t0029.s02"
 },
 {
-"start": 200.75,
-"end": 202.03,
+"start": 295.269,
+"end": 298.344,
 "speaker_label": "Inês Carvalho",
 "text": "We've seen this in teams that use RockShox.",
 "char_start": 4651,
@@ -710,8 +710,8 @@
 "sent_id": "t0029.s03"
 },
 {
-"start": 202.03,
-"end": 204.0,
+"start": 298.344,
+"end": 303.064,
 "speaker_label": "Inês Carvalho",
 "text": "I observed this pattern repeating itself in three different teams.",
 "char_start": 4695,
@@ -720,8 +720,8 @@
 "sent_id": "t0029.s04"
 },
 {
-"start": 204.0,
-"end": 205.95,
+"start": 303.064,
+"end": 304.997,
 "speaker_label": "Beatriz Antunes",
 "text": "Give me a concrete example.",
 "char_start": 4779,
@@ -730,8 +730,8 @@
 "sent_id": "t0030.s01"
 },
 {
-"start": 205.95,
-"end": 210.0,
+"start": 304.997,
+"end": 309.007,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the most underestimated aspect of enduro racing?",
 "char_start": 4807,
@@ -740,8 +740,8 @@
 "sent_id": "t0030.s02"
 },
 {
-"start": 210.0,
-"end": 213.89,
+"start": 309.007,
+"end": 316.813,
 "speaker_label": "Inês Carvalho",
 "text": "Yes, so – tire pressure and the choice of tire casing often matter more than a minor suspension adjustment.",
 "char_start": 4879,
@@ -750,8 +750,8 @@
 "sent_id": "t0031.s01"
 },
 {
-"start": 213.89,
-"end": 216.0,
+"start": 316.813,
+"end": 321.045,
 "speaker_label": "Inês Carvalho",
 "text": "I saw this pattern repeat itself in three different teams.",
 "char_start": 4987,
@@ -760,8 +760,8 @@
 "sent_id": "t0031.s02"
 },
 {
-"start": 216.0,
-"end": 217.95,
+"start": 321.045,
+"end": 322.869,
 "speaker_label": "Beatriz Antunes",
 "text": "Give me a concrete example.",
 "char_start": 5063,
@@ -770,8 +770,8 @@
 "sent_id": "t0032.s01"
 },
 {
-"start": 217.95,
-"end": 222.0,
+"start": 322.869,
+"end": 326.652,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the version of the question that really matters?",
 "char_start": 5091,
@@ -780,8 +780,8 @@
 "sent_id": "t0032.s02"
 },
 {
-"start": 222.0,
-"end": 223.11,
+"start": 326.652,
+"end": 329.756,
 "speaker_label": "Inês Carvalho",
 "text": "I'm giving you the version that I truly believe in.",
 "char_start": 5163,
@@ -790,8 +790,8 @@
 "sent_id": "t0033.s01"
 },
 {
-"start": 223.11,
-"end": 225.4,
+"start": 329.756,
+"end": 336.146,
 "speaker_label": "Inês Carvalho",
 "text": "Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
 "char_start": 5215,
@@ -800,8 +800,8 @@
 "sent_id": "t0033.s02"
 },
 {
-"start": 225.4,
-"end": 226.65,
+"start": 336.146,
+"end": 339.615,
 "speaker_label": "Inês Carvalho",
 "text": "We've seen this pattern in teams that use Spoke & Wrench.",
 "char_start": 5321,
@@ -810,8 +810,8 @@
 "sent_id": "t0033.s03"
 },
 {
-"start": 226.65,
-"end": 228.0,
+"start": 339.615,
+"end": 343.388,
 "speaker_label": "Inês Carvalho",
 "text": "I've seen this pattern repeat itself in three different teams.",
 "char_start": 5379,
@@ -820,8 +820,8 @@
 "sent_id": "t0033.s04"
 },
 {
-"start": 228.0,
-"end": 234.0,
+"start": 343.388,
+"end": 344.56,
 "speaker_label": "Beatriz Antunes",
 "text": "That makes sense.",
 "char_start": 5459,
@@ -830,8 +830,8 @@
 "sent_id": "t0034.s01"
 },
 {
-"start": 234.0,
-"end": 240.0,
+"start": 344.56,
+"end": 354.579,
 "speaker_label": "Inês Carvalho",
 "text": "And when teams adopt the Spoke & Wrench methodology within that workflow, the commitment becomes evident – I've seen this pattern repeat itself in three different teams.",
 "char_start": 5492,
@@ -840,8 +840,8 @@
 "sent_id": "t0035.s01"
 },
 {
-"start": 240.0,
-"end": 242.5,
+"start": 354.579,
+"end": 357.207,
 "speaker_label": "Beatriz Antunes",
 "text": "What heuristic do you always go back to?",
 "char_start": 5679,
@@ -850,8 +850,8 @@
 "sent_id": "t0036.s01"
 },
 {
-"start": 242.5,
-"end": 246.0,
+"start": 357.207,
+"end": 360.886,
 "speaker_label": "Beatriz Antunes",
 "text": "What is the version of the question that really matters?",
 "char_start": 5720,
@@ -860,8 +860,8 @@
 "sent_id": "t0036.s02"
 },
 {
-"start": 246.0,
-"end": 246.56,
+"start": 360.886,
+"end": 361.995,
 "speaker_label": "Inês Carvalho",
 "text": "That's how I see it.",
 "char_start": 5792,
@@ -870,8 +870,8 @@
 "sent_id": "t0037.s01"
 },
 {
-"start": 246.56,
-"end": 250.15,
+"start": 361.995,
+"end": 369.096,
 "speaker_label": "Inês Carvalho",
 "text": "The erosion patterns on the track sections influence the choice of trajectory between training sessions and the actual race day.",
 "char_start": 5813,
@@ -880,8 +880,8 @@
 "sent_id": "t0037.s02"
 },
 {
-"start": 250.15,
-"end": 252.0,
+"start": 369.096,
+"end": 372.757,
 "speaker_label": "Inês Carvalho",
 "text": "I observed this pattern repeating itself in three different teams.",
 "char_start": 5942,
@@ -890,8 +890,8 @@
 "sent_id": "t0037.s03"
 },
 {
-"start": 252.0,
-"end": 258.0,
+"start": 372.757,
+"end": 379.049,
 "speaker_label": "Beatriz Antunes",
 "text": "Before we finish, what's one thing listeners can try out this week?",
 "char_start": 6026,
@@ -900,8 +900,8 @@
 "sent_id": "t0038.s01"
 },
 {
-"start": 258.0,
-"end": 262.13,
+"start": 379.049,
+"end": 383.272,
 "speaker_label": "Inês Carvalho",
 "text": "Choose one of the ideas we discussed and apply it for two weeks.",
 "char_start": 6109,
@@ -910,8 +910,8 @@
 "sent_id": "t0039.s01"
 },
 {
-"start": 262.13,
-"end": 264.0,
+"start": 383.272,
+"end": 385.186,
 "speaker_label": "Inês Carvalho",
 "text": "Everything else is iteration.",
 "char_start": 6174,
@@ -920,8 +920,8 @@
 "sent_id": "t0039.s02"
 },
 {
-"start": 264.0,
-"end": 266.55,
+"start": 385.186,
+"end": 390.079,
 "speaker_label": "Beatriz Antunes",
 "text": "And finally, thank you to our sponsors at Vanta.",
 "char_start": 6221,
@@ -930,8 +930,8 @@
 "sent_id": "t0040.s01"
 },
 {
-"start": 266.55,
-"end": 268.73,
+"start": 390.079,
+"end": 394.259,
 "speaker_label": "Beatriz Antunes",
 "text": "Vanta automates SOC 2 and ISO compliance.",
 "char_start": 6270,
@@ -940,8 +940,8 @@
 "sent_id": "t0040.s02"
 },
 {
-"start": 268.73,
-"end": 270.0,
+"start": 394.259,
+"end": 396.706,
 "speaker_label": "Beatriz Antunes",
 "text": "Learn more at vanta.com.",
 "char_start": 6312,
@@ -950,8 +950,8 @@
 "sent_id": "t0040.s03"
 },
 {
-"start": 270.0,
-"end": 276.0,
+"start": 396.706,
+"end": 399.997,
 "speaker_label": "Beatriz Antunes",
 "text": "Inês Carvalho, thank you for the conversation.",
 "char_start": 6337,
@@ -960,8 +960,8 @@
 "sent_id": "t0040.s04"
 },
 {
-"start": 276.0,
-"end": 282.0,
+"start": 399.997,
+"end": 402.234,
 "speaker_label": "Inês Carvalho",
 "text": "Thank you, Beatriz.",
 "char_start": 6399,
@@ -970,8 +970,8 @@
 "sent_id": "t0041.s01"
 },
 {
-"start": 282.0,
-"end": 286.07,
+"start": 402.234,
+"end": 404.882,
 "speaker_label": "Beatriz Antunes",
 "text": "That's all for today's Trail Sessions.",
 "char_start": 6436,
@@ -980,8 +980,8 @@
 "sent_id": "t0042.s01"
 },
 {
-"start": 286.07,
-"end": 288.0,
+"start": 404.882,
+"end": 406.136,
 "speaker_label": "Beatriz Antunes",
 "text": "See you next time.",
 "char_start": 6475,

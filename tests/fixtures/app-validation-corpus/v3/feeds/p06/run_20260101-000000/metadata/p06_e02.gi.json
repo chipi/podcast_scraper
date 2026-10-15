@@ -178,8 +178,8 @@
         "episode_id": "ep-f4b940a095192621",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 56659,
+        "timestamp_start_ms": 47693,
         "transcript_ref": "transcripts/p06_e02.txt"
       },
       "type": "Quote"
@@ -199,8 +199,8 @@
         "episode_id": "ep-f4b940a095192621",
         "speaker_id": "person:speaker-01",
         "text": "Right, right. I think about that all the time, honestly.",
-        "timestamp_end_ms": 90000,
-        "timestamp_start_ms": 84000,
+        "timestamp_end_ms": 109471,
+        "timestamp_start_ms": 106026,
         "transcript_ref": "transcripts/p06_e02.txt"
       },
       "type": "Quote"
@@ -213,8 +213,8 @@
         "episode_id": "ep-f4b940a095192621",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, Dialogue-heavy formats trade grounding for texture. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 240000,
-        "timestamp_start_ms": 234000,
+        "timestamp_end_ms": 221330,
+        "timestamp_start_ms": 213139,
         "transcript_ref": "transcripts/p06_e02.txt"
       },
       "type": "Quote"

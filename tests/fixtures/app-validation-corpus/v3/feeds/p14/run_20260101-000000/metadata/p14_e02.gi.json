@@ -183,8 +183,8 @@
         "episode_id": "ep-88fec846e9003e86",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore this, you'll end up rebuilding everything from scratch a year later.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
+        "timestamp_end_ms": 112066,
+        "timestamp_start_ms": 95961,
         "transcript_ref": "transcripts/p14_e02.txt",
         "translation": {
           "en_sha256": "691cc067476ce27c688e12865fbac5059a9cb32670701c75c06a2148fd98f311",
@@ -207,8 +207,8 @@
         "episode_id": "ep-88fec846e9003e86",
         "speaker_id": "person:speaker-02",
         "text": "Yes, so \u2013 risk management in cycling isn't about avoiding crashes; it's about choosing which crashes are survivable. We saw this pattern in teams that use RockShox. I observed this pattern repeating itself in three different teams.",
-        "timestamp_end_ms": 156000,
-        "timestamp_start_ms": 150000,
+        "timestamp_end_ms": 239032,
+        "timestamp_start_ms": 223691,
         "transcript_ref": "transcripts/p14_e02.txt",
         "translation": {
           "en_sha256": "691cc067476ce27c688e12865fbac5059a9cb32670701c75c06a2148fd98f311",
@@ -231,8 +231,8 @@
         "episode_id": "ep-88fec846e9003e86",
         "speaker_id": "person:speaker-02",
         "text": "I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this pattern in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.",
-        "timestamp_end_ms": 228000,
-        "timestamp_start_ms": 222000,
+        "timestamp_end_ms": 343388,
+        "timestamp_start_ms": 326652,
         "transcript_ref": "transcripts/p14_e02.txt",
         "translation": {
           "en_sha256": "691cc067476ce27c688e12865fbac5059a9cb32670701c75c06a2148fd98f311",

@@ -178,8 +178,8 @@
         "episode_id": "ep-a89e6a42509c9af0",
         "speaker_id": "person:speaker-02",
         "text": "Sure. The texture of dialogue is the work. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 55950,
+        "timestamp_start_ms": 48727,
         "transcript_ref": "transcripts/p06_e01.txt"
       },
       "type": "Quote"
@@ -192,8 +192,8 @@
         "episode_id": "ep-a89e6a42509c9af0",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 72575,
+        "timestamp_start_ms": 60707,
         "transcript_ref": "transcripts/p06_e01.txt"
       },
       "type": "Quote"
@@ -213,8 +213,8 @@
         "episode_id": "ep-a89e6a42509c9af0",
         "speaker_id": "person:speaker-01",
         "text": "There's something almost \u2014 I don't know. Hard to name.",
-        "timestamp_end_ms": 156000,
-        "timestamp_start_ms": 150000,
+        "timestamp_end_ms": 184865,
+        "timestamp_start_ms": 181755,
         "transcript_ref": "transcripts/p06_e01.txt"
       },
       "type": "Quote"

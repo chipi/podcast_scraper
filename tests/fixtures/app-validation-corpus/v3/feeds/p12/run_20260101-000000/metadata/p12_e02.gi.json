@@ -178,8 +178,8 @@
         "episode_id": "ep-16fcdef77d624069",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore that, you end up having to rebuild everything from scratch a year later.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
+        "timestamp_end_ms": 90005,
+        "timestamp_start_ms": 76096,
         "transcript_ref": "transcripts/p12_e02.txt",
         "translation": {
           "en_sha256": "1ca6eb18a2c2d81cb4a66b5dee16fb0a7e60719df4a69861a9062aec3423ac23",
@@ -202,8 +202,8 @@
         "episode_id": "ep-16fcdef77d624069",
         "speaker_id": "person:speaker-02",
         "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've seen this pattern repeat itself in three different teams.",
-        "timestamp_end_ms": 156000,
-        "timestamp_start_ms": 150000,
+        "timestamp_end_ms": 198964,
+        "timestamp_start_ms": 185560,
         "transcript_ref": "transcripts/p12_e02.txt",
         "translation": {
           "en_sha256": "1ca6eb18a2c2d81cb4a66b5dee16fb0a7e60719df4a69861a9062aec3423ac23",
@@ -233,8 +233,8 @@
         "episode_id": "ep-16fcdef77d624069",
         "speaker_id": "person:speaker-01",
         "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\n(The best option depends on the specific context.)",
-        "timestamp_end_ms": 234000,
-        "timestamp_start_ms": 228000,
+        "timestamp_end_ms": 290474,
+        "timestamp_start_ms": 289610,
         "transcript_ref": "transcripts/p12_e02.txt",
         "translation": {
           "en_sha256": "1ca6eb18a2c2d81cb4a66b5dee16fb0a7e60719df4a69861a9062aec3423ac23",

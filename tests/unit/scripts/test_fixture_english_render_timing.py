@@ -38,8 +38,18 @@ def test_every_english_sentence_sits_inside_a_source_segment() -> None:
 
 
 def test_the_point_about_drainage_plays_where_its_quote_is() -> None:
+    """The English sentence starts where the GI quote it grounds does — compared with the quote,
+    not with a literal: the fixture moved onto its audio's real timeline on 2026-10-15 (24 s on the
+    old 6 s grid, 31.263 s now), and the pairing is what this guards."""
     drainage = next(s for s in _segs("p10_e01.segments.json") if s["text"].startswith("Honestly"))
-    assert drainage["start"] == 24.0  # the GI quote's 24-30 s, not the ad's 23-25 s
+    gi = json.loads((TRANSCRIPTS.parent / "metadata" / "p10_e01.gi.json").read_text("utf-8"))
+    quote = next(
+        n["properties"]
+        for n in gi["nodes"]
+        if n.get("type") == "Quote"
+        and str(n["properties"].get("text", "")).startswith("Honestly, drainage")
+    )
+    assert round(drainage["start"] * 1000) == quote["timestamp_start_ms"]
 
 
 def test_the_committed_renders_need_no_retiming() -> None:

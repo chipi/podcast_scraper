@@ -195,8 +195,8 @@
         "episode_id": "ep-64ef09a7ee543045",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 72541,
+        "timestamp_start_ms": 63193,
         "transcript_ref": "transcripts/p08_e02.txt"
       },
       "type": "Quote"
@@ -209,8 +209,8 @@
         "episode_id": "ep-64ef09a7ee543045",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 96000,
-        "timestamp_start_ms": 90000,
+        "timestamp_end_ms": 126832,
+        "timestamp_start_ms": 117218,
         "transcript_ref": "transcripts/p08_e02.txt"
       },
       "type": "Quote"
@@ -223,8 +223,8 @@
         "episode_id": "ep-64ef09a7ee543045",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, Reliability of voice is partly preparation, partly humility. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 132000,
-        "timestamp_start_ms": 126000,
+        "timestamp_end_ms": 173711,
+        "timestamp_start_ms": 163935,
         "transcript_ref": "transcripts/p08_e02.txt"
       },
       "type": "Quote"

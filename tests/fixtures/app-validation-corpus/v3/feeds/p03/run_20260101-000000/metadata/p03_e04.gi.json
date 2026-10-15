@@ -223,8 +223,8 @@
         "episode_id": "ep-916dab1698f88aec",
         "speaker_id": "person:speaker-01",
         "text": "New divers think planning is paperwork. You call it survival.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
+        "timestamp_end_ms": 25626,
+        "timestamp_start_ms": 21012,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
@@ -244,8 +244,8 @@
         "episode_id": "ep-916dab1698f88aec",
         "speaker_id": "person:speaker-02",
         "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all first.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 39888,
+        "timestamp_start_ms": 25626,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
@@ -258,8 +258,8 @@
         "episode_id": "ep-916dab1698f88aec",
         "speaker_id": "person:speaker-02",
         "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 55704,
+        "timestamp_start_ms": 39888,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
@@ -286,8 +286,8 @@
         "episode_id": "ep-916dab1698f88aec",
         "speaker_id": "person:marco-silva",
         "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all first.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 39888,
+        "timestamp_start_ms": 25626,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"
@@ -314,8 +314,8 @@
         "episode_id": "ep-916dab1698f88aec",
         "speaker_id": "person:marco-silva",
         "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 55704,
+        "timestamp_start_ms": 39888,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"

@@ -4,8 +4,8 @@
 For each episode's Moments — the same picker, inputs and config the ``/episodes/{slug}/moments``
 route uses — cut the clip's audio, transcribe it with Whisper, and compare:
 
-* ``heard``: the share of the clip text's content words the audio actually says (1.0 = all).
-* ``offset_s``: where the clip text's opening words really are, relative to the clip's start,
+* ``heard``: the share of the quote's content words the audio actually says (1.0 = all).
+* ``offset_s``: where the quote's opening words really are, relative to the clip's start,
   found by transcribing a wider window with word timestamps (+3.0 = they come 3 s late; None =
   not found within the window).
 
@@ -104,19 +104,36 @@ def cut(source: str, start: float, end: float, out: Path) -> bool:
 
 
 def locate(words: list[dict[str, Any]], target: list[str]) -> float | None:
-    """Start time of the best match for the first content words of ``target`` in ``words``."""
+    """Start time of the first content words of ``target`` in ``words``, matched IN ORDER.
+
+    A candidate starts on a word equal to one of the target's first three words (tried in that
+    order, so the target's own first word wins when it is heard) and scores how many of the
+    target's words follow it in order within a short window. Without the anchor and the order,
+    a window beginning a few words early still held every target word, scored the same and won as
+    the earliest — every offset read about -2.5 s, fixture and prod alike (found 2026-10-15 against
+    the fixture's RTTM ground truth, where segment starts are exact).
+    """
     probe = target[:8]
     if len(probe) < 3:
         return None
     tokens = [(content_words(w["word"]), w["start"]) for w in words]
     flat = [(t, start) for ts, start in tokens for t in ts]
-    best, at = 0.0, None
-    for i in range(len(flat)):
-        window = [t for t, _ in flat[i : i + len(probe) + 4]]
-        score = sum(1 for p in probe if p in window) / len(probe)
-        if score > best:
-            best, at = score, flat[i][1]
-    return at if best >= 0.6 else None
+    for lead in range(3):
+        best, at = 0.0, None
+        for i in range(len(flat)):
+            if flat[i][0] != probe[lead]:
+                continue
+            k, hits = lead, 0
+            for t, _ in flat[i : i + len(probe) + 6]:
+                if k < len(probe) and t == probe[k]:
+                    hits += 1
+                    k += 1
+            score = hits / (len(probe) - lead)
+            if score > best:
+                best, at = score, flat[i][1]
+        if at is not None and best >= 0.6:
+            return float(at)
+    return None
 
 
 def check_episode(
@@ -138,7 +155,12 @@ def check_episode(
             if not cut(source, start, end, clip_wav):
                 continue
             heard_text = model.transcribe(str(clip_wav), language="en", fp16=False)["text"].strip()
-            expected = content_words(m.clip_text or m.quote_text or m.text)
+            # The QUOTE: the words the card shows and the clip is cut to start on. Not
+            # `clip_text`, which runs from the start of the first segment the clip touches — a
+            # clip starting mid-segment then "expects" words from before it, and the offset read
+            # about -2.5 s on every clip, fixture and prod alike (found 2026-10-15 against the
+            # fixture's RTTM ground truth, where segment starts are exact).
+            expected = content_words(m.quote_text or m.text)
             got = set(content_words(heard_text))
             heard = (sum(1 for w in expected if w in got) / len(expected)) if expected else 0.0
             offset = None

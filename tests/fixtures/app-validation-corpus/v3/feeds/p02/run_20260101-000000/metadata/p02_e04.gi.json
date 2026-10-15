@@ -235,8 +235,8 @@
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:speaker-02",
         "text": "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in parts, you'll miss it every time.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 54347,
+        "timestamp_start_ms": 35534,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
@@ -249,8 +249,8 @@
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:speaker-02",
         "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was pretty blunt about that.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 72014,
+        "timestamp_start_ms": 54347,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
@@ -270,8 +270,8 @@
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:speaker-01",
         "text": "That sounds a lot like what the investing folks say about a portfolio.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 102798,
+        "timestamp_start_ms": 97686,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
@@ -298,8 +298,8 @@
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:priya-nair",
         "text": "Reliability is a property of the whole system, not of any one component.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 54347,
+        "timestamp_start_ms": 35534,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"
@@ -326,8 +326,8 @@
         "episode_id": "ep-18ede6ffbd63f18f",
         "speaker_id": "person:priya-nair",
         "text": "It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
+        "timestamp_end_ms": 97686,
+        "timestamp_start_ms": 78155,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"

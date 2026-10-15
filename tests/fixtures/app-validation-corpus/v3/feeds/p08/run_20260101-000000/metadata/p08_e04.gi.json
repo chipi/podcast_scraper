@@ -190,8 +190,8 @@
         "episode_id": "ep-d428e906f5affc60",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 41597,
+        "timestamp_start_ms": 29314,
         "transcript_ref": "transcripts/p08_e04.txt"
       },
       "type": "Quote"
@@ -204,8 +204,8 @@
         "episode_id": "ep-d428e906f5affc60",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 57542,
+        "timestamp_start_ms": 46850,
         "transcript_ref": "transcripts/p08_e04.txt"
       },
       "type": "Quote"
@@ -218,8 +218,8 @@
         "episode_id": "ep-d428e906f5affc60",
         "speaker_id": "person:speaker-02",
         "text": "Sure. A correction is a reliability signal, not a failure. We've seen this play out at teams using NPR. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 108000,
-        "timestamp_start_ms": 102000,
+        "timestamp_end_ms": 137201,
+        "timestamp_start_ms": 125108,
         "transcript_ref": "transcripts/p08_e04.txt"
       },
       "type": "Quote"

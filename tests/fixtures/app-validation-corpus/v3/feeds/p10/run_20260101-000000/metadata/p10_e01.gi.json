@@ -173,8 +173,8 @@
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 45567,
+        "timestamp_start_ms": 31263,
         "transcript_ref": "transcripts/p10_e01.txt",
         "translation": {
           "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
@@ -197,8 +197,8 @@
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-02",
         "text": "Yes, see \u2013 the most common mistake that new builders make is excavating with too much of a slope. Once you understand that, the rest of the decisions become easier.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 63216,
+        "timestamp_start_ms": 50491,
         "transcript_ref": "transcripts/p10_e01.txt",
         "translation": {
           "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",
@@ -221,8 +221,8 @@
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-02",
         "text": "Sure. Discussions about land management need to take place before the first excavation. We've seen this in teams that use RockShox components. The framework is important because it tells you what compromises you're making.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 83361,
+        "timestamp_start_ms": 68396,
         "transcript_ref": "transcripts/p10_e01.txt",
         "translation": {
           "en_sha256": "b91d3d4864f624a6984aa6e074525c5b8dd47a14182f0ce1dc79c84811d00b17",

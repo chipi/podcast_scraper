@@ -39,18 +39,21 @@ def test_the_path_is_pinned_oldest_first_each_step_saying_what_its_insight_says(
     """The eval's frozen answer (2026-10-11). A change here is a ranking change: review it."""
     path = build_path(ROOT, "thc:managing-risk")
     assert [(s.episode_slug, s.speaker) for s in path] == [
+        ("p01-74565a3a19", "Sophie Laurent"),
+        ("p02-4487cfb778", "Jonas Weisenthal"),
         ("p01-3cad86824c", "Noah Brier"),
-        ("p01-f2b497cfa3", "Sophie Laurent"),
+        ("p05-fa4fd4b684", "Richard Clarida"),
         ("p02-8fdd7b7f79", "Priya Nair"),
         ("p05-25cb576153", "Daniel Cho"),
         ("p03-5b8ca67393", "Marco Silva"),
-        ("p07-a5eb82076a", "Dr. Elena Fischer"),
-        ("p07-2aceab172c", "Skanda Amarnath"),
     ]
     # 2026-10-12: clips stop before an ad break and where their speaker does, and 62 connective
     # templates stopped being insights; the strongest seven moved (a clip's length is part of its
     # score). p02-4487's clip had run into "We'll be right back after a quick word from our
     # sponsors."
+    # 2026-10-15: the fixture's segments on its audio's real timeline (they were a 6 s grid), so
+    # clips are their real length and the strongest seven moved again; each is a 9–19 s point about
+    # risk, oldest first (read step by step).
     assert len(path) == PATH_DAYS and len({s.episode_slug for s in path}) == PATH_DAYS
     dates = []
     for s in path:
@@ -296,8 +299,8 @@ def test_in_progress_lists_the_paths_and_the_last_unfinished_short_listen(tmp_pa
     )
     assert (reel["index"], reel["clips"]) == (4, 9)
     # The clip it resumes at, for the card: clip 5 of the systems-thinking reel (re-pinned
-    # 2026-10-13 with that reel, test_app_goal_reel).
-    assert (reel["episode"]["slug"], reel["speaker"]) == ("p07-769d04686d", "Dr. Elena Fischer")
+    # 2026-10-13 and 2026-10-15 with that reel, test_app_goal_reel).
+    assert (reel["episode"]["slug"], reel["speaker"]) == ("p07-a5eb82076a", "Dr. Elena Fischer")
     assert reel["quote_text"]
     client.put(
         "/api/app/discover/reel/progress",

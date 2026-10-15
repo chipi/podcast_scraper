@@ -198,8 +198,8 @@
         "episode_id": "ep-ec0bf35da3719170",
         "speaker_id": "person:speaker-02",
         "text": "Certainly. The maintenance intervals for the suspension are a risk management decision. If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
-        "timestamp_end_ms": 102000,
-        "timestamp_start_ms": 96000,
+        "timestamp_end_ms": 127475,
+        "timestamp_start_ms": 117285,
         "transcript_ref": "transcripts/p11_e03.txt",
         "translation": {
           "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
@@ -222,8 +222,8 @@
         "episode_id": "ep-ec0bf35da3719170",
         "speaker_id": "person:speaker-02",
         "text": "That's how I see it. The maintenance intervals for the suspension system are a risk management decision. I've seen this pattern repeat itself in three different teams.",
-        "timestamp_end_ms": 186000,
-        "timestamp_start_ms": 180000,
+        "timestamp_end_ms": 243334,
+        "timestamp_start_ms": 233596,
         "transcript_ref": "transcripts/p11_e03.txt",
         "translation": {
           "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",
@@ -246,8 +246,8 @@
         "episode_id": "ep-ec0bf35da3719170",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, the maintenance intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone overlooks.",
-        "timestamp_end_ms": 258000,
-        "timestamp_start_ms": 252000,
+        "timestamp_end_ms": 340436,
+        "timestamp_start_ms": 330036,
         "transcript_ref": "transcripts/p11_e03.txt",
         "translation": {
           "en_sha256": "efc5e621a7288eb964deff15b457924b858ea3e5f87b0abe09cec92b8ed19b2a",

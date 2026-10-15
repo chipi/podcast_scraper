@@ -173,8 +173,8 @@
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 46722,
+        "timestamp_start_ms": 33362,
         "transcript_ref": "transcripts/p12_e01.txt",
         "translation": {
           "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
@@ -197,8 +197,8 @@
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
         "text": "Yes, listen \u2013 the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 63669,
+        "timestamp_start_ms": 52040,
         "transcript_ref": "transcripts/p12_e01.txt",
         "translation": {
           "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",
@@ -228,8 +228,8 @@
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-01",
         "text": "It's settled.\nOr:\nIt's a done deal.\nOr:\nThat's confirmed.\nOr:\nIt's arranged.\nOr:\nIt's agreed.\n(The best option depends on the context.)",
-        "timestamp_end_ms": 168000,
-        "timestamp_start_ms": 162000,
+        "timestamp_end_ms": 242880,
+        "timestamp_start_ms": 242016,
         "transcript_ref": "transcripts/p12_e01.txt",
         "translation": {
           "en_sha256": "43048b4692079acdd0b781500fa2dbe20971eb866772f1e2185e12189abd31cc",

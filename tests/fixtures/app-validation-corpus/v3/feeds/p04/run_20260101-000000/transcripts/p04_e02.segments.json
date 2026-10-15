@@ -1,331 +1,331 @@
 [
   {
-    "end": 6.0,
+    "end": 12.935,
     "id": 0,
     "speaker_label": "Leo",
     "start": 0.0,
     "text": "Welcome back to Frame & Light. Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer. Tarek Hassan, thanks for being here."
   },
   {
-    "end": 12.0,
+    "end": 16.544,
     "id": 1,
     "speaker_label": "Tarek Hassan",
-    "start": 6.0,
+    "start": 12.935,
     "text": "Thanks, Leo. Great to be back."
   },
   {
-    "end": 18.0,
+    "end": 26.693,
     "id": 2,
     "speaker_label": "Leo",
-    "start": 12.0,
+    "start": 16.544,
     "text": "Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today."
   },
   {
-    "end": 24.0,
+    "end": 33.878,
     "id": 3,
     "speaker_label": "Leo",
-    "start": 18.0,
+    "start": 26.693,
     "text": "Before we get into it \u2014 Ava Lemoyne was on last week talking about strobe positioning underwater."
   },
   {
-    "end": 30.0,
+    "end": 39.996,
     "id": 4,
     "speaker_label": "Tarek Hassan",
-    "start": 24.0,
+    "start": 33.878,
     "text": "Yeah, exactly. And it ties into what we're covering today."
   },
   {
-    "end": 36.0,
+    "end": 45.647,
     "id": 5,
     "speaker_label": "Leo",
-    "start": 30.0,
+    "start": 39.996,
     "text": "I want to flag something \u2014 Ava Lemoyne mentioned this same dynamic a couple episodes back."
   },
   {
-    "end": 42.0,
+    "end": 52.366,
     "id": 6,
     "speaker_label": "Leo",
-    "start": 36.0,
+    "start": 45.647,
     "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
   },
   {
-    "end": 48.0,
+    "end": 75.412,
     "id": 7,
     "speaker_label": "Tarek Hassan",
-    "start": 42.0,
+    "start": 52.366,
     "text": "It comes down to this: Documentary frames carry the most weight when the photographer is closer than feels comfortable. We've seen this play out at teams using Capture One. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 54.0,
+    "end": 81.693,
     "id": 8,
     "speaker_label": "Leo",
-    "start": 48.0,
+    "start": 75.412,
     "text": "Push back on the conventional wisdom for me. Where do frame and documentary photography intersect?"
   },
   {
-    "end": 60.0,
+    "end": 97.594,
     "id": 9,
     "speaker_label": "Tarek Hassan",
-    "start": 54.0,
+    "start": 81.693,
     "text": "Let me give you the version I actually believe. Editing a documentary essay is the second project. And the second-order effect is the part most people miss."
   },
   {
-    "end": 66.0,
+    "end": 103.241,
     "id": 10,
     "speaker_label": "Leo",
-    "start": 60.0,
+    "start": 97.594,
     "text": "I want to dig into that. What's the structural angle most listeners don't have access to?"
   },
   {
-    "end": 72.0,
+    "end": 122.749,
     "id": 11,
     "speaker_label": "Tarek Hassan",
-    "start": 66.0,
+    "start": 103.241,
     "text": "Honestly, Peak Design slings have changed how I move through a story. We've seen this play out at teams using Adobe. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 78.0,
+    "end": 124.422,
     "id": 12,
     "speaker_label": "Leo",
-    "start": 72.0,
+    "start": 122.749,
     "text": "Where does that break down?"
   },
   {
-    "end": 84.0,
+    "end": 135.679,
     "id": 13,
     "speaker_label": "Tarek Hassan",
-    "start": 78.0,
+    "start": 124.422,
     "text": "Capture One is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 90.0,
+    "end": 140.899,
     "id": 14,
     "speaker_label": "Leo",
-    "start": 84.0,
+    "start": 135.679,
     "text": "Take me through the decision. Where do frame and documentary photography intersect?"
   },
   {
-    "end": 96.0,
+    "end": 155.772,
     "id": 15,
     "speaker_label": "Tarek Hassan",
-    "start": 90.0,
+    "start": 140.899,
     "text": "Here's how I think about it. I changed my mind on color grading documentary work. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 102.0,
+    "end": 159.198,
     "id": 16,
     "speaker_label": "Leo",
-    "start": 96.0,
+    "start": 155.772,
     "text": "We'll be right back after a quick word from our sponsors."
   },
   {
-    "end": 108.0,
+    "end": 173.949,
     "id": 17,
     "speaker_label": "Ad",
-    "start": 102.0,
+    "start": 159.198,
     "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Visit squarespace.com/podcast for a free trial."
   },
   {
-    "end": 114.0,
+    "end": 175.582,
     "id": 18,
     "speaker_label": "Leo",
-    "start": 108.0,
+    "start": 173.949,
     "text": "Welcome back to the show."
   },
   {
-    "end": 120.0,
+    "end": 181.462,
     "id": 19,
     "speaker_label": "Leo",
-    "start": 114.0,
+    "start": 175.582,
     "text": "I want to dig into that. What's the operational angle most listeners don't have access to?"
   },
   {
-    "end": 126.0,
+    "end": 206.941,
     "id": 20,
     "speaker_label": "Tarek Hassan",
-    "start": 120.0,
+    "start": 181.462,
     "text": "Let me give you the version I actually believe. Documentary frames carry the most weight when the photographer is closer than feels comfortable. We've seen this play out at teams using Profoto. And the second-order effect is the part most people miss."
   },
   {
-    "end": 132.0,
+    "end": 213.814,
     "id": 21,
     "speaker_label": "Leo",
-    "start": 126.0,
+    "start": 206.941,
     "text": "Push back on the conventional wisdom for me. What's the operational angle most listeners don't have access to?"
   },
   {
-    "end": 138.0,
+    "end": 228.42,
     "id": 22,
     "speaker_label": "Tarek Hassan",
-    "start": 132.0,
+    "start": 213.814,
     "text": "Here's how I think about it. Editing a documentary essay is the second project. And the second-order effect is the part most people miss."
   },
   {
-    "end": 144.0,
+    "end": 234.876,
     "id": 23,
     "speaker_label": "Leo",
-    "start": 138.0,
+    "start": 228.42,
     "text": "Walk me through a concrete example. What's the operational angle most listeners don't have access to?"
   },
   {
-    "end": 150.0,
+    "end": 254.511,
     "id": 24,
     "speaker_label": "Tarek Hassan",
-    "start": 144.0,
+    "start": 234.876,
     "text": "Honestly, Peak Design slings have changed how I move through a story. We've seen this play out at teams using Profoto. The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 156.0,
+    "end": 255.881,
     "id": 25,
     "speaker_label": "Leo",
-    "start": 150.0,
+    "start": 254.511,
     "text": "Say more about that."
   },
   {
-    "end": 162.0,
+    "end": 267.487,
     "id": 26,
     "speaker_label": "Tarek Hassan",
-    "start": 156.0,
+    "start": 255.881,
     "text": "Peak Design is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss."
   },
   {
-    "end": 168.0,
+    "end": 274.36,
     "id": 27,
     "speaker_label": "Leo",
-    "start": 162.0,
+    "start": 267.487,
     "text": "Push back on the conventional wisdom for me. What's the operational angle most listeners don't have access to?"
   },
   {
-    "end": 174.0,
+    "end": 289.233,
     "id": 28,
     "speaker_label": "Tarek Hassan",
-    "start": 168.0,
+    "start": 274.36,
     "text": "Here's how I think about it. I changed my mind on color grading documentary work. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 180.0,
+    "end": 294.064,
     "id": 29,
     "speaker_label": "Leo",
-    "start": 174.0,
+    "start": 289.233,
     "text": "Let's pivot \u2014 editing workflow is where I want to spend the last stretch."
   },
   {
-    "end": 186.0,
+    "end": 306.464,
     "id": 30,
     "speaker_label": "Tarek Hassan",
-    "start": 180.0,
+    "start": 294.064,
     "text": "That's where the conversation gets interesting, because the trade-offs around editing workflow cross-cut everything we've covered."
   },
   {
-    "end": 192.0,
+    "end": 312.723,
     "id": 31,
     "speaker_label": "Leo",
-    "start": 186.0,
+    "start": 306.464,
     "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
   },
   {
-    "end": 198.0,
+    "end": 336.12,
     "id": 32,
     "speaker_label": "Tarek Hassan",
-    "start": 192.0,
+    "start": 312.723,
     "text": "Honestly, Documentary frames carry the most weight when the photographer is closer than feels comfortable. We've seen this play out at teams using Capture One. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 204.0,
+    "end": 340.908,
     "id": 33,
     "speaker_label": "Leo",
-    "start": 198.0,
+    "start": 336.12,
     "text": "I want to dig into that. What's the version of the question that actually matters?"
   },
   {
-    "end": 210.0,
+    "end": 355.723,
     "id": 34,
     "speaker_label": "Tarek Hassan",
-    "start": 204.0,
+    "start": 340.908,
     "text": "It comes down to this: Editing a documentary essay is the second project. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 216.0,
+    "end": 361.448,
     "id": 35,
     "speaker_label": "Leo",
-    "start": 210.0,
+    "start": 355.723,
     "text": "What does the failure mode look like? Where do frame and documentary photography intersect?"
   },
   {
-    "end": 222.0,
+    "end": 383.496,
     "id": 36,
     "speaker_label": "Tarek Hassan",
-    "start": 216.0,
+    "start": 361.448,
     "text": "Here's how I think about it. Peak Design slings have changed how I move through a story. We've seen this play out at teams using Capture One. The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 228.0,
+    "end": 384.865,
     "id": 37,
     "speaker_label": "Leo",
-    "start": 222.0,
+    "start": 383.496,
     "text": "Say more about that."
   },
   {
-    "end": 234.0,
+    "end": 399.256,
     "id": 38,
     "speaker_label": "Tarek Hassan",
-    "start": 228.0,
+    "start": 384.865,
     "text": "And when teams adopt Peak Design in that flow, the trade-off becomes visible \u2014 The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 240.0,
+    "end": 405.804,
     "id": 39,
     "speaker_label": "Leo",
-    "start": 234.0,
+    "start": 399.256,
     "text": "Push back on the conventional wisdom for me. What's the most underrated piece of documentary photography?"
   },
   {
-    "end": 246.0,
+    "end": 422.278,
     "id": 40,
     "speaker_label": "Tarek Hassan",
-    "start": 240.0,
+    "start": 405.804,
     "text": "Here's how I think about it. I changed my mind on color grading documentary work. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 252.0,
+    "end": 426.274,
     "id": 41,
     "speaker_label": "Leo",
-    "start": 246.0,
+    "start": 422.278,
     "text": "Before we wrap, what's one thing listeners can try this week?"
   },
   {
-    "end": 258.0,
+    "end": 434.33,
     "id": 42,
     "speaker_label": "Tarek Hassan",
-    "start": 252.0,
+    "start": 426.274,
     "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
   },
   {
-    "end": 264.0,
+    "end": 447.066,
     "id": 43,
     "speaker_label": "Leo",
-    "start": 258.0,
+    "start": 434.33,
     "text": "And finally, a big thank you to our partners at Peak Design. Peak Design builds camera bags, straps, and tripods designed by photographers. Check out peakdesign.com."
   },
   {
-    "end": 270.0,
+    "end": 450.308,
     "id": 44,
     "speaker_label": "Leo",
-    "start": 264.0,
+    "start": 447.066,
     "text": "Tarek Hassan, thanks for the conversation."
   },
   {
-    "end": 276.0,
+    "end": 451.781,
     "id": 45,
     "speaker_label": "Tarek Hassan",
-    "start": 270.0,
+    "start": 450.308,
     "text": "Thanks, Leo."
   },
   {
-    "end": 282.0,
+    "end": 456.34,
     "id": 46,
     "speaker_label": "Leo",
-    "start": 276.0,
+    "start": 451.781,
     "text": "That's it for today's episode of Frame & Light. See you next time."
   }
 ]

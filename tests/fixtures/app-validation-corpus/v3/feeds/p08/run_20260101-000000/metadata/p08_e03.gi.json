@@ -200,8 +200,8 @@
         "episode_id": "ep-b3570c1ceb5eca41",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 43405,
+        "timestamp_start_ms": 31421,
         "transcript_ref": "transcripts/p08_e03.txt"
       },
       "type": "Quote"
@@ -214,8 +214,8 @@
         "episode_id": "ep-b3570c1ceb5eca41",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
+        "timestamp_end_ms": 95374,
+        "timestamp_start_ms": 81455,
         "transcript_ref": "transcripts/p08_e03.txt"
       },
       "type": "Quote"
@@ -228,8 +228,8 @@
         "episode_id": "ep-b3570c1ceb5eca41",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 108000,
-        "timestamp_start_ms": 102000,
+        "timestamp_end_ms": 140521,
+        "timestamp_start_ms": 128817,
         "transcript_ref": "transcripts/p08_e03.txt"
       },
       "type": "Quote"

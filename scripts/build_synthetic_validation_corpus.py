@@ -301,6 +301,49 @@ def short_hash(text: str, n: int = 16) -> str:
 # elements (it would index 0 transcript segments and have no speakers).
 
 
+def measured_line_times(
+    transcript_path: Path, segments: list[dict[str, Any]]
+) -> list[tuple[float, float]] | None:
+    """Each line's ``(start, end)`` in seconds on the fixture audio, or None when unknown.
+
+    The audio is ``tests/fixtures/scripts/transcripts_to_mp3.py`` output: consecutive lines by the
+    same speaker are one ``say`` render, the renders are joined back to back, and the ``.rttm``
+    beside the transcript records each render's exact start and duration. So a turn's span is
+    exact; inside a turn of several lines the span is split by the lines' text length. None when
+    there is no RTTM, or its turns do not line up with these lines (then nothing is guessed).
+    """
+    rttm = transcript_path.with_suffix(".rttm")
+    if not rttm.is_file():
+        return None
+    rows: list[tuple[float, float]] = []
+    for line in rttm.read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[0] == "SPEAKER":
+            rows.append((float(parts[3]), float(parts[4])))
+    turns: list[list[int]] = []
+    for i, seg in enumerate(segments):
+        if turns and segments[turns[-1][-1]]["speaker_label"] == seg["speaker_label"]:
+            turns[-1].append(i)
+        else:
+            turns.append([i])
+    if not segments or len(turns) != len(rows):
+        return None
+    out: list[tuple[float, float]] = [(0.0, 0.0)] * len(segments)
+    for k, ((start, dur), members) in enumerate(zip(rows, turns)):
+        # A turn ends where the next begins: the RTTM rounds start and duration separately, so
+        # start + duration can land 1 ms past the next start, and that overlap pulled the next
+        # speaker's line into a clip's text.
+        turn_end = rows[k + 1][0] if k + 1 < len(rows) else start + dur
+        weights = [max(1, len(str(segments[i]["text"]))) for i in members]
+        total = float(sum(weights))
+        at = start
+        for j, (i, w) in enumerate(zip(members, weights)):
+            end = turn_end if j == len(members) - 1 else at + (turn_end - start) * (w / total)
+            out[i] = (round(at, 3), round(end, 3))
+            at = end
+    return out
+
+
 def parse_diarized_segments(
     transcript_path: Path,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -345,10 +388,12 @@ def parse_diarized_segments(
         if text:
             segments.append({"speaker_label": speaker, "text": text})
 
-    # Synthetic monotonic timestamps (~6s per turn) so ordering + ms are stable.
+    # Real times where the audio's RTTM is beside the transcript (operator 2026-10-15): a clip cut
+    # at a segment's time played other words when every line was stamped on a 6 s grid the TTS
+    # audio does not follow. The grid stays only for a transcript without an RTTM.
+    times = measured_line_times(transcript_path, segments)
     for i, seg in enumerate(segments):
-        seg["start"] = float(i * 6)
-        seg["end"] = float(i * 6 + 6)
+        seg["start"], seg["end"] = times[i] if times else (float(i * 6), float(i * 6 + 6))
 
     # Roster: unique speakers in first-seen order, role from the header.
     roster: list[dict[str, str]] = []

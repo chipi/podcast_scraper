@@ -132,7 +132,7 @@
         "episode_id": "ep-26eaa57651247221",
         "speaker_id": "person:speaker-01",
         "text": "This is an edge-case fixture used for parser and processor robustness tests.",
-        "timestamp_end_ms": 6000,
+        "timestamp_end_ms": 5101,
         "timestamp_start_ms": 0,
         "transcript_ref": "transcripts/p06_e06.txt"
       },
@@ -146,8 +146,8 @@
         "episode_id": "ep-26eaa57651247221",
         "speaker_id": "person:speaker-01",
         "text": "A bit of code-switching to test transcription robustness.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
+        "timestamp_end_ms": 13346,
+        "timestamp_start_ms": 9278,
         "transcript_ref": "transcripts/p06_e06.txt"
       },
       "type": "Quote"

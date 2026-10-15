@@ -1,79 +1,79 @@
 [
   {
-    "end": 6.0,
+    "end": 7.662,
     "id": 0,
     "speaker_label": "Maya",
     "start": 0.0,
     "text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you."
   },
   {
-    "end": 12.0,
+    "end": 11.33,
     "id": 1,
     "speaker_label": "Sophie Laurent",
-    "start": 6.0,
+    "start": 7.662,
     "text": "Thanks, Maya. Always happy to talk shop."
   },
   {
-    "end": 18.0,
+    "end": 17.997,
     "id": 2,
     "speaker_label": "Maya",
-    "start": 12.0,
+    "start": 11.33,
     "text": "Today's episode is sponsored by Strava. Strava is the home for athletes. Try strava.com today."
   },
   {
-    "end": 24.0,
+    "end": 22.252,
     "id": 3,
     "speaker_label": "Maya",
-    "start": 18.0,
+    "start": 17.997,
     "text": "People think racing is about nerve. You say it's about risk."
   },
   {
-    "end": 30.0,
+    "end": 37.228,
     "id": 4,
     "speaker_label": "Sophie Laurent",
-    "start": 24.0,
+    "start": 22.252,
     "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away."
   },
   {
-    "end": 36.0,
+    "end": 52.927,
     "id": 5,
     "speaker_label": "Sophie Laurent",
-    "start": 30.0,
+    "start": 37.228,
     "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream."
   },
   {
-    "end": 42.0,
+    "end": 57.335,
     "id": 6,
     "speaker_label": "Maya",
-    "start": 36.0,
+    "start": 52.927,
     "text": "That's almost word-for-word what a friend in finance says about a portfolio."
   },
   {
-    "end": 48.0,
+    "end": 70.364,
     "id": 7,
     "speaker_label": "Sophie Laurent",
-    "start": 42.0,
+    "start": 57.335,
     "text": "It's the same discipline. A race line and a portfolio are both systems of correlated bets \u2014 you're managing the interactions, and the risk you can describe is the one you can design around."
   },
   {
-    "end": 54.0,
+    "end": 77.526,
     "id": 8,
     "speaker_label": "Maya",
-    "start": 48.0,
+    "start": 70.364,
     "text": "Thanks to Peak Design for backing the show. Peak Design builds bags and straps designed by people who actually ride."
   },
   {
-    "end": 60.0,
+    "end": 78.9,
     "id": 9,
     "speaker_label": "Sophie Laurent",
-    "start": 54.0,
+    "start": 77.526,
     "text": "Cheers, Maya."
   },
   {
-    "end": 66.0,
+    "end": 82.124,
     "id": 10,
     "speaker_label": "Maya",
-    "start": 60.0,
+    "start": 78.9,
     "text": "That's it for this Singletrack Sessions. Ride safe."
   }
 ]

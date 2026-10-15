@@ -183,8 +183,8 @@
         "episode_id": "ep-2cd5c6d11325a312",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
+        "timestamp_end_ms": 81809,
+        "timestamp_start_ms": 71452,
         "transcript_ref": "transcripts/p07_e02.txt"
       },
       "type": "Quote"
@@ -197,8 +197,8 @@
         "episode_id": "ep-2cd5c6d11325a312",
         "speaker_id": "person:speaker-02",
         "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 78000,
-        "timestamp_start_ms": 72000,
+        "timestamp_end_ms": 102649,
+        "timestamp_start_ms": 87680,
         "transcript_ref": "transcripts/p07_e02.txt"
       },
       "type": "Quote"
@@ -211,8 +211,8 @@
         "episode_id": "ep-2cd5c6d11325a312",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Systems thinking in macro means watching feedback loops, not point estimates. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 132000,
-        "timestamp_start_ms": 126000,
+        "timestamp_end_ms": 169075,
+        "timestamp_start_ms": 156970,
         "transcript_ref": "transcripts/p07_e02.txt"
       },
       "type": "Quote"

@@ -93,7 +93,7 @@
         "episode_id": "ep-0c46a67a56b05689",
         "speaker_id": "person:speaker-01",
         "text": "This is an edge-case fixture used for parser and processor robustness tests.",
-        "timestamp_end_ms": 6000,
+        "timestamp_end_ms": 5660,
         "timestamp_start_ms": 0,
         "transcript_ref": "transcripts/p06_e05.txt"
       },

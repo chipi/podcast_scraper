@@ -168,8 +168,8 @@
         "episode_id": "ep-a0a7f86b34a4de26",
         "speaker_id": "person:speaker-02",
         "text": "Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
+        "timestamp_end_ms": 54098,
+        "timestamp_start_ms": 43608,
         "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"
@@ -182,8 +182,8 @@
         "episode_id": "ep-a0a7f86b34a4de26",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Erosion in coastal areas drives sediment plumes. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "timestamp_end_ms": 67541,
+        "timestamp_start_ms": 58931,
         "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"
@@ -196,8 +196,8 @@
         "episode_id": "ep-a0a7f86b34a4de26",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Most reef damage from divers isn't fin contact \u2014 it's anchor strikes. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 72000,
-        "timestamp_start_ms": 66000,
+        "timestamp_end_ms": 85780,
+        "timestamp_start_ms": 73269,
         "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"

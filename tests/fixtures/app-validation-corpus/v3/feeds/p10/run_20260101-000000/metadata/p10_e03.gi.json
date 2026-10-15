@@ -188,8 +188,8 @@
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-02",
         "text": "Sure. The service intervals for the suspension are a risk management decision. If you ignore that, you'll end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 102000,
-        "timestamp_start_ms": 96000,
+        "timestamp_end_ms": 133603,
+        "timestamp_start_ms": 122213,
         "transcript_ref": "transcripts/p10_e03.txt",
         "translation": {
           "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
@@ -212,8 +212,8 @@
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-02",
         "text": "That's how I see it. The service intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.",
-        "timestamp_end_ms": 186000,
-        "timestamp_start_ms": 180000,
+        "timestamp_end_ms": 260317,
+        "timestamp_start_ms": 249341,
         "transcript_ref": "transcripts/p10_e03.txt",
         "translation": {
           "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",
@@ -236,8 +236,8 @@
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-02",
         "text": "Frankly, the service intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone overlooks.",
-        "timestamp_end_ms": 258000,
-        "timestamp_start_ms": 252000,
+        "timestamp_end_ms": 364160,
+        "timestamp_start_ms": 352723,
         "transcript_ref": "transcripts/p10_e03.txt",
         "translation": {
           "en_sha256": "615b6dc4fe658a5bd7536254d0aaff27f82d513cad642d93fef6a4f83fceaf1e",

@@ -1,93 +1,93 @@
 [
   {
-    "end": 6.0,
+    "end": 13.207,
     "id": 0,
     "speaker_label": "Ethan",
     "start": 0.0,
     "text": "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on."
   },
   {
-    "end": 12.0,
+    "end": 15.291,
     "id": 1,
     "speaker_label": "Priya Nair",
-    "start": 6.0,
+    "start": 13.207,
     "text": "Glad to be here, Ethan."
   },
   {
-    "end": 18.0,
+    "end": 29.557,
     "id": 2,
     "speaker_label": "Ethan",
-    "start": 12.0,
+    "start": 15.291,
     "text": "This episode is brought to you by Datadog. Datadog gives unified observability across logs, metrics, and traces. Get started at datadog.com/podcast."
   },
   {
-    "end": 24.0,
+    "end": 35.534,
     "id": 3,
     "speaker_label": "Ethan",
-    "start": 18.0,
+    "start": 29.557,
     "text": "You keep saying reliability isn't a feature. What do you mean?"
   },
   {
-    "end": 30.0,
+    "end": 54.347,
     "id": 4,
     "speaker_label": "Priya Nair",
-    "start": 24.0,
+    "start": 35.534,
     "text": "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in parts, you'll miss it every time."
   },
   {
-    "end": 36.0,
+    "end": 72.014,
     "id": 5,
     "speaker_label": "Priya Nair",
-    "start": 30.0,
+    "start": 54.347,
     "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was pretty blunt about that."
   },
   {
-    "end": 42.0,
+    "end": 78.155,
     "id": 6,
     "speaker_label": "Ethan",
-    "start": 36.0,
+    "start": 72.014,
     "text": "You once told me production risk is the same as portfolio risk. Say more."
   },
   {
-    "end": 48.0,
+    "end": 97.686,
     "id": 7,
     "speaker_label": "Priya Nair",
-    "start": 42.0,
+    "start": 78.155,
     "text": "It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud."
   },
   {
-    "end": 54.0,
+    "end": 102.798,
     "id": 8,
     "speaker_label": "Ethan",
-    "start": 48.0,
+    "start": 97.686,
     "text": "That sounds a lot like what the investing folks say about a portfolio."
   },
   {
-    "end": 60.0,
+    "end": 116.095,
     "id": 9,
     "speaker_label": "Priya Nair",
-    "start": 54.0,
+    "start": 102.798,
     "text": "Exactly \u2014 a service mesh and a portfolio are both systems of correlated bets. The reliability question and the risk question are the same question wearing different clothes."
   },
   {
-    "end": 66.0,
+    "end": 125.141,
     "id": 10,
     "speaker_label": "Ethan",
-    "start": 60.0,
+    "start": 116.095,
     "text": "Thanks again to PagerDuty for supporting the show. PagerDuty turns noisy alerts into structured incident response."
   },
   {
-    "end": 72.0,
+    "end": 126.683,
     "id": 11,
     "speaker_label": "Priya Nair",
-    "start": 66.0,
+    "start": 125.141,
     "text": "Thanks, Ethan."
   },
   {
-    "end": 78.0,
+    "end": 131.784,
     "id": 12,
     "speaker_label": "Ethan",
-    "start": 72.0,
+    "start": 126.683,
     "text": "That's it for this episode of Practical Systems. Take care."
   }
 ]

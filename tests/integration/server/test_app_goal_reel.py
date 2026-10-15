@@ -47,20 +47,27 @@ def test_the_reel_is_pinned_breadth_first_and_says_what_its_insights_say() -> No
 
     2026-10-13, eleven clips: the corpus rebuilt on main's D-44 (a translated episode is analysed in
     its English), main's claim ranking, and every insight grounded in the line that says it;
-    re-measured, not traced clip by clip."""
+    re-measured, not traced clip by clip.
+
+    2026-10-15, thirteen clips: the fixture's segments are on its audio's real timeline (they were
+    a synthetic 6 s grid, so a clip played other words). Lines are their real length, so clips are
+    longer in seconds and the breadth-first order shifts; each clip is a 9–19 s point about systems
+    thinking (read clip by clip)."""
     reel = goal_reel(ROOT, "topic:systems-thinking", minutes=15)
     assert [(c.episode_slug, c.moment.speaker) for c in reel] == [
         ("p02-8fdd7b7f79", "Priya Nair"),
-        ("p07-a5eb82076a", "Dr. Elena Fischer"),
         ("p07-2aceab172c", "Skanda Amarnath"),
         ("p07-3f1584920f", "Skanda Amarnath"),
         ("p07-769d04686d", "Dr. Elena Fischer"),
+        ("p07-a5eb82076a", "Dr. Elena Fischer"),
         ("p09-db2d39ef2e", "Dr. Elena Fischer"),
         ("p09-a4bbb5dde3", "Dr. Elena Fischer"),
         ("p05-25cb576153", "Scott Bessent"),
         ("p05-693ecaa09e", "Scott Bessent"),
+        ("p02-8fdd7b7f79", "Priya Nair"),
         ("p07-2aceab172c", "Skanda Amarnath"),
         ("p07-3f1584920f", "Skanda Amarnath"),
+        ("p07-a5eb82076a", "Dr. Elena Fischer"),
     ]
     # Breadth first: every episode's first clip comes before any episode's second.
     episodes = [c.episode_slug for c in reel]
@@ -116,8 +123,9 @@ def test_a_storyline_reel_is_clips_about_any_of_its_member_topics() -> None:
     reel = goal_reel(ROOT, "thc:managing-risk", minutes=15)
     # 39 clips from 27 episodes since 2026-10-12: the translated shows' guests' risk-management
     # lines are insights now (they were connective templates), and clips are shorter. 38 from 26
-    # since 2026-10-13: the corpus rebuilt on main's D-44 English analysis (re-measured).
-    assert len(reel) == 38 and len({c.episode_slug for c in reel}) == 26
+    # since 2026-10-13: the corpus rebuilt on main's D-44 English analysis (re-measured). 39 from
+    # 26 since 2026-10-15: the fixture on its audio's real timeline (re-measured).
+    assert len(reel) == 39 and len({c.episode_slug for c in reel}) == 26
     assert_no_repeats(reel)
     one_member = {c.episode_slug for c in goal_reel(ROOT, "topic:risk-management", minutes=15)}
     assert len({c.episode_slug for c in reel}) > len(one_member)
@@ -144,7 +152,7 @@ def test_the_route_names_a_storyline_reel_by_its_storyline(tmp_path: Path) -> No
         "storyline",
         "Managing risk across domains",
     )
-    assert len(body["clips"]) == 38
+    assert len(body["clips"]) == 39
 
 
 def _client(data_dir: Path) -> tuple[TestClient, str]:
@@ -168,8 +176,10 @@ def test_the_route_reports_what_the_reel_actually_runs(tmp_path: Path) -> None:
     assert body["minutes"] == 15
     # The small fixture: far less than the budget. 78 since 2026-10-12: clips stop before an ad
     # break and where their speaker does (in this fixture a turn is often one 6 s line). 84 since
-    # 2026-10-13: one clip more (the rebuilt corpus, see the pinned reel above).
-    assert body["total_seconds"] == 84.0
+    # 2026-10-13: one clip more (the rebuilt corpus, see the pinned reel above). 190.1 since
+    # 2026-10-15: lines are their real length on the audio, not a 6 s grid, so each clip runs
+    # longer and two more fit (see the pinned reel above).
+    assert body["total_seconds"] == 190.1
     first = body["clips"][0]
     assert first["episode"]["slug"] == "p02-8fdd7b7f79" and first["end_ms"] > first["start_ms"]
     assert client.get("/api/app/discover/reel", params={"subject": "person:x"}).status_code == 422
@@ -188,12 +198,13 @@ def test_reel_topics_offers_only_topics_with_a_real_reel(
     # with no reel, so the row only fills because it walks past them (REEL_TOPIC_CANDIDATES); when
     # it took the first 8 and stopped, this was the two storylines alone. tc:reliability's reel is
     # topic:reliability's, so it is the same offer and appears once.
-    # Counts re-measured 2026-10-13 on the rebuilt corpus; the order and the offers are unchanged.
+    # Counts re-measured 2026-10-13 on the rebuilt corpus, and 2026-10-15 on the real timeline;
+    # the order and the offers are unchanged.
     assert [(i["subject_id"], i["subject_kind"], i["clips"]) for i in everyone["items"]] == [
         ("topic:reliability", "topic", 16),
         ("tc:risk-management", "theme", 32),
-        ("thc:managing-risk", "storyline", 38),
-        ("topic:systems-thinking", "topic", 11),
+        ("thc:managing-risk", "storyline", 39),
+        ("topic:systems-thinking", "topic", 13),
     ]
     for i, slug in enumerate(("p07-a5eb82076a", "p07-2aceab172c", "p02-8fdd7b7f79")):
         app_user_state.add_highlight(

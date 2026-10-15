@@ -183,8 +183,8 @@
         "episode_id": "ep-919c77e84ad37664",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "timestamp_end_ms": 70408,
+        "timestamp_start_ms": 56849,
         "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"
@@ -197,8 +197,8 @@
         "episode_id": "ep-919c77e84ad37664",
         "speaker_id": "person:speaker-02",
         "text": "Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 102000,
-        "timestamp_start_ms": 96000,
+        "timestamp_end_ms": 122675,
+        "timestamp_start_ms": 109713,
         "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"
@@ -211,8 +211,8 @@
         "episode_id": "ep-919c77e84ad37664",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, Labor markets are where macro stops being abstract. We've seen this play out at teams using BloombergNEF. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 138000,
-        "timestamp_start_ms": 132000,
+        "timestamp_end_ms": 167482,
+        "timestamp_start_ms": 154106,
         "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"

@@ -210,8 +210,8 @@
         "episode_id": "ep-1979e93514355ea6",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 52848,
+        "timestamp_start_ms": 36224,
         "transcript_ref": "transcripts/p07_e01.txt"
       },
       "type": "Quote"
@@ -224,8 +224,8 @@
         "episode_id": "ep-1979e93514355ea6",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Risk management at planetary scale looks like reliability engineering at company scale. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 88630,
+        "timestamp_start_ms": 74330,
         "transcript_ref": "transcripts/p07_e01.txt"
       },
       "type": "Quote"
@@ -238,8 +238,8 @@
         "episode_id": "ep-1979e93514355ea6",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using IEA. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 108000,
-        "timestamp_start_ms": 102000,
+        "timestamp_end_ms": 151928,
+        "timestamp_start_ms": 137269,
         "transcript_ref": "transcripts/p07_e01.txt"
       },
       "type": "Quote"

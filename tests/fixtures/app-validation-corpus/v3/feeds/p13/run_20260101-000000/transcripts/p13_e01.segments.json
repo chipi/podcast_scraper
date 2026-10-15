@@ -1,7 +1,7 @@
 [
   {
     "start": 0.0,
-    "end": 0.85,
+    "end": 1.785,
     "speaker_label": "Katrin Vogel",
     "text": "Welcome back to Path Talks.",
     "char_start": 14,
@@ -10,8 +10,8 @@
     "sent_id": "t0000.s01"
   },
   {
-    "start": 0.85,
-    "end": 4.74,
+    "start": 1.785,
+    "end": 9.917,
     "speaker_label": "Katrin Vogel",
     "text": "Today, we're talking about trail construction, and I'm joined by Stefan Brandt, a trail builder with the Cascadia Alliance.",
     "char_start": 42,
@@ -20,8 +20,8 @@
     "sent_id": "t0000.s02"
   },
   {
-    "start": 4.74,
-    "end": 6.0,
+    "start": 9.917,
+    "end": 12.561,
     "speaker_label": "Katrin Vogel",
     "text": "Stefan Brandt, thank you for being here.",
     "char_start": 166,
@@ -30,8 +30,8 @@
     "sent_id": "t0000.s03"
   },
   {
-    "start": 6.0,
-    "end": 7.12,
+    "start": 12.561,
+    "end": 13.875,
     "speaker_label": "Stefan Brandt",
     "text": "Thank you, Katrin.",
     "char_start": 222,
@@ -40,8 +40,8 @@
     "sent_id": "t0001.s01"
   },
   {
-    "start": 7.12,
-    "end": 12.0,
+    "start": 13.875,
+    "end": 19.568,
     "speaker_label": "Stefan Brandt",
     "text": "You're very welcome – road construction is something I've thought a lot about.",
     "char_start": 241,
@@ -50,8 +50,8 @@
     "sent_id": "t0001.s02"
   },
   {
-    "start": 12.0,
-    "end": 14.2,
+    "start": 19.568,
+    "end": 22.333,
     "speaker_label": "Katrin Vogel",
     "text": "This episode is brought to you by Strava.",
     "char_start": 334,
@@ -60,8 +60,8 @@
     "sent_id": "t0002.s01"
   },
   {
-    "start": 14.2,
-    "end": 15.86,
+    "start": 22.333,
+    "end": 24.424,
     "speaker_label": "Katrin Vogel",
     "text": "Strava is the home of athletes.",
     "char_start": 376,
@@ -70,8 +70,8 @@
     "sent_id": "t0002.s02"
   },
   {
-    "start": 15.86,
-    "end": 18.0,
+    "start": 24.424,
+    "end": 27.122,
     "speaker_label": "Katrin Vogel",
     "text": "Visit strava.com/podcast to get started.",
     "char_start": 408,
@@ -80,8 +80,8 @@
     "sent_id": "t0002.s03"
   },
   {
-    "start": 18.0,
-    "end": 21.04,
+    "start": 27.122,
+    "end": 30.195,
     "speaker_label": "Katrin Vogel",
     "text": "Tell me about how you made that decision.",
     "char_start": 449,
@@ -90,8 +90,8 @@
     "sent_id": "t0002.s04"
   },
   {
-    "start": 21.04,
-    "end": 24.0,
+    "start": 30.195,
+    "end": 33.194,
     "speaker_label": "Katrin Vogel",
     "text": "How does RockShox fit into this picture?",
     "char_start": 491,
@@ -100,8 +100,8 @@
     "sent_id": "t0002.s05"
   },
   {
-    "start": 24.0,
-    "end": 27.0,
+    "start": 33.194,
+    "end": 40.626,
     "speaker_label": "Stefan Brandt",
     "text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project.",
     "char_start": 547,
@@ -110,8 +110,8 @@
     "sent_id": "t0003.s01"
   },
   {
-    "start": 27.0,
-    "end": 28.58,
+    "start": 40.626,
+    "end": 44.545,
     "speaker_label": "Stefan Brandt",
     "text": "We've seen this with teams that use the Cascadia Alliance.",
     "char_start": 658,
@@ -120,8 +120,8 @@
     "sent_id": "t0003.s02"
   },
   {
-    "start": 28.58,
-    "end": 30.0,
+    "start": 44.545,
+    "end": 48.058,
     "speaker_label": "Stefan Brandt",
     "text": "I've observed this pattern in three different teams.",
     "char_start": 717,
@@ -130,8 +130,8 @@
     "sent_id": "t0003.s03"
   },
   {
-    "start": 30.0,
-    "end": 32.17,
+    "start": 48.058,
+    "end": 50.702,
     "speaker_label": "Katrin Vogel",
     "text": "Tell me how you made the decision.",
     "char_start": 784,
@@ -140,8 +140,8 @@
     "sent_id": "t0004.s01"
   },
   {
-    "start": 32.17,
-    "end": 36.0,
+    "start": 50.702,
+    "end": 55.369,
     "speaker_label": "Katrin Vogel",
     "text": "What is the core issue that really matters in this question?",
     "char_start": 819,
@@ -150,8 +150,8 @@
     "sent_id": "t0004.s02"
   },
   {
-    "start": 36.0,
-    "end": 39.63,
+    "start": 55.369,
+    "end": 62.228,
     "speaker_label": "Stefan Brandt",
     "text": "Yes, see – a common mistake that new path builders make is digging with too much of a slope.",
     "char_start": 895,
@@ -160,8 +160,8 @@
     "sent_id": "t0005.s01"
   },
   {
-    "start": 39.63,
-    "end": 42.0,
+    "start": 62.228,
+    "end": 66.702,
     "speaker_label": "Stefan Brandt",
     "text": "Once you understand that, the other decisions become easier.",
     "char_start": 988,
@@ -170,8 +170,8 @@
     "sent_id": "t0005.s02"
   },
   {
-    "start": 42.0,
-    "end": 44.44,
+    "start": 66.702,
+    "end": 68.683,
     "speaker_label": "Katrin Vogel",
     "text": "I would like to explore this further.",
     "char_start": 1063,
@@ -180,8 +180,8 @@
     "sent_id": "t0006.s01"
   },
   {
-    "start": 44.44,
-    "end": 48.0,
+    "start": 68.683,
+    "end": 71.574,
     "speaker_label": "Katrin Vogel",
     "text": "Where do soil erosion and road construction intersect?",
     "char_start": 1101,
@@ -190,8 +190,8 @@
     "sent_id": "t0006.s02"
   },
   {
-    "start": 48.0,
-    "end": 48.27,
+    "start": 71.574,
+    "end": 72.205,
     "speaker_label": "Stefan Brandt",
     "text": "Certainly.",
     "char_start": 1171,
@@ -200,8 +200,8 @@
     "sent_id": "t0007.s01"
   },
   {
-    "start": 48.27,
-    "end": 50.37,
+    "start": 72.205,
+    "end": 77.127,
     "speaker_label": "Stefan Brandt",
     "text": "Discussions about land management must take place before any ground is broken.",
     "char_start": 1182,
@@ -210,8 +210,8 @@
     "sent_id": "t0007.s02"
   },
   {
-    "start": 50.37,
-    "end": 52.01,
+    "start": 77.127,
+    "end": 80.977,
     "speaker_label": "Stefan Brandt",
     "text": "We've seen this happen with teams that use RockShox products.",
     "char_start": 1261,
@@ -220,8 +220,8 @@
     "sent_id": "t0007.s03"
   },
   {
-    "start": 52.01,
-    "end": 54.0,
+    "start": 80.977,
+    "end": 85.647,
     "speaker_label": "Stefan Brandt",
     "text": "The frame is important because it tells you what trade-offs you're making.",
     "char_start": 1323,
@@ -230,8 +230,8 @@
     "sent_id": "t0007.s04"
   },
   {
-    "start": 54.0,
-    "end": 60.0,
+    "start": 85.647,
+    "end": 87.142,
     "speaker_label": "Katrin Vogel",
     "text": "Tell me more about it.",
     "char_start": 1412,
@@ -240,8 +240,8 @@
     "sent_id": "t0008.s01"
   },
   {
-    "start": 60.0,
-    "end": 66.0,
+    "start": 87.142,
+    "end": 96.989,
     "speaker_label": "Stefan Brandt",
     "text": "And when teams integrate Spoke & Wrench into this process, the trade-offs become clear. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later.",
     "char_start": 1450,
@@ -250,8 +250,8 @@
     "sent_id": "t0009.s01"
   },
   {
-    "start": 66.0,
-    "end": 68.55,
+    "start": 96.989,
+    "end": 99.7,
     "speaker_label": "Katrin Vogel",
     "text": "Tell me about how you made the decision.",
     "char_start": 1654,
@@ -260,8 +260,8 @@
     "sent_id": "t0010.s01"
   },
   {
-    "start": 68.55,
-    "end": 72.0,
+    "start": 99.7,
+    "end": 103.36,
     "speaker_label": "Katrin Vogel",
     "text": "Where do soil erosion and road construction intersect?",
     "char_start": 1695,
@@ -270,8 +270,8 @@
     "sent_id": "t0010.s02"
   },
   {
-    "start": 72.0,
-    "end": 72.36,
+    "start": 103.36,
+    "end": 104.081,
     "speaker_label": "Stefan Brandt",
     "text": "Certainly.",
     "char_start": 1765,
@@ -280,8 +280,8 @@
     "sent_id": "t0011.s01"
   },
   {
-    "start": 72.36,
-    "end": 73.64,
+    "start": 104.081,
+    "end": 106.676,
     "speaker_label": "Stefan Brandt",
     "text": "Bankings on slopes are not optional.",
     "char_start": 1776,
@@ -290,8 +290,8 @@
     "sent_id": "t0011.s02"
   },
   {
-    "start": 73.64,
-    "end": 75.46,
+    "start": 106.676,
+    "end": 110.353,
     "speaker_label": "Stefan Brandt",
     "text": "The shortcut is the breakthrough in the third year.",
     "char_start": 1813,
@@ -300,8 +300,8 @@
     "sent_id": "t0011.s03"
   },
   {
-    "start": 75.46,
-    "end": 78.0,
+    "start": 110.353,
+    "end": 115.471,
     "speaker_label": "Stefan Brandt",
     "text": "And the second-order effect is the part that almost everyone overlooks.",
     "char_start": 1865,
@@ -310,8 +310,8 @@
     "sent_id": "t0011.s04"
   },
   {
-    "start": 78.0,
-    "end": 79.71,
+    "start": 115.471,
+    "end": 117.195,
     "speaker_label": "Katrin Vogel",
     "text": "This is a useful framework.",
     "char_start": 1951,
@@ -320,8 +320,8 @@
     "sent_id": "t0012.s01"
   },
   {
-    "start": 79.71,
-    "end": 84.0,
+    "start": 117.195,
+    "end": 121.538,
     "speaker_label": "Katrin Vogel",
     "text": "What is the core issue or the most important aspect of the question?",
     "char_start": 1979,
@@ -330,8 +330,8 @@
     "sent_id": "t0012.s02"
   },
   {
-    "start": 84.0,
-    "end": 86.39,
+    "start": 121.538,
+    "end": 126.658,
     "speaker_label": "Stefan Brandt",
     "text": "Yes, look – the team structure is more important than people often realize.",
     "char_start": 2063,
@@ -340,8 +340,8 @@
     "sent_id": "t0013.s01"
   },
   {
-    "start": 86.39,
-    "end": 88.34,
+    "start": 126.658,
+    "end": 130.823,
     "speaker_label": "Stefan Brandt",
     "text": "We've seen this with teams that use the Spoke & Wrench model.",
     "char_start": 2139,
@@ -350,8 +350,8 @@
     "sent_id": "t0013.s02"
   },
   {
-    "start": 88.34,
-    "end": 90.0,
+    "start": 130.823,
+    "end": 134.373,
     "speaker_label": "Stefan Brandt",
     "text": "I've observed this pattern in three different teams.",
     "char_start": 2201,
@@ -360,8 +360,8 @@
     "sent_id": "t0013.s03"
   },
   {
-    "start": 90.0,
-    "end": 91.88,
+    "start": 134.373,
+    "end": 136.727,
     "speaker_label": "Katrin Vogel",
     "text": "What does the error mode look like?",
     "char_start": 2268,
@@ -370,8 +370,8 @@
     "sent_id": "t0014.s01"
   },
   {
-    "start": 91.88,
-    "end": 96.0,
+    "start": 136.727,
+    "end": 141.907,
     "speaker_label": "Katrin Vogel",
     "text": "What is the structural perspective that most listeners do not have access to?",
     "char_start": 2304,
@@ -380,8 +380,8 @@
     "sent_id": "t0014.s02"
   },
   {
-    "start": 96.0,
-    "end": 97.99,
+    "start": 141.907,
+    "end": 146.227,
     "speaker_label": "Stefan Brandt",
     "text": "Let me share with you the perspective that I truly believe in.",
     "char_start": 2397,
@@ -390,8 +390,8 @@
     "sent_id": "t0015.s01"
   },
   {
-    "start": 97.99,
-    "end": 100.27,
+    "start": 146.227,
+    "end": 151.175,
     "speaker_label": "Stefan Brandt",
     "text": "I have changed my opinion about machine-built versus hand-built trails.",
     "char_start": 2460,
@@ -400,8 +400,8 @@
     "sent_id": "t0015.s02"
   },
   {
-    "start": 100.27,
-    "end": 102.0,
+    "start": 151.175,
+    "end": 154.938,
     "speaker_label": "Stefan Brandt",
     "text": "I have observed this pattern in three different teams.",
     "char_start": 2532,
@@ -410,8 +410,8 @@
     "sent_id": "t0015.s03"
   },
   {
-    "start": 102.0,
-    "end": 108.0,
+    "start": 154.938,
+    "end": 156.433,
     "speaker_label": "Katrin Vogel",
     "text": "Tell me more about it.",
     "char_start": 2601,
@@ -420,8 +420,8 @@
     "sent_id": "t0016.s01"
   },
   {
-    "start": 108.0,
-    "end": 114.0,
+    "start": 156.433,
+    "end": 166.883,
     "speaker_label": "Stefan Brandt",
     "text": "And when teams integrate the Cascadia Alliance into this process, the trade-offs become clear. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later.",
     "char_start": 2639,
@@ -430,8 +430,8 @@
     "sent_id": "t0017.s01"
   },
   {
-    "start": 114.0,
-    "end": 120.0,
+    "start": 166.883,
+    "end": 170.481,
     "speaker_label": "Katrin Vogel",
     "text": "We'll be right back after a short commercial break.",
     "char_start": 2850,
@@ -440,8 +440,8 @@
     "sent_id": "t0018.s01"
   },
   {
-    "start": 120.0,
-    "end": 121.48,
+    "start": 170.481,
+    "end": 174.707,
     "speaker_label": "SPEAKER_02",
     "text": "Today's episode is brought to you by Stripe.",
     "char_start": 2914,
@@ -450,8 +450,8 @@
     "sent_id": "t0019.s01"
   },
   {
-    "start": 121.48,
-    "end": 124.58,
+    "start": 174.707,
+    "end": 183.545,
     "speaker_label": "SPEAKER_02",
     "text": "Stripe makes payments easy, whether you're running a marketplace or a subscription business.",
     "char_start": 2959,
@@ -460,8 +460,8 @@
     "sent_id": "t0019.s02"
   },
   {
-    "start": 124.58,
-    "end": 126.0,
+    "start": 183.545,
+    "end": 187.579,
     "speaker_label": "SPEAKER_02",
     "text": "Visit stripe.com/podcast for a free trial.",
     "char_start": 3052,
@@ -470,8 +470,8 @@
     "sent_id": "t0019.s03"
   },
   {
-    "start": 126.0,
-    "end": 127.32,
+    "start": 187.579,
+    "end": 189.193,
     "speaker_label": "Katrin Vogel",
     "text": "Welcome back to the show.",
     "char_start": 3109,
@@ -480,8 +480,8 @@
     "sent_id": "t0020.s01"
   },
   {
-    "start": 127.32,
-    "end": 129.16,
+    "start": 189.193,
+    "end": 191.453,
     "speaker_label": "Katrin Vogel",
     "text": "What does the error mode look like?",
     "char_start": 3135,
@@ -490,8 +490,8 @@
     "sent_id": "t0020.s02"
   },
   {
-    "start": 129.16,
-    "end": 132.0,
+    "start": 191.453,
+    "end": 194.939,
     "speaker_label": "Katrin Vogel",
     "text": "Where do soil erosion and road construction intersect?",
     "char_start": 3171,
@@ -500,8 +500,8 @@
     "sent_id": "t0020.s03"
   },
   {
-    "start": 132.0,
-    "end": 132.51,
+    "start": 194.939,
+    "end": 196.185,
     "speaker_label": "Stefan Brandt",
     "text": "That's my perspective.",
     "char_start": 3241,
@@ -510,8 +510,8 @@
     "sent_id": "t0021.s01"
   },
   {
-    "start": 132.51,
-    "end": 134.85,
+    "start": 196.185,
+    "end": 201.848,
     "speaker_label": "Stefan Brandt",
     "text": "Drainage is the design decision that has the biggest impact on performance, regardless of the route.",
     "char_start": 3264,
@@ -520,8 +520,8 @@
     "sent_id": "t0021.s02"
   },
   {
-    "start": 134.85,
-    "end": 136.13,
+    "start": 201.848,
+    "end": 204.963,
     "speaker_label": "Stefan Brandt",
     "text": "We've seen this with teams that use Shimano components.",
     "char_start": 3365,
@@ -530,8 +530,8 @@
     "sent_id": "t0021.s03"
   },
   {
-    "start": 136.13,
-    "end": 138.0,
+    "start": 204.963,
+    "end": 209.494,
     "speaker_label": "Stefan Brandt",
     "text": "If you ignore that, you'll have to rebuild everything from scratch a year later.",
     "char_start": 3421,
@@ -540,8 +540,8 @@
     "sent_id": "t0021.s04"
   },
   {
-    "start": 138.0,
-    "end": 141.0,
+    "start": 209.494,
+    "end": 212.296,
     "speaker_label": "Katrin Vogel",
     "text": "Tell me about how you made the decision.",
     "char_start": 3516,
@@ -550,8 +550,8 @@
     "sent_id": "t0022.s01"
   },
   {
-    "start": 141.0,
-    "end": 144.0,
+    "start": 212.296,
+    "end": 215.098,
     "speaker_label": "Katrin Vogel",
     "text": "How does RockShox fit into this picture?",
     "char_start": 3557,
@@ -560,8 +560,8 @@
     "sent_id": "t0022.s02"
   },
   {
-    "start": 144.0,
-    "end": 147.63,
+    "start": 215.098,
+    "end": 221.958,
     "speaker_label": "Stefan Brandt",
     "text": "Yes, see – a common mistake that new path builders make is digging with too much of a slope.",
     "char_start": 3613,
@@ -570,8 +570,8 @@
     "sent_id": "t0023.s01"
   },
   {
-    "start": 147.63,
-    "end": 150.0,
+    "start": 221.958,
+    "end": 226.432,
     "speaker_label": "Stefan Brandt",
     "text": "Once you understand that, the other decisions become easier.",
     "char_start": 3706,
@@ -580,8 +580,8 @@
     "sent_id": "t0023.s02"
   },
   {
-    "start": 150.0,
-    "end": 151.58,
+    "start": 226.432,
+    "end": 228.183,
     "speaker_label": "Katrin Vogel",
     "text": "Challenge my existing beliefs.",
     "char_start": 3781,
@@ -590,8 +590,8 @@
     "sent_id": "t0024.s01"
   },
   {
-    "start": 151.58,
-    "end": 156.0,
+    "start": 228.183,
+    "end": 233.085,
     "speaker_label": "Katrin Vogel",
     "text": "What did you used to believe about this, and how have your views changed since then?",
     "char_start": 3812,
@@ -600,8 +600,8 @@
     "sent_id": "t0024.s02"
   },
   {
-    "start": 156.0,
-    "end": 157.49,
+    "start": 233.085,
+    "end": 237.281,
     "speaker_label": "Stefan Brandt",
     "text": "Let me share with you the approach that I truly believe in.",
     "char_start": 3912,
@@ -610,8 +610,8 @@
     "sent_id": "t0025.s01"
   },
   {
-    "start": 157.49,
-    "end": 159.4,
+    "start": 237.281,
+    "end": 242.685,
     "speaker_label": "Stefan Brandt",
     "text": "Discussions about land management must take place before any digging begins.",
     "char_start": 3972,
@@ -620,8 +620,8 @@
     "sent_id": "t0025.s02"
   },
   {
-    "start": 159.4,
-    "end": 160.69,
+    "start": 242.685,
+    "end": 246.312,
     "speaker_label": "Stefan Brandt",
     "text": "We've seen this with teams that use Spoke & Wrench.",
     "char_start": 4049,
@@ -630,8 +630,8 @@
     "sent_id": "t0025.s03"
   },
   {
-    "start": 160.69,
-    "end": 162.0,
+    "start": 246.312,
+    "end": 250.01,
     "speaker_label": "Stefan Brandt",
     "text": "I've observed this pattern in three different teams.",
     "char_start": 4101,
@@ -640,8 +640,8 @@
     "sent_id": "t0025.s04"
   },
   {
-    "start": 162.0,
-    "end": 168.0,
+    "start": 250.01,
+    "end": 250.736,
     "speaker_label": "Katrin Vogel",
     "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
     "char_start": 4168,
@@ -650,8 +650,8 @@
     "sent_id": "t0026.s01"
   },
   {
-    "start": 168.0,
-    "end": 171.62,
+    "start": 250.736,
+    "end": 257.63,
     "speaker_label": "Stefan Brandt",
     "text": "Outside of the tools available at the Cascadia Alliance level, the error mode is more difficult to identify.",
     "char_start": 4255,
@@ -660,8 +660,8 @@
     "sent_id": "t0027.s01"
   },
   {
-    "start": 171.62,
-    "end": 174.0,
+    "start": 257.63,
+    "end": 262.162,
     "speaker_label": "Stefan Brandt",
     "text": "And the second-order effect is the part that almost everyone overlooks.",
     "char_start": 4364,
@@ -670,8 +670,8 @@
     "sent_id": "t0027.s02"
   },
   {
-    "start": 174.0,
-    "end": 177.03,
+    "start": 262.162,
+    "end": 266.07,
     "speaker_label": "Katrin Vogel",
     "text": "What is the guiding principle you always come back to?",
     "char_start": 4450,
@@ -680,8 +680,8 @@
     "sent_id": "t0028.s01"
   },
   {
-    "start": 177.03,
-    "end": 180.0,
+    "start": 266.07,
+    "end": 269.905,
     "speaker_label": "Katrin Vogel",
     "text": "What is the core of the question that really matters?",
     "char_start": 4505,
@@ -690,8 +690,8 @@
     "sent_id": "t0028.s02"
   },
   {
-    "start": 180.0,
-    "end": 182.18,
+    "start": 269.905,
+    "end": 274.662,
     "speaker_label": "Stefan Brandt",
     "text": "It all boils down to this: curbs on slopes are not optional.",
     "char_start": 4574,
@@ -700,8 +700,8 @@
     "sent_id": "t0029.s01"
   },
   {
-    "start": 182.18,
-    "end": 184.04,
+    "start": 274.662,
+    "end": 278.705,
     "speaker_label": "Stefan Brandt",
     "text": "The shortcut is the breakthrough in the third year.",
     "char_start": 4635,
@@ -710,8 +710,8 @@
     "sent_id": "t0029.s02"
   },
   {
-    "start": 184.04,
-    "end": 186.0,
+    "start": 278.705,
+    "end": 282.986,
     "speaker_label": "Stefan Brandt",
     "text": "I have observed this pattern in three different teams.",
     "char_start": 4687,
@@ -720,8 +720,8 @@
     "sent_id": "t0029.s03"
   },
   {
-    "start": 186.0,
-    "end": 188.29,
+    "start": 282.986,
+    "end": 285.244,
     "speaker_label": "Katrin Vogel",
     "text": "What does the failure mode look like?",
     "char_start": 4756,
@@ -730,8 +730,8 @@
     "sent_id": "t0030.s01"
   },
   {
-    "start": 188.29,
-    "end": 192.0,
+    "start": 285.244,
+    "end": 288.906,
     "speaker_label": "Katrin Vogel",
     "text": "What is the most underestimated aspect of road construction?",
     "char_start": 4794,
@@ -740,8 +740,8 @@
     "sent_id": "t0030.s02"
   },
   {
-    "start": 192.0,
-    "end": 193.48,
+    "start": 288.906,
+    "end": 292.881,
     "speaker_label": "Stefan Brandt",
     "text": "Let me share with you the framework that I truly believe in.",
     "char_start": 4870,
@@ -750,8 +750,8 @@
     "sent_id": "t0031.s01"
   },
   {
-    "start": 193.48,
-    "end": 195.19,
+    "start": 292.881,
+    "end": 297.452,
     "speaker_label": "Stefan Brandt",
     "text": "The underlying structure is more important than people often realize.",
     "char_start": 4931,
@@ -760,8 +760,8 @@
     "sent_id": "t0031.s02"
   },
   {
-    "start": 195.19,
-    "end": 196.72,
+    "start": 297.452,
+    "end": 301.56,
     "speaker_label": "Stefan Brandt",
     "text": "We've seen this with teams that utilize the Cascadia Alliance.",
     "char_start": 5001,
@@ -770,8 +770,8 @@
     "sent_id": "t0031.s03"
   },
   {
-    "start": 196.72,
-    "end": 198.0,
+    "start": 301.56,
+    "end": 305.005,
     "speaker_label": "Stefan Brandt",
     "text": "I've observed this pattern in three different teams.",
     "char_start": 5064,
@@ -780,8 +780,8 @@
     "sent_id": "t0031.s04"
   },
   {
-    "start": 198.0,
-    "end": 200.92,
+    "start": 305.005,
+    "end": 307.004,
     "speaker_label": "Katrin Vogel",
     "text": "I would like to explore this further.",
     "char_start": 5131,
@@ -790,8 +790,8 @@
     "sent_id": "t0032.s01"
   },
   {
-    "start": 200.92,
-    "end": 204.0,
+    "start": 307.004,
+    "end": 309.111,
     "speaker_label": "Katrin Vogel",
     "text": "How does Shimano fit into this picture?",
     "char_start": 5169,
@@ -800,8 +800,8 @@
     "sent_id": "t0032.s02"
   },
   {
-    "start": 204.0,
-    "end": 207.43,
+    "start": 309.111,
+    "end": 315.639,
     "speaker_label": "Stefan Brandt",
     "text": "Yes, look – I've changed my opinion about machine-built versus hand-built roads.",
     "char_start": 5224,
@@ -810,8 +810,8 @@
     "sent_id": "t0033.s01"
   },
   {
-    "start": 207.43,
-    "end": 210.0,
+    "start": 315.639,
+    "end": 320.535,
     "speaker_label": "Stefan Brandt",
     "text": "Once you understand that, the other decisions become easier.",
     "char_start": 5305,
@@ -820,8 +820,8 @@
     "sent_id": "t0033.s02"
   },
   {
-    "start": 210.0,
-    "end": 216.0,
+    "start": 320.535,
+    "end": 322.844,
     "speaker_label": "Katrin Vogel",
     "text": "Where does it stop working?",
     "char_start": 5380,
@@ -830,8 +830,8 @@
     "sent_id": "t0034.s01"
   },
   {
-    "start": 216.0,
-    "end": 219.64,
+    "start": 322.844,
+    "end": 329.508,
     "speaker_label": "Stefan Brandt",
     "text": "Outside of the tools available at the RockShox level, the error mode is more difficult to identify.",
     "char_start": 5423,
@@ -840,8 +840,8 @@
     "sent_id": "t0035.s01"
   },
   {
-    "start": 219.64,
-    "end": 222.0,
+    "start": 329.508,
+    "end": 333.816,
     "speaker_label": "Stefan Brandt",
     "text": "Once you understand that, the remaining decisions become easier.",
     "char_start": 5523,
@@ -850,8 +850,8 @@
     "sent_id": "t0035.s02"
   },
   {
-    "start": 222.0,
-    "end": 228.0,
+    "start": 333.816,
+    "end": 338.715,
     "speaker_label": "Katrin Vogel",
     "text": "Let's change the subject – I would like to dedicate the next section to land management.",
     "char_start": 5602,
@@ -860,8 +860,8 @@
     "sent_id": "t0036.s01"
   },
   {
-    "start": 228.0,
-    "end": 234.0,
+    "start": 338.715,
+    "end": 346.489,
     "speaker_label": "Stefan Brandt",
     "text": "That's where the conversation becomes interesting, because the considerations surrounding land management permeate everything we've discussed.",
     "char_start": 5706,
@@ -870,8 +870,8 @@
     "sent_id": "t0037.s01"
   },
   {
-    "start": 234.0,
-    "end": 236.02,
+    "start": 346.489,
+    "end": 348.752,
     "speaker_label": "Katrin Vogel",
     "text": "I would like to explore this further.",
     "char_start": 5863,
@@ -880,8 +880,8 @@
     "sent_id": "t0038.s01"
   },
   {
-    "start": 236.02,
-    "end": 240.0,
+    "start": 348.752,
+    "end": 353.218,
     "speaker_label": "Katrin Vogel",
     "text": "What is the opposing perspective that most listeners are unable to grasp?",
     "char_start": 5901,
@@ -890,8 +890,8 @@
     "sent_id": "t0038.s02"
   },
   {
-    "start": 240.0,
-    "end": 242.94,
+    "start": 353.218,
+    "end": 360.787,
     "speaker_label": "Stefan Brandt",
     "text": "Ultimately, the suspension setup is the design choice that has the biggest impact on performance, regardless of the riding style.",
     "char_start": 5990,
@@ -900,8 +900,8 @@
     "sent_id": "t0039.s01"
   },
   {
-    "start": 242.94,
-    "end": 243.97,
+    "start": 360.787,
+    "end": 363.428,
     "speaker_label": "Stefan Brandt",
     "text": "We've seen this with teams that use RockShox.",
     "char_start": 6120,
@@ -910,8 +910,8 @@
     "sent_id": "t0039.s02"
   },
   {
-    "start": 243.97,
-    "end": 246.0,
+    "start": 363.428,
+    "end": 368.65,
     "speaker_label": "Stefan Brandt",
     "text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
     "char_start": 6166,
@@ -920,8 +920,8 @@
     "sent_id": "t0039.s03"
   },
   {
-    "start": 246.0,
-    "end": 248.29,
+    "start": 368.65,
+    "end": 370.908,
     "speaker_label": "Katrin Vogel",
     "text": "What does the failure mode look like?",
     "char_start": 6270,
@@ -930,8 +930,8 @@
     "sent_id": "t0040.s01"
   },
   {
-    "start": 248.29,
-    "end": 252.0,
+    "start": 370.908,
+    "end": 374.569,
     "speaker_label": "Katrin Vogel",
     "text": "What is the most underestimated aspect of road construction?",
     "char_start": 6308,
@@ -940,8 +940,8 @@
     "sent_id": "t0040.s02"
   },
   {
-    "start": 252.0,
-    "end": 255.06,
+    "start": 374.569,
+    "end": 380.103,
     "speaker_label": "Stefan Brandt",
     "text": "To be honest, the most common mistake made by new path builders is digging with too much of a slope.",
     "char_start": 6384,
@@ -950,8 +950,8 @@
     "sent_id": "t0041.s01"
   },
   {
-    "start": 255.06,
-    "end": 258.0,
+    "start": 380.103,
+    "end": 385.415,
     "speaker_label": "Stefan Brandt",
     "text": "The framework is important because it tells you what considerations you are taking into account.",
     "char_start": 6485,
@@ -960,8 +960,8 @@
     "sent_id": "t0041.s02"
   },
   {
-    "start": 258.0,
-    "end": 264.0,
+    "start": 385.415,
+    "end": 390.993,
     "speaker_label": "Katrin Vogel",
     "text": "Before we wrap up, what's one thing that listeners can try out this week?",
     "char_start": 6596,
@@ -970,8 +970,8 @@
     "sent_id": "t0042.s01"
   },
   {
-    "start": 264.0,
-    "end": 268.53,
+    "start": 390.993,
+    "end": 396.398,
     "speaker_label": "Stefan Brandt",
     "text": "Choose one of the ideas we discussed and implement it for two weeks.",
     "char_start": 6685,
@@ -980,8 +980,8 @@
     "sent_id": "t0043.s01"
   },
   {
-    "start": 268.53,
-    "end": 270.0,
+    "start": 396.398,
+    "end": 398.147,
     "speaker_label": "Stefan Brandt",
     "text": "The rest is iteration.",
     "char_start": 6754,
@@ -990,8 +990,8 @@
     "sent_id": "t0043.s02"
   },
   {
-    "start": 270.0,
-    "end": 272.28,
+    "start": 398.147,
+    "end": 403.121,
     "speaker_label": "Katrin Vogel",
     "text": "And finally, a big thank you to our partners at Linear.",
     "char_start": 6791,
@@ -1000,8 +1000,8 @@
     "sent_id": "t0044.s01"
   },
   {
-    "start": 272.28,
-    "end": 275.3,
+    "start": 403.121,
+    "end": 409.723,
     "speaker_label": "Katrin Vogel",
     "text": "Linear is the issue tracker, built for speed – designed for keyboard use.",
     "char_start": 6847,
@@ -1010,8 +1010,8 @@
     "sent_id": "t0044.s02"
   },
   {
-    "start": 275.3,
-    "end": 276.0,
+    "start": 409.723,
+    "end": 411.261,
     "speaker_label": "Katrin Vogel",
     "text": "Visit linear.com.",
     "char_start": 6921,
@@ -1020,8 +1020,8 @@
     "sent_id": "t0044.s03"
   },
   {
-    "start": 276.0,
-    "end": 282.0,
+    "start": 411.261,
+    "end": 414.014,
     "speaker_label": "Katrin Vogel",
     "text": "Stefan Brandt, thank you for the conversation.",
     "char_start": 6939,
@@ -1030,8 +1030,8 @@
     "sent_id": "t0044.s04"
   },
   {
-    "start": 282.0,
-    "end": 288.0,
+    "start": 414.014,
+    "end": 415.493,
     "speaker_label": "Stefan Brandt",
     "text": "Thank you, Katrin.",
     "char_start": 7001,
@@ -1040,8 +1040,8 @@
     "sent_id": "t0045.s01"
   },
   {
-    "start": 288.0,
-    "end": 292.65,
+    "start": 415.493,
+    "end": 419.258,
     "speaker_label": "Katrin Vogel",
     "text": "That's all for today's episode of \"Path Conversations.\"",
     "char_start": 7034,
@@ -1050,8 +1050,8 @@
     "sent_id": "t0046.s01"
   },
   {
-    "start": 292.65,
-    "end": 294.0,
+    "start": 419.258,
+    "end": 420.353,
     "speaker_label": "Katrin Vogel",
     "text": "Until next time.",
     "char_start": 7090,

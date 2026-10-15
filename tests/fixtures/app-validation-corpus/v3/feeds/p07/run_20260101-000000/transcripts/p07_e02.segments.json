@@ -1,296 +1,296 @@
 [
   {
-    "end": 6.0,
+    "end": 12.651,
     "id": 0,
     "speaker_label": "Alex Morgan",
     "start": 0.0,
     "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here."
   },
   {
-    "end": 12.0,
+    "end": 16.109,
     "id": 1,
     "speaker_label": "Skanda Eminas",
-    "start": 6.0,
+    "start": 12.651,
     "text": "Thanks, Alex Morgan. Great to be back."
   },
   {
-    "end": 18.0,
+    "end": 25.21,
     "id": 2,
     "speaker_label": "Alex Morgan",
-    "start": 12.0,
+    "start": 16.109,
     "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Try bloomberg.com today."
   },
   {
-    "end": 24.0,
+    "end": 31.123,
     "id": 3,
     "speaker_label": "Alex Morgan",
-    "start": 18.0,
+    "start": 25.21,
     "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking."
   },
   {
-    "end": 30.0,
+    "end": 35.545,
     "id": 4,
     "speaker_label": "Skanda Eminas",
-    "start": 24.0,
+    "start": 31.123,
     "text": "Yeah, exactly. And it ties into what we're covering today."
   },
   {
-    "end": 36.0,
+    "end": 41.675,
     "id": 5,
     "speaker_label": "Alex Morgan",
-    "start": 30.0,
+    "start": 35.545,
     "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back."
   },
   {
-    "end": 42.0,
+    "end": 47.935,
     "id": 6,
     "speaker_label": "Alex Morgan",
-    "start": 36.0,
+    "start": 41.675,
     "text": "I want to flag something \u2014 Dr. Eliana Fishler mentioned this same dynamic a couple episodes back."
   },
   {
-    "end": 48.0,
+    "end": 53.291,
     "id": 7,
     "speaker_label": "Alex Morgan",
-    "start": 42.0,
+    "start": 47.935,
     "text": "Let's start there. What's the structural angle most listeners don't have access to?"
   },
   {
-    "end": 54.0,
+    "end": 66.144,
     "id": 8,
     "speaker_label": "Skanda Eminas",
-    "start": 48.0,
+    "start": 53.291,
     "text": "Honestly, Employment data is noisier than headlines suggest. We've seen this play out at teams using IEA. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 60.0,
+    "end": 71.452,
     "id": 9,
     "speaker_label": "Alex Morgan",
-    "start": 54.0,
+    "start": 66.144,
     "text": "Take me through the decision. Where do systems thinking and macroeconomics intersect?"
   },
   {
-    "end": 66.0,
+    "end": 81.809,
     "id": 10,
     "speaker_label": "Skanda Eminas",
-    "start": 60.0,
+    "start": 71.452,
     "text": "Honestly, Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 72.0,
+    "end": 87.68,
     "id": 11,
     "speaker_label": "Alex Morgan",
-    "start": 66.0,
+    "start": 81.809,
     "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
   },
   {
-    "end": 78.0,
+    "end": 102.649,
     "id": 12,
     "speaker_label": "Skanda Eminas",
-    "start": 72.0,
+    "start": 87.68,
     "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 84.0,
+    "end": 104.317,
     "id": 13,
     "speaker_label": "Alex Morgan",
-    "start": 78.0,
+    "start": 102.649,
     "text": "That maps to what I've seen."
   },
   {
-    "end": 90.0,
+    "end": 114.221,
     "id": 14,
     "speaker_label": "Skanda Eminas",
-    "start": 84.0,
+    "start": 104.317,
     "text": "Outside of Project Drawdown-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 96.0,
+    "end": 117.318,
     "id": 15,
     "speaker_label": "Alex Morgan",
-    "start": 90.0,
+    "start": 114.221,
     "text": "We'll be right back after a quick word from our sponsors."
   },
   {
-    "end": 102.0,
+    "end": 130.304,
     "id": 16,
     "speaker_label": "Ad",
-    "start": 96.0,
+    "start": 117.318,
     "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Visit linear.com/podcast for a free trial."
   },
   {
-    "end": 108.0,
+    "end": 131.912,
     "id": 17,
     "speaker_label": "Alex Morgan",
-    "start": 102.0,
+    "start": 130.304,
     "text": "Welcome back to the show."
   },
   {
-    "end": 114.0,
+    "end": 136.349,
     "id": 18,
     "speaker_label": "Alex Morgan",
-    "start": 108.0,
+    "start": 131.912,
     "text": "That's a useful framing. How does Carbon Trust fit into this picture?"
   },
   {
-    "end": 120.0,
+    "end": 151.693,
     "id": 19,
     "speaker_label": "Skanda Eminas",
-    "start": 114.0,
+    "start": 136.349,
     "text": "Let me give you the version I actually believe. Employment data is noisier than headlines suggest. We've seen this play out at teams using IPCC. Once you internalize that, the rest of the decisions get easier."
   },
   {
-    "end": 126.0,
+    "end": 156.97,
     "id": 20,
     "speaker_label": "Alex Morgan",
-    "start": 120.0,
+    "start": 151.693,
     "text": "I want to dig into that. Where do systems thinking and macroeconomics intersect?"
   },
   {
-    "end": 132.0,
+    "end": 169.075,
     "id": 21,
     "speaker_label": "Skanda Eminas",
-    "start": 126.0,
+    "start": 156.97,
     "text": "It comes down to this: Systems thinking in macro means watching feedback loops, not point estimates. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 138.0,
+    "end": 174.609,
     "id": 22,
     "speaker_label": "Alex Morgan",
-    "start": 132.0,
+    "start": 169.075,
     "text": "What does the failure mode look like? What's the most underrated piece of macroeconomics?"
   },
   {
-    "end": 144.0,
+    "end": 189.253,
     "id": 23,
     "speaker_label": "Skanda Eminas",
-    "start": 138.0,
+    "start": 174.609,
     "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IEA. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 150.0,
+    "end": 190.921,
     "id": 24,
     "speaker_label": "Alex Morgan",
-    "start": 144.0,
+    "start": 189.253,
     "text": "That maps to what I've seen."
   },
   {
-    "end": 156.0,
+    "end": 200.593,
     "id": 25,
     "speaker_label": "Skanda Eminas",
-    "start": 150.0,
+    "start": 190.921,
     "text": "And when teams adopt Project Drawdown in that flow, the trade-off becomes visible \u2014 The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 162.0,
+    "end": 205.068,
     "id": 26,
     "speaker_label": "Alex Morgan",
-    "start": 156.0,
+    "start": 200.593,
     "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
   },
   {
-    "end": 168.0,
+    "end": 213.203,
     "id": 27,
     "speaker_label": "Skanda Eminas",
-    "start": 162.0,
+    "start": 205.068,
     "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
   },
   {
-    "end": 174.0,
+    "end": 218.366,
     "id": 28,
     "speaker_label": "Alex Morgan",
-    "start": 168.0,
+    "start": 213.203,
     "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
   },
   {
-    "end": 180.0,
+    "end": 230.074,
     "id": 29,
     "speaker_label": "Skanda Eminas",
-    "start": 174.0,
+    "start": 218.366,
     "text": "Sure. Employment data is noisier than headlines suggest. We've seen this play out at teams using IEA. And the second-order effect is the part most people miss."
   },
   {
-    "end": 186.0,
+    "end": 236.456,
     "id": 30,
     "speaker_label": "Alex Morgan",
-    "start": 180.0,
+    "start": 230.074,
     "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?"
   },
   {
-    "end": 192.0,
+    "end": 247.976,
     "id": 31,
     "speaker_label": "Skanda Eminas",
-    "start": 186.0,
+    "start": 236.456,
     "text": "Here's how I think about it. Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 198.0,
+    "end": 252.954,
     "id": 32,
     "speaker_label": "Alex Morgan",
-    "start": 192.0,
+    "start": 247.976,
     "text": "That's a useful framing. What's the most underrated piece of macroeconomics?"
   },
   {
-    "end": 204.0,
+    "end": 267.499,
     "id": 33,
     "speaker_label": "Skanda Eminas",
-    "start": 198.0,
+    "start": 252.954,
     "text": "Yeah, so \u2014 Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 210.0,
+    "end": 268.935,
     "id": 34,
     "speaker_label": "Alex Morgan",
-    "start": 204.0,
+    "start": 267.499,
     "text": "Where does that break down?"
   },
   {
-    "end": 216.0,
+    "end": 277.829,
     "id": 35,
     "speaker_label": "Skanda Eminas",
-    "start": 210.0,
+    "start": 268.935,
     "text": "Outside of Carbon Trust-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 222.0,
+    "end": 281.534,
     "id": 36,
     "speaker_label": "Alex Morgan",
-    "start": 216.0,
+    "start": 277.829,
     "text": "Before we wrap, what's one thing listeners can try this week?"
   },
   {
-    "end": 228.0,
+    "end": 287.132,
     "id": 37,
     "speaker_label": "Skanda Eminas",
-    "start": 222.0,
+    "start": 281.534,
     "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
   },
   {
-    "end": 234.0,
+    "end": 296.684,
     "id": 38,
     "speaker_label": "Alex Morgan",
-    "start": 228.0,
+    "start": 287.132,
     "text": "Before we wrap, thanks again to our friends at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business."
   },
   {
-    "end": 240.0,
+    "end": 299.44,
     "id": 39,
     "speaker_label": "Alex Morgan",
-    "start": 234.0,
+    "start": 296.684,
     "text": "Skanda Eminas, thanks for the conversation."
   },
   {
-    "end": 246.0,
+    "end": 301.401,
     "id": 40,
     "speaker_label": "Skanda Eminas",
-    "start": 240.0,
+    "start": 299.44,
     "text": "Thanks, Alex Morgan."
   },
   {
-    "end": 252.0,
+    "end": 306.726,
     "id": 41,
     "speaker_label": "Alex Morgan",
-    "start": 246.0,
+    "start": 301.401,
     "text": "That's it for today's episode of The Long View \u2014 Sustainability. See you next time."
   }
 ]

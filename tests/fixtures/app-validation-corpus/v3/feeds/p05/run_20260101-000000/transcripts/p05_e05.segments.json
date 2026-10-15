@@ -1,79 +1,79 @@
 [
   {
-    "end": 6.0,
+    "end": 10.462,
     "id": 0,
     "speaker_label": "Nora",
     "start": 0.0,
     "text": "Welcome to Long Horizon Notes. My guest today is Daniel Cho, former bond trader turned index advocate. Daniel, welcome back."
   },
   {
-    "end": 12.0,
+    "end": 13.336,
     "id": 1,
     "speaker_label": "Daniel Cho",
-    "start": 6.0,
+    "start": 10.462,
     "text": "Thanks, Nora. Glad to be here."
   },
   {
-    "end": 18.0,
+    "end": 25.604,
     "id": 2,
     "speaker_label": "Nora",
-    "start": 12.0,
+    "start": 13.336,
     "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast."
   },
   {
-    "end": 24.0,
+    "end": 34.74,
     "id": 3,
     "speaker_label": "Nora",
-    "start": 18.0,
+    "start": 25.604,
     "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016."
   },
   {
-    "end": 30.0,
+    "end": 37.556,
     "id": 4,
     "speaker_label": "Nadia Sereni",
-    "start": 24.0,
+    "start": 34.74,
     "text": "Leverage feels free until the day it isn't."
   },
   {
-    "end": 36.0,
+    "end": 45.179,
     "id": 5,
     "speaker_label": "Daniel Cho",
-    "start": 30.0,
+    "start": 37.556,
     "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way."
   },
   {
-    "end": 42.0,
+    "end": 49.144,
     "id": 6,
     "speaker_label": "Nora",
-    "start": 36.0,
+    "start": 45.179,
     "text": "So the risk isn't the asset, it's the borrowing against it."
   },
   {
-    "end": 48.0,
+    "end": 58.515,
     "id": 7,
     "speaker_label": "Daniel Cho",
-    "start": 42.0,
+    "start": 49.144,
     "text": "Right. An index fund you own outright is patient. The same fund on margin can be forced to sell at the worst possible moment."
   },
   {
-    "end": 54.0,
+    "end": 63.601,
     "id": 8,
     "speaker_label": "Nora",
-    "start": 48.0,
+    "start": 58.515,
     "text": "We'll leave the archive there. Daniel, thanks for coming back on."
   },
   {
-    "end": 60.0,
+    "end": 65.1,
     "id": 9,
     "speaker_label": "Daniel Cho",
-    "start": 54.0,
+    "start": 63.601,
     "text": "My pleasure, Nora."
   },
   {
-    "end": 66.0,
+    "end": 69.216,
     "id": 10,
     "speaker_label": "Nora",
-    "start": 60.0,
+    "start": 65.1,
     "text": "That's Long Horizon Notes for this week. Take care."
   }
 ]

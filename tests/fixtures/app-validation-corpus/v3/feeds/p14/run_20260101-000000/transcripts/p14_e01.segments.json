@@ -1,7 +1,7 @@
 [
   {
     "start": 0.0,
-    "end": 0.94,
+    "end": 2.553,
     "speaker_label": "Beatriz Antunes",
     "text": "Welcome back to Trail Sessions.",
     "char_start": 17,
@@ -10,8 +10,8 @@
     "sent_id": "t0000.s01"
   },
   {
-    "start": 0.94,
-    "end": 4.63,
+    "start": 2.553,
+    "end": 12.516,
     "speaker_label": "Beatriz Antunes",
     "text": "Today, we're talking about trail building, and with me is Rafael Vasconcelos, a trail builder from the Cascadia Alliance.",
     "char_start": 49,
@@ -20,8 +20,8 @@
     "sent_id": "t0000.s02"
   },
   {
-    "start": 4.63,
-    "end": 6.0,
+    "start": 12.516,
+    "end": 16.221,
     "speaker_label": "Beatriz Antunes",
     "text": "Rafael Vasconcelos, thank you for being here.",
     "char_start": 171,
@@ -30,8 +30,8 @@
     "sent_id": "t0000.s03"
   },
   {
-    "start": 6.0,
-    "end": 7.23,
+    "start": 16.221,
+    "end": 17.802,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Thank you, Beatriz.",
     "char_start": 237,
@@ -40,8 +40,8 @@
     "sent_id": "t0001.s01"
   },
   {
-    "start": 7.23,
-    "end": 12.0,
+    "start": 17.802,
+    "end": 23.959,
     "speaker_label": "Rafael Vasconcelos",
     "text": "My pleasure – building trails is something I've been thinking about a lot.",
     "char_start": 257,
@@ -50,8 +50,8 @@
     "sent_id": "t0001.s02"
   },
   {
-    "start": 12.0,
-    "end": 14.27,
+    "start": 23.959,
+    "end": 27.194,
     "speaker_label": "Beatriz Antunes",
     "text": "This episode is sponsored by Strava.",
     "char_start": 349,
@@ -60,8 +60,8 @@
     "sent_id": "t0002.s01"
   },
   {
-    "start": 14.27,
-    "end": 16.23,
+    "start": 27.194,
+    "end": 29.981,
     "speaker_label": "Beatriz Antunes",
     "text": "Strava is the home of athletes.",
     "char_start": 386,
@@ -70,8 +70,8 @@
     "sent_id": "t0002.s02"
   },
   {
-    "start": 16.23,
-    "end": 18.0,
+    "start": 29.981,
+    "end": 32.497,
     "speaker_label": "Beatriz Antunes",
     "text": "Start at strava.com/podcast.",
     "char_start": 418,
@@ -80,8 +80,8 @@
     "sent_id": "t0002.s03"
   },
   {
-    "start": 18.0,
-    "end": 21.04,
+    "start": 32.497,
+    "end": 35.878,
     "speaker_label": "Beatriz Antunes",
     "text": "Tell me about how you made that decision.",
     "char_start": 447,
@@ -90,8 +90,8 @@
     "sent_id": "t0002.s04"
   },
   {
-    "start": 21.04,
-    "end": 24.0,
+    "start": 35.878,
+    "end": 39.176,
     "speaker_label": "Beatriz Antunes",
     "text": "How does RockShox fit into this picture?",
     "char_start": 489,
@@ -100,8 +100,8 @@
     "sent_id": "t0002.s05"
   },
   {
-    "start": 24.0,
-    "end": 26.38,
+    "start": 39.176,
+    "end": 44.82,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Honestly, drainage is the design decision that has the biggest impact on any trail.",
     "char_start": 550,
@@ -110,8 +110,8 @@
     "sent_id": "t0003.s01"
   },
   {
-    "start": 26.38,
-    "end": 27.99,
+    "start": 44.82,
+    "end": 48.627,
     "speaker_label": "Rafael Vasconcelos",
     "text": "We've seen this in teams that use the Cascadia Alliance.",
     "char_start": 634,
@@ -120,8 +120,8 @@
     "sent_id": "t0003.s02"
   },
   {
-    "start": 27.99,
-    "end": 30.0,
+    "start": 48.627,
+    "end": 53.387,
     "speaker_label": "Rafael Vasconcelos",
     "text": "I've already seen this pattern repeat itself in three different teams.",
     "char_start": 691,
@@ -130,8 +130,8 @@
     "sent_id": "t0003.s03"
   },
   {
-    "start": 30.0,
-    "end": 32.27,
+    "start": 53.387,
+    "end": 55.657,
     "speaker_label": "Beatriz Antunes",
     "text": "Tell me how you made the decision.",
     "char_start": 779,
@@ -140,8 +140,8 @@
     "sent_id": "t0004.s01"
   },
   {
-    "start": 32.27,
-    "end": 36.0,
+    "start": 55.657,
+    "end": 59.397,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the version of the question that really matters?",
     "char_start": 814,
@@ -150,8 +150,8 @@
     "sent_id": "t0004.s02"
   },
   {
-    "start": 36.0,
-    "end": 39.56,
+    "start": 59.397,
+    "end": 66.955,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Yes, look – the most common mistake that new builders make is excavating with too steep a slope.",
     "char_start": 891,
@@ -160,8 +160,8 @@
     "sent_id": "t0005.s01"
   },
   {
-    "start": 39.56,
-    "end": 42.0,
+    "start": 66.955,
+    "end": 72.151,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 988,
@@ -170,8 +170,8 @@
     "sent_id": "t0005.s02"
   },
   {
-    "start": 42.0,
-    "end": 44.25,
+    "start": 72.151,
+    "end": 74.434,
     "speaker_label": "Beatriz Antunes",
     "text": "I want to delve deeper into that.",
     "char_start": 1072,
@@ -180,8 +180,8 @@
     "sent_id": "t0006.s01"
   },
   {
-    "start": 44.25,
-    "end": 48.0,
+    "start": 74.434,
+    "end": 78.238,
     "speaker_label": "Beatriz Antunes",
     "text": "Where do soil erosion and trail construction intersect?",
     "char_start": 1106,
@@ -190,8 +190,8 @@
     "sent_id": "t0006.s02"
   },
   {
-    "start": 48.0,
-    "end": 48.28,
+    "start": 78.238,
+    "end": 78.915,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Certainly.",
     "char_start": 1182,
@@ -200,8 +200,8 @@
     "sent_id": "t0007.s01"
   },
   {
-    "start": 48.28,
-    "end": 50.42,
+    "start": 78.915,
+    "end": 84.196,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Discussions about land management must take place before the first excavation.",
     "char_start": 1193,
@@ -210,8 +210,8 @@
     "sent_id": "t0007.s02"
   },
   {
-    "start": 50.42,
-    "end": 51.85,
+    "start": 84.196,
+    "end": 87.716,
     "speaker_label": "Rafael Vasconcelos",
     "text": "We've seen this in teams that use RockShox products.",
     "char_start": 1272,
@@ -220,8 +220,8 @@
     "sent_id": "t0007.s03"
   },
   {
-    "start": 51.85,
-    "end": 54.0,
+    "start": 87.716,
+    "end": 92.997,
     "speaker_label": "Rafael Vasconcelos",
     "text": "The context is important because it tells you what commitments you are making.",
     "char_start": 1325,
@@ -230,8 +230,8 @@
     "sent_id": "t0007.s04"
   },
   {
-    "start": 54.0,
-    "end": 60.0,
+    "start": 92.997,
+    "end": 94.71,
     "speaker_label": "Beatriz Antunes",
     "text": "Tell me more about it.",
     "char_start": 1421,
@@ -240,8 +240,8 @@
     "sent_id": "t0008.s01"
   },
   {
-    "start": 60.0,
-    "end": 66.0,
+    "start": 94.71,
+    "end": 106.208,
     "speaker_label": "Rafael Vasconcelos",
     "text": "And when teams adopt Spoke & Wrench within that workflow, the commitment becomes evident. If you ignore that, you'll end up having to rebuild everything from scratch a year later.",
     "char_start": 1464,
@@ -250,8 +250,8 @@
     "sent_id": "t0009.s01"
   },
   {
-    "start": 66.0,
-    "end": 68.29,
+    "start": 106.208,
+    "end": 108.792,
     "speaker_label": "Beatriz Antunes",
     "text": "Tell me how you made the decision.",
     "char_start": 1661,
@@ -260,8 +260,8 @@
     "sent_id": "t0010.s01"
   },
   {
-    "start": 68.29,
-    "end": 72.0,
+    "start": 108.792,
+    "end": 112.972,
     "speaker_label": "Beatriz Antunes",
     "text": "Where do soil erosion and trail construction intersect?",
     "char_start": 1696,
@@ -270,8 +270,8 @@
     "sent_id": "t0010.s02"
   },
   {
-    "start": 72.0,
-    "end": 72.29,
+    "start": 112.972,
+    "end": 113.603,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Certainly.",
     "char_start": 1772,
@@ -280,8 +280,8 @@
     "sent_id": "t0011.s01"
   },
   {
-    "start": 72.29,
-    "end": 74.11,
+    "start": 113.603,
+    "end": 117.517,
     "speaker_label": "Rafael Vasconcelos",
     "text": "The cuts in the benching areas on the slopes are not optional.",
     "char_start": 1783,
@@ -290,8 +290,8 @@
     "sent_id": "t0011.s02"
   },
   {
-    "start": 74.11,
-    "end": 75.98,
+    "start": 117.517,
+    "end": 121.558,
     "speaker_label": "Rafael Vasconcelos",
     "text": "The shortcut of the first day is the downfall of the third year.",
     "char_start": 1846,
@@ -300,8 +300,8 @@
     "sent_id": "t0011.s03"
   },
   {
-    "start": 75.98,
-    "end": 78.0,
+    "start": 121.558,
+    "end": 125.914,
     "speaker_label": "Rafael Vasconcelos",
     "text": "And the second-order effect is the part that almost everyone ignores.",
     "char_start": 1911,
@@ -310,8 +310,8 @@
     "sent_id": "t0011.s04"
   },
   {
-    "start": 78.0,
-    "end": 80.13,
+    "start": 125.914,
+    "end": 127.951,
     "speaker_label": "Beatriz Antunes",
     "text": "That's a useful perspective.",
     "char_start": 1998,
@@ -320,8 +320,8 @@
     "sent_id": "t0012.s01"
   },
   {
-    "start": 80.13,
-    "end": 84.0,
+    "start": 127.951,
+    "end": 131.661,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the most important version of the question?",
     "char_start": 2027,
@@ -330,8 +330,8 @@
     "sent_id": "t0012.s02"
   },
   {
-    "start": 84.0,
-    "end": 86.34,
+    "start": 131.661,
+    "end": 136.661,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Yes, look – the structure of the team is more important than people realize.",
     "char_start": 2099,
@@ -340,8 +340,8 @@
     "sent_id": "t0013.s01"
   },
   {
-    "start": 86.34,
-    "end": 87.85,
+    "start": 136.661,
+    "end": 139.885,
     "speaker_label": "Rafael Vasconcelos",
     "text": "We've seen this in teams that use Spoke & Wrench.",
     "char_start": 2176,
@@ -350,8 +350,8 @@
     "sent_id": "t0013.s02"
   },
   {
-    "start": 87.85,
-    "end": 90.0,
+    "start": 139.885,
+    "end": 144.49,
     "speaker_label": "Rafael Vasconcelos",
     "text": "I've already seen this pattern repeat itself in three different teams.",
     "char_start": 2226,
@@ -360,8 +360,8 @@
     "sent_id": "t0013.s03"
   },
   {
-    "start": 90.0,
-    "end": 91.94,
+    "start": 144.49,
+    "end": 146.656,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the nature of the failure?",
     "char_start": 2314,
@@ -370,8 +370,8 @@
     "sent_id": "t0014.s01"
   },
   {
-    "start": 91.94,
-    "end": 96.0,
+    "start": 146.656,
+    "end": 151.179,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the structural aspect that most listeners are unable to access?",
     "char_start": 2349,
@@ -380,8 +380,8 @@
     "sent_id": "t0014.s02"
   },
   {
-    "start": 96.0,
-    "end": 97.59,
+    "start": 151.179,
+    "end": 154.64,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Let me give you the version that I truly believe in.",
     "char_start": 2441,
@@ -390,8 +390,8 @@
     "sent_id": "t0015.s01"
   },
   {
-    "start": 97.59,
-    "end": 99.86,
+    "start": 154.64,
+    "end": 159.566,
     "speaker_label": "Rafael Vasconcelos",
     "text": "I've changed my mind about machine-made trails compared to hand-made ones.",
     "char_start": 2494,
@@ -400,8 +400,8 @@
     "sent_id": "t0015.s02"
   },
   {
-    "start": 99.86,
-    "end": 102.0,
+    "start": 159.566,
+    "end": 164.226,
     "speaker_label": "Rafael Vasconcelos",
     "text": "I've already seen this pattern repeat itself in three different teams.",
     "char_start": 2569,
@@ -410,8 +410,8 @@
     "sent_id": "t0015.s03"
   },
   {
-    "start": 102.0,
-    "end": 108.0,
+    "start": 164.226,
+    "end": 165.939,
     "speaker_label": "Beatriz Antunes",
     "text": "Tell me more about it.",
     "char_start": 2657,
@@ -420,8 +420,8 @@
     "sent_id": "t0016.s01"
   },
   {
-    "start": 108.0,
-    "end": 114.0,
+    "start": 165.939,
+    "end": 177.88,
     "speaker_label": "Rafael Vasconcelos",
     "text": "And when teams adopt the Cascadia Alliance framework, that commitment becomes evident. If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
     "char_start": 2700,
@@ -430,8 +430,8 @@
     "sent_id": "t0017.s01"
   },
   {
-    "start": 114.0,
-    "end": 120.0,
+    "start": 177.88,
+    "end": 182.582,
     "speaker_label": "Beatriz Antunes",
     "text": "We'll be right back after a short commercial break.",
     "char_start": 2892,
@@ -440,8 +440,8 @@
     "sent_id": "t0018.s01"
   },
   {
-    "start": 120.0,
-    "end": 121.47,
+    "start": 182.582,
+    "end": 187.254,
     "speaker_label": "SPEAKER_02",
     "text": "Today's episode is brought to you by Stripe.",
     "char_start": 2956,
@@ -450,8 +450,8 @@
     "sent_id": "t0019.s01"
   },
   {
-    "start": 121.47,
-    "end": 124.6,
+    "start": 187.254,
+    "end": 197.234,
     "speaker_label": "SPEAKER_02",
     "text": "Stripe makes payments simple, whether you're running a marketplace or a subscription business.",
     "char_start": 3001,
@@ -460,8 +460,8 @@
     "sent_id": "t0019.s02"
   },
   {
-    "start": 124.6,
-    "end": 126.0,
+    "start": 197.234,
+    "end": 201.693,
     "speaker_label": "SPEAKER_02",
     "text": "Visit stripe.com/podcast for a free trial.",
     "char_start": 3096,
@@ -470,8 +470,8 @@
     "sent_id": "t0019.s03"
   },
   {
-    "start": 126.0,
-    "end": 127.4,
+    "start": 201.693,
+    "end": 203.698,
     "speaker_label": "Beatriz Antunes",
     "text": "Welcome back to the program.",
     "char_start": 3156,
@@ -480,8 +480,8 @@
     "sent_id": "t0020.s01"
   },
   {
-    "start": 127.4,
-    "end": 129.25,
+    "start": 203.698,
+    "end": 206.348,
     "speaker_label": "Beatriz Antunes",
     "text": "What does the failure mode look like?",
     "char_start": 3185,
@@ -490,8 +490,8 @@
     "sent_id": "t0020.s02"
   },
   {
-    "start": 129.25,
-    "end": 132.0,
+    "start": 206.348,
+    "end": 210.286,
     "speaker_label": "Beatriz Antunes",
     "text": "Where do soil erosion and trail construction intersect?",
     "char_start": 3223,
@@ -500,8 +500,8 @@
     "sent_id": "t0020.s03"
   },
   {
-    "start": 132.0,
-    "end": 132.51,
+    "start": 210.286,
+    "end": 211.569,
     "speaker_label": "Rafael Vasconcelos",
     "text": "That's how I see it.",
     "char_start": 3299,
@@ -510,8 +510,8 @@
     "sent_id": "t0021.s01"
   },
   {
-    "start": 132.51,
-    "end": 134.37,
+    "start": 211.569,
+    "end": 216.253,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Drainage is the design decision that has the biggest impact on any trail.",
     "char_start": 3320,
@@ -520,8 +520,8 @@
     "sent_id": "t0021.s02"
   },
   {
-    "start": 134.37,
-    "end": 135.73,
+    "start": 216.253,
+    "end": 219.653,
     "speaker_label": "Rafael Vasconcelos",
     "text": "We've seen this with teams that use Shimano products.",
     "char_start": 3394,
@@ -530,8 +530,8 @@
     "sent_id": "t0021.s03"
   },
   {
-    "start": 135.73,
-    "end": 138.0,
+    "start": 219.653,
+    "end": 225.363,
     "speaker_label": "Rafael Vasconcelos",
     "text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
     "char_start": 3448,
@@ -540,8 +540,8 @@
     "sent_id": "t0021.s04"
   },
   {
-    "start": 138.0,
-    "end": 140.76,
+    "start": 225.363,
+    "end": 228.044,
     "speaker_label": "Beatriz Antunes",
     "text": "Tell me how you made the decision.",
     "char_start": 3555,
@@ -550,8 +550,8 @@
     "sent_id": "t0022.s01"
   },
   {
-    "start": 140.76,
-    "end": 144.0,
+    "start": 228.044,
+    "end": 231.199,
     "speaker_label": "Beatriz Antunes",
     "text": "How does RockShox fit into this picture?",
     "char_start": 3590,
@@ -560,8 +560,8 @@
     "sent_id": "t0022.s02"
   },
   {
-    "start": 144.0,
-    "end": 147.59,
+    "start": 231.199,
+    "end": 238.82,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Yes, listen – the most common mistake that new builders make is excavating with too steep a slope.",
     "char_start": 3651,
@@ -570,8 +570,8 @@
     "sent_id": "t0023.s01"
   },
   {
-    "start": 147.59,
-    "end": 150.0,
+    "start": 238.82,
+    "end": 243.953,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 3750,
@@ -580,8 +580,8 @@
     "sent_id": "t0023.s02"
   },
   {
-    "start": 150.0,
-    "end": 151.76,
+    "start": 243.953,
+    "end": 246.209,
     "speaker_label": "Beatriz Antunes",
     "text": "It challenges my conventional wisdom.",
     "char_start": 3834,
@@ -590,8 +590,8 @@
     "sent_id": "t0024.s01"
   },
   {
-    "start": 151.76,
-    "end": 156.0,
+    "start": 246.209,
+    "end": 251.637,
     "speaker_label": "Beatriz Antunes",
     "text": "What did you used to believe about this, and how has your perspective changed since then?",
     "char_start": 3872,
@@ -600,8 +600,8 @@
     "sent_id": "t0024.s02"
   },
   {
-    "start": 156.0,
-    "end": 157.26,
+    "start": 251.637,
+    "end": 255.155,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Let me give you the version that I truly believe in.",
     "char_start": 3982,
@@ -610,8 +610,8 @@
     "sent_id": "t0025.s01"
   },
   {
-    "start": 157.26,
-    "end": 159.12,
+    "start": 255.155,
+    "end": 260.365,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Discussions about land management need to happen before the first excavation.",
     "char_start": 4035,
@@ -620,8 +620,8 @@
     "sent_id": "t0025.s02"
   },
   {
-    "start": 159.12,
-    "end": 160.31,
+    "start": 260.365,
+    "end": 263.68,
     "speaker_label": "Rafael Vasconcelos",
     "text": "We've seen this in teams that use Spoke & Wrench.",
     "char_start": 4113,
@@ -630,8 +630,8 @@
     "sent_id": "t0025.s03"
   },
   {
-    "start": 160.31,
-    "end": 162.0,
+    "start": 263.68,
+    "end": 268.416,
     "speaker_label": "Rafael Vasconcelos",
     "text": "I've already seen this pattern repeat itself in three different teams.",
     "char_start": 4163,
@@ -640,8 +640,8 @@
     "sent_id": "t0025.s04"
   },
   {
-    "start": 162.0,
-    "end": 168.0,
+    "start": 268.416,
+    "end": 269.588,
     "speaker_label": "Beatriz Antunes",
     "text": "That makes sense.",
     "char_start": 4251,
@@ -650,8 +650,8 @@
     "sent_id": "t0026.s01"
   },
   {
-    "start": 168.0,
-    "end": 171.61,
+    "start": 269.588,
+    "end": 276.353,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Outside of the tools provided by the Cascadia Alliance, it is more difficult to detect the failure mode.",
     "char_start": 4289,
@@ -660,8 +660,8 @@
     "sent_id": "t0027.s01"
   },
   {
-    "start": 171.61,
-    "end": 174.0,
+    "start": 276.353,
+    "end": 280.841,
     "speaker_label": "Rafael Vasconcelos",
     "text": "And the second-order effect is the part that almost everyone ignores.",
     "char_start": 4394,
@@ -670,8 +670,8 @@
     "sent_id": "t0027.s02"
   },
   {
-    "start": 174.0,
-    "end": 176.57,
+    "start": 280.841,
+    "end": 283.544,
     "speaker_label": "Beatriz Antunes",
     "text": "What heuristic do you always come back to?",
     "char_start": 4481,
@@ -680,8 +680,8 @@
     "sent_id": "t0028.s01"
   },
   {
-    "start": 176.57,
-    "end": 180.0,
+    "start": 283.544,
+    "end": 287.149,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the version of the question that really matters?",
     "char_start": 4524,
@@ -690,8 +690,8 @@
     "sent_id": "t0028.s02"
   },
   {
-    "start": 180.0,
-    "end": 181.95,
+    "start": 287.149,
+    "end": 291.434,
     "speaker_label": "Rafael Vasconcelos",
     "text": "In short: cuts in the banking (or berm) on slopes are not optional.",
     "char_start": 4601,
@@ -700,8 +700,8 @@
     "sent_id": "t0029.s01"
   },
   {
-    "start": 181.95,
-    "end": 184.14,
+    "start": 291.434,
+    "end": 296.23,
     "speaker_label": "Rafael Vasconcelos",
     "text": "The shortcut taken in the first year leads to a collapse in the third year.",
     "char_start": 4669,
@@ -710,8 +710,8 @@
     "sent_id": "t0029.s02"
   },
   {
-    "start": 184.14,
-    "end": 186.0,
+    "start": 296.23,
+    "end": 300.323,
     "speaker_label": "Rafael Vasconcelos",
     "text": "I have seen this pattern repeat itself in three different teams.",
     "char_start": 4745,
@@ -720,8 +720,8 @@
     "sent_id": "t0029.s03"
   },
   {
-    "start": 186.0,
-    "end": 187.74,
+    "start": 300.323,
+    "end": 302.075,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the failure mode?",
     "char_start": 4827,
@@ -730,8 +730,8 @@
     "sent_id": "t0030.s01"
   },
   {
-    "start": 187.74,
-    "end": 192.0,
+    "start": 302.075,
+    "end": 306.349,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the most underestimated aspect of trail construction?",
     "char_start": 4853,
@@ -740,8 +740,8 @@
     "sent_id": "t0030.s02"
   },
   {
-    "start": 192.0,
-    "end": 193.29,
+    "start": 306.349,
+    "end": 309.654,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Let me give you the version that I truly believe in.",
     "char_start": 4935,
@@ -750,8 +750,8 @@
     "sent_id": "t0031.s01"
   },
   {
-    "start": 193.29,
-    "end": 194.88,
+    "start": 309.654,
+    "end": 313.722,
     "speaker_label": "Rafael Vasconcelos",
     "text": "The structure of the soil is more important than people realize.",
     "char_start": 4988,
@@ -760,8 +760,8 @@
     "sent_id": "t0031.s02"
   },
   {
-    "start": 194.88,
-    "end": 196.26,
+    "start": 313.722,
+    "end": 317.282,
     "speaker_label": "Rafael Vasconcelos",
     "text": "We've seen this in teams that use the Cascadia Alliance.",
     "char_start": 5053,
@@ -770,8 +770,8 @@
     "sent_id": "t0031.s03"
   },
   {
-    "start": 196.26,
-    "end": 198.0,
+    "start": 317.282,
+    "end": 321.731,
     "speaker_label": "Rafael Vasconcelos",
     "text": "I've already seen this pattern repeat itself in three different teams.",
     "char_start": 5110,
@@ -780,8 +780,8 @@
     "sent_id": "t0031.s04"
   },
   {
-    "start": 198.0,
-    "end": 200.75,
+    "start": 321.731,
+    "end": 323.989,
     "speaker_label": "Beatriz Antunes",
     "text": "I want to delve deeper into that.",
     "char_start": 5198,
@@ -790,8 +790,8 @@
     "sent_id": "t0032.s01"
   },
   {
-    "start": 200.75,
-    "end": 204.0,
+    "start": 323.989,
+    "end": 326.657,
     "speaker_label": "Beatriz Antunes",
     "text": "How does Shimano fit into this picture?",
     "char_start": 5232,
@@ -800,8 +800,8 @@
     "sent_id": "t0032.s02"
   },
   {
-    "start": 204.0,
-    "end": 207.39,
+    "start": 326.657,
+    "end": 333.705,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Yes, look – I've changed my mind about machine-made trails compared to hand-made ones.",
     "char_start": 5292,
@@ -810,8 +810,8 @@
     "sent_id": "t0033.s01"
   },
   {
-    "start": 207.39,
-    "end": 210.0,
+    "start": 333.705,
+    "end": 339.114,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 5379,
@@ -820,8 +820,8 @@
     "sent_id": "t0033.s02"
   },
   {
-    "start": 210.0,
-    "end": 216.0,
+    "start": 339.114,
+    "end": 341.493,
     "speaker_label": "Beatriz Antunes",
     "text": "Where does it stop working?",
     "char_start": 5463,
@@ -830,8 +830,8 @@
     "sent_id": "t0034.s01"
   },
   {
-    "start": 216.0,
-    "end": 219.27,
+    "start": 341.493,
+    "end": 347.892,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Outside of the RockShox-level tools, it's more difficult to detect the failure.",
     "char_start": 5511,
@@ -840,8 +840,8 @@
     "sent_id": "t0035.s01"
   },
   {
-    "start": 219.27,
-    "end": 222.0,
+    "start": 347.892,
+    "end": 353.238,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 5591,
@@ -850,8 +850,8 @@
     "sent_id": "t0035.s02"
   },
   {
-    "start": 222.0,
-    "end": 228.0,
+    "start": 353.238,
+    "end": 358.81,
     "speaker_label": "Beatriz Antunes",
     "text": "Let's change the subject – I want to dedicate the final section to the management of territory.",
     "char_start": 5675,
@@ -860,8 +860,8 @@
     "sent_id": "t0036.s01"
   },
   {
-    "start": 228.0,
-    "end": 234.0,
+    "start": 358.81,
+    "end": 367.453,
     "speaker_label": "Rafael Vasconcelos",
     "text": "That's where the conversation gets interesting, because the issues surrounding land management permeate everything we've discussed.",
     "char_start": 5791,
@@ -870,8 +870,8 @@
     "sent_id": "t0037.s01"
   },
   {
-    "start": 234.0,
-    "end": 235.89,
+    "start": 367.453,
+    "end": 369.527,
     "speaker_label": "Beatriz Antunes",
     "text": "I want to delve deeper into that.",
     "char_start": 5940,
@@ -880,8 +880,8 @@
     "sent_id": "t0038.s01"
   },
   {
-    "start": 235.89,
-    "end": 240.0,
+    "start": 369.527,
+    "end": 374.051,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the opposing viewpoint that most listeners don't have access to?",
     "char_start": 5974,
@@ -890,8 +890,8 @@
     "sent_id": "t0038.s02"
   },
   {
-    "start": 240.0,
-    "end": 242.24,
+    "start": 374.051,
+    "end": 379.747,
     "speaker_label": "Rafael Vasconcelos",
     "text": "In essence, drainage is the design decision that has the biggest impact on any trail.",
     "char_start": 6067,
@@ -900,8 +900,8 @@
     "sent_id": "t0039.s01"
   },
   {
-    "start": 242.24,
-    "end": 243.66,
+    "start": 379.747,
+    "end": 383.366,
     "speaker_label": "Rafael Vasconcelos",
     "text": "We've seen this with teams that use RockShox products.",
     "char_start": 6153,
@@ -910,8 +910,8 @@
     "sent_id": "t0039.s02"
   },
   {
-    "start": 243.66,
-    "end": 246.0,
+    "start": 383.366,
+    "end": 389.33,
     "speaker_label": "Rafael Vasconcelos",
     "text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
     "char_start": 6208,
@@ -920,8 +920,8 @@
     "sent_id": "t0039.s03"
   },
   {
-    "start": 246.0,
-    "end": 247.74,
+    "start": 389.33,
+    "end": 391.082,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the failure mode?",
     "char_start": 6315,
@@ -930,8 +930,8 @@
     "sent_id": "t0040.s01"
   },
   {
-    "start": 247.74,
-    "end": 252.0,
+    "start": 391.082,
+    "end": 395.356,
     "speaker_label": "Beatriz Antunes",
     "text": "What is the most underestimated aspect of trail construction?",
     "char_start": 6341,
@@ -940,8 +940,8 @@
     "sent_id": "t0040.s02"
   },
   {
-    "start": 252.0,
-    "end": 255.28,
+    "start": 395.356,
+    "end": 401.791,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Honestly, the most common mistake that new builders make is excavating with too steep a slope.",
     "char_start": 6423,
@@ -950,8 +950,8 @@
     "sent_id": "t0041.s01"
   },
   {
-    "start": 255.28,
-    "end": 258.0,
+    "start": 401.791,
+    "end": 407.13,
     "speaker_label": "Rafael Vasconcelos",
     "text": "The context is important because it tells you what commitments you are making.",
     "char_start": 6518,
@@ -960,8 +960,8 @@
     "sent_id": "t0041.s02"
   },
   {
-    "start": 258.0,
-    "end": 264.0,
+    "start": 407.13,
+    "end": 413.423,
     "speaker_label": "Beatriz Antunes",
     "text": "Before we finish, what's one thing listeners can try out this week?",
     "char_start": 6614,
@@ -970,8 +970,8 @@
     "sent_id": "t0042.s01"
   },
   {
-    "start": 264.0,
-    "end": 268.13,
+    "start": 413.423,
+    "end": 417.657,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Choose one of the ideas we discussed and apply it for two weeks.",
     "char_start": 6702,
@@ -980,8 +980,8 @@
     "sent_id": "t0043.s01"
   },
   {
-    "start": 268.13,
-    "end": 270.0,
+    "start": 417.657,
+    "end": 419.576,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Everything else is iteration.",
     "char_start": 6767,
@@ -990,8 +990,8 @@
     "sent_id": "t0043.s02"
   },
   {
-    "start": 270.0,
-    "end": 272.19,
+    "start": 419.576,
+    "end": 424.604,
     "speaker_label": "Beatriz Antunes",
     "text": "And to finish, a big thank you to our partners at Linear.",
     "char_start": 6814,
@@ -1000,8 +1000,8 @@
     "sent_id": "t0044.s01"
   },
   {
-    "start": 272.19,
-    "end": 274.96,
+    "start": 424.604,
+    "end": 430.956,
     "speaker_label": "Beatriz Antunes",
     "text": "Linear is the issue tracker designed for speed – built for the keyboard.",
     "char_start": 6872,
@@ -1010,8 +1010,8 @@
     "sent_id": "t0044.s02"
   },
   {
-    "start": 274.96,
-    "end": 276.0,
+    "start": 430.956,
+    "end": 433.338,
     "speaker_label": "Beatriz Antunes",
     "text": "Check it out at linear.com.",
     "char_start": 6945,
@@ -1020,8 +1020,8 @@
     "sent_id": "t0044.s03"
   },
   {
-    "start": 276.0,
-    "end": 282.0,
+    "start": 433.338,
+    "end": 436.779,
     "speaker_label": "Beatriz Antunes",
     "text": "Rafael Vasconcelos, thank you for the conversation.",
     "char_start": 6973,
@@ -1030,8 +1030,8 @@
     "sent_id": "t0044.s04"
   },
   {
-    "start": 282.0,
-    "end": 288.0,
+    "start": 436.779,
+    "end": 438.813,
     "speaker_label": "Rafael Vasconcelos",
     "text": "Thank you, Beatriz.",
     "char_start": 7045,
@@ -1040,8 +1040,8 @@
     "sent_id": "t0045.s01"
   },
   {
-    "start": 288.0,
-    "end": 292.17,
+    "start": 438.813,
+    "end": 441.532,
     "speaker_label": "Beatriz Antunes",
     "text": "That's all for today on \"Trail Sessions.\"",
     "char_start": 7082,
@@ -1050,8 +1050,8 @@
     "sent_id": "t0046.s01"
   },
   {
-    "start": 292.17,
-    "end": 294.0,
+    "start": 441.532,
+    "end": 442.726,
     "speaker_label": "Beatriz Antunes",
     "text": "See you next time.",
     "char_start": 7124,

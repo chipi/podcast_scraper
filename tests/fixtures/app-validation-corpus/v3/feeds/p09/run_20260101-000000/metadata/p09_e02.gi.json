@@ -183,8 +183,8 @@
         "episode_id": "ep-a1342cd495b1165b",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Reliability of data trumps cleverness of model. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
+        "timestamp_end_ms": 87101,
+        "timestamp_start_ms": 75704,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"
@@ -197,8 +197,8 @@
         "episode_id": "ep-a1342cd495b1165b",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 108000,
-        "timestamp_start_ms": 102000,
+        "timestamp_end_ms": 139745,
+        "timestamp_start_ms": 130101,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"
@@ -211,8 +211,8 @@
         "episode_id": "ep-a1342cd495b1165b",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Reliability of data trumps cleverness of model. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 144000,
-        "timestamp_start_ms": 138000,
+        "timestamp_end_ms": 186840,
+        "timestamp_start_ms": 177925,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"

@@ -213,8 +213,8 @@
         "episode_id": "ep-de59d003651d9e5d",
         "speaker_id": "person:speaker-01",
         "text": "People think racing is about nerve. You say it's about risk.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
+        "timestamp_end_ms": 22252,
+        "timestamp_start_ms": 17997,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"
@@ -234,8 +234,8 @@
         "episode_id": "ep-de59d003651d9e5d",
         "speaker_id": "person:speaker-02",
         "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 37228,
+        "timestamp_start_ms": 22252,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"
@@ -248,8 +248,8 @@
         "episode_id": "ep-de59d003651d9e5d",
         "speaker_id": "person:speaker-02",
         "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 52927,
+        "timestamp_start_ms": 37228,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"
@@ -276,8 +276,8 @@
         "episode_id": "ep-de59d003651d9e5d",
         "speaker_id": "person:sophie-laurent",
         "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 37228,
+        "timestamp_start_ms": 22252,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"
@@ -304,8 +304,8 @@
         "episode_id": "ep-de59d003651d9e5d",
         "speaker_id": "person:sophie-laurent",
         "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 52927,
+        "timestamp_start_ms": 37228,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"

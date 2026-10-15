@@ -178,8 +178,8 @@
         "episode_id": "ep-d005b87f4d3b1c0e",
         "speaker_id": "person:speaker-02",
         "text": "Sure. Service intervals for the suspension are a decision made by the risk management team. If you ignore that, you'll have to rebuild it from scratch a year later.",
-        "timestamp_end_ms": 102000,
-        "timestamp_start_ms": 96000,
+        "timestamp_end_ms": 145824,
+        "timestamp_start_ms": 135379,
         "transcript_ref": "transcripts/p13_e03.txt",
         "translation": {
           "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
@@ -209,8 +209,8 @@
         "episode_id": "ep-d005b87f4d3b1c0e",
         "speaker_id": "person:speaker-01",
         "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
-        "timestamp_end_ms": 168000,
-        "timestamp_start_ms": 162000,
+        "timestamp_end_ms": 248637,
+        "timestamp_start_ms": 247910,
         "transcript_ref": "transcripts/p13_e03.txt",
         "translation": {
           "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",
@@ -233,8 +233,8 @@
         "episode_id": "ep-d005b87f4d3b1c0e",
         "speaker_id": "person:speaker-02",
         "text": "That's how I see it. The service intervals for the suspension are a decision made by the risk management team. I have observed this pattern in three different teams.",
-        "timestamp_end_ms": 186000,
-        "timestamp_start_ms": 180000,
+        "timestamp_end_ms": 276240,
+        "timestamp_start_ms": 265728,
         "transcript_ref": "transcripts/p13_e03.txt",
         "translation": {
           "en_sha256": "713ea00460310975f1b53133d8e46376e70e16ec5984cf8ac3fe556e5b9489db",

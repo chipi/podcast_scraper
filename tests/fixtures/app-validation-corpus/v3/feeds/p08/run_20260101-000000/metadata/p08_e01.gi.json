@@ -195,8 +195,8 @@
         "episode_id": "ep-efc13989b676df9d",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 48998,
+        "timestamp_start_ms": 36189,
         "transcript_ref": "transcripts/p08_e01.txt"
       },
       "type": "Quote"
@@ -209,8 +209,8 @@
         "episode_id": "ep-efc13989b676df9d",
         "speaker_id": "person:speaker-02",
         "text": "Here's how I think about it. Reliability of pronunciation matters more than people think. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 63595,
+        "timestamp_start_ms": 53326,
         "transcript_ref": "transcripts/p08_e01.txt"
       },
       "type": "Quote"
@@ -223,8 +223,8 @@
         "episode_id": "ep-efc13989b676df9d",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 96000,
-        "timestamp_start_ms": 90000,
+        "timestamp_end_ms": 126477,
+        "timestamp_start_ms": 113078,
         "transcript_ref": "transcripts/p08_e01.txt"
       },
       "type": "Quote"

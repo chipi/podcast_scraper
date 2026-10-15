@@ -270,8 +270,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:speaker-02",
         "text": "And I want to be precise: risk management for individuals is mostly behavioral. The math is easy. Sitting still while a holding gets cut in half is the hard part \u2014 and diversification is what makes it survivable.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 84879,
+        "timestamp_start_ms": 68929,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -291,8 +291,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:speaker-03",
         "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ignorance, evenly distributed.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
+        "timestamp_end_ms": 98925,
+        "timestamp_start_ms": 84879,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -312,8 +312,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:speaker-01",
         "text": "Let me sharpen it, because the disagreement is real. Daniel, Scott says your safety is an illusion. Scott, Daniel says your edge won't survive your own behavior.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "timestamp_end_ms": 128826,
+        "timestamp_start_ms": 116483,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -340,8 +340,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:daniel-cho",
         "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 68929,
+        "timestamp_start_ms": 50948,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -368,8 +368,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:scott-bessent",
         "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 116483,
+        "timestamp_start_ms": 98925,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -396,8 +396,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:daniel-cho",
         "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
-        "timestamp_end_ms": 66000,
-        "timestamp_start_ms": 60000,
+        "timestamp_end_ms": 146944,
+        "timestamp_start_ms": 128826,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"
@@ -424,8 +424,8 @@
         "episode_id": "ep-16ff698c1bd21087",
         "speaker_id": "person:scott-bessent",
         "text": "This is where I get off the bus. Concentration with deep understanding beats diversification. Spread across a hundred names and you own things you can't actually judge. That isn't safety \u2014 it's ignorance, evenly distributed.",
-        "timestamp_end_ms": 48000,
-        "timestamp_start_ms": 42000,
+        "timestamp_end_ms": 98925,
+        "timestamp_start_ms": 84879,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"

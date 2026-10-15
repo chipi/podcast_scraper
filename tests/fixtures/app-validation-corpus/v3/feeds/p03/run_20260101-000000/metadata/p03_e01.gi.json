@@ -168,8 +168,8 @@
         "episode_id": "ep-2a703b6f57d9020f",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 52863,
+        "timestamp_start_ms": 36449,
         "transcript_ref": "transcripts/p03_e01.txt"
       },
       "type": "Quote"
@@ -182,8 +182,8 @@
         "episode_id": "ep-2a703b6f57d9020f",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, Silt-out from poor finning technique kills more divers in wrecks than equipment failures. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 68699,
+        "timestamp_start_ms": 57357,
         "transcript_ref": "transcripts/p03_e01.txt"
       },
       "type": "Quote"
@@ -196,8 +196,8 @@
         "episode_id": "ep-2a703b6f57d9020f",
         "speaker_id": "person:speaker-02",
         "text": "Yeah, so \u2014 Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making.",
-        "timestamp_end_ms": 54000,
-        "timestamp_start_ms": 48000,
+        "timestamp_end_ms": 86298,
+        "timestamp_start_ms": 73692,
         "transcript_ref": "transcripts/p03_e01.txt"
       },
       "type": "Quote"

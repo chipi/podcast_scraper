@@ -52,8 +52,10 @@ def _is_ad(text: str) -> bool:
     return bool(AD.search(text)) or is_ad_copy(text)
 
 
-#: The four clips that leaked, by episode, with where their point ends.
-WERE_LEAKING = {"p02_e02": 108_000, "p04_e01": 84_000, "p08_e02": 54_000, "p09_e02": 66_000}
+#: The four clips that leaked, by episode, with where their point ends — the line before "We'll be
+#: right back after a quick word from our sponsors.", on the audio's real timeline since
+#: 2026-10-15 (it was 108 / 84 / 54 / 66 s on the fixture's old 6 s grid).
+WERE_LEAKING = {"p02_e02": 149_587, "p04_e01": 112_278, "p08_e02": 72_541, "p09_e02": 87_101}
 
 
 @pytest.fixture(scope="module")
@@ -100,12 +102,33 @@ def test_no_clip_plays_an_ad_read(corpus: Path) -> None:
 
 
 def test_the_clips_that_ran_into_a_break_still_play_and_end_before_it(corpus: Path) -> None:
-    by_label = _moments(corpus)
+    """Every clip that could play for these points — the episode's moment CANDIDATES, not only
+    the ones picked: on the real timeline (2026-10-15) p04_e01 picks two other moments, and the
+    clip for this point, still built and still ending at the break, is no longer among them."""
+    from podcast_scraper.server.app_corpus_access import load_json_artifact
+    from podcast_scraper.server.app_episode_search import (
+        episode_ad_spans,
+        episode_segments,
+        episode_turn_starts,
+    )
+    from podcast_scraper.server.app_moments import MomentsConfig, score_candidates
+
+    rows = {
+        Path(r.metadata_relative_path).name[: -len(".metadata.json")]: r
+        for r in _slug_index(corpus).values()
+    }
     for label, end_ms in WERE_LEAKING.items():
-        moments, _ = by_label[label]
-        clip = next(m for m in moments if m["start_ms"] < end_ms <= m["start_ms"] + 30_000)
-        assert clip["end_ms"] == end_ms, label
-        assert clip["clip_text"] and not AD.search(clip["clip_text"]), label
+        row = rows[label]
+        candidates = score_candidates(
+            load_json_artifact(corpus, row.gi_relative_path),
+            MomentsConfig(),
+            episode_segments(corpus, row),
+            episode_ad_spans(corpus, row),
+            episode_turn_starts(corpus, row),
+        )
+        clip = next(m for m in candidates if m.start_ms < end_ms <= m.start_ms + 30_000)
+        assert clip.end_ms == end_ms, label
+        assert clip.clip_text and not AD.search(clip.clip_text), label
 
 
 def test_no_reel_clip_plays_an_ad(corpus: Path) -> None:

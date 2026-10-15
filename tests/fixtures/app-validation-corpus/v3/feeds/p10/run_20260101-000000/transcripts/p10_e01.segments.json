@@ -1,7 +1,7 @@
 [
   {
     "start": 0.0,
-    "end": 0.95,
+    "end": 1.947,
     "speaker_label": "Lucía Herrera",
     "text": "Welcome back to Trail Sessions.",
     "char_start": 15,
@@ -10,8 +10,8 @@
     "sent_id": "t0000.s01"
   },
   {
-    "start": 0.95,
-    "end": 4.68,
+    "start": 1.947,
+    "end": 9.612,
     "speaker_label": "Lucía Herrera",
     "text": "Today, we're talking about trail building, and I'm joined by Javier Benavides, a trail builder from the Cascadia Alliance.",
     "char_start": 47,
@@ -20,8 +20,8 @@
     "sent_id": "t0000.s02"
   },
   {
-    "start": 4.68,
-    "end": 6.0,
+    "start": 9.612,
+    "end": 12.313,
     "speaker_label": "Lucía Herrera",
     "text": "Javier Benavides, thank you for being here.",
     "char_start": 170,
@@ -30,8 +30,8 @@
     "sent_id": "t0000.s03"
   },
   {
-    "start": 6.0,
-    "end": 7.07,
+    "start": 12.313,
+    "end": 13.692,
     "speaker_label": "Javier Benavides",
     "text": "Thank you, Lucía.",
     "char_start": 232,
@@ -40,8 +40,8 @@
     "sent_id": "t0001.s01"
   },
   {
-    "start": 7.07,
-    "end": 12.0,
+    "start": 13.692,
+    "end": 20.018,
     "speaker_label": "Javier Benavides",
     "text": "With great enthusiasm – building trails is something I've thought about a lot.",
     "char_start": 250,
@@ -50,8 +50,8 @@
     "sent_id": "t0001.s02"
   },
   {
-    "start": 12.0,
-    "end": 14.27,
+    "start": 20.018,
+    "end": 22.537,
     "speaker_label": "Lucía Herrera",
     "text": "This episode is sponsored by Strava.",
     "char_start": 344,
@@ -60,8 +60,8 @@
     "sent_id": "t0002.s01"
   },
   {
-    "start": 14.27,
-    "end": 16.23,
+    "start": 22.537,
+    "end": 24.707,
     "speaker_label": "Lucía Herrera",
     "text": "Strava is the home of athletes.",
     "char_start": 381,
@@ -70,8 +70,8 @@
     "sent_id": "t0002.s02"
   },
   {
-    "start": 16.23,
-    "end": 18.0,
+    "start": 24.707,
+    "end": 26.666,
     "speaker_label": "Lucía Herrera",
     "text": "Start at strava.com/podcast.",
     "char_start": 413,
@@ -80,8 +80,8 @@
     "sent_id": "t0002.s03"
   },
   {
-    "start": 18.0,
-    "end": 20.96,
+    "start": 26.666,
+    "end": 28.937,
     "speaker_label": "Lucía Herrera",
     "text": "Tell me about how you made that decision.",
     "char_start": 442,
@@ -90,8 +90,8 @@
     "sent_id": "t0002.s04"
   },
   {
-    "start": 20.96,
-    "end": 24.0,
+    "start": 28.937,
+    "end": 31.263,
     "speaker_label": "Lucía Herrera",
     "text": "How does RockShox fit into this landscape?",
     "char_start": 484,
@@ -100,8 +100,8 @@
     "sent_id": "t0002.s05"
   },
   {
-    "start": 24.0,
-    "end": 26.48,
+    "start": 31.263,
+    "end": 37.17,
     "speaker_label": "Javier Benavides",
     "text": "Honestly, drainage is the design decision that has the biggest impact on any trail.",
     "char_start": 545,
@@ -110,8 +110,8 @@
     "sent_id": "t0003.s01"
   },
   {
-    "start": 26.48,
-    "end": 28.15,
+    "start": 37.17,
+    "end": 41.155,
     "speaker_label": "Javier Benavides",
     "text": "We've seen this in teams that use the Cascadia Alliance.",
     "char_start": 629,
@@ -120,8 +120,8 @@
     "sent_id": "t0003.s02"
   },
   {
-    "start": 28.15,
-    "end": 30.0,
+    "start": 41.155,
+    "end": 45.567,
     "speaker_label": "Javier Benavides",
     "text": "I've seen this pattern repeat itself in three different teams.",
     "char_start": 686,
@@ -130,8 +130,8 @@
     "sent_id": "t0003.s03"
   },
   {
-    "start": 30.0,
-    "end": 32.27,
+    "start": 45.567,
+    "end": 47.427,
     "speaker_label": "Lucía Herrera",
     "text": "Tell me how you made the decision.",
     "char_start": 764,
@@ -140,8 +140,8 @@
     "sent_id": "t0004.s01"
   },
   {
-    "start": 32.27,
-    "end": 36.0,
+    "start": 47.427,
+    "end": 50.491,
     "speaker_label": "Lucía Herrera",
     "text": "What is the version of the question that really matters?",
     "char_start": 799,
@@ -150,8 +150,8 @@
     "sent_id": "t0004.s02"
   },
   {
-    "start": 36.0,
-    "end": 39.57,
+    "start": 50.491,
+    "end": 58.064,
     "speaker_label": "Javier Benavides",
     "text": "Yes, see – the most common mistake that new builders make is excavating with too much of a slope.",
     "char_start": 874,
@@ -160,8 +160,8 @@
     "sent_id": "t0005.s01"
   },
   {
-    "start": 39.57,
-    "end": 42.0,
+    "start": 58.064,
+    "end": 63.216,
     "speaker_label": "Javier Benavides",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 972,
@@ -170,8 +170,8 @@
     "sent_id": "t0005.s02"
   },
   {
-    "start": 42.0,
-    "end": 44.25,
+    "start": 63.216,
+    "end": 65.159,
     "speaker_label": "Lucía Herrera",
     "text": "I want to delve deeper into that.",
     "char_start": 1054,
@@ -180,8 +180,8 @@
     "sent_id": "t0006.s01"
   },
   {
-    "start": 44.25,
-    "end": 48.0,
+    "start": 65.159,
+    "end": 68.396,
     "speaker_label": "Lucía Herrera",
     "text": "Where do soil erosion and trail construction intersect?",
     "char_start": 1088,
@@ -190,8 +190,8 @@
     "sent_id": "t0006.s02"
   },
   {
-    "start": 48.0,
-    "end": 48.14,
+    "start": 68.396,
+    "end": 68.738,
     "speaker_label": "Javier Benavides",
     "text": "Sure.",
     "char_start": 1162,
@@ -200,8 +200,8 @@
     "sent_id": "t0007.s01"
   },
   {
-    "start": 48.14,
-    "end": 50.36,
+    "start": 68.738,
+    "end": 74.273,
     "speaker_label": "Javier Benavides",
     "text": "Discussions about land management need to take place before the first excavation.",
     "char_start": 1168,
@@ -210,8 +210,8 @@
     "sent_id": "t0007.s02"
   },
   {
-    "start": 50.36,
-    "end": 51.84,
+    "start": 74.273,
+    "end": 77.963,
     "speaker_label": "Javier Benavides",
     "text": "We've seen this in teams that use RockShox components.",
     "char_start": 1250,
@@ -220,8 +220,8 @@
     "sent_id": "t0007.s03"
   },
   {
-    "start": 51.84,
-    "end": 54.0,
+    "start": 77.963,
+    "end": 83.361,
     "speaker_label": "Javier Benavides",
     "text": "The framework is important because it tells you what compromises you're making.",
     "char_start": 1305,
@@ -230,8 +230,8 @@
     "sent_id": "t0007.s04"
   },
   {
-    "start": 54.0,
-    "end": 60.0,
+    "start": 83.361,
+    "end": 84.71,
     "speaker_label": "Lucía Herrera",
     "text": "Tell me more about that.",
     "char_start": 1400,
@@ -240,8 +240,8 @@
     "sent_id": "t0008.s01"
   },
   {
-    "start": 60.0,
-    "end": 66.0,
+    "start": 84.71,
+    "end": 96.318,
     "speaker_label": "Javier Benavides",
     "text": "And when teams adopt Spoke & Wrench within that workflow, the value becomes apparent. If you ignore that, you'll end up rebuilding it from scratch a year later.",
     "char_start": 1443,
@@ -250,8 +250,8 @@
     "sent_id": "t0009.s01"
   },
   {
-    "start": 66.0,
-    "end": 68.29,
+    "start": 96.318,
+    "end": 98.501,
     "speaker_label": "Lucía Herrera",
     "text": "Tell me how you made the decision.",
     "char_start": 1619,
@@ -260,8 +260,8 @@
     "sent_id": "t0010.s01"
   },
   {
-    "start": 68.29,
-    "end": 72.0,
+    "start": 98.501,
+    "end": 102.032,
     "speaker_label": "Lucía Herrera",
     "text": "Where do soil erosion and trail construction intersect?",
     "char_start": 1654,
@@ -270,8 +270,8 @@
     "sent_id": "t0010.s02"
   },
   {
-    "start": 72.0,
-    "end": 72.16,
+    "start": 102.032,
+    "end": 102.367,
     "speaker_label": "Javier Benavides",
     "text": "Sure.",
     "char_start": 1728,
@@ -280,8 +280,8 @@
     "sent_id": "t0011.s01"
   },
   {
-    "start": 72.16,
-    "end": 73.68,
+    "start": 102.367,
+    "end": 105.581,
     "speaker_label": "Javier Benavides",
     "text": "Cuts in the bank on the slopes are not optional.",
     "char_start": 1734,
@@ -290,8 +290,8 @@
     "sent_id": "t0011.s02"
   },
   {
-    "start": 73.68,
-    "end": 75.75,
+    "start": 105.581,
+    "end": 109.934,
     "speaker_label": "Javier Benavides",
     "text": "The shortcut of the first day is the landslide of the third year.",
     "char_start": 1783,
@@ -300,8 +300,8 @@
     "sent_id": "t0011.s03"
   },
   {
-    "start": 75.75,
-    "end": 78.0,
+    "start": 109.934,
+    "end": 114.688,
     "speaker_label": "Javier Benavides",
     "text": "And the second-order effect is the part that almost everyone overlooks.",
     "char_start": 1849,
@@ -310,8 +310,8 @@
     "sent_id": "t0011.s04"
   },
   {
-    "start": 78.0,
-    "end": 79.93,
+    "start": 114.688,
+    "end": 116.036,
     "speaker_label": "Lucía Herrera",
     "text": "That's a useful framework.",
     "char_start": 1936,
@@ -320,8 +320,8 @@
     "sent_id": "t0012.s01"
   },
   {
-    "start": 79.93,
-    "end": 84.0,
+    "start": 116.036,
+    "end": 118.886,
     "speaker_label": "Lucía Herrera",
     "text": "What is the version of the question that truly matters?",
     "char_start": 1963,
@@ -330,8 +330,8 @@
     "sent_id": "t0012.s02"
   },
   {
-    "start": 84.0,
-    "end": 86.34,
+    "start": 118.886,
+    "end": 123.956,
     "speaker_label": "Javier Benavides",
     "text": "Yes, look – the structure of the soil matters more than people realize.",
     "char_start": 2037,
@@ -340,8 +340,8 @@
     "sent_id": "t0013.s01"
   },
   {
-    "start": 86.34,
-    "end": 87.96,
+    "start": 123.956,
+    "end": 127.455,
     "speaker_label": "Javier Benavides",
     "text": "We've seen this in teams that use Spoke & Wrench.",
     "char_start": 2109,
@@ -350,8 +350,8 @@
     "sent_id": "t0013.s02"
   },
   {
-    "start": 87.96,
-    "end": 90.0,
+    "start": 127.455,
+    "end": 131.883,
     "speaker_label": "Javier Benavides",
     "text": "I've seen this pattern repeat itself in three different teams.",
     "char_start": 2159,
@@ -360,8 +360,8 @@
     "sent_id": "t0013.s03"
   },
   {
-    "start": 90.0,
-    "end": 92.04,
+    "start": 131.883,
+    "end": 133.775,
     "speaker_label": "Lucía Herrera",
     "text": "What does the failure mode look like?",
     "char_start": 2237,
@@ -370,8 +370,8 @@
     "sent_id": "t0014.s01"
   },
   {
-    "start": 92.04,
-    "end": 96.0,
+    "start": 133.775,
+    "end": 137.458,
     "speaker_label": "Lucía Herrera",
     "text": "What is the structural aspect that most listeners do not have access to?",
     "char_start": 2275,
@@ -380,8 +380,8 @@
     "sent_id": "t0014.s02"
   },
   {
-    "start": 96.0,
-    "end": 97.77,
+    "start": 137.458,
+    "end": 141.128,
     "speaker_label": "Javier Benavides",
     "text": "Let me give you the version that I truly believe in.",
     "char_start": 2366,
@@ -390,8 +390,8 @@
     "sent_id": "t0015.s01"
   },
   {
-    "start": 97.77,
-    "end": 99.89,
+    "start": 141.128,
+    "end": 145.504,
     "speaker_label": "Javier Benavides",
     "text": "I've changed my mind about machine-made versus handmade items.",
     "char_start": 2419,
@@ -400,8 +400,8 @@
     "sent_id": "t0015.s02"
   },
   {
-    "start": 99.89,
-    "end": 102.0,
+    "start": 145.504,
+    "end": 149.88,
     "speaker_label": "Javier Benavides",
     "text": "I've seen this pattern repeat itself in three different teams.",
     "char_start": 2482,
@@ -410,8 +410,8 @@
     "sent_id": "t0015.s03"
   },
   {
-    "start": 102.0,
-    "end": 108.0,
+    "start": 149.88,
+    "end": 151.229,
     "speaker_label": "Lucía Herrera",
     "text": "Tell me more about that.",
     "char_start": 2560,
@@ -420,8 +420,8 @@
     "sent_id": "t0016.s01"
   },
   {
-    "start": 108.0,
-    "end": 114.0,
+    "start": 151.229,
+    "end": 163.025,
     "speaker_label": "Javier Benavides",
     "text": "And when teams adopt the Cascadia Alliance within that workflow, the progress becomes visible. If you ignore that, you end up having to rebuild it from scratch a year later.",
     "char_start": 2603,
@@ -430,8 +430,8 @@
     "sent_id": "t0017.s01"
   },
   {
-    "start": 114.0,
-    "end": 120.0,
+    "start": 163.025,
+    "end": 166.77,
     "speaker_label": "Lucía Herrera",
     "text": "We'll be right back after a short commercial break.",
     "char_start": 2792,
@@ -440,8 +440,8 @@
     "sent_id": "t0018.s01"
   },
   {
-    "start": 120.0,
-    "end": 121.48,
+    "start": 166.77,
+    "end": 171.474,
     "speaker_label": "SPEAKER_02",
     "text": "Today's episode is brought to you by Stripe.",
     "char_start": 2856,
@@ -450,8 +450,8 @@
     "sent_id": "t0019.s01"
   },
   {
-    "start": 121.48,
-    "end": 124.58,
+    "start": 171.474,
+    "end": 181.311,
     "speaker_label": "SPEAKER_02",
     "text": "Stripe simplifies payments, whether you're running a marketplace or a subscription business.",
     "char_start": 2901,
@@ -460,8 +460,8 @@
     "sent_id": "t0019.s02"
   },
   {
-    "start": 124.58,
-    "end": 126.0,
+    "start": 181.311,
+    "end": 185.801,
     "speaker_label": "SPEAKER_02",
     "text": "Visit stripe.com/podcast for a free trial.",
     "char_start": 2994,
@@ -470,8 +470,8 @@
     "sent_id": "t0019.s03"
   },
   {
-    "start": 126.0,
-    "end": 129.13,
+    "start": 185.801,
+    "end": 189.324,
     "speaker_label": "Lucía Herrera",
     "text": "Welcome back to the program. How does the failure mode look?",
     "char_start": 3052,
@@ -480,8 +480,8 @@
     "sent_id": "t0020.s01"
   },
   {
-    "start": 129.13,
-    "end": 132.0,
+    "start": 189.324,
+    "end": 192.553,
     "speaker_label": "Lucía Herrera",
     "text": "Where do soil erosion and trail construction intersect?",
     "char_start": 3113,
@@ -490,8 +490,8 @@
     "sent_id": "t0020.s02"
   },
   {
-    "start": 132.0,
-    "end": 132.53,
+    "start": 192.553,
+    "end": 193.833,
     "speaker_label": "Javier Benavides",
     "text": "That's how I see it.",
     "char_start": 3187,
@@ -500,8 +500,8 @@
     "sent_id": "t0021.s01"
   },
   {
-    "start": 132.53,
-    "end": 134.48,
+    "start": 193.833,
+    "end": 198.503,
     "speaker_label": "Javier Benavides",
     "text": "Drainage is the design decision that has the biggest impact on any trail.",
     "char_start": 3208,
@@ -510,8 +510,8 @@
     "sent_id": "t0021.s02"
   },
   {
-    "start": 134.48,
-    "end": 136.03,
+    "start": 198.503,
+    "end": 202.214,
     "speaker_label": "Javier Benavides",
     "text": "We've seen it with equipment that uses Shimano components.",
     "char_start": 3282,
@@ -520,8 +520,8 @@
     "sent_id": "t0021.s03"
   },
   {
-    "start": 136.03,
-    "end": 138.0,
+    "start": 202.214,
+    "end": 206.949,
     "speaker_label": "Javier Benavides",
     "text": "If you ignore that, you'll end up rebuilding it from scratch a year later.",
     "char_start": 3341,
@@ -530,8 +530,8 @@
     "sent_id": "t0021.s04"
   },
   {
-    "start": 138.0,
-    "end": 140.68,
+    "start": 206.949,
+    "end": 208.918,
     "speaker_label": "Lucía Herrera",
     "text": "Tell me how you made the decision.",
     "char_start": 3431,
@@ -540,8 +540,8 @@
     "sent_id": "t0022.s01"
   },
   {
-    "start": 140.68,
-    "end": 144.0,
+    "start": 208.918,
+    "end": 211.351,
     "speaker_label": "Lucía Herrera",
     "text": "How does RockShox fit into this landscape?",
     "char_start": 3466,
@@ -550,8 +550,8 @@
     "sent_id": "t0022.s02"
   },
   {
-    "start": 144.0,
-    "end": 147.57,
+    "start": 211.351,
+    "end": 218.923,
     "speaker_label": "Javier Benavides",
     "text": "Yes, see – the most common mistake that new builders make is excavating with too much of a slope.",
     "char_start": 3527,
@@ -560,8 +560,8 @@
     "sent_id": "t0023.s01"
   },
   {
-    "start": 147.57,
-    "end": 150.0,
+    "start": 218.923,
+    "end": 224.075,
     "speaker_label": "Javier Benavides",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 3625,
@@ -570,8 +570,8 @@
     "sent_id": "t0023.s02"
   },
   {
-    "start": 150.0,
-    "end": 151.72,
+    "start": 224.075,
+    "end": 225.602,
     "speaker_label": "Lucía Herrera",
     "text": "Challenge my conventional wisdom.",
     "char_start": 3707,
@@ -580,8 +580,8 @@
     "sent_id": "t0024.s01"
   },
   {
-    "start": 151.72,
-    "end": 156.0,
+    "start": 225.602,
+    "end": 229.395,
     "speaker_label": "Lucía Herrera",
     "text": "What is something you used to believe about this that you have since re-evaluated?",
     "char_start": 3741,
@@ -590,8 +590,8 @@
     "sent_id": "t0024.s02"
   },
   {
-    "start": 156.0,
-    "end": 157.3,
+    "start": 229.395,
+    "end": 233.133,
     "speaker_label": "Javier Benavides",
     "text": "Let me give you the version that I truly believe in.",
     "char_start": 3842,
@@ -600,8 +600,8 @@
     "sent_id": "t0025.s01"
   },
   {
-    "start": 157.3,
-    "end": 159.23,
+    "start": 233.133,
+    "end": 238.667,
     "speaker_label": "Javier Benavides",
     "text": "Discussions about land management need to happen before the first excavation.",
     "char_start": 3895,
@@ -610,8 +610,8 @@
     "sent_id": "t0025.s02"
   },
   {
-    "start": 159.23,
-    "end": 160.45,
+    "start": 238.667,
+    "end": 242.189,
     "speaker_label": "Javier Benavides",
     "text": "We've seen this in teams that use Spoke & Wrench.",
     "char_start": 3973,
@@ -620,8 +620,8 @@
     "sent_id": "t0025.s03"
   },
   {
-    "start": 160.45,
-    "end": 162.0,
+    "start": 242.189,
+    "end": 246.645,
     "speaker_label": "Javier Benavides",
     "text": "I've seen this pattern repeat itself in three different teams.",
     "char_start": 4023,
@@ -630,8 +630,8 @@
     "sent_id": "t0025.s04"
   },
   {
-    "start": 162.0,
-    "end": 168.0,
+    "start": 246.645,
+    "end": 247.394,
     "speaker_label": "Lucía Herrera",
     "text": "That makes sense.",
     "char_start": 4101,
@@ -640,8 +640,8 @@
     "sent_id": "t0026.s01"
   },
   {
-    "start": 168.0,
-    "end": 171.62,
+    "start": 247.394,
+    "end": 254.23,
     "speaker_label": "Javier Benavides",
     "text": "Outside of the tools available at the Cascadia Alliance level, the failure mode is more difficult to detect.",
     "char_start": 4137,
@@ -650,8 +650,8 @@
     "sent_id": "t0027.s01"
   },
   {
-    "start": 171.62,
-    "end": 174.0,
+    "start": 254.23,
+    "end": 258.724,
     "speaker_label": "Javier Benavides",
     "text": "And the second-order effect is the part that almost everyone overlooks.",
     "char_start": 4246,
@@ -660,8 +660,8 @@
     "sent_id": "t0027.s02"
   },
   {
-    "start": 174.0,
-    "end": 176.89,
+    "start": 258.724,
+    "end": 261.222,
     "speaker_label": "Lucía Herrera",
     "text": "What is the heuristic that you always fall back on?",
     "char_start": 4333,
@@ -670,8 +670,8 @@
     "sent_id": "t0028.s01"
   },
   {
-    "start": 176.89,
-    "end": 180.0,
+    "start": 261.222,
+    "end": 263.915,
     "speaker_label": "Lucía Herrera",
     "text": "What is the version of the question that truly matters?",
     "char_start": 4385,
@@ -680,8 +680,8 @@
     "sent_id": "t0028.s02"
   },
   {
-    "start": 180.0,
-    "end": 182.1,
+    "start": 263.915,
+    "end": 268.558,
     "speaker_label": "Javier Benavides",
     "text": "It boils down to this: cuts in banking on the slopes are not optional.",
     "char_start": 4459,
@@ -690,8 +690,8 @@
     "sent_id": "t0029.s01"
   },
   {
-    "start": 182.1,
-    "end": 184.08,
+    "start": 268.558,
+    "end": 272.936,
     "speaker_label": "Javier Benavides",
     "text": "The shortcut of the first year is the landslide of the third year.",
     "char_start": 4530,
@@ -700,8 +700,8 @@
     "sent_id": "t0029.s02"
   },
   {
-    "start": 184.08,
-    "end": 186.0,
+    "start": 272.936,
+    "end": 277.181,
     "speaker_label": "Javier Benavides",
     "text": "I have seen this pattern repeat itself in three different teams.",
     "char_start": 4597,
@@ -710,8 +710,8 @@
     "sent_id": "t0029.s03"
   },
   {
-    "start": 186.0,
-    "end": 188.19,
+    "start": 277.181,
+    "end": 279.044,
     "speaker_label": "Lucía Herrera",
     "text": "What does a failure mode look like?",
     "char_start": 4677,
@@ -720,8 +720,8 @@
     "sent_id": "t0030.s01"
   },
   {
-    "start": 188.19,
-    "end": 192.0,
+    "start": 279.044,
+    "end": 282.292,
     "speaker_label": "Lucía Herrera",
     "text": "What is the most underestimated aspect of trail construction?",
     "char_start": 4713,
@@ -730,8 +730,8 @@
     "sent_id": "t0030.s02"
   },
   {
-    "start": 192.0,
-    "end": 193.4,
+    "start": 282.292,
+    "end": 285.768,
     "speaker_label": "Javier Benavides",
     "text": "Let me give you the version that I truly believe in.",
     "char_start": 4793,
@@ -740,8 +740,8 @@
     "sent_id": "t0031.s01"
   },
   {
-    "start": 193.4,
-    "end": 194.83,
+    "start": 285.768,
+    "end": 289.311,
     "speaker_label": "Javier Benavides",
     "text": "Soil structure is more important than people realize.",
     "char_start": 4846,
@@ -750,8 +750,8 @@
     "sent_id": "t0031.s02"
   },
   {
-    "start": 194.83,
-    "end": 196.33,
+    "start": 289.311,
+    "end": 293.054,
     "speaker_label": "Javier Benavides",
     "text": "We've seen this in teams that use the Cascadia Alliance.",
     "char_start": 4900,
@@ -760,8 +760,8 @@
     "sent_id": "t0031.s03"
   },
   {
-    "start": 196.33,
-    "end": 198.0,
+    "start": 293.054,
+    "end": 297.198,
     "speaker_label": "Javier Benavides",
     "text": "I've seen this pattern repeat itself in three different teams.",
     "char_start": 4957,
@@ -770,8 +770,8 @@
     "sent_id": "t0031.s04"
   },
   {
-    "start": 198.0,
-    "end": 200.68,
+    "start": 297.198,
+    "end": 298.851,
     "speaker_label": "Lucía Herrera",
     "text": "I want to delve deeper into that.",
     "char_start": 5035,
@@ -780,8 +780,8 @@
     "sent_id": "t0032.s01"
   },
   {
-    "start": 200.68,
-    "end": 204.0,
+    "start": 298.851,
+    "end": 300.904,
     "speaker_label": "Lucía Herrera",
     "text": "How does Shimano fit into this landscape?",
     "char_start": 5069,
@@ -790,8 +790,8 @@
     "sent_id": "t0032.s02"
   },
   {
-    "start": 204.0,
-    "end": 207.31,
+    "start": 300.904,
+    "end": 307.721,
     "speaker_label": "Javier Benavides",
     "text": "Yes, look – I've changed my mind about machine-made trails versus hand-made ones.",
     "char_start": 5129,
@@ -800,8 +800,8 @@
     "sent_id": "t0033.s01"
   },
   {
-    "start": 207.31,
-    "end": 210.0,
+    "start": 307.721,
+    "end": 313.275,
     "speaker_label": "Javier Benavides",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 5211,
@@ -810,8 +810,8 @@
     "sent_id": "t0033.s02"
   },
   {
-    "start": 210.0,
-    "end": 216.0,
+    "start": 313.275,
+    "end": 315.035,
     "speaker_label": "Lucía Herrera",
     "text": "Where does that stop working?",
     "char_start": 5293,
@@ -820,8 +820,8 @@
     "sent_id": "t0034.s01"
   },
   {
-    "start": 216.0,
-    "end": 219.43,
+    "start": 315.035,
+    "end": 322.026,
     "speaker_label": "Javier Benavides",
     "text": "Outside of the RockShox suspension system, the failure mode is more difficult to detect.",
     "char_start": 5341,
@@ -830,8 +830,8 @@
     "sent_id": "t0035.s01"
   },
   {
-    "start": 219.43,
-    "end": 222.0,
+    "start": 322.026,
+    "end": 327.27,
     "speaker_label": "Javier Benavides",
     "text": "Once you understand that, the rest of the decisions become easier.",
     "char_start": 5430,
@@ -840,8 +840,8 @@
     "sent_id": "t0035.s02"
   },
   {
-    "start": 222.0,
-    "end": 228.0,
+    "start": 327.27,
+    "end": 331.452,
     "speaker_label": "Lucía Herrera",
     "text": "Let's change the subject – I want to dedicate the final part to land management.",
     "char_start": 5512,
@@ -850,8 +850,8 @@
     "sent_id": "t0036.s01"
   },
   {
-    "start": 228.0,
-    "end": 234.0,
+    "start": 331.452,
+    "end": 341.398,
     "speaker_label": "Javier Benavides",
     "text": "That's where the conversation gets interesting, because the concessions regarding land management permeate everything we've discussed.",
     "char_start": 5611,
@@ -860,8 +860,8 @@
     "sent_id": "t0037.s01"
   },
   {
-    "start": 234.0,
-    "end": 235.85,
+    "start": 341.398,
+    "end": 343.089,
     "speaker_label": "Lucía Herrera",
     "text": "I want to delve deeper into that.",
     "char_start": 5761,
@@ -870,8 +870,8 @@
     "sent_id": "t0038.s01"
   },
   {
-    "start": 235.85,
-    "end": 240.0,
+    "start": 343.089,
+    "end": 346.88,
     "speaker_label": "Lucía Herrera",
     "text": "What is the opposing perspective that most listeners don't have access to?",
     "char_start": 5795,
@@ -880,8 +880,8 @@
     "sent_id": "t0038.s02"
   },
   {
-    "start": 240.0,
-    "end": 242.44,
+    "start": 346.88,
+    "end": 352.979,
     "speaker_label": "Javier Benavides",
     "text": "It boils down to this: drainage is the design decision that has the biggest impact on any trail.",
     "char_start": 5888,
@@ -890,8 +890,8 @@
     "sent_id": "t0039.s01"
   },
   {
-    "start": 242.44,
-    "end": 244.12,
+    "start": 352.979,
+    "end": 357.172,
     "speaker_label": "Javier Benavides",
     "text": "We've seen it happen with equipment that uses RockShox components.",
     "char_start": 5985,
@@ -900,8 +900,8 @@
     "sent_id": "t0039.s02"
   },
   {
-    "start": 244.12,
-    "end": 246.0,
+    "start": 357.172,
+    "end": 361.874,
     "speaker_label": "Javier Benavides",
     "text": "If you ignore that, you'll end up rebuilding it from scratch a year later.",
     "char_start": 6052,
@@ -910,8 +910,8 @@
     "sent_id": "t0039.s03"
   },
   {
-    "start": 246.0,
-    "end": 248.19,
+    "start": 361.874,
+    "end": 363.737,
     "speaker_label": "Lucía Herrera",
     "text": "What does a failure mode look like?",
     "char_start": 6142,
@@ -920,8 +920,8 @@
     "sent_id": "t0040.s01"
   },
   {
-    "start": 248.19,
-    "end": 252.0,
+    "start": 363.737,
+    "end": 366.984,
     "speaker_label": "Lucía Herrera",
     "text": "What is the most underestimated aspect of trail construction?",
     "char_start": 6178,
@@ -930,8 +930,8 @@
     "sent_id": "t0040.s02"
   },
   {
-    "start": 252.0,
-    "end": 255.27,
+    "start": 366.984,
+    "end": 373.285,
     "speaker_label": "Javier Benavides",
     "text": "Honestly, the most common mistake that new builders make is excavating with too much of a slope.",
     "char_start": 6258,
@@ -940,8 +940,8 @@
     "sent_id": "t0041.s01"
   },
   {
-    "start": 255.27,
-    "end": 258.0,
+    "start": 373.285,
+    "end": 378.535,
     "speaker_label": "Javier Benavides",
     "text": "The framework is important because it tells you what compromises you are making.",
     "char_start": 6355,
@@ -950,8 +950,8 @@
     "sent_id": "t0041.s02"
   },
   {
-    "start": 258.0,
-    "end": 264.0,
+    "start": 378.535,
+    "end": 382.675,
     "speaker_label": "Lucía Herrera",
     "text": "Before we wrap up, what's one thing that listeners can try out this week?",
     "char_start": 6451,
@@ -960,8 +960,8 @@
     "sent_id": "t0042.s01"
   },
   {
-    "start": 264.0,
-    "end": 268.21,
+    "start": 382.675,
+    "end": 387.267,
     "speaker_label": "Javier Benavides",
     "text": "Choose one of the ideas we discussed and implement it for two weeks.",
     "char_start": 6543,
@@ -970,8 +970,8 @@
     "sent_id": "t0043.s01"
   },
   {
-    "start": 268.21,
-    "end": 270.0,
+    "start": 387.267,
+    "end": 389.226,
     "speaker_label": "Javier Benavides",
     "text": "Everything else is iteration.",
     "char_start": 6612,
@@ -980,8 +980,8 @@
     "sent_id": "t0043.s02"
   },
   {
-    "start": 270.0,
-    "end": 272.0,
+    "start": 389.226,
+    "end": 392.958,
     "speaker_label": "Lucía Herrera",
     "text": "And finally, a big thank you to our partners at Linear.",
     "char_start": 6657,
@@ -990,8 +990,8 @@
     "sent_id": "t0044.s01"
   },
   {
-    "start": 272.0,
-    "end": 275.02,
+    "start": 392.958,
+    "end": 398.589,
     "speaker_label": "Lucía Herrera",
     "text": "Linear is the incident management tool built for speed – designed for the keyboard.",
     "char_start": 6713,
@@ -1000,8 +1000,8 @@
     "sent_id": "t0044.s02"
   },
   {
-    "start": 275.02,
-    "end": 276.0,
+    "start": 398.589,
+    "end": 400.421,
     "speaker_label": "Lucía Herrera",
     "text": "Check it out at linear.com.",
     "char_start": 6797,
@@ -1010,8 +1010,8 @@
     "sent_id": "t0044.s03"
   },
   {
-    "start": 276.0,
-    "end": 282.0,
+    "start": 400.421,
+    "end": 403.235,
     "speaker_label": "Lucía Herrera",
     "text": "Javier Benavides, thank you for the conversation.",
     "char_start": 6825,
@@ -1020,8 +1020,8 @@
     "sent_id": "t0044.s04"
   },
   {
-    "start": 282.0,
-    "end": 288.0,
+    "start": 403.235,
+    "end": 404.879,
     "speaker_label": "Javier Benavides",
     "text": "Thank you, Lucía.",
     "char_start": 6893,
@@ -1030,8 +1030,8 @@
     "sent_id": "t0045.s01"
   },
   {
-    "start": 288.0,
-    "end": 292.39,
+    "start": 404.879,
+    "end": 408.221,
     "speaker_label": "Lucía Herrera",
     "text": "That's all for today's episode of Trail Sessions.",
     "char_start": 6926,
@@ -1040,8 +1040,8 @@
     "sent_id": "t0046.s01"
   },
   {
-    "start": 292.39,
-    "end": 294.0,
+    "start": 408.221,
+    "end": 409.448,
     "speaker_label": "Lucía Herrera",
     "text": "See you next time.",
     "char_start": 6976,

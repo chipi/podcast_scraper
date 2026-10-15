@@ -173,8 +173,8 @@
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-02",
         "text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project. We've seen this with teams that use the Cascadia Alliance. I've observed this pattern in three different teams.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 48058,
+        "timestamp_start_ms": 33194,
         "transcript_ref": "transcripts/p13_e01.txt",
         "translation": {
           "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
@@ -197,8 +197,8 @@
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-02",
         "text": "Yes, see \u2013 a common mistake that new path builders make is digging with too much of a slope. Once you understand that, the other decisions become easier.",
-        "timestamp_end_ms": 42000,
-        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 66702,
+        "timestamp_start_ms": 55369,
         "transcript_ref": "transcripts/p13_e01.txt",
         "translation": {
           "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",
@@ -228,8 +228,8 @@
         "episode_id": "ep-c0ab3bfb1ebdab6d",
         "speaker_id": "person:speaker-01",
         "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
-        "timestamp_end_ms": 168000,
-        "timestamp_start_ms": 162000,
+        "timestamp_end_ms": 250736,
+        "timestamp_start_ms": 250010,
         "transcript_ref": "transcripts/p13_e01.txt",
         "translation": {
           "en_sha256": "8164de7d51a593cec07298e7d13ba2d795eff857417de32af5d068d2489b4186",

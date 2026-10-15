@@ -200,8 +200,8 @@
         "episode_id": "ep-d8cc458a5f0049a8",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version I actually believe. Threat modeling is a framing exercise \u2014 frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier.",
-        "timestamp_end_ms": 60000,
-        "timestamp_start_ms": 54000,
+        "timestamp_end_ms": 103906,
+        "timestamp_start_ms": 83257,
         "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"
@@ -214,8 +214,8 @@
         "episode_id": "ep-d8cc458a5f0049a8",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: Security incidents are reliability incidents. We've seen this play out at teams using Sentry. And the second-order effect is the part most people miss.",
-        "timestamp_end_ms": 84000,
-        "timestamp_start_ms": 78000,
+        "timestamp_end_ms": 145098,
+        "timestamp_start_ms": 130652,
         "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"
@@ -228,8 +228,8 @@
         "episode_id": "ep-d8cc458a5f0049a8",
         "speaker_id": "person:speaker-02",
         "text": "It comes down to this: The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Sentry. If you ignore that, you end up rebuilding it from scratch a year later.",
-        "timestamp_end_ms": 120000,
-        "timestamp_start_ms": 114000,
+        "timestamp_end_ms": 204848,
+        "timestamp_start_ms": 187174,
         "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"

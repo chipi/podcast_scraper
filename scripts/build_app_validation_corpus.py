@@ -738,7 +738,10 @@ def render_times(
             t = start
             for i in mine:
                 t_end = t + (end - start) * sent_chars[i] / share
-                times[str(sentences[i]["sent_id"])] = (round(t, 2), round(t_end, 2))
+                # 3 places, as the source segments carry (they are measured from the audio's
+                # RTTM since 2026-10-15): at 2, a sentence ending at 193.575 s and the next
+                # starting at 193.574 s rounded to 193.58 / 193.57 and overlapped.
+                times[str(sentences[i]["sent_id"])] = (round(t, 3), round(t_end, 3))
                 t = t_end
     return times
 

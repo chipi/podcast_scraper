@@ -1,219 +1,219 @@
 [
   {
-    "end": 6.0,
+    "end": 11.341,
     "id": 0,
     "speaker_label": "Sam",
     "start": 0.0,
     "text": "Welcome back to Cross-Show. Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist. Skanda Amarnath, thanks for being here."
   },
   {
-    "end": 12.0,
+    "end": 14.452,
     "id": 1,
     "speaker_label": "Skanda Amarnath",
-    "start": 6.0,
+    "start": 11.341,
     "text": "Thanks, Sam. Great to be back."
   },
   {
-    "end": 18.0,
+    "end": 23.334,
     "id": 2,
     "speaker_label": "Sam",
-    "start": 12.0,
+    "start": 14.452,
     "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Try bloomberg.com today."
   },
   {
-    "end": 24.0,
+    "end": 30.076,
     "id": 3,
     "speaker_label": "Sam",
-    "start": 18.0,
+    "start": 23.334,
     "text": "Before we get into it \u2014 Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats."
   },
   {
-    "end": 30.0,
+    "end": 34.497,
     "id": 4,
     "speaker_label": "Skanda Amarnath",
-    "start": 24.0,
+    "start": 30.076,
     "text": "Yeah, exactly. And it ties into what we're covering today."
   },
   {
-    "end": 36.0,
+    "end": 40.048,
     "id": 5,
     "speaker_label": "Sam",
-    "start": 30.0,
+    "start": 34.497,
     "text": "I want to flag something \u2014 Skanda Eminas mentioned this same dynamic a couple episodes back."
   },
   {
-    "end": 42.0,
+    "end": 48.92,
     "id": 6,
     "speaker_label": "Skanda Amarnath",
-    "start": 36.0,
+    "start": 40.048,
     "text": "Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy."
   },
   {
-    "end": 48.0,
+    "end": 51.41,
     "id": 7,
     "speaker_label": "Sam",
-    "start": 42.0,
+    "start": 48.92,
     "text": "That's a real shift. Worth pulling on."
   },
   {
-    "end": 54.0,
+    "end": 56.849,
     "id": 8,
     "speaker_label": "Sam",
-    "start": 48.0,
+    "start": 51.41,
     "text": "Let's start there. What's the structural angle most listeners don't have access to?"
   },
   {
-    "end": 60.0,
+    "end": 70.408,
     "id": 9,
     "speaker_label": "Skanda Amarnath",
-    "start": 54.0,
+    "start": 56.849,
     "text": "Yeah, so \u2014 Labor markets are where macro stops being abstract. We've seen this play out at teams using IPCC. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 66.0,
+    "end": 76.548,
     "id": 10,
     "speaker_label": "Sam",
-    "start": 60.0,
+    "start": 70.408,
     "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?"
   },
   {
-    "end": 72.0,
+    "end": 87.732,
     "id": 11,
     "speaker_label": "Skanda Amarnath",
-    "start": 66.0,
+    "start": 76.548,
     "text": "Here's how I think about it. Risk is a household-level variable, not a portfolio-level one. The framing matters because it tells you which trade-offs you're making."
   },
   {
-    "end": 78.0,
+    "end": 90.923,
     "id": 12,
     "speaker_label": "Sam",
-    "start": 72.0,
+    "start": 87.732,
     "text": "We'll be right back after a quick word from our sponsors."
   },
   {
-    "end": 84.0,
+    "end": 103.909,
     "id": 13,
     "speaker_label": "Ad",
-    "start": 78.0,
+    "start": 90.923,
     "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first. Visit linear.com/podcast for a free trial."
   },
   {
-    "end": 90.0,
+    "end": 105.346,
     "id": 14,
     "speaker_label": "Sam",
-    "start": 84.0,
+    "start": 103.909,
     "text": "Welcome back to the show."
   },
   {
-    "end": 96.0,
+    "end": 109.713,
     "id": 15,
     "speaker_label": "Sam",
-    "start": 90.0,
+    "start": 105.346,
     "text": "Let's start there. What's the version of the question that actually matters?"
   },
   {
-    "end": 102.0,
+    "end": 122.675,
     "id": 16,
     "speaker_label": "Skanda Amarnath",
-    "start": 96.0,
+    "start": 109.713,
     "text": "Sure. Labor markets are where macro stops being abstract. We've seen this play out at teams using Bloomberg. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 108.0,
+    "end": 127.123,
     "id": 17,
     "speaker_label": "Sam",
-    "start": 102.0,
+    "start": 122.675,
     "text": "I want to dig into that. What's the version of the question that actually matters?"
   },
   {
-    "end": 114.0,
+    "end": 136.254,
     "id": 18,
     "speaker_label": "Skanda Amarnath",
-    "start": 108.0,
+    "start": 127.123,
     "text": "Sure. Risk is a household-level variable, not a portfolio-level one. I've watched this pattern hold across three different teams."
   },
   {
-    "end": 120.0,
+    "end": 140.575,
     "id": 19,
     "speaker_label": "Sam",
-    "start": 114.0,
+    "start": 136.254,
     "text": "Let's pivot \u2014 systems thinking is where I want to spend the last stretch."
   },
   {
-    "end": 126.0,
+    "end": 148.721,
     "id": 20,
     "speaker_label": "Skanda Amarnath",
-    "start": 120.0,
+    "start": 140.575,
     "text": "That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered."
   },
   {
-    "end": 132.0,
+    "end": 154.106,
     "id": 21,
     "speaker_label": "Sam",
-    "start": 126.0,
+    "start": 148.721,
     "text": "Walk me through a concrete example. Where do risk management and labor markets intersect?"
   },
   {
-    "end": 138.0,
+    "end": 167.482,
     "id": 22,
     "speaker_label": "Skanda Amarnath",
-    "start": 132.0,
+    "start": 154.106,
     "text": "Honestly, Labor markets are where macro stops being abstract. We've seen this play out at teams using BloombergNEF. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 144.0,
+    "end": 172.635,
     "id": 23,
     "speaker_label": "Sam",
-    "start": 138.0,
+    "start": 167.482,
     "text": "What does the failure mode look like? What's the version of the question that actually matters?"
   },
   {
-    "end": 150.0,
+    "end": 183.048,
     "id": 24,
     "speaker_label": "Skanda Amarnath",
-    "start": 144.0,
+    "start": 172.635,
     "text": "Yeah, so \u2014 Risk is a household-level variable, not a portfolio-level one. If you ignore that, you end up rebuilding it from scratch a year later."
   },
   {
-    "end": 156.0,
+    "end": 186.846,
     "id": 25,
     "speaker_label": "Sam",
-    "start": 150.0,
+    "start": 183.048,
     "text": "Before we wrap, what's one thing listeners can try this week?"
   },
   {
-    "end": 162.0,
+    "end": 192.444,
     "id": 26,
     "speaker_label": "Skanda Amarnath",
-    "start": 156.0,
+    "start": 186.846,
     "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
   },
   {
-    "end": 168.0,
+    "end": 203.434,
     "id": 27,
     "speaker_label": "Sam",
-    "start": 162.0,
+    "start": 192.444,
     "text": "And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com."
   },
   {
-    "end": 174.0,
+    "end": 206.309,
     "id": 28,
     "speaker_label": "Sam",
-    "start": 168.0,
+    "start": 203.434,
     "text": "Skanda Amarnath, thanks for the conversation."
   },
   {
-    "end": 180.0,
+    "end": 207.921,
     "id": 29,
     "speaker_label": "Skanda Amarnath",
-    "start": 174.0,
+    "start": 206.309,
     "text": "Thanks, Sam."
   },
   {
-    "end": 186.0,
+    "end": 212.018,
     "id": 30,
     "speaker_label": "Sam",
-    "start": 180.0,
+    "start": 207.921,
     "text": "That's it for today's episode of Cross-Show. See you next time."
   }
 ]

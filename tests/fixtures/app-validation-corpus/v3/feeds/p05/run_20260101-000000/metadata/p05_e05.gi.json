@@ -156,8 +156,8 @@
         "episode_id": "ep-6351d18dc6f1ff70",
         "speaker_id": "person:speaker-01",
         "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016.",
-        "timestamp_end_ms": 24000,
-        "timestamp_start_ms": 18000,
+        "timestamp_end_ms": 34740,
+        "timestamp_start_ms": 25604,
         "transcript_ref": "transcripts/p05_e05.txt"
       },
       "type": "Quote"
@@ -177,8 +177,8 @@
         "episode_id": "ep-6351d18dc6f1ff70",
         "speaker_id": "person:speaker-03",
         "text": "Leverage feels free until the day it isn't.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
+        "timestamp_end_ms": 37556,
+        "timestamp_start_ms": 34740,
         "transcript_ref": "transcripts/p05_e05.txt"
       },
       "type": "Quote"
@@ -198,8 +198,8 @@
         "episode_id": "ep-6351d18dc6f1ff70",
         "speaker_id": "person:speaker-02",
         "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way.",
-        "timestamp_end_ms": 36000,
-        "timestamp_start_ms": 30000,
+        "timestamp_end_ms": 45179,
+        "timestamp_start_ms": 37556,
         "transcript_ref": "transcripts/p05_e05.txt"
       },
       "type": "Quote"
