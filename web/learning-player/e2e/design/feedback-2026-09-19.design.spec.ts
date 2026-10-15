@@ -326,10 +326,12 @@ test('library: the Notes filters sit on one row and carry counts', async ({ page
   await page.goto('/')
   await seedFollowsAndSaves(page)
   await page.goto('/library?tab=collections')
-  const filter = page.locator('[data-testid="notes-type-filter"]')
+  // One kind chip since 2026-10-15 (it was a strip of pills); counts are in its options.
+  const filter = page.locator('[data-testid="notes-kind"]')
   if (!(await filter.count())) {
-    test.skip(true, 'fewer than two note kinds — the strip correctly does not render')
+    test.skip(true, 'fewer than two note kinds — the chip correctly does not render')
   }
+  await filter.click()
   await shootNear(page, filter, 'notes-filter-counts')
 })
 

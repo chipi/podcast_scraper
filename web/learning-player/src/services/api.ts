@@ -1991,6 +1991,8 @@ export interface NotesPageQuery {
   kinds?: string[]
   /** Every word of `q`, in any order (Search) — rather than `q` as one phrase. */
   words?: boolean
+  /** Newest first (the default), oldest first, or by the note's text A–Z. */
+  sort?: "newest" | "oldest" | "az"
   offset?: number
   limit: number
 }
@@ -2001,6 +2003,7 @@ export async function getNotesPage(query: NotesPageQuery): Promise<NotesPage> {
   if (query.q?.trim()) params.set("q", query.q.trim())
   for (const k of query.kinds ?? []) params.append("kinds", k)
   if (query.words) params.set("match", "words")
+  if (query.sort && query.sort !== "newest") params.set("sort", query.sort)
   params.set("offset", String(query.offset ?? 0))
   params.set("limit", String(query.limit))
   const resp = await getJSON<Partial<NotesPage> & { items: Note[] }>(`/notes?${params}`)

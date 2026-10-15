@@ -675,6 +675,13 @@ def test_notes_paged_with_counts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert [n["target"] for n in two["items"]] == ["topic", "episode"] and two["total"] == 2
     only = client.get("/api/app/notes", params={"limit": 10, "target": "episode"}).json()
     assert [n["text"] for n in only["items"]] == ["first thought"] and only["total"] == 1
+    # Sort (operator 2026-10-15: the notes list sorts by date or by name), paged in that order.
+    oldest = client.get("/api/app/notes", params={"limit": 2, "sort": "oldest"}).json()
+    assert [n["text"] for n in oldest["items"]] == ["first thought", "on a quote"]
+    assert oldest["total"] == 3
+    az = client.get("/api/app/notes", params={"limit": 10, "sort": "az", "q": "o"}).json()
+    assert [n["text"] for n in az["items"]] == ["first thought", "on a quote", "risk is a property"]
+    assert client.get("/api/app/notes", params={"limit": 1, "sort": "size"}).status_code == 422
 
 
 def test_highlight_capture_persists_graph_refs(tmp_path: Path) -> None:

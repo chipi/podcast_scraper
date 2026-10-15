@@ -93,19 +93,25 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain(en.collections.sectionTitle)
   })
 
-  it('caps boards at 6 with a "Show all" toggle, and a search lifts the cap', async () => {
+  it('pages boards six at a time with "Show more (N)", and a search lifts the cap', async () => {
     const many = Array.from({ length: 8 }, (_, i) => col({ id: `c${i}`, name: `Board ${i}` }))
     vi.spyOn(api, 'getCollections').mockResolvedValue(many)
     const w = mountView()
     await flushPromises()
-    // Top 6 shown, plus a "Show all (8)" toggle — the rest expand in place.
+    // Six, then "Show more (2)" (operator 2026-10-15: the standard page, not everything at once).
     expect(w.findAll('[data-testid="collection-open"]').length).toBe(6)
-    expect(w.find('[data-testid="show-all-toggle"]').exists()).toBe(true)
-    // A search lifts the cap so a match is never hidden behind "Show all".
+    const more = w.get('[data-testid="collections-boards-more"]')
+    expect(more.text()).toBe('Show more (2)')
+    await more.trigger('click')
+    expect(w.findAll('[data-testid="collection-open"]').length).toBe(8)
+    expect(w.get('[data-testid="collections-boards-more"]').text()).toBe('Show less')
+    await w.get('[data-testid="collections-boards-more"]').trigger('click')
+    expect(w.findAll('[data-testid="collection-open"]').length).toBe(6)
+    // A search lifts the cap so a match is never hidden behind "Show more".
     await w.get('[data-testid="collections-search"]').setValue('Board')
     await flushPromises()
     expect(w.findAll('[data-testid="collection-open"]').length).toBe(8)
-    expect(w.find('[data-testid="show-all-toggle"]').exists()).toBe(false)
+    expect(w.find('[data-testid="collections-boards-more"]').exists()).toBe(false)
   })
 
   it('grid view (CO.3) shows cover tiles; a tile opens the board back in the list', async () => {
@@ -119,7 +125,9 @@ describe('CollectionsView', () => {
     const w = mountView()
     await flushPromises()
 
-    await w.get('[data-testid="boards-view-grid"]').trigger('click')
+    // The boards' own row (operator 2026-10-15): the view menu, Grid.
+    await w.get('[data-testid="boards-view"]').trigger('click')
+    await w.get('[data-testid="boards-view-opt-grid"]').trigger('click')
     const tiles = w.findAll('[data-testid="board-tile"]')
     expect(tiles).toHaveLength(2)
     // Cover renders only where the collection has one; the other shows the placeholder.
@@ -157,7 +165,10 @@ describe('CollectionsView', () => {
     setActivePinia(pinia)
     const w = mount(CollectionsView, { global: { plugins: [i18n, router, pinia] } })
     await flushPromises()
-    await w.find('input[type="text"]').setValue('ML')
+    // The name field folds in on "+ New board" (operator 2026-10-15).
+    expect(w.find('[data-testid="collections-name"]').exists()).toBe(false)
+    await w.get('[data-testid="collections-new"]').trigger('click')
+    await w.get('[data-testid="collections-name"]').setValue('ML')
     await w.find('form').trigger('submit')
     await flushPromises()
     useCollectionsStore(pinia).upsert(col({ count: 3 }))
@@ -172,11 +183,16 @@ describe('CollectionsView', () => {
       .mockResolvedValue(col({ id: 'col_2', name: 'ML', count: 0 }))
     const w = mountView()
     await flushPromises()
-    await w.find('input[type="text"]').setValue('ML')
+    // The name field folds in on "+ New board" (operator 2026-10-15).
+    expect(w.find('[data-testid="collections-name"]').exists()).toBe(false)
+    await w.get('[data-testid="collections-new"]').trigger('click')
+    await w.get('[data-testid="collections-name"]').setValue('ML')
     await w.find('form').trigger('submit')
     await flushPromises()
     expect(create).toHaveBeenCalledWith('ML')
     expect(w.text()).toContain('ML')
+    // Created: the field folds away again.
+    expect(w.find('[data-testid="collections-name"]').exists()).toBe(false)
   })
 
   it('opens a collection and renders its mixed items, and removes one', async () => {
@@ -587,25 +603,43 @@ describe('notes kind filter', () => {
     return w
   }
 
+  it('sorts the notes on the server: newest first, then oldest first, or by the text (operator 2026-10-15)', async () => {
+    const w = await mountWithNotes([
+      note({ id: 'n1', text: 'banana', created_at: 100 }),
+      note({ id: 'n2', text: 'apple', created_at: 200 }),
+    ])
+    const texts = () => w.findAll('[data-testid="collections-note"] p').map((p) => p.text())
+    expect(texts()).toEqual(['apple', 'banana'])
+    await w.get('[data-testid="notes-sort"]').trigger('click')
+    await w.get('[data-testid="notes-sort-opt-oldest"]').trigger('click')
+    await flushPromises()
+    expect(api.getNotesPage).toHaveBeenLastCalledWith(expect.objectContaining({ sort: 'oldest' }))
+    expect(texts()).toEqual(['banana', 'apple'])
+  })
+
   it('labels each note with its kind in words, not the raw enum', async () => {
     const w = await mountWithNotes([note()])
     expect(w.get('[data-testid="collections-note"]').text()).toContain('Person')
   })
 
-  it('offers a chip per kind PRESENT, and none for kinds with no notes', async () => {
+  it('offers, in ONE kind chip, each kind PRESENT with its count, and none for kinds with no notes', async () => {
     const w = await mountWithNotes([
       note({ id: 'n1', target: 'person' }),
       note({ id: 'n2', target: 'highlight', target_id: 'h1' }),
     ])
-    expect(w.find('[data-testid="notes-type-person"]').exists()).toBe(true)
-    expect(w.find('[data-testid="notes-type-highlight"]').exists()).toBe(true)
-    // No episode note → no episode chip; a chip that filters to nothing reads as a bug.
-    expect(w.find('[data-testid="notes-type-episode"]').exists()).toBe(false)
+    await w.get('[data-testid="notes-kind"]').trigger('click')
+    expect(w.find('[data-testid="notes-kind-opt-person"]').text()).toContain('Person 1')
+    expect(w.find('[data-testid="notes-kind-opt-highlight"]').exists()).toBe(true)
+    // No episode note → no episode option; an option that filters to nothing reads as a bug.
+    expect(w.find('[data-testid="notes-kind-opt-episode"]').exists()).toBe(false)
   })
 
-  it('hides the strip when every note is the same kind — a single choice is decoration', async () => {
+  it('no kind chip when every note is the same kind — a single choice is decoration', async () => {
     const w = await mountWithNotes([note({ id: 'n1' }), note({ id: 'n2' })])
-    expect(w.find('[data-testid="notes-type-filter"]').exists()).toBe(false)
+    expect(w.find('[data-testid="notes-kind"]').exists()).toBe(false)
+    // The notes still have their own filter and sort.
+    expect(w.find('[data-testid="notes-search"]').exists()).toBe(true)
+    expect(w.find('[data-testid="notes-sort"]').exists()).toBe(true)
   })
 
   it('selecting a kind shows only that kind, and All restores the rest', async () => {
@@ -614,11 +648,13 @@ describe('notes kind filter', () => {
       note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
     ])
     // Each chip is a server request now (the notes are paged there), so let it land.
-    await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    await w.get('[data-testid="notes-kind"]').trigger('click')
+    await w.get('[data-testid="notes-kind-opt-highlight"]').trigger('click')
     await flushPromises()
     expect(w.text()).toContain('about a moment')
     expect(w.text()).not.toContain('about a person')
-    await w.get('[data-testid="notes-type-all"]').trigger('click')
+    await w.get('[data-testid="notes-kind"]').trigger('click')
+    await w.get('[data-testid="notes-kind-opt-"]').trigger('click')
     await flushPromises()
     expect(w.text()).toContain('about a person')
   })
@@ -632,16 +668,16 @@ describe('notes kind filter', () => {
       note({ id: 'n1', target: 'person', text: 'about a person' }),
       note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
     ])
-    await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    await w.get('[data-testid="notes-kind"]').trigger('click')
+    await w.get('[data-testid="notes-kind-opt-highlight"]').trigger('click')
     await flushPromises()
-    await w.get('[data-testid="collections-search"]').setValue('zzzz-no-match')
+    await w.get('[data-testid="notes-search"]').setValue('zzzz-no-match')
     // The search waits for typing to pause (250 ms) before asking the server.
     await new Promise((r) => setTimeout(r, 300))
     await flushPromises()
     expect(w.find('[data-testid="collections-note"]').exists()).toBe(false)
     expect(w.get('[data-testid="collections-notes-empty"]').text()).toBe('No notes of that kind.')
-    expect(w.find('[data-testid="notes-type-filter"]').exists()).toBe(true)
-    expect(w.find('[data-testid="notes-type-all"]').exists()).toBe(true)
+    expect(w.find('[data-testid="notes-kind"]').exists()).toBe(true)
   })
 })
 })

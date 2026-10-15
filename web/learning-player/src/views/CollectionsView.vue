@@ -14,8 +14,8 @@ import GoneBadge from "../components/GoneBadge.vue"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
-import TypeFilterBar from "../components/TypeFilterBar.vue"
-import { useCappedSections } from "../composables/useCappedSections"
+import ListToolbar from "../components/ListToolbar.vue"
+import { SECTION_CAP, useCappedSections } from "../composables/useCappedSections"
 import { useNotesPage } from "../composables/useNotesPage"
 import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
@@ -62,9 +62,22 @@ const capture = useCaptureStore()
 // Shared rule (composables/noteTarget); highlights let a `highlight` note reach its moment.
 const noteRoute = (target: string, id: string) => resolveNoteRoute(target, id, capture.highlights)
 
-// Search + sort across boards and notes (CO.5).
-const search = ref("")
+// Boards and notes each have their own row — filter, sort, and for boards the view (operator
+// 2026-10-15: one row over both filtered the boards with a sort and a view only boards had).
+const boardSearch = ref("")
 const sortBy = ref<"updated" | "name" | "count">("updated")
+const boardSortOptions = computed(() => [
+  { value: "updated", label: t("collections.sortUpdated") },
+  { value: "name", label: t("collections.sortName") },
+  { value: "count", label: t("collections.sortCount") },
+])
+const noteSearch = ref("")
+const noteSort = ref<"newest" | "oldest" | "az">("newest")
+const noteSortOptions = computed(() => [
+  { value: "newest", label: t("list.sortNewest") },
+  { value: "oldest", label: t("list.sortOldest") },
+  { value: "az", label: t("list.sortAz") },
+])
 // CO.3: a cover-forward grid alternative to the accordion. Tapping a tile opens the board in the
 // familiar list accordion (grid can't expand a tile in place), so all open/play logic is reused.
 const view = ref<"list" | "grid">("list")
@@ -175,7 +188,7 @@ const open = ref<CollectionDetail | null>(null)
 
 // Boards filtered by the search box + sorted by the chosen key (CO.5).
 const visibleCollections = computed(() => {
-  const q = search.value.trim().toLowerCase()
+  const q = boardSearch.value.trim().toLowerCase()
   const list = q
     ? collections.value.filter((c) => c.name.toLowerCase().includes(q))
     : [...collections.value]
@@ -219,7 +232,7 @@ const NOTE_KIND_ORDER = [
 ] as const
 const noteTypes = ref<string[]>([])
 // Every note the user took, paged on the server (2026-10-08) — it used to load them all.
-const notesPage = useNotesPage(search, noteTypes)
+const notesPage = useNotesPage(noteSearch, noteTypes, { sort: noteSort })
 /** The kind in words. Falls back to the raw target so an unknown kind still labels its row. */
 function noteKindLabel(target: string): string {
   const key = `notes.kind_${target}`
@@ -241,6 +254,22 @@ const availableNoteTypes = computed(() => {
     count: byKind.get(k),
   }))
 })
+/** The kind filter as ONE chip (operator 2026-10-15), replacing a row of pills: "All", then each
+ *  kind with its count. */
+const noteKindOptions = computed(() =>
+  availableNoteTypes.value.length > 1
+    ? [
+        { value: "", label: t("collections.noteKindAll") },
+        ...availableNoteTypes.value.map((k) => ({ value: k.key, label: `${k.label} ${k.count}` })),
+      ]
+    : undefined,
+)
+const noteKind = computed({
+  get: () => noteTypes.value[0] ?? "",
+  set: (v: string) => {
+    noteTypes.value = v ? [v] : []
+  },
+})
 // A chip for a kind whose last note was just removed would stay selected and hide everything.
 watch(availableNoteTypes, (types) => {
   const keys = new Set<string>(types.map((x) => x.key))
@@ -251,8 +280,10 @@ watch(availableNoteTypes, (types) => {
 // Per-section caps + "Show all" (#2042 pattern, operator): boards and notes each show the top N and
 // expand in place, so 50 boards / 100 notes stay scannable. A search lifts the caps (a match is
 // never hidden behind "Show all") — the same rule the Library Saved sections use.
-const caps = useCappedSections()
-const searchActive = computed(() => search.value.trim() !== "")
+// Boards page like the notes under them (operator 2026-10-15): a page, then "Show more (N)" until
+// every board is out — it was "Show all", every board at once.
+const caps = useCappedSections(SECTION_CAP, SECTION_CAP)
+const searchActive = computed(() => boardSearch.value.trim() !== "")
 // An open board's items: ten, then ten more (operator 2026-10-05) — a board holds up to 1,000, and
 // since 2026-10-08 each ten is a server page: the open board holds what has been LOADED.
 const ITEM_PAGE = 10
@@ -379,6 +410,16 @@ function fallbackTitle(it: CollectionItem): string {
   return t("collections.unresolved", { ref: short })
 }
 const newName = ref("")
+/** "+ New board" folds the name field in, as the add-to-board sheet does (operator 2026-10-15). */
+const creating = ref(false)
+const nameEl = ref<HTMLInputElement | null>(null)
+async function startCreate(): Promise<void> {
+  creating.value = !creating.value
+  if (creating.value) {
+    await nextTick()
+    nameEl.value?.focus()
+  }
+}
 const newLink = ref("")
 const loaded = ref(false)
 
@@ -413,6 +454,7 @@ async function create(): Promise<void> {
   // in the local copy would vanish on the next store change, and Home's teaser would never see it.
   store.upsert(created)
   newName.value = ""
+  creating.value = false
 }
 
 /**
@@ -532,127 +574,58 @@ onMounted(() => {
 
 <template>
   <div>
-    <!-- Search + sort sit at the TOP of the tab (operator): they filter BOTH the collections and
-         the notes below, so they belong above the collections section, not inside it. Only shown
-         when there's something to filter. -->
-    <div
-      v-if="collections.length || notesPage.anyNotes.value"
-      class="mb-4 flex flex-wrap items-center gap-2"
-    >
-      <input
-        v-model="search"
-        type="search"
-        :placeholder="t('collections.searchPlaceholder')"
-        :aria-label="t('collections.searchPlaceholder')"
-        class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:border-accent"
-        data-testid="collections-search"
-      />
-      <select
-        v-model="sortBy"
-        :aria-label="t('list.sort')"
-        class="shrink-0 rounded-full border border-border bg-surface px-3 py-2 text-sm font-semibold outline-none focus:border-accent"
-        data-testid="collections-sort"
-      >
-        <option value="updated">{{ t("collections.sortUpdated") }}</option>
-        <option value="name">{{ t("collections.sortName") }}</option>
-        <option value="count">{{ t("collections.sortCount") }}</option>
-      </select>
-      <!-- List ⇄ grid toggle (CO.3), matching the Catalog/Browse idiom. -->
-      <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">
-        <button
-          type="button"
-          class="rounded-full border p-2 transition"
-          data-testid="boards-view-list"
-          :class="
-            view === 'list'
-              ? 'border-accent text-accent'
-              : 'border-border text-muted hover:text-canvas-foreground'
-          "
-          :aria-pressed="view === 'list'"
-          :aria-label="t('list.viewList')"
-          @click="view = 'list'"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            class="h-4 w-4"
-            aria-hidden="true"
-          >
-            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-          </svg>
-          <!-- `aria-label` over a lone `aria-hidden` svg is DROPPED by Android System WebView, so
-               this announces as an unnamed "Button" and a TalkBack user cannot tell the two view
-               modes apart. No test reaches this control — found by the repo-wide scan behind
-               `__checks__/accessible-names.test.ts` (2026-09-26). Text matches `aria-label`
-               exactly: Android reads `getText()` before `getContentDescription()`, so a different
-               string here would shadow the label. -->
-          <span class="sr-only">{{ t('list.viewList') }}</span>
-        </button>
-        <button
-          type="button"
-          class="rounded-full border p-2 transition"
-          data-testid="boards-view-grid"
-          :class="
-            view === 'grid'
-              ? 'border-accent text-accent'
-              : 'border-border text-muted hover:text-canvas-foreground'
-          "
-          :aria-pressed="view === 'grid'"
-          :aria-label="t('list.viewGrid')"
-          @click="view = 'grid'"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            class="h-4 w-4"
-            aria-hidden="true"
-          >
-            <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
-          </svg>
-          <!-- Same as its sibling above: without a text node this is an unnamed "Button" to
-               TalkBack. -->
-          <span class="sr-only">{{ t('list.viewGrid') }}</span>
-        </button>
-      </div>
+    <!-- Boards: heading with "+ New board", then its own row — filter, sort, list ⇄ grid (operator
+         2026-10-15). The row used to sit over the whole tab and filter the notes too, with a sort
+         and a view only boards had. -->
+    <div class="mb-2 flex items-center justify-between gap-3">
+      <h2 class="lp-section">
+        {{ t("collections.sectionTitle") }}
+        <!-- The tally, in the same `lp-kicker` slot every Saved and Following heading uses (operator
+             2026-09-19). -->
+        <span v-if="collections.length" class="lp-kicker ml-1 font-normal">{{ collections.length }}</span>
+      </h2>
+      <button
+        type="button"
+        class="shrink-0 text-sm font-bold text-accent"
+        data-testid="collections-new"
+        :aria-expanded="creating"
+        @click="startCreate"
+      >+ {{ t("collections.newBoard") }}</button>
     </div>
-
-    <!-- Section title; the create field sits under it because it belongs to collections
-         specifically, not to the notes section that shares this tab (operator). The divider above
-         it separates the collections section from the search/sort row (operator) — but only when
-         that row is present, so a fresh empty account doesn't show a stray line at the very top. -->
-    <h2
-      class="lp-section mb-2"
-      :class="collections.length || notesPage.anyNotes.value ? 'border-t border-border pt-6' : ''"
-    >
-      {{ t("collections.sectionTitle") }}
-      <!-- The tally, in the same `lp-kicker` slot every Saved and Following heading uses (operator
-           2026-09-19). Boards was the one tab whose sections did not say how much was in them. -->
-      <span v-if="collections.length" class="lp-kicker ml-1 font-normal">{{ collections.length }}</span>
-    </h2>
-
-    <!-- create -->
-    <form class="mb-4 flex items-center gap-2" @submit.prevent="create">
+    <!-- The name field folds in on "+ New board", as in the add-to-board sheet: a field always
+         open read as a search box. -->
+    <form v-if="creating" class="mb-3 flex gap-2" data-testid="collections-create" @submit.prevent="create">
       <input
+        ref="nameEl"
         v-model="newName"
         type="text"
         :placeholder="t('collections.namePlaceholder')"
-        class="min-w-0 flex-1 rounded-lg border border-border bg-overlay px-3 py-2 text-sm"
+        :aria-label="t('collections.namePlaceholder')"
+        class="min-w-0 flex-1 rounded-xl border border-border bg-canvas px-3 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
         maxlength="120"
+        data-testid="collections-name"
       />
       <button
         type="submit"
-        class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-canvas disabled:opacity-50"
+        class="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-50"
         :disabled="!newName.trim()"
       >
         {{ t("collections.create") }}
       </button>
     </form>
+    <ListToolbar
+      v-if="collections.length"
+      v-model:search="boardSearch"
+      v-model:sort="sortBy"
+      v-model:view="view"
+      :sort-options="boardSortOptions"
+      :search-placeholder="t('collections.filterBoards')"
+      search-testid="collections-search"
+      open-testid="collections-search-open"
+      close-testid="collections-search-close"
+      sort-testid="collections-sort"
+      view-testid="boards-view"
+    />
 
     <SectionStatus
       v-if="loadError"
@@ -957,10 +930,12 @@ onMounted(() => {
     </ul>
 
     <ShowAllToggle
-      v-if="caps.overflows(visibleCollections.length, searchActive)"
-      :expanded="caps.expanded.has('boards')"
+      v-if="caps.overflows(visibleCollections.length, searchActive, 'boards')"
+      :expanded="caps.remaining('boards', visibleCollections.length) === 0"
       :count="visibleCollections.length"
-      @toggle="caps.toggle('boards')"
+      :remaining="caps.remaining('boards', visibleCollections.length)"
+      data-testid="collections-boards-more"
+      @toggle="caps.toggle('boards', visibleCollections.length)"
     />
 
     <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. A divider +
@@ -979,16 +954,22 @@ onMounted(() => {
              a chip's count answers "how many would this leave", which must not move as you type. -->
         <span class="lp-kicker ml-1 font-normal">{{ notesPage.total.value }}</span>
       </h2>
-      <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
-           is ON. The section is gated on whether ANY note exists, not on the filtered list: gating on
-           the result would delete the filter bar the moment a chip matched nothing, stranding the
-           user with no way back. An empty result says so instead. -->
-      <TypeFilterBar
-        v-if="availableNoteTypes.length > 1"
-        v-model="noteTypes"
-        :options="availableNoteTypes"
-        testid-prefix="notes-type"
-        class="mb-3"
+      <!-- The notes' own row (operator 2026-10-15): filter, sort, and which kind of thing a note is on
+           as ONE chip (it was a row of pills). Gated on whether ANY note exists, not on the
+           filtered list, so a filter matching nothing never removes the way back. -->
+      <ListToolbar
+        v-model:search="noteSearch"
+        v-model:sort="noteSort"
+        v-model:filter="noteKind"
+        :sort-options="noteSortOptions"
+        :filter-options="noteKindOptions"
+        :show-view="false"
+        :search-placeholder="t('collections.filterNotes')"
+        search-testid="notes-search"
+        open-testid="notes-search-open"
+        close-testid="notes-search-close"
+        sort-testid="notes-sort"
+        filter-testid="notes-kind"
       />
       <p v-if="!notesPage.items.value.length && !notesPage.loading.value" class="text-sm text-muted" data-testid="collections-notes-empty">
         {{ t("notes.noneMatch") }}

@@ -51,6 +51,8 @@ const props = withDefaults(
     filterTestid?: string
     languageTestid?: string
     viewTestid?: string
+    /** The list ⇄ grid control; off for a list with no grid (Library's notes). */
+    showView?: boolean
   }>(),
   {
     searchTestid: "list-toolbar-search",
@@ -60,6 +62,7 @@ const props = withDefaults(
     filterTestid: "list-toolbar-filter",
     languageTestid: "list-toolbar-language",
     viewTestid: "list-toolbar-view",
+    showView: true,
   }
 )
 
@@ -190,6 +193,7 @@ const viewOptions = computed(() => [
 
     <!-- List/grid → one circle showing the ACTIVE view; tap reveals both to switch. -->
     <ToolbarMenu
+      v-if="showView"
       :model-value="view"
       align="right"
       :options="viewOptions"

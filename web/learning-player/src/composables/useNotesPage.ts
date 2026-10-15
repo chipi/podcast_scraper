@@ -26,7 +26,15 @@ export function useNotesPage(
     words = false,
     enabled = () => true,
     debounceMs = SEARCH_DEBOUNCE_MS,
-  }: { pageSize?: number; words?: boolean; enabled?: () => boolean; debounceMs?: number } = {},
+    sort,
+  }: {
+    pageSize?: number
+    words?: boolean
+    enabled?: () => boolean
+    debounceMs?: number
+    /** The order the server pages in (operator 2026-10-15); newest first when absent. */
+    sort?: Ref<"newest" | "oldest" | "az">
+  } = {},
 ) {
   const capture = useCaptureStore()
   const items = ref<Note[]>([])
@@ -49,7 +57,7 @@ export function useNotesPage(
     try {
       const q = search.value.trim()
       const [page, all] = await Promise.all([
-        getNotesPage({ q, kinds: kinds.value, words, offset, limit: Math.min(MAX, limit) }),
+        getNotesPage({ q, kinds: kinds.value, words, sort: sort?.value, offset, limit: Math.min(MAX, limit) }),
         q ? getNotesPage({ limit: 1 }) : null,
       ])
       if (mine !== seq) return
@@ -94,7 +102,7 @@ export function useNotesPage(
     if (debounceMs > 0) debounce = setTimeout(run, debounceMs)
     else run()
   })
-  watch(kinds, () => {
+  watch(() => [kinds.value, sort?.value], () => {
     wanted = pageSize
     void reload()
   })

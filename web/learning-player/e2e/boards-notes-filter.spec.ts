@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { closeListSearch, listSearch, signInIsolated } from './helpers'
 
 /**
  * Library → Boards, "Your notes": the kind filter (operator 2026-09-17). REAL API, no mocks.
@@ -55,35 +55,42 @@ test('notes on Boards filter by the entity kind they are attached to', async ({
     /Show/i,
   )
 
-  // The strip offers a chip per kind PRESENT, and nothing for kinds with no notes.
-  const strip = page.getByTestId('notes-type-filter')
-  await expect(strip).toBeVisible()
-  await expect(page.getByTestId('notes-type-show')).toBeVisible()
-  await expect(page.getByTestId('notes-type-storyline')).toBeVisible()
-  await expect(page.getByTestId('notes-type-person')).toHaveCount(0)
+  // ONE kind chip (operator 2026-10-15, it was a strip of pills): an option per kind PRESENT,
+  // with its count, and nothing for kinds with no notes.
+  const kind = page.getByTestId('notes-kind')
+  const pick = async (value: string) => {
+    await kind.click()
+    await page.getByTestId(`notes-kind-opt-${value}`).click()
+  }
+  await kind.click()
+  await expect(page.getByTestId('notes-kind-opt-show')).toBeVisible()
+  await expect(page.getByTestId('notes-kind-opt-storyline')).toBeVisible()
+  await expect(page.getByTestId('notes-kind-opt-person')).toHaveCount(0)
+  await kind.click()
 
   // Selecting a kind shows only that kind.
-  await page.getByTestId('notes-type-storyline').click()
+  await pick('storyline')
   await expect(
     notes.getByTestId('collections-note').filter({ hasText: storylineText }),
   ).toBeVisible()
   await expect(notes.getByTestId('collections-note').filter({ hasText: showText })).toHaveCount(0)
 
-  // "All" clears it in one tap.
-  await page.getByTestId('notes-type-all').click()
+  // "All notes" clears it.
+  await pick('')
   await expect(notes.getByTestId('collections-note').filter({ hasText: showText })).toBeVisible()
 
-  // A filter that matches nothing must not delete the control that clears it: the strip survives
+  // A filter that matches nothing must not delete the control that clears it: the chip survives
   // and the section says so instead of rendering a blank that reads as a bug.
-  await page.getByTestId('notes-type-storyline').click()
-  await page.getByTestId('collections-search').fill('zzzz-matches-nothing')
+  await pick('storyline')
+  const search = await listSearch(notes, 'notes-search')
+  await search.fill('zzzz-matches-nothing')
   await expect(page.getByTestId('collections-notes-empty')).toBeVisible()
-  await expect(strip).toBeVisible()
-  await expect(page.getByTestId('notes-type-all')).toBeVisible()
+  await expect(kind).toHaveCount(1)
 
   // Leave no trace.
-  await page.getByTestId('collections-search').fill('')
-  await page.getByTestId('notes-type-all').click()
+  await search.fill('')
+  await closeListSearch(notes, 'notes-search')
+  await pick('')
   for (const text of [showText, storylineText]) {
     const row = notes.getByTestId('collections-note').filter({ hasText: text })
     await row.getByRole('button', { name: 'Remove' }).click()

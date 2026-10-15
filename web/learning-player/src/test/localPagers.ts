@@ -119,9 +119,11 @@ export function pageHighlightsLocally(
 export function pageNotesLocally(all: Note[], highlights: Highlight[], query: NotesPageQuery): NotesPage {
   const needle = (query.q ?? "").trim().toLocaleLowerCase()
   const words = query.words ? needle.split(/\s+/).filter(Boolean) : [needle]
-  const hits = [...all]
-    .sort((a, b) => b.created_at - a.created_at)
-    .filter((n) => words.every((w) => !w || n.text.toLocaleLowerCase().includes(w)))
+  // The server's order (`GET /notes?sort=`): newest first, oldest first, or the text A–Z.
+  const ordered = [...all].sort((a, b) => b.created_at - a.created_at)
+  if (query.sort === "oldest") ordered.reverse()
+  else if (query.sort === "az") ordered.sort((a, b) => a.text.toLocaleLowerCase().localeCompare(b.text.toLocaleLowerCase()))
+  const hits = ordered.filter((n) => words.every((w) => !w || n.text.toLocaleLowerCase().includes(w)))
   const counts: Record<string, number> = {}
   for (const n of hits) counts[n.target] = (counts[n.target] ?? 0) + 1
   const kinds = query.kinds ?? []

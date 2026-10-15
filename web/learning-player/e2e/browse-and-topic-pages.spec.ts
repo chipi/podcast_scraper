@@ -220,7 +220,7 @@ test('every other search / filter row ends where its area ends', async ({ page }
   const cases: [string, string, () => Promise<void>][] = [
     ['/', '[data-testid="home-search-input"]', async () => {}],
     ['/library?tab=saved', '[data-testid="saved-search"]', async () => {}],
-    ['/library?tab=collections', 'input.lp-search', async () => {}],
+    ['/library?tab=collections', '[data-testid="collections-search"]', async () => {}],
     ['/profile?tab=interests', '[data-testid="interest-search-topic"]', async () => {
       await page.getByTestId('interest-add-topic').click()
     }],

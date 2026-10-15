@@ -406,6 +406,10 @@ def list_notes(
         default="phrase",
         description="Paged: `q` as one phrase, or every word of it in any order (Search).",
     ),
+    sort: Literal["newest", "oldest", "az"] = Query(
+        default="newest",
+        description="Paged: newest first (default), oldest first, or by the note's text A–Z.",
+    ),
     offset: int = Query(default=0, ge=0),
     limit: int | None = Query(
         default=None,
@@ -417,8 +421,9 @@ def list_notes(
 ) -> NotesResponse:
     """The user's notes, optionally scoped to one ``?target=&target_id=``.
 
-    With ``limit``: newest first, matched on ``q``, one page, plus ``total`` and per-target
-    ``counts`` (under the same ``q`` and ``target_id``, ignoring ``target``).
+    With ``limit``: in ``sort`` order (newest first by default), matched on ``q``, one page, plus
+    ``total`` and per-target ``counts`` (under the same ``q`` and ``target_id``, ignoring
+    ``target``).
     """
     if limit is None:
         rows = app_user_state.get_notes(_data_dir(request), user.user_id, target, target_id)
@@ -433,6 +438,10 @@ def list_notes(
             enumerate(every), key=lambda p: (int(p[1].get("created_at") or 0), p[0]), reverse=True
         )
     ]
+    if sort == "oldest":
+        ordered.reverse()
+    elif sort == "az":
+        ordered.sort(key=lambda n: str(n.get("text") or "").casefold())
     hits = [n for n in ordered if all(_matches(w, n.get("text")) for w in words)]
     counts: dict[str, int] = {}
     for n in hits:
