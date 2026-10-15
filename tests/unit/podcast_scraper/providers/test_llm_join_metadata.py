@@ -139,15 +139,18 @@ def test_the_langfuse_trace_is_the_otel_trace(ids):
     assert md["session_id"] == "run-20261014T120000Z"
 
 
-def test_without_an_otel_trace_no_trace_id_is_sent(monkeypatch):
-    # LiteLLM then keys the trace on the session (the run), as before.
+def test_without_an_otel_trace_no_trace_id_is_sent_and_the_run_trace_is_named(monkeypatch):
+    # LiteLLM then keys the trace on the session (the run). Unnamed, that trace showed up in
+    # prod as "litellm-acompletion" (2026-10-15: run-level speaker_detection before any
+    # episode span), so it is named after the run.
     monkeypatch.setattr(correlation, "get_run_id", lambda: "run-1")
     monkeypatch.setattr(correlation, "get_episode_id", lambda: "ep-1")
     monkeypatch.setattr(correlation, "current_trace_id", lambda: "-")
     p = _vllm()
     p._chat_create(model=_MODEL, messages=[])
     md = _sent(p)["extra_body"]["metadata"]
-    assert "trace_id" not in md and "trace_name" not in md
+    assert "trace_id" not in md
+    assert md["trace_name"] == "run run-1"
     assert md["session_id"] == "run-1"
 
 

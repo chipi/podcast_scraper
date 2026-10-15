@@ -826,6 +826,10 @@ class OpenAICompatibleProvider:
         if trace_id:
             md.setdefault("trace_id", trace_id)
             md.setdefault("trace_name", f"episode {episode_id}" if episode_id else run_id or stage)
+        elif run_id:
+            # No OTel span yet (run-level calls): the trace is keyed on the session; unnamed, it
+            # reads "litellm-acompletion" in Langfuse.
+            md.setdefault("trace_name", f"run {run_id}")
         if stage:
             md.setdefault("generation_name", stage)
         if trace_md:
