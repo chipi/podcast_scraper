@@ -16,7 +16,7 @@
  * why `kind` needs the native process uptime rather than anything the page can see.
  */
 import { App } from '@capacitor/app'
-import { registerPlugin } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { resolveSession, track, type AwayBucket, type LaunchKind } from './analytics'
 import { postAppExits, type AppExitEntry } from './api'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
@@ -38,8 +38,24 @@ interface AppProcessPlugin {
   clearExitLog(opts: { count: number; historyThrough?: number }): Promise<void>
   /** "Copy debug info": memory and device facts only native code can read (operator 2026-10-08). */
   memoryInfo(): Promise<Record<string, string | number | boolean>>
+  /** Android only: an automated test device (Firebase Test Lab / Play pre-launch report). */
+  testDevice(): Promise<{ automated: boolean }>
 }
 const AppProcess = registerPlugin<AppProcessPlugin>('AppProcess')
+
+/**
+ * Whether this is an automated test device rather than a person — Android only, where Firebase Test
+ * Lab (Google Play's pre-launch report) marks its devices. False on iOS and the web, and on an
+ * older Android shell without the method: a real listener must never be dropped by a missing check.
+ */
+export async function isAutomatedTestDevice(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== 'android') return false
+  try {
+    return (await AppProcess.testDevice()).automated === true
+  } catch {
+    return false
+  }
+}
 
 /** Native memory + device facts, or null on the web / an older native build without the method. */
 export async function nativeMemoryInfo(): Promise<Record<string, string | number | boolean> | null> {

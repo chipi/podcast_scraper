@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   analyticsEnabled,
   EVENT_NAMES,
+  excludeAutomatedTestDevice,
   identify,
   installUmami,
   pendingTelemetryCount,
@@ -631,5 +632,31 @@ describe('the pre-load queue (#2267)', () => {
       'an opted-out listener must not even accumulate events in memory',
     ).toBe(before)
     setUserOptedOut(false)
+  })
+})
+
+describe('automated test devices', () => {
+  // 2026-10-15 prod Umami: 12 Android sessions at 15:01-15:09 UTC, all US, all starting within a
+  // second, every one stopping at auth_started — Google Play's pre-launch report crawling the new
+  // build on Firebase Test Lab, counted as 12 visitors in a beta measured in single digits.
+  beforeEach(() => {
+    enableAnalytics()
+    setUserOptedOut(false)
+  })
+  afterEach(() => {
+    setUserOptedOut(false)
+    vi.unstubAllEnvs()
+  })
+
+  it('turns analytics off on the device and drops what was queued before the check answered', () => {
+    track('landing_view')
+    expect(pendingTelemetryCount()).toBeGreaterThan(0)
+    excludeAutomatedTestDevice()
+    expect(analyticsEnabled()).toBe(false)
+    expect(pendingTelemetryCount(), 'events queued during the native check must not replay').toBe(0)
+    // Umami's own flag, so the tracker's automatic page views stay silent too.
+    expect(localStorage.getItem('umami.disabled')).toBe('1')
+    track('landing_view')
+    expect(pendingTelemetryCount()).toBe(0)
   })
 })

@@ -10,6 +10,7 @@ import android.os.Debug;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
 import com.getcapacitor.JSArray;
@@ -73,6 +74,19 @@ public class AppProcessPlugin extends Plugin {
         JSObject result = new JSObject();
         result.put("ms", SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime());
         call.resolve(result);
+    }
+
+    /**
+     * Whether this is an automated test device: Firebase Test Lab, which runs Google Play's
+     * pre-launch report, sets the system setting {@code firebase.test.lab} to {@code "true"} on its
+     * devices (Firebase's documented check). The web layer keeps such devices out of analytics; on
+     * 2026-10-15 one pre-launch run was 12 "visitors" in a minute.
+     */
+    @PluginMethod
+    public void testDevice(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("automated", "true".equals(Settings.System.getString(getContext().getContentResolver(), "firebase.test.lab")));
+        call.resolve(r);
     }
 
     @PluginMethod

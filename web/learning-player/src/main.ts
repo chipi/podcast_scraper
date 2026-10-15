@@ -11,9 +11,9 @@ import { applyDirection, resolveDirection } from './theme/direction'
 import { initGateCookie, platform, rehydrateNativeToken } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 import { setOnUnauthorized } from './services/api'
-import { installUmami } from './services/analytics'
+import { excludeAutomatedTestDevice, installUmami } from './services/analytics'
 import { installLastPlace, recordPlace, type SavedEpisode } from './services/lastPlace'
-import { initLifecycle } from './services/lifecycle'
+import { initLifecycle, isAutomatedTestDevice } from './services/lifecycle'
 import { scrubEventRequestUrl, scrubNavigationBreadcrumb } from './services/telemetryScrub'
 import { localSourceFor } from './services/downloads'
 import { useAuthStore } from './stores/auth'
@@ -142,7 +142,15 @@ if (SENTRY_DSN_PLAYER) {
 // other did not. Everything the old block explained — the dev rung over the tailnet, the
 // build-arg-baked prod values, the native-https caveat for on-device dev analytics, and the
 // fork-silent default when neither resolves — is documented there, next to the code that does it.
-installUmami()
+//
+// An automated test device (Play pre-launch report on Firebase Test Lab) is excluded BEFORE the
+// tracker loads, so not even its automatic first page view is sent. The check resolves at once on
+// iOS and the web; events fired meanwhile wait in analytics' pre-load queue as they always have.
+void isAutomatedTestDevice()
+  .then((automated) => {
+    if (automated) excludeAutomatedTestDevice()
+  })
+  .finally(() => installUmami())
 
 // Reopen where you left off after the OS ends the app in the background (#2278). Installed before
 // `use(router)`, which starts the first navigation — the one the restore may redirect. The stores

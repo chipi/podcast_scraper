@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /** #2277 — how the app came back. */
-const { stateListeners, device, uptime, exitLog, clearExitLog, postAppExits } = vi.hoisted(() => ({
+const { stateListeners, device, uptime, exitLog, clearExitLog, postAppExits, testDevice, platform } = vi.hoisted(() => ({
   stateListeners: [] as Array<(s: { isActive: boolean }) => void>,
   device: new Map<string, unknown>(),
   uptime: vi.fn(async () => ({ ms: 600_000 })),
   exitLog: vi.fn(async () => ({ entries: [] as unknown[], historyThrough: undefined as number | undefined })),
   clearExitLog: vi.fn(async () => {}),
   postAppExits: vi.fn(async () => true),
+  testDevice: vi.fn(async () => ({ automated: false })),
+  platform: { value: 'android' },
 }))
 
 vi.mock('@capacitor/app', () => ({
@@ -18,10 +20,14 @@ vi.mock('@capacitor/app', () => ({
     }),
   },
 }))
-vi.mock('@capacitor/core', async (orig) => ({
-  ...(await orig<typeof import('@capacitor/core')>()),
-  registerPlugin: () => ({ uptime, exitLog, clearExitLog }),
-}))
+vi.mock('@capacitor/core', async (orig) => {
+  const real = await orig<typeof import('@capacitor/core')>()
+  return {
+    ...real,
+    Capacitor: { ...real.Capacitor, getPlatform: () => platform.value },
+    registerPlugin: () => ({ uptime, exitLog, clearExitLog, testDevice }),
+  }
+})
 vi.mock('./native', () => ({ isNative: () => true }))
 vi.mock('./deviceStore', () => ({
   getDeviceJson: vi.fn(async (k: string) => device.get(k) ?? null),
@@ -35,7 +41,14 @@ vi.mock('./api', () => ({ postAppExits }))
 vi.mock('./lastPlace', () => ({ restoreOutcome: () => 'both' }))
 
 import { track } from './analytics'
-import { classifyLaunch, forwardExitLog, initLifecycle, LIFECYCLE_KEY, toAwayBucket } from './lifecycle'
+import {
+  classifyLaunch,
+  forwardExitLog,
+  initLifecycle,
+  isAutomatedTestDevice,
+  LIFECYCLE_KEY,
+  toAwayBucket,
+} from './lifecycle'
 
 const tracked = () => (track as unknown as ReturnType<typeof vi.fn>).mock.calls
 
@@ -148,5 +161,28 @@ describe('forwardExitLog (#2279)', () => {
   it('never throws when the plugin is missing (an older native shell)', async () => {
     exitLog.mockRejectedValue(new Error('not implemented'))
     await expect(forwardExitLog()).resolves.toBeUndefined()
+  })
+})
+
+describe('isAutomatedTestDevice', () => {
+  beforeEach(() => {
+    platform.value = 'android'
+    testDevice.mockReset()
+  })
+
+  it('is what the Android shell reports (Firebase Test Lab, Play pre-launch)', async () => {
+    testDevice.mockResolvedValue({ automated: true })
+    expect(await isAutomatedTestDevice()).toBe(true)
+    testDevice.mockResolvedValue({ automated: false })
+    expect(await isAutomatedTestDevice()).toBe(false)
+  })
+
+  it('never asks anywhere but Android, and an older shell without the method is a real device', async () => {
+    platform.value = 'ios'
+    expect(await isAutomatedTestDevice()).toBe(false)
+    expect(testDevice).not.toHaveBeenCalled()
+    platform.value = 'android'
+    testDevice.mockRejectedValue(new Error('"AppProcess.testDevice()" is not implemented on android'))
+    expect(await isAutomatedTestDevice()).toBe(false)
   })
 })

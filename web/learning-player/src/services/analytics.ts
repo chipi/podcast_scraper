@@ -564,6 +564,20 @@ export function setUserOptedOut(optedOut: boolean): void {
   }
 }
 
+/**
+ * Keep an automated test device out of the numbers (Firebase Test Lab, which runs Google Play's
+ * pre-launch report). On 2026-10-15 one new build brought 12 such "visitors" in a single minute to a
+ * beta of single digits, each crawling to the sign-in screen.
+ *
+ * Uses Umami's own `umami.disabled` flag, like the Settings opt-out and the live smoke, so the
+ * tracker's automatic page views stay silent too, and drops whatever was queued while the native
+ * check was answering. The device asked by `lifecycle.isAutomatedTestDevice()`.
+ */
+export function excludeAutomatedTestDevice(): void {
+  setUserOptedOut(true)
+  dropPending()
+}
+
 /** True when the user has turned analytics off in Settings (#2265). */
 export function userOptedOut(): boolean {
   try {
