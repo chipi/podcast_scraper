@@ -629,3 +629,130 @@ def test_show_more_is_one_category_from_an_offset(
     assert len(calls) == 1
     bad = client.get("/api/app/search", params={"q": "risk", "category": "topics"})
     assert bad.status_code == 422
+
+
+# --- a storyline's exact name leads its category (2026-10-15) -----------------------------------
+
+
+def _storylines_corpus(root: Path) -> None:
+    """Two storylines, each named after one of its member topics, one with a name it had before."""
+
+    def cluster(gpid: str, label: str, members: list[str], aliases: list[str]) -> dict[str, Any]:
+        return {
+            "cluster_type": "theme",
+            "canonical_label": label,
+            "graph_compound_parent_id": gpid,
+            "member_count": len(members),
+            "aliases": aliases,
+            "members": [
+                {"topic_id": f"topic:{m}", "label": m, "lift_to_cluster": 3.0 - i / 10}
+                for i, m in enumerate(members)
+            ],
+        }
+
+    payload = {
+        "data": {
+            "clusters": [
+                cluster(
+                    "thc:model-distillation",
+                    "model distillation",
+                    ["model distillation", "ai scaling laws", "inference cost"],
+                    ["ai scaling laws"],
+                ),
+                cluster(
+                    "thc:virtual-cell-modeling",
+                    "virtual cell modeling",
+                    ["virtual cell modeling", "protein folding", "model distillation"],
+                    [],
+                ),
+            ]
+        }
+    }
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
+def _storyline_ranked_search():
+    """The embedding search as prod ranked "model distillation": another storyline first."""
+
+    def row(sid: str, score: float) -> dict[str, Any]:
+        return {
+            "doc_id": f"storyline:{sid}",
+            "score": score,
+            "text": sid,
+            "metadata": {"doc_type": "storyline", "source_id": sid},
+        }
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        if kwargs.get("doc_types") != ["storyline"]:
+            return CorpusSearchOutcome(results=[])
+        hits = [row("thc:virtual-cell-modeling", 0.71), row("thc:model-distillation", 0.55)]
+        return CorpusSearchOutcome(results=hits[: kwargs["top_k"]])
+
+    return fake_run
+
+
+def _storyline_rows(body: dict[str, Any]) -> list[dict[str, Any]]:
+    return [r for r in body["results"] if r["metadata"].get("search_category") == "storylines"]
+
+
+def _storyline_ids(body: dict[str, Any]) -> list[str]:
+    return [r["metadata"]["source_id"] for r in _storyline_rows(body)]
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["model distillation", "Model Distillation.", "ai scaling laws", "AI-scaling laws"],
+)
+def test_a_storyline_named_exactly_leads_its_category_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, query: str
+) -> None:
+    """Its current name and the name it had before both put it first, whatever the embedding
+    ranked, and it is listed once (not again where the embedding put it)."""
+    _storylines_corpus(tmp_path)
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search", _storyline_ranked_search()
+    )
+    body = _client(tmp_path).get("/api/app/search", params={"q": query, "per_category": 3}).json()
+    assert _storyline_ids(body) == ["thc:model-distillation", "thc:virtual-cell-modeling"]
+    lead = _storyline_rows(body)[0]
+    assert lead["metadata"]["storyline_label"] == "model distillation"
+    assert lead["metadata"]["anchor_topic_id"] == "topic:model distillation"
+    # The scope-only episode ids are stripped from what the client sees, as for indexed rows.
+    assert "storyline_episode_ids" not in lead["metadata"]
+
+
+def test_a_query_that_is_not_exactly_a_storyline_name_keeps_the_embedding_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exact names only: a member topic or a longer phrase is a similarity question."""
+    _storylines_corpus(tmp_path)
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search", _storyline_ranked_search()
+    )
+    client = _client(tmp_path)
+    for query in ("protein folding", "model distillation methods"):
+        body = client.get("/api/app/search", params={"q": query, "per_category": 3}).json()
+        assert _storyline_ids(body) == ["thc:virtual-cell-modeling", "thc:model-distillation"]
+
+
+def test_show_more_after_a_named_storyline_does_not_repeat_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _storylines_corpus(tmp_path)
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search", _storyline_ranked_search()
+    )
+    client = _client(tmp_path)
+    params: dict[str, Any] = {
+        "q": "model distillation",
+        "per_category": 1,
+        "category": "storylines",
+    }
+    first = client.get("/api/app/search", params=params).json()
+    more = client.get("/api/app/search", params={**params, "offset": 1}).json()
+    assert _storyline_ids(first) == ["thc:model-distillation"]
+    assert first["categories"] == [{"id": "storylines", "returned": 1, "has_more": True}]
+    assert _storyline_ids(more) == ["thc:virtual-cell-modeling"]

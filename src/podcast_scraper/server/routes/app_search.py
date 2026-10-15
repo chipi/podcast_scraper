@@ -18,11 +18,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key
 from podcast_scraper.search.query_log import append_query_event
-from podcast_scraper.search.router import classify_query
-from podcast_scraper.search.storylines import STORYLINE_DOC_TYPE
+from podcast_scraper.search.router import classify_query, tier_for_doc_type
+from podcast_scraper.search.storylines import (
+    STORYLINE_DOC_TYPE,
+    storyline_episode_ids,
+    storyline_index_rows,
+    storyline_lifecycle,
+)
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_episode_search import time_hits_by_episode
+from podcast_scraper.server.app_kg_index import normalize_label
 from podcast_scraper.server.app_moments import episode_has_moments
 from podcast_scraper.server.app_search_view import build_search_response
 from podcast_scraper.server.app_slugs import slug_for_row
@@ -155,6 +161,47 @@ SEARCH_CATEGORIES: dict[str, tuple[str, ...]] = {
 }
 
 
+def _storylines_named(root: Path, q: str) -> list[dict[str, Any]]:
+    """Storylines whose current name or a name they had before (RFC-128) IS the query, as search
+    rows, so they lead the storylines category.
+
+    A storyline is named after one of its member topics, so its name is always a topic's name too:
+    the name resolver opens the topic, and the storyline is left to the embedding search, which
+    ranked "model distillation" below three other storylines and missed an old name outright
+    (prod, 2026-10-15: 29 of 33 names first, 2 lower, 2 missing). A name typed exactly is not a
+    similarity question.
+    """
+    norm = normalize_label(q)
+    if not norm:
+        return []
+    lifecycle = storyline_lifecycle(root)
+    named: list[tuple[str, str, dict[str, Any]]] = []
+    for doc_id, text, meta in storyline_index_rows(root):
+        sid = str(meta.get("source_id") or "")
+        names = [
+            str(meta.get("storyline_label") or ""),
+            *(lifecycle.get(sid) or {}).get("aliases", []),
+        ]
+        if any(normalize_label(n) == norm for n in names):
+            named.append((doc_id, text, meta))
+    if not named:
+        return []
+    episodes = storyline_episode_ids(root)
+    return [
+        {
+            "doc_id": doc_id,
+            "score": 1.0,
+            "metadata": {
+                **meta,
+                "storyline_episode_ids": sorted(episodes.get(str(meta.get("source_id")), ())),
+            },
+            "text": text,
+            "source_tier": tier_for_doc_type(STORYLINE_DOC_TYPE),
+        }
+        for doc_id, text, meta in named
+    ]
+
+
 def _category_page(
     root: Path,
     q: str,
@@ -189,6 +236,13 @@ def _category_page(
         if (r.get("metadata") or {}).get("doc_type") in doc_types
         and not str((r.get("metadata") or {}).get("source_id") or "").startswith("person:")
     ]
+    if storyline:
+        pinned = _storylines_named(root, q)
+        if pinned:
+            sids = {p["metadata"]["source_id"] for p in pinned}
+            rows = pinned + [
+                r for r in rows if (r.get("metadata") or {}).get("source_id") not in sids
+            ]
     for r in rows:
         r["metadata"] = {**(r.get("metadata") or {}), "search_category": category}
     return rows[offset : offset + limit], len(rows) > offset + limit, None
