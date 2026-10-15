@@ -588,7 +588,7 @@ export const usePlayerStore = defineStore('player', () => {
           seconds: Math.max(0, (clip.endMs - clip.startMs) / 1000),
           topic: r.topic,
         }
-        reelNext()
+        reelNextAfterGap()
       }
       return
     }
@@ -757,7 +757,8 @@ export const usePlayerStore = defineStore('player', () => {
    *  move the reel on in the meantime. */
   let reelSwitching = false
 
-  async function reelGo(index: number): Promise<void> {
+  async function reelGo(index: number, autoplay = true): Promise<void> {
+    cancelReelGap()
     const r = reel.value
     if (!r) return
     const i = Math.max(0, Math.min(r.moments.length - 1, index))
@@ -783,7 +784,47 @@ export const usePlayerStore = defineStore('player', () => {
     // another's is a jump, and a quarter second of fade is what makes it read as a transition.
     fadeIn(REEL_FADE_MS)
     // Not `play()`: that records `play_start`, and a reel is not a listen.
-    playElement()
+    if (autoplay) playElement()
+    else el.value?.pause()
+  }
+  /**
+   * A beat of silence between clips (operator 2026-10-15: back to back, a short listen sounded
+   * jumpy). When a clip plays to its end the sound drops to nothing for ``REEL_GAP_MS``, then the
+   * next clip fades in. Only the automatic step waits: ‹ › and a tapped clip go at once (they call
+   * `reelGo`, which cancels a pending gap), and a pause during the gap holds the next clip unplayed.
+   * `reelSwitching` holds the end-of-clip check meanwhile, so the gap cannot fire twice.
+   */
+  const REEL_GAP_MS = 800
+  let reelGapTimer: ReturnType<typeof setTimeout> | null = null
+  function cancelReelGap(): void {
+    if (reelGapTimer) {
+      clearTimeout(reelGapTimer)
+      reelGapTimer = null
+      reelSwitching = false
+    }
+  }
+  function reelNextAfterGap(): void {
+    const r = reel.value
+    if (!r) return
+    if (r.index >= r.moments.length - 1) {
+      reelNext()
+      return
+    }
+    const e = el.value
+    if (fadeTimer) {
+      clearInterval(fadeTimer)
+      fadeTimer = null
+    }
+    if (e) e.volume = 0
+    reelSwitching = true
+    const at = r.index
+    reelGapTimer = setTimeout(() => {
+      reelGapTimer = null
+      reelSwitching = false
+      const now = reel.value
+      if (!now || now.index !== at) return
+      void reelGo(at + 1, !(el.value?.paused ?? false))
+    }, REEL_GAP_MS)
   }
   /** Ramp the element's volume from 0 to the listener's level over `ms`. */
   const REEL_FADE_MS = 250
@@ -806,6 +847,7 @@ export const usePlayerStore = defineStore('player', () => {
     }, ms / steps)
   }
   function reelNext(): void {
+    cancelReelGap()
     const r = reel.value
     if (!r) return
     if (r.index < r.moments.length - 1) {
@@ -833,6 +875,12 @@ export const usePlayerStore = defineStore('player', () => {
   function exitReel(keepHere: boolean): void {
     const r = reel.value
     if (!r) return
+    // Left during the beat between clips: the sound was dropped to nothing for it, so put it back
+    // — "Play on" from the gap would otherwise carry on in silence.
+    if (reelGapTimer) {
+      cancelReelGap()
+      if (el.value) el.value.volume = VOLUME_FACTORS[volumeLevel.value]
+    }
     if (r.topic) reelLeft.value = { id: r.topic.id, how: keepHere ? 'keep' : 'close' }
     if (keepHere) {
       momentHeard.value = { seq: (momentHeard.value?.seq ?? 0) + 1, kind: 'keep', slug: r.slug }

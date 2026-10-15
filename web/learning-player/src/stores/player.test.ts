@@ -1016,17 +1016,58 @@ describe('Moments reel (operator 2026-10-10)', () => {
     expect(p.inReel).toBe(true)
   })
 
-  it('moves on when a clip ends, and ends paused after the last one', () => {
-    p.startReel('ep-1', MOMENTS)
-    at(70)
-    expect(p.reel?.index).toBe(0)
-    at(75)
-    expect(p.reel?.index).toBe(1)
-    expect(el.currentTime).toBe(300)
-    at(320)
-    at(910)
-    expect(p.reel).toMatchObject({ index: 2, done: true })
-    expect(el.pause).toHaveBeenCalled()
+  it('moves on when a clip ends, after a beat of silence, and ends paused after the last one', () => {
+    vi.useFakeTimers()
+    try {
+      p.startReel('ep-1', MOMENTS)
+      vi.advanceTimersByTime(300) // the clip's fade-in
+      at(70)
+      expect(p.reel?.index).toBe(0)
+      at(75)
+      // The beat between clips (operator 2026-10-15): silent, still on the clip that ended.
+      expect(p.reel?.index).toBe(0)
+      expect(el.volume).toBe(0)
+      at(76) // the clip's end is not reported twice while the gap runs
+      expect(p.momentHeard?.seq).toBe(1)
+      vi.advanceTimersByTime(800)
+      expect(p.reel?.index).toBe(1)
+      expect(el.currentTime).toBe(300)
+      at(320)
+      vi.advanceTimersByTime(800)
+      at(910) // the last clip: straight to the end card, no gap after it
+      expect(p.reel).toMatchObject({ index: 2, done: true })
+      expect(el.pause).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('the beat between clips: a tap goes at once, a pause holds the next clip, leaving restores the sound', () => {
+    vi.useFakeTimers()
+    try {
+      p.startReel('ep-1', MOMENTS)
+      at(75)
+      p.reelNext() // › during the gap: no waiting
+      expect(p.reel?.index).toBe(1)
+      vi.advanceTimersByTime(800)
+      expect(p.reel?.index).toBe(1) // the cancelled gap does not step again
+
+      at(320)
+      el.pause()
+      vi.advanceTimersByTime(800)
+      expect(p.reel?.index).toBe(2)
+      expect(el.paused).toBe(true) // set up, not started
+
+      p.startReel('ep-1', MOMENTS)
+      at(75)
+      expect(el.volume).toBe(0)
+      p.exitReel(true) // "Play on" from the gap
+      expect(el.volume).toBeGreaterThan(0)
+      vi.advanceTimersByTime(800)
+      expect(p.reel).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('a clip heard to its end is a moment heard; a skipped one is not; "Play on" is a keep', () => {
@@ -1127,7 +1168,13 @@ describe('topic reel — clips across episodes (ADR-163 §8 amendment, 2026-10-1
     expect(p.currentSlug).toBe('ep-a')
     expect(el.currentTime).toBe(30)
     expect(p.reel).toMatchObject({ slug: 'ep-a', topic: TOPIC, index: 0 })
-    at(42)
+    vi.useFakeTimers()
+    try {
+      at(42)
+      vi.advanceTimersByTime(800) // the beat between clips
+    } finally {
+      vi.useRealTimers()
+    }
     await drainMicrotasks()
     expect(resolve).toHaveBeenCalledWith('ep-b')
     expect(p.currentSlug).toBe('ep-b')
@@ -1143,7 +1190,13 @@ describe('topic reel — clips across episodes (ADR-163 §8 amendment, 2026-10-1
     await p.startTopicReel(TOPIC, CLIPS, resolve)
     el.__emit('play')
     at(41)
-    at(42) // to ep-b: the switch must not save ep-a at 42 s
+    vi.useFakeTimers()
+    try {
+      at(42) // to ep-b: the switch must not save ep-a at 42 s
+      vi.advanceTimersByTime(800)
+    } finally {
+      vi.useRealTimers()
+    }
     await drainMicrotasks()
     el.__emit('play')
     expect(saves.filter(([slug]) => slug === 'ep-a')).toEqual([])
@@ -1268,8 +1321,14 @@ describe('"Play all" on a learning path (operator 2026-10-14)', () => {
     expect(await p.startLearnReel(LEARN, DAYS, resolve)).toBe(true)
     expect(p.currentSlug).toBe('ep-a')
     expect(el.currentTime).toBe(30)
-    for (let s = 30; s <= 34; s += 0.25) at(s)
-    expect(p.learnEnd).toMatchObject({ day: 3, heard: true, openNext: true, all: true })
+    vi.useFakeTimers()
+    try {
+      for (let s = 30; s <= 34; s += 0.25) at(s)
+      expect(p.learnEnd).toMatchObject({ day: 3, heard: true, openNext: true, all: true })
+      vi.advanceTimersByTime(800) // the beat between days
+    } finally {
+      vi.useRealTimers()
+    }
     await drainMicrotasks()
     expect(p.currentSlug).toBe('ep-b')
     expect(p.reel).toMatchObject({ index: 1, learn: { day: 4 } })

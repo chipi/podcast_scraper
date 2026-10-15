@@ -14,7 +14,8 @@ the transcript. ``build_synthetic_validation_corpus.measured_line_times`` turns 
 Per episode this tool builds the map from each segment's OLD span to its REAL one (linear inside
 a segment, so a quote keeps its place within its sentence) and applies it to everything on that
 timeline: the source segments (``<ep>.segments.json``, or ``<ep>.<lang>.segments.json`` for a
-translated show), the ad-free segments and cut points, and the GI quotes' times. A translated
+translated show), the ad-free segments, and the GI quotes' times. An admap's cut points are
+CHARACTER offsets, not times, so nothing here touches them. A translated
 show's English render is then re-derived from the new source timeline
 (``retime_english_render``). The search index is derived from these files; rebuild it afterwards
 with ``make build-app-validation-index``.
@@ -109,18 +110,6 @@ def retime_episode(tr_dir: Path, meta_dir: Path, ep: str, apply: bool) -> dict[s
                     counts["adfree"] += 1
             if counts["adfree"] and apply:
                 adfree.write_text(builder._dump_like(raw_a, doc_a), encoding="utf-8")
-        admap = tr_dir / f"{ep}.adfree.admap.json"
-        if admap.is_file():
-            raw_m, doc_m = _load(admap)
-            changed = False
-            for key in ("preroll_cut_end", "postroll_cut_start"):
-                v = doc_m.get(key)
-                if isinstance(v, (int, float)) and remap(float(v)) != v:
-                    doc_m[key] = remap(float(v))
-                    changed = True
-            if changed and apply:
-                admap.write_text(builder._dump_like(raw_m, doc_m), encoding="utf-8")
-
     gi = meta_dir / f"{ep}.gi.json"
     if gi.is_file():
         raw_g, doc_g = _load(gi)
