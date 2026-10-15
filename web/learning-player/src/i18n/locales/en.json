@@ -768,6 +768,7 @@
     "filterBoards": "Filter boards…",
     "filterNotes": "Filter notes…",
     "noteKindAll": "All notes",
+    "noteKindOption": "{kind} notes · {count}",
     "sortUpdated": "Yours",
     "sortName": "A–Z",
     "sortCount": "Items",

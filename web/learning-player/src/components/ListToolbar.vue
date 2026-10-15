@@ -53,6 +53,9 @@ const props = withDefaults(
     viewTestid?: string
     /** The list ⇄ grid control; off for a list with no grid (Library's notes). */
     showView?: boolean
+    /** On a phone, the search as a 🔍 circle (Explore's lists, crowded with chips). Off where the
+     *  row has room for the field itself (Library's boards and notes, operator 2026-10-15). */
+    collapsibleSearch?: boolean
   }>(),
   {
     searchTestid: "list-toolbar-search",
@@ -63,11 +66,12 @@ const props = withDefaults(
     languageTestid: "list-toolbar-language",
     viewTestid: "list-toolbar-view",
     showView: true,
+    collapsibleSearch: true,
   }
 )
 
 const expanded = ref(false)
-const searchOpen = computed(() => expanded.value || search.value.trim() !== "")
+const searchOpen = computed(() => !props.collapsibleSearch || expanded.value || search.value.trim() !== "")
 const input = ref<HTMLInputElement | null>(null)
 async function openSearch(): Promise<void> {
   expanded.value = true
@@ -92,7 +96,7 @@ const viewOptions = computed(() => [
   <div class="mb-4 flex items-center gap-1.5">
     <!-- Phone, search closed: the 🔍 circle, the same 36px circle as sort and view. -->
     <button
-      v-if="!searchOpen"
+      v-if="collapsibleSearch && !searchOpen"
       type="button"
       class="lp-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground lg:hidden"
       :aria-label="searchPlaceholder ?? t('list.search')"
@@ -113,12 +117,13 @@ const viewOptions = computed(() => [
         :placeholder="searchPlaceholder ?? t('list.search')"
         :aria-label="searchPlaceholder ?? t('list.search')"
         :data-testid="searchTestid"
-        class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent max-lg:[&::-webkit-search-cancel-button]:hidden"
+        class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+        :class="collapsibleSearch ? 'max-lg:[&::-webkit-search-cancel-button]:hidden' : ''"
         @keydown.escape="closeSearch"
         @blur="onBlur"
       />
       <button
-        v-if="searchOpen"
+        v-if="collapsibleSearch && searchOpen"
         type="button"
         class="lp-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:text-canvas-foreground lg:hidden"
         :aria-label="t('list.searchClose')"
@@ -131,7 +136,7 @@ const viewOptions = computed(() => [
       </button>
     </div>
     <!-- The chips: right-aligned beside the 🔍 circle; stepped aside on a phone while it searches. -->
-    <div class="items-center gap-1.5" :class="searchOpen ? 'hidden lg:flex' : 'ml-auto flex lg:ml-0'">
+    <div class="items-center gap-1.5" :class="!collapsibleSearch ? 'flex' : searchOpen ? 'hidden lg:flex' : 'ml-auto flex lg:ml-0'">
 
     <ToolbarMenu
       v-if="fromOptions && fromOptions.length"

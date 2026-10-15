@@ -260,7 +260,11 @@ const noteKindOptions = computed(() =>
   availableNoteTypes.value.length > 1
     ? [
         { value: "", label: t("collections.noteKindAll") },
-        ...availableNoteTypes.value.map((k) => ({ value: k.key, label: `${k.label} ${k.count}` })),
+        // "Show notes · 1", not "Show 1" — which read as one show (operator 2026-10-15).
+        ...availableNoteTypes.value.map((k) => ({
+          value: k.key,
+          label: t("collections.noteKindOption", { kind: k.label, count: k.count ?? 0 }),
+        })),
       ]
     : undefined,
 )
@@ -621,8 +625,7 @@ onMounted(() => {
       :sort-options="boardSortOptions"
       :search-placeholder="t('collections.filterBoards')"
       search-testid="collections-search"
-      open-testid="collections-search-open"
-      close-testid="collections-search-close"
+      :collapsible-search="false"
       sort-testid="collections-sort"
       view-testid="boards-view"
     />
@@ -966,8 +969,7 @@ onMounted(() => {
         :show-view="false"
         :search-placeholder="t('collections.filterNotes')"
         search-testid="notes-search"
-        open-testid="notes-search-open"
-        close-testid="notes-search-close"
+        :collapsible-search="false"
         sort-testid="notes-sort"
         filter-testid="notes-kind"
       />

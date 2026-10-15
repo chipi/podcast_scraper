@@ -63,6 +63,14 @@ describe('ListToolbar', () => {
     expect(w.emitted('update:search')?.at(-1)).toEqual([''])
   })
 
+  it('with collapsible-search off the field is always there, no circle, no close (Library, operator 2026-10-15)', () => {
+    const w = mountBar({ collapsibleSearch: false })
+    expect(w.find('[data-testid="list-toolbar-search-open"]').exists()).toBe(false)
+    expect(w.find('[data-testid="list-toolbar-search-close"]').exists()).toBe(false)
+    expect(w.get('[data-testid="list-toolbar-search"]').element.parentElement!.className).not.toContain('hidden')
+    expect(w.get('[data-testid="list-toolbar-sort"]').element.closest('div.items-center')!.className).not.toContain('hidden')
+  })
+
   it('two-way-binds search via v-model (update:search)', async () => {
     const w = mountBar()
     await w.find('input[type="search"]').setValue('memory')

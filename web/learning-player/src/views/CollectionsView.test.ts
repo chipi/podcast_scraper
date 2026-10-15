@@ -628,7 +628,8 @@ describe('notes kind filter', () => {
       note({ id: 'n2', target: 'highlight', target_id: 'h1' }),
     ])
     await w.get('[data-testid="notes-kind"]').trigger('click')
-    expect(w.find('[data-testid="notes-kind-opt-person"]').text()).toContain('Person 1')
+    // The kind of NOTE, with its count — "Person 1" read as one person.
+    expect(w.find('[data-testid="notes-kind-opt-person"]').text()).toBe('Person notes · 1')
     expect(w.find('[data-testid="notes-kind-opt-highlight"]').exists()).toBe(true)
     // No episode note → no episode option; an option that filters to nothing reads as a bug.
     expect(w.find('[data-testid="notes-kind-opt-episode"]').exists()).toBe(false)
