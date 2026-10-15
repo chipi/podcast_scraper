@@ -163,6 +163,7 @@ def test_the_generation_is_named_after_its_stage_and_the_stage_is_not_sent_to_th
 
 
 def test_a_stage_alone_still_names_the_generation(monkeypatch):
+    monkeypatch.delenv("PODCAST_RELEASE", raising=False)
     monkeypatch.setattr(correlation, "get_run_id", lambda: None)
     monkeypatch.setattr(correlation, "get_episode_id", lambda: None)
     monkeypatch.setattr(correlation, "current_trace_id", lambda: "-")
@@ -220,3 +221,20 @@ def test_every_chat_call_names_its_stage():
     ]
     assert missing == []
     assert sorted(set(starred) - set(retry_lines)) == []
+
+
+def test_the_langfuse_trace_carries_the_release(ids, monkeypatch):
+    # 2026-10-15 prod: every Langfuse trace had release=NULL while GlitchTip events carried
+    # sha-f35a446. LiteLLM (1.95.0 integrations/langfuse) turns any ``trace_<key>`` in the request
+    # metadata into the trace's ``<key>``, so ``trace_release`` sets it per call (ADR-0010).
+    monkeypatch.setenv("PODCAST_RELEASE", "sha-f35a446")
+    p = _vllm()
+    p._chat_create(model=_MODEL, messages=[])
+    assert _sent(p)["extra_body"]["metadata"]["trace_release"] == "sha-f35a446"
+
+
+def test_no_release_no_trace_release(ids, monkeypatch):
+    monkeypatch.delenv("PODCAST_RELEASE", raising=False)
+    p = _vllm()
+    p._chat_create(model=_MODEL, messages=[])
+    assert "trace_release" not in _sent(p)["extra_body"]["metadata"]

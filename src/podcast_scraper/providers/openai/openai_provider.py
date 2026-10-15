@@ -834,6 +834,10 @@ class OpenAICompatibleProvider:
             md.setdefault("generation_name", stage)
         if trace_md:
             md.setdefault("trace_metadata", trace_md)
+        # LiteLLM maps any ``trace_<key>`` onto the trace: the release, as GlitchTip has it.
+        release = os.environ.get("PODCAST_RELEASE", "").strip()
+        if release:
+            md.setdefault("trace_release", release)
         body["metadata"] = md
         kwargs["extra_body"] = body
 
