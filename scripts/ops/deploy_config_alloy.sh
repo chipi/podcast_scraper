@@ -57,28 +57,47 @@ else
   exit 1
 fi
 
+# Alloy's verdict on a reload comes from its own metrics (host-network listener): a successful
+# load moves alloy_config_last_load_success_timestamp_seconds and sets
+# alloy_config_last_load_successful 1; a refused one sets it 0 and leaves the timestamp.
+# Metric names do not drift with log wording, and need no host/container clock agreement.
+# awk reads to the end (no early `exit`): closing the pipe under curl makes it fail with 23,
+# which pipefail + set -e turned into an exit between install and HUP on 2026-10-15.
+_metric() {
+  curl -fsS --max-time 5 http://127.0.0.1:12345/metrics 2>/dev/null \
+    | awk -v m="$1" '$1 == m { v = $2 } END { if (v != "") print v }' || true
+}
+before="$(_metric alloy_config_last_load_success_timestamp_seconds)"
+
 if [ "${DRY_RUN:-false}" = "true" ]; then
   echo "  DRY-RUN: valid; nothing installed, no HUP"
   exit 0
 fi
-if [ "${#changed[@]}" -eq 0 ]; then
-  echo "  no drop-in changed — alloy not reloaded"
+[ -n "$before" ] || { echo "::error::cannot read alloy's metrics — nothing installed, no HUP"; exit 1; }
+
+# A drop-in on disk that is newer than Alloy's last successful load is not live yet (a file
+# placed without a reload, e.g. by an interrupted run). Reload for it even when nothing changed.
+newest="$(stat -c %Y "$DIR"/*.alloy | sort -n | tail -1)"
+stale="$(awk -v n="$newest" -v b="$before" 'BEGIN { print (n + 0 > b + 0) ? 1 : 0 }')"
+if [ "${#changed[@]}" -eq 0 ] && [ "$stale" = 0 ]; then
+  echo "  no drop-in changed and all are loaded — alloy not reloaded"
   exit 0
 fi
+[ "$stale" = 1 ] && echo "  a drop-in on disk is newer than alloy's last load — reloading"
 
 # Stage-then-rename into config.d, never a direct copy onto the destination: a `*.alloy`
 # half-written during a concurrent reload would be loaded, and a root-owned destination (the
 # hand-edited base.alloy of old) refuses an in-place write while `mv` in this deploy-owned
 # directory replaces it. The staging name does not end in `.alloy`, so Alloy ignores it.
 for f in "${changed[@]}"; do
-  [ -f "$DIR/$f" ] && cp -a "$DIR/$f" "$BK/$f"
+  if [ -f "$DIR/$f" ]; then cp -a "$DIR/$f" "$BK/$f"; fi
   cp "$STG/$f" "$DIR/.$f.incoming"
   chmod 0644 "$DIR/.$f.incoming"
   mv -f "$DIR/.$f.incoming" "$DIR/$f"
 done
 
 _restore() {
-  for f in "${changed[@]}"; do
+  for f in ${changed[@]+"${changed[@]}"}; do
     if [ -f "$BK/$f" ]; then
       cp "$BK/$f" "$DIR/.$f.incoming" && mv -f "$DIR/.$f.incoming" "$DIR/$f"
     else
@@ -88,16 +107,6 @@ _restore() {
   return 0
 }
 
-# Alloy's verdict on THIS reload, from its own metrics (host-network listener): a successful
-# load moves alloy_config_last_load_success_timestamp_seconds and sets
-# alloy_config_last_load_successful 1; a refused one sets it 0 and leaves the timestamp.
-# Metric names do not drift with log wording, and need no host/container clock agreement.
-_metric() {
-  curl -fsS --max-time 5 http://127.0.0.1:12345/metrics 2>/dev/null \
-    | awk -v m="$1" '$1 == m { print $2; exit }'
-}
-before="$(_metric alloy_config_last_load_success_timestamp_seconds)"
-[ -n "$before" ] || { echo "::error::cannot read alloy's metrics before the HUP — rolling back"; _restore; exit 1; }
 docker kill -s HUP alloy >/dev/null || { echo "::error::could not HUP alloy — rolling back"; _restore; exit 1; }
 verdict=""
 for _ in $(seq 1 15); do
