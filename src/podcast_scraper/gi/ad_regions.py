@@ -30,6 +30,7 @@ Public API:
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -66,6 +67,25 @@ POSTROLL_TRAILOUT = 350
 # it, an ad ending its turn (".\n") snapped into the next speaker's first sentence (D30).
 SENTENCE_TERMINATORS = (". ", "! ", "? ", "\n")
 SENTENCE_BOUNDARY_LOOKAHEAD = 300
+# The first ad block is a true PRE-roll, cut from 0, only when its first ad pattern starts within
+# this many chars of the top (#2360). Past it, what precedes the block is the episode's own talk —
+# a host's opening monologue, a cold open — and cutting from 0 took it all (46 prod episodes,
+# 114 min; Colombia Calling lost 2-4 minutes of every opening). Measured on the 289 prod episodes
+# with a pre-roll cut: every pure pitch or show promo put its first pattern within 896 chars, every
+# episode that lost real talk had it at 1,051 or later.
+PREROLL_LEADIN = 1000
+# A block that starts past the lead-in with a call to action ("check out ramp.com") was pitched
+# first; the cut reaches back over at most this many chars for the pitch. The longest pure pitch
+# before a first pattern on prod was 546 chars.
+PREROLL_PITCH = 600
+# Ad patterns that OPEN a read ("brought to you by", "sponsored by", "our sponsor" ...): when the
+# block's first pattern is one of these, the ad starts there and nothing before it is pitch.
+_AD_OPENER = re.compile(
+    r"\b(?:brought to you by|sponsored by|this episode is sponsored|"
+    r"this (?:show|podcast) is (?:brought|sponsored)|our sponsors?|today'?s sponsor|"
+    r"thanks (?:to )?our sponsors?|support for (?:this|the) (?:show|podcast|episode) comes from)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -146,6 +166,22 @@ def _snap_backward_to_sentence_start(text: str, pos: int) -> int:
     return lo + best
 
 
+def _preroll_start(text: str, first: int, sentence_start: int) -> int:
+    """Where the first ad block in the head window starts, given its first pattern at ``first``.
+
+    Near the top (``PREROLL_LEADIN``) it is the pre-roll: cut from 0, so the pitch before its first
+    call to action goes too (the pattern marks the CTA, not the ad's start). Further in, the episode
+    has already begun: an opener starts the cut at its own sentence, and a call to action takes at
+    most ``PREROLL_PITCH`` chars of pitch before it, from the next sentence start (#2360).
+    """
+    if first <= PREROLL_LEADIN:
+        return 0
+    if _AD_OPENER.match(text, first):
+        return sentence_start
+    reach = max(0, first - PREROLL_PITCH)
+    return min(sentence_start, _snap_forward_to_sentence_end(text, reach))
+
+
 def _hits_are_clustered(hits: List[Tuple[int, int]], threshold: int) -> bool:
     """Return True when ≥ ``threshold`` pattern hits exist AND the first
     and last hit are within ``MAX_AD_CLUSTER_SPAN`` chars of each other
@@ -206,9 +242,11 @@ def detect_ad_cut_ranges(
     - Episode-level gate: fewer than ``threshold`` DISTINCT ad patterns anywhere → return ``[]``
       (weak signal; do not risk cutting a lone false-positive phrase).
     - Cluster the hits, then cut ``[snap_back(first) .. snap_forward(last)]`` per cluster.
-    - A block whose start lands within ``PREROLL_LEADIN`` of the top is a true pre-roll → extend to
-      0. A block reaching the tail window's end is a post-roll → extend to the end and expand
-      backward over its multi-sentence body.
+    - A block whose first pattern lands within ``PREROLL_LEADIN`` of the top is a true pre-roll →
+      extend to 0; further in, the cut starts at the read's opener or a pitch's length before its
+      call to action (:func:`_preroll_start`, #2360).
+    - A block reaching the tail window's end is a post-roll → extend to the end and expand backward
+      over its multi-sentence body.
     """
     if not text:
         return []
@@ -235,12 +273,7 @@ def detect_ad_cut_ranges(
             start = _expand_postroll_backward(text, start, floor=prev_end)
             end = len(text)
         elif i == 0 and first < scan_chars:
-            # The first ad block in the head window is the PRE-roll: cut from 0 so the ad PITCH that
-            # precedes its first URL/CTA pattern goes too (the pattern marks the CTA, not the ad's
-            # start; snapping back to a sentence boundary can't reach the start in a screenplay
-            # where sentences end in ".\n"). Matches the pre-per-cluster [0..end] model. Cost:
-            # intro before a near-start sponsor is also cut — a #1385 refinement (needs NLP).
-            start = 0
+            start = _preroll_start(text, first, start)
         ranges.append((start, end))
         prev_end = end
     return _merge_ranges(ranges)

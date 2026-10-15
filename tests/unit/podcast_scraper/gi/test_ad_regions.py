@@ -276,3 +276,47 @@ class TestExciseAdRegionsWithOffsets:
         assert len(survivors) == len(offset_segs)
         for s in survivors:
             assert cleaned[s["char_start"] : s["char_end"]] == s["text"]
+
+
+# A host's opening monologue, well past a pitch's length (#2360: Colombia Calling's host talks for
+# 2-4 minutes before "sponsored by", and the whole monologue was cut with the read).
+_HOST_INTRO = (
+    "It's that time of the week again, folks. This is me, your host, here in Bogota. "
+    "This week we look back at the elections and what the new congress means for the peace talks. "
+) * 9
+_OPENER_READ = (
+    "This episode is sponsored by Latin News, a leading source of political analysis. "
+    "Visit latinnews dot com and use code CALLING for twenty percent off. "
+    "Get 20% off your first year. "
+)
+
+
+@pytest.mark.unit
+class TestPrerollLeadIn:
+    """#2360: the first ad block is cut from 0 only when it starts near the top. Measured on 289
+    prod episodes: every pure pitch or show promo put its first ad pattern within 896 chars of the
+    start, every episode that lost real talk had it at 1,051 or later."""
+
+    def test_a_sponsor_read_after_the_intro_keeps_the_intro(self):
+        text = _HOST_INTRO + _OPENER_READ + _CONTENT_BLOCK
+        cleaned, _, meta = excise_ad_regions(text)
+        assert len(_HOST_INTRO) > 1000
+        assert cleaned.startswith(_HOST_INTRO.strip()[:60])
+        assert "Latin News" not in cleaned
+        assert meta.preroll_cut_end is None  # the first range no longer opens at 0
+
+    def test_a_call_to_action_after_the_intro_takes_its_pitch_not_the_intro(self):
+        # No opener: the pitch ("Ramp understands ...") comes before the first pattern.
+        text = _HOST_INTRO + _PREROLL_AD_TEXT + _CONTENT_BLOCK
+        cleaned, _, meta = excise_ad_regions(text)
+        assert cleaned.startswith(_HOST_INTRO.strip()[:60])
+        assert "ramp.com" not in cleaned
+        # At most a pitch's length of the intro may go with it.
+        kept_intro = cleaned.find("Ramp") if "Ramp" in cleaned else len(_HOST_INTRO)
+        assert kept_intro >= len(_HOST_INTRO) - 600
+
+    def test_a_pitch_at_the_top_is_still_cut_from_zero(self):
+        # The pitch before the first call to action is the ad itself: cut from 0, as before.
+        text = _PREROLL_AD_TEXT + _CONTENT_BLOCK
+        _, _, meta = excise_ad_regions(text)
+        assert meta.excised_ranges and meta.excised_ranges[0][0] == 0
