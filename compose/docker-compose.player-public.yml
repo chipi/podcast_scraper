@@ -325,7 +325,19 @@ services:
       PODCAST_OBS_GRAFANA_URL: ${PODCAST_OBS_GRAFANA_URL:-}
       PODCAST_OBS_SENTRY_URL: ${PODCAST_OBS_SENTRY_URL:-}
       # Traces: the SAME endpoint the player api exports spans to (its origin is the read base).
+      # It is also where obs exports its OWN spans, when OTEL_TRACES_EXPORTER=otlp.
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      # obs's own signals (podcast_obs/telemetry.py), parity with player-mcp: spans, its own
+      # GlitchTip project, `obs_tool:<tool>` Umami events on the player site. Each is off when its
+      # value is empty/none. /metrics is scraped by Alloy over the docker network (player.alloy).
+      OTEL_SERVICE_NAME: player-obs
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${PODCAST_ENV:-dev},service.version=${PODCAST_RELEASE:-unreleased}
+      PODCAST_SENTRY_DSN_OBS: ${PODCAST_SENTRY_DSN_OBS:-}
+      PODCAST_MCP_UMAMI_WEBSITE_ID: ${PODCAST_MCP_UMAMI_WEBSITE_ID:-}
+      PODCAST_MCP_UMAMI_URL: ${PODCAST_MCP_UMAMI_URL:-}
+      PODCAST_MCP_UMAMI_HOSTNAME: ${OBS_MCP_RESOURCE_URL:-obs}
     extra_hosts:
       # Traces now use the vtraces tailnet node (deploy-*.yml: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT),
       # which the containers resolve themselves; this pin is for anything still addressing `homelab`

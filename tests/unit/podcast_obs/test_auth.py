@@ -62,6 +62,7 @@ class TestVerifyPrincipal:
             "user_id": "u_1",
             "role": "admin",
             "mcp_access": True,
+            "analytics_id": None,
         }
 
     def test_admin_required_rejects_non_admin(self, monkeypatch: pytest.MonkeyPatch) -> None:

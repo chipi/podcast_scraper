@@ -145,8 +145,26 @@ container other tailnet boxes can reach.
 
 ## Docker (standalone control plane)
 
-A light image (`python:3.12-slim` + `httpx`/`PyYAML`/`mcp` + the package — no pipeline deps) you run
-on your MBP, an Orb, or a Mac mini in the tailnet.
+A light image (`python:3.12-slim` + `httpx`/`PyYAML`/`mcp`, its own telemetry deps, and the
+package — no pipeline deps) you run on your MBP, an Orb, or a Mac mini in the tailnet.
+
+### Its own signals (player-obs)
+
+Over http/sse the server observes itself the way player-mcp does (`podcast_obs/telemetry.py`). Each
+signal is off until its env is set; stdio emits none of the network ones.
+
+| Signal | Where | Env |
+| --- | --- | --- |
+| errors | GlitchTip project `player-obs` | `PODCAST_SENTRY_DSN_OBS` (deploy: `PROD_SENTRY_DSN_PLAYER_OBS`) |
+| traces | VictoriaTraces, `service.name=player-obs`: a `POST /mcp` server span per request, an `mcp.tool.<name>` child per call (`mcp.user_id`, `mcp.participant`, `mcp.ok`) | `OTEL_TRACES_EXPORTER=otlp` + `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` |
+| logs | `podcast_obs.access` (`METHOD path -> status in Nms trace_id=…`) and `podcast_obs.tool` (`mcp tool call tool=… user=… participant=… ok=… duration_ms=… trace_id=…`) | always |
+| metrics | `:8848/metrics`, scraped as `job=player_obs`: `mcp_tool_calls_total{tool,ok}` (every tool pre-registered at 0), `mcp_tool_duration_seconds`, `process_*` | always; internal only (the edge allows `/mcp` + `/.well-known/*`) |
+| analytics | Umami player site, event `obs_tool:<name>`, filed under the caller's analytics id | `PODCAST_MCP_UMAMI_WEBSITE_ID` + `PODCAST_MCP_UMAMI_URL` |
+
+The container healthcheck (a loopback GET of the discovery doc every 30 s) is neither traced nor
+logged. Tool spans and lines are attributed to the CallTool request itself, read from the MCP SDK's
+request context: FastMCP runs tools in the task of the request that opened the session, so the
+ambient span and ContextVars there belong to that first request.
 
 ```bash
 docker build -f docker/observability/Dockerfile -t podcast-obs:latest .

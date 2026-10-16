@@ -367,9 +367,13 @@ def build_server(
     """Build a FastMCP server exposing the control-plane probes as tools."""
     from mcp.server.fastmcp import FastMCP
 
+    from .telemetry import observed, preregister_tools
+
     server = FastMCP("podcast-obs", instructions=_INSTRUCTIONS, host=host, port=port)
-    for tool in _build_tools(config):
-        server.tool()(tool)
+    tools = _build_tools(config)
+    for tool in tools:
+        server.tool()(observed(tool))
+    preregister_tools(t.__name__ for t in tools)
     return server
 
 
@@ -387,6 +391,11 @@ def run_server(
     — every request presents a bearer to the app's verify seam and must resolve to an ADMIN user,
     else 401. The RFC 9728 discovery doc stays un-authenticated so a cold client can bootstrap.
     """
+    from . import telemetry
+
+    if transport != "stdio":
+        # Before FastMCP() configures logging its own way (message only, no level or logger).
+        telemetry.configure_logging()
     server = build_server(config, host=host, port=port)
     if transport == "stdio":
         server.run(transport="stdio")
@@ -394,7 +403,12 @@ def run_server(
 
     from .auth import ObsAuthMiddleware
 
+    telemetry.init_otel()
+    telemetry.init_sentry()
     app = server.sse_app() if transport == "sse" else server.streamable_http_app()
     import uvicorn
 
-    uvicorn.run(ObsAuthMiddleware(app), host=host, port=port)
+    # telemetry.AccessLogMiddleware writes the request line (with trace_id); uvicorn's stays off.
+    uvicorn.run(
+        telemetry.http_stack(ObsAuthMiddleware(app)), host=host, port=port, access_log=False
+    )

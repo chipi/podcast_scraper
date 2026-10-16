@@ -95,6 +95,13 @@ observability = [
   "PyYAML>=6.0.3,<7.0.0",
   "mcp>=1.2.0,<2.0.0",  # FastMCP server for the agent-facing layer (stdio + sse/http)
   "pyjwt>=2.14.0",  # via mcp; security floor, see the note in [dev]
+  # Its OWN signals as a service (podcast_obs.telemetry): errors, traces, /metrics. Each is a
+  # no-op without its env. Still no torch/spaCy/pipeline deps.
+  "sentry-sdk>=2.60.0,<3.0.0",
+  "opentelemetry-sdk>=1.44.0,<2.0.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.44.0,<2.0.0",
+  "opentelemetry-instrumentation-asgi>=0.65b0",
+  "prometheus-client>=0.21.0,<1.0.0",
 ]
 
 # ── Optional 3rd-party observability extensions ──────────────────────────────────

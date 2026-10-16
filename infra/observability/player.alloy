@@ -183,6 +183,68 @@ prometheus.scrape "player_mcp" {
 	scrape_interval = "30s"
 }
 
+// ---------- Observability MCP metrics ----------
+// player-obs serves the same per-tool registry (mcp_tool_calls_total / mcp_tool_duration_seconds,
+// plus process_* / python_gc_*) on :8848/metrics. Internal only, like player-mcp: the host port is
+// loopback and the obs Caddy vhost allows just /mcp and /.well-known/*.
+discovery.relabel "player_obs_metrics" {
+	targets = discovery.docker.app.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-obs-.*"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_port_private"]
+		regex         = "8848"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_network_ip"]
+		regex         = "(.+)"
+		target_label  = "__address__"
+		replacement   = "$1:8848"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+		replacement   = "$1"
+	}
+
+	rule {
+		target_label = "surface"
+		replacement  = "obs"
+	}
+
+	rule {
+		target_label = "instance"
+		replacement  = "prod-podcast"
+	}
+
+	rule {
+		target_label = "service"
+		replacement  = "player-obs"
+	}
+
+	rule {
+		target_label = "environment"
+		replacement  = "prod"
+	}
+}
+
+prometheus.scrape "player_obs" {
+	targets         = discovery.relabel.player_obs_metrics.output
+	forward_to      = [prometheus.remote_write.player_mcp_sink.receiver]
+	job_name        = "player_obs"
+	metrics_path    = "/metrics"
+	scrape_interval = "30s"
+}
+
 // Ship to the same homelab VictoriaMetrics the box's base Alloy uses (REMOTE_WRITE_URL,
 // e.g. http://homelab:8428/api/v1/write). Self-contained so this drop-in doesn't depend
 // on a base component name.

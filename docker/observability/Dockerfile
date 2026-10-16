@@ -1,6 +1,7 @@
 # Standalone prod observability control plane (#803).
 #
-# Intentionally LIGHT: installs ONLY podcast_obs + httpx/PyYAML/mcp — never the heavy
+# Intentionally LIGHT: installs ONLY podcast_obs + httpx/PyYAML/mcp and its own telemetry
+# (sentry-sdk, the OTel SDK + OTLP exporter + ASGI instrumentation, prometheus-client) — never the heavy
 # podcast_scraper pipeline deps (torch/spaCy/...). The podcast_obs package has zero coupling to
 # podcast_scraper, so copying just that one directory is enough. The result is a small image you
 # run on your MBP, an Orb, or a Mac mini inside the Tailscale network as a mini control plane.
@@ -20,7 +21,12 @@ RUN pip install --no-cache-dir \
       "httpx>=0.28.1,<1.0.0" \
       "PyYAML>=6.0.3,<7.0.0" \
       "mcp>=1.2.0,<2.0.0" \
-      "pyjwt>=2.14.0"
+      "pyjwt>=2.14.0" \
+      "sentry-sdk>=2.60.0,<3.0.0" \
+      "opentelemetry-sdk>=1.44.0,<2.0.0" \
+      "opentelemetry-exporter-otlp-proto-http>=1.44.0,<2.0.0" \
+      "opentelemetry-instrumentation-asgi>=0.65b0" \
+      "prometheus-client>=0.21.0,<1.0.0"
 
 WORKDIR /app
 COPY src/podcast_obs /app/podcast_obs

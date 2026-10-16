@@ -240,6 +240,7 @@ jobs:
           # empty until the project + secret exist → GlitchTip no-op for the MCP, traces + logs
           # still flow.
           PROD_SENTRY_DSN_PLAYER_MCP: ${{ secrets.PROD_SENTRY_DSN_PLAYER_MCP }}
+          PROD_SENTRY_DSN_PLAYER_OBS: ${{ secrets.PROD_SENTRY_DSN_PLAYER_OBS }}
           # Umami website UUID (public — ships in the bundle; a var, not a secret).
           PLAYER_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
           # ADR-115 Option A: when '1', the RUNTIME secrets (client secret, session secret,
@@ -421,6 +422,10 @@ jobs:
             # MCP-surface backend DSN (#1505): GlitchTip project `player-mcp` via
             # PROD_SENTRY_DSN_PLAYER_MCP (set 2026-10-15). Falls back to the player API DSN if unset.
             echo "PODCAST_SENTRY_DSN_MCP=${PROD_SENTRY_DSN_PLAYER_MCP:-${PROD_SENTRY_DSN_PLAYER_API}}"
+            # Observability-MCP backend DSN: GlitchTip project `player-obs` via
+            # PROD_SENTRY_DSN_PLAYER_OBS. No fallback — unset leaves obs error reporting off rather
+            # than filing control-plane errors under another surface's project.
+            echo "PODCAST_SENTRY_DSN_OBS=${PROD_SENTRY_DSN_PLAYER_OBS}"
             # Umami analytics build args. website-id from a GH var; the tracking
             # script URL is derived from the player domain (analytics.<domain>).
             # Both empty -> the bundle's Umami injection stays a no-op.

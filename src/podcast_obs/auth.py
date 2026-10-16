@@ -20,9 +20,17 @@ import logging
 import os
 import urllib.error
 import urllib.request
+from contextvars import ContextVar
 from typing import Any, Awaitable, Callable, Optional
 
 logger = logging.getLogger(__name__)
+
+# The admitted caller for the current request, read by the tool telemetry (podcast_obs.telemetry):
+# the user id for logs/spans, the analytics id as the Umami distinct id.
+current_obs_user: ContextVar[Optional[str]] = ContextVar("current_obs_user", default=None)
+current_obs_participant: ContextVar[Optional[str]] = ContextVar(
+    "current_obs_participant", default=None
+)
 
 _VERIFY_URL_ENV = "APP_MCP_VERIFY_URL"  # e.g. http://api:8000/internal/mcp/verify
 _INTERNAL_TOKEN_ENV = "INTERNAL_MCP_TOKEN"
@@ -58,7 +66,7 @@ def _verify_config() -> tuple[str, str]:
 
 
 def verify_principal(token: str, *, timeout: float = 5.0) -> Optional[dict[str, Any]]:
-    """Resolve ``token`` to its principal (``{user_id, role, mcp_access}``) or None.
+    """Resolve ``token`` to its principal (``{user_id, role, mcp_access, analytics_id}``) or None.
 
     Fails **closed** — no token, unconfigured verify URL/secret, a network/HTTP error, an
     ``authenticated: false`` result, a missing entitlement, or (when required) a non-admin role
@@ -102,7 +110,12 @@ def verify_principal(token: str, *, timeout: float = 5.0) -> Optional[dict[str, 
     uid = data.get("user_id")
     if not uid:
         return None
-    return {"user_id": str(uid), "role": role, "mcp_access": True}
+    return {
+        "user_id": str(uid),
+        "role": role,
+        "mcp_access": True,
+        "analytics_id": str(data.get("analytics_id") or "") or None,
+    }
 
 
 def _header(scope: dict[str, Any], want: bytes) -> Optional[str]:
@@ -229,4 +242,17 @@ class ObsAuthMiddleware:
         logger.info(
             "obs MCP: admitted user_id=%s role=%s", principal.get("user_id"), principal.get("role")
         )
-        await self._app(scope, receive, send)
+        # Per-request copy for the tool telemetry: FastMCP runs tools in the task of the request
+        # that OPENED the session, so the ContextVars below carry that request, not this one.
+        # The SDK hands the tool this request's scope (request_ctx.request), state included.
+        scope.setdefault("state", {})["obs_principal"] = {
+            "user_id": principal.get("user_id"),
+            "analytics_id": principal.get("analytics_id"),
+        }
+        user_token = current_obs_user.set(principal.get("user_id"))
+        participant_token = current_obs_participant.set(principal.get("analytics_id"))
+        try:
+            await self._app(scope, receive, send)
+        finally:
+            current_obs_user.reset(user_token)
+            current_obs_participant.reset(participant_token)
