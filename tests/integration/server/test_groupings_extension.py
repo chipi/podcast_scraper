@@ -200,9 +200,12 @@ def test_share_cards_take_their_trend_and_photo_from_an_extension(tmp_path: Path
         assert _person_photo(_CORPUS, "person:b") is None
 
 
-def test_the_intelligence_extension_serves_trends_photos_and_logos(tmp_path: Path) -> None:
+def test_the_intelligence_extension_serves_trends_photos_and_logos(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from podcast_scraper.enrichment.enrichers.org_web import _logo_dir
     from podcast_scraper.enrichment.enrichers.person_web import _image_dir
+    from podcast_scraper.server import app_momentum
     from podcast_scraper.server.og.build import _org_logo, _person_photo, _trend
 
     root = tmp_path / "corpus"
@@ -213,8 +216,16 @@ def test_the_intelligence_extension_serves_trends_photos_and_logos(tmp_path: Pat
     with use_extensions([_intelligence()]):
         assert _person_photo(root, "person:bob") == b"photo-of-bob"
         assert _org_logo(root, "org:globex") == b"logo-of-globex"
-        # The fixture's endurance-sport topic is rising (10x over the past year).
-        hot, spark, mult = _trend(_CORPUS, "topic", "topic:endurance-sport")
+        # The trends come from the momentum module; the committed corpus has no rising topic since
+        # its rebuild (2026-10-11), so a known series stands in for the measurement.
+        monkeypatch.setattr(
+            app_momentum,
+            "share_card_trends",
+            lambda root, kind: (
+                {"topic:x": (10.0, tuple(float(w) for w in range(12)))} if kind == "topic" else {}
+            ),
+        )
+        hot, spark, mult = _trend(root, "topic", "topic:x")
     assert hot == "↑ 10.0× rising" and mult == 10.0 and spark
 
 
