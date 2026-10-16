@@ -97,18 +97,94 @@ smoke 52/52 (`smoke-player` run 38765316477). The way there:
 Not measured: how long the API's cache warmer keeps it busy after a start. It logs no step
 timings, only its start and failures at DEBUG.
 
-## Next deploy (candidate: main after `e9396defb`) — extra checks beyond the list below
+## Next deploy (candidate: main head when the operator names it) — the whole list
 
-- No uvicorn `INFO:     <ip>` access lines in the API logs (`8ec79649e`).
-- player-api, player-mcp and podcast-pipeline traces carry `service.version=sha-<7>`
-  (`5d90d71f8`).
-- Langfuse traces carry `release` (`a0747249c`); the run-level trace is named "run <id>"
-  (`a96c56a1d`).
-- An operator smoke failure lands in GlitchTip project podcast-api, not player-api (`2343dea12`).
-- The control-plane smoke's `/api/artifacts` probe answers on its first attempt.
-- `3819acff6` changes `AppProcessPlugin.java`, so it reaches Android users only with a new build.
+Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's go.
 
-## Next deploy (candidate `0bc13f92c`, 2026-10-15) — steps, each on the operator's go
+**Checked 2026-10-16 against main `56f9af986` (re-run the first three at the candidate):**
+
+- No Caddy vhost or Alloy file changed since `f35a446`, so no `deploy-config`:
+  `git diff --stat f35a446 <candidate> -- infra/caddy infra/observability` prints nothing.
+- Compose changes only add `service.version=${PODCAST_RELEASE:-unreleased}` to the OTEL tags.
+  `PODCAST_RELEASE=sha-f35a446` is already in `/srv/podcast-scraper/.env` and in all five podcast
+  containers, so the deploy sets it.
+- No migrations.
+- `deploy-operator.yml` now alerts with `PROD_SENTRY_DSN_API` (the secret exists, set
+  2026-10-15).
+- The guard (`e9396defb`) run locally against ghcr: `f35a446b8`, `sha-f35a446` and `f35a446` all
+  resolve to `sha-f35a446`; `0000000` fails (HTTP 404). In Actions, run 38861127936
+  (`image_sha=0000000`): guard failed, all three surfaces skipped, prod unchanged. That run's
+  report said "deployed sha- " and went green; `b8a677dc6` makes it fail.
+- Not checked: an EMPTY `image_sha` (the guard's package listing needs `read:packages`, which my
+  local token lacks). Pass an explicit sha.
+
+**Before:**
+
+- Main's CI green on the candidate: Python application, Docker Build & Test, Snyk, CodeQL.
+- No reprocess running (`gh run list --workflow reprocess-prod.yml --limit 3`) and no smoke.
+
+**Deploy:** `deploy-all-prod.yml`, `confirm=DEPLOY_ALL`, `image_sha=<candidate>`.
+
+**After, in order:**
+
+1. **Images and smokes.** `docker ps --format '{{.Names}} {{.Image}}'`: every podcast image on
+   `sha-<7>`. Control-plane smoke: `/api/artifacts` answers on its first attempt (`c90537ff0`,
+   `b26c2bf0f`). Operator smoke green (`c3069005a`). Player smoke green (`4ba2f9878`). Caddy
+   reloaded, not restarted: `systemctl show caddy -p ActiveEnterTimestamp` still 2026-10-15
+   08:03:11.
+2. **Cache warmer:** `docker logs compose-api-1 2>&1 | grep 'cache warm done in'` gives one line
+   with every step's time (`37f0a8fd1`). Record the total here.
+3. **Logs:** no uvicorn `INFO:     <ip>` access lines in the API logs (`8ec79649e`).
+4. **Traces:** player-api, player-mcp, operator-public-api and podcast-pipeline carry
+   `service.version=sha-<7>` (`5d90d71f8` plus the compose tags).
+5. **Langfuse:** traces carry `release`; the run-level trace is named "run <id>" (`a0747249c`,
+   `a96c56a1d`). Homelab confirms.
+6. **GlitchTip:** an operator smoke failure lands in podcast-api, not player-api (`2343dea12`).
+   Seen only when a smoke fails.
+7. **Tell homelab on mini:** the deploy run id and the sha each surface reports.
+8. **Not checkable from prod:** `3819acff6` changes `AppProcessPlugin.java` and reaches Android
+   users only with a new build.
+
+**Then the long runs, one at a time (concurrency group prod-corpus):**
+
+1. **Re-transcribe the 10 doubled-stream episodes** (#2370): a full reprocess (ASR included) on a
+   deployed sha that contains `e7234aaec`. A relabel keeps the bad timestamps. The list is
+   `/Users/Shared/doubled_stream_10_episodes.tsv` on the mini (guid, feed, title). It includes The
+   Terror Part 4 (`7d4f6bf6-bcb2-11f1-9e30-afa90f070c5b`), held until now: take it off the hold
+   list and run it in the same batch. Check after: in every episode's segments, no segment starts
+   before the previous one ends. The stored timestamps drift before the visible doubling, e.g.
+   "Taking down the cultural elite" from about 867 s on.
+2. Keep `/srv/podcast-scraper/punct-2368/` until the ingestion session says the #2368 analysis is
+   done.
+3. **#2332: 96 episodes with an unlabelled publisher transcript** (52.4 audio-h, about 13 h). A
+   full reprocess, since there are no voices to relabel. A 5-episode sample first (2 Explaining
+   Brazil, 1 The Flip, 2 In Moscow's Shadows). List: `/Users/Shared/s5_96_episodes.tsv` on the
+   mini. The operator decides when.
+4. **One relabel list:** the 91 from 8.4 plus the naming changes since (`fe2316648` #2363,
+   `fc4e0dbda` #2364, `28b10ef3c` #2366, and #2365). Inside the deployed API container, with the
+   old modules from git:
+
+   ```bash
+   for m in providers/ml/diarization/roster.py speaker_detectors/hosts.py \
+            speaker_detectors/resolution.py providers/ml/diarization/ad_signatures.py; do
+     git show c6cdc5d:src/podcast_scraper/$m > /tmp/rl/old_$(basename $m)
+   done
+   # copy /tmp/rl and scripts/measure/roster_replay.py into the container, then per shard k:
+   nice -n 15 python3 roster_replay.py --corpus /app/output --signatures --repool --roles \
+     --old roster=/tmp/rl/old_roster.py hosts=/tmp/rl/old_hosts.py \
+           resolution=/tmp/rl/old_resolution.py ad_signatures=/tmp/rl/old_ad_signatures.py \
+     --shard k/2 > out_k.jsonl
+   ```
+
+   The new side is the installed (deployed) code. `c6cdc5d` labelled most served episodes.
+   Episodes backfilled since (batches 27-32, on `aaadbb2`/`f35a446`) were labelled by newer code,
+   so the replay can flag a change they already have. Drop an episode from the list when its
+   stored name already equals the new name. Read every changed voice, then run 5 episodes to time
+   a relabel (none has been timed), then batches that fit the runner and the nightly.
+5. **8.5:** recompute after the relabel (Rest Is History episodes whose host seat is still
+   unnamed).
+
+## Deployed as `sha-f35a446` (candidate `0bc13f92c`, 2026-10-15) — steps, kept for reference
 
 **What it carries since `aaadbb2`:**
 
