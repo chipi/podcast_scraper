@@ -171,6 +171,10 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
       unservable episode(s)";
     - neither episode is in the catalog, in `/api/app/search` results, or reachable via the player
       API.
+10a. **MCP tool events reach Umami (`ab8290f6f`, from the homelab session):** before it, Umami's
+    bot filter dropped every player-mcp event (UA "podcast-mcp/1.0 (+server-side)" got HTTP 200
+    `{"beep":"boop"}`, nothing stored). After the deploy, make one MCP tool call and tell the homelab
+    session; it checks the event lands in Umami with hostname `mcp.closelistening.app`.
 11. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-10 pass:
     `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
     `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
