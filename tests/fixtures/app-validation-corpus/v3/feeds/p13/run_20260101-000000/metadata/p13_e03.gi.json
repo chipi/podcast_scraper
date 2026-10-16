@@ -204,8 +204,8 @@
     {
       "id": "quote:017de168433460cf",
       "properties": {
-        "char_end": 3360,
-        "char_start": 3289,
+        "char_end": 3436,
+        "char_start": 3365,
         "episode_id": "ep-d005b87f4d3b1c0e",
         "speaker_id": "person:speaker-01",
         "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
@@ -228,8 +228,8 @@
     {
       "id": "quote:a9f55f79097b88ca",
       "properties": {
-        "char_end": 3852,
-        "char_start": 3687,
+        "char_end": 3928,
+        "char_start": 3763,
         "episode_id": "ep-d005b87f4d3b1c0e",
         "speaker_id": "person:speaker-02",
         "text": "That's how I see it. The service intervals for the suspension are a decision made by the risk management team. I have observed this pattern in three different teams.",

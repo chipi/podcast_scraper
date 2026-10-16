@@ -197,8 +197,8 @@
     {
       "id": "quote:173164fc7a2d7e1f",
       "properties": {
-        "char_end": 2864,
-        "char_start": 2650,
+        "char_end": 2956,
+        "char_start": 2742,
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-02",
         "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.",
@@ -228,8 +228,8 @@
     {
       "id": "quote:0cb0577611666d04",
       "properties": {
-        "char_end": 4688,
-        "char_start": 4617,
+        "char_end": 4780,
+        "char_start": 4709,
         "episode_id": "ep-ca65ab78f4c50f2a",
         "speaker_id": "person:speaker-01",
         "text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",

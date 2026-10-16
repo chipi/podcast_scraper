@@ -9,8 +9,8 @@ Chiara Ricci: Honestly, risk management in racing isn't about avoiding crashes â
 Giulia Ferrara: Where does it stop working?
 Chiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. And the second-order effect is the part that almost everyone overlooks.
 Giulia Ferrara: What is the heuristic that you always find yourself using? How does Spoke & Wrench fit into this picture?
-Chiara Ricci: That's how I see it. The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day.
-Giulia Ferrara: I want to delve deeper into this. What is the most important aspect of this question?
+Chiara Ricci: That's how I see it. The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day. Once you internalize that, the rest of the decisions become easier.
+Giulia Ferrara: Welcome back to the program. I want to delve deeper into this. What is the most important aspect of this question?
 Chiara Ricci: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. And the second-order effect is the part that almost everyone overlooks.
 Giulia Ferrara: What is the typical failure mode? What is the operational setting that most listeners do not have access to?
 Chiara Ricci: Yes, so â€“ tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The framing is important because it tells you what compromises you are making.
@@ -34,6 +34,3 @@ Giulia Ferrara: What is the heuristic that you always find yourself using? What 
 Chiara Ricci: That's how I see it. The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.
 Giulia Ferrara: Before we wrap up, what's one thing listeners can try out this week?
 Chiara Ricci: Choose one of the ideas we've discussed and implement it for two weeks. Everything else is iteration.
-Giulia Ferrara: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Take a look at vanta.com. Chiara Ricci, thank you for the conversation.
-Chiara Ricci: Thank you, Giulia.
-Giulia Ferrara: That's all for today's episode of "Author's Trails." See you next time.

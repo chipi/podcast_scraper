@@ -207,8 +207,8 @@
     {
       "id": "quote:370ab3e35442ceb3",
       "properties": {
-        "char_end": 3875,
-        "char_start": 3719,
+        "char_end": 3956,
+        "char_start": 3800,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-02",
         "text": "That's how I see it. The service intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.",
@@ -231,8 +231,8 @@
     {
       "id": "quote:25497eaa196f100c",
       "properties": {
-        "char_end": 5724,
-        "char_start": 5571,
+        "char_end": 5805,
+        "char_start": 5652,
         "episode_id": "ep-a341174daaf88193",
         "speaker_id": "person:speaker-02",
         "text": "Frankly, the service intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone overlooks.",

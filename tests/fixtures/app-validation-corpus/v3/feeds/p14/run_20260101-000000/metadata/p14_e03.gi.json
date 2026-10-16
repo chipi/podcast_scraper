@@ -217,8 +217,8 @@
     {
       "id": "quote:e430cadd5f1fa714",
       "properties": {
-        "char_end": 3911,
-        "char_start": 3747,
+        "char_end": 3993,
+        "char_start": 3829,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-02",
         "text": "That's how I see it. The maintenance intervals for the suspension are a risk management decision. I observed this pattern repeating itself in three different teams.",
@@ -241,8 +241,8 @@
     {
       "id": "quote:8c64c58f0000afc6",
       "properties": {
-        "char_end": 5720,
-        "char_start": 5565,
+        "char_end": 5802,
+        "char_start": 5647,
         "episode_id": "ep-1d733f650ad9bff9",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, the maintenance intervals for the suspension are a risk management decision. And the secondary effect is the part that almost everyone overlooks.",

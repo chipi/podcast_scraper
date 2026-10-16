@@ -10,38 +10,38 @@
         "name": "Giulia Ferrara",
         "named": true,
         "role": "host",
-        "talk_share": 0.5625,
+        "talk_share": 0.3882,
         "voice_type": "named"
       },
       {
         "name": "Chiara Ricci",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4167,
+        "talk_share": 0.5656,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0208,
+        "talk_share": 0.0462,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0208,
+    "unattributed_talk_share": 0.0462,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0208
+        "talk_s": 16.28800000000001,
+        "talk_share": 0.0462
       },
       "named": {
         "count": 2,
-        "talk_s": 282.0,
-        "talk_share": 0.9792
+        "talk_s": 336.43,
+        "talk_share": 0.9538
       }
     }
   }

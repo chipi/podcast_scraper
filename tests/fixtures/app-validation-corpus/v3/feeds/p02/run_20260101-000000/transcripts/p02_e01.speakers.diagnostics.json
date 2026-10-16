@@ -10,38 +10,38 @@
         "name": "Ethan",
         "named": true,
         "role": "host",
-        "talk_share": 0.5435,
+        "talk_share": 0.384,
         "voice_type": "named"
       },
       {
         "name": "Priya Nair",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4348,
+        "talk_share": 0.5805,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0217,
+        "talk_share": 0.0355,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0217,
+    "unattributed_talk_share": 0.0355,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0217
+        "talk_s": 13.960999999999984,
+        "talk_share": 0.0355
       },
       "named": {
         "count": 2,
-        "talk_s": 270.0,
-        "talk_share": 0.9783
+        "talk_s": 378.93600000000004,
+        "talk_share": 0.9645
       }
     }
   }

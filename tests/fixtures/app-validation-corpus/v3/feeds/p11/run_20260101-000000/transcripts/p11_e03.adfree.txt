@@ -10,7 +10,7 @@ Giulia Ferrara: Tell me more.
 Luca Moretti: Spoke & Wrench is one of the platforms where this becomes clearly evident. I have observed this pattern repeating itself in three different teams.
 Giulia Ferrara: Tell me how you came to that decision. How does RockShox fit into this picture?
 Luca Moretti: Certainly. The maintenance intervals for the suspension are a risk management decision. If you ignore it, you'll end up having to rebuild everything from scratch a year later.
-Giulia Ferrara: You know what? I'm just saying: Linear manages all of my engineering operations. Linear is the issue tracker designed for speed – it's built for keyboard use. Use the link in the episode notes. That's a useful shot. Where do maintenance and transmission mechanics intersect?
+Giulia Ferrara: You know what? I'm just saying: Linear manages all of my engineering operations. Linear is the issue tracker designed for speed – it's built for keyboard use. Use the link in the episode notes. We'll be right back after a short commercial break. Welcome back to the program. That's a useful shot. Where do maintenance and transmission mechanics intersect?
 Luca Moretti: That's how I see it. Most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening them to the specified torque. We've seen this happen in teams that use Shimano components. I've observed this pattern repeating in three different teams.
 Giulia Ferrara: Give me a concrete example. What were your initial thoughts on this topic, and how have they changed?
 Luca Moretti: Yes, so – a bike should feel quiet and predictable, so your focus remains on the trail. Once you internalize that principle, the rest of your decisions become easier.

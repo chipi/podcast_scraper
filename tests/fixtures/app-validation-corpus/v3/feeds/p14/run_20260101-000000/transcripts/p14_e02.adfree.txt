@@ -9,8 +9,8 @@ Inês Carvalho: Honestly, risk management in racing isn't about avoiding crashes
 Beatriz Antunes: Where does it stop working?
 Inês Carvalho: The Cascadia Alliance is one of the platforms where this is clearly evident. And the second-order effect is the part that almost everyone overlooks.
 Beatriz Antunes: What heuristic do you always go back to? How does Spoke & Wrench fit into this picture?
-Inês Carvalho: That's how I see it. The erosion patterns on the track sections can change the optimal racing line between practice sessions and the actual race day.
-Beatriz Antunes: I want to delve deeper into that. What is the most important version of that question?
+Inês Carvalho: That's how I see it. The erosion patterns on the track sections can change the optimal racing line between practice sessions and the actual race day. Once you understand that, the rest of the decisions become easier.
+Beatriz Antunes: Welcome back to the program. I want to delve deeper into that. What is the most important version of that question?
 Inês Carvalho: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking bigger risks. We've seen this in teams that use RockShox. And the secondary effect is the part that almost everyone overlooks.
 Beatriz Antunes: What is the failure mode? What is the operational angle that most listeners don't have access to?
 Inês Carvalho: Yes, so – tire pressure and the choice of tire casing often matter more than a minor suspension adjustment. The setup matters because it tells you what compromises you're making.
@@ -30,4 +30,7 @@ Beatriz Antunes: Give me a concrete example. What is the version of the question
 Inês Carvalho: I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this pattern in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.
 Beatriz Antunes: That makes sense.
 Inês Carvalho: And when teams adopt the Spoke & Wrench methodology within that workflow, the commitment becomes evident – I've seen this pattern repeat itself in three different teams.
-Beatriz Antunes: What heuristic do you always go back to?
+Beatriz Antunes: What heuristic do you always go back to? What is the version of the question that really matters?
+Inês Carvalho: That's how I see it. The erosion patterns on the track sections influence the choice of trajectory between training sessions and the actual race day. I observed this pattern repeating itself in three different teams.
+Beatriz Antunes: Before we finish, what's one thing listeners can try out this week?
+Inês Carvalho: Choose one of the ideas we discussed and apply it for two weeks. Everything else is iteration.

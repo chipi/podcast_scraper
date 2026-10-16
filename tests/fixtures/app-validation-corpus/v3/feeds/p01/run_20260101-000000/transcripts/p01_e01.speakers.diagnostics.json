@@ -10,38 +10,38 @@
         "name": "Maya",
         "named": true,
         "role": "host",
-        "talk_share": 0.5323,
+        "talk_share": 0.3134,
         "voice_type": "named"
       },
       {
         "name": "Liam Verbeek",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4516,
+        "talk_share": 0.6564,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0161,
+        "talk_share": 0.0302,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0161,
+    "unattributed_talk_share": 0.0302,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0161
+        "talk_s": 14.738999999999976,
+        "talk_share": 0.0302
       },
       "named": {
         "count": 2,
-        "talk_s": 366.0,
-        "talk_share": 0.9839
+        "talk_s": 473.289,
+        "talk_share": 0.9698
       }
     }
   }

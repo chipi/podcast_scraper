@@ -9,14 +9,14 @@
         "name": "Maya",
         "named": true,
         "role": "host",
-        "talk_share": 0.5455,
+        "talk_share": 0.4064,
         "voice_type": "named"
       },
       {
         "name": "Sophie Laurent",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4545,
+        "talk_share": 0.5936,
         "voice_type": "named"
       }
     ],
@@ -27,7 +27,7 @@
     "voice_census": {
       "named": {
         "count": 2,
-        "talk_s": 66.0,
+        "talk_s": 82.124,
         "talk_share": 1.0
       }
     }

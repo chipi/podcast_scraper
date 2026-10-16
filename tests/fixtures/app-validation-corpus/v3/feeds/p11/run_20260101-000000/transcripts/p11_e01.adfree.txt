@@ -1,4 +1,4 @@
-SPEAKER_00: Strava is the home of athletes. Start at strava.com/podcast. Tell me about how you made that decision. How does RockShox fit into this picture?
+SPEAKER_00: Tell me about how you made that decision. How does RockShox fit into this picture?
 SPEAKER_01: Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've seen this pattern repeat itself in three different teams.
 SPEAKER_00: Tell me how you came to that decision. Which version of the question is truly important?
 SPEAKER_01: Yes, see – the most common mistake that beginner builders make is digging with a slope that is too steep. Once you understand that, the rest of the decisions become easier.
@@ -14,7 +14,7 @@ SPEAKER_00: What is the nature of the malfunction? What is the underlying struct
 SPEAKER_01: Let me give you my honest opinion. I've changed my mind about machine-made trails versus hand-crafted trails. I've seen this pattern repeat itself in three different teams.
 SPEAKER_00: Tell me more.
 SPEAKER_01: And when teams adopt the Cascadia Alliance in that process, the trade-off becomes apparent – if you ignore it, you end up having to rebuild everything from scratch a year later.
-SPEAKER_00: We'll be right back after a short commercial break. How does the fault mechanism work? Where do soil erosion and trail construction intersect?
+SPEAKER_00: We'll be right back after a short commercial break. Welcome back to the show. How does the fault mechanism work? Where do soil erosion and trail construction intersect?
 SPEAKER_01: That's how I see it. Drainage is the design decision that has the biggest impact on any trail. We've seen it in teams that use Shimano components. If you ignore it, you'll end up having to rebuild everything from scratch a year later.
 SPEAKER_00: Tell me how you came to that decision. How does RockShox fit into this picture?
 SPEAKER_01: Yes, see – the most common mistake that novice builders make is digging with a slope that is too steep. Once you understand that, the rest of the decisions become easier.

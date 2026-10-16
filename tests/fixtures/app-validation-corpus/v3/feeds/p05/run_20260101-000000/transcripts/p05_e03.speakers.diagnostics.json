@@ -10,38 +10,38 @@
         "name": "Nora",
         "named": true,
         "role": "host",
-        "talk_share": 0.56,
+        "talk_share": 0.4554,
         "voice_type": "named"
       },
       {
         "name": "Scott Bessett",
         "named": true,
         "role": "guest",
-        "talk_share": 0.42,
+        "talk_share": 0.5114,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.02,
+        "talk_share": 0.0332,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.02,
+    "unattributed_talk_share": 0.0332,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.02
+        "talk_s": 12.080999999999989,
+        "talk_share": 0.0332
       },
       "named": {
         "count": 2,
-        "talk_s": 294.0,
-        "talk_share": 0.98
+        "talk_s": 351.62199999999996,
+        "talk_share": 0.9668
       }
     }
   }

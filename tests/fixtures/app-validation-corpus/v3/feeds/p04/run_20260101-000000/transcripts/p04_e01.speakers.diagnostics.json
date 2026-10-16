@@ -10,38 +10,38 @@
         "name": "Leo",
         "named": true,
         "role": "host",
-        "talk_share": 0.5556,
+        "talk_share": 0.4145,
         "voice_type": "named"
       },
       {
         "name": "Ava Lemoine",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4222,
+        "talk_share": 0.5387,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0222,
+        "talk_share": 0.0468,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0222,
+    "unattributed_talk_share": 0.0468,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0222
+        "talk_s": 15.215000000000018,
+        "talk_share": 0.0468
       },
       "named": {
         "count": 2,
-        "talk_s": 264.0,
-        "talk_share": 0.9778
+        "talk_s": 309.582,
+        "talk_share": 0.9532
       }
     }
   }

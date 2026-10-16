@@ -9,14 +9,14 @@
         "name": "Ethan",
         "named": true,
         "role": "host",
-        "talk_share": 0.5385,
+        "talk_share": 0.4466,
         "voice_type": "named"
       },
       {
         "name": "Priya Nair",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4615,
+        "talk_share": 0.5534,
         "voice_type": "named"
       }
     ],
@@ -27,7 +27,7 @@
     "voice_census": {
       "named": {
         "count": 2,
-        "talk_s": 78.0,
+        "talk_s": 131.784,
         "talk_share": 1.0
       }
     }

@@ -9,21 +9,21 @@
         "name": "Nora",
         "named": true,
         "role": "host",
-        "talk_share": 0.5455,
+        "talk_share": 0.6506,
         "voice_type": "named"
       },
       {
         "name": "Daniel Cho",
         "named": true,
         "role": "guest",
-        "talk_share": 0.3636,
+        "talk_share": 0.3087,
         "voice_type": "named"
       },
       {
         "name": "Nadia Sereni",
         "named": true,
         "role": "guest",
-        "talk_share": 0.0909,
+        "talk_share": 0.0407,
         "voice_type": "named"
       }
     ],
@@ -34,7 +34,7 @@
     "voice_census": {
       "named": {
         "count": 3,
-        "talk_s": 66.0,
+        "talk_s": 69.21600000000001,
         "talk_share": 1.0
       }
     }

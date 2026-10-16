@@ -1,4 +1,4 @@
-SPEAKER_00: Strava is the home of athletes. Start at strava.com/podcast. Tell me about how you made that decision. How does RockShox fit into this picture?
+SPEAKER_00: Tell me about how you made that decision. How does RockShox fit into this picture?
 SPEAKER_01: Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.
 SPEAKER_00: Tell me how you came to that decision. Which version of the question is truly important?
 SPEAKER_01: Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.
@@ -12,7 +12,9 @@ SPEAKER_00: This is a useful framework. Which version of the question is truly i
 SPEAKER_01: Yes, listen – the structure of the team is more important than people realize. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.
 SPEAKER_00: What does the failure mode look like? What is the structural aspect that most auditors do not have access to?
 SPEAKER_01: Let me tell you the version that I truly believe in. I've changed my mind about machine-made trails compared to those made by hand. I've seen this pattern repeat itself in three different teams.
-SPEAKER_00: Tell me more. What does the failure mode look like? Where do soil erosion and trail construction intersect?
+SPEAKER_00: Tell me more.
+SPEAKER_01: And when teams adopt the Cascadia Alliance within this process, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.
+SPEAKER_00: We'll be right back after a short commercial break. Welcome back to the show. What does the failure mode look like? Where do soil erosion and trail construction intersect?
 SPEAKER_01: That's how I see it. Drainage is the most crucial design decision for any trail. We've seen it in teams that use Shimano components. If you ignore that, you'll end up having to rebuild everything from scratch a year later.
 SPEAKER_00: Tell me how you came to that decision. How does RockShox fit into this picture?
 SPEAKER_01: Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.

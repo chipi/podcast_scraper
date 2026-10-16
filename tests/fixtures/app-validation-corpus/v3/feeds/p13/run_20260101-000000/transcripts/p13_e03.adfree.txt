@@ -10,7 +10,7 @@ Katrin Vogel: Tell me more about it.
 Jonas Richter: Spoke & Wrench is one of the platforms where this becomes clearly visible. I have observed this pattern in three different teams.
 Katrin Vogel: Tell me how you made your decision. How does RockShox fit into this picture?
 Jonas Richter: Sure. Service intervals for the suspension are a decision made by the risk management team. If you ignore that, you'll have to rebuild it from scratch a year later.
-Katrin Vogel: Guess what? I'll just say it: Linear manages my entire engineering operations. Linear is the issue tracker built for speed – designed for keyboard use. Use the link in the show notes. That's a helpful framework. Where do maintenance and the drive mechanism overlap?
+Katrin Vogel: Guess what? I'll just say it: Linear manages my entire engineering operations. Linear is the issue tracker built for speed – designed for keyboard use. Use the link in the show notes. We'll be right back, after a short advertisement. Welcome back to the show. That's a helpful framework. Where do maintenance and the drive mechanism overlap?
 Jonas Richter: That's my understanding. Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening them to the specified torque. We've seen this happen with teams that use Shimano components. I've observed this pattern in three different teams.
 Katrin Vogel: Give me a specific example. What did you used to believe about that, and what have you revised your views on since then?
 Jonas Richter: Yes, so – a bike should feel quiet and predictable, so that your attention remains focused on the trail. Once you understand that, the other decisions will become easier.

@@ -202,8 +202,8 @@
     {
       "id": "quote:b11d861b761b173d",
       "properties": {
-        "char_end": 2934,
-        "char_start": 2698,
+        "char_end": 3030,
+        "char_start": 2794,
         "episode_id": "ep-7fd3ec879c8c2b44",
         "speaker_id": "person:speaker-02",
         "text": "Yes, look \u2013 risk management in cycling isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox components. I've seen this pattern repeat itself in three different teams.",
@@ -226,8 +226,8 @@
     {
       "id": "quote:00e65bf95cbe7d47",
       "properties": {
-        "char_end": 4718,
-        "char_start": 4447,
+        "char_end": 4814,
+        "char_start": 4543,
         "episode_id": "ep-7fd3ec879c8c2b44",
         "speaker_id": "person:speaker-02",
         "text": "Let me give you the version that I truly believe in. Risk management in a career isn't about avoiding falls; it's about choosing which falls are survivable. We've seen this with teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.",

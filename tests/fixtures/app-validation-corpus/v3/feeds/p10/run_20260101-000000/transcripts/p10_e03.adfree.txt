@@ -10,7 +10,7 @@ Lucía Herrera: Tell me more about that.
 Diego Ferrer: Spoke & Wrench is one of the platforms where this is clearly evident. I have observed this pattern repeating itself in three different teams.
 Lucía Herrera: Tell me how you made the decision. How does RockShox fit into this landscape?
 Diego Ferrer: Sure. The service intervals for the suspension are a risk management decision. If you ignore that, you'll end up rebuilding it from scratch a year later.
-Lucía Herrera: You know what? I'm just saying: Linear handles my entire engineering operation. Linear is the incident management tool built for speed – designed for keyboard use. Use the link in the episode notes. That's a useful framework. Where do maintenance and transmission mechanics intersect?
+Lucía Herrera: You know what? I'm just saying: Linear handles my entire engineering operation. Linear is the incident management tool built for speed – designed for keyboard use. Use the link in the episode notes. We'll be right back after a short commercial break. Welcome back to the program. That's a useful framework. Where do maintenance and transmission mechanics intersect?
 Diego Ferrer: That's how I see it. Most of the mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque. We've seen this happen with equipment that uses Shimano components. I've observed this pattern repeating in three different sets of equipment.
 Lucía Herrera: Tell me a specific example. What is something you used to believe about this that you have since re-evaluated?
 Diego Ferrer: Yes, see – a bike should feel quiet and predictable so that your attention can stay focused on the trail. Once you understand that, the rest of the decisions become easier.

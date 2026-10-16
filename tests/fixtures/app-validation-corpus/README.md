@@ -168,6 +168,18 @@ HF_HUB_OFFLINE=1 PYTHONPATH=src .venv/bin/python -m podcast_scraper.cli enrich -
 # then copy the changed files back into tests/fixtures/app-validation-corpus/v3
 ```
 
+**After an ad-cut change** (`gi/ad_regions.py`, `gi/filters.py`), the translated shows' captured
+ad-free files (`tests/fixtures/pipeline-renders/v3`) are re-derived first, with the pipeline's own
+`build_adfree_artifacts` over each capture's English segments:
+
+```sh
+.venv/bin/python scripts/tools/rederive_captured_adfree.py          # report
+.venv/bin/python scripts/tools/rederive_captured_adfree.py --write  # then regenerate as above
+```
+
+Its replay is checked against the code the captures were made with: on 2026-10-16, with main as of
+2026-10-01 18:07 UTC, all 15 captures came out byte-identical.
+
 `realign_fixture_gi.py` grounds every insight in the transcript line that says it (ADR-165):
 insights are claims (no questions, greetings, sponsor reads, connective templates or host
 prompts), chosen speaker-balanced and topical first; a translated episode is grounded in its

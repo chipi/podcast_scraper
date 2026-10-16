@@ -10,38 +10,38 @@
         "name": "Beatriz Antunes",
         "named": true,
         "role": "host",
-        "talk_share": 0.5625,
+        "talk_share": 0.406,
         "voice_type": "named"
       },
       {
         "name": "In\u00eas Carvalho",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4167,
+        "talk_share": 0.5524,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0208,
+        "talk_share": 0.0415,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0208,
+    "unattributed_talk_share": 0.0415,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0208
+        "talk_s": 16.87100000000001,
+        "talk_share": 0.0415
       },
       "named": {
         "count": 2,
-        "talk_s": 282.0,
-        "talk_share": 0.9792
+        "talk_s": 389.265,
+        "talk_share": 0.9585
       }
     }
   }

@@ -1382,7 +1382,7 @@
       "A4_search_indexer": "transcripts/p10_e01.adfree.txt",
       "A5_gi_repair_text": "p10_e01.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 93,
+        "count": 94,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p10_e01.adfree.segments.json",
@@ -1413,7 +1413,7 @@
       "A4_search_indexer": "transcripts/p10_e02.adfree.txt",
       "A5_gi_repair_text": "p10_e02.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 85,
+        "count": 80,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p10_e02.adfree.segments.json",
@@ -1444,7 +1444,7 @@
       "A4_search_indexer": "transcripts/p10_e03.adfree.txt",
       "A5_gi_repair_text": "p10_e03.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 90,
+        "count": 92,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p10_e03.adfree.segments.json",
@@ -1472,7 +1472,7 @@
       "A4_search_indexer": "transcripts/p11_e01.adfree.txt",
       "A5_gi_repair_text": "p11_e01.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 96,
+        "count": 95,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p11_e01.adfree.segments.json",
@@ -1503,7 +1503,7 @@
       "A4_search_indexer": "transcripts/p11_e02.adfree.txt",
       "A5_gi_repair_text": "p11_e02.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 85,
+        "count": 80,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p11_e02.adfree.segments.json",
@@ -1534,7 +1534,7 @@
       "A4_search_indexer": "transcripts/p11_e03.adfree.txt",
       "A5_gi_repair_text": "p11_e03.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 90,
+        "count": 92,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p11_e03.adfree.segments.json",
@@ -1562,7 +1562,7 @@
       "A4_search_indexer": "transcripts/p12_e01.adfree.txt",
       "A5_gi_repair_text": "p12_e01.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 94,
+        "count": 95,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p12_e01.adfree.segments.json",
@@ -1593,7 +1593,7 @@
       "A4_search_indexer": "transcripts/p12_e02.adfree.txt",
       "A5_gi_repair_text": "p12_e02.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 85,
+        "count": 80,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p12_e02.adfree.segments.json",
@@ -1624,7 +1624,7 @@
       "A4_search_indexer": "transcripts/p12_e03.adfree.txt",
       "A5_gi_repair_text": "p12_e03.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 90,
+        "count": 92,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p12_e03.adfree.segments.json",
@@ -1652,7 +1652,7 @@
       "A4_search_indexer": "transcripts/p13_e01.adfree.txt",
       "A5_gi_repair_text": "p13_e01.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 92,
+        "count": 90,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p13_e01.adfree.segments.json",
@@ -1683,7 +1683,7 @@
       "A4_search_indexer": "transcripts/p13_e02.adfree.txt",
       "A5_gi_repair_text": "p13_e02.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 71,
+        "count": 80,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p13_e02.adfree.segments.json",
@@ -1714,7 +1714,7 @@
       "A4_search_indexer": "transcripts/p13_e03.adfree.txt",
       "A5_gi_repair_text": "p13_e03.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 90,
+        "count": 92,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p13_e03.adfree.segments.json",
@@ -1742,7 +1742,7 @@
       "A4_search_indexer": "transcripts/p14_e01.adfree.txt",
       "A5_gi_repair_text": "p14_e01.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 94,
+        "count": 95,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p14_e01.adfree.segments.json",
@@ -1773,7 +1773,7 @@
       "A4_search_indexer": "transcripts/p14_e02.adfree.txt",
       "A5_gi_repair_text": "p14_e02.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 71,
+        "count": 80,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p14_e02.adfree.segments.json",
@@ -1804,7 +1804,7 @@
       "A4_search_indexer": "transcripts/p14_e03.adfree.txt",
       "A5_gi_repair_text": "p14_e03.adfree.txt",
       "A6_gi_repair_segments": {
-        "count": 90,
+        "count": 92,
         "shape": "adfree"
       },
       "A8_m0009_sidecar": "transcripts/p14_e03.adfree.segments.json",

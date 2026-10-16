@@ -9,8 +9,8 @@ Lena Hofmann: To be honest, risk management in racing isn't about avoiding crash
 Katrin Vogel: Where does it break down?
 Lena Hofmann: The Cascadia Alliance is one of the platforms where this is clearly visible. And the second-order effect is the part that most people overlook.
 Katrin Vogel: What is the heuristic (or guiding principle) that you always come back to? How does Spoke & Wrench fit into this picture?
-Lena Hofmann: That's how I see it. Erosion patterns on the track sections change the line choices between training and race day.
-Katrin Vogel: I want to delve deeper into that. What is the version of the question that really matters?
+Lena Hofmann: That's how I see it. Erosion patterns on the track sections change the line choices between training and race day. Once you understand that, the other decisions will become easier.
+Katrin Vogel: Welcome back to the show. I want to delve deeper into that. What is the version of the question that really matters?
 Lena Hofmann: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this with teams that use RockShox. And the second-order effect is the part that most people overlook.
 Katrin Vogel: What does the error scenario look like? What is the operational perspective that most listeners do not have access to?
 Lena Hofmann: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The context is important because it tells you what compromises you are making.
@@ -34,4 +34,7 @@ That's perfect.
 That's right.
 That's a good fit.
 Lena Hofmann: And when teams adopt the Spoke & Wrench process, the compromise becomes apparent – I've observed this pattern in three different teams.
-Katrin Vogel: What is the heuristic that you always fall back on?
+Katrin Vogel: What is the heuristic that you always fall back on? What is the version of the question that really matters?
+Lena Hofmann: That's how I see it. Erosion patterns on the track sections change the line choices between training and race day. I have observed this pattern in three different teams.
+Katrin Vogel: Before we wrap up, is there one thing that listeners can try out this week?
+Lena Hofmann: Choose one of the ideas we discussed and implement it for two weeks. The rest is iteration.

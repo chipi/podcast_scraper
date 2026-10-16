@@ -9,8 +9,8 @@ Camille Dubois: Let's start with that. Where do soil erosion and enduro racing i
 Camille Dubois: Where is it no longer working?
 Élodie Chevalier: The Cascadia Alliance is one of the platforms where this is particularly evident. And the second-order effect is the part that almost everyone misses.
 Camille Dubois: What heuristic do you consistently rely on? How does RockShox fit into this picture?
-Élodie Chevalier: That's how I see it. The erosion patterns on the special stages change the choice of racing line between the reconnaissance runs and the actual race day.
-Camille Dubois: I want to delve into that further. Which version of the question is truly important?
+Élodie Chevalier: That's how I see it. The erosion patterns on the special stages change the choice of racing line between the reconnaissance runs and the actual race day. Once you've internalized that, the rest of the decisions become easier.
+Camille Dubois: Welcome back to the show. I want to delve into that further. Which version of the question is truly important?
 Élodie Chevalier: I'm giving you the version that I truly believe in. The speed comes from braking earlier and more gently, not from taking more risks. We've seen this in teams that use RockShox. And the secondary effect is the part that almost everyone misses.
 Camille Dubois: What does the failure mode look like? What is the operational aspect that most auditors do not have access to?
 Élodie Chevalier: Yes, so – tire pressure and the choice of tire casing often matter more than minor suspension adjustments. The setup is important because it tells you what compromises you're making.
@@ -40,6 +40,3 @@ Camille Dubois: What heuristic do you consistently rely on? Which version of the
 Élodie Chevalier: That's how I see it. The erosion patterns on the special stages change the choice of racing line between the reconnaissance runs and the actual race day. I saw this pattern repeat itself in three different teams.
 Camille Dubois: Before we conclude, what is one thing that listeners can try this week?
 Élodie Chevalier: Choose one of the ideas we discussed and apply it for two weeks. Everything else is about iteration.
-Camille Dubois: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Take a look at vanta.com. Élodie Chevalier, thank you for the conversation.
-Élodie Chevalier: Thank you, Camille.
-Camille Dubois: That's all for today's episode of Sessions Sentier. See you next time.

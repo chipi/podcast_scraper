@@ -10,38 +10,38 @@
         "name": "Giulia Ferrara",
         "named": true,
         "role": "host",
-        "talk_share": 0.5714,
+        "talk_share": 0.4162,
         "voice_type": "named"
       },
       {
         "name": "Luca Moretti",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4082,
+        "talk_share": 0.5344,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0204,
+        "talk_share": 0.0494,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0204,
+    "unattributed_talk_share": 0.0494,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0204
+        "talk_s": 18.227000000000004,
+        "talk_share": 0.0494
       },
       "named": {
         "count": 2,
-        "talk_s": 288.0,
-        "talk_share": 0.9796
+        "talk_s": 350.871,
+        "talk_share": 0.9506
       }
     }
   }

@@ -9,14 +9,14 @@
         "name": "Maya",
         "named": true,
         "role": "host",
-        "talk_share": 0.8,
+        "talk_share": 0.7639,
         "voice_type": "named"
       },
       {
         "name": "Liam",
         "named": true,
         "role": "guest",
-        "talk_share": 0.2,
+        "talk_share": 0.2361,
         "voice_type": "named"
       }
     ],
@@ -27,7 +27,7 @@
     "voice_census": {
       "named": {
         "count": 2,
-        "talk_s": 30.0,
+        "talk_s": 15.415,
         "talk_share": 1.0
       }
     }

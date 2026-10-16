@@ -202,8 +202,8 @@
     {
       "id": "quote:ec84a95f8db3f90d",
       "properties": {
-        "char_end": 2966,
-        "char_start": 2726,
+        "char_end": 3063,
+        "char_start": 2823,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-02",
         "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.",
@@ -226,8 +226,8 @@
     {
       "id": "quote:5554a3b4f48ad585",
       "properties": {
-        "char_end": 4786,
-        "char_start": 4516,
+        "char_end": 4883,
+        "char_start": 4613,
         "episode_id": "ep-7ccfb108302b3faa",
         "speaker_id": "person:speaker-02",
         "text": "I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.",

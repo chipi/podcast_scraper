@@ -197,8 +197,8 @@
     {
       "id": "quote:b051e8e53723ece8",
       "properties": {
-        "char_end": 2916,
-        "char_start": 2694,
+        "char_end": 3014,
+        "char_start": 2792,
         "episode_id": "ep-16fcdef77d624069",
         "speaker_id": "person:speaker-02",
         "text": "Yes, so \u2013 risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've seen this pattern repeat itself in three different teams.",
@@ -228,8 +228,8 @@
     {
       "id": "quote:fadda2aa24506fc9",
       "properties": {
-        "char_end": 4896,
-        "char_start": 4755,
+        "char_end": 4994,
+        "char_start": 4853,
         "episode_id": "ep-16fcdef77d624069",
         "speaker_id": "person:speaker-01",
         "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\n(The best option depends on the specific context.)",

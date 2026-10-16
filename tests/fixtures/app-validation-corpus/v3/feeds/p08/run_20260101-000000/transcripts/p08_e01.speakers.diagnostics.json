@@ -10,38 +10,38 @@
         "name": "A. correspondent",
         "named": true,
         "role": "host",
-        "talk_share": 0.5526,
+        "talk_share": 0.3868,
         "voice_type": "named"
       },
       {
         "name": "Renee Montagne-Park",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4211,
+        "talk_share": 0.5682,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0263,
+        "talk_share": 0.045,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0263,
+    "unattributed_talk_share": 0.045,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0263
+        "talk_s": 12.207999999999998,
+        "talk_share": 0.045
       },
       "named": {
         "count": 2,
-        "talk_s": 222.0,
-        "talk_share": 0.9737
+        "talk_s": 259.24199999999996,
+        "talk_share": 0.955
       }
     }
   }

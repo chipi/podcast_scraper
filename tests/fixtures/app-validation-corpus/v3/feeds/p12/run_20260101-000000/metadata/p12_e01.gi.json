@@ -168,8 +168,8 @@
     {
       "id": "quote:622c49977b18a36f",
       "properties": {
-        "char_end": 364,
-        "char_start": 168,
+        "char_end": 303,
+        "char_start": 107,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
         "text": "Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.",
@@ -192,8 +192,8 @@
     {
       "id": "quote:03a9247fad988477",
       "properties": {
-        "char_end": 650,
-        "char_start": 478,
+        "char_end": 589,
+        "char_start": 417,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-02",
         "text": "Yes, listen \u2013 the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.",
@@ -223,8 +223,8 @@
     {
       "id": "quote:a58a83663be4a55b",
       "properties": {
-        "char_end": 3320,
-        "char_start": 3185,
+        "char_end": 3556,
+        "char_start": 3421,
         "episode_id": "ep-8dce4ec000757097",
         "speaker_id": "person:speaker-01",
         "text": "It's settled.\nOr:\nIt's a done deal.\nOr:\nThat's confirmed.\nOr:\nIt's arranged.\nOr:\nIt's agreed.\n(The best option depends on the context.)",

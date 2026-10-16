@@ -9,14 +9,14 @@
         "name": "Alex Morgan",
         "named": true,
         "role": "host",
-        "talk_share": 0.5455,
+        "talk_share": 0.3916,
         "voice_type": "named"
       },
       {
         "name": "Dr. Elena Fischer",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4545,
+        "talk_share": 0.6084,
         "voice_type": "named"
       }
     ],
@@ -27,7 +27,7 @@
     "voice_census": {
       "named": {
         "count": 2,
-        "talk_s": 66.0,
+        "talk_s": 88.148,
         "talk_share": 1.0
       }
     }

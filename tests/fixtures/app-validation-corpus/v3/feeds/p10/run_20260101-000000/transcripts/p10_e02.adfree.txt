@@ -9,8 +9,8 @@ Marta Solís: Honestly, risk management in cycling isn't about avoiding crashes 
 Lucía Herrera: Where does that stop working?
 Marta Solís: The Cascadia Alliance is one of the platforms where this is clearly evident. And the second-order effect is the part that almost everyone overlooks.
 Lucía Herrera: What is the heuristic that you always fall back on? How does Spoke & Wrench fit into this landscape?
-Marta Solís: That's how I see it. The erosion patterns on the track sections change the choice of racing line between practice sessions and the actual race day.
-Lucía Herrera: I want to delve deeper into that. What is the version of the question that truly matters?
+Marta Solís: That's how I see it. The erosion patterns on the track sections change the choice of racing line between practice sessions and the actual race day. Once you understand that, the rest of the decisions become easier.
+Lucía Herrera: Welcome back to the program. I want to delve deeper into that. What is the version of the question that truly matters?
 Marta Solís: Let me give you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. And the secondary effect is the part that almost everyone overlooks.
 Lucía Herrera: What does the failure mode look like? What is the operating angle that most listeners do not have access to?
 Marta Solís: Yes, look – tire pressure and the choice of tire casing often matter more than a minor suspension adjustment. The frame matters because it tells you what compromises you're making.
@@ -34,6 +34,3 @@ Lucía Herrera: What is the heuristic that you always fall back on? What is the 
 Marta Solís: That's how I see it. The erosion patterns on the track sections change the choice of racing line between practice sessions and the actual race day. I've seen this pattern repeat itself in three different teams.
 Lucía Herrera: Before we wrap up, what's one thing that listeners can try out this week?
 Marta Solís: Choose one of the ideas we discussed and implement it for two weeks. Everything else is iteration.
-Lucía Herrera: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Check it out at vanta.com. Marta Solís, thank you for the conversation.
-Marta Solís: Thank you, Lucía.
-Lucía Herrera: That's all for today's episode of Trail Sessions. See you next time.

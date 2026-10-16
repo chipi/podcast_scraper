@@ -10,38 +10,38 @@
         "name": "Katrin Vogel",
         "named": true,
         "role": "host",
-        "talk_share": 0.5714,
+        "talk_share": 0.4136,
         "voice_type": "named"
       },
       {
         "name": "Jonas Richter",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4082,
+        "talk_share": 0.5456,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0204,
+        "talk_share": 0.0408,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0204,
+    "unattributed_talk_share": 0.0408,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0204
+        "talk_s": 17.074000000000012,
+        "talk_share": 0.0408
       },
       "named": {
         "count": 2,
-        "talk_s": 288.0,
-        "talk_share": 0.9796
+        "talk_s": 401.918,
+        "talk_share": 0.9592
       }
     }
   }

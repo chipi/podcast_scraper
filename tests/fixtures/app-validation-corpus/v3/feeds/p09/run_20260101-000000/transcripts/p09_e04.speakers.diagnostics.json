@@ -10,38 +10,38 @@
         "name": "Sam",
         "named": true,
         "role": "host",
-        "talk_share": 0.5312,
+        "talk_share": 0.3901,
         "voice_type": "named"
       },
       {
         "name": "Dr. Elena Fischer",
         "named": true,
         "role": "guest",
-        "talk_share": 0.4375,
+        "talk_share": 0.5471,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0312,
+        "talk_share": 0.0628,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0312,
+    "unattributed_talk_share": 0.0628,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0312
+        "talk_s": 13.601000000000006,
+        "talk_share": 0.0628
       },
       "named": {
         "count": 2,
-        "talk_s": 186.0,
-        "talk_share": 0.9688
+        "talk_s": 203.094,
+        "talk_share": 0.9372
       }
     }
   }

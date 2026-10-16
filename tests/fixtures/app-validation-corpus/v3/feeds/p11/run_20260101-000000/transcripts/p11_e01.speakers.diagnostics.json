@@ -10,38 +10,38 @@
         "name": "Giulia Ferrara",
         "named": true,
         "role": "host",
-        "talk_share": 0.5306,
+        "talk_share": 0.3516,
         "voice_type": "named"
       },
       {
         "name": "Marco Bellini",
         "named": true,
         "role": "guest",
-        "talk_share": 0.449,
+        "talk_share": 0.6016,
         "voice_type": "named"
       },
       {
         "name": null,
         "named": false,
         "role": "guest",
-        "talk_share": 0.0204,
+        "talk_share": 0.0468,
         "voice_type": "commercial"
       }
     ],
     "named": 2,
     "num_speakers": 3,
-    "unattributed_talk_share": 0.0204,
+    "unattributed_talk_share": 0.0468,
     "unresolved": 1,
     "voice_census": {
       "commercial": {
         "count": 1,
-        "talk_s": 6.0,
-        "talk_share": 0.0204
+        "talk_s": 18.275000000000006,
+        "talk_share": 0.0468
       },
       "named": {
         "count": 2,
-        "talk_s": 288.0,
-        "talk_share": 0.9796
+        "talk_s": 372.01599999999996,
+        "talk_share": 0.9532
       }
     }
   }
