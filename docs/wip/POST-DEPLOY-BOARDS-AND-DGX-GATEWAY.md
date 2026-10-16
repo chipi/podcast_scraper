@@ -147,7 +147,16 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
 9. **BBC plays over https (`f4f3efb42`):** `audio-source` for an In Our Time and a Curious Cases
    episode returns an `https://` URL that answers `206 audio/mpeg`; an https feed's URL comes back
    unchanged. Play one BBC episode in the web player: no "Blocked by the browser".
-10. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-9 pass:
+10. **Ingestion arc (from the ingestion session, 2026-10-16): the candidate must be `2b580bb1e` or
+    later.** It carries `fe2316648` (#2363 title names as spelling references), `fc4e0dbda` (#2364
+    Patreon shout-outs are ad voices), `28b10ef3c` (#2366 question-lead host seat), `e7234aaec`
+    (#2370 word timestamps), `e49583eb4` (#2375 / RFC-130: an episode in another language than its
+    show is identified and translated, or refused with the language recorded). Their gates: full
+    `make ci-fast` green on the branch; after the rebase onto `ba86dff25` mypy, spelling, markdown,
+    docs strict and 4,671 affected unit tests green. **Check:** the language guard flags exactly the
+    2 Turkish Ottoman History Podcast episodes, now refused with `detected: tr`; no other episode's
+    outcome changes. How to observe it on prod: ask the ingestion session.
+11. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-10 pass:
     `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
     `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
     appended. Tonight's 00:00 nightly deepens them (`max_episodes: 10`, about 90 audio-h, 24-30 h).
