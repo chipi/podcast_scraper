@@ -30,7 +30,7 @@ from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server import app_stats, app_user_state
 from podcast_scraper.server.app_artwork import artwork_url
-from podcast_scraper.server.app_audio_bridge import resolve_audio
+from podcast_scraper.server.app_audio_bridge import https_audio_url, resolve_audio
 from podcast_scraper.server.app_audio_drift import episode_anchors, play_window
 from podcast_scraper.server.app_capture_export import format_note
 from podcast_scraper.server.app_catalog_cache import cached_catalog
@@ -1040,6 +1040,8 @@ def episode_audio_source(
     if not isinstance(media_url, str) or not media_url.strip():
         raise HTTPException(status_code=404, detail="No origin audio URL for this episode.")
     url = media_url.strip()
+    if not url.startswith("https://"):
+        url = https_audio_url(url) or url
 
     mime_raw = content.get("media_type")
     mime = mime_raw if isinstance(mime_raw, str) and mime_raw.strip() else None

@@ -163,6 +163,33 @@ def test_audio_source_returns_origin_url(tmp_path: Path) -> None:
     }
 
 
+def test_audio_source_serves_https_when_the_enclosure_is_http(tmp_path: Path, monkeypatch) -> None:
+    # An https page cannot play an http stream (BBC, 2026-10-16), so the route hands out https.
+    from podcast_scraper.server import app_audio_bridge
+
+    monkeypatch.setattr(
+        app_audio_bridge, "_probe", lambda url, timeout: (206, "https://cdn.example/ep1.mp3")
+    )
+    app_audio_bridge._https_cache.clear()
+    _write_corpus(tmp_path, media_url="http://cdn.example/ep1.mp3")
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/audio-source").json()
+    assert body["url"] == "https://cdn.example/ep1.mp3"
+
+
+def test_audio_source_keeps_http_when_no_https_exists(tmp_path: Path, monkeypatch) -> None:
+    from podcast_scraper.server import app_audio_bridge
+
+    monkeypatch.setattr(
+        app_audio_bridge, "_probe", lambda url, timeout: (403, "https://cdn.example/ep1.mp3")
+    )
+    app_audio_bridge._https_cache.clear()
+    _write_corpus(tmp_path, media_url="http://cdn.example/ep1.mp3")
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/audio-source").json()
+    assert body["url"] == "http://cdn.example/ep1.mp3"
+
+
 def test_unknown_slug_404(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     client = _client(tmp_path)
