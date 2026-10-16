@@ -14,6 +14,7 @@ import sys
 
 
 def main(argv: list) -> int:
+    """Run the named command with the rest of ``argv``; with none, print the list and return 2."""
     commands = {
         "drift-check": "podcast_scraper.audio_sync.drift",
         "build-maps": "podcast_scraper.audio_sync.maps",

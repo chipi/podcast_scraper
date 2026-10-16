@@ -242,6 +242,7 @@ def align_samples(orig: "np.ndarray", stream: "np.ndarray") -> List[Stretch]:
 
 
 def align_files(original: str, stream: str) -> List[Stretch]:
+    """``align_samples`` for two audio files (or a file and a URL ffmpeg can read)."""
     return align_samples(decode(original), decode(stream))
 
 

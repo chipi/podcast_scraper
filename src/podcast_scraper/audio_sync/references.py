@@ -54,6 +54,7 @@ def exact_originals(corpus: Path) -> Set[str]:
 
 
 def reference_relpath(segments_relpath: str) -> str:
+    """``<stem>.audioref.json`` beside an episode's segments file (raw or ad-free)."""
     base = segments_relpath[: -len(".segments.json")]
     return base.removesuffix(".adfree") + REF_SUFFIX
 
@@ -131,6 +132,7 @@ def _backend(args: argparse.Namespace):
 
 
 def main(argv: Optional[list] = None) -> int:
+    """``build-references``: backfill references from the archive's exact originals."""
     ap = argparse.ArgumentParser(
         prog="podcast_scraper.audio_sync build-references",
         description=__doc__,

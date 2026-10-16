@@ -59,6 +59,7 @@ def map_from_reference(doc: Dict[str, Any], stream: Any) -> Tuple[List[List[floa
 
 
 def main(argv: Optional[list] = None) -> int:
+    """``build-maps``: a server time map per drifted episode, from its reference."""
     from podcast_scraper.audio_sync import fingerprint
     from podcast_scraper.audio_sync.drift import served_url
     from podcast_scraper.audio_sync.references import reference_relpath

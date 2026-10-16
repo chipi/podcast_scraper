@@ -78,6 +78,7 @@ def _reference(root: Path, row: Any) -> tuple[Optional[float], str]:
 
 
 def main(argv: Optional[list] = None) -> int:
+    """``drift-check``: measure each episode's served length; with ``--write``, list the drifted."""
     ap = argparse.ArgumentParser(
         prog="podcast_scraper.audio_sync drift-check",
         description=__doc__,
