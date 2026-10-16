@@ -23,8 +23,7 @@ byte ranges of its own stream against it at the few places where ads can change.
 ## Problem Statement
 
 Our clip and transcript times are right for the audio we transcribed. Hosts using dynamic ad
-insertion (podtrac, megaphone, acast, BBC via Triton, cohst, others) stitch ads into the file per
-request. When the ads differ from those in our copy, everything after a changed break plays early or
+insertion stitch ads into the file per request. When the ads differ from those in our copy, everything after a changed break plays early or
 late.
 
 What a listener sees: a Moment that starts mid-sentence or in the wrong place, a transcript
@@ -33,8 +32,7 @@ highlight that runs ahead of or behind the voice, "Play from" landing on an ad.
 **Measured, 2026-10-15/16:**
 
 - A length probe over prod episodes found 64 of 402 more than 20 s longer or shorter than what we
-  transcribed. Concentrated on BBC (10 of 15 probed), podtrac (9 of 15), acast (8 of 15),
-  cohst (8 of 15), megaphone (4 of 15).
+  transcribed, concentrated on a handful of hosts.
 - Eleven episodes on six of those hosts, downloaded in the same minute from Germany (the prod
   server) and the Netherlands (a laptop), and lined up against the archived original:
 
@@ -42,10 +40,10 @@ highlight that runs ahead of or behind the voice, "Play from" landing on an ad.
   |---|---|
   | Same audio as the original (offset 0.00 s throughout) | 5 |
   | Changed since ingest, same in both countries | 1 |
-  | Changed, and **different between the two countries** | 3 (both BBC, one podtrac) |
+  | Changed, and **different between the two countries** | 3 |
   | No original in the archive to compare with | 2 |
 
-  Example, one podtrac episode: after the mid-roll, the talk is 70.5 s earlier than in our copy in
+  Example, one episode: after the mid-roll, the talk is 70.5 s earlier than in our copy in
   the Netherlands and 76.0 s earlier in Germany.
 - Two requests a few minutes apart from the same place returned byte-identical files (4 of 4).
 - The break points are fixed per episode. Only what fills them changes: every version breaks at
@@ -74,10 +72,10 @@ measurement above shows they often don't.
   the listener's.
 - The browser's cross-origin rules apply on the web. Measured on all 11 test episodes:
   - every server that delivers the audio sends `Access-Control-Allow-Origin: *`;
-  - every one except one acast episode advertises `Accept-Ranges: bytes`;
-  - the first redirect from BBC (`open.live.bbc.co.uk`) and from cohst (`cohst.app`) sends no
-    `Access-Control-Allow-Origin` header, which blocks a read in a browser;
-  - BBC delivers over plain http, which an https page cannot read at all.
+  - all but one advertise `Accept-Ranges: bytes`;
+  - on 2 of the 6 hosts, the first redirect sends no `Access-Control-Allow-Origin` header, which
+    blocks a read in a browser;
+  - a stream served over plain http cannot be read from an https page at all.
 - The iOS and Android apps download through native code, where those browser rules do not apply.
 
 **Assumptions (to verify in phase 1, see Open Questions):**
@@ -137,20 +135,19 @@ measurement above shows they often don't.
 | State | When | Behaviour |
 |---|---|---|
 | **Verified** | the device map is built | everything plays, including reels |
-| **Estimated** | no device measurement (web on BBC or cohst, a range refused); the server map exists and the stream length matches it | the episode plays with the map; it stays out of stitched reels; the re-sync nudge is visible |
+| **Estimated** | no device measurement (on the web, a redirect chain that blocks reads; a range refused); the server map exists and the stream length matches it | the episode plays with the map; it stays out of stitched reels; the re-sync nudge is visible |
 | **Unknown** | neither | as today: transcript time; out of reels; the re-sync nudge is visible |
 | **Not needed** | the stream is the original (same length, checkpoint matches at 0) | as today |
 
 ### 4. Platforms
 
 - **iOS and Android:** range requests go through native HTTP, so the browser rules don't apply, and
-  every host works, BBC included.
+  every host works.
 - **Web:**
   - Works on hosts whose whole redirect chain allows cross-origin reads: 9 of the 11 tested.
-  - cohst's first redirect only forwards to megaphone, which inserts the ads. The server could hand
-    the web app the URL after that first redirect, if that redirect turns out not to depend on the
-    listener (Open Questions).
-  - BBC stays Unknown on the web: the stream is http-only.
+  - Where only a first redirect blocks reads and that redirect does not depend on the listener, the
+    server can hand the web app the URL after it.
+  - A stream served only over http stays Unknown on the web.
 
 ### 5. Existing work this builds on
 
@@ -240,11 +237,12 @@ on a listener's stream (checked from a second country).
    not to?
 3. Can a break appear where the original had none? This decides how dense the checkpoints have to
    be.
-4. cohst's first redirect: does it depend on the listener? If not, the web app can start after it.
+4. Where a first redirect blocks reads on the web: does that redirect depend on the listener? If not,
+   the web app can start after it.
 5. Byte-to-time accuracy on the variable-bitrate files we actually see.
 6. Episodes without an exact original in the archive (re-downloads, never archived): Estimated only,
    or build a reference from the transcript's word times?
-7. One edge differed by 0.44 s between the two countries (e02, start of talk). Not explained.
+7. One edge differed by 0.44 s between the two countries (a start of talk). Not explained.
 
 ## References
 
