@@ -1,6 +1,6 @@
 # RFC-129: Audio Sync for Dynamic Ads — a reference from the archive, a map per listener
 
-- **Status**: Draft
+- **Status**: Implemented (2026-10-16), not yet deployed; not yet tried on an iOS or Android device
 - **Authors**: Marko, Claude (Opus 5.5)
 - **Stakeholders**: Consumer App (player, iOS, Android, web), Server API, Ops (audio archive)
 - **Related RFCs**:
@@ -8,6 +8,7 @@
     clips across episodes; they need clip times that are right for the listener)
 - **Related Documents**:
   - `docs/recipes/prod-audio-archive.md` (the archive this design reads its reference from)
+  - `docs/recipes/audio-timing-drift.md` (the runbook: backfill, daily maps, checks)
 - **Issue**: #2359
 
 ## Abstract
@@ -177,8 +178,10 @@ yet tried (Open Questions 8, 9):
 | State | When | Behaviour |
 |---|---|---|
 | **Verified** | the device map is built | everything plays, including reels |
-| **Estimated** | no device measurement (on the web, a redirect chain that blocks reads; a range refused); the server map exists and the stream length matches it | the episode plays with the map; it stays out of stitched reels; the re-sync nudge is visible |
-| **Unknown** | neither | as today: transcript time; out of reels; the re-sync nudge is visible |
+| **Estimated** | no device measurement (on the web, a redirect chain that blocks reads; a variable-bitrate file; a range refused); the server map exists | the episode and its reel clips play through the server's map |
+| **Unknown** | neither | transcript time, as before RFC-129 |
+
+No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we are fixing it".
 | **Not needed** | the stream is the original (same length, checkpoint matches at 0) | as today |
 
 ### 4. Platforms
@@ -191,21 +194,42 @@ yet tried (Open Questions 8, 9):
     server can hand the web app the URL after it.
   - A stream served only over http stays Unknown on the web.
 
-### 5. Existing work this builds on
+### 5. As built (2026-10-16)
 
-- Commit 2b5e96c2a, not pushed:
-  - server `audio_time_map` and `play_start_ms` / `play_end_ms`;
-  - the player's map conversion;
-  - the Whisper-based server mapper `scripts/ops/audio_retime.py`;
-  - `scripts/eval/clip_alignment_check.py --mapped`.
+**Server**
+- `podcast_scraper.audio_sync`:
+  - `fingerprint`: alignment of a stream with the original (coarse by loudness, edges by 16-band
+    spectra, the talk as the chain in order);
+  - `reference`: checkpoints;
+  - `references`: `build-references` and `write_for_run`;
+  - `maps`: `build-maps`;
+  - `drift`: `drift-check`.
 
-  The server map becomes the **Estimated** fallback. The player's conversion takes the device map
-  unchanged.
-- `podcast_scraper.audio_sync.fingerprint`: alignment of a stream with the original (coarse by
-  loudness, edges by 16-band spectra, the talk as the chain in order). Command line:
-  `scripts/eval/audio_align.py`.
-- `podcast_scraper.audio_sync.reference` and `scripts/ops/audio_reference_build.py`: the
-  reference builder, from the archive, only from exact originals.
+  Run as `python -m podcast_scraper.audio_sync <command>`; runbook in
+  `docs/recipes/audio-timing-drift.md`.
+- **Every episode gets a reference.** At the end of its ingest run, from the audio just transcribed
+  (`workflow/orchestration._build_audio_references`, before eviction). Existing episodes are
+  backfilled from the archive.
+- `GET /api/app/episodes/{slug}/audio-reference` serves it. The episode detail carries
+  `audio_time_map`. Reel clips carry `play_start_ms` / `play_end_ms` from the server map.
+
+**Player**
+- `audioFingerprint.ts`: the server's fingerprint, frame for frame (parity test to 3 decimals).
+- `audioSync.ts`: ranges, decoding at 8 kHz, lazy checkpoints, the search.
+- `audioSyncRegistry.ts`: one sync per episode and stream.
+- PlayerView prefers the measured map, and a seek measures its target first (up to 2 s). Reels
+  re-measure each clip before it plays (2.5 s). A download stores its reference and syncs offline
+  from disk.
+- **Playback plays the final redirected URL.** The version behind a host's first URL changes over
+  time; the final URL serves one fixed version (measured: final URL twice identical, first URL ten
+  minutes apart different). So the player and the sync hear the same ads.
+
+**Live check (2026-10-16, headless Chromium, real host, real decoder, one one-hour episode)**
+- Map: +21.48 / −79.08 / +92.70 s; a full alignment of the same file gave +21.48 / −79.04 /
+  +92.70 s.
+- Cost for the whole hour at 192 kbit/s: 22 requests, 28.3 MB. Per checkpoint whose offset is
+  known: 0.34 MB. Where the offset changed: 6.6–9.7 MB.
+- Cheaper is possible (Open Question 11).
 
 ## Key Decisions
 
@@ -257,14 +281,9 @@ yet tried (Open Questions 8, 9):
 
 ## Rollout & Monitoring
 
-- **Phase 1:**
-  - reference builder over the archive (CPU job on the server, read-only on the archive);
-  - checkpoints served with the episode;
-  - answer the Open Questions on a real device.
-- **Phase 2:** device sync in the iOS and Android apps.
-- **Phase 3:**
-  - web, for hosts that allow it;
-  - per-clip confirmation in reels.
+- All phases shipped together (2026-10-16): references (ingest and backfill), the endpoint, device
+  sync on web, iOS and Android, per-clip confirmation in reels, and offline sync for downloads.
+- After the deploy: the runbook's backfill and daily steps.
 
 **Monitoring:**
 - share of playbacks per state (Verified / Estimated / Unknown / Not needed), per host;
@@ -293,13 +312,19 @@ on a listener's stream (checked from a second country).
 8. Does bounding the search by the stream's length cut the device cost to a few hundred KB, and keep
    the sync after a break grows by minutes?
 9. Can iOS and Android playback hand the bytes it downloads to the sync?
-10. Checkpoints that land inside an ad cost a full search for nothing. Can the builder drop them,
-    for example by checking each against a current stream once?
+10. Checkpoints that land inside an ad cost a full search for nothing. Partly done: none 5 s or less
+    after a marked ad end, none overlapping another ad.
+11. Search cost: keep a longer reference window (about 130 s) at checkpoints where the offset can
+    change. A 12 s chunk of the stream could then be located inside it, about 0.3 MB instead of
+    3 MB per wide range.
+12. On iOS and Android, does `fetch` through CapacitorHttp return the final URL (`Response.url`),
+    and binary bodies for ranges? Not tried on a device.
 
 ## References
 
 - Issue #2359 (clip timing on hosts with dynamic ads)
-- Commit 2b5e96c2a (server map, player conversion, `scripts/ops/audio_retime.py`)
-- `scripts/ops/audio_drift_check.py`, `src/podcast_scraper/server/app_audio_drift.py`
+- `src/podcast_scraper/audio_sync/`, `src/podcast_scraper/server/app_audio_drift.py`
+- `web/learning-player/src/player/audioSync.ts`, `audioFingerprint.ts`, `audioSyncRegistry.ts`
+- `docs/recipes/audio-timing-drift.md`
 - `web/learning-player/src/player/audioTimeMap.ts`
 - `docs/recipes/prod-audio-archive.md`

@@ -25,6 +25,7 @@ nav:
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
       - "Prod validation & observability quick reference": guides/PROD_VALIDATION_QUICKREF.md
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
+      - "Audio timing on hosts that insert ads (RFC-129, #2359)": recipes/audio-timing-drift.md
       - Tailnet & networking runbook (ACL GitOps, cross-project): guides/TAILNET_AND_NETWORKING.md
       - Edge convergence runbook (apply-edge / verify-edge): guides/EDGE_CONVERGENCE_RUNBOOK.md
       - LiteLLM gateway (consume + integrate): guides/LITELLM_GATEWAY.md
