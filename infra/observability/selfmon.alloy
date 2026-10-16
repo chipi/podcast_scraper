@@ -54,12 +54,15 @@ prometheus.scrape "alloy_self" {
 //                                   queue_is_full / ingester_error / rate_limited
 //   prometheus_remote_storage_*     the metrics-side equivalent (failed/retried/pending)
 //   alloy_build_info                which build is actually running after a deploy
+//   alloy_config_last_load_*        did the last reload (deploy-config's HUP) take: the flag
+//                                   and its time. Without them, proving a drop-in loaded
+//                                   needed a shell on the box (orrery deploy, 2026-10-16).
 //   up                              the scrape itself succeeded
 prometheus.relabel "alloy_self_keep" {
   forward_to = [prometheus.remote_write.sink.receiver]
   rule {
     source_labels = ["__name__"]
-    regex         = "loki_write_(dropped_entries_total|dropped_bytes_total|batch_retries_total|sent_entries_total|request_duration_seconds_count)|prometheus_remote_storage_(samples_failed_total|samples_retried_total|samples_dropped_total|samples_pending|highest_timestamp_in_seconds|succeeded_samples_total)|alloy_build_info|up"
+    regex         = "loki_write_(dropped_entries_total|dropped_bytes_total|batch_retries_total|sent_entries_total|request_duration_seconds_count)|prometheus_remote_storage_(samples_failed_total|samples_retried_total|samples_dropped_total|samples_pending|highest_timestamp_in_seconds|succeeded_samples_total)|alloy_build_info|alloy_config_last_load_(successful|success_timestamp_seconds)|up"
     action        = "keep"
   }
 }
