@@ -45,7 +45,7 @@ function fakeStream(stream: Float32Array): StreamAccess & { requests: number } {
     requests: 0,
     async range(start: number, end: number) {
       access.requests++
-      if (start === 0) return { bytes: HEADER, total: stream.length }
+      if (start === 0 && end === 65535) return { bytes: HEADER, total: stream.length }
       const b = new Uint8Array(8)
       new DataView(b.buffer).setUint32(0, start)
       new DataView(b.buffer).setUint32(4, Math.min(end, stream.length - 1))
@@ -102,6 +102,36 @@ describe('audio sync on the listener stream', () => {
     const sync = new AudioSync(reference, access)
     expect(await sync.ensure(240)).toBeNull()
     expect(sync.state).toBe('unavailable')
+  })
+
+  it('works when the page cannot see the file size (cross-origin, no exposed Content-Range)', async () => {
+    const access = fakeStream(stream)
+    const blind: StreamAccess = {
+      range: async (a, b) => ({ ...(await access.range(a, b)), total: null }),
+      decode: access.decode,
+      size: async () => null,
+    }
+    const map = await new AudioSync(reference, blind).ensure(240)
+    expect(map![1][1]).toBeCloseTo(35, 1)
+  })
+
+  it('finds the audio behind an ID3 tag larger than the first range (cover art)', async () => {
+    const tag = 320_064
+    const header = [0x49, 0x44, 0x33, 3, 0, 0, (tag >> 21) & 0x7f, (tag >> 14) & 0x7f, (tag >> 7) & 0x7f, tag & 0x7f]
+    const access = fakeStream(stream)
+    const asked: number[] = []
+    const shifted: StreamAccess = {
+      async range(a, b) {
+        asked.push(a)
+        if (a === 0) return { bytes: Uint8Array.from([...header, ...new Array(65526).fill(0)]), total: null }
+        if (a === tag + 10 && b === tag + 10 + 8191) return { bytes: HEADER, total: null }
+        return access.range(a - (tag + 10), b - (tag + 10))
+      },
+      decode: access.decode,
+    }
+    const map = await new AudioSync(reference, shifted).ensure(240)
+    expect(asked[1]).toBe(tag + 10)
+    expect(map![1][1]).toBeCloseTo(35, 1)
   })
 
   it('reads the layout of a constant-bitrate file behind an ID3 tag', () => {

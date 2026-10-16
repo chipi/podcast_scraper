@@ -31,6 +31,10 @@ WINDOW_S = 10.0
 INTERVAL_S = 300.0
 MIN_GAP_S = 30.0
 AD_JOIN_S = 3.0
+# Where our transcript says an ad ends and where talk resumes can be seconds apart (49.4 s against
+# 53.0 s on a real episode, 2026-10-16). A window straddling that edge never matches, and each miss
+# costs the app a full search, so the window starts this far in.
+AFTER_AD_LEAD_S = 5.0
 SCALE = 20.0  # int8 steps per log10 unit: spectra span about ±6
 
 
@@ -60,8 +64,9 @@ def checkpoint_times(
     for a, b in regions:
         if a <= start + 1.0:
             start = max(start, b)
-    marks: List[Tuple[float, str]] = [(start, "talk_start")]
-    marks += [(b, "after_ad") for a, b in regions if b > start + 1.0]
+    lead = AFTER_AD_LEAD_S if start > 0 else 0.0
+    marks: List[Tuple[float, str]] = [(start + lead, "talk_start")]
+    marks += [(b + AFTER_AD_LEAD_S, "after_ad") for a, b in regions if b > start + 1.0]
     talk_ranges = []
     edge = start
     for a, b in regions:
@@ -79,6 +84,10 @@ def checkpoint_times(
     out: List[Tuple[float, str]] = []
     for t, kind in sorted(marks):
         if t > last:
+            continue
+        # A window that runs into another ad never matches (back-to-back ads, measured 2026-10-16),
+        # and each miss costs the app a full search.
+        if any(a < t + WINDOW_S and t < b for a, b in regions):
             continue
         if out and t - out[-1][0] < MIN_GAP_S and kind == "interval":
             continue

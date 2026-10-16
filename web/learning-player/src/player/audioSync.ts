@@ -36,45 +36,58 @@ export interface Mp3Layout {
   audioStart: number
   /** Constant bitrate, bits per second. */
   bitrate: number
-  totalBytes: number
+  /** The file's size, when the host lets this page see it (`null` otherwise). */
+  totalBytes: number | null
 }
 
 const MIN_MATCH = 0.8
-const CHUNK_BEFORE_S = 5
-const CHUNK_AFTER_S = 15
-const SEARCH_STEP_S = 30
-const SEARCH_STEPS = 6 // ±180 s around each guess
+// Offset already known (the previous checkpoint's): a chunk with 2 s of slack either side.
+const NARROW_SLACK_S = 2
+// Offset unknown or changed: one wide range per guess, ±60 s around it, out to ±180 s. Many small
+// ranges cost 12-19 requests per search on a real episode (2026-10-16); one wide range costs one.
+const WIDE_HALF_S = 60
+const WIDE_STEPS = [0, 120, -120]
 const LOOKAHEAD_S = 60
 
 const BITRATES_V1_L3 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0]
 const BITRATES_V2_L3 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0]
 
-/**
- * Where the audio starts and its bitrate, from the first bytes of the file. `null` for anything
- * but constant-bitrate MPEG layer III: bytes then do not map to seconds, and the sync stands
- * down (the server's map, if any, still applies).
- */
-export function parseMp3Layout(head: Uint8Array, totalBytes: number): Mp3Layout | null {
-  let pos = 0
-  if (head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) {
-    const size = ((head[6] & 0x7f) << 21) | ((head[7] & 0x7f) << 14) | ((head[8] & 0x7f) << 7) | (head[9] & 0x7f)
-    pos = 10 + size + (head[5] & 0x10 ? 10 : 0)
-  }
-  while (pos + 4 <= head.length && !(head[pos] === 0xff && (head[pos + 1] & 0xe0) === 0xe0)) pos++
-  if (pos + 4 > head.length) return null
-  const version = (head[pos + 1] >> 3) & 3 // 3 = MPEG1, 2 = MPEG2, 0 = MPEG2.5
-  const layer = (head[pos + 1] >> 1) & 3 // 1 = layer III
-  if (layer !== 1 || version === 1) return null
-  const kbps = (version === 3 ? BITRATES_V1_L3 : BITRATES_V2_L3)[head[pos + 2] >> 4]
-  if (!kbps) return null
-  // A Xing tag in the first frame marks variable bitrate ("Info" is the constant-bitrate twin).
-  const tag = String.fromCharCode(...head.subarray(pos + 4, Math.min(head.length, pos + 64)))
-  if (tag.includes('Xing') || tag.includes('VBRI')) return null
-  return { audioStart: pos, bitrate: kbps * 1000, totalBytes }
+/** Where the MPEG audio starts: after the ID3v2 tag, which can hold cover art of hundreds of KB. */
+export function id3End(head: Uint8Array): number {
+  if (head.length < 10 || head[0] !== 0x49 || head[1] !== 0x44 || head[2] !== 0x33) return 0
+  const size = ((head[6] & 0x7f) << 21) | ((head[7] & 0x7f) << 14) | ((head[8] & 0x7f) << 7) | (head[9] & 0x7f)
+  return 10 + size + (head[5] & 0x10 ? 10 : 0)
 }
 
-export function streamSeconds(layout: Mp3Layout): number {
-  return ((layout.totalBytes - layout.audioStart) * 8) / layout.bitrate
+/**
+ * The bitrate from the first frame in `bytes`, which start at file offset `offset`. `null` for
+ * anything but constant-bitrate MPEG layer III: bytes then do not map to seconds, and the sync
+ * stands down (the server's map, if any, still applies).
+ */
+export function parseFrame(bytes: Uint8Array, offset: number, totalBytes: number | null): Mp3Layout | null {
+  let pos = 0
+  while (pos + 4 <= bytes.length && !(bytes[pos] === 0xff && (bytes[pos + 1] & 0xe0) === 0xe0)) pos++
+  if (pos + 4 > bytes.length) return null
+  const version = (bytes[pos + 1] >> 3) & 3 // 3 = MPEG1, 2 = MPEG2, 0 = MPEG2.5
+  const layer = (bytes[pos + 1] >> 1) & 3 // 1 = layer III
+  if (layer !== 1 || version === 1) return null
+  const kbps = (version === 3 ? BITRATES_V1_L3 : BITRATES_V2_L3)[bytes[pos + 2] >> 4]
+  if (!kbps) return null
+  // A Xing tag in the first frame marks variable bitrate ("Info" is the constant-bitrate twin).
+  const tag = String.fromCharCode(...bytes.subarray(pos + 4, Math.min(bytes.length, pos + 64)))
+  if (tag.includes('Xing') || tag.includes('VBRI')) return null
+  return { audioStart: offset + pos, bitrate: kbps * 1000, totalBytes }
+}
+
+/** `parseFrame` on a file's first bytes, when its audio starts within them. */
+export function parseMp3Layout(head: Uint8Array, totalBytes: number | null): Mp3Layout | null {
+  const start = id3End(head)
+  return start + 4 <= head.length ? parseFrame(head.subarray(start), start, totalBytes) : null
+}
+
+/** The stream's length in seconds, when its size is known. */
+export function streamSeconds(layout: Mp3Layout): number | null {
+  return layout.totalBytes == null ? null : ((layout.totalBytes - layout.audioStart) * 8) / layout.bitrate
 }
 
 function byteAt(layout: Mp3Layout, seconds: number): number {
@@ -84,19 +97,32 @@ function byteAt(layout: Mp3Layout, seconds: number): number {
 export interface StreamAccess {
   /** Bytes [start, end] inclusive, and the file's total size when the response says. */
   range(start: number, end: number): Promise<{ bytes: Uint8Array; total: number | null }>
+  /** The file's size from a HEAD request, when the range response did not say. */
+  size?(): Promise<number | null>
   /** Mono samples at 8 kHz from a run of MP3 frames. */
   decode(bytes: Uint8Array): Promise<Float32Array>
 }
 
 /** `fetch` with a Range header, and the platform's decoder resampled to 8 kHz. */
 export function browserStreamAccess(url: string): StreamAccess {
+  // The first response's final URL serves one fixed version of the episode; asking the first URL
+  // again can get another version, with other ads, once the host's window moves on.
+  let at = url
   return {
     async range(start, end) {
-      const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` } })
+      const res = await fetch(at, { headers: { Range: `bytes=${start}-${end}` } })
+      if (/^https?:\/\//.test(res.url)) at = res.url
       if (res.status !== 206 && res.status !== 200) throw new Error(`range ${res.status}`)
       const bytes = new Uint8Array(await res.arrayBuffer())
       const total = Number((res.headers.get('content-range') ?? '').split('/')[1])
+      // A cross-origin page sees Content-Range only when the host exposes it; most do not.
       return { bytes: res.status === 206 ? bytes : bytes.subarray(start, end + 1), total: Number.isFinite(total) && total > 0 ? total : res.status === 200 ? bytes.length : null }
+    },
+    async size() {
+      // Content-Length is readable cross-origin, so a HEAD tells the size when a range did not.
+      const res = await fetch(at, { method: 'HEAD' })
+      const n = Number(res.headers.get('content-length'))
+      return res.ok && Number.isFinite(n) && n > 0 ? n : null
     },
     async decode(bytes) {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
@@ -165,14 +191,18 @@ export class AudioSync {
     try {
       if (!this.layout) {
         const head = await this.access.range(0, 65535)
-        this.layout = head.total ? parseMp3Layout(head.bytes, head.total) : null
+        const total = head.total ?? (await this.access.size?.().catch(() => null)) ?? null
+        const start = id3End(head.bytes)
+        const first = start + 4 <= head.bytes.length ? head.bytes.subarray(start) : (await this.access.range(start, start + 8191)).bytes
+        this.layout = parseFrame(first, start, total)
         if (!this.layout) {
           this.state = 'unavailable'
           return null
         }
       }
       this.state = 'syncing'
-      const endOffset = streamSeconds(this.layout) - this.reference.duration_s
+      const length = streamSeconds(this.layout)
+      const endOffset = length == null ? null : length - this.reference.duration_s
       for (const [i, cp] of this.reference.checkpoints.entries()) {
         if (cp.t > upTo + LOOKAHEAD_S) break
         if (this.found.has(i)) continue
@@ -193,40 +223,43 @@ export class AudioSync {
     return null
   }
 
-  private async locateCheckpoint(i: number, endOffset: number): Promise<number | null> {
-    const layout = this.layout as Mp3Layout
+  private async locateCheckpoint(i: number, endOffset: number | null): Promise<number | null> {
     const cp = this.reference.checkpoints[i]
-    const guesses: number[] = []
+    const last = this.lastOffset(i)
+    if (last != null) {
+      const hit = await this.tryAt(i, last, NARROW_SLACK_S)
+      if (hit != null) return hit
+    }
+    const centres: number[] = []
     const add = (g: number | null | undefined) => {
       if (g == null || !Number.isFinite(g)) return
-      if (!guesses.some((x) => Math.abs(x - g) < SEARCH_STEP_S / 2)) guesses.push(g)
+      if (!centres.some((x) => Math.abs(x - g) < WIDE_HALF_S)) centres.push(g)
     }
-    const last = this.lastOffset(i)
-    add(last)
+    for (const step of WIDE_STEPS) add((last ?? endOffset ?? 0) + step)
     add(endOffset)
     add(fallbackOffset(this.fallback, cp.t))
     add(0)
-    const base = last ?? endOffset
-    for (let k = 1; k <= SEARCH_STEPS; k++) {
-      add(base + k * SEARCH_STEP_S)
-      add(base - k * SEARCH_STEP_S)
-    }
-    for (const g of guesses) {
-      const from = cp.t + g - CHUNK_BEFORE_S
-      const to = cp.t + g + this.reference.window_s + CHUNK_AFTER_S
-      if (to <= 0) continue
-      const start = byteAt(layout, from)
-      const end = Math.min(layout.totalBytes - 1, byteAt(layout, to))
-      if (end <= start) continue
-      const { bytes } = await this.access.range(start, end)
-      const samples = await this.access.decode(bytes)
-      const hit = locate(this.windows[i], spectra(samples))
-      if (hit.match >= MIN_MATCH) {
-        const chunkStart = ((start - layout.audioStart) * 8) / layout.bitrate
-        return chunkStart + hit.frame / FPS - cp.t
-      }
+    for (const g of centres) {
+      const hit = await this.tryAt(i, g, WIDE_HALF_S)
+      if (hit != null) return hit
     }
     return null
+  }
+
+  /** Look for checkpoint `i` at offsets `guess ± slack`: one range request. */
+  private async tryAt(i: number, guess: number, slack: number): Promise<number | null> {
+    const layout = this.layout as Mp3Layout
+    const cp = this.reference.checkpoints[i]
+    const from = cp.t + guess - slack
+    const to = cp.t + guess + this.reference.window_s + slack
+    if (to <= 0) return null
+    const start = byteAt(layout, from)
+    const end = layout.totalBytes == null ? byteAt(layout, to) : Math.min(layout.totalBytes - 1, byteAt(layout, to))
+    if (end <= start) return null
+    const { bytes } = await this.access.range(start, end)
+    const hit = locate(this.windows[i], spectra(await this.access.decode(bytes)))
+    if (hit.match < MIN_MATCH) return null
+    return ((start - layout.audioStart) * 8) / layout.bitrate + hit.frame / FPS - cp.t
   }
 }
 

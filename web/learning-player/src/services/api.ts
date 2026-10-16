@@ -355,7 +355,32 @@ export async function getAudioSource(slug: string, validate = false): Promise<Au
   // The bridge can hand back a RELATIVE media url (it does for the fixture corpus). On native that
   // resolves against capacitor://localhost and playback fails silently, so absolutise it here —
   // one place, rather than at each of the three consumers.
-  return { ...src, url: resolveMediaUrl(src.url) ?? src.url }
+  const url = resolveMediaUrl(src.url) ?? src.url
+  // Playback only: follow the host's redirects once and play the final URL (RFC-129). Hosts that
+  // insert ads change the version behind the first URL over time; the final URL serves one fixed
+  // version, so the player and the sync on the listener's stream hear the same ads.
+  return { ...src, url: validate ? url : await finalStreamUrl(url) }
+}
+
+const finalUrls = new Map<string, string>()
+
+/** Where `url` redirects to (a 1-byte range request), or `url` when that is not known in 1.5 s. */
+export async function finalStreamUrl(url: string): Promise<string> {
+  if (!/^https?:\/\//.test(url)) return url
+  const known = finalUrls.get(url)
+  if (known) return known
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 1500)
+  try {
+    const res = await fetch(url, { headers: { Range: 'bytes=0-0' }, signal: ctrl.signal })
+    const final = res.ok && /^https?:\/\//.test(res.url) ? res.url : url
+    finalUrls.set(url, final)
+    return final
+  } catch {
+    return url
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /** Grounded GIL insights for an episode (empty when no GI artifact). */

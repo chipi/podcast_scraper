@@ -17,8 +17,9 @@ def test_one_read_in_pieces_is_one_region() -> None:
 
 def test_talk_starts_after_the_opening_ads_and_resumes_after_each_break() -> None:
     marks = checkpoint_times(1200.0, [(0.0, 60.0), (500.0, 560.0)])
-    assert marks[0] == (60.0, "talk_start")
-    assert (560.0, "after_ad") in marks
+    # 5 s past where the transcript says the ad ends: talk can resume a few seconds later.
+    assert marks[0] == (65.0, "talk_start")
+    assert (565.0, "after_ad") in marks
     assert all(not (500.0 <= t < 560.0) for t, _ in marks)  # nothing inside the break
 
 
@@ -43,5 +44,5 @@ def test_no_window_runs_past_the_end() -> None:
 def test_an_interval_close_to_a_break_is_dropped() -> None:
     marks = checkpoint_times(1000.0, [(310.0, 320.0)])
     times = [t for t, _ in marks]
-    assert (320.0, "after_ad") in marks
+    assert (325.0, "after_ad") in marks
     assert all(not (290.0 < t < 320.0) for t in times)
