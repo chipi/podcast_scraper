@@ -158,7 +158,7 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     `669bcbf29`: full `make ci-fast` green; after the rebase onto `9b11d49b9`: format, lint,
     docstrings, mypy and 2,776 affected tests green. On today's snapshot no episode is unusable, so
     the deploy alone changes nothing.
-    **Follow-up, on the operator's go: full reprocess (a relabel does not run the guard) of the 2
+    **Follow-up, approved by the operator 2026-10-16 (withdraw both): full reprocess (a relabel does not run the guard) of the 2
     Turkish Ottoman History Podcast episodes,** about 37 + 48 audio-min:
     `tag:blogger.com,1999:blog-1793063735579568706.post-7556576044575364143` (Soykırımın
     Bürokrasisi) and `tag:blogger.com,1999:blog-1793063735579568706.post-1515154927178009499`
@@ -247,9 +247,10 @@ run must also end before the 00:00 UTC nightly.
 
    - All 96 were found served on prod 2026-10-16, all `transcript_source=direct_download`, and every
      audio URL answered (`206`).
-   - **Left out, operator's call:** 2 episodes whose feeds are not in `feeds.spec.yaml`, and the
-     reprocess runs with `--feeds-spec`. They are AI and Design (riverside `8P3kTQz9`, 58 min) and
-     The Every Podcast (flightcast, 33 min).
+   - **AI and Design (58 min) and The Every Podcast (33 min) are back in** (operator, 2026-10-16):
+     their feeds are among the 13 added in item 11, and the reprocess only runs feeds in the spec,
+     so the spec add must come before the chain starts. The chain's pool is now 91 episodes,
+     50.2 audio-h (`s5_pool.json`).
 4. **One relabel, `relabel_combined_ids.txt`: 131 episodes, `pipeline_stage=relabel_only`** (not a
    re-transcribe), on a sha that includes `2b580bb1e`. The operator's go is needed for the run.
    - The 91 from 8.4 (`relabel_84_ids.txt`: replay of `c6cdc5d` vs `aaadbb2` modules, 2026-10-15;
