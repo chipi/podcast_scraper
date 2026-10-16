@@ -97,6 +97,16 @@ smoke 52/52 (`smoke-player` run 38765316477). The way there:
 Not measured: how long the API's cache warmer keeps it busy after a start. It logs no step
 timings, only its start and failures at DEBUG.
 
+## Deployed 2026-10-16 19:28-19:44 UTC: `sha-ded80e0` (run 38955105369)
+
+- The operator smoke failed once: `/api/index/stats` did not answer during the first cache warm
+  (308.6 s, `reel_clips` 243.3 s). It passed on rerun after the warm. Cause and fix:
+  `3d7931cc9` (mobile session): reel clips are scored in a child process, not in the api.
+- **Checks for the NEXT deploy (must carry `3d7931cc9`):** the `cache warm done` line still lists
+  `reel_clips`; no "reel clips: isolated scoring failed" warning in operator-api / compose-api;
+  `/api/index/stats` answers in seconds while the warm runs; the operator smoke passes on its
+  first attempt.
+
 ## Next deploy (candidate: main head when the operator names it) — the whole list
 
 Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's go.
