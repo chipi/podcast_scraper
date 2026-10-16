@@ -73,7 +73,8 @@ measurement above shows they often don't.
 2. **Never wrong without saying so.** When the app cannot measure, it says so and plays with less,
    rather than silently using a map that may be wrong.
 3. **No DGX, no LLM, no re-transcription.** The reference comes from audio we already archived.
-4. **Small on the device:** a few hundred KB of extra download per episode, no full second copy.
+4. **Small on the device:** as little extra download as possible, never a full second copy. Not met
+   yet: the first simulation cost 15.6–54.2 MB per playback (see "Measured cost on the device").
 
 ## Constraints & Assumptions
 
@@ -118,9 +119,8 @@ measurement above shows they often don't.
     Comparison alone misses a break whose ad happens to be the same in both;
   - one checkpoint every few minutes inside long stretches, to catch a break we did not know about.
 
-  At 16 bands × 50 frames per second × 1 byte, a 10 s window is 8 KB. A one-hour episode with 3
-  breaks and checkpoints every 5 minutes is about 15 windows, roughly 120 KB, served with the episode
-  on request.
+  At 16 bands × 50 frames per second × 1 byte, a 10 s window is 8 KB. Built for two real one-hour
+  episodes: 14 checkpoints each, 147 KB as JSON, served with the episode on request.
 - **Stored** next to the episode's other artifacts. It is a deterministic text/binary artifact, built
   from the archive by a CPU job: no DGX, no model.
 
@@ -131,8 +131,9 @@ measurement above shows they often don't.
    frames), builds the same fingerprint, and slides it along the checkpoint to find the offset to
    one frame.
 2. **Breaks.** Ahead of the playhead, before each break checkpoint, the same check runs for the next
-   stretch. A seek beyond an unchecked break checks that break first. Each check is a range of about
-   250 KB at 128 kbit/s (15 s).
+   stretch. A seek beyond an unchecked break checks that break first. A check whose offset is
+   already known is a 15 s range (about 240 KB at 128 kbit/s). A check across a changed break has
+   to search, and costs much more (below).
 3. **Result, for this playback only.** What fills a break changes within hours, so a map is not kept
    across playbacks. Exception: a downloaded episode keeps its own map, measured on its file. It
    is the same structure the player already uses (`audio_time_map`, pairs of transcript
@@ -144,6 +145,32 @@ measurement above shows they often don't.
 5. **Byte to time:** a range request asks for bytes, not seconds. For constant-bitrate MP3, bytes =
    seconds × bitrate / 8 after the ID3 header. For variable bitrate, the Xing/VBRI table of contents.
    A first fetch lands near the target, and the fingerprint gives the exact time.
+
+### Measured cost on the device (simulation, 2026-10-16)
+
+Two real episodes: the reference built from the archived original, and today's stream as the
+"device". Each checkpoint was first searched in a 15 s chunk at the last offset found, then in
+40 s chunks stepping out to ±105 s.
+
+| | Episode A | Episode B |
+|---|---|---|
+| Checkpoints | 14 | 14 |
+| Found, and right (vs a full alignment) | 12 | 8 |
+| Found, and wrong | 0 | 0 |
+| Not found: the checkpoint sits inside an ad | 2 | 2 |
+| Not found: a break grew 138 s, beyond the search | 0 | 4 |
+| Range requests | 33 | 65 |
+| Audio downloaded | 15.6 MB (128 kbit/s) | 54.2 MB (193 kbit/s) |
+
+Correct where it answers, but far too costly, and lost after a large jump. Two ways to cut it, not
+yet tried (Open Questions 8, 9):
+
+- **Bound the search by the stream's length.** The app knows the stream's length (from the
+  response) and the original's (from the reference). So the offset at the end is known before any
+  search, and each break's jump is bounded by what is left.
+- **Reuse what the player already downloads.** The player fetches the stream to play it; on iOS and
+  Android, native playback may be able to hand those bytes to the sync instead of fetching them a
+  second time.
 
 ### 3. What the app does when it cannot measure
 
@@ -174,8 +201,11 @@ measurement above shows they often don't.
 
   The server map becomes the **Estimated** fallback. The player's conversion takes the device map
   unchanged.
-- The alignment tools from the measurement (coarse alignment by loudness, edges by 16-band spectra)
-  move from scratch into `scripts/eval/`, as the reference builder's first version.
+- `podcast_scraper.audio_sync.fingerprint`: alignment of a stream with the original (coarse by
+  loudness, edges by 16-band spectra, the talk as the chain in order). Command line:
+  `scripts/eval/audio_align.py`.
+- `podcast_scraper.audio_sync.reference` and `scripts/ops/audio_reference_build.py`: the
+  reference builder, from the archive, only from exact originals.
 
 ## Key Decisions
 
@@ -260,6 +290,11 @@ on a listener's stream (checked from a second country).
 6. Episodes without an exact original in the archive (re-downloads, never archived): Estimated only,
    or build a reference from the transcript's word times?
 7. One edge differed by 0.44 s between the two countries (a start of talk). Not explained.
+8. Does bounding the search by the stream's length cut the device cost to a few hundred KB, and keep
+   the sync after a break grows by minutes?
+9. Can iOS and Android playback hand the bytes it downloads to the sync?
+10. Checkpoints that land inside an ad cost a full search for nothing. Can the builder drop them,
+    for example by checking each against a current stream once?
 
 ## References
 
