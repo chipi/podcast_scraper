@@ -174,8 +174,16 @@ jobs:
           CP: ${{ needs.control-plane.result }}
           PL: ${{ needs.player.result }}
           OP: ${{ needs.operator.result }}
+          GUARD: ${{ needs.guard.result }}
         run: |
           set -euo pipefail
+          # A failed guard skips every surface, and "skipped" passes the check below, so this step
+          # reported green with "deployed sha- " (2026-10-16 run 38861127936, image_sha=0000000).
+          if [ "$GUARD" != "success" ]; then
+            echo "## Deploy ALL — guard ${GUARD}, nothing deployed" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::guard ${GUARD} — no surface was deployed; prod is unchanged. Read the guard job's error."
+            exit 1
+          fi
           {
             echo "## Deploy ALL — target \`sha-${SHA}\`"
             echo
