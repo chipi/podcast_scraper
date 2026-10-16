@@ -153,6 +153,9 @@ player:
     - scripts/eval/score/rank_scenarios_v1.py
     - scripts/ops/rekey_user_references.py
     - scripts/tools/bench_discover.py
+    # The player's sidecars (digests; board and storyline summaries), mounted into compose.
+    - infra/deploy/digest_scheduler.py
+    - infra/deploy/board_summarizer.py
     - docs/prd/PRD-035-learning-platform.md
     - docs/prd/PRD-036-foundation-identity.md
     - docs/prd/PRD-037-discovery.md
