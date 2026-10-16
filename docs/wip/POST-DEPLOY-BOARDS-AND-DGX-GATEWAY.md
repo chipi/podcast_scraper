@@ -168,35 +168,26 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     appended. Tonight's 00:00 nightly deepens them (`max_episodes: 10`, about 90 audio-h, 24-30 h).
     Not verified: the newest 10 of Explain It to Me / The Curiosity Shop are all from the current
     show.
-12. **Audio sync, #2359 / RFC-129 (from the mobile session, 2026-10-16): the candidate must be
-    `c838c6a9c` or later** (it includes `48ecf1609` and `2b580bb1e`). Each step on the operator's go; no DGX, no
-    LLM; runbook `docs/recipes/audio-timing-drift.md`. On the prod host, in the NEW pipeline image:
+12. **Audio sync, #2359 / RFC-129 (from the mobile session, 2026-10-16, simplified plan): the
+    candidate must be `4d3378b55` or later** (it includes `c838c6a9c`, `48ecf1609`, `2b580bb1e`).
+    The only step is a one-off reference backfill, on the operator's go; no DGX, no LLM; no daily
+    job (drift-check and build-maps are manual diagnosis only). New episodes get their reference at
+    the end of ingest. Runbook `docs/recipes/audio-timing-drift.md`. On the prod host, NEW image:
 
     ```bash
     cd /srv/podcast-scraper
     C="docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml"
-    # 1. dry run, 20 episodes: expect mostly would_write, some skip_no_exact_original
+    # 1. dry run, 20 episodes
     $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync build-references --corpus /app/output --rclone-remote audioarchive --limit 20
-    # 2. backfill every reference, detached (~2,600 originals, 156 GiB from the archive, hours; resumable)
+    # 2. backfill, detached, resumable (~2,600 originals; one temp folder per episode, deleted after)
     $C run -d --no-deps --name audio-refs pipeline-llm python -m podcast_scraper.audio_sync build-references --corpus /app/output --rclone-remote audioarchive --write
-    # 3. drift check, then server maps (one file each at the corpus root)
-    $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync drift-check --corpus /app/output --write
-    $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync build-maps --corpus /app/output --rclone-remote audioarchive --write
+    docker logs -f audio-refs
     ```
 
-    - **Check:** a drifted episode (in `corpus/audio_timing_drift.json`) answers
-      `/api/app/episodes/<slug>/audio-reference` 200 with checkpoints, and `/api/app/episodes/<slug>`
-      carries `audio_time_map`; `find /srv/podcast-scraper/corpus -name '*.audioref.json' | wc -l`
-      grows during step 2.
-    - **Daily:** step 3; scheduling it is the operator's call.
-    - **Undo:** delete `audio_time_maps.json` and/or the `*.audioref.json` files.
-    - **BBC:** since `c838c6a9c` drift-check and build-maps measure `https_audio_url(url) or url`,
-      the URL the player gets (`f4f3efb42` serves BBC's https file, −57 to −150 s from our
-      originals). `056c6659b`: on an audio error the player resolves the URL again once and resumes
-      at the same position (host-signed redirects expire, 75 min seen).
-    - Their tools default `--base-path ""`, which matches prod's archive (keys at the remote root).
-      Disk: each original is fetched into its own temporary directory, deleted when that episode is
-      done (`references.py`), so peak extra disk is one original; prod has 93 GB free.
+    - **Check:** `/api/app/episodes/<slug>/audio-reference` answers 200 with checkpoints, and the
+      count of `*.audioref.json` under `/srv/podcast-scraper/corpus` grows.
+    - BBC: drift and maps measure `https_audio_url(url) or url` since `c838c6a9c`, the URL the player
+      gets. `--base-path ""` matches prod's archive. Prod disk: 93 GB free.
 
 **Then the long runs, one at a time (concurrency group prod-corpus), by `postdeploy_chain.sh`:**
 the #2370 batch, then #2332 batches sized at dispatch to end by 23:30 UTC; the #2332 episodes
