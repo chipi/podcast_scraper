@@ -195,6 +195,45 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     **Check:** after one MCP tool call (10a), the homelab session checks 2 zero-registered series
     per tool, `participant=` log lines, `mcp.participant` spans, Umami `mcp_tool:<tool>` events under
     a participant, and GlitchTip 29.
+10c. **The observability MCP observes itself, and MCP calls are authorised per request (homelab
+    session, 2026-10-16): candidate must include `0f821b3c8` and `7709337b4`.**
+    - `0f821b3c8`: player-obs gets its own errors, traces, logs, metrics and Umami events
+      (`docs/guides/OBSERVABILITY_CONTROL_PLANE.md`, "Its own signals").
+    - New deploy secret `PROD_SENTRY_DSN_PLAYER_OBS` → GlitchTip project `player-obs` (id 33).
+    - The obs image gains sentry-sdk, the OTel SDK + OTLP exporter + ASGI instrumentation, and
+      prometheus-client.
+    - `player.alloy` gains the `player_obs` scrape: **run `deploy-config`**. It validates with
+      `alloy validate` v1.17.0 (checked locally against a stub base, with a negative control).
+    - `7709337b4`: a tool call is scope-checked, logged and traced as the request that carries it,
+      not the request that opened the session. Before it, a read-only token could call a write tool
+      inside a session opened with a read-write token.
+
+    Already verified before the deploy:
+    - the obs image builds on Python 3.12.14 and passes the stub end-to-end run;
+    - a real event through the new DSN reached `player-obs` (deleted after);
+    - the obs browser UA passes Umami's bot filter (probe deleted after).
+
+    **Probes after the deploy** (prod agent, inside the containers; nothing user-visible):
+
+    ```bash
+    # 1. VPS -> GlitchTip through the new DSN (the homelab session deletes the issue afterwards)
+    docker exec player-obs-1 python -c "import sentry_sdk; from podcast_obs import telemetry as t; print('dsn', t.init_sentry()); sentry_sdk.capture_message('player-obs post-deploy probe (delete me)', level='error'); sentry_sdk.flush(10)"
+    # 2. VPS -> Umami: one obs_tool event (the homelab session deletes it afterwards)
+    docker exec player-obs-1 python -c "import time; from podcast_obs import telemetry as t; t._emit_umami('post_deploy_probe', True, None); time.sleep(6); print('sent')"
+    # 3. The edge: unauthenticated MCP is refused, /metrics is not public
+    curl -s -o /dev/null -w "mcp %{http_code}\n" -X POST https://obs.closelistening.app/mcp      # 401
+    curl -s -o /dev/null -w "metrics %{http_code}\n" https://obs.closelistening.app/metrics      # 404
+    ```
+
+    Then the operator makes **one obs call and two content-MCP calls in one conversation** from
+    claude.ai (e.g. "prod health" on the Obs connector, then two lookups on Close Listening).
+    Tell the homelab session the time. It runs its check (`obs_mcp_verify.py <since>`, homelab
+    scratchpad), which failed every check on the pre-deploy baseline, as expected:
+    - `up{job="player_obs"}=1`, 58 zero-registered `mcp_tool_calls_total` series, `process_*`;
+    - access lines with `trace_id`, no healthcheck or uvicorn access lines;
+    - the tool-call line, its `player-obs` span with `mcp.participant`, and an Umami
+      `obs_tool:<tool>` event under a participant;
+    - each player-mcp call with its own trace id (the baseline is 3 calls, 1 trace id).
 11. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-10 pass:
     `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
     `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
