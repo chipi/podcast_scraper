@@ -175,6 +175,26 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     bot filter dropped every player-mcp event (UA "podcast-mcp/1.0 (+server-side)" got HTTP 200
     `{"beep":"boop"}`, nothing stored). After the deploy, make one MCP tool call and tell the homelab
     session; it checks the event lands in Umami with hostname `mcp.closelistening.app`.
+10b. **MCP for every user + participant attribution (homelab session, 2026-10-16): the candidate
+    must be `bf243ded2` or later** (it includes `75304e525`). `529531f17`: new accounts and legacy
+    profiles get `mcp_access=true`, an explicit admin revoke stays false. `28e1f6451`:
+    `/internal/mcp/verify` returns `analytics_id`, which every tool call carries (Umami payload id,
+    span `mcp.participant`, log `participant=`); every tool's `mcp_tool_calls_total` exists at 0 from
+    start (needs api and mcp on this sha). `bf243ded2` is dashboard only (live via obs-sync).
+    `infra/observability/player.alloy` changed in comments only: no `deploy-config`.
+    **One-time grant, on the operator's go (writes prod user data):** existing profiles still hold
+    the old default `false`. Inside `player-api-1` (`APP_DATA_DIR=/app/appdata`):
+
+    ```bash
+    docker exec player-api-1 python -m podcast_scraper.server.app_users_cli --data-dir /app/appdata grant-mcp-all          # dry run
+    docker exec player-api-1 python -m podcast_scraper.server.app_users_cli --data-dir /app/appdata grant-mcp-all --apply
+    ```
+
+    It skips a user whose latest `admin.user.mcp_access` entry in `audit.jsonl` is a revoke; stderr
+    prints "N granted, M already had it, K skipped". Send the dry-run counts to the homelab session.
+    **Check:** after one MCP tool call (10a), the homelab session checks 2 zero-registered series
+    per tool, `participant=` log lines, `mcp.participant` spans, Umami `mcp_tool:<tool>` events under
+    a participant, and GlitchTip 29.
 11. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-10 pass:
     `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
     `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
