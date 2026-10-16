@@ -1,0 +1,150 @@
+"""An episode's reference for listener-side sync: fingerprints of the original at checkpoints
+(RFC-129).
+
+The original is the audio we transcribed, from the archive. A listener's app compares short byte
+ranges of its own stream against these windows, so only the places where the offset can change are
+kept, not the whole episode:
+
+- ``talk_start``: where talk begins, after any opening ads;
+- ``after_ad``: where talk resumes after each ad region our transcript marks. Comparing versions
+  cannot find these all: a slot whose ad happens to be the same in both looks like talk (measured
+  2026-10-16), so the original's own ad regions are the source;
+- ``interval``: every ``INTERVAL_S`` inside long stretches of talk, to catch a change we did not
+  know about.
+
+Each window is ``WINDOW_S`` of 16-band spectra (``fingerprint.spectra``), quantized to int8 and
+base64-encoded: 8 KB per 10 s window.
+"""
+
+from __future__ import annotations
+
+import base64
+from typing import Any, Dict, List, Sequence, Tuple, TYPE_CHECKING
+
+from podcast_scraper.audio_sync import fingerprint as fp
+
+if TYPE_CHECKING:
+    import numpy as np
+
+VERSION = 1
+WINDOW_S = 10.0
+INTERVAL_S = 300.0
+MIN_GAP_S = 30.0
+AD_JOIN_S = 3.0
+SCALE = 20.0  # int8 steps per log10 unit: spectra span about ±6
+
+
+def ad_regions(
+    spans_ms: Sequence[Tuple[int, int]], join_s: float = AD_JOIN_S
+) -> List[Tuple[float, float]]:
+    """Per-segment ad spans (milliseconds) joined into regions (seconds): one read comes back as
+    many pieces, one per transcript segment."""
+    out: List[List[float]] = []
+    for a, b in sorted(spans_ms):
+        s, e = a / 1000.0, b / 1000.0
+        if out and s - out[-1][1] <= join_s:
+            out[-1][1] = max(out[-1][1], e)
+        else:
+            out.append([s, e])
+    return [(s, e) for s, e in out]
+
+
+def checkpoint_times(
+    duration_s: float, regions: Sequence[Tuple[float, float]]
+) -> List[Tuple[float, str]]:
+    """(second, kind) for each checkpoint, in order."""
+    last = duration_s - WINDOW_S
+    if last <= 0:
+        return []
+    start = 0.0
+    for a, b in regions:
+        if a <= start + 1.0:
+            start = max(start, b)
+    marks: List[Tuple[float, str]] = [(start, "talk_start")]
+    marks += [(b, "after_ad") for a, b in regions if b > start + 1.0]
+    talk_ranges = []
+    edge = start
+    for a, b in regions:
+        if b <= start:
+            continue
+        if a > edge:
+            talk_ranges.append((edge, a))
+        edge = max(edge, b)
+    talk_ranges.append((edge, duration_s))
+    for a, b in talk_ranges:
+        t = a + INTERVAL_S
+        while t < b - WINDOW_S:
+            marks.append((t, "interval"))
+            t += INTERVAL_S
+    out: List[Tuple[float, str]] = []
+    for t, kind in sorted(marks):
+        if t > last:
+            continue
+        if out and t - out[-1][0] < MIN_GAP_S and kind == "interval":
+            continue
+        out.append((round(t, 2), kind))
+    return out
+
+
+def _encode(frames: "np.ndarray") -> str:
+    import numpy as np
+
+    q = np.clip(np.round(frames * SCALE), -127, 127).astype(np.int8)
+    return base64.b64encode(q.tobytes()).decode("ascii")
+
+
+def decode_window(b64: str) -> "np.ndarray":
+    """A checkpoint's frames back as float spectra, shape (n, BANDS)."""
+    import numpy as np
+
+    q = np.frombuffer(base64.b64decode(b64), dtype=np.int8)
+    return q.reshape(-1, fp.BANDS).astype(np.float64) / SCALE
+
+
+def build(samples: "np.ndarray", spans_ms: Sequence[Tuple[int, int]]) -> Dict[str, Any]:
+    """The reference document for one episode's original audio."""
+    duration = len(samples) / fp.SR
+    spec = fp.spectra(samples)
+    n = int(WINDOW_S * fp.FPS)
+    checkpoints = []
+    for t, kind in checkpoint_times(duration, ad_regions(spans_ms)):
+        i = int(round(t * fp.FPS))
+        window = spec[i : i + n]
+        if len(window) < n:
+            continue
+        checkpoints.append({"t": t, "kind": kind, "frames": _encode(window)})
+    return {
+        "version": VERSION,
+        "sample_rate": fp.SR,
+        "hop": fp.HOP,
+        "nfft": fp.NFFT,
+        "bands": fp.BANDS,
+        "scale": SCALE,
+        "window_s": WINDOW_S,
+        "duration_s": round(duration, 2),
+        "checkpoints": checkpoints,
+    }
+
+
+def locate(
+    reference_frames: "np.ndarray", chunk: "np.ndarray", chunk_start_s: float
+) -> Tuple[float, float]:
+    """Where a checkpoint window sits in a decoded chunk of the listener's stream: (stream second,
+    match). ``match`` is the mean per-frame correlation of the spectra, 1.0 for the same audio.
+    This is what the app does on the device; kept here to test the reference against real streams.
+    """
+    import numpy as np
+
+    spec = fp.spectra(chunk)
+    n = len(reference_frames)
+    if len(spec) < n:
+        return chunk_start_s, -1.0
+    a = reference_frames - reference_frames.mean(1, keepdims=True)
+    an = np.sqrt((a * a).sum(1)) + 1e-9
+    best, at = -2.0, 0
+    for j in range(len(spec) - n + 1):
+        b = spec[j : j + n] - spec[j : j + n].mean(1, keepdims=True)
+        c = float(np.mean((a * b).sum(1) / (an * (np.sqrt((b * b).sum(1)) + 1e-9))))
+        if c > best:
+            best, at = c, j
+    return chunk_start_s + at / fp.FPS, best

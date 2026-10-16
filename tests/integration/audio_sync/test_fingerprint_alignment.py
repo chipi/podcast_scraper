@@ -88,3 +88,29 @@ def test_an_unchanged_stream_is_one_stretch_at_zero(tmp_path: Path, original: np
     assert len(found) == 1
     assert found[0].offset == pytest.approx(0.0, abs=0.04)
     assert found[0].seconds > 480
+
+
+def test_each_checkpoint_of_the_reference_is_found_in_a_short_chunk(
+    tmp_path: Path, original: np.ndarray, ads: np.ndarray
+) -> None:
+    """What the app will do: a chunk of its own stream around where a checkpoint should be, and
+    the checkpoint's window located in it, at the offset the inserted ads make."""
+    from podcast_scraper.audio_sync import reference
+
+    # The original "had" an ad at 200-215 s (our transcript marks it); the listener's stream has a
+    # 40 s ad there instead, and a 25 s one at the very start.
+    stream = np.concatenate(
+        [_s(ads, 0, 25), _s(original, 0, 200), _s(ads, 50, 90), _s(original, 215)]
+    )
+    decoded = decode(str(_encode(stream, tmp_path / "listener.mp3")))
+    doc = reference.build(original, [(200_000, 215_000)])
+    kinds = [c["kind"] for c in doc["checkpoints"]]
+    assert kinds[0] == "talk_start" and "after_ad" in kinds
+    for cp in doc["checkpoints"]:
+        expected = 25.0 if cp["t"] < 200 else 25.0 + 40.0 - 15.0
+        a = cp["t"] + expected - 10.0
+        at, match = reference.locate(
+            reference.decode_window(cp["frames"]), _s(decoded, a, a + 30.0), a
+        )
+        assert match >= 0.8, cp
+        assert at - cp["t"] == pytest.approx(expected, abs=0.04), cp
