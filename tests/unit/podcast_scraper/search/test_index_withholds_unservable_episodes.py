@@ -27,7 +27,8 @@ def _meta(tmp_path, name, episode_id, unusable=False):
 
 def test_an_unusable_run_is_not_handed_to_the_indexer(tmp_path) -> None:
     paths = [_meta(tmp_path, "good", "e1"), _meta(tmp_path, "refused", "e2", unusable=True)]
-    served, withheld = set(), set()
+    served: set[str] = set()
+    withheld: set[str] = set()
     got = [doc["episode"]["episode_id"] for _, doc in _servable_docs(paths, {}, served, withheld)]
     assert got == ["e1"]
     assert served == {"e1"} and withheld == {"e2"}

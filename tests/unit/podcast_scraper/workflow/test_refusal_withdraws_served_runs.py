@@ -8,6 +8,7 @@ served run of a refused episode is marked unusable, which the catalog and the in
 from __future__ import annotations
 
 import json
+from typing import Any, cast
 
 import pytest
 
@@ -38,6 +39,11 @@ def corpus(tmp_path, monkeypatch):
     return tmp_path, cfg
 
 
+def _withdraw(episode_id: str, cfg: Any, detected: Any) -> int:
+    # The episode id stands in for the Episode: get_episode_id_from_episode is patched to echo it.
+    return ep._withdraw_served_runs(cast(Any, episode_id), cfg, detected)
+
+
 def _unusable(path):
     return episode_is_unusable(json.loads(path.read_text("utf-8")))
 
@@ -47,7 +53,7 @@ def test_every_served_run_of_the_refused_episode_is_withdrawn(corpus) -> None:
     old = _run_meta(root, "show", "run_20260912", "turkish", "ep-tr")
     newer = _run_meta(root, "show", "run_20261002", "turkish", "ep-tr")
     other = _run_meta(root, "show", "run_20261002", "english", "ep-en")
-    assert ep._withdraw_served_runs("ep-tr", cfg, "tr") == 2
+    assert _withdraw("ep-tr", cfg, "tr") == 2
     assert "'tr'" in (_unusable(old) or "") and _unusable(newer)
     assert _unusable(other) is None
 
@@ -55,15 +61,15 @@ def test_every_served_run_of_the_refused_episode_is_withdrawn(corpus) -> None:
 def test_without_an_identified_language_the_reason_still_says_refused(corpus) -> None:
     root, cfg = corpus
     run = _run_meta(root, "show", "run_1", "x", "ep-x")
-    assert ep._withdraw_served_runs("ep-x", cfg, None) == 1
+    assert _withdraw("ep-x", cfg, None) == 1
     assert _unusable(run) == "language_refused"
 
 
 def test_an_already_withdrawn_run_is_left_as_it_was(corpus) -> None:
     root, cfg = corpus
     _run_meta(root, "show", "run_1", "x", "ep-x")
-    ep._withdraw_served_runs("ep-x", cfg, "tr")
-    assert ep._withdraw_served_runs("ep-x", cfg, "tr") == 0
+    _withdraw("ep-x", cfg, "tr")
+    assert _withdraw("ep-x", cfg, "tr") == 0
 
 
 def test_a_broken_metadata_file_does_not_stop_the_others(corpus) -> None:
@@ -72,4 +78,4 @@ def test_a_broken_metadata_file_does_not_stop_the_others(corpus) -> None:
     bad.mkdir(parents=True)
     (bad / "broken.metadata.json").write_text("{not json", "utf-8")
     good = _run_meta(root, "show", "run_2", "x", "ep-x")
-    assert ep._withdraw_served_runs("ep-x", cfg, "tr") == 1 and _unusable(good)
+    assert _withdraw("ep-x", cfg, "tr") == 1 and _unusable(good)
