@@ -348,7 +348,7 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       # obs's own signals (podcast_obs/telemetry.py), parity with player-mcp: spans, its own
       # GlitchTip project, `obs_tool:<tool>` Umami events on the player site. Each is off when its
-      # value is empty/none. /metrics is scraped by Alloy over the docker network (player.alloy).
+      # value is empty/none. /metrics is scraped by Alloy over the docker network.
       OTEL_SERVICE_NAME: player-obs
       OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
