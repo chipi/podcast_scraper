@@ -355,6 +355,34 @@ run must also end before the 00:00 UTC nightly.
      with the served records on the next snapshot.
 5. **8.5:** recompute after the relabel (Rest Is History episodes whose host seat is still
    unnamed).
+6. **Migration `0030_adfree_cut_resynced` — LAST** (ingestion session, 2026-10-16; the deploy
+   must carry `ded80e06f`, the floor for everything above, so new ingests and the migration cut
+   ads the same way). It brings served episodes to today's ad cut (`4515bce1c`, #2360): ~421
+   re-cut + ~304 ad-map rewrites on the 2026-10-15 snapshot, moves every GI quote, drops quotes in
+   ad text, removes ~54 ad-built insights and ~174 sponsor entity nodes, syncs bridge / counts /
+   context. Text files only, with backups and undo; no DGX, no LLM. Run it after the #2370 run,
+   the #2332 batches, the 131 relabel and the Turkish reprocess (a later run would overwrite its
+   output), with the pipeline idle (the runner takes the corpus lock). No deploy path runs
+   migrations by itself (checked: the deploy workflows and the API).
+   1. `df -h /` first: every `upgrade run` takes a whole-corpus snapshot (13 GB on 2026-10-03).
+   2. Dry run (`inspect-prod-corpus.yml checks=upgrade_dry_run`, or in `compose-api-1`
+      `python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --dry-run`): only `0030`
+      pending (0029 too → stop, tell the ingestion session); `refused` must be 0 (else send the
+      list, do not apply). The other counts will have moved from the snapshot numbers.
+   3. Apply on the operator's go: `upgrade run … --yes` (or `make upgrade-corpus`).
+   4. `upgrade verify` prints "every served ad-free base is today's cut"; no root-owned files
+      (`find /app/output -user root -newer adfree_cut_resynced.jsonl | head`).
+   5. Search: the next pipeline run's incremental upsert re-embeds the changed episodes, or run
+      `index-two-tier` WITHOUT drop/clear. Never rebuild. Then
+      `python -m podcast_scraper.cli insight-clusters --output-dir /app/output`.
+   6. Spot checks: Invest Like the Best "Krishna Rao - Anthropic…" has no Felix by Rogo insight;
+      Lenny's "Head of Claude Code…" `.adfree.txt` keeps the guest intro, not the WorkOS read; The
+      Rest Is Science "The Evolution of Colour Vision" keeps its cold open; for any quote
+      `adfree_text[char_start:char_end] == quote.text`; `make corpus-completeness-check`.
+   - Undo: `from podcast_scraper.upgrade.migrations.m0030_adfree_cut_resynced import undo;
+     undo(Path("/app/output"))`. Receipts `adfree_cut_resynced.jsonl`, backups
+     `.podcast_scraper/upgrade-backups/0030/`. Accepted loss (operator): 2 real insights and 3 real
+     entity nodes that share an ASR segment with ad text (`docs/wip/AD-CUT-SEGMENT-STRADDLE.md`).
 
 ## Deployed as `sha-f35a446` (candidate `0bc13f92c`, 2026-10-15) — steps, kept for reference
 
