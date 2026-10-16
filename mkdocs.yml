@@ -452,6 +452,7 @@ nav:
       - RFC-127 Board Summaries: rfc/RFC-127-board-summaries.md
       - RFC-128 Durable Storylines: rfc/RFC-128-durable-storylines.md
       - RFC-129 Audio Sync for Dynamic Ads: rfc/RFC-129-audio-sync-for-dynamic-ads.md
+      - RFC-130 An Episode in Another Language than Its Show: rfc/RFC-130-episode-language-other-than-its-show.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
