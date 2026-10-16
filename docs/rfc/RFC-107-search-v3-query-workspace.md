@@ -1,7 +1,7 @@
 # RFC-107: Search v3 — Query Workspace (technical design)
 
 - **Status**: Draft
-- **PRD**: [PRD-045](../prd/PRD-045-search-v3-query-workspace.md) · **UXS**: introduces [UXS-016](../uxs/UXS-016-query-workspace.md) (Query Workspace); extends [UXS-005](../uxs/UXS-005-semantic-search.md) (compact launcher role); heroifies UXS-008 (private Studio repo since ADR-166); shell IA in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
+- **PRD**: [PRD-045](../prd/PRD-045-search-v3-query-workspace.md) · **UXS**: introduces [UXS-016](../uxs/UXS-016-query-workspace.md) (Query Workspace); extends [UXS-005](../uxs/UXS-005-semantic-search.md) (compact launcher role); heroifies the enriched answer; shell IA in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
 - **Surface**: `web/gi-kg-viewer` (viewer) · `src/podcast_scraper/server/routes/search.py` (additive query params only)
 - **Authors**: Marko
 - **Related RFCs**:
@@ -95,7 +95,7 @@ SearchTab.vue                          [new — mounts on shellStore.mainTab ===
 │    ├─ QueryField.vue                 [existing SearchPanel form, promoted; Preset dropdown added]
 │    ├─ IntentChip.vue                 [existing search-query-type, moved to header]
 │    └─ SearchFilterBar.vue            [existing, extended with Explore filters — §5]
-├─ EnrichedAnswerHero.vue              [new — hoisted from UXS-008 dialog-gated to hero]
+├─ EnrichedAnswerHero.vue              [new — hoisted from the dialog-gated panel to hero]
 ├─ ResultSetOperatorBar.vue            [new — Cluster / OnGraph / Timeline / Compare / Consensus]
 └─ WorkspaceResults.vue                [new host]
      ├─ ResultCard.vue                 [existing]
@@ -137,7 +137,7 @@ None of these introduce a new native pyarrow.compute call site — every server-
 
 ### §7 Enriched-answer hero
 
-Hoist `EnrichedAnswerPanel` (currently gated behind UXS-005 Advanced dialog) into `EnrichedAnswerHero.vue`, positioned above the result list on the Search tab **only**. Contract inherits UXS-008 (badge, sources, provider attribution, degraded states). Consumes the shipped `QueryEnricher` (RFC-088 chunk 5) via `/api/search?enrich_results=true`. Source-to-hit tie-in ("Used in answer" chip) uses hit `doc_id` matching. Palette does not render the hero (bounded cost); LeftPanel launcher does not render it either. The `EnrichmentConfigEditor.vue` (already shipped) remains the config surface — Search v3 does NOT reinvent it.
+Hoist `EnrichedAnswerPanel` (currently gated behind UXS-005 Advanced dialog) into `EnrichedAnswerHero.vue`, positioned above the result list on the Search tab **only**. Contract inherits the panel's (badge, sources, provider attribution, degraded states). Consumes the shipped `QueryEnricher` (RFC-088 chunk 5) via `/api/search?enrich_results=true`. Source-to-hit tie-in ("Used in answer" chip) uses hit `doc_id` matching. Palette does not render the hero (bounded cost); LeftPanel launcher does not render it either. The `EnrichmentConfigEditor.vue` (already shipped) remains the config surface — Search v3 does NOT reinvent it.
 
 ### §8 Saved queries + query history — USERPREFS-1 backed
 
@@ -317,7 +317,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - **Slice order** — S0 baseline → S1–S8 (epic #1229; shipped via #1274).
 - **Feature flag** — none. Search v3 is an operator-viewer refactor; no toggle behind users. LeftPanel Search remains functional until slice 1 lands the tab; the mode-switch is retired only when the tab is in.
 - **E2E surface map** — updated in each slice; the old Explore test IDs get a "retired in RFC-107 slice 2" note.
-- **Docs** — VIEWER_IA.md gains a Search-tab paragraph; UXS-005 grows a "compact launcher" section (retiring its main-column role); UXS-008 grows a "hero placement" section; UXS-016 is the primary UX doc for the Workspace.
+- **Docs** — VIEWER_IA.md gains a Search-tab paragraph; UXS-005 grows a "compact launcher" section (retiring its main-column role); UXS-016 is the primary UX doc for the Workspace.
 
 ## Alternatives considered
 
@@ -370,7 +370,6 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's §8 conforms)
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — semantic search (compact-launcher role)
-- UXS-008 — enriched search (heroified); kept in the private Studio repo since ADR-166
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (primary UX)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current operator-facing enrichment config surface (per-enricher reference + provider-types registry)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes + `--with-ml` CLI (RFC-088 chunk 6; separate from Search v3's `/api/search?enrich_results=`)

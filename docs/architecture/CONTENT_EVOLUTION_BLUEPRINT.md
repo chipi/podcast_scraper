@@ -1332,7 +1332,7 @@ them, except for the four anticipations noted in Part 6.
 
 | Item | Blueprint Ref | Status | Content Evolution Impact |
 | --- | --- | --- | --- |
-| GI/KG Viewer v2 | RFC-062, Phase D | Shipped | **None.** Pure podcast UI. UXS split (UXS-001 through UXS-008) already separates shared design system from feature-specific contracts -- extends naturally to v3 content-type views. |
+| GI/KG Viewer v2 | RFC-062, Phase D | Shipped | **None.** Pure podcast UI. UXS split (a hub, UXS-001, plus one spec per feature) already separates shared design system from feature-specific contracts -- extends naturally to v3 content-type views. |
 | Semantic search | RFC-061 | Shipped | **None.** Operates on text + embeddings, already generic. |
 | Canonical Identity Layer + bridge | RFC-072 | Shipped | **PRECURSOR.** `person:{slug}`, `org:{slug}`, `topic:{slug}` are content-agnostic canonical IDs. The bridge artifact and CIL patterns are the **implemented foundation** for cross-content-type entity resolution (Phase 3 / F.3). Postgres schema (Anticipation #1) should use these canonical IDs directly. |
 | Enrichment layer | RFC-088 | In progress | **None.** Enricher protocol is content-agnostic -- reads core artifacts (GIL, KG, bridge), produces derived signals. Works unchanged for any content type that produces the same artifact shapes. First consumers: PRD-026 (Topic Entity View), PRD-027 (Enriched Search). |
@@ -1942,8 +1942,7 @@ hub-and-spoke model:
   [UXS-005](../uxs/UXS-005-semantic-search.md) (Search),
   [UXS-006](../uxs/UXS-006-dashboard.md) (Dashboard)
 - New feature UXS for enrichment consumers:
-  [UXS-007](../uxs/UXS-007-topic-entity-view.md) (PRD-026),
-  UXS-008 (PRD-027; kept in the private Studio repo since ADR-166)
+  [UXS-007](../uxs/UXS-007-topic-entity-view.md) (PRD-026)
 
 This structure already separates shared design tokens from feature-specific
 contracts. A v3 viewer for mixed content types would extend the same pattern --

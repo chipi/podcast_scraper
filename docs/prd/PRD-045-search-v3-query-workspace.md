@@ -5,7 +5,7 @@
 - **Target Release**: v2.8
 - **Parent PRD**: [PRD-031](PRD-031-search.md) (Search product surface), [PRD-033](PRD-033-search-powered-surfaces.md) (Search-powered surfaces)
 - **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), [RFC-093](../rfc/RFC-093-litm-context-packs.md) (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`, shipped)
-- **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies UXS-008 (private Studio repo since ADR-166); shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
+- **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies the enriched answer; shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
 - **Related RFC**: [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) (technical design)
 - **Related ADRs**: [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (`topic_consensus` activated, `stance_*` retired), [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
 - **Related epic**: [#1229](https://github.com/chipi/podcast_scraper/issues/1229)
@@ -112,9 +112,9 @@ Bar above the result list with operators that act on the **returned result set**
 
 ### FR5 — Enriched-answer hero
 
-- **FR5.1** When `enriched_search_available: true` from `/api/health` and `/api/search` is called with `enrich_results=true` (shipped by RFC-088 chunk 5), the Workspace shows an **Enriched Answer** panel at the top of the results area. Contract inherits UXS-008.
+- **FR5.1** When `enriched_search_available: true` from `/api/health` and `/api/search` is called with `enrich_results=true` (shipped by RFC-088 chunk 5), the Workspace shows an **Enriched Answer** panel at the top of the results area. Contract inherits the enriched answer's (badge, sources, provider attribution, degraded states).
 - **FR5.2** Sources in the answer link to the corresponding hit cards below (visible tie-in — chip on the hit card).
-- **FR5.3** Enrichment latency degradation follows UXS-008: skeleton while pending; hidden on hard-fail; raw hits always ship first.
+- **FR5.3** Enrichment latency degrades gracefully: skeleton while pending; hidden on hard-fail; raw hits always ship first.
 - **FR5.4** Enrichment is **never** invoked from the LeftPanel compact launcher or from the Cmd-K palette — Workspace only (bounds cost and latency).
 - **FR5.5** The `EnrichmentConfigEditor.vue` (already shipped, RFC-088 config surface) remains the operator-facing config UI; Search v3 does NOT reinvent it.
 
@@ -223,7 +223,6 @@ Slices missing any of these get rejected at review, not deferred.
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab order + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — extended (compact launcher role)
-- UXS-008 — heroified (private Studio repo since ADR-166)
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (this PRD's primary UX)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current normative operator-facing enrichment config surface (RFC-088 chunk 6)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes (independent of Search v3's `/api/search?enrich_results=`)

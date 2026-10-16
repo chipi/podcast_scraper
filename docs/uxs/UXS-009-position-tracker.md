@@ -129,7 +129,7 @@ Tracker tab is preselected with that topic active.
 - Clicking a Person node in the Cytoscape graph opens the Person Landing in the
   right rail.
 - Clicking a speaker name in a search result card (including lifted results with
-  `lifted.speaker` or enriched sources from UXS-008) opens the Person Landing in
+  `lifted.speaker` or enriched-answer sources) opens the Person Landing in
   the right rail.
 
 **Full-width (planned):** There is no implemented top-level browse control in the v2

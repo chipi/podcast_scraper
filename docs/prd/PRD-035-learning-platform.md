@@ -194,7 +194,7 @@ P0 de-risks everything downstream by locking the data contract and identity befo
 Player; Capture; Consolidation), plus Epic 3 (Knowledge + Personalization, PRD-043) and Home — which
 shipped *outside* the original P0–P3 map. Deferred to a later cycle: consumer self-serve
 scrape-on-demand (#1069), a real persistence layer (per-user state is plain files today), voice control,
-and the enriched-search LLM answer panel (UXS-008, still Draft).
+and the enriched-search LLM answer panel.
 
 ---
 

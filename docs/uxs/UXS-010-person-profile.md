@@ -137,14 +137,13 @@ that the primary data source is GIL Insights.
 - Clicking a Person node in the Cytoscape graph opens the Person Landing in the
   right rail.
 - Clicking a speaker name in a search result card (including lifted results with
-  `lifted.speaker` or enriched sources from UXS-008) opens the Person Landing in
+  `lifted.speaker` or enriched-answer sources) opens the Person Landing in
   the right rail.
 
 ### Full-width browse (planned; shell gap) {#person-landing-fullwidth-browse}
 
 **Implemented today:** Person Landing opens in the **right rail** from Graph Person
-nodes, Semantic Search speaker affordances, and related handoffs from UXS-007 /
-UXS-008 when those surfaces ship. The v2 viewer **main** tabs remain **Digest**,
+nodes, Semantic Search speaker affordances, and related handoffs from UXS-007. The v2 viewer **main** tabs remain **Digest**,
 **Library**, **Graph**, and **Dashboard** only; none of them hosts a corpus-wide
 person roster or “open Person Landing full-width” control yet.
 
