@@ -90,7 +90,8 @@ async def _session_then_call(open_token: str, call_token: str) -> dict:
             }
             _, payload = await _call(c, body, call_token, sid)
             assert payload is not None
-            return payload["result"]
+            result: dict = payload["result"]
+            return result
 
 
 def test_scope_check_uses_the_calling_request() -> None:

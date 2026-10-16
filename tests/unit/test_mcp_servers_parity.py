@@ -141,7 +141,7 @@ async def _open(c: httpx.AsyncClient, token: str) -> str:
         content=json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
         headers=_headers(token, sid),
     )
-    return sid
+    return str(sid)
 
 
 @pytest.mark.parametrize("srv", SERVERS, ids=lambda s: s.name)

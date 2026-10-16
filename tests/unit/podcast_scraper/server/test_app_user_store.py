@@ -15,8 +15,16 @@ from podcast_scraper.server.app_user_store import (
     new_analytics_id,
     set_disabled,
     set_role,
+    User,
     user_id_for,
 )
+
+
+def _stored(root: Path, user_id: str) -> User:
+    """The stored user, which the test has just written."""
+    user = get_user(root, user_id)
+    assert user is not None
+    return user
 
 
 def test_user_id_is_deterministic_and_prefixed() -> None:
@@ -203,7 +211,7 @@ def test_analytics_id_is_backfilled_for_a_profile_written_before_the_field(
     path.write_text(json.dumps(doc), encoding="utf-8")
 
     # Reading it back shows the gap...
-    assert get_user(tmp_path, user.user_id).analytics_id == ""  # type: ignore[union-attr]
+    assert _stored(tmp_path, user.user_id).analytics_id == ""  # type: ignore[union-attr]
 
     # ...and signing in closes it, persistently.
     back = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
@@ -297,10 +305,10 @@ def test_new_accounts_get_mcp_access_by_default_and_a_revoke_sticks(tmp_path: Pa
         tmp_path, provider="email", subject="s@x.com", email="s@x.com", name="S", role="listener"
     )
     assert oauth.mcp_access is True and seeded.mcp_access is True
-    assert get_user(tmp_path, oauth.user_id).mcp_access is True  # persisted, not just in memory
+    assert _stored(tmp_path, oauth.user_id).mcp_access is True  # persisted, not just in memory
 
     set_mcp_access(tmp_path, oauth.user_id, False)
-    assert get_user(tmp_path, oauth.user_id).mcp_access is False
+    assert _stored(tmp_path, oauth.user_id).mcp_access is False
     again = get_or_create_user(
         tmp_path, provider="google", subject="new", email="n@x.com", name="N"
     )
@@ -315,4 +323,4 @@ def test_a_profile_written_before_mcp_access_existed_gets_the_default(tmp_path: 
     doc = json.loads(path.read_text())
     doc.pop("mcp_access")
     path.write_text(json.dumps(doc))
-    assert get_user(tmp_path, user.user_id).mcp_access is True
+    assert _stored(tmp_path, user.user_id).mcp_access is True

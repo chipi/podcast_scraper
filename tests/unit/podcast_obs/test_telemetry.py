@@ -10,7 +10,7 @@ import asyncio
 import inspect
 import json
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import pytest
 
@@ -21,7 +21,8 @@ pytestmark = pytest.mark.unit
 
 def _sample(tool: str, ok: str) -> Optional[float]:
     assert telemetry.REGISTRY is not None
-    return telemetry.REGISTRY.get_sample_value("mcp_tool_calls_total", {"tool": tool, "ok": ok})
+    value = telemetry.REGISTRY.get_sample_value("mcp_tool_calls_total", {"tool": tool, "ok": ok})
+    return None if value is None else float(value)
 
 
 class _InlinePool:
@@ -169,13 +170,15 @@ class TestAuthContext:
             "urlopen",
             lambda req, timeout=5.0: _Resp(json.dumps({**body, "analytics_id": "anl_9"}).encode()),
         )
-        assert auth.verify_principal("t")["analytics_id"] == "anl_9"
+        principal = auth.verify_principal("t")
+        assert principal is not None and principal["analytics_id"] == "anl_9"
         monkeypatch.setattr(
             auth.urllib.request,
             "urlopen",
             lambda req, timeout=5.0: _Resp(json.dumps(body).encode()),
         )
-        assert auth.verify_principal("t")["analytics_id"] is None
+        principal = auth.verify_principal("t")
+        assert principal is not None and principal["analytics_id"] is None
 
     def test_middleware_sets_and_resets_the_caller(self) -> None:
         seen: dict[str, Any] = {}
@@ -197,7 +200,10 @@ class TestAuthContext:
         async def _noop_send(m: Any) -> None:
             return None
 
-        asyncio.run(mw(scope, None, _noop_send))
+        async def _no_receive() -> Dict[str, Any]:
+            return {}
+
+        asyncio.run(mw(scope, _no_receive, _noop_send))
         assert seen == {"user": "u_1", "participant": "anl_9"}
         assert auth.current_obs_user.get() is None
         assert auth.current_obs_participant.get() is None
@@ -315,5 +321,8 @@ class TestRequestScopedAttribution:
         async def _noop_send(m: Any) -> None:
             return None
 
-        asyncio.run(mw(scope, None, _noop_send))
+        async def _no_receive() -> Dict[str, Any]:
+            return {}
+
+        asyncio.run(mw(scope, _no_receive, _noop_send))
         assert scope["state"]["obs_principal"] == {"user_id": "u_1", "analytics_id": "anl_9"}

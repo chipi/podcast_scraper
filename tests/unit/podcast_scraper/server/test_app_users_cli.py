@@ -9,6 +9,13 @@ from podcast_scraper.server import app_users_cli
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, User
 
 
+def _stored(root: Path, user_id: str) -> User:
+    """The stored user, which the test has just written."""
+    user = get_user(root, user_id)
+    assert user is not None
+    return user
+
+
 def _seed(data_dir: Path) -> User:
     return get_or_create_user(
         data_dir, provider="google", subject="s1", email="a@x.com", name="Alice"
@@ -57,7 +64,7 @@ def test_grant_mcp_all_grants_the_old_default_and_skips_a_deliberate_revoke(
     audit log's latest admin.user.mcp_access entry decides. Dry run writes nothing."""
     import json as _json
 
-    from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_mcp_access
+    from podcast_scraper.server.app_user_store import get_or_create_user, set_mcp_access
     from podcast_scraper.server.app_users_cli import main as cli_main
 
     old = get_or_create_user(tmp_path, provider="google", subject="old", email="o@x.com", name="O")
@@ -85,13 +92,13 @@ def test_grant_mcp_all_grants_the_old_default_and_skips_a_deliberate_revoke(
     (tmp_path / "audit.jsonl").write_text("\n".join(_json.dumps(r) for r in audit) + "\n")
 
     assert cli_main(["--data-dir", str(tmp_path), "grant-mcp-all"]) == 0
-    assert get_user(tmp_path, old.user_id).mcp_access is False  # dry run
+    assert _stored(tmp_path, old.user_id).mcp_access is False  # dry run
     assert "would grant " + old.user_id in capsys.readouterr().out
 
     assert cli_main(["--data-dir", str(tmp_path), "grant-mcp-all", "--apply"]) == 0
     out = capsys.readouterr()
-    assert get_user(tmp_path, old.user_id).mcp_access is True
-    assert get_user(tmp_path, revoked.user_id).mcp_access is False
-    assert get_user(tmp_path, has.user_id).mcp_access is True
+    assert _stored(tmp_path, old.user_id).mcp_access is True
+    assert _stored(tmp_path, revoked.user_id).mcp_access is False
+    assert _stored(tmp_path, has.user_id).mcp_access is True
     assert "skip    " + revoked.user_id in out.out
     assert "1 granted, 1 already had it, 1 skipped" in out.err

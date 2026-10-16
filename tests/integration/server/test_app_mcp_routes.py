@@ -14,9 +14,21 @@ from fastapi.testclient import TestClient
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
-from podcast_scraper.server.app_user_store import get_or_create_user, set_mcp_access
+from podcast_scraper.server.app_user_store import (
+    get_or_create_user,
+    get_user,
+    set_mcp_access,
+    User,
+)
 
 _TOKEN = "internal-mcp-tok"
+
+
+def _stored(root: Path, user_id: str) -> User:
+    """The stored user, which the test has just written."""
+    user = get_user(root, user_id)
+    assert user is not None
+    return user
 
 
 def _app(tmp_path: Path, *, mcp_access: bool, internal_token: str = _TOKEN):
@@ -159,8 +171,6 @@ def test_internal_verify_flow(tmp_path: Path) -> None:
 
     ok = client.post("/internal/mcp/verify", json={"token": token}, headers=h)
     assert ok.status_code == 200
-    from podcast_scraper.server.app_user_store import get_user
-
     assert ok.json() == {
         "authenticated": True,
         "user_id": uid,
@@ -169,7 +179,7 @@ def test_internal_verify_flow(tmp_path: Path) -> None:
         "aud": "",  # a PAT carries no audience
         "role": "listener",  # surfaced for rank-scoped servers (obs MCP is admin-only, #56)
         # the pseudonymous participant id, so MCP use is attributable in analytics (#2263)
-        "analytics_id": get_user(data_dir, uid).analytics_id,
+        "analytics_id": _stored(data_dir, uid).analytics_id,
     }
     assert ok.json()["analytics_id"]
 
