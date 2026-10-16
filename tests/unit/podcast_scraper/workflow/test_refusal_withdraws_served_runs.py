@@ -61,7 +61,7 @@ def test_without_an_identified_language_the_reason_still_says_refused(corpus) ->
 
 def test_an_already_withdrawn_run_is_left_as_it_was(corpus) -> None:
     root, cfg = corpus
-    run = _run_meta(root, "show", "run_1", "x", "ep-x")
+    _run_meta(root, "show", "run_1", "x", "ep-x")
     ep._withdraw_served_runs("ep-x", cfg, "tr")
     assert ep._withdraw_served_runs("ep-x", cfg, "tr") == 0
 
