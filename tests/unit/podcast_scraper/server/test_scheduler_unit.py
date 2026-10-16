@@ -246,7 +246,6 @@ def test_digest_spawn_drives_every_shared_enqueuer(
     and silently skipped — which is the shape of the original bug. This one is derived from
     ``app_digest_dispatch.ENQUEUERS``, so it grows automatically with the list.
     """
-    import importlib
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_dispatch
@@ -254,7 +253,7 @@ def test_digest_spawn_drives_every_shared_enqueuer(
 
     seen: list[str] = []
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
 
         def _fake(root: Path, data_dir: Path, now: int | None = None, _l: str = label) -> list[str]:
             seen.append(_l)
@@ -273,7 +272,6 @@ def test_digest_spawn_survives_a_failing_enqueuer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A broken assembler must not take down the scheduled fire or the other cadences."""
-    import importlib
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_dispatch
@@ -281,7 +279,7 @@ def test_digest_spawn_survives_a_failing_enqueuer(
 
     survived: list[str] = []
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
         if label == app_digest_dispatch.ENQUEUERS[0][0]:
 
             def _boom(root: Path, data_dir: Path, now: int | None = None) -> list[str]:

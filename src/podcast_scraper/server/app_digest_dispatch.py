@@ -36,10 +36,11 @@ import importlib
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import ModuleType
 
 logger = logging.getLogger(__name__)
 
-#: label -> (module under ``podcast_scraper.server``, callable name).
+#: label -> (module beside this one, callable name; see :func:`enqueuer_module`).
 #: Every entry is driven by BOTH the in-process scheduler and the production sidecar.
 #: Each callable takes ``(corpus_root: Path, data_dir: Path)`` and returns enqueued envelope ids.
 ENQUEUERS: tuple[tuple[str, str, str], ...] = (
@@ -54,6 +55,12 @@ ENQUEUERS: tuple[tuple[str, str, str], ...] = (
     # BOTH outbound channels from one enqueuer, since they share the dedupe ledger.
     ("new_episodes", "app_new_episode_digest", "enqueue_due_new_episodes"),
 )
+
+
+def enqueuer_module(module_name: str) -> ModuleType:
+    """An enqueuer's module, imported from this module's own package (the enqueuers live beside
+    the dispatch, in whichever package that is: ADR-166)."""
+    return importlib.import_module(f".{module_name}", __package__)
 
 
 @dataclass(frozen=True)
@@ -101,7 +108,7 @@ def enqueue_all_due(corpus_root: Path, data_dir: Path, now: int | None = None) -
 
     for label, module_name, func_name in ENQUEUERS:
         try:
-            module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+            module = enqueuer_module(module_name)
             func = getattr(module, func_name)
             # ``now`` is threaded through only when the enqueuer accepts it, so this stays
             # tolerant of enqueuers with the shorter two-arg signature.
