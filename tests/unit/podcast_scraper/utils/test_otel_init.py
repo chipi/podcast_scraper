@@ -217,6 +217,12 @@ def test_under_the_auto_instrument_launcher_init_otel_adds_nothing(monkeypatch):
         OTEL_TRACES_EXPORTER="otlp",
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://backend:10428/insert/opentelemetry/v1/traces",
     )
+    # Under the launcher the exporter is not needed, so its import must not decide the answer.
+    # CI 2026-10-15 (run 38796124599): an earlier test's MagicMock `google` package (#1799) made
+    # `google.protobuf`, and with it the OTLP exporter, unimportable, and init_otel returned False.
+    import sys
+
+    monkeypatch.setitem(sys.modules, "opentelemetry.exporter.otlp.proto.http.trace_exporter", None)
     existing = TracerProvider()
     set_calls, http_calls = [], []
     monkeypatch.setattr(trace, "get_tracer_provider", lambda: existing)
