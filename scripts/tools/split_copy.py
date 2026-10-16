@@ -13,7 +13,8 @@ What moves is listed in ``scripts/tools/split_manifest.yaml``:
 * ``verbatim_packages`` — whole top-level packages that move under their own name.
 * ``subpackages`` — named groups inside the repo's package (``<package>.<name>``), each
   with its own ``modules`` / ``packages``.
-* ``trees`` / ``file_trees`` / ``files`` — copied byte for byte.
+* ``trees`` / ``file_trees`` / ``files`` — copied byte for byte, except that a ``.py`` under
+  ``files`` (a script) has its imports of moved code rewritten, as tests do.
 * ``entry_points`` — ``name: module:attr`` registered under ``podcast_scraper.extensions``
   in the generated ``pyproject.toml``, the module rewritten to its new location.
 * ``forked_trees`` — copied byte for byte like ``trees``, but the public repo keeps its
@@ -235,7 +236,7 @@ def copy_modules(files, mapping, owner, bump, dry_run: bool) -> None:
                 write(init, b"", False)
 
 
-def copy_verbatim(manifest: dict, files, bump, dry_run: bool) -> None:
+def copy_verbatim(manifest: dict, files, mapping, bump, dry_run: bool) -> None:
     for repo, spec in manifest.items():
         trees = {**spec.get("trees", {}), **spec.get("forked_trees", {})}
         for tree, dest in trees.items():
@@ -247,8 +248,19 @@ def copy_verbatim(manifest: dict, files, bump, dry_run: bool) -> None:
                 copy_file(ROOT / f, APPS / repo / f, dry_run)
                 bump(repo, "docs")
         for f in spec.get("files", []):
-            copy_file(ROOT / f, APPS / repo / f, dry_run)
-            bump(repo, "docs")
+            if f.endswith(".py"):
+                # A script imports moved code by its public name, like a test does.
+                write(
+                    APPS / repo / f,
+                    rewrite((ROOT / f).read_text(), None, False, mapping).encode(),
+                    dry_run,
+                )
+                if not dry_run:
+                    shutil.copymode(ROOT / f, APPS / repo / f)
+                bump(repo, "scripts")
+            else:
+                copy_file(ROOT / f, APPS / repo / f, dry_run)
+                bump(repo, "docs")
 
 
 def copy_tests(files, mapping, owner, bump, dry_run: bool) -> None:
@@ -323,7 +335,7 @@ def main() -> int:
         counts[repo][kind] = counts[repo].get(kind, 0) + 1
 
     copy_modules(files, mapping, owner, bump, args.dry_run)
-    copy_verbatim(manifest, files, bump, args.dry_run)
+    copy_verbatim(manifest, files, mapping, bump, args.dry_run)
     copy_tests(files, mapping, owner, bump, args.dry_run)
     write_scaffold(manifest, mapping, args.dry_run)
 
