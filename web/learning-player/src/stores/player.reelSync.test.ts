@@ -102,4 +102,33 @@ describe('reel clips on the listener stream (#2359)', () => {
     await drain()
     expect(p.reelSyncing).toBe(false)
   })
+
+  it('a short listen across episodes plays its clip after loading the clip episode (the reel is not lost)', async () => {
+    clipWindow.mockResolvedValue({ startMs: 95_000, endMs: 110_000 })
+    const resolve = vi.fn(async (slug: string) => ({ slug, url: `https://x/${slug}.mp3`, title: slug }))
+    const ok = await p.startTopicReel(
+      { id: 'topic:x', kind: 'topic', label: 'x' } as never,
+      [{ ...CLIP, slug: 'ep-2' }],
+      resolve,
+    )
+    await drain()
+    expect(ok).toBe(true)
+    expect(resolve).toHaveBeenCalledWith('ep-2')
+    expect(clipWindow).toHaveBeenCalledWith('ep-2', 'https://x/ep-2.mp3', 60_000, 75_000)
+    expect(p.reel?.slug).toBe('ep-2')
+    expect(el.currentTime).toBe(95)
+    expect(el.play).toHaveBeenCalled()
+  })
+
+  it('leaving the reel while a clip is measured does not start it', async () => {
+    let land: (v: unknown) => void = () => {}
+    clipWindow.mockReturnValue(new Promise((r) => (land = r)))
+    p.startReel('ep-1', [CLIP])
+    await drain()
+    p.exitReel(false)
+    land({ startMs: 95_000, endMs: 110_000 })
+    await drain()
+    expect(p.reel).toBeNull()
+    expect(el.currentTime).not.toBe(95)
+  })
 })

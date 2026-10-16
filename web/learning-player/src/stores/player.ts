@@ -506,6 +506,7 @@ export const usePlayerStore = defineStore('player', () => {
   /** Stop and forget the current episode (sign-out, or an unplayable source). */
   function clear(): void {
     pendingListen = null
+    reelGoSeq++
     reel.value = null
     el.value?.pause()
     if (el.value) el.value.removeAttribute('src')
@@ -839,8 +840,12 @@ export const usePlayerStore = defineStore('player', () => {
    *  move the reel on in the meantime. */
   let reelSwitching = false
 
+  /** Bumped by every `reelGo` and by leaving the reel: a clip measured on the stream goes on only
+   *  if nothing newer happened while it waited (RFC-129). */
+  let reelGoSeq = 0
   async function reelGo(index: number, autoplay = true): Promise<void> {
     cancelReelGap()
+    const seq = ++reelGoSeq
     const r = reel.value
     if (!r) return
     const i = Math.max(0, Math.min(r.moments.length - 1, index))
@@ -866,7 +871,9 @@ export const usePlayerStore = defineStore('player', () => {
       const w = await clipWindow(slug, currentUrl, clip.transcriptStartMs, clip.transcriptEndMs).finally(() => {
         reelSyncing.value = false
       })
-      if (reel.value?.topic !== r.topic || reel.value?.learn?.subjectId !== r.learn?.subjectId) return
+      // Not `reel.value`: loading the clip's episode above clears it by design, and this sets it
+      // again below. A newer step, leaving the reel, or another episode opened ends this one.
+      if (seq !== reelGoSeq || currentSlug.value !== slug) return
       if (w) play = { ...clip, ...w }
     }
     const moments = play === clip ? r.moments : r.moments.map((m, k) => (k === i ? play : m))
@@ -979,6 +986,7 @@ export const usePlayerStore = defineStore('player', () => {
     if (keepHere) {
       momentHeard.value = { seq: (momentHeard.value?.seq ?? 0) + 1, kind: 'keep', slug: r.slug }
     }
+    reelGoSeq++
     reel.value = null
     reelResolve = null
     if (keepHere) {
