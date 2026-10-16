@@ -433,4 +433,4 @@ Detail: [capacitor-build-runbook.md](./capacitor-build-runbook.md) (both platfor
 step), `docs/guides/MOBILE_STORE_RELEASE_RUNBOOK.md` (TestFlight + Play, credentials, moving release
 machines), `docs/guides/MOBILE_E2E_TESTING.md` (device tiers).
 
-*learning-player · docs/orrery-capacitor-reference.md · Part 1 from the Orrery build; Part 2 from this repo's Android app on Play internal testing (2026-10-16)*
+*learning-player · docs/mobile-capacitor-reference.md · Part 1 from the Orrery build; Part 2 from this repo's Android app on Play internal testing (2026-10-16)*
