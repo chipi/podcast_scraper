@@ -5,7 +5,9 @@
 #
 # Kept public on purpose (do not add here): the corpus read-models
 # (kg_view, gi_view, relational_view, catalog_cache, corpus_access, content_source,
-# slugs, artwork, kg_index; renamed out of the app_ namespace), the
+# slugs, artwork, kg_index; renamed out of the app_ namespace), the app_ modules platform code
+# reaches (app_moments from the app and content_source; app_episode_search, app_audio_drift and
+# app_audio_bridge from audio_sync, which the pipeline runs; app_umbrellas from the read-models), the
 # kernel (sessions, users, roles, csrf, access, magic link, outbox, push, audit,
 # operator guard, account deletion, user seed and CLI, oauth protocol + mock, comms
 # consent store, released-app-version store), and
@@ -71,10 +73,12 @@ player:
       - capability_audit
     podcast_scraper.server:
       - app_player_extension
-      - app_audio_bridge
+      - app_another_view_rail
       - app_auto_picks
+      - app_board_view
       - app_cache_warm
       - app_capture_export
+      - app_captured_rail
       - app_collections_store
       - app_corpus_revision
       - app_corpus_strength
@@ -86,29 +90,43 @@ player:
       - app_digest_personal
       - app_digest_recommendations
       - app_digest_sections
+      - app_discover_rails
       - app_discover_view
       - app_email_episode
       - app_engagement_series
       - app_episode_notes
       - app_favorites_view
+      - app_goal_reel
       - app_graph_refs
       - app_guided_shows
       - app_key_voices
+      - app_learning_path
       - app_new_episode_alerts
       - app_new_episode_digest
       - app_notifications_store
+      - app_people_rail
       - app_pkm_export
+      - app_rail_turns
       - app_ranking_config
       - app_ranking_config_store
       - app_ranking_telemetry
+      - app_reasons
       - app_recap
       - app_recap_view
       - app_reference_client
       - app_resurfacing
       - app_search_view
       - app_stats
+      - app_thread_rail
+      - app_trending_episodes
       - app_user_corpus
       - app_user_state
+      # Boards and storylines summarised for the player, and the guard on the references a
+      # listener's saved state holds.
+      - board_summaries
+      - storyline_summaries
+      - reference_integrity
+      - rekey_references
     podcast_scraper.server.routes:
       - app_artwork
       - app_capture
@@ -133,6 +151,8 @@ player:
     # The Discover ranking scorers (they import the player's ranking).
     - scripts/eval/score/rank_discover_v1.py
     - scripts/eval/score/rank_scenarios_v1.py
+    - scripts/ops/rekey_user_references.py
+    - scripts/tools/bench_discover.py
     - docs/prd/PRD-035-learning-platform.md
     - docs/prd/PRD-036-foundation-identity.md
     - docs/prd/PRD-037-discovery.md
@@ -156,6 +176,12 @@ player:
     - docs/rfc/RFC-121-unified-saved-model.md
     - docs/rfc/RFC-122-post-episode-recap.md
     - docs/adr/ADR-146-your-week-in-app-surface-and-scheduling.md
+    - docs/adr/ADR-162-mine-means-the-listeners-own-world.md
+    - docs/adr/ADR-163-the-jobs-of-discover.md
+    - docs/adr/ADR-164-discover-is-a-taste.md
+    - docs/prd/PRD-048-discover-and-explore.md
+    - docs/rfc/RFC-126-discover-rails-reasons-paging-and-reels.md
+    - docs/rfc/RFC-127-board-summaries.md
     - docs/uxs/UXS-011-consumer-learning-app.md
     - docs/uxs/UXS-012-consumer-home.md
     - docs/uxs/UXS-013-knowledge-clusters.md
@@ -177,6 +203,11 @@ player:
     - docs/wip/APP-LINKS-PRE-BUILD-TODO-2026-10-05.md
     - docs/wip/HANDOFF-BETA-USER-SHOWS-SMOKE-2026-10-01.md
     - docs/wip/REDESIGN-CRITIC-FEEDBACK.md
+    - docs/wip/DISCOVER-ARC-PLAN-2026-10-10.md
+    - docs/wip/HANDOVER-player-1.0.4-2026-10-10.md
+    - docs/wip/POST-DEPLOY-BOARDS-AND-DGX-GATEWAY.md
+    - docs/wip/STABLE-REFS-AND-STORYLINE-SUMMARIES-2026-10-13.md
+    - docs/wip/discovery-competitive-analysis-2026-10-09.md
   file_trees:
     - docs/wip/player
     - docs/wip/knowledge-retention
@@ -227,6 +258,10 @@ common:
         # consensus and cluster search operators, semantic topic clusters, momentum/trending.
         podcast_scraper.search:
           - storylines
+          - storyline_registry
+          - storyline_history
+          - clustering_history
+          - stable_cluster_ids
           - operators
           - topic_clusters
           - topic_clusters_cli
@@ -249,10 +284,12 @@ common:
         podcast_scraper.enrichment.provider_types.consensus: provider_types.consensus
   files:
     - scripts/mcp_e2e_pivot_chain.py
+    - scripts/eval/replay_storylines.py
     - docs/prd/PRD-034-generic-mcp-server.md
     - docs/rfc/RFC-093-litm-context-packs.md
     - docs/rfc/RFC-095-generic-mcp-server.md
     - docs/rfc/RFC-112-remote-mcp-transport-and-auth.md
+    - docs/rfc/RFC-128-durable-storylines.md
     - docs/adr/ADR-153-mcp-stays-read-only-over-http.md
     - docs/adr/ADR-108-nli-disagreement-enrichers-gated-dark.md
     - docs/guides/EXPLORATION_MCP.md

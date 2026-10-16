@@ -260,18 +260,15 @@ def _dominant_themes(
     The show page had no themes at all (operator 2026-10-12); a theme groups topics that MEAN the
     same thing, so it is the show's subject at one level above its topics.
     """
-    from podcast_scraper.search.topic_clusters import (
-        _graph_compound_parent_id,
-        _load_theme_payload,
-    )
+    from podcast_scraper.search.groupings import grouping_id, load_theme_payload
 
-    payload = _load_theme_payload(root)
+    payload = load_theme_payload(root)
     clusters = payload.get("clusters") if isinstance(payload, dict) else None
     out: list[FeedSignalTheme] = []
     for c in clusters if isinstance(clusters, list) else []:
         if not isinstance(c, dict):
             continue
-        gpid = _graph_compound_parent_id(c)
+        gpid = grouping_id(c)
         label = str(c.get("canonical_label") or "").strip()
         members = {
             str(m.get("topic_id") or "")

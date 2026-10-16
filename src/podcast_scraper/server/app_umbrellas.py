@@ -67,8 +67,7 @@ def umbrella_tokens(root: Path) -> frozenset[str]:
     of its members' episodes. Never raises: a guard that fails must not take a page down."""
 
     def build() -> frozenset[str]:
-        from podcast_scraper.search.storylines import storyline_map_by_topic
-        from podcast_scraper.search.topic_clusters import theme_map_by_topic
+        from podcast_scraper.search.groupings import storyline_map_by_topic, theme_map_by_topic
 
         episodes = corpus_episode_topics(root)
         if len(episodes) < UMBRELLA_MIN_EPISODES:

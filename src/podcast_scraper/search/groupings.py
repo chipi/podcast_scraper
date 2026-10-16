@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 from podcast_scraper.extensions import load_extensions
 
@@ -32,6 +32,16 @@ IndexRow = Tuple[str, str, Dict[str, Any]]
 
 #: ``(hits, corpus_root) -> rows``. A hit is ``{"doc_id": ..., "metadata": {...}}``.
 SearchOperator = Callable[[List[Dict[str, Any]], Path], List[Dict[str, Any]]]
+
+
+def grouping_id(cluster: Mapping[str, Any]) -> Optional[str]:
+    """A theme's or storyline's id as its artifact row stores it: ``graph_compound_parent_id``
+    (v2) or the legacy ``cluster_id`` (v1). A row-schema name, owned by the platform."""
+    for key in ("graph_compound_parent_id", "cluster_id"):
+        v = cluster.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return None
 
 
 def _no_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
@@ -204,6 +214,7 @@ __all__ = [
     "TopicGroupings",
     "available",
     "build_topic_clusters_for_corpus",
+    "grouping_id",
     "installed",
     "load_theme_enrichment_map",
     "load_theme_payload",
