@@ -24,12 +24,14 @@
  * store actions, not service functions.
  */
 
+import type { AudioReference } from '../player/audioSync'
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
 import { episodePlayerArtwork } from '../utils/episode'
 import {
   ApiError,
+  getAudioReference,
   getAudioSource,
   getEntities,
   getEpisode,
@@ -501,10 +503,13 @@ async function cacheKnowledge(
     // Caught individually: an episode with no insights yet is normal, and it must not cost us the
     // entities as well.
     // Moments ride along (operator 2026-10-10): a downloaded episode plays its reel on a plane.
-    const [insights, entities, moments] = await Promise.all([
+    // The audio reference rides along too (RFC-129): offline, the player syncs the downloaded file
+    // against it from disk, so its own ads never put the transcript out of step.
+    const [insights, entities, moments, audioReference] = await Promise.all([
       getInsights(slug).catch(() => null),
       getEntities(slug).catch(() => null),
       getMoments(slug).catch(() => null),
+      getAudioReference(slug).catch(() => null),
     ])
     if (!detail && !insights && !entities) return
     const path = knowledgePathFor(slug)
@@ -517,6 +522,7 @@ async function cacheKnowledge(
         topics: entities?.topics ?? [],
         persons: entities?.persons ?? [],
         moments: moments?.moments ?? null,
+        audioReference,
       }),
       encoding: Encoding.UTF8,
       recursive: true,
@@ -606,6 +612,8 @@ export interface LocalKnowledge {
   persons: Entity[]
   /** Absent in knowledge written before Moments (2026-10-10); null when the fetch failed. */
   moments?: Moment[] | null
+  /** RFC-129: absent before 2026-10-16; null when the episode has none. */
+  audioReference?: AudioReference | null
 }
 
 export async function localKnowledgeFor(slug: string): Promise<LocalKnowledge | null> {

@@ -5,6 +5,7 @@
  */
 
 import { getAudioReference } from '../services/api'
+import { localKnowledgeFor } from '../services/downloads'
 import { AudioSync, browserStreamAccess } from './audioSync'
 import { toStream, type AudioTimeMap } from './audioTimeMap'
 
@@ -14,7 +15,10 @@ export function syncFor(slug: string, url: string, fallback: AudioTimeMap | null
   const key = `${slug}\n${url}`
   let s = syncs.get(key)
   if (!s) {
+    // Offline, a downloaded episode's reference comes from its download (RFC-129).
     s = getAudioReference(slug)
+      .catch(() => null)
+      .then(async (ref) => ref ?? (await localKnowledgeFor(slug).catch(() => null))?.audioReference ?? null)
       .then((ref) => (ref && ref.checkpoints.length ? new AudioSync(ref, browserStreamAccess(url), fallback) : null))
       .catch(() => null)
     syncs.set(key, s)
