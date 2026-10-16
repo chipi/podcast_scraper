@@ -24,7 +24,7 @@ import urllib.request
 from contextlib import contextmanager
 from typing import Any, Iterable, Iterator, Optional
 
-from .auth import current_mcp_participant, current_mcp_user
+from .auth import current_mcp_participant, current_mcp_user, request_state
 
 _LOGGER = logging.getLogger("podcast_scraper.mcp.tool")
 
@@ -81,7 +81,7 @@ class _ToolCall:
 
 
 @contextmanager
-def _maybe_span(tool: str) -> Iterator[Any]:
+def _maybe_span(tool: str, parent: Any = None) -> Iterator[Any]:
     """Yield an OTel span for the tool call, or ``None`` when tracing isn't wired.
 
     The span context manager is resolved OUTSIDE any ``except`` so an exception thrown into the
@@ -92,7 +92,9 @@ def _maybe_span(tool: str) -> Iterator[Any]:
     try:
         from opentelemetry import trace
 
-        span_cm = trace.get_tracer("podcast_scraper.mcp").start_as_current_span(f"mcp.tool.{tool}")
+        span_cm = trace.get_tracer("podcast_scraper.mcp").start_as_current_span(
+            f"mcp.tool.{tool}", context=parent
+        )
     except Exception:  # noqa: BLE001 - no OTel API installed → run un-spanned
         span_cm = None
     if span_cm is None:
@@ -125,8 +127,11 @@ def preregister_tools(names: Iterable[str]) -> None:
 def observe_tool_call(tool: str) -> Iterator[_ToolCall]:
     """Wrap a tool call so it emits span + structured log + metric. Best-effort throughout."""
     call = _ToolCall(tool)
+    state = request_state()
+    principal = state.get("mcp_principal")
     start = time.perf_counter()
-    with _maybe_span(tool) as span:
+    # Parent on the CallTool request's server span, not the session opener's (see request_state).
+    with _maybe_span(tool, state.get("mcp_otel_context")) as span:
         try:
             yield call
         except Exception:
@@ -134,11 +139,14 @@ def observe_tool_call(tool: str) -> Iterator[_ToolCall]:
             raise
         finally:
             duration_s = time.perf_counter() - start
-            try:
-                user = current_mcp_user.get()
-                participant = current_mcp_participant.get()
-            except Exception:  # noqa: BLE001
-                user, participant = None, None
+            if principal:
+                user, participant = principal.get("user_id"), principal.get("participant")
+            else:
+                try:
+                    user = current_mcp_user.get()
+                    participant = current_mcp_participant.get()
+                except Exception:  # noqa: BLE001
+                    user, participant = None, None
             _emit(tool, call.ok, duration_s, user, span, participant)
 
 

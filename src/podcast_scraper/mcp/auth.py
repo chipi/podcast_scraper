@@ -117,13 +117,34 @@ def __reset_transport_trust() -> None:
     _stdio_trusted = False
 
 
+def request_state() -> dict[str, Any]:
+    """``scope["state"]`` of the HTTP request carrying the current tool call, or ``{}``.
+
+    FastMCP runs a tool in the task of the request that OPENED the MCP session, so the ContextVars
+    set by :class:`McpAuthMiddleware` (and the OTel current span) there belong to that first
+    request: every call in a session was traced, attributed and scope-checked as the opener. The
+    SDK's ``request_ctx`` holds the CallTool request itself; the middleware leaves the principal
+    (``mcp_principal``) and its server-span context (``mcp_otel_context``) on that request's state.
+    Empty for stdio and outside a request.
+    """
+    try:
+        from mcp.server.lowlevel.server import request_ctx
+
+        req_scope = getattr(request_ctx.get().request, "scope", None) or {}
+        state = req_scope.get("state")
+        return state if isinstance(state, dict) else {}
+    except Exception:  # noqa: BLE001 - no request in flight
+        return {}
+
+
 def require_scope(scope: str) -> None:
     """Refuse unless the current request's token granted ``scope``.
 
     stdio passes only when the entrypoint has DECLARED itself stdio — never merely because no
     scopes were recorded. See ``_stdio_trusted``.
     """
-    granted = current_mcp_scopes.get()
+    principal = request_state().get("mcp_principal")
+    granted = principal["scopes"] if principal else current_mcp_scopes.get()
     if granted is None:
         if _stdio_trusted:
             return
@@ -373,9 +394,24 @@ class McpAuthMiddleware:
         # check compared None against None: any holder of ANY valid token who learned another
         # user's `mcp-session-id` could drive that session (advisor 2.3).
         scope["user"] = _principal(user_id, scopes)
+        participant = participant_for(user_id)
+        # Per-request copy for the tools (see request_state): the ContextVars below reach a tool
+        # only from the request that opened its session.
+        state = scope.setdefault("state", {})
+        state["mcp_principal"] = {
+            "user_id": user_id,
+            "scopes": scopes,
+            "participant": participant,
+        }
+        try:
+            from opentelemetry import context as otel_context
+
+            state["mcp_otel_context"] = otel_context.get_current()
+        except Exception:  # noqa: BLE001 - no OTel API → tool spans parent on the ambient context
+            pass
         tok = current_mcp_user.set(user_id)
         scope_tok = current_mcp_scopes.set(scopes)
-        part_tok = current_mcp_participant.set(participant_for(user_id))
+        part_tok = current_mcp_participant.set(participant)
         try:
             await self._app(scope, receive, send)
         finally:
