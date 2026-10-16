@@ -6,7 +6,7 @@
 - **Related ADRs**: [ADR-117](ADR-117-multi-tenant-observability-gitops.md) (the
   multi-tenant o11y ownership split this refines — each tenant owns its app
   telemetry; this ADR fixes *how* the app emits it)
-- **Tracking**: app-surface o11y (see [`OBSERVABILITY_ARCHITECTURE.md`](../guides/OBSERVABILITY_ARCHITECTURE.md))
+- **Tracking**: app-surface o11y (see `OBSERVABILITY_ARCHITECTURE.md`)
 
 ## Context
 

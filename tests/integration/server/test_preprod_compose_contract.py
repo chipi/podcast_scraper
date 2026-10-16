@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Compose-config contract tests for the codespace pre-prod overlay (#693).
+"""Compose-config contract tests for the ``prod.yml`` overlay (#693).
 
 Asserts structural properties of ``stack.yml + prod.yml`` so the kind of
 defects RFC-081 Phase 1 first shipped cannot regress silently:
 
 * ``corpus_data`` volume is a host bind mount (not the Docker-managed default
-  inherited from stack.yml). Without this, ``backup-corpus.yml`` tarballs an
-  empty directory and the operator can't edit feeds.spec.yaml from the
-  codespace shell.
+  inherited from stack.yml). Without this, a host-side backup tarballs an
+  empty directory and the operator can't edit feeds.spec.yaml on the host.
 * ``PODCAST_PIPELINE_EXEC_MODE=docker`` on api so the Docker job factory
   attaches at startup. Without this, ``POST /api/jobs`` would try to run
   pipeline code in-process inside the published api image (runtime HTTP +
@@ -74,11 +73,11 @@ pytestmark.append(
 def _run_compose_config(extra_profile: str | None = None) -> Dict[str, Any]:
     env = {
         **os.environ,
-        "PODCAST_DOCKER_PROJECT_DIR": "/workspaces/podcast_scraper",
-        # Codespace-shaped corpus path. Both prod.yml's volume device and the
+        "PODCAST_DOCKER_PROJECT_DIR": "/srv/podcast-scraper",
+        # VPS-shaped corpus path (deploy.sh writes $REPO_DIR/corpus). Both prod.yml's volume device and the
         # api service's env passthrough now use ``${PODCAST_CORPUS_HOST_PATH:?}``,
         # so the fixture has to provide a value or compose-config exits 1.
-        "PODCAST_CORPUS_HOST_PATH": "/workspaces/podcast_scraper/.codespace_corpus",
+        "PODCAST_CORPUS_HOST_PATH": "/srv/podcast-scraper/corpus",
     }
     cmd = [
         "docker",
@@ -110,7 +109,7 @@ def resolved_compose() -> Dict[str, Any]:
 
     Module-scoped because the call is deterministic for a given repo state and
     invoking docker is the slow part (~1-2s on the first run, cached afterwards).
-    Sets ``PODCAST_DOCKER_PROJECT_DIR`` to a stable codespace-shaped value so
+    Sets ``PODCAST_DOCKER_PROJECT_DIR`` to a stable VPS-shaped value so
     ``${PODCAST_DOCKER_PROJECT_DIR:-…}`` substitution is predictable in CI.
     Profile-gated services (``pipeline-llm``) are excluded from this fixture by
     design — they're spawned on-demand by the api job factory, not by
@@ -146,8 +145,8 @@ def test_corpus_data_volume_is_local_bind_mount(resolved_compose: Dict[str, Any]
 
     Failure mode this catches: stack.yml's default ``corpus_data: {}`` carrying
     over into prod, leaving the corpus inside ``/var/lib/docker/volumes/...``
-    where backup-corpus.yml can't reach it and the operator can't edit
-    feeds.spec.yaml from the codespace shell.
+    where a host-side backup can't reach it and the operator can't edit
+    feeds.spec.yaml on the host.
     """
     volumes = resolved_compose.get("volumes") or {}
     corpus = volumes.get("corpus_data")
@@ -162,12 +161,11 @@ def test_corpus_data_volume_is_local_bind_mount(resolved_compose: Dict[str, Any]
     assert opts.get("o") == "bind", "``corpus_data`` driver_opts.o should be ``bind``"
     device = opts.get("device") or ""
     assert device, "``corpus_data`` driver_opts.device must be set (host bind path)"
-    # Codespace default; VPS deploys override via PODCAST_CORPUS_HOST_PATH.
-    # When unset, we expect the codespace path so backup-corpus.yml's
-    # tarball-from-host-path workflow lines up.
-    assert device.endswith(".codespace_corpus") or device.startswith(
-        "/"
-    ), f"``corpus_data`` device should resolve to an absolute path, got {device!r}"
+    # prod.yml has no default: the device is ``${PODCAST_CORPUS_HOST_PATH:?}``, so it must be
+    # exactly what the fixture passed.
+    assert (
+        device == "/srv/podcast-scraper/corpus"
+    ), f"``corpus_data`` device should be PODCAST_CORPUS_HOST_PATH, got {device!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -210,17 +208,17 @@ def test_api_mounts_docker_socket(resolved_compose: Dict[str, Any]) -> None:
 def test_api_mounts_project_dir_readonly(resolved_compose: Dict[str, Any]) -> None:
     """api bind-mounts the project dir so ``compose/*.yml`` is reachable from inside.
 
-    Pinned to ``PODCAST_DOCKER_PROJECT_DIR`` from the fixture (codespace-shaped).
+    Pinned to ``PODCAST_DOCKER_PROJECT_DIR`` from the fixture (VPS-shaped).
     """
     volumes = _api_service(resolved_compose).get("volumes") or []
     has_project = False
     for v in volumes:
         if isinstance(v, dict):
             src = str(v.get("source") or "")
-            if src == "/workspaces/podcast_scraper" and v.get("read_only", False):
+            if src == "/srv/podcast-scraper" and v.get("read_only", False):
                 has_project = True
                 break
-        elif isinstance(v, str) and "/workspaces/podcast_scraper" in v and v.endswith(":ro"):
+        elif isinstance(v, str) and "/srv/podcast-scraper" in v and v.endswith(":ro"):
             has_project = True
             break
     assert has_project, (

@@ -7,8 +7,8 @@
   - [RFC-082](RFC-082-always-on-pre-prod-and-prod-hosting.md) — prod VPS, Tailscale-only default, GitOps deploy
   - [RFC-081](RFC-081-pre-prod-environment-and-control-plane.md) — Codespaces pre-prod (orthogonal)
 - **Related guides**:
-  - [Prod runbook](../guides/PROD_RUNBOOK.md)
-  - [VPS multi-app onboarding](../guides/VPS_MULTI_APP_ONBOARDING.md) — same host, additional compose roots, GitOps pattern
+  - Prod runbook
+  - VPS multi-app onboarding — same host, additional compose roots, GitOps pattern
 
 ## Abstract
 
@@ -20,7 +20,7 @@ This RFC proposes an **optional second plane**: a **public TLS edge** (one rever
 terminating HTTPS) that routes **multiple hostnames** (subdomains or apex domains) to **one or
 more** Docker Compose stacks on the **same** VPS — including **other repositories’** compose
 apps, using the isolation and GitOps patterns in
-[VPS multi-app onboarding](../guides/VPS_MULTI_APP_ONBOARDING.md).
+VPS multi-app onboarding.
 
 **Operators keep using Tailscale** for SSH, deploy workflows, internal health checks, and
 sensitive surfaces; **end users** reach only vhosts explicitly published on the public edge.
@@ -43,7 +43,7 @@ sensitive surfaces; **end users** reach only vhosts explicitly published on the 
 2. **Single public edge**: one reverse proxy (or managed equivalent) terminates TLS and maps
    `Host` → upstream (local ports or internal Docker network).
 3. **Compose-extensible host**: additional apps under `/srv/<app-slug>` (or equivalent) follow
-   [VPS multi-app onboarding](../guides/VPS_MULTI_APP_ONBOARDING.md); edge config is the only
+   VPS multi-app onboarding; edge config is the only
    **shared** coupling layer.
 4. **Documented firewall and DNS**: Hetzner rules, DNS records, and ACME strategy are explicit.
 5. **Rollback**: disable a vhost or revert proxy config without reprovisioning the VM.
@@ -111,7 +111,7 @@ minimizing open ports is priority. Record choice in runbook addendum once implem
 
 ### Integration with multi-app onboarding
 
-[VPS multi-app onboarding](../guides/VPS_MULTI_APP_ONBOARDING.md) defines **per-app** roots,
+VPS multi-app onboarding defines **per-app** roots,
 env files, systemd units, and **per-repo** GitHub Actions deploy. This RFC adds:
 
 - a **shared edge stack** or host-level proxy **config repo** (or a documented directory on the
@@ -167,6 +167,6 @@ env files, systemd units, and **per-repo** GitHub Actions deploy. This RFC adds:
 ## References
 
 - [RFC-082 — always-on hosting](RFC-082-always-on-pre-prod-and-prod-hosting.md)
-- [VPS multi-app onboarding](../guides/VPS_MULTI_APP_ONBOARDING.md)
-- [Prod runbook](../guides/PROD_RUNBOOK.md)
+- VPS multi-app onboarding
+- Prod runbook
 - [Tailscale serve](https://tailscale.com/kb/1242/tailscale-serve) (operator plane today)

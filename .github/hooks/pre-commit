@@ -575,14 +575,12 @@ if [ -f "$IDENT_DENYLIST" ]; then
     #   tests/fixtures/**             — frozen corpus fixtures with absolute paths
     #   docs/guides/eval-reports/**   — dated lab records; editing falsifies them
     #   docs/wip/EVAL_1016_metrics/** — raw captured logs
-    #   tailscale/policy.hujson       — live ACL GitOps source-of-truth
     for f in $STAGED_ALL; do
         [ -f "$f" ] || continue
         case "$f" in
             tests/fixtures/*) continue ;;
             docs/guides/eval-reports/*) continue ;;
             docs/wip/EVAL_1016_metrics/*) continue ;;
-            tailscale/policy.hujson) continue ;;
         esac
         while IFS= read -r identifier; do
             [ -z "$identifier" ] && continue

@@ -51,7 +51,7 @@ steps end to end.
     must share **`scripts/ops/`** (or thin **`Makefile`** wrappers) so mechanically identical
     procedures cannot silently diverge. **#762** landed shared VPS restore scripts and workflow
     upload paths; future contract edits must update [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md)
-    and [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
+    and CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
     together.
 
 ## Rationale
@@ -95,7 +95,7 @@ steps end to end.
 - **CI gate**: **`.github/workflows/stack-test.yml`** + **`tests/stack-test/`**; drill uses
   **`drill-stack-playwright.yml`** with HTTPS adapter only.
 - **Corpus manifest and version-aware restore:** [ADR-092](ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md),
-  [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
+  CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md.
 
 ## References
 

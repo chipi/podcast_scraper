@@ -224,7 +224,7 @@ Scripts used in CI workflows to generate metrics and dashboards:
 
 **Re-run `generate_metrics.py` like CI** needs a full `reports/` tree (merged `pytest.json`, `coverage.xml`, radon JSON, etc.); that comes from downloading **`coverage-unified`** plus **`pytest-unit`**, **`pytest-integration`**, **`pytest-e2e`** from the *same* run and re-running the merge step from `python-app.yml` locally—not bundled in the `metrics` artifact.
 
-These scripts are primarily used in CI workflows (see `.github/workflows/`). See `docs/ci/WORKFLOWS.md` for details.
+These scripts are primarily used in CI workflows (see `.github/workflows/`).
 
 ---
 

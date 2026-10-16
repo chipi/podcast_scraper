@@ -90,7 +90,7 @@ Inputs, dependencies, and model loading must be handled in a security-first way 
 | **Path validation** | Path validation prevents directory traversal; user-controlled paths are validated before use. | Met | [ARCHITECTURE](ARCHITECTURE.md) (Reproducibility & Operational Hardening) |
 | **Model loading** | Model allowlist validation for HuggingFace sources; safetensors preferred; `trust_remote_code=False` enforced. | Met | [ARCHITECTURE](ARCHITECTURE.md), Issue #379 |
 | **Secrets** | No secrets in repo; credentials via environment or config files (not committed). | Met | [ADR-011](../adr/ADR-011-secure-credential-injection.md) |
-| **Dependency and image scanning** | CI runs security scanning (e.g. CodeQL, Snyk, bandit, pip-audit) on code and dependencies; findings addressed or accepted with justification. | Met | [CI WORKFLOWS](../ci/WORKFLOWS.md), `make security` |
+| **Dependency and image scanning** | CI runs security scanning (e.g. CodeQL, Snyk, bandit, pip-audit) on code and dependencies; findings addressed or accepted with justification. | Met | CI WORKFLOWS, `make security` |
 | **Vulnerability disclosure** | A documented process for external reporters to report security vulnerabilities and for the project to respond (e.g. acknowledge, triage, fix or decline, disclose). Typically a `SECURITY.md` or equivalent. | Plan | [Gaps and limitations](#gaps-and-limitations) (serious gap until added) |
 
 ### 2.3 Out of Scope (Security)

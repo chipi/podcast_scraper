@@ -166,7 +166,7 @@ routine post-deploy housekeeping.
 
 Frozen decision record for reviewers: **[ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)**.
 **Operator audit table (surfaces × compose × health × gates):** [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md).
-**Corpus tarball manifest and restore (Make vs Actions):** [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
+**Corpus tarball manifest and restore (Make vs Actions):** CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md.
 
 ### Decision 1 — Hosting target
 
@@ -490,7 +490,7 @@ dashboards** under `config/grafana/` use an **`env` template variable**
 (default `prod`, override `preprod` to match `PODCAST_ENV`); Grafana
 Cloud **alert rules** must add `env="prod"` in PromQL so pre-prod
 does not trip prod thresholds ([GH-726](https://github.com/chipi/podcast_scraper/issues/726),
-[PROD_RUNBOOK — Grafana env filter](../guides/PROD_RUNBOOK.md#grafana-env-filter-gh-726)).
+PROD_RUNBOOK — Grafana env filter).
 
 ### Layer-3 control plane — unchanged
 
@@ -704,7 +704,7 @@ corpus; codespace exports are separate **`backup-corpus.yml`** runs).
 Before running the timed DR exercise in GitHub
 [#724](https://github.com/chipi/podcast_scraper/issues/724), complete readiness tracked in
 [#751](https://github.com/chipi/podcast_scraper/issues/751). Operator workflow index:
-[DR drill runbook](../guides/DR_DRILL_RUNBOOK.md).
+DR drill runbook.
 
 If the corpus loss matters more than the speed of recovery,
 optionally enable Hetzner Volume snapshots (€0.0143/GB/month) for a
@@ -884,13 +884,13 @@ The decisions above leave a smaller residual set:
    in Sentry with **separate issue alert rules** (or equivalent filters)
    so `environment:prod` notifies the prod channel and pre-prod traffic
    goes elsewhere or is muted. See
-   [PROD_RUNBOOK — Sentry Slack routing](../guides/PROD_RUNBOOK.md#sentry-slack-routing-prod-vs-pre-prod-gh-725).
+   PROD_RUNBOOK — Sentry Slack routing.
 
 ## References
 
 - [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) — stack contract vs environment adapters; GitHub [#762](https://github.com/chipi/podcast_scraper/issues/762).
 - [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md) — operator audit table for Codespace, prod, drill, stack-test.
-- [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) — corpus tarball manifest and restore surfaces.
+- CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md — corpus tarball manifest and restore surfaces.
 - [RFC-083](RFC-083-prod-failover-orchestration-and-cutover.md) — production incident spare, DNS cutover, GitHub Actions orchestration (Draft).
 - [RFC-081 (pre-prod)](RFC-081-pre-prod-environment-and-control-plane.md) — what we're lifting from; pre-prod Codespace corpus bind mount, deploy, and agent gotchas.
 - [Hetzner Cloud pricing](https://www.hetzner.com/cloud/) — CX / CCX line.
