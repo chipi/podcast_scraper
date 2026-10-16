@@ -155,7 +155,13 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     `make ci-fast` green on the branch; after the rebase onto `ba86dff25` mypy, spelling, markdown,
     docs strict and 4,671 affected unit tests green. **Check:** the language guard flags exactly the
     2 Turkish Ottoman History Podcast episodes, now refused with `detected: tr`; no other episode's
-    outcome changes. How to observe it on prod: ask the ingestion session.
+    outcome changes. **Observing it needs a full reprocess of those 2** (the guard runs only inside
+    transcription; a relabel does not exercise it), about 37 + 48 audio-min. Then
+    `<corpus>/.language_refusals/<sha1(episode_id)>.json` holds `"detected": "tr"` and a detail
+    ending "The audio was identified as 'tr', which is not an enabled language."; the run log shows
+    "REFUSING episode:" and a `TranscriptLanguageMismatch` incident. **Operator decision first:** a
+    refusal writes nothing new and removes nothing, so both stay served as English from their
+    2026-09-12 and 2026-10-02 runs unless they are withdrawn.
 11. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-10 pass:
     `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
     `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
