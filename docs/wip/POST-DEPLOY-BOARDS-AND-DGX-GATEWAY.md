@@ -147,21 +147,30 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
 9. **BBC plays over https (`f4f3efb42`):** `audio-source` for an In Our Time and a Curious Cases
    episode returns an `https://` URL that answers `206 audio/mpeg`; an https feed's URL comes back
    unchanged. Play one BBC episode in the web player: no "Blocked by the browser".
-10. **Ingestion arc (from the ingestion session, 2026-10-16): the candidate must be `2b580bb1e` or
-    later.** It carries `fe2316648` (#2363 title names as spelling references), `fc4e0dbda` (#2364
-    Patreon shout-outs are ad voices), `28b10ef3c` (#2366 question-lead host seat), `e7234aaec`
-    (#2370 word timestamps), `e49583eb4` (#2375 / RFC-130: an episode in another language than its
-    show is identified and translated, or refused with the language recorded). Their gates: full
-    `make ci-fast` green on the branch; after the rebase onto `ba86dff25` mypy, spelling, markdown,
-    docs strict and 4,671 affected unit tests green. **Check:** the language guard flags exactly the
-    2 Turkish Ottoman History Podcast episodes, now refused with `detected: tr`; no other episode's
-    outcome changes. **Observing it needs a full reprocess of those 2** (the guard runs only inside
-    transcription; a relabel does not exercise it), about 37 + 48 audio-min. Then
-    `<corpus>/.language_refusals/<sha1(episode_id)>.json` holds `"detected": "tr"` and a detail
-    ending "The audio was identified as 'tr', which is not an enabled language."; the run log shows
-    "REFUSING episode:" and a `TranscriptLanguageMismatch` incident. **Operator decision first:** a
-    refusal writes nothing new and removes nothing, so both stay served as English from their
-    2026-09-12 and 2026-10-02 runs unless they are withdrawn.
+10. **Ingestion arc (from the ingestion session, 2026-10-16): the candidate must be `08a41f01a` or
+    later** (it includes the audio-sync floor `4d3378b55` of item 12). It carries `fe2316648` (#2363
+    title names as spelling references), `fc4e0dbda` (#2364 Patreon shout-outs are ad voices),
+    `28b10ef3c` (#2366 question-lead host seat), `e7234aaec` (#2370 word timestamps), `e49583eb4`
+    (#2375 / RFC-130: an episode in another language than its show is identified and translated, or
+    refused with the language recorded) and `669bcbf29` (a language refusal marks every run of the
+    episode unusable, so the catalog, player API, digests and MCP hide it; the search indexer
+    withholds unusable runs and deletes the rows of an episode with no servable run). Their gates on
+    `669bcbf29`: full `make ci-fast` green; after the rebase onto `9b11d49b9`: format, lint,
+    docstrings, mypy and 2,776 affected tests green. On today's snapshot no episode is unusable, so
+    the deploy alone changes nothing.
+    **Follow-up, on the operator's go: full reprocess (a relabel does not run the guard) of the 2
+    Turkish Ottoman History Podcast episodes,** about 37 + 48 audio-min:
+    `tag:blogger.com,1999:blog-1793063735579568706.post-7556576044575364143` (Soykırımın
+    Bürokrasisi) and `tag:blogger.com,1999:blog-1793063735579568706.post-1515154927178009499`
+    (Cümle Fener Burada). Expected:
+    - each is REFUSED; `<corpus>/.language_refusals/<sha1(episode_id)>.json` holds
+      `"detected": "tr"`; the run log shows "REFUSING episode:", a `TranscriptLanguageMismatch`
+      incident, and "withdrew a served run of a refused episode: …metadata.json" once per old run
+      (`run_5da86385…20260912` and `run_ed9ab40e…20261002`);
+    - the next index build (incremental is fine) logs "two-tier index: withdrew N row(s) of
+      unservable episode(s)";
+    - neither episode is in the catalog, in `/api/app/search` results, or reachable via the player
+      API.
 11. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-10 pass:
     `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
     `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
@@ -169,7 +178,7 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     Not verified: the newest 10 of Explain It to Me / The Curiosity Shop are all from the current
     show.
 12. **Audio sync, #2359 / RFC-129 (from the mobile session, 2026-10-16, simplified plan): the
-    candidate must be `4d3378b55` or later** (it includes `c838c6a9c`, `48ecf1609`, `2b580bb1e`).
+    candidate must be `4d3378b55` or later** (`08a41f01a` of item 10 includes it).
     The only step is a one-off reference backfill, on the operator's go; no DGX, no LLM; no daily
     job (drift-check and build-maps are manual diagnosis only). New episodes get their reference at
     the end of ingest. Runbook `docs/recipes/audio-timing-drift.md`. On the prod host, NEW image:
