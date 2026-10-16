@@ -305,8 +305,9 @@ dev = [
   "pyjwt>=2.15.0",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
-  # [search] (ML deps) at runtime, same as the viewer.
-  "mcp>=1.2.0,<2.0.0",
+  # [search] (ML deps) at runtime, same as the viewer. Floor 1.30.0: CVE-2026-59951 is fixed
+  # there, and a venv built earlier keeps 1.29.x and fails pip-audit (same reason as pyjwt).
+  "mcp>=1.30.0,<2.0.0",
   # scipy: topic clustering (search/topic_clusters.py, C1) uses scipy's UPGMA. It is also
   # declared in [search] for runtime, but the clustering is a PURE function unit-tested under
   # the core [dev] env (tests/unit/.../search/test_topic_clusters*.py call it directly), so the
