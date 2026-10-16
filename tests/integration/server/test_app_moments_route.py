@@ -195,3 +195,29 @@ def test_the_moments_door_says_exactly_whether_moments_play(tmp_path: Path) -> N
     listed = {e["slug"]: e for e in client.get("/api/app/episodes").json()["items"]}
     assert listed[_slug(tmp_path, "unnamed")]["has_moments"] is True
     assert listed[_slug(tmp_path, "empty")]["has_moments"] is False
+
+
+def test_a_mapped_episode_plays_each_moment_where_the_served_audio_has_it(tmp_path: Path) -> None:
+    """#2359 option A: the host now serves the episode shifted (ads changed). Moments keep their
+    transcript times and carry where they play; one that an ad change falls inside is left out."""
+    from podcast_scraper.server.app_audio_drift import MAPS_FILE
+
+    _episode(tmp_path, "0001-a", "ep1", insights=6, segments=True)
+    slug = _slug(tmp_path, "ep1")
+    before = _client(tmp_path).get(f"/api/app/episodes/{slug}/moments").json()["moments"]
+    assert all(m["play_start_ms"] == m["start_ms"] for m in before)
+    change_s = before[1]["start_ms"] / 1000 + 3  # an ad change 3 s into the second moment
+    anchors = [[0.0, 10.0], [change_s, -20.0]]
+    (tmp_path / MAPS_FILE).write_text(
+        json.dumps({"metadata/0001-a.metadata.json": {"anchors": anchors}}), encoding="utf-8"
+    )
+    client = _client(tmp_path)
+    assert client.get(f"/api/app/episodes/{slug}").json()["audio_time_map"] == anchors
+    after = client.get(f"/api/app/episodes/{slug}/moments").json()["moments"]
+    assert [m["insight_id"] for m in after] == [
+        m["insight_id"] for i, m in enumerate(before) if i != 1
+    ]
+    for m in after:
+        shift = 10_000 if m["start_ms"] < change_s * 1000 else -20_000
+        assert m["play_start_ms"] == m["start_ms"] + shift
+        assert m["play_end_ms"] - m["play_start_ms"] == m["end_ms"] - m["start_ms"]

@@ -23,6 +23,7 @@ from podcast_scraper.server import (
     app_user_state,
 )
 from podcast_scraper.server.app_another_view_rail import engaged_topics
+from podcast_scraper.server.app_audio_drift import play_window
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -437,6 +438,9 @@ def app_discover_reel(
         if row is None:
             continue
         m = c.moment
+        window = play_window(root, row.metadata_relative_path, m.start_ms, m.end_ms)
+        if window is None:
+            continue  # an ad changed inside the clip (#2359)
         out.append(
             AppReelClip(
                 episode=row_to_summary(root, row),
@@ -446,6 +450,8 @@ def app_discover_reel(
                 speaker=m.speaker,
                 start_ms=m.start_ms,
                 end_ms=m.end_ms,
+                play_start_ms=window[0],
+                play_end_ms=window[1],
                 heard=(c.episode_slug, m.insight_id) in heard,
             )
         )
@@ -600,6 +606,12 @@ def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
         row = resolve_slug(root, str(st.get("episode_slug") or "")) if i not in gone else None
         if row is None:
             continue  # the episode left the corpus; the other days stand, each keeping its day
+        start_ms, end_ms = int(st.get("start_ms") or 0), int(st.get("end_ms") or 0)
+        window = play_window(root, row.metadata_relative_path, start_ms, end_ms)
+        if window is None:
+            # A frozen day stays even when an ad changed inside it: it starts where it should.
+            at = (play_window(root, row.metadata_relative_path, start_ms, start_ms + 1) or (0,))[0]
+            window = (at, at + end_ms - start_ms)
         steps.append(
             AppPathStep(
                 day=i + 1,
@@ -608,8 +620,10 @@ def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
                 text=str(st.get("text") or ""),
                 quote_text=str(st.get("quote_text") or ""),
                 speaker=st.get("speaker"),
-                start_ms=int(st.get("start_ms") or 0),
-                end_ms=int(st.get("end_ms") or 0),
+                start_ms=start_ms,
+                end_ms=end_ms,
+                play_start_ms=window[0],
+                play_end_ms=window[1],
                 unlocked=i < opened,
                 done=i in done,
             )

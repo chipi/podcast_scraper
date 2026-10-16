@@ -31,6 +31,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.server.app_audio_drift import time_maps, to_stream
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_episode_search import (
@@ -137,7 +138,7 @@ def locate(words: list[dict[str, Any]], target: list[str]) -> float | None:
 
 
 def check_episode(
-    model: Any, root: Path, row: Any, source: str, config: MomentsConfig
+    model: Any, root: Path, row: Any, source: str, config: MomentsConfig, mapped: bool = False
 ) -> list[ClipCheck]:
     picked = pick_moments(
         load_json_artifact(root, row.gi_relative_path),
@@ -151,6 +152,9 @@ def check_episode(
     with tempfile.TemporaryDirectory() as tmp:
         for i, m in enumerate(picked):
             start, end = m.start_ms / 1000, m.end_ms / 1000
+            anchors = time_maps(root).get(row.metadata_relative_path) if mapped else None
+            if anchors:
+                start, end = to_stream(anchors, start), to_stream(anchors, end)
             clip_wav, wide_wav = Path(tmp) / f"c{i}.wav", Path(tmp) / f"w{i}.wav"
             if not cut(source, start, end, clip_wav):
                 continue
@@ -201,6 +205,12 @@ def main() -> int:
     )
     ap.add_argument("--json", type=Path, default=None, help="Write every clip's result here.")
     ap.add_argument(
+        "--mapped",
+        action="store_true",
+        help="Cut each clip at its time in the served stream, from <corpus>/audio_time_maps.json "
+        "(scripts/ops/audio_retime.py), as the player will.",
+    )
+    ap.add_argument(
         "--exact",
         action="store_true",
         help="Download each episode's audio and decode it to WAV first, so every cut is "
@@ -246,7 +256,7 @@ def main() -> int:
                     print(f"{slug_for_row(row)}: download failed", file=sys.stderr)
                     continue
                 source = str(wav)
-            checks = check_episode(model, args.corpus, row, source, config)
+            checks = check_episode(model, args.corpus, row, source, config, args.mapped)
         for c in checks:
             results.append(c)
             off = "  n/a" if c.offset_s is None else f"{c.offset_s:+5.1f}"

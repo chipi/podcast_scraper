@@ -62,6 +62,7 @@ import {
   stepTarget,
   swipeStep,
 } from '../player/insights'
+import { toStream, toTranscript } from '../player/audioTimeMap'
 import { insightScrubberMarkers } from '../player/insightMarkers'
 import { RECAP_COUNTDOWN_SECONDS } from '../player/recap'
 import { activeSegmentIndex, formatTime } from '../player/transcriptSync'
@@ -371,7 +372,12 @@ const compact = (n: number): string =>
 // Transcript ↔ insight bridge: which segments back a grounded insight (highlight + tap-through).
 const groundedSpans = computed(() => groundedSpansBySegment(segments.value, insights.value))
 // #1140: insight-density ticks for the scrubber ("skip guide" — where the substance is).
-const insightMarkers = computed(() => insightScrubberMarkers(insights.value, duration.value))
+const insightMarkers = computed(() =>
+  insightScrubberMarkers(insights.value, duration.value).map((m) => {
+    const at = toStream(timeMap.value, m.timeSec)
+    return { ...m, timeSec: at, pct: Math.max(0, Math.min(100, (at / duration.value) * 100)) }
+  }),
+)
 
 function openInsight(insightId: string): void {
   panelOpen.value = true
@@ -546,8 +552,10 @@ function deepLinkSeconds(): number | null {
   return value
 }
 
-// Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
-const contentTime = computed(() => currentTime.value - syncOffset.value)
+// #2359: how the host's audio is shifted from the transcript now (ads inserted at fetch time).
+const timeMap = computed(() => episode.value?.audio_time_map ?? null)
+// Audio-time → content-time: through the episode's time map, less the listener's sync nudge.
+const contentTime = computed(() => toTranscript(timeMap.value, currentTime.value - syncOffset.value))
 const activeIndex = computed(() => activeSegmentIndex(segments.value, contentTime.value))
 const artwork = computed(() => (episode.value ? episodePlayerArtwork(episode.value) : undefined))
 
@@ -1148,7 +1156,7 @@ function applyStartPosition(): void {
   const deepLink = Number(route.query.t)
   if (Number.isFinite(deepLink) && deepLink > 0) {
     // ?t= is a content-time (from a search jump-to-moment) → map to audio-time.
-    player.seek(deepLink + syncOffset.value)
+    player.seek(toStream(timeMap.value, deepLink) + syncOffset.value)
   } else if (resumeSeconds > 1 && resumeSeconds < duration.value - 1) {
     player.seek(resumeSeconds)
   }
@@ -1366,8 +1374,8 @@ watch(
           insightId: step.insight_id,
           text: step.quote_text || step.text,
           speaker: step.speaker,
-          startMs: step.start_ms,
-          endMs: step.end_ms,
+          startMs: step.play_start_ms ?? step.start_ms,
+          endMs: step.play_end_ms ?? step.end_ms,
         },
       ],
       0,
@@ -1445,7 +1453,7 @@ function toggleTranscript(): void {
 // Jump to a transcript/insight position (content-time) → audio-time via the sync offset.
 // (toggle / seek / skip / cycleRate now live in the player store.)
 function seekContent(contentSeconds: number): void {
-  player.seek(contentSeconds + syncOffset.value)
+  player.seek(toStream(timeMap.value, contentSeconds) + syncOffset.value)
 }
 /** "▶ Play from" in the episode notes: an explicit ▶ seeks AND plays (operator 2026-10-05). */
 function playFromContent(contentSeconds: number): void {

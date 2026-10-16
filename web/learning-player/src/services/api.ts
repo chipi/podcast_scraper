@@ -959,6 +959,9 @@ export interface ReelClip {
   speaker: string | null
   start_ms: number
   end_ms: number
+  /** #2359: where the clip is in the audio the host serves now (absent: same as start/end). */
+  play_start_ms?: number | null
+  play_end_ms?: number | null
   /** Heard to its end before (operator 2026-10-14). */
   heard?: boolean
 }
@@ -1008,6 +1011,9 @@ export interface PathStep {
   speaker: string | null
   start_ms: number
   end_ms: number
+  /** #2359: where the clip is in the audio the host serves now (absent: same as start/end). */
+  play_start_ms?: number | null
+  play_end_ms?: number | null
   unlocked: boolean
   done: boolean
 }

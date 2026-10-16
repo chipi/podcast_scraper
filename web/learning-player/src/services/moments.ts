@@ -15,8 +15,8 @@ export function toReel(moments: Moment[]): ReelMoment[] {
     insightId: m.insight_id,
     text: m.text,
     speaker: m.speaker,
-    startMs: m.start_ms,
-    endMs: m.end_ms,
+    startMs: m.play_start_ms ?? m.start_ms,
+    endMs: m.play_end_ms ?? m.end_ms,
     translatedFrom: m.translated_from ?? null,
   }))
 }

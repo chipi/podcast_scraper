@@ -138,6 +138,11 @@ export interface EpisodeDetail {
   licence_summary?: string | null
   /** Whose declaration `licence_summary` is: the episode's own, or its show's (#2325). */
   licence_scope?: 'episode' | 'show' | null
+  /**
+   * #2359: how the audio the host serves now is shifted from the transcript (ads inserted at fetch
+   * time). Pairs [transcript_s, offset_s], ascending; every time the API returns is transcript time.
+   */
+  audio_time_map?: [number, number][] | null
   podcast_title: string | null
   publish_date: string | null
   duration_seconds: number | null
@@ -432,6 +437,9 @@ export interface Moment {
   speaker: string | null
   start_ms: number
   end_ms: number
+  /** #2359: where the clip is in the audio the host serves now (absent: same as start/end). */
+  play_start_ms?: number | null
+  play_end_ms?: number | null
   clip_text: string
   /** D-36(b): source language code when the moment's quote is a machine translation. */
   translated_from?: string | null

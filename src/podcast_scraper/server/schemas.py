@@ -112,6 +112,15 @@ class AppEpisodeDetail(BaseModel):
         default=None,
         description="Whose declaration licence_summary is: the episode's own, or its show's.",
     )
+    audio_time_map: list[tuple[float, float]] | None = Field(
+        default=None,
+        description=(
+            "How the audio the host serves now is shifted from the transcript (#2359: hosts that "
+            "insert ads at fetch time). Pairs [transcript_s, offset_s], ascending: from "
+            "transcript_s on, the served audio runs offset_s seconds later. Every time this API "
+            "returns is transcript time; a player converts with this map. Null: no shift known."
+        ),
+    )
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
     language: str | None = Field(
@@ -441,6 +450,14 @@ class AppMoment(BaseModel):
     speaker: str | None = Field(default=None, description="Who says it, when named.")
     start_ms: int = Field(description="Clip start on the episode's original audio timeline.")
     end_ms: int = Field(description="Clip end (exclusive); at most the configured cap after start.")
+    play_start_ms: int | None = Field(
+        default=None,
+        description=(
+            "Where the clip starts in the audio the host serves NOW, when that differs from the "
+            "transcript's timeline (#2359: hosts that insert ads at fetch time). Players seek here."
+        ),
+    )
+    play_end_ms: int | None = Field(default=None, description="Where it ends in the served audio.")
     clip_text: str = Field(default="", description="Transcript of what plays.")
     translated_from: str | None = Field(
         default=None,
@@ -1245,6 +1262,14 @@ class AppReelClip(BaseModel):
     speaker: str | None = None
     start_ms: int
     end_ms: int
+    play_start_ms: int | None = Field(
+        default=None,
+        description=(
+            "Where the clip starts in the audio the host serves NOW, when that differs from the "
+            "transcript's timeline (#2359: hosts that insert ads at fetch time). Players seek here."
+        ),
+    )
+    play_end_ms: int | None = Field(default=None, description="Where it ends in the served audio.")
     heard: bool = Field(
         default=False,
         description="The listener has heard this clip to its end before (operator 2026-10-14).",
@@ -1275,6 +1300,14 @@ class AppPathStep(BaseModel):
     speaker: str | None = None
     start_ms: int
     end_ms: int
+    play_start_ms: int | None = Field(
+        default=None,
+        description=(
+            "Where the clip starts in the audio the host serves NOW, when that differs from the "
+            "transcript's timeline (#2359: hosts that insert ads at fetch time). Players seek here."
+        ),
+    )
+    play_end_ms: int | None = Field(default=None, description="Where it ends in the served audio.")
     unlocked: bool = Field(description="Its day has come (steps open one a day, never early).")
     done: bool
 

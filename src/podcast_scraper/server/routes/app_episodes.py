@@ -31,6 +31,7 @@ from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server import app_stats, app_user_state
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
+from podcast_scraper.server.app_audio_drift import episode_anchors, play_window
 from podcast_scraper.server.app_capture_export import format_note
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import (
@@ -516,6 +517,7 @@ def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisode
         summary_text=row.summary_text,
         description=row.episode_description,
         **_episode_licence_line(row),
+        audio_time_map=list(episode_anchors(root, row.metadata_relative_path) or ()) or None,
         has_transcript=has_transcript,
         has_summary=has_summary,
         has_gi=row.has_gi,
@@ -870,21 +872,28 @@ def episode_moments(
         episode_ad_spans(root, row),
         episode_turn_starts(root, row),
     )
-    return AppMomentsResponse(
-        episode_slug=slug,
-        moments=[
+    moments: list[AppMoment] = []
+    for m in picked:
+        window = play_window(root, row.metadata_relative_path, m.start_ms, m.end_ms)
+        if window is None:
+            continue  # an ad changed inside the clip (#2359)
+        moments.append(
             AppMoment(
                 insight_id=m.insight_id,
                 text=m.text,
                 speaker=m.speaker,
                 start_ms=m.start_ms,
                 end_ms=m.end_ms,
+                play_start_ms=window[0],
+                play_end_ms=window[1],
                 clip_text=m.clip_text,
                 translated_from=m.translated_from,
             )
-            for m in picked
-        ],
-        total_seconds=round(sum(m.end_ms - m.start_ms for m in picked) / 1000.0, 1),
+        )
+    return AppMomentsResponse(
+        episode_slug=slug,
+        moments=moments,
+        total_seconds=round(sum(m.end_ms - m.start_ms for m in moments) / 1000.0, 1),
     )
 
 

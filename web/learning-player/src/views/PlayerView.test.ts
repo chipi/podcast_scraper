@@ -1319,4 +1319,20 @@ describe('Step through insights (operator 2026-10-10)', () => {
     await w.get('[data-testid="player-step-prev-rest"]').trigger('click')
     expect(seek).not.toHaveBeenCalled()
   })
+
+  it('#2359: on an episode the host now serves shifted, seeks and the playhead go through its map', async () => {
+    // The served audio runs 10 s late, then (an old ad gone) 20 s early from transcript 600 s on.
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ audio_time_map: [[0, 10], [600, -20]] }))
+    vi.spyOn(api, 'getInsights').mockResolvedValue(insightsAt(120, 700, 900))
+    const w = await mountPlayer('ep-1')
+    const player = usePlayerStore()
+    const seek = vi.spyOn(player, 'seek').mockImplementation(() => {})
+    await w.get('[data-testid="player-step-next-rest"]').trigger('click')
+    expect(seek, 'the insight at transcript 120 s plays at 130 s').toHaveBeenLastCalledWith(130)
+    // The playhead at 690 s of the served audio is transcript 710 s: past the second insight.
+    player.currentTime = 690
+    await flushPromises()
+    await w.get('[data-testid="player-step-next-rest"]').trigger('click')
+    expect(seek, 'the next insight is the one at 900 s, at 880 s in the audio').toHaveBeenLastCalledWith(880)
+  })
 })

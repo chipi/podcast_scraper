@@ -22,6 +22,7 @@ from podcast_scraper.server import (
     board_summaries,
 )
 from podcast_scraper.server.app_artwork import artwork_url
+from podcast_scraper.server.app_audio_drift import play_window
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
@@ -435,6 +436,9 @@ def board_reel_response(
         if row is None:
             continue
         m = c.moment
+        window = play_window(root, row.metadata_relative_path, m.start_ms, m.end_ms)
+        if window is None:
+            continue  # an ad changed inside the clip (#2359)
         out.append(
             AppReelClip(
                 episode=row_to_summary(root, row),
@@ -444,6 +448,8 @@ def board_reel_response(
                 speaker=m.speaker,
                 start_ms=m.start_ms,
                 end_ms=m.end_ms,
+                play_start_ms=window[0],
+                play_end_ms=window[1],
             )
         )
     return AppTopicReelResponse(
