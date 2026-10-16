@@ -214,6 +214,8 @@ export const usePlayerStore = defineStore('player', () => {
   let currentUrl: string | null = null
   /** What the element plays: the sync on the listener's stream follows it (RFC-129). */
   const streamUrl = ref<string | null>(null)
+  /** A reel clip is waiting for its place in this listener's stream to be measured (RFC-129). */
+  const reelSyncing = ref(false)
   const playing = ref(false)
   const currentTime = ref(0)
   /**
@@ -860,7 +862,10 @@ export const usePlayerStore = defineStore('player', () => {
     const slug = clip.slug ?? r.slug
     if (clip.transcriptStartMs != null && clip.transcriptEndMs != null && slug && currentUrl) {
       // Where this clip is in THIS listener's stream: hosts insert their own ads (RFC-129).
-      const w = await clipWindow(slug, currentUrl, clip.transcriptStartMs, clip.transcriptEndMs)
+      reelSyncing.value = true
+      const w = await clipWindow(slug, currentUrl, clip.transcriptStartMs, clip.transcriptEndMs).finally(() => {
+        reelSyncing.value = false
+      })
       if (reel.value?.topic !== r.topic || reel.value?.learn?.subjectId !== r.learn?.subjectId) return
       if (w) play = { ...clip, ...w }
     }
@@ -1336,6 +1341,7 @@ export const usePlayerStore = defineStore('player', () => {
   return {
     el,
     streamUrl,
+    reelSyncing,
     playing,
     currentTime,
     duration,

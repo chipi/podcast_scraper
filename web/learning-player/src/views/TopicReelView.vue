@@ -250,6 +250,9 @@ function goBack(): void {
               >{{ playingNow ? '❚❚' : '▶' }}</button>
               <button type="button" class="lp-tap h-11 w-11 rounded-full border border-border" :disabled="!live" :aria-label="t('reel.next')" data-testid="topic-reel-next" @click="next">›</button>
             </div>
+            <p v-if="live && player.reelSyncing" class="mt-2 text-center text-xs text-muted" data-testid="topic-reel-sync-status">
+              {{ t('player.syncing') }}
+            </p>
             <EpisodeListenChoice
               v-if="live"
               class="mt-3"

@@ -480,6 +480,8 @@
     "audioErrorShort": "Audio unavailable",
     "audioInsecure": "This show serves its audio only over an insecure (http) connection, which your browser blocks, so it can’t play here. We’re working on it.",
     "audioInsecureShort": "Blocked by the browser",
+    "syncConnecting": "Connecting…",
+    "syncing": "Syncing…",
     "transcriptLanguage": "Transcript",
     "transcriptLanguageEnglish": "English",
     "transcriptPending": "Transcript pending — audio still plays.",

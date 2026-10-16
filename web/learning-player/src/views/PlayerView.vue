@@ -560,6 +560,17 @@ const deviceMap = ref<AudioTimeMap | null>(null)
 const timeMap = computed(() => deviceMap.value ?? episode.value?.audio_time_map ?? null)
 let audioSync: AudioSync | null = null
 let syncedTo = -1
+// Shown only while the listener waits on a measurement: a seek, a "Play from", a reel clip.
+// "Connecting…" when the stream has not been read yet, "Syncing…" after.
+const seekSyncStatus = ref<'connecting' | 'syncing' | null>(null)
+let seekSyncSeq = 0
+const syncLabel = computed(() =>
+  seekSyncStatus.value === 'connecting'
+    ? t('player.syncConnecting')
+    : seekSyncStatus.value === 'syncing' || player.reelSyncing
+      ? t('player.syncing')
+      : null,
+)
 // The URL the element actually plays: a recovered stream (an expired signed URL resolved again)
 // can carry other ads, so the sync follows it rather than the URL this page started with.
 const playedUrl = computed(() => (player.currentSlug === props.slug ? player.streamUrl : null) ?? audioUrl.value)
@@ -1497,7 +1508,10 @@ function seekContent(contentSeconds: number): Promise<void> {
     return Promise.resolve()
   }
   const slug = props.slug
+  const seq = ++seekSyncSeq
+  seekSyncStatus.value = sync.state === 'starting' ? 'connecting' : 'syncing'
   return within(sync.ensure(contentSeconds), 2000).then((map) => {
+    if (seq === seekSyncSeq) seekSyncStatus.value = null
     if (props.slug !== slug) return
     if (map && audioSync === sync) deviceMap.value = map
     go()
@@ -2279,6 +2293,13 @@ const { badgeShown } = useCorpusLanguages()
         >
           <!-- Post-episode recap (RFC-122 #2038): replaces the transport in place the moment this
                episode finishes, until dismissed back to the player. -->
+          <p
+            v-if="syncLabel && !audioError && !(showRecap && recap)"
+            class="mb-1 text-center text-xs text-muted"
+            data-testid="player-sync-status"
+          >
+            {{ syncLabel }}
+          </p>
           <EpisodeRecapPanel
             v-if="showRecap && recap"
             :recap="recap"

@@ -91,4 +91,15 @@ describe('reel clips on the listener stream (#2359)', () => {
     expect(clipWindow).not.toHaveBeenCalled()
     expect(el.currentTime).toBe(70)
   })
+
+  it('says a clip is syncing while it is measured', async () => {
+    let land: (v: unknown) => void = () => {}
+    clipWindow.mockReturnValue(new Promise((r) => (land = r)))
+    p.startReel('ep-1', [CLIP])
+    await drain()
+    expect(p.reelSyncing).toBe(true)
+    land(null)
+    await drain()
+    expect(p.reelSyncing).toBe(false)
+  })
 })

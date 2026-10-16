@@ -24,6 +24,13 @@ vi.mock('../services/playbackPositions', async (orig) => ({
 }))
 
 import { usePlayerStore } from '../stores/player'
+
+// RFC-129: the sync on the listener's stream; no episode has one unless a test says so.
+const { syncFor } = vi.hoisted(() => ({ syncFor: vi.fn() }))
+vi.mock('../player/audioSyncRegistry', async (orig) => ({
+  ...(await orig<typeof import('../player/audioSyncRegistry')>()),
+  syncFor: (...a: unknown[]) => syncFor(...a),
+}))
 import PlayerView from './PlayerView.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import EpisodeDescriptionSheet from '../components/EpisodeDescriptionSheet.vue'
@@ -89,6 +96,8 @@ async function mountPlayer(slug = 'ep-1') {
 
 beforeEach(() => {
   clearPlayerViewCache() // #16 snapshot cache is module-scope; each test is a fresh app launch
+  syncFor.mockReset()
+  syncFor.mockResolvedValue(null)
   vi.spyOn(api, 'getEpisode').mockResolvedValue(detail())
   vi.spyOn(api, 'getSegments').mockResolvedValue({ version: '1', episode_slug: 'ep-1', segments: [] })
   vi.spyOn(api, 'getAudioSource').mockResolvedValue({
@@ -1334,5 +1343,44 @@ describe('Step through insights (operator 2026-10-10)', () => {
     await flushPromises()
     await w.get('[data-testid="player-step-next-rest"]').trigger('click')
     expect(seek, 'the next insight is the one at 900 s, at 880 s in the audio').toHaveBeenLastCalledWith(880)
+  })
+
+  it('#2359: while a seek waits on the sync, the player says so, and stops saying so after', async () => {
+    let land: (m: unknown) => void = () => {}
+    const fake = {
+      state: 'synced',
+      ensure: vi.fn(() => new Promise((r) => (land = r))),
+    }
+    syncFor.mockResolvedValue(fake)
+    vi.spyOn(api, 'getInsights').mockResolvedValue(insightsAt(120, 300))
+    const w = await mountPlayer('ep-1')
+    await flushPromises()
+    vi.spyOn(usePlayerStore(), 'seek').mockImplementation(() => {})
+    await w.get('[data-testid="player-step-next-rest"]').trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="player-sync-status"]').text()).toBe('Syncing…')
+    land([[0, 10]])
+    await flushPromises()
+    expect(w.find('[data-testid="player-sync-status"]').exists()).toBe(false)
+  })
+
+  it('#2359: before the stream has been read, it says Connecting…', async () => {
+    syncFor.mockResolvedValue({ state: 'starting', ensure: vi.fn(() => new Promise(() => {})) })
+    vi.spyOn(api, 'getInsights').mockResolvedValue(insightsAt(120, 300))
+    const w = await mountPlayer('ep-1')
+    await flushPromises()
+    vi.spyOn(usePlayerStore(), 'seek').mockImplementation(() => {})
+    await w.get('[data-testid="player-step-next-rest"]').trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="player-sync-status"]').text()).toBe('Connecting…')
+  })
+
+  it('#2359: an episode without a sync shows no status', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(insightsAt(120, 300))
+    const w = await mountPlayer('ep-1')
+    vi.spyOn(usePlayerStore(), 'seek').mockImplementation(() => {})
+    await w.get('[data-testid="player-step-next-rest"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="player-sync-status"]').exists()).toBe(false)
   })
 })
