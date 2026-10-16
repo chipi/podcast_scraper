@@ -129,6 +129,11 @@ def locate(words: list[dict[str, Any]], target: list[str]) -> float | None:
                 if k < len(probe) and t == probe[k]:
                     hits += 1
                     k += 1
+                elif k + 1 < len(probe) and t == probe[k + 1]:
+                    # The word before it was misheard ("glorkeren" for "Glaucus", 2026-10-16):
+                    # without the skip, the match stalls on it and the clip reads "not located".
+                    hits += 1
+                    k += 2
             score = hits / (len(probe) - lead)
             if score > best:
                 best, at = score, flat[i][1]
