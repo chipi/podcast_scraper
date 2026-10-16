@@ -250,7 +250,7 @@ run must also end before the 00:00 UTC nightly.
    - **Left out, operator's call:** 2 episodes whose feeds are not in `feeds.spec.yaml`, and the
      reprocess runs with `--feeds-spec`. They are AI and Design (riverside `8P3kTQz9`, 58 min) and
      The Every Podcast (flightcast, 33 min).
-4. **One relabel, `relabel_combined_ids.txt`: 130 episodes, `pipeline_stage=relabel_only`** (not a
+4. **One relabel, `relabel_combined_ids.txt`: 131 episodes, `pipeline_stage=relabel_only`** (not a
    re-transcribe), on a sha that includes `2b580bb1e`. The operator's go is needed for the run.
    - The 91 from 8.4 (`relabel_84_ids.txt`: replay of `c6cdc5d` vs `aaadbb2` modules, 2026-10-15;
      none of them was re-done by backfill 27-32).
@@ -260,12 +260,14 @@ run must also end before the 00:00 UTC nightly.
      8 false guests removed (#2364), 6 from the question-lead host seat (#2366); plus 4 stale
      records (#2365, Kara Swisher's Pivot tour promo stored as a guest).
    - 4 episodes are in both lists; 1 ("Taking down the cultural elite") is dropped because the
-     #2370 re-transcribe relabels it anyway. 91 + 44 - 4 - 1 = 130.
-   - **Left out on purpose:** Hard Fork "A.I. Backlash Turns Violent + Kara Swisher on
-     Healthmaxxing". She is its real guest and current code leaves her voice unnamed, so a relabel
-     would remove a correct name (the ingestion session's open finding).
+     #2370 re-transcribe relabels it anyway. 91 + 44 - 4 - 1 = 130, plus Hard Fork below = 131.
+   - **Hard Fork "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing"**
+     (`25d702f6-ed6a-4565-8065-e729eb0f2650`), added back on the ingestion session's correction: the
+     stored "Kara Swisher" is SPEAKER_01 (46%), which is both hosts merged, so the relabel removes a
+     wrong name. Not fixable by a relabel: SPEAKER_02 holds both Casey Newton and Kara Swisher
+     (diarization merged them); only a rediarize could, and that is the operator's call.
    - **Time:** about 17 min per episode by the ingestion session's notes (GI dominates), so about
-     37 h for 130. No relabel has been timed on prod: run 5 first and measure, then batches that fit
+     37 h for 131. No relabel has been timed on prod: run 5 first and measure, then batches that fit
      the runner and the nightly, after the #2370 and #2332 runs.
    - **Check after:** send the run ids to the ingestion session; it compares the replay's changes
      with the served records on the next snapshot.
