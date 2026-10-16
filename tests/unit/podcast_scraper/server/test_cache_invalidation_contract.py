@@ -43,6 +43,7 @@ CONTRACT: dict[str, tuple[str, str]] = {
         "30 s; anonymous aggregate counts",
     ),
     "server/routes/app_relational.py::_conversation_arc_cache": ("ttl", "30 s"),
+    "server/app_audio_bridge.py::_https_cache": ("ttl", "1 h (_HTTPS_TTL_S)"),
     "server/routes/corpus_enrichments.py::_CATALOGUE_CACHE": (
         "mtime",
         "the enrichments directory mtime, checked on every read",
