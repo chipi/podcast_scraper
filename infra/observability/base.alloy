@@ -74,7 +74,7 @@ discovery.relabel "api" {
     action        = "keep"
   }
   rule {
-    source_labels = ["__meta_docker_network_ip_address"]
+    source_labels = ["__meta_docker_network_ip"]
     regex         = "(.+)"
     target_label  = "__address__"
     replacement   = "${1}:8000"
