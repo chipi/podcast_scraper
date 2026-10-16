@@ -147,19 +147,53 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
 
 **Then the long runs, one at a time (concurrency group prod-corpus):**
 
-1. **Re-transcribe the 10 doubled-stream episodes** (#2370): a full reprocess (ASR included) on a
-   deployed sha that contains `e7234aaec`. A relabel keeps the bad timestamps. The list is
-   `/Users/Shared/doubled_stream_10_episodes.tsv` on the mini (guid, feed, title). It includes The
-   Terror Part 4 (`7d4f6bf6-bcb2-11f1-9e30-afa90f070c5b`), held until now: take it off the hold
-   list and run it in the same batch. Check after: in every episode's segments, no segment starts
-   before the previous one ends. The stored timestamps drift before the visible doubling, e.g.
-   "Taking down the cultural elite" from about 867 s on.
+The id lists are on the mini in `/Users/Shared/postdeploy-2026-10-16/`. Every run below is
+`reprocess-prod.yml` with `selection=episode_ids_worklist`, `episode_ids=<the file's ids>`,
+`pipeline_stage=full`, `use_transcript_cache=false`, `profile=config/profiles/prod_dgx_full.yaml`,
+`timeout_minutes=330`. Wall times use the 3-4x real time measured on backfill batches 27-31; each
+run must also end before the 00:00 UTC nightly.
+
+1. **#2370 re-transcribe, `r2370_ids.txt`: 11 episodes, 817 audio-min, about 3.5-4.5 h.** Needs a
+   deployed sha that contains `e7234aaec`; a relabel keeps the bad timestamps.
+   - The 10 found by the ingestion session (`/Users/Shared/doubled_stream_10_episodes.tsv`),
+     including The Terror Part 4 (`7d4f6bf6-bcb2-11f1-9e30-afa90f070c5b`): take it off the
+     backfill hold list.
+   - Plus "Lizzi Lee on Involution" (Sinica), found by the overlap scan: 527 overlapping segments,
+     worst 23.6 s. Backfill batch 27 re-transcribed it on 2026-10-15 with the unfixed code.
+   - **Sizing (2026-10-16, `scripts/audit/asr_segment_overlaps.py` over 2,504 served episodes):**
+     2,023 have no overlap; 646 have 1-9, worst under 5 s in all but 4 (ordinary jitter). The
+     drift shows as hundreds: 8 episodes with 175-2,330 overlaps, 7 of them in the 10, plus Lizzi
+     Lee. Two of the 10 had only 3 and 5 overlaps (found by listening), so the scan cannot clear
+     an episode. The 122 backfilled episodes were all checked: only Lizzi Lee is hit beyond the 10.
+   - **Not checked:** the 4 episodes with a few overlaps of 5-25 s (one each in feedburner
+     `2aa371eb`, megaphone `3581c092`, megaphone `9316148d`, soundcloud `c56bfb45`).
+   - **Check after:** run the scan in the api container
+     (`python scripts/audit/asr_segment_overlaps.py --corpus-dir /app/output --min-overlaps 50`):
+     none of the 11 may appear. The fix's own measurement went from 470 overlaps to 1.
 2. Keep `/srv/podcast-scraper/punct-2368/` until the ingestion session says the #2368 analysis is
    done.
-3. **#2332: 96 episodes with an unlabelled publisher transcript** (52.4 audio-h, about 13 h). A
-   full reprocess, since there are no voices to relabel. A 5-episode sample first (2 Explaining
-   Brazil, 1 The Flip, 2 In Moscow's Shadows). List: `/Users/Shared/s5_96_episodes.tsv` on the
-   mini. The operator decides when.
+3. **#2332, 94 of the 96 episodes with an unlabelled publisher transcript.** A full reprocess,
+   since there are no voices to relabel.
+   - **Sample before the deploy** (operator, 2026-10-16), `s5_sample_ids.txt`: 5 typical-length
+     episodes, 134 audio-min. 2 Explaining Brazil (12.6 min each; the feed's median, and its
+     episodes are "(preview)" cuts), 1 The Flip, 2 In Moscow's Shadows (48 min each). It answers
+     the #2332 question: does a re-transcribe give these shows named voices? It runs on
+     `sha-f35a446`, without the #2370 fix, so scan these 5 for overlaps too and add any hit to a
+     post-deploy run.
+   - **After the deploy**, `s5_batch1..4_ids.txt`:
+
+     | batch | episodes | audio-h | wall |
+     | --- | --- | --- | --- |
+     | 1 | 15 | 15.0 | 3.7-5.0 h |
+     | 2 | 19 | 15.0 | 3.7-5.0 h |
+     | 3 | 31 | 15.0 | 3.7-5.0 h |
+     | 4 | 24 | 3.7 | 0.9-1.2 h |
+
+   - All 96 were found served on prod 2026-10-16, all `transcript_source=direct_download`, and every
+     audio URL answered (`206`).
+   - **Left out, operator's call:** 2 episodes whose feeds are not in `feeds.spec.yaml`, and the
+     reprocess runs with `--feeds-spec`. They are AI and Design (riverside `8P3kTQz9`, 58 min) and
+     The Every Podcast (flightcast, 33 min).
 4. **One relabel list:** the 91 from 8.4 plus the naming changes since (`fe2316648` #2363,
    `fc4e0dbda` #2364, `28b10ef3c` #2366, and #2365). Inside the deployed API container, with the
    old modules from git:
