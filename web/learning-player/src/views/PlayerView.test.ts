@@ -1216,8 +1216,8 @@ describe('Moments view on the player page (operator 2026-10-10)', () => {
     await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { moments: '1' } })
     await flushPromises()
     expect(start).toHaveBeenCalledWith('ep-1', [
-      { insightId: 'i1', text: 'First point', speaker: 'Ann', startMs: 60_000, endMs: 80_000, translatedFrom: null },
-      { insightId: 'i2', text: 'Second point', speaker: null, startMs: 600_000, endMs: 620_000, translatedFrom: null },
+      { insightId: 'i1', text: 'First point', speaker: 'Ann', startMs: 60_000, endMs: 80_000, transcriptStartMs: 60_000, transcriptEndMs: 80_000, translatedFrom: null },
+      { insightId: 'i2', text: 'Second point', speaker: null, startMs: 600_000, endMs: 620_000, transcriptStartMs: 600_000, transcriptEndMs: 620_000, translatedFrom: null },
     ])
     w.unmount()
   })

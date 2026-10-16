@@ -17,6 +17,8 @@ export function toReel(moments: Moment[]): ReelMoment[] {
     speaker: m.speaker,
     startMs: m.play_start_ms ?? m.start_ms,
     endMs: m.play_end_ms ?? m.end_ms,
+    transcriptStartMs: m.start_ms,
+    transcriptEndMs: m.end_ms,
     translatedFrom: m.translated_from ?? null,
   }))
 }

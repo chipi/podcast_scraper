@@ -62,7 +62,9 @@ import {
   stepTarget,
   swipeStep,
 } from '../player/insights'
-import { toStream, toTranscript } from '../player/audioTimeMap'
+import type { AudioSync } from '../player/audioSync'
+import { syncFor, within } from '../player/audioSyncRegistry'
+import { toStream, toTranscript, type AudioTimeMap } from '../player/audioTimeMap'
 import { insightScrubberMarkers } from '../player/insightMarkers'
 import { RECAP_COUNTDOWN_SECONDS } from '../player/recap'
 import { activeSegmentIndex, formatTime } from '../player/transcriptSync'
@@ -552,10 +554,38 @@ function deepLinkSeconds(): number | null {
   return value
 }
 
-// #2359: how the host's audio is shifted from the transcript now (ads inserted at fetch time).
-const timeMap = computed(() => episode.value?.audio_time_map ?? null)
+// #2359 / RFC-129: how the host's audio is shifted from the transcript (ads inserted per request).
+// Measured on THIS listener's stream when the episode has a reference; else the server's map.
+const deviceMap = ref<AudioTimeMap | null>(null)
+const timeMap = computed(() => deviceMap.value ?? episode.value?.audio_time_map ?? null)
+let audioSync: AudioSync | null = null
+let syncedTo = -1
+watch(
+  () => [props.slug, audioUrl.value] as const,
+  async ([slug, url]) => {
+    audioSync = null
+    deviceMap.value = null
+    syncedTo = -1
+    if (!url) return
+    const sync = await syncFor(slug, url, episode.value?.audio_time_map ?? null)
+    if (props.slug !== slug || audioUrl.value !== url) return
+    audioSync = sync
+    driveSync(contentTime.value)
+  },
+)
+/** Resolve checkpoints up to a minute past the playhead; cheap when they already are. */
+function driveSync(t: number): void {
+  const sync = audioSync
+  if (!sync || t + 30 < syncedTo) return
+  syncedTo = t + 60
+  const slug = props.slug
+  void sync.ensure(Math.max(0, t)).then((map) => {
+    if (map && props.slug === slug && audioSync === sync) deviceMap.value = map
+  })
+}
 // Audio-time → content-time: through the episode's time map, less the listener's sync nudge.
 const contentTime = computed(() => toTranscript(timeMap.value, currentTime.value - syncOffset.value))
+watch(contentTime, (t) => driveSync(t))
 const activeIndex = computed(() => activeSegmentIndex(segments.value, contentTime.value))
 const artwork = computed(() => (episode.value ? episodePlayerArtwork(episode.value) : undefined))
 
@@ -630,7 +660,7 @@ const nextInsightCountdown = computed(() =>
     : null,
 )
 function seekToNextInsight(): void {
-  if (nextInsightStartSeconds.value != null) seekContent(nextInsightStartSeconds.value)
+  if (nextInsightStartSeconds.value != null) void seekContent(nextInsightStartSeconds.value)
 }
 
 /**
@@ -641,7 +671,7 @@ function seekToNextInsight(): void {
 function stepInsight(dir: 1 | -1): void {
   const target = stepTarget(insights.value, contentTime.value, dir)
   if (target == null) return
-  seekContent(target)
+  void seekContent(target)
   flashStep(dir, target)
 }
 /** "› Jumped to 21:07" for two seconds after a step, so a jump never happens unexplained. */
@@ -1205,8 +1235,8 @@ watch(
   ([t, play]) => {
     if (startApplied !== props.slug || player.currentSlug !== props.slug) return
     const seconds = Number(t)
-    if (Number.isFinite(seconds) && seconds > 0) seekContent(seconds)
-    if (play) player.play()
+    const seeked = Number.isFinite(seconds) && seconds > 0 ? seekContent(seconds) : Promise.resolve()
+    if (play) void seeked.then(() => player.play())
   },
 )
 
@@ -1376,6 +1406,8 @@ watch(
           speaker: step.speaker,
           startMs: step.play_start_ms ?? step.start_ms,
           endMs: step.play_end_ms ?? step.end_ms,
+          transcriptStartMs: step.start_ms,
+          transcriptEndMs: step.end_ms,
         },
       ],
       0,
@@ -1452,13 +1484,25 @@ function toggleTranscript(): void {
 
 // Jump to a transcript/insight position (content-time) → audio-time via the sync offset.
 // (toggle / seek / skip / cycleRate now live in the player store.)
-function seekContent(contentSeconds: number): void {
-  player.seek(toStream(timeMap.value, contentSeconds) + syncOffset.value)
+// With a sync on this listener's stream, the target is measured first (up to 2 s), so the seek
+// lands where the words are in THIS stream; without one, it seeks at once (RFC-129).
+function seekContent(contentSeconds: number): Promise<void> {
+  const sync = audioSync
+  const go = () => player.seek(toStream(timeMap.value, contentSeconds) + syncOffset.value)
+  if (!sync) {
+    go()
+    return Promise.resolve()
+  }
+  const slug = props.slug
+  return within(sync.ensure(contentSeconds), 2000).then((map) => {
+    if (props.slug !== slug) return
+    if (map && audioSync === sync) deviceMap.value = map
+    go()
+  })
 }
 /** "▶ Play from" in the episode notes: an explicit ▶ seeks AND plays (operator 2026-10-05). */
 function playFromContent(contentSeconds: number): void {
-  seekContent(contentSeconds)
-  player.play()
+  void seekContent(contentSeconds).then(() => player.play())
 }
 
 // --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---

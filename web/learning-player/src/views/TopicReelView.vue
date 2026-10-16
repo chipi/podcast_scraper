@@ -61,6 +61,8 @@ const moments = computed<ReelMoment[]>(() =>
     speaker: c.speaker,
     startMs: c.play_start_ms ?? c.start_ms,
     endMs: c.play_end_ms ?? c.end_ms,
+    transcriptStartMs: c.start_ms,
+    transcriptEndMs: c.end_ms,
     slug: c.episode.slug,
     episodeTitle: c.episode.title,
     showTitle: c.episode.podcast_title,

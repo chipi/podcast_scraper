@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core'
 import { captureMessage } from '@sentry/capacitor'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { clipWindow } from '../player/audioSyncRegistry'
 import { isInsecureAudio } from '../player/insecureAudio'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
 
@@ -56,6 +57,13 @@ export interface ReelMoment {
   speaker: string | null
   startMs: number
   endMs: number
+  /**
+   * The clip on the transcript's timeline (RFC-129). `startMs`/`endMs` are where it plays in the
+   * stream as the server measured it; before a clip plays, the reel re-measures it on this
+   * listener's own stream when it can.
+   */
+  transcriptStartMs?: number
+  transcriptEndMs?: number
   /** D-36(b): source language when the moment's quote is a machine translation. */
   translatedFrom?: string | null
   /** A topic reel's clip names its episode; an episode reel's clips are all on the loaded one. */
@@ -812,10 +820,19 @@ export const usePlayerStore = defineStore('player', () => {
       }
     }
     const learn = r.learn && clip.day ? { ...r.learn, day: clip.day } : r.learn
-    reel.value = { ...r, slug: clip.slug ?? r.slug, index: i, done: false, ...(learn ? { learn } : {}) }
-    seek(clip.startMs / 1000)
+    let play = clip
+    const slug = clip.slug ?? r.slug
+    if (clip.transcriptStartMs != null && clip.transcriptEndMs != null && slug && currentUrl) {
+      // Where this clip is in THIS listener's stream: hosts insert their own ads (RFC-129).
+      const w = await clipWindow(slug, currentUrl, clip.transcriptStartMs, clip.transcriptEndMs)
+      if (reel.value?.topic !== r.topic || reel.value?.learn?.subjectId !== r.learn?.subjectId) return
+      if (w) play = { ...clip, ...w }
+    }
+    const moments = play === clip ? r.moments : r.moments.map((m, k) => (k === i ? play : m))
+    reel.value = { ...r, moments, slug, index: i, done: false, ...(learn ? { learn } : {}) }
+    seek(play.startMs / 1000)
     reelHeardS = 0
-    reelLastTime = clip.startMs / 1000
+    reelLastTime = play.startMs / 1000
     // Each clip fades in rather than cutting in mid-breath: from one speaker's sentence to
     // another's is a jump, and a quarter second of fade is what makes it read as a transition.
     fadeIn(REEL_FADE_MS)

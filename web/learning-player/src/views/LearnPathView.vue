@@ -82,6 +82,8 @@ async function playAll(): Promise<void> {
       speaker: s.speaker,
       startMs: s.play_start_ms ?? s.start_ms,
       endMs: s.play_end_ms ?? s.end_ms,
+      transcriptStartMs: s.start_ms,
+      transcriptEndMs: s.end_ms,
       slug: s.episode.slug,
       episodeTitle: s.episode.title,
       showTitle: s.episode.podcast_title,

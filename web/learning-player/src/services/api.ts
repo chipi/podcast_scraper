@@ -6,6 +6,7 @@
  * (`credentials: 'include'`); reads are open, per-user writes require auth.
  */
 
+import type { AudioReference } from '../player/audioSync'
 import type {
   EpisodeSummary,
   FavoriteKind,
@@ -331,6 +332,19 @@ export function getSegments(slug: string, lang?: string | null): Promise<Segment
 }
 
 /** Origin audio descriptor — the client plays `url` directly (bridge, never rehost). */
+/**
+ * The fingerprint checkpoints of the audio we transcribed (RFC-129, #2359), which the player lines
+ * its own stream up against. `null` when the episode has none (404).
+ */
+export async function getAudioReference(slug: string): Promise<AudioReference | null> {
+  try {
+    return await getJSON<AudioReference>(`/episodes/${encodeURIComponent(slug)}/audio-reference`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
+
 export async function getAudioSource(slug: string, validate = false): Promise<AudioSource> {
   // `validate` HEADs the origin (an extra network call) and is what populates `content_length`.
   // The download path asks for it so a transfer that cannot fit is refused BEFORE it starts;
