@@ -124,6 +124,23 @@ Files land as `~/podcast-audio/<Feed Title>/<NNNN> - <Episode Title>.mp3`,
 deduped by guid, skipping ones already present (`--force` to re-pull). Use
 `--local-root <dir>` instead of `--rclone-remote` to pull from a local archive.
 
+**On prod, pass `--base-path ""`.** `--base-path` defaults to `podcast-audio-archive`, which is
+right for the box's main account (`hetzner-box` above). Prod's `audioarchive` remote logs in as the
+sub-account jailed to `podcast-audio-archive/` (`infra/terraform/outputs.tf`), so its keys sit at
+the remote root; with the default every episode reports `MISS … not in archive`. From a one-off
+pipeline container on prod (reads `.env` for the `RCLONE_CONFIG_AUDIOARCHIVE_*` secrets):
+
+```bash
+docker run --rm --env-file /srv/podcast-scraper/.env \
+  -v /srv/podcast-scraper/corpus:/corpus:ro -v /tmp/pulled:/out \
+  --entrypoint python ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:sha-<7> \
+  -m podcast_scraper.cli archive pull --corpus /corpus --dest /out \
+  --rclone-remote audioarchive --base-path "" --episode <guid>
+```
+
+Checked 2026-10-16: with `--base-path ""` one BBC episode pulled (45,328,242 bytes); without it,
+`MISS`.
+
 ## 4. Flow B — one-off reprocess in prod (reads from the archive)
 
 Reprocess re-runs episode processing, which fetches each episode's audio from the
