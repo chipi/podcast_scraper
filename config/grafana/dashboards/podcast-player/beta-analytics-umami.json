@@ -1,0 +1,1094 @@
+{
+  "uid": "podcast-player-beta-analytics",
+  "title": "Player — beta analytics (Umami)",
+  "description": "The browser/app half of the beta questions (epic #2263, Q1-Q7), read from Umami through the homelab's read-only umami-pg datasource. Its server-side counterpart is 'Player — beta usage (server-side truth)'; the two disagreeing is itself a signal. Participant ids are the pseudonymous analytics_id; only the operator's private sheet maps them to people.",
+  "tags": [
+    "podcast-player",
+    "beta",
+    "umami",
+    "analytics"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "refresh": "",
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "label": "site",
+        "type": "custom",
+        "query": "prod : cd384a3e-fd25-476e-affa-08985b73d4da, dev : 3ccaa1bc-fcc5-444d-9252-d20d60d58eed",
+        "current": {
+          "selected": true,
+          "text": "prod",
+          "value": "cd384a3e-fd25-476e-affa-08985b73d4da"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "prod",
+            "value": "cd384a3e-fd25-476e-affa-08985b73d4da"
+          },
+          {
+            "selected": false,
+            "text": "dev",
+            "value": "3ccaa1bc-fcc5-444d-9252-d20d60d58eed"
+          }
+        ]
+      },
+      {
+        "name": "channel",
+        "label": "channel",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "umami-pg"
+        },
+        "query": "SELECT DISTINCT string_value FROM session_data WHERE website_id = '$site' AND data_key = 'channel'",
+        "definition": "SELECT DISTINCT string_value FROM session_data WHERE website_id = '$site' AND data_key = 'channel'",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "multi": false,
+        "allValue": "All",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "platform",
+        "label": "platform",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "umami-pg"
+        },
+        "query": "SELECT DISTINCT string_value FROM session_data WHERE website_id = '$site' AND data_key = 'platform'",
+        "definition": "SELECT DISTINCT string_value FROM session_data WHERE website_id = '$site' AND data_key = 'platform'",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "multi": false,
+        "allValue": "All",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "app_version",
+        "label": "app version",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "umami-pg"
+        },
+        "query": "SELECT DISTINCT string_value FROM session_data WHERE website_id = '$site' AND data_key = 'app_version'",
+        "definition": "SELECT DISTINCT string_value FROM session_data WHERE website_id = '$site' AND data_key = 'app_version'",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "multi": false,
+        "allValue": "All",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "participant",
+        "label": "participant",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "umami-pg"
+        },
+        "query": "SELECT DISTINCT distinct_id FROM session WHERE website_id = '$site' AND distinct_id IS NOT NULL",
+        "definition": "SELECT DISTINCT distinct_id FROM session WHERE website_id = '$site' AND distinct_id IS NOT NULL",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "0 · Event health: is the instrumentation alive?",
+      "collapsed": false,
+      "id": 1,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Every registered event: count, sessions, last seen",
+      "description": "The registry is analytics.ts EVENT_NAMES (a unit test keeps this list equal to it). 'never fired' in the range is not 'unused', it is the first suspect after a release. 'off-registry' is a name the app sent that the registry does not have.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH reg(name) AS (VALUES ('screen_view'),('landing_view'),('landing_cta_click'),('landing_teaser_click'),('auth_started'),('auth_completed'),('auth_failed'),('interests_picker_shown'),('interests_saved'),('interests_dismissed'),('trends_row_click'),('browse_tab_view'),('entity_open'),('episode_open'),('follow'),('unfollow'),('search_submitted'),('search_result_click'),('share_link_opened'),('play_start'),('knowledge_panel_open'),('insight_tap'),('transcript_seek'),('capture_created'),('recap_view'),('revisit_open'),('queue_add'),('collection_add'),('download_start'),('share'),('route_output'),('highlights_export'),('speed_change'),('error_shown'),('empty_state_shown'),('offline_session'),('update_prompt'),('app_launch'),('app_resume'),('push_permission'),('notification_open'),('email_link_opened'),('discover_rail_shown'),('discover_rail_tap'),('learn_path'),('reel_open'),('reel_action'),('trends_show_more'),('catalog_filter')),\nsess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nagg AS (SELECT event_name, count(*) AS n, count(DISTINCT session_id) AS sessions, max(created_at) AS last_seen FROM ev GROUP BY 1)\nSELECT coalesce(reg.name, agg.event_name) AS event, coalesce(agg.n, 0) AS events,\n  coalesce(agg.sessions, 0) AS sessions, agg.last_seen,\n  CASE WHEN reg.name IS NULL THEN 'off-registry' WHEN agg.event_name IS NULL THEN 'never fired' ELSE 'ok' END AS status\nFROM reg FULL JOIN agg ON agg.event_name = reg.name\nORDER BY CASE WHEN reg.name IS NULL THEN 0 WHEN agg.event_name IS NULL THEN 1 ELSE 2 END, events DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 2,
+      "gridPos": {
+        "h": 12,
+        "w": 16,
+        "x": 0,
+        "y": 1
+      }
+    },
+    {
+      "type": "table",
+      "title": "By app version (did a release break something?)",
+      "description": "Native sessions by app_version: sessions, events and how many distinct event names each build sent. A build that sends far fewer distinct names than the one before lost instrumentation.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT coalesce(av.string_value, '(web / none)') AS app_version, count(DISTINCT ev.session_id) AS sessions,\n  count(*) AS events, count(DISTINCT ev.event_name) AS event_names, max(ev.created_at) AS last_seen\nFROM ev LEFT JOIN session_data av ON av.session_id = ev.session_id AND av.data_key = 'app_version'\nGROUP BY 1 ORDER BY 1 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 3,
+      "gridPos": {
+        "h": 12,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "type": "row",
+      "title": "1 · Onboarding (Q1): where do people drop?",
+      "collapsed": false,
+      "id": 4,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "panels": []
+    },
+    {
+      "type": "barchart",
+      "title": "Onboarding funnel: people reaching each step",
+      "description": "Distinct people (participant id when identified, else the session) with at least one of each step's events in the range. Steps are counted independently, not in strict order.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nsteps(ord, step, names) AS (VALUES\n  (1, '1 landing_view', ARRAY['landing_view']), (2, '2 landing_cta_click', ARRAY['landing_cta_click']),\n  (3, '3 auth_started', ARRAY['auth_started']), (4, '4 auth_completed', ARRAY['auth_completed']),\n  (5, '5 interests saved / dismissed', ARRAY['interests_saved','interests_dismissed']),\n  (6, '6 episode_open', ARRAY['episode_open']), (7, '7 play_start', ARRAY['play_start']))\nSELECT steps.step, count(DISTINCT ev.person) AS people\nFROM steps LEFT JOIN ev ON ev.event_name = ANY (steps.names)\nGROUP BY steps.ord, steps.step ORDER BY steps.ord"
+        }
+      ],
+      "options": {
+        "xField": null,
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        }
+      },
+      "id": 5,
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 14
+      }
+    },
+    {
+      "type": "table",
+      "title": "Sign-in failures by provider and reason",
+      "description": "auth_failed {provider, reason}. 'cancelled' is the person backing out; 'error' is ours.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT d_provider.string_value AS provider, d_reason.string_value AS reason, count(*) AS failures,\n  count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_provider ON d_provider.website_event_id = ev.event_id AND d_provider.data_key = 'provider' LEFT JOIN event_data d_reason ON d_reason.website_event_id = ev.event_id AND d_reason.data_key = 'reason'\nWHERE ev.event_name = 'auth_failed' GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 6,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 14
+      }
+    },
+    {
+      "type": "row",
+      "title": "2 · Activation (Q2): the aha in the first 24h",
+      "collapsed": false,
+      "id": 7,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Activated within 24h of first seen",
+      "description": "Of the identified participants first seen in the range: the share with a play_start AND an entity_open (topic, person, show, storyline or theme) within 24h of their first event.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nfirst AS (SELECT person, min(created_at) AS t0 FROM ev WHERE person IN (SELECT distinct_id FROM sess WHERE distinct_id IS NOT NULL) GROUP BY 1),\nper AS (SELECT f.person,\n  bool_or(ev.event_name = 'play_start' AND ev.created_at < f.t0 + interval '24 hours') AS played,\n  bool_or(ev.event_name = 'entity_open' AND ev.created_at < f.t0 + interval '24 hours') AS pivoted\n  FROM first f JOIN ev ON ev.person = f.person GROUP BY 1)\nSELECT CASE WHEN count(*) = 0 THEN NULL ELSE count(*) FILTER (WHERE played AND pivoted)::numeric / count(*) END AS activated FROM per"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 8,
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 24
+      }
+    },
+    {
+      "type": "stat",
+      "title": "…played in the first session",
+      "description": "Same participants: the share whose first session contains a play_start.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nfirsts AS (SELECT DISTINCT ON (person) person, session_id FROM ev WHERE person IN (SELECT distinct_id FROM sess WHERE distinct_id IS NOT NULL) ORDER BY person, created_at),\nper AS (SELECT f.person, bool_or(ev.event_name = 'play_start') AS played FROM firsts f JOIN ev ON ev.session_id = f.session_id GROUP BY 1)\nSELECT CASE WHEN count(*) = 0 THEN NULL ELSE count(*) FILTER (WHERE played)::numeric / count(*) END AS played_session_1 FROM per"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 9,
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 24
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Identified participants in range",
+      "description": "People with a participant id (identify) who sent any event.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT count(DISTINCT person) AS participants FROM ev WHERE person IN (SELECT distinct_id FROM sess WHERE distinct_id IS NOT NULL)"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 10,
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 24
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Sessions in range",
+      "description": "All sessions the variables select that sent a custom event.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT count(DISTINCT session_id) AS sessions FROM ev"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 11,
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 24
+      }
+    },
+    {
+      "type": "row",
+      "title": "3 · Core promise (Q3): moving across the corpus?",
+      "collapsed": false,
+      "id": 12,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Entity opens by kind and source",
+      "description": "entity_open {kind, source}. Opens that come from another entity or an episode are the cross-corpus movement the product promises.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT d_kind.string_value AS kind, d_source.string_value AS source, count(*) AS opens, count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_kind ON d_kind.website_event_id = ev.event_id AND d_kind.data_key = 'kind' LEFT JOIN event_data d_source ON d_source.website_event_id = ev.event_id AND d_source.data_key = 'source'\nWHERE ev.event_name = 'entity_open' GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 13,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      }
+    },
+    {
+      "type": "table",
+      "title": "Episode opens: followed shows vs beyond them",
+      "description": "episode_open {from_followed_show}. 'false' is listening beyond what people already follow.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT d_f.string_value AS from_followed_show, count(*) AS opens, count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_f ON d_f.website_event_id = ev.event_id AND d_f.data_key = 'from_followed_show'\nWHERE ev.event_name = 'episode_open' GROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 14,
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 12,
+        "y": 31
+      }
+    },
+    {
+      "type": "table",
+      "title": "Follows by kind",
+      "description": "follow / unfollow {kind}.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT ev.event_name AS action, d_kind.string_value AS kind, count(*) AS n\nFROM ev LEFT JOIN event_data d_kind ON d_kind.website_event_id = ev.event_id AND d_kind.data_key = 'kind'\nWHERE ev.event_name IN ('follow', 'unfollow') GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 15,
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 31
+      }
+    },
+    {
+      "type": "row",
+      "title": "4 · Learning (Q4): is the learning layer used?",
+      "collapsed": false,
+      "id": 16,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Learning features: sessions and people",
+      "description": "Each learning-layer event: how many sessions and people used it in the range, and their share of all sessions.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nfeat(name) AS (VALUES ('knowledge_panel_open'), ('insight_tap'), ('transcript_seek'), ('capture_created'),\n  ('recap_view'), ('revisit_open'), ('highlights_export'), ('learn_path'), ('reel_open')),\ntot AS (SELECT count(DISTINCT session_id) AS n FROM ev)\nSELECT feat.name AS feature, count(DISTINCT ev.session_id) AS sessions, count(DISTINCT ev.person) AS people,\n  round(count(DISTINCT ev.session_id)::numeric / nullif((SELECT n FROM tot), 0), 3) AS share_of_sessions\nFROM feat LEFT JOIN ev ON ev.event_name = feat.name GROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 17,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 41
+      }
+    },
+    {
+      "type": "table",
+      "title": "Captures by kind and target",
+      "description": "capture_created {kind, target_kind}: highlights and notes, and what they are attached to.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT d_kind.string_value AS kind, d_t.string_value AS target_kind, count(*) AS captures, count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_kind ON d_kind.website_event_id = ev.event_id AND d_kind.data_key = 'kind' LEFT JOIN event_data d_t ON d_t.website_event_id = ev.event_id AND d_t.data_key = 'target_kind'\nWHERE ev.event_name = 'capture_created' GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 18,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 41
+      }
+    },
+    {
+      "type": "row",
+      "title": "5 · Habit (Q5): days a week, and do they hold?",
+      "collapsed": false,
+      "id": 19,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Active days per participant",
+      "description": "Identified participants: first and last seen, distinct active days in the range, days active in the last 7 days. Umami only sees the app while it is open and online; server listens (right) are the ground truth for listening, but carry no participant id, so they compare as daily totals only.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT person AS participant, min(created_at) AS first_seen, max(created_at) AS last_seen,\n  count(DISTINCT date_trunc('day', created_at)) AS active_days,\n  count(DISTINCT date_trunc('day', created_at)) FILTER (WHERE created_at > now() - interval '7 days') AS days_last_7,\n  count(*) FILTER (WHERE event_name = 'play_start') AS plays\nFROM ev WHERE person IN (SELECT distinct_id FROM sess WHERE distinct_id IS NOT NULL)\nGROUP BY 1 ORDER BY active_days DESC, last_seen DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 20,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 51
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Plays per day: Umami play_start",
+      "description": "Client-side plays (play_start). Compare with the server's listens on the right: Umami misses offline and background play, the server misses nothing it was told about. A gap that suddenly widens is a broken sink.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT date_trunc('day', created_at) AS time, count(*) AS play_start FROM ev\nWHERE event_name = 'play_start' GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "id": 21,
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 12,
+        "y": 51
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Plays per day: server listens",
+      "description": "Server-side listen events (job podcast-listen) on prod: episodes started, counted per day.",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "expr": "instance:prod-podcast AND job:podcast-listen AND event_type:listen | stats count() listens",
+          "queryType": "statsRange"
+        }
+      ],
+      "interval": "1d",
+      "id": 22,
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 18,
+        "y": 51
+      }
+    },
+    {
+      "type": "row",
+      "title": "6 · Friction (Q6): errors, empty results, offline",
+      "collapsed": false,
+      "id": 23,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Sessions with an error shown",
+      "description": "Share of sessions that saw at least one error_shown (the beta friction rate, #2267).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nper AS (SELECT session_id, bool_or(event_name = 'error_shown') AS err FROM ev GROUP BY 1)\nSELECT CASE WHEN count(*) = 0 THEN NULL ELSE count(*) FILTER (WHERE err)::numeric / count(*) END AS friction_rate FROM per"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 24,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 62
+      }
+    },
+    {
+      "type": "table",
+      "title": "Errors shown by surface and kind",
+      "description": "error_shown {surface, kind}. surface=player kind=network is audio that would not play; those also reach GlitchTip (project player) since the 2026-10-16 player build.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT d_surface.string_value AS surface, d_kind.string_value AS kind, count(*) AS shown, count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_surface ON d_surface.website_event_id = ev.event_id AND d_surface.data_key = 'surface' LEFT JOIN event_data d_kind ON d_kind.website_event_id = ev.event_id AND d_kind.data_key = 'kind'\nWHERE ev.event_name = 'error_shown' GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 25,
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 6,
+        "y": 62
+      }
+    },
+    {
+      "type": "table",
+      "title": "Empty states by surface and reason",
+      "description": "empty_state_shown {surface, reason}. 'not_in_corpus' is a show or topic people looked for that the corpus does not have: input for corpus priorities.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT d_surface.string_value AS surface, d_reason.string_value AS reason, count(*) AS shown, count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_surface ON d_surface.website_event_id = ev.event_id AND d_surface.data_key = 'surface' LEFT JOIN event_data d_reason ON d_reason.website_event_id = ev.event_id AND d_reason.data_key = 'reason'\nWHERE ev.event_name = 'empty_state_shown' GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 26,
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 62
+      }
+    },
+    {
+      "type": "table",
+      "title": "Offline sessions and update prompts",
+      "description": "offline_session count, and update_prompt {kind, action}.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT ev.event_name AS event, coalesce(d_kind.string_value, '') AS kind, coalesce(d_action.string_value, '') AS action,\n  count(*) AS n, count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_kind ON d_kind.website_event_id = ev.event_id AND d_kind.data_key = 'kind' LEFT JOIN event_data d_action ON d_action.website_event_id = ev.event_id AND d_action.data_key = 'action'\nWHERE ev.event_name IN ('offline_session', 'update_prompt') GROUP BY 1, 2, 3 ORDER BY 4 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 27,
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 70
+      }
+    },
+    {
+      "type": "row",
+      "title": "7 · Per participant (Q7): the 5-minute pull ($participant)",
+      "collapsed": false,
+      "id": 28,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 76
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Day by day",
+      "description": "For the selected participant: per day, sessions, events, plays, entity opens, captures, errors and empty states. This is the day-3 / day-7 check (#2268 Part A).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT date_trunc('day', created_at) AS day, count(DISTINCT session_id) AS sessions, count(*) AS events,\n  count(*) FILTER (WHERE event_name = 'play_start') AS plays,\n  count(*) FILTER (WHERE event_name = 'entity_open') AS entity_opens,\n  count(*) FILTER (WHERE event_name = 'capture_created') AS captures,\n  count(*) FILTER (WHERE event_name = 'error_shown') AS errors,\n  count(*) FILTER (WHERE event_name = 'empty_state_shown') AS empty_states\nFROM ev WHERE person = '$participant' GROUP BY 1 ORDER BY 1 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 29,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 77
+      }
+    },
+    {
+      "type": "table",
+      "title": "Where they came from (sources)",
+      "description": "The selected participant's episode_open and entity_open sources.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT ev.event_name AS event, d_source.string_value AS source, count(*) AS n\nFROM ev LEFT JOIN event_data d_source ON d_source.website_event_id = ev.event_id AND d_source.data_key = 'source'\nWHERE ev.person = '$participant' AND ev.event_name IN ('episode_open', 'entity_open') GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 30,
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 12,
+        "y": 77
+      }
+    },
+    {
+      "type": "table",
+      "title": "Everything they did",
+      "description": "The selected participant's events by name in the range.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT event_name AS event, count(*) AS n, max(created_at) AS last FROM ev WHERE person = '$participant'\nGROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 31,
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 18,
+        "y": 77
+      }
+    },
+    {
+      "type": "row",
+      "title": "8 · Discover: do the rails earn their place?",
+      "collapsed": false,
+      "id": 32,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 87
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Rails shown vs tapped",
+      "description": "discover_rail_shown and discover_rail_tap {rail}: per rail, sessions that saw it, taps, and taps per session shown. A rail shown often and never tapped is either uninteresting or its tap event is broken.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nshown AS (SELECT d_rail.string_value AS rail, count(DISTINCT ev.session_id) AS sessions_shown FROM ev LEFT JOIN event_data d_rail ON d_rail.website_event_id = ev.event_id AND d_rail.data_key = 'rail' WHERE ev.event_name = 'discover_rail_shown' GROUP BY 1),\ntapped AS (SELECT d_rail.string_value AS rail, count(*) AS taps FROM ev LEFT JOIN event_data d_rail ON d_rail.website_event_id = ev.event_id AND d_rail.data_key = 'rail' WHERE ev.event_name = 'discover_rail_tap' GROUP BY 1)\nSELECT coalesce(shown.rail, tapped.rail) AS rail, coalesce(sessions_shown, 0) AS sessions_shown, coalesce(taps, 0) AS taps,\n  round(coalesce(taps, 0)::numeric / nullif(sessions_shown, 0), 2) AS taps_per_session_shown\nFROM shown FULL JOIN tapped ON tapped.rail = shown.rail ORDER BY 2 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 33,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 88
+      }
+    },
+    {
+      "type": "table",
+      "title": "Opens from the Home rails",
+      "description": "episode_open and entity_open whose source is a Home rail (home_*: your week, key voices, momentum, trending topics, themes, trending shows, storylines).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT ev.event_name AS event, d_source.string_value AS source, count(*) AS n, count(DISTINCT ev.person) AS people\nFROM ev LEFT JOIN event_data d_source ON d_source.website_event_id = ev.event_id AND d_source.data_key = 'source'\nWHERE ev.event_name IN ('episode_open', 'entity_open') AND d_source.string_value LIKE 'home\\_%' GROUP BY 1, 2 ORDER BY 3 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 34,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 88
+      }
+    }
+  ]
+}

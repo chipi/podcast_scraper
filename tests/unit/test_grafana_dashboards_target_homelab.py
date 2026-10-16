@@ -20,7 +20,9 @@ pytestmark = pytest.mark.unit
 
 ROOT = Path(__file__).resolve().parents[2]
 DASHBOARDS = sorted((ROOT / "config" / "grafana" / "dashboards").rglob("*.json"))
-HOMELAB_UIDS = {"victorialogs", "victoriametrics", "victoriatraces-jaeger"}
+# umami-pg: the homelab's read-only Umami datasource (agentic-ai-homelab, provisioning/datasources/
+# umami-postgres.yml), used by podcast-player/beta-analytics-umami.json.
+HOMELAB_UIDS = {"victorialogs", "victoriametrics", "victoriatraces-jaeger", "umami-pg"}
 _LOGQL = re.compile(r"\|\s*json\b|\|\s*unwrap\b|\b(count|sum|rate)_over_time\(\s*\{")
 
 
