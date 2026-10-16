@@ -4789,31 +4789,14 @@ def _mark_episode_unusable(output_dir: str, transcript_relpath: Optional[str], r
     """
     if not transcript_relpath:
         return
-    import json as _json
     import os as _os
 
-    from ..languages import UNUSABLE_FIELD, UNUSABLE_REASON_FIELD
+    from ..languages import mark_metadata_unusable
 
     base, _ext = _os.path.splitext(_os.path.basename(transcript_relpath))
     meta_path = _os.path.join(output_dir, "metadata", f"{base}.metadata.json")
-    try:
-        with open(meta_path, "r", encoding="utf-8") as fh:
-            doc = _json.load(fh)
-        if not isinstance(doc, dict):
-            return
-        episode_block = doc.setdefault("episode", {})
-        if not isinstance(episode_block, dict):
-            return
-        episode_block[UNUSABLE_FIELD] = True
-        episode_block[UNUSABLE_REASON_FIELD] = reason
-        tmp = f"{meta_path}.unusable.tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            _json.dump(doc, fh, indent=2, sort_keys=True, ensure_ascii=False)
-            fh.write("\n")
-        _os.replace(tmp, meta_path)
+    if mark_metadata_unusable(meta_path, reason):
         logger.warning("    marked episode UNUSABLE (%s): %s", reason, meta_path)
-    except (OSError, ValueError):
-        logger.debug("could not mark %s unusable", meta_path, exc_info=True)
 
 
 def generate_episode_metadata(  # noqa: C901

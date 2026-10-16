@@ -26,7 +26,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, cast, Dict, List, Optional, Tuple
+from typing import Any, Callable, cast, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from .. import config as _config, config_constants as _config_constants
 from ..providers.ml import embedding_loader
@@ -616,6 +616,52 @@ class _ProgressCheckpointer:
         return pruned
 
 
+def _servable_docs(
+    meta_paths: Iterable[Path], stored_fps: Dict[str, str], served: set, withheld: set
+) -> Iterator[Tuple[Path, dict]]:
+    """``(meta_path, doc)`` for every run that may be indexed; unservable runs are withheld.
+
+    A run marked unusable (#2375, D-44) is hidden by the catalog, and without this the index kept
+    serving it to search. Its stored fingerprint is forgotten, so it is embedded afresh if it ever
+    becomes servable again (an unchanged fingerprint would otherwise skip it, leaving it out of
+    search for good). Each episode is noted as ``served`` or ``withheld``, so rows are withdrawn
+    only for an episode with no servable run in this build.
+    """
+    from ..languages import episode_is_unusable
+
+    for meta_path in meta_paths:
+        doc = _load_metadata_file(meta_path)
+        if not doc:
+            continue
+        episode_id = (doc.get("episode") or {}).get("episode_id")
+        if not episode_is_unusable(doc):
+            if episode_id:
+                served.add(episode_id)
+            yield meta_path, doc
+            continue
+        if episode_id:
+            withheld.add(episode_id)
+            for key in [
+                k for k in stored_fps if k == episode_id or k.endswith("\x1f" + episode_id)
+            ]:
+                stored_fps.pop(key, None)
+
+
+def _prune_withheld(backend: Any, served: set, withheld: set, clear_requested: bool) -> int:
+    """Delete every row of an episode no servable run of which was seen in this build."""
+    from ..language_withdrawal import EPISODE_TIERS
+
+    if clear_requested or backend is None:
+        return 0
+    removed = 0
+    for episode_id in sorted(withheld - served):
+        for tier in EPISODE_TIERS:
+            removed += int(backend.prune_episode_rows(tier, episode_id, keep_ids=set()))
+    if removed:
+        logger.info("two-tier index: withdrew %d row(s) of unservable episode(s)", removed)
+    return removed
+
+
 def build_two_tier_index(
     corpus_dir: str | Path,
     lance_path: str | Path,
@@ -744,12 +790,12 @@ def build_two_tier_index(
         save=lambda: _write_episode_fingerprints(lance_path, {**stored_fps, **result_fps}),
     )
 
-    for meta_path in discover_metadata_files(out):
+    served_ids: set = set()
+    withheld_ids: set = set()
+    servable = _servable_docs(discover_metadata_files(out), stored_fps, served_ids, withheld_ids)
+    for meta_path, doc in servable:
         if limit_episodes is not None and stats.episodes >= limit_episodes:
             break
-        doc = _load_metadata_file(meta_path)
-        if not doc:
-            continue
         stats.episodes += 1
         episode_root = episode_root_from_metadata_path(meta_path)
         meta_rel = meta_path.resolve().relative_to(out.resolve()).as_posix()
@@ -901,6 +947,7 @@ def build_two_tier_index(
         backend, emitted_ids, reindexed_episode_ids, clear_requested
     )
     stats.stale_rows_pruned += _prune_orphaned_storylines(backend, storyline_ids, clear_requested)
+    stats.stale_rows_pruned += _prune_withheld(backend, served_ids, withheld_ids, clear_requested)
 
     _finalize_index_build(
         backend,

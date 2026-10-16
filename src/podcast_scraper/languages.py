@@ -140,6 +140,36 @@ UNUSABLE_FIELD = "unusable"
 UNUSABLE_REASON_FIELD = "unusable_reason"
 
 
+def mark_metadata_unusable(meta_path: Any, reason: str) -> bool:
+    """Write the unusable marker onto one ``*.metadata.json``; ``True`` when written.
+
+    The writer beside its reader (:func:`episode_is_unusable`), so the two cannot drift. Atomic
+    (temp + rename), and best-effort: a failure is logged and leaves the file as it was.
+    """
+    import json as _json
+    import os as _os
+
+    try:
+        with open(meta_path, "r", encoding="utf-8") as fh:
+            doc = _json.load(fh)
+        if not isinstance(doc, dict):
+            return False
+        episode_block = doc.setdefault("episode", {})
+        if not isinstance(episode_block, dict):
+            return False
+        episode_block[UNUSABLE_FIELD] = True
+        episode_block[UNUSABLE_REASON_FIELD] = reason
+        tmp = f"{meta_path}.unusable.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            _json.dump(doc, fh, indent=2, sort_keys=True, ensure_ascii=False)
+            fh.write("\n")
+        _os.replace(tmp, meta_path)
+        return True
+    except (OSError, ValueError):
+        logger.debug("could not mark %s unusable", meta_path, exc_info=True)
+        return False
+
+
 def episode_is_unusable(doc: Any) -> Optional[str]:
     """The reason this episode cannot be served, or ``None`` when it can.
 

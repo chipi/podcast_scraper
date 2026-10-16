@@ -45,6 +45,8 @@ logger = logging.getLogger(__name__)
 #: The tiers an episode's rows can live in. `segment_nonen` is the one that holds a non-English
 #: episode's source body, so omitting it would leave exactly the rows a withdrawal is aimed at.
 _TIERS = ("segment", "segment_nonen", "insight", "aux")
+#: Public name for the same tiers: the indexer withholds an unservable episode from all of them.
+EPISODE_TIERS = _TIERS
 
 
 @dataclass

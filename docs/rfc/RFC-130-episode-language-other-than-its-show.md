@@ -105,6 +105,21 @@ nl), so they cannot name Turkish or any language outside them. The ASR knows abo
   such an episode knows what it is. Admitting it later means paying for ASR again, as the transcript
   is not kept; only the rare refused episode pays that.
 
+### 4. A refused episode is not served, whatever ran before it
+
+A refusal writes nothing new, and it used to leave earlier runs of the same episode in place. The
+two Turkish episodes were transcribed before the guard existed, so a refusing reprocess would have
+left them served as English. Now:
+- **On a language refusal**, every run of that episode in the corpus (not only the newest) is marked
+  `unusable` (`language_refused: the audio is 'tr'`). The marker is what the catalog, the player API,
+  digests, rails and MCP catalog tools already honour. Every run, because the cumulative catalog
+  drops unusable runs before it picks the newest, so an unmarked older run would be served instead.
+- **The search indexer withholds unusable runs.** It no longer indexes them, it forgets their
+  fingerprint (so a run is embedded afresh if it ever becomes servable again), and at the end of a
+  build it deletes every row of an episode that had no servable run in that build. An episode with
+  an older unusable run and a newer good one keeps its rows. On the 2026-10-15 snapshot no episode
+  was marked unusable, so this changes nothing for the corpus as it is.
+
 ## Testing
 
 - **Unit:** clip selection (ads in the show's language skipped, spread, length, too few stretches,
@@ -124,6 +139,7 @@ nl), so they cannot name Turkish or any language outside them. The ASR knows abo
 - **Replay over the snapshot:** the guard, unchanged, judged all 2,685 served transcripts and
   flagged exactly the 2 Turkish episodes. Only a flagged episode can take the new path, so no other
   episode changes. Turkish is not enabled, so both are refused as before, with `detected: tr`.
+- **Withdrawal (dry run on the snapshot):** for the 2 Turkish episodes it would mark exactly their 2 runs, nothing else.
 - **Tests:** clip selection, agreement, the provider's detected language, both guard branches
   through `transcribe_media_to_text`, the refusal record, the `asr.json` record, metadata and the
   translation config; 14 mutants killed.

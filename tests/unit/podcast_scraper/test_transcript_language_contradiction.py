@@ -149,6 +149,12 @@ def _run_pipeline(monkeypatch, text: str, requested: str, **overrides: Any) -> D
             {"detail": detail, "detected": detected}
         ),
     )
+    # #2375: a refusal withdraws the episode's served runs; recorded here, never a real corpus scan.
+    monkeypatch.setattr(
+        ep,
+        "_withdraw_served_runs",
+        lambda episode, cfg, detected: seen.setdefault("withdrawn", []).append(detected) or 0,
+    )
     if "identified" in overrides:
         identified = overrides.pop("identified")
         monkeypatch.setattr(ep, "_identify_episode_language", lambda *a, **k: identified)
@@ -221,6 +227,7 @@ class TestAnEpisodeInAnotherLanguageThanItsShow:
         seen = self._run(monkeypatch, spanish, "en", identified="es")
         assert seen["diarized"] is True
         assert seen["recorded"] == [] and seen["incidents"] == []
+        assert "withdrawn" not in seen, "a continuing episode withdrew its runs"
         assert seen["diarized_result"]["language_detected"] == "es"
         assert seen["diarized_cfg"].language_override == "es"
 
@@ -231,6 +238,7 @@ class TestAnEpisodeInAnotherLanguageThanItsShow:
         assert [r["error_type"] for r in seen["recorded"]] == ["TranscriptLanguageMismatch"]
         assert seen["refusals"][0]["detected"] == "tr"
         assert "identified as 'tr'" in seen["refusals"][0]["detail"]
+        assert seen["withdrawn"] == ["tr"], "the refused episode's served runs were not withdrawn"
 
     def test_no_identification_is_refused_as_before(self, monkeypatch) -> None:
         _, _, spanish = next(f for f in FIXTURES if f[1] == "es")

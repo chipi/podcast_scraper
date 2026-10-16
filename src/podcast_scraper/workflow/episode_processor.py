@@ -5352,6 +5352,7 @@ def transcribe_media_to_text(
                 _record_language_refusal(
                     job.episode, cfg, wrong_language, detected=detected_language
                 )
+                _withdraw_served_runs(job.episode, cfg, detected_language)
             _append_transcription_incident(
                 cfg,
                 job,
@@ -5842,6 +5843,48 @@ def _record_language_refusal(
             )
     except Exception:  # noqa: BLE001 - the refusal itself is already recorded and logged
         logger.warning("could not record the language refusal", exc_info=True)
+
+
+def _withdraw_served_runs(
+    episode: Episode, cfg: config.Config, detected: Optional[str]  # type: ignore[valid-type]
+) -> int:
+    """Mark every served run of a language-refused episode unusable; how many were marked (#2375).
+
+    A refusal writes nothing new, and before this it left earlier runs of the same episode in
+    place, so an episode transcribed before the guard existed kept being served under the wrong
+    language. The marker is what the catalog and the search indexer read, so "refused" now means
+    "not served" whatever ran before. Never raises (a failure path).
+    """
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+    from ..languages import episode_is_unusable, mark_metadata_unusable
+
+    root = run_index.corpus_root_from_cfg(cfg) or cfg.output_dir
+    if not root:
+        return 0
+    episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    reason = "language_refused" + (f": the audio is {detected!r}" if detected else "")
+    marked = 0
+    try:
+        # EVERY run, not the newest one per episode (`discover_metadata_files`): the cumulative
+        # catalog drops unusable runs before it picks the newest, so an unmarked older run of the
+        # same episode would be served in its place.
+        for meta_path in sorted(Path(root).glob("feeds/*/run_*/metadata/*.metadata.json")):
+            try:
+                with open(meta_path, encoding="utf-8") as fh:
+                    doc = json.load(fh)
+            except (OSError, ValueError):
+                continue
+            if not isinstance(doc, dict) or episode_is_unusable(doc):
+                continue
+            if (doc.get("episode") or {}).get("episode_id") != episode_id:
+                continue
+            if mark_metadata_unusable(meta_path, reason):
+                marked += 1
+                logger.warning("withdrew a served run of a refused episode: %s", meta_path)
+    except Exception:  # noqa: BLE001 - the refusal itself is already recorded and logged
+        logger.warning("could not withdraw the served runs of a refused episode", exc_info=True)
+    return marked
 
 
 def _still_refused(
