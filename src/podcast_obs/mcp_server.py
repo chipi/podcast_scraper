@@ -37,6 +37,44 @@ DEFAULT_PORT = 8848
 _VERSION_TAG = f"podcast_obs {__version__} (tools v3)"
 
 
+_LOOPBACK_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*", "127.0.0.1", "localhost"]
+_LOOPBACK_ORIGINS = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"]
+
+
+def _transport_security() -> Any:
+    """SDK DNS-rebinding protection, ON, with the public host allowed (as the content MCP does).
+
+    FastMCP enables it only when bound to loopback; obs binds ``0.0.0.0`` in its container, so it
+    ran without any. Allowed: loopback (the healthcheck), the host of ``APP_MCP_RESOURCE_URL``
+    (``obs.<domain>``, which Caddy forwards unchanged), ``APP_MCP_ALLOWED_HOSTS``; origins from
+    the same host plus ``APP_MCP_ALLOWED_ORIGINS``. Bearer auth and the Origin guard still run in
+    front; this is defence in depth.
+    """
+    from urllib.parse import urlparse
+
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    hosts = list(_LOOPBACK_HOSTS)
+    origins = list(_LOOPBACK_ORIGINS)
+    resource = os.environ.get("APP_MCP_RESOURCE_URL", "").strip()
+    if resource:
+        host = urlparse(resource).hostname
+        if host:
+            hosts += [host, f"{host}:*"]
+            origins += [f"https://{host}", f"https://{host}:*"]
+    for extra in os.environ.get("APP_MCP_ALLOWED_HOSTS", "").split(","):
+        extra = extra.strip()
+        if extra and extra not in hosts:
+            hosts.append(extra)
+    for origin in os.environ.get("APP_MCP_ALLOWED_ORIGINS", "").split(","):
+        origin = origin.strip()
+        if origin and origin not in origins:
+            origins.append(origin)
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True, allowed_hosts=hosts, allowed_origins=origins
+    )
+
+
 def _writes_allowed() -> bool:
     """Mutating tools are OFF unless PODCAST_OBS_ALLOW_WRITES is explicitly set — the control plane
     is observe-first, so a read-only agent can't accidentally re-enable/cancel a deploy job."""
@@ -369,7 +407,13 @@ def build_server(
 
     from .telemetry import observed, preregister_tools
 
-    server = FastMCP("podcast-obs", instructions=_INSTRUCTIONS, host=host, port=port)
+    server = FastMCP(
+        "podcast-obs",
+        instructions=_INSTRUCTIONS,
+        host=host,
+        port=port,
+        transport_security=_transport_security(),
+    )
     tools = _build_tools(config)
     for tool in tools:
         server.tool()(observed(tool))

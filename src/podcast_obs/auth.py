@@ -118,6 +118,37 @@ def verify_principal(token: str, *, timeout: float = 5.0) -> Optional[dict[str, 
     }
 
 
+class ObsSessionBindingUnavailable(RuntimeError):
+    """The SDK auth types are missing, so a session cannot be bound to its credential."""
+
+
+def _sdk_principal(user_id: str, role: str) -> Any:
+    """An SDK ``AuthenticatedUser`` for ``scope["user"]``, binding the MCP session to this user.
+
+    The streamable-HTTP manager compares the principal on every request with the one that opened
+    the session, but only when ``scope["user"]`` is an ``AuthenticatedUser``. Unset, it compares
+    None with None: any admitted token that learned another session's ``mcp-session-id`` could
+    drive it. Same binding as the content MCP (``podcast_scraper.mcp.auth._principal``). A missing
+    SDK type refuses the request instead of serving unbound sessions.
+    """
+    try:
+        from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
+        from mcp.server.auth.provider import AccessToken
+    except Exception as exc:  # noqa: BLE001 - SDK internals
+        logger.error("obs MCP session binding unavailable, refusing the request: %s", exc)
+        raise ObsSessionBindingUnavailable(
+            "the MCP SDK auth types could not be imported, so sessions cannot be bound"
+        ) from exc
+    return AuthenticatedUser(
+        AccessToken(
+            token="",  # never compared; the app verified the bearer
+            client_id=user_id,
+            scopes=[role] if role else [],
+            subject=user_id,
+        )
+    )
+
+
 def _header(scope: dict[str, Any], want: bytes) -> Optional[str]:
     for name, value in scope.get("headers") or []:
         if name.lower() == want:
@@ -241,6 +272,9 @@ class ObsAuthMiddleware:
         # ever set, writes) against prod backends — log who was admitted (never the token).
         logger.info(
             "obs MCP: admitted user_id=%s role=%s", principal.get("user_id"), principal.get("role")
+        )
+        scope["user"] = _sdk_principal(
+            str(principal.get("user_id")), str(principal.get("role") or "")
         )
         # Per-request copy for the tool telemetry: FastMCP runs tools in the task of the request
         # that OPENED the session, so the ContextVars below carry that request, not this one.

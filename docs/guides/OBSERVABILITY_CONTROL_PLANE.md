@@ -161,8 +161,16 @@ signal is off until its env is set; stdio emits none of the network ones.
 | metrics | `:8848/metrics`, scraped as `job=player_obs`: `mcp_tool_calls_total{tool,ok}` (every tool pre-registered at 0), `mcp_tool_duration_seconds`, `process_*` | always; internal only (the edge allows `/mcp` + `/.well-known/*`) |
 | analytics | Umami player site, event `obs_tool:<name>`, filed under the caller's analytics id | `PODCAST_MCP_UMAMI_WEBSITE_ID` + `PODCAST_MCP_UMAMI_URL` |
 
+Transport and auth use the same mechanisms as the content MCP:
+
+- an admin bearer through the app's verify seam;
+- each session bound to the user that opened it (`scope["user"]`);
+- DNS-rebinding protection on, allowing loopback, the `APP_MCP_RESOURCE_URL` host (`obs.<domain>`)
+  and `APP_MCP_ALLOWED_HOSTS`.
+
+`tests/unit/test_mcp_servers_parity.py` runs the same protocol checks against both servers.
 The container healthcheck (a loopback GET of the discovery doc every 30 s) is neither traced nor
-logged. Tool spans and lines are attributed to the CallTool request itself, read from the MCP SDK's
+logged, on either server. Tool spans and lines are attributed to the CallTool request itself, read from the MCP SDK's
 request context: FastMCP runs tools in the task of the request that opened the session, so the
 ambient span and ContextVars there belong to that first request.
 

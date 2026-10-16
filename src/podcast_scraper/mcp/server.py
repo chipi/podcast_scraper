@@ -788,7 +788,23 @@ def _http_stack(app: Any) -> Any:
     """
     from podcast_scraper.utils.access_log import AccessLogMiddleware
 
-    return _instrument_asgi(_with_metrics(AccessLogMiddleware(app)))
+    instrumented = _instrument_asgi(_with_metrics(AccessLogMiddleware(app)))
+
+    async def _asgi(scope: dict, receive: Any, send: Any) -> None:
+        # The compose healthcheck GETs the discovery doc from inside the container every 30 s; it
+        # was most of player-mcp's access lines and traces. Real clients arrive through Caddy and
+        # the docker bridge, never from loopback. Same rule as podcast_obs.telemetry.
+        client = scope.get("client") or ("", 0)
+        if (
+            scope.get("type") == "http"
+            and scope.get("path") == "/.well-known/oauth-protected-resource"
+            and client[0] in {"127.0.0.1", "::1"}
+        ):
+            await app(scope, receive, send)
+            return
+        await instrumented(scope, receive, send)
+
+    return _asgi
 
 
 def _with_metrics(app: Any) -> Any:

@@ -234,6 +234,21 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     - the tool-call line, its `player-obs` span with `mcp.participant`, and an Umami
       `obs_tool:<tool>` event under a participant;
     - each player-mcp call with its own trace id (the baseline is 3 calls, 1 trace id).
+
+    **After the deploy, in order (10a, 10b and 10c together):**
+
+    1. **Images** (`deploy-all-prod`).
+    2. **`deploy-config surface=player`** once `player-obs-1` is healthy: a dry run, then real.
+       Images go first, so the new `player_obs` scrape never reads `up=0` during a gap.
+    3. **The three 10c probes** above (prod agent). Send the homelab session the time; it deletes
+       the GlitchTip probe issue and the Umami probe event.
+    4. **The operator's calls**, in one claude.ai conversation: one Obs call, then two Close
+       Listening calls. They are also the "one MCP tool call" that 10a and 10b need.
+    5. **`grant-mcp-all` dry run** (10b). Send the homelab session the counts.
+    6. **`grant-mcp-all --apply`**, only on the operator's go.
+    7. **The homelab session's checks:** `obs_mcp_verify.py <since>` (10c) and
+       `podcast_mcp_verify.py <since>` (10a, 10b). It reports each check pass or fail, and
+       deletes its probes.
 11. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-10 pass:
     `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
     `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
