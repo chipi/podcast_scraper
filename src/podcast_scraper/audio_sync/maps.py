@@ -39,6 +39,7 @@ MIN_TALK_SHARE = 0.5
 
 def main(argv: Optional[list] = None) -> int:
     from podcast_scraper.audio_sync import fingerprint
+    from podcast_scraper.audio_sync.drift import served_url
     from podcast_scraper.audio_sync.references import _backend, exact_originals
     from podcast_scraper.server.app_audio_drift import DRIFT_FILE, MAPS_FILE
     from podcast_scraper.server.app_catalog_cache import cached_catalog
@@ -89,6 +90,7 @@ def main(argv: Optional[list] = None) -> int:
         if guid not in exact:
             tally("skip_no_exact_original", rel)
             continue
+        url = served_url(url)
         with tempfile.TemporaryDirectory() as tmp:
             audio = os.path.join(tmp, "original.mp3")
             if not audio_cache.fetch_into(backend, guid, audio):

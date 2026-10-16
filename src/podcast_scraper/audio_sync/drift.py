@@ -34,6 +34,18 @@ from typing import Any, Dict, Optional
 DRIFT_FILE = "audio_timing_drift.json"
 
 
+def served_url(url: str) -> str:
+    """The URL a listener's player gets for ``url``: the api serves an https version of an http
+    enclosure when the host has one (``app_audio_bridge.https_audio_url``, f4f3efb42), and that
+    can be another file, with other ads or none. Measure what is played, not what the feed lists."""
+    from podcast_scraper.server.app_audio_bridge import https_audio_url
+
+    try:
+        return https_audio_url(url) or url
+    except Exception:  # noqa: BLE001 — a failed lookup means the player gets the original too
+        return url
+
+
 def _served_seconds(url: str, timeout: int) -> Optional[float]:
     cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", url]
     try:
@@ -97,6 +109,7 @@ def main(argv: Optional[list] = None) -> int:
 
     def check(item: tuple[Any, str]) -> Optional[Dict[str, Any]]:
         row, url = item
+        url = served_url(url)
         ref, kind = _reference(root, row)
         if ref is None:
             return None
