@@ -1089,6 +1089,228 @@
         "x": 12,
         "y": 88
       }
+    },
+    {
+      "type": "row",
+      "title": "9 · MCP: who uses the connector, and for what?",
+      "collapsed": false,
+      "id": 35,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 96
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "MCP tool calls by tool (Umami)",
+      "description": "One Umami event per MCP tool call (mcp_tool:<tool>, data {tool, ok}), filed under the caller's participant id. They only exist from the player-mcp deploy carrying ab8290f6f (Umami had dropped every MCP event as a bot until then) and bc33f5e0f (participant id).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT d_tool.string_value AS tool, count(*) AS calls,\n  round(avg(CASE WHEN d_ok.string_value = 'true' THEN 1 ELSE 0 END), 3) AS ok_rate,\n  count(DISTINCT ev.person) AS people, max(ev.created_at) AS last_call\nFROM ev LEFT JOIN event_data d_tool ON d_tool.website_event_id = ev.event_id AND d_tool.data_key = 'tool' LEFT JOIN event_data d_ok ON d_ok.website_event_id = ev.event_id AND d_ok.data_key = 'ok'\nWHERE ev.event_name LIKE 'mcp\\_tool:%' GROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 36,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 97
+      }
+    },
+    {
+      "type": "table",
+      "title": "MCP use per participant (Umami)",
+      "description": "Identified participants who used the MCP: calls, distinct tools, first and last call.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n)\nSELECT person AS participant, count(*) AS calls, count(DISTINCT event_name) AS tools,\n  min(created_at) AS first_call, max(created_at) AS last_call\nFROM ev WHERE event_name LIKE 'mcp\\_tool:%' AND person IN (SELECT distinct_id FROM sess WHERE distinct_id IS NOT NULL)\nGROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "id": 37,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 12,
+        "y": 97
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Participants who used the MCP",
+      "description": "Share of identified participants active in the range who made at least one MCP tool call.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "umami-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "umami-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "WITH sess AS (\n  SELECT s.session_id, coalesce(s.distinct_id, s.session_id::text) AS person, s.distinct_id\n  FROM session s\n  LEFT JOIN session_data ch ON ch.session_id = s.session_id AND ch.data_key = 'channel'\n  LEFT JOIN session_data pl ON pl.session_id = s.session_id AND pl.data_key = 'platform'\n  LEFT JOIN session_data av ON av.session_id = s.session_id AND av.data_key = 'app_version'\n  WHERE s.website_id = '$site'\n    AND ('$channel' = 'All' OR ch.string_value = '$channel')\n    AND ('$platform' = 'All' OR pl.string_value = '$platform')\n    AND ('$app_version' = 'All' OR av.string_value = '$app_version')\n),\nev AS (\n  SELECT e.event_id, e.session_id, e.visit_id, e.created_at, e.event_name, sess.person\n  FROM website_event e JOIN sess ON sess.session_id = e.session_id\n  WHERE e.website_id = '$site' AND e.event_type = 2 AND $__timeFilter(e.created_at)\n    AND e.event_name !~ '^uaprobe-'\n),\nper AS (SELECT person, bool_or(event_name LIKE 'mcp\\_tool:%') AS mcp FROM ev\n  WHERE person IN (SELECT distinct_id FROM sess WHERE distinct_id IS NOT NULL) GROUP BY 1)\nSELECT CASE WHEN count(*) = 0 THEN NULL ELSE count(*) FILTER (WHERE mcp)::numeric / count(*) END AS share FROM per"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 38,
+      "gridPos": {
+        "h": 9,
+        "w": 4,
+        "x": 20,
+        "y": 97
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "MCP tool calls per day (server log)",
+      "description": "Server-side ground truth from player-mcp's own log line ('mcp tool call tool=… user=… ok=…'): every call, whether or not it reached Umami.",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "expr": "service:player-mcp AND environment:prod AND \"mcp tool call\" | extract \"tool=<tool> \" | stats by (tool) count() calls",
+          "queryType": "statsRange"
+        }
+      ],
+      "interval": "1d",
+      "id": 39,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 106
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Distinct MCP callers (server log)",
+      "description": "Distinct users with a tool call in the range, from the server log (counts accounts; the Umami panels above name them by participant id).",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "expr": "service:player-mcp AND environment:prod AND \"mcp tool call\" | extract \"user=<user> \" | filter user:!\"-\" | stats count_uniq(user) callers",
+          "queryType": "stats"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 40,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 106
+      }
+    },
+    {
+      "type": "stat",
+      "title": "MCP tool calls (server log)",
+      "description": "All tool calls in the range, from the server log.",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "expr": "service:player-mcp AND environment:prod AND \"mcp tool call\" | stats count() calls",
+          "queryType": "stats"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "id": 41,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 106
+      }
     }
   ]
 }
