@@ -59,7 +59,10 @@ function fakeStream(stream: Float32Array): StreamAccess & { requests: number } {
   return access
 }
 
-describe('audio sync on the listener stream', () => {
+// Each test fingerprints minutes of synthetic audio: ~0.1 s on a laptop, but CI's shared runner ran
+// this file 50x slower (42 s; 4.5 s a test against the 5 s default, 2026-10-16). The work is the
+// test, so it gets the time.
+describe('audio sync on the listener stream', { timeout: 30_000 }, () => {
   const original = talk(240, 7)
   const ad = talk(35, 99)
   // The listener's host put a 35 s ad at 100 s that our copy did not have.
@@ -142,6 +145,11 @@ describe('audio sync on the listener stream', () => {
   })
 
   describe('RFC-129 v2: a long window after each break', () => {
+    // Built once, outside the tests: synthesising the audio and its spectra is the slow part.
+    const long360 = talk(360, 11)
+    const small = withLong(long360, 100, 35)
+    const big = withLong(long360, 100, 138)
+
     function withLong(original: Float32Array, at: number, ad: number) {
       const stream = concat(original.subarray(0, at * SR), talk(ad, 99), original.subarray(at * SR))
       const ref: AudioReference = {
@@ -179,19 +187,17 @@ describe('audio sync on the listener stream', () => {
     }
 
     it('finds a changed break with short probes, never a wide range', async () => {
-      const original = talk(300, 7)
-      const { stream, ref, long } = withLong(original, 100, 35)
+      const { stream, ref, long } = small
       const { rec, seconds } = recording(stream)
       const sync = new AudioSync(ref, rec, null, long)
-      const map = await sync.ensure(300)
+      const map = await sync.ensure(360)
       expect(map![1][0]).toBe(100)
       expect(map![1][1]).toBeCloseTo(35, 1)
       expect(Math.max(...seconds)).toBeLessThanOrEqual(14.1) // 14 s narrow checks, 12 s probes
     })
 
     it('reaches a jump beyond the window by stepping out (+138 s, as seen on prod)', async () => {
-      const original = talk(360, 11)
-      const { stream, ref, long } = withLong(original, 100, 138)
+      const { stream, ref, long } = big
       const { rec, seconds } = recording(stream, true) // no file size: no end-of-stream hint
       const sync = new AudioSync(ref, rec, null, long)
       const map = await sync.ensure(360)
@@ -201,9 +207,8 @@ describe('audio sync on the listener stream', () => {
     })
 
     it('without a long window (offline download, interval) it still finds the break', async () => {
-      const original = talk(300, 7)
-      const { stream, ref } = withLong(original, 100, 35)
-      const map = await new AudioSync(ref, fakeStream(stream), null, null).ensure(300)
+      const { stream, ref } = small
+      const map = await new AudioSync(ref, fakeStream(stream), null, null).ensure(360)
       expect(map![1][1]).toBeCloseTo(35, 1)
     })
   })
