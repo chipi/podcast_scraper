@@ -560,15 +560,18 @@ const deviceMap = ref<AudioTimeMap | null>(null)
 const timeMap = computed(() => deviceMap.value ?? episode.value?.audio_time_map ?? null)
 let audioSync: AudioSync | null = null
 let syncedTo = -1
+// The URL the element actually plays: a recovered stream (an expired signed URL resolved again)
+// can carry other ads, so the sync follows it rather than the URL this page started with.
+const playedUrl = computed(() => (player.currentSlug === props.slug ? player.streamUrl : null) ?? audioUrl.value)
 watch(
-  () => [props.slug, audioUrl.value] as const,
+  () => [props.slug, playedUrl.value] as const,
   async ([slug, url]) => {
     audioSync = null
     deviceMap.value = null
     syncedTo = -1
     if (!url) return
     const sync = await syncFor(slug, url, episode.value?.audio_time_map ?? null)
-    if (props.slug !== slug || audioUrl.value !== url) return
+    if (props.slug !== slug || playedUrl.value !== url) return
     audioSync = sync
     driveSync(contentTime.value)
   },

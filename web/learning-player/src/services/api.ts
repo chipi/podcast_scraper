@@ -364,6 +364,18 @@ export async function getAudioSource(slug: string, validate = false): Promise<Au
 
 const finalUrls = new Map<string, string>()
 
+/** The URL a final stream URL was resolved from, or null when it was not resolved here. */
+export function originOfStreamUrl(final: string): string | null {
+  for (const [origin, f] of finalUrls) if (f === final && origin !== final) return origin
+  return null
+}
+
+/** Resolve `origin` again, past the cache: a final URL is signed and expires (75 min seen). */
+export function refreshStreamUrl(origin: string): Promise<string> {
+  finalUrls.delete(origin)
+  return finalStreamUrl(origin)
+}
+
 /** Where `url` redirects to (a 1-byte range request), or `url` when that is not known in 1.5 s. */
 export async function finalStreamUrl(url: string): Promise<string> {
   if (!/^https?:\/\//.test(url)) return url

@@ -39,7 +39,7 @@ import {
   stopBackgroundAudio,
   updateNativeMedia,
 } from '../services/native'
-import { logPlaybackProgress } from '../services/api'
+import { logPlaybackProgress, originOfStreamUrl, refreshStreamUrl } from '../services/api'
 import { track } from '../services/analytics'
 import { queueProgress } from '../services/listenLog'
 
@@ -212,6 +212,8 @@ export const usePlayerStore = defineStore('player', () => {
    * a cold launch (#2278).
    */
   let currentUrl: string | null = null
+  /** What the element plays: the sync on the listener's stream follows it (RFC-129). */
+  const streamUrl = ref<string | null>(null)
   const playing = ref(false)
   const currentTime = ref(0)
   /**
@@ -419,6 +421,34 @@ export const usePlayerStore = defineStore('player', () => {
    * player page mid-listen does NOT restart playback — the bug that would otherwise replace one
    * annoyance with a worse one.
    */
+  /**
+   * The same episode from another source, carrying on where it was: a local copy found after an
+   * origin load, or a fresh stream URL after the signed one expired (RFC-129).
+   */
+  function switchSource(url: string, at: number, wasPlaying: boolean, isStream: boolean): void {
+    const audio = ensureElement()
+    // The dead source has usually already ERRORED, and audioError is only cleared by
+    // resetForLoad(). Left set, the view keeps "Couldn't load the audio" and hides Play over a
+    // perfectly good source — the second half of the device failure behind the local switch.
+    audioError.value = false
+    audioInsecure.value = false
+    audio.src = url
+    // A local copy keeps the origin URL as the episode's identity (Android's local URLs are https).
+    if (isStream) {
+      currentUrl = url
+      streamUrl.value = url
+    }
+    if (at > 0) {
+      const apply = (): void => {
+        audio.currentTime = at
+        currentTime.value = at
+      }
+      if (audio.readyState >= 1) apply()
+      else audio.addEventListener('loadedmetadata', apply, { once: true })
+    }
+    if (wasPlaying) void audio.play().catch(() => {})
+  }
+
   function load(opts: NextUp): void {
     const audio = ensureElement()
     if (currentSlug.value === opts.slug && audio.src) {
@@ -429,27 +459,7 @@ export const usePlayerStore = defineStore('player', () => {
       // showed "Couldn't load the audio from the source" (test-ios phase 2, 2026-10-04). Position and
       // play state carry over: this is the same episode, only from a better source.
       const local = sourceResolvers.local?.(opts.slug)
-      if (local && audio.src !== local) {
-        const at = audio.currentTime
-        const wasPlaying = !audio.paused
-        // The dead origin URL has usually already ERRORED by now (offline), and audioError is only
-        // cleared by resetForLoad(). Left set, the view keeps "Couldn't load the audio" and hides
-        // Play over a perfectly good local file — the second half of the same device failure.
-        audioError.value = false
-        audioInsecure.value = false
-        audio.src = local
-        if (at > 0) {
-          audio.addEventListener(
-            'loadedmetadata',
-            () => {
-              audio.currentTime = at
-              currentTime.value = at
-            },
-            { once: true },
-          )
-        }
-        if (wasPlaying) void audio.play().catch(() => {})
-      }
+      if (local && audio.src !== local) switchSource(local, audio.currentTime, !audio.paused, false)
       currentTitle.value = opts.title ?? currentTitle.value
       currentShowTitle.value = opts.showTitle ?? currentShowTitle.value
       currentArtwork.value = opts.artwork ?? currentArtwork.value
@@ -465,6 +475,7 @@ export const usePlayerStore = defineStore('player', () => {
     reel.value = null
     currentSlug.value = opts.slug
     currentUrl = opts.url
+    streamUrl.value = opts.url
     currentTitle.value = opts.title ?? null
     currentShowTitle.value = opts.showTitle ?? null
     currentArtwork.value = opts.artwork ?? null
@@ -498,6 +509,7 @@ export const usePlayerStore = defineStore('player', () => {
     if (el.value) el.value.removeAttribute('src')
     currentSlug.value = null
     currentUrl = null
+    streamUrl.value = null
     currentTitle.value = null
     currentShowTitle.value = null
     currentArtwork.value = null
@@ -622,7 +634,31 @@ export const usePlayerStore = defineStore('player', () => {
     elementDuration.value = el.value?.duration || 0
     syncPositionState()
   }
+  /** The final stream URL a recovery was already tried for: once per URL, never a loop. */
+  let recoveredFor: string | null = null
   function onError(): void {
+    // Playback plays a host's final redirected URL (RFC-129), which is signed and expires: after a
+    // long pause the next request fails. Resolve the original again, once, and carry on from here.
+    const failed = currentUrl
+    const origin = failed ? originOfStreamUrl(failed) : null
+    if (origin && failed && recoveredFor !== failed) {
+      recoveredFor = failed
+      void recoverStream(origin, failed, playing.value)
+      return
+    }
+    showAudioError()
+  }
+  async function recoverStream(origin: string, failed: string, wasPlaying: boolean): Promise<void> {
+    const snap = nowPlaying()
+    const fresh = await refreshStreamUrl(origin).catch(() => failed)
+    if (!snap || currentUrl !== failed) return // something else was loaded meanwhile
+    if (fresh === failed) {
+      showAudioError()
+      return
+    }
+    switchSource(fresh, snap.position, wasPlaying, true)
+  }
+  function showAudioError(): void {
     // #2267. What the LISTENER saw: audio that would not play. This records the user-visible
     // failure, which is the one the beta's friction rate counts. `network` because that is what a
     // media element error overwhelmingly is — a missing or unreachable file — and the element does
@@ -1299,6 +1335,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   return {
     el,
+    streamUrl,
     playing,
     currentTime,
     duration,
