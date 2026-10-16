@@ -46,8 +46,20 @@ highlight that runs ahead of or behind the voice, "Play from" landing on an ad.
   Example, one episode: after the mid-roll, the talk is 70.5 s earlier than in our copy in
   the Netherlands and 76.0 s earlier in Germany.
 - Two requests a few minutes apart from the same place returned byte-identical files (4 of 4).
+- **What fills a break changes over hours.** Re-downloaded the same afternoon:
+  - one episode's opening ads had grown by 15.4 s;
+  - in another, two breaks had changed.
 - The break points are fixed per episode. Only what fills them changes: every version breaks at
   the same seconds of the original.
+- **A break can look like talk.** One episode's original has a 52 s ad inside the talk. The morning
+  download carried the same ad in that slot, so it lined up as one unbroken stretch. By afternoon
+  that recording played in the mid-roll, and the slot held a different ad, 22.7 s shorter.
+  Comparing versions therefore cannot find every break; the original's own ad regions must.
+- **A range request returns the same bytes as a full download made at the same time.**
+  - Mid-file ranges of 256 KB matched a full download byte for byte on all 11 episodes: 9 against
+    the morning's download, and the 2 whose file had changed since, against a fresh one (4 of 4
+    ranges).
+  - That was tested from a laptop, not yet from the app on a phone.
 
 **Why a server-side map is not enough:** commit 2b5e96c2a maps each drifted episode from samples of
 the stream as the server receives it. On two episodes it moved 18 Moments from 0 to 16 that play what
@@ -80,8 +92,8 @@ measurement above shows they often don't.
 
 **Assumptions (to verify in phase 1, see Open Questions):**
 
-- A range request the app makes gets the same ads as its audio element's own request. Supported by
-  "same place, minutes apart, byte-identical", not yet shown on a device.
+- A range request the app makes gets the same ads as its audio element's own request. Shown for
+  plain HTTP requests from one machine (11 of 11). Not yet shown from the app on a phone.
 - An episode's breaks sit where the original had ads, or at its start and end.
 
 ## Design & Implementation
@@ -101,8 +113,9 @@ measurement above shows they often don't.
 - **Checkpoints, not the whole file.** The app does not need the fingerprint of the whole episode,
   only short windows where the offset can change:
   - the start of talk;
-  - right after each break: from the server's own comparison of original and current stream, and
-    from the ad regions the transcript already marks;
+  - right after each break. The original's own ad regions are required here: the ones the
+    transcript already marks, and those found by comparing the original with current streams.
+    Comparison alone misses a break whose ad happens to be the same in both;
   - one checkpoint every few minutes inside long stretches, to catch a break we did not know about.
 
   At 16 bands × 50 frames per second × 1 byte, a 10 s window is 8 KB. A one-hour episode with 3
@@ -120,7 +133,9 @@ measurement above shows they often don't.
 2. **Breaks.** Ahead of the playhead, before each break checkpoint, the same check runs for the next
    stretch. A seek beyond an unchecked break checks that break first. Each check is a range of about
    250 KB at 128 kbit/s (15 s).
-3. **Result:** the same structure the player already uses (`audio_time_map`, pairs of transcript
+3. **Result, for this playback only.** What fills a break changes within hours, so a map is not kept
+   across playbacks. Exception: a downloaded episode keeps its own map, measured on its file. It
+   is the same structure the player already uses (`audio_time_map`, pairs of transcript
    second and offset, `web/learning-player/src/player/audioTimeMap.ts`). Seeks, `?t=` links,
    transcript follow, insight steps and scrubber marks already go through it.
 4. **Reels across episodes** (short listens, Learn): before each clip, one range around the clip's
@@ -232,11 +247,13 @@ on a listener's stream (checked from a second country).
 ## Open Questions
 
 1. Does a range request from the app get the same ads as its audio element's own request, on iOS,
-   Android and web? Hosts tag each request (`request_event_id`, `session_id`).
+   Android and web? Yes for plain HTTP requests from one machine (11 of 11). Not yet tested from
+   the app. Hosts tag each request (`request_event_id`, `session_id`).
 2. Do the hosts count an extra range request as a download or a listen? If so, how small must it be
    not to?
-3. Can a break appear where the original had none? This decides how dense the checkpoints have to
-   be.
+3. Can a break appear where the original had none? Not seen: the one case that looked like it was
+   an ad in the original that a version happened to share. How dense the in-stretch checkpoints
+   must be stays open.
 4. Where a first redirect blocks reads on the web: does that redirect depend on the listener? If not,
    the web app can start after it.
 5. Byte-to-time accuracy on the variable-bitrate files we actually see.
