@@ -221,27 +221,25 @@ run must also end before the 00:00 UTC nightly.
    - **Left out, operator's call:** 2 episodes whose feeds are not in `feeds.spec.yaml`, and the
      reprocess runs with `--feeds-spec`. They are AI and Design (riverside `8P3kTQz9`, 58 min) and
      The Every Podcast (flightcast, 33 min).
-4. **One relabel list:** the 91 from 8.4 plus the naming changes since (`fe2316648` #2363,
-   `fc4e0dbda` #2364, `28b10ef3c` #2366, and #2365). Inside the deployed API container, with the
-   old modules from git:
-
-   ```bash
-   for m in providers/ml/diarization/roster.py speaker_detectors/hosts.py \
-            speaker_detectors/resolution.py providers/ml/diarization/ad_signatures.py; do
-     git show c6cdc5d:src/podcast_scraper/$m > /tmp/rl/old_$(basename $m)
-   done
-   # copy /tmp/rl and scripts/measure/roster_replay.py into the container, then per shard k:
-   nice -n 15 python3 roster_replay.py --corpus /app/output --signatures --repool --roles \
-     --old roster=/tmp/rl/old_roster.py hosts=/tmp/rl/old_hosts.py \
-           resolution=/tmp/rl/old_resolution.py ad_signatures=/tmp/rl/old_ad_signatures.py \
-     --shard k/2 > out_k.jsonl
-   ```
-
-   The new side is the installed (deployed) code. `c6cdc5d` labelled most served episodes.
-   Episodes backfilled since (batches 27-32, on `aaadbb2`/`f35a446`) were labelled by newer code,
-   so the replay can flag a change they already have. Drop an episode from the list when its
-   stored name already equals the new name. Read every changed voice, then run 5 episodes to time
-   a relabel (none has been timed), then batches that fit the runner and the nightly.
+4. **One relabel, `relabel_combined_ids.txt`: 130 episodes, `pipeline_stage=relabel_only`** (not a
+   re-transcribe), on a sha that includes `2b580bb1e`. The operator's go is needed for the run.
+   - The 91 from 8.4 (`relabel_84_ids.txt`: replay of `c6cdc5d` vs `aaadbb2` modules, 2026-10-15;
+     none of them was re-done by backfill 27-32).
+   - The ingestion session's 44 (`/Users/Shared/relabel_44_episodes.tsv`, with what changes per
+     episode): one replay of the deployed roster (`f35a446b8`) against main (`2b580bb1e`) over the
+     2026-10-15 snapshot. 41 voices in 40 episodes: 27 respellings to the title's spelling (#2363),
+     8 false guests removed (#2364), 6 from the question-lead host seat (#2366); plus 4 stale
+     records (#2365, Kara Swisher's Pivot tour promo stored as a guest).
+   - 4 episodes are in both lists; 1 ("Taking down the cultural elite") is dropped because the
+     #2370 re-transcribe relabels it anyway. 91 + 44 - 4 - 1 = 130.
+   - **Left out on purpose:** Hard Fork "A.I. Backlash Turns Violent + Kara Swisher on
+     Healthmaxxing". She is its real guest and current code leaves her voice unnamed, so a relabel
+     would remove a correct name (the ingestion session's open finding).
+   - **Time:** about 17 min per episode by the ingestion session's notes (GI dominates), so about
+     37 h for 130. No relabel has been timed on prod: run 5 first and measure, then batches that fit
+     the runner and the nightly, after the #2370 and #2332 runs.
+   - **Check after:** send the run ids to the ingestion session; it compares the replay's changes
+     with the served records on the next snapshot.
 5. **8.5:** recompute after the relabel (Rest Is History episodes whose host seat is still
    unnamed).
 
