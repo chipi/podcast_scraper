@@ -114,3 +114,32 @@ def test_each_checkpoint_of_the_reference_is_found_in_a_short_chunk(
         )
         assert match >= 0.8, cp
         assert at - cp["t"] == pytest.approx(expected, abs=0.04), cp
+
+
+def test_every_checkpoint_carries_a_long_window(original: np.ndarray) -> None:
+    """RFC-129 v2: a window reaching ``REACH_S`` either side of a guess plus the probe, at intervals
+    too (a host can insert a break where the original had none), starting with the short one."""
+    from podcast_scraper.audio_sync import reference
+
+    doc = reference.build(original, [(20_000, 25_000)])
+    assert doc["version"] == 2 and doc["reach_s"] == reference.REACH_S
+    kinds = {c["kind"] for c in doc["checkpoints"]}
+    assert {"talk_start", "after_ad", "interval"} <= kinds
+    for cp in doc["checkpoints"]:
+        long = reference.decode_window(cp["long"])
+        short = reference.decode_window(cp["frames"])
+        assert np.array_equal(long[: len(short)], short), cp["t"]  # the short window is its start
+    after = next(c for c in doc["checkpoints"] if c["kind"] == "after_ad")
+    assert len(reference.decode_window(after["long"])) == int(reference.LONG_WINDOW_S * 50)
+
+
+def test_a_long_window_stops_where_the_next_ad_starts(original: np.ndarray) -> None:
+    """Past the next ad the offset is different: a probe matching there must not be read as this
+    checkpoint's (RFC-129 v2)."""
+    from podcast_scraper.audio_sync import reference
+
+    doc = reference.build(original, [(100_000, 110_000), (150_000, 160_000)])
+    first = next(c for c in doc["checkpoints"] if c["kind"] == "after_ad")
+    assert first["t"] == pytest.approx(115.0)
+    frames = len(reference.decode_window(first["long"]))
+    assert frames == pytest.approx((150.0 - 115.0) * 50, abs=2)

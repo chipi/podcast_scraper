@@ -140,4 +140,72 @@ describe('audio sync on the listener stream', () => {
     expect(layout).toEqual({ audioStart: 30, bitrate: 128000, totalBytes: 30 + 960000 })
     expect(streamSeconds(layout!)).toBeCloseTo(60)
   })
+
+  describe('RFC-129 v2: a long window after each break', () => {
+    function withLong(original: Float32Array, at: number, ad: number) {
+      const stream = concat(original.subarray(0, at * SR), talk(ad, 99), original.subarray(at * SR))
+      const ref: AudioReference = {
+        scale: 20,
+        window_s: 10,
+        reach_s: 90,
+        probe_s: 12,
+        duration_s: original.length / SR,
+        checkpoints: [
+          { ...checkpoint(original, 10, 'talk_start'), has_long: true },
+          { ...checkpoint(original, at, 'after_ad'), has_long: true },
+        ],
+      }
+      // As the builder cuts them: each ends where the original's next ad starts (here the break).
+      const window = (t: number, until: number) =>
+        spectra(original.subarray(t * SR, Math.min(original.length, until * SR) + 512))
+      const longs = [window(10, at), window(at, at + 192)]
+      const long = async (i: number) => longs[i] ?? null
+      return { stream, ref, long }
+    }
+
+    function recording(stream: Float32Array, blind = false) {
+      const access = fakeStream(stream)
+      const seconds: number[] = []
+      const rec: StreamAccess = {
+        async range(a, b) {
+          if (!(a === 0 && b === 65535)) seconds.push((b - a + 1) / SR)
+          const r = await access.range(a, b)
+          return blind ? { ...r, total: null } : r
+        },
+        decode: access.decode,
+        size: async () => null,
+      }
+      return { rec, seconds }
+    }
+
+    it('finds a changed break with short probes, never a wide range', async () => {
+      const original = talk(300, 7)
+      const { stream, ref, long } = withLong(original, 100, 35)
+      const { rec, seconds } = recording(stream)
+      const sync = new AudioSync(ref, rec, null, long)
+      const map = await sync.ensure(300)
+      expect(map![1][0]).toBe(100)
+      expect(map![1][1]).toBeCloseTo(35, 1)
+      expect(Math.max(...seconds)).toBeLessThanOrEqual(14.1) // 14 s narrow checks, 12 s probes
+    })
+
+    it('reaches a jump beyond the window by stepping out (+138 s, as seen on prod)', async () => {
+      const original = talk(360, 11)
+      const { stream, ref, long } = withLong(original, 100, 138)
+      const { rec, seconds } = recording(stream, true) // no file size: no end-of-stream hint
+      const sync = new AudioSync(ref, rec, null, long)
+      const map = await sync.ensure(360)
+      expect(map![1][1]).toBeCloseTo(138, 1)
+      expect(Math.max(...seconds)).toBeLessThanOrEqual(14.1)
+      expect(seconds.length).toBeLessThanOrEqual(6)
+    })
+
+    it('without a long window (offline download, interval) it still finds the break', async () => {
+      const original = talk(300, 7)
+      const { stream, ref } = withLong(original, 100, 35)
+      const map = await new AudioSync(ref, fakeStream(stream), null, null).ensure(300)
+      expect(map![1][1]).toBeCloseTo(35, 1)
+    })
+  })
 })
+

@@ -26,8 +26,18 @@ from podcast_scraper.audio_sync import fingerprint as fp
 if TYPE_CHECKING:
     import numpy as np
 
-VERSION = 1
+VERSION = 2
 WINDOW_S = 10.0
+# After a break whose ads changed, the app does not know where the talk resumes. Version 1 made it
+# download a wide range of its stream (±60 s, ~3 MB at 192 kbit/s) and search it: 28 MB for an
+# hour with three changed breaks, measured 2026-10-16. Version 2 keeps a LONG window at every
+# checkpoint here instead: the app downloads PROBE_S of its stream (~0.3 MB) and finds it inside
+# the window, which reaches REACH_S either side of its guess. Interval checkpoints need one too: a
+# host can insert a break where the original had none (live, 2026-10-16: +130 s found at an
+# interval, 6.6 MB of wide search).
+REACH_S = 90.0
+PROBE_S = 12.0
+LONG_WINDOW_S = 2 * REACH_S + PROBE_S
 INTERVAL_S = 300.0
 MIN_GAP_S = 30.0
 AD_JOIN_S = 3.0
@@ -115,13 +125,24 @@ def build(samples: "np.ndarray", spans_ms: Sequence[Tuple[int, int]]) -> Dict[st
     duration = len(samples) / fp.SR
     spec = fp.spectra(samples)
     n = int(WINDOW_S * fp.FPS)
-    checkpoints = []
-    for t, kind in checkpoint_times(duration, ad_regions(spans_ms)):
+    n_long = int(LONG_WINDOW_S * fp.FPS)
+    checkpoints: List[Dict[str, Any]] = []
+    regions = ad_regions(spans_ms)
+    for t, kind in checkpoint_times(duration, regions):
         i = int(round(t * fp.FPS))
         window = spec[i : i + n]
         if len(window) < n:
             continue
-        checkpoints.append({"t": t, "kind": kind, "frames": _encode(window)})
+        cp: Dict[str, Any] = {"t": t, "kind": kind, "frames": _encode(window)}
+        # The long window stops where the original's next ad starts: everything inside it then has
+        # this checkpoint's offset, so a probe that matches past the next break cannot be read as
+        # this one (found 2026-10-16 in a test, a probe 90 s on landing after the next break). A
+        # late or short stretch gets a shorter window, never none.
+        nxt = min((a for a, _ in regions if a > t + 1.0), default=duration)
+        end = min(i + n_long, int(nxt * fp.FPS))
+        if end - i > n:
+            cp["long"] = _encode(spec[i:end])
+        checkpoints.append(cp)
     return {
         "version": VERSION,
         "sample_rate": fp.SR,
@@ -130,6 +151,8 @@ def build(samples: "np.ndarray", spans_ms: Sequence[Tuple[int, int]]) -> Dict[st
         "bands": fp.BANDS,
         "scale": SCALE,
         "window_s": WINDOW_S,
+        "reach_s": REACH_S,
+        "probe_s": PROBE_S,
         "duration_s": round(duration, 2),
         "checkpoints": checkpoints,
     }

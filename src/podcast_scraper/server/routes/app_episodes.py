@@ -77,6 +77,8 @@ from podcast_scraper.server.corpus_catalog import (
 from podcast_scraper.server.feed_signals import compute_feed_signals
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppAudioCheckpoint,
+    AppAudioLongWindow,
     AppAudioReference,
     AppEntitiesResponse,
     AppEpisodeBatchResponse,
@@ -906,6 +908,39 @@ def episode_audio_reference(
 ) -> AppAudioReference:
     """The fingerprint checkpoints of the audio we transcribed (RFC-129). 404 when the episode has
     none: no exact original was available to build one from."""
+    doc = _audio_reference_doc(request, slug)
+    # The long windows stay out: most playbacks never need one (the ads did not change), and an
+    # episode's together run to ~1 MB. The app asks for one when it needs it (``.../long/{i}``).
+    fields = {k: v for k, v in doc.items() if k not in ("guid", "checkpoints")}
+    try:
+        checkpoints = [
+            AppAudioCheckpoint(
+                **{k: v for k, v in cp.items() if k != "long"}, has_long=bool(cp.get("long"))
+            )
+            for cp in doc.get("checkpoints") or []
+        ]
+        return AppAudioReference(episode_slug=slug, checkpoints=checkpoints, **fields)
+    except ValueError as exc:
+        logger.warning("Malformed audio reference for %s: %s", slug, exc)
+        raise HTTPException(status_code=404, detail="No audio reference for this episode.") from exc
+
+
+@router.get("/episodes/{slug}/audio-reference/long/{index}", response_model=AppAudioLongWindow)
+def episode_audio_reference_long(
+    request: Request,
+    slug: str,
+    index: int,
+    _user: User = Depends(get_current_user),
+) -> AppAudioLongWindow:
+    """One checkpoint's long window (RFC-129 v2). 404 when the checkpoint has none."""
+    checkpoints = _audio_reference_doc(request, slug).get("checkpoints") or []
+    cp = checkpoints[index] if 0 <= index < len(checkpoints) else None
+    if not isinstance(cp, dict) or not cp.get("long"):
+        raise HTTPException(status_code=404, detail="No long window at this checkpoint.")
+    return AppAudioLongWindow(episode_slug=slug, index=index, t=cp["t"], frames=cp["long"])
+
+
+def _audio_reference_doc(request: Request, slug: str) -> dict:
     from ...audio_sync.references import reference_relpath
     from ..app_episode_search import episode_segments_relpath
 
@@ -917,10 +952,12 @@ def episode_audio_reference(
         raise HTTPException(status_code=404, detail="No audio reference for this episode.")
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
-        return AppAudioReference(episode_slug=slug, **{k: v for k, v in doc.items() if k != "guid"})
     except (OSError, ValueError) as exc:
         logger.warning("Unreadable audio reference %s: %s", path, exc)
         raise HTTPException(status_code=404, detail="No audio reference for this episode.") from exc
+    if not isinstance(doc, dict):
+        raise HTTPException(status_code=404, detail="No audio reference for this episode.")
+    return doc
 
 
 @router.get("/episodes/{slug}/segments", response_model=SegmentsResponse)

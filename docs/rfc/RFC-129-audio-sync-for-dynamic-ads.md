@@ -125,6 +125,11 @@ measurement above shows they often don't.
 
   At 16 bands × 50 frames per second × 1 byte, a 10 s window is 8 KB. Built for two real one-hour
   episodes: 14 checkpoints each, 147 KB as JSON, served with the episode on request.
+- **Long windows (version 2).** Each checkpoint also keeps a window of up to 192 s, stopping where
+  the original's next ad starts, served one at a time only when a search needs it. On disk this is
+  about 2.6 MB per hour of audio (one real hour: 2.64 MB with 13 long windows; 140 KB of it is the
+  reference the app fetches up front). For the backfill of about 2,600 episodes, about 7 GB; prod
+  had 93 GB free on 2026-10-16.
 - **Stored** next to the episode's other artifacts. It is a deterministic text/binary artifact, built
   from the archive by a CPU job: no DGX, no model.
 
@@ -183,9 +188,9 @@ yet tried (Open Questions 8, 9):
 | **Verified** | the device map is built | everything plays, including reels |
 | **Estimated** | no device measurement (on the web, a redirect chain that blocks reads; a variable-bitrate file; a range refused); the server map exists | the episode and its reel clips play through the server's map |
 | **Unknown** | neither | transcript time, as before RFC-129 |
+| **Not needed** | the stream is the original (same length, checkpoint matches at 0) | as today |
 
 No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we are fixing it".
-| **Not needed** | the stream is the original (same length, checkpoint matches at 0) | as today |
 
 ### 4. Platforms
 
@@ -232,7 +237,28 @@ No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we 
   +92.70 s.
 - Cost for the whole hour at 192 kbit/s: 22 requests, 28.3 MB. Per checkpoint whose offset is
   known: 0.34 MB. Where the offset changed: 6.6–9.7 MB.
-- Cheaper is possible (Open Question 11).
+
+**Version 2: the search downloads a short probe, not a wide range**
+- After a changed break, the app no longer downloads ±60 s of its stream per guess (about 3 MB).
+  It fetches that checkpoint's long window once (about 0.2 MB of JSON,
+  `GET /api/app/episodes/{slug}/audio-reference/long/{index}`), downloads 12 s of its stream
+  (about 0.3 MB) where the window's middle would be heard for a guess, and finds the probe inside
+  the window. One probe covers ±90 s around its guess; the guesses are the last offset, the offset
+  at the end of the stream, the server map's, 0, and the last ±180 s.
+- The narrow check at the last offset stays first: where nothing changed, nothing more is fetched.
+- Live check, same episode, a later version of its ads, both versions run on the same stream:
+
+  | | Version 1 | Version 2 |
+  |---|---|---|
+  | Map | +21.45 / −51.57 / +78.53 s | +21.45 / −51.57 / +78.53 s |
+  | Stream downloaded | 22.8 MB, 20 requests | 5.3 MB, 18 requests |
+  | Long windows | none | 0.6 MB, 3 fetched |
+  | At the three changed checkpoints | 3.2 / 9.7 / 6.6 MB | 0.6 / 0.8 / 1.1 MB |
+
+  Each checkpoint located directly in the downloaded stream: +21.48 / −51.56 / +78.55 s. The rest
+  (13 × 0.34 MB) is the narrow check at every checkpoint.
+- The third change (+130 s) came at an interval checkpoint: the host had inserted a break where the
+  original had no ad. So every checkpoint carries a long window, not only those after a break.
 
 ## Key Decisions
 
@@ -305,9 +331,9 @@ on a listener's stream (checked from a second country).
    the app. Hosts tag each request (`request_event_id`, `session_id`).
 2. Do the hosts count an extra range request as a download or a listen? If so, how small must it be
    not to?
-3. Can a break appear where the original had none? Not seen: the one case that looked like it was
-   an ad in the original that a version happened to share. How dense the in-stretch checkpoints
-   must be stays open.
+3. Can a break appear where the original had none? Yes: seen live on 2026-10-16, +130 s between
+   two interval checkpoints, with no ad in the original's transcript there. Interval checkpoints
+   now carry long windows too. How dense the in-stretch checkpoints must be stays open.
 4. Where a first redirect blocks reads on the web: does that redirect depend on the listener? If not,
    the web app can start after it.
 5. Byte-to-time accuracy on the variable-bitrate files we actually see.
@@ -319,9 +345,8 @@ on a listener's stream (checked from a second country).
 9. Can iOS and Android playback hand the bytes it downloads to the sync?
 10. Checkpoints that land inside an ad cost a full search for nothing. Partly done: none 5 s or less
     after a marked ad end, none overlapping another ad.
-11. Search cost: keep a longer reference window (about 130 s) at checkpoints where the offset can
-    change. A 12 s chunk of the stream could then be located inside it, about 0.3 MB instead of
-    3 MB per wide range.
+11. Search cost: done in version 2 (long windows, a 12 s probe). One hour: 28.3 MB, then 22.8 MB
+    on a later version of its ads, now 5.9 MB.
 12. On iOS and Android, does `fetch` through CapacitorHttp return the final URL (`Response.url`),
     and binary bodies for ranges? Not tried on a device.
 

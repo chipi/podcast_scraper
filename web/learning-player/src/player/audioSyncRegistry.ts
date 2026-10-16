@@ -4,8 +4,9 @@
  * hours, so nothing is kept across sessions.
  */
 
-import { getAudioReference } from '../services/api'
+import { getAudioReference, getAudioReferenceLong } from '../services/api'
 import { localKnowledgeFor } from '../services/downloads'
+import { decodeWindow } from './audioFingerprint'
 import { AudioSync, browserStreamAccess } from './audioSync'
 import { toStream, type AudioTimeMap } from './audioTimeMap'
 
@@ -19,7 +20,13 @@ export function syncFor(slug: string, url: string, fallback: AudioTimeMap | null
     s = getAudioReference(slug)
       .catch(() => null)
       .then(async (ref) => ref ?? (await localKnowledgeFor(slug).catch(() => null))?.audioReference ?? null)
-      .then((ref) => (ref && ref.checkpoints.length ? new AudioSync(ref, browserStreamAccess(url), fallback) : null))
+      .then((ref) =>
+        ref && ref.checkpoints.length
+          ? new AudioSync(ref, browserStreamAccess(url), fallback, (i) =>
+              getAudioReferenceLong(slug, i).then((w) => (w ? decodeWindow(w.frames, ref.scale) : null)),
+            )
+          : null,
+      )
       .catch(() => null)
     syncs.set(key, s)
   }

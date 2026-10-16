@@ -475,6 +475,21 @@ class AppAudioCheckpoint(BaseModel):
         description="base64 int8, frames × bands: per 20 ms frame, log energy in each band "
         "with the frame's mean removed, times ``scale``."
     )
+    has_long: bool = Field(
+        default=False,
+        description="A long window starts here too (GET .../audio-reference/long/{index}): what "
+        "the app searches when the offset after this break changed (RFC-129 v2).",
+    )
+
+
+class AppAudioLongWindow(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/audio-reference/long/{index}: one checkpoint's long
+    window, ``reach_s`` either side of a guess plus the probe the app downloads."""
+
+    episode_slug: str
+    index: int
+    t: float
+    frames: str = Field(description="As a checkpoint's frames, for the whole long window.")
 
 
 class AppAudioReference(BaseModel):
@@ -489,6 +504,10 @@ class AppAudioReference(BaseModel):
     bands: int
     scale: float
     window_s: float
+    reach_s: float = Field(default=0.0, description="How far a long window reaches either side.")
+    probe_s: float = Field(
+        default=0.0, description="Seconds of stream to search a long window with."
+    )
     duration_s: float = Field(description="Length of the original we transcribed.")
     checkpoints: list[AppAudioCheckpoint] = Field(default_factory=list)
 

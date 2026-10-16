@@ -336,6 +336,21 @@ export function getSegments(slug: string, lang?: string | null): Promise<Segment
  * The fingerprint checkpoints of the audio we transcribed (RFC-129, #2359), which the player lines
  * its own stream up against. `null` when the episode has none (404).
  */
+/** One checkpoint's long window (RFC-129 v2), or `null` when it has none (404). */
+export async function getAudioReferenceLong(
+  slug: string,
+  index: number,
+): Promise<{ t: number; frames: string } | null> {
+  try {
+    return await getJSON<{ t: number; frames: string }>(
+      `/episodes/${encodeURIComponent(slug)}/audio-reference/long/${index}`,
+    )
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
+
 export async function getAudioReference(slug: string): Promise<AudioReference | null> {
   try {
     return await getJSON<AudioReference>(`/episodes/${encodeURIComponent(slug)}/audio-reference`)

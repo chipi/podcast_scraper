@@ -15,18 +15,23 @@
  * rules; on the web a host must allow cross-origin reads, or the sync reports itself unavailable.
  */
 
-import { decodeWindow, FPS, locate, SR, spectra } from './audioFingerprint'
+import { BANDS, decodeWindow, FPS, locate, SR, spectra } from './audioFingerprint'
 import type { AudioTimeMap } from './audioTimeMap'
 
 export interface AudioCheckpoint {
   t: number
   kind: 'talk_start' | 'after_ad' | 'interval'
   frames: string
+  /** A long window starts here (RFC-129 v2), fetched only when a search needs it. */
+  has_long?: boolean
 }
 
 export interface AudioReference {
   scale: number
   window_s: number
+  /** How far a long window reaches either side of a guess, and the probe that searches it. */
+  reach_s?: number
+  probe_s?: number
   duration_s: number
   checkpoints: AudioCheckpoint[]
 }
@@ -158,7 +163,17 @@ export class AudioSync {
   private readonly access: StreamAccess
   private readonly fallback: AudioTimeMap | null
 
-  constructor(reference: AudioReference, access: StreamAccess, fallback: AudioTimeMap | null = null) {
+  /** A checkpoint's long window, decoded: fetched once, when a search after its break needs it. */
+  private readonly fetchLong: ((index: number) => Promise<Float32Array | null>) | null
+  private longs = new Map<number, Promise<Float32Array | null>>()
+
+  constructor(
+    reference: AudioReference,
+    access: StreamAccess,
+    fallback: AudioTimeMap | null = null,
+    fetchLong: ((index: number) => Promise<Float32Array | null>) | null = null,
+  ) {
+    this.fetchLong = fetchLong
     this.reference = reference
     this.access = access
     this.fallback = fallback
@@ -230,6 +245,27 @@ export class AudioSync {
       const hit = await this.tryAt(i, last, NARROW_SLACK_S)
       if (hit != null) return hit
     }
+    const fallbackAt = fallbackOffset(this.fallback, cp.t)
+    const long = cp.has_long ? await this.longWindow(i) : null
+    if (long) {
+      // RFC-129 v2: a short probe of the stream, found inside the long window, instead of a wide
+      // range of the stream. ~0.3 MB a try where a wide range cost ~3 MB.
+      // A window can be shorter than the full reach (the next break comes sooner): its reach is
+      // what lies either side of a probe in its middle.
+      const probe = this.reference.probe_s ?? 12
+      const reach = Math.max(1, (long.length / BANDS / FPS - probe) / 2)
+      const base = last ?? endOffset ?? fallbackAt ?? 0
+      const centres: number[] = []
+      for (const g of [base, endOffset, fallbackAt, 0, base + 2 * reach, base - 2 * reach]) {
+        if (g == null || !Number.isFinite(g)) continue
+        if (!centres.some((x) => Math.abs(x - g) < reach)) centres.push(g)
+      }
+      for (const g of centres) {
+        const hit = await this.probeLong(i, long, g, reach)
+        if (hit != null) return hit
+      }
+      return null
+    }
     const centres: number[] = []
     const add = (g: number | null | undefined) => {
       if (g == null || !Number.isFinite(g)) return
@@ -237,13 +273,44 @@ export class AudioSync {
     }
     for (const step of WIDE_STEPS) add((last ?? endOffset ?? 0) + step)
     add(endOffset)
-    add(fallbackOffset(this.fallback, cp.t))
+    add(fallbackAt)
     add(0)
     for (const g of centres) {
       const hit = await this.tryAt(i, g, WIDE_HALF_S)
       if (hit != null) return hit
     }
     return null
+  }
+
+  private longWindow(i: number): Promise<Float32Array | null> {
+    if (!this.fetchLong) return Promise.resolve(null)
+    let w = this.longs.get(i)
+    if (!w) {
+      w = this.fetchLong(i).catch(() => null)
+      this.longs.set(i, w)
+    }
+    return w
+  }
+
+  /**
+   * One probe of the stream for checkpoint `i`, offset guess `g`: `probe_s` of the stream where the
+   * long window's middle would be heard if the guess were right, then found inside the window. The
+   * window reaches `reach` either side, so any offset within `g ± reach` is found.
+   */
+  private async probeLong(i: number, long: Float32Array, g: number, reach: number): Promise<number | null> {
+    const layout = this.layout as Mp3Layout
+    const cp = this.reference.checkpoints[i]
+    const probe = this.reference.probe_s ?? 12
+    const from = cp.t + g + reach
+    if (from + probe <= 0) return null
+    const start = byteAt(layout, from)
+    const end = layout.totalBytes == null ? byteAt(layout, from + probe) : Math.min(layout.totalBytes - 1, byteAt(layout, from + probe))
+    if (end <= start) return null
+    const { bytes } = await this.access.range(start, end)
+    const heard = spectra(await this.access.decode(bytes))
+    const hit = locate(heard, long)
+    if (hit.match < MIN_MATCH) return null
+    return ((start - layout.audioStart) * 8) / layout.bitrate - (cp.t + hit.frame / FPS)
   }
 
   /** Look for checkpoint `i` at offsets `guess ± slack`: one range request. */

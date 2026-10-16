@@ -47,7 +47,8 @@ Every command without `--write` only reports. All writes are atomic.
 2. **Backfill all references**, detached. It pulls each original from the archive (about 2,600
    files, about 156 GiB) into a temporary folder that is deleted after each episode, so it runs for
    hours without filling the disk. It is resumable: an episode that already has a reference is
-   skipped.
+   skipped. The references themselves take about 2.6 MB per hour of audio (version 2 keeps a long
+   window at every checkpoint): about 7 GB for the corpus, so check `df -h /` has that free.
 
    ```bash
    $C run -d --no-deps --name audio-refs pipeline-llm python -m podcast_scraper.audio_sync \
@@ -62,6 +63,9 @@ Every command without `--write` only reports. All writes are atomic.
      voice across an ad break, and a Moment from it starts on its words.
 
 Nothing runs daily: references are made once per episode, and each player measures its own stream.
+A reference is format version 2 (`"version": 2`, long windows). The player still syncs with a
+version 1 reference, but downloads far more of the stream after a changed break; rebuild one with
+`build-references --force --path <metadata path>`.
 
 ## Diagnosis (manual)
 
