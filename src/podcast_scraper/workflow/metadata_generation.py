@@ -50,7 +50,7 @@ from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
-from ..languages import resolve_episode_language
+from ..languages import resolve_episode_language, SOURCE_DETECTED
 from ..rss.licence import episode_licence, LicenceRecord
 from ..speaker_detectors.hosts import (
     is_publishable_speaker_name,
@@ -449,7 +449,8 @@ class FeedMetadata(BaseModel):
     #: normalized form because an operator judging an odd tag needs to see the original.
     language_raw: Optional[str] = None
     #: Where ``language`` came from: ``"rss"`` (the feed declared it), ``"profile_default"``
-    #: (it did not, so the run config supplied it), or ``"override"`` (S0.2's per-feed key).
+    #: (it did not, so the run config supplied it), ``"override"`` (S0.2's per-feed key), or
+    #: ``"detected"`` (an episode not in its show's language, identified by the ASR; #2369).
     #: An audit that cannot say WHERE a language came from cannot tell a measured corpus from
     #: a uniformly-defaulted one — the failure this field exists to prevent.
     language_source: Optional[str] = None
@@ -3916,6 +3917,35 @@ def _prepare_metadata_ids(
     return feed_id, episode_id, transcript_infos, media_id
 
 
+def detected_episode_language(
+    output_dir: str, transcript_file_path: Optional[str]
+) -> Optional[str]:
+    """The language the ASR identified for this episode, from its ``.asr.json`` (#2369), or None.
+
+    Written only when the transcript did not read as the show's language and three clips agreed
+    on an enabled one; every other episode has no such field and keeps its show's language.
+    """
+    if not transcript_file_path:
+        return None
+    base, _ = os.path.splitext(os.path.join(output_dir, transcript_file_path))
+    try:
+        with open(base + ".asr.json", encoding="utf-8") as fh:
+            record = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    language = record.get("language") if isinstance(record, dict) else None
+    detected = language.get("detected") if isinstance(language, dict) else None
+    return str(detected).strip().lower() or None if isinstance(detected, str) else None
+
+
+def episode_language_cfg(cfg: Any, output_dir: str, transcript_file_path: Optional[str]) -> Any:
+    """The run's ``cfg``, or a copy carrying the episode's own language when the ASR identified
+    one (#2369): translation and the analysis gate then read the episode's language, not the
+    show's."""
+    detected = detected_episode_language(output_dir, transcript_file_path)
+    return cfg.model_copy(update={"language_override": detected}) if detected else cfg
+
+
 def _prepare_base_metadata_objects(
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -3980,6 +4010,7 @@ def _prepare_base_metadata_objects(
         feed_last_updated,
         feed_category,
     )
+    detected_language = detected_episode_language(output_dir, transcript_file_path)
     episode_metadata = _build_episode_metadata(
         episode,
         episode_id,
@@ -3990,11 +4021,10 @@ def _prepare_base_metadata_objects(
         episode_duration_seconds,
         episode_number,
         episode_image_url,
-        # S0.1a has no per-episode override, so an episode inherits its feed's resolved
-        # language and the same provenance. S0.2 (#2174) adds the override and the registry,
-        # at which point these two diverge from the feed's for the feeds that need it.
-        language=feed_metadata.language,
-        language_source=feed_metadata.language_source,
+        # An episode inherits its feed's resolved language and provenance, unless the ASR
+        # identified it as another language (#2369, RFC-130).
+        language=detected_language or feed_metadata.language,
+        language_source=SOURCE_DETECTED if detected_language else feed_metadata.language_source,
     )
     channel_licence = getattr(feed, "licence", None)
     item = getattr(episode, "item", None)
@@ -4946,8 +4976,11 @@ def generate_episode_metadata(  # noqa: C901
     # It performs no translation in this slice; it decides, records the manifest block, and
     # credits its own wall time back to the deadline `processing.py` observes around this whole
     # call, so a future overrun alert keeps meaning "summary + GI + KG were slow".
+    # #2369: an episode the ASR identified as another language than its show's is translated (and
+    # gated) in that language; the run's own config describes the show.
+    episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
     _translation = run_translation_stage(
-        cfg,
+        episode_cfg,
         feed_language=getattr(feed, "language", None),
         transcript_relpath=transcript_file_path,
         effective_output_dir=output_dir,
@@ -4971,7 +5004,7 @@ def generate_episode_metadata(  # noqa: C901
     # `.adfree.txt`/`.txt` and runs English prompts over Spanish — which §5.2 measured as
     # confidently wrong, not blind. English episodes cost one language comparison here.
     _blocked = analysis_blocked_reason(
-        cfg,
+        episode_cfg,
         transcript_relpath=transcript_file_path,
         effective_output_dir=output_dir,
         feed_language=getattr(feed, "language", None),

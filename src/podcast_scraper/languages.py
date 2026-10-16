@@ -179,6 +179,8 @@ SOURCE_PROFILE_DEFAULT = "profile_default"
 SOURCE_OVERRIDE = "override"
 #: Nothing declared a language at all — no override and no feed tag.
 SOURCE_NONE = "none"
+#: The episode was not in its show's language, and the ASR identified it on three clips (#2369).
+SOURCE_DETECTED = "detected"
 
 
 def resolve_language(

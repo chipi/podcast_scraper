@@ -620,3 +620,42 @@ def test_watchdog_hard_deadline_raises(
         provider.transcribe(str(audio))
     assert _time.monotonic() - started < 0.8  # bailed at ~0.15s, not the 1s hang
     assert wp._whisper_breaker.state == "open"  # watchdog timeout trips the breaker
+
+
+@patch("httpx.Client")
+def test_a_clip_sent_with_no_language_returns_the_language_the_server_detects(
+    mock_client_cls: MagicMock, tmp_path
+) -> None:
+    """#2369: the service echoes a requested language, so identification sends none and reads the
+    server's answer; the episode-level record is left alone (clips run beside an episode)."""
+    audio = tmp_path / "clip.wav"
+    audio.write_bytes(b"abc")
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"text": "merhaba", "segments": [], "language": "tr"}
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider._ensure_init = lambda: None  # type: ignore[method-assign]
+    provider._last_detected_language = "en"
+    got = provider.transcribe_clip(str(audio), language=None)
+    assert got["language"] == "tr"
+    assert "language" not in mock_client.post.call_args.kwargs["data"]
+    assert provider._last_detected_language == "en"
+
+
+@patch("httpx.Client")
+def test_a_clip_answer_without_a_language_is_none(mock_client_cls: MagicMock, tmp_path) -> None:
+    audio = tmp_path / "clip.wav"
+    audio.write_bytes(b"abc")
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"text": "", "segments": []}
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider._ensure_init = lambda: None  # type: ignore[method-assign]
+    assert provider.transcribe_clip(str(audio))["language"] is None

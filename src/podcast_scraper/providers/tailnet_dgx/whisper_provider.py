@@ -180,8 +180,10 @@ class TailnetDgxWhisperTranscriptionProvider:
         propagates; the caller records the clip as failed and keeps the transcript.
 
         ``prompt`` is Whisper's initial prompt (a punctuation-window repair sends one).
+        With no ``language`` the server detects one, returned as ``language`` (#2369).
         """
         self._ensure_init()
+        detected: list[Optional[str]] = []
         with _dgx_single_flight:
             text, segments, _duration = self._transcribe_dgx(
                 audio_path,
@@ -190,8 +192,9 @@ class TailnetDgxWhisperTranscriptionProvider:
                 prompt=prompt,
                 check_response=False,
                 record_language=False,
+                detected_sink=detected,
             )
-        return {"text": text, "segments": segments}
+        return {"text": text, "segments": segments, "language": detected[0] if detected else None}
 
     def transcribe_with_segments(
         self,
@@ -586,6 +589,9 @@ class TailnetDgxWhisperTranscriptionProvider:
         # after releasing the lock — a clip writing it could stamp another episode's record when
         # transcription_parallelism > 1.
         record_language: bool = True,
+        # #2369: a clip sent with no language collects the server's detection here instead, so
+        # nothing shared is written (the clip runs inside the single-flight lock).
+        detected_sink: Optional[list[Optional[str]]] = None,
     ) -> tuple[str, list[dict[str, object]], float]:
         """Call faster-whisper-server's OpenAI-compatible transcribe endpoint.
 
@@ -644,6 +650,10 @@ class TailnetDgxWhisperTranscriptionProvider:
         # element; each provider instance serves one call at a time, and the reader is the very
         # next statement after the call.
         detected = payload.get("language")
+        if detected_sink is not None:
+            detected_sink.append(
+                str(detected).strip() or None if isinstance(detected, str) else None
+            )
         if record_language:
             self._last_detected_language = (
                 str(detected).strip() or None if isinstance(detected, str) else None

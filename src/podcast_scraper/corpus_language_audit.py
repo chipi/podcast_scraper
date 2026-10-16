@@ -33,7 +33,7 @@ from .languages import is_language_enabled, normalize_language_tag
 
 #: Sources an episode's language can carry, in precedence order. A value outside this set means
 #: something wrote a source this audit does not know about, which is itself worth reporting.
-KNOWN_SOURCES = ("override", "rss", "profile_default")
+KNOWN_SOURCES = ("detected", "override", "rss", "profile_default")
 
 
 @dataclass

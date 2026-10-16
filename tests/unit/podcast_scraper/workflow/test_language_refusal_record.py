@@ -9,6 +9,7 @@ answer, and the episode is tried again.
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -106,7 +107,12 @@ def test_the_refusal_site_writes_the_record() -> None:
     source = Path(EP.__file__).read_text(encoding="utf-8")
     start = source.index('"[%s] REFUSING episode: %s"')
     branch = source[start : source.index("return False, None, bytes_downloaded", start)]
-    assert "_record_language_refusal(job.episode, cfg, wrong_language)" in branch
+    # #2369: the record also carries the language the ASR identified, when it could.
+    assert re.search(
+        r"_record_language_refusal\(\s*job\.episode, cfg, wrong_language, "
+        r"detected=detected_language\s*\)",
+        branch,
+    )
 
 
 def test_with_no_corpus_and_no_output_dir_nothing_is_written_anywhere(

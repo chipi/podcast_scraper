@@ -29,7 +29,7 @@ from typing import (
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
-from ..languages import primary_language
+from ..languages import is_language_enabled, primary_language
 
 if TYPE_CHECKING:
     from ..models import Episode, TranscriptionJob
@@ -915,7 +915,11 @@ def _asr_language_record(result: Dict[str, Any], cfg: config.Config) -> Dict[str
     mismatch: Optional[bool] = None
     if requested and reported:
         mismatch = primary_language(str(requested)) != primary_language(str(reported))
-    return {"requested": requested, "reported": reported, "mismatch": mismatch}
+    record = {"requested": requested, "reported": reported, "mismatch": mismatch}
+    # #2369: the episode was not in the language requested, and three clips agreed on this one.
+    if result.get("language_detected"):
+        record["detected"] = result["language_detected"]
+    return record
 
 
 def _save_asr_provenance_file(
@@ -3058,6 +3062,78 @@ def _gap_clip_transcriber(
         return dict(transcribe_clip(clip_path, language=transcription_language(cfg)))
 
     return _transcribe
+
+
+def _route_wrong_language(
+    result: Dict[str, Any],
+    cfg: config.Config,
+    job: Any,
+    wrong_language: Optional[str],
+    media_path: Optional[str],
+    transcription_provider: Any,
+) -> Tuple[config.Config, Optional[str], Optional[str]]:
+    """``(cfg, refusal reason or None, detected language)`` for a transcript the guard read (#2369).
+
+    An episode in another language than its show is not refused when the ASR agrees on an
+    enabled language over three clips. The transcript in hand is in that language already (the
+    service writes what is spoken); from here on the episode carries it, through a per-episode
+    ``cfg``, so diarization, naming and the saved record read it, not the show's. Otherwise the
+    reason stands, naming what the audio was identified as when it could be.
+    """
+    if wrong_language is None:
+        return cfg, None, None
+    detected = _identify_episode_language(result, cfg, media_path, transcription_provider)
+    if detected and is_language_enabled(detected):
+        logger.warning(
+            "[%s] episode is in %r, not the show's language: continuing in %r (%s)",
+            job.idx,
+            detected,
+            detected,
+            wrong_language,
+        )
+        result["language_detected"] = detected
+        return cfg.model_copy(update={"language_override": detected}), None, detected
+    if detected:
+        wrong_language = (
+            f"{wrong_language} The audio was identified as {detected!r}, "
+            "which is not an enabled language."
+        )
+    return cfg, wrong_language, detected
+
+
+def _identify_episode_language(
+    result: Dict[str, Any],
+    cfg: config.Config,
+    media_path: Optional[str],
+    transcription_provider: Any,
+) -> Optional[str]:
+    """The language an episode is in when its transcript does not read as its show's (#2369).
+
+    Three clips from stretches that are not the show's language go to the provider's
+    ``transcribe_clip`` with NO language, so the service detects one; all three must agree.
+    ``None`` when the episode cannot be identified (no clip call, too few such stretches, a
+    clip failing, the clips disagreeing): the caller then refuses it as before.
+    """
+    from ..transcription.gap_recovery import cut_clip
+    from ..transcription.language_identification import agreed_language, identification_clips
+
+    transcribe_clip = _clip_call_of(transcription_provider, "language identification")
+    if transcribe_clip is None or not media_path:
+        return None
+    clips = identification_clips(list(result.get("segments") or []), transcription_language(cfg))
+    if not clips:
+        return None
+    answers: List[Optional[str]] = []
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            for i, (start, end) in enumerate(clips):
+                clip_path = os.path.join(tmp, f"identify_{i}.wav")
+                cut_clip(media_path, start, end, clip_path)
+                answers.append(dict(transcribe_clip(clip_path, language=None)).get("language"))
+    except Exception as exc:  # noqa: BLE001 - no answer is an answer: the episode is refused
+        logger.warning("language identification failed: %s", format_exception_for_log(exc))
+        return None
+    return agreed_language(answers)
 
 
 def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
@@ -5267,10 +5343,15 @@ def transcribe_media_to_text(
         wrong_language = transcript_language_contradiction(
             str(result.get("text") or ""), _asr_language_record(result, cfg)["requested"]
         )
+        cfg, wrong_language, detected_language = _route_wrong_language(
+            result, cfg, job, wrong_language, media_for_transcription, transcription_provider
+        )
         if wrong_language is not None:
             logger.error("[%s] REFUSING episode: %s", job.idx, wrong_language)
             if job.episode is not None:
-                _record_language_refusal(job.episode, cfg, wrong_language)
+                _record_language_refusal(
+                    job.episode, cfg, wrong_language, detected=detected_language
+                )
             _append_transcription_incident(
                 cfg,
                 job,
@@ -5734,7 +5815,11 @@ def _language_refusal_path(
 
 
 def _record_language_refusal(
-    episode: Episode, cfg: config.Config, detail: str  # type: ignore[valid-type]
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    detail: str,
+    *,
+    detected: Optional[str] = None,
 ) -> None:
     """Record the refusal so the next run does not repeat it. Never raises (a failure path)."""
     try:
@@ -5748,6 +5833,9 @@ def _record_language_refusal(
                     "requested": primary_language(transcription_language(cfg) or ""),
                     "detail": detail,
                     "title": getattr(episode, "title", None),
+                    # #2369: what the audio is, when it could be identified, so an episode in a
+                    # language that is not enabled can be admitted later without guessing.
+                    "detected": detected,
                 },
                 fh,
                 ensure_ascii=False,
