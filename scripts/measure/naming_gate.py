@@ -117,6 +117,25 @@ def load_labelled(cases_dir: Path, labels_dir: Path) -> List[Tuple[Dict[str, Any
     return out
 
 
+def with_names(ep: Dict[str, Any], names: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The episode as the replay sees it, with the stated / detected names swapped for new ones.
+
+    ``names`` is ``{"detected_guests": [...], "metadata_named": [...]}`` — what speaker detection
+    would hand the roster today: a detection or corroboration change, measured without
+    re-ingesting.
+    The stored diagnostics are not touched: a shallow copy carries a fresh ``tried``.
+    """
+    if not names:
+        return ep
+    diag = dict(ep.get("diag") or {})
+    tried = dict(diag.get("tried") or {})
+    for key in ("detected_guests", "metadata_named"):
+        if key in names:
+            tried[key] = list(names[key] or [])
+    diag["tried"] = tried
+    return {**ep, "diag": diag}
+
+
 def run(
     corpus: Path,
     labelled: List[Tuple[Dict[str, Any], Dict[str, Any]]],
@@ -124,6 +143,8 @@ def run(
     new: Dict[str, Any],
     sig_old: Any = None,
     sig_new: Any = None,
+    names_new: Optional[Dict[str, Dict[str, Any]]] = None,
+    names_old: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     tallies: Dict[str, Counter] = {"old": Counter(), "new": Counter()}
     host_tallies: Dict[str, Counter] = {"old": Counter(), "new": Counter()}
@@ -135,8 +156,12 @@ def run(
     for case, labels in labelled:
         try:
             ep = R.load_episode(corpus / case["meta_relpath"])
-            a = R.replay(old["roster"], ep, sig_old)
-            b = R.replay(new["roster"], ep, sig_new)
+            a = R.replay(
+                old["roster"], with_names(ep, (names_old or {}).get(case["meta_relpath"])), sig_old
+            )
+            b = R.replay(
+                new["roster"], with_names(ep, (names_new or {}).get(case["meta_relpath"])), sig_new
+            )
         except Exception as exc:  # noqa: BLE001 — one bad episode must not stop the gate
             skipped[f"replay_error:{type(exc).__name__}"] += 1
             continue
@@ -314,6 +339,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         "(e.g. --step today --step +seat_v4 roster=/tmp/v4.py). Replaces --old/--new.",
     )
     ap.add_argument("--repool", action="store_true", help="see roster_replay.py --repool")
+    ap.add_argument(
+        "--names-new",
+        type=Path,
+        help="JSON {meta_relpath: {detected_guests, metadata_named}}: the NEW variant replays with "
+        "these names instead of the stored ones (a detection / corroboration change); OLD keeps "
+        "the stored names",
+    )
+    ap.add_argument(
+        "--names-old",
+        type=Path,
+        help="the same for the OLD variant (compare two name sets on one roster)",
+    )
     args = ap.parse_args(argv)
     R.REPOOL = bool(args.repool)
     labelled = load_labelled(args.cases, args.labels)
@@ -344,7 +381,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.signatures:
         sig_old = R._signatures(old.get("ad_signatures"), args.corpus)
         sig_new = R._signatures(new.get("ad_signatures"), args.corpus)
-    report = run(args.corpus, labelled, old, new, sig_old, sig_new)
+    names_new = json.loads(args.names_new.read_text(encoding="utf-8")) if args.names_new else None
+    names_old = json.loads(args.names_old.read_text(encoding="utf-8")) if args.names_old else None
+    report = run(args.corpus, labelled, old, new, sig_old, sig_new, names_new, names_old)
     print(f"labelled episodes: {report['episodes']}  skipped: {report['skipped']}")
     print(_table(report))
     print(f"\nREGRESSIONS (old correct, new not): {len(report['regressions'])}")
