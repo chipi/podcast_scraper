@@ -89,6 +89,12 @@ def test_umami_posts_event_when_configured(monkeypatch: pytest.MonkeyPatch) -> N
     assert captured["body"]["payload"]["website"] == "site-abc"
     assert captured["body"]["payload"]["data"] == {"tool": "who_said_about_topic", "ok": False}
     assert captured["ua"]  # Umami drops UA-less events
+    # ...and drops what its bot filter flags, answering 200 {"beep":"boop"} and storing nothing.
+    # "podcast-mcp/1.0 (+server-side)" was flagged (probed 2026-10-16), so no MCP event ever
+    # reached Umami. A browser UA with the sender's name appended is accepted (same probe).
+    assert captured["ua"].startswith("Mozilla/5.0 (X11; Linux x86_64)"), captured["ua"]
+    assert "Chrome/" in captured["ua"] and captured["ua"].endswith(" podcast-mcp/1.0")
+    assert "+server-side" not in captured["ua"]
 
 
 def test_umami_hostname_is_bare_host_from_url(monkeypatch: pytest.MonkeyPatch) -> None:

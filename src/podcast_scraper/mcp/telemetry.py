@@ -40,6 +40,13 @@ _UMAMI_INFLIGHT = threading.BoundedSemaphore(8)
 _UMAMI_WEBSITE_ID = "PODCAST_MCP_UMAMI_WEBSITE_ID"
 _UMAMI_COLLECT_URL = "PODCAST_MCP_UMAMI_URL"  # e.g. https://analytics.<domain>/api/send
 _UMAMI_HOSTNAME = "PODCAST_MCP_UMAMI_HOSTNAME"  # the MCP public host, for the event hostname
+# Umami also silently drops what its bot filter flags (HTTP 200 {"beep":"boop"}, nothing stored).
+# "podcast-mcp/1.0 (+server-side)" was flagged, so no MCP event ever reached Umami; a browser UA
+# with the sender's name appended passes (probed against the homelab Umami 2026-10-16).
+_UMAMI_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/141.0.0.0 Safari/537.36 podcast-mcp/1.0"
+)
 
 # Prometheus metrics — module-level singletons; a missing prometheus_client (or duplicate
 # registration under test reload) degrades to no-op rather than breaking tool calls.
@@ -184,8 +191,8 @@ def _emit_umami(tool: str, ok: bool) -> None:
                 data=body,
                 headers={
                     "Content-Type": "application/json",
-                    # Umami drops events without a User-Agent; identify the server-side sender.
-                    "User-Agent": "podcast-mcp/1.0 (+server-side)",
+                    # Umami drops events without a User-Agent, and bot-like ones (see above).
+                    "User-Agent": _UMAMI_USER_AGENT,
                 },
                 method="POST",
             )
