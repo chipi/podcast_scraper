@@ -131,7 +131,9 @@ export default defineConfig({
         PODCAST_SERVE_ENABLE_JOBS_API: '1',
       },
       reuseExistingServer: true,
-      timeout: process.env.CI ? 180_000 : 120_000,
+      // The command builds the corpus's search index from scratch on every run (prepare-corpus).
+      // At 55 episodes that took 157 s on a CPU-only Intel Mac (2026-10-16), past the old 120 s.
+      timeout: 300_000,
     },
     {
     // npm exec: avoid npx install prompts on CI; --host 127.0.0.1 matches baseURL (IPv4)
