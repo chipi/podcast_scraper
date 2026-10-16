@@ -3520,6 +3520,10 @@ function redraw(): void {
       elements,
       style: buildCyStyle(),
       wheelSensitivity: 0.35,
+      // No layout at construction: the real one runs below and places every node itself.
+      // Cytoscape's default grid layout would run here first, and on a container with no usable
+      // size (mid-handoff) its bounding box comes back undefined and it throws.
+      layout: { name: 'null' },
     })
     cy = core
     if (import.meta.env.DEV) {
