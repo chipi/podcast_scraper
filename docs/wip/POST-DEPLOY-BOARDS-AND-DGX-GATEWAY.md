@@ -168,6 +168,34 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     appended. Tonight's 00:00 nightly deepens them (`max_episodes: 10`, about 90 audio-h, 24-30 h).
     Not verified: the newest 10 of Explain It to Me / The Curiosity Shop are all from the current
     show.
+12. **Audio sync, #2359 / RFC-129 (from the mobile session, 2026-10-16): the candidate must be
+    `48ecf1609` or later** (it includes `2b580bb1e`). Each step on the operator's go; no DGX, no
+    LLM; runbook `docs/recipes/audio-timing-drift.md`. On the prod host, in the NEW pipeline image:
+
+    ```bash
+    cd /srv/podcast-scraper
+    C="docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml"
+    # 1. dry run, 20 episodes: expect mostly would_write, some skip_no_exact_original
+    $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync build-references --corpus /app/output --rclone-remote audioarchive --limit 20
+    # 2. backfill every reference, detached (~2,600 originals, 156 GiB from the archive, hours; resumable)
+    $C run -d --no-deps --name audio-refs pipeline-llm python -m podcast_scraper.audio_sync build-references --corpus /app/output --rclone-remote audioarchive --write
+    # 3. drift check, then server maps (one file each at the corpus root)
+    $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync drift-check --corpus /app/output --write
+    $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync build-maps --corpus /app/output --rclone-remote audioarchive --write
+    ```
+
+    - **Check:** a drifted episode (in `corpus/audio_timing_drift.json`) answers
+      `/api/app/episodes/<slug>/audio-reference` 200 with checkpoints, and `/api/app/episodes/<slug>`
+      carries `audio_time_map`; `find /srv/podcast-scraper/corpus -name '*.audioref.json' | wc -l`
+      grows during step 2.
+    - **Daily:** step 3; scheduling it is the operator's call.
+    - **Undo:** delete `audio_time_maps.json` and/or the `*.audioref.json` files.
+    - **Open, sent to the mobile session:** `drift.py` and `maps.py` measure `content.media_url`, but
+      since `f4f3efb42` BBC's 78 episodes play BBC's https file (no Triton ads). Their maps must
+      measure `https_audio_url(url) or url`, or BBC gets maps for a stream nobody plays. Measured
+      offsets of that file against our originals: −57 to −150 s.
+    - Their tools default `--base-path ""`, which matches prod's archive (keys at the remote root).
+      Prod disk: 93 GB free. Not verified: that step 2 removes each original before the next.
 
 **Then the long runs, one at a time (concurrency group prod-corpus), by `postdeploy_chain.sh`:**
 the #2370 batch, then #2332 batches sized at dispatch to end by 23:30 UTC; the #2332 episodes
