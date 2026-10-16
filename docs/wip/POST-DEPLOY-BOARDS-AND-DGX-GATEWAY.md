@@ -148,7 +148,7 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
    episode returns an `https://` URL that answers `206 audio/mpeg`; an https feed's URL comes back
    unchanged. Play one BBC episode in the web player: no "Blocked by the browser".
 10. **Ingestion arc (from the ingestion session, 2026-10-16): the candidate must be `08a41f01a` or
-    later** (it includes the audio-sync floor `4d3378b55` of item 12). It carries `fe2316648` (#2363
+    later** (the audio-sync floor of item 12 is later: `75304e525`). It carries `fe2316648` (#2363
     title names as spelling references), `fc4e0dbda` (#2364 Patreon shout-outs are ad voices),
     `28b10ef3c` (#2366 question-lead host seat), `e7234aaec` (#2370 word timestamps), `e49583eb4`
     (#2375 / RFC-130: an episode in another language than its show is identified and translated, or
@@ -178,7 +178,9 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     Not verified: the newest 10 of Explain It to Me / The Curiosity Shop are all from the current
     show.
 12. **Audio sync, #2359 / RFC-129 (from the mobile session, 2026-10-16, simplified plan): the
-    candidate must be `4d3378b55` or later** (`08a41f01a` of item 10 includes it).
+    candidate must be `75304e525` or later** (reference format version 2, long windows: the app
+    downloads ~6 MB instead of ~23 MB an hour after changed breaks). A backfill run on an older
+    image writes version 1 references; then rerun it with `--force`.
     The only step is a one-off reference backfill, on the operator's go; no DGX, no LLM; no daily
     job (drift-check and build-maps are manual diagnosis only). New episodes get their reference at
     the end of ingest. Runbook `docs/recipes/audio-timing-drift.md`. On the prod host, NEW image:
@@ -196,7 +198,8 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     - **Check:** `/api/app/episodes/<slug>/audio-reference` answers 200 with checkpoints, and the
       count of `*.audioref.json` under `/srv/podcast-scraper/corpus` grows.
     - BBC: drift and maps measure `https_audio_url(url) or url` since `c838c6a9c`, the URL the player
-      gets. `--base-path ""` matches prod's archive. Prod disk: 93 GB free.
+      gets. `--base-path ""` matches prod's archive. Prod disk: 93 GB free; the references take
+      about 2.6 MB per hour of audio, about 7 GB for the backfill.
 
 **Then the long runs, one at a time (concurrency group prod-corpus), by `postdeploy_chain.sh`:**
 the #2370 batch, then #2332 batches sized at dispatch to end by 23:30 UTC; the #2332 episodes
