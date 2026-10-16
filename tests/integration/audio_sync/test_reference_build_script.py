@@ -103,3 +103,23 @@ def test_an_existing_reference_is_kept_unless_forced(
     assert ref.read_text(encoding="utf-8") == "{}"
     assert build_script.main(_args(root, archive, "--write", "--force")) == 0
     assert json.loads(ref.read_text(encoding="utf-8"))["checkpoints"]
+
+
+def test_an_ingest_run_writes_a_reference_from_the_audio_it_transcribed(tmp_path: Path) -> None:
+    """End of a pipeline run (``workflow.orchestration._build_audio_references``): an episode whose
+    audio is still in the run's ``media/`` gets a reference; one without audio gets none."""
+    root = tmp_path / "corpus"
+    shutil.copytree(CORPUS / "feeds" / "p01", root / "feeds" / "p01")
+    run_dir = next((root / "feeds" / "p01").glob("run_*"))
+    (run_dir / "media").mkdir()
+    shutil.copy(AUDIO / "p01_e01.mp3", run_dir / "media" / "p01_e01.mp3")
+    meta = _meta(root, "p01_e01")
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    doc["content"]["audio_relpath"] = "media/p01_e01.mp3"
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+
+    counts = build_script.write_for_run(str(root), str(run_dir))
+
+    assert counts.get("written") == 1
+    assert counts.get("no_audio", 0) >= 1
+    assert sorted(p.name for p in root.rglob("*.audioref.json")) == ["p01_e01.audioref.json"]

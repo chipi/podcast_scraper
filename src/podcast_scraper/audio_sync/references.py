@@ -78,6 +78,50 @@ def write_for_episode(root: Path, row: Any, audio_path: str, guid: Optional[str]
     return out
 
 
+def write_for_run(corpus_root: str, run_dir: str) -> Dict[str, int]:
+    """At the end of an ingest run: a reference for each of the run's episodes whose audio is still
+    on disk, which is the exact audio its transcript was just made from. Best-effort per episode;
+    returns counts by outcome."""
+    import logging
+
+    from podcast_scraper.archive.offload import _metadata_dir, _safe_media_path
+    from podcast_scraper.server.app_catalog_cache import cached_catalog
+
+    log = logging.getLogger(__name__)
+    root = Path(corpus_root)
+    counts: Dict[str, int] = {}
+    rows = None
+    for meta in sorted(_metadata_dir(run_dir).glob("*.metadata.json")):
+        try:
+            doc = json.loads(meta.read_text(encoding="utf-8"))
+            rel = str(meta.resolve().relative_to(root.resolve()))
+        except (OSError, ValueError):
+            counts["skipped"] = counts.get("skipped", 0) + 1
+            continue
+        audio_relpath = str((doc.get("content") or {}).get("audio_relpath") or "")
+        media = _safe_media_path(run_dir, audio_relpath) if audio_relpath else None
+        if media is None or not media.is_file():
+            counts["no_audio"] = counts.get("no_audio", 0) + 1
+            continue
+        if rows is None:
+            rows = {r.metadata_relative_path: r for r in cached_catalog(root)}
+        row = rows.get(rel)
+        if row is None:
+            counts["not_in_catalog"] = counts.get("not_in_catalog", 0) + 1
+            continue
+        try:
+            guid = (doc.get("episode") or {}).get("guid")
+            out = write_for_episode(root, row, str(media), str(guid) if guid else None)
+            key = "written" if out else "no_segments"
+        except Exception:  # noqa: BLE001 — one episode must never break the run
+            log.warning("audio reference: failed for %s", rel, exc_info=True)
+            key = "failed"
+        counts[key] = counts.get(key, 0) + 1
+    if counts:
+        log.info("audio references (%s): %s", os.path.basename(run_dir), counts)
+    return counts
+
+
 def _backend(args: argparse.Namespace):
     from podcast_scraper.utils.storage_backend import LocalStorageBackend, RcloneStorageBackend
 

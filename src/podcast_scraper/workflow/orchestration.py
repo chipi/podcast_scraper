@@ -2010,10 +2010,23 @@ def _finalize_pipeline(
     # the enrichment job tracks itself via the shared jobs registry +
     # JSONL + run_summary. Gated on cfg.enrichment.enabled (default off).
     _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
+    _build_audio_references(_corpus_finalize_dir, effective_output_dir)
     _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
+
+
+def _build_audio_references(corpus_root: str, run_dir: str) -> None:
+    """Each new episode's audio reference, from the audio it was just transcribed from (RFC-129,
+    #2359). Before eviction: that is the last moment the exact audio is on local disk. Never
+    fatal: a run without numpy or ffmpeg simply has no references."""
+    try:
+        from ..audio_sync.references import write_for_run
+
+        write_for_run(corpus_root, run_dir)
+    except Exception:  # pragma: no cover - a finalize step must never break a finished run
+        logger.warning("audio references: end-of-run pass failed (non-fatal)", exc_info=True)
 
 
 def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_dir: str) -> None:
