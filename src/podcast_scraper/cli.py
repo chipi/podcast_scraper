@@ -5136,7 +5136,7 @@ def _default_service_name(argv: Sequence[str]) -> str:
 
 
 def _extension_command(name: str) -> bool:
-    """True when an installed extension owns the subcommand *name* (ADR-162)."""
+    """True when an installed extension owns the subcommand *name* (ADR-166)."""
     from .extensions import cli_command
 
     return cli_command(name) is not None
@@ -5211,7 +5211,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
     ):
         pass  # Skip ffmpeg check for subcommands
     elif argv and not argv[0].startswith("-") and _extension_command(argv[0]):
-        pass  # An installed extension's subcommand (ADR-162) never decodes audio
+        pass  # An installed extension's subcommand (ADR-166) never decodes audio
     else:
         _validate_ffmpeg()
 

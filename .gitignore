@@ -478,7 +478,7 @@ AuthKey_*.p8
 /eval-data/
 /eval-data
 
-# ── the private app repos, mounted here (ADR-162) ───────────────────────────
+# ── the private app repos, mounted here (ADR-166) ───────────────────────────
 #
 # The private Common and Player repos clone into ./apps/common and ./apps/player
 # so one agent sees the platform and the apps in one tree. Same rules as eval-data
