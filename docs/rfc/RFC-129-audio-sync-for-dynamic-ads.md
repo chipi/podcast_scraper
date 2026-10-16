@@ -1,4 +1,4 @@
-# RFC-129: Audio Sync for Dynamic Ads — a reference from the archive, a map per listener
+# RFC-129: Audio Sync for Dynamic Ads — a reference of what we transcribed, a map per listener
 
 - **Status**: Implemented (2026-10-16), not yet deployed; not yet tried on an iOS or Android device
 - **Authors**: Marko, Claude (Opus 5.5)
@@ -8,7 +8,7 @@
     clips across episodes; they need clip times that are right for the listener)
 - **Related Documents**:
   - `docs/recipes/prod-audio-archive.md` (the archive this design reads its reference from)
-  - `docs/recipes/audio-timing-drift.md` (the runbook: backfill, daily maps, checks)
+  - `docs/recipes/audio-timing-drift.md` (the runbook: the one-off backfill, checks, diagnosis)
 - **Issue**: #2359
 
 ## Abstract
@@ -73,7 +73,9 @@ measurement above shows they often don't.
 1. **Right for every listener**, assuming the worst case: each listener can get their own ads.
 2. **Never wrong without saying so.** When the app cannot measure, it says so and plays with less,
    rather than silently using a map that may be wrong.
-3. **No DGX, no LLM, no re-transcription.** The reference comes from audio we already archived.
+3. **No DGX, no LLM, no re-transcription.** The reference comes from the audio we downloaded: at
+   ingest, before the local copy goes to the archive; for existing episodes, once, from the archive.
+   The archive is never part of a routine job, so dropping it later costs nothing.
 4. **Small on the device:** as little extra download as possible, never a full second copy. Not met
    yet: the first simulation cost 15.6–54.2 MB per playback (see "Measured cost on the device").
 
@@ -102,8 +104,9 @@ measurement above shows they often don't.
 
 ### 1. Reference, once per episode, on the server
 
-- **Source:** the archived original, only where its provenance says
-  `byte_identical_to_transcribed_audio: true`. Measured on prod, 2026-10-16:
+- **Source:** at ingest, the run's own downloaded audio, before eviction. For the one-off backfill,
+  the archived original, only where its provenance says `byte_identical_to_transcribed_audio:
+  true`. Measured on prod, 2026-10-16:
   - 2,591 archived files, 156 GiB;
   - about 2,900 provenance records say byte-identical;
   - 120 are later re-downloads (`backfill_refetch`) with different ads, which cannot serve as a
@@ -235,7 +238,7 @@ No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we 
 
 1. **The device measures; the server only provides the reference.**
    - The worst case is per-listener ads, measured as real (3 of 9 differ between two countries).
-2. **The reference is the archived original, not today's stream.**
+2. **The reference is the audio we transcribed, not today's stream.**
    - It is exactly the audio our transcript times are measured on, so the map has no error of its
      own. Whisper word times and differences between encodes are no longer part of the result.
 3. **Fingerprints, not speech recognition, on the device.**
@@ -283,7 +286,9 @@ No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we 
 
 - All phases shipped together (2026-10-16): references (ingest and backfill), the endpoint, device
   sync on web, iOS and Android, per-clip confirmation in reels, and offline sync for downloads.
-- After the deploy: the runbook's backfill and daily steps.
+- After the deploy: the runbook's one-off reference backfill. Nothing runs daily: references are
+  made once per episode, and each player measures its own stream. `drift-check` and `build-maps`
+  (a server map from an episode's reference) remain as manual diagnosis.
 
 **Monitoring:**
 - share of playbacks per state (Verified / Estimated / Unknown / Not needed), per host;

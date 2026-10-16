@@ -5,18 +5,16 @@
 Some hosts insert ads into an episode when it is fetched and change them within hours, so the audio
 a listener plays is shifted from our transcript, differently for different listeners. The player
 fixes this itself: it fingerprints short ranges of the stream it plays and lines them up with the
-episode's **audio reference** (fingerprints of the audio we transcribed). This recipe produces what
-the player needs on the server side:
+episode's **audio reference** (fingerprints of the audio we transcribed), served at
+`GET /api/app/episodes/{slug}/audio-reference` from `<stem>.audioref.json` next to the transcript.
 
-- **references** for every episode (`<stem>.audioref.json` next to the transcript), served at
-  `GET /api/app/episodes/{slug}/audio-reference`. New episodes get theirs at the end of their
-  ingest run; existing ones are backfilled once from the audio archive.
-- **server time maps** (`<corpus>/audio_time_maps.json`), the fallback for a player that cannot
-  measure its stream (a web page on a host that blocks cross-origin reads, a variable-bitrate
-  file). Rebuilt daily.
+- **New episodes:** the pipeline writes the reference at the end of the ingest run, from the audio
+  it downloaded, before the local copy goes to the archive and is deleted. Nothing to run.
+- **Existing episodes:** one backfill after the deploy that ships RFC-129, from the audio archive.
+  The archive is a one-time source here, never part of a routine job.
 
 Design and measurements: [RFC-129](../rfc/RFC-129-audio-sync-for-dynamic-ads.md). No episode is
-hidden for drifting; no DGX, no model: CPU, ffmpeg, rclone.
+hidden for drifting; no DGX, no model: CPU, ffmpeg, rclone (backfill only).
 
 ## Quick reference
 
@@ -28,15 +26,15 @@ C="docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.
 $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync <command> --corpus /app/output ...
 ```
 
-| Command | Reads | Writes (only with `--write`) |
-| --- | --- | --- |
-| `drift-check` | each episode's served length (a header read per episode) | `audio_timing_drift.json` |
-| `build-references --rclone-remote audioarchive` | the archived original, only where provenance says byte-identical | `<stem>.audioref.json` per episode |
-| `build-maps --rclone-remote audioarchive` | the archived original and the stream as served now, for drifted episodes | `audio_time_maps.json` |
+| Command | When | Reads | Writes (only with `--write`) |
+| --- | --- | --- | --- |
+| `build-references --rclone-remote audioarchive` | once, after the deploy | the archived original, only where provenance says byte-identical | `<stem>.audioref.json` per episode |
+| `drift-check` | manual, to diagnose | each episode's served length | `audio_timing_drift.json` |
+| `build-maps` | manual, to diagnose | each listed episode's reference and its stream as served now | `audio_time_maps.json` |
 
 Every command without `--write` only reports. All writes are atomic.
 
-## After the deploy that ships RFC-129
+## After the deploy that ships RFC-129 (one-off)
 
 1. **Dry run of the reference backfill.** It should list mostly `would_write` and some
    `skip_no_exact_original` (episodes whose archive copy is a later re-download):
@@ -47,8 +45,9 @@ Every command without `--write` only reports. All writes are atomic.
    ```
 
 2. **Backfill all references**, detached. It pulls each original from the archive (about 2,600
-   files, about 156 GiB), so it runs for hours. It is resumable: an episode that already has a
-   reference is skipped.
+   files, about 156 GiB) into a temporary folder that is deleted after each episode, so it runs for
+   hours without filling the disk. It is resumable: an episode that already has a reference is
+   skipped.
 
    ```bash
    $C run -d --no-deps --name audio-refs pipeline-llm python -m podcast_scraper.audio_sync \
@@ -56,30 +55,24 @@ Every command without `--write` only reports. All writes are atomic.
    docker logs -f audio-refs        # one line per episode; a summary line at the end
    ```
 
-3. **Drift check, then server maps:**
+3. **Check:**
+   - `curl` the api (signed in) for an episode's `/api/app/episodes/<slug>/audio-reference`: 200
+     with `checkpoints`.
+   - On a phone, play an episode from a host that inserts ads: the transcript highlight stays on the
+     voice across an ad break, and a Moment from it starts on its words.
 
-   ```bash
-   $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync drift-check \
-     --corpus /app/output --write
-   $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync build-maps \
-     --corpus /app/output --rclone-remote audioarchive --write
-   ```
+Nothing runs daily: references are made once per episode, and each player measures its own stream.
 
-4. **Check:**
-   - `curl` the api (signed in) for a drifted episode's
-     `/api/app/episodes/<slug>/audio-reference`: 200 with `checkpoints`.
-   - `/api/app/episodes/<slug>` carries `audio_time_map`.
-   - On a phone, play that episode: the transcript highlight stays on the voice across an ad
-     break, and a Moment from it starts on its words.
+## Diagnosis (manual)
 
-5. **Daily:** steps 3 (drift check and maps). New episodes get references at ingest; re-run step 2
-   only to fill gaps (it skips what exists).
+- `drift-check --write` lists the episodes whose served length differs from what we transcribed.
+- `build-maps --write` then writes a server time map for them, from their references: the player's
+  fallback when it cannot measure its stream. A map is a snapshot of the stream at that moment; the
+  ads change within hours.
 
 ## Verification
 
 - `find /srv/podcast-scraper/corpus -name '*.audioref.json' | wc -l` grows during the backfill.
-- `python3 -c "import json; print(len(json.load(open('/srv/podcast-scraper/corpus/audio_time_maps.json'))))"`
-  is the number of mapped episodes.
 - Pipeline logs after an ingest run: `audio references (<run>): {'written': N, ...}`.
 
 ## Troubleshooting
@@ -87,9 +80,10 @@ Every command without `--write` only reports. All writes are atomic.
 - **`skip_no_exact_original`:** the archive holds only a re-download (provenance
   `byte_identical_to_transcribed_audio: false`), or no audio. No reference is possible; the
   player falls back to the server map, if any.
-- **`skip_poor_match` (build-maps):** under half of the original's talk was found in the stream
-  as served now (the host serves another edit, or the stream failed). That episode gets no map.
-- **`skip_stream_unreadable`:** the host did not answer within 15 minutes; the next daily run
-  retries.
+- **`skip_no_reference` (build-maps):** the episode has no reference yet; run the backfill.
+- **`skip_poor_match` (build-maps):** under half of the reference's checkpoints were found in the
+  stream as served now (the host serves another edit, or the stream failed). That episode gets no
+  map.
+- **`skip_stream_unreadable`:** the host did not answer within 15 minutes.
 - **Undo:** delete `audio_time_maps.json` (maps), or the `*.audioref.json` files (references).
   The api and the player treat a missing file as "nothing measured".
