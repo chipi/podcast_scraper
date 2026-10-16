@@ -144,8 +144,20 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
 7. **Tell homelab on mini:** the deploy run id and the sha each surface reports.
 8. **Not checkable from prod:** `3819acff6` changes `AppProcessPlugin.java` and reaches Android
    users only with a new build.
+9. **BBC plays over https (`f4f3efb42`):** `audio-source` for an In Our Time and a Curious Cases
+   episode returns an `https://` URL that answers `206 audio/mpeg`; an https feed's URL comes back
+   unchanged. Play one BBC episode in the web player: no "Blocked by the browser".
+10. **Add the 13 smoked beta feeds to the spec** (operator, 2026-10-16), after checks 1-9 pass:
+    `spec_add.py --apply` inside `compose-api-1` (same validation as `PUT /api/feeds`; it writes
+    `feeds.spec.yaml.bak-<UTC>-pre-13beta` first). Dry run 2026-10-16: 67 -> 80 feeds, only the 13
+    appended. Tonight's 00:00 nightly deepens them (`max_episodes: 10`, about 90 audio-h, 24-30 h).
+    Not verified: the newest 10 of Explain It to Me / The Curiosity Shop are all from the current
+    show.
 
-**Then the long runs, one at a time (concurrency group prod-corpus):**
+**Then the long runs, one at a time (concurrency group prod-corpus), by `postdeploy_chain.sh`:**
+the #2370 batch, then #2332 batches sized at dispatch to end by 23:30 UTC; the #2332 episodes
+left over run after the nightly. Dry run 2026-10-16: #2370 (11 eps), then #2332 batch 1 of 17 eps /
+16 audio-h.
 
 The id lists are on the mini in `/Users/Shared/postdeploy-2026-10-16/`. Every run below is
 `reprocess-prod.yml` with `selection=episode_ids_worklist`, `episode_ids=<the file's ids>`,
