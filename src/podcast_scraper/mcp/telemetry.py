@@ -22,9 +22,9 @@ import threading
 import time
 import urllib.request
 from contextlib import contextmanager
-from typing import Any, Iterator, Optional
+from typing import Any, Iterable, Iterator, Optional
 
-from .auth import current_mcp_user
+from .auth import current_mcp_participant, current_mcp_user
 
 _LOGGER = logging.getLogger("podcast_scraper.mcp.tool")
 
@@ -102,6 +102,25 @@ def _maybe_span(tool: str) -> Iterator[Any]:
         yield span
 
 
+def preregister_tools(names: Iterable[str]) -> None:
+    """Create every tool's call/duration series at 0 when the server starts.
+
+    A labelled Prometheus counter has no series until its first increment, so after a restart a
+    tool nobody has called is missing from VictoriaMetrics rather than 0: "unused" and "not
+    scraped" looked the same (found 2026-10-16, when player-mcp had no mcp_tool_calls_total at
+    all). Best-effort, like the rest of this module.
+    """
+    if _CALLS is None or _DURATION is None:
+        return
+    for name in names:
+        try:
+            _CALLS.labels(tool=name, ok="true")
+            _CALLS.labels(tool=name, ok="false")
+            _DURATION.labels(tool=name)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 @contextmanager
 def observe_tool_call(tool: str) -> Iterator[_ToolCall]:
     """Wrap a tool call so it emits span + structured log + metric. Best-effort throughout."""
@@ -117,18 +136,28 @@ def observe_tool_call(tool: str) -> Iterator[_ToolCall]:
             duration_s = time.perf_counter() - start
             try:
                 user = current_mcp_user.get()
+                participant = current_mcp_participant.get()
             except Exception:  # noqa: BLE001
-                user = None
-            _emit(tool, call.ok, duration_s, user, span)
+                user, participant = None, None
+            _emit(tool, call.ok, duration_s, user, span, participant)
 
 
-def _emit(tool: str, ok: bool, duration_s: float, user: Optional[str], span: Any) -> None:
+def _emit(
+    tool: str,
+    ok: bool,
+    duration_s: float,
+    user: Optional[str],
+    span: Any,
+    participant: Optional[str] = None,
+) -> None:
     if span is not None:
         try:
             span.set_attribute("mcp.tool", tool)
             span.set_attribute("mcp.ok", ok)
             if user:
                 span.set_attribute("mcp.user_id", user)
+            if participant:
+                span.set_attribute("mcp.participant", participant)
         except Exception:  # noqa: BLE001
             pass
     if _CALLS is not None and _DURATION is not None:
@@ -139,18 +168,19 @@ def _emit(tool: str, ok: bool, duration_s: float, user: Optional[str], span: Any
             pass
     try:
         _LOGGER.info(
-            "mcp tool call tool=%s user=%s ok=%s duration_ms=%.1f",
+            "mcp tool call tool=%s user=%s participant=%s ok=%s duration_ms=%.1f",
             tool,
             user or "-",
+            participant or "-",
             ok,
             duration_s * 1000.0,
         )
     except Exception:  # noqa: BLE001
         pass
-    _emit_umami(tool, ok)
+    _emit_umami(tool, ok, participant)
 
 
-def _emit_umami(tool: str, ok: bool) -> None:
+def _emit_umami(tool: str, ok: bool, participant: Optional[str] = None) -> None:
     """Fire-and-forget a tool-call event to Umami (server-side beacon). No-op unless configured.
 
     Runs on a daemon thread so a slow/unreachable analytics host never delays a tool call, and
@@ -175,6 +205,9 @@ def _emit_umami(tool: str, ok: bool) -> None:
                 "hostname": hostname,
                 "name": f"mcp_tool:{tool}",
                 "data": {"tool": tool, "ok": ok},
+                # Umami's distinct id (what the browser tracker sends as payload.id after identify):
+                # files the call under the participant, so per-person MCP use is visible (#2263).
+                **({"id": participant} if participant else {}),
             },
         }
     ).encode()

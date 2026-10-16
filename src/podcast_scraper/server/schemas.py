@@ -2199,6 +2199,14 @@ class McpVerifyResponse(BaseModel):
     authenticated: bool = Field(description="Whether the token resolved to an entitled user.")
     user_id: str | None = Field(default=None, description="The owning user id when authenticated.")
     mcp_access: bool = Field(default=False, description="Whether that user holds the entitlement.")
+    analytics_id: str | None = Field(
+        default=None,
+        description=(
+            "The user's pseudonymous analytics id (#2265) when authenticated, so the MCP server "
+            "can attribute tool calls to a beta participant without ever handling an email or "
+            "user_id in analytics."
+        ),
+    )
     scope: str | None = Field(
         default=None, description="The granted scope (e.g. 'mcp:read') when authenticated."
     )

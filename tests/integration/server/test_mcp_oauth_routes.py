@@ -160,7 +160,10 @@ def test_full_authorization_code_flow(tmp_path: Path, monkeypatch: pytest.Monkey
         # admin-only #56) can gate on it; the content MCP ignores it. A fresh user defaults to
         # listener (internal_mcp.py verify → user.role).
         "role": "listener",
+        # The pseudonymous participant id, so MCP use is attributable in analytics (#2263).
+        "analytics_id": verify.json()["analytics_id"],
     }
+    assert verify.json()["analytics_id"]  # a fresh account always has one
 
 
 def test_second_authorize_is_silent_after_consent(

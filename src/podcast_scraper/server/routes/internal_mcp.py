@@ -92,5 +92,11 @@ async def verify(request: Request, body: McpVerifyBody) -> McpVerifyResponse:
     # Surface the role so a rank-scoped MCP server (e.g. the observability MCP, admin-only #56)
     # can gate on it. The content MCP ignores it — mcp_access alone is its gate.
     return McpVerifyResponse(
-        authenticated=True, user_id=user_id, mcp_access=True, scope=scope, aud=aud, role=user.role
+        authenticated=True,
+        user_id=user_id,
+        mcp_access=True,
+        scope=scope,
+        aud=aud,
+        role=user.role,
+        analytics_id=user.analytics_id or None,
     )

@@ -30,7 +30,7 @@ discovery.relabel "player" {
 	}
 
 	// Remote MCP surface (#1505): ship its per-tool structured log line
-	// (`mcp tool call tool=… user=… ok=… duration_ms=…`) so it's queryable in
+	// (`mcp tool call tool=… user=… participant=… ok=… duration_ms=…`) so it's queryable in
 	// VictoriaLogs alongside traces. surface=mcp mirrors the api/app split.
 	rule {
 		source_labels = ["__meta_docker_container_name"]

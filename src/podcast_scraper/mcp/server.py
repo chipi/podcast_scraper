@@ -138,6 +138,12 @@ def build_server(corpus_dir: Path | str) -> Any:
     _register_connectivity(server, ctx)
     _register_catalog(server, ctx)
     _register_composites(server, ctx)
+    try:
+        from .telemetry import preregister_tools
+
+        preregister_tools(t.name for t in server._tool_manager.list_tools())
+    except Exception:  # noqa: BLE001 - metrics must never stop the server from building
+        logger.debug("MCP tool metric pre-registration skipped", exc_info=True)
     return server
 
 

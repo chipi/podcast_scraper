@@ -24,6 +24,7 @@ import contextvars
 import json
 import logging
 import os
+import threading
 import urllib.error
 import urllib.request
 from typing import Any, Awaitable, Callable
@@ -36,6 +37,36 @@ logger = logging.getLogger(__name__)
 current_mcp_user: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "current_mcp_user", default=None
 )
+
+#: The current request's pseudonymous participant id (the user's ``analytics_id``, #2265), or None.
+#: Analytics attribute MCP use to beta participants with this, never with ``user_id`` (#2263).
+current_mcp_participant: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "current_mcp_participant", default=None
+)
+
+# user_id -> analytics_id, filled by verify_bearer from the app's verify response. analytics_id is
+# minted once per account and never rotates, so a cached entry cannot go stale. verify_bearer runs
+# in a worker thread (to_thread), where a ContextVar set would not reach the request; the
+# middleware reads this map instead. Bounded: a long-lived server must not grow without limit.
+_PARTICIPANTS: dict[str, str] = {}
+_PARTICIPANTS_LOCK = threading.Lock()
+_PARTICIPANTS_MAX = 5000
+
+
+def _remember_participant(user_id: str, analytics_id: str) -> None:
+    with _PARTICIPANTS_LOCK:
+        if user_id not in _PARTICIPANTS and len(_PARTICIPANTS) >= _PARTICIPANTS_MAX:
+            _PARTICIPANTS.pop(next(iter(_PARTICIPANTS)))
+        _PARTICIPANTS[user_id] = analytics_id
+
+
+def participant_for(user_id: str | None) -> str | None:
+    """The analytics id last verified for ``user_id``, or None."""
+    if not user_id:
+        return None
+    with _PARTICIPANTS_LOCK:
+        return _PARTICIPANTS.get(user_id)
+
 
 #: Scopes granted to the current request's token.
 #:
@@ -168,6 +199,8 @@ def verify_bearer(token: str, *, timeout: float = 5.0) -> tuple[str, frozenset[s
         uid = data.get("user_id")
         if not uid:
             return None
+        if data.get("analytics_id"):
+            _remember_participant(str(uid), str(data["analytics_id"]))
         return (str(uid), _parse_scopes(data.get("scope")))
     return None
 
@@ -342,8 +375,10 @@ class McpAuthMiddleware:
         scope["user"] = _principal(user_id, scopes)
         tok = current_mcp_user.set(user_id)
         scope_tok = current_mcp_scopes.set(scopes)
+        part_tok = current_mcp_participant.set(participant_for(user_id))
         try:
             await self._app(scope, receive, send)
         finally:
             current_mcp_user.reset(tok)
             current_mcp_scopes.reset(scope_tok)
+            current_mcp_participant.reset(part_tok)

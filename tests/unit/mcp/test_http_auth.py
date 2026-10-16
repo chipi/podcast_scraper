@@ -516,3 +516,45 @@ def test_the_binding_failure_is_not_silently_swallowed_by_the_middleware() -> No
             asyncio.run(mw(scope, receive, send))
     finally:
         auth._principal = original  # type: ignore[assignment]
+
+
+def test_verify_remembers_the_participant_and_the_middleware_exposes_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The app returns the user's pseudonymous analytics_id with a verified token (#2263). The
+    verifier runs in a worker thread, so it is remembered per user and the middleware sets
+    current_mcp_participant from it; analytics then attribute tool calls to a participant."""
+    import asyncio
+
+    _config(monkeypatch)
+    _stub_urlopen(
+        monkeypatch,
+        b'{"authenticated": true, "user_id": "u_9", "mcp_access": true, "analytics_id": "aid-9"}',
+    )
+    assert auth.verify_bearer("clp_mcp_x") == ("u_9", frozenset())  # the contract is unchanged
+    assert auth.participant_for("u_9") == "aid-9"
+    assert auth.participant_for("u_unknown") is None and auth.participant_for(None) is None
+
+    seen: dict = {}
+
+    async def inner(s, r, sd):
+        seen["participant"] = auth.current_mcp_participant.get()
+        await sd({"type": "http.response.start", "status": 200, "headers": []})
+        await sd({"type": "http.response.body", "body": b"ok"})
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(msg):
+        pass
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/mcp",
+        "headers": [(b"authorization", b"Bearer t")],
+    }
+    mw = auth.McpAuthMiddleware(inner, verifier=lambda t: ("u_9", frozenset({"mcp:read"})))
+    asyncio.run(mw(scope, receive, send))
+    assert seen["participant"] == "aid-9"
+    assert auth.current_mcp_participant.get() is None  # reset after the request

@@ -269,3 +269,44 @@ def test_metrics_endpoint_serves_prometheus_and_delegates_else() -> None:
     delegated["hit"] = False
     asyncio.run(app({"type": "http", "path": "/mcp"}, _receive, _send))
     assert delegated["hit"]  # everything else passes through to the auth-gated app
+
+
+def test_umami_event_carries_the_participant_when_known(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With a participant (the user's analytics_id) the event goes out with Umami's distinct id
+    (payload.id, what the browser tracker sends after identify), so per-person MCP use shows up
+    next to the same person's app use. Without one, no id field at all."""
+    import json as _json
+
+    import podcast_scraper.mcp.telemetry as tele
+
+    monkeypatch.setenv("PODCAST_MCP_UMAMI_WEBSITE_ID", "site-abc")
+    monkeypatch.setenv("PODCAST_MCP_UMAMI_URL", "https://analytics.example/api/send")
+    bodies: list = []
+    monkeypatch.setattr(tele._UMAMI_POOL, "submit", lambda fn: fn())
+    monkeypatch.setattr(
+        tele.urllib.request,
+        "urlopen",
+        lambda req, timeout=None: bodies.append(_json.loads(req.data)),
+    )
+
+    tele._emit_umami("search_corpus", True, "aid-1")
+    tele._emit_umami("search_corpus", True)
+    assert bodies[0]["payload"]["id"] == "aid-1"
+    assert "id" not in bodies[1]["payload"]
+
+
+def test_every_registered_tool_has_a_zero_series_from_the_start() -> None:
+    """After a restart, a tool nobody has called yet must read 0, not be missing: a labelled
+    counter has no series until its first increment, so 'unused' looked like 'not scraped'."""
+    pytest.importorskip("prometheus_client")
+    from prometheus_client import REGISTRY
+
+    from podcast_scraper.mcp.server import build_server
+
+    server = build_server("tests/fixtures/app-validation-corpus")
+    names = [t.name for t in server._tool_manager.list_tools()]
+    assert len(names) >= 20
+    for name in names:
+        for ok in ("true", "false"):
+            value = REGISTRY.get_sample_value("mcp_tool_calls_total", {"tool": name, "ok": ok})
+            assert value is not None, (name, ok)
