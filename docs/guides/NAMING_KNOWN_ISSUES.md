@@ -227,7 +227,7 @@ step; nothing here is built.
 
 ## Changes tried and rejected (so they are not tried again blind)
 
-The 2026-10-03/04 rows come from `docs/wip/NAMING_SCOREBOARD.md` on branch `feat/naming-stated-guest-binding` (not merged).
+The 2026-10-03/04 rows come from [the stated-guest-binding scoreboard](../wip/NAMING_SCOREBOARD_stated-guest-binding-2026-10.md); the parked experiment is `docs/wip/parked/naming-stated-guest-binding-PARKED.patch`.
 
 | Change | What the replay showed |
 | --- | --- |
