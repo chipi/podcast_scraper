@@ -1,26 +1,25 @@
 """Build ``<corpus>/audio_time_maps.json`` for drifted episodes (RFC-129, #2359).
 
 For each episode in ``<corpus>/audio_timing_drift.json`` (``drift-check``), or each ``--path``:
-1. The original comes from the audio archive, only when its provenance says it is byte-identical to
-   what we transcribed (as ``build-references``).
-2. The stream is fetched as a phone browser would fetch it now.
-3. The two are lined up by fingerprint (``fingerprint.align_samples``).
-4. The map is the offset of each stretch of talk from its start on: pairs
-   ``[transcript_s, offset_s]``, as ``server.app_audio_drift.time_maps`` reads them.
+1. Its audio reference (``<stem>.audioref.json`` next to the transcript, written at ingest or by the
+   backfill): fingerprint windows of the audio we transcribed.
+2. The stream as a listener's player gets it now (``drift.served_url``), decoded once.
+3. Each checkpoint is found anywhere in the stream (``reference.locate_everywhere``); its offset
+   holds from its transcript second on.
 
-A map measured from our server is right for listeners who get the same ads as the server, and
-close for most others (measured 2026-10-16: within 0-13 s where no map is 4-76 s off). The api uses
-it inside the episode only. Drifted episodes stay out of short listens and Learn whatever the map
-says ("Estimated" in RFC-129).
+No archive: the archive is a one-time source for references (``build-references``), never part of
+this daily job. An episode without a reference gets no map.
 
-Read-only on the archive and the hosts. Without ``--write`` it only reports. With ``--write``:
+A map measured from our server is right for listeners who get the same ads, and close for most
+others. The player prefers its own measurement; this is the fallback when it cannot measure.
+
+Read-only on the hosts. Without ``--write`` it only reports. With ``--write``:
 - in drift-file mode, the maps file is replaced by this run's maps, so episodes that no longer drift
   lose theirs;
 - with ``--path``, this run's maps are merged into the file.
 Writes are atomic. Undo: delete ``audio_time_maps.json``.
 
     python -m podcast_scraper.audio_sync build-maps --corpus <root> \\
-        (--rclone-remote NAME [--base-path P] | --local-root DIR) \\
         [--path <metadata path>]... [--write]
 """
 
@@ -29,21 +28,43 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-MIN_TALK_SHARE = 0.5
+MIN_MATCH = 0.8
+MIN_FOUND_SHARE = 0.5
+
+
+def map_from_reference(doc: Dict[str, Any], stream: Any) -> Tuple[List[List[float]], float]:
+    """(anchors, share of checkpoints found) for one decoded stream against one reference."""
+    from podcast_scraper.audio_sync import fingerprint, reference
+
+    spec = reference.prepared(fingerprint.spectra(stream))
+    pairs: List[List[float]] = []
+    found = 0
+    checkpoints = doc.get("checkpoints") or []
+    for cp in checkpoints:
+        window = reference.decode_window(cp["frames"]) * (reference.SCALE / float(doc["scale"]))
+        at, match = reference.locate_everywhere(window, spec)
+        if match < MIN_MATCH:
+            continue
+        found += 1
+        offset = round(at - float(cp["t"]), 2)
+        if not pairs or abs(pairs[-1][1] - offset) > 0.05:
+            pairs.append([round(float(cp["t"]), 2), offset])
+    if pairs:
+        pairs[0][0] = 0.0
+    return pairs, found / max(1, len(checkpoints))
 
 
 def main(argv: Optional[list] = None) -> int:
     from podcast_scraper.audio_sync import fingerprint
     from podcast_scraper.audio_sync.drift import served_url
-    from podcast_scraper.audio_sync.references import _backend, exact_originals
+    from podcast_scraper.audio_sync.references import reference_relpath
     from podcast_scraper.server.app_audio_drift import DRIFT_FILE, MAPS_FILE
     from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.utils import audio_cache
+    from podcast_scraper.server.app_episode_search import episode_segments_relpath
 
     ap = argparse.ArgumentParser(
         prog="podcast_scraper.audio_sync build-maps",
@@ -51,10 +72,6 @@ def main(argv: Optional[list] = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("--corpus", type=Path, required=True)
-    src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("--rclone-remote")
-    src.add_argument("--local-root")
-    ap.add_argument("--base-path", default="")
     ap.add_argument("--path", action="append", default=[], help="metadata path(s), repeatable")
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args(argv)
@@ -68,8 +85,6 @@ def main(argv: Optional[list] = None) -> int:
             print(f"no {DRIFT_FILE}: run drift-check --write first")
             return 1
         wanted = set(drift.get("episodes", {}))
-    exact = exact_originals(root)
-    backend = _backend(args)
     maps: Dict[str, Any] = {}
     counts: Dict[str, int] = {}
 
@@ -82,39 +97,32 @@ def main(argv: Optional[list] = None) -> int:
         if rel not in wanted:
             continue
         doc = json.loads((root / rel).read_text(encoding="utf-8"))
-        guid = (doc.get("episode") or {}).get("guid")
         url = (doc.get("content") or {}).get("media_url")
-        if not guid or not isinstance(url, str) or not url.startswith(("http://", "https://")):
-            tally("skip_no_guid_or_url", rel)
+        seg_rel = episode_segments_relpath(root, row)
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")) or not seg_rel:
+            tally("skip_no_url_or_transcript", rel)
             continue
-        if guid not in exact:
-            tally("skip_no_exact_original", rel)
-            continue
-        url = served_url(url)
-        with tempfile.TemporaryDirectory() as tmp:
-            audio = os.path.join(tmp, "original.mp3")
-            if not audio_cache.fetch_into(backend, guid, audio):
-                tally("skip_not_in_archive", rel)
-                continue
-            original = fingerprint.decode(audio)
         try:
-            stream = fingerprint.decode(url, timeout_s=900)
+            ref = json.loads((root / reference_relpath(seg_rel)).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            tally("skip_no_reference", rel)
+            continue
+        try:
+            stream = fingerprint.decode(served_url(url), timeout_s=900)
         except Exception as exc:  # noqa: BLE001 — one host down must not stop the run
             tally("skip_stream_unreadable", rel, type(exc).__name__)
             continue
-        talk = fingerprint.align_samples(original, stream)
-        share = sum(s.seconds for s in talk) / max(1.0, len(original) / fingerprint.SR)
-        if share < MIN_TALK_SHARE:
-            tally("skip_poor_match", rel, f"talk found {share:.0%}")
+        anchors, share = map_from_reference(ref, stream)
+        if share < MIN_FOUND_SHARE or not anchors:
+            tally("skip_poor_match", rel, f"checkpoints found {share:.0%}")
             continue
         maps[rel] = {
             "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "method": "fingerprint",
-            "talk_share": round(share, 3),
-            "anchors": fingerprint.time_map(talk),
+            "method": "reference",
+            "found_share": round(share, 3),
+            "anchors": anchors,
         }
-        tally("mapped", rel, f"{len(talk)} stretches, talk found {share:.0%}")
-
+        tally("mapped", rel, f"{len(anchors)} offsets, checkpoints found {share:.0%}")
     print(" · ".join(f"{k} {v}" for k, v in sorted(counts.items())) or "no episodes selected")
     if not args.write:
         print("dry run: nothing written (add --write)")

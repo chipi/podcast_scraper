@@ -157,3 +157,32 @@ def locate(
         if c > best:
             best, at = c, j
     return chunk_start_s + at / fp.FPS, best
+
+
+def prepared(spec: "np.ndarray") -> "np.ndarray":
+    """Spectra with each frame centred and scaled to unit length, for ``locate_everywhere``."""
+    import numpy as np
+
+    c = spec - spec.mean(1, keepdims=True)
+    return c / (np.sqrt((c * c).sum(1, keepdims=True)) + 1e-9)
+
+
+def locate_everywhere(reference_frames: "np.ndarray", stream: "np.ndarray") -> Tuple[float, float]:
+    """Where a checkpoint window sits anywhere in a whole stream (``prepared`` spectra): (stream
+    second, match), the same mean per-frame correlation as ``locate``, for every position at once
+    (one FFT per band)."""
+    import numpy as np
+
+    a = prepared(reference_frames)
+    n, m = len(a), len(stream)
+    if m < n or n == 0:
+        return 0.0, -1.0
+    size = 1 << int(np.ceil(np.log2(m + n)))
+    total = np.zeros(size)
+    for b in range(stream.shape[1]):
+        total += np.fft.irfft(
+            np.fft.rfft(stream[:, b], size) * np.conj(np.fft.rfft(a[:, b], size)), size
+        )
+    scores = total[: m - n + 1] / n
+    j = int(np.argmax(scores))
+    return j / fp.FPS, float(scores[j])
