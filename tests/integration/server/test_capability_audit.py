@@ -72,6 +72,7 @@ misleading when the same code is aimed at 700 episodes.
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 
 import pytest
@@ -918,17 +919,10 @@ class TestTopicMomentum:
         server already filtered/sorted/trimmed. Assert the audit's gate + min-total against THAT
         source of truth.
         """
-        backend = (
-            Path(__file__).resolve().parents[3]
-            / "src"
-            / "podcast_scraper"
-            / "server"
-            / "routes"
-            / "app_enrichment.py"
-        )
-        if not backend.is_file():
-            pytest.skip(f"backend route missing: {backend}")
-        source = backend.read_text(encoding="utf-8")
+        # Through the import, not a path: the route module lives wherever its package does.
+        from podcast_scraper.server.routes import app_enrichment
+
+        source = inspect.getsource(app_enrichment)
         assert f"_RISING_DEFAULT = {report.sections['topic_momentum']['gate']}" in source
         assert "_MIN_TOTAL_DEFAULT = 3" in source
 
