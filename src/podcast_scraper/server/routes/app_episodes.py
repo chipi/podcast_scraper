@@ -77,6 +77,7 @@ from podcast_scraper.server.corpus_catalog import (
 from podcast_scraper.server.feed_signals import compute_feed_signals
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppAudioReference,
     AppEntitiesResponse,
     AppEpisodeBatchResponse,
     AppEpisodeDetail,
@@ -895,6 +896,31 @@ def episode_moments(
         moments=moments,
         total_seconds=round(sum(m.end_ms - m.start_ms for m in moments) / 1000.0, 1),
     )
+
+
+@router.get("/episodes/{slug}/audio-reference", response_model=AppAudioReference)
+def episode_audio_reference(
+    request: Request,
+    slug: str,
+    _user: User = Depends(get_current_user),
+) -> AppAudioReference:
+    """The fingerprint checkpoints of the audio we transcribed (RFC-129). 404 when the episode has
+    none: no exact original was available to build one from."""
+    from ...audio_sync.references import reference_relpath
+    from ..app_episode_search import episode_segments_relpath
+
+    root, row = _resolve(request, slug)
+    # ``episode_segments_relpath`` already resolved this under the corpus root.
+    seg_rel = episode_segments_relpath(root, row)
+    path = root / reference_relpath(seg_rel) if seg_rel else None
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="No audio reference for this episode.")
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        return AppAudioReference(episode_slug=slug, **{k: v for k, v in doc.items() if k != "guid"})
+    except (OSError, ValueError) as exc:
+        logger.warning("Unreadable audio reference %s: %s", path, exc)
+        raise HTTPException(status_code=404, detail="No audio reference for this episode.") from exc
 
 
 @router.get("/episodes/{slug}/segments", response_model=SegmentsResponse)

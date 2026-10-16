@@ -466,6 +466,33 @@ class AppMoment(BaseModel):
     )
 
 
+class AppAudioCheckpoint(BaseModel):
+    """One window of the original's fingerprint (RFC-129)."""
+
+    t: float = Field(description="Where the window starts, in transcript (original) seconds.")
+    kind: Literal["talk_start", "after_ad", "interval"]
+    frames: str = Field(
+        description="base64 int8, frames × bands: per 20 ms frame, log energy in each band "
+        "with the frame's mean removed, times ``scale``."
+    )
+
+
+class AppAudioReference(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/audio-reference (RFC-129, #2359): what the app
+    lines its own stream up against, to play every time in sync whatever ads the host inserted."""
+
+    episode_slug: str
+    version: int
+    sample_rate: int = Field(description="Hz the audio is decoded at before fingerprinting.")
+    hop: int = Field(description="Samples per frame.")
+    nfft: int
+    bands: int
+    scale: float
+    window_s: float
+    duration_s: float = Field(description="Length of the original we transcribed.")
+    checkpoints: list[AppAudioCheckpoint] = Field(default_factory=list)
+
+
 class AppMomentsResponse(BaseModel):
     """Response for GET /api/app/episodes/{slug}/moments — in timeline order."""
 
