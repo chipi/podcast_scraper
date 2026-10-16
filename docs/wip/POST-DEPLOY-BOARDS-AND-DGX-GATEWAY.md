@@ -169,7 +169,7 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
     Not verified: the newest 10 of Explain It to Me / The Curiosity Shop are all from the current
     show.
 12. **Audio sync, #2359 / RFC-129 (from the mobile session, 2026-10-16): the candidate must be
-    `48ecf1609` or later** (it includes `2b580bb1e`). Each step on the operator's go; no DGX, no
+    `c838c6a9c` or later** (it includes `48ecf1609` and `2b580bb1e`). Each step on the operator's go; no DGX, no
     LLM; runbook `docs/recipes/audio-timing-drift.md`. On the prod host, in the NEW pipeline image:
 
     ```bash
@@ -190,12 +190,13 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
       grows during step 2.
     - **Daily:** step 3; scheduling it is the operator's call.
     - **Undo:** delete `audio_time_maps.json` and/or the `*.audioref.json` files.
-    - **Open, sent to the mobile session:** `drift.py` and `maps.py` measure `content.media_url`, but
-      since `f4f3efb42` BBC's 78 episodes play BBC's https file (no Triton ads). Their maps must
-      measure `https_audio_url(url) or url`, or BBC gets maps for a stream nobody plays. Measured
-      offsets of that file against our originals: −57 to −150 s.
+    - **BBC:** since `c838c6a9c` drift-check and build-maps measure `https_audio_url(url) or url`,
+      the URL the player gets (`f4f3efb42` serves BBC's https file, −57 to −150 s from our
+      originals). `056c6659b`: on an audio error the player resolves the URL again once and resumes
+      at the same position (host-signed redirects expire, 75 min seen).
     - Their tools default `--base-path ""`, which matches prod's archive (keys at the remote root).
-      Prod disk: 93 GB free. Not verified: that step 2 removes each original before the next.
+      Disk: each original is fetched into its own temporary directory, deleted when that episode is
+      done (`references.py`), so peak extra disk is one original; prod has 93 GB free.
 
 **Then the long runs, one at a time (concurrency group prod-corpus), by `postdeploy_chain.sh`:**
 the #2370 batch, then #2332 batches sized at dispatch to end by 23:30 UTC; the #2332 episodes
