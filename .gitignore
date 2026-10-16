@@ -262,7 +262,8 @@ data/query_router.joblib
 # Dev observability secrets (GlitchTip DSN + Langfuse keys pointing at the homelab).
 # Template committed as .env.obs.dev.example; the real keys stay local-only.
 .env.obs.dev*
-# Homelab obs-MCP deploy read tokens (template committed as .env.homelab.example).
+# Homelab obs-MCP deploy read tokens. That deploy was deleted (2026-10-16); kept ignored so a local
+# copy with tokens can never be committed.
 .env.homelab*
 # But NEVER ignore the committed *.example templates — they are legitimate and tracked.
 !.env*.example

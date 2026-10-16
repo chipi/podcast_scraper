@@ -84,9 +84,9 @@ healthy** — it is the OAuth 2.1 protected-resource challenge, not an outage.
 3. **GET does not work; MCP wants a POST handshake.** Probing with GET returns 404/405 and looks
    like the endpoint not existing.
 
-These are **not** on the tailnet. `homelab.<tailnet>.ts.net/obs` (the `tailscale serve` mapping in
-`OBS_MCP_HOMELAB_DEPLOY.md`) returns 404 — that homelab-deploy approach was dropped in favour of
-the VPS. `prod-podcast.<tailnet>.ts.net/mcp` returns the player SPA catch-all.
+These are **not** on the tailnet. `homelab.<tailnet>.ts.net/obs` returns 404: the homelab deploy of
+the obs MCP was dropped in favour of the VPS, and its compose file and runbook were deleted
+(2026-10-16). `prod-podcast.<tailnet>.ts.net/mcp` returns the player SPA catch-all.
 
 #### Getting a bearer token
 
