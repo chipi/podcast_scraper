@@ -685,8 +685,11 @@ function seekToNextInsight(): void {
 function stepInsight(dir: 1 | -1): void {
   const target = stepTarget(insights.value, contentTime.value, dir)
   if (target == null) return
-  void seekContent(target)
-  flashStep(dir, target)
+  // "Jumped to" once the jump has happened: with a sync, the seek can wait up to 2 s (#2359).
+  const slug = props.slug
+  void seekContent(target).then(() => {
+    if (props.slug === slug) flashStep(dir, target)
+  })
 }
 /** "› Jumped to 21:07" for two seconds after a step, so a jump never happens unexplained. */
 const stepFlash = ref<{ glyph: string; time: string } | null>(null)

@@ -1359,9 +1359,12 @@ describe('Step through insights (operator 2026-10-10)', () => {
     await w.get('[data-testid="player-step-next-rest"]').trigger('click')
     await flushPromises()
     expect(w.get('[data-testid="player-sync-status"]').text()).toBe('Syncing…')
+    // "Jumped to" waits for the jump: it has not happened yet.
+    expect(w.find('[data-testid="player-step-flash"]').exists()).toBe(false)
     land([[0, 10]])
     await flushPromises()
     expect(w.find('[data-testid="player-sync-status"]').exists()).toBe(false)
+    expect(w.find('[data-testid="player-step-flash"]').exists()).toBe(true)
   })
 
   it('#2359: before the stream has been read, it says Connecting…', async () => {
