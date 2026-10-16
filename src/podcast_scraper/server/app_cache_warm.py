@@ -21,7 +21,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from podcast_scraper import perf_cache
 
@@ -66,8 +66,9 @@ def _warm_corpus_digest(root: Path) -> None:
 
 def _warm_reel_clips(root: Path, moments_config: Any = None) -> None:
     """Score every episode's reel clips into their per-episode cache (``app_goal_reel``), so no
-    "15 minutes on" chip, reel or Learn offer scores episodes on a reader's request. ~5 ms an
-    episode on real transcripts, once per process; after an ingest only changed episodes miss."""
+    "15 minutes on" chip, reel or Learn offer scores episodes on a reader's request. Scored in a
+    child process (:func:`_score_reel_clips_isolated`), then filed here; after an ingest only
+    changed episodes miss."""
     from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_goal_reel import episode_clips
     from podcast_scraper.server.app_moments import MomentsConfig
@@ -76,9 +77,70 @@ def _warm_reel_clips(root: Path, moments_config: Any = None) -> None:
     # includes ``repr(cfg)``, so a warmer building its own from the environment would fill
     # entries the request path never reads once the two differ. ``from_env`` only with no app.
     cfg = moments_config if moments_config is not None else MomentsConfig.from_env()
-    for row in cached_catalog(root):
-        if row.has_gi:
+    rows = [row for row in cached_catalog(root) if row.has_gi]
+    scored = _score_reel_clips_isolated(root, cfg, rows)
+    if scored is None:
+        for row in rows:
             episode_clips(root, row, cfg)
+        return
+    from podcast_scraper import perf_cache
+    from podcast_scraper.server.app_goal_reel import _EPISODE_CLIPS_NS
+
+    # Filed under exactly the key and token ``episode_clips`` reads; an entry already there for
+    # the same token (a reader got there first) is kept.
+    for rel, token, clips in scored:
+        perf_cache.get_or_compute(
+            _EPISODE_CLIPS_NS, (str(root), rel, repr(cfg)), token, _const(clips)
+        )
+
+
+def _const(value: Any) -> Callable[[], Any]:
+    return lambda: value
+
+
+_ISOLATED_REEL_TIMEOUT_S = 1800.0
+
+
+def _score_reel_clips_isolated(root: Path, cfg: Any, rows: list[Any]) -> list[Any] | None:
+    """Every row's ``(metadata_relative_path, token, clips)``, scored in a child process; None if
+    the child cannot run (the caller then scores in-process, as before).
+
+    Scoring is minutes of pure Python over every episode's files (243 s on prod, 2026-10-16), and
+    in the api process it holds the GIL against every request thread. That day's post-deploy smoke
+    failed on it: ``/api/index/stats``, ~4 s alone, gave no answer at all until the warm ended. A
+    request that walks the corpus hands the GIL back on each filesystem call and then queues behind
+    the scorer for it. The entity id map left the process for the same reason
+    (``kg.entity_clusters._build_entity_id_map_isolated``). Here the api thread only waits on a
+    pipe, which holds no GIL, then files the results.
+    """
+    import pickle  # nosec B403 - our own child, over a private pipe (reel_clips_worker)
+    import subprocess  # nosec B404 - fixed argv: this interpreter and a module of this package
+    import sys
+
+    if not rows:
+        return []
+    try:
+        proc = subprocess.run(  # nosec B603 - no shell, fixed argv
+            [sys.executable, "-m", "podcast_scraper.server.reel_clips_worker"],
+            input=pickle.dumps((str(root), cfg, rows), protocol=pickle.HIGHEST_PROTOCOL),
+            capture_output=True,
+            check=True,
+            timeout=_ISOLATED_REEL_TIMEOUT_S,
+        )
+        scored = pickle.loads(proc.stdout)  # nosec B301 - see above
+        if not isinstance(scored, list):
+            raise ValueError(f"worker returned {type(scored).__name__}, not a list")
+        return scored
+    except Exception as exc:  # noqa: BLE001 - a child that cannot run must not cost the clips
+        stderr = getattr(exc, "stderr", None) or b""
+        tail = stderr.decode("utf-8", "replace").strip()[-500:] if stderr else ""
+        logger.warning(
+            "reel clips: isolated scoring failed (%s: %s%s); scoring in-process instead",
+            type(exc).__name__,
+            exc,
+            f" | {tail}" if tail else "",
+        )
+        return None
 
 
 def warm_caches(root: Path, *, moments_config: Any = None) -> None:
@@ -110,8 +172,9 @@ def warm_caches(root: Path, *, moments_config: Any = None) -> None:
         # surfaces need it. Warming it here is what keeps that cost off a reader's request.
         ("entity_id_map", lambda: _warm_entity_id_map(root)),
         ("kg_index", lambda: get_kg_index(root)),
-        # LAST: the longest walk (a minute or two at 10,000 episodes) and the least urgent; the
-        # reel routes fill the same cache themselves if a reader gets there first.
+        # LAST: the longest walk (243 s on prod, 2026-10-16) and the least urgent; the reel routes
+        # fill the same cache themselves if a reader gets there first. In a child process, so it
+        # does not hold the GIL against requests while it runs.
         ("reel_clips", lambda: _warm_reel_clips(root, moments_config)),
     )
     # ONE INFO line per warm, with every step's time: the 2026-10-15 post-deploy smokes failed while

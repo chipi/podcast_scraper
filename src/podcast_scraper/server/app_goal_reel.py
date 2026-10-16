@@ -211,11 +211,7 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
     import sys
 
     from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_episode_search import (
-        episode_ad_spans,
-        episode_segments,
-        episode_turn_starts,
-    )
+    from podcast_scraper.server.app_episode_search import episode_timeline
     from podcast_scraper.server.app_moments import _topic_links
 
     artifact = load_json_artifact(root, row.gi_relative_path)
@@ -224,15 +220,10 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
     links = _topic_links(artifact)
     if not links:
         return ()
+    segments, ad_spans, turn_starts = episode_timeline(root, row)
     scored = [
         m
-        for m in score_candidates(
-            artifact,
-            cfg,
-            episode_segments(root, row),
-            episode_ad_spans(root, row),
-            episode_turn_starts(root, row),
-        )
+        for m in score_candidates(artifact, cfg, segments, ad_spans, turn_starts)
         if links.get(m.insight_id) and quote_support(m.quote_text, m.text) >= MIN_SUPPORT
     ]
     ranked = rank_moments(scored, cfg)

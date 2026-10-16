@@ -284,12 +284,26 @@ def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segmen
     safe = episode_segments_relpath(root, row)
     if safe is None:
         return None
+    raw = _read_segments_json(root / safe)
+    return None if raw is None else _segments_of(raw)
+
+
+def _read_segments_json(path: Path) -> Any:
+    """The parsed segments file, or None (logged) when it cannot be read."""
     try:
-        raw = json.loads((root / safe).read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        logger.warning("Unreadable segments file %s: %s", root / safe, exc)
+        logger.warning("Unreadable segments file %s: %s", path, exc)
         return None
+
+
+def _segments_of(raw: Any) -> List[Segment]:
     return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
+
+
+def _segment_dicts_of(raw: Any) -> List[Dict[str, Any]]:
+    segs = raw.get("segments", raw) if isinstance(raw, dict) else raw
+    return [s for s in segs if isinstance(s, dict)] if isinstance(segs, list) else []
 
 
 def _segment_dicts(path: Path) -> List[Dict[str, Any]]:
@@ -297,8 +311,7 @@ def _segment_dicts(path: Path) -> List[Dict[str, Any]]:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
-    segs = raw.get("segments", raw) if isinstance(raw, dict) else raw
-    return [s for s in segs if isinstance(s, dict)] if isinstance(segs, list) else []
+    return _segment_dicts_of(raw)
 
 
 def _merge_spans(spans: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
@@ -394,15 +407,17 @@ def episode_ad_spans(root: Path, row: CatalogEpisodeRow) -> List[Tuple[int, int]
     except OSError:
         return []
 
-    def build() -> List[Tuple[int, int]]:
-        adfree_path = path.with_name(path.name[: -len(".segments.json")] + ".adfree.segments.json")
-        adfree = _segment_dicts(adfree_path) if adfree_path.is_file() else None
-        return ad_spans_from_segments(_segment_dicts(path), adfree)
-
     spans: List[Tuple[int, int]] = perf_cache.get_or_compute(
-        "app_episode_ad_spans", str(path), mtime, build
+        "app_episode_ad_spans", str(path), mtime, lambda: _ad_spans_at(path, _segment_dicts(path))
     )
     return spans
+
+
+def _ad_spans_at(path: Path, raw_dicts: List[Dict[str, Any]]) -> List[Tuple[int, int]]:
+    """:func:`ad_spans_from_segments` for the raw segments of ``path``, with its ad-free file."""
+    adfree_path = path.with_name(path.name[: -len(".segments.json")] + ".adfree.segments.json")
+    adfree = _segment_dicts(adfree_path) if adfree_path.is_file() else None
+    return ad_spans_from_segments(raw_dicts, adfree)
 
 
 def episode_turn_starts(root: Path, row: CatalogEpisodeRow) -> frozenset[int]:
@@ -427,19 +442,43 @@ def episode_turn_starts(root: Path, row: CatalogEpisodeRow) -> frozenset[int]:
             raw = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return frozenset()
-        starts: set[int] = set()
-        prev: Optional[str] = None
-        for seg in to_contract_segments(raw):
-            if seg.speaker and prev and seg.speaker != prev:
-                starts.add(int(seg.start * 1000))
-            if seg.speaker:
-                prev = seg.speaker
-        return frozenset(starts)
+        return _turn_starts_of(raw)
 
     turns: frozenset[int] = perf_cache.get_or_compute(
         "app_episode_turn_starts", str(path), mtime, build
     )
     return turns
+
+
+def _turn_starts_of(raw: Any) -> frozenset[int]:
+    starts: set[int] = set()
+    prev: Optional[str] = None
+    for seg in to_contract_segments(raw):
+        if seg.speaker and prev and seg.speaker != prev:
+            starts.add(int(seg.start * 1000))
+        if seg.speaker:
+            prev = seg.speaker
+    return frozenset(starts)
+
+
+def episode_timeline(
+    root: Path, row: CatalogEpisodeRow
+) -> Tuple[Optional[List[Segment]], List[Tuple[int, int]], frozenset[int]]:
+    """:func:`episode_segments`, :func:`episode_ad_spans` and :func:`episode_turn_starts` from ONE
+    read of the metadata and the segments file, uncached: for scoring every episode's reel clips,
+    where each of the three read both files again (2026-10-16: 3 parses of each per episode,
+    ~30% of the scoring time)."""
+    safe = episode_segments_relpath(root, row)
+    if safe is None:
+        return None, [], frozenset()
+    path = root / safe
+    raw = _read_segments_json(path)
+    if raw is None:
+        return None, [], frozenset()
+    ads = (
+        [] if safe.endswith(".adfree.segments.json") else _ad_spans_at(path, _segment_dicts_of(raw))
+    )
+    return _segments_of(raw), ads, _turn_starts_of(raw)
 
 
 def time_hits_by_episode(root: Path, results: List[Any], rows: Iterable[CatalogEpisodeRow]) -> None:
