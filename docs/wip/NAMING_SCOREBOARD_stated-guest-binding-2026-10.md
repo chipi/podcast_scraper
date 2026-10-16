@@ -308,7 +308,7 @@ unique-given-name known-host match). Correct 671 -> 674, wrong 116 -> 114 on val
 (0 of 601 episodes differ). Val was used to choose among the variants (dev could not discriminate),
 so it is no longer an untouched held-out check for this change.
 
-**Why +225 stated names moved only 4 voices.** Breal (the committed code) adds 225 stated names
+**Why +225 stated names moved only 4 voices.** B-real (the committed code) adds 225 stated names
 over B0 on dev + val: 171 belong to no voice in the episode (people discussed, ad reads), 23 to a
 voice the baseline already named right, 10 to a voice the baseline named differently, 21 to a voice
 the baseline left unnamed. A stated name is permission, not placement — the ladder binds it only if

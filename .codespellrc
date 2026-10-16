@@ -1,6 +1,6 @@
 [codespell]
-skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git,*/speaker_detectors/naming_vocabulary.py
-ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo,Wege,Technik
+skip = *.pyc,*.patch,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git,*/speaker_detectors/naming_vocabulary.py
+ignore-words-list = Ned,rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo,Wege,Technik
 # ist / sie / te: German and Dutch function words in the ad-language detector's word lists
 # (providers/ml/diarization/ad_signatures.py); not typos
 # coo: the job title COO in the stated-name trailing job tokens (speaker_detectors/hosts.py)
@@ -22,6 +22,7 @@ ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,stin
 # search/query_language.py, which detects a query's language from words that are common in
 # one language and rare in English. Every list there is deliberately foreign vocabulary, so
 # more of these will arrive as languages are added; not a typo of "is".
+# Ned: a person's name (Ned Dwyer, a stated guest in a naming measurement note); not a typo of "Need"
 # Carin / Hart: people's names (Carin Zissis, Americas Quarterly; Emily Hart, Colombia Calling) —
 # measured evidence for the remove-only feed-host rule (#2075); not a typo of "Caring"
 # Empress: a real title, in the worked example for the matched-bracket rule in
@@ -37,6 +38,8 @@ ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,stin
 # isnt/arent/wasnt/werent/dont/doesnt/didnt/hasnt/havent: intentional patterns in
 # gi/insight_type_classifier.py — apostrophe-stripped contractions that match
 # transcript artifacts where the transcriber dropped the apostrophe. Not typos.
+# *.patch is SKIPPED: preserved, unapplied patches (docs/wip/parked/) are code diffs whose hunk headers
+# git truncates mid-word ("-> Optio"); they are not prose.
 # speaker_detectors/naming_vocabulary.py is SKIPPED whole, not word by word: it is the per-language
 # naming vocabulary (six languages × ~43 maps), so nearly every non-English row is a word codespell
 # reads as an English typo (vor, unser, oder, nome, meu, hace, studi, groupe, ...). Adding those to

@@ -592,11 +592,11 @@ docstrings:
 
 spelling:
 	@echo "=== Spell Checking ==="
-	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*/speaker_detectors/naming_vocabulary.py"
+	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*.patch,*/speaker_detectors/naming_vocabulary.py"
 
 spelling-docs:
 	@echo "=== Spell Checking (Docs only) ==="
-	@$(CODESPELL) docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl"
+	@$(CODESPELL) docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*.patch"
 
 quality: complexity deadcode docstrings spelling
 	@echo ""
