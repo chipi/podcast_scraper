@@ -1,7 +1,7 @@
 /**
  * #2359: hosts that insert ads when an episode is fetched shift the audio a listener gets from the
- * audio we transcribed. The server measures the shift (scripts/ops/audio_retime.py) and sends it
- * with the episode as `audio_time_map`: pairs [transcript_s, offset_s], ascending; from
+ * audio we transcribed. The server measures the shift (`python -m podcast_scraper.audio_sync
+ * build-maps`, RFC-129) and sends it with the episode as `audio_time_map`: pairs [transcript_s, offset_s], ascending; from
  * transcript_s on, the served audio runs offset_s seconds later. Every time the API returns is
  * transcript time, so a seek converts with `toStream` and the playhead converts back with
  * `toTranscript`.

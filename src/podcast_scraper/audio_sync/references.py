@@ -1,5 +1,8 @@
-#!/usr/bin/env python3
-"""Build each episode's audio reference from the archived original (RFC-129, #2359).
+"""Build each episode's audio reference (RFC-129, #2359).
+
+Every episode needs one: ads change within hours, so any episode can drift, and the app checks
+the stream it plays against the reference. New episodes get theirs at ingest, from the audio just
+transcribed (``write_for_episode``). This command backfills the rest from the archive.
 
 For each selected episode:
 1. Its original comes from the audio archive (``docs/recipes/prod-audio-archive.md``), only when
@@ -12,11 +15,12 @@ For each selected episode:
 Read-only on the archive. Without ``--write`` it only reports. With ``--write`` each file is
 written atomically; undo = delete the ``*.audioref.json`` files. No DGX, no model: CPU and ffmpeg.
 
-    .venv/bin/python scripts/ops/audio_reference_build.py --corpus <root> \\
+    python -m podcast_scraper.audio_sync build-references --corpus <root> \\
         (--rclone-remote NAME [--base-path P] | --local-root DIR) \\
-        [--path <metadata path>]... [--write]
+        [--path <metadata path>]... [--force] [--limit N] [--write]
 
-Without ``--path``, the episodes in ``<corpus>/audio_timing_drift.json`` (``audio_drift_check.py``).
+Without ``--path``, every episode in the corpus. An episode that already has a reference is skipped
+unless ``--force``, so an interrupted run resumes where it stopped.
 """
 
 from __future__ import annotations
@@ -25,10 +29,9 @@ import argparse
 import glob
 import json
 import os
-import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Any, Dict, Optional, Set
 
 REF_SUFFIX = ".audioref.json"
 
@@ -55,6 +58,26 @@ def reference_relpath(segments_relpath: str) -> str:
     return base.removesuffix(".adfree") + REF_SUFFIX
 
 
+def write_for_episode(root: Path, row: Any, audio_path: str, guid: Optional[str]) -> Optional[Path]:
+    """Build and write one episode's reference from ``audio_path``, which must be the exact audio
+    its transcript was made from. Returns the file written, or ``None`` when the episode has no
+    transcript segments to sit next to."""
+    from podcast_scraper.audio_sync import fingerprint, reference
+    from podcast_scraper.server.app_episode_search import episode_ad_spans, episode_segments_relpath
+
+    seg_rel = episode_segments_relpath(root, row)
+    if seg_rel is None:
+        return None
+    built = reference.build(fingerprint.decode(audio_path), episode_ad_spans(root, row))
+    if guid:
+        built["guid"] = guid
+    out = root / reference_relpath(seg_rel)
+    tmp_out = out.with_name(out.name + ".tmp")
+    tmp_out.write_text(json.dumps(built), encoding="utf-8")
+    os.replace(tmp_out, out)
+    return out
+
+
 def _backend(args: argparse.Namespace):
     from podcast_scraper.utils.storage_backend import LocalStorageBackend, RcloneStorageBackend
 
@@ -65,7 +88,9 @@ def _backend(args: argparse.Namespace):
 
 def main(argv: Optional[list] = None) -> int:
     ap = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="podcast_scraper.audio_sync build-references",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("--corpus", type=Path, required=True)
     src = ap.add_mutually_exclusive_group(required=True)
@@ -73,19 +98,17 @@ def main(argv: Optional[list] = None) -> int:
     src.add_argument("--local-root")
     ap.add_argument("--base-path", default="")
     ap.add_argument("--path", action="append", default=[], help="metadata path(s), repeatable")
+    ap.add_argument("--force", action="store_true", help="rebuild references that exist")
+    ap.add_argument("--limit", type=int, default=0, help="at most this many built (0 = all)")
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args(argv)
 
-    from podcast_scraper.audio_sync import fingerprint, reference
     from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_episode_search import episode_ad_spans, episode_segments_relpath
+    from podcast_scraper.server.app_episode_search import episode_segments_relpath
     from podcast_scraper.utils import audio_cache
 
     root: Path = args.corpus
     wanted = set(args.path)
-    if not wanted:
-        drift = json.loads((root / "audio_timing_drift.json").read_text(encoding="utf-8"))
-        wanted = set(drift.get("episodes", {}))
     exact = exact_originals(root)
     backend = _backend(args)
     counts: Dict[str, int] = {}
@@ -94,40 +117,38 @@ def main(argv: Optional[list] = None) -> int:
         counts[outcome] = counts.get(outcome, 0) + 1
         print(f"{outcome:24} {rel}")
 
+    built = 0
     for row in cached_catalog(root):
         rel = row.metadata_relative_path
-        if rel not in wanted:
+        if wanted and rel not in wanted:
             continue
+        if args.limit and built >= args.limit:
+            break
         doc = json.loads((root / rel).read_text(encoding="utf-8"))
         guid = (doc.get("episode") or {}).get("guid")
         seg_rel = episode_segments_relpath(root, row)
         if not guid or seg_rel is None:
             tally("skip_no_guid_or_segments", rel)
             continue
+        if not args.force and (root / reference_relpath(seg_rel)).is_file():
+            tally("skip_exists", rel)
+            continue
         if guid not in exact:
             tally("skip_no_exact_original", rel)
+            continue
+        if not args.write:
+            tally("would_write", reference_relpath(seg_rel))
+            built += 1
             continue
         with tempfile.TemporaryDirectory() as tmp:
             audio = os.path.join(tmp, "original.mp3")
             if not audio_cache.fetch_into(backend, guid, audio):
                 tally("skip_not_in_archive", rel)
                 continue
-            built = reference.build(fingerprint.decode(audio), episode_ad_spans(root, row))
-        built["guid"] = guid
-        out = root / reference_relpath(seg_rel)
-        if args.write:
-            tmp_out = out.with_name(out.name + ".tmp")
-            tmp_out.write_text(json.dumps(built), encoding="utf-8")
-            os.replace(tmp_out, out)
-        tally(
-            "written" if args.write else "would_write",
-            f"{out.relative_to(root)} " f"({len(built['checkpoints'])} checkpoints)",
-        )
+            out = write_for_episode(root, row, audio, guid)
+        built += 1
+        tally("written", str(out.relative_to(root)) if out else rel)
     print(" · ".join(f"{k} {v}" for k, v in sorted(counts.items())) or "no episodes selected")
     if not args.write:
         print("dry run: nothing written (add --write)")
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

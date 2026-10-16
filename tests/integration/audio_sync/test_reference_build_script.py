@@ -1,4 +1,4 @@
-"""RFC-129: scripts/ops/audio_reference_build.py over a corpus and an archive.
+"""RFC-129: ``python -m podcast_scraper.audio_sync build-references`` over a corpus and an archive.
 
 The fixture corpus has no GUIDs, so a copy gets them. The archive is a local one laid out like the
 real one (``sha256/<aa>/<bb>/<digest>.mp3``), holding the fixture audio.
@@ -6,14 +6,13 @@ real one (``sha256/<aa>/<bb>/<digest>.mp3``), holding the fixture audio.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import shutil
-import sys
 from pathlib import Path
 
 import pytest
 
+from podcast_scraper.audio_sync import references as build_script
 from podcast_scraper.utils.audio_cache import rel_key_for_guid
 
 pytestmark = pytest.mark.integration
@@ -21,14 +20,6 @@ pytestmark = pytest.mark.integration
 REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 AUDIO = REPO / "tests" / "fixtures" / "audio" / "v3"
-
-_spec = importlib.util.spec_from_file_location(
-    "audio_reference_build", REPO / "scripts" / "ops" / "audio_reference_build.py"
-)
-assert _spec and _spec.loader
-build_script = importlib.util.module_from_spec(_spec)
-sys.modules[_spec.name] = build_script
-_spec.loader.exec_module(build_script)
 
 EPISODES = {"p01_e01": "exact", "p01_e02": "refetch", "p01_e03": "missing"}
 
@@ -97,3 +88,18 @@ def test_without_write_nothing_is_written(
     assert build_script.main(_args(root, archive)) == 0
     assert "would_write" in capsys.readouterr().out
     assert not list(root.rglob("*.audioref.json"))
+
+
+def test_an_existing_reference_is_kept_unless_forced(
+    setup: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, archive = setup
+    assert build_script.main(_args(root, archive, "--write")) == 0
+    ref = next(root.rglob("p01_e01.audioref.json"))
+    ref.write_text("{}", encoding="utf-8")
+    capsys.readouterr()
+    assert build_script.main(_args(root, archive, "--write")) == 0
+    assert "skip_exists" in capsys.readouterr().out
+    assert ref.read_text(encoding="utf-8") == "{}"
+    assert build_script.main(_args(root, archive, "--write", "--force")) == 0
+    assert json.loads(ref.read_text(encoding="utf-8"))["checkpoints"]

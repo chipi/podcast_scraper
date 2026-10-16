@@ -213,7 +213,7 @@ def main() -> int:
         "--mapped",
         action="store_true",
         help="Cut each clip at its time in the served stream, from <corpus>/audio_time_maps.json "
-        "(scripts/ops/audio_retime.py), as the player will.",
+        "(python -m podcast_scraper.audio_sync build-maps), as the player will.",
     )
     ap.add_argument(
         "--exact",

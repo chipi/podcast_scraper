@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Which episodes' served audio no longer matches the audio we transcribed? (#2359, option C)
 
 For every episode with a ``content.media_url``: the length the host serves NOW (``ffprobe`` on the
@@ -17,7 +16,7 @@ Read-only on the hosts and on the corpus. Without ``--write`` it only reports. W
 writes ``<corpus>/audio_timing_drift.json`` (atomically), which the api reads to keep drifted
 episodes out of short listens and Learn days (``server/app_audio_drift.py``). Undo: delete the file.
 
-    .venv/bin/python scripts/ops/audio_drift_check.py --corpus <corpus root> [--write] [--limit N]
+    python -m podcast_scraper.audio_sync drift-check --corpus <corpus root> [--write] [--limit N]
 """
 
 from __future__ import annotations
@@ -26,7 +25,6 @@ import argparse
 import json
 import os
 import subprocess
-import sys
 import time
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
@@ -67,9 +65,11 @@ def _reference(root: Path, row: Any) -> tuple[Optional[float], str]:
     return (max(ends), "transcript_end") if ends else (None, "none")
 
 
-def main() -> int:
+def main(argv: Optional[list] = None) -> int:
     ap = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="podcast_scraper.audio_sync drift-check",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("--corpus", type=Path, required=True)
     ap.add_argument("--write", action="store_true", help=f"write <corpus>/{DRIFT_FILE}")
@@ -78,7 +78,7 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=45, help="seconds per ffprobe")
     ap.add_argument("--known-tolerance", type=float, default=5.0)
     ap.add_argument("--end-tolerance", type=float, default=30.0)
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     from podcast_scraper.server.app_catalog_cache import cached_catalog
 
@@ -150,7 +150,3 @@ def main() -> int:
     os.replace(tmp, out)
     print(f"wrote {out}")
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

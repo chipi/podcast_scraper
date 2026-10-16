@@ -1,18 +1,14 @@
-"""Episodes whose served audio no longer matches the audio we transcribed (#2359, option C).
+"""Time maps for episodes whose served audio no longer matches what we transcribed (#2359,
+RFC-129).
 
-Some podcast hosts insert ads into an episode when it is fetched, and change them over time. Our
-clip times are right for the audio we transcribed; a listener who gets a different ad load hears
-the wrong moment (measured 2026-10-15: every clip of 3 podtrac / BBC episodes off by 9-52 s).
+Some podcast hosts insert ads into an episode when it is fetched, and change them over time, so
+the stream a listener plays can be shifted from our transcript. ``build-maps`` lines the archived
+original up with the stream as served now and writes ``<corpus>/audio_time_maps.json``. The api
+sends an episode's map with it, and each reel clip's ``play_start_ms`` / ``play_end_ms``; the
+player converts with the map. No episode is hidden for drifting.
 
-``scripts/ops/audio_drift_check.py`` compares each episode's served length with the length we
-transcribed and writes the episodes that differ to ``<corpus>/audio_timing_drift.json``:
-
-    {"checked_at": "...", "episodes": {"<metadata_relative_path>": {"served_s": ..., "ref_s": ...}}}
-
-This module reads that file (cached until it changes). A short listen or a Learn day stitches clips
-from many episodes with nothing around them to recover from a wrong second, so those leave drifted
-episodes out (``app_goal_reel._episode_rows``). The file is optional: absent or unreadable means
-no episode is known to have drifted.
+``DRIFT_FILE`` (``drift-check``) lists the episodes whose served length differs; ``build-maps``
+reads it to choose what to map. Both: ``python -m podcast_scraper.audio_sync``.
 """
 
 from __future__ import annotations
@@ -20,32 +16,9 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Dict, FrozenSet, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 DRIFT_FILE = "audio_timing_drift.json"
-_NS = "audio_timing_drift"
-
-
-def _load(path: Path) -> FrozenSet[str]:
-    try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return frozenset()
-    episodes = doc.get("episodes") if isinstance(doc, dict) else None
-    return frozenset(str(k) for k in episodes) if isinstance(episodes, dict) else frozenset()
-
-
-def drifted_episodes(root: Path) -> FrozenSet[str]:
-    """Metadata paths (relative to the corpus) of episodes whose served audio has drifted."""
-    from podcast_scraper import perf_cache
-
-    path = Path(root) / DRIFT_FILE
-    try:
-        token = os.stat(path).st_mtime
-    except OSError:
-        return frozenset()
-    result: FrozenSet[str] = perf_cache.get_or_compute(_NS, str(path), token, lambda: _load(path))
-    return result
 
 
 MAPS_FILE = "audio_time_maps.json"
@@ -71,9 +44,9 @@ def _load_maps(path: Path) -> Dict[str, Anchors]:
 
 
 def time_maps(root: Path) -> Dict[str, Anchors]:
-    """Per episode (metadata path), anchors ``(transcript_s, offset_s)`` written by
-    ``scripts/ops/audio_retime.py``: from ``transcript_s`` on, the served stream runs ``offset_s``
-    seconds later than the transcript. Absent or unreadable file means no maps."""
+    """Per episode (metadata path), anchors ``(transcript_s, offset_s)`` written by ``build-maps``
+    (``python -m podcast_scraper.audio_sync``): from ``transcript_s`` on, the served stream runs
+    ``offset_s`` seconds later than the transcript. Absent or unreadable file means no maps."""
     from podcast_scraper import perf_cache
 
     path = Path(root) / MAPS_FILE

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple, TYPE_CHECKING
+from typing import List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import numpy as np
@@ -51,15 +51,23 @@ class Stretch:
         return self.end - self.start
 
 
-def decode(path: str) -> "np.ndarray":
-    """Mono float32 samples at 8 kHz."""
+# What a phone browser sends: hosts choose the ads per request, so a stream fetched for a map is
+# fetched as a listener's would be.
+PHONE_UA = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+)
+
+
+def decode(path: str, timeout_s: Optional[float] = None) -> "np.ndarray":
+    """Mono float32 samples at 8 kHz, from a file or an http(s) URL."""
     import numpy as np
 
-    raw = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"],
-        capture_output=True,
-        check=True,
-    ).stdout
+    cmd = ["ffmpeg", "-v", "error"]
+    if path.startswith(("http://", "https://")):
+        cmd += ["-user_agent", PHONE_UA]
+    cmd += ["-i", path, "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"]
+    raw = subprocess.run(cmd, capture_output=True, check=True, timeout=timeout_s).stdout
     return np.frombuffer(raw, dtype=np.float32)
 
 
