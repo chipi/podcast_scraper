@@ -140,8 +140,14 @@ this is the shared-credential / power-user convenience the docs bless for non-pe
 ### 3. The `mcp_access` entitlement
 
 - A boolean grant on the user profile, **orthogonal** to `listener < creator < admin` (`app_roles`)
-  — a listener may have it, an admin may not. Admin-granted via user-management. Modelling it as a
-  4th rank would poison every totally-ordered "at least creator" check.
+  — a listener may have it, an admin may not. Modelling it as a 4th rank would poison every
+  totally-ordered "at least creator" check.
+- **On by default** (changed 2026-10-16, operator decision; it was admin-granted, default off). A beta
+  user who joined the day before could not connect, because only an admin could grant it. Every new
+  account now gets it; profiles that predate the field default to it too. An admin can still revoke it
+  per user, and an explicit `false` stays revoked across sign-ins. Existing accounts that hold the old
+  default `false` are granted once with `app_users_cli grant-mcp-all --apply`, which skips any user
+  whose latest `admin.user.mcp_access` audit entry is a revoke.
 - Gates: (a) the OAuth consent + token issuance, (b) PAT authentication, (c) visibility of the
   connection-management UI.
 - **Data-visibility note (explicit, not by omission):** `mcp_access` grants the **full shared read
@@ -158,8 +164,8 @@ this is the shared-credential / power-user convenience the docs bless for non-pe
   context is injected per request.
 - **Where identity lives**: users, hashed PATs, OAuth grants, and `mcp_access` are in the FastAPI
   app's per-user store (RFC-098). **Decision**: the MCP HTTP server **calls a small internal
-  verification endpoint on the app** (`POST /internal/mcp/verify` — token/hash → user_id + entitlement
-  + scope) rather than mounting the file store directly, so the two processes stay decoupled and the
+  verification endpoint on the app** (`POST /internal/mcp/verify` — token/hash → user_id +
+  entitlement + scope) rather than mounting the file store directly, so the two processes stay decoupled and the
   store stays app-owned. (Tailnet-only internal call, same pattern as RFC-110's outbox seam.)
 - **Token lookup is O(1)**: a `mcp_tokens_index` (SHA-256(token) → user_id) maintained by the token
   CRUD, not an O(users) scan per connect.

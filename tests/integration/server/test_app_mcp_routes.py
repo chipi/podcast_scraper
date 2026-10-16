@@ -27,8 +27,8 @@ def _app(tmp_path: Path, *, mcp_access: bool, internal_token: str = _TOKEN):
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     app.state.internal_mcp_token = internal_token
     user = get_or_create_user(data_dir, provider="google", subject="s", email="u@g.com", name="U")
-    if mcp_access:
-        set_mcp_access(data_dir, user.user_id, True)
+    # Explicit both ways: new accounts get MCP by default (2026-10-16), so 'no access' is a revoke.
+    set_mcp_access(data_dir, user.user_id, mcp_access)
     client = TestClient(app)
     tok = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
     client.cookies.set(app_sessions.SESSION_COOKIE, tok)

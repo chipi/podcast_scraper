@@ -60,8 +60,10 @@ class User:
     disabled: bool = False
     role: str = app_roles.DEFAULT_ROLE
     #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
-    #: listener may have it, an admin may not) — admin-granted, not a rank. Default off.
-    mcp_access: bool = False
+    #: listener may have it, an admin may not), not a rank. **Default on** since 2026-10-16
+    #: (operator: every user gets MCP; a beta user who joined the day before had no access).
+    #: An admin can still revoke it per user, and an explicit ``false`` on a profile stays revoked.
+    mcp_access: bool = True
     #: Pseudonymous analytics identity (#2265). A random UUIDv4 minted once, at account creation,
     #: and never rotated.
     #:
@@ -195,8 +197,8 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         # Profiles written before #2265 have no ``analytics_id``; ``get_or_create_user``
         # backfills one at the next sign-in.
         analytics_id=str(doc.get("analytics_id", "")),
-        # Profiles written before #1471 have no ``mcp_access`` → default off.
-        mcp_access=bool(doc.get("mcp_access", False)),
+        # Profiles written before #1471 have no ``mcp_access`` → the default (on since 2026-10-16).
+        mcp_access=bool(doc.get("mcp_access", True)),
     )
 
 

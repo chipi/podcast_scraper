@@ -282,3 +282,37 @@ def test_a_raising_on_created_does_not_fail_the_sign_in(tmp_path: Path) -> None:
     assert user.user_id == user_id_for("google", "s1")
     # The account still exists and is complete.
     assert get_user(tmp_path, user.user_id) is not None
+
+
+def test_new_accounts_get_mcp_access_by_default_and_a_revoke_sticks(tmp_path: Path) -> None:
+    """MCP is on for every user by default (operator, 2026-10-16: a beta user who joined the day
+    before had no access, because the RFC-112 default was off and only an admin could grant it).
+    An admin's per-user revoke is still a revoke: an explicit false on a profile stays false."""
+    from podcast_scraper.server.app_user_store import set_mcp_access
+
+    oauth = get_or_create_user(
+        tmp_path, provider="google", subject="new", email="n@x.com", name="N"
+    )
+    seeded = create_user(
+        tmp_path, provider="email", subject="s@x.com", email="s@x.com", name="S", role="listener"
+    )
+    assert oauth.mcp_access is True and seeded.mcp_access is True
+    assert get_user(tmp_path, oauth.user_id).mcp_access is True  # persisted, not just in memory
+
+    set_mcp_access(tmp_path, oauth.user_id, False)
+    assert get_user(tmp_path, oauth.user_id).mcp_access is False
+    again = get_or_create_user(
+        tmp_path, provider="google", subject="new", email="n@x.com", name="N"
+    )
+    assert again.mcp_access is False  # signing in again does not re-grant a revoke
+
+
+def test_a_profile_written_before_mcp_access_existed_gets_the_default(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_user_store import _profile_path
+
+    user = get_or_create_user(tmp_path, provider="google", subject="old", email="o@x.com", name="O")
+    path = _profile_path(tmp_path, user.user_id)
+    doc = json.loads(path.read_text())
+    doc.pop("mcp_access")
+    path.write_text(json.dumps(doc))
+    assert get_user(tmp_path, user.user_id).mcp_access is True
