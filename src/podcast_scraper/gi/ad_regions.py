@@ -89,6 +89,27 @@ _AD_OPENER = re.compile(
     r"thanks (?:to )?our sponsors?|support for (?:this|the) (?:show|podcast|episode) comes from)\b",
     re.IGNORECASE,
 )
+# The opener forms that announce a sponsor read and nothing else. A bare "sponsored by" is also
+# ordinary talk ("we were sponsored by a church"), so it never brackets a read on its own.
+_READ_OPENER = re.compile(
+    r"\b(?:brought to you by|this episode is sponsored|this (?:show|podcast) is "
+    r"(?:brought|sponsored)|today'?s sponsor|support for (?:this|the) (?:show|podcast|episode) "
+    r"comes from)\b",
+    re.IGNORECASE,
+)
+# A call to action: where to go or what code to use.
+_CALL_TO_ACTION = re.compile(
+    r"\b(?:go to|visit|check out|learn more at|head (?:over )?to|start at|sign up)\b"
+    r"|\b(?:promo|use) code\b|\b(?:dot com|\.(?:com|ai|io|co)) slash\b|\bslash\s+\w+\b"
+    r"|\bfree (?:trial|month)\b|(?:percent|%) off\b",
+    re.IGNORECASE,
+)
+# An opener and its call to action are one read when the call to action follows within this many
+# chars in the same turn. They clustered apart whenever the pitch between them ran past
+# CLUSTER_GAP: the opener alone is a lone cue (skipped mid-episode), the call to action starts its
+# own cut, and the pitch between them stayed in the ad-free text (WorkOS, Mercury, Vanta, Sentry on
+# the 2026-10-15 prod snapshot).
+READ_SPAN = 2500
 
 
 @dataclass
@@ -177,20 +198,30 @@ def _snap_backward_to_sentence_start(text: str, pos: int) -> int:
         if idx >= 0 and idx > best:
             best = idx + len(term)
     if best < 0:
-        return pos
+        # The top of the text starts a sentence: without this, an opener on the first line left
+        # its own "SPEAKER_00: This episode is" behind.
+        return 0 if lo == 0 else pos
     return lo + best
 
 
-def _preroll_start(text: str, first: int, sentence_start: int) -> int:
+def _preroll_start(text: str, first: int, sentence_start: int, *, lone: bool = False) -> int:
     """Where the first ad block in the head window starts, given its first pattern at ``first``.
 
-    Near the top (``PREROLL_LEADIN``) it is the pre-roll: cut from 0, so the pitch before its first
-    call to action goes too (the pattern marks the CTA, not the ad's start). Further in, the episode
-    has already begun: an opener starts the cut at its own sentence, and a call to action takes at
-    most ``PREROLL_PITCH`` chars of pitch before it, from the next sentence start (#2360).
+    An opener ("brought to you by") starts the read at its own sentence, at the top too: cut from 0,
+    a cold open before it went with it (Rest Is Science, prod 2026-10-15). A call to action near the
+    top (``PREROLL_LEADIN``) is the pre-roll: cut from 0, so the pitch before it goes too (the
+    pattern marks the CTA, not the ad's start). Further in, the episode has already begun: a call
+    to action takes at most ``PREROLL_PITCH`` chars of pitch before it (#2360) — but only in a
+    block with more than one kind of cue. A ``lone`` call to action is one sentence, and the reach
+    back took what came before it: a guest's introduction before "check out lennysproductpass.com",
+    a founder's own account of his product before "go to dreamer.com".
     """
+    if _AD_OPENER.match(text, first):
+        return sentence_start
     if first <= PREROLL_LEADIN:
         return 0
+    if lone:
+        return sentence_start
     return _read_start(text, first, sentence_start, floor=0)
 
 
@@ -202,8 +233,33 @@ def _read_start(text: str, first: int, sentence_start: int, floor: int) -> int:
     sentence start (#2360, #2168)."""
     if _AD_OPENER.match(text, first):
         return max(floor, sentence_start)
+    # A pitch names what it sells. The reach goes back only to the first sentence that names the
+    # call to action's own domain: without that, it took what came before a show's OWN plug — a
+    # guest's introduction before "check out lennysproductpass.com", the host's talk before
+    # "patreon.com slash colombia calling" (8 of the 17 reaches on the 2026-10-15 prod snapshot).
+    brand = _cta_brand(text, first)
+    if brand is None:
+        return max(floor, sentence_start)
     reach = max(floor, first - PREROLL_PITCH)
-    return max(floor, min(sentence_start, _snap_forward_to_sentence_end(text, reach)))
+    named = brand.search(text, reach, sentence_start)
+    if named is None:
+        return max(floor, sentence_start)
+    return max(floor, min(sentence_start, _snap_backward_to_sentence_start(text, named.start())))
+
+
+_CTA_DOMAIN = re.compile(r"\b([a-z][\w-]{2,})\s*(?:\.|\bdot\s+)(?:com|ai|io|co)\b", re.IGNORECASE)
+
+
+def _cta_brand(text: str, first: int) -> Optional[re.Pattern[str]]:
+    """The domain a call to action at ``first`` names, as a pattern for the brand in speech: its
+    first six letters, any non-letters between them ("alpha-sense.com" -> "AlphaSense"; ASR
+    respellings past six letters, "antisysus.com" -> "Antisys", still match). ``None`` when the
+    call to action names no domain."""
+    m = _CTA_DOMAIN.search(text, first, first + SENTENCE_BOUNDARY_LOOKAHEAD)
+    letters = re.sub(r"[^a-z]", "", (m.group(1) if m else "").lower())[:6]
+    if len(letters) < 4:
+        return None
+    return re.compile(r"[\W_]*".join(re.escape(ch) for ch in letters), re.IGNORECASE)
 
 
 def _hits_are_clustered(hits: List[Tuple[int, int]], threshold: int) -> bool:
@@ -251,6 +307,26 @@ def _cluster_hits(
     return clusters
 
 
+def _bracket_reads(text: str, clusters: List[List[Tuple[int, ...]]]) -> List[List[Tuple[int, ...]]]:
+    """Join a block that an opener starts to the next block when that one starts with a call to
+    action within ``READ_SPAN`` chars and no turn change (a screenplay line break) between."""
+    out: List[List[Tuple[int, ...]]] = []
+    for cluster in clusters:
+        if out:
+            prev = out[-1]
+            gap_lo, gap_hi = max(h[1] for h in prev), cluster[0][0]
+            if (
+                _READ_OPENER.match(text, prev[0][0])
+                and _CALL_TO_ACTION.search(text, cluster[0][0], cluster[0][1])
+                and gap_hi - gap_lo <= READ_SPAN
+                and "\n" not in text[gap_lo:gap_hi]
+            ):
+                out[-1] = prev + list(cluster)
+                continue
+        out.append(list(cluster))
+    return out
+
+
 def detect_ad_cut_ranges(
     text: str,
     *,
@@ -282,6 +358,7 @@ def detect_ad_cut_ranges(
     clusters = _cluster_hits(hits)
     if sum(len({h[2] for h in c}) for c in clusters) < threshold:
         return []
+    clusters = _bracket_reads(text, clusters)
     ranges: List[Tuple[int, int]] = []
     prev_end = 0
     for i, cluster in enumerate(clusters):
@@ -297,7 +374,9 @@ def detect_ad_cut_ranges(
             start = _expand_postroll_backward(text, start, floor=prev_end)
             end = len(text)
         elif i == 0 and first < scan_chars:
-            start = _preroll_start(text, first, start)
+            start = _preroll_start(
+                text, first, start, lone=len({kind for _, _, kind in cluster}) < MIDROLL_MIN_KINDS
+            )
         elif len({kind for _, _, kind in cluster}) < MIDROLL_MIN_KINDS:
             # A lone cue in the middle of an episode ("as I said on cnn dot com") is talk, not a
             # read: a mid-roll needs two kinds of cue together (#2168).
