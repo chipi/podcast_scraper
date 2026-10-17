@@ -115,7 +115,7 @@ timings, only its start and failures at DEBUG.
 - **Fixed on prod 2026-10-17 06:17 UTC:** the nightly failed on 10-16 and 10-17 (401 from a stale
   direct `vllm_api_base: http://dgx-llm-1:8003/v1` in `viewer_operator.yaml`). Line removed, backup
   `.viewer/operator-config.before-vllm-direct-removed-20261017T061742Z.yaml`; `ad47a8bc0` warns when a
-  config file overrides a profile's `vllm_api_base`. Check: the 2026-10-17 00:00 UTC nightly
+  config file overrides a profile's `vllm_api_base`. Check: the 2026-10-18 00:00 UTC nightly
   succeeds and deepens the 13 new feeds.
 
 ## Next deploy (candidate: main head when the operator names it) — the whole list
