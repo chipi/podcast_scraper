@@ -50,6 +50,7 @@ from .migrations.m0027_missing_covers_stored import MissingCoversStoredMigration
 from .migrations.m0028_transcript_chunk_times import TranscriptChunkTimesMigration
 from .migrations.m0029_naming_arc_voices_repaired import NamingArcVoicesRepairedMigration
 from .migrations.m0030_adfree_cut_resynced import AdfreeCutResyncedMigration
+from .migrations.m0031_naming_voices_rederived import NamingVoicesRederivedMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -115,6 +116,8 @@ _MIGRATIONS: List[Migration] = [
     NamingArcVoicesRepairedMigration(),
     # 0030 gives served episodes today's ad cut (#2360), offsets into the ad-free text carried.
     AdfreeCutResyncedMigration(),
+    # 0031 gives 126 served episodes the names the deployed naming code gives them, no relabel.
+    NamingVoicesRederivedMigration(),
 ]
 
 

@@ -388,5 +388,6 @@ def test_an_episode_with_no_ad_free_base_is_left_alone(tmp_path: Path) -> None:
     assert _run(tmp_path).details["files_written"] == 0
 
 
-def test_it_is_registered_last() -> None:
-    assert get_migrations()[-1].id == m.MIGRATION_ID
+def test_it_is_registered_after_0029() -> None:
+    ids = [mig.id for mig in get_migrations()]
+    assert ids.index(m.MIGRATION_ID) == ids.index("0029_naming_arc_voices_repaired") + 1
