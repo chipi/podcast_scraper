@@ -201,7 +201,12 @@ Recorded so a rebuild can be checked against them (2026-09-01):
 - `skip_existing: true`
 - `profile:` — corpus default for feeds with no per-feed pin
 - `dgx_diarize_request_timeout_sec: 900` — the duration probe is dead in prod (no `soundfile`)
-- `vllm_api_base` / `litellm_api_base` — pinned to prod's own gateway, NOT the profile's homelab pin
+- `litellm_api_base` — pinned to prod's own gateway, NOT the profile's homelab pin
+- `vllm_api_base` — **not set in the operator YAML.** The profile derives it from
+  `LITELLM_API_BASE` (the gateway, #2342); a value here outranks the profile for every vLLM stage.
+  A stale direct `http://dgx-llm-1:8003/v1` left here failed the nightly with a 401 on
+  2026-10-16 and 10-17 (removed 2026-10-17). The CLI now warns when a config file sets it over a
+  profile.
 - `scheduled_jobs: nightly-ingest`, `cron: "0 3 * * *"` — **`enabled: false`** as of 2026-09-01
 
 Per-feed profile pins live in `<corpus>/feeds.spec.yaml` as `profile:` under a feed's `url:`.

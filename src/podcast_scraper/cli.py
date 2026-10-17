@@ -21,6 +21,7 @@ from typing import (
     Iterator,
     List,
     Literal,
+    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -2342,6 +2343,31 @@ def _attach_cli_merge_metadata(
     setattr(args, "_cli_explicit_dests", _collect_explicit_cli_dests(parser, argv))
 
 
+def _warn_config_file_pins_vllm_endpoint(
+    config_data: Mapping[str, Any], config_path: str, cli_profile: Optional[str]
+) -> None:
+    """Say so when a config file overrides a profile's registry-governed vLLM endpoint.
+
+    A config file outranks its profile, so a hand-set ``vllm_api_base`` silently replaces the
+    registry's endpoint for every vLLM stage. Prod's operator YAML kept a direct
+    ``http://dgx-llm-1:8003/v1`` after the DGX moved behind the LiteLLM gateway (#2342), and the
+    nightly failed on that endpoint's 401 on 2026-10-16 and 10-17 while reprocesses, which read
+    the profile, worked.
+    """
+    base = config_data.get("vllm_api_base")
+    profile = cli_profile or config_data.get("profile")
+    if not base or not profile:
+        return
+    logging.getLogger(__name__).warning(
+        "config file %s sets vllm_api_base=%s, overriding profile %s's registry-governed "
+        "endpoint for every vLLM stage (the DGX is reached through the LiteLLM gateway, #2342). "
+        "Remove it unless this run must bypass the gateway.",
+        config_path,
+        base,
+        profile,
+    )
+
+
 def _load_and_merge_config(
     parser: argparse.ArgumentParser, config_path: str, argv: Optional[Sequence[str]]
 ) -> argparse.Namespace:
@@ -2387,6 +2413,7 @@ def _load_and_merge_config(
 
     config_explicit_keys = frozenset(config_data.keys())
     cli_profile = _argv_cli_profile_name(argv)
+    _warn_config_file_pins_vllm_endpoint(config_data, config_path, cli_profile)
     validate_data = dict(config_data)
     if cli_profile is not None:
         # CLI --profile must participate in the same merge as ``profile:`` in YAML so

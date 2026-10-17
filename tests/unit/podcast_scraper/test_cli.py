@@ -2996,6 +2996,29 @@ class TestLoadAndMergeConfig(unittest.TestCase):
             cli._load_and_merge_config(parser, "config.yaml", None)
         self.assertIn("Unknown config option", str(cm.exception))
 
+    def test_config_file_vllm_api_base_over_a_profile_is_warned(self):
+        """An operator YAML pinning vllm_api_base overrides the profile's governed endpoint."""
+        with self.assertLogs("podcast_scraper.cli", level="WARNING") as cm:
+            cli._warn_config_file_pins_vllm_endpoint(
+                {"profile": "prod_dgx_full", "vllm_api_base": "http://dgx-llm-1:8003/v1"},
+                "viewer_operator.yaml",
+                None,
+            )
+        joined = "\n".join(cm.output)
+        self.assertIn("vllm_api_base=http://dgx-llm-1:8003/v1", joined)
+        self.assertIn("prod_dgx_full", joined)
+
+    def test_config_file_vllm_api_base_without_a_profile_is_not_warned(self):
+        """No profile in play: the file's endpoint is the only one, nothing is overridden."""
+        with self.assertNoLogs("podcast_scraper.cli", level="WARNING"):
+            cli._warn_config_file_pins_vllm_endpoint(
+                {"vllm_api_base": "http://localhost:8000/v1"}, "dev.yaml", None
+            )
+        with self.assertNoLogs("podcast_scraper.cli", level="WARNING"):
+            cli._warn_config_file_pins_vllm_endpoint(
+                {"profile": "prod_dgx_full"}, "viewer_operator.yaml", "prod_dgx_full"
+            )
+
     @patch("podcast_scraper.cli.config.load_config_file")
     def test_load_and_merge_config_file_not_found(self, mock_load):
         """Test handling of missing config file."""
