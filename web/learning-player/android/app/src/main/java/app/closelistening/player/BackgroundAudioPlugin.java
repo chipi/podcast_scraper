@@ -30,18 +30,25 @@ public class BackgroundAudioPlugin extends Plugin {
         };
     }
 
+    /**
+     * Resolves {@code foreground}: false when Android refused to put playback in the foreground
+     * (the app was in the background, Android 12+). Never throws: a plugin method that throws
+     * kills the process (PLAYER-1I, 2026-10-17).
+     */
     @PluginMethod
     public void start(PluginCall call) {
         NowPlaying.get(getContext()).update(null, null, null, null, true, null, null, null);
-        PlaybackService.start(getContext());
-        call.resolve();
+        JSObject ret = new JSObject();
+        ret.put("foreground", PlaybackService.start(getContext()));
+        call.resolve(ret);
     }
 
     @PluginMethod
     public void pause(PluginCall call) {
         NowPlaying.get(getContext()).update(null, null, null, null, false, null, null, null);
-        PlaybackService.pause(getContext());
-        call.resolve();
+        JSObject ret = new JSObject();
+        ret.put("foreground", PlaybackService.pause(getContext()));
+        call.resolve(ret);
     }
 
     @PluginMethod

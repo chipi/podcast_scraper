@@ -210,6 +210,31 @@ adb shell am start -n <appId>/.MainActivity    # explicit start is more reliable
    These use framework classes only, so no new dependency. The manifest needs the `<service
    android:foregroundServiceType="mediaPlayback">` plus `FOREGROUND_SERVICE`,
    `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and `POST_NOTIFICATIONS`.
+
+   **Resuming in the background is refused, and the refusal kills the app if you let it.**
+   Android 12+ refuses both `startForegroundService()` and `Service.startForeground()` while the
+   app is in the background. A Java exception thrown inside a Capacitor plugin method is not a
+   JS rejection: the bridge rethrows it and the process dies (crash of record, Android 16,
+   2026-10-17). The sequence on a real phone:
+   - Pause takes the service out of the foreground (`stopForeground(DETACH)`).
+   - About a minute later Android stops the idle service ("Stopping service due to app idle" in
+     logcat). The detached notification stays.
+   - Something resumes playback from the background, and `start()` asks for a foreground start.
+     Android refuses it.
+
+   What `PlaybackService.java` does now:
+   - **A running service is never started again.** Pause and play go to the running instance;
+     leaving the foreground needs no permission.
+   - **Every foreground request is in a `try`.** A refusal is caught, the notification is
+     redrawn as playing, the plugin resolves `{foreground: false}`, and the web layer reports it
+     once per launch. The audio goes on while the process lives.
+   - **The exemptions do the rest.** A Play from the lock screen or the notification reaches the
+     app through the MediaSession, and Android then allows a foreground start for 10 s (logcat:
+     `MediaSessionRecord:play [WIU] [FGS]`). Where the app's own notification buttons show (older
+     Android), Play is a `PendingIntent.getForegroundService`, which a notification tap may start.
+   - **Regression check:** `make test-app-android-background-resume` (`android/scripts/
+     background-resume.sh`) calls the plugin over the WebView DevTools socket: start and pause,
+     HOME, 75 s in the background, start again. It passes when the process survives.
 2. **Register local plugins before the bridge starts:** `registerPlugin(…)` in
    `MainActivity.onCreate`, *before* `super.onCreate` (`MainActivity.java`).
 3. **Cross-origin API calls: turn on `CapacitorHttp`.** With `androidScheme: 'https'` the app's

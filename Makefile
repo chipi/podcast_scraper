@@ -3106,6 +3106,12 @@ test-app-android-restore:
 	@ADB=$(ADB) $(APP_DIR)/android/scripts/cold-launch-restore.sh $(IOS_ORIGIN_PORT); rc=$$?; \
 		echo "ANDROID_RESTORE_EXIT=$$rc"; exit $$rc
 
+#: Resume playback with the app in the background must not crash it (PLAYER-1I). Needs the emulator
+#: and a debug build installed; WAIT_S=20 for the still-running-service branch.
+test-app-android-background-resume:
+	@ADB=$(ADB) $(APP_DIR)/android/scripts/background-resume.sh; rc=$$?; \
+		echo "ANDROID_BACKGROUND_RESUME_EXIT=$$rc"; exit $$rc
+
 test-app-android-magic-link:
 	@test -n "$(PHASE)" || { echo "FAIL: PHASE=M1|M2|M3 is required"; exit 1; }
 	@if [ "$(PHASE)" = "M3" ]; then \

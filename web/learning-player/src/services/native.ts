@@ -13,6 +13,7 @@ import { Capacitor, CapacitorCookies, registerPlugin } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Preferences } from '@capacitor/preferences'
 import { Share } from '@capacitor/share'
+import { captureMessage } from '@sentry/capacitor'
 import { setAuthToken } from './api'
 import { routeForDeepLink, type DeepLinkTarget } from './deepLinks'
 import { track } from './analytics'
@@ -38,8 +39,9 @@ export interface NativeMediaAction {
   seekTime?: number
 }
 interface BackgroundAudioPlugin {
-  start(): Promise<void>
-  pause(): Promise<void>
+  /** `foreground: false`: Android refused the foreground (app in the background, Android 12+). */
+  start(): Promise<{ foreground?: boolean }>
+  pause(): Promise<{ foreground?: boolean }>
   stop(): Promise<void>
   update(state: NativeMediaState): Promise<void>
   canShowOutputSwitcher(): Promise<{ available: boolean }>
@@ -52,7 +54,27 @@ const onAndroid = (): boolean => isNative() && platform() === 'android'
 
 /** Playing: media notification in the foreground. No-op on iOS/web. */
 export async function startBackgroundAudio(): Promise<void> {
-  if (onAndroid()) await BackgroundAudio.start().catch(() => {})
+  if (!onAndroid()) return
+  const r = await BackgroundAudio.start().catch(() => null)
+  if (r?.foreground === false) reportForegroundRefused()
+}
+
+let foregroundRefusedReported = false
+
+/**
+ * Android refused to put playback in the foreground: resumed while the app was in the background
+ * (PLAYER-1I, 2026-10-17, which used to crash the app). The audio goes on, but the OS may stop a
+ * backgrounded app that has no foreground service. Reported once per launch, so GlitchTip shows
+ * how often listeners get here.
+ */
+function reportForegroundRefused(): void {
+  if (foregroundRefusedReported) return
+  foregroundRefusedReported = true
+  captureMessage('Android refused foreground playback (resumed in the background)', {
+    level: 'warning',
+    fingerprint: ['android-foreground-refused'],
+    tags: { surface: 'player' },
+  })
 }
 
 /** Paused: the controls stay (with Play) so the lock screen can resume. No-op on iOS/web. */
