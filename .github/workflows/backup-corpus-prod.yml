@@ -210,6 +210,16 @@ jobs:
           #             and the server falls back to those when the local file is missing
           #             (cil_queries._verified_artwork_relpath). Revisit once #2204 stores each
           #             image once (~0.78 GB). The rest of .podcast_scraper/ (provenance) is kept.
+          #   *.audioref.json — the per-episode audio references (RFC-129, #2359): fingerprints
+          #             at checkpoints of the audio we transcribed. Excluded 2026-10-17 (operator
+          #             decision): the backfill that day wrote 2,486 of them, ~2.2 MB each and
+          #             5.4 GB in all, which barely compress. The 10-17 snapshot was 4,736 MB, over
+          #             the cap (#2378); 10-16's was 1,288 MB. They are derived: `python -m
+          #             podcast_scraper.audio_sync build-references` rebuilds them from the audio
+          #             archive (CPU and ffmpeg, no DGX). It does that only for episodes whose
+          #             archived audio is byte-identical to what we transcribed, so a restore loses
+          #             the rest. Making them restorable again (a compact format, or a backup
+          #             of their own) is #2381.
           #
           # Keeping -z: what remains is transcripts and JSON, which compress well. (Gzipping
           # 30 GB of mp3 was pure CPU burn for ~0 gain, which is part of why it was so slow.)
@@ -220,7 +230,7 @@ jobs:
           # shorter window for a concurrent write to break the stream.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
-            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search -o -name audio-cache -o -name .tmp_media -o -name corpus-art \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
+            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search -o -name audio-cache -o -name .tmp_media -o -name corpus-art \) -prune \) -o \( -type f -name "*.audioref.json" \) -o -print0 | tar --null --no-recursion -czf - -T -' \
             > snapshot.tgz
 
           # GitHub release assets are capped at 2 GB. Nothing checked this, so a 16 GB
