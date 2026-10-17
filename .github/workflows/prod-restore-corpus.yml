@@ -84,6 +84,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Join the tailnet
         uses: tailscale/github-action@v4
@@ -180,10 +181,10 @@ jobs:
             printf '%s=%s\n' PODCAST_JOB_WEBHOOK_URL "$PROD_JOB_WEBHOOK_URL"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.deploy-staged"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              mv .env.deploy-staged .env; \
              chmod 600 .env; \
@@ -196,10 +197,10 @@ jobs:
         run: |
           set -euo pipefail
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             snapshot.tgz "${SSH_TARGET}:/tmp/snapshot-restore-prod.tgz"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             scripts/ops/restore_corpus_from_tarball_host.sh \
             "${SSH_TARGET}:/tmp/restore_corpus_from_tarball_host.sh"
           # swap_corpus_in_place.sh is a SIBLING that restore_corpus_from_tarball_host.sh invokes as
@@ -210,7 +211,7 @@ jobs:
           # the 2026-09-07 DR drill; the drill had been red on cloud-init since the dependency landed
           # in c3c4276fe (#1528), so this was masked and never observed.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             'rm -rf /tmp/corpus_snapshot && mkdir -p /tmp/corpus_snapshot'
           # Ship the WHOLE corpus_snapshot/ directory, not named files. The parent invokes
           # siblings as "$SCRIPT_DIR/corpus_snapshot/<name>.sh"; today that is
@@ -218,7 +219,7 @@ jobs:
           # what broke this twice — first swap was missing, and once shipped, prune failed the
           # same way one drill later. A directory copy cannot rot when a third sibling is added.
           scp -r -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             scripts/ops/corpus_snapshot/. \
             "${SSH_TARGET}:/tmp/corpus_snapshot/"
 
@@ -231,5 +232,5 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "RESTORE_UPGRADE_MODE=$(printf %q "$RESTORE_UPGRADE_MODE") bash /tmp/restore_corpus_from_tarball_host.sh /tmp/snapshot-restore-prod.tgz"

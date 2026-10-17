@@ -84,6 +84,7 @@ jobs:
         with:
           ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
           identity_env_name: SSH_DRILL_IDENTITY
+          pinned_host_key:   unpinned
 
       - name: "DR drill — join: tailnet (tag:gha-deployer)"
         uses: tailscale/github-action@v4

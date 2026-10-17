@@ -49,6 +49,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -94,7 +95,7 @@ jobs:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
-          SSHF=(-i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          SSHF=(-i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
           # Force-recreate ONLY the api container from the pinned image; the secrets-shim re-reads
           # /run/secrets/app_operator_api_key -> APP_OPERATOR_API_KEY.
           ssh "${SSHF[@]}" "$SSH_TARGET" "set -euo pipefail; cd /srv/podcast-scraper; docker compose --env-file .env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml -f compose/docker-compose.secrets.yml up -d --force-recreate --no-deps api"

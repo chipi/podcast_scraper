@@ -205,6 +205,25 @@ GitHub never relies on keys baked into the runner image.
 the old line until one green workflow run), update `PROD_SSH_PRIVATE_KEY`, re-run `deploy-prod.yml` or
 `backup-corpus-prod.yml`, then delete the superseded public key line on the VPS.
 
+### Pinned prod host key (`PROD_SSH_HOST_KEY`) {#pinned-prod-host-key}
+
+Runners are fresh every run, so `StrictHostKeyChecking=accept-new` would trust whatever answers as
+prod. Instead every prod workflow passes `vars.PROD_SSH_HOST_KEY` to `.github/actions/prod-ssh-key`,
+which writes an `~/.ssh/config` block for `prod-podcast*` (`HostKeyAlias`, a one-line known_hosts,
+`StrictHostKeyChecking yes`). A prod host presenting any other key is refused with
+`Host key verification failed`; the alias keeps the `prod-podcast-N` rename ([suffix
+drift](#tailscale-suffix-drift)) working. Drill workflows and `prod-failover-stand-up.yml` pass
+`unpinned`: the DR box is rebuilt per drill with a new key.
+
+**Set or re-pin** (first bootstrap, and after every VPS rebuild — the new box has a new host key and
+every prod workflow fails until this is done). Read the key over a path you trust (the operator SSH
+session, or the Hetzner console), check the fingerprint, then set the variable without the hostname:
+
+```bash
+ssh deploy@<prod-tailnet-host> 'cat /etc/ssh/ssh_host_ed25519_key.pub; ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+gh variable set PROD_SSH_HOST_KEY --repo chipi/podcast_scraper --body 'ssh-ed25519 AAAA…'
+```
+
 ### GitHub Actions deploy to DR drill (`DRILL_DEPLOY_SSH_PRIVATE_KEY`) {#github-actions-ssh-to-drill-drill_deploy_ssh_private_key}
 
 **Drill workflow matrix, typed confirms, orchestrator, restore/destroy, and drill-only host checks:**
@@ -882,6 +901,10 @@ git push
 ```
 
 **Update `vars.PROD_TAILNET_FQDN` if hostname changed**: the new VPS may join the tailnet as `prod-podcast` (clean slot post-wipe) or `prod-podcast-2` (if an old device record lingered). Compare `gh variable list` against actual `tailscale status` and update if mismatched.
+
+**Re-pin the host key**: the rebuilt VPS has a new SSH host key, so every prod workflow fails with
+`Host key verification failed` until `vars.PROD_SSH_HOST_KEY` is updated — see [Pinned prod host
+key](#pinned-prod-host-key).
 
 **Wait for tailnet join** (cloud-init takes 5–10 min on a fresh image; needs apt + docker + tailscale + repo clones):
 

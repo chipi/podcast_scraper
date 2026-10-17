@@ -104,6 +104,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -157,7 +158,7 @@ jobs:
           # Tolerant of failure: on a corpus with no index yet there is nothing to read, and that
           # is a legitimate starting state rather than an error.
           STATS_BEFORE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -201,7 +202,7 @@ jobs:
           # a product-code change; removing the sidecar is the documented operator workaround and
           # is what CORPUS_INTEGRITY_REPAIR_RUNBOOK.md has said since 2026-08-21.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "docker compose -f /srv/podcast-scraper/compose/docker-compose.stack.yml \
                --env-file /srv/podcast-scraper/.env \
                -f /srv/podcast-scraper/compose/docker-compose.prod.yml \
@@ -214,7 +215,7 @@ jobs:
           # sentence-transformers, and its code is not what this change touched. Embedding ~950
           # episodes is the long pole — hence the 180-minute job timeout.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -244,7 +245,7 @@ jobs:
           #                                existed passes the first check while the rebuild did
           #                                nothing at all, which is exactly tonight's ambiguity.
           STATS_AFTER=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \

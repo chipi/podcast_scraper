@@ -112,6 +112,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -134,8 +135,8 @@ jobs:
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
-          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
-          SCP=(scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
+          SCP=(scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
           ALLOY_DIR=/opt/vps-observability/config.d
           # Tailnet suffix for the telemetry/analytics upstream nodes (Level 3 #1665): everything
           # after the first label of the canonical FQDN (HOST.<TAILNET>.ts.net -> <TAILNET>.ts.net).

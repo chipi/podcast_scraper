@@ -261,6 +261,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -407,7 +408,7 @@ jobs:
             printf '%s=%s\n' PODCAST_JOB_WEBHOOK_URL "$PROD_JOB_WEBHOOK_URL"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.deploy-staged"
           # PROVE BEFORE PROMOTE (#1676 follow-up, 2026-08-18 incident).
           #
@@ -435,7 +436,7 @@ jobs:
           # (first deploy / bootstrap), and no LITELLM_API_KEY line in the staged file (the
           # ADR-115 tmpfs overlay delivers it as a file instead).
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              GW='${PROD_LITELLM_API_BASE}'; \
              NEWKEY=\$(sed -n 's/^LITELLM_API_KEY=//p' .env.deploy-staged | head -1); \
@@ -499,13 +500,13 @@ jobs:
           printf '%s' "$PROD_APP_OPERATOR_API_KEY" > "$STAGE/app_operator_api_key"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "rm -rf /dev/shm/podcast-secrets.staged && mkdir -p /dev/shm/podcast-secrets.staged && chmod 700 /dev/shm/podcast-secrets.staged"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$STAGE"/* "${SSH_TARGET}:/dev/shm/podcast-secrets.staged/"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; chmod 400 /dev/shm/podcast-secrets.staged/*; \
              rm -rf /dev/shm/podcast-secrets; \
              mv /dev/shm/podcast-secrets.staged /dev/shm/podcast-secrets; \
@@ -528,7 +529,7 @@ jobs:
           # writing nothing (short is still exact, just abbreviated).
           FULL_SHA=$(git rev-parse "${SHA_SHORT}" 2>/dev/null || echo "${SHA_SHORT}")
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              test -f .env || install -m 600 /dev/null .env; \
              sed -i '/^PODCAST_RELEASE=/d' .env; \
@@ -547,10 +548,10 @@ jobs:
           set -euo pipefail
           bash scripts/ops/preflight_prod_corpus_path.sh "$SSH_TARGET"
           HOST_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
           CONTAINER_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "grep '^PODCAST_DEFAULT_CORPUS_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
           {
             echo "### Corpus path preflight (#808)"
@@ -580,7 +581,7 @@ jobs:
           fi
 
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "VALUE='${PROD_LITELLM_API_BASE}' bash -s" <<'REMOTE'
           set -euo pipefail
           CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-)
@@ -623,7 +624,7 @@ jobs:
           VIA_FILES:  ${{ vars.PODCAST_SECRETS_VIA_FILES }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "DEPLOY_GIT_SHA='${GIT_REF}' DEPLOY_IMAGE_SHA='${SHA_SHORT}' PODCAST_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy.sh"
 
       - name: External /api/health probe over Tailscale (#720)
@@ -648,7 +649,7 @@ jobs:
           done
           echo "::error::/api/health did not return ok within ~100s over tailnet"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "deploy@${{ steps.ts_host.outputs.resolved_fqdn }}" \
             'docker logs --tail 50 compose-api-1' 2>&1 || true
           exit 1
@@ -670,10 +671,10 @@ jobs:
         run: |
           set -euo pipefail
           HOST_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
           CONTAINER_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "grep '^PODCAST_DEFAULT_CORPUS_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
           if [ -z "${HOST_CORPUS:-}" ]; then
             echo "::error::PODCAST_CORPUS_HOST_PATH missing from host .env"
@@ -684,7 +685,7 @@ jobs:
             exit 1
           fi
           if ! ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "test -d '$HOST_CORPUS'"; then
             echo "::error::PODCAST_CORPUS_HOST_PATH is not a directory on host: $HOST_CORPUS"
             exit 1
@@ -774,7 +775,7 @@ jobs:
           # here was a MISDIAGNOSIS — 6x401 was an empty key, not a transient reject. Reverted; the
           # real fix is the re-stage step above, matching every container-creating workflow.)
           CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \

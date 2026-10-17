@@ -109,6 +109,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -130,7 +131,7 @@ jobs:
           DEPLOY_REF: ${{ github.ref_name }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
              git reset --hard 'origin/$DEPLOY_REF'"
@@ -168,11 +169,11 @@ jobs:
             echo "HOMELAB_TAILNET_IP="
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/infra/litellm/.env.staged"
           rm -f "$ENVTMP"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper/infra/litellm; \
              mv .env.staged .env; chmod 600 .env"
 
@@ -185,7 +186,7 @@ jobs:
           IMAGE_TAG: ${{ inputs.override_image_tag }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "LITELLM_IMAGE_TAG='${IMAGE_TAG}' /srv/podcast-scraper/infra/deploy/deploy-litellm.sh"
 
       - name: Provision the podcast-prod consumer virtual key (idempotent)
@@ -213,7 +214,7 @@ jobs:
           fi
           printf '%s\n%s\n' "$LITELLM_MASTER_KEY" "$LITELLM_PROJ_PODCAST_PROD_KEY" | \
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               'set -eu; read -r MK; read -r VK; \
                info=$(curl -s -o /dev/null -w "%{http_code}" -G "http://127.0.0.1:4001/key/info" \
                  -H "Authorization: Bearer $MK" --data-urlencode "key=$VK" || echo 000); \
@@ -233,7 +234,7 @@ jobs:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper/infra/litellm; \
              docker compose -p litellm ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}' || true; \
              docker exec litellm sh -c 'curl -fsS http://127.0.0.1:4000/health/liveliness' || true" \

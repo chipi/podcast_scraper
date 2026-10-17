@@ -138,6 +138,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -186,7 +187,7 @@ jobs:
           # /app/output is PODCAST_DEFAULT_CORPUS_PATH — the container's view of the corpus.
           remote() {
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "cd /srv/podcast-scraper && \
                SEC=''; \
                if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -228,7 +229,7 @@ jobs:
               echo '```'
             } >> "$SUMMARY"
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "cd /srv/podcast-scraper && \
                SEC=''; \
                if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -301,17 +302,17 @@ jobs:
             echo "### Capability audit (ranking + personalisation)" >> "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/capability_audit_pkg && mkdir -p /tmp/capability_audit_pkg"
 
             scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes -r \
               src/podcast_scraper "$SSH_TARGET:/tmp/capability_audit_pkg/podcast_scraper"
 
             # Same compose invocation the `remote()` helper builds, plus the mount + PYTHONPATH,
             # and `api` instead of `pipeline-llm`. The corpus is the container's own /app/output.
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "cd /srv/podcast-scraper && \
                SEC=''; \
                if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -330,7 +331,7 @@ jobs:
               2>&1 | tee -a "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/capability_audit_pkg" || true
 
             echo "" >> "$SUMMARY"
@@ -350,15 +351,15 @@ jobs:
           # dependency the image lacks — is not worth betting on to ask about one migration.
           if [ "${CHECKS}" = "m0007_dry_run" ]; then
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/m0007_dry_run_pkg && mkdir -p /tmp/m0007_dry_run_pkg"
 
             scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes -r \
               src/podcast_scraper "$SSH_TARGET:/tmp/m0007_dry_run_pkg/podcast_scraper"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "cd /srv/podcast-scraper && \
                SEC=''; \
                if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -377,7 +378,7 @@ jobs:
               2>&1 | tee -a "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/m0007_dry_run_pkg" || true
 
             echo "" >> "$SUMMARY"
@@ -411,15 +412,15 @@ jobs:
             } >> "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/upgrade_dry_run_pkg && mkdir -p /tmp/upgrade_dry_run_pkg"
 
             scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes -r \
               src/podcast_scraper "$SSH_TARGET:/tmp/upgrade_dry_run_pkg/podcast_scraper"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "cd /srv/podcast-scraper && \
                SEC=''; \
                if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -445,7 +446,7 @@ jobs:
               2>&1 | tee -a "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/upgrade_dry_run_pkg" || true
 
             echo '```' >> "$SUMMARY"
@@ -486,18 +487,18 @@ jobs:
             } >> "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/audit_pkg && mkdir -p /tmp/audit_pkg"
 
             scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes -r \
               src/podcast_scraper "$SSH_TARGET:/tmp/audit_pkg/podcast_scraper"
             scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes -r \
               scripts "$SSH_TARGET:/tmp/audit_pkg/scripts"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "cd /srv/podcast-scraper && \
                SEC=''; \
                if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -520,7 +521,7 @@ jobs:
               2>&1 | tee -a "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/audit_pkg" || true
 
             echo '```' >> "$SUMMARY"
@@ -548,7 +549,7 @@ jobs:
               echo '```'
             } >> "$SUMMARY"
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               'cd /srv/podcast-scraper/corpus 2>/dev/null || exit 0
                echo "TOTAL: $(du -sh . 2>/dev/null | cut -f1)"
                echo ""
@@ -574,7 +575,7 @@ jobs:
               echo '```'
             } >> "$SUMMARY"
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "find /srv/podcast-scraper/corpus -name metrics.json -newermt '-6 hours' \
                  -exec sh -c 'echo \"\$1: \$(jq -c \"{attempts: .preprocessing_attempts, completed: .preprocessing_count, transcribed: .transcribe_count}\" \"\$1\")\"' _ {} \; \
                | head -50" 2>&1 | tee -a "$SUMMARY"

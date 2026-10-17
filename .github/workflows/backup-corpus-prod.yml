@@ -112,6 +112,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -140,7 +141,7 @@ jobs:
           # If the bulk is media or search, the fix is an exclude, not a bigger timeout.
           # Read-only: du and find only.
           REPORT=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             'cd /srv/podcast-scraper/corpus 2>/dev/null || exit 0
              echo "TOTAL: $(du -sh . 2>/dev/null | cut -f1)"
              for d in media search transcripts metadata; do
@@ -218,7 +219,7 @@ jobs:
           # the walk is proportional to what is actually archived — and a shorter read is a
           # shorter window for a concurrent write to break the stream.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search -o -name audio-cache -o -name .tmp_media -o -name corpus-art \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
             > snapshot.tgz
 

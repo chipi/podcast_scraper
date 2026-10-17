@@ -5,6 +5,12 @@ description: |
   Tailscale join. Used by deploy-prod.yml; drill-deploy.yml passes a custom
   identity_env_name.
 
+  Every caller states how the VPS host key is trusted. Prod callers pass
+  vars.PROD_SSH_HOST_KEY: ssh then refuses any prod-podcast* host whose key differs
+  (StrictHostKeyChecking yes via ~/.ssh/config, keyed by HostKeyAlias so the GH-744
+  prod-podcast-N rename still matches). Drill callers pass "unpinned": the DR box is
+  rebuilt per drill and gets a new key every time.
+
 inputs:
   ssh_private_key:
     description: Full PEM contents of the CI-only key trusted by deploy@ on the target host.
@@ -13,6 +19,11 @@ inputs:
     description: Name of the environment variable set to the key file path (A-Z, digits, underscore only).
     required: false
     default: SSH_PROD_IDENTITY
+  pinned_host_key:
+    description: >-
+      Public host key of the target VPS ("ssh-ed25519 AAAA…", no hostname), normally
+      vars.PROD_SSH_HOST_KEY; or the literal "unpinned" for a host rebuilt per run (DR drill).
+    required: true
 
 runs:
   using: composite
@@ -22,6 +33,7 @@ runs:
       env:
         KEY_MATERIAL: ${{ inputs.ssh_private_key }}
         IDENTITY_ENV_NAME: ${{ inputs.identity_env_name }}
+        PINNED_HOST_KEY: ${{ inputs.pinned_host_key }}
       run: |
         set -euo pipefail
         if [ -z "${KEY_MATERIAL}" ]; then
@@ -36,3 +48,20 @@ runs:
         printenv KEY_MATERIAL > "$key_file"
         chmod 600 "$key_file"
         echo "${IDENTITY_ENV_NAME}=${key_file}" >> "${GITHUB_ENV}"
+        if [ "${PINNED_HOST_KEY}" = "unpinned" ]; then
+          exit 0
+        fi
+        if [[ ! "${PINNED_HOST_KEY}" =~ ^(ssh-ed25519|ecdsa-sha2-nistp256|ssh-rsa)\ [A-Za-z0-9+/]+={0,2}$ ]]; then
+          echo "::error::prod-ssh-key: pinned_host_key must be 'ssh-ed25519 AAAA…' (set vars.PROD_SSH_HOST_KEY; see PROD_RUNBOOK 'Pinned prod host key') or 'unpinned'"
+          exit 1
+        fi
+        mkdir -p "${HOME}/.ssh"
+        chmod 700 "${HOME}/.ssh"
+        printf 'pinned-prod-podcast %s\n' "${PINNED_HOST_KEY}" > "${HOME}/.ssh/known_hosts_pinned_prod"
+        cat >> "${HOME}/.ssh/config" <<CFG
+        Host prod-podcast prod-podcast.* prod-podcast-*
+          HostKeyAlias pinned-prod-podcast
+          UserKnownHostsFile ${HOME}/.ssh/known_hosts_pinned_prod
+          StrictHostKeyChecking yes
+        CFG
+        chmod 600 "${HOME}/.ssh/config"

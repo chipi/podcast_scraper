@@ -124,6 +124,13 @@ timings, only its start and failures at DEBUG.
   `.viewer/operator-config.before-vllm-direct-removed-20261017T061742Z.yaml`; `ad47a8bc0` warns when a
   config file overrides a profile's `vllm_api_base`. Check: the 2026-10-18 00:00 UTC nightly
   succeeds and deepens the 13 new feeds.
+- **Pinned prod SSH host key (operator decision 2026-10-17):** the 23 prod workflows trust only
+  `vars.PROD_SSH_HOST_KEY` (set 2026-10-17, ED25519
+  `SHA256:jcRHkLFcNnL122wb3nM7F5nNjEqCtyjfys6+sRJ1EA0`, read from the box and matched against
+  `ssh-keyscan`); drill + failover stay unpinned. Workflow files take effect on the first dispatch
+  after the push to main, not at the image deploy. Check: the first prod workflow after the push
+  (any of them) gets past its first ssh step. After any VPS rebuild, re-pin first (PROD_RUNBOOK
+  "Pinned prod host key").
 
 ## Next deploy (candidate: main head when the operator names it) — the whole list
 

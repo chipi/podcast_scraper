@@ -236,6 +236,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -335,7 +336,7 @@ jobs:
             sed 's/^/    /' "${RUNNER_TEMP}/adhoc-ids.txt"
             IDS_B64=$(base64 < "${RUNNER_TEMP}/adhoc-ids.txt" | tr -d '\n')
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "docker run --rm -v compose_corpus_data:/app/output --entrypoint sh alpine:3 \
                  -c 'echo ${IDS_B64} | base64 -d > ${IDS_FILE} && wc -l < ${IDS_FILE}'" \
               || { echo '::error::could not stage the inline work-list into the corpus volume'; exit 1; }
@@ -468,7 +469,7 @@ jobs:
             # Only sitecustomize.py goes in this directory, so putting it FIRST on sys.path
             # cannot shadow the installed package.
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
               "mkdir -p /srv/podcast-scraper/diag && \
                printf '%s\n' 'import faulthandler' \
                  'faulthandler.dump_traceback_later(${DIAGNOSE_HANG_SECONDS}, exit=True)' \
@@ -478,7 +479,7 @@ jobs:
           fi
 
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -o pipefail; \
              cd /srv/podcast-scraper && \
              mkdir -p /srv/podcast-scraper/logs && \

@@ -115,6 +115,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -158,7 +159,7 @@ jobs:
           # started by hand, or one an earlier killed job orphaned. Deleting media out from under
           # a live run would take the audio it is mid-way through reading.
           N=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "docker ps --filter name=pipeline -q | wc -l | tr -d ' '")
           echo "live pipeline containers: ${N}"
           if [ "${N}" != "0" ]; then
@@ -206,7 +207,7 @@ jobs:
           echo "container name: ${RUN_NAME} (watchdog kills THIS at ${REMOTE_TIMEOUT_S}s)"
 
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -o pipefail; \
              cd /srv/podcast-scraper && \
              mkdir -p /srv/podcast-scraper/logs && \
@@ -246,7 +247,7 @@ jobs:
           # The point of the sweep is reclaimed bytes, so report them rather than trusting the
           # run's own summary.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "df -h /srv | tail -1; \
              echo -n 'corpus media/ total: '; \
              du -sh /srv/podcast-scraper/corpus 2>/dev/null | cut -f1" \

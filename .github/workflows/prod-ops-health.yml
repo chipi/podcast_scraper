@@ -54,6 +54,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -74,7 +75,7 @@ jobs:
           # litellm_smoke.py. If the box checkout predates this workflow, fail with a hint
           # instead of a confusing "file not found".
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             'test -x /srv/podcast-scraper/scripts/ops/prod_ops_health.sh \
                || { echo "::error::prod_ops_health.sh missing on the box — run any deploy (or git pull /srv/podcast-scraper) to refresh the checkout"; exit 5; }; \
              /srv/podcast-scraper/scripts/ops/prod_ops_health.sh'

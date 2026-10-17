@@ -83,6 +83,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -101,7 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             'tar -czf - -C /srv/podcast-scraper player-appdata' > player-appdata.tgz
           echo "Tarball: $(du -h player-appdata.tgz | cut -f1)"
           size=$(stat -c%s player-appdata.tgz)

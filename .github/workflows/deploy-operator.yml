@@ -124,6 +124,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -149,7 +150,7 @@ jobs:
           # SAME /srv/podcast-scraper/.git; concurrent refreshes collided on git's shallow.lock.
           # Serialize with an flock on a shared lockfile (FD-based; releases when the shell exits).
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              exec 9>/tmp/podcast-scraper-git-refresh.lock; \
              flock -w 180 9 || { echo 'could not acquire the shared git-refresh lock in 180s' >&2; exit 1; }; \
@@ -291,11 +292,11 @@ jobs:
             fi
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.operator.staged"
           rm -f "$ENVTMP"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              mv .env.operator.staged .env.operator; chmod 600 .env.operator"
 
@@ -321,13 +322,13 @@ jobs:
           printf '%s' "$PODCAST_SENTRY_DSN_API" > "$STAGE/podcast_sentry_dsn_api"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "rm -rf /dev/shm/operator-secrets.staged && mkdir -p /dev/shm/operator-secrets.staged && chmod 700 /dev/shm/operator-secrets.staged"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$STAGE"/* "${SSH_TARGET}:/dev/shm/operator-secrets.staged/"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; chmod 400 /dev/shm/operator-secrets.staged/*; \
              rm -rf /dev/shm/operator-secrets; \
              mv /dev/shm/operator-secrets.staged /dev/shm/operator-secrets"
@@ -344,7 +345,7 @@ jobs:
           VIA_FILES: ${{ vars.OPERATOR_SECRETS_VIA_FILES }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "OPERATOR_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy-operator.sh"
 
       - name: External health probe (public operator domain)

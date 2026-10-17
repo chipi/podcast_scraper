@@ -114,6 +114,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -159,7 +160,7 @@ jobs:
           # Everything below runs ON the box, fed over stdin so no value is interpolated into
           # a command line the runner can see. bash -s (not sh) for ${VAR: -4}-style builtins.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "KEY_ALIAS='${KEY_ALIAS}' MAX_BUDGET='${MAX_BUDGET}' DO_ACTION='${DO_ACTION}' DELETE_ALIAS='${DELETE_ALIAS}' GW_BASE_OVERRIDE='${GW_BASE_OVERRIDE}' bash -s" <<'REMOTE'
           set -euo pipefail
           LLENV=/srv/podcast-scraper/infra/litellm/.env

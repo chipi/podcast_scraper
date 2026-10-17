@@ -72,6 +72,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
@@ -91,7 +92,7 @@ jobs:
           set -euo pipefail
           echo "=== ALL containers on the prod box ==="
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.RunningFor}}\t{{.Command}}'"
 
           echo
@@ -99,7 +100,7 @@ jobs:
           # Matched by the compose service names that run batch work. The api/viewer/operator
           # services are deliberately NOT matched — stopping the site is not the goal.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "docker ps --filter name=pipeline --format '{{.ID}} {{.Names}} (up {{.RunningFor}})' || true"
 
       - name: Make them say why first (SIGABRT + docker logs)
@@ -115,7 +116,7 @@ jobs:
           # was supposed to abort kept running for another 14 minutes. The signal has to be
           # delivered by the daemon, to PID 1 in the container.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "IDS=\$(docker ps -q --filter name=pipeline); \
              if [ -z \"\$IDS\" ]; then echo 'nothing running — no stacks to take'; exit 0; fi; \
              for c in \$IDS; do \
@@ -138,7 +139,7 @@ jobs:
           # then SIGKILL anything that has not exited. `docker kill` alone would leave the run's
           # accounting incomplete, which is how spend becomes invisible after the fact.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "IDS=\$(docker ps -q --filter name=pipeline); \
              if [ -z \"\$IDS\" ]; then \
                echo 'no pipeline containers running — nothing to stop'; \
@@ -156,7 +157,7 @@ jobs:
           set -euo pipefail
           echo "=== containers still running after the stop ==="
           LEFT=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "docker ps --filter name=pipeline -q | wc -l | tr -d ' '")
           echo "pipeline containers remaining: ${LEFT}"
           if [ "${{ github.event.inputs.dry_run }}" != "true" ] && [ "${LEFT}" != "0" ]; then

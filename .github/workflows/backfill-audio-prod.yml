@@ -98,6 +98,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -155,7 +156,7 @@ jobs:
           # missing RCLONE_CONFIG_* on the box (silent-degrade) is caught here, not after a no-op run.
           echo "smoke: probing the cold remote..."
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
@@ -195,7 +196,7 @@ jobs:
           # killed run (a lost-logs recurrence otherwise).
           REMOTE_LOG="/srv/podcast-scraper/logs/backfill-$(date -u +%Y%m%dT%H%M%SZ).log"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && mkdir -p logs && \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \

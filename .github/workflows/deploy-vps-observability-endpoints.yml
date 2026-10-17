@@ -85,6 +85,7 @@ jobs:
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          pinned_host_key: ${{ vars.PROD_SSH_HOST_KEY }}
 
       - name: Resolve prod MagicDNS host
         id: ts_host
@@ -102,7 +103,7 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
-          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
 
           # Load node subdomains + paths (repo-tracked, non-secret; constant path for shellcheck).
           set -a; . infra/observability/vps-observability.endpoints.env; set +a
@@ -157,7 +158,7 @@ jobs:
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
-          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+          SSH=(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
           set -a; . infra/observability/vps-observability.endpoints.env; set +a
           # Derive tailnet suffix + prod instance label from the operator var (never committed):
           #   HOST.<TAILNET>.ts.net -> INSTANCE=HOST, TAILNET_DOMAIN=<TAILNET>.ts.net
