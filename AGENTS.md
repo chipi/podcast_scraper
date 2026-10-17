@@ -64,6 +64,7 @@ exists because a session burned time rediscovering something already written dow
 | **Prod ops — deploy, health, corpus paths, secrets** | `docs/guides/PROD_OPERATOR_CHEAT_SHEET.md` | endpoints, host paths, daily commands, incident playbook, secret inventory |
 | **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml`, `docs/wip/CORPUS-EXPANSION-REGISTRY-2026-09.md` | the vetted feed list + every rejection with its reason |
 | **Enrichment quality gates** | `docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` §5f-§5j | the §5g probe protocol, §5i evidence-based gates, the 2h duration ceiling |
+| **Prod ops procedures — load the SKILL, don't hand-roll** | the skill (`~/.claude/skills/<name>/SKILL.md`, source in `agentic-ai-homelab/workstation/claude/skills/`) | `prod-deploy` (preflight a sha / dispatch / verify the box), `prod-batch-chain` (reprocess/backfill batches before the nightly; hold/resume), `prod-job-progress` (progress + ETA, no silent zeros), `corpus-migration` (upgrade dry-run → gated apply → verify → ownership), `session-handoff-msg` (check a message to another session), `ci-step-local` (test a workflow step / systemd unit before pushing). Job configs live in `~/.local/state/<skill>/` |
 
 **The failure this table prevents:** on 2026-09-05 a session spent an hour probing observability
 endpoints by guessing ports, concluded GlitchTip and Umami were down (they were healthy — wrong
