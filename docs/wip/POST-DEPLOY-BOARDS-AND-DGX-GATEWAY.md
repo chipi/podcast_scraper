@@ -112,6 +112,13 @@ timings, only its start and failures at DEBUG.
   · N of them refused and not served (TranscriptLanguageMismatch N)" and exits 0. On `sha-ded80e0`
   the 2026-10-16 Turkish run (38976538076) went red for exactly this, though both refusals and
   withdrawals worked.
+- **Also for the NEXT deploy: `b1c7b363b`:** a smoke-failure alert carries the deployed image tag
+  (`needs.deploy.outputs.image_tag`), not `GITHUB_SHA` (the 2026-10-16 alert PODCAST-API-4 said
+  `sha-b0edbb9`). Seen only if a smoke fails.
+- **`m0031` (operator decision 2026-10-17), replacing the 131-episode relabel:** a frozen
+  voice-by-voice name migration like `m0029`, built by the ingestion session from the two replays
+  (`/Users/Shared/postdeploy-2026-10-16/m0031_candidates_131.txt`). No LLM, no DGX; runs on the CPU
+  track before `0030`.
 - **Fixed on prod 2026-10-17 06:17 UTC:** the nightly failed on 10-16 and 10-17 (401 from a stale
   direct `vllm_api_base: http://dgx-llm-1:8003/v1` in `viewer_operator.yaml`). Line removed, backup
   `.viewer/operator-config.before-vllm-direct-removed-20261017T061742Z.yaml`; `ad47a8bc0` warns when a
