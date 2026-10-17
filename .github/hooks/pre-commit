@@ -32,6 +32,12 @@
 # Don't use set -e - we want to collect all errors, not exit on first failure
 set +e
 
+# An inherited NODE_OPTIONS can point at a `--require` shim that no longer exists (the terminal's,
+# see the top of the Makefile), and then the markdownlint step dies with MODULE_NOT_FOUND and the
+# commit is refused for a reason that has nothing to do with the files. The Makefile drops it for
+# the same reason (`unexport NODE_OPTIONS`); drop it here too.
+unset NODE_OPTIONS
+
 # Master timeout to prevent unkillable hanging processes.
 # If any check (black, mypy, etc.) gets stuck in kernel I/O, this ensures
 # the hook exits instead of leaving zombie processes.

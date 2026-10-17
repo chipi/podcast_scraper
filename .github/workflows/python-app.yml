@@ -106,8 +106,16 @@ permissions:
 # which would let ``actions/cache`` save a partial (poisoned) model cache that
 # later runs cache-hit. Release / deploy / backup workflows keep
 # ``cancel-in-progress: false`` explicitly.
+#
+# On a push the group is PER COMMIT. `cancel-in-progress: false` stops a RUNNING run from being
+# cancelled, but GitHub still keeps only one PENDING run per group: a newer push replaced the
+# waiting one, and detect-changes then diffed only the newer push. On 2026-10-16 three main
+# commits queued behind a running one; the code commits' runs were replaced, the last commit
+# was a Markdown file, so its run skipped every Python test job, and a Python change
+# (ab8290f6f) went untested until the next Python commit's run happened to cover it. One group per
+# commit gives every commit its own run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

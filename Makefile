@@ -86,7 +86,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -5681,6 +5681,17 @@ profiles-materialize:
 profiles-check:
 	.venv/bin/python scripts/config/materialize_profiles.py --check; echo "MAKE_EXIT=$$?"
 
+#: The local gates for what changed vs origin/main (or STAGED=1: the staged files), checks only:
+#: black/isort/flake8/mypy/docstrings + the tests naming a changed module, markdownlint, make docs,
+#: player/viewer vitest-related + vue-tsc, actionlint. Last line GATES: PASS|FAIL. Skill: local-gates.
+#: Rebuild the app validation corpus as committed (build, realign, corpus enrichers) and report
+#: the difference; WRITE=1 copies added/changed files in. README: tests/fixtures/app-validation-corpus.
+regen-fixtures:
+	@scripts/tools/regen_app_fixture.sh $(if $(filter 1,$(WRITE)),--write,)
+
+gates-changed:
+	@scripts/tools/gates_changed.sh $(if $(filter 1,$(STAGED)),--staged,$(if $(SINCE),--since $(SINCE),))
+
 validate-files:
 	@# Validate changed files: lint/format + run only impacted tests
 	@# Usage: make validate-files FILES="src/podcast_scraper/config.py src/podcast_scraper/workflow/orchestration.py"
@@ -5705,9 +5716,10 @@ validate-files:
 		$(PYTHON) -m black $$file; \
 		$(PYTHON) -m isort $$file; \
 		echo "  Linting: $$file"; \
-		$(PYTHON) -m flake8 --config .flake8 $$file || true; \
-		$(PYTHON) -m mypy $$file || true; \
-	done
+		$(PYTHON) -m flake8 --config .flake8 $$file || lint_failed=1; \
+		$(PYTHON) -m mypy $$file || lint_failed=1; \
+	done; \
+	[ -z "$$lint_failed" ] || { echo "FAIL: flake8/mypy errors above (validate-files used to ignore them)"; exit 1; }
 	@echo ""
 	@echo "🔍 Step 2: Discovering impacted tests..."
 	@TEST_TYPE=$${TEST_TYPE:-all}; \

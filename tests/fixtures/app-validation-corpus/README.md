@@ -155,7 +155,17 @@ the network for models.
 did not reproduce it (2026-10-11: 153 files differ — later fixes lived only in the committed files),
 so corpus-wide corrections were MIGRATIONS of the committed files. On 2026-10-13 the corpus was
 rebuilt from the builder (rebasing onto main's D-44 English analysis of translated episodes) and
-the realign applied on top; a second realign changes nothing. To regenerate:
+the realign applied on top; a second realign changes nothing. To regenerate, one command:
+
+```sh
+make regen-fixtures            # dry run: added / changed / removed files vs the committed corpus
+make regen-fixtures WRITE=1    # copy added + changed files in; removed ones are listed, not deleted
+```
+
+`scripts/tools/regen_app_fixture.sh` runs exactly the steps below, checks the second realign, and
+counts a file as changed only when its content changed (an enrichment run's timestamps, run ids
+and run-log lines alone are not a change). On an up-to-date fixture it reports 0 / 0 / 0
+(2026-10-17). By hand:
 
 ```sh
 S=$(mktemp -d); cp -R tests/fixtures/app-validation-corpus/v3 $S/v3
