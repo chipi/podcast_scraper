@@ -28,9 +28,12 @@ the function-word counts `ad_signatures` already runs over the corpus
 - the declared language's own function words are under 2% of its words (this half catches
   Portuguese, whose thin word list leaves `detect_language` undecided on 2 of 3 fixtures).
 
-It has no opinion under 200 words or for a language with no word list. The failure is an error
-log, a hard incident and a ledger row (`TranscriptLanguageMismatch`), like every other refusal.
-The reason names the remedy: an operator language override (#2283), then re-run.
+It has no opinion under 200 words or for a language with no word list. The refusal is a warning
+log, a `policy` incident and a `skipped` ledger row (`TranscriptLanguageMismatch`); a work-list
+that named the episode counts it as met, said apart as "refused and not served". (Amended
+2026-10-17, #2375: it was an error log, a hard incident and a `failed` row, so a reprocess whose
+only episodes were refused, as designed, ran red as "repaired 0/2".) The reason names the remedy:
+an operator language override (#2283), then re-run.
 
 **No auto-correction.** The guard does not re-transcribe in the language the text reads as.
 

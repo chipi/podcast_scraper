@@ -334,3 +334,51 @@ def test_declined_matches_on_guid_ignores_strangers_and_a_completion_wins() -> N
     assert r.declined_ids == ["guid-1"]
     assert r.incomplete == []
     assert "repaired 1/2" in r.summary()
+
+
+def test_a_language_refused_episode_meets_the_request_and_says_so() -> None:
+    """#2375: refusing and withdrawing it is the end state asked for, not a failed repair.
+
+    Prod, 2026-10-16 (run 38976538076): a reprocess of the two Turkish episodes refused both,
+    withdrew their served runs, and exited 1 as "repaired 0/2 · 2 selected but did NOT finish".
+    """
+    r = get_worklist_report()
+    r.request(["tr1", "tr2"])
+    r.mark_matched(["tr1", "tr2"])
+    r.mark_refused("tr1", reason="TranscriptLanguageMismatch")
+    r.mark_refused("tr2", reason="TranscriptLanguageMismatch")
+    assert r.repaired_nothing is False
+    assert r.incomplete == [] and r.declined_ids == []
+    line = r.summary()
+    assert "repaired 2/2" in line
+    assert "2 of them refused and not served (TranscriptLanguageMismatch 2): [tr1, tr2]" in line
+    assert "all requested episodes repaired" not in line
+    assert r.as_dict()["refused"] == {
+        "tr1": "TranscriptLanguageMismatch",
+        "tr2": "TranscriptLanguageMismatch",
+    }
+
+
+def test_refused_episodes_log_at_WARNING(caplog) -> None:
+    import logging
+
+    r = get_worklist_report()
+    r.request(["ok1", "tr1"])
+    r.mark_matched(["ok1", "tr1"])
+    r.mark_completed("ok1")
+    r.mark_refused("tr1", reason="TranscriptLanguageMismatch")
+    with caplog.at_level(logging.DEBUG):
+        log_worklist_outcome()
+    assert not [rec for rec in caplog.records if rec.levelno >= logging.ERROR]
+    assert [rec for rec in caplog.records if rec.levelno == logging.WARNING]
+
+
+def test_refused_matches_on_guid_and_ignores_ids_nobody_requested() -> None:
+    r = get_worklist_report()
+    r.request(["guid-1"])
+    r.mark_matched(["guid-1"])
+    r.mark_refused("stray", "also-stray", reason="TranscriptLanguageMismatch")
+    assert r.repaired_nothing is True
+    r.mark_refused("derived-id", "guid-1", reason="TranscriptLanguageMismatch")
+    assert r.repaired_nothing is False
+    assert r.as_dict()["refused"] == {"guid-1": "TranscriptLanguageMismatch"}

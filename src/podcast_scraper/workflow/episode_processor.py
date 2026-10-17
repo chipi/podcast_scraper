@@ -4375,6 +4375,7 @@ def _mark_reprocess_nothing_to_do(
     error_type: str,
     detail: str,
     satisfied: bool = False,
+    refused: bool = False,
 ) -> None:
     """Ledger row for a reprocess stage that looked at an episode and, by design, did nothing.
 
@@ -4388,6 +4389,10 @@ def _mark_reprocess_nothing_to_do(
     (``WorklistReport.repaired_nothing``), which would make the stage unrepeatable by the one
     property it is for. A refused window is NOT satisfied -- the episode is still wrong, and a run
     that repaired none of what it was asked to is a failed run.
+
+    ``refused`` is the third outcome: the episode was refused outright and withdrawn from what is
+    served (#2375, a language the corpus does not enable). That is the state asked for, so the
+    work-list counts it as met, said apart with its reason.
 
     Never raises: a metrics problem must not turn a skip into a failure.
     """
@@ -4410,6 +4415,8 @@ def _mark_reprocess_nothing_to_do(
     guid = getattr(guid_el, "text", None)
     if satisfied:
         get_worklist_report().mark_already_right(episode_id, guid)
+    elif refused:
+        get_worklist_report().mark_refused(episode_id, guid, reason=error_type)
     else:
         # Still wrong, so not done -- but it ran and the stage said no; the report must not call
         # it unfinished (a crash, to anyone reading the ERROR line).
@@ -5347,7 +5354,11 @@ def transcribe_media_to_text(
             result, cfg, job, wrong_language, media_for_transcription, transcription_provider
         )
         if wrong_language is not None:
-            logger.error("[%s] REFUSING episode: %s", job.idx, wrong_language)
+            # #2375: the guard working, not a failure. The episode is refused and withdrawn, as
+            # RFC-130 specifies, so it is a `skipped` decision and a `policy` incident: logged
+            # at ERROR and counted `failed`, the 2026-10-16 Turkish reprocess ran red as
+            # "repaired 0/2" after doing exactly what it was for.
+            logger.warning("[%s] REFUSING episode: %s", job.idx, wrong_language)
             if job.episode is not None:
                 _record_language_refusal(
                     job.episode, cfg, wrong_language, detected=detected_language
@@ -5356,17 +5367,18 @@ def transcribe_media_to_text(
             _append_transcription_incident(
                 cfg,
                 job,
-                category="hard",
+                category="policy",
                 message=wrong_language,
                 exception_type="TranscriptLanguageMismatch",
             )
-            _record_unresolved_transcript(
-                job,
+            _mark_reprocess_nothing_to_do(
+                job.episode,
                 cfg,
                 pipeline_metrics,
                 "transcription",
                 error_type="TranscriptLanguageMismatch",
                 detail=wrong_language,
+                refused=True,
             )
             return False, None, bytes_downloaded
         if cfg.diarize:

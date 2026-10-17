@@ -36,8 +36,11 @@ Nothing in the metadata says so:
 The transcript is the only witness. Since 2026-10-07 the post-ASR guard
 (`languages_guard.transcript_language_contradiction`) reads it, and on a contradiction the episode
 is **refused and skipped**:
-- the error is logged;
-- a hard incident (`TranscriptLanguageMismatch`) and an unresolved transcript are recorded;
+- the refusal is logged at WARNING;
+- a `policy` incident (`TranscriptLanguageMismatch`) and a `skipped` ledger row are recorded, and a
+  work-list that named the episode counts it as met ("refused and not served"): refusing it is the
+  guard working (#2375; until 2026-10-17 it was a hard incident and a failed episode, so a reprocess
+  of only refused episodes ran red);
 - `<corpus>/.language_refusals/<sha1(episode id)>.json` stores `{requested, detail, title}`;
 - nothing else is written, so the episode is on no serving surface;
 - later runs skip it before download until the declared language changes.

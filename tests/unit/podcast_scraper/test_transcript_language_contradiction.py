@@ -98,7 +98,7 @@ class _ReachedDiarization(Exception):
 def _run_pipeline(monkeypatch, text: str, requested: str, **overrides: Any) -> Dict[str, Any]:
     from podcast_scraper.workflow import episode_processor as ep
 
-    seen: Dict[str, Any] = {"recorded": [], "incidents": [], "saved": False}
+    seen: Dict[str, Any] = {"recorded": [], "decided": [], "incidents": [], "saved": False}
     result = {"text": text, "segments": [], "language_requested": requested}
     monkeypatch.setattr(ep, "_bind_episode_correlation", lambda job, cfg: None)
     monkeypatch.setattr(ep, "_maybe_dispatch_reprocess_stage", lambda *a, **k: None)
@@ -121,6 +121,13 @@ def _run_pipeline(monkeypatch, text: str, requested: str, **overrides: Any) -> D
         lambda job, cfg, pm, stage, *, error_type="", detail=None: seen["recorded"].append(
             {"stage": stage, "error_type": error_type, "detail": detail}
         ),
+    )
+    monkeypatch.setattr(
+        ep,
+        "_mark_reprocess_nothing_to_do",
+        lambda episode, cfg, pm, stage, *, error_type, detail, satisfied=False, refused=False: seen[
+            "decided"
+        ].append({"stage": stage, "error_type": error_type, "refused": refused}),
     )
     monkeypatch.setattr(
         ep,
@@ -188,10 +195,15 @@ class TestThePipelineRefusesTheEpisode:
         assert seen["return"] == (False, None, 0)
         assert seen["diarized"] is False
         assert seen["saved"] is False
-        assert [r["error_type"] for r in seen["recorded"]] == ["TranscriptLanguageMismatch"]
-        assert "reads as 'es'" in (seen["recorded"][0]["detail"] or "")
+        # #2375: refusing is the guard working, so the episode is a decision, not a failure: a
+        # `skipped` ledger row and a work-list request met, and a `policy` incident, not `hard`.
+        assert seen["recorded"] == []
+        assert seen["decided"] == [
+            {"stage": "transcription", "error_type": "TranscriptLanguageMismatch", "refused": True}
+        ]
+        assert "reads as 'es'" in seen["refusals"][0]["detail"]
         assert seen["incidents"] == [
-            {"category": "hard", "exception_type": "TranscriptLanguageMismatch"}
+            {"category": "policy", "exception_type": "TranscriptLanguageMismatch"}
         ]
 
     def test_a_correctly_declared_episode_is_not_refused(self, monkeypatch) -> None:
@@ -200,7 +212,7 @@ class TestThePipelineRefusesTheEpisode:
         _, _, english = next(f for f in FIXTURES if f[1] == "en")
         seen = self._run(monkeypatch, english, "en")
         assert seen["diarized"] is True
-        assert seen["recorded"] == []
+        assert seen["recorded"] == [] and seen["decided"] == []
         assert seen["incidents"] == []
         # #2187 A2: the fresh-transcription path hands diarization a way to re-transcribe gaps.
         assert callable(seen["transcribe_clip"])
@@ -235,7 +247,7 @@ class TestAnEpisodeInAnotherLanguageThanItsShow:
         _, _, spanish = next(f for f in FIXTURES if f[1] == "es")
         seen = self._run(monkeypatch, spanish, "en", identified="tr")
         assert seen["diarized"] is False and seen["saved"] is False
-        assert [r["error_type"] for r in seen["recorded"]] == ["TranscriptLanguageMismatch"]
+        assert [d["error_type"] for d in seen["decided"]] == ["TranscriptLanguageMismatch"]
         assert seen["refusals"][0]["detected"] == "tr"
         assert "identified as 'tr'" in seen["refusals"][0]["detail"]
         assert seen["withdrawn"] == ["tr"], "the refused episode's served runs were not withdrawn"

@@ -60,9 +60,6 @@ EXPECTED_ERROR_TYPES = {
     # before any provider is called, and countable for the same reason as the rest -- a skip
     # must be at least as loud as the plausible-wrong-language transcript it replaces.
     "UnsupportedLanguage",
-    # #2187: the transcript does not read as the declared language — ASR echoes the request, so
-    # only the text can show a wrong <language> tag.
-    "TranscriptLanguageMismatch",
     # Found by the guard once it stopped pinning the third element to 0: the transcription
     # provider raising (Camera seduta 717, 2026-10-12, reported ok) and a validation failure.
     "TranscriptionFailed",
@@ -82,6 +79,10 @@ EXPECTED_NOTHING_TO_DO_TYPES = {
     "NoAsrProvenance",
     "NoWindowAccepted",
     "PlainTranscript",
+    # #2187 / #2375: the transcript does not read as the declared language (ASR echoes the
+    # request, so only the text can show a wrong <language> tag). Refusing it and withdrawing its
+    # served runs is the guard working, so it is a decision, not a failure.
+    "TranscriptLanguageMismatch",
 }
 
 

@@ -49,6 +49,12 @@ class WorklistReport:
     # 24-episode ``repunctuate_only`` were refused and logged at ERROR as unfinished, which reads
     # (and files) as a crash.
     declined: Dict[str, str] = field(default_factory=dict)
+    # Requested episodes refused outright and withdrawn from what is served: id -> the reason
+    # (``TranscriptLanguageMismatch``, #2375). Counted as completed -- refused and not served is the
+    # state the request asked for -- but said apart, like ``already_right``. 2026-10-16: a reprocess
+    # of the two Turkish episodes refused and withdrew both, as designed, and exited 1 as
+    # "repaired 0/2 · 2 selected but did NOT finish".
+    refused: Dict[str, str] = field(default_factory=dict)
     # 2026-08-28: "NOT FOUND in any feed's corpus" was claimed even when the batch halted
     # (cost cap) before some feeds ever ran selection — an episode in an unsearched feed is
     # not absent, it is unsearched. The batch driver declares how many feeds it PLANS; each
@@ -135,6 +141,17 @@ class WorklistReport:
                 if key and key in self.requested:
                     self.declined[key] = reason
 
+    def mark_refused(
+        self, episode_id: Optional[str], guid: Optional[str] = None, *, reason: str
+    ) -> None:
+        """Record that a requested episode was refused and is not served: complete, not repaired."""
+        with self._lock:
+            for candidate in (episode_id, guid):
+                key = str(candidate or "").strip()
+                if key and key in self.requested:
+                    self.completed.add(key)
+                    self.refused[key] = reason
+
     @property
     def active(self) -> bool:
         """True only when this run was given a work-list; otherwise there is nothing to report."""
@@ -194,6 +211,15 @@ class WorklistReport:
             line = f"work-list: repaired {done}/{total}"
             if self.already_right:
                 line += f" ({len(self.already_right)} of them already right, nothing to repair)"
+            if self.refused:
+                counts: Dict[str, int] = {}
+                for reason in self.refused.values():
+                    counts[reason] = counts.get(reason, 0) + 1
+                why = ", ".join(f"{r} {n}" for r, n in sorted(counts.items()))
+                ids = sorted(self.refused)
+                shown = ", ".join(ids[:max_listed])
+                more = f" (+{len(ids) - max_listed} more)" if len(ids) > max_listed else ""
+                line += f" · {len(ids)} of them refused and not served ({why}): [{shown}]{more}"
             unmatched = sorted(self.requested - self.matched)
             declined = sorted(set(self.declined) - self.completed)
             incomplete = sorted(self.matched - self.completed - set(declined))
@@ -230,7 +256,7 @@ class WorklistReport:
                     f" (+{len(declined) - max_listed} more)" if len(declined) > max_listed else ""
                 )
                 line += f" · {len(declined)} left as they were by design ({why}): [{shown}]{more}"
-            if not unmatched and not incomplete and not declined and total:
+            if not unmatched and not incomplete and not declined and not self.refused and total:
                 line += " · all requested episodes repaired"
             return line
 
@@ -247,6 +273,7 @@ class WorklistReport:
                 "declined": {
                     k: v for k, v in sorted(self.declined.items()) if k not in self.completed
                 },
+                "refused": dict(sorted(self.refused.items())),
                 "feeds_planned": self.feeds_planned,
                 "feeds_searched": self.feeds_searched,
             }
@@ -285,6 +312,8 @@ def log_worklist_outcome() -> Optional[str]:
       auto-files as a bug on every sweep that carries one stale id.
     - ``declined`` — episodes the stage ran on and left as they were by design (the repair guards
       refused every window). Still wrong, so not completed, but nothing crashed. WARNING.
+    - ``refused`` — episodes refused outright and withdrawn (a language the corpus does not
+      enable). The request is met, but an episode was not ingested, so WARNING, not INFO.
 
     The zero-matched carve-out is why this is not simply "any unmatched → WARNING": collapsing the
     total miss into the stale-id case re-buries the exact incident this guard exists to keep loud.
@@ -295,7 +324,7 @@ def log_worklist_outcome() -> Optional[str]:
     line = report.summary()
     if report.incomplete or (report.unmatched and not report.matched):
         logger.error("%s", line)
-    elif report.unmatched or report.declined_ids:
+    elif report.unmatched or report.declined_ids or report.refused:
         logger.warning("%s", line)
     else:
         logger.info("%s", line)
