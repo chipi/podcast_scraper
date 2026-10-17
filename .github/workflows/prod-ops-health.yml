@@ -1,26 +1,21 @@
-# prod-ops-health — daily between-deploys deep health check (#1876).
+# prod-ops-health — MANUAL run of the between-deploys deep health check (#1876).
 #
-# Deploy-time gates only prove health AT deploy time. This runs the box-side
-# scripts/ops/prod_ops_health.sh on a schedule: today the gateway check (the SAME smoke code as
-# deploy-litellm's fatal gate), growing per #1876 to app surfaces, ops-API reads, box/infra,
-# o11y liveness and scheduled-jobs health. Results land in the homelab VictoriaMetrics so the
-# homelab home page can show a per-app health light with a staleness guard.
+# The daily run is scheduled ON THE BOX since #1877: infra/systemd/prod-ops-health.timer (06:00
+# UTC) starts scripts/ops/prod_ops_health_scheduled.sh, which runs the same
+# scripts/ops/prod_ops_health.sh and raises the GlitchTip alert from inside compose-api-1. GitHub's
+# cron fired that slot hours late (runs started 09:52-13:09 UTC, 2026-10-13..17) and disables
+# scheduled workflows after 60 days without a commit. This workflow stays for an on-demand run
+# from GitHub; results land in the homelab VictoriaMetrics either way.
 #
-# NO human approval gate, deliberately: a `schedule:` run cannot wait on a reviewer, and every
-# check is read-only except two 1-token completions (fractions of a cent). The environment name
-# below is a PROVENANCE label (same convention as prod-backup), not a gate — do not attach
-# required reviewers to it or the cron silently stalls forever.
+# NO human approval gate: every check is read-only except two 1-token completions (fractions of
+# a cent). The environment name below is a PROVENANCE label (same convention as prod-backup).
 #
-# On failure: the run goes red and a GlitchTip event fires (smoke-player's alert pattern), so a
-# broken gateway between deploys pages instead of surfacing mid-corpus as fail-open degradation.
+# On failure: the run goes red and the auto-managed failure issue opens. The GlitchTip step below
+# is inert (LITELLM_SENTRY_DSN is not set on the repo); the box-side run is the one that alerts.
 
-name: Prod ops health (daily)
+name: Prod ops health (manual)
 
 on:
-  schedule:
-    # 06:00 UTC — after the 03:00 UTC nightly ingest (#708), so the check also sees post-ingest
-    # state once the jobs check lands.
-    - cron: '0 6 * * *'
   workflow_dispatch: {}
 
 concurrency:

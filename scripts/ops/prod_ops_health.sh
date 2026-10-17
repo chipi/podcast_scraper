@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # scripts/ops/prod_ops_health.sh — daily between-deploys prod health check (#1876).
 #
-# Runs ON the prod VPS as the deploy user (invoked by prod-ops-health.yml on a schedule, or by
-# hand). Deploy-time gates only prove health AT deploy time; this proves it stays true between
+# Runs ON the prod VPS as the deploy user: daily from infra/systemd/prod-ops-health.timer via
+# prod_ops_health_scheduled.sh (#1877), or on demand from prod-ops-health.yml or by hand. Deploy-time gates only prove health AT deploy time; this proves it stays true between
 # deploys. Born from two same-day incidents (2026-08-29): a green deploy whose gateway silently
 # served a two-week-old config, and the realisation that an upstream key expiring between deploys
 # surfaces only as silent fail-open degradation mid-corpus.
@@ -44,9 +44,8 @@ VM_URL="http://${HL_IP}:8428"
 VT_URL="http://${HL_IP}:10428"
 # The tailnet domain is DERIVED, never hardcoded: a literal here put the operator tailnet name
 # in a tracked file (identifier-denylist), and a <TAILNET> placeholder would break the check at
-# the moment it matters. On prod this resolves from $PROD_TAILNET_FQDN, which prod-ops-health.yml
-# already injects from vars.PROD_TAILNET_FQDN — no new configuration. See the script for the
-# full fallback order.
+# the moment it matters. On the box it resolves from `tailscale status` or the resolv.conf search
+# path, with no configuration. See the script for the full fallback order.
 # shellcheck source=scripts/ops/resolve_tailnet_domain.sh
 . "$(dirname "${BASH_SOURCE[0]}")/resolve_tailnet_domain.sh"
 TAILNET_DOMAIN_RESOLVED="$(resolve_tailnet_domain)" || {

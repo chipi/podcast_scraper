@@ -11,9 +11,10 @@
 #
 # ORDER, and why each rung is there:
 #   1. $TAILNET_DOMAIN         explicit override; the escape hatch, and what tests pin.
-#   2. $PROD_TAILNET_FQDN      prod. Already injected by prod-ops-health.yml from
-#                              `vars.PROD_TAILNET_FQDN` — no new configuration to create or
-#                              forget. We take everything after the first label.
+#   2. $PROD_TAILNET_FQDN      when a caller has it (GitHub workflows, from
+#                              `vars.PROD_TAILNET_FQDN`). We take everything after the first
+#                              label. The box-side prod_ops_health.sh run does not set it and
+#                              resolves on rung 3 or 4.
 #   3. tailscale status        the authoritative answer when a REAL CLI is present. On macOS the
 #                              App Store build lives inside the .app bundle; /usr/local/bin/
 #                              tailscale here is a 3-line shim that only implements `ip` and

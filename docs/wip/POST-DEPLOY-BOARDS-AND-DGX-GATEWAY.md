@@ -128,9 +128,10 @@ timings, only its start and failures at DEBUG.
   `vars.PROD_SSH_HOST_KEY` (set 2026-10-17, ED25519
   `SHA256:jcRHkLFcNnL122wb3nM7F5nNjEqCtyjfys6+sRJ1EA0`, read from the box and matched against
   `ssh-keyscan`); drill + failover stay unpinned. Workflow files take effect on the first dispatch
-  after the push to main, not at the image deploy. Check: the first prod workflow after the push
-  (any of them) gets past its first ssh step. After any VPS rebuild, re-pin first (PROD_RUNBOOK
-  "Pinned prod host key").
+  after the push to main, not at the image deploy. **Checked 2026-10-17:** pushed in `76bec9274`;
+  the first prod workflow after it, #2332 batch 2 (run 39026409470), passed "Install SSH identity"
+  and "Stage prod tmpfs secrets" (ssh/scp with `StrictHostKeyChecking=yes`). After any VPS
+  rebuild, re-pin first (PROD_RUNBOOK "Pinned prod host key").
 
 ## Next deploy (candidate: main head when the operator names it) — the whole list
 
@@ -405,6 +406,16 @@ run must also end before the 00:00 UTC nightly.
    - Undo: `0031` first, then `0030` (`from podcast_scraper.upgrade.migrations.m0031_naming_voices_rederived
      import undo; undo(Path("/app/output"))`, then the same for `m0030_adfree_cut_resynced`).
      Accepted loss for `0030` (operator): `docs/wip/AD-CUT-SEGMENT-STRADDLE.md`.
+5. **Then plan the next deploy** (operator, 2026-10-17). **#1877 is built** (operator: "take 1877
+   now"): `infra/systemd/prod-ops-health.{service,timer}` (06:00 UTC, `Persistent=true`, as
+   `deploy`) run `scripts/ops/prod_ops_health_scheduled.sh`, which alerts GlitchTip from inside
+   `compose-api-1` on exit 1/5; `prod-ops-health.yml` keeps only `workflow_dispatch`; cloud-init
+   installs the units on a rebuild. Order, so no day goes unchecked: push WITH the deploy (the push
+   stops the GitHub cron) → deploy (the box checkout gets the wrapper) → as root, the three install
+   lines in `infra/systemd/README.md` (operator's go) → `systemctl start prod-ops-health.service`
+   and read `journalctl -u prod-ops-health`: checks listed, "metrics pushed", exit 0 → the homelab
+   page shows a fresh run. If the next 06:00 passes between the push and the install, the 27 h
+   stale rule fires; that is the safety net working, not a fault.
 
 ## Deployed as `sha-f35a446` (candidate `0bc13f92c`, 2026-10-15) — steps, kept for reference
 

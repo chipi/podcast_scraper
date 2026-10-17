@@ -217,6 +217,10 @@ Anchors read `[note N — see prod.user-data.NOTES.md]`.
  homelab-managed /opt/vps-observability Alloy container (shares only the parent dir).
  On a live box that predates this, one operator re-run of these lines installs it
  identically. See infra/observability/container-metrics/README.md.
+
+ The same block installs infra/systemd/prod-ops-health.{service,timer} (#1877): the
+ daily prod ops health check, scheduled on the box at 06:00 UTC instead of GitHub's
+ cron. One daemon-reload covers both units.
 ```
 
 ## Note 21 — === Repo checkout to /srv/orrery (mirror of /srv/podcast-scraper above) ===

@@ -368,8 +368,10 @@ runcmd:
   - install -Dm755 /srv/podcast-scraper/infra/observability/container-metrics/push.sh /opt/vps-observability/container-metrics/push.sh
   - install -Dm644 /srv/podcast-scraper/infra/observability/container-metrics/ctr.py /opt/vps-observability/container-metrics/ctr.py
   - install -Dm644 /srv/podcast-scraper/infra/observability/container-metrics/container-metrics.service /etc/systemd/system/container-metrics.service
+  - install -m644 /srv/podcast-scraper/infra/systemd/prod-ops-health.* /etc/systemd/system/
   - systemctl daemon-reload
   - systemctl enable --now container-metrics.service
+  - systemctl enable --now prod-ops-health.timer
 
   # === Repo checkout to /srv/orrery (mirror of /srv/podcast-scraper above) ===  [note 21 — see prod.user-data.NOTES.md]
   - install -d -o deploy -g deploy -m 0755 /srv/orrery
