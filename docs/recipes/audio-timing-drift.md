@@ -22,9 +22,13 @@ All commands run in the pipeline image, on the live corpus (`/app/output`), on t
 
 ```bash
 cd /srv/podcast-scraper
-C="docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml"
+C="docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml"
 $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync <command> --corpus /app/output ...
 ```
+
+`--env-file` is required: Compose looks for `.env` next to the first compose file (`compose/`),
+not in the directory you run it from, and without it fails with "required variable
+PODCAST_DOCKER_PROJECT_DIR is missing a value" (prod, 2026-10-17).
 
 | Command | When | Reads | Writes (only with `--write`) |
 | --- | --- | --- | --- |
