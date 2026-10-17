@@ -275,7 +275,7 @@ Written 2026-10-16. Prod runs `sha-f35a446`. Each prod step needs the operator's
 
     ```bash
     cd /srv/podcast-scraper
-    C="docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml"
+    C="docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml"
     # 1. dry run, 20 episodes
     $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync build-references --corpus /app/output --rclone-remote audioarchive --limit 20
     # 2. backfill, detached, resumable (~2,600 originals; one temp folder per episode, deleted after)
