@@ -569,8 +569,8 @@ this fix): builder changes had landed without a rebuild, and #2260 wrote ground 
 publish dates) for the ten non-English `e02`/`e03` episodes after they were last built. A rebuild
 now reproduces the committed corpus exactly. `grounding_rate` and `guest_coappearance` — written by
 the real enrichers, not the builder — were recomputed too; they dated from 2026-08-15, covered 36 of
-55 episodes, and `grounding_rate` was still the per-Person v1 shape the server stopped reading in
-#1927, so the show grounding signal was empty on this corpus.
+55 episodes, and `grounding_rate` was still the per-Person v1 shape the server stopped reading
+in #1927, so the show grounding signal was empty on this corpus.
 
 **The non-English episodes were re-dated one year earlier (operator, 2026-10-13).** #2260's ground
 truth and feeds dated p10–p14 up to 2026-08-17, which made a Spanish `e03` the corpus's newest

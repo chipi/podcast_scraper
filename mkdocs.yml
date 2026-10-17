@@ -65,6 +65,7 @@ nav:
       - Gemini E2E Testing: guides/GEMINI_E2E_TESTING.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - Validating corpus fixes fast: guides/VALIDATING_CORPUS_FIXES_FAST.md
+      - "Corpus change method (how every corpus change is judged)": guides/CORPUS_CHANGE_METHOD.md
       - Naming gate runbook: guides/NAMING_GATE_RUNBOOK.md
       - Naming ladder (rungs and decision trace): guides/NAMING_LADDER.md
       - Naming ladder known issues: guides/NAMING_KNOWN_ISSUES.md
