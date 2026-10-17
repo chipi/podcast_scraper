@@ -360,57 +360,43 @@ run must also end before the 00:00 UTC nightly.
      their feeds are among the 13 added in item 11, and the reprocess only runs feeds in the spec,
      so the spec add must come before the chain starts. The chain's pool is now 91 episodes,
      50.2 audio-h (`s5_pool.json`).
-4. **One relabel, `relabel_combined_ids.txt`: 131 episodes, `pipeline_stage=relabel_only`** (not a
-   re-transcribe), on a sha that includes `2b580bb1e`. The operator's go is needed for the run.
-   - The 91 from 8.4 (`relabel_84_ids.txt`: replay of `c6cdc5d` vs `aaadbb2` modules, 2026-10-15;
-     none of them was re-done by backfill 27-32).
-   - The ingestion session's 44 (`/Users/Shared/relabel_44_episodes.tsv`, with what changes per
-     episode): one replay of the deployed roster (`f35a446b8`) against main (`2b580bb1e`) over the
-     2026-10-15 snapshot. 41 voices in 40 episodes: 27 respellings to the title's spelling (#2363),
-     8 false guests removed (#2364), 6 from the question-lead host seat (#2366); plus 4 stale
-     records (#2365, Kara Swisher's Pivot tour promo stored as a guest).
-   - 4 episodes are in both lists; 1 ("Taking down the cultural elite") is dropped because the
-     #2370 re-transcribe relabels it anyway. 91 + 44 - 4 - 1 = 130, plus Hard Fork below = 131.
-   - **Hard Fork "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing"**
-     (`25d702f6-ed6a-4565-8065-e729eb0f2650`), added back on the ingestion session's correction: the
-     stored "Kara Swisher" is SPEAKER_01 (46%), which is both hosts merged, so the relabel removes a
-     wrong name. Not fixable by a relabel: SPEAKER_02 holds both Casey Newton and Kara Swisher
-     (diarization merged them); only a rediarize could, and that is the operator's call.
-   - **Time:** about 17 min per episode by the ingestion session's notes (GI dominates), so about
-     37 h for 131. No relabel has been timed on prod: run 5 first and measure, then batches that fit
-     the runner and the nightly, after the #2370 and #2332 runs.
-   - **Check after:** send the run ids to the ingestion session; it compares the replay's changes
-     with the served records on the next snapshot.
-5. **8.5:** recompute after the relabel (Rest Is History episodes whose host seat is still
-   unnamed).
-6. **Migration `0030_adfree_cut_resynced` — LAST** (ingestion session, 2026-10-16; the deploy
-   must carry `ded80e06f`, the floor for everything above, so new ingests and the migration cut
-   ads the same way). It brings served episodes to today's ad cut (`4515bce1c`, #2360): ~421
-   re-cut + ~304 ad-map rewrites on the 2026-10-15 snapshot, moves every GI quote, drops quotes in
-   ad text, removes ~54 ad-built insights and ~174 sponsor entity nodes, syncs bridge / counts /
-   context. Text files only, with backups and undo; no DGX, no LLM. Run it after the #2370 run,
-   the #2332 batches, the 131 relabel and the Turkish reprocess (a later run would overwrite its
-   output), with the pipeline idle (the runner takes the corpus lock). No deploy path runs
-   migrations by itself (checked: the deploy workflows and the API).
-   1. `df -h /` first: every `upgrade run` takes a whole-corpus snapshot (13 GB on 2026-10-03).
-   2. Dry run (`inspect-prod-corpus.yml checks=upgrade_dry_run`, or in `compose-api-1`
-      `python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --dry-run`): only `0030`
-      pending (0029 too → stop, tell the ingestion session); `refused` must be 0 (else send the
-      list, do not apply). The other counts will have moved from the snapshot numbers.
-   3. Apply on the operator's go: `upgrade run … --yes` (or `make upgrade-corpus`).
-   4. `upgrade verify` prints "every served ad-free base is today's cut"; no root-owned files
-      (`find /app/output -user root -newer adfree_cut_resynced.jsonl | head`).
-   5. Search: the next pipeline run's incremental upsert re-embeds the changed episodes, or run
-      `index-two-tier` WITHOUT drop/clear. Never rebuild. Then
-      `python -m podcast_scraper.cli insight-clusters --output-dir /app/output`.
-   6. Spot checks: Invest Like the Best "Krishna Rao - Anthropic…" has no Felix by Rogo insight;
-      Lenny's "Head of Claude Code…" `.adfree.txt` keeps the guest intro, not the WorkOS read; The
-      Rest Is Science "The Evolution of Colour Vision" keeps its cold open; for any quote
-      `adfree_text[char_start:char_end] == quote.text`; `make corpus-completeness-check`.
-   - Undo: `from podcast_scraper.upgrade.migrations.m0030_adfree_cut_resynced import undo;
-     undo(Path("/app/output"))`. Receipts `adfree_cut_resynced.jsonl`, backups
-     `.podcast_scraper/upgrade-backups/0030/`. Accepted loss (operator): 2 real insights and 3 real
-     entity nodes that share an ASR segment with ad text (`docs/wip/AD-CUT-SEGMENT-STRADDLE.md`).
+4. **Migrations `0030_adfree_cut_resynced` + `0031_naming_voices_rederived` — LAST, one run**
+   (ingestion session, 2026-10-17; the deploy must carry `e154c99a5` or later, which brings
+   `ed09aceaf`). `0031` replaces the 131-episode relabel (operator decision 2026-10-17): a frozen
+   voice-by-voice name rewrite from text, at most 126 episodes / 166 voices; no LLM, no DGX. 8.5
+   (Rest Is History seats no text names) and 29 undecidable voices are NOT in it.
+   0. Everything that rewrites episodes is done: #2370 (both parts done 2026-10-17) and every
+      #2332 batch (batch 1 `full`, the remaining 75 `rediarize_only`, operator 2026-10-17). The
+      pipeline is idle (the runner takes the corpus lock). `df -h /` (each `upgrade run` takes a
+      whole-corpus snapshot, 13 GB on 2026-10-03).
+   1. Dry run (`python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --dry-run` in
+      `compose-api-1`, or `inspect-prod-corpus.yml checks=upgrade_dry_run`): pending must be
+      exactly `0030` and `0031` (anything else, e.g. `0029` → stop, tell the ingestion session).
+      `0030` refused must be 0. `0031` refusals ARE expected for episodes #2370/#2332 rewrote since
+      the 2026-10-16 snapshot ("stored X, the replay read Y"). Send both counts and `0031`'s refused
+      list to the ingestion session BEFORE applying.
+   2. Apply both in one run, with a snapshot, on the operator's go: `make upgrade-corpus
+      CORPUS_DIR=/app/output SNAPSHOT_DIR=<dir>` (or `upgrade run … --yes`); order is by id and
+      proven order-independent on snapshot clones.
+   3. `upgrade verify`: `0030` says "every served ad-free base is today's cut"; `0031` says "every
+      listed voice carries the name the deployed naming code gives it", or reads False naming the
+      refused episodes (expected; send the list).
+   4. Ownership: nothing root-owned (`find /app/output -user root -newer <receipts> | head`).
+      Receipts `adfree_cut_resynced.jsonl`, `naming_voices_rederived.jsonl`; backups
+      `.podcast_scraper/upgrade-backups/0030/` and `/0031/`.
+   5. Search: the next pipeline run's incremental upsert, or `index-two-tier` WITHOUT drop/clear.
+      Never rebuild. Then `python -m podcast_scraper.cli insight-clusters --output-dir /app/output`.
+   6. Spot checks. `0030`: Krishna Rao has no Felix by Rogo insight; Lenny's "Head of Claude Code"
+      keeps the guest intro, not the WorkOS read; Colour Vision keeps its cold open; any quote's
+      slice equals its text. `0031`: Hard Fork / Kara Swisher SPEAKER_01 no longer "Kara Swisher";
+      Gray Area "Is it bad to want to be rich?" Pivot promo voices unnamed; The Daily's Brian Chen /
+      Tracy Mumford / Catherine Bennhold promo voices unnamed; Rest Is History "The Odyssey: Hero of
+      the Trojan Horse (Part 1)" has Tom Holland and Dominic Sandbrook on the host seats; Lenny's
+      "An AI state of the union" says "Simon Willison". In each, `.txt` prefixes, segments, GI
+      `SPOKEN_BY` and KG person nodes agree. `make corpus-completeness-check`.
+   - Undo: `0031` first, then `0030` (`from podcast_scraper.upgrade.migrations.m0031_naming_voices_rederived
+     import undo; undo(Path("/app/output"))`, then the same for `m0030_adfree_cut_resynced`).
+     Accepted loss for `0030` (operator): `docs/wip/AD-CUT-SEGMENT-STRADDLE.md`.
 
 ## Deployed as `sha-f35a446` (candidate `0bc13f92c`, 2026-10-15) — steps, kept for reference
 
