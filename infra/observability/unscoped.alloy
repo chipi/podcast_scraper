@@ -1,0 +1,53 @@
+// unscoped.alloy — ships the logs of every container on the box that no app drop-in claims
+// (operator decision 2026-10-17). Each app keeps a precise keep-filter (ADR-121), so a container
+// nobody listed shipped nothing: on 2026-10-17 that was alloy, cadvisor and the one-off
+// audio-refs backfill. Host-level, deployed by deploy-config.yml with every surface.
+//
+// The drop rule below is the UNION of the app keep-filters, so nothing ships twice:
+//   operator.alloy  podcast + operator_public   player.alloy  player
+//   litellm.alloy   litellm                      orrery.alloy  orrery (owned by the orrery repo;
+//                                                mirrored from the box's config.d)
+// tests/unit/podcast_scraper/obs/test_alloy_unscoped.py fails when this repo's keep-filters and
+// this list drift apart. A container added to orrery.alloy must be added here by hand.
+//
+// References shared components defined in base.alloy:
+//   - discovery.docker "app"    — the Docker-socket container discovery
+//   - loki.relabel "naming"     — service label, then the VictoriaLogs sink
+
+discovery.relabel "unscoped" {
+	targets = discovery.docker.app.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(compose-api-1|compose-viewer-1|compose-pipeline-llm[-_].*|podcast-(reprocess|sweep)[-_].*|operator-api-1|operator-viewer-1|player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*|player-obs-.*|player-board-summarizer-.*|litellm|litellm-postgres|litellm-spend-push|orrery-web|orrery-mcp|orrery-lab-api|orrery-pipeline-runner-.*)"
+		action        = "drop"
+	}
+
+	// surface = the compose project (vps-observability, compose, …), "standalone" without one,
+	// so service becomes unscoped-<project>.
+	rule {
+		target_label = "surface"
+		replacement  = "standalone"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+		regex         = "(.+)"
+		target_label  = "surface"
+		replacement   = "$1"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		target_label  = "container"
+		regex         = "/(.*)"
+		replacement   = "$1"
+	}
+}
+
+loki.source.docker "unscoped" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.unscoped.output
+	forward_to = [loki.relabel.naming.receiver]
+	labels     = {app = "unscoped"}
+}

@@ -187,6 +187,10 @@ jobs:
           # must ship together. Only deploy-litellm.sh shipped it before, so a base.alloy change
           # left the box running a stale copy (2026-10-15: litellm logs with no `service`).
           ALLOY_FILES="$ALLOY_FILES litellm.alloy"
+          # unscoped.alloy — HOST-level: ships every container no app drop-in claims (alloy,
+          # cadvisor, one-off backfills) as app=unscoped. Its drop list is the union of the app
+          # keep-lists; tests/unit/podcast_scraper/obs/test_alloy_unscoped.py guards the drift.
+          ALLOY_FILES="$ALLOY_FILES unscoped.alloy"
 
           echo "surface=$SURFACE dry_run=$DRY_RUN"
           echo "caddy vhosts: ${CADDY_VHOSTS:-(none)}"
