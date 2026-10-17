@@ -38,28 +38,37 @@ read the Cloudflare zone. If it does, Cloudflare could try the origin over IPv6 
   line);
 - `scripts/ops/apply-edge.sh:272` (`Environment=CADDY_BIND_ADDRS=$BIND_ADDRS`).
 
-**Fix:**
+**Fix (built 2026-10-17, operator "build fix now"; ships with the next deploy):**
 
-1. Write it quoted in both writers: `Environment="CADDY_BIND_ADDRS=<v4> <v6>"` (systemd's quoting
-   for a value with spaces). The cloud-init file has 71 bytes of margin (29,420 of 29,491); two
-   quote characters fit.
-2. Update the two readers that parse the line back with
-   `sed -n 's/^Environment=CADDY_BIND_ADDRS=//p'`, or they read nothing once it is quoted:
-   - `scripts/ops/deploy_config_caddy.sh:67`;
-   - `scripts/ops/verify-edge.sh:96`.
+1. Both writers now quote the value: `Environment="CADDY_BIND_ADDRS=<v4> <v6>"`. The cloud-init
+   file gained 2 bytes (29,422 of 29,491).
+2. Both readers (`deploy_config_caddy.sh`, `verify-edge.sh`) accept the quoted and the old unquoted
+   form, so a box with the old drop-in still validates.
+3. `verify-edge.sh` fails when a configured bind address has no :443 listener. Run on prod as
+   deploy before the fix: `PASS listening on 178.105.182.17:443`, `FAIL no listener on
+   [2a01:4f8:1c1b:8cd4::1]:443`. (Its `Caddyfile INVALID` line as deploy comes from `caddy
+   validate` opening `/var/log/caddy/access.log`; the unmodified script fails it the same way.
+   Run it as root.)
+4. Caddy accepts the pair. `caddy adapt` on the box with both addresses lists `178.105.182.17:443`
+   and `[2a01:4f8:1c1b:8cd4::1]:443`; with the IPv4 alone, only the first.
+5. Tests: `tests/unit/scripts/test_caddy_bind_env.py`, the writers' real lines and both readers
+   against both forms. One mutant per writer and reader, each fails a test.
+6. Not verified until applied: that systemd hands Caddy both addresses from the quoted line
+   (systemd's documented quoting; macOS cannot run it).
 
-   Accept both forms, so a box with the old drop-in still validates.
-3. Tests: a writer/reader round trip for both forms. `verify-edge` should fail when a configured
-   bind address has no listener (today it checks only that :443 is bound by Caddy).
-4. On the box, with the operator's go: re-run `apply-edge.sh` (root) to rewrite the drop-in, then
-   `systemctl daemon-reload` and a Caddy **restart**. A bind change does not apply on reload; see
-   `docs/guides/EDGE_CONVERGENCE_RUNBOOK.md`. All public sites, podcast and orrery, drop for the
-   seconds of the restart. Tell the orrery session before.
-5. Check: `systemctl show caddy -p Environment` lists both addresses; `ss -ltn` shows Caddy on
+**Apply, after the deploy** (the box checkout then has the fixed apply-edge.sh). With the operator's
+go:
+
+1. Tell the orrery session first: all public sites, podcast and orrery, drop for the seconds of the
+   restart. Then, as root: `apply-edge.sh --dry-run` (expect "write …10-public-bind.conf" and
+   "restart caddy (service env changed)"), then `apply-edge.sh`. It rewrites the drop-in, runs
+   `daemon-reload` and restarts Caddy. A bind change does not apply on reload; see
+   `docs/guides/EDGE_CONVERGENCE_RUNBOOK.md`.
+2. Check: `systemctl show caddy -p Environment` lists both addresses; `ss -ltn` shows Caddy on
    `[2a01:4f8:1c1b:8cd4::1]:80/:443` as well; `curl -6 -sk --resolve
    closelistening.app:443:[2a01:4f8:1c1b:8cd4::1] https://closelistening.app/ -o /dev/null -w
    '%{http_code}'` from the box answers like the IPv4 address; `verify-edge.sh` passes.
-6. Undo: put back the old drop-in line, `daemon-reload`, restart Caddy.
+3. Undo: put back the old drop-in line, `daemon-reload`, restart Caddy.
 
 ## 2. Ship `unscoped.alloy` (logs of containers no app drop-in claims)
 

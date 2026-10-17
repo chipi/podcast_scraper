@@ -269,7 +269,7 @@ else
 fi
 if [ -n "$BIND_ADDRS" ] && write_file /etc/systemd/system/caddy.service.d/10-public-bind.conf 0644 root:root <<EOF
 [Service]
-Environment=CADDY_BIND_ADDRS=$BIND_ADDRS
+Environment="CADDY_BIND_ADDRS=$BIND_ADDRS"
 EOF
 then bind_changed=1; run systemctl daemon-reload; fi
 

@@ -64,7 +64,9 @@ _restore() {
 # duplicate/ambiguous site addresses (`Error: ambiguous site definition: <host>`) — which is
 # the real breakage a vhost deploy can introduce. Provision-time issues (unreachable upstream)
 # don't fail `caddy start` anyway; the post-restart `is-active` check below is the backstop.
-BIND="$(sed -n 's/^Environment=CADDY_BIND_ADDRS=//p' /etc/systemd/system/caddy.service.d/10-public-bind.conf 2>/dev/null || true)"
+# The bind line is quoted (`Environment="CADDY_BIND_ADDRS=<v4> <v6>"`): unquoted, systemd keeps
+# only the first address. Accept the old unquoted form too.
+BIND="$(sed -n -E 's/^Environment="?CADDY_BIND_ADDRS=([^"]*)"?[[:space:]]*$/\1/p' /etc/systemd/system/caddy.service.d/10-public-bind.conf 2>/dev/null || true)"
 GT="$(sed -n 's/^Environment=GLITCHTIP_UPSTREAM=//p' /etc/systemd/system/caddy.service.d/20-glitchtip-upstream.conf 2>/dev/null || true)"
 _validate() {
   CADDY_BIND_ADDRS="$BIND" GLITCHTIP_UPSTREAM="$GT" \

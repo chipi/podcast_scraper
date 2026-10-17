@@ -93,7 +93,8 @@ section "4) Caddy edge engine (ADR-114)"
 if command -v caddy >/dev/null 2>&1; then
   # The Caddyfile uses ``default_bind {$CADDY_BIND_ADDRS}``; source the value the
   # caddy service uses so validation resolves it (else empty → invalid).
-  BIND_ENV="$(sed -n 's/^Environment=CADDY_BIND_ADDRS=//p' /etc/systemd/system/caddy.service.d/10-public-bind.conf 2>/dev/null)"
+  # Quoted since the IPv6 fix; the old unquoted form is accepted too.
+  BIND_ENV="$(sed -n -E 's/^Environment="?CADDY_BIND_ADDRS=([^"]*)"?[[:space:]]*$/\1/p' /etc/systemd/system/caddy.service.d/10-public-bind.conf 2>/dev/null)"
   CADDY_BIND_ADDRS="$BIND_ENV" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
     && pass "Caddyfile valid" || fail "Caddyfile INVALID"
   systemctl is-active --quiet caddy && pass "caddy service active" || fail "caddy service NOT active"
@@ -111,6 +112,19 @@ if command -v caddy >/dev/null 2>&1; then
     fi
   else
     skip ":443-owner check (needs root + ss)"
+  fi
+  # Every configured public address must have a :443 listener. The owner check above passes on
+  # the first address alone, which hid an unquoted bind line whose IPv6 systemd dropped
+  # (2026-10-17). Listening addresses need no root.
+  if command -v ss >/dev/null 2>&1; then
+    for addr in $BIND_ENV; do
+      case "$addr" in *:*) want="[$addr]:443" ;; *) want="$addr:443" ;; esac
+      if ss -tlnH 'sport = :443' 2>/dev/null | awk '{print $4}' | grep -qxF "$want"; then
+        pass "listening on $want"
+      else
+        fail "no listener on $want — did CADDY_BIND_ADDRS reach caddy? (systemctl show caddy -p Environment)"
+      fi
+    done
   fi
 else
   fail "caddy not installed"
