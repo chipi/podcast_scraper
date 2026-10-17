@@ -372,9 +372,10 @@ run must also end before the 00:00 UTC nightly.
    1. Dry run (`python -m podcast_scraper.cli upgrade run --corpus-dir /app/output --dry-run` in
       `compose-api-1`, or `inspect-prod-corpus.yml checks=upgrade_dry_run`): pending must be
       exactly `0030` and `0031` (anything else, e.g. `0029` → stop, tell the ingestion session).
-      `0030` refused must be 0. `0031` refusals ARE expected for episodes #2370/#2332 rewrote since
-      the 2026-10-16 snapshot ("stored X, the replay read Y"). Send both counts and `0031`'s refused
-      list to the ingestion session BEFORE applying.
+      `0030` refused must be 0. `0031` should refuse 0 or close to it: none of its 126 episodes is
+      a #2332 or #2370 episode (the id sets share 0 ids). A refusal means something else rewrote
+      one of them after the 2026-10-16 10:12 UTC snapshot ("stored X, the replay read Y"). Send
+      both counts and `0031`'s refused list to the ingestion session BEFORE applying.
    2. Apply both in one run, with a snapshot, on the operator's go: `make upgrade-corpus
       CORPUS_DIR=/app/output SNAPSHOT_DIR=<dir>` (or `upgrade run … --yes`); order is by id and
       proven order-independent on snapshot clones.
