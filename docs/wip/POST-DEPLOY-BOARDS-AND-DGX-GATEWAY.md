@@ -106,6 +106,17 @@ timings, only its start and failures at DEBUG.
   `reel_clips`; no "reel clips: isolated scoring failed" warning in operator-api / compose-api;
   `/api/index/stats` answers in seconds while the warm runs; the operator smoke passes on its
   first attempt.
+- **Also for the NEXT deploy: `ed09aceaf`** (operator decision 2026-10-17, ingestion session): a
+  language refusal meets the request. A `TranscriptLanguageMismatch` is logged at WARNING, filed as a
+  `policy` incident (was `hard`), ledgered `skipped` (was `failed`); the work-list says "repaired N/N
+  · N of them refused and not served (TranscriptLanguageMismatch N)" and exits 0. On `sha-ded80e0`
+  the 2026-10-16 Turkish run (38976538076) went red for exactly this, though both refusals and
+  withdrawals worked.
+- **Fixed on prod 2026-10-17 06:17 UTC:** the nightly failed on 10-16 and 10-17 (401 from a stale
+  direct `vllm_api_base: http://dgx-llm-1:8003/v1` in `viewer_operator.yaml`). Line removed, backup
+  `.viewer/operator-config.before-vllm-direct-removed-20261017T061742Z.yaml`; `ad47a8bc0` warns when a
+  config file overrides a profile's `vllm_api_base`. Check: the 2026-10-17 00:00 UTC nightly
+  succeeds and deepens the 13 new feeds.
 
 ## Next deploy (candidate: main head when the operator names it) — the whole list
 
