@@ -58,6 +58,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    outputs:
+      # The image tag this run deployed, for the smoke's alert (empty: the script pinned it on the box).
+      image_tag: ${{ steps.imgsha.outputs.tag }}
     timeout-minutes: 15
     environment: prod
     steps:
@@ -420,17 +423,21 @@ jobs:
         continue-on-error: true
         env:
           SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_API }}
+          # The deployed image, not GITHUB_SHA: a deploy-all run on a later docs commit labelled the
+          # 2026-10-16 alert sha-b0edbb9, a release no image carries.
+          IMAGE_TAG: ${{ needs.deploy.outputs.image_tag }}
         run: |
           if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
           # environment/release as the apps report them (ADR-0010); a fixed fingerprint so every
           # failure of this smoke is an event in ONE issue, not a new issue per run URL.
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          REL="${IMAGE_TAG:-unknown-pinned-on-box}"
           npx --yes @sentry/cli@2 send-event \
             --level error \
             --env prod \
-            --release "sha-${GITHUB_SHA::7}" \
+            --release "${REL}" \
             --fingerprint smoke-failed --fingerprint operator --fingerprint post-deploy-smoke \
-            --message "Post-deploy live smoke FAILED — operator prod (sha ${GITHUB_SHA::7}) — ${RUN_URL}" \
+            --message "Post-deploy live smoke FAILED — operator prod (${REL}) — ${RUN_URL}" \
             --tag surface:operator \
             --tag stage:post-deploy-smoke || echo "GlitchTip alert failed (non-fatal)"
       - name: Upload Playwright report on failure
