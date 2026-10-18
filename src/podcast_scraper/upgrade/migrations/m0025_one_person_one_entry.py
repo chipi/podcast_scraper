@@ -892,6 +892,9 @@ class _Episode:
             if name:
                 r["speaker_label"] = name
                 r["speaker_role"] = self.voice_roles.get(v, r.get("speaker_role"))
+                # A named person carries no voice type: the pipeline writes none on its segments,
+                # and GI reads hiding off this key (#2380).
+                r.pop("voice_type", None)
             else:
                 r.pop("speaker_label", None)
                 r["voice_type"] = "unknown"
@@ -958,6 +961,13 @@ class _Episode:
         quote_to: Dict[str, Optional[str]] = {
             q: new_ids[v] for q, v in quote_voice.items() if v in new_ids
         }
+        # Whether an insight is shown follows the voice of its FIRST supporting quote, as in the
+        # pipeline (_voice_flags_for_insight). Naming that voice must lift the hiding it carried.
+        first_quote: Dict[str, str] = {}
+        for e in gi.get("edges") or []:
+            if isinstance(e, dict) and e.get("type") == "SUPPORTED_BY":
+                first_quote.setdefault(str(e.get("from")), str(e.get("to")))
+        named_quotes = {q for q, to in quote_to.items() if to}
         for node in gi.get("nodes") or []:
             props = node.get("properties") if isinstance(node, dict) else None
             if not isinstance(props, dict):
@@ -968,6 +978,8 @@ class _Episode:
                 props.pop("speaker_name", None)
                 if quote_to[nid] is None:
                     props["speaker_voice_type"] = "unknown"
+                else:
+                    props.pop("speaker_voice_type", None)
                 self._bump("quotes_reattributed")
             elif (
                 node.get("type") == "Insight"
@@ -984,6 +996,16 @@ class _Episode:
                 else:
                     props["speaker"] = new_label[old]
                 self._bump("insights_reattributed")
+            if (
+                node.get("type") == "Insight"
+                and first_quote.get(nid) in named_quotes
+                and props.get("speaker_voice_type") in ("unknown", "unidentified")
+            ):
+                props.pop("speaker_voice_type", None)
+                props.pop("surfaceable", None)
+                if isinstance(props.get("tier"), int):
+                    _apply_route_and_tag(props, props["tier"])
+                self._bump("insights_shown")
         edges = [
             e
             for e in gi.get("edges") or []

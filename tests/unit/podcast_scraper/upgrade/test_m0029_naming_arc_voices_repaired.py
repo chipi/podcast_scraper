@@ -119,3 +119,86 @@ def test_a_named_voice_can_be_unnamed_or_change_role(tmp_path: Path, monkeypatch
     _apply(tmp_path)
     assert fx._r(p["meta"])["content"]["speakers"] == []
     assert all("speaker_label" not in r for r in fx._r(p["seg"]) if r["speaker"] == "SPEAKER_00")
+
+
+def _hidden_like_prod(p) -> None:
+    """The stored state of an unnamed voice, as the pipeline writes it (prod, 2026-10-13 run):
+    its segments typed ``unknown``, its quotes ``speaker_voice_type: unknown``, and every insight
+    whose first quote it speaks hidden (``surfaceable: false``, routed to connect)."""
+    rows = fx._r(p["seg"])
+    for r in rows:
+        if r["speaker"] == "SPEAKER_01":
+            r["voice_type"] = "unknown"
+    fx._w(p["seg"], rows)
+    gi = fx._r(p["gi"])
+    for n in gi["nodes"]:
+        if n["type"] == "Quote" and n["id"] == "quote:1":
+            n["properties"].update(speaker_id=None, speaker_voice_type="unknown")
+            n["properties"].pop("speaker_name", None)
+    gi["nodes"] += [
+        {
+            "id": "insight:guest",
+            "type": "Insight",
+            "properties": {
+                "text": "The book matters.",
+                "speaker": "SPEAKER_01",
+                "speaker_voice_type": "unknown",
+                "surfaceable": False,
+                "grounded": True,
+                "tier": 2,
+                "routing_tag": "connect",
+                "salience": 0.6667,
+            },
+        },
+        {
+            "id": "insight:host",
+            "type": "Insight",
+            "properties": {
+                "text": "Books are worth asking about.",
+                "speaker": "Gergely Orosz",
+                "grounded": True,
+                "tier": 2,
+                "routing_tag": "surface",
+                "salience": 0.7667,
+            },
+        },
+    ]
+    gi["edges"] = [e for e in gi["edges"] if e["from"] != "quote:1"] + [
+        {"type": "SUPPORTED_BY", "from": "insight:guest", "to": "quote:1"},
+        {"type": "SUPPORTED_BY", "from": "insight:host", "to": "quote:2"},
+        {"type": "SUPPORTED_BY", "from": "insight:host", "to": "quote:1"},
+    ]
+    fx._w(p["gi"], gi)
+
+
+def test_a_voice_that_gains_a_name_is_shown_as_a_fresh_run_would_show_it(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """#2380: naming a voice must also lift the hiding its unnamed state carried. On prod 0029 put
+    the names on and left 1,779 insights named but hidden (S1n), their segments still typed
+    ``unknown``. A named person carries no voice type anywhere, and its insights route on tier."""
+    monkeypatch.setattr(
+        m29,
+        "NAMING_ARC_VOICES",
+        {("ep", "SPEAKER_01"): (None, "unknown", "Steve McConnell", "guest", "the guest")},
+    )
+    p = _episode(tmp_path)
+    _hidden_like_prod(p)
+    host_before = next(n for n in fx._r(p["gi"])["nodes"] if n["id"] == "insight:host")
+    res = _apply(tmp_path)
+    assert res.details["refused"] == [] and res.details["episodes"]
+    assert all("voice_type" not in r for r in fx._r(p["seg"]) if r["speaker"] == "SPEAKER_01")
+    nodes = {n["id"]: n for n in fx._r(p["gi"])["nodes"]}
+    quote = nodes["quote:1"]["properties"]
+    assert quote["speaker_id"] == "person:steve-mcconnell"
+    assert "speaker_voice_type" not in quote
+    guest = nodes["insight:guest"]["properties"]
+    assert guest["speaker"] == "Steve McConnell"
+    assert "speaker_voice_type" not in guest and "surfaceable" not in guest
+    assert (guest["routing_tag"], guest["salience"]) == ("surface", 0.7667)
+    assert nodes["insight:host"] == host_before  # its first quote is the host's: untouched
+    assert _verify(tmp_path)[0]
+    restored, refused = m29.undo(tmp_path)
+    assert restored and not refused
+    back = {n["id"]: n for n in fx._r(p["gi"])["nodes"]}["insight:guest"]["properties"]
+    assert (back["surfaceable"], back["speaker_voice_type"]) == (False, "unknown")
