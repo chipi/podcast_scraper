@@ -180,6 +180,103 @@ class TestServedModelVerification:
         monkeypatch.setattr(m.urllib.request, "urlopen", _boom)
         VLLMProvider(_vllm_cfg())._verify_served_model()  # must NOT raise
 
+    @staticmethod
+    def _gateway_urlopen(ids, model_info_rows):
+        """/v1/models OpenAI-shaped (no max_model_len); /v1/model/info LiteLLM-shaped, or 404."""
+        import json
+        import urllib.error
+
+        class _Resp:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def read(self):
+                return self.payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def _open(req, timeout=10):
+            url = req.full_url
+            if url.endswith("/model/info"):
+                if model_info_rows is None:
+                    raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+                return _Resp(json.dumps({"data": model_info_rows}).encode())
+            return _Resp(json.dumps({"data": [{"id": i, "object": "model"} for i in ids]}).encode())
+
+        return _open
+
+    def test_gateway_window_comes_from_model_info(self, monkeypatch, caplog):
+        """Prod 2026-10-15..17: 606-1,246 'advertises no max_model_len' WARNINGs a day, because the
+        LiteLLM gateway's /v1/models never carries it. Its /model/info does (max_input_tokens)."""
+        import logging
+
+        import podcast_scraper.providers.vllm.vllm_provider as m
+
+        rows = [
+            {
+                "model_name": "podcast-flash-0731",
+                "litellm_params": {"model": "openrouter/x/y"},
+                "model_info": {"max_input_tokens": None},
+            },
+            {
+                "model_name": _MODEL,
+                "litellm_params": {"model": f"hosted_vllm/{_MODEL}"},
+                "model_info": {"max_input_tokens": 65536},
+            },
+        ]
+        monkeypatch.setattr(m.urllib.request, "urlopen", self._gateway_urlopen([_MODEL], rows))
+        p = VLLMProvider(_vllm_cfg(vllm_api_base="http://gateway:4001/v1"))
+        with caplog.at_level(logging.INFO, logger=m.__name__):
+            p._verify_served_model()
+        assert p.max_context_tokens == 65536
+        assert not [r for r in caplog.records if "advertises no max_model_len" in r.getMessage()]
+        assert any("served-model check OK" in r.getMessage() for r in caplog.records)
+
+    def test_plain_vllm_without_model_info_still_warns(self, monkeypatch, caplog):
+        import logging
+
+        import podcast_scraper.providers.vllm.vllm_provider as m
+
+        monkeypatch.setattr(m.urllib.request, "urlopen", self._gateway_urlopen([_MODEL], None))
+        with caplog.at_level(logging.INFO, logger=m.__name__):
+            VLLMProvider(_vllm_cfg())._verify_served_model()
+        warned = [r for r in caplog.records if "advertises no max_model_len" in r.getMessage()]
+        assert [r.levelno for r in warned] == [logging.WARNING]
+
+    def test_model_info_for_another_model_is_not_taken(self, monkeypatch, caplog):
+        import logging
+
+        import podcast_scraper.providers.vllm.vllm_provider as m
+
+        rows = [
+            {
+                "model_name": "groq-gpt-oss-120b",
+                "litellm_params": {"model": "groq/openai/gpt-oss-120b"},
+                "model_info": {"max_input_tokens": 131072},
+            }
+        ]
+        monkeypatch.setattr(m.urllib.request, "urlopen", self._gateway_urlopen([_MODEL], rows))
+        p = VLLMProvider(_vllm_cfg(vllm_api_base="http://gateway:4001/v1"))
+        with caplog.at_level(logging.INFO, logger=m.__name__):
+            p._verify_served_model()
+        assert p.max_context_tokens != 131072
+        assert [r for r in caplog.records if "advertises no max_model_len" in r.getMessage()]
+
+    def test_mismatch_still_raises_behind_the_gateway(self, monkeypatch):
+        import podcast_scraper.providers.vllm.vllm_provider as m
+        from podcast_scraper.providers.vllm.vllm_provider import VLLMServedModelMismatch
+
+        rows = [{"model_name": "someoneelse/other", "model_info": {"max_input_tokens": 65536}}]
+        monkeypatch.setattr(
+            m.urllib.request, "urlopen", self._gateway_urlopen(["someoneelse/other"], rows)
+        )
+        with pytest.raises(VLLMServedModelMismatch):
+            VLLMProvider(_vllm_cfg(vllm_api_base="http://gateway:4001/v1"))._verify_served_model()
+
     def test_initialize_gated_by_flag(self, monkeypatch):
         # Flag off -> initialize() must not run the served-model check; on -> it must.
         monkeypatch.setattr(OpenAICompatibleProvider, "initialize", lambda self: None)

@@ -175,6 +175,35 @@ class VLLMProvider(OpenAICompatibleProvider):
         self._token_count_cache[key] = count
         return count
 
+    def _window_from_gateway_model_info(self, base: str, expected: str) -> Optional[int]:
+        """The served window from a LiteLLM gateway's ``/model/info``, or ``None``.
+
+        Behind the gateway ``/v1/models`` is OpenAI-shaped and never carries vLLM's
+        ``max_model_len``; LiteLLM publishes the window as ``model_info.max_input_tokens`` on
+        ``/model/info`` instead (prod 2026-10-18: 65536 for the NVFP4 Qwen3 the DGX serves). A
+        plain vLLM endpoint has no such route — any failure just means "not published here".
+        """
+        url = f"{base.rstrip('/')}/model/info"
+        try:
+            req = urllib.request.Request(
+                url, headers={"Authorization": f"Bearer {self._resolve_api_key(self.cfg)}"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310 — fixed profile URL
+                rows = json.loads(resp.read().decode("utf-8")).get("data", [])
+        except Exception:  # noqa: BLE001 — absent route / auth / network: no published window
+            return None
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
+                continue
+            names = {row.get("model_name"), ((row.get("litellm_params") or {}).get("model") or "")}
+            names |= {n.split("/", 1)[1] for n in names if isinstance(n, str) and "/" in n}
+            if not _served_matches(expected, {n for n in names if isinstance(n, str) and n}):
+                continue
+            window = (row.get("model_info") or {}).get("max_input_tokens")
+            if isinstance(window, int) and window > 0:
+                return window
+        return None
+
     def _verify_served_model(self) -> None:
         """Assert the DGX slot actually serves the model this profile pins (real HF id).
 
@@ -219,6 +248,8 @@ class VLLMProvider(OpenAICompatibleProvider):
                 mml = entry.get("max_model_len")
                 if isinstance(mml, int) and mml > 0:
                     advertised_window = mml
+        if advertised_window is None:
+            advertised_window = self._window_from_gateway_model_info(base, expected)
         if advertised_window is not None:
             if advertised_window != self.max_context_tokens:
                 # %s, not %d: the declared window is Optional and is None when nothing declared
