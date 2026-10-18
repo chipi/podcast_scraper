@@ -685,3 +685,92 @@ def test_an_offset_in_a_label_gap_keeps_only_its_first_two_characters() -> None:
     assert _move_offset(6, old, new, 20, 25) == 6  # and its second
     assert _move_offset(7, old, new, 20, 25) is None  # inside the rewritten label
     assert _move_offset(12, old, new, 20, 25) == 17  # the gap's end is the next text's start
+
+
+@pytest.mark.parametrize("old_role", ["guest", None])
+def test_a_wrong_person_verdict_on_a_renamed_voice_restores_the_old_name_and_role(
+    tmp_path: Path, monkeypatch, old_role
+) -> None:
+    """0029 RENAMED the voice (old name set): the review's WRONG_PERSON puts back the listed old
+    name and role, verify passes on that state, and a second plan writes and refuses nothing."""
+    monkeypatch.setattr(
+        m29,
+        "NAMING_ARC_VOICES",
+        {("ep", "SPEAKER_01"): ("Old Person", old_role, "Steve McConnell", "host", "renamed")},
+    )
+    _review(monkeypatch, tmp_path, SPEAKER_01="WRONG_PERSON")
+    p = _episode(tmp_path, "Steve McConnell", "host", typed=True)
+    _apply(tmp_path)
+    rows = [r for r in fx._r(p["seg"]) if r["speaker"] == "SPEAKER_01"]
+    assert {r.get("speaker_label") for r in rows} == {"Old Person"}
+    assert {r.get("speaker_role") for r in rows} == {old_role}
+    assert _diag_role(p, "SPEAKER_01") == (old_role or "unknown")
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert ok, msg
+    again = _apply(tmp_path)
+    assert again.details["episodes"] == [] and again.details["refused"] == []
+
+
+def test_the_plan_row_hashes_exactly_the_files_the_decision_opens(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The outcome hook diffs plans by these rows: an input missing from them lets a changed file
+    pass unseen. An independent spy (io.open) over the same decision gives the same set."""
+    import io
+
+    from podcast_scraper.upgrade.read_recorder import ABSENT
+
+    monkeypatch.setattr(m29, "NAMING_ARC_VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = _episode(tmp_path, "Steve McConnell", "guest", typed=True)
+    [row] = list(m31.dry_run_report(tmp_path))
+    assert row["counts"]["voices_shown"] == 1 and row["refused"] is None
+    opened = set()
+    real = io.open
+
+    def spy(file, mode="r", *a, **k):
+        if "r" in mode and "+" not in mode:
+            opened.add(Path(file).resolve().relative_to(tmp_path.resolve()).as_posix())
+        return real(file, mode, *a, **k)
+
+    verdicts = m31.NamedVoicesShownMigration()._verdicts()  # a plan-level input, read before
+    ep = m31._Episode(p["meta"], tmp_path, verdicts=verdicts)
+    monkeypatch.setattr(io, "open", spy)
+    monkeypatch.setattr("builtins.open", spy)
+    ep.plan()
+    monkeypatch.undo()
+    present = {k for k, v in row["inputs"].items() if v != ABSENT}
+    assert opened <= set(row["inputs"])  # nothing opened that the row does not list
+    assert present <= opened  # nothing hashed as read that the decision did not open
+    assert all(not (tmp_path / k).exists() for k, v in row["inputs"].items() if v == ABSENT)
+
+
+def test_an_edited_input_changes_its_plan_row(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(m29, "NAMING_ARC_VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = _episode(tmp_path, "Steve McConnell", "guest", typed=True)
+    [before] = list(m31.dry_run_report(tmp_path))
+    p["seg"].write_text(p["seg"].read_text(encoding="utf-8") + " ", encoding="utf-8")
+    [after] = list(m31.dry_run_report(tmp_path))
+    rel = p["seg"].relative_to(tmp_path).as_posix()
+    assert before["inputs"][rel] != after["inputs"][rel]
+
+
+def test_verify_passes_where_no_listed_episode_is_served(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        m29, "NAMING_ARC_VOICES", {("elsewhere", "SPEAKER_01"): ENTRY[("ep", "SPEAKER_01")]}
+    )
+    _review(monkeypatch, tmp_path)
+    _episode(tmp_path, "Steve McConnell", "guest", typed=True)  # episode "ep", not listed
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert ok and "no listed episode is served here" in msg and "served_listed=0" in msg
+
+
+def test_verify_fails_on_unreadable_metadata(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(m29, "NAMING_ARC_VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = _episode(tmp_path, "Steve McConnell", "guest", typed=True)
+    _apply(tmp_path)
+    p["meta"].write_text("[]", encoding="utf-8")  # valid JSON, not a record
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert not ok and "metadata unreadable" in msg

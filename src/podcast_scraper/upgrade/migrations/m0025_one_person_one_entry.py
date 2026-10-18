@@ -894,7 +894,14 @@ class _Episode:
             name = self.voice_names[v]
             if name:
                 r["speaker_label"] = name
-                r["speaker_role"] = self.voice_roles.get(v, r.get("speaker_role"))
+                if v in self.voice_roles_restored:  # put back the role the voice had before
+                    old_role = self.voice_roles_restored[v]
+                    if old_role:
+                        r["speaker_role"] = old_role
+                    else:
+                        r.pop("speaker_role", None)
+                else:
+                    r["speaker_role"] = self.voice_roles.get(v, r.get("speaker_role"))
                 # A named person carries no voice type: the pipeline writes none on its segments,
                 # and GI reads hiding off this key (#2380).
                 r.pop("voice_type", None)
@@ -1167,7 +1174,12 @@ class _Episode:
                 continue
             name = self.voice_names[v["voice"]]
             if name:
-                v.update(resolved_name=name, named=True, role=self.voice_roles.get(v["voice"]))
+                role = (
+                    self.voice_roles_restored[v["voice"]] or "unknown"
+                    if v["voice"] in self.voice_roles_restored
+                    else self.voice_roles.get(v["voice"])
+                )
+                v.update(resolved_name=name, named=True, role=role)
             else:
                 v.update(resolved_name=v["voice"], named=False, source="raw")
                 if v["voice"] in self.voice_roles_restored:

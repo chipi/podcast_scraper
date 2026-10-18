@@ -63,7 +63,9 @@ Known answers, stated before the instrument exists (on `lost/clone30`, gold copy
 
 ## 5. Acceptance
 
-_TODO_
+Dated: 2026-10-18T10:05
+
+The fresh reviewer's criteria, written before code after its own reference measurement: [s7_s8_gold_insight_weighted.acceptance.md](s7_s8_gold_insight_weighted.acceptance.md).
 
 ## 6. Build
 

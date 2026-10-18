@@ -3,7 +3,7 @@
   "clone": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/224961a9-a599-4098-b178-a3895d47facc/scratchpad/lost/clone30",
   "code": {
     "dirty": true,
-    "sha": "97c55110145374e09cdd89a4d8f1d38008e69c80"
+    "sha": "7f7bf2fc63441e7f5f815f48e99b958ccfba517e"
   },
   "computed_class": "full",
   "files_changed": 245,
@@ -28,7 +28,7 @@
     "S2_hidden": -1896,
     "S3_principal_unidentified": -526
   },
-  "measured_at": "2026-10-18T09:43:06",
+  "measured_at": "2026-10-18T10:31:51",
   "migration": "0031_named_voices_shown",
   "scoreboard_after": {
     "A1_episodes_no_adfree": 3,
@@ -85,7 +85,7 @@
     "quotes_ref_unresolved": 244
   },
   "verify": {
-    "message": "every voice 0029 names carries its name and no hiding, as reviewed; insights_checked=2454, unnamed_checked=1, unreviewed_unchanged=22, admaps_checked=71",
+    "message": "every voice 0029 names carries its name and no hiding, as reviewed; insights_checked=2454, unnamed_checked=1, unreviewed_unchanged=22, admaps_checked=71, served_listed=71, metadata_unreadable=0",
     "ok": true
   },
   "why": [

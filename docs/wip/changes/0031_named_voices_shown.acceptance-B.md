@@ -140,3 +140,30 @@ Out of scope, own record: the 28 pre-existing ad-map mismatches (15 feeds; lengt
 9. **Not required:** L6 (`.adfree.txt` = `.txt` minus ranges holds for 2,855 of 2,855 ad maps without
    ranges but only 82 of 673 with ranges, so it cannot be a verify rule; the reviewer checks
    "holds after iff held before" for every carried ad map at step 8). L8 is for the operator.
+
+## Amendment for revision B.4 (2026-10-18T10:06, the same reviewer, before any B.4 code)
+
+0. Baseline: B.3 committed first (7f7bf2fc6), its files matching `reviewer5/tested_tree.sha256`; B.4 a
+   separate commit; each applied to its own fresh clone30 copy and diffed.
+1. **C1, renamed branch:** a WRONG_PERSON verdict with old_name set restores the listed (old_name,
+   old_role) on segments (label, `speaker_role`; None removes), diagnostics (old_role or "unknown"),
+   insights and quotes (old_name's person id), transcript prefixes, the roster; verify passes on that
+   state; a second plan writes and refuses nothing. Tests: old_role "guest", old_role None, the
+   unnamed branch unchanged; the reviewer's `test_r5_rename_wrong.py` reports verify True, refused [].
+   Mutants killed: verify wants None in the renamed branch; old_role not restored; the plan not
+   treating (old_name, old_role) as done.
+2. **Plan contract:** one row per written or refused episode, `counts` equal to its counters and
+   summing to apply's totals (54 rows on clone30); every `inputs` value the sha256 of that file now;
+   an open() spy (builtins.open, io.open, os.open) over each of the 54 episodes' decisions: opened ==
+   hashed, exactly; existence-only checks (`exists` / `is_file`) in `inputs` with an absent marker or
+   listed with their code line; plan-level reads (`verdicts_file()`, sha f3587fde…; the served
+   selection) listed; a repo spy test over a fixture episode kills "drop one input"; undo, receipts
+   and outcome unchanged (403).
+3. **Verify without listed episodes:** passes only when the served episodes holding any list entry
+   number 0, and prints that number; unreadable metadata among served episodes is counted and FAILS;
+   a served listed episode with nothing checked still FAILS; mutants killed: the count forced to 0,
+   unreadable metadata skipped, the V6 guard off; the two red end-to-end tests pass for that reason.
+4. clone30 outcome identical to B.3 (`diff -r` 0 files): written 54, refused 0, unnamed 1, files 403,
+   the same 245 changed files, undo 403/0 twice, the scoreboard as B.3, verify passing with the same
+   counts plus the served-listed count (71).
+5. Mutations: 0 survivors over the 55 plus those of items 1, 2d and 3.

@@ -109,8 +109,10 @@ class _Episode(DerivedSurfacesEpisode):
             name, role = stored.get(voice, (None, None))
             name = None if not name or m29._DIARIZATION_LABEL.match(name) else name
             if verdict is not None and verdict.verdict == "WRONG_PERSON":
-                if name is None:
+                if name is None and old_name is None:
                     continue  # never named, or already unnamed: nothing to take off
+                if name is not None and name == old_name:
+                    continue  # already back to the listed old name: done
                 if name != new_name:
                     self.refused = f"{voice}: stored {name!r}, the review judged {new_name!r}"
                     return True
@@ -118,11 +120,7 @@ class _Episode(DerivedSurfacesEpisode):
                 # it was before 0029 named it, the listed old name and role (None: unnamed).
                 self._bump("unnamed_by_review")
                 self.voice_names[voice] = old_name
-                if old_name:
-                    if old_role:
-                        self.voice_roles[voice] = old_role
-                else:
-                    self.voice_roles_restored[voice] = old_role
+                self.voice_roles_restored[voice] = old_role
                 continue
             if (name, role) == (new_name, new_role) and voice not in typed:
                 continue  # done: named and shown, nothing for this migration to change
@@ -170,15 +168,105 @@ def _written_metas(root: Path) -> Set[str]:
     return out
 
 
+class _Served:
+    """One served listed episode as verify reads it: segments, transcripts, GI, diagnostics."""
+
+    def __init__(self, meta_path: Path, rel: str) -> None:
+        self.meta_path = meta_path
+        self.run = meta_path.parent.parent
+        self.rel = rel
+        self.texts: Dict[str, Optional[list]] = {}
+        self.segs: Dict[str, List[dict]] = {}
+        for sfx, seg_sfx in ((".txt", ".segments.json"), (".adfree.txt", ".adfree.segments.json")):
+            tp = self.run / rel.replace(".txt", sfx)
+            segs = _rows(_load(self.run / rel.replace(".txt", seg_sfx)))
+            self.segs[tp.name] = segs
+            body = tp.read_text(encoding="utf-8") if tp.is_file() else ""
+            self.texts[tp.name] = _segment_char_spans(body, segs) if body and segs else None
+        gi = _load(Path(str(meta_path)[: -len(".metadata.json")] + ".gi.json")) or {}
+        self.nodes = {str(n.get("id")): n for n in gi.get("nodes") or [] if isinstance(n, dict)}
+        self.first: Dict[str, str] = {}
+        for e in gi.get("edges") or []:
+            if isinstance(e, dict) and e.get("type") == "SUPPORTED_BY":
+                self.first.setdefault(str(e.get("from")), str(e.get("to")))
+        self.diag = _load(self.run / rel.replace(".txt", ".speakers.diagnostics.json")) or {}
+
+    def voice_of(self, quote_id: str) -> Optional[str]:
+        props = (self.nodes.get(quote_id) or {}).get("properties") or {}
+        ref = Path(str(props.get("transcript_ref") or "")).name
+        return _voice_at(self.texts.get(ref), props.get("char_start"))
+
+    def diag_voice(self, voice: str) -> List[dict]:
+        return [
+            d
+            for d in self.diag.get("voices") or []
+            if isinstance(d, dict) and d.get("voice") == voice
+        ]
+
+    def shown_problems(self, voice: str, where: str) -> Tuple[List[str], int]:
+        """Insights whose FIRST quote the voice speaks and that are still hidden (and how many)."""
+        problems, checked = [], 0
+        for iid, n in self.nodes.items():
+            if n.get("type") != "Insight" or self.voice_of(self.first.get(iid, "")) != voice:
+                continue
+            checked += 1
+            props = n.get("properties") or {}
+            if props.get("surfaceable") is False and props.get("speaker_voice_type") in HIDING:
+                problems.append(
+                    f"{where}: insight {iid} still hidden ({props['speaker_voice_type']})"
+                )
+        return problems, checked
+
+    def unnamed_problems(self, voice: str, entry: m29.Entry, where: str) -> List[str]:
+        """The wrong name left anywhere on the voice, or a role other than the listed old one."""
+        name, want_role = str(entry[2]), entry[1]  # the listed old role (None: no role)
+        problems = []
+        for f, segs in self.segs.items():
+            if any(r.get("speaker") == voice and r.get("speaker_role") != want_role for r in segs):
+                problems.append(f"{where}: {f} gives the voice a role other than {want_role!r}")
+        for dv in self.diag_voice(voice):
+            if dv.get("role") != (want_role or "unknown"):
+                problems.append(f"{where}: diagnostics give the voice role {dv.get('role')!r}")
+            if dv.get("resolved_name") == name:
+                problems.append(f"{where}: diagnostics still resolve the voice to {name!r}")
+        for f, segs in self.segs.items():
+            if any(r.get("speaker") == voice and r.get("speaker_label") == name for r in segs):
+                problems.append(f"{where}: {f} still labels the voice {name!r}")
+            others = any(r.get("speaker") != voice and r.get("speaker_label") == name for r in segs)
+            tp = self.run / self.rel.replace(".txt", ".adfree.txt" if "adfree" in f else ".txt")
+            if (
+                not others
+                and tp.is_file()
+                and f"\n{name}:" in "\n" + tp.read_text(encoding="utf-8")
+            ):
+                problems.append(f"{where}: {tp.name} still prefixes lines with {name!r}")
+        pid = person_id(name)
+        for qid, n in self.nodes.items():
+            props = n.get("properties") or {}
+            if (
+                n.get("type") == "Quote"
+                and self.voice_of(qid) == voice
+                and props.get("speaker_id") == pid
+            ):
+                problems.append(f"{where}: quote {qid} still {pid}")
+            if (
+                n.get("type") == "Insight"
+                and self.voice_of(self.first.get(qid, "")) == voice
+                and props.get("speaker") == name
+            ):
+                problems.append(f"{where}: insight {qid} still spoken by {name!r}")
+        return problems
+
+
 def _outcome(root: Path, verdicts: rv.Verdicts) -> Tuple[List[str], Dict[str, int]]:
     """What verify must see on the served episodes: ``(problems, counts)``.
 
     An entry the migration would still change shows up as written or refused in the plan; this
     checks the state left behind. Shown or named entries: no insight whose FIRST supporting quote
-    the voice speaks (the
-    pipeline's rule, ``gi.pipeline._apply_voice_flags``) is hidden as unknown or unidentified.
-    Unnamed-by-review entries: the name on none of the voice's segments, quotes, insights or
-    diagnostics, and on no transcript line when no other voice carries it.
+    the voice speaks (the pipeline's rule, ``gi.pipeline._apply_voice_flags``) is hidden as unknown
+    or unidentified. Unnamed-by-review entries: the wrong name on none of the voice's segments,
+    quotes, insights or diagnostics (or transcript lines when no other voice carries it), and the
+    listed old role. Unreadable metadata fails; a corpus serving no listed episode passes.
     """
     problems: List[str] = []
     counts = {
@@ -186,125 +274,51 @@ def _outcome(root: Path, verdicts: rv.Verdicts) -> Tuple[List[str], Dict[str, in
         "unnamed_checked": 0,
         "unreviewed_unchanged": 0,
         "admaps_checked": 0,
+        "served_listed": 0,
+        "metadata_unreadable": 0,
     }
     entries = {k: e for k, e in m29.NAMING_ARC_VOICES.items() if e[2]}
     written = _written_metas(root)
     for meta_path in select_served_artifacts(root, ".metadata.json")[0]:
         meta = _load(meta_path)
         if not isinstance(meta, dict):
+            # Never "not listed": an unreadable record could be one of the list's (it fails).
+            counts["metadata_unreadable"] += 1
+            problems.append(f"{meta_path.name}: metadata unreadable")
             continue
         eid = str((meta.get("episode") or {}).get("episode_id") or "")
         mine = {v: e for (k, v), e in entries.items() if k == eid}
         if not mine:
             continue
-        run = meta_path.parent.parent
-        rel = _run_relative((meta.get("content") or {}).get("transcript_file_path"), run)
+        counts["served_listed"] += 1
+        rel = _run_relative(
+            (meta.get("content") or {}).get("transcript_file_path"), meta_path.parent.parent
+        )
         if not rel.endswith(".txt"):
             continue
-        texts: Dict[str, Optional[list]] = {}
-        segs_by_file: Dict[str, List[dict]] = {}
-        for sfx, seg_sfx in ((".txt", ".segments.json"), (".adfree.txt", ".adfree.segments.json")):
-            tp = run / rel.replace(".txt", sfx)
-            segs = _rows(_load(run / rel.replace(".txt", seg_sfx)))
-            segs_by_file[tp.name] = segs
-            body = tp.read_text(encoding="utf-8") if tp.is_file() else ""
-            texts[tp.name] = _segment_char_spans(body, segs) if body and segs else None
-        gi = _load(Path(str(meta_path)[: -len(".metadata.json")] + ".gi.json")) or {}
-        nodes = {str(n.get("id")): n for n in gi.get("nodes") or [] if isinstance(n, dict)}
-        first: Dict[str, str] = {}
-        for e in gi.get("edges") or []:
-            if isinstance(e, dict) and e.get("type") == "SUPPORTED_BY":
-                first.setdefault(str(e.get("from")), str(e.get("to")))
-
-        def voice_of(quote_id: str) -> Optional[str]:
-            props = (nodes.get(quote_id) or {}).get("properties") or {}
-            ref = Path(str(props.get("transcript_ref") or "")).name
-            return _voice_at(texts.get(ref), props.get("char_start"))
-
-        matches = admap_matches(run / rel)
+        ep = _Served(meta_path, rel)
+        matches = admap_matches(ep.run / rel)
         if matches is not None:
             counts["admaps_checked"] += 1
             if not matches:
                 problems.append(f"{meta_path.name}: the ad map does not match its transcript")
-        diag = _load(run / rel.replace(".txt", ".speakers.diagnostics.json")) or {}
         for voice, e in sorted(mine.items()):
-            name = str(e[2])
             v = verdicts.get(eid, voice)
             where = f"{meta_path.name} {voice}"
             if v is None and str(meta_path.resolve()) in written:
                 problems.append(f"{where}: written by this migration, and has no verdict")
                 continue
+            if v is not None and v.verdict == "WRONG_PERSON":
+                counts["unnamed_checked"] += 1
+                problems += ep.unnamed_problems(voice, e, where)
+                continue
             if v is None:
                 # An entry this migration would change is refused while unreviewed (the plan and
                 # verify say so); one it leaves alone is checked like any shown voice.
                 counts["unreviewed_unchanged"] += 1
-            elif v.verdict == "WRONG_PERSON":
-                counts["unnamed_checked"] += 1
-                pid = person_id(name)
-                want_role = e[1] if e[0] is None else None
-                for f, segs in segs_by_file.items():
-                    if any(
-                        r.get("speaker") == voice and r.get("speaker_role") != want_role
-                        for r in segs
-                    ):
-                        problems.append(
-                            f"{where}: {f} gives the voice a role other than {want_role!r}"
-                        )
-                for dv in diag.get("voices") or []:
-                    if (
-                        isinstance(dv, dict)
-                        and dv.get("voice") == voice
-                        and dv.get("role") != (want_role or "unknown")
-                    ):
-                        problems.append(
-                            f"{where}: diagnostics give the voice role {dv.get('role')!r}"
-                        )
-                for f, segs in segs_by_file.items():
-                    if any(
-                        r.get("speaker") == voice and r.get("speaker_label") == name for r in segs
-                    ):
-                        problems.append(f"{where}: {f} still labels the voice {name!r}")
-                    others = any(
-                        r.get("speaker") != voice and r.get("speaker_label") == name for r in segs
-                    )
-                    tp = run / rel.replace(".txt", ".adfree.txt" if "adfree" in f else ".txt")
-                    if (
-                        not others
-                        and tp.is_file()
-                        and f"\n{name}:" in "\n" + tp.read_text(encoding="utf-8")
-                    ):
-                        problems.append(f"{where}: {tp.name} still prefixes lines with {name!r}")
-                for qid, n in nodes.items():
-                    props = n.get("properties") or {}
-                    if (
-                        n.get("type") == "Quote"
-                        and voice_of(qid) == voice
-                        and props.get("speaker_id") == pid
-                    ):
-                        problems.append(f"{where}: quote {qid} still {pid}")
-                    if (
-                        n.get("type") == "Insight"
-                        and voice_of(first.get(qid, "")) == voice
-                        and props.get("speaker") == name
-                    ):
-                        problems.append(f"{where}: insight {qid} still spoken by {name!r}")
-                for dv in diag.get("voices") or []:
-                    if (
-                        isinstance(dv, dict)
-                        and dv.get("voice") == voice
-                        and dv.get("resolved_name") == name
-                    ):
-                        problems.append(f"{where}: diagnostics still resolve the voice to {name!r}")
-                continue
-            for iid, n in nodes.items():
-                if n.get("type") != "Insight" or voice_of(first.get(iid, "")) != voice:
-                    continue
-                counts["insights_checked"] += 1
-                props = n.get("properties") or {}
-                if props.get("surfaceable") is False and props.get("speaker_voice_type") in HIDING:
-                    problems.append(
-                        f"{where}: insight {iid} still hidden ({props['speaker_voice_type']})"
-                    )
+            found, checked = ep.shown_problems(voice, where)
+            counts["insights_checked"] += checked
+            problems += found
     return problems, counts
 
 
@@ -355,6 +369,10 @@ class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
             if problems:
                 parts.append(f"{len(problems)} outcome problem(s): {problems[:5]}")
             return False, f"{'; '.join(parts)}; {tally}"
+        if counts["served_listed"] == 0:
+            # A corpus that serves none of the list's episodes (a fixture, a fresh corpus): the
+            # migration has nothing here to have done. Any served listed episode is checked below.
+            return True, f"no listed episode is served here; {tally}"
         if counts["insights_checked"] + counts["unnamed_checked"] == 0:
             return False, f"verify checked nothing; {tally}"
         return True, f"every voice 0029 names carries its name and no hiding, as reviewed; {tally}"
@@ -369,14 +387,33 @@ class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
         return result
 
 
+def verdicts_file() -> Path:
+    """The verdicts file this migration reads (a plan-level input, hashed into the code digest)."""
+    return rv.verdicts_path(MIGRATION_ID)
+
+
 def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:
-    """Read-only: one row per episode the migration would write or refuses."""
+    """Read-only: one row per episode the migration would write or refuses (the outcome hook's
+    plan contract): every counter, and the sha256 of every file its decision read or looked for
+    (``read_recorder``; ``"absent"`` for a file looked for and missing)."""
+    from ..read_recorder import recording
+
+    root = Path(root)
     mig = NamedVoicesShownMigration()
-    write, refused, _totals = mig._scan(Path(root))
-    for ep in write + refused:
+    mig._loaded = mig._verdicts()
+    for meta in select_served_artifacts(root, ".metadata.json")[0]:
+        ep = _Episode(meta, root, verdicts=mig._loaded)
+        with recording(root) as rec:
+            planned = ep.plan()
+        if not planned and not ep.refused:
+            continue
+        if ep.refused:
+            ep._bump("refused")  # as ``_scan`` counts it, so rows sum to apply's totals
         yield {
-            "meta": str(ep.meta.relative_to(root)),
+            "meta": str(meta.relative_to(root)),
             "voices": dict(ep.voice_names),
             "refused": ep.refused,
+            "counts": dict(sorted(ep.counts.items())),
+            "inputs": rec.inputs(),
             "verdicts_sha256": mig._loaded.sha256,
         }

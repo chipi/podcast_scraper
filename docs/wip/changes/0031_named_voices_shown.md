@@ -10,6 +10,7 @@ touches:
   - src/podcast_scraper/upgrade/reviewer_verdicts.py
   - src/podcast_scraper/upgrade/migrations/voice_rewrite_derived.py
   - src/podcast_scraper/upgrade/file_rewrite.py
+  - src/podcast_scraper/upgrade/read_recorder.py
 ---
 
 # 0031 — the voices 0029 named, shown the way a fresh run shows a named person
@@ -238,6 +239,10 @@ rows' counts and inputs (an input file edited changes the row), verify on an emp
 
 ## 5. Acceptance
 
+Dated: 2026-10-18T10:06
+
+Revision B.4: the reviewer's amendment (10:06), appended to the acceptance file.
+
 Dated: 2026-10-18T09:27
 
 Revision B.3: the reviewer's amendment (09:27), appended to [the acceptance file](0031_named_voices_shown.acceptance-B.md).
@@ -337,6 +342,15 @@ survivors and its B.3 list killed (`b2/mutants3.py`), the earlier sets re-run, 0
 **Step 0, operator 2026-10-18: wait for S7/S8 and the migration outcome hook (option B)** before
 step 10. Gold check meanwhile (`scratchpad/lost/gold0031.py`): 19 of the 54 episodes are gold cases
 on the served run; gold agrees with the review on 19 of 19.
+
+**Revision B.4 measured** (B.3 at 7f7bf2fc6 and B.4 each applied to a fresh `lost/clone30` copy):
+feeds byte-identical between the two applies; plan rows 54, refused 0, their counts summing to
+apply's totals; gate report rewritten (`0031_named_voices_shown.gate.json`, 245 files changed,
+gating moves as B.3); receipts 403; undo 403 / 0, feeds identical; apply again: 54 written, verify
+passes with `served_listed=71`; undo again 403 / 0, identical. Mutations: all four sets
+(`scratchpad/lost/mutants.py`, `b2/mutants2.py`, `b2/mutants3.py`, `b2/mutants4.py`), 0 survivors.
+A process note: a second copy of the undo sequence was run while the first was still running and
+its output interleaved; the first run's own log (`b2/runB4.log`) is the record above.
 
 ## 8. Verdict
 
