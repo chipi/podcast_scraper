@@ -167,3 +167,26 @@ Out of scope, own record: the 28 pre-existing ad-map mismatches (15 feeds; lengt
    the same 245 changed files, undo 403/0 twice, the scoreboard as B.3, verify passing with the same
    counts plus the served-listed count (71).
 5. Mutations: 0 survivors over the 55 plus those of items 1, 2d and 3.
+
+Dated: 2026-10-18T11:11
+
+Step-5 criteria for 0031 revision B.5 (prediction dated 11:10). They amend the 10:06 block; everything else stands. Written from the prediction. I read `scratchpad/lost/b5.patch` only to see its shape; my criteria do not depend on it.
+
+1. C-a (wrong root vs fresh install). The manifest test meets the intent, with one addition.
+   - a. The intent is that a path which is not a corpus must not pass. A missing `corpus_manifest.json` with 0 served episodes FAILS and names both facts. The registry contract (`test_no_faiss_index_is_clean_noop`: manifest present, no episodes, verify exits 0) stays green. clone30 and prod roots carry a manifest.
+   - b. Required addition: served = 0 while `*.metadata.json` files exist under `feeds/` FAILS ("metadata on disk, none served"). Without this, a real corpus whose served selection reads nothing (a broken or mis-versioned manifest, or a selection bug) passes as "an empty corpus". That is the vacuous pass C-a exists to stop. The manifest must also parse as a JSON object: an empty or corrupt file does not count as one.
+   - c. Tests, each in the repo:
+     - no manifest and no episodes → FAIL;
+     - manifest and no episodes → PASS, with a message starting "an empty corpus";
+     - manifest plus metadata files on disk, 0 served → FAIL;
+     - manifest that is not a JSON object → treated as absent.
+   - d. Mutants that must be killed: the manifest check dropped; `served` never counted; the on-disk check dropped; the parse check dropped.
+
+2. C-b (record only). Accepted without hashing the selection's reads. Rows present on one side only already stop the hook's plan diff until each has a cause. The record must say exactly that, name the call site (m0031 `dry_run_report`, `select_served_artifacts` outside `recording()`), and name the hook test that fails on such a row. That test is the hook reviewer's to confirm. If it does not exist, C-b becomes a requirement on the hook, not on 0031.
+
+3. Outcome on clone30.
+   - Plan rows, apply and files written are byte-identical to B.4 (f1817141e), each applied to its own fresh copy of clone30 and compared with `diff -r` = 0.
+   - Undo 403/0 still holds.
+   - Verify on the after-state passes with served = 2685 and served_listed = 71. All other counters unchanged: insights_checked 2454, unnamed_checked 1, unreviewed_unchanged 22, admaps_checked 71, metadata_unreadable 0.
+
+4. Mutations: my 65 still all killed, plus the four in 1d.

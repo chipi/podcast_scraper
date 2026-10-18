@@ -26,6 +26,7 @@ decides what a miss costs, not the builder. Stdlib only: the Claude hook runs on
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import json
 import re
 from dataclasses import dataclass, field
@@ -210,7 +211,7 @@ def check_edit(repo_root: Path, rel_paths: Iterable[str]) -> List[str]:
         measured = [r for r in mine if _measured_at(r) is not None]
         blocking = [r for r in measured if check_build_ready(r)]
         if not ready or blocking:
-            for r in (blocking or mine):
+            for r in blocking or mine:
                 for why in check_build_ready(r):
                     problems.append(f"{rel}: record {r.path.name}: {why}")
     return problems
@@ -245,8 +246,43 @@ def check_landing(repo_root: Path, registered_ids: Iterable[str]) -> List[str]:
                     f"{mid}: step 8: the last 'Verdict:' line is "
                     f"{verdicts[-1] if verdicts else 'missing'}, not GO / GO WITH CONDITIONS"
                 )
+            else:
+                problems += _outcome_problems(repo_root, mid, rec, gate, verdicts[-1])
         elif not rec.sections.get("0") or TODO in rec.sections.get("0", ""):
             problems.append(f"{mid}: light: '## 0. Why light' is not filled")
+    return problems
+
+
+OUTCOMES_DIR = Path("src") / "podcast_scraper" / "upgrade" / "outcomes"
+
+
+def _outcome_problems(
+    repo_root: Path, mid: str, rec: Record, gate: Path, verdict: str
+) -> List[str]:
+    """The shipped outcome (``upgrade/outcomes/<id>.json``, read by the migration outcome hook) is
+    the measured one: its verdict is the record's last, the record names its sha256, and its
+    scoreboards and plan equal the gate report's. Stated limit: an outcome, gate report and record
+    edited together pass this; only the step-8 re-derivation guards that."""
+    path = repo_root / OUTCOMES_DIR / f"{mid}.json"
+    if not path.is_file():
+        return [
+            f"{mid}: no shipped outcome {OUTCOMES_DIR / path.name} "
+            "(scripts/measure/build_outcome.py)"
+        ]
+    raw = path.read_bytes()
+    out = json.loads(raw)
+    rep = json.loads(gate.read_text(encoding="utf-8"))
+    problems = []
+    if out.get("verdict") != verdict:
+        problems.append(f"{mid}: the outcome's verdict {out.get('verdict')!r} is not the record's")
+    sha = hashlib.sha256(raw).hexdigest()
+    if sha not in rec.sections.get("8", ""):
+        problems.append(f"{mid}: step 8 does not name the outcome's sha256 {sha}")
+    for key in ("scoreboard_before", "scoreboard_after", "plan_sha256", "episode_deltas"):
+        if out.get(key) != rep.get(key):
+            problems.append(f"{mid}: the outcome's {key} is not the gate report's")
+    if out.get("code_dirty") or rep.get("code", {}).get("dirty"):
+        problems.append(f"{mid}: the outcome was measured on uncommitted code")
     return problems
 
 

@@ -168,6 +168,19 @@ def _written_metas(root: Path) -> Set[str]:
     return out
 
 
+def _serves_nothing(root: Path) -> Optional[str]:
+    """Why a root that serves no episode must not pass, or ``None`` for an empty corpus.
+
+    A wrong root must not pass vacuously, and a fresh install (a manifest, no episodes) must pass,
+    as every migration's verify does there. Metadata on disk that none is served from means the
+    selection read nothing (a broken manifest, a selection bug), not an empty corpus."""
+    if not isinstance(_load(root / "corpus_manifest.json"), dict):
+        return "has no corpus manifest (absent or not a JSON object)"
+    if next((root / "feeds").rglob("*.metadata.json"), None) is not None:
+        return "has metadata on disk, none served"
+    return None
+
+
 class _Served:
     """One served listed episode as verify reads it: segments, transcripts, GI, diagnostics."""
 
@@ -274,12 +287,14 @@ def _outcome(root: Path, verdicts: rv.Verdicts) -> Tuple[List[str], Dict[str, in
         "unnamed_checked": 0,
         "unreviewed_unchanged": 0,
         "admaps_checked": 0,
+        "served": 0,
         "served_listed": 0,
         "metadata_unreadable": 0,
     }
     entries = {k: e for k, e in m29.NAMING_ARC_VOICES.items() if e[2]}
     written = _written_metas(root)
     for meta_path in select_served_artifacts(root, ".metadata.json")[0]:
+        counts["served"] += 1
         meta = _load(meta_path)
         if not isinstance(meta, dict):
             # Never "not listed": an unreadable record could be one of the list's (it fails).
@@ -369,10 +384,15 @@ class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
             if problems:
                 parts.append(f"{len(problems)} outcome problem(s): {problems[:5]}")
             return False, f"{'; '.join(parts)}; {tally}"
+        if counts["served"] == 0:
+            why = _serves_nothing(Path(ctx.corpus_root))
+            if why:
+                return False, f"{ctx.corpus_root} serves no episode and {why}; {tally}"
         if counts["served_listed"] == 0:
             # A corpus that serves none of the list's episodes (a fixture, a fresh corpus): the
             # migration has nothing here to have done. Any served listed episode is checked below.
-            return True, f"no listed episode is served here; {tally}"
+            empty = "an empty corpus: " if counts["served"] == 0 else ""
+            return True, f"{empty}no listed episode is served here; {tally}"
         if counts["insights_checked"] + counts["unnamed_checked"] == 0:
             return False, f"verify checked nothing; {tally}"
         return True, f"every voice 0029 names carries its name and no hiding, as reviewed; {tally}"

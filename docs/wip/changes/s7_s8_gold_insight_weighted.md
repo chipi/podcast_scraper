@@ -4,7 +4,7 @@ class: full           # an instrument, not a corpus change; run through every st
 status: open
 issue: 2380
 touches:
-  - scripts/measure/naming_gate.py
+  - scripts/measure/gold_insights.py
   - src/podcast_scraper/quality/gold_insights.py
 ---
 
@@ -69,15 +69,85 @@ The fresh reviewer's criteria, written before code after its own reference measu
 
 ## 6. Build
 
-_TODO_
+`src/podcast_scraper/quality/gold_insights.py` (module), `scripts/measure/gold_insights.py`
+(CLI), `tests/unit/podcast_scraper/quality/test_gold_insights.py` (18 scenario tests on real-shaped
+corpora built per test: first-quote order, one name on two voices, speakerless, cross-run ref,
+`/app/output` refs, stale case, S8 / nameless labels, unlabelled voice, outside-segment and
+no-offset quotes, numeric label versions, missing label file, two languages, matcher tiers, parity
+with `naming_gate.is_scored` / `_same`, read-only and deterministic, conservation refusal).
+
+**After the step-8 FAIL (criterion 13: 10 of the reviewer's 20 mutants survived).** Back to step 6,
+as the reviewer ruled: no definition or number changes. 19 tests added (37 in all), one per
+survivor and the gaps it named:
+- a nameless label that is not scored (unknown role, low confidence) is S8 (R3);
+- a served case whose label file is missing (R12);
+- the plain-text path: segments without offsets placed by text length, the alignment guard's
+  refusal, and no segments (`spans_none`, not `outside_segments`; R5, R19);
+- a ref to a missing transcript is `unresolved_ref` (R15);
+- the later-quote sensitivity (R8);
+- the flag-absent count against `insights_from_gi`'s own exclusions, no text and `drop` (R9);
+- a labelled voice missing from the segments (R11);
+- `--labels` / `labels=` pins a label directory (R17; the CLI now exposes it);
+- the bare `SPEAKER` id is unnamed (R20);
+- a quote through an `.adfree.txt` ref uses the ad-free segments;
+- `entry_voices`.
+
+Also: a served case with no GI file is counted (`gi_missing`), and `ledger_0030` (always empty: 0030
+was applied by a script, not the runner) is replaced by `ledger_applied`, what the ledger records.
+The snapshot label is the corpus state: `snapshot-prod-20261016+0030` for `lost/clone30`.
 
 ## 7. Measure
 
-_TODO_
+On `lost/clone30`, gold `.test_outputs/naming_gold` (labels_v1), snapshot
+`snapshot-prod-20261016`: every bucket, shown/hidden split, matcher tier, skipped list (51:
+9 / 39 / 3), flag-absent excluded count (val_v1 74), sensitivity counters (later quote on the stored
+name's voice 33 / 100 / 18; stored name not the segment label among wrong: dev 5) and speakerless
+distribution equal the step-5 reviewer's independent reference measurement (its acceptance file).
+Two runs byte-identical; nothing written under the clone or the gold sets. Mutations: the 14 the
+criteria list, all killed (`scratchpad/lost/s7mut.py`).
+
+Known answers: v447 before: wrong 29 hidden (SPEAKER_00), unnamed 3 hidden (SPEAKER_01); after 0031
+B.4 (applied on a fresh clone30 copy): wrong 0, unnamed 32. 0031's entry voices covered by gold
+(23): before correct 766 (695 hidden, 71 shown), wrong 29 (hidden), S8 66; after correct 766 (all
+shown), wrong 0, unnamed 29 (hidden), S8 66.
+
+**Re-measured after the step-6 fixes** (`--snapshot snapshot-prod-20261016+0030`, report
+`scratchpad/lost/s7_b.json`): per-insight rows equal to the reviewed run's (`lost/s7_a.json`,
+`lost/s7cmp.py`); every set summary equal; `gi_missing` 0 in dev_v1, val_v1, val_v2;
+`ledger_applied` 0001 to 0029 (no 0030). Mutations: the reviewer's 20 (`reviewer6/mut8.py`, run
+unchanged on a scratch mirror `scratchpad/s7mirror`, never the repo; baseline 37 passed): 20 of 20
+killed. My earlier 14 (`lost/s7mut.py`) edit the repo in place and were not re-run; that script is
+retired for this reason.
+
+**The known-answer population, restated.** 0031's entry voices that gold covers are 23 voices in 22
+cases (the 76 keys of `review_names()`), not the 19 cases the dated prediction named: that count
+came from the older 54-entry plan. The numbers above are on the 23.
 
 ## 8. Verdict
 
-_TODO_
+Verdict: NO-GO (2026-10-18, step-8 reviewer)
+
+**Step-8 reviewer (fresh advisor), 2026-10-18: FAIL on criterion 13, back to step 6.** Its file:
+`scratchpad/reviewer6/verdicts_s7s8_step8.tsv`. PASS: the join (30,236 rows, 0 differing from its
+own, before and after 0031 B.4), ref resolution on read-only real cases, criteria 3 to 10, four
+byte-identical reports, read-only, the known answers. FAIL: 10 of its 20 mutants survived the 18
+tests. Partial: the snapshot label (clone30 is +0030) and the always-empty `ledger_0030`. Small:
+a missing GI file not counted; the file list; cite the diff for "re-derived independently".
+
+Verdict: GO WITH CONDITIONS (2026-10-18, step-8 reviewer, re-verdict)
+
+**Step-8 reviewer re-verdict, 2026-10-18.** Its file: `scratchpad/reviewer6/verdicts_s7s8_step8_r2.tsv`
+(its own mirror `reviewer6/mirror2` and its own runs). PASS on criteria 1 to 12, 14 and 15: 30,236
+rows, 0 differing from its reference; three reports byte-identical (sha256 dea74e10…, `lost/s7_b.json`
+among them); nothing written under clone30 or gold; `snapshot-prod-20261016+0030`, `ledger_applied`
+0001 to 0029 (no 0030); `gi_missing` 0; the population restated as 23 voices in 22 cases.
+Criterion 13 PASS WITH CONDITION: baseline 37 passed; its 20 mutants all killed; of its 6 new
+mutants on the new code (`reviewer6/mut8b.py`), 5 killed, N6 (the CLI drops `--labels`) survived.
+Condition, before commit: one test that runs the CLI with `--labels` and catches N6.
+
+**Condition met** (before commit): `test_the_cli_passes_labels_through` runs `main()` with
+`--labels g=labels_v1`, without it, and with a malformed value. On a fresh scratch mirror
+(baseline 38 passed) the reviewer's `mut8b.py`, run unchanged: 6 of 6 killed, N6 included.
 
 ## 9. Operator review
 

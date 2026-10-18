@@ -397,6 +397,8 @@ podcast_scraper = [
     # The step-8 reviewers' verdicts list migrations read (upgrade/reviewer_verdicts.py). Missing from
     # the wheel, a migration that reads one refuses to run on prod.
     "upgrade/verdicts/*.tsv",
+    # The clone outcome each regime migration ships (upgrade/outcome_hook.py, method D5).
+    "upgrade/outcomes/*.json",
 ]
 
 [tool.black]

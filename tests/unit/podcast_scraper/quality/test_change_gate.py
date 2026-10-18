@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[4]
 MIG = "src/podcast_scraper/upgrade/migrations/m0099_x.py"
 DONE = {s: f"done for step {s}" for s in cg.LANDING_STEPS}
 DONE["4"] = "Dated: 2026-10-18\n\nS1n 1786 -> 7."
-DONE["8"] = "Verdict: GO\n\nthe reviewer's reasons"
+DONE["8"] = "Verdict: GO\n\nthe reviewer's reasons; outcome {sha}"
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -37,9 +37,27 @@ def _record(root: Path, rid: str, cls: str, sections: dict, extra: str = "", sta
     (root / "docs/wip/changes" / f"{rid}.md").write_text(text, encoding="utf-8")
 
 
-def _gate(root: Path, rid: str, computed: str) -> None:
+GATE = {
+    "scoreboard_before": {"S1": 2},
+    "scoreboard_after": {"S1": 1},
+    "plan_sha256": "p",
+    "episode_deltas": {},
+}
+
+
+def _gate(root: Path, rid: str, computed: str, outcome: bool = True, verdict: str = "GO") -> str:
+    """The gate report and (for a full change) the shipped outcome; returns the outcome sha."""
     path = root / "docs/wip/changes" / f"{rid}.gate.json"
-    path.write_text(json.dumps({"computed_class": computed}), encoding="utf-8")
+    path.write_text(json.dumps({"computed_class": computed, **GATE}), encoding="utf-8")
+    if not outcome:
+        return ""
+    od = root / cg.OUTCOMES_DIR
+    od.mkdir(parents=True, exist_ok=True)
+    raw = json.dumps({"verdict": verdict, "code_dirty": False, **GATE}).encode()
+    (od / f"{rid}.json").write_bytes(raw)
+    import hashlib
+
+    return hashlib.sha256(raw).hexdigest()
 
 
 def test_the_config_guards_migrations_naming_gi_and_the_ad_cut() -> None:
@@ -155,7 +173,7 @@ def test_light_needs_its_reason_and_lands_only_when_the_gate_measured_light(tmp_
     problems = cg.check_landing(root, ["0099_x"])
     assert "record says light, the gate measured 'full'" in problems[0]
     assert len(problems) > 1  # measured full, so every full-method step is required too
-    _gate(root, "0099_x", "light")
+    _gate(root, "0099_x", "light", outcome=False)
     assert cg.check_landing(root, ["0099_x"]) == []
 
 
@@ -166,27 +184,47 @@ def test_landing_needs_steps_one_to_eight_and_ignores_migrations_before_the_regi
     assert cg.check_landing(root, ["0028_old"]) == []
     assert "no change record" in cg.check_landing(root, ["0099_x"])[0]
     _record(root, "0099_x", "full", {s: DONE[s] for s in cg.PRE_BUILD_STEPS})
-    _gate(root, "0099_x", "full")
+    sha = _gate(root, "0099_x", "full")
     assert [p.split(": ")[1] for p in cg.check_landing(root, ["0099_x"])] == [
         "step 6",
         "step 7",
         "step 8",
         "step 8",  # not done, and no 'Verdict: GO' line
     ]
-    _record(root, "0099_x", "full", DONE)
+    _record(root, "0099_x", "full", {**DONE, "8": DONE["8"].format(sha=sha)})
     assert cg.check_landing(root, ["0099_x"]) == []
+
+
+def test_landing_needs_the_shipped_outcome_bound_to_the_record(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    _gate(root, "0099_x", "full", outcome=False)
+    _record(root, "0099_x", "full", {**DONE, "8": DONE["8"].format(sha="x")})
+    assert "no shipped outcome" in cg.check_landing(root, ["0099_x"])[0]
+    sha = _gate(root, "0099_x", "full")
+    assert "does not name the outcome's sha256" in cg.check_landing(root, ["0099_x"])[0]
+    _record(root, "0099_x", "full", {**DONE, "8": DONE["8"].format(sha=sha)})
+    assert cg.check_landing(root, ["0099_x"]) == []
+    out = root / cg.OUTCOMES_DIR / "0099_x.json"
+    doc = json.loads(out.read_text())
+    doc["scoreboard_after"] = {"S1": 0}  # one integer changed after the verdict
+    out.write_text(json.dumps(doc))
+    problems = cg.check_landing(root, ["0099_x"])
+    assert any("sha256" in p for p in problems) and any("scoreboard_after" in p for p in problems)
+    sha = _gate(root, "0099_x", "full", verdict="GO WITH CONDITIONS")
+    _record(root, "0099_x", "full", {**DONE, "8": DONE["8"].format(sha=sha)})
+    assert "is not the record's" in cg.check_landing(root, ["0099_x"])[0]
 
 
 def test_landing_needs_the_last_verdict_to_be_go(tmp_path: Path) -> None:
     root = _repo(tmp_path)
-    _gate(root, "0099_x", "full")
-    for text, ok in (
-        ("Verdict: NO-GO\nH1", False),
-        ("Verdict: NO-GO\n\nVerdict: GO WITH CONDITIONS\nC1", True),
-        ("Verdict: GO\n\nVerdict: NO-GO\nrevised", False),
-        ("the reviewer liked it", False),
+    for text, ok, v in (
+        ("Verdict: NO-GO\nH1", False, "NO-GO"),
+        ("Verdict: NO-GO\n\nVerdict: GO WITH CONDITIONS\nC1", True, "GO WITH CONDITIONS"),
+        ("Verdict: GO\n\nVerdict: NO-GO\nrevised", False, "NO-GO"),
+        ("the reviewer liked it", False, "GO"),
     ):
-        _record(root, "0099_x", "full", {**DONE, "8": text})
+        sha = _gate(root, "0099_x", "full", verdict=v)
+        _record(root, "0099_x", "full", {**DONE, "8": text + f" outcome {sha}"})
         assert (cg.check_landing(root, ["0099_x"]) == []) is ok, text
 
 

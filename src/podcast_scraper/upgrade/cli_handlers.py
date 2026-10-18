@@ -66,6 +66,12 @@ def parse_upgrade_argv(argv: Sequence[str]) -> argparse.Namespace:
         help="Skip the pre-upgrade local snapshot. The migrations are in-place; without a "
         "snapshot, a partial failure can only be rolled back from an external backup.",
     )
+    run_p.add_argument(
+        "--accept-plan-diff",
+        default=None,
+        help="A plan-diff file from a stopped run, every entry given a cause and the operator's "
+        "go: applies only if prod's plan still differs exactly so (upgrade/outcome_hook.py).",
+    )
 
     args = parser.parse_args(list(argv))
     args.command = "upgrade"
@@ -188,6 +194,56 @@ def _snapshot_corpus(
         return None
 
 
+def _prepare_regime(runner: UpgradeRunner, ctx: MigrationContext, args: argparse.Namespace) -> None:
+    """The outcome hook's static and plan checks, inside the lock and before any snapshot.
+
+    A run that holds a regime migration (0031 on) holds only that one (``--to`` selects it), so its
+    plan is computed in the state its clone was measured from. A dry run prints the plan diff and
+    writes nothing."""
+    from . import outcome_hook
+
+    ceiling = runner._as_version(args.to_version) if args.to_version else None
+    pending = [
+        m
+        for m in runner.pending()
+        if ceiling is None or runner._as_version(m.to_version) <= ceiling
+    ]
+    applied = runner.state.applied_migration_ids()
+    accept = Path(args.accept_plan_diff) if getattr(args, "accept_plan_diff", None) else None
+    for mig in (m for m in pending if outcome_hook.in_regime(m.id)):
+        try:
+            plan = outcome_hook.episode_plan(mig, ctx.corpus_root)
+        except outcome_hook.HookError as exc:
+            if args.dry_run:
+                print(f"{mig.id}: outcome hook would refuse: {exc}", file=sys.stderr)
+                continue
+            raise
+        if not plan:
+            # Advisory: the runner decides again at the apply (it writes nothing if still empty).
+            print(f"{mig.id}: plan empty: nothing to measure", file=sys.stderr)
+            continue
+        if args.dry_run:
+            try:
+                prep = outcome_hook.prepare(
+                    mig, ctx.corpus_root, [mig.id], applied, accept, write=False
+                )
+                print(
+                    f"{mig.id}: outcome hook: plan diff {len(prep.diff)} episode(s)",
+                    file=sys.stderr,
+                )
+            except outcome_hook.HookError as exc:
+                print(f"{mig.id}: outcome hook would stop the run: {exc}", file=sys.stderr)
+            continue
+        if len(pending) != 1:
+            raise outcome_hook.HookRefused(
+                f"{mig.id} runs alone: pending in this run {[m.id for m in pending]}; "
+                "apply the earlier ones first, then this one with --to its version"
+            )
+        runner.prepared[mig.id] = outcome_hook.prepare(
+            mig, ctx.corpus_root, [mig.id], applied, accept
+        )
+
+
 def _snapshot_then_run(
     runner: UpgradeRunner, ctx: MigrationContext, args: argparse.Namespace, log: logging.Logger
 ) -> Optional[List[MigrationResult]]:
@@ -213,6 +269,7 @@ def _snapshot_then_run(
             except (ImportError, OSError):
                 pass
 
+        _prepare_regime(runner, ctx, args)
         if not args.dry_run and not getattr(args, "no_snapshot", False):
             snap = _snapshot_corpus(
                 ctx.corpus_root,
@@ -222,6 +279,7 @@ def _snapshot_then_run(
             )
             if snap is None:
                 return None
+            runner.snapshot = str(snap)
             # To stderr, so ``--json`` stdout stays clean/parseable.
             print(f"Pre-upgrade snapshot: {snap}", file=sys.stderr)
             print(
@@ -250,8 +308,14 @@ def _cmd_run(
     # migrations never walk it) for an instant local rollback. Skippable via
     # --no-snapshot (fresh external backup + tight disk). Snapshot and migrations share
     # one corpus lock — see `_snapshot_then_run`.
+    from . import outcome_hook
+
     try:
         results = _snapshot_then_run(runner, ctx, args, log)
+    except outcome_hook.HookError as exc:
+        log.error("Upgrade stopped by the outcome hook (exit %s): %s", exc.code, exc)
+        print(f"OUTCOME HOOK: {exc}", file=sys.stderr)
+        return exc.code
     except RuntimeError as exc:
         # An ingest or another migration holds the corpus lock. Nothing has been copied or
         # written; stop that job and re-run rather than racing it.

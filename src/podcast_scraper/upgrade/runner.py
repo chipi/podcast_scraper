@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from packaging.version import InvalidVersion, Version
 
@@ -36,6 +36,12 @@ class UpgradeStatus:
         self.up_to_date = not self.pending
 
 
+def _in_regime(migration_id: str) -> bool:
+    from .outcome_hook import in_regime
+
+    return in_regime(migration_id)
+
+
 class UpgradeRunner:
     """Plans and applies pending migrations against a ``StateStore``."""
 
@@ -47,6 +53,10 @@ class UpgradeRunner:
         # Id order is a runner invariant — migrations must apply deterministically in
         # sequence regardless of how the list was supplied.
         self.migrations = sorted(source, key=lambda m: m.id)
+        #: Regime migrations the outcome hook prepared for this run (``outcome_hook.prepare``),
+        #: by id; a regime migration with none is refused (``upgrade/outcome_hook.py``).
+        self.prepared: Dict[str, Any] = {}
+        self.snapshot: Optional[str] = None
 
     @staticmethod
     def _as_version(raw: str) -> Version:
@@ -123,11 +133,37 @@ class UpgradeRunner:
             for migration in self.pending():
                 if ceiling is not None and self._as_version(migration.to_version) > ceiling:
                     continue
-                result = migration.apply(ctx)
+                if not ctx.dry_run and _in_regime(migration.id):
+                    result = self._apply_measured(migration, ctx, now)
+                else:
+                    result = migration.apply(ctx)
+                    if result.applied and not ctx.dry_run:
+                        self.state.record_applied(
+                            migration.id, to_version=migration.to_version, at=now
+                        )
                 results.append(result)
-                if result.applied and not ctx.dry_run:
-                    self.state.record_applied(migration.id, to_version=migration.to_version, at=now)
         return results
+
+    def _apply_measured(self, migration: Migration, ctx: MigrationContext, now: str) -> Any:
+        """A regime migration: applied and recorded inside the outcome hook's measurement."""
+        from . import outcome_hook
+
+        def apply() -> MigrationResult:
+            result = migration.apply(ctx)
+            if result.applied:
+                self.state.record_applied(migration.id, to_version=migration.to_version, at=now)
+            return result
+
+        prepared = self.prepared.get(migration.id)
+        if prepared is None:
+            # Decided again here, inside the lock and after every earlier migration of the run
+            # (criteria R1): only a plan that is still empty runs unmeasured.
+            if outcome_hook.episode_plan(migration, ctx.corpus_root):
+                raise outcome_hook.HookRefused(
+                    f"{migration.id}: its plan is not empty here; run it alone with --to"
+                )
+            return outcome_hook.apply_empty(migration, ctx.corpus_root, apply)
+        return outcome_hook.measure(prepared, ctx.corpus_root, apply, self.snapshot)
 
     def verify(self, ctx: MigrationContext) -> List[Tuple[str, bool, str]]:
         """Run ``verify`` for every applied migration; ``[(id, ok, message)]``."""

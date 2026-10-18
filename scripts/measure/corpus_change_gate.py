@@ -20,13 +20,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -37,8 +38,10 @@ from podcast_scraper.quality.change_gate import (  # noqa: E402
     load_config,
 )
 from podcast_scraper.quality.corpus_scoreboard import score_corpus  # noqa: E402
+from podcast_scraper.upgrade import outcome_hook  # noqa: E402
 from podcast_scraper.upgrade.migration import MigrationContext  # noqa: E402
 from podcast_scraper.upgrade.registry import get_migrations  # noqa: E402
+from podcast_scraper.upgrade.state import FilesystemStateStore  # noqa: E402
 
 
 def _hashes(root: Path) -> Dict[str, str]:
@@ -51,6 +54,14 @@ def _hashes(root: Path) -> Dict[str, str]:
             continue
         out[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
     return out
+
+
+def _verdicts_sha(migration: Any) -> Optional[str]:
+    mod = importlib.import_module(type(migration).__module__)
+    vf = getattr(mod, "verdicts_file", None)
+    return (
+        hashlib.sha256(vf().read_bytes()).hexdigest() if callable(vf) and vf().is_file() else None
+    )
 
 
 def _git(*args: str) -> str:
@@ -69,6 +80,7 @@ def main() -> int:
         "--work", required=True, type=Path, help="where the copy is made (must not exist)"
     )
     ap.add_argument("--out", required=True, type=Path, help="gate report JSON")
+    ap.add_argument("--snapshot", required=True, help="the snapshot id the clone was made from")
     args = ap.parse_args()
 
     config = load_config(REPO)
@@ -79,13 +91,27 @@ def main() -> int:
     if args.work.exists():
         print(f"--work must not exist: {args.work}", file=sys.stderr)
         return 2
+    # The outcome records the migrations the clone held; its ledger must say so truthfully (a
+    # migration applied directly, as this script applies, is not in the ledger by itself).
+    applied = FilesystemStateStore(args.clone).applied_migration_ids()
+    earlier = [m.id for m in get_migrations() if m.id < migration.id and m.id not in applied]
+    if earlier:
+        print(f"the clone's ledger lacks {earlier}: record them first", file=sys.stderr)
+        return 2
     shutil.copytree(args.clone, args.work, symlinks=True)
     print(f"copied {args.clone} -> {args.work}", flush=True)
     before_hash = _hashes(args.work)
     before = score_corpus(args.clone)["total"]
+    before_ep = outcome_hook.score_by_episode(args.work)
+    try:
+        plan = outcome_hook.episode_plan(migration, args.work)
+    except outcome_hook.HookError as exc:
+        plan = []
+        print(f"no comparable plan: {exc}", file=sys.stderr)
     result = migration.apply(MigrationContext(corpus_root=args.work))
     ok, message = migration.verify(MigrationContext(corpus_root=args.work))
     after = score_corpus(args.work)["total"]
+    after_ep = outcome_hook.score_by_episode(args.work)
     after_hash = _hashes(args.work)
     changed = sorted(
         rel
@@ -117,6 +143,13 @@ def main() -> int:
         "verify": {"ok": ok, "message": message},
         "clone": str(args.clone),
         "code": {"sha": _git("rev-parse", "HEAD"), "dirty": bool(_git("status", "--porcelain"))},
+        "snapshot": args.snapshot,
+        "applied_before": sorted(applied),
+        "code_digest": outcome_hook.migration_digest(migration),
+        "verdicts_sha256": _verdicts_sha(migration),
+        "episode_deltas": outcome_hook.deltas(before_ep, after_ep, config["gating_metrics"]),
+        "plan": plan,
+        "plan_sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
     }
     args.out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({k: report[k] for k in ("computed_class", "gating_moves", "files_changed")}))

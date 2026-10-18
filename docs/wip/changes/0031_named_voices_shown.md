@@ -237,7 +237,28 @@ unnamed 1, insights shown 1,896, files 403, ad maps carried 3, `metadata_counts_
 ids); the 245 changed files identical to B.3's; undo 403 / 0. New tests: the two C1 cases, the plan
 rows' counts and inputs (an input file edited changes the row), verify on an empty corpus passes.
 
+Dated: 2026-10-18T11:10
+
+**Revision B.5 prediction** (after the B.4 step-8 GO WITH CONDITIONS, 2026-10-18). The change is
+verify only, plus the record: (1) C-a: verify counts every served metadata file (`served`). Where
+it is 0 and the root has no `corpus_manifest.json`, the root is not a corpus and verify FAILS. With
+a manifest, it is an empty corpus and verify passes with "an empty corpus: no listed episode is
+served here". This is narrower than C-a asked ("FAIL when the total is 0"). The registry's
+end-to-end contract (`test_no_faiss_index_is_clean_noop`) runs every migration on a fresh corpus,
+which has a manifest and no episodes, and requires verify to pass there. A fresh install is a real
+case. (2) C-b: the served selection's inputs, at step 6 below. The plan, the apply and every file
+written are untouched, so on `lost/clone30` the outcome is B.4's byte for byte: plan rows 54,
+refused 0, files 403, the same 245 changed files, the same scoreboard, undo 403 / 0. Verify on the
+after-state passes with `served=2685`, `served_listed=71`, and B.4's other counters
+(`insights_checked=2454`, `unnamed_checked=1`, `unreviewed_unchanged=22`, `admaps_checked=71`,
+`metadata_unreadable=0`). New tests: a root with no manifest fails, and an empty corpus passes and
+says so. Mutants: the manifest check dropped, and `served` never counted, each killed.
+
 ## 5. Acceptance
+
+Dated: 2026-10-18T11:11
+
+Revision B.5: the reviewer's amendment (11:11), appended to the acceptance file. It adds: metadata on disk with none served fails, and a manifest must parse as a JSON object.
 
 Dated: 2026-10-18T10:06
 
@@ -268,6 +289,18 @@ only after the build (step 8).
 - 97c551101: `m0031_named_voices_shown.py` (0029's list through the fixed rewrite), the old 0031
   renumbered 0032 and unregistered. Tests: `test_m0031_named_voices_shown.py`, 6 cases; three
   decision mutants each fail one. MISSED: these tests were written after the code was drafted.
+
+**Revision B.5 build.** Verify counts `served`. When it is 0, `_serves_nothing` FAILS a root
+whose `corpus_manifest.json` is absent or not a JSON object, and a root with `*.metadata.json`
+under `feeds/` that none is served from. Otherwise it is an empty corpus and passes, saying so.
+Tests: no manifest; an empty corpus; metadata on disk with the selection returning nothing; four
+non-object manifests. **C-b, the plan's inputs and the served selection:** `dry_run_report` runs
+`select_served_artifacts` (m0031, the loop in `dry_run_report`) outside `recording()`, so the
+selection's reads are not hashed. The selection decides only which episodes get a row. A
+different served population on prod gives a row on one side only (`clone_only` / `prod_only`),
+and that stops the hook's run until each row is accepted with a cause
+(`test_outcome_hook.py::test_a_row_on_one_side_only_stops_the_run`, both sides; for the hook's
+reviewer to confirm). The verdicts file is the plan-level input, hashed as `verdicts_sha256`.
 
 ## 7. Measure
 
@@ -352,6 +385,15 @@ passes with `served_listed=71`; undo again 403 / 0, identical. Mutations: all fo
 A process note: a second copy of the undo sequence was run while the first was still running and
 its output interleaved; the first run's own log (`b2/runB4.log`) is the record above.
 
+**Revision B.5 measured** (`scratchpad/lost/b2/runB5.sh`, log `runB5.log`, a fresh `clone30`
+copy `lost/b5apply`). Plan rows on clone30: 54, refused 0, byte-identical to B.4's (`cmp
+plan_B4.jsonl plan_B5.jsonl`). Apply: `diff -rq lost/b3apply lost/b5apply` over the whole tree
+exits 0 (B.3 = B.4 = B.5 written). Verify passes: `insights_checked=2454, unnamed_checked=1,
+unreviewed_unchanged=22, admaps_checked=71, served=2685, served_listed=71, metadata_unreadable=0`.
+Re-plan: 0 episodes. Undo 403 / 0, feeds identical. Apply again and undo again: 403 / 0,
+identical. Every integer the 11:10 prediction stated matched. Mutants of 1d: 4 of 4 killed
+(`lost/b5mut.py`). Upgrade tests: 622 passed. The reviewer's 65 mutants are not re-run by me.
+
 ## 8. Verdict
 
 Verdict: NO-GO (revision B.2, 2026-10-18)
@@ -387,6 +429,29 @@ f3587fde; 11 reads CORRECT. Conditions:
   `tested_tree.sha256` or re-run the gate on the commit.
 - **C3** the roster/hosts loss (L8) to the operator at step 9.
 - For step 0: what S7/S8 and the hook must show for 0031 (the reviewer's list, in its report).
+
+
+Verdict: GO WITH CONDITIONS (revision B.4, 2026-10-18)
+
+**Revision B.4, the same step-8 reviewer: GO WITH CONDITIONS.** Every criterion of its 10:06
+amendment passed with its own code on 7f7bf2fc6 and f1817141e (files:
+`scratchpad/reviewer5/criteria_0031_step8_B4.tsv`, `spy2.py`, `influence.py`, `mut4.out`,
+`mut4b.out`): B.4 applied byte-identical to B.3 (`diff -r` 0 files); C1 in both old-role cases,
+with three mutants killed; 54 plan rows whose counts sum to apply's totals; 657 inputs re-hashed
+with 0 mismatches. An independent spy (`sys.addaudithook`) found the opened files equal to the
+hashed inputs in all 54 episodes. Removing 85 unhashed sibling files one at a time changed 0
+decisions. Verify passes where no listed episode is served and fails on unreadable metadata.
+Undo/re-apply/undo gave 403 / 0 with 0 differences. Mutations: 65 of 65 killed; tests: 441 passed.
+Conditions (LOW, code or record, no re-measure):
+- **C-a** verify on "no listed episode is served" passes on a root that serves nothing (a wrong
+  root passes vacuously): print the served total and fail when it is 0; test the empty corpus.
+- **C-b** the record names the verdicts file as a plan input, but not the served-selection reads
+  (`select_served_artifacts`): list them, or say why they need no hash.
+- Both are taken up in revision B.5 (step 4, 11:10).
+
+Verdict: GO (step-8 reviewer, 2026-10-18, revision B.5 = f1817141e + the uncommitted m0031 verify change). Against the 11:11 criteria: C-a met (no manifest or a non-object manifest with 0 served fails; manifest + metadata on disk + 0 served fails; a fresh install passes as "an empty corpus"); C-b met in the record (call site named; test_outcome_hook.py::test_a_row_on_one_side_only_stops_the_run, both sides, passes; the hook's reviewer confirms the hook itself). Outcome on clone30 byte-identical to B.4 (apply diff 0 files, receipts identical, 403 files); verify served=2685, served_listed=71, other counters unchanged; re-plan 0; undo 403/0, feeds = clone30. Mutations 69/69 killed (B.4's 65 + 4 for C-a). Open, unchanged: S7/S8 and the outcome hook before step 10 (operator, step 0); L8 at step 9; snapshot freshness and the prod plan diff at step 10.
+
+The reviewer's files: `scratchpad/reviewer5/ab5.sh`, `ca5.py`, `mutate5.py`, `mut5.out`. Its observation outside 0031: a corpus subdirectory as the root (`clone30/feeds`) plans 58 episodes with 6 refused and verify fails there; whether the runner refuses such a root before apply is the runner's question, not checked.
 
 ## 9. Operator review
 

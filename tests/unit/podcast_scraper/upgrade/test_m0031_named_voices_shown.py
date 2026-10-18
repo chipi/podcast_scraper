@@ -774,3 +774,40 @@ def test_verify_fails_on_unreadable_metadata(tmp_path: Path, monkeypatch) -> Non
     p["meta"].write_text("[]", encoding="utf-8")  # valid JSON, not a record
     ok, msg = _mig().verify(_ctx(tmp_path))
     assert not ok and "metadata unreadable" in msg
+
+
+def test_verify_fails_on_a_root_that_is_not_a_corpus(tmp_path: Path, monkeypatch) -> None:
+    """Condition C-a: a wrong root serves nothing and must not pass vacuously."""
+    _review(monkeypatch, tmp_path)
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert not ok and "no corpus manifest" in msg and "served=0" in msg
+
+
+def test_verify_passes_on_an_empty_corpus_and_says_so(tmp_path: Path, monkeypatch) -> None:
+    _review(monkeypatch, tmp_path)
+    (tmp_path / "corpus_manifest.json").write_text("{}", encoding="utf-8")
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert ok and msg.startswith("an empty corpus: no listed episode") and "served=0" in msg
+
+
+def test_verify_fails_when_metadata_is_on_disk_but_none_is_served(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """B.5 1b: a real corpus whose selection reads nothing must not pass as an empty corpus."""
+    _review(monkeypatch, tmp_path)
+    (tmp_path / "corpus_manifest.json").write_text("{}", encoding="utf-8")
+    _episode(tmp_path, "Steve McConnell", "guest", typed=True)
+    # The selection reads nothing (a broken manifest, a selection bug); the files are on disk.
+    monkeypatch.setattr(m31, "select_served_artifacts", lambda root, suffix: ([], []))
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert not ok and "metadata on disk, none served" in msg
+
+
+@pytest.mark.parametrize("body", ["", "not json", "[]", "null"])
+def test_a_manifest_that_is_not_a_json_object_counts_as_absent(
+    tmp_path: Path, monkeypatch, body: str
+) -> None:
+    _review(monkeypatch, tmp_path)
+    (tmp_path / "corpus_manifest.json").write_text(body, encoding="utf-8")
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert not ok and "no corpus manifest" in msg
