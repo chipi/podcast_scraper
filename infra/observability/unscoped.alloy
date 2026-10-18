@@ -7,6 +7,7 @@
 //   operator.alloy  podcast + operator_public   player.alloy  player
 //   litellm.alloy   litellm                      orrery.alloy  orrery (owned by the orrery repo;
 //                                                mirrored from the box's config.d)
+//   websites.alloy  websites-nginx (owned by chipi/humancopilot.eu; mirrored by hand)
 // tests/unit/podcast_scraper/obs/test_alloy_unscoped.py fails when this repo's keep-filters and
 // this list drift apart. A container added to orrery.alloy must be added here by hand.
 //
@@ -19,7 +20,7 @@ discovery.relabel "unscoped" {
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(compose-api-1|compose-viewer-1|compose-pipeline-llm[-_].*|podcast-(reprocess|sweep)[-_].*|operator-api-1|operator-viewer-1|player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*|player-obs-.*|player-board-summarizer-.*|litellm|litellm-postgres|litellm-spend-push|orrery-web|orrery-mcp|orrery-lab-api|orrery-pipeline-runner-.*)"
+		regex         = "/(compose-api-1|compose-viewer-1|compose-pipeline-llm[-_].*|podcast-(reprocess|sweep)[-_].*|operator-api-1|operator-viewer-1|player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*|player-obs-.*|player-board-summarizer-.*|litellm|litellm-postgres|litellm-spend-push|orrery-web|orrery-mcp|orrery-lab-api|orrery-pipeline-runner-.*|websites-nginx)"
 		action        = "drop"
 	}
 

@@ -19,6 +19,8 @@ pytestmark = pytest.mark.unit
 
 OBS = Path(__file__).resolve().parents[4] / "infra" / "observability"
 ORRERY = {"orrery-web", "orrery-mcp", "orrery-lab-api", "orrery-pipeline-runner-.*"}
+# websites.alloy lives in chipi/humancopilot.eu; its keep-filter is pinned here and kept by hand.
+WEBSITES = {"websites-nginx"}
 # docker ps on prod, 2026-10-17
 PROD_CONTAINERS = {
     "alloy": False,
@@ -44,6 +46,7 @@ PROD_CONTAINERS = {
     "compose-pipeline-llm-run-0a1b": True,
     "podcast-sweep-20261017": True,
     "orrery-pipeline-runner-7": True,
+    "websites-nginx": True,
 }
 
 
@@ -109,13 +112,13 @@ def test_every_app_drop_in_is_read() -> None:
 
 
 def test_the_drop_list_is_the_union_of_the_app_keep_lists() -> None:
-    claimed = set().union(*map(_alternatives, _app_keep_regexes().values())) | ORRERY
+    claimed = set().union(*map(_alternatives, _app_keep_regexes().values())) | ORRERY | WEBSITES
     assert _alternatives(_unscoped_drop()) == claimed
 
 
 @pytest.mark.parametrize("name,claimed", sorted(PROD_CONTAINERS.items()))
 def test_a_container_ships_once(name: str, claimed: bool) -> None:
-    keeps = [*_app_keep_regexes().values(), "/(" + "|".join(sorted(ORRERY)) + ")"]
+    keeps = [*_app_keep_regexes().values(), "/(" + "|".join(sorted(ORRERY | WEBSITES)) + ")"]
     by_apps = sum(bool(re.fullmatch(r, f"/{name}")) for r in keeps)
     by_unscoped = not re.fullmatch(_unscoped_drop(), f"/{name}")
     assert by_apps == (1 if claimed else 0)
