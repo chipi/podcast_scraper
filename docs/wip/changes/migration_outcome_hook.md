@@ -115,6 +115,23 @@ answers added: an empty corpus and the pinned fixture corpus: `upgrade run --yes
 before, every migration recorded, 0 files written by 0031, the message printed; a copy of clone30
 with 0031 pending among others: refused (exit 3), nothing written.
 
+Dated: 2026-10-18T13:18
+
+**Restated after the step-8 GO WITH CONDITIONS (13:17), before the conditions' code.** The change:
+- C2: `change_gate._outcome_problems` refuses an outcome whose `code_digest` is not the tree's
+  `migration_digest`, so a stale outcome cannot land; a test lands a stale one and sees it refused.
+- C3: `module_closure` also walks every parent package of each module it reaches, because
+  importing `a.b.c` runs `a/__init__.py` and `a/b/__init__.py` and what they import. The closure
+  grows by at least the 8 packages the reviewer named, plus their own imports; the count is taken
+  at step 7. A test checks that a parent `__init__.py` is in the closure, and that editing it
+  moves the digest.
+- C4: an `--accept-plan-diff` file that is missing, unreadable or not a JSON object exits 4 with a
+  message naming the file; nothing written. Tests for each.
+- C5: tests killing the reviewer's 6 surviving mutants. Tests only.
+On 0031: plan, apply and verify unchanged. The digest moves (C2 and C3 are in its closure), so 0031
+is re-measured by the gate from the final clean commit, byte-identical to B.6
+(`lost/gateworkB6`), and its outcome is built from that commit.
+
 ## 5. Acceptance
 
 Dated: 2026-10-18T09:59
@@ -156,6 +173,27 @@ Committed in 28a76ce01 (local), plus the one-line print fix below.
 Note for every later hook change: `outcome_hook.py` is in 0031's import closure, so it is in the
 code digest. Changing it after 0031's outcome is built means re-measuring 0031 and rebuilding the
 outcome. `cli_handlers.py` and `runner.py` are not in the closure.
+
+**After the step-8 conditions (13:17).**
+- C2: `change_gate.current_digest` and the stale-outcome check in `_outcome_problems`; an id
+  with no registered migration is a problem, never a skip. Tests:
+  `test_landing_refuses_a_stale_outcome`; the fixture repo's digest stubbed by an autouse
+  fixture.
+- C3: `module_closure` walks every parent package. Test:
+  `test_a_parent_package_init_is_in_the_closure`.
+- C4: `prepare` turns an unreadable, malformed or non-object accept file into `HookStopped`
+  (exit 4) naming the file. It is fixed in `outcome_hook.py`, where the file is read, not in
+  `cli_handlers.py`. Test: `test_an_unreadable_accept_file_stops_with_its_name` (missing, not
+  JSON, a list).
+- C5: one test per surviving mutant:
+  - `test_the_verdicts_file_is_in_the_migration_digest`;
+  - `test_the_regime_starts_at_0031`;
+  - `test_an_accept_file_with_an_extra_entry_is_not_the_accepted_one`;
+  - `test_a_dry_run_writes_no_plan_diff_file`;
+  - `test_a_before_scoreboard_failure_of_any_kind_refuses`;
+  - `test_the_runner_guards_an_empty_plan_that_writes`.
+- Upgrade, corpus-walk and quality tests: 736 passed. The one failure is the real-repo landing
+  test, refusing 0031's stale outcome until it is rebuilt; that is C2 working.
 
 ## 7. Measure
 
@@ -220,7 +258,41 @@ was built from the clean commit 28a76ce01 (sha256 b1546e27…). Each run is the 
 
 ## 8. Verdict
 
-_TODO_
+Dated: 2026-10-18T13:17
+
+Verdict: GO WITH CONDITIONS (fresh reviewer, against migration_outcome_hook.acceptance.md 09:52 + Amendment 1 09:59).
+Code judged: 1503a04fe (= 28a76ce01 + the dry-run-only print fix + the shipped outcome); HEAD 8b72a4781 differs in the hook only by docstrings (read), but that breaks the 0031 digest (condition 1).
+Conditions, each re-checked by the reviewer before 0031's step 10:
+1. HEAD ships a stale outcome. Under 8b72a4781, migration_digest(0031) != the shipped outcome's code_digest (the reviewer's dig.py prints "digest equal: False"), because ce6a98b64 changed outcome_hook.py, m0031, read_recorder.py, voice_rewrite_derived.py, reviewer_verdicts.py and change_gate.py, all in the closure. The shipped outcome is still b1546e27…, so prod would refuse 0031 with exit 3. Rebuild the outcome from the final clean commit, after conditions 2 to 5, and name the new sha in 0031's step 8.
+2. CI landing (`change_gate._outcome_problems`) also compares the outcome's code_digest with the tree's migration_digest, so a stale outcome cannot land. Today the check passes a stale one whenever its scoreboards and plan sha match the gate report.
+3. The closure digest covers the parent package `__init__.py` of every module. Today 8 modules loaded at import are outside it, with executable lines: builders, identity, migrations, monitor, providers/common, schemas, summarization, translation (translation/__init__.py has 17 non-import lines). Criterion A2 says every module it imports.
+4. A malformed or missing --accept-plan-diff file exits 4 with a named message. Today it is an uncaught JSONDecodeError / FileNotFoundError traceback, exit 1. Nothing was written (checked by the reviewer). This can be fixed in cli_handlers.py, which is outside the closure.
+5. Tests that kill the 6 mutants that survived the reviewer's harness:
+   - verdicts TSV dropped from migration_digest;
+   - in_regime ">" instead of ">=", which leaves 0031 unguarded and no test notices;
+   - accept file compared as a superset (live behaviour refuses a superset, but no test fails);
+   - a dry run writing the plan-diff file;
+   - a before-scoreboard failure not refused (exception narrowed);
+   - runner empty-plan path calling apply() instead of apply_empty.
+   Tests only; the reviewer reruns its harness on them.
+6. C2 ruling: exit 4 on a wrong accept file is accepted. Nothing is applied and the cause is an unresolved plan difference. 4 stays distinct from 3 and 5.
+7. G2 ruling: the drill's stated behaviour is accepted (refused on 10-16, stopped by any changed episode after it; no bypass). Stated for the operator: the drill can no longer prove 0001-0030 on a newer backup unless it is changed to run `--to 2.7.24` first. That is the operator's decision, not a condition.
+Re-derived by the reviewer (own scripts, scratchpad/reviewer7):
+- E1 on its own copy of clone30L, real CLI: exit 0 in 263 s with snapshot; receipt PASS.
+- Own recount: S1 16,211 → 14,841, S1n 1,786 → 7, S2 28,247 → 26,351, S1c 0 → 0. The receipt gives S3 7,710, S10a 178, S12 24, A1 357.
+- Plan on the copy = shipped plan (54 rows, diff 0). Computing it and the dry run left the tree unchanged.
+- Files the apply touched: 403 feed files, ledger, lock, receipts file, upgrade-backups/0031 and the outcome receipt.
+- E3 variant: one trailing byte on a plan episode's gi.json → exit 4, no snapshot, plan-diff file the only new file. Accept files with no cause, superset, subset, another outcome sha or a blank operator go: each exit 4, nothing written. The matching accept file → applied, PASS, receipt holds its sha256.
+- Mutation harness: 13 of 19 killed, 6 survived (condition 5).
+- 622 upgrade tests passed at 28a76ce01 + fix.
+
+The reviewer's notes: its mutants run in a repo copy (`scratchpad/reviewer7/mut.py`), because
+`pythonpath = ["src"]` in pyproject overrides PYTHONPATH. Residual gap, not a condition: a file
+read only during apply is caught after the apply by the exact per-episode compare, not before.
+Every hook or 0031 change moves the digest (436 files): the outcome is rebuilt from the exact
+commit that deploys, a deploy step. Not verified by the reviewer itself: E2, E4, E5, E6, R6, F3,
+F4, D6 beyond its one run, A5, the skill against a container, the drill in Actions, the prod
+plan diff.
 
 ## 9. Operator review
 

@@ -284,7 +284,25 @@ def _outcome_problems(
             problems.append(f"{mid}: the outcome's {key} is not the gate report's")
     if out.get("code_dirty") or rep.get("code", {}).get("dirty"):
         problems.append(f"{mid}: the outcome was measured on uncommitted code")
+    now = current_digest(mid)
+    if now is None:
+        problems.append(f"{mid}: not a registered migration: its code digest cannot be checked")
+    elif out.get("code_digest") != now:
+        problems.append(
+            f"{mid}: the outcome is stale: measured on code digest "
+            f"{str(out.get('code_digest'))[:12]}, the tree's is {now[:12]} (re-measure, rebuild)"
+        )
     return problems
+
+
+def current_digest(mid: str) -> Optional[str]:
+    """The registered migration's code digest in this tree (what the hook compares at runtime),
+    or ``None`` when no registered migration has that id."""
+    from ..upgrade import outcome_hook
+    from ..upgrade.registry import get_migrations
+
+    mig = next((m for m in get_migrations() if m.id == mid), None)
+    return outcome_hook.migration_digest(mig) if mig is not None else None
 
 
 def _key_paths(a: Any, b: Any, prefix: str = "") -> List[str]:

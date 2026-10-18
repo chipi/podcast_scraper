@@ -364,7 +364,7 @@ reviewer to confirm). The verdicts file is the plan-level input, hashed as `verd
 - One test changed: `test_the_moved_functions_stay_identical_to_0032s_copy` now compares the two
   copies' code with each docstring dropped. The docstring on `DerivedSurfacesEpisode.plan` made it
   red, and 0032's copy cannot get the same docstring: its file is gated by 0032's open record
-  (steps 1 to 5 `_TODO_`). Its purpose, that the code does not drift, still holds: a code edit to
+  (steps 1 to 5 still open). Its purpose, that the code does not drift, still holds: a code edit to
   the copy is killed (mutant below).
 - `make docstrings`: 100.0%.
 - Mutants (`scratchpad/lost/b6mut.py`, the upgrade tests plus `test_corpus_walk.py`), 5 of 5

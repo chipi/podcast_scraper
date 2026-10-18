@@ -42,7 +42,15 @@ GATE = {
     "scoreboard_after": {"S1": 1},
     "plan_sha256": "p",
     "episode_deltas": {},
+    "code_digest": "dg",
 }
+
+
+@pytest.fixture(autouse=True)
+def _tree_digest(monkeypatch):
+    """The fixture migration ``0099_x`` is not registered: its tree digest is the fixture's."""
+    real = cg.current_digest
+    monkeypatch.setattr(cg, "current_digest", lambda mid: "dg" if mid == "0099_x" else real(mid))
 
 
 def _gate(root: Path, rid: str, computed: str, outcome: bool = True, verdict: str = "GO") -> str:
@@ -300,3 +308,17 @@ def test_the_hook_judges_a_file_by_its_own_checkout(tmp_path: Path) -> None:
 def test_every_registered_migration_under_the_regime_is_allowed_to_land() -> None:
     """The CI half of the gate: a migration from 0031 on lands only with a complete record."""
     assert cg.check_landing(REPO, [m.id for m in get_migrations()]) == []
+
+
+def test_landing_refuses_a_stale_outcome(tmp_path: Path, monkeypatch) -> None:
+    """Hook condition C2: code changed after the outcome was measured cannot land."""
+    root = _repo(tmp_path)
+    sha = _gate(root, "0099_x", "full")
+    _record(root, "0099_x", "full", {**DONE, "8": DONE["8"].format(sha=sha)})
+    assert cg.check_landing(root, ["0099_x"]) == []
+    monkeypatch.setattr(cg, "current_digest", lambda mid: "changed")
+    [problem] = cg.check_landing(root, ["0099_x"])
+    assert "the outcome is stale" in problem
+    monkeypatch.setattr(cg, "current_digest", lambda mid: None)
+    [problem] = cg.check_landing(root, ["0099_x"])
+    assert "not a registered migration" in problem

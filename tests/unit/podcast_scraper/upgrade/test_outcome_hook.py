@@ -457,3 +457,99 @@ def test_a_row_on_one_side_only_stops_the_run(_reset: Path, tmp_path: Path, side
         (root / ".podcast_scraper/upgrade-outcomes/0099_fake.plan-diff.json").read_text()
     )
     assert side in {e["kind"] for e in diff["entries"]}
+
+
+def test_the_verdicts_file_is_in_the_migration_digest(tmp_path: Path, monkeypatch) -> None:
+    """Hook condition C5: a changed verdicts row moves the digest (criterion A2)."""
+    monkeypatch.undo()  # the autouse fixture stubs migration_digest; this test needs the real one
+    from podcast_scraper.upgrade.migrations import m0031_named_voices_shown as m31
+    from podcast_scraper.upgrade.registry import get_migrations
+
+    mig = next(m for m in get_migrations() if m.id == m31.NamedVoicesShownMigration().id)
+    copy = tmp_path / "v.tsv"
+    copy.write_bytes(m31.verdicts_file().read_bytes())
+    monkeypatch.setattr(m31, "verdicts_file", lambda: copy)
+    before = oh.migration_digest(mig)
+    copy.write_bytes(copy.read_bytes() + b"\n")
+    assert oh.migration_digest(mig) != before
+
+
+def test_a_parent_package_init_is_in_the_closure() -> None:
+    """Hook condition C3: importing a.b.c runs a/__init__.py and a/b/__init__.py."""
+    closure = oh.module_closure("podcast_scraper.upgrade.migrations.m0031_named_voices_shown")
+    for pkg in ("podcast_scraper", "podcast_scraper.upgrade", "podcast_scraper.upgrade.migrations"):
+        assert pkg in closure and closure[pkg].name == "__init__.py", pkg
+
+
+def test_the_regime_starts_at_0031() -> None:
+    assert oh.in_regime("0031_named_voices_shown") and oh.in_regime("0099_fake")
+    assert not oh.in_regime("0030_adfree_cut_resynced") and not oh.in_regime("0001_x")
+
+
+def test_an_accept_file_with_an_extra_entry_is_not_the_accepted_one(
+    _reset: Path, tmp_path: Path
+) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    PLAN[0]["inputs"] = {"a": "2"}
+    with pytest.raises(oh.HookStopped):
+        oh.prepare(Fake(), root, ["0099_fake"], {"0001"})
+    _doc, sha = oh.load_outcome("0099_fake")
+    good = json.loads(_accept(root, sha).read_text())
+    extra = {"meta": "feeds/x/run_y/metadata/z.metadata.json", "kind": "prod_only", "cause": "c"}
+    superset = _accept(root, sha, name="sup", entries=good["entries"] + [extra])
+    with pytest.raises(oh.HookStopped, match="not the accepted one"):
+        oh.prepare(Fake(), root, ["0099_fake"], {"0001"}, superset)
+
+
+@pytest.mark.parametrize("body", [None, b"not json", b"[]"])
+def test_an_unreadable_accept_file_stops_with_its_name(_reset: Path, tmp_path: Path, body) -> None:
+    """Hook condition C4: missing, malformed or not an object: exit 4, nothing applied."""
+    root = tmp_path / "corpus"
+    root.mkdir()
+    PLAN[0]["inputs"] = {"a": "2"}
+    path = tmp_path / "accept.json"
+    if body is not None:
+        path.write_bytes(body)
+    with pytest.raises(oh.HookStopped, match="accept file"):
+        oh.prepare(Fake(), root, ["0099_fake"], {"0001"}, path)
+
+
+def test_a_dry_run_writes_no_plan_diff_file(_reset: Path, tmp_path: Path) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    PLAN[0]["inputs"] = {"a": "2"}
+    with pytest.raises(oh.HookStopped):
+        oh.prepare(Fake(), root, ["0099_fake"], {"0001"}, write=False)
+    assert list(root.rglob("*")) == []
+
+
+def test_a_before_scoreboard_failure_of_any_kind_refuses(
+    _reset: Path, tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    prep = oh.prepare(Fake(), root, ["0099_fake"], {"0001"})
+
+    def boom(r):
+        raise RuntimeError("bad corpus")
+
+    monkeypatch.setattr(oh, "score_by_episode", boom)
+    applied: List[int] = []
+    with pytest.raises(oh.HookRefused, match="before-scoreboard failed"):
+        oh.measure(prep, root, lambda: applied.append(1), None)
+    assert applied == []
+
+
+def test_the_runner_guards_an_empty_plan_that_writes(_reset: Path, tmp_path: Path) -> None:
+    """The empty-plan path goes through apply_empty's write guard, not a bare apply."""
+    from podcast_scraper.upgrade.runner import UpgradeRunner
+    from podcast_scraper.upgrade.state import FilesystemStateStore
+
+    root = tmp_path / "corpus"
+    root.mkdir()
+    PLAN[:] = []
+    WRITE_ON_APPLY[:] = [root / Fake._receipts_file]
+    runner = UpgradeRunner(FilesystemStateStore(root), [cast(Migration, Fake())])
+    with pytest.raises(oh.HookOutcomeFailed, match="plan was empty but the apply wrote"):
+        runner.run(MigrationContext(corpus_root=root), hold_lock=False)

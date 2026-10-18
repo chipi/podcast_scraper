@@ -158,7 +158,10 @@ def _module_file(name: str) -> Optional[Path]:
 
 
 def module_closure(module_name: str) -> Dict[str, Path]:
-    """``{module: file}``: the module and every ``podcast_scraper`` module it reaches by import."""
+    """``{module: file}``: the module and every ``podcast_scraper`` module it reaches by import.
+
+    Importing ``a.b.c`` runs ``a/__init__.py`` and ``a/b/__init__.py`` first, so every parent
+    package is in the closure too, with what it imports."""
     seen: Dict[str, Path] = {}
     todo = [module_name]
     while todo:
@@ -167,6 +170,8 @@ def module_closure(module_name: str) -> Dict[str, Path]:
         if f is None or name in seen:
             continue
         seen[name] = f
+        parts = name.split(".")
+        todo.extend(".".join(parts[:i]) for i in range(1, len(parts)))
         pkg = name if f.name == "__init__.py" else name.rsplit(".", 1)[0]
         todo.extend(_imports(f, pkg) - set(seen))
     return seen
@@ -392,8 +397,15 @@ def prepare(
                 f"{migration.id}: prod's plan differs from the clone's in {len(diff)} episode(s); "
                 f"each needs a cause (--accept-plan-diff):\n{lines}"
             )
-        raw = Path(accept_path).read_bytes()
-        accept = json.loads(raw)
+        try:
+            raw = Path(accept_path).read_bytes()
+            accept = json.loads(raw)
+        except (OSError, ValueError) as exc:
+            raise HookStopped(
+                f"{migration.id}: the accept file {accept_path} is unreadable ({exc})"
+            ) from exc
+        if not isinstance(accept, dict):
+            raise HookStopped(f"{migration.id}: the accept file {accept_path} is not a JSON object")
         check_accept(accept, migration.id, sha, diff)
         prepared.accept = accept
         prepared.accept_sha = hashlib.sha256(raw).hexdigest()
