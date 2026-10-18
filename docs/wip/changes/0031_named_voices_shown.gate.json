@@ -35,9 +35,9 @@
   "clone": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/224961a9-a599-4098-b178-a3895d47facc/scratchpad/lost/clone30L",
   "code": {
     "dirty": false,
-    "sha": "28a76ce01a800e1df4718bc0a9b9e3541b3dc669"
+    "sha": "ce6a98b64c9ad3cecabf35128ae1adb33149a952"
   },
-  "code_digest": "aaf844b1d63c8dd94068ee4b7b792bb718998e9fcb9bd38f925d0362aa726fea",
+  "code_digest": "653cb12e03241ec7c71af400502b221976d58c7d3afe80dfc00840f7b8df6fa1",
   "computed_class": "full",
   "episode_deltas": {
     "feeds/rss_anchor.fm_5a072801/run_70e6aef3-41af-4eee-b58f-1fc231e7614b_20261004-095933/metadata/0008 - ___10 Michael Montgomery_ Psycho_70e6aef3-41af-4eee-b58f-1fc231e7614b_20261004-095933.metadata.json": {
@@ -335,7 +335,7 @@
     "S2_hidden": -1896,
     "S3_principal_unidentified": -526
   },
-  "measured_at": "2026-10-18T11:46:49",
+  "measured_at": "2026-10-18T13:11:34",
   "migration": "0031_named_voices_shown",
   "plan": [
     {

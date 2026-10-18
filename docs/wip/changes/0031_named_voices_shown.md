@@ -478,6 +478,16 @@ else differs, `diff -rq`), snapshot `snapshot-prod-20261016+0030`. Gate report r
 f3587fde…. Per-episode deltas: 53 episodes; the 54th (Samo Burja, 0015) writes files (one voice
 shown, 592 segments relabelled) and moves no gating metric, so the hook compares it against 0.
 
+**Revision B.6 measured from the clean commit** (ce6a98b64, `code.dirty: false`) by the gate
+script on `lost/clone30L`, snapshot `snapshot-prod-20261016+0030`, gate report rewritten (measured
+2026-10-18T13:11:34). `diff -rq lost/gateworkB5 lost/gateworkB6` over the whole tree is empty:
+every file written, the receipts file included, is byte-identical to B.5's. Plan rows 54,
+`plan_sha256` e85a2670… (B.5's); gating moves S1 −1,370, S1n −1,779, S2 −1,896, S3 −526,
+S10a −12; 245 files. Code digest aaf844b1… → 653cb12e…, moved by the files B.6 changed, all in
+0031's import closure: `m0031_named_voices_shown.py`, `outcome_hook.py`, `read_recorder.py`,
+`reviewer_verdicts.py`, `voice_rewrite_derived.py`, `quality/change_gate.py`. The outcome is
+rebuilt after the step-8 verdict; its new sha follows the verdict below.
+
 ## 8. Verdict
 
 Verdict: NO-GO (revision B.2, 2026-10-18)
