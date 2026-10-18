@@ -222,6 +222,30 @@ Requires the `.[dev,search]` extras — the MCP SDK ships in `[dev]`. To check t
 at all, run it directly: `.venv/bin/python -m podcast_scraper.cli mcp --corpus <dir>` waits on
 stdio rather than exiting.
 
+## Telemetry and attribution (remote server)
+
+Every registered tool call of the remote server emits three best-effort signals that can never
+break the call (ADR-120): an OTel span `mcp.tool.<name>` (child of the inbound `POST /mcp` span),
+a structured log line (`tool`, `user_id`, `duration_ms`, `ok`, `trace_id`), and the metrics
+`mcp_tool_calls_total{tool,ok}` + `mcp_tool_duration_seconds{tool}` (every tool is registered at
+0 from start, so a never-called tool reads 0, not absent). Only the tool name, the caller, `ok`
+and timing leave the process, never query arguments, corpus content or transcripts.
+
+- **Attribution.** The tool call is authorised and attributed as the request that carries it
+  (`mcp/auth.py`): the verify response's `analytics_id` (the user's pseudonymous analytics id,
+  #2265) is remembered per `user_id` in a bounded map and read by the middleware, because
+  `verify_bearer` runs in a worker thread where a ContextVar would not reach the request.
+  Analytics events carry the `analytics_id`, never an email or `user_id` (#2263).
+- **Umami.** With `PODCAST_MCP_UMAMI_WEBSITE_ID` and `PODCAST_MCP_UMAMI_URL` set (and
+  `PODCAST_MCP_UMAMI_HOSTNAME` for the event hostname), each call is also POSTed to Umami's
+  collect API; unset means no-op. Umami's bot filter answers HTTP 200 `{"beep":"boop"}` and stores
+  nothing for a bot-like User-Agent, so the sender presents a browser UA with `podcast-mcp/1.0`
+  appended (the earlier `podcast-mcp/1.0 (+server-side)` never delivered an event). The beta
+  analytics Grafana dashboard has an MCP row (who uses the connector, and for what).
+- **The observability MCP** (`podcast_obs`) shares the transport and auth mechanisms of this
+  server and observes itself the same way: see
+  [Observability control plane](OBSERVABILITY_CONTROL_PLANE.md).
+
 ## Maintenance (for the next agent)
 
 - **Tools are plain functions** in `src/podcast_scraper/mcp/tools/*.py` (search, resolve,
