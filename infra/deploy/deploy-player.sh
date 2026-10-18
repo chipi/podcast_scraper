@@ -250,6 +250,12 @@ esac
 # across projects and those vhosts have other owners; touching them would break another surface.
 # When you rename/retire a player vhost, KEEP its old name in this list so its drop-in gets swept.
 PLAYER_MANAGED_VHOSTS=(player player-telemetry player-analytics mcp obs ops)
+# One lock for every tenant that edits /etc/caddy/sites (orrery, websites), so two install ->
+# adapt -> reload sequences never interleave. Opened read-only when it exists: fs.protected_regular=2
+# refuses an O_CREAT open of another user's file in sticky /tmp, and flock needs no write access.
+CADDY_SITES_LOCK=/tmp/caddy-sites.lock
+if [ -e "$CADDY_SITES_LOCK" ]; then exec 9<"$CADDY_SITES_LOCK"; else exec 9>>"$CADDY_SITES_LOCK"; fi
+flock -w 300 9 || { echo "ERROR: could not take $CADDY_SITES_LOCK within 5 minutes; another tenant is editing the edge" >&2; exit 1; }
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
   # Three substitutions: the shared `player.example.com` placeholder -> real domain (all vhosts),
@@ -307,6 +313,7 @@ if ! { sudo -n /usr/bin/systemctl reload caddy || sudo -n /usr/bin/systemctl res
   sudo -n /usr/bin/systemctl restart caddy || true
   exit 2
 fi
+exec 9>&-
 
 # Ship the player stack's container logs to Grafana/Loki via the shared node Alloy
 # (ADR-121): drop player.alloy into the deploy-writable config.d + hot-reload Alloy

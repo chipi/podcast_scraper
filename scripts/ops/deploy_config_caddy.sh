@@ -26,6 +26,14 @@ BK="$(mktemp -d)"
 cleanup() { rm -rf "$BK" "$STG"; }
 trap cleanup EXIT
 
+# One lock for every tenant that edits /etc/caddy/sites (orrery, websites), held until exit, so
+# two install -> adapt -> reload sequences never interleave. Opened read-only when it exists:
+# fs.protected_regular=2 refuses an O_CREAT open of another user's file in sticky /tmp, and
+# flock needs no write access.
+CADDY_SITES_LOCK=/tmp/caddy-sites.lock
+if [ -e "$CADDY_SITES_LOCK" ]; then exec 9<"$CADDY_SITES_LOCK"; else exec 9>>"$CADDY_SITES_LOCK"; fi
+flock -w 300 9 || { echo "::error::could not take $CADDY_SITES_LOCK within 5 minutes; another tenant is editing the edge"; exit 1; }
+
 changed=0
 for v in "${VHOSTS[@]}"; do
   new="$STG/${v}.caddy"

@@ -326,6 +326,18 @@ write_file /etc/sudoers.d/99-caddy-reload 0440 root:root <<'EOF' || true
 deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload caddy, /usr/bin/systemctl restart caddy
 EOF
 
+# Hold the tenants' shared edge lock (deploy-player.sh, deploy-operator.sh,
+# deploy_config_caddy.sh, orrery, websites) across the Caddyfile swap + restart, so no tenant's
+# vhost install -> adapt -> reload interleaves with it. Created deploy-owned so the tenants (deploy)
+# can open it; opened read-only because fs.protected_regular=2 refuses root an O_CREAT open of a
+# deploy-owned file in sticky /tmp.
+CADDY_SITES_LOCK=/tmp/caddy-sites.lock
+if [ "$DRY_RUN" != 1 ]; then
+  [ -e "$CADDY_SITES_LOCK" ] || install -o deploy -g deploy -m 0664 /dev/null "$CADDY_SITES_LOCK"
+  exec 9<"$CADDY_SITES_LOCK"
+  flock -w 300 9 || { warn "  could not take $CADDY_SITES_LOCK within 5 minutes; another tenant is editing the edge"; exit 1; }
+fi
+
 # Drop the base Caddyfile from the repo (single source of truth).
 caddy_changed=0
 if [ -f /etc/caddy/Caddyfile ] && cmp -s "$CADDYFILE_SRC" /etc/caddy/Caddyfile; then
@@ -362,6 +374,7 @@ elif CADDY_BIND_ADDRS="$BIND_ADDRS" GLITCHTIP_UPSTREAM="$GT_UPSTREAM" caddy vali
 else
   warn "  Caddyfile INVALID — engine NOT (re)started; live config unchanged"
 fi
+[ "$DRY_RUN" = 1 ] || exec 9<&-
 
 # T-11: attach the caddy-access jail now that /var/log/caddy exists.
 info "5) re-arm fail2ban (attach caddy jail)"

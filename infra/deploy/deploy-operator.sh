@@ -144,6 +144,12 @@ echo "[$(date -u +%FT%TZ)] building + starting operator-public..."
 # sed is a no-op unless OPERATOR_DOMAIN differs — kept for parity with the player pattern.
 # The __OPERATOR_PREVIEW_COOKIE__ substitution IS required: the caddy file carries the
 # placeholder that must be swapped for the live gate secret.
+# One lock for every tenant that edits /etc/caddy/sites (orrery, websites), so two install ->
+# adapt -> reload sequences never interleave. Opened read-only when it exists: fs.protected_regular=2
+# refuses an O_CREAT open of another user's file in sticky /tmp, and flock needs no write access.
+CADDY_SITES_LOCK=/tmp/caddy-sites.lock
+if [ -e "$CADDY_SITES_LOCK" ]; then exec 9<"$CADDY_SITES_LOCK"; else exec 9>>"$CADDY_SITES_LOCK"; fi
+flock -w 300 9 || { echo "ERROR: could not take $CADDY_SITES_LOCK within 5 minutes; another tenant is editing the edge" >&2; exit 1; }
 echo "[$(date -u +%FT%TZ)] installing operator Caddy vhost for ${OPERATOR_DOMAIN}..."
 sed -e "s/operator\.example\.com/${OPERATOR_DOMAIN}/g" \
     -e "s|__OPERATOR_PREVIEW_COOKIE__|${OPERATOR_PREVIEW_COOKIE}|g" \
@@ -177,6 +183,7 @@ if ! { sudo -n /usr/bin/systemctl reload caddy || sudo -n /usr/bin/systemctl res
   sudo -n /usr/bin/systemctl restart caddy || true
   exit 2
 fi
+exec 9>&-
 
 # Ship the operator stack's container logs to Grafana/Loki via the shared node Alloy
 # (ADR-121): drop operator.alloy into the deploy-writable config.d + hot-reload Alloy
