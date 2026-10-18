@@ -50,7 +50,7 @@ from .migrations.m0027_missing_covers_stored import MissingCoversStoredMigration
 from .migrations.m0028_transcript_chunk_times import TranscriptChunkTimesMigration
 from .migrations.m0029_naming_arc_voices_repaired import NamingArcVoicesRepairedMigration
 from .migrations.m0030_adfree_cut_resynced import AdfreeCutResyncedMigration
-from .migrations.m0031_naming_voices_rederived import NamingVoicesRederivedMigration
+from .migrations.m0031_named_voices_shown import NamedVoicesShownMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -116,8 +116,12 @@ _MIGRATIONS: List[Migration] = [
     NamingArcVoicesRepairedMigration(),
     # 0030 gives served episodes today's ad cut (#2360), offsets into the ad-free text carried.
     AdfreeCutResyncedMigration(),
-    # 0031 gives 126 served episodes the names the deployed naming code gives them, no relabel.
-    NamingVoicesRederivedMigration(),
+    # 0031 gives 0029's voices the fixed rewrite (#2380): named where a reprocess unnamed them
+    # again, shown where 0029 left them hidden under their name. The part of 0029 that went missing.
+    NamedVoicesShownMigration(),
+    # 0032_naming_voices_rederived (0031 until 2026-10-18; never ran on prod) is NOT registered:
+    # it is HELD (#2380) and is registered here only after it passes its own gate, so no image
+    # can run it by accident.
 ]
 
 

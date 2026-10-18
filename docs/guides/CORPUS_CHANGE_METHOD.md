@@ -2,6 +2,10 @@
 
 Status: **DRAFT v0.4** (2026-10-17). Two practice runs done (0030/0031 evaluation, 0030 go). Nothing is built under it yet.
 
+> **Renumbered 2026-10-18.** "0031" in this document is the naming re-derivation, now
+> `0032_naming_voices_rederived` (held, #2380). The id 0031 now belongs to
+> `0031_named_voices_shown`, the repair of what 0029 left hidden.
+
 ## Why this document exists
 
 On 2026-10-17 migration 0031 passed every check it had and made the corpus worse. It named 48

@@ -22,7 +22,7 @@ insights whose voice cannot be found).
 
 **Not measured here**, though §3 lists them:
 - S4/S5, named-quote coverage: `quality.naming_coverage`. It cannot gate, because it improved under
-  a migration that hid more insights (0031, 2026-10-17);
+  a migration that hid more insights (0031 then, now 0032, 2026-10-17);
 - S6–S8, the gold numbers: `scripts/measure/naming_gate.py`, with S7/S8 still to build;
 - S9, unattributed talk share;
 - S11, non-person names on shown insights;

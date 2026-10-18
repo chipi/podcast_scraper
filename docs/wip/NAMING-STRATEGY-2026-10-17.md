@@ -2,6 +2,10 @@
 
 Status: **DRAFT v0.2 for discussion** (2026-10-17). Nothing in it is started.
 
+> **Renumbered 2026-10-18.** "0031" in this document is the naming re-derivation, now
+> `0032_naming_voices_rederived` (held, #2380). The id 0031 now belongs to
+> `0031_named_voices_shown`, the repair of what 0029 left hidden.
+
 Every item below is done under [the corpus change method](../guides/CORPUS_CHANGE_METHOD.md). The
 method says *how* we judge a change. This document says *what* we change, in which order, and why.
 It follows the Fable 5 advisor's way forward and its second review (both 2026-10-17). Targets use
@@ -84,7 +88,20 @@ sha256s, so clone-vs-prod is a diff, not an argument.
 - **Target:** the same command on the same snapshot gives the same numbers.
 - **Acceptance:** a fresh reviewer re-derives S1, S1n, S2 and S7 with its own code.
 
-### 2. Fix 0031 and the rewrite it inherits (#2380)
+### 2. Fix 0031 (now 0032) and the rewrite it inherits (#2380)
+
+**Progress 2026-10-18:**
+- **Done, the gain path** (1bc9d18d0): segments, quotes and insights lose the voice type, and
+  insights are re-routed with `_apply_route_and_tag`. Diagnostics are not touched yet.
+- **Found:** 0029 had the same defect on prod. 1,779 of the 1,786 S1n insights are in the 73
+  episodes it wrote.
+- **Built, `0031_named_voices_shown`:** 0029's list through the fixed rewrite. On a full copy of
+  the 0030 clone: S1 16,211 → 14,812, S1n 1,786 → 7, S2 28,247 → 26,322, S3 8,236 → 7,710,
+  S10a 190 → 177; S1c, S12 and A1 unchanged; 54 episodes, 0 refused; undo byte-identical.
+  Awaiting a fresh reviewer and the operator's go.
+- **Not done:** everything below for 0032 (its re-measure on the fixed rewrite, the name-lost
+  path, the verify, the re-read of the 166 entries).
+
 
 - **Name gained:** the voice type is cleared on segments, quotes and insights; visibility and
   routing are restored with the pipeline's own `_apply_route_and_tag`; diagnostics say `person`.

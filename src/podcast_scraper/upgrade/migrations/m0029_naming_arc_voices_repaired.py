@@ -826,6 +826,10 @@ class NamingArcVoicesRepairedMigration(Migration):
 
     id = MIGRATION_ID
     to_version = "2.7.23"
+    #: 0030a carries this list again through the fixed rewrite, with its own decision and files.
+    _episode_class: type = _Episode
+    _receipts_file = RECEIPTS_FILE
+    _backup_tag = BACKUP_TAG
     description = (
         "the 83 voices the #2304 naming ladder names differently from the code that wrote them "
         "(read in the 2026-10-12 replay), rewritten voice by voice across metadata, segments, "
@@ -837,7 +841,7 @@ class NamingArcVoicesRepairedMigration(Migration):
         refused: List[_Episode] = []
         totals: Dict[str, int] = {}
         for meta in select_served_artifacts(root, ".metadata.json")[0]:
-            ep = _Episode(meta, root)
+            ep = self._episode_class(meta, root)
             if ep.plan():
                 write.append(ep)
             if ep.refused:
@@ -874,10 +878,10 @@ class NamingArcVoicesRepairedMigration(Migration):
         if not ctx.dry_run:
             for ep in write:
                 for path, payload in sorted(ep.json_files.items()):
-                    receipts.append(write_with_backup(root, BACKUP_TAG, path, payload))
+                    receipts.append(write_with_backup(root, self._backup_tag, path, payload))
                 for path, text in sorted(ep.text_files.items()):
-                    receipts.append(_write_text_with_backup(root, path, text, BACKUP_TAG))
-            append_receipts(root, RECEIPTS_FILE, {"migration": MIGRATION_ID}, receipts)
+                    receipts.append(_write_text_with_backup(root, path, text, self._backup_tag))
+            append_receipts(root, self._receipts_file, {"migration": self.id}, receipts)
         verb = "would rewrite" if ctx.dry_run else "rewrote"
         return MigrationResult(
             self.id,

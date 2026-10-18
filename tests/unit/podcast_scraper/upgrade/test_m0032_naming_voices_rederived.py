@@ -1,4 +1,5 @@
-"""m0031: the names the deployed naming code gives the flagged served episodes, without a relabel.
+"""m0032 (0031 until 2026-10-18): the names the deployed naming code gives the flagged served
+episodes, without a relabel.
 
 The rewrite is m0029's (``m0029._Episode`` with this list); synthetic episodes come from m0025's
 fixture and the prod list is replaced per test with monkeypatch.
@@ -12,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.upgrade.migration import MigrationContext
-from podcast_scraper.upgrade.migrations import m0031_naming_voices_rederived as m31
+from podcast_scraper.upgrade.migrations import m0032_naming_voices_rederived as m31
 from podcast_scraper.upgrade.registry import get_migrations
 
 pytestmark = [pytest.mark.unit]
@@ -53,10 +54,10 @@ def _verify(root: Path):
     return m31.NamingVoicesRederivedMigration().verify(MigrationContext(corpus_root=root))
 
 
-def test_registered_last_after_0030_and_the_prod_list_is_well_formed() -> None:
+def test_held_so_not_registered_and_the_prod_list_is_well_formed() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids[-1] == m31.MIGRATION_ID
-    assert ids.index(m31.MIGRATION_ID) == ids.index("0030_adfree_cut_resynced") + 1
+    assert m31.MIGRATION_ID not in ids  # HELD (#2380): registered only once it passes its gate
+    assert m31.MIGRATION_ID > ids[-1]  # and when it is, it sorts after everything registered
     assert len(m31.NAMING_VOICES) == 166
     assert len({eid for eid, _voice in m31.NAMING_VOICES}) == 126
     for (eid, voice), (old, old_role, new, new_role, why) in m31.NAMING_VOICES.items():

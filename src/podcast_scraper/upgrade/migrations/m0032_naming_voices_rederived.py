@@ -1,4 +1,10 @@
-"""0031 — the names the deployed naming code gives 126 served episodes, without a relabel.
+"""0032 — the names the deployed naming code gives 126 served episodes, without a relabel.
+
+HELD (#2380), and renumbered from 0031 on 2026-10-18 so the repair of 0029 could take 0031 and
+run first. It has never run on prod. As pushed it named voices and left their insights hidden
+(S1n +1,085 on the 2026-10-16 clone); the rewrite it uses is fixed in 1bc9d18d0, and it runs only
+after its own outcome table, a fresh reviewer and the operator's go. Until then it is not in
+the registry, so no image can run it.
 
 Instead of a 131-episode ``relabel_only`` run (the LLM on the DGX, about 17 min an episode): the
 operator's decision of 2026-10-17. The 131 candidates are the episodes two replays flagged: the 44
@@ -24,7 +30,7 @@ while the voice still carries the stored name and role, is done once it carries 
 anything else REFUSES the episode, untouched and listed. Every surface is rewritten voice by voice
 with m0025's machinery (metadata, segments and their ad-free copies, transcripts with every offset
 carried, GI, KG, bridge, diagnostics, turns, context). UNDO restores from
-``.podcast_scraper/upgrade-backups/0031/`` while each file is still what this migration wrote.
+``.podcast_scraper/upgrade-backups/0032/`` while each file is still what this migration wrote.
 """
 
 from __future__ import annotations
@@ -48,9 +54,9 @@ from .m0023_transcript_speaker_prefixes_resynced import (
 )
 from .m0029_naming_arc_voices_repaired import _Episode as _VoiceEpisode
 
-MIGRATION_ID = "0031_naming_voices_rederived"
+MIGRATION_ID = "0032_naming_voices_rederived"
 RECEIPTS_FILE = "naming_voices_rederived.jsonl"
-BACKUP_TAG = "0031"
+BACKUP_TAG = "0032"
 
 Entry = Tuple[Optional[str], Optional[str], Optional[str], Optional[str], str]
 
@@ -1562,7 +1568,8 @@ class _Episode(_VoiceEpisode):
     post-roll cut points, the excised ranges and their texts). A renamed voice changes the speaker
     prefixes in that text, so without this the ad-map points beside the ads it describes, and 0030
     (which rebuilds ad-maps from the transcript) found 99 to rewrite after this ran: measured on
-    the 2026-10-16 snapshot, 0030 then 0031. Each offset moves with the text around it: through
+    the 2026-10-16 snapshot, 0030 then this migration (numbered 0031 then). Each offset moves
+    with the text around it: through
     the segment spans of a rendered transcript, through a character diff of one rewritten in place.
     An ad-map that does not describe the text on disk (an older rewrite left it), or an offset
     inside a rewritten label, leaves the ad-map alone, counted: 0030 rebuilds those.
@@ -1699,7 +1706,7 @@ class NamingVoicesRederivedMigration(Migration):
     """The names the deployed naming code gives the flagged served episodes, voice by voice."""
 
     id = MIGRATION_ID
-    to_version = "2.7.25"
+    to_version = "2.7.26"
     description = (
         "the 166 voices in 126 served episodes that the deployed naming code names differently "
         "(read in the 2026-10-17 replay), rewritten voice by voice across metadata, segments, "
