@@ -219,8 +219,10 @@ def _prepare_regime(runner: UpgradeRunner, ctx: MigrationContext, args: argparse
                 continue
             raise
         if not plan:
-            # Advisory: the runner decides again at the apply (it writes nothing if still empty).
-            print(f"{mig.id}: plan empty: nothing to measure", file=sys.stderr)
+            # Advisory: the runner decides again at the apply and says so there; a dry run never
+            # reaches the apply, so only it prints here.
+            if args.dry_run:
+                print(f"{mig.id}: plan empty: nothing to measure", file=sys.stderr)
             continue
         if args.dry_run:
             try:

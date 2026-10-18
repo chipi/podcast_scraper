@@ -127,11 +127,94 @@ The fresh reviewer's criteria, written before code: [migration_outcome_hook.acce
 
 ## 6. Build
 
-_TODO_
+Committed in 28a76ce01 (local), plus the one-line print fix below.
+- `src/podcast_scraper/upgrade/outcome_hook.py`: load and check the shipped outcome; the code
+  digest over the migration's import closure plus its verdicts file; the per-episode plan from
+  `dry_run_report`, its diff and the accept file; scoreboards before and after with the exact
+  per-episode compare; the receipt; exits 3 / 4 / 5; the empty-plan rule with its write guard.
+- `upgrade/runner.py`: the apply of a regime migration goes through `measure`. An unprepared one
+  recomputes its plan at the apply: non-empty is refused, empty goes through `apply_empty`.
+- `upgrade/cli_handlers.py`: `--accept-plan-diff`; `_prepare_regime` inside the lock before the
+  snapshot; a non-empty regime migration runs alone; each hook exit is returned as the CLI's code.
+  After the E runs, the advisory "plan empty" line prints only on a dry run, because the runner
+  prints it at the apply (it printed twice).
+- `upgrade/read_recorder.py` (in 0031 B.4): the inputs each plan row hashes.
+- `scripts/measure/corpus_change_gate.py` (`--snapshot`; refuses a clone whose ledger lacks an
+  earlier migration; records the binding fields) and `scripts/measure/build_outcome.py`.
+- `change_gate.py`: landing requires the shipped outcome, bound by sha to the record's step 8.
+- `pyproject.toml`: `upgrade/outcomes/*.json` is package data.
+- Tests: `test_outcome_hook.py`, 41 collected (24 functions, parametrised), among them the run-alone refusal, S1c left after, the
+  accept file in the receipt, a row on one side only, and the built-in metric list equal to the
+  gate config.
+- Mutations (`scratchpad/lost/hookmut.py`, `hookmut_b.py`): 22 of 22 real mutants killed. The
+  first list held a 21st, "auto undo", that only added an import and changed no behaviour; it was
+  dropped as no mutant, not counted as killed.
+- The corpus-migration skill (homelab repo, uncommitted): `apply --accept-plan-diff`, the
+  `plan-diff` command, the meaning of exits 3 / 4 / 5 in `watch`, and a SKILL.md section;
+  `python3 -m unittest test_migrate` gives 4 tests OK.
+
+Note for every later hook change: `outcome_hook.py` is in 0031's import closure, so it is in the
+code digest. Changing it after 0031's outcome is built means re-measuring 0031 and rebuilding the
+outcome. `cli_handlers.py` and `runner.py` are not in the closure.
 
 ## 7. Measure
 
-_TODO_
+All on copies of `lost/clone30L`: `lost/clone30` with 0030 recorded in its ledger. 0031's outcome
+was built from the clean commit 28a76ce01 (sha256 b1546e27…). Each run is the real CLI
+(`scratchpad/lost/e_run.py`; scripts `e1.sh`, `e25.sh`, `e6.sh`, `r6.sh`, `r6b.sh`).
+- **E1 untouched:** the dry run gives "plan diff 0 episode(s)", exit 0, and writes nothing.
+  `run --yes` takes the snapshot, applies 54 episodes and exits 0 in 192 s. The receipt is PASS
+  with plan diff 0. Totals after: S1 14,841, S1n 7, S2 26,351, S3 7,710, S10a 178, S12 24,
+  S1c 0, A1 357, each as predicted. The tree equals the gate's after-state (`diff -rq`) except
+  the ledger (the gate does not record 0031) and the receipt directory.
+- **E2 outcome removed:** exit 3, "no shipped outcome". The tree is identical and no snapshot
+  was taken.
+- **E3 one segments byte edited** (episode 0008's `.adfree.segments.json`): exit 4. The diff
+  names that episode, kind `differs`, field `inputs`. It writes only the plan-diff file and takes
+  no snapshot. With a different accept file (one invented extra entry): exit 4, "not the accepted
+  one". With the matching accept file: applied, exit 0, receipt PASS, carrying the accept file's
+  sha and the 1 difference. For the reviewer: the code exits 4 (stopped) on a wrong accept file,
+  not 3; criterion C2 says "refused".
+- **E4 NO-GO outcome:** exit 3, "outcome verdict is 'NO-GO', not GO". The tree is identical and
+  no snapshot was taken.
+- **E5 a rise through a test seam** (`e_run_rise.py`: S1n +1 on one episode in the
+  after-scoreboard; the seam is in the scratch script, not in the product): exit 5. The receipt is
+  FAIL and names "S1n_named_but_hidden changed +1, the clone's +0". The undo is printed, the
+  ledger records 0031, and nothing is reverted (receipts file 404 lines). **F4:** the printed
+  undo (`m0031.undo`) then restores 403 / 0; `feeds/` is byte-identical to clone30L; the ledger
+  no longer lists 0031 (re-runnable), and its `version` stays 2.7.25, deliberately
+  (`state.record_reverted`, #2069). The backups, the receipts file and the hook's receipt stay as
+  the audit trail.
+- **E6 below the regime:** the pinned fixture corpus (`tests/fixtures/upgrade/
+  corpus_at_last_prod_release`) through `upgrade run --yes`, on f1817141e (before the hook) and on
+  28a76ce01. The trees differ only in the ledger's `at` times. The output differs only by the
+  line "0031_named_voices_shown: plan empty: nothing to measure", once after the print fix.
+- **R6:**
+  - An empty corpus: exit 0, the line printed. Run alone after 0001–0030, 0031 changes only the
+    ledger. The other new files in the full run (`search/`, two lock files) come from 0002 and
+    the corpus lock.
+  - A clone30 copy with 0030 and 0031 pending: exit 3, "runs alone: pending in this run
+    ['0030_adfree_cut_resynced', '0031_named_voices_shown']". `diff -rq` against clone30 exits 0,
+    and no snapshot was taken.
+- **D6 cost:** a plan takes 12.2 s and a scoreboard pass 31.8 s on clone30L (2,685 served
+  metadata files), so the hook adds about 76 s per run. That is below 15 minutes; the skill's
+  guard and the drill timeout stand. It was measured while other copies were being made, so it
+  is on the high side.
+- **G2:**
+  - `make upgrade-corpus` is `upgrade run --yes`, the command above.
+  - The drill (`drill-corpus-upgrade.yml`) restores the newest `snapshot-prod-*` and runs every
+    pending migration in one `upgrade run --yes --no-snapshot`. On the 10-16 snapshot (0030 and
+    0031 pending) it is refused, exit 3 (R6 above). On a snapshot from 10-17 on, 0031 runs alone
+    and any episode that changed since the clone's snapshot stops it, exit 4.
+  - There is no bypass, so the drill is red by design until its snapshot is the measured one.
+    Stated for the operator, not changed.
+- **A5 from a built wheel:** `pip wheel . --no-deps --no-build-isolation` into the scratchpad
+  (`scratchpad/wheel`, nothing installed) packages `upgrade/outcomes/0031_named_voices_shown.json`
+  and `upgrade/verdicts/0031_named_voices_shown.tsv`. With only the unpacked wheel on the path
+  (`scratchpad/wheelload.py`): the outcome loads (sha256 b1546e27…, verdict GO) and the runtime
+  digest equals the outcome's (aaf844b1…). The digest does not depend on where it is installed.
+- **G1:** the skill as in step 6. Its new paths are tested against the command it builds, not
+  against a live container.
 
 ## 8. Verdict
 
@@ -155,4 +238,12 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- The prod plan diff (road step 4) and a live apply: neither has been run. The hook has run only
+  on local clone copies.
+- The skill's new paths against a real container: they are tested on the parser and the command
+  string only.
+- The drill run under the hook in GitHub Actions: the behaviour above is reasoned from the
+  workflow file plus R6, not from a drill run.
+- The accept file has no check that a human wrote the operator's go (criterion I: out of scope).
+- A coordinated edit of the outcome, the gate report and the record passes CI (A4's stated limit);
+  only step 8 guards it.

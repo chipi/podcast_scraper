@@ -394,6 +394,16 @@ Re-plan: 0 episodes. Undo 403 / 0, feeds identical. Apply again and undo again: 
 identical. Every integer the 11:10 prediction stated matched. Mutants of 1d: 4 of 4 killed
 (`lost/b5mut.py`). Upgrade tests: 622 passed. The reviewer's 65 mutants are not re-run by me.
 
+**Revision B.5 measured from the clean commit** (28a76ce01, `code.dirty: false`) by the gate
+script, on `lost/clone30L`: `lost/clone30` with 0030 recorded in its ledger by the store's own
+`record_applied` (its `at` is when it was recorded, not when the script applied 0030; nothing
+else differs, `diff -rq`), snapshot `snapshot-prod-20261016+0030`. Gate report rewritten
+(measured 2026-10-18T11:46:49): computed class full; gating moves S1 −1,370, S1n −1,779, S2
+−1,896, S3 −526, S10a −12 (the hook acceptance's D2 numbers); 245 files changed; 54 plan rows
+(sha256 e85a2670…); `applied_before` 30 ids, 0030 among them; code digest aaf844b1…; verdicts
+f3587fde…. Per-episode deltas: 53 episodes; the 54th (Samo Burja, 0015) writes files (one voice
+shown, 592 segments relabelled) and moves no gating metric, so the hook compares it against 0.
+
 ## 8. Verdict
 
 Verdict: NO-GO (revision B.2, 2026-10-18)
@@ -452,6 +462,10 @@ Conditions (LOW, code or record, no re-measure):
 Verdict: GO (step-8 reviewer, 2026-10-18, revision B.5 = f1817141e + the uncommitted m0031 verify change). Against the 11:11 criteria: C-a met (no manifest or a non-object manifest with 0 served fails; manifest + metadata on disk + 0 served fails; a fresh install passes as "an empty corpus"); C-b met in the record (call site named; test_outcome_hook.py::test_a_row_on_one_side_only_stops_the_run, both sides, passes; the hook's reviewer confirms the hook itself). Outcome on clone30 byte-identical to B.4 (apply diff 0 files, receipts identical, 403 files); verify served=2685, served_listed=71, other counters unchanged; re-plan 0; undo 403/0, feeds = clone30. Mutations 69/69 killed (B.4's 65 + 4 for C-a). Open, unchanged: S7/S8 and the outcome hook before step 10 (operator, step 0); L8 at step 9; snapshot freshness and the prod plan diff at step 10.
 
 The reviewer's files: `scratchpad/reviewer5/ab5.sh`, `ca5.py`, `mutate5.py`, `mut5.out`. Its observation outside 0031: a corpus subdirectory as the root (`clone30/feeds`) plans 58 episodes with 6 refused and verify fails there; whether the runner refuses such a root before apply is the runner's question, not checked.
+
+Shipped outcome: `src/podcast_scraper/upgrade/outcomes/0031_named_voices_shown.json`, sha256
+b1546e27c36c56158ebe70a6d29f8b4d24947695362934d2f6f54167c933ae2d (`scripts/measure/build_outcome.py`
+from the 11:46:49 gate report and the GO above).
 
 ## 9. Operator review
 
