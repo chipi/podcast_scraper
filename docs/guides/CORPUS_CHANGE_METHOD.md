@@ -1,6 +1,6 @@
 # Corpus change method — how every change to what the corpus serves is planned, judged and shipped
 
-Status: **DRAFT v0.4** (2026-10-17). Two practice runs done (0030/0031 evaluation, 0030 go). Nothing is built under it yet.
+Status: **DRAFT v0.5** (2026-10-18). Two practice runs done (0030/0031 evaluation, 0030 go). Nothing is built under it yet.
 
 > **Renumbered 2026-10-18.** "0031" in this document is the naming re-derivation, now
 > `0032_naming_voices_rederived` (held, #2380). The id 0031 now belongs to
@@ -223,6 +223,27 @@ is not done.
 | **11. After apply / deploy** | Re-measure on prod; check the apply's counts against the restated prediction (any other number stops before the derived-surface steps); run the reviewer's spot checks; read prod warnings for the affected window. | Post-run table. | builder, prod |
 | **12. Retrospective** | Any miss, surprise or correction becomes a method change (§7). | Changelog entry. | builder, operator |
 
+### The change gate: the procedure is enforced, not remembered
+
+On 2026-10-18 a change of exactly this kind (0031, the repair of 0029) was built straight from the
+task: steps 1, 4 and 5 skipped, the method written the day before. So every step now leaves its
+artefact in a **change record**, `docs/wip/changes/<id>.md` ([README](../wip/changes/README.md),
+[template](../wip/changes/TEMPLATE.md)), and three checks refuse the change without it:
+
+- **Before code:** a Claude Code hook refuses an edit to content code (`content_code` in
+  `config/corpus_change_gate.json`: migrations, naming, GI voice flags, the ad cut) until an open
+  record lists the path and has steps 1 to 5 done, the prediction dated and in integers.
+- **Before a commit:** the git pre-commit hook runs the same check on the staged files.
+- **Before landing:** a unit test refuses a registered migration from 0031 on without its record,
+  its gate report and steps 1 to 8 done.
+
+**Full or light** is decided by what the change does. `scripts/measure/corpus_change_gate.py`
+applies a migration on a clone and records every file it changed and every scoreboard number:
+a write to a content file (gi, kg, bridge, segments, turns, context, speaker diagnostics,
+transcripts) or a content key (`content.speakers` in metadata), or any move of a gating number,
+makes it full. Light changes (covers, artwork sizes, chunk times) keep a two-line record. A skipped
+step is written `MISSED:`, and it counts only once the operator has accepted it in the record.
+
 ## 5. Report template
 
 A row with no measured value, or with "predicted: —", is rejected.
@@ -289,6 +310,7 @@ accepted. It must change a check, a gate or a step.
 | 0.2 | 2026-10-17 | Second review. v0.1's own defects: S7 baselines from a double-counting join (D6, D10); "wrong-person attribution is in no issue" (D9, recurred); the 193-episode pattern presented as K8 (D8, recurred); S4/S5 shown as able to gate, though both improved under the defective 0031; "nothing gets worse" forbade correct fixes (trade rule added); snapshot gap D12 added; a gate column per defect; reviewer re-derives the numbers; step 0 added; S1 redefined with a consistency count; S9–S11 added. |
 
 | 0.3 | 2026-10-17 | First two practice runs (0030/0031 evaluation, 0030 go). Changes:<br>- S1n added and made gating, because S1c was blind to 0031's failure;<br>- the trade rule now covers S1, since wrong-name removals land in `unknown`;<br>- S12 quote integrity, S10a/S10b, and ad-cut rows A1–A4 added;<br>- the scoreboard is a floor: a change names its own outcome numbers;<br>- D13–D17 added (read verdicts, per-file joins, prod plan diff, falsifiable spot checks, derived-surface census);<br>- integer predictions, restated when the population moves;<br>- a full-clone undo test and a per-episode plan in step 7;<br>- the reviewer uses its own code;<br>- the prod rule's location named. |
+| 0.5 | 2026-10-18 | The change gate. 0031 (the 0029 repair) was built with steps 1, 4 and 5 skipped although the method existed, so the procedure is now enforced by a hook, the pre-commit hook and a CI test over change records, and full or light is measured, not declared (§4, the change gate). |
 | 0.4 | 2026-10-17 | Third practice run: the scoreboard instrument, reviewed by a fresh advisor (FIT WITH CHANGES, all applied). Changes:<br>- S3 corrected 7,710 → 8,236: the earlier value used the join its own row forbids, and the prediction copied it;<br>- A1 re-baselined under the committed, word-bounded list (the earlier list was never saved);<br>- every §3 value must come from a stored script, and is provisional unless the committed command produced it;<br>- at step 8 the reviewer mutates the definitions against their tests (the mutation run found four unguarded paths, now tested);<br>- reading every hit of a marker, not a sample, decides its precision. |
 
 ## Operator decisions (2026-10-17)

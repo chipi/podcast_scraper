@@ -836,12 +836,20 @@ class NamingArcVoicesRepairedMigration(Migration):
         "transcripts, GI, KG, bridge, diagnostics, turns and context"
     )
 
+    def _receipt_header(self) -> Dict[str, Any]:
+        """The receipts file's header line (0031 adds the verdicts it decided by)."""
+        return {"migration": self.id}
+
+    def _episode_kwargs(self) -> Dict[str, Any]:
+        """Extra arguments for each episode's decision (0031 passes its review verdicts)."""
+        return {}
+
     def _scan(self, root: Path) -> Tuple[List[_Episode], List[_Episode], Dict[str, int]]:
         write: List[_Episode] = []
         refused: List[_Episode] = []
         totals: Dict[str, int] = {}
         for meta in select_served_artifacts(root, ".metadata.json")[0]:
-            ep = self._episode_class(meta, root)
+            ep = self._episode_class(meta, root, **self._episode_kwargs())
             if ep.plan():
                 write.append(ep)
             if ep.refused:
@@ -881,7 +889,7 @@ class NamingArcVoicesRepairedMigration(Migration):
                     receipts.append(write_with_backup(root, self._backup_tag, path, payload))
                 for path, text in sorted(ep.text_files.items()):
                     receipts.append(_write_text_with_backup(root, path, text, self._backup_tag))
-            append_receipts(root, self._receipts_file, {"migration": self.id}, receipts)
+            append_receipts(root, self._receipts_file, self._receipt_header(), receipts)
         verb = "would rewrite" if ctx.dry_run else "rewrote"
         return MigrationResult(
             self.id,

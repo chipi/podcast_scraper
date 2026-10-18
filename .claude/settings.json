@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__lean-ctx__ctx_patch|mcp__lean-ctx__ctx_shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/corpus_change_gate_hook.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

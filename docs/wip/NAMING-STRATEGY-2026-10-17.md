@@ -176,6 +176,21 @@ Each rule goes through the method:
 - the scoreboard before and after;
 - **target:** S1 and S7-wrong fall by the predicted amounts, and S6 = 0.
 
+### 3b. Two classes found by 0031's review (operator, 2026-10-18), each its own change
+
+- **Wrong person under a stated name.** One of 53 voices 0031 shows (Jessica Espinoza stored as
+  "Justin Norman", The Flip). No rule separates it on 0031's 76 entries (address counts 0;
+  "named host, stated guest, dominant voice" is 1 right in 4), and one case cannot train a rule.
+  Order: S7 (insight-weighted wrong person on gold, item 1) first, then a rule designed and
+  measured on gold with a held-out check. Until then, the step-8 reviewer's WRONG PERSON verdicts
+  are an input list migrations read (0031 revision B).
+- **Right person, misspelled name.** "Deborah Kamen" for "Debra Kamin" (35 insights shown), where
+  the episode metadata spells the name. Accepted inside 0031 by the operator as a different class,
+  to be dealt with later: a similarity rule between the voice's name and the names the metadata
+  states (`_loosely_same_person` already matches given name plus a surname within two edits),
+  measured on gold for both directions (a correction that is right, a "correction" onto another
+  person).
+
 ### 4. Repair the stored corpus
 
 After the code is proven:
@@ -196,6 +211,31 @@ After the code is proven:
 
 One deploy, when items 1, 2 and the first proven rules of 3 pass the method's deploy gate (step 10)
 on one fresh snapshot clone. The operator decides.
+
+**The road to the next deploy (operator, 2026-10-18): all of these, in order.** The deploy is main
+plus `0031_named_voices_shown` (the 0029 repair, revision B.2); 0032 stays unregistered.
+
+1. Step-8 verdict on 0031 B.2 by the fresh reviewer, including the missed prediction
+   (`metadata_counts_synced` 22, predicted 3: all 22 counts were already wrong before 0031).
+2. Commit the change gate and 0031 B.2; `make ci-fast`; push (operator approval per push); CI green.
+3. Step 0 for 0031: **operator 2026-10-18: wait (option B).** Build S7/S8 (insight-weighted gold
+   numbers, raw-voice join, in `scripts/measure/naming_gate.py`) and the migration outcome hook
+   (the gate measurement run by `upgrade run` itself), each as its own change through the gate,
+   then run them on 0031 before step 4. Measured meanwhile: 19 of 0031's 54 episodes are gold
+   cases on the served run; gold agrees with the review on all 19 (18 CORRECT, 1 WRONG_PERSON).
+4. Step 10: prod's own per-episode plan (dry run), diffed against the clone's
+   (`docs/wip/changes/0031_named_voices_shown.md`); every difference explained (prod has been
+   reprocessed since the 2026-10-16 snapshot).
+5. The operator's go; deploy; lift the HOLD for exactly this.
+6. Apply 0031 on prod (`upgrade run`, the corpus-migration skill), then the derived surfaces the
+   census lists: insight_density / insight_sentiment for the 54 episodes (re-enrich), transcript
+   manifests (3), anonymised transcripts (2), incremental search index for the 3 episodes whose
+   transcript text changed; corpus enrichers via the nightly.
+7. Step 11: re-measure on prod with the scoreboard, check the apply's counts against the
+   prediction, spot checks; step 12: the retrospective into the method's changelog.
+
+Not on this road, each its own change afterwards: S7 on gold, then a wrong-person rule designed on
+it (item 3b); 0032's rework; the 28 ad maps already off their transcripts; the misspelled-name class.
 
 ## Running in parallel, not part of this strategy
 

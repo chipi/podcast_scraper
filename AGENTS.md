@@ -22,6 +22,11 @@ Detail manuals (load on demand by any agent):
 - `docs/guides/*` — topic-specific guides (TESTING_GUIDE, ENGINEERING_PROCESS,
   POLYGLOT_REPO_GUIDE, AGENT_BROWSER_LOOP_GUIDE, SERVER_GUIDE, …)
 
+**Corpus changes go through their change record first.** A change to what the corpus serves
+(a migration, naming, GI voice flags, the ad cut) starts with `docs/wip/changes/<id>.md` from
+`docs/wip/changes/TEMPLATE.md`, steps 1 to 5 done before any code
+(`docs/guides/CORPUS_CHANGE_METHOD.md`). A hook, the pre-commit hook and CI refuse it otherwise.
+
 ---
 
 ## Deployment topology — GROUND TRUTH, never re-derived from config files

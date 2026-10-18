@@ -21,39 +21,71 @@ ORDER. This is the part of 0029 that went missing, so it takes the number right 
 naming re-derivation that held this number until 2026-10-18 is now 0032 (held, #2380); it never
 ran on prod, and the hold was moved with it.
 
-``verify`` fails while anything is left to write or refused. UNDO restores from
+REVIEW (revision B, 2026-10-18). The step-8 reviewer's verdicts are an input
+(``upgrade/reviewer_verdicts.py``, ``upgrade/verdicts/0031_named_voices_shown.tsv``): an entry read
+as WRONG_PERSON is UNNAMED through m0025's own unnaming path (0029 put a wrong name on that voice),
+an entry with no verdict is refused as ``unreviewed``, and CORRECT / CORRECT_MISSPELLED entries are
+applied as listed. The first review found one wrong person in 53 voices (a guest stored as
+the host); no automatic rule separates that case yet, so the reviewer's read decides until a rule is
+measured on gold (S7).
+
+``verify`` checks the OUTCOME, not only the labels: every insight whose first quote a shown voice
+speaks is visible, an unnamed voice carries the name nowhere, and no entry is unreviewed. UNDO
+restores from
 ``.podcast_scraper/upgrade-backups/0031/`` while each file is still what this migration wrote.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
+from ...gi.pipeline import _segment_char_spans
+from ...identity.slugify import person_id
+from .. import reviewer_verdicts as rv
+from ..corpus_selection import select_served_artifacts
 from ..file_rewrite import undo_from_receipts
 from ..migration import MigrationContext
 from . import m0029_naming_arc_voices_repaired as m29
 from .m0025_one_person_one_entry import _load, _run_relative
+from .voice_rewrite_derived import admap_matches, DerivedSurfacesEpisode
 
 MIGRATION_ID = "0031_named_voices_shown"
 RECEIPTS_FILE = "named_voices_shown.jsonl"
 BACKUP_TAG = "0031"
+HIDING = ("unknown", "unidentified")
+
+
+def _rows(payload: Any) -> List[dict]:
+    rows = payload if isinstance(payload, list) else (payload or {}).get("segments")
+    return [r for r in rows or [] if isinstance(r, dict)]
 
 
 def _typed_voices(meta: Path, rel: str) -> Set[str]:
     """Voices with any segment carrying a ``voice_type`` (a named person carries none)."""
     payload = _load(meta.parent.parent / rel.replace(".txt", ".segments.json"))
-    rows = payload if isinstance(payload, list) else (payload or {}).get("segments")
-    return {
-        str(r["speaker"])
-        for r in rows or []
-        if isinstance(r, dict) and r.get("speaker") and r.get("voice_type")
-    }
+    return {str(r["speaker"]) for r in _rows(payload) if r.get("speaker") and r.get("voice_type")}
 
 
-class _Episode(m29._Episode):
-    """0029's decision, plus: a voice already carrying its new name but still typed is re-given
-    it, so the fixed rewrite lifts the hiding."""
+def _names(entries: Dict[rv.Key, m29.Entry]) -> Dict[rv.Key, str]:
+    """``{(episode id, voice): listed new name}`` for the entries this migration applies."""
+    return {k: str(e[2]) for k, e in entries.items() if e[2]}
+
+
+class _Episode(DerivedSurfacesEpisode):
+    """0029's decision through the fixed rewrite, decided by the review's verdicts; the ad maps
+    and metadata counts are carried with it (``voice_rewrite_derived``)."""
+
+    def __init__(
+        self,
+        meta: Path,
+        root: Path,
+        voices: Optional[Dict] = None,
+        verdicts: Optional[rv.Verdicts] = None,
+    ) -> None:
+        super().__init__(meta, root, voices)
+        self._verdicts = verdicts
 
     def decide(self) -> bool:
         meta = _load(self.meta)
@@ -73,17 +105,38 @@ class _Episode(m29._Episode):
         stored = m29._stored_by_voice(self.meta, rel)
         typed = _typed_voices(self.meta, rel)
         for voice, (old_name, old_role, new_name, new_role, _why) in sorted(mine.items()):
+            verdict = self._verdicts.get(episode_id, voice) if self._verdicts else None
             name, role = stored.get(voice, (None, None))
             name = None if not name or m29._DIARIZATION_LABEL.match(name) else name
-            if (name, role) == (new_name, new_role):
-                if voice not in typed:
-                    continue  # done
-                self._bump("voices_shown")
-            elif (name, role) != (old_name, old_role):
+            if verdict is not None and verdict.verdict == "WRONG_PERSON":
+                if name is None:
+                    continue  # never named, or already unnamed: nothing to take off
+                if name != new_name:
+                    self.refused = f"{voice}: stored {name!r}, the review judged {new_name!r}"
+                    return True
+                # The review read the listed name as someone else's: the voice goes back to what
+                # it was before 0029 named it, the listed old name and role (None: unnamed).
+                self._bump("unnamed_by_review")
+                self.voice_names[voice] = old_name
+                if old_name:
+                    if old_role:
+                        self.voice_roles[voice] = old_role
+                else:
+                    self.voice_roles_restored[voice] = old_role
+                continue
+            if (name, role) == (new_name, new_role) and voice not in typed:
+                continue  # done: named and shown, nothing for this migration to change
+            if (name, role) != (new_name, new_role) and (name, role) != (old_name, old_role):
                 self.refused = (
                     f"{voice}: stored {name!r}/{role!r}, the replay read {old_name!r}/{old_role!r}"
                 )
                 return True
+            if verdict is None:
+                self._bump("unreviewed")
+                self.refused = f"{voice}: unreviewed (no verdict for {new_name!r})"
+                return True
+            if (name, role) == (new_name, new_role):
+                self._bump("voices_shown")
             self.voice_names[voice] = new_name
             if new_role:
                 self.voice_roles[voice] = new_role
@@ -95,31 +148,235 @@ def undo(root: Path) -> Tuple[int, List[str]]:
     return undo_from_receipts(Path(root), RECEIPTS_FILE, BACKUP_TAG, MIGRATION_ID)
 
 
+def _voice_at(spans: Optional[list], char_start: Any) -> Optional[str]:
+    if not spans or not isinstance(char_start, int):
+        return None
+    for a, b, seg in spans:
+        if a <= char_start < b:
+            return str(seg.get("speaker") or "") or None
+    return None
+
+
+def _written_metas(root: Path) -> Set[str]:
+    """Metadata files this migration's receipts say it wrote (every run)."""
+    path = root / RECEIPTS_FILE
+    if not path.is_file():
+        return set()
+    out = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        rel = str((json.loads(line) if line.strip() else {}).get("relpath") or "")
+        if rel.endswith(".metadata.json"):
+            out.add(str((root / rel).resolve()))
+    return out
+
+
+def _outcome(root: Path, verdicts: rv.Verdicts) -> Tuple[List[str], Dict[str, int]]:
+    """What verify must see on the served episodes: ``(problems, counts)``.
+
+    An entry the migration would still change shows up as written or refused in the plan; this
+    checks the state left behind. Shown or named entries: no insight whose FIRST supporting quote
+    the voice speaks (the
+    pipeline's rule, ``gi.pipeline._apply_voice_flags``) is hidden as unknown or unidentified.
+    Unnamed-by-review entries: the name on none of the voice's segments, quotes, insights or
+    diagnostics, and on no transcript line when no other voice carries it.
+    """
+    problems: List[str] = []
+    counts = {
+        "insights_checked": 0,
+        "unnamed_checked": 0,
+        "unreviewed_unchanged": 0,
+        "admaps_checked": 0,
+    }
+    entries = {k: e for k, e in m29.NAMING_ARC_VOICES.items() if e[2]}
+    written = _written_metas(root)
+    for meta_path in select_served_artifacts(root, ".metadata.json")[0]:
+        meta = _load(meta_path)
+        if not isinstance(meta, dict):
+            continue
+        eid = str((meta.get("episode") or {}).get("episode_id") or "")
+        mine = {v: e for (k, v), e in entries.items() if k == eid}
+        if not mine:
+            continue
+        run = meta_path.parent.parent
+        rel = _run_relative((meta.get("content") or {}).get("transcript_file_path"), run)
+        if not rel.endswith(".txt"):
+            continue
+        texts: Dict[str, Optional[list]] = {}
+        segs_by_file: Dict[str, List[dict]] = {}
+        for sfx, seg_sfx in ((".txt", ".segments.json"), (".adfree.txt", ".adfree.segments.json")):
+            tp = run / rel.replace(".txt", sfx)
+            segs = _rows(_load(run / rel.replace(".txt", seg_sfx)))
+            segs_by_file[tp.name] = segs
+            body = tp.read_text(encoding="utf-8") if tp.is_file() else ""
+            texts[tp.name] = _segment_char_spans(body, segs) if body and segs else None
+        gi = _load(Path(str(meta_path)[: -len(".metadata.json")] + ".gi.json")) or {}
+        nodes = {str(n.get("id")): n for n in gi.get("nodes") or [] if isinstance(n, dict)}
+        first: Dict[str, str] = {}
+        for e in gi.get("edges") or []:
+            if isinstance(e, dict) and e.get("type") == "SUPPORTED_BY":
+                first.setdefault(str(e.get("from")), str(e.get("to")))
+
+        def voice_of(quote_id: str) -> Optional[str]:
+            props = (nodes.get(quote_id) or {}).get("properties") or {}
+            ref = Path(str(props.get("transcript_ref") or "")).name
+            return _voice_at(texts.get(ref), props.get("char_start"))
+
+        matches = admap_matches(run / rel)
+        if matches is not None:
+            counts["admaps_checked"] += 1
+            if not matches:
+                problems.append(f"{meta_path.name}: the ad map does not match its transcript")
+        diag = _load(run / rel.replace(".txt", ".speakers.diagnostics.json")) or {}
+        for voice, e in sorted(mine.items()):
+            name = str(e[2])
+            v = verdicts.get(eid, voice)
+            where = f"{meta_path.name} {voice}"
+            if v is None and str(meta_path.resolve()) in written:
+                problems.append(f"{where}: written by this migration, and has no verdict")
+                continue
+            if v is None:
+                # An entry this migration would change is refused while unreviewed (the plan and
+                # verify say so); one it leaves alone is checked like any shown voice.
+                counts["unreviewed_unchanged"] += 1
+            elif v.verdict == "WRONG_PERSON":
+                counts["unnamed_checked"] += 1
+                pid = person_id(name)
+                want_role = e[1] if e[0] is None else None
+                for f, segs in segs_by_file.items():
+                    if any(
+                        r.get("speaker") == voice and r.get("speaker_role") != want_role
+                        for r in segs
+                    ):
+                        problems.append(
+                            f"{where}: {f} gives the voice a role other than {want_role!r}"
+                        )
+                for dv in diag.get("voices") or []:
+                    if (
+                        isinstance(dv, dict)
+                        and dv.get("voice") == voice
+                        and dv.get("role") != (want_role or "unknown")
+                    ):
+                        problems.append(
+                            f"{where}: diagnostics give the voice role {dv.get('role')!r}"
+                        )
+                for f, segs in segs_by_file.items():
+                    if any(
+                        r.get("speaker") == voice and r.get("speaker_label") == name for r in segs
+                    ):
+                        problems.append(f"{where}: {f} still labels the voice {name!r}")
+                    others = any(
+                        r.get("speaker") != voice and r.get("speaker_label") == name for r in segs
+                    )
+                    tp = run / rel.replace(".txt", ".adfree.txt" if "adfree" in f else ".txt")
+                    if (
+                        not others
+                        and tp.is_file()
+                        and f"\n{name}:" in "\n" + tp.read_text(encoding="utf-8")
+                    ):
+                        problems.append(f"{where}: {tp.name} still prefixes lines with {name!r}")
+                for qid, n in nodes.items():
+                    props = n.get("properties") or {}
+                    if (
+                        n.get("type") == "Quote"
+                        and voice_of(qid) == voice
+                        and props.get("speaker_id") == pid
+                    ):
+                        problems.append(f"{where}: quote {qid} still {pid}")
+                    if (
+                        n.get("type") == "Insight"
+                        and voice_of(first.get(qid, "")) == voice
+                        and props.get("speaker") == name
+                    ):
+                        problems.append(f"{where}: insight {qid} still spoken by {name!r}")
+                for dv in diag.get("voices") or []:
+                    if (
+                        isinstance(dv, dict)
+                        and dv.get("voice") == voice
+                        and dv.get("resolved_name") == name
+                    ):
+                        problems.append(f"{where}: diagnostics still resolve the voice to {name!r}")
+                continue
+            for iid, n in nodes.items():
+                if n.get("type") != "Insight" or voice_of(first.get(iid, "")) != voice:
+                    continue
+                counts["insights_checked"] += 1
+                props = n.get("properties") or {}
+                if props.get("surfaceable") is False and props.get("speaker_voice_type") in HIDING:
+                    problems.append(
+                        f"{where}: insight {iid} still hidden ({props['speaker_voice_type']})"
+                    )
+    return problems, counts
+
+
 class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
-    """0029's voices through the fixed rewrite: named where still unnamed, shown where hidden."""
+    """0029's voices through the fixed rewrite, decided by the step-8 review's verdicts."""
 
     id = MIGRATION_ID
     to_version = "2.7.25"
     description = (
-        "0029's voices through the fixed voice-by-voice rewrite (#2380): the ones a reprocess "
-        "unnamed again are named, and the ones still typed and hidden under their name are shown"
+        "0029's voices through the fixed voice-by-voice rewrite (#2380), decided by the step-8 "
+        "review: named where a reprocess unnamed them again, shown where still hidden under their "
+        "name, unnamed where the review read the name as another person's"
     )
     _episode_class = _Episode
     _receipts_file = RECEIPTS_FILE
     _backup_tag = BACKUP_TAG
+    _verdicts_dir: Optional[Path] = None
+
+    def review_names(self) -> Dict[rv.Key, str]:
+        """``{(episode id, voice): listed name}`` a review of this migration judges."""
+        return _names(m29.NAMING_ARC_VOICES)
+
+    def _verdicts(self) -> rv.Verdicts:
+        return rv.load(MIGRATION_ID, self.review_names(), self._verdicts_dir)
+
+    def _episode_kwargs(self) -> Dict[str, Any]:
+        return {"verdicts": self._loaded}
+
+    def _scan(self, root: Path) -> Tuple[List[m29._Episode], List[m29._Episode], Dict[str, int]]:
+        self._loaded = self._verdicts()
+        return super()._scan(root)
+
+    def plan(self, ctx: MigrationContext) -> str:
+        """Counts, plus the verdicts file it decided by (its sha256)."""
+        text = super().plan(ctx)
+        return f"{text}; verdicts {self._loaded.sha256[:12]} ({len(self._loaded.rows)} rows)"
 
     def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
-        """Pass when every voice 0029 names carries its name and no hiding, and none refused."""
-        ok, message = super().verify(ctx)
-        return ok, ("every voice 0029 names carries its name and no hiding" if ok else message)
+        """Pass when nothing is left to write or refused AND the outcome holds (``_outcome``)."""
+        try:
+            ok, message = super().verify(ctx)
+        except rv.VerdictError as exc:
+            return False, f"verdicts file unusable: {exc}"
+        problems, counts = _outcome(ctx.corpus_root, self._loaded)
+        tally = ", ".join(f"{k}={v}" for k, v in counts.items())
+        if not ok or problems:
+            parts = [message] if not ok else []
+            if problems:
+                parts.append(f"{len(problems)} outcome problem(s): {problems[:5]}")
+            return False, f"{'; '.join(parts)}; {tally}"
+        if counts["insights_checked"] + counts["unnamed_checked"] == 0:
+            return False, f"verify checked nothing; {tally}"
+        return True, f"every voice 0029 names carries its name and no hiding, as reviewed; {tally}"
+
+    def _receipt_header(self) -> Dict[str, Any]:
+        return {**super()._receipt_header(), "verdicts_sha256": self._loaded.sha256}
+
+    def apply(self, ctx: MigrationContext) -> Any:
+        """0029's apply, with the verdicts file's sha256 in the result and the receipt header."""
+        result = super().apply(ctx)
+        result.details["verdicts_sha256"] = self._loaded.sha256
+        return result
 
 
 def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:
     """Read-only: one row per episode the migration would write or refuses."""
-    write, refused, _totals = NamedVoicesShownMigration()._scan(Path(root))
+    mig = NamedVoicesShownMigration()
+    write, refused, _totals = mig._scan(Path(root))
     for ep in write + refused:
         yield {
             "meta": str(ep.meta.relative_to(root)),
             "voices": dict(ep.voice_names),
             "refused": ep.refused,
+            "verdicts_sha256": mig._loaded.sha256,
         }

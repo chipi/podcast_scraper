@@ -1,0 +1,42 @@
+{
+  "_doc": "Which changes go through docs/guides/CORPUS_CHANGE_METHOD.md in full (operator, 2026-10-18). Read by podcast_scraper.quality.change_gate.",
+  "records_dir": "docs/wip/changes",
+  "regime_from_migration": "0031",
+  "content_code": [
+    "src/podcast_scraper/upgrade/*.py",
+    "src/podcast_scraper/providers/ml/diarization/labeling_profile.py",
+    "src/podcast_scraper/providers/ml/diarization/naming_trace.py",
+    "src/podcast_scraper/providers/ml/diarization/roster.py",
+    "src/podcast_scraper/speaker_detectors/*.py",
+    "src/podcast_scraper/gi/pipeline.py",
+    "src/podcast_scraper/workflow/adfree_transcript.py"
+  ],
+  "content_files": [
+    "*.gi.json",
+    "*.kg.json",
+    "*.bridge.json",
+    "*.segments.json",
+    "*.turns.json",
+    "*.context.json",
+    "*.speakers.diagnostics.json",
+    "*/transcripts/*.txt"
+  ],
+  "content_keys": {
+    "*.metadata.json": [
+      "content.speakers",
+      "content.transcript_file_path",
+      "episode.language"
+    ]
+  },
+  "gating_metrics": [
+    "S1_hidden_unknown",
+    "S1n_named_but_hidden",
+    "S1c_inconsistent",
+    "S2_hidden",
+    "S3_principal_unidentified",
+    "S10a_zero_visible",
+    "S10b_zero_visible_panel",
+    "S12_quotes_off_text",
+    "A1_marker_hits"
+  ]
+}

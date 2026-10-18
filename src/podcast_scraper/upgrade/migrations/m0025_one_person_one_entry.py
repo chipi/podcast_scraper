@@ -378,6 +378,9 @@ class _Episode:
         #: express: a swap between two voices, and a forced name that is a placed person's twin.
         self.voice_names: Dict[str, Optional[str]] = {}
         self.voice_roles: Dict[str, str] = {}
+        #: For a voice being UNNAMED: the role to put back (``None`` removes it). Empty unless a
+        #: migration asks; 0031 restores the role a wrong name came with (a review verdict).
+        self.voice_roles_restored: Dict[str, Optional[str]] = {}
         self._old_label_cache: Set[str] = set()
         self._shared_labels: Set[str] = set()
         #: ``{segment label: voices}`` — where an OLDER record's entries are placed: they carry no
@@ -898,6 +901,12 @@ class _Episode:
             else:
                 r.pop("speaker_label", None)
                 r["voice_type"] = "unknown"
+                if v in self.voice_roles_restored:  # the role the voice had before its wrong name
+                    old_role = self.voice_roles_restored[v]
+                    if old_role:
+                        r["speaker_role"] = old_role
+                    else:
+                        r.pop("speaker_role", None)
             self._bump("segments_relabelled")
 
     def _record_by_voice(self, meta: dict) -> None:
@@ -1161,6 +1170,8 @@ class _Episode:
                 v.update(resolved_name=name, named=True, role=self.voice_roles.get(v["voice"]))
             else:
                 v.update(resolved_name=v["voice"], named=False, source="raw")
+                if v["voice"] in self.voice_roles_restored:
+                    v["role"] = self.voice_roles_restored[v["voice"]] or "unknown"
             self._bump("diagnostics_voices_renamed")
         files[path] = diag
         changed.add(path)

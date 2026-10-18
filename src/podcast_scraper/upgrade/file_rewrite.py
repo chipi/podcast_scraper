@@ -95,14 +95,28 @@ def read_receipts(root: Path, receipts_file: str) -> Tuple[Dict[str, Any], List[
 def undo_from_receipts(
     root: Path, receipts_file: str, tag: str, migration_id: str
 ) -> Tuple[int, List[str]]:
-    """Restore each written file still as the migration left it. ``(restored, refused)``."""
+    """Restore each written file still as the migration left it. ``(restored, refused)``.
+
+    A receipts file can hold several runs (apply, undo, apply again). Each file is judged by its
+    LAST receipt only, and a file that already holds that receipt's before-state counts as restored:
+    replaying an earlier run's receipt over a file a later undo restored reported it "changed" (245
+    false refusals after apply, undo, apply on one corpus, 2026-10-18). A file in neither state, the
+    migration's output nor its input, is still refused: something else changed it.
+    """
     root = Path(root)
     _header, rows = read_receipts(root, receipts_file)
-    restored, refused = 0, []
+    last: Dict[str, Dict[str, str]] = {}
     for row in rows:
+        last[row["relpath"]] = row
+    restored, refused = 0, []
+    for row in last.values():
         target = root / row["relpath"]
         backup = backup_dir(root, tag) / row["relpath"]
-        if file_sha(target) != row["sha_after"]:
+        current = file_sha(target)
+        if row.get("sha_before") and current == row["sha_before"]:
+            restored += 1
+            continue
+        if current != row["sha_after"]:
             refused.append(f"{row['relpath']}: changed since the migration wrote it")
             continue
         if not backup.is_file():

@@ -698,6 +698,16 @@ if [ -n "$STAGED_WORKFLOWS" ]; then
     fi
 fi
 
+# Corpus change gate (docs/wip/changes/README.md): staged content code needs an open change record
+# with the method's pre-build steps done, whatever wrote the file. Same rule as the Claude hook.
+if [ -f scripts/hooks/corpus_change_gate_hook.py ]; then
+    if ! python3 scripts/hooks/corpus_change_gate_hook.py --staged; then
+        echo -e "${RED}✗${NC} corpus change gate: content code staged without a ready change record"
+        echo ""
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+
 # Kill the watchdog before exiting normally
 kill $_WATCHDOG_PID 2>/dev/null || true
 
