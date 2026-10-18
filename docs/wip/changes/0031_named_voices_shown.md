@@ -551,6 +551,23 @@ Shipped outcome: `src/podcast_scraper/upgrade/outcomes/0031_named_voices_shown.j
 b1546e27c36c56158ebe70a6d29f8b4d24947695362934d2f6f54167c933ae2d (`scripts/measure/build_outcome.py`
 from the 11:46:49 gate report and the GO above).
 
+Verdict: GO WITH CONDITIONS (step-8 reviewer, 2026-10-18, revision B.6 = ce6a98b64). Against the 12:59 block with its 13:01 amendment: the verify walk is the selection's walk (corpus_rglob over the whole root; 3,196 = 3,196 files on clone30L); docstrings only elsewhere (docstring-stripped AST equal to fa02ce3c0, make docstrings 100.0%); plan rows identical to B.5 (54, 0 refused); apply byte-identical to gateworkB5 including receipts, 403 files; verify served=2685 served_listed=71 with the other counters unchanged; _serves_nothing called 0 times; undo 403/0; mutations 72/72 killed, the corpus-walk rule test included. Condition: item 5, `make ci-fast` on ce6a98b64 ending EXIT=0 with the log attached, before landing. Open, unchanged: S7/S8 and the outcome hook before step 10; L8 at step 9; snapshot freshness and the prod plan diff at step 10.
+
+The reviewer's files: `scratchpad/reviewer5/criteria_0031_step8_B6.tsv`, `item4.py`, `item4.sh`,
+`mutate6.py`, `mut6.out`, `mut6b.out`, `docstrings.out`.
+
+**Measured again after the hook's step-8 conditions** (a6b0f91f5, clean; they change
+`outcome_hook.py` and `quality/change_gate.py`, both in 0031's closure, and C3 adds every parent
+package to it). Gate report 2026-10-18T13:29:41: `diff -rq lost/gateworkB5 lost/gateworkB6b` over
+the whole tree is empty; `plan_sha256` e85a2670…; the same gating moves and 245 files. Code digest
+653cb12e… (B.6) → abd29583… (a6b0f91f5). Item 5's ci-fast runs on the commit that carries the
+rebuilt outcome, which differs from a6b0f91f5 only in the outcome file and the records.
+
+Shipped outcome (replaces b1546e27…, which is stale since ce6a98b64):
+`src/podcast_scraper/upgrade/outcomes/0031_named_voices_shown.json`, sha256
+affb5658d317bea113339a07b9e8da5bbc839b6cc307373791885a4cfa72090f, built from the 13:29:41 gate
+report (a6b0f91f5, code digest abd29583…) and the GO WITH CONDITIONS above.
+
 ## 9. Operator review
 
 _TODO_
