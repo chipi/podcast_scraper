@@ -43,6 +43,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from ...gi.pipeline import _segment_char_spans
 from ...identity.slugify import person_id
+from ...utils.corpus_walk import corpus_rglob
 from .. import reviewer_verdicts as rv
 from ..corpus_selection import select_served_artifacts
 from ..file_rewrite import undo_from_receipts
@@ -176,7 +177,9 @@ def _serves_nothing(root: Path) -> Optional[str]:
     selection read nothing (a broken manifest, a selection bug), not an empty corpus."""
     if not isinstance(_load(root / "corpus_manifest.json"), dict):
         return "has no corpus manifest (absent or not a JSON object)"
-    if next((root / "feeds").rglob("*.metadata.json"), None) is not None:
+    # The walk the served selection makes (``select_served_artifacts``): the whole root, every
+    # dot-directory excluded, so any layout's metadata counts.
+    if next(corpus_rglob(root, "*.metadata.json"), None) is not None:
         return "has metadata on disk, none served"
     return None
 

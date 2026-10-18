@@ -33,6 +33,7 @@ class Recorder:
         self.paths: Set[Path] = set()
 
     def note(self, path: Any) -> None:
+        """Remember ``path`` when it resolves under the root; anything else is ignored."""
         try:
             p = Path(os.fspath(path)).resolve()
         except (TypeError, ValueError, OSError):
@@ -41,6 +42,7 @@ class Recorder:
             self.paths.add(p)
 
     def inputs(self) -> Dict[str, str]:
+        """``{root-relative path: sha256}`` of every file noted, ``"absent"`` for one not there."""
         out: Dict[str, str] = {}
         for p in sorted(self.paths):
             if p.is_dir():

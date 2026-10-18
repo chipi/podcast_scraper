@@ -83,6 +83,7 @@ class Record:
         return str(self.meta.get("status") or "open") != "landed"
 
     def touches(self, rel_path: str) -> bool:
+        """True when the repo-relative path matches one of the record's ``touches`` patterns."""
         return any(fnmatch.fnmatch(rel_path, pat) for pat in self.meta.get("touches") or [])
 
 

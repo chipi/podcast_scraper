@@ -69,18 +69,25 @@ class HookError(Exception):
 
 
 class HookRefused(HookError):
+    """Refused before any write (exit 3): outcome, code, verdict or run not the measured one."""
+
     code = EXIT_REFUSED
 
 
 class HookStopped(HookError):
+    """Stopped on a plan difference (exit 4): only the plan-diff file was written."""
+
     code = EXIT_STOPPED
 
 
 class HookOutcomeFailed(HookError):
+    """Applied, but the outcome is not the measured one or could not be measured (exit 5)."""
+
     code = EXIT_OUTCOME
 
 
 def in_regime(migration_id: str) -> bool:
+    """True for a migration the hook governs: id 0031 and later."""
     return migration_id[:4] >= REGIME
 
 
@@ -88,6 +95,7 @@ def in_regime(migration_id: str) -> bool:
 
 
 def outcome_path(migration_id: str) -> Path:
+    """Where the installed package keeps the migration's shipped outcome (package data)."""
     return (
         Path(str(importlib.resources.files("podcast_scraper.upgrade")))
         / "outcomes"
@@ -186,6 +194,7 @@ def code_digest(module_name: str, extra: Optional[List[Path]] = None) -> str:
 
 
 def migration_digest(migration: Any) -> str:
+    """The migration's code digest as installed now, its verdicts file included when it has one."""
     mod = type(migration).__module__
     verdicts = getattr(importlib.import_module(mod), "verdicts_file", None)
     extra = [verdicts()] if callable(verdicts) and verdicts().is_file() else []
@@ -485,6 +494,7 @@ def apply_empty(migration: Any, root: Path, apply: Callable[[], Any]) -> Any:
 
 
 def undo_hint(migration: Any) -> str:
+    """The text printed after a failed outcome: the apply stays, and the exact undo command."""
     mod = type(migration).__module__
     return (
         f'the apply stays and is recorded; to undo: python -c "from pathlib import Path; '

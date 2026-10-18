@@ -651,11 +651,21 @@ def test_the_moved_functions_stay_identical_to_0032s_copy() -> None:
     root = Path(__file__).resolve().parents[4] / "src/podcast_scraper/upgrade/migrations"
 
     def funcs(name: str) -> dict:
-        """The FIRST definition of each name (0032 also has a migration-level ``plan``)."""
+        """The FIRST definition of each name (0032 also has a migration-level ``plan``), its
+        docstring dropped: the two copies' code must not drift; their documentation may differ
+        (0032's file is gated by its own open record)."""
         out: dict = {}
         for n in ast.walk(ast.parse((root / name).read_text(encoding="utf-8"))):
-            if isinstance(n, ast.FunctionDef):
-                out.setdefault(n.name, ast.dump(n, include_attributes=False))
+            if isinstance(n, ast.FunctionDef) and n.name not in out:
+                body = n.body
+                if (
+                    body
+                    and isinstance(body[0], ast.Expr)
+                    and isinstance(getattr(body[0], "value", None), ast.Constant)
+                    and isinstance(body[0].value.value, str)
+                ):
+                    n.body = body[1:]
+                out[n.name] = ast.dump(n, include_attributes=False)
         return out
 
     a, b = funcs("m0032_naming_voices_rederived.py"), funcs("voice_rewrite_derived.py")
@@ -811,3 +821,39 @@ def test_a_manifest_that_is_not_a_json_object_counts_as_absent(
     (tmp_path / "corpus_manifest.json").write_text(body, encoding="utf-8")
     ok, msg = _mig().verify(_ctx(tmp_path))
     assert not ok and "no corpus manifest" in msg
+
+
+def _stray_metadata(root: Path, rel: str) -> None:
+    p = root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("{}", encoding="utf-8")
+
+
+def test_metadata_only_under_dot_directories_is_an_empty_corpus(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """B.6 test a: the served selection's own walk excludes every dot-directory, at any depth."""
+    _review(monkeypatch, tmp_path)
+    (tmp_path / "corpus_manifest.json").write_text("{}", encoding="utf-8")
+    _stray_metadata(tmp_path, "feeds/.x/run_1/metadata/ep.metadata.json")
+    _stray_metadata(tmp_path, ".trash/20261018/feeds/f/run_1/metadata/ep.metadata.json")
+    monkeypatch.setattr(m31, "select_served_artifacts", lambda root, suffix: ([], []))
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert ok and msg.startswith("an empty corpus"), msg
+
+
+@pytest.mark.parametrize(
+    "rel",
+    ["run_1/metadata/ep.metadata.json", "feeds/f/run_1/metadata/ep.metadata.json"],
+    ids=["run-at-root", "under-feeds"],
+)
+def test_metadata_in_any_layout_with_none_served_fails(
+    tmp_path: Path, monkeypatch, rel: str
+) -> None:
+    """B.6 tests b and c: outside ``feeds/`` (a run at the root) as well as under it."""
+    _review(monkeypatch, tmp_path)
+    (tmp_path / "corpus_manifest.json").write_text("{}", encoding="utf-8")
+    _stray_metadata(tmp_path, rel)
+    monkeypatch.setattr(m31, "select_served_artifacts", lambda root, suffix: ([], []))
+    ok, msg = _mig().verify(_ctx(tmp_path))
+    assert not ok and "metadata on disk, none served" in msg

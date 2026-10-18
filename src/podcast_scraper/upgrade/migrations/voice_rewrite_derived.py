@@ -30,6 +30,8 @@ class DerivedSurfacesEpisode(_VoiceEpisode):
     it re-renders and resyncs the metadata counts."""
 
     def plan(self) -> bool:
+        """0029's plan; when it writes, also carry each re-rendered transcript's ad map and resync
+        the metadata counts. True when the episode has anything to write."""
         planned = super().plan()
         if planned:
             for path, text in list(self.text_files.items()):

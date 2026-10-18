@@ -63,6 +63,7 @@ class Verdicts:
     sha256: str = ""
 
     def get(self, episode_id: str, voice: str) -> Optional[Verdict]:
+        """The reviewer's verdict on this episode's voice, or ``None`` when it has none."""
         return self.rows.get((episode_id, voice))
 
 
@@ -76,6 +77,7 @@ def list_sha256(entries: Mapping[Key, object]) -> str:
 
 
 def verdicts_path(migration_id: str, directory: Optional[Path] = None) -> Path:
+    """The verdicts file of a migration: ``<id>.tsv`` in ``directory``, by default the package's."""
     return (directory or VERDICTS_DIR) / f"{migration_id}.tsv"
 
 

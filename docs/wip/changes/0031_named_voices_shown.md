@@ -254,7 +254,61 @@ after-state passes with `served=2685`, `served_listed=71`, and B.4's other count
 `metadata_unreadable=0`). New tests: a root with no manifest fails, and an empty corpus passes and
 says so. Mutants: the manifest check dropped, and `served` never counted, each killed.
 
+Dated: 2026-10-18T12:59
+
+**Revision B.6 prediction** (after the B.5 GO and its clean-commit measurement at 11:46:49; found
+by `make ci-fast`). Two defects, no change to what 0031 plans, writes or verifies on a corpus that
+serves episodes:
+1. `_serves_nothing` (B.5) looks for metadata with a plain `rglob` under `feeds/`, which also walks
+   the dot-directories the corpus excludes (snapshots, upgrade backups). The repo's rule
+   (`test_corpus_walk.py::test_no_corpus_scanner_walks_without_the_exclusion_rule`, red in
+   test-fast) requires `corpus_rglob`. Fixed to `corpus_rglob(root / "feeds", "*.metadata.json")`.
+   Metadata only under an excluded dot-directory then counts as none on disk, so such a root with
+   a manifest passes as an empty corpus. New test for that case.
+2. Docstrings (`make docstrings` requires 100%; 99.7%, 13 names, all from this arc):
+   `read_recorder.Recorder.note` / `.inputs`, `reviewer_verdicts.Verdicts.get` / `verdicts_path`,
+   `voice_rewrite_derived.DerivedSurfacesEpisode.plan`, `change_gate.Record.touches`, and seven in
+   `outcome_hook.py`. Docstrings only, no code.
+Plus any change the outcome hook's step-8 review asks of `outcome_hook.py`, restated here before
+it is made. None of them changes 0031's plan or apply.
+
+On `lost/clone30L`, from the commit that carries B.6: served is 2,685, so `_serves_nothing` is never
+called and nothing it decides changes. Plan rows 54, refused 0, byte-identical to B.5's
+(`plan_sha256` e85a2670…); apply writes the same 245 changed files, byte-identical to B.5's
+(`diff -rq` against `lost/gateworkB5` = 0); gating moves S1 −1,370, S1n −1,779, S2 −1,896,
+S3 −526, S10a −12; verify passes with served=2685, served_listed=71 and B.5's other counters; undo
+403 / 0. What changes: the code digest (the files are in 0031's import closure), so the outcome is
+rebuilt and its sha changes. Mutant: `corpus_rglob` swapped back to `rglob` is killed by the corpus
+walk test.
+
+Dated: 2026-10-18T13:01
+
+**Revision B.6 restated before its test and before the walk's root is set** (the line was edited
+to `corpus_rglob(root / "feeds", ...)` as predicted at 12:59; it changes again here). The served
+selection walks `corpus_rglob(root, "*.metadata.json")`, the whole root
+(`corpus_selection.select_served_artifacts`). B.5's check looked only under `feeds/`, so metadata
+in any other layout was invisible to it, and such a corpus with a broken selection passed as "an
+empty corpus": the vacuous pass C-a exists to stop. That was B.5's defect. The walk is therefore
+`corpus_rglob(root, "*.metadata.json")`: exactly the files the selection sees, with every
+dot-directory excluded at any depth. This is the reviewer's third mutant of 12:59 taken as the
+design, not killed. Tests:
+- metadata only under a dot-directory (`feeds/.x/...` and `.trash/...`) with a manifest → PASS,
+  "an empty corpus";
+- metadata outside `feeds/` (a run directory at the root) with the selection returning nothing →
+  FAIL, "metadata on disk, none served";
+- the B.5 case (under `feeds/`) → still FAIL.
+Mutants: `corpus_rglob` back to `rglob` (the repo-rule test); the walk rooted at `feeds/` (the
+root-run test). On `lost/clone30L` nothing else changes from the 12:59 prediction.
+
 ## 5. Acceptance
+
+Dated: 2026-10-18T13:01
+
+Revision B.6 restated: the reviewer's amendment (13:01) replaces item 1 of its 12:59 block (the walk over the whole root, tests a to d).
+
+Dated: 2026-10-18T12:59
+
+Revision B.6: the reviewer's amendment (12:59), appended to the acceptance file. It adds a gate: ci-fast green on the committed B.6 tree.
 
 Dated: 2026-10-18T11:11
 
@@ -301,6 +355,26 @@ different served population on prod gives a row on one side only (`clone_only` /
 and that stops the hook's run until each row is accepted with a cause
 (`test_outcome_hook.py::test_a_row_on_one_side_only_stops_the_run`, both sides; for the hook's
 reviewer to confirm). The verdicts file is the plan-level input, hashed as `verdicts_sha256`.
+
+**Revision B.6 build.**
+- `_serves_nothing` walks `corpus_rglob(root, "*.metadata.json")`, the served selection's own walk.
+- The 13 docstrings: 7 in `outcome_hook.py`, plus `Recorder.note` and `.inputs`, `Verdicts.get`,
+  `verdicts_path`, `Record.touches` and `DerivedSurfacesEpisode.plan`.
+- Tests a to c of the 13:01 amendment; d is the existing no-manifest test.
+- One test changed: `test_the_moved_functions_stay_identical_to_0032s_copy` now compares the two
+  copies' code with each docstring dropped. The docstring on `DerivedSurfacesEpisode.plan` made it
+  red, and 0032's copy cannot get the same docstring: its file is gated by 0032's open record
+  (steps 1 to 5 `_TODO_`). Its purpose, that the code does not drift, still holds: a code edit to
+  the copy is killed (mutant below).
+- `make docstrings`: 100.0%.
+- Mutants (`scratchpad/lost/b6mut.py`, the upgrade tests plus `test_corpus_walk.py`), 5 of 5
+  killed:
+  - plain `rglob`;
+  - the walk rooted at `feeds/`;
+  - E3, the on-disk check dropped;
+  - the exclusion applied to the first segment only;
+  - a code edit to `DerivedSurfacesEpisode.plan` (the copy's drift).
+- Upgrade, corpus-walk and quality tests: 726 passed, 7 skipped.
 
 ## 7. Measure
 

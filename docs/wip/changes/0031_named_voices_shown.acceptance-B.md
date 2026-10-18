@@ -190,3 +190,53 @@ Step-5 criteria for 0031 revision B.5 (prediction dated 11:10). They amend the 1
    - Verify on the after-state passes with served = 2685 and served_listed = 71. All other counters unchanged: insights_checked 2454, unnamed_checked 1, unreviewed_unchanged 22, admaps_checked 71, metadata_unreadable 0.
 
 4. Mutations: my 65 still all killed, plus the four in 1d.
+
+Dated: 2026-10-18T12:59
+
+Step-5 criteria for 0031 revision B.6 (prediction dated 12:59). These amend the 11:11 block; everything else stands.
+
+1. The corpus walk. `_serves_nothing` walks with `corpus_rglob(root / "feeds", "*.metadata.json")`. `test_corpus_walk.py::test_no_corpus_scanner_walks_without_the_exclusion_rule` passes with no file added to `_NOT_A_CORPUS`.
+   - The new behaviour is accepted as the repo's rule: metadata found only under a dot-directory of `feeds/` is not corpus data. A root with a manifest whose only metadata sits there passes as "an empty corpus".
+   - Tests, each in the repo:
+     - that case (manifest, metadata only under `feeds/.x/...`) → PASS, "an empty corpus";
+     - the B.5 case (manifest, metadata in a normal run directory, selection returning none) → still FAIL "metadata on disk, none served".
+   - Mutants that must be killed:
+     - my E3 (on-disk check dropped);
+     - `corpus_rglob` swapped back for a plain `rglob` (must be caught by the repo-rule test);
+     - the walk rooted at `root` instead of `root / "feeds"`. This one must be killed by the new test, or the record states why it is equivalent.
+
+2. Docstrings only. For every file in the arc except m0031 (item 1) and `outcome_hook.py` (item 3), the AST with docstrings removed is identical to B.5's tree: `read_recorder`, `reviewer_verdicts`, `voice_rewrite_derived`, `change_gate`, and the rest. I compare them myself.
+   `make docstrings` exits 0 and reports the coverage the repo requires. The 13 named functions have docstrings that say what they return or do; a docstring that only repeats the name fails.
+
+3. `outcome_hook.py`: any change beyond docstrings is restated in the 0031 record before it is made. Its correctness is the hook reviewer's. For 0031: 0031's plan rows, apply and verify must not depend on it. Items 4 and 6 show that.
+
+4. Outcome on clone30L.
+   - `dry_run_report` rows byte-identical to B.5's (plan_sha256 e85a2670…, 54 rows, 0 refused).
+   - I apply B.6 to my own fresh copy of clone30L: `diff -rq` against `lost/gateworkB5` = 0 over the feeds, and the receipts file is identical.
+   - Verify passes: served 2685, served_listed 71, insights_checked 2454, unnamed_checked 1, unreviewed_unchanged 22, admaps_checked 71, metadata_unreadable 0.
+   - `_serves_nothing` is not called. I check this with a call counter, not by reading the code.
+   - Undo 403/0, feeds equal to clone30L.
+   - The record lists the code digest and outcome sha, old → new, and the files that moved the digest.
+
+5. New gate (both of us missed this at B.5): B.6 is committed, and `make ci-fast; echo EXIT=$?` on that commit ends with EXIT=0, the log attached.
+   - My mutation runs from B.6 on include the full `tests/unit/podcast_scraper/utils/test_corpus_walk.py` and the docstring check, as well as the upgrade tests.
+   - A green ci-fast is still not evidence of the outcome. Items 1 to 4 decide that.
+
+6. Mutations: my 69 plus those in item 1, all killed.
+
+Dated: 2026-10-18T13:01
+
+Step-5 amendment for 0031 revision B.6 (restated prediction dated 13:01). Replaces item 1 of the 12:59 block; items 2 to 6 stand.
+
+1. The corpus walk. `_serves_nothing` walks `corpus_rglob(root, "*.metadata.json")`: the whole root, the same set `select_served_artifacts` walks (`corpus_selection.py` line 59), with dot-directories excluded at any depth. `test_corpus_walk.py::test_no_corpus_scanner_walks_without_the_exclusion_rule` passes, with no file added to `_NOT_A_CORPUS`.
+   - Tests, each in the repo:
+     - a. manifest, metadata only under `feeds/.x/...` and under `.trash/...` → PASS, "an empty corpus";
+     - b. manifest, a run directory at the root (`run_1/metadata/x.metadata.json`, outside `feeds/`), selection patched to return nothing → FAIL "metadata on disk, none served";
+     - c. manifest, metadata in a normal `feeds/<feed>/run_*/metadata/` directory, selection returning nothing (the B.5 case) → FAIL;
+     - d. no manifest → FAIL, as before.
+   - Mutants that must be killed:
+     - plain `rglob` instead of `corpus_rglob` (by the repo-rule test, and by test a);
+     - the walk rooted at `root / "feeds"` (by test b);
+     - E3, the on-disk check dropped (by tests b and c);
+     - the exclusion applied only to the first path segment (by the `feeds/.x` half of test a).
+   - At step 8 I also check, with my own script on clone30L, that `corpus_rglob(root, "*.metadata.json")` yields the same file set as `select_served_artifacts`'s input walk. Both are the same call, so a difference means the code changed.
