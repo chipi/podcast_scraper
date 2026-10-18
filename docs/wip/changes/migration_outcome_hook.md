@@ -212,7 +212,9 @@ was built from the clean commit 28a76ce01 (sha256 b1546e27…). Each run is the 
   (`scratchpad/wheel`, nothing installed) packages `upgrade/outcomes/0031_named_voices_shown.json`
   and `upgrade/verdicts/0031_named_voices_shown.tsv`. With only the unpacked wheel on the path
   (`scratchpad/wheelload.py`): the outcome loads (sha256 b1546e27…, verdict GO) and the runtime
-  digest equals the outcome's (aaf844b1…). The digest does not depend on where it is installed.
+  digest equals the outcome's (aaf844b1…). The digest does not depend on where it is installed. The build also wrote `build/` and
+  `src/podcast_scraper.egg-info/` into the worktree (setuptools), which made `make type` fail on a
+  duplicate module; both were removed and ci-fast re-run.
 - **G1:** the skill as in step 6. Its new paths are tested against the command it builds, not
   against a live container.
 

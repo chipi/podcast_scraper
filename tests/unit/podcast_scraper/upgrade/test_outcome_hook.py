@@ -6,12 +6,12 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, cast, Dict, List
 
 import pytest
 
 from podcast_scraper.upgrade import outcome_hook as oh
-from podcast_scraper.upgrade.migration import MigrationContext, MigrationResult
+from podcast_scraper.upgrade.migration import Migration, MigrationContext, MigrationResult
 
 pytestmark = [pytest.mark.unit]
 
@@ -302,7 +302,7 @@ def test_the_runner_decides_empty_again_at_the_apply(_reset: Path, tmp_path: Pat
 
     root = tmp_path / "corpus"
     root.mkdir()
-    runner = UpgradeRunner(FilesystemStateStore(root), [Fake()])
+    runner = UpgradeRunner(FilesystemStateStore(root), [cast(Migration, Fake())])
     PLAN[:] = [dict(ROW)]  # non-empty at the apply, never prepared
     with pytest.raises(oh.HookRefused, match="its plan is not empty here"):
         runner.run(MigrationContext(corpus_root=root), hold_lock=False)
@@ -330,7 +330,7 @@ def test_the_cli_returns_each_hook_exit_code(monkeypatch, tmp_path: Path) -> Non
         monkeypatch.setattr(ch, "_snapshot_then_run", lambda *a, e=exc: (_ for _ in ()).throw(e))
         assert (
             ch._cmd_run(
-                Runner(),
+                cast(Any, Runner()),
                 MigrationContext(corpus_root=tmp_path),
                 args,
                 __import__("logging").getLogger(),
@@ -369,7 +369,9 @@ def test_a_regime_migration_with_others_pending_is_refused_before_anything(
 
     root = tmp_path / "corpus"
     root.mkdir()
-    runner = UpgradeRunner(FilesystemStateStore(root), [Earlier(), Fake()])
+    runner = UpgradeRunner(
+        FilesystemStateStore(root), [cast(Migration, Earlier()), cast(Migration, Fake())]
+    )
     with pytest.raises(oh.HookRefused, match="runs alone"):
         ch._prepare_regime(runner, MigrationContext(corpus_root=root), _regime_args())
     assert runner.prepared == {}
@@ -388,7 +390,7 @@ def test_a_lone_regime_migration_is_prepared(_reset: Path, tmp_path: Path) -> No
     root = tmp_path / "corpus"
     root.mkdir()
     store = FilesystemStateStore(root)
-    runner = UpgradeRunner(store, [Fake()])
+    runner = UpgradeRunner(store, [cast(Migration, Fake())])
     applied = store.applied_migration_ids()
     _reset.write_text(json.dumps(_outcome(applied_before=sorted(applied))))
     ch._prepare_regime(runner, MigrationContext(corpus_root=root), _regime_args())
