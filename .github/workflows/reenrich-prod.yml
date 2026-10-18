@@ -17,11 +17,20 @@ name: Re-enrich corpus (prod)
 # concurrency group enforces one corpus toucher at a time (no overlap with backup / reprocess /
 # gi-repair / backfill).
 #
+# WHICH ENRICHERS RUN: the corpus's own <corpus>/viewer_operator.yaml decides, exactly as for the
+# nightly and the jobs API (enrichment/spawn_params.py reads it; enrichment/cli.py treats its
+# `enrichment.enrichers:` list as a COMPLETE declaration that replaces the profile's set). This
+# workflow used to pass the PROFILE file as --config, which replaced the corpus file: on
+# 2026-10-17 it switched on topic_similarity and topic_consensus, which prod's corpus config sets
+# `enabled: false`, and both timed out. The profile is now only --profile, the base layer for
+# per-enricher knobs. The run refuses to start when the corpus config is missing, because a
+# missing --config silently falls back to the profile's set (build_enricher_set_from_yaml).
+#
 # NOTE ON EXTRAS: the ML enrichers (topic_similarity, topic_consensus) need torch +
 # sentence-transformers. The pipeline-llm image ships them via [llm,search], and this workflow
-# passes --with-ml so they are registered and RUN (not warn-skipped). Post-E1 (#1811) an
-# enabled-but-unregistered enricher makes the whole run report `partial`, so a missing extra
-# now fails loudly instead of silently reporting ok.
+# passes --with-ml so that, when the corpus config enables them, they are registered and RUN (not
+# warn-skipped). Post-E1 (#1811) an enabled-but-unregistered enricher makes the whole run report
+# `partial`, so a missing extra fails loudly instead of silently reporting ok.
 
 on:
   workflow_dispatch:
@@ -36,13 +45,12 @@ on:
         type: boolean
         default: false
       profile:
-        description: "Config profile supplying the enrichment providers + enricher set"
+        description: >-
+          Base profile for per-enricher knobs (passed as --profile). WHICH enrichers run comes
+          from the corpus's viewer_operator.yaml, not from this profile.
         type: choice
         options:
-          # prod_dgx_full FIRST and default: it is what the corpus operator YAML pins, so it is
-          # the enricher set prod actually runs. This list previously offered only the two cloud
-          # profiles, so every dispatch silently applied a DIFFERENT enricher set than the one the
-          # corpus was built with — the profile supplies the enricher set, not just routing.
+          # prod_dgx_full FIRST and default: it is the profile the corpus operator YAML pins.
           - config/profiles/prod_dgx_full.yaml
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
@@ -152,8 +160,19 @@ jobs:
           # NOTE: enrichment does NOT call the LLM gateway — no enricher uses it (advisor F1,
           # 2026-08-23; the `enrich` verb has no --litellm-api-base flag). Passing one made this
           # workflow fail with "unrecognized arguments" (exit 2). Gateway plumbing removed.
-          echo "profile : ${PROFILE}"
+          PROFILE_NAME=$(basename "${PROFILE}" .yaml)
+          echo "config  : /app/output/viewer_operator.yaml (the corpus's own; decides the enricher set)"
+          echo "profile : ${PROFILE_NAME}"
           echo "force   : ${FORCE}"
+
+          # A missing --config file silently falls back to the profile's enricher set, which is
+          # the bug this guards against. The api container mounts the same corpus at /app/output.
+          if ! ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_TARGET" \
+            "docker exec compose-api-1 test -f /app/output/viewer_operator.yaml"; then
+            echo "::error::/app/output/viewer_operator.yaml not found in compose-api-1; refusing to run on the profile's enricher set"
+            exit 1
+          fi
 
           # --with-ml: this workflow runs `enrich` DIRECTLY (not via the jobs API's
           # orchestration, which auto-passes it — orchestration.py:1849). Without it the
@@ -177,7 +196,8 @@ jobs:
                python -m podcast_scraper.cli enrich \
                  --with-ml \
                  --output-dir /app/output \
-                 --config '${PROFILE}' \
+                 --config /app/output/viewer_operator.yaml \
+                 --profile '${PROFILE_NAME}' \
                  ${FORCE_ARGS}" 2>&1 | tee reenrich.out
 
       - name: Surface per-enricher outcome (the CLI exit code does not carry it)
