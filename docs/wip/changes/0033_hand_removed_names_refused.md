@@ -198,7 +198,62 @@ _TODO_
 
 ## 7. Measure
 
-_TODO_
+Clone `lost/gateworkB6c` (snapshot-prod-20261016 + 0030 + 0031; 0031 recorded in its ledger after
+its plan read 0 episodes, 0 refused). Final measurement on **c71664a6d** (clean tree, code digest
+`246928e62093…`, on top of main b297f2ab0), `scripts/measure/corpus_change_gate.py --migration
+0033_hand_removed_names_refused --snapshot "snapshot-prod-20261016+0030+0031"`: report
+[0033_hand_removed_names_refused.gate.json](0033_hand_removed_names_refused.gate.json). Class
+`full`, `gating_moves {}`, 14 files changed, verify OK.
+
+**Two builds before this one, both measured, both fixed at the cause:**
+- **The first run found the rename unfinished.** E's "Generation" Person node stayed in the GI (its
+  id was minted, `person:unresolved-generation-…`, never `person_id` of the name), so the bridge
+  (27) and context kept it; the KG step dropped its `GUESTS_ON` edge with the node (edges 28, not
+  29); the roster entry kept `source: self_intro`; `normalized_entities` kept "generation". Fixed in
+  the shared rewrite (`m0025_one_person_one_entry.py`, 40dbb0438), with a test that fails on the
+  old code. The same KG defect lost the role edge of 7 of 0029's 10 renames (pre-0029 backups on
+  the clone): Stage 2, not this change (the plan's 2.4).
+- **0033's plan and verify lines read 0029's wording** ("naming arc voices", "every voice 0029
+  names"); each migration now names its own (c71664a6d), 0029's and 0031's strings unchanged.
+
+**The acceptance criteria, measured:**
+
+| # | Check | Result |
+| --- | --- | --- |
+| 1 | verdict stored and read | `upgrade/verdicts/0033_hand_removed_names_refused.tsv`, CORRECT; no verdicts file: verify FAIL "verdicts file unusable", apply raises, E untouched (tests) |
+| 2 | E's roster | 2 entries: Luke Timmerman (host, SPEAKER_01), David Roblin (guest, placed, SPEAKER_00, `source: roster`); `normalized_entities`: no "generation", "david roblin" added |
+| 3 | E's GI | 58 insights David Roblin, 3 Luke Timmerman, 1 none; 109 quotes and 109 `SPOKEN_BY` to `person:david-roblin`; 6 Person nodes, no Generation; 0 hidden |
+| 4 | E's KG | nodes 29 → 28, edges 30 → 29; `person:david-roblin` role guest with `GUESTS_ON` and one `MENTIONS` |
+| 5 | E's bridge | 27 → 26; `person:david-roblin` `{gi: true, kg: true}` |
+| 6 | derived surfaces | "Generation:" prefixes 0 in `.txt`, `.adfree.txt`, `.cleaned.txt`; "David Roblin:" 62 / 62 / 40 (the 32 renamed plus 8 already in `.cleaned.txt`); "Generation" left once in `.txt`, `.adfree.txt`, `.anon.txt` and in segment text and words (the words "Generation X"); turns 0; context 0. **Deviation:** the diagnostics keep it 4 times, all in the decision record (`tried.per_voice_self_intro`, `decision_trace`), which records what the reader read; `resolved_name` is David Roblin |
+| 7 | offsets | 114 of 114 quotes slice to their text; 3,736 of 3,736 ad-free segments slice to theirs; the ad map carried (`admaps_checked=1`) |
+| 8 | files written | 14, exactly the predicted list (metadata, gi, kg, bridge, context, segments, adfree.segments, turns, adfree.turns, `.txt`, `.adfree.txt`, `.cleaned.txt`, speakers.diagnostics, adfree.admap); every other file byte-identical (the gate's census) |
+| 9 | gating scoreboard | identical on every key (S1 14,841; S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 116,595); under a hand-removed name: 58 insights → 0, 109 quotes → 0, 1 episode → 0 |
+| 10 | full `upgrade verify` | every registered migration's verify on the before-clone and the after-copy (`scratchpad/verify_all.py`): 2 FAIL before (0015: E carries a refused name; 0033: E still to write), **0 after**; those two lines change, the other 30 are identical |
+| 11 | receipts isolated | own `hand_removed_names_refused.jsonl` and 14 backups under `0033/`; the 0015, 0019 and 0031 receipts byte-identical, their backups identical (504 / 6 / 403 files), checked directly (`scratchpad/rc.py`: the gate's census skips `.podcast_scraper/` and root receipts) |
+| 12 | undo on the full clone | `m33.undo`: restored 14, refused 0; 0 of 112,932 corpus files differ from the before-clone (sha256); 0015's verify FAILs again; 0033's plan writes 1 episode again |
+| 13 | gate refuses the 6 | every one, any case and spacing, both shapes, `en` and `es` (tests); one definition, `hosts.HAND_REMOVED_SPEAKER_NAMES`, which m0015 and m0019 read (`is`) |
+| 14 | gate old vs new | over the 2,679 distinct served roster names, exactly {"Generation"} flips (a213d5fa5 vs this branch, `scratchpad/gate_cmp.py`) |
+| 15 | 0015 and 0019 unchanged | `refused_names` and both `plan()` lines identical old vs new on the before-clone |
+| 16 | reprocess replay | the production roster over 2,684 of 2,685 served episodes (`roster_replay.py`, hosts.py old vs new): **2** voices change. E's SPEAKER_00 "Generation" → **David Roblin** (the next rungs seat the stated guest: the repair survives a reprocess). The Daily "The Best TV Shows of the 21st Century" SPEAKER_01 "Moral" → unnamed: a reprocess with today's code would publish 0015's hand-removed "Moral" again; rule 1 stops it. The prediction said 1: **wrong**, it missed this latent case. Not replayed: "AI Sychophancy with Steve Rathje" (no `.segments.json`). My first run launched shards 1–6 of 0–5 and missed shard 0; re-run, 0 changes there |
+| 17 | rule 2 is a class | `_LABEL_LETTER_FOLLOWS` (a lone capital letter, not an initial, after a one-word capture); refuses "I'm Generation X" through `extract_self_introduced_host` and `distinct_self_introductions` with rule 1 off (tests) |
+| 18 | census | Generation refused; the other 92 entries unchanged; Long, Gekoyo, Kanye's **not reached** (listed) |
+| 19 | generalisation guards | Faith, Robin, Jack, Brandon, "Steve Jobs" kept (tests); the cost: "I'm Robin X" is refused too (a real "Malcolm X" would be unnamed, not wrongly named) |
+| 20 | held-out 1 | 246 one-word self-introductions over every voice of the 2,685 served episodes (all English), predicted 1 change before the run: **1**, E's "Generation" (`self_intro_label_rule_heldout.py`) |
+| 21 | held-out 2 | written and run by the step-8 reviewer (not seen by the builder) |
+| 22 | gold | `naming_gate.py`, hosts old vs new: val_v2 0 regressions, 0 fixes; dev_v1 0, 0 (no effect: E is in no gold set) |
+| 23 | per language | held-out 1 is all English; no refusal outside English |
+| 24–25 | unchanged corpus-wide | the gate's census and scoreboard (criteria 8, 9) |
+| 26 | ci-fast | step 8 |
+| 27–28 | prod | step 10 |
+
+**Not covered here:**
+- held-out 2 (criterion 21): the step-8 reviewer writes and runs it;
+- prod (criteria 27–28): prod's plan against the clone's, and E's search-index rows (the clone has
+  no index), at step 10;
+- E's enrichment sidecars and other corpus-level derived surfaces after the apply: the census on prod;
+- the 7 lost role edges of 0029's renames on prod: Stage 2;
+- the clone is the 10-16 snapshot; prod has moved since (step 10 diffs the plan).
 
 ## 8. Verdict
 
