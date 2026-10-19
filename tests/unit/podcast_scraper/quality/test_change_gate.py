@@ -322,3 +322,26 @@ def test_landing_refuses_a_stale_outcome(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(cg, "current_digest", lambda mid: None)
     [problem] = cg.check_landing(root, ["0099_x"])
     assert "not a registered migration" in problem
+
+
+def test_a_landed_outcome_is_not_compared_with_todays_code(tmp_path: Path, monkeypatch) -> None:
+    """Applied on prod (landed, steps 10 and 11 done): the hook guards any later apply, so a later
+    edit inside the migration's import closure does not refuse it on main."""
+    root = _repo(tmp_path)
+    sha = _gate(root, "0099_x", "full")
+    sections = {**DONE, "8": DONE["8"].format(sha=sha), "10": "applied", "11": "receipt PASS"}
+    _record(root, "0099_x", "full", sections, status="landed")
+    monkeypatch.setattr(cg, "current_digest", lambda mid: "changed")
+    assert cg.check_landing(root, ["0099_x"]) == []
+
+
+def test_a_landed_record_without_the_apply_evidence_is_refused(tmp_path: Path, monkeypatch) -> None:
+    """``status: landed`` alone does not release the stale check: steps 10 and 11 must hold it."""
+    root = _repo(tmp_path)
+    sha = _gate(root, "0099_x", "full")
+    sections = {**DONE, "8": DONE["8"].format(sha=sha), "10": "applied", "11": "_TODO_"}
+    _record(root, "0099_x", "full", sections, status="landed")
+    monkeypatch.setattr(cg, "current_digest", lambda mid: "changed")
+    [problem] = cg.check_landing(root, ["0099_x"])
+    assert "landed: step 11: not done" in problem
+    assert "stale" not in problem

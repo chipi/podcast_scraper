@@ -628,8 +628,6 @@ podcast-0031/`).
 - The difference makes prod's outcome smaller, not worse. Applying needs an accept file for
   this one entry (cause above) with the operator's go verbatim (step 5).
 
-_TODO_
-
 ## 11. After apply / deploy
 
 Applied on prod 2026-10-19 by the prod session: deploy of e151a5c07 on the operator's "Gonforndeploy"

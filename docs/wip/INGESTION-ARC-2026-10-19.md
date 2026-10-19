@@ -87,10 +87,10 @@ Everything else starts at once.
    - **#2082:** `make transcript-pairing-audit` exits 0 on the live corpus. Its code shipped in
      September; the live audit waited for prod's checkout to update.
    - **#2332:** prod reports 91 of 91 episodes; the issue counts 96. Account for the 5, then close.
-3. **The freeze lifts.** The stale-outcome check moves from every main CI run to the deploy path
-   (`deploy-all-prod.yml`) and the prod hook, which already refuses a stale outcome. Other
-   sessions' commits then stop turning main red. The hook's closure size (667 files) is revisited
-   in the same change.
+3. **The freeze lifts** (operator: "A", 2026-10-19; record `changes/stale_check_landed_migrations.md`).
+   A landed record is no longer compared with today's code on main; the prod hook refuses a stale
+   outcome at any later apply. No deploy-workflow step: it would block every deploy after a server
+   edit. The closure size stays; it binds only between a migration's measurement and its apply.
 4. **A fresh prod snapshot, after 0030, 0031 and #2332: the new baseline.** On it, the scoreboard
    (S1–S3, S9–S12, A1) and S7/S8. This replaces the 10-16 table below as "where we are".
 5. **`upgrade verify` exits 0 on prod.** It exits 1 after the apply, on two lines; 0031's own line

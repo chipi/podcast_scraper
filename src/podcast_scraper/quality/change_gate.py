@@ -40,6 +40,8 @@ TODO = "_TODO_"
 PRE_BUILD_STEPS = ("1", "2", "3", "4", "5")
 #: Steps whose sections must be done before a migration lands on main.
 LANDING_STEPS = PRE_BUILD_STEPS + ("6", "7", "8")
+#: Steps a landed record holds: the apply on prod and what it measured.
+APPLIED_STEPS = ("10", "11")
 _DATED = re.compile(r"^Dated:\s*\d{4}-\d{2}-\d{2}", re.MULTILINE)
 _DATED_AT = re.compile(
     r"^Dated:\s*(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?)", re.MULTILINE
@@ -284,6 +286,14 @@ def _outcome_problems(
             problems.append(f"{mid}: the outcome's {key} is not the gate report's")
     if out.get("code_dirty") or rep.get("code", {}).get("dirty"):
         problems.append(f"{mid}: the outcome was measured on uncommitted code")
+    if not rec.is_open:
+        # Landed means applied on prod (steps 10 and 11 hold the apply's evidence). From then on
+        # the hook (``upgrade/outcome_hook.py``) refuses a stale outcome at any later apply, so
+        # main stops comparing it with today's code: otherwise every edit anywhere in the
+        # migration's import closure (667 modules for 0031) turned main red.
+        return problems + [
+            f"{mid}: landed: {p}" for s in APPLIED_STEPS if (p := _section_problem(rec, s))
+        ]
     now = current_digest(mid)
     if now is None:
         problems.append(f"{mid}: not a registered migration: its code digest cannot be checked")
