@@ -352,7 +352,8 @@ def test_a_voice_left_unnamed_takes_its_old_persons_edges_with_it(
 
 
 def test_a_non_person_node_of_the_same_name_keeps_its_edges(tmp_path: Path) -> None:
-    """Revision B (B7): only a Person is the person the voice now carries."""
+    """Revision B (B7): only a Person is the person the voice now carries (the Topic listed
+    last, so a name map over every node would take it)."""
     p = t31._episode(tmp_path, "Generation", "guest", typed=False)
     ep = m33._Episode(p["meta"], tmp_path)
     ep.voice_names = {"SPEAKER_01": "Steve McConnell"}
@@ -360,12 +361,12 @@ def test_a_non_person_node_of_the_same_name_keeps_its_edges(tmp_path: Path) -> N
     ep._old_label_by_voice = {"SPEAKER_01": "Generation"}
     ep._stale_names = {MINTED: "Generation"}
     nodes = [
-        {"id": "topic:steve", "type": "Topic", "properties": {"name": "Steve McConnell"}},
         {
             "id": "person:steve-mcconnell",
             "type": "Person",
             "properties": {"name": "Steve McConnell"},
         },
+        {"id": "topic:steve", "type": "Topic", "properties": {"name": "Steve McConnell"}},
     ]
     out = ep._edges_moved_off(
         [{"type": "GUESTS_ON", "from": MINTED, "to": "podcast:x"}], nodes, {MINTED}
