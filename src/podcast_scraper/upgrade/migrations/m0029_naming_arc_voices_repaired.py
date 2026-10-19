@@ -897,7 +897,11 @@ class NamingArcVoicesRepairedMigration(Migration):
     def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
         """Pass when no listed voice is left to write and none was refused. An entry 0031's review
         judged ``WRONG_PERSON`` is done in 0029's state or in the old state 0031 restores."""
-        self._restored = restored_by_review()
+        try:
+            restored = restored_by_review()
+        except rv.VerdictError as exc:
+            return False, f"verdicts file unusable: {exc}"
+        self._restored = restored
         try:
             write, refused, _totals = self._scan(ctx.corpus_root)
         finally:

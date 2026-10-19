@@ -235,3 +235,28 @@ def test_a_wrong_person_entry_in_neither_state_still_fails(tmp_path: Path, monke
 def test_the_shipped_review_restores_exactly_the_espinoza_voice() -> None:
     """Read from the shipped verdicts file against the shipped list: one WRONG_PERSON entry."""
     assert m29.restored_by_review() == {("5555e937-4e0a-4e17-abc3-68f5b77e5501", "SPEAKER_00")}
+
+
+def test_an_unusable_verdicts_file_fails_verify_and_does_not_raise(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """``upgrade verify`` runs every migration in one loop: a raise here would hide the rest."""
+    monkeypatch.setattr(m29.rv, "verdicts_path", lambda mid, directory=None: tmp_path / "x.tsv")
+    ok, message = _verify(tmp_path)
+    assert not ok and message.startswith("verdicts file unusable: no verdicts file x.tsv")
+
+
+def test_verify_leaves_plan_and_apply_writing_the_list_as_listed(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The registry holds one instance: what verify accepts must not reach a later apply."""
+    entry = {("ep", "SPEAKER_01"): (None, "unknown", "Steve McConnell", "guest", "x")}
+    monkeypatch.setattr(m29, "NAMING_ARC_VOICES", entry)
+    monkeypatch.setattr(m29, "restored_by_review", lambda: frozenset(entry))
+    p = _episode(tmp_path)
+    mig = m29.NamingArcVoicesRepairedMigration()
+    assert mig.verify(MigrationContext(corpus_root=tmp_path))[0]
+    res = mig.apply(MigrationContext(corpus_root=tmp_path))
+    assert len(res.details["episodes"]) == 1
+    row = next(r for r in fx._r(p["seg"]) if r["speaker"] == "SPEAKER_01")
+    assert row["speaker_label"] == "Steve McConnell"

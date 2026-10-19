@@ -45,5 +45,11 @@ first (Stage 1, item 3), or 0031 is re-measured and its outcome rebuilt in the s
   Unlocking Gender-Smart Capital A_…']")`; after it `0029: (True, "every listed voice carries the
   name the naming ladder gives it")`. 0031's verify is unchanged (True, `unnamed_checked=1`), and
   0015's still fails on the David Roblin episode (that is 0033).
+- **Fresh reviewer, 2026-10-19:** GO WITH CONDITIONS, both applied: (1) an unusable verdicts
+  file made 0029's verify raise, and `upgrade verify` runs every migration in one loop with no
+  catch, so every migration after 0029 went unreported; it now returns `(False, "verdicts file
+  unusable: …")` as 0031's does, tested; (2) the reset of `_restored` after verify was unguarded
+  (the registry holds one instance); a verify-then-apply test on one instance now fails when the
+  reset is removed. Not re-derived by the reviewer: the clone lines above.
 - **Dry run and undo:** not applicable; it writes nothing. On prod after the deploy: `upgrade
   verify` shows `[OK]` for 0029.
