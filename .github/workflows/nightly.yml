@@ -289,7 +289,7 @@ jobs:
   # ===========================================================================
   nightly-test-unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30  # was 15; the suite ran 14-15+ min and hit the cap on 6 of 8 nights (2026-10-12..19)
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate unit tests)
     steps:
     - uses: actions/checkout@v7
