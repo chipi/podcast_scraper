@@ -27,6 +27,8 @@ services:
       - "${PLAYER_OUTBOX_LISTEN:-127.0.0.1}:${PLAYER_OUTBOX_PORT:-8099}:8000"
     environment:
       PODCAST_SERVE_APP_ONLY: "1"
+      # Log what is running once RSS passes 2.5 GB (server/mem_watchdog.py): steady is 1.1-1.6 GB.
+      PODCAST_MEM_WATCHDOG_MB: "2500"
       # NOTE: this app_only backend does NOT run the in-process job scheduler — app.py force-
       # disables enable_jobs_api under app_only (ADR-116 belt-and-suspenders), so it never reads
       # a scheduled_jobs config. The "Your Week" digest cadence is owned by the `digest-scheduler`

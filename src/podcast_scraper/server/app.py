@@ -791,6 +791,9 @@ def create_app(
                 target=_warm_search, args=(root,), name="search-warmup", daemon=True
             ).start()
         cache_warmer_stop = _start_cache_warmer_guarded(app)
+        from podcast_scraper.server.mem_watchdog import start_mem_watchdog
+
+        mem_watchdog_stop = start_mem_watchdog()
         scheduler = getattr(app.state, "scheduler", None)
         if scheduler is not None:
             try:
@@ -802,6 +805,7 @@ def create_app(
             yield
         finally:
             _stop_cache_warmer_guarded(cache_warmer_stop)
+            _stop_cache_warmer_guarded(mem_watchdog_stop)
             await _stop_queue_sweeper_guarded(sweeper_task)
             scheduler = getattr(app.state, "scheduler", None)
             if scheduler is not None:

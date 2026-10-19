@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from podcast_scraper.utils.correlation import current_trace_id
+
+# Requests currently being served: id -> (method, path, monotonic start). Read by the memory
+# watchdog (server/mem_watchdog.py) to name what was running when memory climbed.
+_INFLIGHT: dict[int, tuple[str, str, float]] = {}
+_INFLIGHT_LOCK = threading.Lock()
+
+
+def inflight_requests() -> list[tuple[str, str, float]]:
+    """A snapshot of the requests in flight: (method, path, monotonic start)."""
+    with _INFLIGHT_LOCK:
+        return list(_INFLIGHT.values())
 
 
 class AccessLogMiddleware:
@@ -37,6 +49,9 @@ class AccessLogMiddleware:
             return
         start = time.perf_counter()
         captured = {"status": 0, "trace": "-"}
+        key = id(scope)
+        with _INFLIGHT_LOCK:
+            _INFLIGHT[key] = (scope.get("method", "?"), path, time.monotonic())
 
         async def _send(message: Message) -> None:
             if message["type"] == "http.response.start":
@@ -44,7 +59,11 @@ class AccessLogMiddleware:
                 captured["trace"] = current_trace_id()
             await send(message)
 
-        await self.app(scope, receive, _send)
+        try:
+            await self.app(scope, receive, _send)
+        finally:
+            with _INFLIGHT_LOCK:
+                _INFLIGHT.pop(key, None)
         self._logger.info(
             "%s %s -> %s in %.1fms trace=%s",
             scope.get("method", "?"),
