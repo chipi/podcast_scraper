@@ -73,6 +73,27 @@ def test_an_unreadable_log_is_none() -> None:
     assert ds.silent_edges_from_log("no duration here") is None
 
 
+def test_a_log_with_non_utf8_tag_bytes_is_still_read(monkeypatch, tmp_path: Path) -> None:
+    """ffmpeg prints the file's tags as stored; a Latin-1 title is not UTF-8 (prod, 2026-10-18).
+
+    Two VMP9331026707 episodes raised UnicodeDecodeError ``0xe2 ... invalid continuation byte``
+    while ``subprocess.run(text=True)`` decoded ffmpeg's stderr, so their silence was never
+    measured and they were transcribed uncut.
+    """
+    log = LOG_717.encode().replace(
+        b"  Duration:", b"    title : Caf\xe9 \xe2\x28 Cr\xe8me\n  Duration:"
+    )
+    (tmp_path / "log.bin").write_bytes(log)
+    fake = tmp_path / "ffmpeg"
+    fake.write_text(f'#!/bin/sh\ncat "{tmp_path / "log.bin"}" >&2\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}:/usr/bin:/bin")
+    edges = ds.silent_edges(str(tmp_path / "ep.mp3"))
+    assert edges is not None
+    assert edges.lead_s == pytest.approx(102.912)
+    assert edges.tail_s == pytest.approx(66.03, abs=0.01)
+
+
 def test_the_result_is_shifted_back_to_episode_time() -> None:
     result: Dict[str, Any] = {
         "text": "La seduta è ripresa.",

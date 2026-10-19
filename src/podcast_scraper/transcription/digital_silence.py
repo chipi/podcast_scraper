@@ -104,6 +104,10 @@ def silent_edges(audio_path: str) -> Optional[SilentEdges]:
         ],
         capture_output=True,
         text=True,
+        # ffmpeg echoes the file's tags as stored, often Latin-1 (GitHub #558); only the
+        # ASCII silencedetect/Duration lines are parsed.
+        encoding="utf-8",
+        errors="replace",
         timeout=600,
         check=False,
     )
@@ -174,6 +178,8 @@ def trim_for_asr(audio_path: str, out_dir: str) -> Optional[Trim]:
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=600,
             check=True,
         )
