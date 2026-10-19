@@ -88,7 +88,23 @@ census lists are refreshed. If anything is off, the prod session stops and repor
    in the same change.
 4. **A fresh prod snapshot, after 0030, 0031 and #2332: the new baseline.** On it, the scoreboard
    (S1–S3, S9–S12, A1) and S7/S8. This replaces the 10-16 table below as "where we are".
-5. **Scratch:** the 10-16 clones (`lost/clone30L`, `lost/gateworkB6c`) are deleted once the new
+5. **`upgrade verify` exits 0 on prod.** It exits 1 after the apply, on two lines; 0031's own line
+   passes:
+   - **0029, the Espinoza episode:** 0031 removed "Justin Norman" on the reviewer's WRONG_PERSON
+     verdict, and 0029's verify still expects its own list's name. Fix: 0029's verify reads the
+     reviewer verdicts and expects a WRONG_PERSON entry in its restored state, as 0031's does.
+     Reproduced on the clone: before 0031, 0029 failed on 2 leftover episodes, both of which 0031
+     wrote; after 0031, it fails only on Espinoza.
+   - **0015, David Roblin (run 20261014-073935):** fails identically before and after 0031 (clone
+     and prod's 10-17 verify). It is older than this change; it gets diagnosed from the files and
+     fixed.
+   - **The method change this calls for:** step 7 runs the full `upgrade verify` on the clone's
+     after-state, every applied migration's verify and not only the change's own. A change that
+     contradicts an earlier migration's verify is then predicted, not discovered on prod. It was
+     missed for 0031.
+6. **The dead search row:** the one `kg_entity` row that still ties the Espinoza episode to
+   `person:justin-norman`. A targeted delete, on the operator's go.
+7. **Scratch:** the 10-16 clones (`lost/clone30L`, `lost/gateworkB6c`) are deleted once the new
    baseline exists.
 
 ## Stage 2: the next arc, wrong names first
