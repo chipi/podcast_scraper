@@ -44,7 +44,10 @@ def test_a_learning_day_records_when_and_a_finished_path_outlives_leaving(tmp_pa
     # Done again later: the first time stands.
     app_user_state.mark_learning_step_done(tmp_path, "u", "thc:risk", 0, now=NOW + 5)
 
-    path = app_user_state.get_learning_path(tmp_path, "u", "thc:risk")
+    # At NOW, not the wall clock: a path finished at NOW retires a week later
+    # (FINISHED_PATH_KEEP_S), and the wall clock passed that on 2026-10-19.
+    paths = app_user_state.get_learning_paths(tmp_path, "u", now=NOW)
+    path = next((p for p in paths if p.get("subject_id") == "thc:risk"), None)
     assert path is not None
     assert path["done_at"] == {"0": NOW - 2 * DAY, "1": NOW - DAY, "2": NOW}
     assert path["finished_at"] == NOW
