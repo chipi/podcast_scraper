@@ -225,7 +225,7 @@ Changes and their predicted effect (clone `lost/gateworkB6c`, as before):
 Gating rows: unchanged (identical on every key). E after revision B: as step 7, plus the
 diagnostics source. Undo: byte-identical. Full verify: 2 FAIL → 0.
 
-> **Stamps corrected 2026-10-19T19:00 UTC.** The three stamps above first read 16:30, 17:10 and
+> **Stamps corrected 2026-10-19T18:57 UTC.** The three stamps above first read 16:30, 17:10 and
 > 18:05: the builder wrote them from no clock, and the gate compares stamps with the measurement in
 > UTC, so the first would have passed a revision check it should fail. Corrected to the UTC author
 > times of the commits that hold them (20ec7ab38/f1386d3f0, dd7871bf8, 1cc1237db); each
