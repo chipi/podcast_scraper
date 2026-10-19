@@ -202,3 +202,36 @@ def test_a_voice_that_gains_a_name_is_shown_as_a_fresh_run_would_show_it(
     assert restored and not refused
     back = {n["id"]: n for n in fx._r(p["gi"])["nodes"]}["insight:guest"]["properties"]
     assert (back["surfaceable"], back["speaker_voice_type"]) == (False, "unknown")
+
+
+def test_an_entry_the_review_judged_wrong_person_is_done_in_its_restored_state(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Prod, 2026-10-19: 0031 put the Espinoza voice back (no name) on the review's WRONG_PERSON
+    verdict, and 0029's verify still wanted its list's "Justin Norman". Only verify reads it."""
+    entry = {("ep", "SPEAKER_01"): (None, "unknown", "Steve McConnell", "guest", "x")}
+    monkeypatch.setattr(m29, "NAMING_ARC_VOICES", entry)
+    p = _episode(tmp_path)
+    assert not _verify(tmp_path)[0]  # no verdict: the old state is still to write
+    monkeypatch.setattr(m29, "restored_by_review", lambda: frozenset(entry))
+    assert _verify(tmp_path)[0]
+    _apply(tmp_path, dry_run=True)
+    assert len(_apply(tmp_path, dry_run=True).details["episodes"]) == 1  # plan and apply: as listed
+    _apply(tmp_path)
+    row = next(r for r in fx._r(p["seg"]) if r["speaker"] == "SPEAKER_01")
+    assert row["speaker_label"] == "Steve McConnell"
+    assert _verify(tmp_path)[0]  # 0029's own state passes too (before 0031 restores it)
+
+
+def test_a_wrong_person_entry_in_neither_state_still_fails(tmp_path: Path, monkeypatch) -> None:
+    entry = {("ep", "SPEAKER_01"): ("Somebody Else", "guest", "Steve McConnell", "guest", "x")}
+    monkeypatch.setattr(m29, "NAMING_ARC_VOICES", entry)
+    monkeypatch.setattr(m29, "restored_by_review", lambda: frozenset(entry))
+    _episode(tmp_path)
+    ok, message = _verify(tmp_path)
+    assert not ok and "1 refused" in message
+
+
+def test_the_shipped_review_restores_exactly_the_espinoza_voice() -> None:
+    """Read from the shipped verdicts file against the shipped list: one WRONG_PERSON entry."""
+    assert m29.restored_by_review() == {("5555e937-4e0a-4e17-abc3-68f5b77e5501", "SPEAKER_00")}

@@ -32,8 +32,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Tuple
 
+from .. import reviewer_verdicts as rv
 from ..corpus_selection import select_served_artifacts
 from ..file_rewrite import append_receipts, undo_from_receipts, write_with_backup
 from ..migration import Migration, MigrationContext, MigrationResult
@@ -766,6 +767,20 @@ NAMING_ARC_VOICES: Dict[Tuple[str, str], Entry] = {
 }
 
 
+#: The list as shipped: 0031's verdicts file names it by sha256 (tests replace the module's list).
+_SHIPPED_VOICES = NAMING_ARC_VOICES
+#: The migration whose step-8 review judged this list's entries again.
+REVIEWED_BY = "0031_named_voices_shown"
+
+
+def restored_by_review() -> FrozenSet[Tuple[str, str]]:
+    """The entries 0031's review judged ``WRONG_PERSON``: 0031 puts each back to its listed old
+    state, so 0029's verify takes that state as done too (as 0031's verify does)."""
+    names = {k: str(e[2]) for k, e in _SHIPPED_VOICES.items() if e[2]}
+    verdicts = rv.load(REVIEWED_BY, names)
+    return frozenset(k for k, v in verdicts.rows.items() if v.verdict == "WRONG_PERSON")
+
+
 def _stored_by_voice(meta: Path, rel: str) -> Dict[str, Tuple[Optional[str], Optional[str]]]:
     """``{voice: (its named label or None, its segment role)}`` from the episode's segments."""
     payload = _load(meta.parent.parent / rel.replace(".txt", ".segments.json"))
@@ -780,9 +795,16 @@ def _stored_by_voice(meta: Path, rel: str) -> Dict[str, Tuple[Optional[str], Opt
 class _Episode(_VoiceEpisode):
     """m0025's voice-by-voice rewrite, decided by ``NAMING_ARC_VOICES`` alone."""
 
-    def __init__(self, meta: Path, root: Path, voices: Optional[Dict] = None) -> None:
+    def __init__(
+        self,
+        meta: Path,
+        root: Path,
+        voices: Optional[Dict] = None,
+        restored: FrozenSet[Tuple[str, str]] = frozenset(),
+    ) -> None:
         super().__init__(meta, root)
         self._map = NAMING_ARC_VOICES if voices is None else voices
+        self._restored = restored
 
     def decide(self) -> bool:
         meta = _load(self.meta)
@@ -805,6 +827,8 @@ class _Episode(_VoiceEpisode):
             name = None if not name or _DIARIZATION_LABEL.match(name) else name
             if (name, role if new_name else None) == (new_name, new_role if new_name else None):
                 continue  # already done
+            if (episode_id, voice) in self._restored and (name, role) == (old_name, old_role):
+                continue  # 0031's review judged the name WRONG_PERSON and put the old state back
             if (name, role) != (old_name, old_role):
                 self.refused = (
                     f"{voice}: stored {name!r}/{role!r}, the replay read {old_name!r}/{old_role!r}"
@@ -840,9 +864,12 @@ class NamingArcVoicesRepairedMigration(Migration):
         """The receipts file's header line (0031 adds the verdicts it decided by)."""
         return {"migration": self.id}
 
+    #: Set by ``verify`` only: plan and apply write 0029's list as it is.
+    _restored: FrozenSet[Tuple[str, str]] = frozenset()
+
     def _episode_kwargs(self) -> Dict[str, Any]:
         """Extra arguments for each episode's decision (0031 passes its review verdicts)."""
-        return {}
+        return {"restored": self._restored}
 
     def _scan(self, root: Path) -> Tuple[List[_Episode], List[_Episode], Dict[str, int]]:
         write: List[_Episode] = []
@@ -868,8 +895,13 @@ class NamingArcVoicesRepairedMigration(Migration):
         )
 
     def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
-        """Pass when no listed voice is left to write and none was refused."""
-        write, refused, _totals = self._scan(ctx.corpus_root)
+        """Pass when no listed voice is left to write and none was refused. An entry 0031's review
+        judged ``WRONG_PERSON`` is done in 0029's state or in the old state 0031 restores."""
+        self._restored = restored_by_review()
+        try:
+            write, refused, _totals = self._scan(ctx.corpus_root)
+        finally:
+            self._restored = frozenset()
         if write or refused:
             names = [ep.meta.name for ep in write + refused]
             return (

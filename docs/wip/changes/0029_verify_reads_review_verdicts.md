@@ -28,10 +28,22 @@ first (Stage 1, item 3), or 0031 is re-measured and its outcome rebuilt in the s
   episodes ("Taking down the cultural elite", Migraine); 0031 wrote both, and after 0031 it fails
   only on Espinoza.
 - **The change:** 0029's verify reads the reviewer verdicts file (`upgrade/verdicts/
-  0031_named_voices_shown.tsv`, the same rows 0031 reads) and expects an entry judged
-  `WRONG_PERSON` in its restored state, as 0031's verify does. Every other entry is verified as
-  before.
-- **Tests:** an entry judged `WRONG_PERSON` and restored passes; the same entry still carrying the
-  listed name fails; an entry with no verdict is verified exactly as before.
-- **Dry run and undo:** not applicable; it writes nothing. The check is 0029's verify on the
-  clone's after-state, then on prod: `[OK]`.
+  0031_named_voices_shown.tsv`, the same rows 0031 reads, validated against 0029's list as
+  shipped) and takes an entry judged `WRONG_PERSON` as done in either state: 0029's own (the
+  listed name, before 0031 runs) or the listed old state 0031 restores. Every other entry is
+  verified as before. Plan and apply do not read the verdicts: 0029 writes its list unchanged, so
+  the change writes nothing new on any corpus.
+- **Sequencing:** `m0029` is in 0031's import closure, so this moves 0031's code digest. It lands
+  after `stale_check_landed_migrations` (0031 is landed), which releases that.
+- **Tests:** an entry judged `WRONG_PERSON` in its restored state passes, and still passes in 0029's
+  own state after an apply, while plan and apply write it as listed; with no verdict the restored
+  state is still to write (fails); a `WRONG_PERSON` entry in neither state is refused; the shipped
+  file yields exactly one entry, the Espinoza voice (`5555e937-…`, `SPEAKER_00`). Mutation: with
+  the restored check disabled, the first test fails.
+- **Measured on the clone** (`lost/gateworkB6c`, 10-16 + 0030 + 0031, `scratchpad/v29.py`),
+  2026-10-19: before the fix `0029: (False, "1 episode(s) still to write, 0 refused: ['0018 -
+  Unlocking Gender-Smart Capital A_…']")`; after it `0029: (True, "every listed voice carries the
+  name the naming ladder gives it")`. 0031's verify is unchanged (True, `unnamed_checked=1`), and
+  0015's still fails on the David Roblin episode (that is 0033).
+- **Dry run and undo:** not applicable; it writes nothing. On prod after the deploy: `upgrade
+  verify` shows `[OK]` for 0029.
