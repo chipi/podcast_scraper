@@ -4,6 +4,7 @@ read it, through 0031's rewrite. Synthetic episodes from m0031's test fixtures (
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -224,3 +225,189 @@ def test_a_rename_into_a_person_the_graph_holds_merges_into_them(
     assert [s["name"] for s in content["speakers"]].count("Steve McConnell") == 1
     canon = [r["canonical"] for r in content["normalized_entities"]]
     assert "generation" not in canon and "steve mcconnell" in canon and "gergely orosz" in canon
+
+
+def _mention(p, pid: str) -> None:
+    """Another insight MENTIONS ``pid`` (a Person the rename would otherwise remove)."""
+    gi = fx._r(p["gi"])
+    gi["nodes"].append(
+        {"id": "insight:other", "type": "Insight", "properties": {"text": "x", "tier": 2}}
+    )
+    gi["edges"].append({"type": "MENTIONS_PERSON", "from": "insight:other", "to": pid})
+    fx._w(p["gi"], gi)
+
+
+def test_a_person_another_insight_mentions_is_kept_and_its_mentions_stay(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Revision B (B5): moving a mention to the new person would claim the insight names them."""
+    monkeypatch.setattr(m33, "VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    _as_prod(p)
+    _mention(p, MINTED)
+    m33.HandRemovedNamesRefusedMigration().apply(_ctx(tmp_path))
+    gi = fx._r(p["gi"])
+    ids = {n["id"] for n in gi["nodes"]}
+    kept = next(n for n in gi["nodes"] if n["id"] == MINTED)
+    assert kept["properties"]["name"] == "Generation"
+    assert [e for e in gi["edges"] if e["type"] == "MENTIONS_PERSON"] == [
+        {"type": "MENTIONS_PERSON", "from": "insight:other", "to": MINTED}
+    ]
+    assert not [e for e in gi["edges"] if e["type"] == "SPOKEN_BY" and e["to"] == MINTED]
+    assert all(e["from"] in ids and e["to"] in ids for e in gi["edges"])
+    assert len({json.dumps(e, sort_keys=True) for e in gi["edges"]}) == len(gi["edges"])
+    # Still published as a person, so 0015's verify says so (its check deletes a Person by name).
+    (tmp_path / m15.RECEIPTS_FILE).write_text(
+        json.dumps({"kind": "header", "migration": m15.MIGRATION_ID, "names": {"Generation": 1}})
+        + "\n",
+        encoding="utf-8",
+    )
+    assert not m15.UnpublishableSpeakerNamesRemovedMigration().verify(_ctx(tmp_path))[0]
+
+
+def test_an_unmentioned_old_person_still_goes(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(m33, "VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    _as_prod(p)
+    _mention(p, "person:gergely-orosz")
+    m33.HandRemovedNamesRefusedMigration().apply(_ctx(tmp_path))
+    assert MINTED not in {n["id"] for n in fx._r(p["gi"])["nodes"]}
+
+
+def test_the_diagnostics_source_follows_the_entry(tmp_path: Path, monkeypatch) -> None:
+    """Revision B (B6): the voice's diagnostics no longer claim it introduced itself as the new
+    name; a respelling of the same person keeps its source (and so does its roster entry)."""
+    monkeypatch.setattr(m33, "VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    diag = fx._r(p["diag"])
+    for v in diag.get("voices") or []:
+        if v.get("voice") == "SPEAKER_01":
+            v.update(source="self_intro", resolved_name="Generation")
+    fx._w(p["diag"], diag)
+    m33.HandRemovedNamesRefusedMigration().apply(_ctx(tmp_path))
+    v1 = next(v for v in fx._r(p["diag"])["voices"] if v.get("voice") == "SPEAKER_01")
+    assert (v1["resolved_name"], v1["source"]) == ("Steve McConnell", "roster")
+
+
+def test_a_respelling_keeps_its_source(tmp_path: Path, monkeypatch) -> None:
+    entry = {("ep", "SPEAKER_01"): ("Steve Mcconnell", "guest", "Steve McConnell", "guest", "x")}
+    monkeypatch.setattr(m33, "VOICES", entry)
+    _review(monkeypatch, tmp_path)
+    p = t31._episode(tmp_path, "Steve Mcconnell", "guest", typed=False)
+    meta = fx._r(p["meta"])
+    meta["content"]["speakers"][1]["source"] = "self_intro"
+    fx._w(p["meta"], meta)
+    diag = fx._r(p["diag"])
+    for v in diag.get("voices") or []:
+        if v.get("voice") == "SPEAKER_01":
+            v.update(source="self_intro", resolved_name="Steve Mcconnell")
+    fx._w(p["diag"], diag)
+    m33.HandRemovedNamesRefusedMigration().apply(_ctx(tmp_path))
+    entry1 = fx._r(p["meta"])["content"]["speakers"][1]
+    assert (entry1["name"], entry1["source"]) == ("Steve McConnell", "self_intro")
+    v1 = next(v for v in fx._r(p["diag"])["voices"] if v.get("voice") == "SPEAKER_01")
+    assert v1["source"] == "self_intro"
+
+
+@pytest.mark.parametrize(("role", "edge"), [("guest", "GUESTS_ON"), ("host", "HOSTS")])
+def test_the_moved_role_edge_is_typed_by_the_voices_role_now(
+    tmp_path: Path, monkeypatch, role: str, edge: str
+) -> None:
+    """The old person HOSTED; the voice is now a guest (or stays a host): the edge says so."""
+    entry = {("ep", "SPEAKER_01"): ("Generation", "guest", "Steve McConnell", role, "x")}
+    monkeypatch.setattr(m33, "VOICES", entry)
+    _review(monkeypatch, tmp_path)
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    _as_prod(p)
+    kg = fx._r(p["kg"])
+    for e in kg["edges"]:
+        if e["from"] == MINTED and e["type"] == "GUESTS_ON":
+            e["type"] = "HOSTS" if role == "guest" else "GUESTS_ON"
+    fx._w(p["kg"], kg)
+    m33.HandRemovedNamesRefusedMigration().apply(_ctx(tmp_path))
+    steve = {e["type"] for e in fx._r(p["kg"])["edges"] if e["from"] == "person:steve-mcconnell"}
+    assert edge in steve and ({"HOSTS", "GUESTS_ON"} - {edge}).isdisjoint(steve)
+
+
+def test_a_voice_left_unnamed_takes_its_old_persons_edges_with_it(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A stale person whose voice is unnamed has nobody to move to: its edges go, none dangles."""
+    entry = {("ep", "SPEAKER_01"): ("Generation", "guest", None, None, "x")}
+    monkeypatch.setattr(m33, "VOICES", entry)
+    monkeypatch.setattr(m33.HandRemovedNamesRefusedMigration, "review_names", lambda self: {})
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    _as_prod(p)
+    ep = m33._Episode(p["meta"], tmp_path)
+    ep.voice_names = {"SPEAKER_01": None}
+    ep._old_label_by_voice = {"SPEAKER_01": "Generation"}
+    ep._stale_names = {MINTED: "Generation"}
+    kg = fx._r(p["kg"])
+    out = ep._edges_moved_off(kg["edges"], kg["nodes"], {MINTED})
+    assert all(MINTED not in (e["from"], e["to"]) for e in out)
+    assert ("HOSTS", "person:gergely-orosz") in {(e["type"], e["from"]) for e in out}
+
+
+def test_a_non_person_node_of_the_same_name_keeps_its_edges(tmp_path: Path) -> None:
+    """Revision B (B7): only a Person is the person the voice now carries."""
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    ep = m33._Episode(p["meta"], tmp_path)
+    ep.voice_names = {"SPEAKER_01": "Steve McConnell"}
+    ep.voice_roles = {"SPEAKER_01": "guest"}
+    ep._old_label_by_voice = {"SPEAKER_01": "Generation"}
+    ep._stale_names = {MINTED: "Generation"}
+    nodes = [
+        {"id": "topic:steve", "type": "Topic", "properties": {"name": "Steve McConnell"}},
+        {
+            "id": "person:steve-mcconnell",
+            "type": "Person",
+            "properties": {"name": "Steve McConnell"},
+        },
+    ]
+    out = ep._edges_moved_off(
+        [{"type": "GUESTS_ON", "from": MINTED, "to": "podcast:x"}], nodes, {MINTED}
+    )
+    assert out == [{"type": "GUESTS_ON", "from": "person:steve-mcconnell", "to": "podcast:x"}]
+
+
+def test_heard_entities_drop_a_summary_union_and_skip_the_unplaced(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(m33, "VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    _as_prod(p)
+    meta = fx._r(p["meta"])
+    rows = meta["content"]["normalized_entities"]
+    rows[1]["provenance"] = "both"
+    meta["content"]["speakers"].append(
+        {"id": "u2", "name": "Nobody Placed", "role": "guest", "placed": False, "voices": []}
+    )
+    fx._w(p["meta"], meta)
+    m33.HandRemovedNamesRefusedMigration().apply(_ctx(tmp_path))
+    by = {
+        r["canonical"]: r["provenance"] for r in fx._r(p["meta"])["content"]["normalized_entities"]
+    }
+    assert by["generation"] == "summary"
+    assert "nobody placed" not in by and by["steve mcconnell"] == "transcript"
+
+
+def test_verify_checks_this_migrations_list_and_receipts(tmp_path: Path, monkeypatch) -> None:
+    """0031's outcome check takes the list and receipts as arguments; 0033 passes its own."""
+    monkeypatch.setattr(m33, "VOICES", ENTRY)
+    monkeypatch.setattr(m31.m29, "NAMING_ARC_VOICES", {})
+    _review(monkeypatch, tmp_path)
+    t31._episode(tmp_path, "Generation", "guest", typed=False)
+    mig = m33.HandRemovedNamesRefusedMigration()
+    mig.apply(_ctx(tmp_path))
+    ok, message = mig.verify(_ctx(tmp_path))
+    assert ok and "served_listed=1" in message and "insights_checked=1" in message
+    # Its own receipts say it wrote the episode: with the verdict gone, verify must say so.
+    d = tmp_path / "_verdicts33" / f"{m33.MIGRATION_ID}.tsv"
+    head = [line for line in d.read_text(encoding="utf-8").splitlines() if line.startswith("#")]
+    d.write_text("\n".join(head) + "\n" + "\t".join(rv.COLUMNS) + "\n", encoding="utf-8")
+    ok, message = m33.HandRemovedNamesRefusedMigration().verify(_ctx(tmp_path))
+    assert not ok and "written by this migration, and has no verdict" in message

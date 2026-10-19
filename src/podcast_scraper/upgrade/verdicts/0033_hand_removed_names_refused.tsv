@@ -1,5 +1,5 @@
 # migration: 0033_hand_removed_names_refused
-# reviewed_commit: 681ef3804
+# reviewed_commit: 20ec7ab38
 # list_sha256: c7ff63d743f906d0de4c8e3b72b4643600e6e6faeeb42c1664698568df7f4ea8
 # reviewer: step-5 reviewer, a fresh Opus advisor (docs/wip/changes/0033_hand_removed_names_refused.acceptance.md)
 # date: 2026-10-19

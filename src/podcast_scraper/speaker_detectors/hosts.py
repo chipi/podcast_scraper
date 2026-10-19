@@ -572,8 +572,12 @@ def _self_intro_matches(
 #: names a LABEL, not the speaker: "I'm Generation X" (The Long Run, 2026-10-14, published as the
 #: guest "Generation" on 58 insights), "Gen Z", "Plan B", "Type A". The name shape needs two
 #: letters a token, so the capture stops at the word and the letter is left behind; "John F." (an
-#: initial, with its period) and "Steve Jobs" (a second word) are not this shape.
-_LABEL_LETTER_FOLLOWS = re.compile(r"[ \t]+[A-Z](?![\w.'’\-])")
+#: initial, with its period) and "Steve Jobs" (a second word) are not this shape. "I" is also the
+#: pronoun, and word-level ASR runs a name into the next sentence ("I'm Mark I host the show"), so
+#: a lone "I" is the label's letter only when punctuation or the end follows it. "A" stays a
+#: letter: "Grade A material" is a label, and "I'm Will A producer" unnamed is the operator's
+#: accepted cost (2026-10-19: a wrong name is worse than a hidden insight).
+_LABEL_LETTER_FOLLOWS = re.compile(r"[ \t]+(?:[A-HJ-Z](?![\w.'’\-])|I(?=[.,;:!?)]|[ \t]*$))")
 
 
 def _names_a_label(head: str, match: "re.Match[str]") -> bool:

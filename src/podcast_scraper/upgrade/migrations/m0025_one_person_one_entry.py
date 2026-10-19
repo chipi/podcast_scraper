@@ -1072,7 +1072,9 @@ class _Episode:
         ]
         edges += [{"type": "SPOKEN_BY", "from": q, "to": to} for q, to in quote_to.items() if to]
         gi["edges"] = edges
-        used = {e.get("to") for e in edges if e.get("type") == "SPOKEN_BY"}
+        # A Person another insight still MENTIONS stays, its mentions untouched: moving a mention
+        # to the person the voice now carries would claim the insight names that person (0033).
+        used = {e.get("to") for e in edges if e.get("type") in ("SPOKEN_BY", "MENTIONS_PERSON")}
         used |= {
             (n.get("properties") or {}).get("speaker_id")
             for n in gi.get("nodes") or []
@@ -1206,7 +1208,11 @@ class _Episode:
         10-16 snapshot). An edge whose person maps to no voice (an unnamed voice) still goes;
         duplicates left by the move collapse to one.
         """
-        names = {(n.get("properties") or {}).get("name"): n.get("id") for n in nodes}
+        names = {
+            (n.get("properties") or {}).get("name"): n.get("id")
+            for n in nodes
+            if n.get("type") == "Person"
+        }
         stale_name = {i: self._stale_names[i] for i in stale if self._stale_names.get(i)}
         moved_to: Dict[Any, Tuple[str, str]] = {}
         for voice, new in self.voice_names.items():
@@ -1269,6 +1275,11 @@ class _Episode:
                 continue
             name = self.voice_names[v["voice"]]
             if name:
+                was = v.get("resolved_name")
+                if isinstance(was, str) and not same_person(name, was):
+                    v["source"] = (
+                        "roster"  # as the record's entry: the old evidence is not this name's
+                    )
                 role = (
                     self.voice_roles_restored[v["voice"]] or "unknown"
                     if v["voice"] in self.voice_roles_restored
