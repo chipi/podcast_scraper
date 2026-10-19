@@ -59,7 +59,7 @@ dependencies = [
   # shared LINK unfurls as the card (`server/og/`). Core, not an extra — the `create_app` import
   # chain (SpaStaticFiles → og.build) reaches it, so every context that boots the server (api
   # image, dev, tests) needs it. Pure wheels, no system libs for PNG + bundled-TTF text.
-  "pillow>=10.4.0,<13.0.0",
+  "pillow>=12.3.0,<13.0.0",
   # JSON Schema validation for the GI / KG / enrichment artifact + config schemas. CORE, not dev:
   # FOUR runtime modules import it — `gi/schema.py`, `kg/schema.py`,
   # `enrichment/config_schema.py`, `server/routes/enrichment_config.py` — and each degrades to a
