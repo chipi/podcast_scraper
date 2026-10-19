@@ -237,7 +237,29 @@ Written by a fresh reviewer (Opus advisor), 2026-10-19, before any code: [0033_h
 
 ## 6. Build
 
-_TODO_
+Revision A (measured at step 7, c71664a6d):
+- **Rule 1** (`speaker_detectors/hosts.py`): `HAND_REMOVED_SPEAKER_NAMES`, 0015's six names moved
+  beside the publish gate; `is_publishable_speaker_name` refuses each (whitespace-normalised,
+  case-folded, whole name). m0015's `REMOVE` and m0019's import are that same dict.
+- **Rule 2** (`hosts.py`): `_LABEL_LETTER_FOLLOWS` / `_names_a_label`, read by
+  `extract_self_introduced_host` and `distinct_self_introductions`: a one-word capture followed by
+  a lone capital letter that is not an initial is skipped, and the scan goes on.
+- **Migration** `upgrade/migrations/m0033_hand_removed_names_refused.py`: a one-entry list (E,
+  SPEAKER_00, "Generation"/guest → "David Roblin"/guest), its verdicts file
+  `upgrade/verdicts/0033_hand_removed_names_refused.tsv`, its own receipts and backups; a subclass
+  of 0031's migration (its `_outcome` and plan rows now take the list and receipts as parameters,
+  0031's own by default). Registered after 0031 (`2.7.27`); 0032's record says it must renumber.
+- **The shared rewrite** (`m0025_one_person_one_entry.py`, 40dbb0438), found by the first
+  measurement: the old Person removed by name as well as id; a removed person's KG edges moved to
+  the person the voice now carries, the role edge typed by the new role; a renamed entry's source
+  "roster"; the record's heard entities rebuilt from the placed speakers.
+- **Measurement scripts:** `scripts/measure/self_intro_names_census.py`,
+  `scripts/measure/self_intro_label_rule_heldout.py`.
+- **Tests:** `test_hand_removed_names_and_label_self_intros.py` (26),
+  `test_m0033_hand_removed_names_refused.py` (7, one of which fails on the old m0025); 0031's and
+  0032's registry tests restated.
+
+Revision B (after the step-8 NO-GO): see step 4's Revision B and step 5's Revision B.
 
 ## 7. Measure
 

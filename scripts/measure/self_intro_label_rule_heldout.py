@@ -73,9 +73,13 @@ def main(root: Path, population: bool) -> None:
             on = _capture(text, lang, rule=True)
             if on != off:
                 at = text[:5000].find(off)
-                refused.append((meta.name, voice, str(lang), off, on, text[max(0, at - 40) : at + 60]))
-    print(f"served {len(metas)}; one-word captures with the rule off {one_word}; by language "
-          f"{dict(by_lang)}")
+                refused.append(
+                    (meta.name, voice, str(lang), off, on, text[max(0, at - 40) : at + 60])
+                )
+    print(
+        f"served {len(metas)}; one-word captures with the rule off {one_word}; by language "
+        f"{dict(by_lang)}"
+    )
     if not population:
         print(f"changed by the rule {len(refused)}")
         for row in refused:
