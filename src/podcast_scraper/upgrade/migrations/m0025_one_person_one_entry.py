@@ -1277,9 +1277,8 @@ class _Episode:
             if name:
                 was = v.get("resolved_name")
                 if isinstance(was, str) and not same_person(name, was):
-                    v["source"] = (
-                        "roster"  # as the record's entry: the old evidence is not this name's
-                    )
+                    # As the record's entry: the old name's evidence is not this name's.
+                    v["source"] = "roster"
                 role = (
                     self.voice_roles_restored[v["voice"]] or "unknown"
                     if v["voice"] in self.voice_roles_restored
