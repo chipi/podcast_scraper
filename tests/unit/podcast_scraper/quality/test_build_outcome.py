@@ -85,3 +85,16 @@ def test_a_gate_report_on_uncommitted_code_is_refused(bo, tmp_path: Path) -> Non
     _write(tmp_path, "Verdict: GO (r)", {**GATE, "code": {"dirty": True, "sha": "abc"}})
     with pytest.raises(SystemExit, match="uncommitted"):
         bo.build("0099_x")
+
+
+def test_the_refusal_reads_the_last_verdict_not_an_earlier_one(bo, tmp_path: Path) -> None:
+    """The hook's final re-check: a GWC-with-none refusal must judge the LAST verdict."""
+    _write(
+        tmp_path, "Verdict: GO (r, A)\n\nVerdict: GO WITH CONDITIONS (r, B), conditions elsewhere."
+    )
+    with pytest.raises(SystemExit, match="no condition was found"):
+        bo.build("0099_x")
+    _write(
+        tmp_path, "Verdict: GO WITH CONDITIONS (r, A), conditions elsewhere.\n\nVerdict: GO (r, B)"
+    )
+    assert bo.build("0099_x")["verdict"] == "GO"

@@ -324,6 +324,22 @@ NOT re-checked by the reviewer: A5 (wheel), the skill against a container, the d
   had one red test, `test_app_reel_clips_warm.py`: its child process imported the main checkout's
   package through the shared venv's editable install, which lacks `reel_clips_worker`.
 
+Dated: 2026-10-19T00:20
+
+Final re-check of C3-test and C8 (fresh reviewer; code judged 57c8b6c6d, extracted with git archive): the hook's step-8 verdict is GO WITH CONDITIONS; every condition from 13:17 and 14:27 is met. One LOW item is left: a test-only gap in build_outcome.py. It does not block step 9 and needs no re-measure.
+- Outcome: the reviewer's dig2.py on the extracted tree gives sha256 155b178a…, verdict "GO WITH CONDITIONS", 1 condition carried ("item 5, `make ci-fast` on ce6a98b64 ending EXIT=0 …"). migration_digest(0031) = code_digest abd29583… ("digest equal: True"). 0031's step 8 names 155b178a….
+- Tests: the outcome-hook, gate, build-outcome, upgrade and integration tests give "668 passed" with the real-repo landing test included.
+- C3 met. With the landing test deselected, both mutants are KILLED. "parents off" and "parents only top" each fail test_a_parent_package_init_is_in_the_closure and test_editing_a_parent_package_init_moves_the_digest. A no-op mutant survives (control).
+- C8 met. "GWC-with-none not refused" is KILLED by test_go_with_conditions_and_none_found_is_refused. "inline condition ignored" is KILLED by test_an_inline_condition_is_carried.
+- LOW, open: the mutant that makes the GWC-with-none refusal read the FIRST verdict (verdicts[0] instead of verdicts[-1]) SURVIVES. The code reads verdicts[-1] for both the refusal and the verdict field (read by the reviewer), but no test fails if the refusal looks at another verdict. Fix: a test with an earlier verdict that has no conditions followed by a last GO WITH CONDITIONS that has none must refuse, and the reverse must pass.
+- The builder's statements of B.6 item 5 met (ci-fast MAKE_EXIT=0), make type, lint, format-check and docstrings are taken as reported. The reviewer did not rerun them.
+NOT re-checked by the reviewer at this commit: E1 to E6 and the live CLI runs (last run by the reviewer at 9c039fa50, with the same code digest), the skill against a container, the drill in Actions, the prod plan diff, F3, F4.
+
+**LOW closed (builder):** `test_the_refusal_reads_the_last_verdict_not_an_earlier_one` (an earlier
+GO then a last GO WITH CONDITIONS with none: refused; the reverse: passes). The `verdicts[0]`
+mutant is killed by it (`scratchpad/lost/c8mut.py`). Test only; the outcome and digest are
+unchanged.
+
 ## 9. Operator review
 
 _TODO_
