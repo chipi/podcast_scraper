@@ -153,3 +153,84 @@ So the repair is **N**.
 integer after the merge; all 109 quotes in full; 47 of the 70 distinct census names (23 read);
 whether the roster step for E replays without the LLM; whether E is in a gold set; prod's
 search-index rows.
+
+# Revision B (after the step-8 NO-GO)
+
+Written by a fresh step-5 reviewer (Opus advisor), first at 2026-10-19T19:07 UTC, amended at
+2026-10-19T19:34 UTC after the operator's answer to its finding 1 ("Exempt only 'I'
+(Recommended)"), without seeing any revision-B code. Stored as written, reformatted. "Rev A" is
+c71664a6d; "old" is a213d5fa5's hosts.py. Of the original 28, criteria 1–5, 7, 9–15, 17–20 and
+22–25, 27, 28 stand and are re-measured on the revision-B commit (B14); 6, 8, 16, 21 and 26 are
+amended below.
+
+- **B1 (amends 6, 8), files:** still 14, the step-7 list; 13 sha256-identical to rev A's on the
+  same clone; `speakers.diagnostics` differs from rev A's only in `voices[SPEAKER_00].source`
+  "self_intro" → "roster" (SPEAKER_01 byte-for-byte rev A's); the decision record
+  (`tried.per_voice_self_intro`, `decision_trace`) still holds "Generation" exactly 4 times (the
+  accepted deviation from 6, listed); no other diagnostics field holds it. Anything else differing
+  from rev A FAILS unless the prediction named it.
+- **B2, rule 2 narrowed to "I", as a class:** a lone "I" counts as the label's letter only when
+  punctuation or the end of the text follows directly; every other lone capital, "A" included,
+  keeps rev A's behaviour and lookahead. Stated in step 6 before the measurement; a word list fails.
+- **B3 (amends 21), held-out 2 on `rev33b/heldout2.py`** (35 labels, 35 names), old vs rev A vs B:
+  - names: 32 of 35 named, exactly 3 refused ("I'm Will A producer here.", "I'm Bill T, your
+    host.", "I'm Grace O, and welcome.", the operator's accepted cost); each of the 32 returns the
+    old code's string; "I'm Rose I work on the climate desk." → "Rose", "I'm Mark I host the show."
+    → "Mark", "I'm Jay Z." → "Jay", "I'm Malcolm X." → "Malcolm". FAIL on any other refusal, any
+    differing string, or Rose/Mark not returned; fewer than 3 refused is stated as a wrong
+    prediction.
+  - labels: 20 refused, 15 named, identical to rev A phrase by phrase; rule 2 refuses exactly 10 of
+    the 25 the old code named (Generation Z, Type A, Type B, Plan, Team, Vitamin, Hepatitis, Class,
+    Grade, Category). FAIL on any label differing from rev A. Not-covered line each for the 15 every
+    version names: Millennial, Boomer, Zoomer, Xennial, Long Tesla, Long, Short, Bullish,
+    Overweight, Nigerian, Yoruba, Kikuyu, Maori, Catalan, Blood Type.
+- **B4, held-out 2b,** at least 20 new phrases by the revision-B step-8 reviewer, unseen by the
+  builder, at least 3 per class: (a) "<Name> I <word>" run-on, must be named; (b) "<Name> I," /
+  "I." / "I" at the end, refused, accepted cost; (c) "<Name> A <word>", refused, accepted cost;
+  (d) "<Name> <letter not I/A>," no period, refused, accepted cost; (e) "<Label> I <word>", named,
+  a not-covered line each; (f) "<Label> A <word>" and "<Label> <letter>,", must be refused; (g)
+  "<Name> <letter>." (initial with period), must be named. FAIL on a refusal in (a) or (g) or a
+  named (f).
+- **B5, the keep rule** (the builder's, stated before the build): a renamed or unnamed voice's old
+  GI Person still the target of any `MENTIONS_PERSON` is kept and those edges are not moved;
+  otherwise removed as in rev A. Tests: (a) rename, mentioned: the Person survives (same id, name),
+  its mention edges unchanged, no `SPOKEN_BY` to it and no insight's speaker, no dangling or
+  duplicate edge; (b) unnamed, mentioned: kept the same; (c) rename, unmentioned: removed, the
+  step-7 test green; (d) mutations killed: keep check removed, mentions moved, always kept,
+  `SPOKEN_BY` left on the kept Person. On E: 0 mentions of the "Generation" Person (its 5
+  `MENTIONS_PERSON` go to charlie-roberts ×2, benjamin-swerner, jake-taylor-king,
+  lindsay-edwards), so the GI is byte-identical to rev A's.
+- **B6, diagnostics source:** a test failing on rev A's m0025 (renamed to another person:
+  `voices[].source` "roster"), and the other branch (same person keeps its source).
+- **B7, Person-only map in `_edges_moved_off`:** a test with a non-Person node named as the stale
+  person: its edges do not move, and do under a mutation dropping the filter. On the clone 0
+  collisions; E's KG byte-identical to rev A's.
+- **B8, mutations:** all 24 of `rev33b/mutate.py` killed against a zero-failure baseline, including
+  the 10 survivors (R2 lookahead dropped; R2 period allowed; E2; E4; E5; S2; N3; N4; O1; O2), the
+  R2 patterns re-expressed for the new regex; plus, killed: I exemption removed; exemption extended
+  to A; exemption on every letter; the 4 of B5(d); B6's assignment removed; B7's filter dropped. Log
+  attached; FAIL on any survivor.
+- **B9 (amends 16), replay:** over the 2,684 replayable served episodes, revision B vs old, exactly
+  2 changes (E's SPEAKER_00 → David Roblin; The Daily SPEAKER_01 "Moral" → unnamed), all 6 shards
+  (0–5) listed with counts; the record says the replay reuses E's stored LLM answer (`third_person`,
+  David Roblin), and a reprocess with another or no LLM answer is not covered.
+- **B10, census and held-out 1:** Generation refused, the other 92 unchanged; 1 of 246.
+- **B11, gold:** val_v2 and dev_v1 each 0 regressions, 0 fixes.
+- **B12, record corrections:** step 3's LLM sentence struck and replaced; the verdicts file's
+  `reviewed_commit` 20ec7ab38 (681ef3804 is on no branch); mutations named by their `mutate.py`
+  labels; steps 6, 7, 8 filled.
+- **B13, ordering:** no revision-B code commit authored before the commit holding this; the final
+  gate report's `measured_at` later than this stamp.
+- **B14, re-runs on the commit to deploy** (clean tree, digest recorded, one gate report): held-out
+  1, 2, 2b; census; replay; gold; full `upgrade verify` (2 FAIL → 0; only 0015's and 0033's lines
+  change); undo on the full clone (14 restored, 0 refused, 0 files differ, 0015 FAILs again);
+  receipts isolation; scoreboard; the final `corpus_change_gate.py` and `build_outcome.py`, the
+  outcome sha256 named in step 8.
+- **B15 (amends 26), ci-fast:** `make ci-fast; echo MAKE_EXIT=$?` on the committed tree, log
+  attached. Before the step-8 verdict the only allowed failure is the landing test, for 0033's
+  step-8 / outcome reasons; black, mypy and every other stage green. After step 8 records GO (or GO
+  WITH CONDITIONS) and the outcome sha, re-run on that commit: MAKE_EXIT=0. That commit is deployed.
+
+Reviewer's finding to settle before the build: a kept Person bearing a hand-removed name
+(mentioned by another insight) could make 0015's verify FAIL again, if 0015's verify counts
+mention-only Persons. The record states which applies, and a test pins it. E is not affected.

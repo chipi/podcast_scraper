@@ -235,6 +235,12 @@ diagnostics source. Undo: byte-identical. Full verify: 2 FAIL → 0.
 
 Written by a fresh reviewer (Opus advisor), 2026-10-19, before any code: [0033_hand_removed_names_refused.acceptance.md](0033_hand_removed_names_refused.acceptance.md), 28 criteria (A: the repair of E by N; B: the gate rule; C: the self-introduction rule with three held-out checks; D: unchanged corpus-wide; E: prod). The verdict on SPEAKER_00: CORRECT, David Roblin, with segment evidence. Step 4 is restated after it, above.
 
+### Revision B
+
+Dated: 2026-10-19T19:35
+
+Written by a fresh step-5 reviewer before any revision-B code (first 19:07 UTC, amended 19:34 UTC after the operator's answer to its finding 1, verbatim "Exempt only 'I' (Recommended)": the narrowing gave back the wrong names "Grade" and "Category"): [the acceptance file, Revision B](0033_hand_removed_names_refused.acceptance.md), criteria B1–B15. Of the original 28, 6, 8, 16, 21 and 26 are amended there; the rest stand and are re-measured.
+
 ## 6. Build
 
 Revision A (measured at step 7, c71664a6d):
