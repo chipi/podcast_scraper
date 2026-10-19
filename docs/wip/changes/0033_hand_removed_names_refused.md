@@ -175,6 +175,10 @@ S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 11
   measured first, 246 one-word self-introductions captured with the rule off, over every voice of
   the 2,685 served episodes, all English (`scripts/measure/self_intro_label_rule_heldout.py
   --population`). Predicted: the rule changes exactly 1 of the 246, E's "Generation".
+- **Reprocess replay, predicted before its run** (criterion 16; dated 2026-10-19T18:05): the
+  production roster replayed over every served episode of the clone (`scripts/measure/roster_replay.py`,
+  hosts.py of a213d5fa5 vs this branch): exactly 1 voice changes its published name, E's
+  SPEAKER_00, from "Generation" to David Roblin or unnamed.
 - **Reprocess durability:** with both rules, a reprocess of E finds no self-introduced name for
   SPEAKER_00; the roster's next rungs decide, and whether they seat David Roblin is measured at
   step 7 (criterion 16). If they do not, a reprocess hides E's 58 insights (a known loss, until
