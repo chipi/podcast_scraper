@@ -154,6 +154,8 @@ class MistralProvider:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",  # tags on stderr need not be UTF-8 (#558)
                 timeout=5,
             )
             return float(result.stdout.strip()) if result.returncode == 0 else 0.0

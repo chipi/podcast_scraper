@@ -69,6 +69,8 @@ def _duration_via_ffprobe(audio_path: str) -> Optional[float]:
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",  # tags on stderr need not be UTF-8 (#558)
             timeout=_FFPROBE_TIMEOUT_SEC,
             check=False,
         )

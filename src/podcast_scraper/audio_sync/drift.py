@@ -49,7 +49,14 @@ def served_url(url: str) -> str:
 def _served_seconds(url: str, timeout: int) -> Optional[float]:
     cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", url]
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout
+        out = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",  # tags/headers on stderr need not be UTF-8 (#558)
+            timeout=timeout,
+        ).stdout
         return float(out.strip().splitlines()[0])
     except (subprocess.TimeoutExpired, ValueError, IndexError, OSError):
         return None
