@@ -412,3 +412,26 @@ def test_verify_checks_this_migrations_list_and_receipts(tmp_path: Path, monkeyp
     d.write_text("\n".join(head) + "\n" + "\t".join(rv.COLUMNS) + "\n", encoding="utf-8")
     ok, message = m33.HandRemovedNamesRefusedMigration().verify(_ctx(tmp_path))
     assert not ok and "written by this migration, and has no verdict" in message
+
+
+def test_an_unnamed_voices_old_person_that_is_mentioned_is_kept(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Revision B (B5b): the voice loses its name (0031's WRONG_PERSON path), and another insight
+    still MENTIONS the old person: the Person stays, the mention unchanged, no SPOKEN_BY to it."""
+    monkeypatch.setattr(m31.m29, "NAMING_ARC_VOICES", t31.ENTRY)
+    t31._review(monkeypatch, tmp_path, SPEAKER_01="WRONG_PERSON")
+    p = t31._episode(tmp_path, "Steve McConnell", "guest", typed=False)
+    _mention(p, "person:steve-mcconnell")
+    res = m31.NamedVoicesShownMigration().apply(_ctx(tmp_path))
+    assert res.details["refused"] == [] and len(res.details["episodes"]) == 1
+    gi = fx._r(p["gi"])
+    ids = {n["id"] for n in gi["nodes"]}
+    assert "person:steve-mcconnell" in ids
+    assert {"type": "MENTIONS_PERSON", "from": "insight:other", "to": "person:steve-mcconnell"} in (
+        gi["edges"]
+    )
+    assert not [
+        e for e in gi["edges"] if e["type"] == "SPOKEN_BY" and e["to"] == "person:steve-mcconnell"
+    ]
+    assert all(e["from"] in ids and e["to"] in ids for e in gi["edges"])

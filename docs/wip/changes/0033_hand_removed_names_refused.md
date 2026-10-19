@@ -64,8 +64,11 @@ hidden insight (operator, 2026-10-19), so this goes before the hidden-insight wo
   `{"id": "guest", "name": "Generation", "role": "guest", "voices": ["SPEAKER_00"], "source":
   "self_intro"}`. The self-introduction detector read segment 93, SPEAKER_00: "I'm Generation X, I
   suppose, without giving my age completely away." as "I'm <name>". The episode's stated guest,
-  David Roblin (`source: "episode_metadata"`), stays `placed: false`, no voice. There is no LLM
-  resolution in the inputs.
+  David Roblin (`source: "episode_metadata"`), stays `placed: false`, no voice. ~~There is no LLM
+  resolution in the inputs.~~ Wrong (step-8 reviewer, 2026-10-19): E's diagnostics hold a stored
+  LLM answer, `llm_resolution.verdicts[1] = {voice: SPEAKER_00, name: "David Roblin", outcome:
+  "third_person"}`. The roster replay reuses it, so a reprocess that gets the same answer seats
+  David Roblin; one that gets another answer, or none, is not covered.
 - **So it is a wrong person, not only junk.** SPEAKER_00 is very likely David Roblin: the stated
   guest, who talks about himself as the guest ("I'm a Welshman", "as I'm recruiting someone"). The
   host's "David Roblin, welcome to The Long Run." (segment 29) is diarized onto SPEAKER_00 too, so it
@@ -354,7 +357,19 @@ this run's.
 differs; the 15 labels every version publishes (Millennial, Boomer, Zoomer, Xennial, Long Tesla,
 Long, Short, Bullish, Overweight, Nigerian, Yoruba, Kikuyu, Maori, Catalan, Blood Type); a kept
 mention-only Person bearing a hand-removed name makes 0015's verify FAIL (pinned by a test; E has
-none); prod (step 10).
+none); prod (step 10); the stored-input replay reuses E's LLM answer.
+- **Found by the revision-B step-8 reviewer, outside 0033** (0033 writes neither episode): on the
+  clone, 9 GI `MENTIONS_PERSON` edges point at no node. 2 come from 0029's list: in
+  substack:post:189787695 0029 renamed "Jacob Warwick" to Lenny Rachitsky while an insight mentions
+  Jacob Warwick (the real guest), and in substack:post:184167026 0029 unnamed "Zevi Arnewitz" while
+  an insight still mentions that id. The keep rule (B5) stops this from here on; the 2 go to
+  Stage 2 with 0029's lost role edges. 7 point at `person:new-york-city` in one simplecast episode
+  (run_20260819-060035, 0011), cause not traced: Stage 2. Prod not checked for either.
+- **Rule 2's other edges, not covered:** "<Label> <letter>." at a sentence end ("Plan B.", "Type
+  B.", "Grade A.") is named by every version; "<Label> I <word>" ("Type I diabetes" shapes) is
+  named; a name followed by " I" exactly at the 5,000-character cut is refused; the GI keeps a
+  mentioned old Person while the KG moves its node's edges, so the bridge shows it
+  `{gi: true, kg: false}` (E not affected).
 
 ## 8. Verdict
 
