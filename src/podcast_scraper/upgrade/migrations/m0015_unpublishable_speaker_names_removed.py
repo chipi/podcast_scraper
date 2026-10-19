@@ -27,6 +27,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
+from ...speaker_detectors.hosts import HAND_REMOVED_SPEAKER_NAMES
 from ..corpus_selection import select_served_artifacts
 from ..file_rewrite import append_receipts, read_receipts, undo_from_receipts, write_with_backup
 from ..migration import Migration, MigrationContext, MigrationResult
@@ -43,16 +44,9 @@ KEEP: Dict[str, str] = {
     "RJ": "RJ Honicky, Latent Space co-host; the gate reads 2-3 capitals as an abbreviation (GE)",
 }
 
-#: Junk no gate rule catches safely (the ordinary-word rule would also remove real people),
-#: removed by hand after reading every published host/guest on prod (2026-10-03, operator-approved).
-REMOVE: Dict[str, str] = {
-    "Before Gene": "ASR fragment: a sentence opener captured as a name",
-    "As Colin": "ASR fragment: a sentence opener captured as a name",
-    "Super Willing To Be": "ASR fragment: a clause captured as a name",
-    "Moral": "a word, not a name",
-    "Generation": "a word, not a name",
-    "Pan-African": "an adjective, not a name",
-}
+#: Junk no gate rule catches safely, removed by hand (2026-10-03, operator-approved). Defined beside
+#: the publish gate, which refuses the same names since 0033.
+REMOVE: Dict[str, str] = HAND_REMOVED_SPEAKER_NAMES
 
 #: Role words in FRONT of a person's name, as published by older rosters ("Your Host Luisa Leni").
 _LEADING_ROLE_WORDS = frozenset({"your", "our", "host", "hosts", "co-host", "cohost", "presenter"})

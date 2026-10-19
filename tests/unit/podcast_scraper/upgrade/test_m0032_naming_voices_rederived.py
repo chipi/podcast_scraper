@@ -57,7 +57,9 @@ def _verify(root: Path):
 def test_held_so_not_registered_and_the_prod_list_is_well_formed() -> None:
     ids = [m.id for m in get_migrations()]
     assert m31.MIGRATION_ID not in ids  # HELD (#2380): registered only once it passes its gate
-    assert m31.MIGRATION_ID > ids[-1]  # and when it is, it sorts after everything registered
+    # When it is, it is renumbered after everything registered then: 0033 took the next number
+    # while it was held, so 0032 sorts before it today and may not be registered as 0032.
+    assert m31.MIGRATION_ID < "0033_hand_removed_names_refused" <= ids[-1]
     assert len(m31.NAMING_VOICES) == 166
     assert len({eid for eid, _voice in m31.NAMING_VOICES}) == 126
     for (eid, voice), (old, old_role, new, new_role, why) in m31.NAMING_VOICES.items():

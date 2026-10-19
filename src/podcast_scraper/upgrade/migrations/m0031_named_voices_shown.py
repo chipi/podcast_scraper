@@ -156,9 +156,9 @@ def _voice_at(spans: Optional[list], char_start: Any) -> Optional[str]:
     return None
 
 
-def _written_metas(root: Path) -> Set[str]:
-    """Metadata files this migration's receipts say it wrote (every run)."""
-    path = root / RECEIPTS_FILE
+def _written_metas(root: Path, receipts_file: str = RECEIPTS_FILE) -> Set[str]:
+    """Metadata files the migration's receipts say it wrote (every run)."""
+    path = root / receipts_file
     if not path.is_file():
         return set()
     out = set()
@@ -274,7 +274,12 @@ class _Served:
         return problems
 
 
-def _outcome(root: Path, verdicts: rv.Verdicts) -> Tuple[List[str], Dict[str, int]]:
+def _outcome(
+    root: Path,
+    verdicts: rv.Verdicts,
+    entries: Optional[Dict[rv.Key, m29.Entry]] = None,
+    receipts_file: str = RECEIPTS_FILE,
+) -> Tuple[List[str], Dict[str, int]]:
     """What verify must see on the served episodes: ``(problems, counts)``.
 
     An entry the migration would still change shows up as written or refused in the plan; this
@@ -283,6 +288,7 @@ def _outcome(root: Path, verdicts: rv.Verdicts) -> Tuple[List[str], Dict[str, in
     or unidentified. Unnamed-by-review entries: the wrong name on none of the voice's segments,
     quotes, insights or diagnostics (or transcript lines when no other voice carries it), and the
     listed old role. Unreadable metadata fails; a corpus serving no listed episode passes.
+    ``entries`` is the list it checks (default 0029's, which 0031 carries; 0033 passes its own).
     """
     problems: List[str] = []
     counts = {
@@ -294,8 +300,9 @@ def _outcome(root: Path, verdicts: rv.Verdicts) -> Tuple[List[str], Dict[str, in
         "served_listed": 0,
         "metadata_unreadable": 0,
     }
-    entries = {k: e for k, e in m29.NAMING_ARC_VOICES.items() if e[2]}
-    written = _written_metas(root)
+    if entries is None:
+        entries = {k: e for k, e in m29.NAMING_ARC_VOICES.items() if e[2]}
+    written = _written_metas(root, receipts_file)
     for meta_path in select_served_artifacts(root, ".metadata.json")[0]:
         counts["served"] += 1
         meta = _load(meta_path)
@@ -355,12 +362,16 @@ class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
     _backup_tag = BACKUP_TAG
     _verdicts_dir: Optional[Path] = None
 
+    def listed(self) -> Dict[rv.Key, m29.Entry]:
+        """The list this migration carries: 0029's (0033 carries its own)."""
+        return m29.NAMING_ARC_VOICES
+
     def review_names(self) -> Dict[rv.Key, str]:
         """``{(episode id, voice): listed name}`` a review of this migration judges."""
-        return _names(m29.NAMING_ARC_VOICES)
+        return _names(self.listed())
 
     def _verdicts(self) -> rv.Verdicts:
-        return rv.load(MIGRATION_ID, self.review_names(), self._verdicts_dir)
+        return rv.load(self.id, self.review_names(), self._verdicts_dir)
 
     def _episode_kwargs(self) -> Dict[str, Any]:
         return {"verdicts": self._loaded}
@@ -380,7 +391,8 @@ class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
             ok, message = super().verify(ctx)
         except rv.VerdictError as exc:
             return False, f"verdicts file unusable: {exc}"
-        problems, counts = _outcome(ctx.corpus_root, self._loaded)
+        entries = {k: e for k, e in self.listed().items() if e[2]}
+        problems, counts = _outcome(ctx.corpus_root, self._loaded, entries, self._receipts_file)
         tally = ", ".join(f"{k}={v}" for k, v in counts.items())
         if not ok or problems:
             parts = [message] if not ok else []
@@ -419,13 +431,16 @@ def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:
     """Read-only: one row per episode the migration would write or refuses (the outcome hook's
     plan contract): every counter, and the sha256 of every file its decision read or looked for
     (``read_recorder``; ``"absent"`` for a file looked for and missing)."""
+    return dry_run_rows(Path(root), NamedVoicesShownMigration())
+
+
+def dry_run_rows(root: Path, mig: "NamedVoicesShownMigration") -> Iterable[Dict[str, Any]]:
+    """``dry_run_report``'s rows for ``mig`` (0031, or a migration carrying its own list)."""
     from ..read_recorder import recording
 
-    root = Path(root)
-    mig = NamedVoicesShownMigration()
     mig._loaded = mig._verdicts()
     for meta in select_served_artifacts(root, ".metadata.json")[0]:
-        ep = _Episode(meta, root, verdicts=mig._loaded)
+        ep = mig._episode_class(meta, root, **mig._episode_kwargs())
         with recording(root) as rec:
             planned = ep.plan()
         if not planned and not ep.refused:

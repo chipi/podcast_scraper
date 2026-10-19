@@ -30,8 +30,10 @@ def main(root: Path) -> None:
             if s.get("source") == "self_intro" and s.get("placed") and len(name.split()) == 1:
                 counts[name] += 1
                 example.setdefault(name, meta.name)
-    print(f"served {len(metas)}; one-token placed self_intro names {sum(counts.values())}; "
-          f"distinct {len(counts)}")
+    print(
+        f"served {len(metas)}; one-token placed self_intro names {sum(counts.values())}; "
+        f"distinct {len(counts)}"
+    )
     for name, n in counts.most_common():
         print(f"{n}\t{name}\t{example[name]}")
 

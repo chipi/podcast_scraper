@@ -568,6 +568,19 @@ def _self_intro_matches(
     return out + _branded_intro_matches(head, feed_title, language)
 
 
+#: A one-word self-introduction directly followed by a lone capital letter that is not an initial
+#: names a LABEL, not the speaker: "I'm Generation X" (The Long Run, 2026-10-14, published as the
+#: guest "Generation" on 58 insights), "Gen Z", "Plan B", "Type A". The name shape needs two
+#: letters a token, so the capture stops at the word and the letter is left behind; "John F." (an
+#: initial, with its period) and "Steve Jobs" (a second word) are not this shape.
+_LABEL_LETTER_FOLLOWS = re.compile(r"[ \t]+[A-Z](?![\w.'’\-])")
+
+
+def _names_a_label(head: str, match: "re.Match[str]") -> bool:
+    """The one-word capture of ``match`` is the first half of a word-and-letter label."""
+    return _LABEL_LETTER_FOLLOWS.match(head, match.end(1)) is not None
+
+
 def extract_self_introduced_host(
     transcript_text: Optional[str],
     *,
@@ -621,7 +634,9 @@ def extract_self_introduced_host(
         # guard `distinct_self_introductions` already applies; without it here the two sibling
         # scanners disagreed. ``continue`` (not ``return None``) keeps scanning for the real intro.
         if len(name.split()) == 1 and (
-            _one_word_names_refused(language) or not is_plausible_mononym(name, language)
+            _one_word_names_refused(language)
+            or not is_plausible_mononym(name, language)
+            or _names_a_label(head, match)
         ):
             continue
         return name
@@ -667,7 +682,9 @@ def distinct_self_introductions(
         if len(toks) >= 2 and not looks_like_a_person_name(name, language):
             continue
         if len(toks) == 1 and (
-            _one_word_names_refused(language) or not is_plausible_mononym(name, language)
+            _one_word_names_refused(language)
+            or not is_plausible_mononym(name, language)
+            or _names_a_label(head, match)
         ):
             continue
         if name.lower() not in lowered:
@@ -1825,6 +1842,21 @@ def _reject_vocab(which: str, language: Optional[str]) -> FrozenSet[str]:
     return frozenset(base) | frozenset(row)
 
 
+#: Junk no gate rule catches safely (the ordinary-word rule would also refuse real people), removed
+#: by hand from prod after reading every published host and guest (m0015, 2026-10-03,
+#: operator-approved). The gate refuses them too, so a reprocess cannot publish one again:
+#: "Generation" came back on 2026-10-14 (0033). m0015 and m0019 read this same dict.
+HAND_REMOVED_SPEAKER_NAMES: Dict[str, str] = {
+    "Before Gene": "ASR fragment: a sentence opener captured as a name",
+    "As Colin": "ASR fragment: a sentence opener captured as a name",
+    "Super Willing To Be": "ASR fragment: a clause captured as a name",
+    "Moral": "a word, not a name",
+    "Generation": "a word, not a name",
+    "Pan-African": "an adjective, not a name",
+}
+_HAND_REMOVED_FOLDED = frozenset(" ".join(n.split()).casefold() for n in HAND_REMOVED_SPEAKER_NAMES)
+
+
 def is_publishable_speaker_name(
     name: Optional[str],
     *,
@@ -1849,6 +1881,8 @@ def is_publishable_speaker_name(
     Jordan"), and removing published names on it would delete real people.
     """
     nm = name or ""
+    if " ".join(nm.split()).casefold() in _HAND_REMOVED_FOLDED:
+        return False
     # A PUBLISHER IS NOT A SPEAKER, whatever path produced it. This gate is the last thing between
     # a name and a voice, and it was passing all 150 organisation names in the sample — including
     # the five that arrive as a transcript self-introduction ("Boston College", "Rindman

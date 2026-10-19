@@ -10,6 +10,10 @@ touches:              # every content-code path this change writes (globs allowe
 
 # 0032 — the names the deployed naming code gives 126 served episodes (held, #2380)
 
+> **Renumber before registering (2026-10-19).** 0033 was registered while 0032 was held, so
+> 0032 now sorts before an applied migration. When it passes its gate it takes the next free
+> number after the last registered one (the test `test_held_so_not_registered_...` says so).
+
 Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md) §4. Every section is filled
 before the step after it starts. Was 0031 until 2026-10-18; never ran on
 prod; unregistered until it passes. As first built it named voices and left their insights hidden

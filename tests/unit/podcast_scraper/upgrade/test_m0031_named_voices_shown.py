@@ -115,12 +115,12 @@ def _guest(p) -> dict:
     return props
 
 
-def test_registered_last_right_after_0030() -> None:
-    ids = [m.id for m in get_migrations()]
-    assert ids[-1] == m31.MIGRATION_ID
-    assert ids.index(m31.MIGRATION_ID) == ids.index("0030_adfree_cut_resynced") + 1
-    versions = [m.to_version for m in get_migrations()][-2:]
-    assert versions == ["2.7.24", "2.7.25"]
+def test_registered_right_after_0030() -> None:
+    migs = get_migrations()
+    ids = [m.id for m in migs]
+    at = ids.index(m31.MIGRATION_ID)
+    assert at == ids.index("0030_adfree_cut_resynced") + 1
+    assert [m.to_version for m in migs][at - 1 : at + 1] == ["2.7.24", "2.7.25"]
     assert m31.BACKUP_TAG != m29.BACKUP_TAG and m31.RECEIPTS_FILE != m29.RECEIPTS_FILE
 
 
