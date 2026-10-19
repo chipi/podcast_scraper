@@ -221,7 +221,7 @@ compare = [
   # tornado (pulled by streamlit, no upper bound there) had three advisories in 6.5.8 fixed by
   # 6.5.9 (pip-audit, 2026-10-01). Security floor so a venv built before the fix resolves past it;
   # drop when streamlit requires >=6.5.9 itself. Same pattern as the pyjwt floor in [dev].
-  "tornado>=6.5.9",
+  "tornado>=6.5.10",
   "plotly>=6.7.0,<7.0.0",
   "pandas>=2.3.3,<3.0.0",
   "rouge-score>=0.1.2,<1.0.0",
