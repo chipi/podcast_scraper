@@ -186,6 +186,10 @@ services:
       - FOWNER
       - SETUID
       - SETGID
+    # Uncapped, one process reaching ~8 GB (2026-10-17 15:05, 2026-10-19 06:19) drove the 15 GB
+    # box into a global OOM in which the kernel chose freely among tenants. Capped, an overrun is
+    # killed inside this container. Steady RSS is 1.1-1.6 GB.
+    mem_limit: 4g
 
   # Remote MCP server (RFC-112) — the SAME low-privilege api image, but run as the corpus MCP
   # over Streamable HTTP instead of the app. It authenticates every connection by presenting the
