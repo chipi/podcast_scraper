@@ -78,9 +78,53 @@ hidden insight (operator, 2026-10-19), so this goes before the hidden-insight wo
 
 ## 4. Prediction
 
-Dated: YYYY-MM-DD
+Dated: 2026-10-19
 
-_TODO_
+**Clone:** `lost/gateworkB6c` (10-16 snapshot + 0030 + 0031, 0031's measured after-state: S1 14,841;
+S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 116,595; 2,685
+served episodes).
+
+**The episode** (E), "Ep176_ David Roblin on Building" (`run_20261014-073935`), read from its
+files: 62 insights, all shown, routing `surface` (58 under "Generation", 3 under "Luke
+Timmerman", 1 with no speaker); quotes: 109 on the "Generation" person, 5 on Luke Timmerman. The
+roster places "Generation" (guest, `self_intro`) on SPEAKER_00 and leaves David Roblin
+(`episode_metadata`) unplaced.
+
+**The cause, reproduced** (`extract_self_introduced_host`, today's code): "I'm Generation X, I
+suppose, …" gives `'Generation'`. `is_plausible_mononym` and `is_publishable_speaker_name` both pass
+it; they also pass "Millennial", "Boomer" and "Moral".
+
+**Two repairs for E.** The acceptance (step 5) picks one, from a fresh reviewer's verdict on
+SPEAKER_00:
+
+| Number (clone) | Before | U: unname SPEAKER_00 | N: name it David Roblin |
+| --- | --- | --- | --- |
+| insights published under a hand-removed name | 58 | 0 | 0 |
+| quotes published under it | 109 | 0 | 0 |
+| episodes 0015's verify fails on | 1 | 0 | 0 |
+| S1 | 14,841 | 14,899 (+58) | 14,841 |
+| S2 | 26,351 | 26,409 (+58) | 26,351 |
+| S1n, S1c, S3, S10a, S10b, S12, A1 | as above | unchanged | unchanged |
+| insights shown under "David Roblin" | 0 | 0 | 58 |
+| episodes written | | 1 | 1 |
+
+- U removes the name the way 0015 does. 0015's own plan for E on the clone: 6,110 segments
+  relabelled; 109 quotes and 58 insights unattributed; 1 GI person, 1 KG node and 2 KG edges
+  deleted; 1 bridge identity and 1 roster entry removed. E's 4 other insights stay shown, so S10a
+  does not move.
+- N renames SPEAKER_00 voice by voice (m0025's rewrite, as 0031 does) from "Generation" to "David
+  Roblin", guest, and places the metadata entry on that voice. The same 6,110 segments and 109
+  quotes change, and the 58 insights stay shown under the new name.
+
+**Two rules for future runs.** They write no corpus file, so no number above moves because of them:
+1. The publish gate refuses 0015's hand-removed names. The clone has 1 episode carrying one (E).
+2. The one-word self-introduction rule refuses a word that is a label, not a name ("Generation" in
+   "Generation X"). The population it must leave alone: the clone's 93 placed one-word
+   `self_intro` names, 70 distinct (`scripts/measure/self_intro_names_census.py`). Predicted: it
+   refuses exactly 1 of the 93, E's "Generation", and keeps the other 92.
+
+**Seen in the census, outside this change:** "Kanye's" (1 episode), a possessive, not a name. It
+is a wrong name too; the operator decides whether it joins this change.
 
 ## 5. Acceptance
 
