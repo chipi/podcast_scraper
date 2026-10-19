@@ -79,6 +79,8 @@ class HandRemovedNamesRefusedMigration(m31.NamedVoicesShownMigration):
     _episode_class = _Episode
     _receipts_file = RECEIPTS_FILE
     _backup_tag = BACKUP_TAG
+    _plan_label = "hand-removed names"
+    _names_by = "this migration names"
 
     def listed(self) -> Dict[rv.Key, m29.Entry]:
         """This migration's own list (``VOICES``)."""

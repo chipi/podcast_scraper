@@ -864,6 +864,8 @@ class NamingArcVoicesRepairedMigration(Migration):
         """The receipts file's header line (0031 adds the verdicts it decided by)."""
         return {"migration": self.id}
 
+    #: What the plan line calls the list (0033 names its own).
+    _plan_label = "naming arc voices"
     #: Set by ``verify`` only: plan and apply write 0029's list as it is.
     _restored: FrozenSet[Tuple[str, str]] = frozenset()
 
@@ -890,7 +892,7 @@ class NamingArcVoicesRepairedMigration(Migration):
         """Count what apply() would rewrite and what it refuses; pure read, no writes."""
         write, refused, totals = self._scan(ctx.corpus_root)
         return (
-            f"naming arc voices plan: {len(write)} episode(s), {len(refused)} refused; "
+            f"{self._plan_label} plan: {len(write)} episode(s), {len(refused)} refused; "
             + ", ".join(f"{k}={v}" for k, v in sorted(totals.items()))
         )
 

@@ -361,6 +361,8 @@ class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
     _receipts_file = RECEIPTS_FILE
     _backup_tag = BACKUP_TAG
     _verdicts_dir: Optional[Path] = None
+    #: Whose voices the verify line speaks of (0033 names its own).
+    _names_by = "0029 names"
 
     def listed(self) -> Dict[rv.Key, m29.Entry]:
         """The list this migration carries: 0029's (0033 carries its own)."""
@@ -410,7 +412,8 @@ class NamedVoicesShownMigration(m29.NamingArcVoicesRepairedMigration):
             return True, f"{empty}no listed episode is served here; {tally}"
         if counts["insights_checked"] + counts["unnamed_checked"] == 0:
             return False, f"verify checked nothing; {tally}"
-        return True, f"every voice 0029 names carries its name and no hiding, as reviewed; {tally}"
+        done = f"every voice {self._names_by} carries its name and no hiding, as reviewed"
+        return True, f"{done}; {tally}"
 
     def _receipt_header(self) -> Dict[str, Any]:
         return {**super()._receipt_header(), "verdicts_sha256": self._loaded.sha256}
