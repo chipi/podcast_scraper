@@ -154,6 +154,15 @@ flowchart LR
      near-identical names), K1 swaps (#2333), F4a (the guest's name on the host's voice), the
      Espinoza class (a wrong person under a stated name).
    - The misspelled-name correction, against names the episode's metadata states.
+   - **Junk takes the guest seat; the stated guest is placed on no voice** (operator, 2026-10-19:
+     a category, not a word). Seen twice on the 10-16 clone: The Long Run, "I'm Generation X" (58
+     insights; David Roblin unplaced, fixed for that episode by 0033) and a16z, "I'm Kanye's
+     engineer" (48 insights; Ben Horowitz unplaced). Two parts: (a) a possessive is asked one
+     question on every extraction path, what it says about who speaks. It is stripped where the
+     name is still the person (a show title, a publisher prefix: done in `hosts.py`) and refused
+     where it says the speaker is someone else (a self-introduction: missing); (b) when the
+     self-introduction is refused and the metadata states a guest no voice holds, a rule for that
+     guest taking the guest voice. Measured over the corpus, not the two episodes.
    - Exit per rule: S7-wrong falls by the predicted amount, S6 = 0, no gating number rises.
 5. **Hidden insights, in ranked order (2.5).** Candidates:
    - #2200 bucket A (the model found the name, a guard discarded it);

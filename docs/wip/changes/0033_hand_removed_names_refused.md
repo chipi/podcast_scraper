@@ -123,8 +123,12 @@ SPEAKER_00:
    `self_intro` names, 70 distinct (`scripts/measure/self_intro_names_census.py`). Predicted: it
    refuses exactly 1 of the 93, E's "Generation", and keeps the other 92.
 
-**Seen in the census, outside this change:** "Kanye's" (1 episode), a possessive, not a name. It
-is a wrong name too; the operator decides whether it joins this change.
+**Seen in the census, outside this change:** "Kanye's" (1 episode, a16z "What Makes a Great
+Entrepreneur?", 48 insights; the transcript reads "I'm Kanye's engineer", a retold call; the
+stated guest Ben Horowitz is placed on no voice). The operator, 2026-10-19: it stays out of 0033
+and goes to Stage 2 as a category (possessives on every extraction path; the stated guest seated
+when the self-introduction is refused). 0033's self-introduction rule does not refuse it, so the
+census prediction above stands at 1 of 93.
 
 ## 5. Acceptance
 
