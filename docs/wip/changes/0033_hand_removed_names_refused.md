@@ -6,7 +6,10 @@ issue: none (the operator opens issues; found by prod's upgrade verify, 2026-10-
 touches:
   - src/podcast_scraper/speaker_detectors/hosts.py
   - src/podcast_scraper/upgrade/migrations/m0015_unpublishable_speaker_names_removed.py
+  - src/podcast_scraper/upgrade/migrations/m0031_named_voices_shown.py
   - src/podcast_scraper/upgrade/migrations/m0033_hand_removed_names_refused.py
+  - src/podcast_scraper/upgrade/registry.py
+  - src/podcast_scraper/upgrade/verdicts/0033_hand_removed_names_refused.tsv
 ---
 
 # 0033 — a name a migration removed by hand cannot come back through a reprocess
@@ -130,9 +133,56 @@ and goes to Stage 2 as a category (possessives on every extraction path; the sta
 when the self-introduction is refused). 0033's self-introduction rule does not refuse it, so the
 census prediction above stands at 1 of 93.
 
+### Restated 2026-10-19, after the step-5 reviewer, before any code
+
+Dated: 2026-10-19T16:30
+
+The reviewer's verdict on SPEAKER_00 is CORRECT, so the repair is **N**. Restated from my own reads
+of E's files on the clone (`scratchpad/kg.py`, `grep` over E's transcripts) and the committed
+scoreboard (`scripts/measure/corpus_scoreboard.py`, label `gateworkB6c-before-0033`: S1 14,841;
+S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 116,595; quotes
+224,862; episodes 2,685).
+
+- **Gating rows:** all unchanged (N keeps the 58 insights shown).
+- **E, after N:**
+  - roster 3 → 2 entries: Luke Timmerman (host, SPEAKER_01, unchanged), David Roblin (guest,
+    placed, SPEAKER_00); no "Generation";
+  - GI: 58 insights under "David Roblin", 3 Luke Timmerman, 1 none; 109 quotes to
+    `person:david-roblin`; 62 visible;
+  - KG: nodes 29 → 28, edges 30 → 29 (the "Generation" node merges into `person:david-roblin`,
+    which becomes role guest and takes the `GUESTS_ON` edge; the two `MENTIONS` edges become one);
+  - bridge: identities 27 → 26, `person:david-roblin` `{gi: true, kg: true}`;
+  - transcripts: "Generation:" prefixes 62 / 62 / 32 (`.txt` / `.adfree.txt` / `.cleaned.txt`)
+    become "David Roblin:"; "Generation" left once in `.txt`, `.adfree.txt` and `.anon.txt` (the
+    words "Generation X"), 0 in `.cleaned.txt`; every quote and ad-free segment offset carried
+    (the prefix is 2 characters longer: `.txt` and `.adfree.txt` grow by 124 characters);
+  - E's S12 stays 0 of 114.
+- **Files written: 14**: metadata, gi, kg, bridge, context, segments, adfree.segments, turns,
+  adfree.turns, `.txt`, `.adfree.txt`, `.cleaned.txt`, speakers.diagnostics, adfree.admap (its
+  `source_length` follows the longer `.txt`). Every other served file byte-identical.
+- **Derived surfaces after the apply** (not written by the migration, from the census on prod):
+  E's enrichment sidecars and its search-index rows.
+- **0015's verify:** FAIL 1 episode → PASS. Every other migration's verify line unchanged.
+- **m0015 and m0019:** `REMOVE` moves to one shared definition they both read; their
+  `refused_names` and `plan()` are byte-identical before and after.
+- **Rule 1 (gate):** of the 2,679 distinct served roster names, exactly {"Generation"} flips from
+  pass to refuse.
+- **Rule 2 (self-introduction), the class:** a one-word self-introduction directly followed by a
+  lone capital letter that is not an initial ("Generation X", "Gen Z", "Plan B"; not "John F.") is a
+  label, not a name. On the census: refuses "Generation"; keeps all 89 names; does not reach
+  "Long", "Gekoyo" or "Kanye's" (listed as not reached). Held-out 1 is predicted before its run.
+- **Reprocess durability:** with both rules, a reprocess of E finds no self-introduced name for
+  SPEAKER_00; the roster's next rungs decide, and whether they seat David Roblin is measured at
+  step 7 (criterion 16). If they do not, a reprocess hides E's 58 insights (a known loss, until
+  Stage 2 seats the stated guest), never a wrong name.
+- **Corrections from the reviewer:** "I'm a Welshman" in step 3 is SPEAKER_00's seg 126 (seg 90 is on
+  SPEAKER_01). Step 1's reading list adds m0019 (imports `REMOVE`), m0022–m0024 (derived-surface
+  resyncs), 0031's record and `upgrade/verdicts/`, and prod's other verify FAIL line (0029's, fixed
+  in a213d5fa5).
+
 ## 5. Acceptance
 
-_TODO_
+Written by a fresh reviewer (Opus advisor), 2026-10-19, before any code: [0033_hand_removed_names_refused.acceptance.md](0033_hand_removed_names_refused.acceptance.md), 28 criteria (A: the repair of E by N; B: the gate rule; C: the self-introduction rule with three held-out checks; D: unchanged corpus-wide; E: prod). The verdict on SPEAKER_00: CORRECT, David Roblin, with segment evidence. Step 4 is restated after it, above.
 
 ## 6. Build
 
