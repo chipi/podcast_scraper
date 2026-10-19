@@ -31,9 +31,9 @@
   "0029_naming_arc_voices_repaired",
   "0030_adfree_cut_resynced"
  ],
- "code_digest": "abd2958386d5c9f3a6bf0ea3695815f13f1ff82d50c8391f20f1f2ec08476ba0",
+ "code_digest": "5d5477d0db3f6ae5ceb3b942de7b804940ac100f5df85c43fd750b904ad28f61",
  "code_dirty": false,
- "code_sha": "a6b0f91f5f8a7581c7aafaf9324ec87aacbaea49",
+ "code_sha": "417189d4d4f71ddece85c6fd243c6b73154f45a9",
  "computed_class": "full",
  "conditions": [
   "item 5, `make ci-fast` on ce6a98b64 ending EXIT=0 with the log attached, before landing."

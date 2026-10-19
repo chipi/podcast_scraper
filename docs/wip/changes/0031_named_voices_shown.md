@@ -578,11 +578,49 @@ Shipped outcome (replaces affb5658…, which carried `conditions: []`; the hook'
 sha256 155b178a40794f21ca1bcdad4ccf29bb43ca47b68312686ec04981e976b2731b, rebuilt from the same
 13:29:41 gate report (code digest abd29583…), now carrying B.6's condition.
 
+**Re-measured on main at 417189d4d** (the prod session's 829111e68 and 417189d4d, ffmpeg stderr
+decoded with UTF-8 replace in `transcription/digital_silence.py`, `providers/mistral/
+mistral_provider.py` and `providers/resilience/sockets.py`, all in 0031's import closure; the
+hook refused 155b178a… on prod at step 4 with "the installed code is not the code that was
+measured"). Gate report 2026-10-19T05:34:40, clean: `diff -rq lost/gateworkB6b lost/gateworkB6c`
+over the whole tree is empty; `plan_sha256` e85a2670…; the same moves; code digest abd29583… →
+5d5477d0… (the prod session computed the same for 417189d4d).
+
+Shipped outcome (replaces 155b178a…): sha256 29f318e69dae8755b8a81f9337c8862ee8add5547fa537fced3e34255adbb1bb, built from that report and the B.6 verdict,
+its condition carried.
+
 ## 9. Operator review
 
 _TODO_
 
 ## 10. Before apply / deploy
+
+**Road step 4, prod's plan against the clone's** (the prod session, read-only, 2026-10-19
+05:24 to 05:29Z; no reprocess, sweep or pipeline container up, job registry 0 running / 0
+queued; code from `git archive` on PYTHONPATH as uid 1000; nothing written: `find -newermt` shows
+only `.viewer/jobs.jsonl` and its lock; its files under `~/.local/state/corpus-migration/
+podcast-0031/`).
+- Prod ledger: 0029 at 2026-10-12T18:45:18Z, 0030 at 2026-10-17T20:39:44Z; pending exactly
+  `0031_named_voices_shown`.
+- At 417189d4d with outcome 155b178a…: refused, "the installed code is not the code that was
+  measured" (its own 829111e68 and 417189d4d are in 0031's closure). Re-measured above; outcome
+  29f318e6… is the one measured on that code.
+- At 680a8da98 (digest = 155b178a…'s): prod would rewrite 53 episodes, insights shown 1,862
+  (clone 54 / 1,896). The hook stops on 1 episode, `clone_only`:
+  `feeds/rss_rss.art19.com_41402031/run_20261014-121633/metadata/0001 - Taking down the cultural
+  elite __20261014-121633.metadata.json`.
+- **Its cause, from prod's data:**
+  - Prod reprocessed the episode on 2026-10-17 ("Reprocess prod corpus (#1199)", GitHub run
+    39009633001, dispatched 06:21:54Z, success 07:24:06Z), after the clone's snapshot.
+  - Prod serves the new `run_20261017-070357` (`select_served_artifacts`); the 10-14 run is no
+    longer served there.
+  - The served run already names SPEAKER_01 "Catherine Liu" on all 1,553 of its segments (plain
+    and ad-free) and has 0 of 45 insights hidden. 0031 has nothing to do there.
+  - On the clone (10-16) the 10-14 run is served, so 0031 names the voice and shows its 34
+    insights (S1 −34, S2 −34, S10a −1). On prod those insights are already shown.
+  - Not checked: who dispatched run 39009633001, and its worklist.
+- The difference makes prod's outcome smaller, not worse. Applying needs an accept file for
+  this one entry (cause above) with the operator's go verbatim (step 5).
 
 _TODO_
 
