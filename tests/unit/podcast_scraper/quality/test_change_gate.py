@@ -345,3 +345,14 @@ def test_a_landed_record_without_the_apply_evidence_is_refused(tmp_path: Path, m
     [problem] = cg.check_landing(root, ["0099_x"])
     assert "landed: step 11: not done" in problem
     assert "stale" not in problem
+
+
+def test_a_landed_record_needs_step_10_too(tmp_path: Path, monkeypatch) -> None:
+    """Step 10 (prod's plan against the clone's) is half the apply's evidence, not optional."""
+    root = _repo(tmp_path)
+    sha = _gate(root, "0099_x", "full")
+    sections = {**DONE, "8": DONE["8"].format(sha=sha), "10": "_TODO_", "11": "receipt PASS"}
+    _record(root, "0099_x", "full", sections, status="landed")
+    monkeypatch.setattr(cg, "current_digest", lambda mid: "changed")
+    [problem] = cg.check_landing(root, ["0099_x"])
+    assert "landed: step 10: not done" in problem
