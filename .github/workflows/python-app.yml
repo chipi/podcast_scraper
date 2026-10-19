@@ -169,6 +169,11 @@ jobs:
             - '**/*.md'
             - 'LICENSE'
           code:
+            # A change record or a shipped outcome runs the test jobs (the ``python`` filter), and
+            # those need the ML models this flag lets preload-ml-models fetch; a docs/ path alone
+            # would leave them out (fa38f7dc3: test-integration found no ml-models artifact).
+            - 'src/podcast_scraper/upgrade/outcomes/**'
+            - 'docs/wip/changes/**'
             - '**.py'
             - '**.j2'
             - 'tests/**'
