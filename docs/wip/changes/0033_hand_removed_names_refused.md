@@ -171,6 +171,10 @@ S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 11
   lone capital letter that is not an initial ("Generation X", "Gen Z", "Plan B"; not "John F.") is a
   label, not a name. On the census: refuses "Generation"; keeps all 89 names; does not reach
   "Long", "Gekoyo" or "Kanye's" (listed as not reached). Held-out 1 is predicted before its run.
+- **Held-out 1, predicted before its run** (criterion 20; dated 2026-10-19T17:10): population
+  measured first, 246 one-word self-introductions captured with the rule off, over every voice of
+  the 2,685 served episodes, all English (`scripts/measure/self_intro_label_rule_heldout.py
+  --population`). Predicted: the rule changes exactly 1 of the 246, E's "Generation".
 - **Reprocess durability:** with both rules, a reprocess of E finds no self-introduced name for
   SPEAKER_00; the roster's next rungs decide, and whether they seat David Roblin is measured at
   step 7 (criterion 16). If they do not, a reprocess hides E's 58 insights (a known loss, until
