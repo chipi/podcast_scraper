@@ -34,9 +34,17 @@
 name: Python application
 
 on:
+  # By hand on a head whose own paths ran nothing (a docs- or outcome-only commit): Stack test
+  # publishes images only after this workflow succeeds on the same sha.
+  workflow_dispatch:
   push:
     branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     paths:
+      # A regime migration's shipped outcome and its change record: the landing test
+      # (quality/test_change_gate.py) refuses a stale or unbound one, so a commit that rebuilds
+      # only them must run it.
+      - 'src/podcast_scraper/upgrade/outcomes/**'
+      - 'docs/wip/changes/**'
       - '**.py'
       - '**.j2'
       - 'tests/**'
@@ -171,6 +179,8 @@ jobs:
             - '.github/workflows/**'
             - 'web/gi-kg-viewer/**'
           python:
+            - 'src/podcast_scraper/upgrade/outcomes/**'
+            - 'docs/wip/changes/**'
             - '**.py'
             - '**.j2'
             - 'tests/**'
