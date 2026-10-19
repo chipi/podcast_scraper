@@ -135,7 +135,7 @@ census prediction above stands at 1 of 93.
 
 ### Restated 2026-10-19, after the step-5 reviewer, before any code
 
-Dated: 2026-10-19T16:30
+Dated: 2026-10-19T14:27
 
 The reviewer's verdict on SPEAKER_00 is CORRECT, so the repair is **N**. Restated from my own reads
 of E's files on the clone (`scratchpad/kg.py`, `grep` over E's transcripts) and the committed
@@ -171,11 +171,11 @@ S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 11
   lone capital letter that is not an initial ("Generation X", "Gen Z", "Plan B"; not "John F.") is a
   label, not a name. On the census: refuses "Generation"; keeps all 89 names; does not reach
   "Long", "Gekoyo" or "Kanye's" (listed as not reached). Held-out 1 is predicted before its run.
-- **Held-out 1, predicted before its run** (criterion 20; dated 2026-10-19T17:10): population
+- **Held-out 1, predicted before its run** (criterion 20; dated 2026-10-19T14:39 UTC): population
   measured first, 246 one-word self-introductions captured with the rule off, over every voice of
   the 2,685 served episodes, all English (`scripts/measure/self_intro_label_rule_heldout.py
   --population`). Predicted: the rule changes exactly 1 of the 246, E's "Generation".
-- **Reprocess replay, predicted before its run** (criterion 16; dated 2026-10-19T18:05): the
+- **Reprocess replay, predicted before its run** (criterion 16; dated 2026-10-19T14:54 UTC): the
   production roster replayed over every served episode of the clone (`scripts/measure/roster_replay.py`,
   hosts.py of a213d5fa5 vs this branch): exactly 1 voice changes its published name, E's
   SPEAKER_00, from "Generation" to David Roblin or unnamed.
@@ -187,6 +187,49 @@ S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 11
   SPEAKER_01). Step 1's reading list adds m0019 (imports `REMOVE`), m0022–m0024 (derived-surface
   resyncs), 0031's record and `upgrade/verdicts/`, and prod's other verify FAIL line (0029's, fixed
   in a213d5fa5).
+
+### Revision B, after the step-8 NO-GO (2026-10-19)
+
+Dated: 2026-10-19T18:57
+
+The step-8 reviewer (fresh Opus advisor) gave NO-GO: rule 2 refused 5 of 7 unpunctuated real-name
+self-introductions in its unseen held-out 2 ("I'm Mark I host the show", "I'm Will A producer
+here", "I'm Rose I work…", "I'm Bill T, your host", "I'm Grace O, and welcome"; old code named all
+5), and ci-fast was red (black on the held-out script; steps 6 and 8 of this record empty). With
+rule 1 alone, the stored-input replay of E leaves SPEAKER_00 unnamed (58 insights hidden on a
+reprocess); with rule 2 it seats David Roblin. **Operator, 2026-10-19, verbatim: "Narrow it
+(Recommended)"**: the one-letter words "I" and "A" count as the label's letter only when
+punctuation or the end of the text follows; a first name followed by an initial with no period
+("Bill T,") stays refused, unnamed rather than wrongly named, as the operator's accepted cost.
+
+Changes and their predicted effect (clone `lost/gateworkB6c`, as before):
+1. **Rule 2 narrowed** as above. Held-out 1: 246 one-word captures, still exactly 1 change (E).
+   The reviewer's held-out 2: 0 of the "I" / "A" shapes refused; real names refused at most 2 (the
+   "<name> <initial>," shapes); labels refused as before except where an "A" or "I" is followed
+   by a word. Census, replay and gold: unchanged from step 7 (E and The Daily's "Moral" only).
+2. **The rename keeps a GI Person another insight still MENTIONS** (`MENTIONS_PERSON`), or moves
+   those edges to the new person when the voice was renamed. E: 0 such edges, nothing moves.
+   Corpus-wide: 0033 writes only E, so no other file changes.
+3. **The diagnostics' `voices[].source` follows the roster entry** (renamed to another person:
+   "roster"). E: SPEAKER_00 `source` "self_intro" → "roster"; still 14 files written.
+4. **`_edges_moved_off` maps names over Person nodes only** (latent; 0 collisions on the clone).
+5. **Tests** killing the reviewer's 10 surviving mutations (the initial-with-period lookahead, the
+   role-edge retype, the role, an unnamed voice's stale edges, a respelling's source, the
+   `both` → `summary` branch, unplaced entries not heard, 0031's `_outcome` `entries` and
+   `receipts_file`).
+6. **Record:** step 3's "no LLM resolution in the inputs" is false (E's diagnostics hold a stored
+   LLM answer naming David Roblin, `third_person`); the replay reuses it, so criterion 16 holds
+   for a reprocess that gets the same LLM answer. Step 6 written. The verdicts file's
+   `reviewed_commit` names the rebased step-4 commit (20ec7ab38).
+
+Gating rows: unchanged (identical on every key). E after revision B: as step 7, plus the
+diagnostics source. Undo: byte-identical. Full verify: 2 FAIL → 0.
+
+> **Stamps corrected 2026-10-19T19:00 UTC.** The three stamps above first read 16:30, 17:10 and
+> 18:05: the builder wrote them from no clock, and the gate compares stamps with the measurement in
+> UTC, so the first would have passed a revision check it should fail. Corrected to the UTC author
+> times of the commits that hold them (20ec7ab38/f1386d3f0, dd7871bf8, 1cc1237db); each
+> prediction was committed before its run.
 
 ## 5. Acceptance
 
