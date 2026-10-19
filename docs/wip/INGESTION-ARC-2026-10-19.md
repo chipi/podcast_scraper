@@ -65,7 +65,8 @@ This session supports it and does not dispatch. The full runbook is with the pro
    - An incremental `index` for the affected episodes, never `reindex-prod.yml` (a full rebuild).
      The removed identity's dead rows are listed before any targeted delete.
    - Transcript manifests and anonymised transcripts: refreshed per the census.
-   - Corpus-level enrichers: the next nightly.
+   - Corpus-level enrichers and insight clusters: run on demand after the apply, with the
+     nightly's own parameters (operator, 2026-10-19), not left to the nightly.
 5. **Re-measure.** The hook's receipt compares every episode exactly. Expected on prod: S1 −1,336,
    S1n −1,779, S2 −1,862, S3 −526, S10a −11, others 0. Spot checks: three written episodes, and the
    Jessica Espinoza episode, whose wrong name "Justin Norman" is removed.
@@ -74,6 +75,10 @@ This session supports it and does not dispatch. The full runbook is with the pro
 census lists are refreshed. If anything is off, the prod session stops and reports to this session.
 
 ## Stage 1: close the deploy (the days after)
+
+Only two items wait on anything: declaring 0031 done waits on the corpus-level enrichers, and the
+0029 verify fix waits on 0031's record being landed (that measured record guards `m0029`).
+Everything else starts at once.
 
 1. **0031's record:** steps 11 (after the apply) and 12 (the retrospective, into the method's
    changelog), with prod's numbers against the prediction.
