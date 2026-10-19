@@ -95,14 +95,14 @@ check_gateway() {
 
 # --- o11y: logs (ORANGE) ---------------------------------------------------------------------
 # The podcast's OWN emit_event stream must show a pipeline_stage event within 26h. The nightly
-# runs 03:00 UTC daily, so 26h always spans one; the filter is `_msg:"pipeline_stage"` because
-# a field filter (`event_type:`) live-returns 0 against real pushed data (see
-# src/podcast_obs/sources/victoria.py). Quiet ingestion is indistinguishable from a dead nightly
+# runs 03:00 UTC daily, so 26h always spans one. The filter matches the field OR the phrase: the
+# dev push stores the type only in `_msg`, while prod's Alloy has parsed the JSON into fields with
+# no `_msg` since 2026-10-15 (see src/podcast_obs/sources/victoria.py). Quiet ingestion is indistinguishable from a dead nightly
 # AND from broken shipping — either way someone must look.
 check_o11y_logs() {
   local n
   n=$(curl -fsS --max-time 10 "$VL_URL/select/logsql/query" \
-        --data-urlencode 'query=_msg:"pipeline_stage" AND _time:26h' \
+        --data-urlencode 'query=(event_type:"pipeline_stage" OR _msg:"pipeline_stage") AND _time:26h' \
         --data-urlencode "limit=1" | wc -c)
   if [ "${n:-0}" -gt 2 ]; then return 0; fi
   echo "o11y_logs: no pipeline_stage events in VictoriaLogs for 26h — nightly dead OR log shipping broken" >&2

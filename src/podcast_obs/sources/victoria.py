@@ -76,7 +76,9 @@ def events(
     # In prod (Alloy tails raw stdout) `_msg` is the whole JSON line, which still contains the type
     # as a phrase — so `_msg:"pipeline_stage"` matches both shipping paths. Live-verified: an
     # `event_type:` filter returns 0 against real pushed data.
-    filters = [f"_msg:{_q(event_type)}", f"_time:{window}"]
+    # Since 2026-10-15 prod's Alloy parses the JSON line into fields and leaves no `_msg`, so the
+    # phrase alone matched nothing there while 1,151 pipeline_stage events landed on 10-18.
+    filters = [f"(event_type:{_q(event_type)} OR _msg:{_q(event_type)})", f"_time:{window}"]
     if surface:
         filters.append(f"(surface:{_q(surface)} OR component:{_q(surface)})")
     # SAME TWO SHIPPING PATHS AS ``event_type`` ABOVE, and the field-only filter failed for the

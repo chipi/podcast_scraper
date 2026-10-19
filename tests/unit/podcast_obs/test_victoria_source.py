@@ -36,12 +36,10 @@ def test_events_builds_logsql_with_surface_and_correlation(monkeypatch) -> None:
     )
     assert r["ok"] and r["data"]["count"] == 1
     q = seen["query"]
-    # The event type is matched against `_msg`, NOT an `event_type` field: emit_event ships with
-    # `_msg_field: event_type` (dev_push.py), so VictoriaLogs stores the type as the built-in `_msg`
-    # message field and keeps no `event_type` field. Live-verified — an `event_type:` filter returns
-    # zero rows against real pushed data, which this assertion previously (wrongly) allowed.
-    assert '_msg:"pipeline_stage"' in q
-    assert "event_type:" not in q
+    # Field OR phrase: the dev push stores the type only in `_msg` (`_msg_field: event_type`,
+    # dev_push.py), while prod's Alloy has parsed the JSON into fields with no `_msg` since
+    # 2026-10-15. Either filter alone returns 0 on one of the two paths.
+    assert '(event_type:"pipeline_stage" OR _msg:"pipeline_stage")' in q
     assert 'surface:"pipeline"' in q and 'component:"pipeline"' in q  # surface OR component
     # Correlation ids must match BOTH shipping paths, for the same reason the event type does.
     # Asserting only the field form is what let the prod defect stand — see
