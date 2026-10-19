@@ -32,7 +32,8 @@ MISSED: no reading list was written before the build. Written after it, 2026-10-
 
 - #2380, 0031 (now 0032) is defective: a voice it names keeps its insights hidden; the gain path.
 - `docs/wip/EVAL-0030-0031-2026-10-17.md`: 0032 (then 0031) held on S1n +1,085.
-- `docs/wip/NAMING-STRATEGY-2026-10-17.md` item 2: fix the rewrite 0031 inherits from m0025.
+- `docs/wip/NAMING-STRATEGY-2026-10-17.md` item 2: fix the rewrite 0031 inherits from m0025. (The strategy is folded into
+  `docs/wip/INGESTION-ARC-2026-10-19.md` since 2026-10-19; `git show 7f7bf2fc6:docs/wip/NAMING-STRATEGY-2026-10-17.md`.)
 - `docs/guides/CORPUS_CHANGE_METHOD.md` v0.4: §3 metric definitions, S1n gating.
 - `m0029_naming_arc_voices_repaired.py`: 83 voices, frozen list, applied on prod.
 - `m0025_one_person_one_entry.py` `_segments_by_voice` / `_gi_by_voice`: the shared rewrite.

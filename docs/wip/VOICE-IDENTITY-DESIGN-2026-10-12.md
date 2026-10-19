@@ -42,7 +42,7 @@ not kept); how long diarization alone takes per audio-hour on the DGX.
 3. **A new rung, last in the ladder (gated like any rule).** An unnamed voice whose centroid is
    within a threshold of exactly one banked person of the same feed, and clearly further from
    every other banked person, takes that name with `source=voice_identity`. Never across feeds
-   (EPIC-HOST-IDENTIFICATION non-goal: no corpus-wide voiceprint). It never overrides a name the
+   (EPIC-HOST-IDENTIFICATION non-goal, `git show 2174be4bc:docs/wip/EPIC-HOST-IDENTIFICATION.md`: no corpus-wide voiceprint). It never overrides a name the
    text gives.
 
 The threshold is chosen on the gold sets (dev to tune, val_v2 scored once), and the rule ships only

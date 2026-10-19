@@ -66,7 +66,7 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
    languages judged (Italian 2026-10-13); the model pick is still provisional.
 3. Speaker naming: es hosts on first names or nicknames are swapped, de near-identical names
    merge, it and pt-PT guests unnamed, pt-BR introductions on one voice
-   (`2187-NAMING-HANDOVER-2026-10-08.md`).
+   (tracked in #2352).
 4. Non-English detector vocabularies unmeasured (#2255-#2259); punctuation-repair prompts exist
    only for en, es, it, fr, de, pt.
 5. Gap recovery can bring back an ad in another language (the V.6b French feed's Dutch ad).
@@ -133,7 +133,7 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
   - Foreign tape is not transcribed, by the no-language-detection rule.
   - The digital-silence threshold is checked on the 30 reference files only.
   - `host_acts_are_all_bled` reads English only: on other feeds it never fires, the safe direction.
-- **Next stages, not this arc:** naming (tier 3, `2187-NAMING-HANDOVER-2026-10-08.md`) and prod
+- **Next stages, not this arc:** naming (tier 3, #2352; the plan is [INGESTION-ARC-2026-10-19.md](INGESTION-ARC-2026-10-19.md)) and prod
   enablement.
 - **Where things are:**
   - Public repo: on `main` (PR #2324, merged 2026-10-13 as `0783cf4b3`).
