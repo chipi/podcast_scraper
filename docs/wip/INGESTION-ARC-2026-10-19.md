@@ -154,6 +154,12 @@ flowchart LR
      near-identical names), K1 swaps (#2333), F4a (the guest's name on the host's voice), the
      Espinoza class (a wrong person under a stated name).
    - The misspelled-name correction, against names the episode's metadata states.
+   - **Role edges lost on 0029's renames** (found measuring 0033, 2026-10-19; not a wrong name, not a
+     hidden insight, so after both): against the pre-0029 backups on the 10-16 clone, 7 of 0029's 10
+     renames lost their `HOSTS` / `GUESTS_ON` KG edge, and 3 "John" episodes keep an orphaned GI
+     person. The cause is fixed in the rewrite (40dbb0438, ships with 0033). Repair: first the
+     impact (which surfaces walk KG edges); then a migration restoring each edge from its backup,
+     typed by the voice's role now; then a guardrail (every placed person has its role edge).
    - **Junk takes the guest seat; the stated guest is placed on no voice** (operator, 2026-10-19:
      a category, not a word). Seen twice on the 10-16 clone: The Long Run, "I'm Generation X" (58
      insights; David Roblin unplaced, fixed for that episode by 0033) and a16z, "I'm Kanye's
