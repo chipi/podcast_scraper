@@ -632,7 +632,54 @@ _TODO_
 
 ## 11. After apply / deploy
 
-_TODO_
+Applied on prod 2026-10-19 by the prod session: deploy of e151a5c07 on the operator's "Gonforndeploy"
+(08:25Z, run 39222548064, VERIFY PASS, every app container on sha-e151a5c), then 0031 on the
+operator's "Go" (~08:32Z), both given to the prod session directly.
+
+- **Dry run at the deployed code:** 53 episodes, counters equal to the 05:26 run; the hook stopped
+  on exactly the one `clone_only` entry (step 10's cause).
+- **Apply:** 08:31:05–08:36:18Z, `upgrade run --accept-plan-diff` (accept file sha256 037e16a9…,
+  operator_go verbatim), exit 0, 53 episodes rewritten, counters equal to the dry run; now 2.7.25,
+  0 pending.
+- **The hook's receipt, verdict PASS** (outcome 29f318e6…), prod's own totals:
+
+  | | Before | After | Change | Predicted |
+  | --- | ---: | ---: | ---: | ---: |
+  | S1 | 17,436 | 16,100 | −1,336 | −1,336 |
+  | S1n | 1,786 | 7 | −1,779 | −1,779 |
+  | S2 | 31,132 | 29,270 | −1,862 | −1,862 |
+  | S3 | 9,523 | 8,997 | −526 | −526 |
+  | S10a | 199 | 188 | −11 | −11 |
+  | S1c, S10b, S12, A1 | 0, 2, 24, 371 | unchanged | 0 | 0 |
+
+  Every episode's moves equal the clone's (the hook's exact compare), the one reprocessed episode
+  excepted as accepted.
+- **Ownership:** 2 root-owned files (the ledger, the receipt) chowned back to 1000.
+- **`upgrade verify`:** exit 1. 0031 `[OK]` (`insights_checked=2464, served=2843,
+  served_listed=71`). Two FAIL lines, each reproduced on the clone:
+  - 0029, the Espinoza episode: 0031's WRONG_PERSON verdict, which 0029's verify does not know;
+    fixed by `0029_verify_reads_review_verdicts`;
+  - 0015, David Roblin: the same before and after 0031; it is `0033_hand_removed_names_refused`.
+  - **Miss:** the full `upgrade verify` was not run on the clone after 0031, so the 0029 line was
+    discovered on prod, not predicted (method change in the plan's Stage 1).
+- **Derived surfaces, from prod's census** (08:48Z):
+  - insight sidecars: `enrich --only insight_density,insight_sentiment`, 53 / 53 ok each, nothing
+    else written;
+  - search: the incremental `index`, scanned 2,841, re-indexed 2, and it pruned 1 stale row
+    (#1969). That row was the Espinoza episode's `person:justin-norman` entity, so no delete was
+    needed. My step-10 premise "merge-upsert never deletes" was wrong for re-indexed episodes. The
+    Espinoza episode matches "Justin Norman" in 0 rows of all three tables;
+  - quote rows: no index table stores a quote `speaker_id` (checked on prod), so nothing stale. I
+    had wrongly assumed they did;
+  - `.anon.txt` ×1, `.context.json` ×51, `.manifest.json` ×2: no refresh. The first two were
+    verified byte- or field-equal to a rebuild on the clone; the manifest is the run's own record
+    (judgement);
+  - corpus-level enrichers: tonight's nightly; to confirm after it.
+- **Spot checks:** Espinoza's SPEAKER_00 unnamed on all 253 segments, no `speaker_role`, diagnostics
+  role `unknown`, 0 quotes or insights under "Justin Norman"; three random written episodes carry
+  their named voices on segments, quotes and shown insights.
+- **Snapshot:** the CLI's 29 GB snapshot sits in the container's writable layer; 0031's undo does not
+  need it (its receipts and backups are in the corpus). Keeping it is the operator's call.
 
 ## 12. Retrospective
 
