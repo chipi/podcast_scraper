@@ -25,6 +25,7 @@ sys.path.insert(0, str(REPO / "src"))
 from podcast_scraper.quality.change_gate import load_config, parse_record  # noqa: E402
 
 VERDICT = re.compile(r"^Verdict:\s*(GO WITH CONDITIONS|GO|NO-GO)\b", re.MULTILINE)
+INLINE = re.compile(r"\bConditions?:\s*(.+?)(?:\s+Open, unchanged:|$)")
 
 
 def build(migration: str) -> dict:
@@ -42,6 +43,12 @@ def build(migration: str) -> dict:
         raise SystemExit(f"{migration}: the gate report was measured on uncommitted code")
     tail = step8[verdicts[-1].end() :]
     conditions = [ln.strip() for ln in tail.splitlines() if ln.strip().startswith("- **C")]
+    # A verdict written on one line carries its conditions inline ("Condition: ... . Open, ...").
+    inline = INLINE.search(tail.splitlines()[0] if tail else "")
+    if inline:
+        conditions.insert(0, inline.group(1).strip())
+    if verdicts[-1].group(1) == "GO WITH CONDITIONS" and not conditions:
+        raise SystemExit(f"{migration}: GO WITH CONDITIONS, but no condition was found to carry")
     return {
         "migration": migration,
         "snapshot": gate["snapshot"],

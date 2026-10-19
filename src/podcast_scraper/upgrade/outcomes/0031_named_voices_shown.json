@@ -35,7 +35,9 @@
  "code_dirty": false,
  "code_sha": "a6b0f91f5f8a7581c7aafaf9324ec87aacbaea49",
  "computed_class": "full",
- "conditions": [],
+ "conditions": [
+  "item 5, `make ci-fast` on ce6a98b64 ending EXIT=0 with the log attached, before landing."
+ ],
  "episode_deltas": {
   "feeds/rss_anchor.fm_5a072801/run_70e6aef3-41af-4eee-b58f-1fc231e7614b_20261004-095933/metadata/0008 - ___10 Michael Montgomery_ Psycho_70e6aef3-41af-4eee-b58f-1fc231e7614b_20261004-095933.metadata.json": {
    "S10a_zero_visible": -1,

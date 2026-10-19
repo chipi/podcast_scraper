@@ -294,6 +294,36 @@ commit that deploys, a deploy step. Not verified by the reviewer itself: E2, E4,
 F4, D6 beyond its one run, A5, the skill against a container, the drill in Actions, the prod
 plan diff.
 
+Dated: 2026-10-18T14:27
+
+Re-check of the 13:17 conditions (fresh reviewer; code judged 9c039fa50, src extracted with git archive and diffed equal to the worktree): GO WITH CONDITIONS still stands. Two items remain open, C3-test and C8. Neither needs a re-measure: both are test or build-script changes outside 0031's closure. Check that before trusting it: a C3 test lives in tests/, which is outside the closure; build_outcome.py is in scripts/, also outside.
+- C1 met. At 9c039fa50, migration_digest(0031) = the shipped outcome's code_digest = abd29583…. Outcome sha256 is affb5658…. On a fresh copy of clone30L, the plan has 54 rows and a diff of 0. E1 rerun by the reviewer through the real CLI: exit 0 in 260 s, receipt PASS, totals S1 14,841, S1n 7, S2 26,351, S1c 0, S3 7,710, S10a 178, S12 24, A1 357. The reviewer's own recount: S1 14,841, S1n 7, S2 26,351, S1c 0. The reviewer did not rerun `diff -rq` of gateworkB5 against gateworkB6b.
+- C2 met. Mutants "stale check off" and "unregistered skipped" are both killed by test_landing_refuses_a_stale_outcome.
+- C3 code met, test not. The closure is now 667 files. Every podcast_scraper module loaded at import is in it (0 missing; before the fix, 8 were missing). Mutants "parents off" and "parents only top" both SURVIVE all 557 tests. With the walk removed, the closure falls to 436 files and loses identity, translation and schemas, yet test_a_parent_package_init_is_in_the_closure still passes, because the 3 packages it asserts are already reached by relative imports. Condition: assert at least podcast_scraper.identity and podcast_scraper.translation, and assert that editing one of their __init__.py files moves the digest.
+- C4 met. Missing, not-JSON and list accept files each exit 4 and are named: the 3 mutants are killed by test_an_unreadable_accept_file_stops_with_its_name[*].
+- C5 met. All 6 earlier survivors are killed, each by its own named test.
+- Mutation run (reviewer7/mut.py, 26 real mutants plus a no-op baseline that survives): 24 killed, 2 survived (the C3 pair). Method note: the real-repo landing test test_every_registered_migration_under_the_regime_is_allowed_to_land fails on ANY edit to a closure file, the no-op included, because it sees the outcome as stale. A mutation run that keeps that test counts every outcome_hook.py mutant as killed. The reviewer deselected it. The builder's "20 of 20 on 9c039fa50" was run with it present, so it does not show what the specific tests guard.
+- C8 (new). The outcome carries verdict "GO WITH CONDITIONS" with conditions = []. build_outcome.py collects only "- **C" bullet lines, and 0031's B.6 condition ("make ci-fast on ce6a98b64 ending EXIT=0") is written inline, so the shipped outcome drops it. Condition: build_outcome refuses GO WITH CONDITIONS with zero parsed conditions, and the outcome is rebuilt with the condition carried. That rebuild changes the outcome's sha and the step-8 binding, not the digest.
+- 662 upgrade, quality and gate tests passed on the extracted 9c039fa50 tree.
+NOT re-checked by the reviewer: A5 (wheel), the skill against a container, the drill in Actions, the prod plan diff, F3 lock contention, F4 undo at this commit, ci-fast (scratchpad/cifast2.log was still running at 14:27).
+
+**After the re-check (builder).**
+- C3-test: `test_a_parent_package_init_is_in_the_closure` now asserts `podcast_scraper.identity` and
+  `podcast_scraper.translation`, which are reached only through the parent walk.
+  `test_editing_a_parent_package_init_moves_the_digest` copies the package, edits
+  `identity/__init__.py` and sees the digest move. The two C3 mutants ("parents off", "parents only
+  top"), run against the hook tests alone without the landing test
+  (`scratchpad/lost/c3mut.py`): both killed, each by both tests.
+- C8: `build_outcome.py` carries an inline `Condition(s):` on the verdict line as well as `- **C`
+  bullets, and refuses GO WITH CONDITIONS with none found. Tests: `test_build_outcome.py` (5).
+  0031's outcome rebuilt; its new sha is named in 0031's step 8.
+- My "20 of 20" above was run with the landing test present; per the reviewer's note it does not
+  show what each test guards. Its own run, without that test, is the one that counts.
+- ci-fast on 9c039fa50 with the worktree's src on PYTHONPATH: MAKE_EXIT=0
+  (`scratchpad/cifast2.log`; test-fast 16,709 + 2,207 + 82 + 40 passed). An earlier run without it
+  had one red test, `test_app_reel_clips_warm.py`: its child process imported the main checkout's
+  package through the shared venv's editable install, which lacks `reel_clips_worker`.
+
 ## 9. Operator review
 
 _TODO_

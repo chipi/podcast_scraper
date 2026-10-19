@@ -568,6 +568,16 @@ Shipped outcome (replaces b1546e27…, which is stale since ce6a98b64):
 affb5658d317bea113339a07b9e8da5bbc839b6cc307373791885a4cfa72090f, built from the 13:29:41 gate
 report (a6b0f91f5, code digest abd29583…) and the GO WITH CONDITIONS above.
 
+**B.6's condition (item 5) met:** `make ci-fast` on 9c039fa50 (ce6a98b64 plus the hook's step-8
+conditions, the rebuilt outcome and records) ended MAKE_EXIT=0, log `scratchpad/cifast2.log`
+(test-fast 16,709 + 2,207 + 82 + 40 passed; docstrings 100.0%). Run with the worktree's `src` on
+PYTHONPATH: without it, `test_app_reel_clips_warm.py`'s child process imported the main
+checkout's package through the shared venv, which lacks `reel_clips_worker` (4 passed with it).
+
+Shipped outcome (replaces affb5658…, which carried `conditions: []`; the hook's C8):
+sha256 155b178a40794f21ca1bcdad4ccf29bb43ca47b68312686ec04981e976b2731b, rebuilt from the same
+13:29:41 gate report (code digest abd29583…), now carrying B.6's condition.
+
 ## 9. Operator review
 
 _TODO_

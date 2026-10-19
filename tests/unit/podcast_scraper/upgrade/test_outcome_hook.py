@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any, cast, Dict, List
 
@@ -474,11 +475,25 @@ def test_the_verdicts_file_is_in_the_migration_digest(tmp_path: Path, monkeypatc
     assert oh.migration_digest(mig) != before
 
 
+M31 = "podcast_scraper.upgrade.migrations.m0031_named_voices_shown"
+
+
 def test_a_parent_package_init_is_in_the_closure() -> None:
-    """Hook condition C3: importing a.b.c runs a/__init__.py and a/b/__init__.py."""
-    closure = oh.module_closure("podcast_scraper.upgrade.migrations.m0031_named_voices_shown")
-    for pkg in ("podcast_scraper", "podcast_scraper.upgrade", "podcast_scraper.upgrade.migrations"):
+    """Hook condition C3: importing a.b.c runs a/__init__.py and a/b/__init__.py. ``identity`` and
+    ``translation`` are reached only that way (0031 imports their submodules, never them)."""
+    closure = oh.module_closure(M31)
+    for pkg in ("podcast_scraper.identity", "podcast_scraper.translation"):
         assert pkg in closure and closure[pkg].name == "__init__.py", pkg
+
+
+def test_editing_a_parent_package_init_moves_the_digest(tmp_path: Path, monkeypatch) -> None:
+    copy = tmp_path / "podcast_scraper"
+    shutil.copytree(oh.PACKAGE_ROOT, copy, ignore=shutil.ignore_patterns("__pycache__"))
+    monkeypatch.setattr(oh, "PACKAGE_ROOT", copy)
+    before = oh.code_digest(M31)
+    init = copy / "identity" / "__init__.py"
+    init.write_bytes(init.read_bytes() + b"\n")
+    assert oh.code_digest(M31) != before
 
 
 def test_the_regime_starts_at_0031() -> None:
