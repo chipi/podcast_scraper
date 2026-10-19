@@ -1,0 +1,34 @@
+KILLED   R1 gate check removed: 9 failed, 1829 passed, 7 warnings in 24.29s
+KILLED   R1 exact-case only: 9 failed, 1829 passed, 7 warnings in 24.70s
+KILLED   V1 verdicts by MIGRATION_ID: 11 failed, 1827 passed, 7 warnings in 26.21s
+KILLED   M15 copy not shared: 1 failed, 1837 passed, 7 warnings in 24.87s
+KILLED   R2 lookahead dropped: 2 failed, 1836 passed, 7 warnings in 24.81s
+KILLED   R2 period allowed after letter: 2 failed, 1836 passed, 7 warnings in 26.29s
+KILLED   R2 any separator: 1 failed, 1837 passed, 7 warnings in 25.98s
+KILLED   R2 never fires: 7 failed, 1831 passed, 7 warnings in 24.68s
+KILLED   R2 off in extract only: 7 failed, 1831 passed, 7 warnings in 24.28s
+KILLED   R2 off in distinct only: 3 failed, 1835 passed, 7 warnings in 25.45s
+KILLED   RB I exemption removed: 3 failed, 1835 passed, 7 warnings in 25.05s
+KILLED   RB exemption extended to A: 2 failed, 1836 passed, 7 warnings in 24.75s
+KILLED   RB exemption on every letter: 5 failed, 1833 passed, 7 warnings in 23.96s
+KILLED   E1 edges dropped (old): 3 failed, 1835 passed, 7 warnings in 25.12s
+KILLED   E2 no retype: 2 failed, 1836 passed, 7 warnings in 25.06s
+KILLED   E3 no dedupe: 1 failed, 1837 passed, 7 warnings in 24.00s
+KILLED   E4 unnamed-voice edges kept: 1 failed, 1837 passed, 7 warnings in 27.22s
+KILLED   E5 role forced guest: 1 failed, 1837 passed, 7 warnings in 26.56s
+KILLED   G1 GI by-name removal off: 2 failed, 1836 passed, 7 warnings in 22.65s
+KILLED   S1 source roster line off: 1 failed, 1837 passed, 7 warnings in 21.52s
+KILLED   S2 source always roster: 1 failed, 1837 passed, 7 warnings in 22.61s
+KILLED   N1 normalized_entities off: 2 failed, 1836 passed, 7 warnings in 24.54s
+KILLED   N2 no add: 2 failed, 1836 passed, 7 warnings in 40.88s
+KILLED   N3 both->summary off: 1 failed, 1837 passed, 7 warnings in 42.15s
+KILLED   N4 unplaced counted heard: 1 failed, 1837 passed, 7 warnings in 40.68s
+KILLED   O1 0031 outcome ignores entries: 1 failed, 1837 passed, 7 warnings in 40.99s
+KILLED   O2 0031 receipts param ignored: 1 failed, 1837 passed, 7 warnings in 41.34s
+KILLED   B5 keep check removed: 1 failed, 1837 passed, 7 warnings in 40.81s
+KILLED   B5 always kept: 3 failed, 1835 passed, 7 warnings in 41.34s
+KILLED   B6 diagnostics source off: 1 failed, 1837 passed, 7 warnings in 41.77s
+KILLED   B5 mentions moved: 1 failed, 1837 passed, 7 warnings in 41.40s
+KILLED   B5 SPOKEN_BY left on kept: 4 failed, 1834 passed, 7 warnings in 41.38s
+KILLED   B7 Person filter dropped: 1 failed, 1837 passed, 7 warnings in 44.19s
+SURVIVORS: []

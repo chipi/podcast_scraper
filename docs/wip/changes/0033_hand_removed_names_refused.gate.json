@@ -36,9 +36,9 @@
   "clone": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/224961a9-a599-4098-b178-a3895d47facc/scratchpad/lost/gateworkB6c",
   "code": {
     "dirty": false,
-    "sha": "c71664a6d7cb62e4e74e006a55bcdad6226fb4f6"
+    "sha": "d309ac8abd67a3390e3108802917fa8053edde56"
   },
-  "code_digest": "246928e62093aa7ca790f30d08b776e121531739a7fd3bbd366d465de3ecab2f",
+  "code_digest": "e2c3c320f8c8b5d8f6918d6168d807b83d0d4586da32a4b7e4e5542c87d07dff",
   "computed_class": "full",
   "episode_deltas": {},
   "files_changed": 14,
@@ -57,7 +57,7 @@
     ".txt": 1
   },
   "gating_moves": {},
-  "measured_at": "2026-10-19T15:32:21",
+  "measured_at": "2026-10-19T20:03:56",
   "migration": "0033_hand_removed_names_refused",
   "plan": [
     {
@@ -101,13 +101,13 @@
       },
       "meta": "feeds/rss_feeds.soundcloud.com_c56bfb45/run_20261014-073935/metadata/0001 - Ep176_ David Roblin on Building _20261014-073935.metadata.json",
       "refused": null,
-      "verdicts_sha256": "c07681e4e97d713e20246363df3fcc446becae819b23a9384c51aa7c4e566592",
+      "verdicts_sha256": "cec1b004d3a4176b75ec509243b9b65298fdca61c722dd3a360fc06c7fd1e077",
       "voices": {
         "SPEAKER_00": "David Roblin"
       }
     }
   ],
-  "plan_sha256": "0b9cb4ce36d61717bc73b012f951380a8c4428a07e56e7da89daf77efe37ca47",
+  "plan_sha256": "e2639221f708823e0afcfa0b831f8d3bac394b29c27d7fa4dddece4943518709",
   "scoreboard_after": {
     "A1_episodes_no_adfree": 3,
     "A1_episodes_with_hits": 274,
@@ -163,7 +163,7 @@
     "quotes_ref_unresolved": 244
   },
   "snapshot": "snapshot-prod-20261016+0030+0031",
-  "verdicts_sha256": "c07681e4e97d713e20246363df3fcc446becae819b23a9384c51aa7c4e566592",
+  "verdicts_sha256": "cec1b004d3a4176b75ec509243b9b65298fdca61c722dd3a360fc06c7fd1e077",
   "verify": {
     "message": "every voice this migration names carries its name and no hiding, as reviewed; insights_checked=58, unnamed_checked=0, unreviewed_unchanged=0, admaps_checked=1, served=2685, served_listed=1, metadata_unreadable=0",
     "ok": true

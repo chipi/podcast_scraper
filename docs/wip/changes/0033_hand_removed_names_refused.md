@@ -326,6 +326,36 @@ its plan read 0 episodes, 0 refused). Final measurement on **c71664a6d** (clean 
 - the 7 lost role edges of 0029's renames on prod: Stage 2;
 - the clone is the 10-16 snapshot; prod has moved since (step 10 diffs the plan).
 
+### Revision B, measured on d309ac8ab
+
+Final measurement on **d309ac8ab** (clean, code digest `e2c3c320f8c8…`, on main b297f2ab0; gate
+report `measured_at` 2026-10-19T20:03:56 UTC, after step 5's Revision B): class `full`,
+`gating_moves {}`, 14 files, scoreboard identical on every key, verify OK. The gate report above is
+this run's.
+
+| Criterion | Result on d309ac8ab |
+| --- | --- |
+| B1 files | 14; against rev A's output on the same episode (two copies of an 11-episode mini corpus), only `speakers.diagnostics.json` differs, only in `voices[SPEAKER_00].source` "self_intro" → "roster"; decision record keeps "Generation" 4 times (the accepted deviation) |
+| B2 rule 2 | `_LABEL_LETTER_FOLLOWS`: a lone capital other than "I" not followed by a word character or period; a lone "I" only before punctuation or the end |
+| B3 held-out 2 (`rev33b/heldout2.py`) | names 32 of 35, exactly the 3 accepted refused ("Will A producer", "Bill T,", "Grace O,"), the 32 as the old code; labels 20 refused, 15 named, identical to rev A phrase by phrase |
+| B4 held-out 2b | the revision-B step-8 reviewer's |
+| B5 keep rule | tests (a)–(c); E has 0 mentions of its old Person, GI equals rev A's |
+| B6, B7 | tests; E's KG equals rev A's |
+| B8 mutations | 33 of 33 killed against a 1,838-passed, 0-failed baseline, 0 survivors ([log](0033_hand_removed_names_refused.mutations.log)) |
+| B9 replay | shards 0–5: 446, 443, 471, 437, 421, 466 = 2,684 episodes; exactly 2 changes: E SPEAKER_00 "Generation" → David Roblin (reuses E's stored LLM answer `third_person`; a reprocess with another or no answer is not covered), The Daily SPEAKER_01 "Moral" → unnamed |
+| B10 held-out 1 | 246 captures, 1 change (E) |
+| B11 gold | val_v2 0 / 0, dev_v1 0 / 0 |
+| B14 full verify | 2 FAIL before, 0 after; only 0015's and 0033's lines change (32 lines) |
+| B14 undo | restored 14, refused 0; 0 of 112,932 files differ; 0015 FAILs again; 0033 pending |
+| B14 receipts | 0015, 0019, 0031 receipts byte-identical, backups identical (504 / 6 / 403); 0033's own 14 |
+| B15 ci-fast | step 8 |
+
+**Not covered (revision B):** held-out 2b (the step-8 reviewer's); a reprocess of E whose LLM answer
+differs; the 15 labels every version publishes (Millennial, Boomer, Zoomer, Xennial, Long Tesla,
+Long, Short, Bullish, Overweight, Nigerian, Yoruba, Kikuyu, Maori, Catalan, Blood Type); a kept
+mention-only Person bearing a hand-removed name makes 0015's verify FAIL (pinned by a test; E has
+none); prod (step 10).
+
 ## 8. Verdict
 
 _TODO_
