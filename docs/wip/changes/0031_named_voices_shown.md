@@ -1,7 +1,7 @@
 ---
 id: 0031_named_voices_shown
 class: full
-status: open
+status: landed
 issue: 2380
 touches:
   - src/podcast_scraper/upgrade/migrations/m0031_named_voices_shown.py
@@ -674,7 +674,13 @@ operator's "Go" (~08:32Z), both given to the prod session directly.
   - `.anon.txt` ×1, `.context.json` ×51, `.manifest.json` ×2: no refresh. The first two were
     verified byte- or field-equal to a rebuild on the clone; the manifest is the run's own record
     (judgement);
-  - corpus-level enrichers: tonight's nightly; to confirm after it.
+  - corpus-level enrichers, run on demand on the operator's go (09:39–10:22Z): `enrich --corpus-only
+    --only topic_cooccurrence_corpus,topic_theme_clusters,temporal_velocity,grounding_rate,guest_coappearance`,
+    5 / 5 ok (the corpus config also enables `person_web` and `org_web`, web lookups, left out);
+    `insight-clusters --output-dir /app/output` at the CLI default 0.75: insights 140,516, clusters
+    7,646, cross-episode 4,167. Nothing in the nightly builds insight clusters, so the census's
+    "corpus level: the nightly's … insight clusters" was wrong. The run re-embedded every insight
+    on CPU (33 min, about 5.3 GiB in an uncapped container; the box fell to 3.3 GB available).
 - **Spot checks:** Espinoza's SPEAKER_00 unnamed on all 253 segments, no `speaker_role`, diagnostics
   role `unknown`, 0 quotes or insights under "Justin Norman"; three random written episodes carry
   their named voices on segments, quotes and shown insights.
@@ -683,7 +689,37 @@ operator's "Go" (~08:32Z), both given to the prod session directly.
 
 ## 12. Retrospective
 
-_TODO_
+0031 did what it predicted on prod, to the integer: S1 −1,336, S1n −1,779, S2 −1,862, S3 −526,
+S10a −11, nothing gating rose. The hook stopped the run on the one episode prod had changed since
+the clone, and the accept file recorded its cause and the operator's go. The misses, each with the
+check that would have caught it:
+
+1. **The full `upgrade verify` was not run on the clone after 0031.** 0029's verify then failed on
+   prod (the Espinoza entry 0031 unnamed on review). Check: step 7 runs every applied migration's
+   verify on the after-state (plan, Stage 1).
+2. **The derived-surface census is wrong in four places, all found on prod:**
+   - `.manifest.json` is the run's processing record, not built from `.txt`;
+   - `.anon.txt` is rendered from voice ids and does not change when names change;
+   - `.context.json` is flagged whenever metadata or KG is written, though the rewrite already
+     compares and writes the digest's fields;
+   - the nightly does not build insight clusters.
+
+   Its "episodes written" count also splits stems on titles with a dot. Check: the census reads
+   what each surface is built from in the code that builds it, with a test per surface.
+3. **Two premises of mine were wrong, and I stated both as facts:**
+   - that index quote rows store `speaker_id` (no table does);
+   - that merge-upsert never deletes (the #1969 prune removed the dead row).
+
+   Check: a claim about a stored surface is read from the store (schema, row counts) before it
+   goes into run steps.
+4. **A commit that only rebuilt the outcome ran no Python CI and published no images** (5a6068338).
+   Fixed in the workflow's filters (e151a5c07), and in method v0.6.
+5. **Two defects passed both reviewers' own test runs** (a plain `rglob`, missing docstrings), so
+   step 8 now requires ci-fast on the committed tree (method v0.6).
+
+Kept: the gate and the hook did their jobs. The landing test refused a stale outcome. The hook
+refused the run on main's newer code (digest), and stopped it on the one differing episode until
+it was accepted with a cause.
 
 ## Not covered
 
