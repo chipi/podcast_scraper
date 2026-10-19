@@ -119,3 +119,108 @@ def test_0031_still_checks_its_own_list_and_receipts(tmp_path: Path, monkeypatch
 def test_0015_and_0019_read_the_gates_list() -> None:
     assert m15.REMOVE is hosts.HAND_REMOVED_SPEAKER_NAMES
     assert m19.REMOVE is hosts.HAND_REMOVED_SPEAKER_NAMES
+
+
+MINTED = "person:unresolved-generation-ep"
+
+
+def _as_prod(p) -> None:
+    """E's shape on prod: the old person under a MINTED id in GI and KG (with its role and mention
+    edges), the new person already in the KG as mentioned, the stated guest unplaced, the record's
+    heard entities, and the entry's evidence a self-introduction."""
+    gi = fx._r(p["gi"])
+    for n in gi["nodes"]:
+        if n["id"] == "person:generation":
+            n["id"] = MINTED
+        props = n.get("properties") or {}
+        if props.get("speaker_id") == "person:generation":
+            props["speaker_id"] = MINTED
+    for e in gi["edges"]:
+        if e.get("to") == "person:generation":
+            e["to"] = MINTED
+    fx._w(p["gi"], gi)
+    kg = fx._r(p["kg"])
+    for n in kg["nodes"]:
+        if n["id"] == "person:generation":
+            n["id"] = MINTED
+    kg["nodes"].append(
+        {
+            "id": "person:steve-mcconnell",
+            "type": "Person",
+            "properties": {
+                "name": "Steve McConnell",
+                "label": "Steve McConnell",
+                "role": "mentioned",
+            },
+        }
+    )
+    kg["edges"] = [
+        {"type": "GUESTS_ON", "from": MINTED, "to": "podcast:x"},
+        {"type": "MENTIONS", "from": MINTED, "to": "episode:ep"},
+        {"type": "MENTIONS", "from": "person:steve-mcconnell", "to": "episode:ep"},
+        {"type": "HOSTS", "from": "person:gergely-orosz", "to": "podcast:x"},
+    ]
+    fx._w(p["kg"], kg)
+    meta = fx._r(p["meta"])
+    content = meta["content"]
+    content["speakers"][1]["source"] = "self_intro"
+    content["speakers"].append(
+        {
+            "id": "unplaced_1",
+            "name": "Steve McConnell",
+            "role": "guest",
+            "placed": False,
+            "voices": [],
+            "source": "episode_metadata",
+        }
+    )
+    content["normalized_entities"] = [
+        {
+            "canonical": "gergely orosz",
+            "aliases": ["gergely orosz"],
+            "original": "Gergely Orosz",
+            "provenance": "transcript",
+        },
+        {
+            "canonical": "generation",
+            "aliases": ["generation"],
+            "original": "Generation",
+            "provenance": "transcript",
+        },
+    ]
+    fx._w(p["meta"], meta)
+
+
+def test_a_rename_into_a_person_the_graph_holds_merges_into_them(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Prod, 10-16 snapshot: the rewrite left E's "Generation" Person node (a minted id is never
+    ``person_id`` of the name), and dropped its ``GUESTS_ON`` edge with the node (as in 7 of
+    0029's 10 renames). The voice is the same speaker under a new name: its edges move."""
+    monkeypatch.setattr(m33, "VOICES", ENTRY)
+    _review(monkeypatch, tmp_path)
+    p = t31._episode(tmp_path, "Generation", "guest", typed=False)
+    _as_prod(p)
+    res = m33.HandRemovedNamesRefusedMigration().apply(_ctx(tmp_path))
+    assert res.details["refused"] == [] and len(res.details["episodes"]) == 1
+    gi = fx._r(p["gi"])
+    people = [n["id"] for n in gi["nodes"] if n["type"] == "Person"]
+    assert MINTED not in people and "person:steve-mcconnell" in people
+    kg = fx._r(p["kg"])
+    assert [n["id"] for n in kg["nodes"]].count("person:steve-mcconnell") == 1
+    assert MINTED not in [n["id"] for n in kg["nodes"]]
+    steve = next(n for n in kg["nodes"] if n["id"] == "person:steve-mcconnell")
+    assert steve["properties"]["role"] == "guest"
+    edges = sorted((e["type"], e["from"]) for e in kg["edges"])
+    assert edges == [
+        ("GUESTS_ON", "person:steve-mcconnell"),
+        ("HOSTS", "person:gergely-orosz"),
+        ("MENTIONS", "person:steve-mcconnell"),
+    ]
+    content = fx._r(p["meta"])["content"]
+    speakers = [(s["name"], s.get("placed"), s.get("source")) for s in content["speakers"]]
+    assert ("Steve McConnell", True, "roster") in speakers
+    assert all(name != "Generation" for name, _p, _s in speakers)
+    assert [s["name"] for s in content["speakers"]].count("Steve McConnell") == 1
+    canon = [r["canonical"] for r in content["normalized_entities"]]
+    assert "generation" not in canon and "steve mcconnell" in canon and "gergely orosz" in canon

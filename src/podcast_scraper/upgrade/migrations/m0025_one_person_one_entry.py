@@ -783,6 +783,7 @@ class _Episode:
         old_label = self._labels_by_voice(segs)
         if old_label is None:
             return False
+        self._old_label_by_voice = dict(old_label)
         voice_of_label = {lab: v for v, lab in old_label.items()}
         new_label = {old_label[v]: (n if n else v) for v, n in self.voice_names.items()}
         # Labels a rewritten voice shares with a voice left as it is (a forced ad twin).
@@ -931,6 +932,10 @@ class _Episode:
                 if name is None:
                     self._bump("roster_entries_unnamed")
                     continue
+                if isinstance(e.get("name"), str) and not same_person(name, e["name"]):
+                    # Another person now: the old name's evidence ("self_intro" of "Generation")
+                    # is not this name's, so the entry says the rewrite placed it.
+                    e["source"] = "roster"
                 e["name"], e["role"] = name, self.voice_roles.get(voices[0], e.get("role"))
             out.append(e)
         # A voice that GAINS a name (stored unnamed): the unplaced entry for that person takes it,
@@ -963,7 +968,45 @@ class _Episode:
                 out.append(entry)
             self._bump("voices_named")
         content["speakers"] = out
+        self._normalized_entities(content)
         self._record(meta, set())
+
+    def _normalized_entities(self, content: dict) -> None:
+        """The record's heard entities (``normalized_entities``, provenance ``transcript``) follow
+        the placed speakers, as ``metadata_generation`` builds them; summary entities stay."""
+        from ...workflow.metadata_generation import _normalize_entity
+
+        rows = content.get("normalized_entities")
+        if not isinstance(rows, list):
+            return
+        placed = [
+            str(e["name"])
+            for e in content.get("speakers") or []
+            if isinstance(e, dict) and e.get("placed") is not False and e.get("name")
+        ]
+        heard = {}
+        for name in placed:
+            alias = _normalize_entity(name)
+            heard[alias.canonical] = alias
+        out = []
+        for r in rows:
+            if not isinstance(r, dict):
+                out.append(r)
+                continue
+            prov, canon = r.get("provenance"), r.get("canonical")
+            if prov == "transcript" and canon not in heard:
+                self._bump("entities_dropped")
+                continue
+            if prov == "both" and canon not in heard:
+                r = {**r, "provenance": "summary"}
+            out.append(r)
+        have = {r.get("canonical") for r in out if isinstance(r, dict)}
+        for canon, alias in heard.items():
+            if canon not in have:
+                out.append({**alias.model_dump(), "provenance": "transcript"})
+                self._bump("entities_added")
+        if out != rows:
+            content["normalized_entities"] = out
 
     def _gi_by_voice(
         self,
@@ -1042,10 +1085,18 @@ class _Episode:
             if pid not in have:
                 nodes.append({"id": pid, "type": "Person", "properties": {"name": name}})
                 self._bump("gi_persons_added")
-        gone_old = {
-            person_id(lab)
+        gone_names = {
+            lab
             for lab in new_label
             if lab not in self.voice_names and lab not in self.voice_names.values()
+        }
+        # By id AND by name: a person the pipeline could not resolve carries a minted id
+        # ("person:unresolved-generation-<episode>"), never ``person_id`` of its name, so a renamed
+        # voice left its old Person node behind, and the bridge and context kept it (0033).
+        gone_old = {person_id(lab) for lab in gone_names} | {
+            n.get("id")
+            for n in nodes
+            if n.get("type") == "Person" and (n.get("properties") or {}).get("name") in gone_names
         }
         gi["nodes"] = [
             n
@@ -1100,13 +1151,14 @@ class _Episode:
                 and (n.get("properties") or {}).get("name")
                 in {lab for lab in self._old_labels() if lab}
             }
+            self._stale_names = {
+                n.get("id"): (n.get("properties") or {}).get("name")
+                for n in nodes
+                if n.get("id") in stale
+            }
             if stale:
                 nodes = [n for n in nodes if n.get("id") not in stale]
-                kg["edges"] = [
-                    e
-                    for e in kg.get("edges") or []
-                    if e.get("from") not in stale and e.get("to") not in stale
-                ]
+                kg["edges"] = self._edges_moved_off(kg.get("edges") or [], nodes, stale)
                 self._bump("kg_persons_removed", len(stale))
             kg["nodes"] = nodes
             files[kg_path] = kg
@@ -1143,6 +1195,49 @@ class _Episode:
             bridge["identities"] = out
             files[br_path] = bridge
             changed.add(br_path)
+
+    def _edges_moved_off(self, edges: List[dict], nodes: List[dict], stale: Set[Any]) -> List[dict]:
+        """``edges`` with each removed person's edges moved to the person its voice now carries.
+
+        A voice renamed to someone else (0029's "Jacob Warwick" to "Lenny Rachitsky", 0033's
+        "Generation" to "David Roblin") is the same speaker under a new name: its ``HOSTS`` /
+        ``GUESTS_ON`` edge (typed by the new role) and its ``MENTIONS`` belong to the new person.
+        Dropping them with the node lost the role edge of 7 of 0029's 10 renames (pre-0029 backups,
+        10-16 snapshot). An edge whose person maps to no voice (an unnamed voice) still goes;
+        duplicates left by the move collapse to one.
+        """
+        names = {(n.get("properties") or {}).get("name"): n.get("id") for n in nodes}
+        stale_name = {i: self._stale_names[i] for i in stale if self._stale_names.get(i)}
+        moved_to: Dict[Any, Tuple[str, str]] = {}
+        for voice, new in self.voice_names.items():
+            old = getattr(self, "_old_label_by_voice", {}).get(voice)
+            if not new or not old:
+                continue
+            for n_id, name in stale_name.items():
+                if name == old:
+                    role = self.voice_roles.get(voice, "guest")
+                    moved_to[n_id] = (names.get(new) or person_id(new), role)
+        out: List[dict] = []
+        seen: Set[Tuple[Any, Any, Any]] = set()
+        for e in edges:
+            src, dst = e.get("from"), e.get("to")
+            if src in stale or dst in stale:
+                if (src in stale and src not in moved_to) or (dst in stale and dst not in moved_to):
+                    continue
+                e = dict(e)
+                if src in moved_to:
+                    e["from"], role = moved_to[src]
+                    if e.get("type") in ("HOSTS", "GUESTS_ON"):
+                        e["type"] = "HOSTS" if role == "host" else "GUESTS_ON"
+                if dst in moved_to:
+                    e["to"] = moved_to[dst][0]
+                self._bump("kg_edges_moved")
+            key = (e.get("type"), e.get("from"), e.get("to"))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(e)
+        return out
 
     @staticmethod
     def _labels_on_voices(files: Dict[Path, Any]) -> Set[str]:
