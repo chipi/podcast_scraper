@@ -591,7 +591,12 @@ its condition carried.
 
 ## 9. Operator review
 
-_TODO_
+Operator, 2026-10-19, verbatim: "Push, A, go". The three questions it answers:
+- push 5a6068338 (the outcome re-measured on 417189d4d);
+- A: freeze changes to 0031's import closure until 0031 is applied, rather than moving the stale
+  check to the deploy path;
+- go for road step 5: deploy main at that commit, then apply 0031 with an accept file for the one
+  `clone_only` episode (cause at step 10).
 
 ## 10. Before apply / deploy
 
