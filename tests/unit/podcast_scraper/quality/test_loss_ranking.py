@@ -46,7 +46,7 @@ def _three(root: Path, insights, run: str = "run_1", speakers=None, talk=None) -
         for v, s in (talk or {"SPEAKER_00": 40, "SPEAKER_01": 40, "SPEAKER_02": 20}).items()
     ]
     t7._w(base / "transcripts" / "ep.speakers.diagnostics.json", {"voices": voices})
-    return meta
+    return str(meta)
 
 
 LABELS3 = [
@@ -61,7 +61,8 @@ def _gold_rows(tmp_path: Path, insights, labels=LABELS3) -> List[Dict[str, Any]]
     meta = _three(root, insights)
     t7._gold(gold, "g", "c1", meta, labels)
     report = gi.run(root, gold, ["g"], "snap")
-    return lr.gold_wrong_names(report, gold, root)["rows"]
+    rows: List[Dict[str, Any]] = lr.gold_wrong_names(report, gold, root)["rows"]
+    return rows
 
 
 def _by(rows) -> Dict[str, Any]:
