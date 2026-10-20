@@ -399,7 +399,12 @@ How each was met:
 
 ## 9. Operator review
 
-_TODO_
+2026-10-20. The operator read the outcome (one episode named David Roblin on 58 insights and 109
+quotes; the two rules for every future run; the not-covered list) and judged it too small for a
+deploy of its own, then chose small daily deploys, verbatim: "For the reference, let's deploy what
+we prepared just to move on and not to hoard things. I think one deploy per day is good to plan and
+be incremental." The bundle: 0033, 0029's verify fix (on main since a213d5fa5) and prod's memory
+watchdog (b297f2ab0). ci-fast on 47ad8b544: `MAKE_EXIT=0`.
 
 ## 10. Before apply / deploy
 
