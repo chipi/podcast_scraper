@@ -39,8 +39,9 @@ name: Nightly Comprehensive Tests
 
 on:
   schedule:
-    # Run nightly at 2 AM UTC (runs on default branch/main)
-    - cron: '0 2 * * *'
+    # 01:43 UTC on main. Off the top of the hour on purpose: at '0 2 * * *' GitHub's scheduled-run
+    # queue started it 4.5-5.5 h late (06:40-07:24 UTC, 2026-10-15..19).
+    - cron: '43 1 * * *'
   workflow_dispatch:  # Allow manual triggering
   # Note: Metrics for main and release branches are handled by python-app.yml (regular CI)
   # Nightly is for comprehensive testing and metrics on main branch only
