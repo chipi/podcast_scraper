@@ -109,3 +109,61 @@ counted raw `SPEAKER_NN` labels as names (346 / 806, not 932 / 220).
 
 Written by a fresh step-5 reviewer (Opus advisor), dated 2026-10-20T08:13 UTC, before any code:
 [loss_ranking.acceptance.md](loss_ranking.acceptance.md), criteria A0–A15.
+
+## 6. Build
+
+- `src/podcast_scraper/quality/loss_ranking.py`: `gold_wrong_names` (A1–A5, on the committed S7
+  rows, `gold_insights` unchanged), `corpus_hidden` (A6, A7), `seat_check` (A8), `is_spelling`
+  (A3's spelling rule on `same_person`'s own threshold), conservation asserted in each (A9).
+- `scripts/measure/loss_ranking.py`: the CLI; `--out` must lie outside the git checkout (A11); rows
+  as JSONL and `summary.json` there; the record carries counts and case ids only.
+- `tests/unit/podcast_scraper/quality/test_loss_ranking.py`: 31 scenario tests on real-shaped temp
+  corpora with invented names (A14).
+- **One definition line dropped as implied:** A3's "no more tokens than the label" needs no check of
+  its own, because each stored token takes a different label token; its mutant is equivalent (no
+  test can kill it), so the line went and a comment says why.
+
+**Read while defining the rules (A12), by case id:** the exploration printed 41 (label, stored)
+pairs (the top 8 per class and up to 4 per sub-class), in 49 gold cases: dev_v1 c005, c008, c014,
+c019, c022, c040, c060, c085, c087, c091, c094; val_v1 v017, v039, v071, v073, v075, v102, v131,
+v132, v133, v134, v148, v182, v192, v199, v222, v226, v239, v259, v268, v270, v277, v279, v296,
+v313, v316, v343, v374, v392, v393, v440, v450, v485, v493; val_v2 w038, w045, w087, w106, w112.
+The seat-check and text-signal probes printed these too: dev_v1 c006, c013, c018, c027, c042,
+c043, c044, c065, c066, c070, c084, c089; val_v1 v064, v070, v094, v095, v100, v137, v149, v189,
+v194, v207, v243, v262, v474. The step-8 reviewer's held-out sample is drawn from the rest.
+
+## 7. Measure
+
+`scripts/measure/loss_ranking.py --corpus lost/gateworkB6c --gold .test_outputs/naming_gold
+--snapshot "snapshot-prod-20261016+0030+0031" --out <scratch>` on **6d3018123** (clean tree),
+identical summaries on e9cc19c46 and 6d3018123:
+
+- **Gold, `S7_wrong`** 2,947 (380 / 2,128 / 439): binding 1,897 (swapped 544, duplicated 201,
+  rotated third_name 346, owner_unnamed 652, owner_no_insight 154); spelling 52 (val_v1);
+  other_person 998. By set: dev 200 / 0 / 180, val_v1 1,397 / 52 / 679, val_v2 300 / 0 / 139. All
+  as A5, ±0.
+- **Flags:** two or more owners 117, `same_person` owner sensitivity 83, shares a label token 101,
+  stored on another voice with an unnamed label 22, as accepted. **`owner_label_weak` 56, not
+  A1's 32:** the reviewer's probe checked only the first owner (`owners[:1]`); A3 says "an owner",
+  order-independent, which the code applies to every owner. The difference is the 24 insights whose
+  weak-labelled owner is not the first in label order.
+- **Gold, outside `S7_wrong`:** name_without_support 81, undecidable_named 887, unplaceable_named
+  31, as A2.
+- **Corpus, S1** 14,841: gaps 6 (no_diagnostics 5, voice_not_found 1), nobody_named 3,557,
+  unplaced_principal 5,407 (one_to_one 3,247 in 85 episodes), unplaced_minor 1,269,
+  placed_not_recorded 3,293 / 638, none_unplaced 541 / 130. All as A7, ±0; the scoreboard's S1
+  equals the classed total (asserted).
+- **Seat check:** 26 served cases: 16 right, 9 another person, 1 the label supports no name, as A8.
+  Hidden insights on the seated voice: right 457, another person 171, no name 4. So elimination
+  alone would put 171 insights under the wrong person to show 457.
+- **Mutations (builder's own, before step 8):** 18 mutants over every definition, baseline 69
+  passed and 0 failed on the export; 18 killed, 0 survivors (`scratchpad/mutlr/mutate.py`). A first
+  run had a failing baseline (the export had no `.git`, so the CLI test could not find the repo):
+  every "kill" in it was void and is not counted; a second showed 7 survivors, each now killed by a
+  new test (one, the token count, is equivalent and was removed instead).
+
+**Not covered:** the gold is development-tier in part (val_v1 read while tuning) and not a random
+sample (val_v2 half weighted to feeds with hidden insights), so the gold classes are rates, not
+corpus counts; 2.1's unseen set checks them. The corpus classes describe the record, not the cause
+(a stated person "unplaced" may never speak). 85% of S1 lacks a stored LLM decision, so "would the
+LLM have solved it" is not measured. The clone is the 10-16 snapshot; prod has moved.
