@@ -90,7 +90,7 @@ Dated: 2026-10-19
 S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 116,595; 2,685
 served episodes).
 
-**The episode** (E), "Ep176_ David Roblin on Building" (`run_20261014-073935`), read from its
+**The episode** (E), `Ep176_ David Roblin on Building` (`run_20261014-073935`), read from its
 files: 62 insights, all shown, routing `surface` (58 under "Generation", 3 under "Luke
 Timmerman", 1 with no speaker); quotes: 109 on the "Generation" person, 5 on Luke Timmerman. The
 roster places "Generation" (guest, `self_intro`) on SPEAKER_00 and leaves David Roblin
@@ -123,6 +123,7 @@ SPEAKER_00:
   quotes change, and the 58 insights stay shown under the new name.
 
 **Two rules for future runs.** They write no corpus file, so no number above moves because of them:
+
 1. The publish gate refuses 0015's hand-removed names. The clone has 1 episode carrying one (E).
 2. The one-word self-introduction rule refuses a word that is a label, not a name ("Generation" in
    "Generation X"). The population it must leave alone: the clone's 93 placed one-word
@@ -206,6 +207,7 @@ punctuation or the end of the text follows; a first name followed by an initial 
 ("Bill T,") stays refused, unnamed rather than wrongly named, as the operator's accepted cost.
 
 Changes and their predicted effect (clone `lost/gateworkB6c`, as before):
+
 1. **Rule 2 narrowed** as above. Held-out 1: 246 one-word captures, still exactly 1 change (E).
    The reviewer's held-out 2: 0 of the "I" / "A" shapes refused; real names refused at most 2 (the
    "<name> <initial>," shapes); labels refused as before except where an "A" or "I" is followed
@@ -247,6 +249,7 @@ Written by a fresh step-5 reviewer before any revision-B code (first 19:07 UTC, 
 ## 6. Build
 
 Revision A (measured at step 7, c71664a6d):
+
 - **Rule 1** (`speaker_detectors/hosts.py`): `HAND_REMOVED_SPEAKER_NAMES`, 0015's six names moved
   beside the publish gate; `is_publishable_speaker_name` refuses each (whitespace-normalised,
   case-folded, whole name). m0015's `REMOVE` and m0019's import are that same dict.
@@ -280,6 +283,7 @@ its plan read 0 episodes, 0 refused). Final measurement on **c71664a6d** (clean 
 `full`, `gating_moves {}`, 14 files changed, verify OK.
 
 **Two builds before this one, both measured, both fixed at the cause:**
+
 - **The first run found the rename unfinished.** E's "Generation" Person node stayed in the GI (its
   id was minted, `person:unresolved-generation-…`, never `person_id` of the name), so the bridge
   (27) and context kept it; the KG step dropped its `GUESTS_ON` edge with the node (edges 28, not
@@ -322,6 +326,7 @@ its plan read 0 episodes, 0 refused). Final measurement on **c71664a6d** (clean 
 | 27–28 | prod | step 10 |
 
 **Not covered here:**
+
 - held-out 2 (criterion 21): the step-8 reviewer writes and runs it;
 - prod (criteria 27–28): prod's plan against the clone's, and E's search-index rows (the clone has
   no index), at step 10;

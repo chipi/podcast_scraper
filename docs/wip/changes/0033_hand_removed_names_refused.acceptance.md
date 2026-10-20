@@ -1,5 +1,7 @@
 # 0033: step-5 acceptance criteria
 
+<!-- markdownlint-disable MD029 -- the criterion numbers are identifiers the record cites -->
+
 Written by the fresh step-5 reviewer (an Opus advisor), 2026-10-19, before any 0033 code existed,
 from its own reads of `lost/gateworkB6c` (E's segments, GI, metadata, diagnostics; the census
 re-run). Stored here as written, lightly reformatted; the change record's step 5 points here.
@@ -9,6 +11,7 @@ Clone: `lost/gateworkB6c`. Before: the clone as step 4 states it. Every number f
 
 E's `segments.json`: 3,736 segments, 2 voices; SPEAKER_00 3,055 segments (about 3,290 s),
 SPEAKER_01 681 (about 727 s).
+
 - SPEAKER_01 is the host: seg 2 "I'm your host, Luke Timmerman."; seg 3 "Today's guest is David
   Roblin."; seg 4 "David is the CEO of London-based Relation Therapeutics."; seg 18 "…translational
   research at the Francis Crick Institute". Title "Ep176: David Roblin on Building a TechBio
