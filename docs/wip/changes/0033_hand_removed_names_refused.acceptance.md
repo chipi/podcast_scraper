@@ -154,7 +154,7 @@ integer after the merge; all 109 quotes in full; 47 of the 70 distinct census na
 whether the roster step for E replays without the LLM; whether E is in a gold set; prod's
 search-index rows.
 
-# Revision B (after the step-8 NO-GO)
+## Revision B (after the step-8 NO-GO)
 
 Written by a fresh step-5 reviewer (Opus advisor), first at 2026-10-19T19:07 UTC, amended at
 2026-10-19T19:34 UTC after the operator's answer to its finding 1 ("Exempt only 'I'

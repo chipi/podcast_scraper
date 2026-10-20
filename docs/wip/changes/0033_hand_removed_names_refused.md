@@ -358,6 +358,7 @@ differs; the 15 labels every version publishes (Millennial, Boomer, Zoomer, Xenn
 Long, Short, Bullish, Overweight, Nigerian, Yoruba, Kikuyu, Maori, Catalan, Blood Type); a kept
 mention-only Person bearing a hand-removed name makes 0015's verify FAIL (pinned by a test; E has
 none); prod (step 10); the stored-input replay reuses E's LLM answer.
+
 - **Found by the revision-B step-8 reviewer, outside 0033** (0033 writes neither episode): on the
   clone, 9 GI `MENTIONS_PERSON` edges point at no node. 2 come from 0029's list: in
   substack:post:189787695 0029 renamed "Jacob Warwick" to Lenny Rachitsky while an insight mentions
@@ -386,6 +387,7 @@ test passes in the checkout); every later stage run separately green.
 Verdict: GO WITH CONDITIONS Conditions: (1) strike and replace step 3's "There is no LLM resolution in the inputs." (2) commit B5(b)'s test and record its mutation KILLED; (3) the operator rules on the held-out-2b phrase "I'm Hazel I've…" (refused by every version, the old code included); (4) the record's Not covered lists the 2 dangling MENTIONS_PERSON edges 0029's renames left and the 7 person:new-york-city ones; (5) build the outcome with build_outcome.py, name its sha in step 8, and run ci-fast on that commit to MAKE_EXIT=0 in a git checkout.
 
 How each was met:
+
 1. Step 3's sentence struck and replaced with the stored `third_person` answer (my first edit had
    not applied: the sentence wraps, and the replace never ran; I had reported it done).
 2. `test_an_unnamed_voices_old_person_that_is_mentioned_is_kept` (df212ab04); B5 mutations re-run

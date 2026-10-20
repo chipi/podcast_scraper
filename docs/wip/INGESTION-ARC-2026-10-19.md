@@ -275,6 +275,7 @@ visibility-readers census.
 ## Replaced by this document
 
 Deleted 2026-10-19 (git history keeps them):
+
 - `NAMING-STRATEGY-2026-10-17.md` (its goal, principles, items and decisions are folded in above);
 - `NAMING-COVERAGE-PLAN-2026-10-10.md`, `NAMING-PHASE-C-HANDOVER-2026-10-13.md`,
   `2187-NAMING-HANDOVER-2026-10-08.md`;
