@@ -373,7 +373,29 @@ none); prod (step 10); the stored-input replay reuses E's LLM answer.
 
 ## 8. Verdict
 
-_TODO_
+**Revision A, step-8 reviewer (fresh Opus advisor), 2026-10-19: NO-GO.** Rule 2 refused 5 of 7
+unpunctuated real-name self-introductions in its unseen held-out 2; ci-fast red (black; steps 6 and
+8 empty). Back to step 3; revision B (steps 4–7, "Revision B").
+
+**Revision B, step-8 reviewer (a different fresh Opus advisor), 2026-10-19,** on d309ac8ab's code
+(record 8f094cda2): every Revision-B criterion and the standing originals checked with its own
+evidence (`scratchpad/rev33c/`); held-out 2b, 35 unseen phrases over classes (a)–(g), PASS on rule 2;
+ci-fast on an export: only the landing test (step 8 empty) and an export artefact (no `.git`; the
+test passes in the checkout); every later stage run separately green.
+
+Verdict: GO WITH CONDITIONS Conditions: (1) strike and replace step 3's "There is no LLM resolution in the inputs." (2) commit B5(b)'s test and record its mutation KILLED; (3) the operator rules on the held-out-2b phrase "I'm Hazel I've…" (refused by every version, the old code included); (4) the record's Not covered lists the 2 dangling MENTIONS_PERSON edges 0029's renames left and the 7 person:new-york-city ones; (5) build the outcome with build_outcome.py, name its sha in step 8, and run ci-fast on that commit to MAKE_EXIT=0 in a git checkout.
+
+How each was met:
+1. Step 3's sentence struck and replaced with the stored `third_person` answer (my first edit had
+   not applied: the sentence wraps, and the replace never ran; I had reported it done).
+2. `test_an_unnamed_voices_old_person_that_is_mentioned_is_kept` (df212ab04); B5 mutations re-run
+   on df212ab04: keep check removed KILLED (2 failed), always kept KILLED, mentions moved KILLED,
+   SPOKEN_BY left on kept KILLED. Tests are outside the code digest: the tree's digest at
+   df212ab04 is `e2c3c320f8c8`, the measured one, so the step-7 measurement stands for it.
+3. **Operator, 2026-10-20, verbatim: "Not covered (Recommended)".** "I'm Hazel I've…" is a
+   not-covered line (Stage 2: names run into the next word).
+4. Listed in step 7's Revision B "Not covered".
+5. Below.
 
 ## 9. Operator review
 
