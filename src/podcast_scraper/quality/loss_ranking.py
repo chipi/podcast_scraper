@@ -51,7 +51,9 @@ def is_spelling(label: str, stored: str) -> bool:
     tokens than the label, each paired with a different label token, equal or ``same_person`` at
     its own threshold. No thresholds of its own."""
     lt, st = _tokens(label), _tokens(stored)
-    if not st or len(st) > len(lt):
+    # "No more tokens than the label" (A3) needs no check of its own: each stored token takes a
+    # different label token, so a longer stored name cannot pair.
+    if not st:
         return False
 
     def pair(i: int, used: Set[int]) -> bool:

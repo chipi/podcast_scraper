@@ -319,3 +319,58 @@ def test_the_cli_refuses_an_out_inside_the_repo(tmp_path: Path) -> None:
         ]
     )
     assert code == 2 and not (REPO / "x").exists()
+
+
+def test_a_name_that_matches_another_voice_only_fuzzily_is_not_binding(tmp_path: Path) -> None:
+    """Binding is fold-exact; what ``same_person`` would add is a sensitivity count only."""
+    rows = _gold_rows(tmp_path, [("i:near", [1], {"speaker": "Arlo Vennn"})])
+    [r] = rows
+    assert r["cls"] != "binding" and r["same_person_owner_sensitivity"] is True
+
+
+def test_an_owner_publishing_both_names_is_swapped_not_duplicated(tmp_path: Path) -> None:
+    rows = _gold_rows(
+        tmp_path,
+        [
+            ("i:g_as_host", [1], {"speaker": HOST}),
+            ("i:host_as_guest", [0], {"speaker": GUEST}),
+            ("i:host_own", [0], {"speaker": HOST}),
+        ],
+    )
+    assert _by(rows)["i:g_as_host"] == ("binding", "swapped")
+
+
+def test_a_repeated_token_cannot_pair_twice() -> None:
+    assert lr.is_spelling("Mateo Marsh", "Mateo Mateo") is False
+
+
+def test_binding_takes_precedence_over_spelling(tmp_path: Path) -> None:
+    """The guest is labelled "Mateo Marsh", the host "Matteo": "Matteo" on the guest's voice is
+    the host's name (binding), though token by token it is also a spelling of the guest's."""
+    labels = [t7._lab("SPEAKER_00", "Matteo", "host"), t7._lab("SPEAKER_01", "Mateo Marsh")]
+    assert lr.is_spelling("Mateo Marsh", "Matteo")
+    rows = _gold_rows(tmp_path, [("i:g", [1], {"speaker": "Matteo"})], labels=labels + [LABELS3[2]])
+    assert _by(rows)["i:g"][0] == "binding"
+
+
+def test_corpus_conservation_is_asserted(tmp_path: Path, monkeypatch) -> None:
+    speakers = [_speaker(HOST, "host", ["SPEAKER_00"]), _speaker(GUEST, "guest", [], placed=False)]
+    _three(tmp_path, [("i:p", [1], _hidden())], speakers=speakers)
+    real = lr.cs.score_corpus
+
+    def off_by_one(root: Path) -> Dict[str, Any]:
+        out = real(root)
+        out["total"] = {**out["total"], "S1_hidden_unknown": out["total"]["S1_hidden_unknown"] + 1}
+        return out
+
+    monkeypatch.setattr(lr.cs, "score_corpus", off_by_one)
+    with pytest.raises(AssertionError, match="the scoreboard says"):
+        lr.corpus_hidden(tmp_path)
+
+
+def test_the_seat_check_skips_a_case_on_disk_that_is_not_served(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    speakers = [_speaker(HOST, "host", ["SPEAKER_00"]), _speaker(GUEST, "guest", [], placed=False)]
+    meta = _three(root, [("i:p", [1], _hidden())], speakers=speakers)
+    t7._gold(gold, "g", "c1", meta, LABELS3)
+    assert lr.seat_check(root, gold, {"g": "labels_v1"}, served=set())["rows"] == []
