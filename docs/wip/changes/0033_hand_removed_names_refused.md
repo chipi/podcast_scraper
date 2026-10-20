@@ -395,7 +395,7 @@ How each was met:
 3. **Operator, 2026-10-20, verbatim: "Not covered (Recommended)".** "I'm Hazel I've…" is a
    not-covered line (Stage 2: names run into the next word).
 4. Listed in step 7's Revision B "Not covered".
-5. Below.
+5. `scripts/measure/build_outcome.py --migration 0033_hand_removed_names_refused`: `upgrade/outcomes/0033_hand_removed_names_refused.json`, outcome acb383cfa44acc630ef532fa5bc06d7240dffed62f52d8abd289458933440323. ci-fast on the commit holding it: below.
 
 ## 9. Operator review
 
