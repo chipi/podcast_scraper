@@ -243,8 +243,9 @@ operator/tailnet surface is unaffected.
 ## MCP — remote agent access (RFC-112)
 
 Lets an external AI agent (claude.ai custom connector, Claude Code, Cursor) search + read the
-corpus **as a signed-in platform user** over MCP, with their own model (D6-safe). Off by default;
-turning it on is additive to the player deploy.
+corpus **as a signed-in platform user** over MCP, with their own model (D6-safe). Every user has the `mcp_access` entitlement by default
+(since 2026-10-16; an admin can revoke it per user, and `app_users_cli grant-mcp-all` backfills older accounts);
+the service itself stays inert until `PLAYER_INTERNAL_MCP_TOKEN` is set, and turning it on is additive to the player deploy.
 
 **Topology.** The app-only `api` hosts the OAuth 2.1 authorization server
 (`/api/app/mcp/oauth/*` + `/.well-known/oauth-authorization-server`, on the player apex) and the

@@ -107,7 +107,12 @@ X.Y this was checked" — future migrations can rely on that history.
    do you know this migration has already been applied to a file that
    predates the ledger entry?).
 2. **Register it.** Add to `upgrade/registry.py` — the runner sorts by id, so
-   pick `mNNNN` = the next integer.
+   pick `mNNNN` = the next integer. A migration that is **held** (written but not yet
+   judged under [the corpus change method](CORPUS_CHANGE_METHOD.md)) stays in
+   `upgrade/migrations/` **unregistered**, with a comment in `registry.py` saying so, so no
+   image can run it by accident; it is registered only after it passes its own gate. If a
+   shipped migration needs the number a held one took, renumber the held one (as
+   `m0031_naming_voices_rederived` became `m0032_naming_voices_rederived` on 2026-10-18).
 3. **Bump the producer format version.** Edit
    `config/corpus_snapshot_format.json` and increment `corpus_format_version`
    when the migration is user-visible in the on-disk corpus (any change a

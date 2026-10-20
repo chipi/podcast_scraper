@@ -813,6 +813,8 @@ and `data/profiles/README.md`.
 | `make ci-ui-fast` | Same chain as `ci-fast` but `test-fast-no-py-e2e` (skips Python e2e) + `test-ui-e2e` (Playwright firefox) for viewer-iteration runs. Includes `build-viewer`. | **Viewer-heavy work.** ~8-12 min. |
 | `make ci` | Everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), `build-viewer`, coverage-enforce, **and** `stack-test-ml-ci` (full Docker stack + ml pipeline + Playwright + always-teardown) | **True full local parity** with the GitHub Actions chain (Python application → Stack test). ~20-30 min. Run before merge for changes that touch pipeline / Docker / route handlers. |
 | `make test-fast` | Critical-path unit + integration + E2E tests only (no lint/format/type) | Quick test-only feedback. |
+| `make gates-changed` | Only the gates the changed files need (vs `origin/main`; `STAGED=1` for what is staged, `SINCE=<ref>` for another base): black/isort/flake8, mypy + docstrings for `src/`, the tests that name a changed module, markdownlint with the repo config, `make docs`, vitest-related + `vue-tsc` for the player and viewer, actionlint. Each gate prints `PASS`/`FAIL`; the last line is `GATES: PASS` or `GATES: FAIL`. Checks only, never rewrites a file. Repo skill: `local-gates`. | **Before a commit or push**, in place of a full `make ci-fast`. Not the full suite: a test that reaches a changed module only through another module is missed, so run the whole suite at the end of an arc. |
+| `make regen-fixtures` | Rebuilds the app validation corpus (`tests/fixtures/app-validation-corpus/v3`) the way it is committed (build, realign GI, corpus enrichers) and reports added / changed / removed files. Dry run by default; `WRITE=1` copies added and changed files in and only lists removed ones. Enrichment run stamps and run-log lines alone do not count as a change. | After a change that alters what the builder writes. After an ad-cut change, re-derive the captured renders first (fixture README). |
 | `make build-viewer` | `cd web/gi-kg-viewer && npm install && npm run build` (`vue-tsc -b && vite build`). Catches strict TypeScript regressions invisible to `vitest` / `playwright`. | Standalone — already wired into every `ci*` target above. |
 | `make stack-test-ml` | One-shot ml pipeline path: build → up → seed → Playwright (airgapped/whisper-tiny). Stack stays up after. | Local Docker validation, no API keys needed. |
 | `make stack-test-cloud-thin` | Same flow with the `pipeline-llm` image + `cloud_thin` profile. **Local-only** — public CI does not run it (recurring API cost). Requires `.env` with the cloud API keys the profile uses. | Local LLM-path validation before push. |
@@ -821,8 +823,12 @@ and `data/profiles/README.md`.
 
 The pre-commit hook runs staged checks (format,
 lint, mypy, markdownlint, JSON/YAML validation) —
-**not** `make ci-fast`. Run `make ci-fast` manually
-before pushing.
+**not** `make ci-fast`. Run `make ci-fast` (or `make gates-changed` for just
+what changed) manually before pushing. The hook and the Makefile both unset an
+inherited `NODE_OPTIONS`: a `--require` shim path left by the terminal made the
+markdownlint step die with `MODULE_NOT_FOUND` and refused commits for a reason
+unrelated to the files. `make validate-files` now fails on flake8/mypy errors
+instead of ignoring them.
 
 ## Optional pip extras reference
 

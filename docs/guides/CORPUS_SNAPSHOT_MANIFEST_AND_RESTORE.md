@@ -153,6 +153,13 @@ make corpus-completeness-check CORPUS_DIR=<path-to-corpus-root>
 3. **As part of the `cutover_corpus_inplace.sh` sequence** — the script already includes this
    step; verify it exits 0 before proceeding to `compose up --force-recreate`.
 
+**Post-restore audio references:** the prod snapshot leaves out `*.audioref.json` (RFC-129 audio
+references, 5.4 GB at 2,486 files; #2378). After a restore, rebuild them from the audio archive
+(`python -m podcast_scraper.audio_sync build-references`, see
+[audio timing drift](../recipes/audio-timing-drift.md)). It rebuilds only episodes whose archived
+audio is byte-identical to what was transcribed; the rest have no reference after the restore (the episode detail's server-side `audio_time_map` is
+unaffected) until a compact restorable form exists (#2381).
+
 **Post-restore topic-clusters check:** the completeness gate validates that
 `search/topic_clusters.json` is present and non-empty. If it is missing after a restore (the
 `#14` smoke failure pattern), rebuild it before restarting the consumer stack:

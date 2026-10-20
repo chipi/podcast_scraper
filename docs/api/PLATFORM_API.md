@@ -321,7 +321,8 @@ Lets an entitled user connect their **own** AI agent (claude.ai custom connector
 to the platform's remote MCP server and search/read the shared corpus **as them** — no platform-side
 LLM (D6). Two auth paths: **OAuth 2.1 + PKCE** (per-user connectors like claude.ai) and **personal-access
 tokens** (CLI clients). Everything here is gated by the **`mcp_access`** entitlement (an orthogonal
-boolean grant; **403** without it) on top of the session. The remote MCP server itself is a **separate
+boolean, **on by default since 2026-10-16**: every user has it unless an admin revoked it; **403** without it) on top of the session.
+Accounts written before that hold `mcp_access: false` from the old default; `python -m podcast_scraper.server.app_users_cli grant-mcp-all --data-dir <dir> [--apply]` grants them access (dry run without `--apply`), skipping users whose latest `admin.user.mcp_access` audit entry is a deliberate revoke. The remote MCP server itself is a **separate
 service on its own vhost** (`mcp.<domain>/mcp`) — see `docs/guides/PLAYER_PUBLIC_LAUNCH.md` §MCP.
 
 **Token management + connector config** (`mcp_access`-gated):
@@ -352,7 +353,7 @@ service on its own vhost** (`mcp.<domain>/mcp`) — see `docs/guides/PLAYER_PUBL
 
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/internal/mcp/verify` | The `mcp` server resolves a presented bearer (PAT **or** OAuth access token) here → `{authenticated, user_id, mcp_access, scope}` (`McpVerifyResponse`). Gated by the shared `INTERNAL_MCP_TOKEN` (`X-Internal-Token`; **503** unconfigured, **401** mismatch). Re-checks `mcp_access` **live**, so a revoked grant denies an already-minted token at connect time. |
+| POST | `/internal/mcp/verify` | The `mcp` server resolves a presented bearer (PAT **or** OAuth access token) here → `{authenticated, user_id, mcp_access, scope, aud, role, analytics_id}` (`McpVerifyResponse`; `analytics_id` is the user's pseudonymous analytics id, #2265, so the `mcp` server attributes tool calls to a beta participant without handling an email or `user_id` in analytics). Gated by the shared `INTERNAL_MCP_TOKEN` (`X-Internal-Token`; **503** unconfigured, **401** mismatch). Re-checks `mcp_access` **live**, so a revoked grant denies an already-minted token at connect time. |
 
 ---
 

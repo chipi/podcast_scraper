@@ -128,6 +128,20 @@ it at `/` via `StaticFiles(directory=..., html=True)`.
 Pass `--no-static` (or `static_dir=False` in code) to skip mounting and
 run the API standalone.
 
+### Cache warm and child-process scoring
+
+After start the app warms its caches (entity id map, search paths, corpus digest, reel clips) in a daemon thread (`start_cache_warmer`: warm once, re-warm on ingest).
+Pure-Python walks over every episode's files hold the GIL against every request thread, so the
+longest ones run in a **child process** and the api thread only waits on a pipe: reel clips
+(`app_cache_warm._score_reel_clips_isolated` → `python -m podcast_scraper.server.reel_clips_worker`,
+243 s on prod, 2026-10-16) and the entity id map (`kg.entity_clusters`). The child gets
+`pickle((corpus_root, moments_config, catalog_rows))` on stdin and returns `[(metadata_path, token,
+clips)]`; the api files each result under the key and token `episode_clips` reads, keeping an entry a
+reader already filed. If the child cannot run (error or the 1,800 s timeout) the warm logs a warning
+and scores in-process as before. Reel clips are warmed last, being the longest walk and the least
+urgent. Without this, the 2026-10-16 post-deploy smoke failed: `/api/index/stats` (~4 s alone) gave
+no answer until the warm ended.
+
 ### CORS
 
 The CORS middleware allows `http://127.0.0.1:5173` and

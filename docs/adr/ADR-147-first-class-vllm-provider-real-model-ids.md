@@ -240,8 +240,12 @@ Everything this ADR decides still holds, because the gateway is a **transparent 
   our own hosts (the mini for dev, the prod VPS), so inference stays on our hardware; what is
   added is one hop, and LiteLLM's Langfuse callback sending prompts to our homelab Langfuse.
 - The gateway returns vLLM's `maximum context length` 400 text unchanged, so the learn-from-400
-  recovery still works. Its `/v1/models` does not carry `max_model_len`; the provider then keeps
-  the declared window (65,536), which is what the DGX serves.
+  recovery still works. Its `/v1/models` does not carry `max_model_len`; LiteLLM publishes the
+  window as `model_info.max_input_tokens` on `/model/info` instead (65,536 on prod, 2026-10-18),
+  and the served-model check reads it from there when `/v1/models` has none (a row matches by
+  `model_name` or the `litellm_params.model` tail, so another model's window is never taken). A
+  plain vLLM endpoint has no such route; the provider then warns "advertises no max_model_len"
+  and keeps the declared window (65,536), which is what the DGX serves.
 
 Verified 2026-10-13, same fixture episode on `dev_dgx_full`, direct ×2 and through the gateway:
 every prompt built only from the transcript (summary, speaker detection, KG, the first GI chunk) has

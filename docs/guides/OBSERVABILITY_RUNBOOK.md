@@ -416,5 +416,11 @@ Alloy internals live on the VPS at `/opt/vps-observability/`.
 - **Ship a new container's logs:** add an `infra/observability/<app>.alloy` drop-in
   (scoped `loki.source.docker`, label `app=<x>`) + wire its deploy to drop it into the VPS
   Alloy `config.d/` and `docker kill -s HUP alloy`.
+- **A container no drop-in claims** is covered by `infra/observability/unscoped.alloy` (host-level,
+  deployed by `deploy-config.yml` with every surface): it ships the logs of every container that
+  none of the app keep-filters (`podcast`, `operator_public`, `player`, `litellm`, `orrery`) names,
+  so a new container is no longer silent by default. Its drop rule is the union of those filters;
+  `test_alloy_unscoped.py` fails when they drift, and a container added to `orrery.alloy` must be
+  added to the list by hand.
 - **Add a metric:** it's already scraped if it appears on `/metrics` — nothing to ship.
 - **Add an event:** `emit_event("<name>", …)` — see the architecture guide's event catalog.

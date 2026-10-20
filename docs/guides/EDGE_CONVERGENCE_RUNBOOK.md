@@ -87,6 +87,13 @@ reload, caddy v2.11.4). Deploys reload and restart only if the reload is refused
   `ssh deploy@prod-podcast 'sudo -n /usr/bin/systemctl restart caddy'`.
 - **A service-env change** (`CADDY_BIND_ADDRS`, `GLITCHTIP_UPSTREAM`) still needs a restart:
   systemd reads `Environment` at start.
+- **`CADDY_BIND_ADDRS` holds the public IPv4 and IPv6, and the line is quoted** in
+  `/etc/caddy/…/10-public-bind.conf`: `Environment="CADDY_BIND_ADDRS=<v4> <v6>"`. Unquoted, systemd
+  keeps only the first address and Caddy silently listens on IPv4 only (2026-10-17). `apply-edge.sh`
+  and `deploy_config_caddy.sh` read both forms; `verify-edge.sh` now checks that **every**
+  configured address has a `:443` listener (`ss -tlnH`), where the owner check alone passed on the
+  first address. A failure reads `no listener on [<v6>]:443`; check
+  `systemctl show caddy -p Environment`.
 
 ## What `apply-edge` does NOT manage
 
