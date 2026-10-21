@@ -55,7 +55,8 @@ def _img(w: int, h: int, ext: str, mode: str = "RGB") -> bytes:
 
 def _size(data: bytes) -> tuple[int, int]:
     with Image.open(io.BytesIO(data)) as im:
-        return im.size
+        w, h = im.size
+        return int(w), int(h)
 
 
 class TestOversizedImagesShrink:
