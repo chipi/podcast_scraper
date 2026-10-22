@@ -2893,8 +2893,11 @@ class OpenAICompatibleProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
-    def complete_text(self, prompt: str) -> str:
+    def complete_text(self, prompt: str, max_tokens: int = 800) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+
+        ``max_tokens`` defaults to the resolver's 800; transcript naming asks for one answer per
+        voice of the whole episode and passes more.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
         from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
@@ -2913,7 +2916,7 @@ class OpenAICompatibleProvider:
                 model=self.summary_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
-                **self._token_kwarg(800),
+                **self._token_kwarg(max_tokens),
                 response_format={"type": "json_object"},
                 _lf_stage="speaker_detection",
             )

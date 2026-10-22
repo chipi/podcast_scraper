@@ -701,6 +701,50 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
+def _name_from_transcript(
+    cfg: config.Config,
+    roster: Any,
+    aligned: List[Any],
+    episode_title: Optional[str],
+    episode_description: Optional[str],
+    trace: Any = None,
+) -> Any:
+    """Transcript naming (``transcript_naming``): the roster the LLM names from the full transcript,
+    or the ladder's roster when the profile has no LLM or the call fails."""
+    from ....speaker_detectors.resolution import completion_fn_for
+    from ....summarization.factory import create_summarization_provider
+    from ....utils import correlation
+    from . import transcript_naming
+
+    try:
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+    except Exception as exc:  # noqa: BLE001 — the ladder's roster stands
+        logger.warning("transcript naming: no provider (%s); the ladder's names stand", exc)
+        return roster
+    fn = completion_fn_for(provider)
+    if fn is None:
+        return roster
+
+    def complete(prompt: str) -> str:
+        try:
+            limit = transcript_naming.MAX_OUTPUT_TOKENS
+            return fn(prompt, max_tokens=limit)  # type: ignore[call-arg]
+        except TypeError:  # a provider whose complete_text takes the prompt only
+            return fn(prompt)
+
+    return transcript_naming.name_from_transcript(
+        roster,
+        aligned,
+        complete,
+        feed_title=correlation.get_feed_title(),
+        feed_description=correlation.get_feed_description(),
+        episode_title=episode_title,
+        episode_description=episode_description,
+        trace=trace,
+    )
+
+
 def _apply_talk_floor(roster: Any, aligned: List[Any], floor: float, trace: Any = None) -> Any:
     """The roster with every name taken off a voice that holds < ``floor`` of the episode's talk.
 
@@ -1120,6 +1164,11 @@ def apply_diarization_to_result(
                 len(restored_names),
                 ", ".join(restored_names),
             )
+
+    if getattr(cfg, "transcript_naming", False):
+        roster = _name_from_transcript(
+            cfg, roster, aligned, episode_title, episode_description, naming_trace
+        )
 
     if getattr(cfg, "voice_identity_rung", False):
         from ....utils import correlation

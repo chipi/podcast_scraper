@@ -1193,6 +1193,17 @@ class Config(BaseModel):
             "montage podcast audio; lower splits more. Tune via the diarization eval harness."
         ),
     )
+    transcript_naming: bool = Field(
+        default=False,
+        alias="transcript_naming",
+        description=(
+            "After the ladder, the LLM reads the WHOLE diarized transcript and names every voice; "
+            "a voice it calls host or guest takes that name, every other voice is unnamed, and the "
+            "ladder's names stand when the call fails "
+            "(providers/ml/diarization/transcript_naming.py). "
+            "Off by default."
+        ),
+    )
     voice_identity_rung: bool = Field(
         default=False,
         alias="voice_identity_rung",
