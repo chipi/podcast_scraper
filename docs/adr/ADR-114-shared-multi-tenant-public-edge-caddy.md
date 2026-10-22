@@ -101,6 +101,9 @@ Collision avoidance across N upstreams is infra's job. Reserved map:
 | 8091 | orrery mcp (orrery's compose claimed 8091 on 2026-09-01; this row previously said "gi/kg viewer" — if that viewer is real and planned for this box, it must relocate; not verified against the live listen table) |
 | 8092 | podcast player API (OAuth AS) |
 | 8093 | orrery lab-api (identity container — was "app #3 (reserved)"; allocated 2026-09-02) |
+| 8095 | websites nginx (chipi/humancopilot.eu, compose project `websites`; allocated 2026-10-18) |
+| 8096 | evals nginx (chipi/eval-harness, compose project `evals`; allocated 2026-10-22) |
+| 8097 | evals inspector (chipi/eval-harness; allocated 2026-10-22) |
 
 ### 5. Deploy contract: validate before reload
 
