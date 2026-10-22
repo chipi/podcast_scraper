@@ -1208,7 +1208,15 @@ def _build_speaker_record(
         if isinstance(v, dict) and v.get("voice") and v.get("source"):
             method_by_voice[str(v["voice"])] = str(v["source"])
     for sp in placed:
-        sp.source = next((method_by_voice[v] for v in sp.voices if v in method_by_voice), "roster")
+        methods = [method_by_voice[v] for v in sp.voices if v in method_by_voice]
+        # One person on two voices (a diarization split): if EITHER voice introduced itself, the
+        # person did. Taking the first listed voice's source dropped a self-introduced host whose
+        # name is the show's ("The Peter Attia Drive") whenever the other voice was listed first.
+        sp.source = (
+            SELF_INTRO_SOURCE
+            if SELF_INTRO_SOURCE in methods
+            else (methods[0] if methods else "roster")
+        )
     if feed_title:
         # The SHOW is not a person on it (#2064). The graph already refuses it, so a record that
         # placed it would list a speaker no surface casts. A transcript still labelled with the

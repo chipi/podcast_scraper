@@ -701,6 +701,50 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
+def _apply_talk_floor(roster: Any, aligned: List[Any], floor: float, trace: Any = None) -> Any:
+    """The roster with every name taken off a voice that holds < ``floor`` of the episode's talk.
+
+    A person's name on a voice that barely speaks is, as measured, almost always a name on an ad,
+    a promo or a clip: on the labelled naming sets a 5% floor took 84 such names off what is served
+    and 6 right ones (briefly speaking hosts), and on held-out sets 13 and 0
+    (podcast-scraper-eval-data, docs/wip/NAMING-RETHINK-2026-10-22.md, "talk-share floor").
+    Talk is the aligned transcript segments' duration per voice, over every attributed segment.
+    ``floor`` <= 0 is off.
+    """
+    if floor <= 0:
+        return roster
+    talk: Dict[str, float] = {}
+    for segment, speaker_id in aligned:
+        if speaker_id is None:
+            continue
+        span = float(segment.get("end") or 0.0) - float(segment.get("start") or 0.0)
+        talk[speaker_id] = talk.get(speaker_id, 0.0) + max(0.0, span)
+    total = sum(talk.values())
+    if total <= 0:
+        return roster
+    by_voice = dict(roster.by_voice)
+    floored = []
+    for voice, role in roster.by_voice.items():
+        share = talk.get(voice, 0.0) / total
+        if role.named and share < floor:
+            by_voice[voice] = dataclasses.replace(
+                role, name=voice, role="unknown", named=False, source="talk_floor", forced=False
+            )
+            floored.append(voice)
+            if trace is not None:
+                trace.voice(
+                    voice, "talk_floor", "removed", name=role.name, talk_share=round(share, 4)
+                )
+    if not floored:
+        return roster
+    logger.info(
+        "talk floor: %d name(s) taken off voices under %.0f%% of the talk",
+        len(floored),
+        floor * 100,
+    )
+    return dataclasses.replace(roster, by_voice=by_voice)
+
+
 def _apply_speaker_renames(roster: Any, renames: Optional[Mapping[str, str]]) -> Any:
     """The roster with operator renames applied to its NAMED voices (#2283)."""
     if not renames:
@@ -1090,6 +1134,12 @@ def apply_diarization_to_result(
             float(getattr(cfg, "voice_identity_threshold", 0.7)),
             trace=naming_trace,
         )
+    roster = _apply_talk_floor(
+        roster,
+        aligned,
+        float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0),
+        naming_trace,
+    )
     roster = _apply_speaker_renames(roster, speaker_renames)
     enriched_result = dict(result)
     enriched_result["segments"] = _enriched_segments(aligned, roster)

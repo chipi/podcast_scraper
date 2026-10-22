@@ -1210,6 +1210,17 @@ class Config(BaseModel):
         alias="voice_identity_threshold",
         description="Cosine similarity a voice needs to its feed group (0.7 as measured).",
     )
+    speaker_name_min_talk_share: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        alias="speaker_name_min_talk_share",
+        description=(
+            "Talk floor: take the name off any voice holding less than this share of the "
+            "episode's talk (a name on a voice that barely speaks is, as measured, almost always "
+            "on an ad, a promo or a clip). 0 = off; 0.05 as measured."
+        ),
+    )
     diarization_min_cluster_size: Optional[int] = Field(
         default=None,
         ge=1,

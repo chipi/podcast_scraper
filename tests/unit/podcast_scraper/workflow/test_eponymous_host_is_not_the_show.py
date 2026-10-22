@@ -53,6 +53,28 @@ class TestTheSpeakerRecord:
         placed = {s.name: (s.role, s.source) for s in speakers if s.placed}
         assert placed[HOST] == ("host", "self_intro")
 
+    def test_a_host_split_into_two_voices_keeps_the_self_introduction(self, tmp_path: Path) -> None:
+        # One person on two diarized voices; the voice that did NOT introduce itself speaks first.
+        # The record used to take the person's source from that first voice, so the show-name
+        # check dropped the whole person, the self-introducing voice included.
+        run = tmp_path / "run_x"
+        (run / "transcripts").mkdir(parents=True)
+        segs = [
+            {"start": 0.0, "speaker": "SPEAKER_01", "speaker_label": HOST, "speaker_role": "host"},
+            {"start": 9.0, "speaker": "SPEAKER_00", "speaker_label": HOST, "speaker_role": "host"},
+        ]
+        (run / "transcripts" / "ep.segments.json").write_text(json.dumps(segs))
+        diag = {
+            "voices": [
+                {"voice": "SPEAKER_00", "resolved_name": HOST, "source": "self_intro"},
+                {"voice": "SPEAKER_01", "resolved_name": HOST, "source": "llm_resolution"},
+            ]
+        }
+        (run / "transcripts" / "ep.speakers.diagnostics.json").write_text(json.dumps(diag))
+        speakers, _ = _build_speaker_record(str(run), "transcripts/ep.txt", None, None, SHOW)
+        placed = {s.name: (s.role, s.source) for s in speakers if s.placed}
+        assert placed[HOST] == ("host", "self_intro")
+
     def test_a_show_name_the_voice_never_said_is_still_refused(self, tmp_path: Path) -> None:
         run = _run(tmp_path, "Machine Learning Street", "known_hosts")
         speakers, _ = _build_speaker_record(
