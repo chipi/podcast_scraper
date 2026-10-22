@@ -175,3 +175,30 @@ def test_apply_changes_the_roster_and_records_the_source(tmp_path, monkeypatch):
     )
     assert (out.by_voice["S1"].name, out.by_voice["S1"].named) == ("S1", False)
     assert sorted(steps) == [("S0", "named"), ("S1", "removed")]
+
+
+def test_a_name_this_rung_gave_does_not_vote():
+    diag = {
+        "voices": [
+            {
+                "voice": "S0",
+                "resolved_name": "Ann Lee",
+                "named": True,
+                "role": "host",
+                "talk_time_s": 600,
+                "source": "voice_identity",
+            },
+            {
+                "voice": "S1",
+                "resolved_name": "Bo Kim",
+                "named": True,
+                "role": "guest",
+                "talk_time_s": 600,
+                "source": "self_intro",
+            },
+        ],
+        "voice_embeddings": {"model_name": "m", "by_voice": {"S0": list(A), "S1": list(B)}},
+    }
+    voices = {h.vec: h.name for h in vi.voices_from_diagnostics(diag, "ep1", "m")}
+    assert voices[vi._unit(A)] is None
+    assert voices[vi._unit(B)] == "Bo Kim"

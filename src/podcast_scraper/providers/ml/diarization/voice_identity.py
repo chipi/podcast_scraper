@@ -75,7 +75,11 @@ def _key(name: Optional[str]) -> str:
 def voices_from_diagnostics(
     diag: Mapping[str, Any], episode_id: str, model_name: Optional[str]
 ) -> List[HistoryVoice]:
-    """One episode's served voices with their fingerprints (only from ``model_name``)."""
+    """One episode's served voices with their fingerprints (only from ``model_name``).
+
+    A name this rung itself gave (``source == voice_identity``) does not vote: it is kept as an
+    unnamed voice of the bank, so a wrong match cannot confirm itself episode after episode.
+    """
     sd = diag.get("speaker_diagnostics", diag)
     block = sd.get("voice_embeddings") or {}
     if model_name and block.get("model_name") and block.get("model_name") != model_name:
@@ -86,10 +90,11 @@ def voices_from_diagnostics(
         vec = by_voice.get(v.get("voice"))
         if not vec:
             continue
+        votes = v.get("named") and v.get("source") != SOURCE
         out.append(
             HistoryVoice(
                 episode_id=episode_id,
-                name=v.get("resolved_name") if v.get("named") else None,
+                name=v.get("resolved_name") if votes else None,
                 role=v.get("role"),
                 talk=float(v.get("talk_time_s") or 0.0),
                 vec=_unit(vec),
