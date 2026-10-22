@@ -1193,6 +1193,23 @@ class Config(BaseModel):
             "montage podcast audio; lower splits more. Tune via the diarization eval harness."
         ),
     )
+    voice_identity_rung: bool = Field(
+        default=False,
+        alias="voice_identity_rung",
+        description=(
+            "Last naming rung: a voice that sounds like a person this feed's other episodes name "
+            "(fingerprint groups named by vote) takes that name, and the name leaves a voice that "
+            "clearly is not that person (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md, stage 3). "
+            "Same feed only; off by default."
+        ),
+    )
+    voice_identity_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        alias="voice_identity_threshold",
+        description="Cosine similarity a voice needs to its feed group (0.7 as measured).",
+    )
     diarization_min_cluster_size: Optional[int] = Field(
         default=None,
         ge=1,

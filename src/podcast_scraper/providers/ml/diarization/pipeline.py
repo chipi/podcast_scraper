@@ -1077,6 +1077,19 @@ def apply_diarization_to_result(
                 ", ".join(restored_names),
             )
 
+    if getattr(cfg, "voice_identity_rung", False):
+        from ....utils import correlation
+        from . import voice_identity
+
+        _out = str(getattr(cfg, "output_dir", "") or "")
+        roster = voice_identity.apply_to_roster(
+            roster,
+            diarization,
+            Path(_out) if _out else None,
+            correlation.get_episode_id(),
+            float(getattr(cfg, "voice_identity_threshold", 0.7)),
+            trace=naming_trace,
+        )
     roster = _apply_speaker_renames(roster, speaker_renames)
     enriched_result = dict(result)
     enriched_result["segments"] = _enriched_segments(aligned, roster)
