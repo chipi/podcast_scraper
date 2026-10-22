@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 25 |
-| Last updated | 2026-10-15 |
+| Doc version | 26 |
+| Last updated | 2026-10-22 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `0b60909af3fd` (see below) |
+| Code content hash | `8e19837c6466` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -27,6 +27,25 @@
 
 **Changelog**
 
+- **v26, 2026-10-22.** Two rungs added at the end of the ladder, both OFF by default, and one
+  record rule fixed. Measured in podcast-scraper-eval-data (`docs/wip/NAMING-RETHINK-2026-10-22.md`,
+  `NAMING-GATES-2026-10-22.md`):
+  - `voice_identity` (`voice_identity_rung`, threshold `voice_identity_threshold` 0.7): a voice that
+    matches a fingerprint group of the feed's OTHER episodes (named by vote: >= 2 episodes and more
+    than half of the group's named members) takes that name; the name leaves a voice clearly not
+    that person (similarity < 0.5). The rung's own names never vote. Design:
+    `docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md`, stage 3. Needs stored fingerprints (4% of the
+    10-17 corpus copy has them), so it acts on new episodes as feed banks grow.
+  - `talk_floor` (`speaker_name_min_talk_share`, 0.05 as measured): after every rung, a named voice
+    holding less than that share of the episode's talk (aligned segments' duration) is unnamed. A
+    person's name on such a voice is almost always an ad, promo or clip voice: replayed on 601
+    labelled episodes, 51 such names removed plus 3 spurious and 2 wrong, against 12 right names and
+    2 role errors lost (briefly speaking hosts, guests of multi-guest compilations); on held-out
+    sets 9 removed, 0 right lost.
+  - record (`metadata_generation._build_speaker_record`): a person placed on two voices is
+    `self_intro` when ANY of its voices introduced itself (it took the first listed voice's
+    source, and the show-name check then dropped a split, self-introduced eponymous host).
+  Order at the end of the ladder: non-regression, `voice_identity`, `talk_floor`, operator renames.
 - **v25, 2026-10-15.** One host seat step added (#2366): `host_seat_step` `7_question_lead`. When
   every step above seated nobody and the pool holds exactly one publishable name, the voice that
   asks questions at least twice as often as every other voice with 10% or more of the non-ad talk
@@ -301,6 +320,8 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `nameable` | episode note | nameable voices, leftover / unbound names |
 | `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why. `commercial` by ad overlap needs 60% of the voice's talk in ads AND under 25% of the episode's talk (`c2ac9fcfa`) |
 | `non_regression`, `inputs.baseline_without_llm` | pipeline | names the additive contract restored; the rules-only roster |
+| `voice_identity` | per voice `named` / `removed` (`name`) | the feed fingerprint match: a voice given a group's name, or a name taken off a voice that is clearly not that person (off by default) |
+| `talk_floor` | per voice `removed` (`name`, `talk_share`) | a name taken off a voice under `speaker_name_min_talk_share` of the episode's talk (off by default) |
 
 **Sources a voice's name can carry** (`voices[].source`). `_NAME_EVIDENCE_RANK` ranks four of them,
 used when one person's voices disagree: `self_intro`, `introduced`, `publisher_transcript` = 3,
@@ -333,6 +354,7 @@ Where each acts:
 | `recover_stated_names` | A guest never takes a stated HOST's spelling (N1, "Kevin Ross" / "Kevin Roose") — unless the episode also names that person as a participant (`detected_guests` / `metadata_named`): then the host pool is the polluted source ("Lucas Kaiser" -> Lukasz Kaiser, guest, The a16z Show). When the fuzzy canonicaliser finds nothing, `_stated_participant_spelling` gives the voice the ONE stated participant it is a respelling of by the one-episode rule, if no other voice holds that name ("Scholastic Gatobu" -> "Schola Gatobu", "Charming Lai" -> "Chiamin Lai"). A name the episode already states is never re-spelt. The references, in priority order: feed hosts, detected guests, metadata people, then the people in the episode title (`_title_person_spellings`, v23), which only respell and never name. |
 | `guest_pool` (`same_person_as_a_named_voice`) | A declared guest name is not spare when it is the same person as a voice's name by `_same_spoken_person` OR the one-episode rule ("Andy Ratcliffe" beside "Andy Rachleff", The Long Run). |
 | `one_name_per_person` | Voices grouped by the one-episode rule take one name and one role. |
+| record (`metadata_generation._build_speaker_record`) | A person placed on two voices takes `self_intro` as its source when any of its voices introduced itself, so the eponymous-host exception to the show-name check holds for a split host. Not a roster rung. |
 | record (`metadata_generation._unplaced_speakers`) | An unplaced entry is dropped when it is the same person as a placed or earlier entry by EITHER predicate. Not a roster rung: not in the trace. |
 
 ## Scenario tests: the ladder as one component

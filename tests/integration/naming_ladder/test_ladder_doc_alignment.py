@@ -22,7 +22,12 @@ DOC = Path(__file__).resolve().parents[3] / "docs" / "guides" / "NAMING_LADDER.m
 
 #: Rungs the library does not reach yet, each with why. Shrinks as scenarios are added; a rung that
 #: becomes reached must leave this list (the test below says so).
-NOT_YET_EXERCISED: dict = {}
+NOT_YET_EXERCISED: dict = {
+    # Both rungs are off by default and no scenario profile switches them on; each is covered by
+    # its own unit tests (test_voice_identity.py, test_talk_floor.py).
+    "voice_identity": "off by default (voice_identity_rung); needs a feed fingerprint bank",
+    "talk_floor": "off by default (speaker_name_min_talk_share = 0)",
+}
 
 
 def _doc_rungs() -> Set[str]:
