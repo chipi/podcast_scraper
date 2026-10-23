@@ -27,9 +27,10 @@ own ``voice_identity.decide`` on the stored fingerprints, threshold 0.7) over a 
 review judges a RENAME by its new name (``CORRECT`` / ``CORRECT_MISSPELLED`` applies it) and an
 UNNAMING by the name it takes off (``WRONG_PERSON`` applies it); a listed voice without a verdict
 fails ``verify``. The verdicts header binds the whole list (every field of every entry), and the
-list file is part of the migration's digest. Applied through 0029's voice-by-voice rewrite with 0031's derived surfaces; an
-episode whose stored name moved on is refused untouched. Not in the registry until the list and its
-verdicts exist. UNDO restores from ``.podcast_scraper/upgrade-backups/0035/``.
+list file is part of the migration's digest. Applied through 0029's voice-by-voice rewrite with
+0031's derived surfaces; an episode whose stored name moved on is refused untouched. Not in the
+registry until the list and its verdicts exist. UNDO restores from
+``.podcast_scraper/upgrade-backups/0035/``.
 """
 
 from __future__ import annotations
