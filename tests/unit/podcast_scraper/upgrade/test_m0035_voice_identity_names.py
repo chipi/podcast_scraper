@@ -9,7 +9,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 
@@ -68,7 +68,7 @@ def _sibling(root: Path, run: str, eid: str) -> None:
 
 
 def _feed(tmp_path: Path) -> Dict[str, Any]:
-    turns = []
+    turns: List[Tuple[str, str, Optional[str], str]] = []
     for i in range(12):
         turns.append(("SPEAKER_00", "SPEAKER_00", None, f"Question {i} about the book."))
         turns.append(("SPEAKER_01", "Steve McConnell", "guest", f"Answer {i} about the book."))
@@ -95,7 +95,11 @@ def _feed(tmp_path: Path) -> Dict[str, Any]:
 
 
 def _review(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, entries: Dict, verdict: str, rows: bool = True
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    entries: Dict,
+    verdict: str,
+    with_rows: bool = True,
 ) -> None:
     d = tmp_path / "_verdicts35"
     d.mkdir(exist_ok=True)
@@ -103,7 +107,7 @@ def _review(
     rows = [
         "\t".join((eid, "feeds/f/run_1/metadata/ep.metadata.json", voice, name, verdict, "read"))
         for (eid, voice), name in sorted(names.items())
-        if rows
+        if with_rows
     ]
     head = (
         f"# migration: {m35.MIGRATION_ID}\n# reviewed_commit: x\n"
@@ -196,7 +200,7 @@ def test_a_listed_voice_without_a_verdict_fails_verify_and_nothing_is_written(
     p = _feed(tmp_path)
     entries = m35.find_changes(tmp_path)
     monkeypatch.setattr(m35, "load_list", lambda path=None: entries)
-    _review(monkeypatch, tmp_path, entries, "CORRECT", rows=False)
+    _review(monkeypatch, tmp_path, entries, "CORRECT", with_rows=False)
     before = p["txt"].read_text(encoding="utf-8")
     ok, message = m35.VoiceIdentityNamesMigration().verify(_ctx(tmp_path))
     assert not ok and "without a verdict" in message
