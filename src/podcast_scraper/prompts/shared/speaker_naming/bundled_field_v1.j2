@@ -1,0 +1,5 @@
+Also return "speakers": who each speaker label of the transcript really is. Each transcript line begins with a speaker label and a colon. A label is the name an earlier step guessed for that voice, or SPEAKER_xx when it guessed none, and the guess can be wrong (two people swapped, an advertisement read named as a guest). Judge each label only from this transcript: self-introductions, being introduced or welcomed by another voice, being addressed by name, sign-offs. A voice that only talks about a person is not that person.
+"speakers" is one object with one entry per label listed at the end, keyed by the label exactly as written:
+{"<label>": {"name": "Full Name or null", "role": "host|guest|ad|promo|clip|unknown", "confidence": "high|medium|low", "evidence": "short verbatim quote or empty"}}
+A wrong name is worse than a missing one: when unsure, null.
+SPEAKER LABELS TO JUDGE: {{ labels }}

@@ -42,8 +42,9 @@ not kept); how long diarization alone takes per audio-hour on the DGX.
 3. **A new rung, last in the ladder (gated like any rule).** An unnamed voice whose centroid is
    within a threshold of exactly one banked person of the same feed, and clearly further from
    every other banked person, takes that name with `source=voice_identity`. Never across feeds
-   (EPIC-HOST-IDENTIFICATION non-goal, `git show 2174be4bc:docs/wip/EPIC-HOST-IDENTIFICATION.md`: no corpus-wide voiceprint). It never overrides a name the
-   text gives.
+   (EPIC-HOST-IDENTIFICATION non-goal, `git show 2174be4bc:docs/wip/EPIC-HOST-IDENTIFICATION.md`: no corpus-wide voiceprint). ~~It never overrides a name the
+   text gives.~~ **Amended 2026-10-22 (operator decision):** it does override a text name, see
+   "Stage 3 as built" below.
 
 The threshold is chosen on the gold sets (dev to tune, val_v2 scored once), and the rule ships only
 with 0 worse on the gates and every changed voice read, as for any rung.
@@ -95,3 +96,35 @@ first thing stage 2 would show.
 
 1. Capture embeddings going forward (option A): yes or no.
 2. Whether B or C is worth DGX time, decided after A shows how well voices separate.
+
+## Stage 3 as built (2026-10-22, behind `voice_identity_rung`, default off)
+
+`providers/ml/diarization/voice_identity.py`, called in `apply_diarization_to_result` after the
+ladder and before operator renames (an operator rename still wins).
+
+- **Bank (stage 2, built on the fly):** the feed's other episodes' voices (newest run per episode,
+  the current episode left out by `episode_id`, same embedding model only, >= 60 s of talk),
+  grouped by fingerprint (greedy, longest talkers first, cosine >= 0.7 to the group centroid) and
+  named by vote: the served name most named host/guest members carry, from >= 2 episodes and from
+  more than half of the named members.
+- **Rule:** every voice of the episode (>= 10 s) whose best group matches at >= 0.7 takes the
+  group's name and majority role, **also over a name the text gave**; the name is removed from any
+  other voice that carries it and is clearly not that person (cosine to the group < 0.5).
+- **Why the amendment:** the largest class of wrong names puts the host's name on the guest's
+  voice (104 of 158 wrong names on dev_v1 + val_v1 involve a host). A rung that never touches a
+  text name cannot fix it. The fill-only version missed its pre-registered test; the overriding
+  version passed (below).
+- **Seeding:** the vote uses every served name, not only own-voice evidence. Restricting it to
+  `self_intro` / `introduced` / `known_hosts` was tried (exploratory, after the test) and named 7
+  more ad and clip voices for the same wrong-name cut.
+
+Measured in `chipi/podcast-scraper-eval-data`, `autoresearch/voice_embedding_match/` (private):
+pre-registered test on val_v4 (50 labelled episodes of 10 feeds the rule was never shaped on, plus
+100 unlabelled history episodes, all re-diarized on 2eb7dd9ca), harness `evh pair-test`: wrong
+names 23 -> 17 per 50 episodes (p = 0.031), correct 70 -> 77 (p = 0.014). All 13 changed voices
+read: none went from a correct name to a wrong one. The replay of this module against the
+measured matcher on 187 real episodes (980 voices) gives 0 differing decisions.
+
+Not covered: 50 test episodes and silver labels; one embedding model; episodes without stored
+fingerprints get nothing (every new episode has them, about 144 of the 2026-10-17 corpus did);
+existing episodes would need a corpus migration under the corpus change method.

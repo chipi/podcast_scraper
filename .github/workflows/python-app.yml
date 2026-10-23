@@ -319,19 +319,21 @@ jobs:
         # routes branch on has_index, so without a real index they render a different claim.
         .venv/bin/pip install -e ".[dev,search]"
     - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
         cache-dependency-path: web/gi-kg-viewer/package-lock.json
-    - name: Install dependencies and browsers
+    - name: Install dependencies
       run: |
         cd web/gi-kg-viewer
         npm ci
-        npx playwright install --with-deps firefox
+    - name: Install Playwright firefox
+      uses: ./.github/actions/install-playwright
+      with:
+        working-directory: web/gi-kg-viewer
+        browser: firefox
     - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
       uses: actions/cache@v6
       with:
@@ -520,9 +522,7 @@ jobs:
         docker compose -f compose/docker-compose.stack.yml config -q
         docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
     - name: Install ffmpeg (required for audio preprocessing unit tests)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - name: Verify unit tests can import without ML dependencies
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -785,19 +785,21 @@ jobs:
         # (perspectives, search) render a different claim and fail (#1387).
         .venv/bin/pip install -e ".[dev,search]"
     - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - uses: actions/setup-node@v7
       with:
         node-version: "22"
         cache: "npm"
         cache-dependency-path: web/learning-player/package-lock.json
-    - name: Install app dependencies + Playwright browsers
+    - name: Install app dependencies
       run: |
         cd web/learning-player
         npm ci
-        npx playwright install --with-deps chromium
+    - name: Install Playwright chromium
+      uses: ./.github/actions/install-playwright
+      with:
+        working-directory: web/learning-player
+        browser: chromium
     - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
       uses: actions/cache@v6
       with:
@@ -923,9 +925,7 @@ jobs:
         cache-dependency-path: pyproject.toml
     - name: Install ffmpeg (pyannote 4.x / torchcodec needs FFmpeg shared libs to import)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - name: Install full dependencies (including ML)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
@@ -1036,9 +1036,7 @@ jobs:
         pip install -e ".[dev,ml,llm,search]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - name: Run all integration tests with coverage (full suite, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -1168,9 +1166,7 @@ jobs:
         pip install -e ".[dev,ml,llm,search]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - name: Run fast integration tests with coverage (critical path only, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -1288,9 +1284,7 @@ jobs:
         pip install -e ".[dev,ml,llm,search]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - name: Run fast E2E tests with coverage (critical path only, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -1425,9 +1419,7 @@ jobs:
         pip install -e ".[dev,ml,llm,search]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - name: Run all E2E tests with coverage (full suite, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -1551,9 +1543,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
     - name: Install ffmpeg
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
+      uses: ./.github/actions/install-ffmpeg
     - name: Run acceptance fast matrix with E2E fixtures
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"

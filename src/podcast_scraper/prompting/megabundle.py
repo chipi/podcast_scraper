@@ -15,7 +15,7 @@ and re-benchmarked.
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 # Research-derived sweet-spot counts (from the autoresearch work that fed #590
 # and #625). Mirror the defaults used by the standalone GI/KG stages.
@@ -56,6 +56,18 @@ QUALITY_RULES = (
 )
 
 
+def _speakers_field(labels: Optional[Sequence[str]]) -> str:
+    """The transcript-naming ``speakers`` field, or "" when the caller did not ask for it.
+
+    Empty labels leave the prompt byte-identical to the one without the field.
+    """
+    if not labels:
+        return ""
+    from ..providers.ml.diarization.transcript_naming import bundled_field
+
+    return bundled_field(list(labels)) + "\n\n"
+
+
 def _maybe_transcript_first(
     system: str, user: str, transcript: str, *, cache_transcript_prefix: bool
 ) -> Tuple[str, str]:
@@ -76,6 +88,7 @@ def build_megabundle_prompt(
     transcript: str,
     *,
     language: Optional[str] = "en",
+    speaker_labels: Optional[Sequence[str]] = None,
     num_insights: int = DEFAULT_MEGA_BUNDLE_INSIGHTS,
     num_topics: int = DEFAULT_MEGA_BUNDLE_TOPICS,
     max_entities: int = DEFAULT_MEGA_BUNDLE_ENTITIES_MAX,
@@ -140,6 +153,7 @@ def build_megabundle_prompt(
         'Use "host"/"guest" only when the transcript clearly identifies the '
         'person as such; otherwise use "mentioned".'
         f"{lang_hint}\n\n"
+        f"{_speakers_field(speaker_labels)}"
         "Transcript:\n"
         "---\n"
         f"{transcript}\n"
@@ -155,6 +169,7 @@ def build_extraction_bundle_prompt(
     transcript: str,
     *,
     language: Optional[str] = "en",
+    speaker_labels: Optional[Sequence[str]] = None,
     num_insights: int = DEFAULT_MEGA_BUNDLE_INSIGHTS,
     num_topics: int = DEFAULT_MEGA_BUNDLE_TOPICS,
     max_entities: int = DEFAULT_MEGA_BUNDLE_ENTITIES_MAX,
@@ -198,6 +213,7 @@ def build_extraction_bundle_prompt(
         "See rule 4 — default to 'org'. "
         'Use "host"/"guest" only when the transcript identifies them as such.'
         f"{lang_hint}\n\n"
+        f"{_speakers_field(speaker_labels)}"
         "Transcript:\n"
         "---\n"
         f"{transcript}\n"

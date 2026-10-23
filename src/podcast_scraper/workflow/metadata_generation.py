@@ -29,6 +29,7 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
+    Set,
     Tuple,
     TYPE_CHECKING,
     Union,
@@ -1052,11 +1053,36 @@ def _self_introduced_names(
     if not output_dir or not transcript_file_path:
         return []
     diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
+    mine = _self_introduced_voices(diagnostics)
     return [
         str(v["resolved_name"])
         for v in diagnostics.get("voices") or []
-        if isinstance(v, dict) and v.get("source") == SELF_INTRO_SOURCE and v.get("resolved_name")
+        if isinstance(v, dict) and v.get("voice") in mine and v.get("resolved_name")
     ]
+
+
+def _self_introduced_voices(diagnostics: Mapping[str, Any]) -> Set[str]:
+    """Voices whose name is their OWN introduction: source ``self_intro``, or an E1d rescue
+    (``ladder_rescues``) whose cue was the voice's own "I'm X" (its decision-trace step). The
+    rescue keeps its own source so its fires stay countable; the evidence is the same."""
+    from ..providers.ml.diarization.ladder_rescues import E1D_SOURCE
+
+    out: Set[str] = set()
+    for v in diagnostics.get("voices") or []:
+        if isinstance(v, dict) and v.get("voice") and v.get("source") == SELF_INTRO_SOURCE:
+            out.add(str(v["voice"]))
+    trace = diagnostics.get("decision_trace")
+    steps = (trace.get("voices") if isinstance(trace, dict) else None) or {}
+    for voice, voice_steps in steps.items():
+        for step in voice_steps or []:
+            if (
+                isinstance(step, dict)
+                and step.get("rung") == E1D_SOURCE
+                and step.get("decision") == "named"
+                and step.get("cue") == SELF_INTRO_SOURCE
+            ):
+                out.add(str(voice))
+    return out
 
 
 #: The roster source for a name a voice introduced ITSELF with ("I'm Peter Attia") — the one
@@ -1204,11 +1230,23 @@ def _build_speaker_record(
         placed = [sp for sp in placed if not _votes.calls_organisation(sp.name)]
     diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
     method_by_voice: Dict[str, str] = {}
+    self_introduced = _self_introduced_voices(diagnostics)
     for v in diagnostics.get("voices") or []:
         if isinstance(v, dict) and v.get("voice") and v.get("source"):
-            method_by_voice[str(v["voice"])] = str(v["source"])
+            voice = str(v["voice"])
+            method_by_voice[voice] = (
+                SELF_INTRO_SOURCE if voice in self_introduced else str(v["source"])
+            )
     for sp in placed:
-        sp.source = next((method_by_voice[v] for v in sp.voices if v in method_by_voice), "roster")
+        methods = [method_by_voice[v] for v in sp.voices if v in method_by_voice]
+        # One person on two voices (a diarization split): if EITHER voice introduced itself, the
+        # person did. Taking the first listed voice's source dropped a self-introduced host whose
+        # name is the show's ("The Peter Attia Drive") whenever the other voice was listed first.
+        sp.source = (
+            SELF_INTRO_SOURCE
+            if SELF_INTRO_SOURCE in methods
+            else (methods[0] if methods else "roster")
+        )
     if feed_title:
         # The SHOW is not a person on it (#2064). The graph already refuses it, so a record that
         # placed it would list a speaker no surface casts. A transcript still labelled with the
@@ -3058,6 +3096,17 @@ def _generate_episode_summary(  # noqa: C901
 
             result: Optional[Dict[str, Any]] = None
             pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
+            # Transcript naming inside the bundled call (bundled_speaker_naming): the speaker
+            # labels to judge, or None, in which case no prompt changes.
+            from . import bundled_speaker_naming as _bsn
+
+            _naming_labels = _bsn.labels_for_call(
+                cfg, pipeline_mode, output_dir, transcript_file_path
+            )
+            if _naming_labels:
+                from ..providers.ml.diarization.transcript_naming import PARAMS_LABELS
+
+                params[PARAMS_LABELS] = _naming_labels
             # ADR-148: a thunk that re-issues the SAME summary request on the SAME
             # provider, set by whichever generation path produced `result`. Used for
             # one bounded in-place re-roll when the downstream schema parse fails on a
@@ -3104,6 +3153,10 @@ def _generate_episode_summary(  # noqa: C901
                         )
                         if not isinstance(mr, MegaBundleResult):
                             return None
+                        if _naming_labels:
+                            _bsn.record(
+                                cfg, output_dir, transcript_file_path, "mega_bundled", mr.speakers
+                            )
                         return {
                             "summary": json.dumps(mr.to_summary_artifact()),
                             "summary_short": None,
@@ -3165,6 +3218,14 @@ def _generate_episode_summary(  # noqa: C901
                     )
                     if isinstance(extr_result, MegaBundleResult):
                         extraction_partial = extr_result.to_extraction_partial()
+                        if _naming_labels:
+                            _bsn.record(
+                                cfg,
+                                output_dir,
+                                transcript_file_path,
+                                "extraction_bundled",
+                                extr_result.speakers,
+                            )
                     else:
                         # Provider contract violation — warn + record fallback so
                         # ops notices the downgrade instead of silently reverting
@@ -3202,14 +3263,29 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
-                    _resummarize = lambda: bundled_fn(  # noqa: E731 - ADR-148 re-roll thunk
-                        pattern_cleaned,
-                        episode_title=None,
-                        episode_description=None,
-                        params=params,
-                        pipeline_metrics=pipeline_metrics,
-                        call_metrics=call_metrics,
-                    )
+
+                    def _bundled_call() -> Any:
+                        """One bundled call (also the ADR-148 re-roll); a transcript-naming
+                        answer is taken out of its summary JSON before anything parses it."""
+                        r = bundled_fn(
+                            pattern_cleaned,
+                            episode_title=None,
+                            episode_description=None,
+                            params=params,
+                            pipeline_metrics=pipeline_metrics,
+                            call_metrics=call_metrics,
+                        )
+                        if _naming_labels:
+                            _bsn.record(
+                                cfg,
+                                output_dir,
+                                transcript_file_path,
+                                "bundled",
+                                _bsn.take_speakers(r),
+                            )
+                        return r
+
+                    _resummarize = _bundled_call
                     result = _resummarize()
                     cleaned_for_file = pattern_cleaned
                     if cfg.save_cleaned_transcript:

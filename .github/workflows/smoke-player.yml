@@ -39,7 +39,10 @@ jobs:
           cache-dependency-path: web/learning-player/package-lock.json
       - run: npm ci
       - name: Install Playwright Chromium
-        run: ./node_modules/.bin/playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          working-directory: web/learning-player
+          browser: chromium
       - name: Live smoke vs closelistening.app
         env:
           LIVE_BASE_URL: https://${{ vars.PLAYER_DOMAIN || 'closelistening.app' }}

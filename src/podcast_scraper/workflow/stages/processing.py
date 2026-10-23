@@ -1286,6 +1286,7 @@ def detect_feed_hosts_and_patterns(
     from ...utils import correlation
 
     correlation.set_feed_title(_feed_title(feed))
+    correlation.set_feed_description(getattr(feed, "description", None))
 
     # If auto_speakers is disabled, skip speaker detection entirely
     if not cfg.auto_speakers:

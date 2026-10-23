@@ -283,7 +283,11 @@ class TestTheRosterActuallyHonoursIt:
         from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
 
         src = inspect.getsource(diar_pipeline.apply_diarization_to_result)
-        assert "_resolve_voices_via_llm(" in src
+        # The resolver is called through ``_resolve_voices_k_passes`` (``speaker_naming_passes``),
+        # which asks it once per pass; assert both links.
+        assert "llm_voice_names, llm_voice_roles = _resolve_voices_k_passes(" in src
+        passes = inspect.getsource(diar_pipeline._resolve_voices_k_passes)
+        assert passes.count("_resolve_voices_via_llm(") == 2  # the first pass and every further one
         # The resolver's answer must reach the roster. It is forwarded through the ``_run_roster``
         # closure — ``_run_roster(llm_voice_names, llm_voice_roles)`` — which passes them on as
         # ``llm_voice_names=names`` / ``llm_voice_roles=roles``. Assert the wiring, not one literal.

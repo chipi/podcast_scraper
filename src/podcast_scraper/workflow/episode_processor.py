@@ -4046,15 +4046,23 @@ def _rediarize_existing_transcript(
         return False, None, 0
 
     feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    # The audio a full run diarizes: the profile's preprocessing preset (resample, re-encode,
+    # loudness), as in transcribe_media_to_text. The raw download gave pyannote different audio
+    # from every episode the pipeline had processed, so fresh and stored voices were not
+    # comparable.
+    media = _preprocess_audio_if_needed(job, cfg, audio_path, pipeline_metrics)
     # No precomputed diarization + bypass_cache_read -> apply_diarization diarizes the AUDIO fresh
     # with the profile's diarizer and aligns the new voices to result["segments"] (the ASR text).
     result = apply_diarization_to_result(
         result,
-        audio_path,
+        media,
         cfg,
         job.detected_speaker_names,
         metadata_named=job.metadata_named,
         feed_hosts=feed_hosts,
+        # ADR-137: the naming step reads the same title and description as on a full run.
+        episode_title=job.ep_title,
+        episode_description=getattr(job.episode, "description", None),
         bypass_cache_read=True,
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),

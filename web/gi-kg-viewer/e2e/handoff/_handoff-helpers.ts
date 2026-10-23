@@ -85,6 +85,11 @@ export function captureConsoleErrors(page: Page): { errors: string[] } {
       ref.errors.push(msg.text())
     }
   })
+  // An uncaught exception is a `pageerror`, not a console message: without this a handoff that
+  // threw inside cytoscape ("bb is undefined" mid-navigation) still passed every assertion.
+  page.on('pageerror', (err) => {
+    ref.errors.push(`pageerror: ${err.message}`)
+  })
   return ref
 }
 

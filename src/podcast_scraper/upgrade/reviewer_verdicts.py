@@ -81,8 +81,19 @@ def verdicts_path(migration_id: str, directory: Optional[Path] = None) -> Path:
     return (directory or VERDICTS_DIR) / f"{migration_id}.tsv"
 
 
-def parse(text: str, migration_id: str, names: Mapping[Key, str]) -> Verdicts:
-    """Validate ``text`` against the migration's list (``{(episode_id, voice): listed name}``)."""
+def parse(
+    text: str,
+    migration_id: str,
+    names: Mapping[Key, str],
+    listed: Optional[Mapping[Key, object]] = None,
+) -> Verdicts:
+    """Validate ``text`` against the migration's list (``{(episode_id, voice): listed name}``).
+
+    ``listed``, when given, is the migration's WHOLE frozen list (every field of every entry:
+    roles, both names, the evidence). The header's ``list_sha256`` must then be that list's, so
+    an entry edited after the review (a role flipped, an old name changed) fails the load, not
+    only a judged name. Without it the hash covers ``names``, as before.
+    """
     header: Dict[str, str] = {}
     body = []
     for line in text.splitlines():
@@ -96,7 +107,7 @@ def parse(text: str, migration_id: str, names: Mapping[Key, str]) -> Verdicts:
         raise VerdictError(f"header lacks {', '.join(missing)}")
     if header["migration"] != migration_id:
         raise VerdictError(f"file is for {header['migration']!r}, not {migration_id!r}")
-    if header["list_sha256"] != list_sha256(names):
+    if header["list_sha256"] != list_sha256(names if listed is None else listed):
         raise VerdictError(
             "list_sha256 is not the current list's: the list changed since it was reviewed"
         )
@@ -132,11 +143,16 @@ def parse(text: str, migration_id: str, names: Mapping[Key, str]) -> Verdicts:
     return out
 
 
-def load(migration_id: str, names: Mapping[Key, str], directory: Optional[Path] = None) -> Verdicts:
+def load(
+    migration_id: str,
+    names: Mapping[Key, str],
+    directory: Optional[Path] = None,
+    listed: Optional[Mapping[Key, object]] = None,
+) -> Verdicts:
     """The migration's verdicts file, validated; ``VerdictError`` when missing or unusable."""
     path = verdicts_path(migration_id, directory)
     if not path.is_file():
         raise VerdictError(
             f"no verdicts file {path.name}: this migration reads one (method step 8)"
         )
-    return parse(path.read_text(encoding="utf-8"), migration_id, names)
+    return parse(path.read_text(encoding="utf-8"), migration_id, names, listed)

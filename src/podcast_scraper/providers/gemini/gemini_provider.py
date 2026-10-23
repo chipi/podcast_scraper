@@ -913,6 +913,16 @@ class GeminiProvider:
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="gemini",
+                capability="speaker_detection",
+                stage="speaker_detection",
+                model=self.speaker_model,
+            )
 
             response_text = response.text if hasattr(response, "text") else str(response)
             if not response_text:
@@ -1505,6 +1515,8 @@ class GeminiProvider:
         system_prompt, user_prompt = build_megabundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
             ),
@@ -1563,6 +1575,17 @@ class GeminiProvider:
             cfg=self.cfg,
             model=self.summary_model,
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="gemini",
+            capability="summarization",
+            stage="summarization",
+            model=self.summary_model,
+            call_metrics=call_metrics,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1603,6 +1626,8 @@ class GeminiProvider:
         system_prompt, user_prompt = build_extraction_bundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
             ),
@@ -1664,6 +1689,17 @@ class GeminiProvider:
             cfg=self.cfg,
             model=self.summary_model,
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="gemini",
+            capability="summarization",
+            stage="extraction_bundle",
+            model=self.summary_model,
+            call_metrics=call_metrics,
+        )
         return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
@@ -1700,6 +1736,9 @@ class GeminiProvider:
             title=episode_title or "",
             **tmpl_kwargs,
         )
+        from ..ml.diarization.transcript_naming import with_bundled_field
+
+        user_prompt = with_bundled_field(user_prompt, params)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1801,6 +1840,10 @@ class GeminiProvider:
             _record_cost(triggered_guardrail=True)
             raise
 
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
+
         try:
             data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
@@ -1814,8 +1857,6 @@ class GeminiProvider:
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -2125,6 +2166,16 @@ class GeminiProvider:
             contents=prompt,
             config=cast(Any, generation_config),
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="gemini",
+            capability="gi",
+            stage="gi",
+            model=self.summary_model,
+        )
         content = (getattr(response, "text", "") or "").strip()
         content = _insight_salvage.strip_json_fence(content)
         _guardrails.check_chat_response(
@@ -2137,7 +2188,9 @@ class GeminiProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
-    def complete_text(self, prompt: str) -> str:
+    def complete_text(
+        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
+    ) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
@@ -2153,7 +2206,7 @@ class GeminiProvider:
             self.summary_model,
             {
                 "temperature": 0.0,
-                "max_output_tokens": 800,
+                "max_output_tokens": int(max_tokens),
                 "response_mime_type": "application/json",
             },
         )
@@ -2162,23 +2215,19 @@ class GeminiProvider:
             contents=prompt,
             config=cast(Any, generation_config),
         )
-        # Observability (ADR-137): this is a real per-episode gemini call — the speaker naming +
-        # host/guest role determination. Emit its usage so the stage is not invisible and unbilled:
-        # tokens (ground truth) land in VictoriaLogs and a `speaker_resolution:<model>` Langfuse
-        # span is created, exactly like summarization/gi. Telemetry must never break the call.
-        try:
-            from ...workflow.cost_monitoring import emit_llm_cost_event
+        # Observability (ADR-137): a real per-episode gemini call (speaker resolution, transcript
+        # naming). Priced and counted against the run budget like every other stage; it used to
+        # emit tokens with a cost of 0 (2026-10-23 cost audit). Never raises.
+        from ...utils.provider_metrics import record_response_cost
 
-            emit_llm_cost_event(
-                self.cfg,
-                provider="gemini",
-                stage="speaker_resolution",
-                model=self.summary_model,
-                served_model=getattr(response, "model", None),
-                response=response,
-            )
-        except Exception:  # noqa: BLE001 - telemetry must never break the resolution call
-            pass
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="gemini",
+            capability="speaker_detection",
+            stage=stage,
+            model=self.summary_model,
+        )
         content = (getattr(response, "text", "") or "").strip()
         return _insight_salvage.strip_json_fence(content)
 
@@ -2271,6 +2320,16 @@ class GeminiProvider:
                 pipeline_metrics,
                 recorder_name="record_llm_kg_call",
                 cfg=self.cfg,
+                model=model,
+            )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="gemini",
+                capability="kg",
+                stage="kg",
                 model=model,
             )
             raw = response.text if hasattr(response, "text") else str(response)

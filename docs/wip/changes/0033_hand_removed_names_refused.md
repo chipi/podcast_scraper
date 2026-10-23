@@ -1,7 +1,7 @@
 ---
 id: 0033_hand_removed_names_refused
 class: full
-status: open
+status: landed
 issue: none (the operator opens issues; found by prod's upgrade verify, 2026-10-19)
 touches:
   - src/podcast_scraper/speaker_detectors/hosts.py
@@ -415,15 +415,52 @@ watchdog (b297f2ab0). ci-fast on 47ad8b544: `MAKE_EXIT=0`.
 
 ## 10. Before apply / deploy
 
-_TODO_
+By the prod session, on the operator's direct go ("Ok, you have my go", 2026-10-20): deploy of
+b60a89e27 (run 39391480174), every job and both post-deploy smokes passed, `prod-deploy` VERIFY
+PASS. Preflight PASS, pending exactly `0033_hand_removed_names_refused`. Dry run on the deployed
+code: `would rewrite 1 episode(s)`, segments_relabelled 6,110, quotes_reattributed 109,
+insights_reattributed 58, kg_edges_moved 2, as the clone; **outcome hook: plan diff 0 episode(s)**.
 
 ## 11. After apply / deploy
 
-_TODO_
+- **Apply** 2026-10-20 08:16:29–08:20:58Z, `rewrote 1 episode(s)` with the same counters, EXIT=0.
+  Receipt verdict PASS, outcome acb383cfa44a…, failures none; totals before = after on every
+  metric (prod: S1 16,381, S1n 7, S2 29,626, S3 9,049, S10a 189, S10b 2, S12 24, A1 371), as
+  predicted for a rename (the clone measured the scoreboard identical on every key).
+- **Ownership:** `upgrade_ledger.json` and the 0033 receipt were root-owned; chowned to 1000.
+- **`upgrade verify`** (08:43:28Z) exit 0, no FAIL line: 0015 [OK] ("no served surface carries any
+  of 31 refused name(s)"), 0029 [OK], 0033 [OK] (insights_checked 58, served_listed 1).
+- **Derived surfaces:** `enrich --only insight_density,insight_sentiment`: 1/1 each, EXIT=0;
+  incremental `index`: 1 stale row pruned, reindexed 1, EXIT=0 (08:50:00Z).
+- **Criterion 28, search index, E's rows after the index** (prod session, read-only): aux 152 →
+  151, `person:unresolved-generation…` 1 → 0, "Generation" 1 → 0, "David Roblin" 5; insights 62,
+  "Generation" 0; segments 48, "Generation" 40 → 1 (the sentence "I'm Generation X, I suppose"),
+  "David Roblin" 42. As predicted; no row edits.
 
 ## 12. Retrospective
 
-_TODO_
+What the change delivered: the one episode under a hand-removed name is named, its 58 insights
+shown under the right person; 0015's and 0029's verify FAIL lines are gone from prod; two rules
+stop the same names coming back on any show; the rename fix in the shared rewrite stops the role
+edge loss 0029 caused (7 renames, Stage 2 for the repair).
+
+What went wrong, all the builder's:
+
+- The build reached the first step-8 reviewer unfinished: step 6 empty, black not run on one
+  script, a false sentence in step 3 ("no LLM resolution"), and rule 2 never tested on
+  unpunctuated real names; NO-GO, a full revision.
+- Three `Dated:` stamps were written from no clock, one of which would have passed the gate's
+  revision check falsely; corrected from the commits' UTC author times.
+- A record edit whose search string wrapped across lines silently did not apply, and was reported
+  done; the second reviewer found it.
+- markdownlint on the WIP records found 24 errors ci-fast does not see.
+- The first measurement found the unfinished rename (minted ids, dropped role edges) before any
+  reviewer: the method's measure step working as intended.
+
+Proposals for the method, for the operator (none applied): (1) before step 8 the builder runs, and
+attaches, its own mutation pass and held-out reads (the second and third reviewers found survivors
+and edge cases a builder can find); (2) ci-fast lints `docs/wip/changes/`; (3) `Dated:` stamps come
+from `date -u` in the same command that writes them.
 
 ## Not covered
 

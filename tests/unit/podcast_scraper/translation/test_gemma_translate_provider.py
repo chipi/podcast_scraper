@@ -536,3 +536,33 @@ class TestTheOutputBudgetFitsTheServedContext:
         calls = p.client.completions.calls  # type: ignore[attr-defined]
         assert [c["max_tokens"] for c in calls] == [2953] * 3
         assert p._served_context is False, "the failed lookup is cached, not repeated per unit"
+
+
+class TestEveryUnitEmitsItsCost:
+    """Each translated unit is one paid call: one ``llm_cost`` event, stage ``translation``, with
+    the response's tokens (2026-10-23 cost audit: translation reached ``metrics.json`` only)."""
+
+    def test_one_event_per_unit_with_the_tokens(self) -> None:
+        from unittest.mock import patch
+
+        events: List[Dict[str, Any]] = []
+        with patch(
+            "podcast_scraper.workflow.cost_monitoring.emit_llm_cost_event",
+            side_effect=lambda cfg, **kw: events.append(kw),
+        ):
+            _provider().translate("Hola.", source_language="es")
+        ours = [e for e in events if e.get("stage") == "translation"]
+        assert len(ours) == 1, events
+        assert ours[0]["provider"] == "gemma_translate"
+        assert (ours[0]["prompt_tokens"], ours[0]["completion_tokens"]) == (50, 20)
+
+    def test_a_failed_unit_emits_nothing(self) -> None:
+        from unittest.mock import patch
+
+        events: List[Dict[str, Any]] = []
+        with patch(
+            "podcast_scraper.workflow.cost_monitoring.emit_llm_cost_event",
+            side_effect=lambda cfg, **kw: events.append(kw),
+        ):
+            _provider(raises=OSError("connection reset")).translate("Hola.", source_language="es")
+        assert [e for e in events if e.get("stage") == "translation"] == []
