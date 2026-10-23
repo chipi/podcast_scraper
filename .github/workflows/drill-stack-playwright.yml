@@ -141,12 +141,13 @@ jobs:
         working-directory: tests/stack-test
         run: npm install
 
+      # With the system libraries, like the viewer's firefox: one cache entry serves both (same
+      # Playwright version, same browser, same deps).
       - name: "DR drill — stack Playwright: firefox"
         uses: ./.github/actions/install-playwright
         with:
           working-directory: tests/stack-test
           browser: firefox
-          with-deps: "false"
 
       - name: "DR drill — stack Playwright: stack-viewer.spec.ts (firefox)"
         working-directory: tests/stack-test

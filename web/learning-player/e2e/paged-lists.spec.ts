@@ -9,9 +9,13 @@ import { signInIsolated } from './helpers'
  */
 const TOPIC_ID = 'topic:risk-management'
 
-async function ok(res: Awaited<ReturnType<APIRequestContext['post']>>, what: string) {
+// Playwright >= 1.64 types `APIResponse.json()` as `Serializable`, not `any`: say what comes back.
+async function ok<T = { id: string }>(
+  res: Awaited<ReturnType<APIRequestContext['post']>>,
+  what: string,
+): Promise<T> {
   expect(res.ok(), `${what}: ${res.status()}`).toBeTruthy()
-  return res.json()
+  return (await res.json()) as T
 }
 
 async function seedNotes(page: Page, target: string, targetId: string, n: number, word: string) {
