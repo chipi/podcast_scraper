@@ -530,3 +530,39 @@ def bundled_sidecar(
     if answer is not None:
         out["outcomes"] = counts
     return out
+
+
+def agree(asks: Sequence[NamingAnswer]) -> NamingAnswer:
+    """One answer from ``speaker_naming_passes`` asks: a voice keeps its name only when every pass
+    that answered gave it the same name and role (case-insensitive); otherwise it is null.
+
+    One ask is returned as it is. A pass that failed or could not be read is left out, and the
+    report says how many answered; when none did, the first ask (with its error) stands.
+    """
+    if len(asks) == 1:
+        return asks[0]
+    answered = [a for a in asks if a.ok]
+    first = answered[0] if answered else asks[0]
+    report = dict(first.report)
+    report["passes"] = [a.report for a in asks if a is not first]
+    if not answered:
+        return NamingAnswer(first.call, first.voices_asked, None, report)
+    agreed_answer: Dict[str, Dict[str, Optional[str]]] = {}
+    dropped: List[str] = []
+    for voice, a in (first.answer or {}).items():
+        names = {str((x.answer or {}).get(voice, {}).get("name") or "").lower() for x in answered}
+        roles = {(x.answer or {}).get(voice, {}).get("role") for x in answered}
+        if len(names) == 1 and len(roles) == 1:
+            agreed_answer[voice] = dict(a)
+        else:
+            role = a.get("role") if len(roles) == 1 else "unknown"
+            agreed_answer[voice] = {
+                "name": None,
+                "role": role,
+                "confidence": "low",
+                "evidence": None,
+            }
+            if a.get("name"):
+                dropped.append(voice)
+    report["passes_agreed"] = {"asked": len(asks), "answered": len(answered), "dropped": dropped}
+    return NamingAnswer(first.call, first.voices_asked, agreed_answer, report)

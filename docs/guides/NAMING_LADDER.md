@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 31 |
+| Doc version | 32 |
 | Last updated | 2026-10-23 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `e0c09fa02c32` (see below) |
+| Code content hash | `cf39f2358627` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,23 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v32, 2026-10-23.** `speaker_naming_passes` (default 1, at most 5) sets how many times each
+  naming LLM call is asked: the ladder's resolution call and the staged transcript-naming call.
+  No rung changed.
+  - **Why:** vLLM is not deterministic even at temperature 0. The same episode came back with
+    different names across passes.
+  - **With more than one pass**, a voice keeps a name only when every pass gave it the same one
+    (case-insensitive), and its role only when every role agreed.
+  - **Resolution call:** the first pass's report is the trace input, and the other passes are
+    under `passes`. `passes_agreed` lists the names dropped by disagreement.
+  - **Transcript naming:** a failed pass is left out; `report.passes_agreed` says how many
+    answered.
+  - **Bundled calls are asked once.**
+  - **Measured** (eval repo NAMING-RETHINK, 3 passes, held out):
+    - ladder all-agree: wrong ~36 -> 29 on tuning, about 17 more unnamed;
+    - LLM all-agree: wrong 3.1%, unnamed 17.1%.
+  - **Off by default:** each extra pass costs one more call of each kind.
 
 - **v31, 2026-10-23.** Transcript naming also runs inside the bundled calls (`bundled`,
   `mega_bundled`, `extraction_bundled`). This is the operator's option A. No rung changed.

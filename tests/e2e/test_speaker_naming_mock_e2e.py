@@ -169,3 +169,15 @@ def test_publish_names_the_roster_through_a_real_provider(e2e_server: Any, tmp_p
     assert names["SPEAKER_00"] == "Tobias Wren"
     assert names["SPEAKER_01"] == "Maria Lindqvist"
     assert out["speaker_diagnostics"][tn.SIDECAR_KEY]["mode"] == "publish"
+
+
+def test_k_passes_ask_k_times_over_http(e2e_server: Any, tmp_path: Path) -> None:
+    from tests.e2e.fixtures.e2e_http_server import NAMING_REQUESTS
+
+    NAMING_REQUESTS.clear()
+    cfg = _cfg(e2e_server, "openai", tmp_path, speaker_naming_passes=3)
+    asked = P._ask_transcript_naming(cfg, _aligned(), "Ep 1", None)
+    assert len(NAMING_REQUESTS) == 3
+    assert asked is not None and asked.ok
+    assert asked.report["passes_agreed"] == {"asked": 3, "answered": 3, "dropped": []}
+    assert {v: (a["name"], a["role"]) for v, a in (asked.answer or {}).items()} == EXPECTED

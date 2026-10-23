@@ -1205,6 +1205,18 @@ class Config(BaseModel):
             "stand when the call fails. Off by default."
         ),
     )
+    speaker_naming_passes: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        alias="speaker_naming_passes",
+        description=(
+            "How many times each naming LLM call is asked: the ladder's resolution call and "
+            "transcript naming. With more than one, a voice keeps a name only when every pass "
+            "gave it the same one (vLLM is not deterministic even at temperature 0). 1 = one "
+            "call, as before; each extra pass costs one more call of each."
+        ),
+    )
     ladder_rescue_rules: bool = Field(
         default=False,
         alias="ladder_rescue_rules",

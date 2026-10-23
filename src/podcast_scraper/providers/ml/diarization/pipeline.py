@@ -701,6 +701,51 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
+def naming_passes(cfg: Any) -> int:
+    """``speaker_naming_passes``: how many times each naming LLM call is asked (>= 1)."""
+    try:
+        return max(1, int(getattr(cfg, "speaker_naming_passes", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _resolve_voices_k_passes(cfg: Any, **kwargs: Any) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """The resolver asked ``speaker_naming_passes`` times; a voice keeps a name only when every
+    pass gave it the same one (case-insensitive), and its role only when every pass agreed.
+
+    vLLM is not deterministic even at temperature 0: the same episode came back with different
+    names across passes (podcast-scraper-eval-data NAMING-RETHINK, self-consistency). One pass is
+    the default and is exactly the single call it always was; the first pass's report is the
+    report, and every further pass's report is kept under ``report["passes"]``.
+    """
+    k = naming_passes(cfg)
+    report = kwargs.pop("report")
+    names, roles = _resolve_voices_via_llm(cfg, report=report, **kwargs)
+    if k == 1:
+        return names, roles
+    runs = [(names, roles)]
+    extra: List[Dict[str, Any]] = []
+    for _ in range(k - 1):
+        rep: Dict[str, Any] = {}
+        runs.append(_resolve_voices_via_llm(cfg, report=rep, **kwargs))
+        extra.append(rep)
+    report["passes"] = extra
+    agreed_names: Dict[str, str] = {}
+    for voice, name in names.items():
+        if all(str(n.get(voice) or "").lower() == name.lower() for n, _ in runs):
+            agreed_names[voice] = name
+    agreed_roles: Dict[str, str] = {}
+    for voice, role in roles.items():
+        if all(r.get(voice) == role for _, r in runs):
+            agreed_roles[voice] = role
+    report["passes_agreed"] = {
+        "asked": k,
+        "names": sorted(agreed_names),
+        "dropped": sorted(set(names) - set(agreed_names)),
+    }
+    return agreed_names, agreed_roles
+
+
 def _ask_transcript_naming(
     cfg: config.Config,
     aligned: List[Any],
@@ -742,18 +787,22 @@ def _ask_transcript_naming(
     window = getattr(provider, "served_context_tokens", None)
     window_tokens = window() if callable(window) else getattr(provider, "summary_num_ctx", None)
     count = getattr(provider, "count_tokens", None)
-    return transcript_naming.ask(
-        aligned,
-        complete,
-        feed_title=correlation.get_feed_title(),
-        feed_description=correlation.get_feed_description(),
-        episode_title=episode_title,
-        episode_description=episode_description,
-        window_tokens=window_tokens if isinstance(window_tokens, int) else None,
-        count_tokens=count if callable(count) else None,
-        provider=type(provider).__name__,
-        model=getattr(provider, "summary_model", None),
-    )
+    asks = [
+        transcript_naming.ask(
+            aligned,
+            complete,
+            feed_title=correlation.get_feed_title(),
+            feed_description=correlation.get_feed_description(),
+            episode_title=episode_title,
+            episode_description=episode_description,
+            window_tokens=window_tokens if isinstance(window_tokens, int) else None,
+            count_tokens=count if callable(count) else None,
+            provider=type(provider).__name__,
+            model=getattr(provider, "summary_model", None),
+        )
+        for _ in range(naming_passes(cfg))
+    ]
+    return transcript_naming.agree(asks)
 
 
 def _run_side_namers(
@@ -1157,7 +1206,7 @@ def apply_diarization_to_result(
     # The resolver's FULL answer (#2276) — including what it proposed and was refused — goes into
     # the decision trace; the roster only ever sees the names that survived.
     llm_report: Dict[str, Any] = {}
-    llm_voice_names, llm_voice_roles = _resolve_voices_via_llm(
+    llm_voice_names, llm_voice_roles = _resolve_voices_k_passes(
         cfg,
         stated_names=candidates,
         voice_texts=real_voice_texts,
