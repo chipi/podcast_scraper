@@ -349,7 +349,8 @@ def apply_answer(
     return dataclasses.replace(roster, by_voice=by_voice)
 
 
-def _view(role: Any) -> Dict[str, Any]:
+def role_view(role: Any) -> Dict[str, Any]:
+    """A voice's published name (None when unnamed), role and source, for the sidecars."""
     named = bool(getattr(role, "named", False))
     return {
         "name": getattr(role, "name", None) if named else None,
@@ -380,9 +381,12 @@ def sidecar(
     voices: Dict[str, Any] = {}
     counts = {"agree": 0, "adds": 0, "removes": 0, "changes": 0}
     for voice, role in ladder_roster.by_voice.items():
-        entry: Dict[str, Any] = {"ladder": _view(role), "model": (asked.answer or {}).get(voice)}
+        entry: Dict[str, Any] = {
+            "ladder": role_view(role),
+            "model": (asked.answer or {}).get(voice),
+        }
         if model_roster is not None and voice in model_roster.by_voice:
-            result = _view(model_roster.by_voice[voice])
+            result = role_view(model_roster.by_voice[voice])
             entry["model_result"] = result
             entry["outcome"] = outcome(entry["ladder"]["name"], result["name"])
             counts[entry["outcome"]] += 1

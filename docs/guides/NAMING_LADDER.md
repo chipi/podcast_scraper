@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 28 |
+| Doc version | 29 |
 | Last updated | 2026-10-23 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `62750adee009` (see below) |
+| Code content hash | `3990ab38e966` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,25 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v29, 2026-10-23.** `voice_identity_rung` now has three modes: `off` (the default), `shadow` and
+  `publish`, the same as `transcript_naming`. No rung changed.
+  - **`shadow`.** The ladder publishes. The fingerprint rung's answer goes beside it in the
+    speaker-diagnostics sidecar under the key `voice_identity`.
+  - **Per voice:**
+    - `ladder`;
+    - `fingerprint_result` (the roster the rung gives after the same talk floor and renames);
+    - `match`: the best voted group, its similarity and the voice's talk seconds;
+    - `outcome`.
+  - **Per episode:**
+    - `version`, `mode`, `outcomes`;
+    - `report`: `history_voices`, `groups`, the embedding `model`, or `abstained` with the reason
+      (no fingerprints, no feed workspace, no episode id, no voted group).
+  - **Same shape as `transcript_naming`.** The two shadow keys compare voice by voice.
+  - **The feed directory.** The rung reads the feed workspace that a real run's `output_dir` is
+    (`corpus_feed_output_dir`). A stage-level test proves it
+    (`test_voice_identity_reads_the_feed_workspace.py`); the "suspected bug" in the review was
+    not one.
 
 - **v28, 2026-10-23.** `transcript_naming` now has three modes: `off` (the default), `shadow` and
   `publish`. No rung changed.
@@ -364,7 +383,7 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why. `commercial` by ad overlap needs 60% of the voice's talk in ads AND under 25% of the episode's talk (`c2ac9fcfa`) |
 | `non_regression`, `inputs.baseline_without_llm` | pipeline | names the additive contract restored; the rules-only roster |
 | `transcript_naming` | per voice `named` / `kept` / `removed` (`name`, `said_role`), in `publish` only; the answer and the comparison with the ladder are in the sidecar key `transcript_naming` (v28), in `shadow` and `publish` | the whole-transcript naming pass and what it did to each voice (off by default) |
-| `voice_identity` | per voice `named` / `removed` (`name`) | the feed fingerprint match: a voice given a group's name, or a name taken off a voice that is clearly not that person (off by default) |
+| `voice_identity` | per voice `named` / `removed` (`name`), in `publish` only; the rung's answer against the ladder is in the sidecar key `voice_identity` (v29), in `shadow` and `publish` | the feed fingerprint match: a voice given a group's name, or a name taken off a voice that is clearly not that person (off by default) |
 | `talk_floor` | per voice `removed` (`name`, `talk_share`) | a name taken off a voice under `speaker_name_min_talk_share` of the episode's talk (off by default) |
 
 **Sources a voice's name can carry** (`voices[].source`). `_NAME_EVIDENCE_RANK` ranks four of them,

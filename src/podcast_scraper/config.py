@@ -1205,14 +1205,16 @@ class Config(BaseModel):
             "stand when the call fails. Off by default."
         ),
     )
-    voice_identity_rung: bool = Field(
-        default=False,
+    voice_identity_rung: Literal["off", "shadow", "publish"] = Field(
+        default="off",
         alias="voice_identity_rung",
         description=(
             "Last naming rung: a voice that sounds like a person this feed's other episodes name "
             "(fingerprint groups named by vote) takes that name, and the name leaves a voice that "
             "clearly is not that person (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md, stage 3). "
-            "Same feed only; off by default."
+            "Same feed only. 'off'; 'shadow' = the ladder publishes and the rung's answer is "
+            "written beside it in the speaker-diagnostics sidecar (key `voice_identity`); "
+            "'publish' = the rung changes the roster. Off by default."
         ),
     )
     voice_identity_threshold: float = Field(

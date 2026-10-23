@@ -36,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 PARTICIPANT_ROLES = ("host", "guest")
 SOURCE = "voice_identity"
+SIDECAR_KEY = "voice_identity"
+SIDECAR_VERSION = 1
+MODES = ("off", "shadow", "publish")
 # Sources whose names do not vote in the feed bank (see ``voices_from_diagnostics``).
 _NON_VOTING_SOURCES = frozenset({SOURCE, "transcript_naming"})
 
@@ -222,21 +225,42 @@ def apply_to_roster(
     threshold: float,
     trace: Any = None,
     min_talk: float = 60.0,
+    report: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """The roster after this rung. Abstains (returns it unchanged) without an episode id, a feed
-    workspace, fingerprints for this episode, or any voted group."""
+    workspace, fingerprints for this episode, or any voted group.
+
+    ``report``, when given, is filled with what the rung saw: why it abstained, how many sibling
+    voices and voted groups it had, and each voice's best group and similarity.
+    """
+    rep: Dict[str, Any] = report if report is not None else {}
     vectors = dict(getattr(diarization, "speaker_embeddings", None) or {})
     if not vectors or not feed_dir or not episode_id:
+        rep["abstained"] = (
+            "no fingerprints for this episode"
+            if not vectors
+            else "no feed workspace" if not feed_dir else "no episode id"
+        )
         return roster
     model = getattr(diarization, "speaker_embeddings_model", "") or getattr(
         diarization, "model_name", ""
     )
-    groups = build_groups(
-        feed_history(Path(feed_dir), episode_id, model or None), threshold, min_talk
-    )
+    history = feed_history(Path(feed_dir), episode_id, model or None)
+    groups = build_groups(history, threshold, min_talk)
+    rep.update({"model": model or None, "history_voices": len(history), "groups": len(groups)})
     if not groups:
+        rep["abstained"] = "no voted group in the feed's other episodes"
         return roster
     talk = talk_by_voice(diarization)
+    match: Dict[str, Any] = {}
+    for v, vec in vectors.items():
+        best = max(groups, key=lambda g: _cos(_unit(vec), g.centroid))
+        match[v] = {
+            "group": best.display,
+            "similarity": round(_cos(_unit(vec), best.centroid), 3),
+            "talk_s": round(talk.get(v, 0.0), 1),
+        }
+    rep["match"] = match
     voices = {
         v: (r.name if r.named else None, r.role, talk.get(v, 0.0), vectors.get(v))
         for v, r in roster.by_voice.items()
@@ -266,3 +290,41 @@ def apply_to_roster(
         len(groups),
     )
     return dataclasses.replace(roster, by_voice=by_voice)
+
+
+def mode_of(cfg: Any) -> str:
+    """The configured mode (``voice_identity_rung``), ``off`` for anything unrecognised."""
+    value = str(getattr(cfg, "voice_identity_rung", "off") or "off").strip().lower()
+    return value if value in MODES else "off"
+
+
+def sidecar(
+    mode: str, report: Mapping[str, Any], ladder_roster: Any, fp_roster: Any
+) -> Dict[str, Any]:
+    """The sidecar entry: per voice, the ladder's final name against the fingerprint rung's.
+
+    ``fp_roster`` is the roster this rung gives the ladder's names, after the same talk floor and
+    renames. Same per-voice shape as transcript naming's entry, so the two compare directly.
+    """
+    from .transcript_naming import outcome, role_view
+
+    counts = {"agree": 0, "adds": 0, "removes": 0, "changes": 0}
+    voices: Dict[str, Any] = {}
+    for voice, role in ladder_roster.by_voice.items():
+        ladder = role_view(role)
+        result = role_view(fp_roster.by_voice[voice]) if voice in fp_roster.by_voice else ladder
+        o = outcome(ladder["name"], result["name"])
+        counts[o] += 1
+        voices[voice] = {
+            "ladder": ladder,
+            "fingerprint_result": result,
+            "match": (report.get("match") or {}).get(voice),
+            "outcome": o,
+        }
+    return {
+        "version": SIDECAR_VERSION,
+        "mode": mode,
+        "report": {k: v for k, v in report.items() if k != "match"},
+        "voices": voices,
+        "outcomes": counts,
+    }

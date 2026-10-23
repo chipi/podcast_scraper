@@ -30,7 +30,10 @@ ANSWER = (
 
 
 def _diagnostics(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: Literal["off", "shadow", "publish"]
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mode: Literal["off", "shadow", "publish"],
+    voice: Literal["off", "shadow", "publish"] = "off",
 ) -> Dict[str, Any]:
     monkeypatch.setattr(P, "_resolve_voices_via_llm", lambda *a, **k: ({}, {}))
     monkeypatch.setattr(
@@ -55,7 +58,12 @@ def _diagnostics(
             ],
         },
         "",
-        Config(output_dir=str(tmp_path), speaker_resolution_llm=False, transcript_naming=mode),
+        Config(
+            output_dir=str(tmp_path),
+            speaker_resolution_llm=False,
+            transcript_naming=mode,
+            voice_identity_rung=voice,
+        ),
         ["Maria Lindqvist"],
         precomputed_diarization=DiarizationResult(
             segments=[
@@ -90,3 +98,16 @@ def test_the_shadow_key_is_written_beside_the_ladders_fields(
     assert side["voices"]["SPEAKER_01"]["model"]["confidence"] == "medium"
     assert side["report"]["prompt_version"] == tn.PROMPT_VERSION
     assert sum(side["outcomes"].values()) == len(side["voices"])
+
+
+def test_both_side_namers_are_written_side_by_side(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    off = _diagnostics(monkeypatch, tmp_path / "off", "off")
+    both = _diagnostics(monkeypatch, tmp_path / "both", "shadow", voice="shadow")
+    keys = {tn.SIDECAR_KEY, "voice_identity"}
+    assert {k: v for k, v in both.items() if k not in keys} == off
+    assert both["voice_identity"]["mode"] == "shadow"
+    # No fingerprints on this synthetic episode: the rung abstains and says why.
+    assert both["voice_identity"]["report"]["abstained"] == "no fingerprints for this episode"
+    assert set(both["voice_identity"]["voices"]) == set(both[tn.SIDECAR_KEY]["voices"])

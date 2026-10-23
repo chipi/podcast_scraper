@@ -748,6 +748,104 @@ def _ask_transcript_naming(
     )
 
 
+def _run_side_namers(
+    cfg: config.Config,
+    roster: Any,
+    aligned: List[Any],
+    diarization: Any,
+    episode_title: Optional[str],
+    episode_description: Optional[str],
+    trace: Any,
+) -> Tuple[Any, Dict[str, Any]]:
+    """Transcript naming and the voice rung, each ``off | shadow | publish``.
+
+    Returns the roster (changed only by a ``publish`` mode) and what the sidecars need: each
+    namer's answer, and the ladder's roster before either touched it.
+    """
+    from ....utils import correlation
+    from . import transcript_naming, voice_identity
+
+    side: Dict[str, Any] = {
+        "ladder_roster": roster,
+        "naming_mode": transcript_naming.mode_of(cfg),
+        "naming_asked": None,
+        "voice_mode": voice_identity.mode_of(cfg),
+        "voice_report": None,
+        "voice_shadow_roster": None,
+    }
+    if side["naming_mode"] != "off":
+        asked = _ask_transcript_naming(cfg, aligned, episode_title, episode_description)
+        side["naming_asked"] = asked
+        if side["naming_mode"] == "publish" and asked is not None and asked.ok:
+            roster = transcript_naming.apply_answer(
+                roster, asked.pairs(), trace, language=transcription_language(cfg)
+            )
+    if side["voice_mode"] != "off":
+        out = str(getattr(cfg, "output_dir", "") or "")
+        report: Dict[str, Any] = {}
+        side["voice_report"] = report
+        args = (
+            diarization,
+            Path(out) if out else None,
+            correlation.get_episode_id(),
+            float(getattr(cfg, "voice_identity_threshold", 0.7)),
+        )
+        if side["voice_mode"] == "publish":
+            roster = voice_identity.apply_to_roster(roster, *args, trace=trace, report=report)
+        else:
+            side["voice_shadow_roster"] = voice_identity.apply_to_roster(
+                side["ladder_roster"], *args, report=report
+            )
+    return roster, side
+
+
+def _side_namer_sidecars(
+    cfg: config.Config,
+    side: Mapping[str, Any],
+    roster: Any,
+    aligned: List[Any],
+    speaker_renames: Optional[Mapping[str, str]],
+) -> Dict[str, Any]:
+    """The sidecar keys of the namers not publishing: each one's roster against the ladder's.
+
+    A side roster goes through the same talk floor and renames as the published one, so the two
+    are compared as served.
+    """
+    from . import transcript_naming, voice_identity
+
+    floor = float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0)
+
+    def finish(r: Any) -> Any:
+        return _apply_speaker_renames(_apply_talk_floor(r, aligned, floor), speaker_renames)
+
+    ladder = side["ladder_roster"]
+    out: Dict[str, Any] = {}
+    if side["voice_report"] is not None:
+        if side["voice_mode"] == "shadow":
+            pair = (roster, finish(side["voice_shadow_roster"]))
+        else:
+            pair = (finish(ladder), roster)
+        out[voice_identity.SIDECAR_KEY] = voice_identity.sidecar(
+            side["voice_mode"], side["voice_report"], *pair
+        )
+    asked = side["naming_asked"]
+    if asked is not None:
+        mode = side["naming_mode"]
+        model_final = (
+            finish(
+                transcript_naming.apply_answer(
+                    ladder, asked.pairs(), language=transcription_language(cfg)
+                )
+            )
+            if asked.ok
+            else None
+        )
+        out[transcript_naming.SIDECAR_KEY] = transcript_naming.sidecar(
+            mode, asked, roster if mode == "shadow" else finish(ladder), model_final
+        )
+    return out
+
+
 def _apply_talk_floor(roster: Any, aligned: List[Any], floor: float, trace: Any = None) -> Any:
     """The roster with every name taken off a voice that holds < ``floor`` of the episode's talk.
 
@@ -1168,31 +1266,9 @@ def apply_diarization_to_result(
                 ", ".join(restored_names),
             )
 
-    from . import transcript_naming
-
-    naming_mode = transcript_naming.mode_of(cfg)
-    naming_asked = None
-    ladder_roster = roster
-    if naming_mode != "off":
-        naming_asked = _ask_transcript_naming(cfg, aligned, episode_title, episode_description)
-        if naming_mode == "publish" and naming_asked is not None and naming_asked.ok:
-            roster = transcript_naming.apply_answer(
-                roster, naming_asked.pairs(), naming_trace, language=transcription_language(cfg)
-            )
-
-    if getattr(cfg, "voice_identity_rung", False):
-        from ....utils import correlation
-        from . import voice_identity
-
-        _out = str(getattr(cfg, "output_dir", "") or "")
-        roster = voice_identity.apply_to_roster(
-            roster,
-            diarization,
-            Path(_out) if _out else None,
-            correlation.get_episode_id(),
-            float(getattr(cfg, "voice_identity_threshold", 0.7)),
-            trace=naming_trace,
-        )
+    roster, side_namers = _run_side_namers(
+        cfg, roster, aligned, diarization, episode_title, episode_description, naming_trace
+    )
     roster = _apply_talk_floor(
         roster,
         aligned,
@@ -1220,25 +1296,9 @@ def apply_diarization_to_result(
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["speaker_diagnostics"]["decision_trace"] = naming_trace.to_dict()
-    if naming_asked is not None:
-        _floor = float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0)
-
-        def _finish(r: Any) -> Any:
-            return _apply_speaker_renames(_apply_talk_floor(r, aligned, _floor), speaker_renames)
-
-        ladder_final = roster if naming_mode == "shadow" else _finish(ladder_roster)
-        model_final = (
-            _finish(
-                transcript_naming.apply_answer(
-                    ladder_roster, naming_asked.pairs(), language=transcription_language(cfg)
-                )
-            )
-            if naming_asked.ok
-            else None
-        )
-        enriched_result["speaker_diagnostics"][transcript_naming.SIDECAR_KEY] = (
-            transcript_naming.sidecar(naming_mode, naming_asked, ladder_final, model_final)
-        )
+    enriched_result["speaker_diagnostics"].update(
+        _side_namer_sidecars(cfg, side_namers, roster, aligned, speaker_renames)
+    )
     voice_embeddings = voice_embeddings_block(diarization)
     if voice_embeddings:
         enriched_result["speaker_diagnostics"]["voice_embeddings"] = voice_embeddings
