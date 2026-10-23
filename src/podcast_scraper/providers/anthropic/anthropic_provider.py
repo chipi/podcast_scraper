@@ -556,6 +556,16 @@ class AnthropicProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_anthropic_retryable(),
             )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="anthropic",
+                capability="speaker_detection",
+                stage="speaker_detection",
+                model=self.speaker_model,
+            )
 
             # Extract text from response - handle different block types
             response_text = ""
@@ -1117,6 +1127,17 @@ class AnthropicProvider:
             cfg=self.cfg,
             model=self.summary_model,
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="anthropic",
+            capability="summarization",
+            stage="summarization",
+            model=self.summary_model,
+            call_metrics=call_metrics,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1204,6 +1225,17 @@ class AnthropicProvider:
             recorder_name="record_llm_summarization_call",
             cfg=self.cfg,
             model=self.summary_model,
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="anthropic",
+            capability="summarization",
+            stage="extraction_bundle",
+            model=self.summary_model,
+            call_metrics=call_metrics,
         )
         return parse_extraction_bundle_response(raw_text)
 
@@ -1339,6 +1371,10 @@ class AnthropicProvider:
 
         raw = "{" + raw if not raw.startswith("{") else raw
 
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
+
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -1352,8 +1388,6 @@ class AnthropicProvider:
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1852,6 +1886,16 @@ class AnthropicProvider:
             temperature=0.0,
             messages=[{"role": "user", "content": user_prompt}],
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="anthropic",
+            capability="gi",
+            stage="gi",
+            model=self.summary_model,
+        )
         content = ""
         if response.content and len(response.content) > 0:
             first = response.content[0]
@@ -1884,6 +1928,16 @@ class AnthropicProvider:
             max_tokens=int(max_tokens),
             temperature=0.0,
             messages=[{"role": "user", "content": prompt}],
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="anthropic",
+            capability="speaker_detection",
+            stage=stage,
+            model=self.summary_model,
         )
         content = ""
         if response.content and len(response.content) > 0:
@@ -1971,6 +2025,16 @@ class AnthropicProvider:
                 pipeline_metrics,
                 recorder_name="record_llm_kg_call",
                 cfg=self.cfg,
+                model=model,
+            )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="anthropic",
+                capability="kg",
+                stage="kg",
                 model=model,
             )
             content = ""

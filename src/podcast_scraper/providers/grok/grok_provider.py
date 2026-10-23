@@ -394,6 +394,16 @@ class GrokProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
             )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="grok",
+                capability="speaker_detection",
+                stage="speaker_detection",
+                model=self.speaker_model,
+            )
 
             response_text = response.choices[0].message.content
             if not response_text:
@@ -988,6 +998,17 @@ class GrokProvider:
             cfg=self.cfg,
             model=self.summary_model,
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="grok",
+            capability="summarization",
+            stage="summarization",
+            model=self.summary_model,
+            call_metrics=call_metrics,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1078,6 +1099,17 @@ class GrokProvider:
             recorder_name="record_llm_summarization_call",
             cfg=self.cfg,
             model=self.summary_model,
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="grok",
+            capability="summarization",
+            stage="extraction_bundle",
+            model=self.summary_model,
+            call_metrics=call_metrics,
         )
         return parse_extraction_bundle_response(raw_text)
 
@@ -1208,6 +1240,10 @@ class GrokProvider:
             _record_cost(triggered_guardrail=True)
             raise
 
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
+
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -1221,8 +1257,6 @@ class GrokProvider:
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1497,6 +1531,16 @@ class GrokProvider:
             max_tokens=gate_max_tokens,
             response_format={"type": "json_object"},
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="grok",
+            capability="gi",
+            stage="gi",
+            model=self.summary_model,
+        )
         content = (response.choices[0].message.content or "").strip()
         content = _insight_salvage.strip_json_fence(content)
         _guardrails.check_chat_response(content, service="grok", expect_json=True)
@@ -1527,6 +1571,16 @@ class GrokProvider:
             temperature=0.0,
             max_tokens=int(max_tokens),
             response_format={"type": "json_object"},
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="grok",
+            capability="speaker_detection",
+            stage=stage,
+            model=self.summary_model,
         )
         content = (response.choices[0].message.content or "").strip()
         _guardrails.check_chat_response(content, service="grok", expect_json=True)
@@ -1608,6 +1662,16 @@ class GrokProvider:
                 pipeline_metrics,
                 recorder_name="record_llm_kg_call",
                 cfg=self.cfg,
+                model=model,
+            )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="grok",
+                capability="kg",
+                stage="kg",
                 model=model,
             )
             raw = (response.choices[0].message.content or "").strip()

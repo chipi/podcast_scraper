@@ -913,6 +913,16 @@ class GeminiProvider:
                 ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="gemini",
+                capability="speaker_detection",
+                stage="speaker_detection",
+                model=self.speaker_model,
+            )
 
             response_text = response.text if hasattr(response, "text") else str(response)
             if not response_text:
@@ -1563,6 +1573,17 @@ class GeminiProvider:
             cfg=self.cfg,
             model=self.summary_model,
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="gemini",
+            capability="summarization",
+            stage="summarization",
+            model=self.summary_model,
+            call_metrics=call_metrics,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1663,6 +1684,17 @@ class GeminiProvider:
             recorder_name="record_llm_summarization_call",
             cfg=self.cfg,
             model=self.summary_model,
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="gemini",
+            capability="summarization",
+            stage="extraction_bundle",
+            model=self.summary_model,
+            call_metrics=call_metrics,
         )
         return parse_extraction_bundle_response(raw_text)
 
@@ -1801,6 +1833,10 @@ class GeminiProvider:
             _record_cost(triggered_guardrail=True)
             raise
 
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
+
         try:
             data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
@@ -1814,8 +1850,6 @@ class GeminiProvider:
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -2125,6 +2159,16 @@ class GeminiProvider:
             contents=prompt,
             config=cast(Any, generation_config),
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="gemini",
+            capability="gi",
+            stage="gi",
+            model=self.summary_model,
+        )
         content = (getattr(response, "text", "") or "").strip()
         content = _insight_salvage.strip_json_fence(content)
         _guardrails.check_chat_response(
@@ -2164,23 +2208,19 @@ class GeminiProvider:
             contents=prompt,
             config=cast(Any, generation_config),
         )
-        # Observability (ADR-137): this is a real per-episode gemini call — the speaker naming +
-        # host/guest role determination. Emit its usage so the stage is not invisible and unbilled:
-        # tokens (ground truth) land in VictoriaLogs and a `speaker_resolution:<model>` Langfuse
-        # span is created, exactly like summarization/gi. Telemetry must never break the call.
-        try:
-            from ...workflow.cost_monitoring import emit_llm_cost_event
+        # Observability (ADR-137): a real per-episode gemini call (speaker resolution, transcript
+        # naming). Priced and counted against the run budget like every other stage; it used to
+        # emit tokens with a cost of 0 (2026-10-23 cost audit). Never raises.
+        from ...utils.provider_metrics import record_response_cost
 
-            emit_llm_cost_event(
-                self.cfg,
-                provider="gemini",
-                stage=stage,
-                model=self.summary_model,
-                served_model=getattr(response, "model", None),
-                response=response,
-            )
-        except Exception:  # noqa: BLE001 - telemetry must never break the resolution call
-            pass
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="gemini",
+            capability="speaker_detection",
+            stage=stage,
+            model=self.summary_model,
+        )
         content = (getattr(response, "text", "") or "").strip()
         return _insight_salvage.strip_json_fence(content)
 
@@ -2273,6 +2313,16 @@ class GeminiProvider:
                 pipeline_metrics,
                 recorder_name="record_llm_kg_call",
                 cfg=self.cfg,
+                model=model,
+            )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="gemini",
+                capability="kg",
+                stage="kg",
                 model=model,
             )
             raw = response.text if hasattr(response, "text") else str(response)

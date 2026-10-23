@@ -2386,6 +2386,17 @@ class OpenAICompatibleProvider:
             model=self.summary_model,
             provider_type=self._TELEMETRY_PROVIDER,
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type=self._TELEMETRY_PROVIDER,
+            capability="summarization",
+            stage="summarization",
+            model=self.summary_model,
+            call_metrics=call_metrics,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -2492,6 +2503,17 @@ class OpenAICompatibleProvider:
             cfg=self.cfg,
             model=self.summary_model,
             provider_type=self._TELEMETRY_PROVIDER,
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type=self._TELEMETRY_PROVIDER,
+            capability="summarization",
+            stage="extraction_bundle",
+            model=self.summary_model,
+            call_metrics=call_metrics,
         )
         return parse_extraction_bundle_response(raw_text)
 
@@ -2621,6 +2643,7 @@ class OpenAICompatibleProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 triggered_guardrail=triggered_guardrail,
+                response=response,
             )
 
         # Response-shape guardrail (ADR-100, #1003) — empty content, thinking-
@@ -2633,6 +2656,10 @@ class OpenAICompatibleProvider:
         except _guardrails.GuardrailViolation:
             _record_cost(triggered_guardrail=True)
             raise
+
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
 
         try:
             data = json.loads(raw)
@@ -2647,8 +2674,6 @@ class OpenAICompatibleProvider:
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(

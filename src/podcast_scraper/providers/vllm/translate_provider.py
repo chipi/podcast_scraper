@@ -392,6 +392,16 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             }
         )
         self._record_translation_call(meta)
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type=self._TELEMETRY_PROVIDER,
+            capability="summarization",
+            stage="translation",
+            model=model,
+        )
 
         if not out:
             # An empty string is not a translation of non-empty input; accepting it would put a

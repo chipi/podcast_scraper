@@ -2162,7 +2162,8 @@ class TestOllamaSummarizeBundled(unittest.TestCase):
 
         provider.summarize_bundled("text", pipeline_metrics=pm)
 
-        pm.record_llm_bundled_clean_summary_call.assert_called_once_with(200, 80)
+        # The call's priced cost rides along like every other provider's ($0: Ollama runs locally).
+        pm.record_llm_bundled_clean_summary_call.assert_called_once_with(200, 80, cost_usd=0.0)
 
     @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.prompts.store.render_prompt")
