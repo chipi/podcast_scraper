@@ -1,0 +1,123 @@
+name: Install Playwright browser (cached)
+description: |
+  Installs one Playwright browser, and with `with-deps` its system libraries, from GitHub's
+  Actions cache; only on a miss from Playwright's CDN and the Ubuntu mirror.
+
+  Why: `playwright install --with-deps` runs apt against azure.archive.ubuntu.com for the
+  browser's system libraries. On 2026-10-23 that part took `Fetched 25.9 MB in 8min 21s
+  (51.8 kB/s)` (nightly-tier3-validation) while the browser itself came from the CDN in ~10 s.
+  The same mirror stalled the ffmpeg installs that day (see install-ffmpeg).
+
+  How: the browser directory (~/.cache/ms-playwright) and the .deb files that install-deps
+  downloads are cached under a key with the runner image (`ImageOS`, `ImageVersion`), the
+  browser, and the installed Playwright version, so the browser build and the libraries always
+  match. On a hit nothing is fetched. If installing the cached files fails, the step falls back to
+  `playwright install` as before. Run it after `npm ci` in `working-directory`.
+
+inputs:
+  working-directory:
+    description: The app directory whose node_modules holds the Playwright version to use.
+    required: true
+  browser:
+    description: chromium | firefox | webkit
+    required: true
+  with-deps:
+    description: Also install the browser's system libraries (apt), as `--with-deps` does.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Playwright cache key
+      id: key
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BROWSER: ${{ inputs.browser }}
+        WITH_DEPS: ${{ inputs.with-deps }}
+      run: |
+        set -euo pipefail
+        version=$(node_modules/.bin/playwright --version | awk '{print $2}')
+        deps=$([ "$WITH_DEPS" = "true" ] && echo deps || echo nodeps)
+        echo "debs=${RUNNER_TEMP}/apt-playwright-${BROWSER}" >> "$GITHUB_OUTPUT"
+        echo "key=playwright-v1-${ImageOS:-unknown}-${ImageVersion:-unknown}-${BROWSER}-${deps}-${version}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore Playwright browser
+      id: restore
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ${{ steps.key.outputs.debs }}
+        key: ${{ steps.key.outputs.key }}
+
+    - name: Install Playwright browser
+      id: install
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BROWSER: ${{ inputs.browser }}
+        WITH_DEPS: ${{ inputs.with-deps }}
+        DEB_DIR: ${{ steps.key.outputs.debs }}
+        CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+      run: |
+        set -euo pipefail
+        keep_debs() {
+          # apt-get keeps downloads by default, but some apt configs delete them; the cache needs them.
+          printf 'APT::Keep-Downloaded-Packages "true";\nBinary::apt::APT::Keep-Downloaded-Packages "true";\n' \
+            | sudo tee /etc/apt/apt.conf.d/99keep-downloaded-packages >/dev/null
+        }
+        fresh() {
+          if [ "$WITH_DEPS" = "true" ]; then
+            keep_debs
+            # Keep only the .deb files install-deps downloads now, not ones already on disk.
+            before=$(mktemp)
+            ls /var/cache/apt/archives/*.deb 2>/dev/null | sort > "$before" || true
+            node_modules/.bin/playwright install --with-deps "$BROWSER"
+            mkdir -p "$DEB_DIR"
+            ls /var/cache/apt/archives/*.deb 2>/dev/null | sort | comm -13 "$before" - \
+              | xargs -r -I{} cp {} "$DEB_DIR"/
+            if ! ls "$DEB_DIR"/*.deb >/dev/null 2>&1; then
+              # Nothing new to download (all present on the image), or apt kept nothing: a hit
+              # then runs install-deps, which is quick when there is nothing to fetch.
+              echo "playwright: no new system packages captured"
+            fi
+          else
+            node_modules/.bin/playwright install "$BROWSER"
+          fi
+          echo "save=true" >> "$GITHUB_OUTPUT"
+        }
+        if [ "${CACHE_HIT}" = "true" ]; then
+          ok=true
+          if [ "$WITH_DEPS" = "true" ]; then
+            if ls "$DEB_DIR"/*.deb >/dev/null 2>&1; then
+              echo "playwright: installing $(ls "$DEB_DIR"/*.deb | wc -l) cached system packages"
+              sudo dpkg -i "$DEB_DIR"/*.deb || ok=false
+            else
+              node_modules/.bin/playwright install-deps "$BROWSER" || ok=false
+            fi
+          fi
+          # A no-op when the cached browser is complete; downloads what is missing otherwise.
+          node_modules/.bin/playwright install "$BROWSER" || ok=false
+          if [ "$ok" = "true" ]; then
+            echo "save=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::playwright: the cached files did not install; installing afresh"
+            sudo apt-get -f install -y || true
+            rm -rf "$DEB_DIR"
+            fresh
+          fi
+        else
+          echo "playwright: cache miss; installing once for this runner image and version"
+          fresh
+        fi
+
+    - name: Save Playwright browser
+      if: steps.install.outputs.save == 'true' && steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ${{ steps.key.outputs.debs }}
+        key: ${{ steps.key.outputs.key }}

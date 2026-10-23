@@ -137,6 +137,17 @@ jobs:
           echo "::error::https://${R}/api/health did not return ok from runner (tailscale serve / ACL :443). drill-e2e can still pass via SSH :8080 - fix serve on host."
           exit 1
 
+      - name: "DR drill — stack Playwright: install"
+        working-directory: tests/stack-test
+        run: npm install
+
+      - name: "DR drill — stack Playwright: firefox"
+        uses: ./.github/actions/install-playwright
+        with:
+          working-directory: tests/stack-test
+          browser: firefox
+          with-deps: "false"
+
       - name: "DR drill — stack Playwright: stack-viewer.spec.ts (firefox)"
         working-directory: tests/stack-test
         env:
@@ -147,8 +158,6 @@ jobs:
           STACK_CORPUS_RESTORED: "1"
         run: |
           set -euo pipefail
-          npm install
-          ./node_modules/.bin/playwright install firefox
           ./node_modules/.bin/playwright test stack-viewer.spec.ts
 
       - name: "DR drill — upload Playwright artifacts (traces, console, screenshots)"
