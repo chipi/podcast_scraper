@@ -1205,6 +1205,16 @@ class Config(BaseModel):
             "stand when the call fails. Off by default."
         ),
     )
+    widen_candidates_from_metadata: bool = Field(
+        default=False,
+        alias="widen_candidates_from_metadata",
+        description=(
+            "Add to the closed candidate list the names the episode's own title and description "
+            "present as people on it (after 'with', 'guest', 'joined by', 'featuring', ...; "
+            "providers/ml/diarization/candidate_widening.py), which detection missed. Off by "
+            "default."
+        ),
+    )
     merge_split_voices: bool = Field(
         default=False,
         alias="merge_split_voices",
