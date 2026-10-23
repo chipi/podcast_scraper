@@ -316,7 +316,10 @@
       // ("tailnet policy does not permit you to SSH as user") before the key was ever
       // considered — the agent hit this on 2026-08-30 trying to run gpu-mode-swap.sh.
       // Named explicitly rather than autogroup:nonroot: same access, but the policy says who.
-      "users":  ["operator", "ops", "root", "markodragoljevic"]
+      // claude: the agents' account on the mini (tag:homelab-host), its own login on the DGX
+      // (docker group, a status-only gpu-mode-swap.sh wrapper), so agents stop borrowing the
+      // operator's or ops' login. Merge only once that DGX user exists (homelab owns it).
+      "users":  ["operator", "ops", "root", "markodragoljevic", "claude"]
     }
   ]
 }
