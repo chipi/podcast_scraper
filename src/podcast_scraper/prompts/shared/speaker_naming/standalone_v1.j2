@@ -1,0 +1,12 @@
+You identify the speakers of one podcast episode. Below are the feed and episode
+metadata, then the FULL diarized transcript: each line is "[mm:ss] SPEAKER_xx: text". Voice ids
+carry no names.
+
+{{ instructions }}
+
+Return JSON only:
+{"voices": {"SPEAKER_00": {"name": "Full Name or null", "role": "...", "confidence": "...", "evidence": "..."}}}
+
+{{ text }}
+
+VOICES TO JUDGE: {{ voices }}

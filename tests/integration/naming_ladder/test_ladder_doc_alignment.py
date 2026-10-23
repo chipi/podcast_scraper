@@ -27,7 +27,10 @@ NOT_YET_EXERCISED: dict = {
     # its own unit tests (test_voice_identity.py, test_talk_floor.py).
     "voice_identity": "off by default (voice_identity_rung); needs a feed fingerprint bank",
     "talk_floor": "off by default (speaker_name_min_talk_share = 0)",
-    "transcript_naming": "off by default; needs an LLM call the scenario harness does not make",
+    "transcript_naming": (
+        "off by default; needs an LLM call the scenario harness does not make (covered by "
+        "test_transcript_naming*.py and tests/e2e/test_speaker_naming_mock_e2e.py)"
+    ),
 }
 
 

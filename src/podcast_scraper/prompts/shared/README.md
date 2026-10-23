@@ -26,6 +26,7 @@ transcript, and are passed as a use case of each provider's `summarize`
 
 ## Other shared subtrees
 
+- **`shared/speaker_naming/`** — transcript naming (`providers/ml/diarization/transcript_naming.py`): `instructions_v1` is the per-voice instruction block, `standalone_v1` the whole staged prompt around it. The rendered prompt is pinned byte for byte to the one measured on the labelled naming sets (`tests/unit/.../diarization/test_transcript_naming.py`); change it only with a new measurement.
 - **`shared/kg_graph_extraction/`** — KG extraction prompts shared where applicable (same override pattern if extended to provider paths).
 
 ## Further reading

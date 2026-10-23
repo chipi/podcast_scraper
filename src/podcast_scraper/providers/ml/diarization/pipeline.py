@@ -701,16 +701,14 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
-def _name_from_transcript(
+def _ask_transcript_naming(
     cfg: config.Config,
-    roster: Any,
     aligned: List[Any],
     episode_title: Optional[str],
     episode_description: Optional[str],
-    trace: Any = None,
 ) -> Any:
-    """Transcript naming (``transcript_naming``): the roster the LLM names from the full transcript,
-    or the ladder's roster when the profile has no LLM or the call fails."""
+    """Transcript naming's call (``transcript_naming``): the model's answer for every voice, as a
+    ``NamingAnswer`` (``ok`` False when it failed), or None when the profile has no LLM."""
     from ....speaker_detectors.resolution import completion_fn_for
     from ....summarization.factory import create_summarization_provider
     from ....utils import correlation
@@ -721,27 +719,32 @@ def _name_from_transcript(
         provider.initialize()
     except Exception as exc:  # noqa: BLE001 — the ladder's roster stands
         logger.warning("transcript naming: no provider (%s); the ladder's names stand", exc)
-        return roster
+        return None
     fn = completion_fn_for(provider)
     if fn is None:
-        return roster
+        return None
 
     def complete(prompt: str) -> str:
-        try:
-            limit = transcript_naming.MAX_OUTPUT_TOKENS
-            return fn(prompt, max_tokens=limit)  # type: ignore[call-arg]
-        except TypeError:  # a provider whose complete_text takes the prompt only
-            return fn(prompt)
+        return fn(  # type: ignore[call-arg]
+            prompt,
+            max_tokens=transcript_naming.MAX_OUTPUT_TOKENS,
+            stage=transcript_naming.COST_STAGE,
+        )
 
-    return transcript_naming.name_from_transcript(
-        roster,
+    window = getattr(provider, "served_context_tokens", None)
+    window_tokens = window() if callable(window) else getattr(provider, "summary_num_ctx", None)
+    count = getattr(provider, "count_tokens", None)
+    return transcript_naming.ask(
         aligned,
         complete,
         feed_title=correlation.get_feed_title(),
         feed_description=correlation.get_feed_description(),
         episode_title=episode_title,
         episode_description=episode_description,
-        trace=trace,
+        window_tokens=window_tokens if isinstance(window_tokens, int) else None,
+        count_tokens=count if callable(count) else None,
+        provider=type(provider).__name__,
+        model=getattr(provider, "summary_model", None),
     )
 
 
@@ -1165,10 +1168,17 @@ def apply_diarization_to_result(
                 ", ".join(restored_names),
             )
 
-    if getattr(cfg, "transcript_naming", False):
-        roster = _name_from_transcript(
-            cfg, roster, aligned, episode_title, episode_description, naming_trace
-        )
+    from . import transcript_naming
+
+    naming_mode = transcript_naming.mode_of(cfg)
+    naming_asked = None
+    ladder_roster = roster
+    if naming_mode != "off":
+        naming_asked = _ask_transcript_naming(cfg, aligned, episode_title, episode_description)
+        if naming_mode == "publish" and naming_asked is not None and naming_asked.ok:
+            roster = transcript_naming.apply_answer(
+                roster, naming_asked.pairs(), naming_trace, language=transcription_language(cfg)
+            )
 
     if getattr(cfg, "voice_identity_rung", False):
         from ....utils import correlation
@@ -1210,6 +1220,25 @@ def apply_diarization_to_result(
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["speaker_diagnostics"]["decision_trace"] = naming_trace.to_dict()
+    if naming_asked is not None:
+        _floor = float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0)
+
+        def _finish(r: Any) -> Any:
+            return _apply_speaker_renames(_apply_talk_floor(r, aligned, _floor), speaker_renames)
+
+        ladder_final = roster if naming_mode == "shadow" else _finish(ladder_roster)
+        model_final = (
+            _finish(
+                transcript_naming.apply_answer(
+                    ladder_roster, naming_asked.pairs(), language=transcription_language(cfg)
+                )
+            )
+            if naming_asked.ok
+            else None
+        )
+        enriched_result["speaker_diagnostics"][transcript_naming.SIDECAR_KEY] = (
+            transcript_naming.sidecar(naming_mode, naming_asked, ladder_final, model_final)
+        )
     voice_embeddings = voice_embeddings_block(diarization)
     if voice_embeddings:
         enriched_result["speaker_diagnostics"]["voice_embeddings"] = voice_embeddings

@@ -8,9 +8,17 @@ docs/wip/NAMING-RETHINK-2026-10-22.md, "Bet 1"): on 181 held-out two-voice episo
 nameable voices 9.4% -> 2.8% and wrong names 6.6% -> 3.8% of named voices, names published only on
 voices the model itself calls host or guest.
 
+Three modes (``transcript_naming``): ``off``; ``shadow`` — the ladder publishes and the model's
+answer is written beside it in the speaker-diagnostics sidecar under :data:`SIDECAR_KEY`, so the two
+namers can be compared voice by voice; ``publish`` — the model's answer names the roster. Shadow
+changes no published artifact other than that sidecar key.
+
 The prompt and the transcript layout are the ones measured there (``autoresearch/naming_rethink/
-qwen_verify.py`` over ``autoresearch/naming_gate1/panel_prep.py`` files); change them only with a
-new measurement. When the call fails or the answer cannot be read, the ladder's roster stands.
+qwen_verify.py`` over ``autoresearch/naming_gate1/panel_prep.py`` files), now the prompt-store
+templates ``shared/speaker_naming/*_v1``; change them only with a new measurement. A
+transcript too long for the provider's window loses turns from the MIDDLE, never the opening
+introductions or the closing sign-offs the prompt asks about, and the sidecar records how many.
+When the call fails or the answer cannot be read, the ladder's roster stands.
 """
 
 from __future__ import annotations
@@ -19,59 +27,50 @@ import dataclasses
 import json
 import logging
 import re
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
 SOURCE = "transcript_naming"
+SIDECAR_KEY = "transcript_naming"
+SIDECAR_VERSION = 1
+MODES = ("off", "shadow", "publish")
+COST_STAGE = "speaker_naming"
+PROMPT_VERSION = "v1"
+STANDALONE_PROMPT = f"shared/speaker_naming/standalone_{PROMPT_VERSION}"
+INSTRUCTIONS_PROMPT = f"shared/speaker_naming/instructions_{PROMPT_VERSION}"
 MIN_WORDS = 40
 # The labelled cases capped the metadata at these lengths (scripts/measure/naming_gold_cases.py).
 FEED_DESCRIPTION_CHARS = 1500
 EPISODE_DESCRIPTION_CHARS = 2500
 MAX_OUTPUT_TOKENS = 3000
+# Headroom between the counted prompt and the window, for chat-template tokens the count misses.
+WINDOW_MARGIN_TOKENS = 256
+RAW_CHARS = 16000
+_CLIP_ROUNDS = 6
 _NULLS = {"", "null", "none", "unknown", "n/a"}
 PARTICIPANT_ROLES = ("host", "guest")
+_TURN = re.compile(r"^\[\d+:\d+\] (SPEAKER_\d+): (.*)$", re.M)
 
-PROMPT = """You identify the speakers of one podcast episode. Below are the feed and episode
-metadata, then the FULL diarized transcript: each line is "[mm:ss] SPEAKER_xx: text". Voice ids
-carry no names.
 
-For EVERY voice listed at the end, decide:
-- name: the real person this voice is, or null. Use only this file: self-introductions, being
-  introduced or welcomed by another voice (and who speaks next), being addressed by name, the
-  metadata naming hosts and guests, sign-offs. Diarization can merge two people into one voice or
-  split one person into two voices; judge a voice by most of its speech. Two voices may be the same
-  person. A voice that only TALKS ABOUT a person is not that person.
-- role: host | guest | ad | promo | clip | unknown (ad = an advertisement read; promo = a trailer or
-  promotion for another show or product; clip = an archival or quoted recording; unknown = mixed or
-  unclear).
-- confidence: high | medium | low.
-- evidence: a short verbatim quote with its [mm:ss] that supports the name, or "" when name is null.
-A wrong name is worse than a missing one: when unsure, null.
-
-Return JSON only:
-{{"voices": {{"SPEAKER_00": {{"name": "Full Name or null", "role": "...", \
-"confidence": "...", "evidence": "..."}}}}}}
-
-{text}
-
-VOICES TO JUDGE: {voices}
-"""
+def mode_of(cfg: Any) -> str:
+    """The configured mode, ``off`` for anything unrecognised."""
+    value = str(getattr(cfg, "transcript_naming", "off") or "off").strip().lower()
+    return value if value in MODES else "off"
 
 
 def _cap(text: Optional[str], chars: int) -> Optional[str]:
     return text[:chars] if isinstance(text, str) else text
 
 
-def transcript_block(
-    aligned: Sequence[Tuple[Mapping[str, Any], Optional[str]]],
+def header_lines(
     feed_title: Optional[str],
     feed_description: Optional[str],
     episode_title: Optional[str],
     episode_description: Optional[str],
-) -> str:
-    """The metadata and the turn-merged transcript, laid out as measured."""
-    lines = [
+) -> List[str]:
+    """The metadata lines above the transcript, capped as the labelled cases were."""
+    return [
         f"FEED: {feed_title}",
         f"FEED DESCRIPTION: {_cap(feed_description, FEED_DESCRIPTION_CHARS)}",
         f"EPISODE: {episode_title}",
@@ -79,6 +78,11 @@ def transcript_block(
         "",
         "TRANSCRIPT (diarized voices; no names attached):",
     ]
+
+
+def turn_lines(aligned: Sequence[Tuple[Mapping[str, Any], Optional[str]]]) -> List[str]:
+    """Consecutive segments of one voice merged into one ``[mm:ss] VOICE: text`` turn."""
+    lines: List[str] = []
     cur: Optional[str] = None
     buf: List[str] = []
     t0 = 0.0
@@ -93,23 +97,102 @@ def transcript_block(
         buf.append(str(segment.get("text") or "").strip())
     if buf:
         lines.append(f"[{int(t0 // 60):02d}:{int(t0 % 60):02d}] {cur}: {' '.join(buf)}")
-    return "\n".join(lines) + "\n"
+    return lines
+
+
+def transcript_block(
+    aligned: Sequence[Tuple[Mapping[str, Any], Optional[str]]],
+    feed_title: Optional[str],
+    feed_description: Optional[str],
+    episode_title: Optional[str],
+    episode_description: Optional[str],
+) -> str:
+    """The metadata and the turn-merged transcript, laid out as measured."""
+    head = header_lines(feed_title, feed_description, episode_title, episode_description)
+    return "\n".join(head + turn_lines(aligned)) + "\n"
 
 
 def voices_to_judge(text: str) -> List[str]:
     """Every voice with at least ``MIN_WORDS`` words in the transcript block."""
     words: Dict[str, int] = {}
-    for m in re.finditer(r"^\[\d+:\d+\] (SPEAKER_\d+): (.*)$", text, re.M):
+    for m in _TURN.finditer(text):
         words[m.group(1)] = words.get(m.group(1), 0) + len(m.group(2).split())
     return sorted(v for v, n in words.items() if n >= MIN_WORDS)
 
 
+def instructions() -> str:
+    """The per-voice instructions, shared by the standalone call and the bundled fields."""
+    from ....prompts.store import render_prompt
+
+    return render_prompt(INSTRUCTIONS_PROMPT)
+
+
 def build_prompt(text: str, voices: Sequence[str]) -> str:
-    return PROMPT.format(text=text, voices=", ".join(voices))
+    """The standalone prompt for one transcript block and the voices to judge."""
+    from ....prompts.store import render_prompt
+
+    rendered = render_prompt(
+        STANDALONE_PROMPT, instructions=instructions(), text=text, voices=", ".join(voices)
+    )
+    return rendered + "\n"
 
 
-def parse_answer(raw: str) -> Optional[Dict[str, Tuple[Optional[str], Optional[str]]]]:
-    """``{voice: (name or None, role)}``, or None when the answer is not the expected JSON."""
+def _count(text: str, count_tokens: Optional[Callable[[str], Optional[int]]]) -> int:
+    from ...common.token_budget import FALLBACK_EFFECTIVE_CHARS_PER_TOKEN
+
+    n = count_tokens(text) if count_tokens is not None else None
+    return int(n) if n is not None else int(len(text) / FALLBACK_EFFECTIVE_CHARS_PER_TOKEN) + 1
+
+
+def fit_prompt(
+    head: Sequence[str],
+    turns: Sequence[str],
+    window_tokens: Optional[int],
+    count_tokens: Optional[Callable[[str], Optional[int]]] = None,
+) -> Tuple[Optional[str], List[str], Dict[str, Any]]:
+    """``(prompt, voices, clip)``: the measured prompt, with middle turns dropped until it fits.
+
+    ``prompt`` is None when no voice qualifies or nothing fits. ``window_tokens`` None means the
+    window is unknown and the prompt is sent whole (a provider's 400 then says so).
+    """
+    clip: Dict[str, Any] = {"window_tokens": window_tokens, "turns": len(turns), "turns_dropped": 0}
+    budget = (
+        None if not window_tokens else int(window_tokens) - MAX_OUTPUT_TOKENS - WINDOW_MARGIN_TOKENS
+    )
+    keep = len(turns)
+    for _ in range(_CLIP_ROUNDS + 1):
+        if keep == len(turns):
+            body = list(turns)
+        else:
+            front, back = (keep + 1) // 2, keep // 2
+            dropped = len(turns) - keep
+            body = (
+                list(turns[:front])
+                + [f"[... {dropped} turns omitted for length ...]"]
+                + list(turns[len(turns) - back :] if back else [])
+            )
+        text = "\n".join(list(head) + body) + "\n"
+        voices = voices_to_judge(text)
+        if not voices:
+            return None, [], clip
+        prompt = build_prompt(text, voices)
+        if budget is None:
+            return prompt, voices, clip
+        used = _count(prompt, count_tokens)
+        clip["prompt_tokens"] = used
+        if used <= budget:
+            clip["turns_dropped"] = len(turns) - keep
+            return prompt, voices, clip
+        keep = int(keep * budget / used * 0.95)
+        if keep < 2:
+            break
+    clip["turns_dropped"] = len(turns) - max(keep, 0)
+    clip["error"] = "transcript does not fit the window"
+    return None, [], clip
+
+
+def parse_answer_full(raw: str) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+    """``{voice: {name, role, confidence, evidence}}``, or None when not the expected JSON."""
     t = (raw or "").strip()
     if "</think>" in t:
         t = t.split("</think>", 1)[1]
@@ -121,34 +204,134 @@ def parse_answer(raw: str) -> Optional[Dict[str, Tuple[Optional[str], Optional[s
     except json.JSONDecodeError:
         return None
     voices = obj.get("voices") if isinstance(obj, dict) else None
+    return parse_voices(voices)
+
+
+def parse_voices(voices: Any) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+    """The ``voices`` object of an answer (standalone, or a bundled call's speakers field)."""
     if not isinstance(voices, dict):
         return None
-    out: Dict[str, Tuple[Optional[str], Optional[str]]] = {}
+    out: Dict[str, Dict[str, Optional[str]]] = {}
     for voice, v in voices.items():
         if not isinstance(v, dict):
             continue
         name = str(v.get("name") or "").strip()
         role = str(v.get("role") or "").strip().lower() or None
-        out[str(voice)] = (None if name.lower() in _NULLS else name, role)
+        conf = str(v.get("confidence") or "").strip().lower() or None
+        evidence = str(v.get("evidence") or "").strip() or None
+        out[str(voice)] = {
+            "name": None if name.lower() in _NULLS else name,
+            "role": role,
+            "confidence": conf,
+            "evidence": evidence,
+        }
     return out
 
 
+def parse_answer(raw: str) -> Optional[Dict[str, Tuple[Optional[str], Optional[str]]]]:
+    """``{voice: (name or None, role)}``, or None when the answer is not the expected JSON."""
+    full = parse_answer_full(raw)
+    if full is None:
+        return None
+    return {v: (a["name"], a["role"]) for v, a in full.items()}
+
+
+@dataclasses.dataclass
+class NamingAnswer:
+    """One ask: what was sent, what came back, and the parsed answer (None on failure)."""
+
+    call: str
+    voices_asked: List[str]
+    answer: Optional[Dict[str, Dict[str, Optional[str]]]]
+    report: Dict[str, Any]
+
+    @property
+    def ok(self) -> bool:
+        return bool(self.answer)
+
+    def pairs(self) -> Dict[str, Tuple[Optional[str], Optional[str]]]:
+        """``{voice: (name, role)}``, the shape ``apply_answer`` takes."""
+        return {v: (a.get("name"), a.get("role")) for v, a in (self.answer or {}).items()}
+
+
+def ask(
+    aligned: Sequence[Tuple[Mapping[str, Any], Optional[str]]],
+    complete: Callable[[str], str],
+    *,
+    feed_title: Optional[str],
+    feed_description: Optional[str],
+    episode_title: Optional[str],
+    episode_description: Optional[str],
+    window_tokens: Optional[int] = None,
+    count_tokens: Optional[Callable[[str], Optional[int]]] = None,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+) -> NamingAnswer:
+    """Ask the model to name every voice (``ok`` False when skipped, failed or unreadable)."""
+    head = header_lines(feed_title, feed_description, episode_title, episode_description)
+    prompt, voices, clip = fit_prompt(head, turn_lines(aligned), window_tokens, count_tokens)
+    report: Dict[str, Any] = {
+        "prompt_version": PROMPT_VERSION,
+        "provider": provider,
+        "model": model,
+        "clip": clip,
+    }
+    if prompt is None:
+        if "error" not in clip:
+            report["skipped"] = f"no voice with {MIN_WORDS} words"
+            return NamingAnswer("standalone", [], None, report)
+        report["error"] = clip["error"]
+        logger.warning("transcript naming: %s; the ladder's names stand", clip["error"])
+        return NamingAnswer("standalone", [], None, report)
+    report["prompt_chars"] = len(prompt)
+    try:
+        raw = complete(prompt)
+    except Exception as exc:  # noqa: BLE001 — the ladder's roster stands
+        report["error"] = f"{type(exc).__name__}: {exc}"
+        logger.warning("transcript naming: call failed (%s); the ladder's names stand", exc)
+        return NamingAnswer("standalone", voices, None, report)
+    report["raw"] = (raw or "")[:RAW_CHARS]
+    answer = parse_answer_full(raw)
+    if not answer:
+        report["error"] = "unreadable answer"
+        logger.warning("transcript naming: unreadable answer; the ladder's names stand")
+    return NamingAnswer("standalone", voices, answer or None, report)
+
+
 def apply_answer(
-    roster: Any, answer: Mapping[str, Tuple[Optional[str], Optional[str]]], trace: Any = None
+    roster: Any,
+    answer: Mapping[str, Tuple[Optional[str], Optional[str]]],
+    trace: Any = None,
+    *,
+    language: Optional[str],
 ) -> Any:
     """The roster named by the answer: a voice the model calls host or guest takes its name and
     role; every other voice is unnamed. As measured: the model's answer replaces the ladder's names.
+
+    A name the model gives the voice the ladder already gave keeps the ladder's ``source``, so the
+    evidence it carried (a self-introduction the record and the graph rely on) is not lost.
+    ``language`` is the feed's, so the publish gate refuses that language's role words too.
     """
     from ....speaker_detectors.hosts import is_publishable_speaker_name
 
     by_voice = {}
     for voice, role in roster.by_voice.items():
         name, said_role = answer.get(voice, (None, None))
-        if name and said_role in PARTICIPANT_ROLES and is_publishable_speaker_name(name):
+        if (
+            name
+            and said_role in PARTICIPANT_ROLES
+            and is_publishable_speaker_name(name, language=language)
+        ):
+            same = bool(role.named) and str(role.name).lower() == name.lower()
             new = dataclasses.replace(
-                role, name=name, role=said_role, named=True, source=SOURCE, forced=False
+                role,
+                name=role.name if same else name,
+                role=said_role,
+                named=True,
+                source=role.source if same else SOURCE,
+                forced=False,
             )
-            decision = "named" if not role.named or role.name != name else "kept"
+            decision = "kept" if same else "named"
         else:
             new = dataclasses.replace(
                 role, name=voice, role="unknown", named=False, source=SOURCE, forced=False
@@ -166,39 +349,53 @@ def apply_answer(
     return dataclasses.replace(roster, by_voice=by_voice)
 
 
-def name_from_transcript(
-    roster: Any,
-    aligned: Sequence[Tuple[Mapping[str, Any], Optional[str]]],
-    complete: Any,
-    *,
-    feed_title: Optional[str],
-    feed_description: Optional[str],
-    episode_title: Optional[str],
-    episode_description: Optional[str],
-    trace: Any = None,
-) -> Any:
-    """Ask the model; return the roster it names, or the ladder's roster when the call fails."""
-    text = transcript_block(
-        aligned, feed_title, feed_description, episode_title, episode_description
-    )
-    voices = voices_to_judge(text)
-    if not voices:
-        return roster
-    prompt = build_prompt(text, voices)
-    report: Dict[str, Any] = {"voices_asked": voices, "prompt_chars": len(prompt)}
-    try:
-        raw = complete(prompt)
-    except Exception as exc:  # noqa: BLE001 — the ladder's roster stands
-        report["error"] = f"{type(exc).__name__}: {exc}"
-        if trace is not None:
-            trace.input(SOURCE, report)
-        logger.warning("transcript naming: call failed (%s); the ladder's names stand", exc)
-        return roster
-    report["raw"] = (raw or "")[:16000]
-    answer = parse_answer(raw)
-    if trace is not None:
-        trace.input(SOURCE, report)
-    if not answer:
-        logger.warning("transcript naming: unreadable answer; the ladder's names stand")
-        return roster
-    return apply_answer(roster, answer, trace)
+def _view(role: Any) -> Dict[str, Any]:
+    named = bool(getattr(role, "named", False))
+    return {
+        "name": getattr(role, "name", None) if named else None,
+        "role": getattr(role, "role", None),
+        "source": getattr(role, "source", None),
+    }
+
+
+def outcome(ladder: Optional[str], model: Optional[str]) -> str:
+    """agree | adds | removes | changes — the model's roster against the ladder's, one voice."""
+    if (ladder or "").lower() == (model or "").lower():
+        return "agree"
+    if not ladder:
+        return "adds"
+    if not model:
+        return "removes"
+    return "changes"
+
+
+def sidecar(
+    mode: str, asked: NamingAnswer, ladder_roster: Any, model_roster: Optional[Any]
+) -> Dict[str, Any]:
+    """The sidecar entry: per voice, the ladder's final name against the model's.
+
+    ``ladder_roster`` is what the ladder publishes; ``model_roster`` is the roster the model's
+    answer gives after the same talk floor and renames (None when the call failed).
+    """
+    voices: Dict[str, Any] = {}
+    counts = {"agree": 0, "adds": 0, "removes": 0, "changes": 0}
+    for voice, role in ladder_roster.by_voice.items():
+        entry: Dict[str, Any] = {"ladder": _view(role), "model": (asked.answer or {}).get(voice)}
+        if model_roster is not None and voice in model_roster.by_voice:
+            result = _view(model_roster.by_voice[voice])
+            entry["model_result"] = result
+            entry["outcome"] = outcome(entry["ladder"]["name"], result["name"])
+            counts[entry["outcome"]] += 1
+        voices[voice] = entry
+    out: Dict[str, Any] = {
+        "version": SIDECAR_VERSION,
+        "mode": mode,
+        "call": asked.call,
+        "ok": asked.ok,
+        "voices_asked": asked.voices_asked,
+        "report": asked.report,
+        "voices": voices,
+    }
+    if model_roster is not None:
+        out["outcomes"] = counts
+    return out

@@ -2046,7 +2046,9 @@ class OllamaProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
-    def complete_text(self, prompt: str) -> str:
+    def complete_text(
+        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
+    ) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
@@ -2061,8 +2063,8 @@ class OllamaProvider:
             model=self.summary_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            max_tokens=800,
-            **_ollama_openai_chat_extra_kwargs(self.summary_model),
+            max_tokens=int(max_tokens),
+            **_ollama_openai_chat_extra_kwargs(self.summary_model, num_ctx=self.summary_num_ctx),
         )
         content = (response.choices[0].message.content or "").strip()
         _guardrails.check_chat_response(content, service="ollama")

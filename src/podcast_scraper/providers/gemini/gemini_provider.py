@@ -2137,7 +2137,9 @@ class GeminiProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
-    def complete_text(self, prompt: str) -> str:
+    def complete_text(
+        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_resolution"
+    ) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
@@ -2153,7 +2155,7 @@ class GeminiProvider:
             self.summary_model,
             {
                 "temperature": 0.0,
-                "max_output_tokens": 800,
+                "max_output_tokens": int(max_tokens),
                 "response_mime_type": "application/json",
             },
         )
@@ -2172,7 +2174,7 @@ class GeminiProvider:
             emit_llm_cost_event(
                 self.cfg,
                 provider="gemini",
-                stage="speaker_resolution",
+                stage=stage,
                 model=self.summary_model,
                 served_model=getattr(response, "model", None),
                 response=response,

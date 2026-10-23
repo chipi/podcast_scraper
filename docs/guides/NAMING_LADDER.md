@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 27 |
-| Last updated | 2026-10-22 |
+| Doc version | 28 |
+| Last updated | 2026-10-23 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `68958822bb81` (see below) |
+| Code content hash | `2285a2141f88` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,39 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v28, 2026-10-23.** `transcript_naming` now has three modes: `off` (the default), `shadow` and
+  `publish`. No rung changed.
+  - **`shadow`.** The ladder publishes. The model's answer is written beside it in the speaker
+    diagnostics sidecar under the key `transcript_naming`, and nothing else the stage publishes
+    changes (a unit test compares the stage's output in shadow and off).
+  - **`publish`.** The v27 behaviour, with one change: a name the model gives the voice the ladder
+    already gave keeps the ladder's `source`. A self-introduced host named like the show
+    (`self_intro`) is therefore still placed in the record and the graph.
+  - **The sidecar key, per voice:**
+    - `ladder`: the name, role and source the ladder publishes;
+    - `model`: the model's name, role, confidence and evidence;
+    - `model_result`: the roster the answer gives after the same talk floor and renames;
+    - `outcome`: `agree`, `adds`, `removes` or `changes`.
+  - **The sidecar key, per episode:**
+    - `version`, `mode`, `call` (`standalone`), `ok`, `voices_asked`, `outcomes`;
+    - `report`: the prompt version, provider and model, the clip (window, turns, turns dropped,
+      prompt tokens), the raw answer, and `error` or `skipped`.
+  - **The prompt** lives in the prompt store as `shared/speaker_naming/standalone_v1` and
+    `instructions_v1`; a test pins it byte for byte to the measured prompt.
+  - **Clipping.** A transcript too long for the provider's window loses turns from the middle,
+    marked `[... N turns omitted for length ...]`, so the opening introductions and the closing
+    sign-offs stay. The window comes from `served_context_tokens()` (OpenAI-compatible providers)
+    or `ollama_num_ctx`; on other providers it is unknown and the transcript is sent whole.
+  - **Providers.** Every provider's `complete_text` takes `max_tokens` (default 800) and `stage`.
+    The call asks for 3,000 output tokens, and its cost is recorded as `speaker_naming` where the
+    provider records cost (OpenAI-compatible providers and Gemini). Ollama's `complete_text` now
+    passes `num_ctx`, which it did not, so long resolver prompts are no longer cut to Ollama's
+    2,048-token default.
+  - **Voice identity.** A name with source `transcript_naming` does not vote in the
+    `voice_identity` feed bank.
+  - **Trace.** In `publish` the per-voice trace steps are as in v27; the answer itself is in the
+    sidecar key, not in `decision_trace.inputs`.
 
 - **v27, 2026-10-22.** One stage added after the ladder, OFF by default: `transcript_naming`
   (`transcript_naming`, `providers/ml/diarization/transcript_naming.py`). The LLM reads the WHOLE
@@ -330,7 +363,7 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `nameable` | episode note | nameable voices, leftover / unbound names |
 | `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why. `commercial` by ad overlap needs 60% of the voice's talk in ads AND under 25% of the episode's talk (`c2ac9fcfa`) |
 | `non_regression`, `inputs.baseline_without_llm` | pipeline | names the additive contract restored; the rules-only roster |
-| `transcript_naming` | input (the answer in full: `voices_asked`, `raw`, or `error`), per voice `named` / `kept` / `removed` (`name`, `said_role`) | the whole-transcript naming pass and what it did to each voice (off by default) |
+| `transcript_naming` | per voice `named` / `kept` / `removed` (`name`, `said_role`), in `publish` only; the answer and the comparison with the ladder are in the sidecar key `transcript_naming` (v28), in `shadow` and `publish` | the whole-transcript naming pass and what it did to each voice (off by default) |
 | `voice_identity` | per voice `named` / `removed` (`name`) | the feed fingerprint match: a voice given a group's name, or a name taken off a voice that is clearly not that person (off by default) |
 | `talk_floor` | per voice `removed` (`name`, `talk_share`) | a name taken off a voice under `speaker_name_min_talk_share` of the episode's talk (off by default) |
 

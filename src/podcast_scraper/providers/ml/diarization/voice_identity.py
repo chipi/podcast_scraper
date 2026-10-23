@@ -36,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 PARTICIPANT_ROLES = ("host", "guest")
 SOURCE = "voice_identity"
+# Sources whose names do not vote in the feed bank (see ``voices_from_diagnostics``).
+_NON_VOTING_SOURCES = frozenset({SOURCE, "transcript_naming"})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -79,6 +81,8 @@ def voices_from_diagnostics(
 
     A name this rung itself gave (``source == voice_identity``) does not vote: it is kept as an
     unnamed voice of the bank, so a wrong match cannot confirm itself episode after episode.
+    Neither does a name transcript naming gave: one wrong whole-transcript answer would otherwise
+    become the feed's vote for that voice.
     """
     sd = diag.get("speaker_diagnostics", diag)
     block = sd.get("voice_embeddings") or {}
@@ -90,7 +94,7 @@ def voices_from_diagnostics(
         vec = by_voice.get(v.get("voice"))
         if not vec:
             continue
-        votes = v.get("named") and v.get("source") != SOURCE
+        votes = v.get("named") and v.get("source") not in _NON_VOTING_SOURCES
         out.append(
             HistoryVoice(
                 episode_id=episode_id,
