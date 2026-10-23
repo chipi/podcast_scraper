@@ -944,6 +944,8 @@ class GrokProvider:
         system_prompt, user_prompt = build_megabundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             cache_transcript_prefix=self._cache_transcript_prefix,
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
@@ -1046,6 +1048,8 @@ class GrokProvider:
         system_prompt, user_prompt = build_extraction_bundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             cache_transcript_prefix=self._cache_transcript_prefix,
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
@@ -1152,6 +1156,9 @@ class GrokProvider:
             title=episode_title or "",
             **tmpl_kwargs,
         )
+        from ..ml.diarization.transcript_naming import with_bundled_field
+
+        user_prompt = with_bundled_field(user_prompt, params)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()

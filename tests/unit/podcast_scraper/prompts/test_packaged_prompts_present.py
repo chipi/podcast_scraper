@@ -60,6 +60,7 @@ def _prompts_root() -> Path:
         # Transcript naming (providers/ml/diarization/transcript_naming.py). Used by all providers.
         "shared/speaker_naming/instructions_v1.j2",
         "shared/speaker_naming/standalone_v1.j2",
+        "shared/speaker_naming/bundled_field_v1.j2",
         # Local providers (airgapped path) — also bundled.
         "deepseek/cleaning/v1.j2",
     ],

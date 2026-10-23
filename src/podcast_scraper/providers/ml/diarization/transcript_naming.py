@@ -403,3 +403,130 @@ def sidecar(
     if model_roster is not None:
         out["outcomes"] = counts
     return out
+
+
+# --- the same answer inside a bundled call (bundled, mega_bundled, extraction_bundled) ---------
+
+BUNDLED_PROMPT = f"shared/speaker_naming/bundled_field_{PROMPT_VERSION}"
+BUNDLED_MODES = ("bundled", "mega_bundled", "extraction_bundled")
+#: params key the metadata stage sets for a bundled call: the transcript's speaker labels.
+PARAMS_LABELS = "speaker_naming_labels"
+
+
+def bundled_field(labels: Sequence[str]) -> str:
+    """The ``speakers`` field instructions a bundled call appends to its user prompt.
+
+    The bundled transcript carries the ladder's labels (``Name: text``), not voice ids, so the
+    model is asked who each LABEL really is (operator's option A, 2026-10-23); the answer maps
+    back to voices through the speaker diagnostics.
+    """
+    from ....prompts.store import render_prompt
+
+    return render_prompt(BUNDLED_PROMPT, labels=", ".join(labels))
+
+
+def with_bundled_field(user_prompt: str, params: Optional[Mapping[str, Any]]) -> str:
+    """``user_prompt`` with the ``speakers`` field appended when the caller asked for it."""
+    labels = (params or {}).get(PARAMS_LABELS)
+    if not labels:
+        return user_prompt
+    return f"{user_prompt}\n\n{bundled_field(list(labels))}"
+
+
+def labels_from_diagnostics(diagnostics: Mapping[str, Any]) -> Dict[str, List[str]]:
+    """``{transcript label: [voice, ...]}`` from a speaker-diagnostics sidecar.
+
+    A segment's label is the voice's resolved name, or its raw id when unnamed
+    (``SpeakerRoster.label_for``), which is the sidecar's ``resolved_name``.
+    """
+    out: Dict[str, List[str]] = {}
+    for v in diagnostics.get("voices") or []:
+        voice = v.get("voice")
+        label = v.get("resolved_name") or voice
+        if voice and label:
+            out.setdefault(str(label), []).append(str(voice))
+    return out
+
+
+def answer_by_voice(
+    speakers: Any, label_map: Mapping[str, Sequence[str]]
+) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+    """The bundled ``speakers`` object (keyed by label) as a per-voice answer.
+
+    A label two voices share is left out: one answer cannot say which of them is which.
+    """
+    parsed = parse_voices(speakers)
+    if parsed is None:
+        return None
+    out: Dict[str, Dict[str, Optional[str]]] = {}
+    for label, answer in parsed.items():
+        voices = label_map.get(label) or []
+        if len(voices) == 1:
+            out[voices[0]] = answer
+    return out
+
+
+def bundled_sidecar(
+    mode: str,
+    call: str,
+    speakers: Any,
+    diagnostics: Mapping[str, Any],
+    *,
+    floor: float,
+    renames: Optional[Mapping[str, str]],
+    language: Optional[str],
+) -> Dict[str, Any]:
+    """The sidecar entry for a bundled call's answer, in the standalone entry's shape.
+
+    The ladder side is what the sidecar already publishes; the model side applies the same rule
+    as ``apply_answer`` (host or guest, publishable in the feed's language), the same talk floor
+    (on the sidecar's talk seconds) and the same operator renames.
+    """
+    from ....speaker_detectors.hosts import is_publishable_speaker_name
+
+    label_map = labels_from_diagnostics(diagnostics)
+    answer = answer_by_voice(speakers, label_map)
+    report: Dict[str, Any] = {
+        "prompt_version": PROMPT_VERSION,
+        "labels_asked": sorted(label_map),
+        "labels_shared_by_voices": sorted(k for k, v in label_map.items() if len(v) > 1),
+    }
+    if answer is None:
+        report["error"] = "no readable speakers field"
+    voices_in = list(diagnostics.get("voices") or [])
+    total = sum(float(v.get("talk_time_s") or 0.0) for v in voices_in) or 1.0
+    voices: Dict[str, Any] = {}
+    counts = {"agree": 0, "adds": 0, "removes": 0, "changes": 0}
+    for v in voices_in:
+        voice = str(v.get("voice"))
+        ladder = {
+            "name": v.get("resolved_name") if v.get("named") else None,
+            "role": v.get("role"),
+            "source": v.get("source"),
+        }
+        entry: Dict[str, Any] = {"ladder": ladder, "model": (answer or {}).get(voice)}
+        if answer is not None:
+            a = answer.get(voice) or {}
+            name, role = a.get("name"), a.get("role")
+            keep = bool(name) and role in PARTICIPANT_ROLES
+            keep = keep and is_publishable_speaker_name(name, language=language)
+            share = float(v.get("talk_time_s") or 0.0) / total
+            if keep and floor and share < floor:
+                keep = False
+            result = (renames or {}).get(str(name), name) if keep else None
+            entry["model_result"] = {"name": result, "role": role if keep else "unknown"}
+            entry["outcome"] = outcome(ladder["name"], result)
+            counts[entry["outcome"]] += 1
+        voices[voice] = entry
+    out: Dict[str, Any] = {
+        "version": SIDECAR_VERSION,
+        "mode": mode,
+        "call": call,
+        "ok": answer is not None,
+        "voices_asked": sorted(v for vs in label_map.values() for v in vs if len(vs) == 1),
+        "report": report,
+        "voices": voices,
+    }
+    if answer is not None:
+        out["outcomes"] = counts
+    return out

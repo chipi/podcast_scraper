@@ -723,6 +723,14 @@ def _ask_transcript_naming(
     fn = completion_fn_for(provider)
     if fn is None:
         return None
+    mode = str(getattr(cfg, "llm_pipeline_mode", "staged") or "staged")
+    if mode in transcript_naming.BUNDLED_MODES and callable(
+        getattr(provider, f"summarize_{mode}", None)
+    ):
+        # The bundled call that reads the whole transcript answers instead (one call, not two):
+        # workflow/bundled_speaker_naming.py. A provider without that call falls back to the
+        # staged path, so it asks here.
+        return None
 
     def complete(prompt: str) -> str:
         return fn(  # type: ignore[call-arg]

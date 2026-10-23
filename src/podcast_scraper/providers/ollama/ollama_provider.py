@@ -1454,6 +1454,9 @@ class OllamaProvider:
             title=episode_title or "",
             **tmpl_kwargs,
         )
+        from ..ml.diarization.transcript_naming import with_bundled_field
+
+        user_prompt = with_bundled_field(user_prompt, params)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()

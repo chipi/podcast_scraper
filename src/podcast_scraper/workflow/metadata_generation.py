@@ -3066,6 +3066,17 @@ def _generate_episode_summary(  # noqa: C901
 
             result: Optional[Dict[str, Any]] = None
             pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
+            # Transcript naming inside the bundled call (bundled_speaker_naming): the speaker
+            # labels to judge, or None, in which case no prompt changes.
+            from . import bundled_speaker_naming as _bsn
+
+            _naming_labels = _bsn.labels_for_call(
+                cfg, pipeline_mode, output_dir, transcript_file_path
+            )
+            if _naming_labels:
+                from ..providers.ml.diarization.transcript_naming import PARAMS_LABELS
+
+                params[PARAMS_LABELS] = _naming_labels
             # ADR-148: a thunk that re-issues the SAME summary request on the SAME
             # provider, set by whichever generation path produced `result`. Used for
             # one bounded in-place re-roll when the downstream schema parse fails on a
@@ -3112,6 +3123,10 @@ def _generate_episode_summary(  # noqa: C901
                         )
                         if not isinstance(mr, MegaBundleResult):
                             return None
+                        if _naming_labels:
+                            _bsn.record(
+                                cfg, output_dir, transcript_file_path, "mega_bundled", mr.speakers
+                            )
                         return {
                             "summary": json.dumps(mr.to_summary_artifact()),
                             "summary_short": None,
@@ -3173,6 +3188,14 @@ def _generate_episode_summary(  # noqa: C901
                     )
                     if isinstance(extr_result, MegaBundleResult):
                         extraction_partial = extr_result.to_extraction_partial()
+                        if _naming_labels:
+                            _bsn.record(
+                                cfg,
+                                output_dir,
+                                transcript_file_path,
+                                "extraction_bundled",
+                                extr_result.speakers,
+                            )
                     else:
                         # Provider contract violation — warn + record fallback so
                         # ops notices the downgrade instead of silently reverting
@@ -3210,14 +3233,29 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
                         )
-                    _resummarize = lambda: bundled_fn(  # noqa: E731 - ADR-148 re-roll thunk
-                        pattern_cleaned,
-                        episode_title=None,
-                        episode_description=None,
-                        params=params,
-                        pipeline_metrics=pipeline_metrics,
-                        call_metrics=call_metrics,
-                    )
+
+                    def _bundled_call() -> Any:
+                        """One bundled call (also the ADR-148 re-roll); a transcript-naming
+                        answer is taken out of its summary JSON before anything parses it."""
+                        r = bundled_fn(
+                            pattern_cleaned,
+                            episode_title=None,
+                            episode_description=None,
+                            params=params,
+                            pipeline_metrics=pipeline_metrics,
+                            call_metrics=call_metrics,
+                        )
+                        if _naming_labels:
+                            _bsn.record(
+                                cfg,
+                                output_dir,
+                                transcript_file_path,
+                                "bundled",
+                                _bsn.take_speakers(r),
+                            )
+                        return r
+
+                    _resummarize = _bundled_call
                     result = _resummarize()
                     cleaned_for_file = pattern_cleaned
                     if cfg.save_cleaned_transcript:

@@ -259,10 +259,52 @@ def _naming_response_json(
     return json.dumps({"voices": voices})
 
 
+# Transcript naming inside a bundled call (workflow/bundled_speaker_naming.py): a bundled,
+# mega- or extraction-bundle prompt that ends its field list with "SPEAKER LABELS TO JUDGE:".
+# Answered with a complete bundle plus "speakers": a label that is a name is that person (host),
+# a raw SPEAKER_xx label is null. Recorded like the standalone naming requests.
+_BUNDLED_NAMING_MARKER = "SPEAKER LABELS TO JUDGE:"
+BUNDLED_NAMING_REQUESTS: List[Dict[str, Any]] = []
+
+
+def _bundled_naming_json(
+    prompt: str, request_data: Optional[Dict[str, Any]] = None
+) -> Optional[str]:
+    """Mock a bundled call that carries the speakers field; ``None`` when it does not."""
+    if _BUNDLED_NAMING_MARKER not in prompt or "VOICES TO JUDGE:" in prompt:
+        return None
+    BUNDLED_NAMING_REQUESTS.append(dict(request_data or {}))
+    tail = prompt.split(_BUNDLED_NAMING_MARKER, 1)[1].split("\n", 1)[0]
+    labels = [x.strip() for x in tail.split(",") if x.strip()]
+    speakers = {
+        label: (
+            {"name": None, "role": "unknown", "confidence": "low", "evidence": ""}
+            if re.fullmatch(r"SPEAKER_\d+", label)
+            else {"name": label, "role": "host", "confidence": "high", "evidence": ""}
+        )
+        for label in labels
+    }
+    return json.dumps(
+        {
+            "title": "A test episode",
+            "summary": "A test summary of the episode.",
+            "bullets": ["One point.", "Another point.", "A third point."],
+            "insights": [
+                {"text": f"Insight number {i} holds.", "insight_type": "claim"} for i in range(12)
+            ],
+            "topics": [f"topic {i}" for i in range(10)],
+            "entities": [{"name": "Acme", "kind": "org", "role": "mentioned"}],
+            "speakers": speakers,
+        }
+    )
+
+
 def _gemini_text_response_data(request_data: Dict[str, Any], text_prompt: str) -> Dict[str, Any]:
     """Build Gemini generateContent response body for non-audio text requests."""
-    resolution = _resolution_response_json(text_prompt) or _naming_response_json(
-        text_prompt, request_data
+    resolution = (
+        _resolution_response_json(text_prompt)
+        or _naming_response_json(text_prompt, request_data)
+        or _bundled_naming_json(text_prompt, request_data)
     )
     if resolution is not None:
         return {
@@ -1412,8 +1454,10 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             response_format = request_data.get("response_format", {})
 
             # Determine response type: resolution, bundled GIL, speaker, GIL evidence, or summary
-            resolution_json = _resolution_response_json(user_content) or _naming_response_json(
-                user_content, request_data
+            resolution_json = (
+                _resolution_response_json(user_content)
+                or _naming_response_json(user_content, request_data)
+                or _bundled_naming_json(user_content, request_data)
             )
             # RFC-115: pass system+user so a transcript relocated to the system block is visible.
             bundled_json = _bundled_gil_json(f"{system_content}\n{user_content}")
@@ -2156,7 +2200,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
             # RFC-115: include the system (may carry the relocated transcript cache block).
             bundled_json = _bundled_gil_json(f"{system_text}\n{user_content}")
-            naming_json = _naming_response_json(user_content, request_data)
+            naming_json = _naming_response_json(user_content, request_data) or _bundled_naming_json(
+                user_content, request_data
+            )
             if naming_json is not None:
                 response_data = {
                     "id": "msg-test-naming",

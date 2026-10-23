@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 30 |
+| Doc version | 31 |
 | Last updated | 2026-10-23 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `440f283a0955` (see below) |
+| Code content hash | `e0c09fa02c32` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,27 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v31, 2026-10-23.** Transcript naming also runs inside the bundled calls (`bundled`,
+  `mega_bundled`, `extraction_bundled`). This is the operator's option A. No rung changed.
+  - **The question.** The bundled transcript is the named one (`Name: text`, no voice ids), so
+    the call is asked who each speaker LABEL really is (`shared/speaker_naming/bundled_field_v1`).
+    This is a check of the ladder's labels, not the measured voice-id prompt.
+  - **Mapping.** Labels map back to voices through the sidecar's `resolved_name`. A label two
+    voices share is left out.
+  - **No second call.** In a bundled mode whose provider has that call, the staged standalone
+    call is skipped.
+  - **When it is added.** Only with transcript naming on and diarized voices on disk; otherwise
+    every bundled prompt is byte-identical.
+  - **The answer stays out of the summary.** It is taken out of the summary JSON before the
+    summary parser sees it.
+  - **The record.** It is written into the sidecar's `transcript_naming` key with
+    `call: bundled | mega_bundled | extraction_bundled`, in the standalone entry's shape, with
+    `applied: false`. A bundled call never changes the published names yet. The model side gets
+    the same host-or-guest rule, publish gate and talk floor; it does not get operator renames,
+    which the metadata stage does not hold.
+  - **Every provider:** OpenAI family, Gemini, Anthropic, Mistral, Grok; Ollama for `bundled`,
+    as it has no mega or extraction bundle.
 
 - **v30, 2026-10-23.** Two rescues after the ladder, behind one flag, `ladder_rescue_rules`
   (default off): `providers/ml/diarization/ladder_rescues.py`. They are ports of the rules

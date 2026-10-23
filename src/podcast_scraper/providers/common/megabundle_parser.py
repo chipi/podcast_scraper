@@ -44,6 +44,8 @@ class MegaBundleResult:
     topics: List[str]
     entities: List[Dict[str, Any]]
     raw: Dict[str, Any] = field(default_factory=dict)
+    # Transcript naming's answer, keyed by speaker label, when the prompt asked for it.
+    speakers: Optional[Dict[str, Any]] = None
 
     def to_summary_artifact(self) -> Dict[str, Any]:
         """Return a dict matching the standalone summarize() return shape."""
@@ -191,6 +193,7 @@ def parse_megabundle_response(
         topics=topics,
         entities=entities,
         raw=data,
+        speakers=data.get("speakers") if isinstance(data.get("speakers"), dict) else None,
     )
 
 
