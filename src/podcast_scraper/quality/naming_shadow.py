@@ -7,6 +7,10 @@ podcast-scraper-eval-data ``docs/wip/NAMING-GATES-2026-10-22.md``). Three tables
   or bundled; ``voice_identity``, the fingerprint rung): episodes, calls that answered, and per
   voice agree / adds / removes / changes against the ladder's published name. Every non-agree
   voice is listed, so a reader can judge it; the counts alone say nothing about who is right.
+  An episode where the namer did not answer (the LLM call failed; the fingerprint rung abstained,
+  e.g. no fingerprints or no voted group yet) is counted under ``not_answered`` by reason and
+  contributes no outcome: its "agree" rows only repeat the ladder. A voice the LLM pass was never
+  asked about (under 40 words, not in ``voices_asked``) is ``not_judged``, never ``removes``.
 - **Talk floor.** Every name the floor took off (the decision trace's ``talk_floor`` /
   ``removed`` step), by the role the LLM pass gave that voice. The role is a PROXY for whether
   the name was the voice's own (an ``ad`` / ``promo`` voice losing a name is what the floor is
@@ -28,6 +32,10 @@ from ..upgrade.migrations.m0025_one_person_one_entry import _load, _run_relative
 
 NAMERS = ("transcript_naming", "voice_identity")
 OUTCOMES = ("agree", "adds", "removes", "changes")
+#: A voice the LLM pass was not asked about; counted apart from the four outcomes.
+NOT_JUDGED = "not_judged"
+#: What the floor table shows when the LLM pass gave no answer for the voice.
+NO_LLM_ANSWER = "no LLM answer"
 RESCUE_SOURCES = ("e1d_rescue", "s30_split_merge")
 #: The result key each namer's per-voice entry carries its own name under.
 _RESULT_KEY = {"transcript_naming": "model_result", "voice_identity": "fingerprint_result"}
@@ -57,21 +65,38 @@ def _model_view(diag: Mapping[str, Any], voice: str) -> Dict[str, Any]:
     return model if isinstance(model, dict) else {}
 
 
+def not_answered(block: Mapping[str, Any], namer: str) -> Optional[str]:
+    """Why a namer gave no answer on this episode, or None when it answered."""
+    raw = block.get("report")
+    report: Mapping[str, Any] = raw if isinstance(raw, dict) else {}
+    if namer == "voice_identity":
+        return str(report["abstained"]) if report.get("abstained") else None
+    if block.get("ok") is False:
+        return str(report.get("error") or report.get("skipped") or "call gave no answer")
+    return None
+
+
 def namer_rows(eid: str, diag: Mapping[str, Any], namer: str) -> List[Dict[str, Any]]:
-    """One row per voice a namer compared with the ladder (empty when it wrote nothing)."""
+    """One row per voice a namer compared with the ladder (empty when it wrote nothing or did not
+    answer). A voice the LLM pass was not asked about is ``not_judged``."""
     block = diag.get(namer)
-    if not isinstance(block, dict):
+    if not isinstance(block, dict) or not_answered(block, namer):
         return []
+    asked = block.get("voices_asked")
+    asked_set = {str(v) for v in asked} if isinstance(asked, list) else None
     out: List[Dict[str, Any]] = []
     for voice, entry in (block.get("voices") or {}).items():
         if not isinstance(entry, dict) or entry.get("outcome") not in OUTCOMES:
             continue
+        outcome = entry["outcome"]
+        if namer == "transcript_naming" and asked_set is not None and voice not in asked_set:
+            outcome = NOT_JUDGED
         result = entry.get(_RESULT_KEY[namer]) or {}
         out.append(
             {
                 "episode": eid,
                 "voice": voice,
-                "outcome": entry["outcome"],
+                "outcome": outcome,
                 "ladder": (entry.get("ladder") or {}).get("name"),
                 "namer": result.get("name"),
                 "namer_role": result.get("role"),
@@ -94,7 +119,9 @@ def floor_rows(eid: str, diag: Mapping[str, Any]) -> List[Dict[str, Any]]:
                         "voice": voice,
                         "name": step.get("name"),
                         "talk_share": step.get("talk_share"),
-                        "llm_role": model.get("role") if model else None,
+                        "llm_role": (
+                            (model.get("role") or NO_LLM_ANSWER) if model else NO_LLM_ANSWER
+                        ),
                         "llm_name": model.get("name") if model else None,
                     }
                 )
@@ -124,7 +151,14 @@ def report(root: Path) -> Dict[str, Any]:
     """The three tables over every served episode of ``root``."""
     episodes = 0
     namers: Dict[str, Dict[str, Any]] = {
-        n: {"episodes": 0, "answered": 0, "outcomes": Counter(), "differences": []} for n in NAMERS
+        n: {
+            "episodes": 0,
+            "answered": 0,
+            "not_answered": Counter(),
+            "outcomes": Counter(),
+            "differences": [],
+        }
+        for n in NAMERS
     }
     floor: List[Dict[str, Any]] = []
     rescues: List[Dict[str, Any]] = []
@@ -135,17 +169,20 @@ def report(root: Path) -> Dict[str, Any]:
                 continue
             t = namers[n]
             t["episodes"] += 1
-            rows = namer_rows(eid, diag, n)
-            if diag[n].get("ok", True) and rows:
-                t["answered"] += 1
-            for r in rows:
+            reason = not_answered(diag[n], n)
+            if reason:
+                t["not_answered"][reason] += 1
+                continue
+            t["answered"] += 1
+            for r in namer_rows(eid, diag, n):
                 t["outcomes"][r["outcome"]] += 1
-                if r["outcome"] != "agree":
+                if r["outcome"] not in ("agree", NOT_JUDGED):
                     t["differences"].append(r)
         floor.extend(floor_rows(eid, diag))
         rescues.extend(rescue_rows(eid, diag))
     for t in namers.values():
-        t["outcomes"] = {o: t["outcomes"].get(o, 0) for o in OUTCOMES}
+        t["outcomes"] = {o: t["outcomes"].get(o, 0) for o in (*OUTCOMES, NOT_JUDGED)}
+        t["not_answered"] = dict(t["not_answered"].most_common())
         t["without"] = episodes - t["episodes"]
     return {
         "episodes": episodes,
@@ -173,8 +210,10 @@ def render(rep: Mapping[str, Any], limit: Optional[int] = None) -> str:
         o = t["outcomes"]
         lines.append(
             f"{n}: {t['episodes']} episodes ({t['without']} without), {t['answered']} answered; "
-            + ", ".join(f"{k} {o[k]}" for k in OUTCOMES)
+            + ", ".join(f"{k} {o[k]}" for k in (*OUTCOMES, NOT_JUDGED))
         )
+        if t["not_answered"]:
+            lines.append(f"  not answered: {t['not_answered']}")
         for r in t["differences"][:limit]:
             lines.append(
                 f"  {r['outcome']:<8} {r['episode']} {r['voice']}: "

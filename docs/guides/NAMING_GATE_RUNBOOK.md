@@ -150,8 +150,15 @@ above N. Report it with every naming change.
   label);
 - every E1d / S30s rescue, with the LLM pass's name for the same voice.
 
-Episodes written before a key existed count as `without`, never as agreement. The counts do not say
-who is right; the listed rows are read.
+Nothing is counted as agreement that is not one:
+
+- episodes written before a key existed count as `without`;
+- an episode where the namer gave no answer (the LLM call failed, or the fingerprint rung
+  abstained: no fingerprints, no voted group yet) counts under `not answered`, by reason, and adds
+  no outcome;
+- a voice the LLM pass was never asked about (under 40 words) is `not_judged`, never `removes`.
+
+The counts do not say who is right; the listed rows are read.
 
 **The ladder as one component: scenario tests.** Unit tests pin single rules, the fixture golden
 (`tests/integration/workflow/test_naming_golden.py`) pins the current output, and the gold sets

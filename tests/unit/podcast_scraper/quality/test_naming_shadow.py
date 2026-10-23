@@ -58,7 +58,7 @@ def test_an_episode_without_the_keys_counts_as_without_never_as_agreement(tmp_pa
     assert rep["episodes"] == 1
     for n in ns.NAMERS:
         assert rep["namers"][n]["episodes"] == 0 and rep["namers"][n]["without"] == 1
-        assert rep["namers"][n]["outcomes"] == {o: 0 for o in ns.OUTCOMES}
+        assert rep["namers"][n]["outcomes"] == {o: 0 for o in (*ns.OUTCOMES, ns.NOT_JUDGED)}
     assert rep["floor"]["removed"] == 0 and rep["rescues"]["fires"] == 0
 
 
@@ -84,6 +84,7 @@ def test_each_namers_outcomes_are_counted_and_every_difference_listed(tmp_path: 
     rep = ns.report(tmp_path)
     tn, vi = rep["namers"]["transcript_naming"], rep["namers"]["voice_identity"]
     assert tn["answered"] == 1 and tn["outcomes"] == {
+        "not_judged": 0,
         "agree": 1,
         "adds": 0,
         "removes": 0,
@@ -142,7 +143,7 @@ def test_a_floor_removal_without_an_llm_pass_has_no_role(tmp_path: Path) -> None
             }
         },
     )
-    assert ns.report(tmp_path)["floor"]["by_llm_role"] == {"None": 1}
+    assert ns.report(tmp_path)["floor"]["by_llm_role"] == {ns.NO_LLM_ANSWER: 1}
 
 
 def test_rescue_fires_are_listed_with_the_llm_name_beside_them(tmp_path: Path) -> None:
@@ -174,3 +175,46 @@ def test_the_script_prints_and_writes_json(tmp_path: Path, capsys: pytest.Captur
     assert mod.main(["--corpus", str(tmp_path), "--json", str(out)]) == 0
     assert "served episodes with a speaker sidecar: 1" in capsys.readouterr().out
     assert json.loads(out.read_text())["episodes"] == 1
+
+
+def test_an_abstained_voice_rung_is_not_an_answer_and_its_agree_rows_are_not_counted(
+    tmp_path: Path,
+) -> None:
+    # The rung writes "agree" for every voice when it abstains: those rows only repeat the ladder.
+    _episode(
+        tmp_path,
+        {
+            "voice_identity": {
+                "report": {"abstained": "no voted group in the feed's other episodes"},
+                "voices": {
+                    "SPEAKER_00": _voice("Arlo Venn", "Arlo Venn", "agree", "fingerprint_result")
+                },
+            }
+        },
+    )
+    vi = ns.report(tmp_path)["namers"]["voice_identity"]
+    assert vi["episodes"] == 1 and vi["answered"] == 0
+    assert vi["not_answered"] == {"no voted group in the feed's other episodes": 1}
+    assert sum(vi["outcomes"].values()) == 0
+    assert "not answered:" in ns.render(ns.report(tmp_path))
+
+
+def test_a_voice_the_llm_pass_was_never_asked_about_is_not_judged_not_removed(
+    tmp_path: Path,
+) -> None:
+    _episode(
+        tmp_path,
+        {
+            "transcript_naming": {
+                "ok": True,
+                "voices_asked": ["SPEAKER_00"],
+                "voices": {
+                    "SPEAKER_00": _voice("Arlo Venn", "Arlo Venn", "agree"),
+                    "SPEAKER_01": _voice("Katharine Quist", None, "removes"),
+                },
+            }
+        },
+    )
+    tn = ns.report(tmp_path)["namers"]["transcript_naming"]
+    assert tn["outcomes"]["removes"] == 0 and tn["outcomes"]["not_judged"] == 1
+    assert tn["differences"] == []
