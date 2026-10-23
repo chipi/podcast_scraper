@@ -141,6 +141,18 @@ unnamed. Groups: `no_segments`, `no_diagnostics` (an older record that cannot be
 `replay_no_host`. The replay uses stored LLM verdicts only, so it is a floor. `--max-unnamed N` exits 1
 above N. Report it with every naming change.
 
+**The shadow namers and the new rules, on what a run wrote.** `scripts/measure/naming_shadow_report.py
+--corpus <root>` reads the served speaker sidecars only (`quality/naming_shadow.py`). It reports:
+
+- per side namer (`transcript_naming`, `voice_identity`): agree / adds / removes / changes against
+  the ladder, with every difference listed for reading;
+- every name the talk floor took off, by the role the LLM pass gave that voice (a proxy, not a
+  label);
+- every E1d / S30s rescue, with the LLM pass's name for the same voice.
+
+Episodes written before a key existed count as `without`, never as agreement. The counts do not say
+who is right; the listed rows are read.
+
 **The ladder as one component: scenario tests.** Unit tests pin single rules, the fixture golden
 (`tests/integration/workflow/test_naming_golden.py`) pins the current output, and the gold sets
 cover only the episodes they happen to contain. `tests/integration/naming_ladder/` runs the WHOLE
