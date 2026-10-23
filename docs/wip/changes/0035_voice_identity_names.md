@@ -34,10 +34,15 @@ name is worse than a hidden insight (operator, 2026-10-19).
   group, and loses a name when it is clearly not that person, only where a review confirms it.
 - **Measured** (eval repo `autoresearch/voice_embedding_match`, pre-registered val_v4, 10 feeds
   never used to shape it): wrong names 23 -> 17 (p = 0.031), correct names 70 -> 77 (p = 0.014).
-- **Baseline, 10-17 snapshot copy (`lost/gateworkB6c`, read only): NOT VALID.** The first run
-  listed 15 voices (12 named, 3 unnamed). That run read siblings through a resolver that skipped
-  every sibling whose metadata stores an absolute transcript path (review M1, fixed), and it did
-  not skip voices under the floor (M2, fixed). It has to be made again before it says anything.
+- **Baseline, 10-17 snapshot copy (`lost/gateworkB6c`, read only), after the review fixes:
+  10 voices (7 named, 3 unnamed).**
+  - The first run, before the fixes, listed 15. The 5 it no longer lists all hold 1.1-4.3% of
+    their episode's talk, under the floor (M2). They include the two that looked wrong on sight
+    (a guest's name replaced by another person's; a sub-5% voice given a host's name).
+  - The absolute-path fix (M1) added no voice on this copy: 121 of its 2,685 served metadata
+    files store an absolute path, and none of them changes a group here. Prod's share is not
+    measured.
+  - None of the 10 has been read yet (section 5, step 2).
 - **Prod:** not counted yet. The list is made on a fresh prod snapshot (section 5). The 10-17 copy
   predates most fingerprinted episodes, so the prod list will be larger.
 
