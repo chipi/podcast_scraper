@@ -66,6 +66,12 @@ name is worse than a hidden insight (operator, 2026-10-19).
   transcript prefixes and offsets, turns, diagnostics, context, ad maps, metadata counts, GI, KG
   and bridge. It is all or none per episode, and an episode whose stored name or role moved on is
   refused untouched.
+- **The list is bound.** The verdicts header's `list_sha256` is the hash of the WHOLE list
+  (every field of every entry), the list file is part of the migration's digest (`list_file`),
+  and the receipts header records the list's hash. An entry edited after the review refuses the
+  load.
+- **No verdicts file:** `plan` prints one refusal line; `apply` raises and the upgrade run stops
+  there with nothing written (the runner's contract, as 0031's).
 - **Undo:** from `.podcast_scraper/upgrade-backups/0034/`, while each file is still as written.
 - **Not in the registry yet.** An empty list with no verdicts file would fail `verify` on every
   upgrade run.
@@ -73,7 +79,11 @@ name is worse than a hidden insight (operator, 2026-10-19).
   - the floor rule;
   - list freeze and load;
   - the detector on a corpus;
-  - apply, verify and undo across surfaces;
+  - apply, verify and undo, with the name off every surface the fixture writes (metadata,
+    segments, transcript, turns, diagnostics, GI persons and quotes, KG);
+  - an entry edited after the review refuses the load;
+  - plan without a verdicts file is a refusal line;
+  - the list file is part of the digest;
   - a `CORRECT` verdict keeping the name;
   - no verdicts file;
   - a moved-on voice refused;

@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 
+from podcast_scraper.providers.ml.diarization import voice_identity as vi
 from podcast_scraper.upgrade import reviewer_verdicts as rv
 from podcast_scraper.upgrade.migration import MigrationContext
 from podcast_scraper.upgrade.migrations import m0035_voice_identity_names as m35
@@ -26,23 +27,27 @@ _spec = importlib.util.spec_from_file_location(
 assert _spec and _spec.loader
 fx = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(fx)
+_spec34 = importlib.util.spec_from_file_location(
+    "m0034_tests", Path(__file__).with_name("test_m0034_talk_floor_names_removed.py")
+)
+assert _spec34 and _spec34.loader
+t34 = importlib.util.module_from_spec(_spec34)
+_spec34.loader.exec_module(t34)
 
 MODEL = "pyannote/speaker-diarization-community-1"
 HOST = [1.0, 0.0, 0.0]
 GUEST = [0.0, 1.0, 0.0]
 
 
-def _sibling(root: Path, run: str, eid: str) -> None:
+def _sibling(root: Path, run: str, eid: str, absolute: bool = False) -> None:
     base = root / "feeds" / "f" / run
     (base / "metadata").mkdir(parents=True)
     (base / "transcripts").mkdir()
+    stored = (
+        f"/app/output/feeds/f/{run}/transcripts/{eid}.txt" if absolute else f"transcripts/{eid}.txt"
+    )
     (base / "metadata" / f"{eid}.metadata.json").write_text(
-        json.dumps(
-            {
-                "episode": {"episode_id": eid},
-                "content": {"transcript_file_path": f"transcripts/{eid}.txt"},
-            }
-        )
+        json.dumps({"episode": {"episode_id": eid}, "content": {"transcript_file_path": stored}})
     )
     (base / "transcripts" / f"{eid}.speakers.diagnostics.json").write_text(
         json.dumps(
@@ -67,11 +72,14 @@ def _sibling(root: Path, run: str, eid: str) -> None:
     )
 
 
-def _feed(tmp_path: Path) -> Dict[str, Any]:
+def _feed(tmp_path: Path, ad_read: bool = False, absolute: bool = False) -> Dict[str, Any]:
     turns: List[Tuple[str, str, Optional[str], str]] = []
     for i in range(12):
         turns.append(("SPEAKER_00", "SPEAKER_00", None, f"Question {i} about the book."))
         turns.append(("SPEAKER_01", "Steve McConnell", "guest", f"Answer {i} about the book."))
+    if ad_read:
+        # The host reading an ad: the host's fingerprint, 1 of 25 turns (4%, under the floor).
+        turns.append(("SPEAKER_02", "SPEAKER_02", None, "This episode is brought to you by."))
     p: Dict[str, Any] = fx._corpus(
         tmp_path,
         speakers=[fx._speaker("Steve McConnell", "guest", ["SPEAKER_01"], "roster", "guest")],
@@ -86,11 +94,11 @@ def _feed(tmp_path: Path) -> Dict[str, Any]:
     diag["voice_embeddings"] = {
         "model_name": MODEL,
         "dimension": 3,
-        "by_voice": {"SPEAKER_00": HOST, "SPEAKER_01": GUEST},
+        "by_voice": {"SPEAKER_00": HOST, "SPEAKER_01": GUEST, "SPEAKER_02": HOST},
     }
     p["diag"].write_text(json.dumps(diag), encoding="utf-8")
-    _sibling(tmp_path, "run_0", "e1")
-    _sibling(tmp_path, "run_2", "e2")
+    _sibling(tmp_path, "run_0", "e1", absolute)
+    _sibling(tmp_path, "run_2", "e2", absolute)
     return p
 
 
@@ -111,7 +119,7 @@ def _review(
     ]
     head = (
         f"# migration: {m35.MIGRATION_ID}\n# reviewed_commit: x\n"
-        f"# list_sha256: {rv.list_sha256(names)}\n# reviewer: test\n# date: 2026-10-23\n"
+        f"# list_sha256: {rv.list_sha256(entries)}\n# reviewer: test\n# date: 2026-10-23\n"
     )
     (d / f"{m35.MIGRATION_ID}.tsv").write_text(
         head + "\t".join(rv.COLUMNS) + "\n" + "\n".join(rows) + "\n", encoding="utf-8"
@@ -154,8 +162,12 @@ def test_a_reviewed_rename_is_written_on_every_surface_and_undone(
     res = mig.apply(_ctx(tmp_path))
     assert res.details["refused"] == [] and len(res.details["episodes"]) == 1
     assert "\nGergely Orosz: " in "\n" + p["txt"].read_text(encoding="utf-8")
-    names = [s["name"] for s in fx._r(p["meta"])["content"]["speakers"]]
-    assert "Gergely Orosz" in names
+    for surface, names in t34.fx_surfaces(p).items():
+        assert "Gergely Orosz" in names, surface
+    host = {v["voice"]: v for v in fx._r(p["diag"])["voices"]}["SPEAKER_00"]
+    assert host["named"] and host["resolved_name"] == "Gergely Orosz"
+    # Review M4: the rung's own names never vote, and this is the rung's name.
+    assert host["source"] == vi.SOURCE
     assert mig.verify(_ctx(tmp_path))[0]
     assert (tmp_path / m35.RECEIPTS_FILE).is_file()
     restored, refused = m35.undo(tmp_path)
@@ -206,3 +218,30 @@ def test_a_listed_voice_without_a_verdict_fails_verify_and_nothing_is_written(
     assert not ok and "without a verdict" in message
     assert m35.VoiceIdentityNamesMigration().apply(_ctx(tmp_path)).details["episodes"] == []
     assert p["txt"].read_text(encoding="utf-8") == before
+
+
+def test_a_voice_under_the_talk_floor_is_not_listed_even_when_it_is_the_hosts_voice(
+    tmp_path: Path,
+) -> None:
+    # Review M2: the pipeline floors after the rung; a host-read ad must not get the name back.
+    _feed(tmp_path, ad_read=True)
+    assert list(m35.find_changes(tmp_path)) == [("ep", "SPEAKER_00")]
+
+
+def test_siblings_whose_metadata_stores_an_absolute_path_still_vote(tmp_path: Path) -> None:
+    # Review M1: a snapshot copy is not mounted at /app/output.
+    _feed(tmp_path, absolute=True)
+    assert list(m35.find_changes(tmp_path)) == [("ep", "SPEAKER_00")]
+
+
+def test_a_name_this_migration_applied_does_not_vote_afterwards(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _feed(tmp_path)
+    entries = m35.find_changes(tmp_path)
+    monkeypatch.setattr(m35, "load_list", lambda path=None: entries)
+    _review(monkeypatch, tmp_path, entries, "CORRECT")
+    m35.VoiceIdentityNamesMigration().apply(_ctx(tmp_path))
+    history = vi.feed_history(tmp_path / "feeds" / "f", "someone-else", MODEL)
+    mine = [h for h in history if h.episode_id == "ep" and h.vec == vi._unit(HOST)]
+    assert mine and all(h.name is None for h in mine)

@@ -54,6 +54,10 @@
   - **The voice sidecar's `ladder` column is the roster published before the rung.** With
     `transcript_naming: publish` and `voice_identity_rung: shadow` it would hold the LLM pass's
     names; no profile sets that combination.
+  - **Bundled shadow and the summary text.** In a bundled mode with transcript naming on, the
+    bundled call carries the speakers field, and `take_speakers` re-serialises the parsed JSON
+    into `summary` after taking it out: the same content, different bytes than the model wrote.
+    The bundled prompt itself also differs from off (v31). No prod profile is bundled.
   - **Removed:** `transcript_naming.transcript_block` and `parse_answer`, used only by tests.
     The layout and prompt tests now read the prompt `fit_prompt` builds, the one production
     sends.

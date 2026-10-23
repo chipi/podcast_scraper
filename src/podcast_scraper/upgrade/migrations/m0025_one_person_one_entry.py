@@ -363,6 +363,10 @@ class _Transcripts(_TranscriptEpisode):
 class _Episode:
     """One episode's decision and rewrite, in memory; nothing touches disk here."""
 
+    #: The diagnostics ``source`` a voice gets when the rewrite gives it another person's name.
+    #: A migration whose names must not vote in the voice identity bank (0035) sets its own.
+    RENAMED_SOURCE = "roster"
+
     def __init__(self, meta: Path, root: Path) -> None:
         self.meta = meta
         self.root = root
@@ -1278,7 +1282,7 @@ class _Episode:
                 was = v.get("resolved_name")
                 if isinstance(was, str) and not same_person(name, was):
                     # As the record's entry: the old name's evidence is not this name's.
-                    v["source"] = "roster"
+                    v["source"] = self.RENAMED_SOURCE
                 role = (
                     self.voice_roles_restored[v["voice"]] or "unknown"
                     if v["voice"] in self.voice_roles_restored

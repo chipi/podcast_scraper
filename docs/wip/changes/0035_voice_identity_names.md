@@ -34,9 +34,10 @@ name is worse than a hidden insight (operator, 2026-10-19).
   group, and loses a name when it is clearly not that person, only where a review confirms it.
 - **Measured** (eval repo `autoresearch/voice_embedding_match`, pre-registered val_v4, 10 feeds
   never used to shape it): wrong names 23 -> 17 (p = 0.031), correct names 70 -> 77 (p = 0.014).
-- **Baseline, 10-17 snapshot copy (`lost/gateworkB6c`, read only).** `find_changes` lists 15
-  voices: 12 named, 3 unnamed. Some look suspicious on sight (for example "Willem Els ->
-  Christine", "Misha Glenny -> Melvyn Bragg"); the review decides each one.
+- **Baseline, 10-17 snapshot copy (`lost/gateworkB6c`, read only): NOT VALID.** The first run
+  listed 15 voices (12 named, 3 unnamed). That run read siblings through a resolver that skipped
+  every sibling whose metadata stores an absolute transcript path (review M1, fixed), and it did
+  not skip voices under the floor (M2, fixed). It has to be made again before it says anything.
 - **Prod:** not counted yet. The list is made on a fresh prod snapshot (section 5). The 10-17 copy
   predates most fingerprinted episodes, so the prod list will be larger.
 
@@ -48,6 +49,13 @@ name is worse than a hidden insight (operator, 2026-10-19).
   re-implemented.
 - **Served names, not ladder names.** The voice's current name and role come from the served
   segments (0034's `served_by_voice`), so the list describes what the reader sees today.
+- **The talk floor comes after the rung.** In the pipeline a voice under 5% of the talk ends
+  unnamed whatever the rung says. A host-read ad carries the host's fingerprint, so the rung
+  alone would put the host's name on it, and a review could only answer "it is the host's
+  voice". Voices under the floor are not listed; they are 0034's.
+- **Siblings with an absolute stored path.** Prod metadata often stores the transcript path as
+  written at ingest (`/app/output/...`). The rung's feed history now maps it into the corpus
+  being read (`voice_identity.sibling_diagnostics_path`), so a snapshot copy sees every sibling.
 
 ## 4. Design
 
@@ -62,19 +70,29 @@ name is worse than a hidden insight (operator, 2026-10-19).
     the name;
   - a listed voice without a verdict fails `verify`, and without a verdicts file nothing is
     written.
+- **The list is bound.** The verdicts header's `list_sha256` is the hash of the WHOLE list
+  (every field of every entry: both names, both roles, the evidence), the list file is part of
+  the migration's digest (`list_file`), and the receipts header records the list's hash. An
+  entry edited after the review refuses the load.
+- **A renamed voice's source is `voice_identity`**, as the pipeline records the rung's names, so
+  a name this migration applies never votes in the feed bank (`voice_identity._NON_VOTING_SOURCES`).
 - **The rewrite.** Through 0029's voice-by-voice rewrite with 0031's derived surfaces (0034's
   episode class): transcript prefixes and offsets, turns, diagnostics, context, ad maps, metadata
   counts, GI, KG and bridge. All or none per episode; an episode whose stored name or role moved on
   is refused untouched.
 - **Undo:** from `.podcast_scraper/upgrade-backups/0035/`, while each file is still as written.
 - **Not in the registry yet**, for the same reason as 0034.
-- **Tests** (`tests/unit/podcast_scraper/upgrade/test_m0035_voice_identity_names.py`):
+- **Tests** (`tests/unit/podcast_scraper/upgrade/test_m0035_voice_identity_names.py`; each fix
+  from the review mutation-checked: reverting it fails its test):
   - the detector names a host's unnamed voice from the feed's fingerprints;
   - an episode without fingerprints is not touched;
   - a reviewed rename is written on every surface, verified and undone;
   - a rename read as `WRONG_PERSON` is not written;
   - review names: a rename by its new name, an unnaming by its old one;
   - a listed voice without a verdict fails verify and nothing is written;
+  - a voice under the floor is not listed, even when it is the host's voice;
+  - siblings stored with an absolute path still vote;
+  - a name this migration applied does not vote afterwards;
   - not registered.
 
 ## 5. Still to do before apply
@@ -84,16 +102,21 @@ name is worse than a hidden insight (operator, 2026-10-19).
    by identity.
 3. Have a fresh reviewer write the verdicts file.
 4. Produce the clone outcome table: before and after on the snapshot copy, every surface.
-5. Decide the order against 0034 (both touch names; 0034 first means 0035's list is made after
-   the floor is applied).
+5. Make 0034's and 0035's lists on the SAME snapshot. 0035 lists no voice under the floor, so
+   the two lists do not share a voice: a voice on both would refuse its episode in whichever
+   applies second (all or none), and that migration's `verify` would then fail on it.
 6. Register the migration, with its version.
 7. Get the operator's recorded go.
 8. Apply with the corpus-migration skill.
 
 ## Not covered by the tests
 
-- An unnaming on a real corpus: the test checks its review semantics, not a rewrite. The rewrite
-  path is 0034's, which its own tests cover with an unnaming.
+- An unnaming on a corpus: the test checks its review semantics, not a rewrite. The rewrite
+  path is 0034's, which its own tests cover with an unnaming on every surface.
+- The surface check reads a quote's speaker through its `speaker_id` and the Person node, as the
+  readers do (`gi/load.py`, `server/app_gi_view.py`): the rewrite clears the authored
+  `speaker_name`. The fixture's Person node for the raw id `SPEAKER_00` stays; real GI makes no
+  Person from a raw id (`gi/speakers.py`).
 - A rename to a name already on another voice in the same episode. `decide` is the pipeline's; the
   migration does not add a guard of its own.
 - The 10-17 detector output has not been read voice by voice yet; that is step 2.

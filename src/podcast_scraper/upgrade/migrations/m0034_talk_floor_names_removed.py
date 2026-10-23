@@ -174,7 +174,9 @@ class TalkFloorNamesRemovedMigration(m29.NamingArcVoicesRepairedMigration):
         return {k: str(e[0]) for k, e in self.listed().items() if e[0]}
 
     def _verdicts(self) -> rv.Verdicts:
-        return rv.load(self.id, self.review_names(), self._verdicts_dir)
+        # The header binds the whole frozen list, not only the judged names (roles, the other
+        # name, the evidence): an entry edited after the review refuses the load.
+        return rv.load(self.id, self.review_names(), self._verdicts_dir, listed=self.listed())
 
     def _reviewed(self) -> Tuple[Dict[rv.Key, m29.Entry], List[rv.Key]]:
         """``(entries to apply, listed entries without a verdict)``."""
@@ -197,11 +199,21 @@ class TalkFloorNamesRemovedMigration(m29.NamingArcVoicesRepairedMigration):
 
     def _receipt_header(self) -> Dict[str, Any]:
         """The receipts header records the verdicts the run applied."""
-        return {**super()._receipt_header(), "verdicts_sha256": self._verdicts().sha256}
+        return {
+            **super()._receipt_header(),
+            "verdicts_sha256": self._verdicts().sha256,
+            "list_sha256": rv.list_sha256(self.listed()),
+        }
 
     def plan(self, ctx: MigrationContext) -> str:
-        """Count what apply() would rewrite and what it refuses; pure read, no writes."""
-        self._apply, _missing = self._reviewed()
+        """Count what apply() would rewrite and what it refuses; pure read, no writes.
+
+        Without a usable verdicts file the plan is one refusal line, not a traceback; ``apply``
+        raises instead (the runner stops there, nothing written), as 0031's does."""
+        try:
+            self._apply, _missing = self._reviewed()
+        except rv.VerdictError as exc:
+            return f"{self.id}: refused, verdicts file unusable: {exc}"
         return super().plan(ctx)
 
     def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
@@ -230,6 +242,11 @@ class TalkFloorNamesRemovedMigration(m29.NamingArcVoicesRepairedMigration):
 def verdicts_file() -> Path:
     """The verdicts file this migration reads (a plan-level input, hashed into the code digest)."""
     return rv.verdicts_path(MIGRATION_ID)
+
+
+def list_file() -> Path:
+    """The frozen list this migration applies (a plan-level input, hashed into the code digest)."""
+    return LIST_FILE
 
 
 def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:

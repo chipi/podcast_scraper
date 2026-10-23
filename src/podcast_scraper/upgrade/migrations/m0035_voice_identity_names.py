@@ -12,12 +12,22 @@ Measured (podcast-scraper-eval-data ``autoresearch/voice_embedding_match``, pre-
 10 feeds never used to shape it): wrong names 23 -> 17 (p = 0.031), correct names 70 -> 77
 (p = 0.014).
 
+Two differences from the rung as it runs in the pipeline, both so the migration publishes what
+the pipeline would:
+
+- **The talk floor.** The pipeline floors AFTER the rung, so a voice under the floor (5%) ends
+  unnamed whatever the rung says; a host-read ad carries the host's fingerprint. Such voices are
+  not listed: they are 0034's, and a review here could only answer "it is the host's voice".
+- **The source.** A renamed voice's diagnostics ``source`` is ``voice_identity``, as the pipeline
+  records the rung's own names, so a name this migration applies never votes in the feed bank.
+
 THE LIST IS FROZEN AND REVIEWED, as 0034's. :func:`find_changes` replays the rung (the pipeline's
 own ``voice_identity.decide`` on the stored fingerprints, threshold 0.7) over a corpus copy;
 :func:`write_list` (0034's) freezes it in ``upgrade/lists/0035_voice_identity_names.json``. The
 review judges a RENAME by its new name (``CORRECT`` / ``CORRECT_MISSPELLED`` applies it) and an
 UNNAMING by the name it takes off (``WRONG_PERSON`` applies it); a listed voice without a verdict
-fails ``verify``. Applied through 0029's voice-by-voice rewrite with 0031's derived surfaces; an
+fails ``verify``. The verdicts header binds the whole list (every field of every entry), and the
+list file is part of the migration's digest. Applied through 0029's voice-by-voice rewrite with 0031's derived surfaces; an
 episode whose stored name moved on is refused untouched. Not in the registry until the list and its
 verdicts exist. UNDO restores from ``.podcast_scraper/upgrade-backups/0035/``.
 """
@@ -68,24 +78,36 @@ def episode_changes(
     groups = vi.build_groups(vi.feed_history(feed_dir, eid, model), threshold, min_talk_s)
     if not groups:
         return eid, {}
-    served = m34.served_by_voice(m34._segments(meta_path, rel))
+    rows = m34._segments(meta_path, rel)
+    served = m34.served_by_voice(rows)
+    seconds = m34.talk_by_voice(rows)
+    total = sum(seconds.values()) or 1.0
     talk = {
         str(v.get("voice")): float(v.get("talk_time_s") or 0.0) for v in diag.get("voices") or []
     }
     voices = {v: (name, role, talk.get(v, 0.0), vecs.get(v)) for v, (name, role) in served.items()}
     out: Dict[str, m29.Entry] = {}
     for voice, (new_name, new_role) in vi.decide(voices, groups, threshold).items():
+        # The pipeline runs the talk floor AFTER the rung, so a name the rung gives a voice under
+        # the floor comes off again: a host-read ad carries the host's fingerprint. Listing it
+        # here would put back, behind a review that can only answer "it is the host's voice",
+        # the name 0034 takes off. Voices under the floor are 0034's.
+        if seconds.get(voice, 0.0) / total < m34.FLOOR:
+            continue
         old_name, old_role = served.get(voice, (None, None))
+        vec = vi._unit(vecs[voice]) if vecs.get(voice) else None
         if new_name:
-            group = next((g for g in groups if g.display == new_name), None)
-            sim = (
-                vi._cos(vi._unit(vecs[voice]), group.centroid) if group and vecs.get(voice) else 0.0
-            )
+            # The group ``decide`` matched: the voice's most similar one.
+            sim = max(vi._cos(vec, g.centroid) for g in groups) if vec else 0.0
             why = f"matches the feed's {new_name!r} fingerprint group at {sim:.2f}"
             out[voice] = (old_name, old_role, new_name, new_role or old_role, why)
         else:
+            # The group ``decide`` compared: the LAST group of the name taken off.
+            same = [g for g in groups if g.person == vi._key(old_name)]
+            sim = vi._cos(vec, same[-1].centroid) if vec and same else 0.0
             why = (
-                f"clearly not {old_name!r}: the feed's fingerprint group for that name is elsewhere"
+                f"clearly not {old_name!r}: similarity {sim:.2f} to the feed's fingerprint group "
+                "for that name"
             )
             out[voice] = (old_name, old_role, None, None, why)
     return eid, out
@@ -106,6 +128,17 @@ def load_list(path: Path = LIST_FILE) -> Dict[rv.Key, m29.Entry]:
     return m34.load_list(path)
 
 
+class _Episode(m34._Episode):
+    """0034's rewrite, with a renamed voice's diagnostics source ``voice_identity``.
+
+    The rung's own names never vote in the feed bank (``voice_identity._NON_VOTING_SOURCES``), so
+    a match cannot confirm itself episode after episode. A name this migration applies is the
+    rung's name (a review only confirms it), so it is recorded as the pipeline records it.
+    """
+
+    RENAMED_SOURCE = vi.SOURCE
+
+
 def undo(root: Path) -> Tuple[int, List[str]]:
     """Restore each file this migration wrote, if still as left. ``(restored, refused)``."""
     return undo_from_receipts(Path(root), RECEIPTS_FILE, BACKUP_TAG, MIGRATION_ID)
@@ -121,6 +154,7 @@ class VoiceIdentityNamesMigration(m34.TalkFloorNamesRemovedMigration):
         "feed's voted fingerprint group takes its name, a name leaves a voice clearly not that "
         "person; frozen, reviewed list through 0029's rewrite with 0031's derived surfaces"
     )
+    _episode_class = _Episode
     _receipts_file = RECEIPTS_FILE
     _backup_tag = BACKUP_TAG
     _plan_label = "voice identity"
@@ -158,6 +192,11 @@ class VoiceIdentityNamesMigration(m34.TalkFloorNamesRemovedMigration):
 def verdicts_file() -> Path:
     """The verdicts file this migration reads (a plan-level input, hashed into the code digest)."""
     return rv.verdicts_path(MIGRATION_ID)
+
+
+def list_file() -> Path:
+    """The frozen list this migration applies (a plan-level input, hashed into the code digest)."""
+    return LIST_FILE
 
 
 def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:
