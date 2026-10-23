@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 32 |
+| Doc version | 33 |
 | Last updated | 2026-10-23 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `cf39f2358627` (see below) |
+| Code content hash | `82cdda9a011e` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,19 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v33, 2026-10-23.** `merge_split_voices` (default off; `merge_split_voices_threshold` 0.8)
+  merges one person split into two diarized voices, before alignment and naming. No rung changed.
+  - **The rule.** Two voices of one episode, each speaking >= 10 s, whose fingerprints are at
+    least the threshold similar (cosine) are grouped. A chain of matches is one group. Each group
+    becomes its voice that talks most, so every rung sees one voice
+    (`providers/ml/diarization/split_voices.py`).
+  - **The record.** The sidecar key `split_voices` lists every pair's similarity, merged or not,
+    so the threshold can be chosen from a run without re-diarizing; also what was merged into
+    what, or why it abstained.
+  - **Why:** 12 of 68 unnamed Gate 1 voices were a second voice of a named person (eval repo
+    NAMING-RETHINK, M5).
+  - **Not measured yet:** the threshold and the effect. That is the DGX block.
 
 - **v32, 2026-10-23.** `speaker_naming_passes` (default 1, at most 5) sets how many times each
   naming LLM call is asked: the ladder's resolution call and the staged transcript-naming call.

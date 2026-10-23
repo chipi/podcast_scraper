@@ -1205,6 +1205,23 @@ class Config(BaseModel):
             "stand when the call fails. Off by default."
         ),
     )
+    merge_split_voices: bool = Field(
+        default=False,
+        alias="merge_split_voices",
+        description=(
+            "Before naming, two diarized voices of one episode whose fingerprints are at least "
+            "merge_split_voices_threshold similar are merged into the one that talks more (one "
+            "person split by the diarizer; providers/ml/diarization/split_voices.py). Needs a "
+            "diarizer that returns fingerprints. Off by default."
+        ),
+    )
+    merge_split_voices_threshold: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        alias="merge_split_voices_threshold",
+        description="Cosine similarity at which two voices of one episode are one person.",
+    )
     speaker_naming_passes: int = Field(
         default=1,
         ge=1,

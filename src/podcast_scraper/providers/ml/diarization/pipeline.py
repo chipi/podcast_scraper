@@ -701,6 +701,27 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
+def _maybe_merge_split_voices(cfg: Any, diarization: Any) -> Tuple[Any, Optional[Dict[str, Any]]]:
+    """``merge_split_voices``: one person's two diarized voices made one, by fingerprint, before
+    alignment and naming; the report (every pair's similarity) goes into the sidecar."""
+    if not getattr(cfg, "merge_split_voices", False):
+        return diarization, None
+    from . import split_voices
+
+    merged, report = split_voices.merge(
+        diarization,
+        threshold=float(
+            getattr(cfg, "merge_split_voices_threshold", split_voices.DEFAULT_THRESHOLD)
+        ),
+    )
+    if report.get("merged"):
+        logger.info(
+            "split voices: merged %s",
+            ", ".join(f"{m['voice']}->{m['into']} ({m['similarity']})" for m in report["merged"]),
+        )
+    return merged, report
+
+
 def naming_passes(cfg: Any) -> int:
     """``speaker_naming_passes``: how many times each naming LLM call is asked (>= 1)."""
     try:
@@ -1079,6 +1100,8 @@ def apply_diarization_to_result(
         )
         return result
 
+    diarization, split_report = _maybe_merge_split_voices(cfg, diarization)
+
     # #2187 A2: re-transcribe the speech the diarizer heard and the transcript skipped, BEFORE
     # alignment, so recovered words get their speaker the same way every other segment does.
     if transcribe_clip is not None:
@@ -1357,6 +1380,8 @@ def apply_diarization_to_result(
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["speaker_diagnostics"]["decision_trace"] = naming_trace.to_dict()
+    if split_report is not None:
+        enriched_result["speaker_diagnostics"]["split_voices"] = split_report
     enriched_result["speaker_diagnostics"].update(
         _side_namer_sidecars(cfg, side_namers, roster, aligned, speaker_renames)
     )
