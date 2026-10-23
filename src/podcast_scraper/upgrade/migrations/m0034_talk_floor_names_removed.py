@@ -52,7 +52,10 @@ BACKUP_TAG = "0034"
 LIST_FILE = Path(__file__).resolve().parents[1] / "lists" / f"{MIGRATION_ID}.json"
 #: The pipeline's floor on prod_dgx_full (``speaker_name_min_talk_share``).
 FLOOR = 0.05
-_LABEL = re.compile(r"^SPEAKER(_\d+)?$")
+#: A label that is a placeholder, not a name: the diarizer's raw id ("SPEAKER_01"), and the
+#: screenplay shapes a transcription provider writes for an unnamed voice ("Speaker",
+#: "Speaker 2", "Unknown Speaker"). The review is never asked to judge one.
+_LABEL = re.compile(r"^(?:speaker(?:[ _]\d+)?|unknown(?: speaker)?)$", re.IGNORECASE)
 
 
 def _segments(meta: Path, rel: str) -> List[dict]:

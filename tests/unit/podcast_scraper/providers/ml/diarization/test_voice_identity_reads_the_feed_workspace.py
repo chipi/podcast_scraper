@@ -203,8 +203,11 @@ def test_a_sibling_sidecar_of_the_wrong_shape_is_skipped_not_raised(
     _sibling(feed, "run_20261009-000000_cccccccc", "ep0")
     bad = feed / "run_20261009-000000_cccccccc" / "transcripts" / "ep0.speakers.diagnostics.json"
     bad.write_text(json.dumps(["not", "a", "sidecar"]))
-    by_voice = _voices(_run(monkeypatch, tmp_path, "publish"))
-    assert by_voice["SPEAKER_00"]["resolved_name"] == "Tobias Wren"
+    out = _run(monkeypatch, tmp_path, "publish")
+    assert _voices(out)["SPEAKER_00"]["resolved_name"] == "Tobias Wren"
+    # Second review m8: the skipped sibling is counted, not only logged at debug.
+    report = out["speaker_diagnostics"][vi.SIDECAR_KEY]["report"]
+    assert report["siblings_read"] == 2 and report["siblings_skipped"] == 1
 
 
 def test_a_rung_that_raises_in_shadow_publishes_what_off_publishes(

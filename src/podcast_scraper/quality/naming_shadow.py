@@ -9,8 +9,11 @@ podcast-scraper-eval-data ``docs/wip/NAMING-GATES-2026-10-22.md``). Three tables
   voice is listed, so a reader can judge it; the counts alone say nothing about who is right.
   An episode where the namer did not answer (the LLM call failed; the fingerprint rung abstained,
   e.g. no fingerprints or no voted group yet) is counted under ``not_answered`` by reason and
-  contributes no outcome: its "agree" rows only repeat the ladder. A voice the LLM pass was never
-  asked about (under 40 words, not in ``voices_asked``) is ``not_judged``, never ``removes``.
+  contributes no outcome: its "agree" rows only repeat the ladder. A voice a namer never judged is
+  ``not_judged``, never ``agree`` or ``removes``: for the LLM pass a voice it was not asked about
+  (under 40 words, not in ``voices_asked``); for the fingerprint rung a voice without a
+  fingerprint, or an unnamed one under ``voice_identity.MIN_VOICE_TALK_S`` (``decide`` names
+  neither; it still checks a named short voice for removal).
 - **Talk floor.** Every name the floor took off (the decision trace's ``talk_floor`` /
   ``removed`` step), by the role the LLM pass gave that voice. The role is a PROXY for whether
   the name was the voice's own (an ``ad`` / ``promo`` voice losing a name is what the floor is
@@ -76,6 +79,17 @@ def not_answered(block: Mapping[str, Any], namer: str) -> Optional[str]:
     return None
 
 
+def _rung_judged(entry: Mapping[str, Any]) -> bool:
+    """Whether the fingerprint rung could change this voice (see the module doc)."""
+    from ..providers.ml.diarization.voice_identity import MIN_VOICE_TALK_S
+
+    match = entry.get("match")
+    if not isinstance(match, dict):
+        return False  # no fingerprint for this voice
+    named = bool((entry.get("ladder") or {}).get("name"))
+    return named or float(match.get("talk_s") or 0.0) >= MIN_VOICE_TALK_S
+
+
 def namer_rows(eid: str, diag: Mapping[str, Any], namer: str) -> List[Dict[str, Any]]:
     """One row per voice a namer compared with the ladder (empty when it wrote nothing or did not
     answer). A voice the LLM pass was not asked about is ``not_judged``."""
@@ -90,6 +104,8 @@ def namer_rows(eid: str, diag: Mapping[str, Any], namer: str) -> List[Dict[str, 
             continue
         outcome = entry["outcome"]
         if namer == "transcript_naming" and asked_set is not None and voice not in asked_set:
+            outcome = NOT_JUDGED
+        if namer == "voice_identity" and not _rung_judged(entry):
             outcome = NOT_JUDGED
         result = entry.get(_RESULT_KEY[namer]) or {}
         out.append(

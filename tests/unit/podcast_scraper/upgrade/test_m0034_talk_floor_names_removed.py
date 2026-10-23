@@ -283,3 +283,14 @@ def test_the_frozen_list_is_part_of_the_migrations_digest(
     first = outcome_hook.migration_digest(m34.TalkFloorNamesRemovedMigration())
     m34.write_list(path, {("ep", "SPEAKER_02"): ("A B", "host", None, None, "x")})
     assert outcome_hook.migration_digest(m34.TalkFloorNamesRemovedMigration()) != first
+
+
+@pytest.mark.parametrize("label", ["SPEAKER_03", "Speaker", "Speaker 2", "Unknown Speaker"])
+def test_a_placeholder_label_is_no_name_to_take_off(label: str) -> None:
+    # Second review m7: a provider's "Speaker 2" is not a name the review should judge.
+    rows = [
+        {"speaker": "SPEAKER_00", "speaker_label": "Ann Lee", "start": 0, "end": 100},
+        {"speaker": "SPEAKER_03", "speaker_label": label, "start": 100, "end": 101},
+    ]
+    assert m34.served_by_voice(rows)["SPEAKER_03"][0] is None
+    assert m34.floor_changes(rows) == {}

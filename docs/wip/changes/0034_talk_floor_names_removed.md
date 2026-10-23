@@ -70,6 +70,10 @@ name is worse than a hidden insight (operator, 2026-10-19).
   (every field of every entry), the list file is part of the migration's digest (`list_file`),
   and the receipts header records the list's hash. An entry edited after the review refuses the
   load.
+- **Placeholder labels are no names.** A served label "SPEAKER_01", "Speaker", "Speaker 2" or
+  "Unknown Speaker" (a transcription provider's shape for an unnamed voice) counts as unnamed, so
+  the floor never lists one for review. On the 10-17 copy none was served: the list is unchanged
+  (510 voices in 357 episodes).
 - **No verdicts file:** `plan` prints one refusal line; `apply` raises and the upgrade run stops
   there with nothing written (the runner's contract, as 0031's).
 - **Undo:** from `.podcast_scraper/upgrade-backups/0034/`, while each file is still as written.
@@ -84,6 +88,7 @@ name is worse than a hidden insight (operator, 2026-10-19).
   - an entry edited after the review refuses the load;
   - plan without a verdicts file is a refusal line;
   - the list file is part of the digest;
+  - a placeholder label is no name to take off;
   - a `CORRECT` verdict keeping the name;
   - no verdicts file;
   - a moved-on voice refused;

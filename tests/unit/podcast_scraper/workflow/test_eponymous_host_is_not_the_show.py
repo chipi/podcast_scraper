@@ -47,6 +47,44 @@ def _run(tmp_path: Path, label: str, source: str) -> Path:
 
 
 class TestTheSpeakerRecord:
+    def test_an_e1d_rescue_from_the_hosts_own_introduction_counts_as_self_introduced(
+        self, tmp_path: Path
+    ) -> None:
+        # Second review n2: E1d gives source e1d_rescue; its cue (here the voice's own "I'm
+        # Peter Attia") is in the decision trace, and is the same evidence as self_intro.
+        run = _run(tmp_path, HOST, "e1d_rescue")
+        diag_path = run / "transcripts" / "ep.speakers.diagnostics.json"
+        diag = json.loads(diag_path.read_text())
+        diag["decision_trace"] = {
+            "voices": {
+                "SPEAKER_00": [
+                    {"rung": "e1d_rescue", "decision": "named", "name": HOST, "cue": "self_intro"}
+                ]
+            }
+        }
+        diag_path.write_text(json.dumps(diag))
+        speakers, _ = _build_speaker_record(str(run), "transcripts/ep.txt", None, None, SHOW)
+        placed = {s.name: (s.role, s.source) for s in speakers if s.placed}
+        assert placed[HOST] == ("host", "self_intro")
+        assert _self_introduced_names(str(run), "transcripts/ep.txt") == [HOST]
+
+    def test_an_e1d_rescue_introduced_by_another_voice_is_not_self_introduced(
+        self, tmp_path: Path
+    ) -> None:
+        run = _run(tmp_path, HOST, "e1d_rescue")
+        diag_path = run / "transcripts" / "ep.speakers.diagnostics.json"
+        diag = json.loads(diag_path.read_text())
+        diag["decision_trace"] = {
+            "voices": {
+                "SPEAKER_00": [
+                    {"rung": "e1d_rescue", "decision": "named", "name": HOST, "cue": "introduced"}
+                ]
+            }
+        }
+        diag_path.write_text(json.dumps(diag))
+        speakers, _ = _build_speaker_record(str(run), "transcripts/ep.txt", None, None, SHOW)
+        assert HOST not in {s.name for s in speakers if s.placed}
+
     def test_a_self_introduced_eponymous_host_is_placed(self, tmp_path: Path) -> None:
         run = _run(tmp_path, HOST, "self_intro")
         speakers, _ = _build_speaker_record(str(run), "transcripts/ep.txt", None, None, SHOW)

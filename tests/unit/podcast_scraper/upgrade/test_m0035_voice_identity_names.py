@@ -245,3 +245,29 @@ def test_a_name_this_migration_applied_does_not_vote_afterwards(
     history = vi.feed_history(tmp_path / "feeds" / "f", "someone-else", MODEL)
     mine = [h for h in history if h.episode_id == "ep" and h.vec == vi._unit(HOST)]
     assert mine and all(h.name is None for h in mine)
+
+
+def test_a_respelling_rename_takes_the_rungs_source_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Second review m2: "Gergely Oroz" -> the group's "Gergely Orosz" is the same person by
+    # same_person, and kept its old source, so it voted. Every 0035 name is the rung's.
+    p = _feed(tmp_path)
+    diag = fx._r(p["diag"])
+    seg = fx._r(p["seg"])
+    rows = seg if isinstance(seg, list) else seg["segments"]
+    for r in rows:
+        if r["speaker"] == "SPEAKER_00":
+            r["speaker_label"], r["speaker_role"] = "Gergely Oroz", "host"
+    p["seg"].write_text(json.dumps(seg), encoding="utf-8")
+    for v in diag["voices"]:
+        if v["voice"] == "SPEAKER_00":
+            v.update(named=True, resolved_name="Gergely Oroz", source="llm_resolution")
+    p["diag"].write_text(json.dumps(diag), encoding="utf-8")
+    entries = m35.find_changes(tmp_path)
+    assert entries[("ep", "SPEAKER_00")][:3] == ("Gergely Oroz", "host", "Gergely Orosz")
+    monkeypatch.setattr(m35, "load_list", lambda path=None: entries)
+    _review(monkeypatch, tmp_path, entries, "CORRECT")
+    m35.VoiceIdentityNamesMigration().apply(_ctx(tmp_path))
+    host = {v["voice"]: v for v in fx._r(p["diag"])["voices"]}["SPEAKER_00"]
+    assert host["resolved_name"] == "Gergely Orosz" and host["source"] == vi.SOURCE

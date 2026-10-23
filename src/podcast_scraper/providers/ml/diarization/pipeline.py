@@ -872,7 +872,13 @@ def _run_side_namers(
         "voice_shadow_roster": None,
     }
     if side["naming_mode"] != "off":
-        asked = _ask_transcript_naming(cfg, aligned, episode_title, episode_description)
+        try:
+            asked = _ask_transcript_naming(cfg, aligned, episode_title, episode_description)
+        except Exception as exc:  # noqa: BLE001 — the ladder's roster stands
+            logger.warning("transcript naming: failed (%s); the ladder's names stand", exc)
+            asked = transcript_naming.NamingAnswer(
+                "standalone", [], None, {"error": f"{type(exc).__name__}: {exc}"}
+            )
         side["naming_asked"] = asked
         if side["naming_mode"] == "publish" and asked is not None and asked.ok:
             roster = transcript_naming.apply_answer(

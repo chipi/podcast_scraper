@@ -156,7 +156,9 @@ Nothing is counted as agreement that is not one:
 - an episode where the namer gave no answer (the LLM call failed, or the fingerprint rung
   abstained: no fingerprints, no voted group yet) counts under `not answered`, by reason, and adds
   no outcome;
-- a voice the LLM pass was never asked about (under 40 words) is `not_judged`, never `removes`.
+- a voice a namer never judged is `not_judged`, never `agree` or `removes`: for the LLM pass a
+  voice it was not asked about (under 40 words); for the fingerprint rung a voice without a
+  fingerprint, or an unnamed one under 10 s (`voice_identity.MIN_VOICE_TALK_S`).
 
 The counts do not say who is right; the listed rows are read.
 

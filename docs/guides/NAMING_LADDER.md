@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 35 |
+| Doc version | 36 |
 | Last updated | 2026-10-23 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `08606c5ffa37` (see below) |
+| Code content hash | `7d76fa48bb8f` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -27,6 +27,26 @@
 
 **Changelog**
 
+- **v36, 2026-10-23.** Fixes from the second branch review; no measured rule changes.
+  - **Candidate widening: "joins / returns / featuring" present a person only when nothing else
+    is said about them.** v35 still added "Why Elon Musk" from "Why Elon Musk joins the AI
+    race", and "Taylor Swift" from "Taylor Swift returns to Nashville" and "featuring Taylor
+    Swift songs". Now "joins / returns / is back" count only with no object or the show as the
+    object ("joins us", "joins the show"); "featuring" only when the name closes the clause or a
+    list; and a phrase starting with a question or sentence opener ("Why", "How", "Is", "Meet"…)
+    is no name. Still off by default and unmeasured.
+  - **Transcript naming cannot fail the episode.** The ask is wrapped as the voice rung is: if it
+    raises, the ladder's names stand and the sidecar records `ok: false` with the error. Before,
+    this held on prod's provider by inspection, not by construction.
+  - **The voice rung counts the siblings it read and skipped** (`siblings_read`,
+    `siblings_skipped` in its report), and logs one warning per episode when any were
+    unreadable, so a feed whose siblings all fail to parse no longer reads as "no voted group".
+  - **An E1d rescue from the voice's own introduction is self-introduced in the speaker record.**
+    E1d keeps its source `e1d_rescue`; its trace step's `cue: self_intro` is the same evidence as
+    `self_intro`, so a rescued host whose name is the show's keeps the eponymous-host exception
+    (`metadata_generation._self_introduced_voices`).
+  - **`voice_identity.MIN_VOICE_TALK_S`** (10 s) names the threshold `decide` already used; the
+    shadow report reads it to tell judged voices from unjudged ones.
 - **v35, 2026-10-23.** Fixes from the branch review; no rule's measured behaviour changes.
   - **Voice identity reads siblings whose metadata stores an absolute path.** Prod metadata
     often stores `transcript_file_path` as written at ingest (`/app/output/feeds/<feed>/<run>/
@@ -521,6 +541,13 @@ used when one person's voices disagree: `self_intro`, `introduced`, `publisher_t
 - `self_intro` — every other name in the intro map: the voice's own introduction (opening,
   sign-off, or a weak one the metadata vouches for or anchors) and the co-host formula's names.
 - A host seat named from the pool keeps the pool entry's source (`feed`, `known_hosts`, …).
+- `e1d_rescue` — E1d: an introduced name the third-person guard refused (v30).
+- `s30_split_merge` — S30s: the second voice of a host split in two (v30).
+- `transcript_naming` — the whole-transcript LLM pass, in `publish` only (v27). Does not vote in
+  the voice identity bank.
+- `voice_identity` — the feed fingerprint match, in `publish` only (v26), and every name
+  migration 0035 applies, respellings included. Does not vote in the voice identity bank.
+- `talk_floor` — unnamed by the talk floor (v26; `named` is false).
 - `forced` — placed by arithmetic. `raw` — unnamed.
 
 ### Same-person rules, and the rungs they act at

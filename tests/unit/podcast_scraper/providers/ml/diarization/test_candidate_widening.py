@@ -31,6 +31,10 @@ pytestmark = pytest.mark.unit
         ("Soil health, with Maria Lindqvist.", ["Maria Lindqvist"]),
         ("Toby sits down with Ana Ruiz.", ["Ana Ruiz"]),
         ("Toby catches up with Ana Ruiz.", ["Ana Ruiz"]),
+        ("Ana Ruiz joins us to talk water.", ["Ana Ruiz"]),
+        ("Ana Ruiz is back!", ["Ana Ruiz"]),
+        ("Featuring Ana Ruiz and Bo Lee", ["Ana Ruiz"]),
+        ("Featuring Ana Ruiz, author of Water.", ["Ana Ruiz"]),
     ],
 )
 def test_cue_names(text: str, names: List[str]) -> None:
@@ -46,6 +50,12 @@ def test_cue_names(text: str, names: List[str]) -> None:
         # a bare "with" after a noun is text about a person (review m1)
         "His feud with Elon Musk continues.",
         "The deal with Ana Ruiz fell through.",
+        # second review M1: "joins / returns / featuring" followed by text about the person,
+        # and a sentence opener captured into the name
+        "Why Elon Musk joins the AI race",
+        "Taylor Swift returns to Nashville: a retrospective",
+        "An evening featuring Taylor Swift songs",
+        "How Ana Ruiz built a water company",
         # organisations and shows after a cue word
         "An interview with The Economist editors.",
         "In conversation with Our World in Data.",

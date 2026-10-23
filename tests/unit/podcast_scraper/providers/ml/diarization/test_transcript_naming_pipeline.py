@@ -31,6 +31,10 @@ SWAPPED = (
 )
 
 
+#: An answer that makes the ask itself raise (a provider whose token counter throws).
+RAISE = "<raise>"
+
+
 def _run(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: Mode, answer: Optional[str] = SWAPPED
 ) -> Dict[str, Any]:
@@ -43,6 +47,8 @@ def _run(
         calls.append(mode)
         if answer is None:
             return None
+        if answer == RAISE:
+            raise RuntimeError("count_tokens failed")
         return tn.ask(
             aligned,
             lambda prompt: answer,
@@ -145,3 +151,17 @@ def test_a_profile_without_an_llm_writes_no_key(monkeypatch: pytest.MonkeyPatch,
     out = _run(monkeypatch, tmp_path, "shadow", answer=None)
     assert _published(out) == _published(off)
     assert tn.SIDECAR_KEY not in out["speaker_diagnostics"]
+
+
+def test_an_ask_that_raises_cannot_fail_the_episode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    # Second review m6: shadow must publish what off publishes even when the ask raises.
+    off = _run(monkeypatch, tmp_path, "off")
+    modes: Tuple[Mode, ...] = ("shadow", "publish")
+    for mode in modes:
+        out = _run(monkeypatch, tmp_path, mode, answer=RAISE)
+        assert _published(out) == _published(off)
+        side = out["speaker_diagnostics"][tn.SIDECAR_KEY]
+        assert side["ok"] is False
+        assert side["report"]["error"] == "RuntimeError: count_tokens failed"

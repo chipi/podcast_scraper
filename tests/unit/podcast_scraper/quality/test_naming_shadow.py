@@ -49,6 +49,9 @@ def _voice(ladder, result, outcome, key="model_result", model=None):
     e = {"ladder": {"name": ladder}, key: {"name": result, "role": "guest"}, "outcome": outcome}
     if model is not None:
         e["model"] = model
+    if key == "fingerprint_result":
+        # As the rung writes it: the voice's best group, similarity and talk.
+        e["match"] = {"group": result or ladder, "similarity": 0.9, "talk_s": 300.0}
     return e
 
 
@@ -218,3 +221,32 @@ def test_a_voice_the_llm_pass_was_never_asked_about_is_not_judged_not_removed(
     tn = ns.report(tmp_path)["namers"]["transcript_naming"]
     assert tn["outcomes"]["removes"] == 0 and tn["outcomes"]["not_judged"] == 1
     assert tn["differences"] == []
+
+
+def test_voices_the_fingerprint_rung_cannot_judge_are_not_judged_not_agree(tmp_path: Path) -> None:
+    # Second review m1: no fingerprint, or unnamed and under 10 s: decide() names neither.
+    match = {"group": "Arlo Venn", "similarity": 0.2, "talk_s": 300.0}
+    short = {"group": "Arlo Venn", "similarity": 0.2, "talk_s": 6.0}
+
+    def entry(ladder, m):
+        e = _voice(ladder, ladder, "agree", "fingerprint_result")
+        e["match"] = m
+        return e
+
+    _episode(
+        tmp_path,
+        {
+            "voice_identity": {
+                "report": {"history_voices": 4, "groups": 1},
+                "voices": {
+                    "SPEAKER_00": entry("Arlo Venn", match),
+                    "SPEAKER_01": entry(None, None),
+                    "SPEAKER_02": entry(None, short),
+                    "SPEAKER_03": entry("Kim Lee", short),
+                },
+            }
+        },
+    )
+    vi = ns.report(tmp_path)["namers"]["voice_identity"]
+    # SPEAKER_00 judged; SPEAKER_03 is named, so its removal was checked; 01 and 02 were not.
+    assert vi["outcomes"]["agree"] == 2 and vi["outcomes"]["not_judged"] == 2

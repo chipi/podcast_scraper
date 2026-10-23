@@ -138,6 +138,8 @@ class _Episode(m34._Episode):
     """
 
     RENAMED_SOURCE = vi.SOURCE
+    #: A respelling ("Jon Smith" -> the group's "John Smith") is the rung's name too.
+    RESPELLING_TAKES_RENAMED_SOURCE = True
 
 
 def undo(root: Path) -> Tuple[int, List[str]]:

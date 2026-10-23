@@ -81,6 +81,10 @@ name is worse than a hidden insight (operator, 2026-10-19).
   entry edited after the review refuses the load.
 - **A renamed voice's source is `voice_identity`**, as the pipeline records the rung's names, so
   a name this migration applies never votes in the feed bank (`voice_identity._NON_VOTING_SOURCES`).
+  That includes a respelling of the same person ("Jon Smith" -> the group's "John Smith"), which
+  the shared rewrite would otherwise leave on its old source (`RESPELLING_TAKES_RENAMED_SOURCE`).
+- **Placeholder labels are no names.** A served label "SPEAKER_01", "Speaker", "Speaker 2" or
+  "Unknown Speaker" counts as an unnamed voice (0034's `_LABEL`), so the review never judges one.
 - **The rewrite.** Through 0029's voice-by-voice rewrite with 0031's derived surfaces (0034's
   episode class): transcript prefixes and offsets, turns, diagnostics, context, ad maps, metadata
   counts, GI, KG and bridge. All or none per episode; an episode whose stored name or role moved on
@@ -97,7 +101,7 @@ name is worse than a hidden insight (operator, 2026-10-19).
   - a listed voice without a verdict fails verify and nothing is written;
   - a voice under the floor is not listed, even when it is the host's voice;
   - siblings stored with an absolute path still vote;
-  - a name this migration applied does not vote afterwards;
+  - a name this migration applied does not vote afterwards, a respelling included;
   - not registered.
 
 ## 5. Still to do before apply

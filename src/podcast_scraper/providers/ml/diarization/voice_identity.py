@@ -37,6 +37,9 @@ logger = logging.getLogger(__name__)
 PARTICIPANT_ROLES = ("host", "guest")
 SOURCE = "voice_identity"
 SIDECAR_KEY = "voice_identity"
+#: A voice under this many seconds is never given a group's name (``decide``); it can still lose
+#: a name it carries.
+MIN_VOICE_TALK_S = 10.0
 SIDECAR_VERSION = 1
 MODES = ("off", "shadow", "publish")
 # Sources whose names do not vote in the feed bank (see ``voices_from_diagnostics``).
@@ -111,14 +114,22 @@ def voices_from_diagnostics(
 
 
 def feed_history(
-    feed_dir: Path, exclude_episode_id: str, model_name: Optional[str]
+    feed_dir: Path,
+    exclude_episode_id: str,
+    model_name: Optional[str],
+    stats: Optional[Dict[str, int]] = None,
 ) -> List[HistoryVoice]:
-    """The feed's OTHER episodes' voices, newest run per episode, read from the feed workspace."""
+    """The feed's OTHER episodes' voices, newest run per episode, read from the feed workspace.
+
+    ``stats``, when given, gets ``siblings_read`` and ``siblings_skipped`` (unreadable files), so
+    a feed whose every sibling is unreadable shows up instead of reading as "no voted group".
+    """
     from ....search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
 
     metas = sorted(feed_dir.glob("run_*/metadata/*.metadata.json"))
     corpus_root = feed_dir.parent.parent if feed_dir.parent.name == "feeds" else feed_dir
     out: List[HistoryVoice] = []
+    counts = {"siblings_read": 0, "siblings_skipped": 0}
     for meta in dedupe_metadata_paths_newest_run_per_episode(corpus_root, metas):
         meta = Path(meta)
         try:
@@ -133,10 +144,21 @@ def feed_history(
                 out += voices_from_diagnostics(
                     json.loads(diag.read_text(encoding="utf-8")), eid, model_name
                 )
+                counts["siblings_read"] += 1
         except (OSError, ValueError, TypeError, AttributeError) as exc:
             # A sibling that is not the shape this reads (not a dict, a non-numeric fingerprint)
             # is skipped: one bad file must not break the episode being named.
+            counts["siblings_skipped"] += 1
             logger.debug("voice identity: unreadable sibling %s (%s); skipped", meta, exc)
+    if counts["siblings_skipped"]:
+        logger.warning(
+            "voice identity: %d of %d sibling sidecars in %s were unreadable and skipped",
+            counts["siblings_skipped"],
+            counts["siblings_read"] + counts["siblings_skipped"],
+            feed_dir,
+        )
+    if stats is not None:
+        stats.update(counts)
     return out
 
 
@@ -202,7 +224,7 @@ def decide(
     groups: Sequence[VoiceGroup],
     threshold: float,
     not_same: float = 0.5,
-    min_voice_talk: float = 10.0,
+    min_voice_talk: float = MIN_VOICE_TALK_S,
 ) -> Dict[str, Tuple[Optional[str], Optional[str]]]:
     """``{voice: (name or None, role)}`` for the voices this rung changes.
 
@@ -271,9 +293,12 @@ def apply_to_roster(
     model = getattr(diarization, "speaker_embeddings_model", "") or getattr(
         diarization, "model_name", ""
     )
-    history = feed_history(Path(feed_dir), episode_id, model or None)
+    siblings: Dict[str, int] = {}
+    history = feed_history(Path(feed_dir), episode_id, model or None, siblings)
     groups = build_groups(history, threshold, min_talk)
-    rep.update({"model": model or None, "history_voices": len(history), "groups": len(groups)})
+    rep.update(
+        {"model": model or None, "history_voices": len(history), "groups": len(groups), **siblings}
+    )
     if not groups:
         rep["abstained"] = "no voted group in the feed's other episodes"
         return roster

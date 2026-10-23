@@ -29,6 +29,7 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
+    Set,
     Tuple,
     TYPE_CHECKING,
     Union,
@@ -1052,11 +1053,36 @@ def _self_introduced_names(
     if not output_dir or not transcript_file_path:
         return []
     diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
+    mine = _self_introduced_voices(diagnostics)
     return [
         str(v["resolved_name"])
         for v in diagnostics.get("voices") or []
-        if isinstance(v, dict) and v.get("source") == SELF_INTRO_SOURCE and v.get("resolved_name")
+        if isinstance(v, dict) and v.get("voice") in mine and v.get("resolved_name")
     ]
+
+
+def _self_introduced_voices(diagnostics: Mapping[str, Any]) -> Set[str]:
+    """Voices whose name is their OWN introduction: source ``self_intro``, or an E1d rescue
+    (``ladder_rescues``) whose cue was the voice's own "I'm X" (its decision-trace step). The
+    rescue keeps its own source so its fires stay countable; the evidence is the same."""
+    from ..providers.ml.diarization.ladder_rescues import E1D_SOURCE
+
+    out: Set[str] = set()
+    for v in diagnostics.get("voices") or []:
+        if isinstance(v, dict) and v.get("voice") and v.get("source") == SELF_INTRO_SOURCE:
+            out.add(str(v["voice"]))
+    trace = diagnostics.get("decision_trace")
+    steps = (trace.get("voices") if isinstance(trace, dict) else None) or {}
+    for voice, voice_steps in steps.items():
+        for step in voice_steps or []:
+            if (
+                isinstance(step, dict)
+                and step.get("rung") == E1D_SOURCE
+                and step.get("decision") == "named"
+                and step.get("cue") == SELF_INTRO_SOURCE
+            ):
+                out.add(str(voice))
+    return out
 
 
 #: The roster source for a name a voice introduced ITSELF with ("I'm Peter Attia") — the one
@@ -1204,9 +1230,13 @@ def _build_speaker_record(
         placed = [sp for sp in placed if not _votes.calls_organisation(sp.name)]
     diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
     method_by_voice: Dict[str, str] = {}
+    self_introduced = _self_introduced_voices(diagnostics)
     for v in diagnostics.get("voices") or []:
         if isinstance(v, dict) and v.get("voice") and v.get("source"):
-            method_by_voice[str(v["voice"])] = str(v["source"])
+            voice = str(v["voice"])
+            method_by_voice[voice] = (
+                SELF_INTRO_SOURCE if voice in self_introduced else str(v["source"])
+            )
     for sp in placed:
         methods = [method_by_voice[v] for v in sp.voices if v in method_by_voice]
         # One person on two voices (a diarization split): if EITHER voice introduced itself, the

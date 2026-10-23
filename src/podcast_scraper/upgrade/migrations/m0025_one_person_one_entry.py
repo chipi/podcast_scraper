@@ -366,6 +366,10 @@ class _Episode:
     #: The diagnostics ``source`` a voice gets when the rewrite gives it another person's name.
     #: A migration whose names must not vote in the voice identity bank (0035) sets its own.
     RENAMED_SOURCE = "roster"
+    #: Whether a respelling of the same person (``same_person``) takes ``RENAMED_SOURCE`` too.
+    #: Off: the old name's evidence still holds for the new spelling. 0035 turns it on, because
+    #: every name it applies is the rung's and must not vote.
+    RESPELLING_TAKES_RENAMED_SOURCE = False
 
     def __init__(self, meta: Path, root: Path) -> None:
         self.meta = meta
@@ -1280,7 +1284,9 @@ class _Episode:
             name = self.voice_names[v["voice"]]
             if name:
                 was = v.get("resolved_name")
-                if isinstance(was, str) and not same_person(name, was):
+                if isinstance(was, str) and (
+                    self.RESPELLING_TAKES_RENAMED_SOURCE or not same_person(name, was)
+                ):
                     # As the record's entry: the old name's evidence is not this name's.
                     v["source"] = self.RENAMED_SOURCE
                 role = (
