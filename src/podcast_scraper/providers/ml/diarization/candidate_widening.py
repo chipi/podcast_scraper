@@ -28,7 +28,10 @@ from __future__ import annotations
 import re
 from typing import List, Optional, Sequence
 
-_NAME = r"((?:[A-Z][a-zà-öø-ÿ'’\-]+|[A-Z]\.)(?:\s+(?:[A-Z][a-zà-öø-ÿ'’\-]+|[A-Z]\.)){1,3})"
+#: One word of a name: an inner capital ("McCormick", "O'Brien", "DeShawn") and hyphenated parts
+#: ("Maclean-Jones") belong to it; a lowercase-only tail used to cut those to "Mc" / "Maclean-".
+_WORD = r"[A-Z][a-zà-öø-ÿ'’]+(?:[A-Z][a-zà-öø-ÿ'’]+)?(?:-[A-Z][a-zà-öø-ÿ'’]+)*"
+_NAME = r"((?:" + _WORD + r"|[A-Z]\.)(?:\s+(?:" + _WORD + r"|[A-Z]\.)){1,3})"
 _HONORIFIC = r"(?:(?:Dr|Prof|Professor|Sir|Dame)\.?\s+)?"
 #: Where a clause or a list ends right after a name.
 _CLOSES = r"(?=\s*(?:$|[.,;:!?|)(\]—–]|\s-\s|\s(?i:and|&)\s))"

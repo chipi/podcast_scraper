@@ -35,6 +35,11 @@ pytestmark = pytest.mark.unit
         ("Ana Ruiz is back!", ["Ana Ruiz"]),
         ("Featuring Ana Ruiz and Bo Lee", ["Ana Ruiz"]),
         ("Featuring Ana Ruiz, author of Water.", ["Ana Ruiz"]),
+        # a name with an inner capital or a hyphen is one name, never cut ("Mc", "Maclean-")
+        ("A conversation with Jade McCormick.", ["Jade McCormick"]),
+        ("Joined by Aled Maclean-Jones and Bo Lee", ["Aled Maclean-Jones"]),
+        ("Our guest Sean O'Brien explains.", ["Sean O'Brien"]),
+        ("Featuring DeShawn Hill.", ["DeShawn Hill"]),
     ],
 )
 def test_cue_names(text: str, names: List[str]) -> None:
