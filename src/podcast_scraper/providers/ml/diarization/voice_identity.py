@@ -126,15 +126,41 @@ def feed_history(
             eid = str((doc.get("episode") or {}).get("episode_id") or "")
             if not eid or eid == exclude_episode_id:
                 continue
-            rel = str((doc.get("content") or {}).get("transcript_file_path") or "")
-            diag = meta.parent.parent / rel.replace(".txt", ".speakers.diagnostics.json")
-            if rel and diag.is_file():
+            diag = sibling_diagnostics_path(
+                meta.parent.parent, (doc.get("content") or {}).get("transcript_file_path")
+            )
+            if diag is not None and diag.is_file():
                 out += voices_from_diagnostics(
                     json.loads(diag.read_text(encoding="utf-8")), eid, model_name
                 )
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, TypeError, AttributeError) as exc:
+            # A sibling that is not the shape this reads (not a dict, a non-numeric fingerprint)
+            # is skipped: one bad file must not break the episode being named.
             logger.debug("voice identity: unreadable sibling %s (%s); skipped", meta, exc)
     return out
+
+
+def sibling_diagnostics_path(run_dir: Path, transcript_file_path: Any) -> Optional[Path]:
+    """A sibling episode's speaker-diagnostics sidecar in THIS corpus, or None.
+
+    Some metadata stores the transcript path absolute ("/app/output/feeds/<feed>/<run>/
+    transcripts/x.txt"). Joined to the run as-is it names the file under the path written at
+    ingest, not the one in the corpus being read (a snapshot copy, a restore), so every such
+    sibling would be skipped. The part after the run directory's name is the same file here.
+    """
+    rel = str(transcript_file_path or "")
+    if not rel.endswith(".txt"):
+        return None
+    path = Path(rel)
+    if path.is_absolute():
+        parts = path.parts
+        if run_dir.name not in parts:
+            return None
+        at = len(parts) - 1 - parts[::-1].index(run_dir.name)
+        if at + 1 >= len(parts):
+            return None
+        path = Path(*parts[at + 1 :])
+    return run_dir / str(path).replace(".txt", ".speakers.diagnostics.json")
 
 
 def build_groups(

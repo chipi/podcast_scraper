@@ -2189,7 +2189,7 @@ class GeminiProvider:
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
     def complete_text(
-        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_resolution"
+        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
     ) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
 

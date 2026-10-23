@@ -26,6 +26,11 @@ pytestmark = pytest.mark.unit
         ("Our guest Ana Ruiz explains.", ["Ana Ruiz"]),
         ("Ana Ruiz joins the show to talk water.", ["Ana Ruiz"]),
         ("Featuring Kim J. Park.", ["Kim J. Park"]),
+        ("With Ana Ruiz", ["Ana Ruiz"]),
+        ("Episode 12 — with Ana Ruiz", ["Ana Ruiz"]),
+        ("Soil health, with Maria Lindqvist.", ["Maria Lindqvist"]),
+        ("Toby sits down with Ana Ruiz.", ["Ana Ruiz"]),
+        ("Toby catches up with Ana Ruiz.", ["Ana Ruiz"]),
     ],
 )
 def test_cue_names(text: str, names: List[str]) -> None:
@@ -38,6 +43,9 @@ def test_cue_names(text: str, names: List[str]) -> None:
         # #876: an episode ABOUT a person must not put him on the list
         "We discuss the lawsuit Elon Musk filed against OpenAI.",
         "A look back at Winston Churchill.",
+        # a bare "with" after a noun is text about a person (review m1)
+        "His feud with Elon Musk continues.",
+        "The deal with Ana Ruiz fell through.",
         # organisations and shows after a cue word
         "An interview with The Economist editors.",
         "In conversation with Our World in Data.",

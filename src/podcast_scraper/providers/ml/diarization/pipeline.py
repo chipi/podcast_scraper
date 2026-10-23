@@ -888,12 +888,18 @@ def _run_side_namers(
             correlation.get_episode_id(),
             float(getattr(cfg, "voice_identity_threshold", 0.7)),
         )
-        if side["voice_mode"] == "publish":
-            roster = voice_identity.apply_to_roster(roster, *args, trace=trace, report=report)
-        else:
-            side["voice_shadow_roster"] = voice_identity.apply_to_roster(
-                side["ladder_roster"], *args, report=report
-            )
+        try:
+            if side["voice_mode"] == "publish":
+                roster = voice_identity.apply_to_roster(roster, *args, trace=trace, report=report)
+            else:
+                side["voice_shadow_roster"] = voice_identity.apply_to_roster(
+                    side["ladder_roster"], *args, report=report
+                )
+        except Exception as exc:  # noqa: BLE001 — the roster before the rung stands
+            logger.warning("voice identity: failed (%s); the roster before it stands", exc)
+            report.clear()
+            report["abstained"] = f"error: {type(exc).__name__}"
+            side["voice_shadow_roster"] = side["ladder_roster"]
     return roster, side
 
 
@@ -1405,9 +1411,12 @@ def apply_diarization_to_result(
     enriched_result["speaker_diagnostics"]["decision_trace"] = naming_trace.to_dict()
     if split_report is not None:
         enriched_result["speaker_diagnostics"]["split_voices"] = split_report
-    enriched_result["speaker_diagnostics"].update(
-        _side_namer_sidecars(cfg, side_namers, roster, aligned, speaker_renames)
-    )
+    try:
+        enriched_result["speaker_diagnostics"].update(
+            _side_namer_sidecars(cfg, side_namers, roster, aligned, speaker_renames)
+        )
+    except Exception as exc:  # noqa: BLE001 — a side record must not fail the published episode
+        logger.warning("side namers: sidecar not written (%s)", exc)
     voice_embeddings = voice_embeddings_block(diarization)
     if voice_embeddings:
         enriched_result["speaker_diagnostics"]["voice_embeddings"] = voice_embeddings

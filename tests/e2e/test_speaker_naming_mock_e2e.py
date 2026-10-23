@@ -74,8 +74,11 @@ def test_the_mock_answers_only_naming_prompts() -> None:
     from tests.e2e.fixtures.e2e_http_server import _naming_response_json
 
     assert _naming_response_json("Summarize this transcript.") is None
-    text = tn.transcript_block(_aligned(), "The Wren Hour", None, "Ep 1", None)
-    answer = json.loads(_naming_response_json(tn.build_prompt(text, VOICES)) or "{}")
+    prompt, _voices, _clip = tn.fit_prompt(
+        tn.header_lines("The Wren Hour", None, "Ep 1", None), tn.turn_lines(_aligned()), None
+    )
+    assert prompt is not None
+    answer = json.loads(_naming_response_json(prompt) or "{}")
     got = {v: (a["name"], a["role"]) for v, a in answer["voices"].items()}
     assert got == EXPECTED
     assert answer["voices"]["SPEAKER_00"]["evidence"].startswith("[00:00] I'm Tobias Wren")

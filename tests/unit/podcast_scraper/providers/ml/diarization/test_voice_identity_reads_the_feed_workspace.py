@@ -29,16 +29,17 @@ GUEST = [0.0, 1.0, 0.0]
 URL = "https://example.com/wren.xml"
 
 
-def _sibling(feed: Path, run: str, eid: str) -> None:
+def _sibling(feed: Path, run: str, eid: str, absolute: bool = False) -> None:
     (feed / run / "metadata").mkdir(parents=True)
     (feed / run / "transcripts").mkdir()
+    # Prod metadata often stores the path as written at ingest, under the container's mount.
+    stored = (
+        f"/app/output/feeds/{feed.name}/{run}/transcripts/{eid}.txt"
+        if absolute
+        else f"transcripts/{eid}.txt"
+    )
     (feed / run / "metadata" / f"{eid}.metadata.json").write_text(
-        json.dumps(
-            {
-                "episode": {"episode_id": eid},
-                "content": {"transcript_file_path": f"transcripts/{eid}.txt"},
-            }
-        )
+        json.dumps({"episode": {"episode_id": eid}, "content": {"transcript_file_path": stored}})
     )
     voices: List[Dict[str, Any]] = [
         {
@@ -69,11 +70,12 @@ def _run(
     tmp_path: Path,
     mode: Literal["off", "shadow", "publish"],
     fingerprints: bool = True,
+    absolute: bool = False,
 ) -> Dict[str, Any]:
     feed = Path(filesystem.corpus_feed_output_dir(str(tmp_path), URL))
     if not feed.exists():
-        _sibling(feed, "run_20261001-000000_aaaaaaaa", "ep1")
-        _sibling(feed, "run_20261008-000000_bbbbbbbb", "ep2")
+        _sibling(feed, "run_20261001-000000_aaaaaaaa", "ep1", absolute)
+        _sibling(feed, "run_20261008-000000_bbbbbbbb", "ep2", absolute)
     monkeypatch.setattr(P, "_resolve_voices_via_llm", lambda *a, **k: ({}, {}))
     P._copresence_cache.clear()
     correlation.set_episode_id("ep3")
@@ -170,3 +172,65 @@ def test_an_episode_without_fingerprints_says_why_the_rung_abstained(
     ]
     assert side["report"]["abstained"] == "no fingerprints for this episode"
     assert side["outcomes"]["agree"] == 2
+
+
+def test_siblings_whose_metadata_stores_an_absolute_path_still_vote(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # Review M1: the stored path names /app/output; this corpus is elsewhere (a snapshot copy).
+    by_voice = _voices(_run(monkeypatch, tmp_path, "publish", absolute=True))
+    assert by_voice["SPEAKER_00"]["resolved_name"] == "Tobias Wren", by_voice
+
+
+def test_the_sibling_path_resolver_maps_an_absolute_path_into_this_corpus(tmp_path: Path) -> None:
+    run = tmp_path / "feeds" / "f" / "run_1"
+    assert vi.sibling_diagnostics_path(run, "/app/output/feeds/f/run_1/transcripts/e.txt") == (
+        run / "transcripts" / "e.speakers.diagnostics.json"
+    )
+    assert vi.sibling_diagnostics_path(run, "transcripts/e.txt") == (
+        run / "transcripts" / "e.speakers.diagnostics.json"
+    )
+    assert vi.sibling_diagnostics_path(run, "/elsewhere/run_9/transcripts/e.txt") is None
+    assert vi.sibling_diagnostics_path(run, None) is None
+
+
+def test_a_sibling_sidecar_of_the_wrong_shape_is_skipped_not_raised(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    feed = Path(filesystem.corpus_feed_output_dir(str(tmp_path), URL))
+    _sibling(feed, "run_20261001-000000_aaaaaaaa", "ep1")
+    _sibling(feed, "run_20261008-000000_bbbbbbbb", "ep2")
+    _sibling(feed, "run_20261009-000000_cccccccc", "ep0")
+    bad = feed / "run_20261009-000000_cccccccc" / "transcripts" / "ep0.speakers.diagnostics.json"
+    bad.write_text(json.dumps(["not", "a", "sidecar"]))
+    by_voice = _voices(_run(monkeypatch, tmp_path, "publish"))
+    assert by_voice["SPEAKER_00"]["resolved_name"] == "Tobias Wren"
+
+
+def test_a_rung_that_raises_in_shadow_publishes_what_off_publishes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    off = _run(monkeypatch, tmp_path, "off")
+
+    def boom(*a: Any, **k: Any) -> Any:
+        raise RuntimeError("rung failed")
+
+    monkeypatch.setattr(vi, "apply_to_roster", boom)
+    shadow = _run(monkeypatch, tmp_path, "shadow")
+    assert _published(shadow) == _published(off)
+    side = shadow["speaker_diagnostics"][vi.SIDECAR_KEY]
+    assert side["report"]["abstained"] == "error: RuntimeError"
+
+
+def test_a_side_record_that_cannot_be_built_does_not_fail_the_episode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    off = _run(monkeypatch, tmp_path, "off")
+
+    def boom(*a: Any, **k: Any) -> Any:
+        raise ValueError("sidecar failed")
+
+    monkeypatch.setattr(P, "_side_namer_sidecars", boom)
+    shadow = _run(monkeypatch, tmp_path, "shadow")
+    assert vi.SIDECAR_KEY not in shadow["speaker_diagnostics"]
+    assert _published(shadow) == _published(off)

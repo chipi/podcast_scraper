@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 34 |
+| Doc version | 35 |
 | Last updated | 2026-10-23 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `76b2816928e3` (see below) |
+| Code content hash | `08606c5ffa37` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -27,6 +27,36 @@
 
 **Changelog**
 
+- **v35, 2026-10-23.** Fixes from the branch review; no rule's measured behaviour changes.
+  - **Voice identity reads siblings whose metadata stores an absolute path.** Prod metadata
+    often stores `transcript_file_path` as written at ingest (`/app/output/feeds/<feed>/<run>/
+    transcripts/x.txt`). On a corpus mounted elsewhere (a snapshot copy, a restore) those
+    siblings were skipped silently, and one skipped sibling can cost a whole group (a group needs
+    two episodes). `voice_identity.sibling_diagnostics_path` now takes the part after the run
+    directory's name, as the migrations' `_run_relative` does. In the prod container the paths
+    resolved already, so served shadow records are unaffected.
+  - **A side namer cannot fail the episode.** A sibling sidecar of the wrong shape (not an
+    object, a non-numeric fingerprint) is skipped. If the voice rung raises, the roster before it
+    stands and its sidecar says `abstained: "error: <type>"`. If the side namers' sidecar entries
+    cannot be built, they are not written and the episode is published as without them.
+  - **Candidate widening: a bare "with" counts only where it opens the text or a clause.** v34
+    said text ABOUT a person is refused, but a bare "with" anywhere matched, so "his feud with
+    Elon Musk" added the name. Now a bare "with" counts at the start of the text or after
+    `- — – : | ( , ;`, or after a conversation word ("a conversation with", "talks to", "sits
+    down with", "catches up with"). "Guest", "joined by", "featuring" and "<name> joins" are
+    unchanged. A title "The Future of AI with Ana Ruiz" no longer adds the name: a wrong name is
+    worse than a hidden one. Still off by default and unmeasured.
+  - **`transcript_naming: publish` in a bundled mode publishes nothing more than `shadow`** until
+    the bundled write-back exists (v31); the config field now says so.
+  - **Cost label.** Gemini's `complete_text` defaulted to stage `speaker_resolution`; every
+    provider now defaults to `speaker_detection`. Since d47a256ae every provider records the
+    naming call's cost (v28 said "OpenAI-compatible providers and Gemini").
+  - **The voice sidecar's `ladder` column is the roster published before the rung.** With
+    `transcript_naming: publish` and `voice_identity_rung: shadow` it would hold the LLM pass's
+    names; no profile sets that combination.
+  - **Removed:** `transcript_naming.transcript_block` and `parse_answer`, used only by tests.
+    The layout and prompt tests now read the prompt `fit_prompt` builds, the one production
+    sends.
 - **v34, 2026-10-23.** `widen_candidates_from_metadata` (default off) adds to the closed candidate
   list the names the episode's own title and description present as people on it, which
   detection missed (`providers/ml/diarization/candidate_widening.py`).

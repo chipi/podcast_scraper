@@ -100,18 +100,6 @@ def turn_lines(aligned: Sequence[Tuple[Mapping[str, Any], Optional[str]]]) -> Li
     return lines
 
 
-def transcript_block(
-    aligned: Sequence[Tuple[Mapping[str, Any], Optional[str]]],
-    feed_title: Optional[str],
-    feed_description: Optional[str],
-    episode_title: Optional[str],
-    episode_description: Optional[str],
-) -> str:
-    """The metadata and the turn-merged transcript, laid out as measured."""
-    head = header_lines(feed_title, feed_description, episode_title, episode_description)
-    return "\n".join(head + turn_lines(aligned)) + "\n"
-
-
 def voices_to_judge(text: str) -> List[str]:
     """Every voice with at least ``MIN_WORDS`` words in the transcript block."""
     words: Dict[str, int] = {}
@@ -226,14 +214,6 @@ def parse_voices(voices: Any) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
             "evidence": evidence,
         }
     return out
-
-
-def parse_answer(raw: str) -> Optional[Dict[str, Tuple[Optional[str], Optional[str]]]]:
-    """``{voice: (name or None, role)}``, or None when the answer is not the expected JSON."""
-    full = parse_answer_full(raw)
-    if full is None:
-        return None
-    return {v: (a["name"], a["role"]) for v, a in full.items()}
 
 
 @dataclasses.dataclass

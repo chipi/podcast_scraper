@@ -1202,7 +1202,10 @@ class Config(BaseModel):
             "publishes and the model's answer is written beside it in the speaker-diagnostics "
             "sidecar (key `transcript_naming`) for comparison; 'publish' = a voice the model calls "
             "host or guest takes that name, every other voice is unnamed, and the ladder's names "
-            "stand when the call fails. Off by default."
+            "stand when the call fails. In the bundled modes (llm_pipeline_mode bundled / "
+            "mega_bundled / extraction_bundled) the bundled call answers instead and its answer "
+            "is RECORDED only: 'publish' publishes nothing more than 'shadow' there until the "
+            "bundled write-back exists. Off by default."
         ),
     )
     widen_candidates_from_metadata: bool = Field(

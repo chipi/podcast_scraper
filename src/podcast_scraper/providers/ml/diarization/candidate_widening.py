@@ -5,11 +5,14 @@ and sometimes misses a name it was given; the candidate list is closed, so a voi
 missing from it can never be named (podcast-scraper-eval-data NAMING-RETHINK, M2: of the unnamed
 nameable voices, 5 were a name in the episode's own title / description that detection missed).
 
-Only names the text presents as PEOPLE ON THE EPISODE are added: after "with", "guest", "joined
-by", "featuring", "interview with", "conversation with", or followed by "joins". A description
-that is ABOUT a person ("the lawsuit against Elon Musk") adds nothing (#876: a name in the
-candidate list is a name the resolver may bind). Each name must also pass the publish gate in the
-feed's language, and is recorded in the trace. Off by default.
+Only names the text presents as PEOPLE ON THE EPISODE are added: after "guest", "joined by",
+"featuring", a conversation word followed by "with" / "to" ("a conversation with", "talks to",
+"sits down with", "catches up with"), or a bare "with" that opens the text or a clause ("With
+Ana Ruiz", "Episode 12 — with Ana Ruiz"); or followed by "joins". A bare "with" after any other
+word is text ABOUT a person ("his feud with Elon Musk", "the deal with Ana Ruiz") and adds
+nothing, nor does "the lawsuit against Elon Musk" (#876: a name in the candidate list is a name
+the resolver may bind). Each name must also pass the publish gate in the feed's language, and is
+recorded in the trace. Off by default.
 """
 
 from __future__ import annotations
@@ -18,11 +21,15 @@ import re
 from typing import List, Optional, Sequence
 
 _NAME = r"((?:[A-Z][a-zà-öø-ÿ'’\-]+|[A-Z]\.)(?:\s+(?:[A-Z][a-zà-öø-ÿ'’\-]+|[A-Z]\.)){1,3})"
+_HONORIFIC = r"(?:(?:Dr|Prof|Professor|Sir|Dame)\.?\s+)?"
 _BEFORE = re.compile(
     # the cue words in any case ("Featuring", "With"); the name itself stays capitalised
-    r"\b(?i:with|guest|guests|joined by|featuring|feat\.|ft\.|interview with|conversation with|"
-    r"talks? (?:to|with)|sits? down with|speaks? (?:to|with))\s+"
-    r"(?:(?:Dr|Prof|Professor|Sir|Dame)\.?\s+)?" + _NAME,
+    r"(?:\b(?i:guest|guests|joined by|featuring|feat\.|ft\.)"
+    r"|\b(?i:(?:conversations?|chats?|interviews?|talks?|speaks?|sits? down|"
+    r"catch(?:es|ing)? up)\s+(?:with|to))"
+    # a bare "with" only where it opens the text or a clause
+    r"|(?:^|(?<=[\-—–:|(,;]))\s*(?i:with))\s+" + _HONORIFIC + _NAME,
+    re.MULTILINE,
 )
 _AFTER = re.compile(_NAME + r"\s+(?i:joins|returns|is back)\b")
 #: A capitalised phrase starting with one of these is a title, a show or an organisation.

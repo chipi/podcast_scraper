@@ -94,10 +94,20 @@ def _ask(complete, aligned=None, **kw):
     )
 
 
-def test_the_transcript_block_merges_turns_and_keeps_the_measured_layout() -> None:
-    text = tn.transcript_block(
-        _aligned(), "EconTalk", "Hosted by Russ Roberts.", "Ep 1", "With Stephen Witt."
+def _sent(aligned, feed, feed_desc, title, desc) -> str:
+    """The transcript text inside the prompt production sends (``fit_prompt``, no clipping)."""
+    prompt, voices, _clip = tn.fit_prompt(
+        tn.header_lines(feed, feed_desc, title, desc), tn.turn_lines(aligned), None
     )
+    assert prompt is not None
+    head, _, rest = MEASURED_PROMPT.partition("@TEXT@")
+    tail = rest.replace("@VOICES@", ", ".join(voices))
+    assert prompt.startswith(head) and prompt.endswith(tail)
+    return prompt[len(head) : len(prompt) - len(tail)]
+
+
+def test_the_transcript_block_merges_turns_and_keeps_the_measured_layout() -> None:
+    text = _sent(_aligned(), "EconTalk", "Hosted by Russ Roberts.", "Ep 1", "With Stephen Witt.")
     lines = text.splitlines()
     assert lines[:6] == [
         "FEED: EconTalk",
@@ -115,7 +125,7 @@ def test_the_transcript_block_merges_turns_and_keeps_the_measured_layout() -> No
 
 
 def test_the_prompt_store_renders_the_measured_prompt_byte_for_byte() -> None:
-    text = tn.transcript_block(_aligned(), "EconTalk", None, "Ep 1", None)
+    text = _sent(_aligned(), "EconTalk", None, "Ep 1", None)
     voices = ["SPEAKER_00", "SPEAKER_01"]
     expected = MEASURED_PROMPT.replace("@TEXT@", text).replace("@VOICES@", ", ".join(voices))
     assert tn.build_prompt(text, voices) == expected
@@ -127,17 +137,17 @@ def test_the_answer_reads_null_strings_as_no_name_and_keeps_confidence_and_evide
         ' "SPEAKER_01": {"name": "Kim Lee", "role": "Guest", "confidence": "HIGH",'
         ' "evidence": "[01:00] I\'m Kim"}}}'
     )
-    assert tn.parse_answer(raw) == {"SPEAKER_00": (None, "ad"), "SPEAKER_01": ("Kim Lee", "guest")}
     full = tn.parse_answer_full("<think>x</think>" + raw)
     assert full is not None
+    assert full["SPEAKER_00"]["name"] is None and full["SPEAKER_00"]["role"] == "ad"
     assert full["SPEAKER_01"] == {
         "name": "Kim Lee",
         "role": "guest",
         "confidence": "high",
         "evidence": "[01:00] I'm Kim",
     }
-    assert tn.parse_answer("not json") is None
-    assert tn.parse_answer('{"speakers": {}}') is None
+    assert tn.parse_answer_full("not json") is None
+    assert tn.parse_answer_full('{"speakers": {}}') is None
 
 
 def test_a_swap_is_corrected_and_a_voice_it_does_not_call_a_participant_is_unnamed() -> None:
