@@ -47,6 +47,18 @@ audio_preprocessing_profile: speech_optimal_v1
 speaker_detector_provider: vllm
 auto_speakers: true
 
+# Naming release (2026-10-23, podcast-scraper-eval-data NAMING-GATES / NAMING-RETHINK; ladder doc
+# v26-v31). Measured on held-out before any of it publishes:
+# - talk floor 5%: a name on a voice under 5% of the talk is taken off (held out: 9 bad names
+#   removed, 0 right lost; on served names 84 bad / 6 right);
+# - E1d + S30s rescues: 8 fires, 8 right on 181 held-out episodes;
+# - transcript naming and the voice rung in SHADOW: the ladder publishes, both answers are written
+#   beside it in the speaker-diagnostics sidecar for comparison (promotion is a later decision).
+speaker_name_min_talk_share: 0.05
+ladder_rescue_rules: true
+transcript_naming: shadow
+voice_identity_rung: shadow
+
 summary_provider: vllm
 # #2342: the DGX is reached through the LiteLLM gateway (vllm_api_base, registry-governed),
 # so the vLLM provider authenticates with the gateway key the pipeline already holds.
