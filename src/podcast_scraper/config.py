@@ -1205,6 +1205,16 @@ class Config(BaseModel):
             "stand when the call fails. Off by default."
         ),
     )
+    ladder_rescue_rules: bool = Field(
+        default=False,
+        alias="ladder_rescue_rules",
+        description=(
+            "Two rescues right after the ladder (providers/ml/diarization/ladder_rescues.py): a "
+            "split host's unnamed half named as the host (S30s), and an unnamed voice given the "
+            "LLM's third-person-refused name when the conversation introduces it to that voice "
+            "(E1d). Measured held out: 9 fires, 8 right. Off by default."
+        ),
+    )
     voice_identity_rung: Literal["off", "shadow", "publish"] = Field(
         default="off",
         alias="voice_identity_rung",

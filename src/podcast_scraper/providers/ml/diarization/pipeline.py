@@ -1266,6 +1266,10 @@ def apply_diarization_to_result(
                 ", ".join(restored_names),
             )
 
+    if getattr(cfg, "ladder_rescue_rules", False):
+        from . import ladder_rescues
+
+        roster = ladder_rescues.apply(roster, llm_report, ordered_turns, candidates, naming_trace)
     roster, side_namers = _run_side_namers(
         cfg, roster, aligned, diarization, episode_title, episode_description, naming_trace
     )

@@ -25,6 +25,8 @@ DOC = Path(__file__).resolve().parents[3] / "docs" / "guides" / "NAMING_LADDER.m
 NOT_YET_EXERCISED: dict = {
     # Both rungs are off by default and no scenario profile switches them on; each is covered by
     # its own unit tests (test_voice_identity.py, test_talk_floor.py).
+    "e1d_rescue": "off by default (ladder_rescue_rules); covered by test_ladder_rescues.py",
+    "s30_split_merge": "off by default (ladder_rescue_rules); covered by test_ladder_rescues.py",
     "voice_identity": (
         "off by default (voice_identity_rung); needs a feed fingerprint bank (covered by "
         "test_voice_identity*.py)"
@@ -43,7 +45,7 @@ def _doc_rungs() -> Set[str]:
     keys: Set[str] = set()
     for line in table.splitlines():
         if line.startswith("| `"):
-            keys |= set(re.findall(r"`([a-z_.]+)`", line.split("|")[1]))
+            keys |= set(re.findall(r"`([a-z0-9_.]+)`", line.split("|")[1]))
     return keys
 
 
