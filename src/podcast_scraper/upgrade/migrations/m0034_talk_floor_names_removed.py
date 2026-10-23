@@ -113,11 +113,13 @@ def find_changes(root: Path) -> Dict[rv.Key, m29.Entry]:
     return out
 
 
-def write_list(path: Path, changes: Mapping[rv.Key, m29.Entry]) -> None:
-    """Freeze ``changes`` as the migration's list (sorted, one row per voice)."""
+def write_list(
+    path: Path, changes: Mapping[rv.Key, m29.Entry], migration_id: str = MIGRATION_ID
+) -> None:
+    """Freeze ``changes`` as a migration's list (sorted, one row per voice)."""
     rows = [[eid, voice, *entry] for (eid, voice), entry in sorted(changes.items())]
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"migration": MIGRATION_ID, "voices": rows}, indent=1) + "\n")
+    path.write_text(json.dumps({"migration": migration_id, "voices": rows}, indent=1) + "\n")
 
 
 def load_list(path: Path = LIST_FILE) -> Dict[rv.Key, m29.Entry]:
