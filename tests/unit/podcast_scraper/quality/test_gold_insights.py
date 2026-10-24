@@ -832,4 +832,85 @@ def test_a_shadow_namer_reads_the_after_runs_sidecar_through_the_voice_map(tmp_p
 
 def test_an_unknown_namer_is_refused(tmp_path: Path) -> None:
     with pytest.raises(SystemExit, match="namer"):
-        gi.run(tmp_path, tmp_path, [], "s", namer="ladder")
+        gi.run(tmp_path, tmp_path, [], "s", namer="nope")
+
+
+def _quote_text(root: Path, meta: str, quote: int, text: str, start: Optional[int] = None) -> None:
+    """Give quote ``quote`` its text, and optionally move its offsets (a stale GI)."""
+    gfile = root / meta.replace(".metadata.json", ".gi.json")
+    doc = json.loads(gfile.read_text())
+    node = next(n for n in doc["nodes"] if n["id"] == f"quote:{quote}")
+    node["properties"]["text"] = text
+    if start is not None:
+        node["properties"]["char_start"] = start
+        node["properties"]["char_end"] = start + len(text)
+    gfile.write_text(json.dumps(doc))
+
+
+def test_a_quote_whose_offsets_point_at_other_words_is_placed_by_its_text(tmp_path: Path) -> None:
+    """A rediarize rewrites the transcript and keeps the old GI: the offsets point at the host's
+    words, the quote is the guest's. Placed by offset it would be scored on the host's voice."""
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    _quote_text(root, meta, 1, "Thanks for having me. I wrote the book.", start=0)
+    _gold(gold, "g", "c1", meta, LABELS)
+    report = _run(root, gold)
+    assert _buckets(report) == {"i": "S7_correct"}
+    assert report["sets"]["g"]["total"]["relocated_by_quote_text"] == 1
+
+
+def test_a_quote_text_found_twice_or_not_at_all_is_not_placed(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    turns = TURNS + [("SPEAKER_01", "Steve McConnell", "Tell me about the book.")]
+    meta = _episode(
+        root,
+        turns=turns,
+        insights=[
+            ("i:twice", [2], {"speaker": "Gergely Orosz"}),
+            ("i:gone", [1], {"speaker": "Steve McConnell"}),
+        ],
+    )
+    _quote_text(root, meta, 2, "Tell me about the book.", start=0)
+    _quote_text(root, meta, 1, "Words nobody said.")
+    _gold(gold, "g", "c1", meta, LABELS)
+    t = _run(root, gold)["sets"]["g"]["total"]
+    assert t["quote_not_placeable_by_reason"] == {"quote_text_mismatch": 2}
+
+
+def test_a_quote_whose_text_is_at_its_offsets_is_placed_as_before(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    _quote_text(root, meta, 1, "Thanks  for having me.\nI wrote the book.")  # whitespace differs
+    _gold(gold, "g", "c1", meta, LABELS)
+    report = _run(root, gold)
+    assert _buckets(report) == {"i": "S7_correct"}
+    assert report["sets"]["g"]["total"]["relocated_by_quote_text"] == 0
+
+
+def test_the_ladder_namer_scores_the_runs_roster_not_the_gi_names(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    meta = _episode(root, insights=[("i:guest", [1], {"speaker": "Gergely Orosz"})])
+    _w(
+        root / "feeds/f/run_1/transcripts/ep.speakers.diagnostics.json",
+        {
+            "voices": [
+                {"voice": "SPEAKER_01", "resolved_name": "Steve McConnell", "named": True},
+                {"voice": "SPEAKER_00", "resolved_name": "SPEAKER_00", "named": False},
+            ]
+        },
+    )
+    _gold(gold, "g", "c1", meta, LABELS)
+    assert _buckets(_run(root, gold)) == {"i:guest": "S7_wrong"}
+    ladder = gi.run(root, gold, ["g"], "s", namer="ladder")
+    assert _buckets(ladder) == {"i:guest": "S7_correct"}
+
+
+def test_the_ladder_namer_counts_a_voice_the_roster_did_not_name_as_unnamed(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    _w(
+        root / "feeds/f/run_1/transcripts/ep.speakers.diagnostics.json",
+        {"voices": [{"voice": "SPEAKER_01", "resolved_name": "Steve McConnell", "named": False}]},
+    )
+    _gold(gold, "g", "c1", meta, LABELS)
+    assert _buckets(gi.run(root, gold, ["g"], "s", namer="ladder")) == {"i": "S7_unnamed"}

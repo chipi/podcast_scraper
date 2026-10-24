@@ -9,7 +9,8 @@ v0.1 defect), and a speakerless insight would drop out. The voice's gold label t
 
 - ``no_grounded_quote``: the insight has no SUPPORTED_BY edge;
 - ``quote_not_placeable`` (by reason: unresolved ref, no offsets, outside every segment, segment
-  without a raw speaker, spans refused by the alignment guard);
+  without a raw speaker, spans refused by the alignment guard, the quote's text not at its
+  offsets and not found exactly once in the transcript);
 - ``voice_not_labelled``; ``S8_undecidable`` (label not scored: role unknown or confidence low);
 - ``scored_no_name`` (by role: a scored label with no name — ad, promo, clip, a nameless host);
 - ``S7_correct`` / ``S7_wrong`` / ``S7_unnamed`` by the stored name (``properties.speaker``; empty
@@ -130,6 +131,12 @@ class _Texts:
 
     def __init__(self) -> None:
         self._spans: Dict[Path, Tuple[str, Optional[list]]] = {}
+        self._bodies: Dict[Path, str] = {}
+
+    def body(self, txt: Path) -> Optional[str]:
+        if txt not in self._bodies and txt.is_file():
+            self._bodies[txt] = txt.read_text(encoding="utf-8")
+        return self._bodies.get(txt)
 
     def spans(self, txt: Path) -> Tuple[str, Optional[list]]:
         from ..gi.pipeline import _segment_char_spans
@@ -141,30 +148,51 @@ class _Texts:
                 seg = _load(txt.with_name(txt.name[: -len(".txt")] + ".segments.json"))
                 rows = seg if isinstance(seg, list) else (seg or {}).get("segments") or []
                 rows = [r for r in rows if isinstance(r, dict)]
-                body = txt.read_text(encoding="utf-8")
+                body = self.body(txt) or ""
                 spans = _segment_char_spans(body, rows) if rows else None
                 self._spans[txt] = ("ok", spans) if spans is not None else ("spans_none", None)
         return self._spans[txt]
 
 
+def _squash(text: str) -> str:
+    return " ".join(text.split())
+
+
 def place(
     quote: Dict[str, Any], root: Path, run: Path, texts: _Texts
 ) -> Tuple[str, Optional[str], Optional[str]]:
-    """``(reason, raw voice, segment label)``: reason ``ok``, or why the quote cannot be placed."""
+    """``(reason, raw voice, segment label)``: reason ``ok`` or ``relocated``, or why the quote
+    cannot be placed.
+
+    The quote's own text is checked at its offsets. A run that rewrites the transcript without
+    regenerating GI (a rediarize) leaves offsets that point at other words, and a voice found there
+    is a guess: the quote is then found by its text in the transcript (``relocated``) when the text
+    occurs exactly once, and is ``quote_text_mismatch`` otherwise."""
     props = quote.get("properties") or {}
     ref, start = props.get("transcript_ref"), props.get("char_start")
     if not isinstance(start, int):
         return "no_offsets", None, None
     if not isinstance(ref, str) or not ref:
         return "unresolved_ref", None, None
-    state, spans = texts.spans(resolve_ref(ref, root, run))
+    txt = resolve_ref(ref, root, run)
+    state, spans = texts.spans(txt)
     if state != "ok" or spans is None:
         return state, None, None
+    reason = "ok"
+    qtext, end = props.get("text"), props.get("char_end")
+    body = texts.body(txt)
+    if isinstance(qtext, str) and qtext.strip() and body is not None:
+        at = body[start:end] if isinstance(end, int) else body[start : start + len(qtext)]
+        if _squash(at) != _squash(qtext):
+            found = body.find(qtext)
+            if found < 0 or body.find(qtext, found + 1) >= 0:
+                return "quote_text_mismatch", None, None
+            start, reason = found, "relocated"
     for a, b, seg in spans:
         if a <= start < b:
             voice = seg.get("speaker")
             label = seg.get("speaker_label")
-            return ("ok", str(voice), label) if voice else ("no_raw_speaker", None, None)
+            return (reason, str(voice), label) if voice else ("no_raw_speaker", None, None)
     return "outside_segments", None, None
 
 
@@ -213,12 +241,19 @@ def relabel(label: Dict[str, Any], vmap: Dict[str, Any]) -> Tuple[Dict[str, Any]
 
 
 def shadow_names(root: Path, meta_relpath: str, namer: str) -> Dict[str, Optional[str]]:
-    """The names a shadow namer gives the episode's voices, from its speakers diagnostics."""
-    key, result = SHADOW_NAMERS[namer]
+    """The names a namer gives the episode's voices, from its speakers diagnostics: a shadow
+    namer's results, or (``ladder``) the roster the run served, which is what a GI regenerated
+    from this run would carry."""
     meta = Path(root) / meta_relpath
     stem = meta.name[: -len(".metadata.json")]
     diag = _load(meta.parent.parent / "transcripts" / f"{stem}.speakers.diagnostics.json") or {}
     out: Dict[str, Optional[str]] = {}
+    if namer == "ladder":
+        for v in diag.get("voices") or []:
+            if isinstance(v, dict) and v.get("voice"):
+                out[str(v["voice"])] = (v.get("resolved_name") or None) if v.get("named") else None
+        return out
+    key, result = SHADOW_NAMERS[namer]
     for voice, entry in ((diag.get(key) or {}).get("voices") or {}).items():
         res = (entry or {}).get(result) if isinstance(entry, dict) else None
         if isinstance(res, dict):
@@ -281,6 +316,9 @@ def score_case(
         reason, voice, seg_label = place(nodes[qid], root, run, texts)
         row["voice"] = voice
         row["segment_label"] = seg_label
+        if reason == "relocated":
+            row["relocated"] = True
+            reason = "ok"
         if names is not None and reason == "ok":
             row["stored_served"] = stored
             row["namer_no_result"] = str(voice) not in names
@@ -337,8 +375,8 @@ def run(
     from ..upgrade.corpus_selection import select_served_artifacts
 
     root = Path(root)
-    if namer != "served" and namer not in SHADOW_NAMERS:
-        raise SystemExit(f"namer {namer!r}: not served or one of {sorted(SHADOW_NAMERS)}")
+    if namer not in ("served", "ladder") and namer not in SHADOW_NAMERS:
+        raise SystemExit(f"namer {namer!r}: not served, ladder or one of {sorted(SHADOW_NAMERS)}")
     if voice_maps is not None and Path(str(voice_maps.get("after"))).resolve() != root.resolve():
         raise SystemExit(
             f"the voice map was made for {voice_maps.get('after')}, not {root}: voice ids differ"
@@ -541,6 +579,7 @@ def _counts(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     )
     c["flag_absent_excluded_by_insights_from_gi"] = sum(1 for r in rows if r["excluded_unflagged"])
     c["namer_no_result"] = sum(1 for r in rows if r.get("namer_no_result"))
+    c["relocated_by_quote_text"] = sum(1 for r in rows if r.get("relocated"))
     c["speakerless_by_bucket"] = dict(
         sorted(Counter(r["bucket"] for r in rows if r["speakerless"]).items())
     )

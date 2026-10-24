@@ -9,7 +9,8 @@
 ``--snapshot`` names the corpus state exactly, including any migration applied outside the
 runner (it is not in the corpus's ledger; the report's ``ledger_applied`` shows what the ledger
 records). ``--labels SET=DIR`` pins a set's label directory instead of the newest ``labels_vN``.
-``--namer llm|voice`` scores a shadow namer's names in place of the served ones.
+``--namer ladder|llm|voice`` scores the run's roster (what a regenerated GI would carry) or a
+shadow namer's names in place of the GI's stored ones.
 ``--voice-map`` measures an eval run's output (``--corpus`` = the run's work dir): the eval
 scorer's voice-map file follows each case to its after run and re-keys the labels to its voices.
 
@@ -42,8 +43,9 @@ def main() -> int:
     ap.add_argument(
         "--namer",
         default="served",
-        choices=["served", "llm", "voice"],
-        help="score a shadow namer's names (its speakers diagnostics) instead of the served ones",
+        choices=["served", "ladder", "llm", "voice"],
+        help="score another namer's names (the speakers diagnostics: the run's roster for "
+        "ladder, a shadow namer's results for llm / voice) instead of the GI's stored names",
     )
     args = ap.parse_args()
     sets = args.sets or sorted(p.name for p in args.gold.iterdir() if (p / "cases").is_dir())
