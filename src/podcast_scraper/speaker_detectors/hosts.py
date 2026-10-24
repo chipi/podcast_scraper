@@ -2404,10 +2404,66 @@ def compose_episode_hosts(
             language=language or TARGET_LANGUAGE,
         )
     )
-    pool = _merge_people(feed_people, people(more), described)
+    # The episode's own statement of who presents it: "hosted by X", "presented by X", "co-host X"
+    # (the first three host phrases, English). On rotating-host shows (Ottoman History, Planet
+    # Money, Latin America in Focus) it names hosts the feed does not list. Measured 2026-10-24
+    # over the 421 labelled episodes: beyond the feed's hosts it names 13 labelled hosts and 0
+    # labelled guests (the ladder had 7 of the 13 wrong, unnamed or as guest); 11 names are no
+    # labelled voice (credited hosts, or hosts the labels leave nameless).
+    # Additive only: the byline rule below still reads the cue hosts alone, so a feed that names
+    # nobody keeps its byline hosts exactly as before.
+    stated = people(hosts_stated_in_episode_text(episode_title, episode_description))
+    pool = _merge_people(feed_people, people(more), described, stated)
     if not described:
         pool = _merge_people(pool, people(episode_authors))
     return pool
+
+
+def hosts_stated_in_episode_text(
+    episode_title: Optional[str], episode_description: Optional[str]
+) -> List[str]:
+    """Names an episode's title or description states as presenting it ("hosted by X and Y",
+    "presented by X", "co-host X"): the explicit host phrases of ``HOST_PHRASE_TEMPLATES``
+    (English), not the looser "join X" / trailing "with X" ones. Unfiltered; the caller checks
+    each name is a person."""
+    text = ". ".join(p.strip() for p in (episode_title or "", episode_description or "") if p)
+    out: List[str] = []
+    for pattern in _HOST_PHRASES_BY_LANGUAGE[TARGET_LANGUAGE][:3]:
+        for match in pattern.finditer(text):
+            for name in re.split(r"\s*(?:,|\band\b|&)\s*", match.group("names")):
+                toks = name.split()
+                # A missing full stop runs the next sentence's first word into the name:
+                # "Hosted by philosopher Barry C. Smith Please do email us".
+                while toks and toks[-1].lower() in _NEXT_SENTENCE_OPENERS:
+                    toks.pop()
+                name = " ".join(toks)
+                if len(toks) >= 2 and name not in out:
+                    out.append(name)
+    return out
+
+
+#: Imperatives a show note opens a sentence with; never the last word of a presenter's name.
+_NEXT_SENTENCE_OPENERS = frozenset(
+    {
+        "please",
+        "listen",
+        "subscribe",
+        "follow",
+        "visit",
+        "join",
+        "check",
+        "learn",
+        "read",
+        "watch",
+        "email",
+        "contact",
+        "support",
+        "find",
+        "download",
+        "share",
+        "rate",
+    }
+)
 
 
 def recurrent_hosts_across_episodes(

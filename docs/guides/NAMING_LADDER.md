@@ -2,10 +2,10 @@
 
 | | |
 | --- | --- |
-| Doc version | 42 |
+| Doc version | 43 |
 | Last updated | 2026-10-24 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
 | Code content hash | `7d76fa48bb8f` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
@@ -26,6 +26,25 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v43, 2026-10-24.** An episode's own statement of who presents it joins THAT episode's host
+  pool (`hosts.compose_episode_hosts`, `hosts_stated_in_episode_text`): "hosted by X and Y",
+  "presented by X", "co-host X". These are the first three `HOST_PHRASE_TEMPLATES` (English),
+  until now read only at feed level, not the looser "join X" or trailing "with X".
+  - Names pass the same person check as the feed's hosts; a trailing next-sentence imperative
+    is trimmed ("... Barry C. Smith Please do email us").
+  - Additive: a feed that names nobody keeps its byline hosts exactly as before.
+  - Rotating-host shows are where it matters (Planet Money, Ottoman History, Unhedged, The Gray
+    Area, Unbelievable?).
+  - Replay of the composer, old code from git vs new, over the 421 labelled episodes' stored
+    inputs: no name removed; 19 added in 14 episodes. On the labels, 13 are labelled hosts, 0
+    labelled guests; the ladder had 7 of those 13 wrong, unnamed or seated as a guest.
+  - Over all 3,196 snapshot descriptions: 103 distinct names, 101 real presenters, 2 junk, each
+    once: an organisation, and a name with a descriptor in front. The person check does not
+    catch an organisation shaped like a name; pool names are never forced onto a voice.
+  - NOT measured yet: the served outcome (a relabel of the 14 episodes).
+  - A held-out note: building this read val_v3 descriptions and labels, so val_v3 is no longer
+    unread (eval repo README).
 
 - **v42, 2026-10-24.** Two fixes to the candidate list and the publish gate, the first step of a
   new take on widening (an independent review found the old one failed on these, not on its
