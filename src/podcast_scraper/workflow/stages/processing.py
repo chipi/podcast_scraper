@@ -1029,6 +1029,20 @@ def hosts_for_episode(
                 sorted(own), result.feed_title, result.kind_votes, language=result.language
             )
         )
+    # <podcast:person role="host"> names THIS episode's host in so many words (Podcasting 2.0). It
+    # is the only per-item field that types the role: measured 2026-10-24 on the labelled episodes'
+    # live RSS, its roles were right 6 of 6. Joined after the feed's hosts, through the same person
+    # check; a guest entry adds no host.
+    stated_hosts: List[str] = []
+    if item is not None:
+        try:
+            stated_hosts = [
+                p["name"] or ""
+                for p in rss_parser.extract_episode_people_stated(item)
+                if p["source"] == "podcast_person" and p["role"] == "host"
+            ]
+        except (AttributeError, TypeError):
+            stated_hosts = []
     return set(
         compose_episode_hosts(
             sorted(hosts - fallback),
@@ -1036,6 +1050,7 @@ def hosts_for_episode(
             episode_title=getattr(episode, "title", None),
             episode_description=extract_episode_description(item) if item is not None else None,
             feed_title=result.feed_title,
+            more=stated_hosts,
             episode_people=list(episode_people or ()),
             language=getattr(result, "language", None),
         )
