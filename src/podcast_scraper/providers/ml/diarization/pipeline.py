@@ -915,6 +915,7 @@ def _side_namer_sidecars(
     roster: Any,
     aligned: List[Any],
     speaker_renames: Optional[Mapping[str, str]],
+    llm_roles: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, Any]:
     """The sidecar keys of the namers not publishing: each one's roster against the ladder's.
 
@@ -926,7 +927,9 @@ def _side_namer_sidecars(
     floor = float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0)
 
     def finish(r: Any) -> Any:
-        return _apply_speaker_renames(_apply_talk_floor(r, aligned, floor), speaker_renames)
+        return _apply_speaker_renames(
+            _apply_talk_floor(r, aligned, floor, llm_roles=llm_roles), speaker_renames
+        )
 
     ladder = side["ladder_roster"]
     out: Dict[str, Any] = {}
@@ -956,7 +959,13 @@ def _side_namer_sidecars(
     return out
 
 
-def _apply_talk_floor(roster: Any, aligned: List[Any], floor: float, trace: Any = None) -> Any:
+def _apply_talk_floor(
+    roster: Any,
+    aligned: List[Any],
+    floor: float,
+    trace: Any = None,
+    llm_roles: Optional[Mapping[str, str]] = None,
+) -> Any:
     """The roster with every name taken off a voice that holds < ``floor`` of the episode's talk.
 
     A person's name on a voice that barely speaks is, as measured, almost always a name on an ad,
@@ -965,6 +974,14 @@ def _apply_talk_floor(roster: Any, aligned: List[Any], floor: float, trace: Any 
     (podcast-scraper-eval-data, docs/wip/NAMING-RETHINK-2026-10-22.md, "talk-share floor").
     Talk is the aligned transcript segments' duration per voice, over every attributed segment.
     ``floor`` <= 0 is off.
+
+    A host keeps the name: a voice the ladder seated as host (role ``host``) that the LLM
+    resolution also calls the host (``llm_roles``). On 3-5-voice episodes (panels, co-hosts, a
+    long interview) a real host can hold under 5%: on the DGX block's Gate 2 relabel the floor took
+    5 right host names off (1.5-4.4% of the talk); 3 of them were seated and LLM-called hosts,
+    and of its 22 right removals there and on held-out (ads, promos, clips) none was both. Either
+    signal alone is not enough: a seated promo voice and an LLM-called "host" promo voice were
+    both correct removals. Exempted voices are traced as ``kept_host``.
     """
     if floor <= 0:
         return roster
@@ -982,6 +999,12 @@ def _apply_talk_floor(roster: Any, aligned: List[Any], floor: float, trace: Any 
     for voice, role in roster.by_voice.items():
         share = talk.get(voice, 0.0) / total
         if role.named and share < floor:
+            if role.role == "host" and (llm_roles or {}).get(voice) == "host":
+                if trace is not None:
+                    trace.voice(
+                        voice, "talk_floor", "kept_host", name=role.name, talk_share=round(share, 4)
+                    )
+                continue
             by_voice[voice] = dataclasses.replace(
                 role, name=voice, role="unknown", named=False, source="talk_floor", forced=False
             )
@@ -1384,7 +1407,14 @@ def apply_diarization_to_result(
     if getattr(cfg, "ladder_rescue_rules", False):
         from . import ladder_rescues
 
-        roster = ladder_rescues.apply(roster, llm_report, ordered_turns, candidates, naming_trace)
+        roster = ladder_rescues.apply(
+            roster,
+            llm_report,
+            ordered_turns,
+            candidates,
+            naming_trace,
+            embeddings=dict(getattr(diarization, "speaker_embeddings", None) or {}),
+        )
     roster, side_namers = _run_side_namers(
         cfg, roster, aligned, diarization, episode_title, episode_description, naming_trace
     )
@@ -1393,6 +1423,7 @@ def apply_diarization_to_result(
         aligned,
         float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0),
         naming_trace,
+        llm_roles=llm_voice_roles,
     )
     roster = _apply_speaker_renames(roster, speaker_renames)
     enriched_result = dict(result)
@@ -1419,7 +1450,9 @@ def apply_diarization_to_result(
         enriched_result["speaker_diagnostics"]["split_voices"] = split_report
     try:
         enriched_result["speaker_diagnostics"].update(
-            _side_namer_sidecars(cfg, side_namers, roster, aligned, speaker_renames)
+            _side_namer_sidecars(
+                cfg, side_namers, roster, aligned, speaker_renames, llm_roles=llm_voice_roles
+            )
         )
     except Exception as exc:  # noqa: BLE001 — a side record must not fail the published episode
         logger.warning("side namers: sidecar not written (%s)", exc)

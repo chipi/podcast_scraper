@@ -2,10 +2,10 @@
 
 | | |
 | --- | --- |
-| Doc version | 39 |
+| Doc version | 40 |
 | Last updated | 2026-10-24 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
 | Code content hash | `7d76fa48bb8f` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
@@ -26,6 +26,23 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v40, 2026-10-24.** Two rules, from the DGX block's follow-ups (operator decisions of
+  2026-10-24):
+  - **The talk floor keeps a host's name** (`pipeline._apply_talk_floor`, trace `kept_host`) when
+    the ladder seated the voice as host AND the LLM resolution calls it the host. On 3-5-voice
+    episodes (panels, co-hosts, long interviews) a real host can hold under 5%. On the block's
+    Gate 2 relabel the floor took 5 right host names off (1.5-4.4% of the talk); 3 of them carry
+    both signals. None of its 22 right removals there and on held-out (ads, promos, clips) carries
+    both. One more exempted voice is a co-host the labels and a blind panel leave unnamed. Either
+    signal alone is refused: a seated promo voice and an LLM-called "host" promo voice were both
+    correct removals. The shadow rosters get the same exemption.
+  - **S30s checks the two voices' fingerprints** (`ladder_rescues.merge_split_host`, trace
+    `refused_fingerprints`): when both voices have one, it fires only at cosine >= 0.8 (the
+    split-voice merge's threshold). The text rule cannot tell a split host from a guest whose name
+    is never stated. On the block's held-out relabel it put the host's name on such a guest
+    (fingerprints 0.17); a correct S30s fire there has 0.97. Without fingerprints (old episodes)
+    the text rule stands as measured.
 
 - **v39, 2026-10-24.** The third-person guard reads "I'm at <name>" / "I am at <name>" as a
   self-introduction (`resolution._introduces_itself_as`): a host reading out their own handle

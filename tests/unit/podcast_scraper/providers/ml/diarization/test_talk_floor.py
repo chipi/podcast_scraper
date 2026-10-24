@@ -87,3 +87,53 @@ def test_the_decision_is_traced() -> None:
 def test_no_talk_at_all_changes_nothing() -> None:
     before = _roster()
     assert _apply_talk_floor(before, [], 0.05) is before
+
+
+def _quiet_host_roster(role: str = "host"):
+    # A moderator of a panel: seated host, 40 s of a 2,850 s episode (1.4%).
+    return SpeakerRoster(
+        by_voice={
+            "SPEAKER_00": SpeakerRole(
+                name="Russ Roberts", role="guest", named=True, source="self_intro"
+            ),
+            "SPEAKER_01": SpeakerRole(
+                name="Stephen Witt", role="guest", named=True, source="llm_resolution"
+            ),
+            "SPEAKER_02": SpeakerRole(
+                name="Ada Moderator", role=role, named=True, source="llm_resolution"
+            ),
+            "SPEAKER_03": SpeakerRole(name="SPEAKER_03", role="unknown", named=False, source="raw"),
+        },
+        num_speakers=4,
+    )
+
+
+def test_a_seated_host_the_llm_also_calls_host_keeps_the_name_under_the_floor() -> None:
+    trace = NamingTrace()
+    out = _apply_talk_floor(
+        _quiet_host_roster(), _aligned(), 0.05, trace, llm_roles={"SPEAKER_02": "host"}
+    )
+    assert out.by_voice["SPEAKER_02"].name == "Ada Moderator"
+    assert out.by_voice["SPEAKER_02"].named
+    steps = trace.to_dict()["voices"]["SPEAKER_02"]
+    assert {
+        "rung": "talk_floor",
+        "decision": "kept_host",
+        "name": "Ada Moderator",
+        "talk_share": 0.014,
+    } in steps
+
+
+@pytest.mark.parametrize(
+    "role, llm_roles",
+    [
+        ("host", {"SPEAKER_02": "guest"}),  # seated, but the LLM resolution says guest
+        ("host", {}),  # seated, the LLM resolution gave no role (a seated promo voice)
+        ("guest", {"SPEAKER_02": "host"}),  # the LLM says host, the ladder did not seat it
+        ("host", None),  # no LLM roles at all
+    ],
+)
+def test_one_host_signal_alone_does_not_keep_the_name(role, llm_roles) -> None:
+    out = _apply_talk_floor(_quiet_host_roster(role), _aligned(), 0.05, llm_roles=llm_roles)
+    assert not out.by_voice["SPEAKER_02"].named
+    assert out.by_voice["SPEAKER_02"].source == "talk_floor"

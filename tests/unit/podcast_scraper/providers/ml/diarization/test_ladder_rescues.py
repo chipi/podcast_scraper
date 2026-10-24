@@ -219,8 +219,16 @@ def _stage_calls(monkeypatch: pytest.MonkeyPatch, tmp_path: Any, on: bool) -> Li
 
     calls: List[Any] = []
 
-    def spy(roster: Any, llm_report: Any, turns: Any, stated: Any, trace: Any = None) -> Any:
+    def spy(
+        roster: Any,
+        llm_report: Any,
+        turns: Any,
+        stated: Any,
+        trace: Any = None,
+        embeddings: Any = None,
+    ) -> Any:
         calls.append((llm_report, turns, stated))
+        assert embeddings == {}  # the diarization here has no fingerprints
         return roster
 
     monkeypatch.setattr(P, "_resolve_voices_via_llm", fake_llm)
@@ -248,3 +256,47 @@ def test_the_stage_runs_the_rescues_only_when_the_flag_is_on(
     assert report["verdicts"][0]["outcome"] == "third_person"
     assert turns == [("SPEAKER_00", "Thanks, Maria, for coming.")]
     assert "Maria Lindqvist" in stated
+
+
+def _fp(similar: bool) -> Dict[str, List[float]]:
+    host = [1.0, 0.0, 0.0, 0.2]
+    other = [0.98, 0.05, 0.0, 0.2] if similar else [0.1, 1.0, 0.3, 0.0]
+    return {"SPEAKER_00": host, "SPEAKER_01": other}
+
+
+def test_s30s_refuses_when_the_fingerprints_are_two_people() -> None:
+    """A two-person episode with a guest whose name is never stated looks like a split host to the
+    text rule; the fingerprints do not (DGX block, 2026-10-23: host and guest at cosine 0.17)."""
+    roster = _roster(SPEAKER_00=("Tobias Wren", "host"), SPEAKER_01=(None, "unknown"))
+    trace = NamingTrace()
+    out = lr.merge_split_host(
+        roster, _split(), _host_verdict(), ["Tobias Wren"], trace, embeddings=_fp(similar=False)
+    )
+    assert out is roster
+    (step,) = trace.voices["SPEAKER_01"]
+    assert (step["rung"], step["decision"]) == (lr.S30_SOURCE, "refused_fingerprints")
+    assert step["similarity"] < lr.SPLIT_FINGERPRINT_MIN
+
+
+def test_s30s_fires_when_the_fingerprints_are_one_person() -> None:
+    roster = _roster(SPEAKER_00=("Tobias Wren", "host"), SPEAKER_01=(None, "unknown"))
+    out = lr.merge_split_host(
+        roster, _split(), _host_verdict(), ["Tobias Wren"], embeddings=_fp(similar=True)
+    )
+    assert out.by_voice["SPEAKER_01"].name == "Tobias Wren"
+
+
+@pytest.mark.parametrize("embeddings", [None, {}, {"SPEAKER_00": [1.0, 0.0]}])
+def test_s30s_keeps_the_text_rule_without_both_fingerprints(embeddings) -> None:
+    roster = _roster(SPEAKER_00=("Tobias Wren", "host"), SPEAKER_01=(None, "unknown"))
+    out = lr.merge_split_host(
+        roster, _split(), _host_verdict(), ["Tobias Wren"], embeddings=embeddings
+    )
+    assert out.by_voice["SPEAKER_01"].name == "Tobias Wren"
+
+
+def test_apply_passes_the_fingerprints_to_s30s() -> None:
+    roster = _roster(SPEAKER_00=("Tobias Wren", "host"), SPEAKER_01=(None, "unknown"))
+    report = {"verdicts": _host_verdict()}
+    out = lr.apply(roster, report, _split(), ["Tobias Wren"], embeddings=_fp(similar=False))
+    assert not out.by_voice["SPEAKER_01"].named

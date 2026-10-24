@@ -18,6 +18,14 @@ the operator decided to ship them behind one flag and watch their fires after de
   introduces.
 
 Held out together: 9 fires, 8 right; the 1 wrong was plain S30's, which this module does not run.
+
+S30s cannot tell a split host from a guest whose name is never stated: both are an unnamed voice
+beside a named host with no other stated name. The DGX block (2026-10-23) shows it: on a
+two-person episode with a nameless guest, S30s put the host's name on the guest in the run where
+the LLM gave the guest no name. The two voices' diarization fingerprints separate the cases (one
+person split: cosine 0.97; host and guest: 0.17), so when both voices have a fingerprint S30s
+fires only at or above ``SPLIT_FINGERPRINT_MIN`` (the split-voice merge's threshold); without
+fingerprints (old episodes) the text rule stands as measured.
 """
 
 from __future__ import annotations
@@ -30,6 +38,8 @@ E1D_SOURCE = "e1d_rescue"
 S30_SOURCE = "s30_split_merge"
 SPLIT_MIN_WORDS = 150
 SPLIT_MIN_SHARE = 0.30
+#: Same as ``split_voices.DEFAULT_THRESHOLD``: two fingerprints at or above it are one person.
+SPLIT_FINGERPRINT_MIN = 0.8
 _INTRO = (
     r"\b(?:welcome|joining (?:me|us)|joined by|my guest(?: today)? is|please welcome|"
     r"here with|talking (?:to|with)|thanks?,?)\s+(?:\w+\s+){0,3}"
@@ -137,13 +147,31 @@ def merge_split_host(
     verdicts: Optional[Sequence[Mapping[str, Any]]],
     stated: Sequence[str],
     trace: Any = None,
+    embeddings: Optional[Mapping[str, Sequence[float]]] = None,
 ) -> Any:
-    """S30s: the roster with the unnamed half of a split host named as the host."""
+    """S30s: the roster with the unnamed half of a split host named as the host, unless the two
+    voices' fingerprints say they are two people."""
+    from .split_voices import _cos
+
     named = {v: (r.name if r.named else None, r.role) for v, r in roster.by_voice.items()}
     hit = split_merge(named, turns, verdicts, stated)
     if not hit:
         return roster
     voice, name = hit
+    host = next((v for v, (n, _r) in named.items() if n and _same(n, name)), None)
+    fp = embeddings or {}
+    if host is not None and fp.get(voice) and fp.get(host):
+        similarity = _cos(fp[voice], fp[host])
+        if similarity < SPLIT_FINGERPRINT_MIN:
+            if trace is not None:
+                trace.voice(
+                    voice,
+                    S30_SOURCE,
+                    "refused_fingerprints",
+                    name=name,
+                    similarity=round(similarity, 3),
+                )
+            return roster
     by_voice = dict(roster.by_voice)
     by_voice[voice] = dataclasses.replace(
         by_voice[voice], name=name, role="host", named=True, source=S30_SOURCE, forced=False
@@ -159,11 +187,12 @@ def apply(
     turns: List[Tuple[str, str]],
     stated: Sequence[str],
     trace: Any = None,
+    embeddings: Optional[Mapping[str, Sequence[float]]] = None,
 ) -> Any:
     """Both rescues in the measured arm's order: S30s first, then E1d.
 
     (``e1d_s30s.py`` installed E1d's wrapper, then S30s's wrapper around it, so S30s ran first.)
     """
     verdicts = llm_report.get("verdicts") or []
-    roster = merge_split_host(roster, turns, verdicts, stated, trace)
+    roster = merge_split_host(roster, turns, verdicts, stated, trace, embeddings)
     return rescue_introduced(roster, verdicts, turns, trace)
