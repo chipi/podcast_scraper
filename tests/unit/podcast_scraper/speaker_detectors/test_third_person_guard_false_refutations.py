@@ -55,15 +55,15 @@ def test_an_honorific_between_the_cue_and_the_name_is_a_self_introduction() -> N
     assert not refuted_by_third_person(text, "Tobias Wren")
 
 
-# A host reading out their own handle: "On Twitter, I'm at <name>". Measured on the DGX relabel of
-# 2026-10-23 (val_v4, two episodes of one interview show): the guard refused the host's name on
-# the host's own voice, and the two-voice complement / swap then put it on the guest's voice.
+# A host reading out their own handle: "On <platform>, I'm at <name>". Measured on the DGX
+# relabel of 2026-10-23 (two episodes of one interview show): the guard refused the host's name
+# on the host's own voice, and the two-voice complement / swap then put it on the guest's voice.
 
 
 def test_a_host_reading_their_own_handle_is_a_self_introduction() -> None:
     text = (
-        "Hello, everyone, and welcome back to Talks with Tobias. Thanks for listening. "
-        "On Twitter, I'm at Tobias Wren, and the show is at Wren Talks."
+        "That is all for this week of River Notes. Find the show wherever you listen; "
+        "online I'm at Tobias Wren, and the newsletter is Wren Weekly."
     )
     assert not refuted_by_third_person(text, "Tobias Wren")
 
@@ -91,9 +91,9 @@ def test_the_host_keeps_their_name_and_the_guest_is_not_given_it() -> None:
     from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
 
     voices = {
-        "SPEAKER_00": "Welcome back to Talks with Tobias. Today I'm chatting with Ana Ruiz. "
-        "Thanks for listening. On Twitter, I'm at Tobias Wren, and the show is at Wren Talks.",
-        "SPEAKER_01": "Thanks for having me. That feels very nanny to you, Tobias.",
+        "SPEAKER_00": "This is River Notes, and my guest is Ana Ruiz. "
+        "That is all for this week; online I'm at Tobias Wren, and the newsletter is Wren Weekly.",
+        "SPEAKER_01": "Glad to be here. Rivers move faster than you would think, Tobias.",
     }
     answer = {
         "voices": {

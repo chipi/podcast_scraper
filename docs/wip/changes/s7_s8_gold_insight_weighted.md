@@ -195,8 +195,10 @@ copy but not in the run's index; the map leaves them out, so the mapped R1-GI re
 ambiguous, agreement ignoring scored-ness, no ambiguous bucket, no after path, no corpus guard.
 
 **Correction (2026-10-24, after an independent review):** the first R4 / R5 readings here were
-wrong. A rediarize does not regenerate GI, and all 124 GI files in the R4 and R5 copies are
-byte-identical to R1-GI's (sha256). So the GI-stored names on R4 / R5 are R1-GI's names, and
+wrong. R4 and R5 ran a name-only profile with GI switched off (`gi=off` in all 67 config lines
+of each run's log), so all 124 GI files in the R4 and R5 copies are byte-identical to R1-GI's
+(sha256). A rediarize with GI on cascades to GI (`episode_processor` rediarize_only docstring; the
+prod profile has `generate_gi: true`); that path was read, not run. So the GI-stored names on R4 / R5 are R1-GI's names, and
 their quote offsets point into R1-GI's transcript, not the rediarized one. The earlier "R4 175
 wrong" and "y017 swap" were artefacts of that. The tables below replace them.
 
@@ -238,7 +240,16 @@ differ and the comparison is by bucket, not per insight):
   - new: y007 (35) and y008 (52), the guest served as the host by `llm_resolution` after a
     third-person refusal of the host (ladder doc v39 fixes the host side);
   - unchanged: the y019 swap (84).
-- **LLM:** all 21 wrong are y020; gone in R5 (split-merge).
+- **LLM:** all 21 wrong are y020 (one host labelled as two voices; R4 kept two voices, R5 merged
+  them). R5 has 0 wrong, but it is one episode and the LLM varies between identical runs (the
+  second review: 7 of 43 LLM voices differ between R4 and R5, the ladder 0), so the merge is not
+  established as the cause.
+- **The LLM rows carry the `SPEAKER_1` key bug:** the scorer reads the stored `model_result`, which
+  the buggy code wrote (the fix, `4491a7263`, came after the runs). By the second review's count,
+  most of the LLM's unnamed insights are voices the bug dropped: R4 74 of 90, R1-GI 61 of 77, R5 4
+  of 4. Re-keying the stored raw answers gives about 16 unnamed on R1-GI and R4 and 0 on R5, an
+  upper bound (it skips `model_result`'s role, publishable-name, talk-floor and rename filters).
+  Not re-checked here.
 - **Voice rung:**
   - R1-GI: it does not engage on a relabel.
   - R4 / R5: its 0 wrong comes from abstaining. It names hosts only (the reviewer's count, not
@@ -246,10 +257,10 @@ differ and the comparison is by bucket, not per insight):
     y008's guests unnamed.
   - It is a guard against a host's name on a guest, not a better namer than the LLM pass.
 
-**What a rediarize serves:** the product reads a quote's speaker from the GI (the quote's
-`speaker_id` -> the GI's person node), and a rediarize leaves the GI as it was. So after a
-rediarize the served attribution is still the earlier run's, on offsets that no longer match the
-new transcript, until GI is regenerated. This was not checked against a prod rediarize.
+**What the product shows:** it reads a quote's speaker from the GI (the quote's `speaker_id` ->
+the GI's person node). The GI's insight speaker is the segment's `speaker_label` at the first
+quote's start, which is what `--namer ladder` reads from the run's roster (equal on every placed
+R1-GI, R4 and R5 row, per the second review).
 
 **Not covered:**
 
@@ -258,7 +269,8 @@ new transcript, until GI is regenerated. This was not checked against a prod red
   missed (p = 0.0591).
 - **Hiding:** what a promoted namer would hide (hidden flags are the run's GI's).
 - **Missing runs:**
-  - R1 and R2: their after-states were overwritten;
+  - R1: its after-state was overwritten;
+  - R2: its sidecars (211 cases) survive in the run copy (the second review); not measured with S7;
   - R3: its after-state was recorded as copied to `R3_after`, which is no longer in scratch, and
     when it went is not known;
   - R6: its 162 cases may still be in the run copy, but that was not checked or measured.

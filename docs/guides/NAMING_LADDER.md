@@ -32,7 +32,7 @@
   ("On <platform>, I'm at <name>"). Before, the guard refused the host's name on the host's own
   voice, and the two-voice complement or the swap moved it onto the guest's voice. The DGX block's
   relabel (R1-GI) and rediarize (R4) both served the host's name on the guest in two
-  episodes, 87 wrong insights between them. The rule is main's (`b5923aab4`), not this branch's.
+  episodes, 87 wrong insights between them. The guard is main's (`11213135c`), not this branch's.
   At the resolver step the fix makes one of the two right; in the other the guest's own name is
   still refused (her surname alone occurs in her text inside another person's name), so that
   guest is left unnamed instead of carrying the host's name. The roster after the resolver was

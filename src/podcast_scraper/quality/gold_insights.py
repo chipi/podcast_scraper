@@ -164,10 +164,10 @@ def place(
     """``(reason, raw voice, segment label)``: reason ``ok`` or ``relocated``, or why the quote
     cannot be placed.
 
-    The quote's own text is checked at its offsets. A run that rewrites the transcript without
-    regenerating GI (a rediarize) leaves offsets that point at other words, and a voice found there
-    is a guess: the quote is then found by its text in the transcript (``relocated``) when the text
-    occurs exactly once, and is ``quote_text_mismatch`` otherwise."""
+    The quote's own text is checked at its offsets. A run that rewrites the transcript with GI
+    switched off (a name-only rediarize profile) keeps the earlier GI, whose offsets point at other
+    words, and a voice found there is a guess: the quote is then found by its text in the transcript
+    (``relocated``) when the text occurs exactly once, and is ``quote_text_mismatch`` otherwise."""
     props = quote.get("properties") or {}
     ref, start = props.get("transcript_ref"), props.get("char_start")
     if not isinstance(start, int):
