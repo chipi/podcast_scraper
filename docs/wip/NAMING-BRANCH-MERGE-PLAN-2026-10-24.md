@@ -55,7 +55,7 @@ So "deploy only if better" is settled before the merge, not after it.
      uses archived audio only, or it measures the audio, not the code.
    - **The rediarize audio guard** (`73d93a40a`) is checked there: it refuses an episode whose
      downloaded audio is not the transcribed audio.
-   - **The split-voice merge** (v49, on at 0.7 in the DGX profiles) is part of what ships, so the
+   - **The split-voice merge** (v49, on at 0.8 in the DGX profiles since v50) is part of what ships, so the
      table and the reviewer cover it.
 6. **Fresh independent reviewer:** reads the diff and the outcome table, and gives a verdict.
 7. **The operator's go, then merge #2393.**
@@ -92,13 +92,15 @@ Supersedes the table above where they differ. Per-case detail: the eval repo's D
 | 7 | All-agree | closed | none |
 | 8 | Gate 2 | the nameless-host label gaps are filled (eval `1019b1c`, 17 voices) | none |
 | 2 | Voice rung | run A, val_v5 with unchanged audio (28 episodes, 74 voices): right 45, wrong 0 (ladder 41 / 2, LLM 44 / 2); on 60 named host voices it fixes 10 and breaks 0 | stays in shadow; promotion on more data. Its reach on old episodes is limited: fingerprints need a fresh diarization, safe only from archived audio, and how many prod episodes have archived audio is not known here (prod to report) |
-| 9 | Split-voice merge | run B as above; held-out (run A): 181 different-person pairs, max 0.598 | done (v49): on at 0.7 in the DGX profiles |
-| 10 | Widening | redone as typed steps (v42-v44): served effect not yet measured | step 3, a paired relabel after run A |
+| 9 | Split-voice merge | run B as above; held-out (run A): 181 different-person pairs, max 0.598 | done: on in the DGX profiles (v49) at 0.8 (v50; 0.7 waits for a post-deploy merge audit) |
+| 10 | Widening | redone as typed steps (v42-v44). Step 3 (paired relabel, 28 episodes): the gains came through the pool (a host seated, spellings); the one effect through the LLM was a wrong name (x046, via an E1d defect) | done: v51 (stated hosts pooled, not LLM-bindable; replay: candidates equal the pre-v43 ones on 2,938 episodes), v52 (E1d fix) |
 | 11 | C1 rediarize | guard built (refuses when the downloaded audio is not the transcribed audio; duration fallback when no size was recorded); run A, without it, shows the harm: changed audio 22 -> 89 bad names | must ship; checked in the release gate |
-| new | One name on two voices | v45: neither voice keeps it; resolver replay 30 names removed, nothing else; served on 6 faithful episodes: 3 wrong gone, 1 right gained, 0 right lost | served effect on the rest: step 3 |
+| new | One name on two voices | v45: neither voice keeps it; resolver replay 30 names removed, nothing else; served on 6 faithful episodes: 3 wrong gone, 1 right gained, 0 right lost; step 3: 2 wrong and 2 non-participant names removed, 0 right lost | none |
 | new | Title words in every language | v46: fixed a v42 defect of mine (a test failing since v42) | none |
 | new | Speaker detection temperature | v47: detection can be pinned to 0 alone; both DGX profiles do | not measured on the DGX; the serving's batch-invariant mode is off (DGX decision) |
 | new | Host phrase about an event | v48: "a platform / initiative hosted by X" no longer adds a host; replay: exactly the 2 junk names removed | none |
+| new | Talk-floor host exemption (v40) | step 3: kept the host's name on the show's announcer (v417, unscored) | done: v53 (no exemption for a voice that talks about the host in the third person) |
+| new | E1d rescue | step 3: its self-introduction cue read "so I'm hoping that <guest>'s going to ..." | done: v52; replay over the stored runs: 3 firings stopped, all guest names on the host; 0 right lost |
 
 ## Not covered by step 1
 

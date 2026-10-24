@@ -1016,6 +1016,11 @@ def _apply_talk_floor(
     and of its 22 right removals there and on held-out (ads, promos, clips) none was both. Either
     signal alone is not enough: a seated promo voice and an LLM-called "host" promo voice were
     both correct removals. Exempted voices are traced as ``kept_host``.
+
+    Both signals together were not enough either: on the 2026-10-24 step 3 relabel they kept the
+    host's name on the show's announcer, a voice reading "In this episode, <host> sits down with
+    ...". So a voice that speaks of the name in the third person is never exempt (v53,
+    :func:`talks_about_in_third_person`).
     """
     if floor <= 0:
         return roster
