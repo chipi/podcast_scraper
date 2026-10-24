@@ -701,26 +701,6 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
-def _widen_candidates(
-    cfg: Any,
-    candidates: List[str],
-    episode_title: Optional[str],
-    episode_description: Optional[str],
-) -> Tuple[List[str], Optional[List[str]]]:
-    """``widen_candidates_from_metadata``: the title / description's cue names added to the closed
-    candidate list (``candidate_widening``); ``None`` when off, the added names when on."""
-    if not getattr(cfg, "widen_candidates_from_metadata", False):
-        return candidates, None
-    from . import candidate_widening
-
-    added = candidate_widening.widen(
-        candidates, episode_title, episode_description, language=transcription_language(cfg)
-    )
-    if added:
-        logger.info("candidate widening: added %s from the episode's own text", ", ".join(added))
-    return list(candidates) + added, added
-
-
 def _maybe_merge_split_voices(cfg: Any, diarization: Any) -> Tuple[Any, Optional[Dict[str, Any]]]:
     """``merge_split_voices``: one person's two diarized voices made one, by fingerprint, before
     alignment and naming; the report (every pair's similarity) goes into the sidecar."""
@@ -1241,7 +1221,6 @@ def apply_diarization_to_result(
     candidates = filter_default_speaker_names(
         list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
     )
-    candidates, widened = _widen_candidates(cfg, candidates, episode_title, episode_description)
     ad_intervals = _ad_intervals(segments)
     recurring_text = _feed_recurring_text(cfg)
     dz_provider = getattr(cfg, "diarization_provider", None)
@@ -1356,8 +1335,6 @@ def apply_diarization_to_result(
     # proposed, accepted, refused or overrode. Written to the sidecar as `decision_trace`.
     naming_trace = NamingTrace()
     naming_trace.input("llm_resolution", llm_report)
-    if widened is not None:
-        naming_trace.input("candidate_widening", widened)
     # What ingest-time speaker detection did (#2276): raw answer, filter drops, corroboration
     # refusals. None when the caller had no detection record (e.g. a reprocess that skipped it).
     naming_trace.input("detection", detection_report)
