@@ -57,15 +57,15 @@ detail is in the eval repo's DGX block plan.
 
 | # | Item | Status | Open |
 | --- | --- | --- | --- |
-| 1 | E1d + S30s rescues | 9 of 10 labelled fires right on held-out; the wrong one is S30s on a guest whose name is never stated | decision: keep S30s, drop it, or guard it |
-| 3 | Talk floor | Gate 1: 6 / 6 right. Gate 2: 15 / 20 right, 5 hosts' right names removed; a stated-host exemption would add 2 right and 2 wrong | decision: keep as is (recommended) |
+| 1 | E1d + S30s rescues | 9 of 10 labelled fires right on held-out; the wrong one was S30s on a guest whose name is never stated | done (v40): S30s requires matching fingerprints when both exist; run B adds fingerprint pairs |
+| 3 | Talk floor | Gate 1: 6 / 6 right. Gate 2: 15 / 20 right, 5 hosts' right names removed (co-hosts, moderators, 1.5-4.4% of talk) | done (v40): a seated host the LLM resolution also calls host keeps the name (+3 right, 1 unconfirmable); open: why the pipeline treats 2 of the 5 co-hosts as guests |
 | 6 | LLM pass | better than the ladder on both gates; Gate 1 wrong 2.7% (budget 5%), unnamed 5.4% (criterion 2%); Gate 2 wrong 12.5% (criterion 10%) | decision: promotion scope |
 | 7 | All-agree | no measurable gain, a real cost | closed: passes = 1 |
 | 8 | Gate 2 | swap study done: the LLM fixes 58 of the ladder's swaps, adds 26, and names 21 voices the labels leave nameless | label check of the nameless hosts; voice rung needs a rediarize |
 | 2 | Voice rung | shadow safe; publish not measured on held-out | decision: a held-out rediarize run (DGX) |
 | 9 | Split-voice merge | 2 / 2 right; recall not measured | decision: a rediarize run on the split cases (DGX) |
-| 10 | Widening | no effect | closed; the flag stays off |
-| 11 | C1 rediarize | keeps the transcript; misleading log fixed; one diarization collapse from different audio input or configuration | decision: re-diarize the collapse case to separate them (DGX) |
+| 10 | Widening | on its own target population (run D) it publishes job titles and phrases as speakers; net worse | closed: removed (v41) |
+| 11 | C1 rediarize | keeps the transcript; misleading log fixed; y029's collapse is the publisher's file having changed (6.9 MB -> 9.2 MB) under an old transcript | open: decide a guard (refuse or flag when the downloaded audio differs from the transcribed one) |
 
 ## Not covered by step 1
 
