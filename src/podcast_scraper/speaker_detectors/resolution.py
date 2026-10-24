@@ -577,6 +577,24 @@ def _unusable_verdict(
     return None
 
 
+def _withdraw_first_claim(
+    first: Optional[Tuple[str, Dict[str, Any]]], out: Dict[str, "LLMVoice"]
+) -> None:
+    """A second voice claimed a name already accepted on ``first``: the first voice loses it too
+    (rule 5, ladder doc v45). Its verdict becomes ``duplicate``; its role, if any, stays."""
+    if first is None or first[1].get("outcome") != "accepted":
+        return
+    voice, seen = first
+    seen["outcome"] = "duplicate"
+    kept = out.get(voice)
+    if kept is None:
+        return
+    if kept.role:
+        out[voice] = LLMVoice(name=None, role=kept.role)
+    else:
+        del out[voice]
+
+
 def _role_after_third_person_refusal(role: Optional[str]) -> Optional[str]:
     """The role a voice keeps when the name the model gave it is refuted in the third person.
 
@@ -695,6 +713,8 @@ def resolve_voices_and_roles(
     # see the complement pass below.
     refuted_pairs: List[Tuple[str, str]] = []
     refuted_roles: Dict[str, Optional[str]] = {}
+    # name -> (voice, verdict record) of the voice that took it, so a second claim can undo it.
+    taken_by: Dict[str, Tuple[str, Dict[str, Any]]] = {}
 
     for said_voice, verdict in _parse(raw).items():
         voice = _voice_id_in(said_voice, voice_texts)
@@ -725,9 +745,16 @@ def resolve_voices_and_roles(
                 refuted_roles[voice] = verdict.role
                 role = _role_after_third_person_refusal(verdict.role)
             elif match.lower() in used:  # rule 5 — one person, one voice
+                # Neither voice keeps the name: the model's listing order says nothing about which
+                # voice is the person. Measured on the stored answers (2026-10-24, ladder doc
+                # v45): the first-listed voice kept was wrong 11 times, right 4, and in each wrong
+                # case the refused voice was the person. Roles stay; the name stays used, so no
+                # later pass hands it to either voice.
                 seen["outcome"] = "duplicate"
+                _withdraw_first_claim(taken_by.get(match.lower()), out)
             else:
                 used.add(match.lower())
+                taken_by[match.lower()] = (voice, seen)
                 canonical = match
                 seen["outcome"] = "accepted"
         else:

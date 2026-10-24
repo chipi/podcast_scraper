@@ -115,13 +115,14 @@ class TestTheModelMayOnlyChooseFromTheStatedNames:
         assert got == {"SPEAKER_00": "Noah Kravitz"}
 
     def test_one_person_cannot_be_two_voices(self) -> None:
+        """Neither voice keeps a name the model gave to both (ladder doc v45)."""
         got = resolve_voices_from_conversation(
             ["Noah Kravitz"],
             VOICES,
             _canned({"SPEAKER_00": "Noah Kravitz", "SPEAKER_01": "Noah Kravitz"}),
             ordered_turns=TURNS,
         )
-        assert list(got.values()) == ["Noah Kravitz"]
+        assert got == {}
 
     def test_a_voice_that_TALKS_ABOUT_someone_is_not_that_someone(self) -> None:
         """FOUND ON THE REAL CORPUS. The retrieval that makes this work also misleads the model.

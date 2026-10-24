@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 44 |
+| Doc version | 45 |
 | Last updated | 2026-10-24 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `7d76fa48bb8f` (see below) |
+| Code content hash | `1c745ce154b9` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -26,6 +26,26 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v45, 2026-10-24.** A name the resolver's model gives to two voices names neither of them
+  (`resolve_voices_and_roles`, rule 5). It used to stay on the voice the model listed first, and
+  the listing order says nothing about which voice is the person. Both verdicts are recorded as
+  `duplicate`; each voice keeps its role; the name stays used, so no later resolver pass hands it
+  to either voice.
+  - **Evidence (recorded served names, labelled episodes):** where the first-listed voice was
+    served the name, it was the wrong voice 11 times (R2 6, run B 3, the 10-16 snapshot 2) and the
+    right one 4 times; in every wrong case the refused voice was the labelled person (a host's
+    name on the guest: c064, y023; on another host: v114, v253, v428).
+  - **Replay** (old code from git `c246b63f5` vs new, over the stored LLM answers of the 10-16
+    snapshot and the R1-GI / R4 / R5 / D / B copies, 646 episodes): 30 names leave the resolver's
+    answer, all of them a name given to two voices; no role and no other name changes; 3 mutants
+    killed. The replay rebuilds each voice's text from all its segments; replayed with the code that
+    wrote it, run D's answers come back exactly, the others differ where newer rules (the
+    stated-host-as-guest guard, v39) or the cleaning pass changed the inputs.
+  - NOT measured: what is SERVED afterwards. A later rung can still name either voice; in one
+    offline roster replay (c013) the known-hosts rung then put the host's name on the guest. The
+    offline roster replay is not faithful where a relabel renumbers voices, so the served effect
+    is measured in the paired DGX relabel.
 
 - **v44, 2026-10-24.** `<podcast:person role="host">` (or with no role, as the namespace
   defines) joins that episode's host pool (`processing.hosts_for_episode`, through the
