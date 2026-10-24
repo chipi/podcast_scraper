@@ -22,6 +22,11 @@ podcast-scraper-eval-data ``docs/wip/NAMING-GATES-2026-10-22.md``). Three tables
   the LLM pass's name for the same voice beside it.
 
 Episodes written before these keys existed are counted as ``without``, never as agreement.
+
+Every listed row carries the episode's feed and title and ``insights``: how many of the episode's GI
+insights sit on that voice (placed as S7 places them, ``gold_insights.place``: the first
+``SUPPORTED_BY`` quote, checked by its text), so the rows a reader should read first are the ones
+whose name is on the most insights. ``None`` when the episode has no GI file.
 """
 
 from __future__ import annotations
@@ -42,6 +47,39 @@ NO_LLM_ANSWER = "no LLM answer"
 RESCUE_SOURCES = ("e1d_rescue", "s30_split_merge")
 #: The result key each namer's per-voice entry carries its own name under.
 _RESULT_KEY = {"transcript_naming": "model_result", "voice_identity": "fingerprint_result"}
+
+
+def insights_by_voice(meta_path: Path) -> Optional[Dict[str, int]]:
+    """GI insights per raw voice, each placed by its first quote (``gold_insights.place``)."""
+    from .gold_insights import _load as _load_json, _Texts, place
+
+    gi = _load_json(Path(str(meta_path)[: -len(".metadata.json")] + ".gi.json"))
+    if not isinstance(gi, dict):
+        return None
+    nodes = {str(n.get("id")): n for n in gi.get("nodes") or [] if isinstance(n, dict)}
+    first: Dict[str, str] = {}
+    for e in gi.get("edges") or []:
+        if isinstance(e, dict) and e.get("type") == "SUPPORTED_BY":
+            first.setdefault(str(e.get("from")), str(e.get("to")))
+    texts, run = _Texts(), Path(meta_path).parent.parent
+    out: Counter = Counter()
+    root = run.parent.parent.parent  # <root>/feeds/<feed>/<run>
+    for iid, node in nodes.items():
+        q = nodes.get(first.get(iid, ""))
+        if node.get("type") != "Insight" or q is None:
+            continue
+        reason, voice, _label = place(q, root, run, texts)
+        if reason in ("ok", "relocated") and voice:
+            out[voice] += 1
+    return dict(out)
+
+
+def _episode_view(meta_path: Path) -> Dict[str, Any]:
+    meta = _load(meta_path) or {}
+    return {
+        "feed": str((meta.get("feed") or {}).get("title") or ""),
+        "title": str((meta.get("episode") or {}).get("title") or ""),
+    }
 
 
 def served_diagnostics(root: Path) -> Iterable[Tuple[str, Path, Dict[str, Any]]]:
@@ -178,8 +216,9 @@ def report(root: Path) -> Dict[str, Any]:
     }
     floor: List[Dict[str, Any]] = []
     rescues: List[Dict[str, Any]] = []
-    for eid, _meta, diag in served_diagnostics(root):
+    for eid, meta_path, diag in served_diagnostics(root):
         episodes += 1
+        listed: List[Dict[str, Any]] = []
         for n in NAMERS:
             if not isinstance(diag.get(n), dict):
                 continue
@@ -194,8 +233,15 @@ def report(root: Path) -> Dict[str, Any]:
                 t["outcomes"][r["outcome"]] += 1
                 if r["outcome"] not in ("agree", NOT_JUDGED):
                     t["differences"].append(r)
-        floor.extend(floor_rows(eid, diag))
-        rescues.extend(rescue_rows(eid, diag))
+                    listed.append(r)
+        ep_floor, ep_rescues = floor_rows(eid, diag), rescue_rows(eid, diag)
+        floor.extend(ep_floor)
+        rescues.extend(ep_rescues)
+        listed += ep_floor + ep_rescues
+        if listed:
+            counts, view = insights_by_voice(meta_path), _episode_view(meta_path)
+            for r in listed:
+                r.update(view, insights=None if counts is None else counts.get(str(r["voice"]), 0))
     for t in namers.values():
         t["outcomes"] = {o: t["outcomes"].get(o, 0) for o in (*OUTCOMES, NOT_JUDGED)}
         t["not_answered"] = dict(t["not_answered"].most_common())
@@ -219,6 +265,13 @@ def report(root: Path) -> Dict[str, Any]:
     }
 
 
+def _where(r: Mapping[str, Any]) -> str:
+    ins = r.get("insights")
+    return (
+        f" | {'no GI' if ins is None else f'{ins} insights'} | {r.get('feed')} — {r.get('title')}"
+    )
+
+
 def render(rep: Mapping[str, Any], limit: Optional[int] = None) -> str:
     """The report as plain text tables (``limit`` caps each listed table's rows)."""
     lines = [f"served episodes with a speaker sidecar: {rep['episodes']}", ""]
@@ -233,7 +286,7 @@ def render(rep: Mapping[str, Any], limit: Optional[int] = None) -> str:
         for r in t["differences"][:limit]:
             lines.append(
                 f"  {r['outcome']:<8} {r['episode']} {r['voice']}: "
-                f"ladder {r['ladder']!r} -> {n} {r['namer']!r} ({r['namer_role']})"
+                f"ladder {r['ladder']!r} -> {n} {r['namer']!r} ({r['namer_role']})" + _where(r)
             )
         lines.append("")
     f = rep["floor"]
@@ -243,7 +296,7 @@ def render(rep: Mapping[str, Any], limit: Optional[int] = None) -> str:
     for r in f["rows"][:limit]:
         lines.append(
             f"  {r['episode']} {r['voice']}: {r['name']!r} at {r['talk_share']} "
-            f"(LLM: {r['llm_role']}, {r['llm_name']!r})"
+            f"(LLM: {r['llm_role']}, {r['llm_name']!r})" + _where(r)
         )
     lines.append("")
     s = rep["rescues"]
@@ -254,6 +307,6 @@ def render(rep: Mapping[str, Any], limit: Optional[int] = None) -> str:
     for r in s["rows"][:limit]:
         lines.append(
             f"  {r['rule']:<16} {r['episode']} {r['voice']}: {r['name']!r} ({r['role']}); "
-            f"LLM {r['llm_name']!r}"
+            f"LLM {r['llm_name']!r}" + _where(r)
         )
     return "\n".join(lines) + "\n"

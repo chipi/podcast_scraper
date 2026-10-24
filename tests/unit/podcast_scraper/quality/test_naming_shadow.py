@@ -250,3 +250,46 @@ def test_voices_the_fingerprint_rung_cannot_judge_are_not_judged_not_agree(tmp_p
     vi = ns.report(tmp_path)["namers"]["voice_identity"]
     # SPEAKER_00 judged; SPEAKER_03 is named, so its removal was checked; 01 and 02 were not.
     assert vi["outcomes"]["agree"] == 2 and vi["outcomes"]["not_judged"] == 2
+
+
+_gspec = importlib.util.spec_from_file_location(
+    "gold_fixture", Path(__file__).resolve().parent / "test_gold_insights.py"
+)
+assert _gspec and _gspec.loader
+gfx = importlib.util.module_from_spec(_gspec)
+_gspec.loader.exec_module(gfx)
+
+
+def test_insights_are_counted_per_voice_by_their_first_quote(tmp_path: Path) -> None:
+    meta = gfx._episode(
+        tmp_path,
+        insights=[
+            ("i:a", [1], {"speaker": "Steve McConnell"}),
+            ("i:b", [1, 0], {"speaker": "Steve McConnell"}),
+            ("i:c", [0], {"speaker": "Gergely Orosz"}),
+            ("i:none", [], {}),
+        ],
+    )
+    counts = ns.insights_by_voice(tmp_path / meta)
+    assert counts == {"SPEAKER_01": 2, "SPEAKER_00": 1}
+
+
+def test_an_episode_without_gi_has_no_insight_count(tmp_path: Path) -> None:
+    meta = gfx._episode(tmp_path, insights=[])
+    (tmp_path / meta.replace(".metadata.json", ".gi.json")).unlink()
+    assert ns.insights_by_voice(tmp_path / meta) is None
+
+
+def test_listed_rows_carry_the_title_and_the_voices_insights(tmp_path: Path) -> None:
+    _episode(
+        tmp_path,
+        {
+            "transcript_naming": {
+                "ok": True,
+                "voices": {"SPEAKER_01": _voice("Katharine Quist", "Kate Quist", "changes")},
+            }
+        },
+    )
+    (r,) = ns.report(tmp_path)["namers"]["transcript_naming"]["differences"]
+    assert "title" in r and "feed" in r and "insights" in r
+    assert " | " in ns.render(ns.report(tmp_path))
