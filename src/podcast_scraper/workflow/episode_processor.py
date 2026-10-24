@@ -489,6 +489,7 @@ def download_media_for_transcription(
             episode=episode,
         )
     decision = media_route_skip_existing(episode, cfg, effective_output_dir, run_suffix)
+    rediarize = getattr(cfg, "pipeline_stage", None) == "rediarize_only"
     if decision.action == FORCED:
         # #925: a scoped reprocess (--reprocess-source) forces matching episodes
         # (e.g. whisper_transcription) back through download+transcribe so diarization
@@ -496,12 +497,21 @@ def download_media_for_transcription(
         # with no transcript URL); the override in _check_existing_transcript covers the
         # direct-download path. Falling through schedules a real download, so the
         # job.temp_media reuse skip below is bypassed too.
-        logger.info(
-            "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
-            episode.idx,
-            cfg.reprocess_source,
-            decision.path,
-        )
+        if rediarize:
+            # rediarize_only downloads the audio for the diarizer and keeps the transcript's
+            # text and timestamps (_rediarize_existing_transcript); the old message read as re-ASR.
+            logger.info(
+                "[%s] [#925] re-diarizing from the audio; the transcript text is kept: %s",
+                episode.idx,
+                decision.path,
+            )
+        else:
+            logger.info(
+                "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
+                episode.idx,
+                cfg.reprocess_source,
+                decision.path,
+            )
     elif decision.action == BACKFILL:
         logger.info(
             "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
@@ -577,6 +587,8 @@ def download_media_for_transcription(
             temp_media="",
             episode=episode,
         )
+    elif rediarize:
+        logger.info(f"[{episode.idx}] downloading audio to re-diarize: {display_title}")
     else:
         logger.info(f"[{episode.idx}] no transcript; downloading media: {display_title}")
 
