@@ -172,6 +172,23 @@ def test_a_swap_is_corrected_and_a_voice_it_does_not_call_a_participant_is_unnam
     assert trace.voices["SPEAKER_02"][0]["decision"] == "removed"
 
 
+def test_an_answer_that_drops_the_zero_padding_names_the_voice_it_meant() -> None:
+    # vLLM on the DGX answered "SPEAKER_1" for SPEAKER_01 on 5 of 20 episodes (EconTalk,
+    # Conversations with Tyler, Dwarkesh, The Long Run); an exact lookup then left the voice
+    # unnamed and the shadow table scored the model's correct name as missing.
+    unpadded = SWAP_FIX.replace('"SPEAKER_01"', '"SPEAKER_1"')
+    asked = _ask(lambda p: unpadded)
+    assert asked.pairs() == {
+        "SPEAKER_00": ("Russ Roberts", "host"),
+        "SPEAKER_01": ("Stephen Witt", "guest"),
+    }
+
+
+def test_an_answer_for_a_voice_not_asked_is_kept_under_its_own_key() -> None:
+    extra = SWAP_FIX[:-2] + ', "SPEAKER_02": {"name": null, "role": "ad"}}}'
+    assert _ask(lambda p: extra).pairs()["SPEAKER_02"] == (None, "ad")
+
+
 def test_a_name_the_model_confirms_keeps_the_ladders_source() -> None:
     # The record keeps a host named like the show only when the voice introduced itself
     # (metadata_generation._build_speaker_record): confirming the name must not erase that.

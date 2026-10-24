@@ -216,6 +216,24 @@ def parse_voices(voices: Any) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
     return out
 
 
+def keyed_by_voices_asked(
+    answer: Optional[Dict[str, Dict[str, Optional[str]]]], voices: Sequence[str]
+) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+    """The answer keyed by the voice ids asked: the model writes ``SPEAKER_1`` for
+    ``SPEAKER_01`` (vLLM on the DGX, 5 of 20 episodes), and an exact lookup left that voice
+    unnamed. An exact key wins; a key no asked voice matches keeps its own spelling."""
+    if not answer:
+        return answer
+    from ....speaker_detectors.resolution import _voice_id_in
+
+    asked = dict.fromkeys(voices, "")
+    out: Dict[str, Dict[str, Optional[str]]] = {}
+    for said in sorted(answer, key=lambda k: k not in asked):
+        voice = _voice_id_in(said, asked) or said
+        out.setdefault(voice, answer[said])
+    return out
+
+
 @dataclasses.dataclass
 class NamingAnswer:
     """One ask: what was sent, what came back, and the parsed answer (None on failure)."""
@@ -271,7 +289,7 @@ def ask(
         logger.warning("transcript naming: call failed (%s); the ladder's names stand", exc)
         return NamingAnswer("standalone", voices, None, report)
     report["raw"] = (raw or "")[:RAW_CHARS]
-    answer = parse_answer_full(raw)
+    answer = keyed_by_voices_asked(parse_answer_full(raw), voices)
     if not answer:
         report["error"] = "unreadable answer"
         logger.warning("transcript naming: unreadable answer; the ladder's names stand")
