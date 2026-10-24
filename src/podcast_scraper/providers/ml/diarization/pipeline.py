@@ -966,6 +966,33 @@ def _side_namer_sidecars(
     return out
 
 
+def talks_about_in_third_person(text: str, name: str) -> bool:
+    """Whether a voice's own text speaks of ``name`` as someone else (v53).
+
+    An announcer reading "In this episode, <host> sits down with ..." is seated and LLM-called host
+    too (step 3 of the 2026-10-24 DGX block, v417); it is not the host. The resolver's third-person
+    check, or the given name followed by the surname or an ASR rendering of it (a surname one or
+    two letters off), unless the voice introduces itself as the person.
+    """
+    from ....speaker_detectors.resolution import (
+        _introduces_itself_as,
+        _surname_variant,
+        refuted_by_third_person,
+    )
+
+    if refuted_by_third_person(text, name):
+        return True
+    toks = name.split()
+    if len(toks) < 2 or _introduces_itself_as(text, name):
+        return False
+    first, last = toks[0], toks[-1]
+    for m in re.finditer(rf"\b{re.escape(first)}\s+([A-Za-z][\w'\-]+)", text, re.IGNORECASE):
+        said = m.group(1)
+        if said.lower() == last.lower() or _surname_variant(said, last):
+            return True
+    return False
+
+
 def _apply_talk_floor(
     roster: Any,
     aligned: List[Any],
@@ -1003,10 +1030,22 @@ def _apply_talk_floor(
         return roster
     by_voice = dict(roster.by_voice)
     floored = []
+    texts: Dict[str, List[str]] = {}
+    for segment, speaker_id in aligned:
+        if speaker_id is not None:
+            texts.setdefault(speaker_id, []).append(str(segment.get("text") or ""))
+
+    def talks_about(voice: str, name: str) -> bool:
+        return talks_about_in_third_person(" ".join(texts.get(voice, ())), name)
+
     for voice, role in roster.by_voice.items():
         share = talk.get(voice, 0.0) / total
         if role.named and share < floor:
-            if role.role == "host" and (llm_roles or {}).get(voice) == "host":
+            if (
+                role.role == "host"
+                and (llm_roles or {}).get(voice) == "host"
+                and not talks_about(voice, role.name)
+            ):
                 if trace is not None:
                     trace.voice(
                         voice, "talk_floor", "kept_host", name=role.name, talk_share=round(share, 4)

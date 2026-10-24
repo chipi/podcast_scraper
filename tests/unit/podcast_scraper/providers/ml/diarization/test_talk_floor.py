@@ -137,3 +137,19 @@ def test_one_host_signal_alone_does_not_keep_the_name(role, llm_roles) -> None:
     out = _apply_talk_floor(_quiet_host_roster(role), _aligned(), 0.05, llm_roles=llm_roles)
     assert not out.by_voice["SPEAKER_02"].named
     assert out.by_voice["SPEAKER_02"].source == "talk_floor"
+
+
+def test_a_voice_that_talks_about_the_host_does_not_keep_the_name() -> None:
+    """v53: step 3 of the 2026-10-24 DGX block, an announcer kept as the host it introduces."""
+    aligned = _aligned()
+    aligned[2] = (
+        {
+            "start": 2800.0,
+            "end": 2840.0,
+            "text": "In this episode, Ada Moderator sits down with a guest.",
+        },
+        "SPEAKER_02",
+    )
+    out = _apply_talk_floor(_quiet_host_roster(), aligned, 0.05, llm_roles={"SPEAKER_02": "host"})
+    assert not out.by_voice["SPEAKER_02"].named
+    assert out.by_voice["SPEAKER_02"].source == "talk_floor"
