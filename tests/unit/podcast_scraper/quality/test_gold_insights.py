@@ -770,3 +770,66 @@ def test_the_cli_reads_a_voice_map_file(tmp_path: Path, monkeypatch) -> None:
     vm.write_text("{}")
     with pytest.raises(SystemExit, match="not a voice-map file"):
         cli.main()
+
+
+def _diag(root: Path, run: str, tn: Dict[str, Any], vi: Dict[str, Any]) -> None:
+    _w(
+        root / "feeds" / "f" / run / "transcripts" / "ep.speakers.diagnostics.json",
+        {
+            "transcript_naming": {"voices": {v: {"model_result": r} for v, r in tn.items()}},
+            "voice_identity": {"voices": {v: {"fingerprint_result": r} for v, r in vi.items()}},
+        },
+    )
+
+
+def test_a_shadow_namer_is_scored_by_the_name_it_gives_each_insights_voice(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    meta = _episode(
+        root,
+        insights=[
+            ("i:guest", [1], {"speaker": "Gergely Orosz"}),  # served wrong
+            ("i:host", [0], {"speaker": "Gergely Orosz", "surfaceable": False}),
+            ("i:none", [], {"speaker": "Gergely Orosz"}),
+        ],
+    )
+    _diag(
+        root,
+        "run_1",
+        {"SPEAKER_01": {"name": "Steve McConnell", "role": "guest"}},
+        {"SPEAKER_00": {"name": "Steve McConnell", "role": "guest"}, "SPEAKER_01": {"name": None}},
+    )
+    _gold(gold, "g", "c1", meta, LABELS)
+    served = _buckets(_run(root, gold))
+    assert served == {"i:guest": "S7_wrong", "i:host": "S7_correct", "i:none": "no_grounded_quote"}
+    llm = gi.run(root, gold, ["g"], "s", namer="llm")
+    # SPEAKER_00 has no LLM result: unnamed and counted; the hidden flag is the served run's
+    assert _buckets(llm) == {
+        "i:guest": "S7_correct",
+        "i:host": "S7_unnamed",
+        "i:none": "no_grounded_quote",
+    }
+    t = llm["sets"]["g"]["total"]
+    assert (t["namer_no_result"], t["S7_unnamed_hidden"]) == (1, 1)
+    row = next(r for r in llm["rows"] if r["insight"] == "i:guest")
+    assert (row["stored"], row["stored_served"]) == ("Steve McConnell", "Gergely Orosz")
+    voice = gi.run(root, gold, ["g"], "s", namer="voice")
+    assert _buckets(voice) == {
+        "i:guest": "S7_unnamed",
+        "i:host": "S7_wrong",
+        "i:none": "no_grounded_quote",
+    }
+    assert voice["sets"]["g"]["total"]["namer_no_result"] == 0 and voice["namer"] == "voice"
+
+
+def test_a_shadow_namer_reads_the_after_runs_sidecar_through_the_voice_map(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(root, [("i", [1], {"speaker": "Gergely Orosz"})])
+    _diag(root, "run_2", {"SPEAKER_00": {"name": "Steve McConnell"}}, {})
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, SWAP_MAP), namer="llm")
+    assert _buckets(report) == {"i": "S7_correct"}
+
+
+def test_an_unknown_namer_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="namer"):
+        gi.run(tmp_path, tmp_path, [], "s", namer="ladder")

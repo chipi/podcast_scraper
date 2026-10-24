@@ -29,6 +29,12 @@ and every labelled-run voice's after voice) follows each case to its after run a
 labels. Two labelled voices on one after voice whose labels differ is ``voice_map_ambiguous``: its
 insights belong to neither label alone; labels that agree (one person the labelled run split) apply.
 A case the map does not cover is skipped and named.
+
+``namer`` scores a shadow namer's names instead of the served ones (``llm``: the sidecar's
+``transcript_naming`` ``model_result``; ``voice``: ``voice_identity`` ``fingerprint_result``): each
+placed insight carries the name that namer gives its voice, as if it served. A voice the namer has
+no result for is unnamed and counted (``namer_no_result``). Only the name changes: which insights
+exist and which are hidden are the served run's.
 """
 
 from __future__ import annotations
@@ -51,6 +57,11 @@ BUCKETS = (
     "S7_unnamed",
     "voice_map_ambiguous",
 )
+#: shadow namer -> (sidecar key, result key) in ``<stem>.speakers.diagnostics.json``
+SHADOW_NAMERS = {
+    "llm": ("transcript_naming", "model_result"),
+    "voice": ("voice_identity", "fingerprint_result"),
+}
 _RAW = re.compile(r"^SPEAKER(_\d+)?$")
 _LABELS = re.compile(r"^labels_v(\d+)$")
 
@@ -201,12 +212,27 @@ def relabel(label: Dict[str, Any], vmap: Dict[str, Any]) -> Tuple[Dict[str, Any]
     return dict(label, voices=voices), lost
 
 
+def shadow_names(root: Path, meta_relpath: str, namer: str) -> Dict[str, Optional[str]]:
+    """The names a shadow namer gives the episode's voices, from its speakers diagnostics."""
+    key, result = SHADOW_NAMERS[namer]
+    meta = Path(root) / meta_relpath
+    stem = meta.name[: -len(".metadata.json")]
+    diag = _load(meta.parent.parent / "transcripts" / f"{stem}.speakers.diagnostics.json") or {}
+    out: Dict[str, Optional[str]] = {}
+    for voice, entry in ((diag.get(key) or {}).get("voices") or {}).items():
+        res = (entry or {}).get(result) if isinstance(entry, dict) else None
+        if isinstance(res, dict):
+            out[str(voice)] = res.get("name") or None
+    return out
+
+
 def score_case(
     case: Dict[str, Any],
     label: Dict[str, Any],
     root: Path,
     texts: _Texts,
     ambiguous: Optional[Dict[str, List[str]]] = None,
+    names: Optional[Dict[str, Optional[str]]] = None,
 ) -> Iterable[Dict[str, Any]]:
     """One row per Insight node of the served case."""
     meta_path = root / case["meta_relpath"]
@@ -255,6 +281,11 @@ def score_case(
         reason, voice, seg_label = place(nodes[qid], root, run, texts)
         row["voice"] = voice
         row["segment_label"] = seg_label
+        if names is not None and reason == "ok":
+            row["stored_served"] = stored
+            row["namer_no_result"] = str(voice) not in names
+            stored = names.get(str(voice)) or ""
+            row["stored"] = stored
         if reason != "ok":
             row.update(bucket="quote_not_placeable", reason=reason)
             yield row
@@ -300,11 +331,14 @@ def run(
     snapshot: str,
     labels: Optional[Dict[str, str]] = None,
     voice_maps: Optional[Dict[str, Any]] = None,
+    namer: str = "served",
 ) -> Dict[str, Any]:
     """The S7/S8 report over the given gold sets on ``root``. Asserts conservation."""
     from ..upgrade.corpus_selection import select_served_artifacts
 
     root = Path(root)
+    if namer != "served" and namer not in SHADOW_NAMERS:
+        raise SystemExit(f"namer {namer!r}: not served or one of {sorted(SHADOW_NAMERS)}")
     if voice_maps is not None and Path(str(voice_maps.get("after"))).resolve() != root.resolve():
         raise SystemExit(
             f"the voice map was made for {voice_maps.get('after')}, not {root}: voice ids differ"
@@ -330,6 +364,7 @@ def run(
             "cases count as correct); ASR spellings and junk names count as wrong. "
             "Strict S7 correct = fold_exact."
         ),
+        "namer": namer,
         "sets": {},
     }
     if voice_maps is not None:
@@ -386,7 +421,8 @@ def run(
             included += 1
             if not (root / (case["meta_relpath"][: -len(".metadata.json")] + ".gi.json")).is_file():
                 gi_missing += 1
-            case_rows = list(score_case(case, label, root, texts, ambiguous))
+            names = shadow_names(root, case["meta_relpath"], namer) if namer != "served" else None
+            case_rows = list(score_case(case, label, root, texts, ambiguous, names))
             voices_here = {r["voice"] for r in case_rows if r["voice"]}
             misses += sum(
                 1
@@ -504,6 +540,7 @@ def _counts(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         if r["bucket"] == "S7_wrong" and (r.get("segment_label") or "") != (r.get("stored") or "")
     )
     c["flag_absent_excluded_by_insights_from_gi"] = sum(1 for r in rows if r["excluded_unflagged"])
+    c["namer_no_result"] = sum(1 for r in rows if r.get("namer_no_result"))
     c["speakerless_by_bucket"] = dict(
         sorted(Counter(r["bucket"] for r in rows if r["speakerless"]).items())
     )

@@ -211,9 +211,37 @@ counts differ and the comparison is by bucket, not per insight):
 
 S7 here measures the SERVED names (the ladder). The shadow namers' names are not on the insights.
 
+**Shadow namers (`--namer llm|voice`):** each placed insight is scored with the name the shadow
+namer gives its voice, read from the run's speakers diagnostics, as if that namer served.
+
+- A voice the namer gives no result is unnamed, and the count is printed. It was 0 in every run
+  below.
+- Only the name changes: the insights and their hidden flags are the served run's.
+- S7 compares names only; a right name with the wrong role counts as correct.
+
+| run | namer | correct | wrong | unnamed | ambiguous |
+| --- | --- | --- | --- | --- | --- |
+| R1-GI | served | 915 | 171 | 5 | 0 |
+| R1-GI | llm | 993 | 21 | 77 | 0 |
+| R1-GI | voice | 915 | 171 | 5 | 0 |
+| R4 | served | 929 | 175 | 5 | 35 |
+| R4 | llm | 998 | 21 | 90 | 35 |
+| R4 | voice | 956 | 0 | 153 | 35 |
+| R5 | served | 929 | 175 | 5 | 35 |
+| R5 | llm | 1,105 | 0 | 4 | 35 |
+| R5 | voice | 956 | 0 | 153 | 35 |
+
+- **The voice rung, R1-GI:** it equals the served column because on a relabel it does not engage
+  (its results' source is `llm_resolution`).
+- **The voice rung, R4 / R5:** it serves no wrong name on these cases and leaves 153 unnamed.
+- **The LLM:** its 21 wrong are all y020; R5's split-merge removes them. Its unnamed counts in
+  R1-GI and R4 include the `SPEAKER_1` key bug (fixed in `4491a7263`, after these runs); R5 was
+  hardly hit by it.
+
 **Not covered:**
 
-- shadow namers' S7 (it needs their names swapped onto the insights);
+- held-out cases for the shadow namers: 20 val_v4 episodes is a small set;
+- what a promoted namer would hide (hidden flags are the served run's);
 - R1 and R2: their after-states were overwritten;
 - R3: its after-state was recorded as copied to `R3_after`, which is no longer in scratch, and
   when it went is not known;

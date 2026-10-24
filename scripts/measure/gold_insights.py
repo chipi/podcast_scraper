@@ -9,6 +9,7 @@
 ``--snapshot`` names the corpus state exactly, including any migration applied outside the
 runner (it is not in the corpus's ledger; the report's ``ledger_applied`` shows what the ledger
 records). ``--labels SET=DIR`` pins a set's label directory instead of the newest ``labels_vN``.
+``--namer llm|voice`` scores a shadow namer's names in place of the served ones.
 ``--voice-map`` measures an eval run's output (``--corpus`` = the run's work dir): the eval
 scorer's voice-map file follows each case to its after run and re-keys the labels to its voices.
 
@@ -38,6 +39,12 @@ def main() -> int:
     ap.add_argument("--out", type=Path)
     ap.add_argument("--labels", action="append", default=[], metavar="SET=DIR")
     ap.add_argument("--voice-map", type=Path, help="the eval scorer's <rows>.voicemap.json")
+    ap.add_argument(
+        "--namer",
+        default="served",
+        choices=["served", "llm", "voice"],
+        help="score a shadow namer's names (its speakers diagnostics) instead of the served ones",
+    )
     args = ap.parse_args()
     sets = args.sets or sorted(p.name for p in args.gold.iterdir() if (p / "cases").is_dir())
     if any("=" not in x for x in args.labels):
@@ -46,8 +53,8 @@ def main() -> int:
     if set(labels) - set(sets):
         ap.error(f"--labels names a set not measured: {sorted(set(labels) - set(sets))}")
     maps = load_voice_maps(args.voice_map) if args.voice_map else None
-    report = run(args.corpus, args.gold, sets, args.snapshot, labels or None, maps)
-    print(f"snapshot {report['snapshot']}  ({report['matcher_limits']})")
+    report = run(args.corpus, args.gold, sets, args.snapshot, labels or None, maps, args.namer)
+    print(f"snapshot {report['snapshot']}  namer {args.namer}  ({report['matcher_limits']})")
     for gset, s in report["sets"].items():
         t = s["total"]
         print(
@@ -60,6 +67,8 @@ def main() -> int:
         for b in BUCKETS:
             print(f"  {b:22} {t[b]:>6}   shown {t[b + '_shown']:>6}   hidden {t[b + '_hidden']:>6}")
         print(f"  S7_correct by tier {t['S7_correct_by_tier']}")
+        if args.namer != "served":
+            print(f"  insights on a voice the namer has no result for {t['namer_no_result']}")
     if args.out:
         args.out.write_text(json.dumps(report, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     return 0
