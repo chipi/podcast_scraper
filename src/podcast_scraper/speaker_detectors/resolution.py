@@ -444,8 +444,11 @@ def _introduces_itself_as(text: str, name: str, language: Optional[str] = TARGET
     not_possessive = r"(?!(?:\s+[A-Z][\w'’\-]*){0,2}['’]s\b)\b"
     # "I am your host, David Beckworth" is the commonest host introduction there is, and the bare
     # "I am <name>" form never saw it (measured: Macro Musings, The Long Run).
+    # "On <platform>, I'm at <name>": a host reading out their own handle. Refused, it let the
+    # two-voice complement put the host's name on the guest (DGX relabel 2026-10-23, two episodes
+    # of one show). Only after "I'm" / "I am"; "I'm at X's studio" stays a mention (possessive).
     intro = (
-        r"\b(?:I'?m|I am|my name is|this is)\s+(?:your\s+(?:co-?)?host,?\s+)?"
+        r"\b(?:I'?m(?:\s+at)?|I am(?:\s+at)?|my name is|this is)\s+(?:your\s+(?:co-?)?host,?\s+)?"
         # "I'm Dr. Rob Armstrong": an honorific between the cue and the name.
         r"(?:(?:dr|doctor|prof|professor|mr|mrs|ms|sir|dame)\.?\s+)?"
     )
