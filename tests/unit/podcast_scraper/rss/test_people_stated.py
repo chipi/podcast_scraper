@@ -18,9 +18,11 @@ NS = (
 
 
 def _item(body: str) -> ET.Element:
-    return ET.fromstring(f"<rss {NS}><channel><item>{body}</item></channel></rss>").find(
+    item = ET.fromstring(f"<rss {NS}><channel><item>{body}</item></channel></rss>").find(
         "channel/item"
     )
+    assert item is not None
+    return item
 
 
 def test_an_item_that_states_nobody_gives_nothing() -> None:
