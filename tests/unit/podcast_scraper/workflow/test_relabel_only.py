@@ -791,3 +791,67 @@ def test_rederive_only_reports_failure_when_nothing_is_on_disk(tmp_path: Path) -
 
     assert (ok, path, source, downloaded) == (False, None, None, 0)
     assert jobs.empty()
+
+
+# --- the rediarize audio guard: the downloaded file must be the one the transcript came from ---
+
+
+@pytest.mark.parametrize(
+    "downloaded, ingest, audio_s, end, refused",
+    [
+        (
+            9159716,
+            6909843,
+            None,
+            416.0,
+            True,
+        ),  # the publisher's file changed (DGX block, 2026-10-23)
+        (62138364, 62138364, 3865.0, 3865.0, False),  # same file
+        (None, None, 3000.0, 2995.0, False),  # no recorded size; a few seconds of outro
+        (None, None, 365.0, 416.0, True),  # the transcript runs past the audio's end
+        (None, None, 4000.0, 3500.0, True),  # 500 s of audio after the last speech (12.5%)
+        (None, None, 600.0, 470.0, True),  # 130 s and 22% after the last speech
+        (None, None, 7200.0, 7050.0, False),  # 150 s of a 2 h file (2%): an outro
+        (None, None, None, 416.0, False),  # nothing to compare: the run proceeds as before
+    ],
+)
+def test_rediarize_audio_mismatch(downloaded, ingest, audio_s, end, refused) -> None:
+    from podcast_scraper.workflow.episode_processor import rediarize_audio_mismatch
+
+    assert (rediarize_audio_mismatch(downloaded, ingest, audio_s, end) is not None) is refused
+
+
+def test_rediarize_refuses_when_the_downloaded_audio_is_not_the_transcribed_one(
+    tmp_path: Path,
+) -> None:
+    import json
+    from unittest.mock import MagicMock, patch
+
+    from podcast_scraper.workflow.episode_processor import _rediarize_existing_transcript
+
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    old_run, stem = _write_corpus(
+        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=["Hello. " * 40] * 2
+    )
+    meta = old_run / "metadata" / f"{stem}.metadata.json"
+    doc = json.loads(meta.read_text()) if meta.is_file() else {}
+    doc.setdefault("processing", {})["stage_ledger"] = {
+        "audio_preprocessing": {"outcome": "ran", "detail": {"original_bytes": 6909843}}
+    }
+    meta.parent.mkdir(parents=True, exist_ok=True)
+    meta.write_text(json.dumps(doc))
+    audio = tmp_path / "ep.mp3"
+    audio.write_bytes(b"A" * 1000)  # not the 6,909,843 bytes that were transcribed
+    job = TranscriptionJob(idx=1, ep_title="Ep", ep_title_safe="Ep", temp_media=str(audio))
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+    provider = MagicMock()
+    with patch(
+        "podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider",
+        return_value=provider,
+    ):
+        ok, _rel, _ = _rediarize_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+    assert ok is False
+    assert not provider.diarize.called
+    assert "Amy Lawrence" in (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")

@@ -3995,6 +3995,60 @@ def _roster_native_segments(
         return result
 
 
+#: The audio may run on after the last speech (outro music): a gap counts only past both.
+_REDIARIZE_TAIL_MAX_S = 120.0
+_REDIARIZE_TAIL_MAX_SHARE = 0.10
+
+
+def rediarize_audio_mismatch(
+    downloaded_bytes: Optional[int],
+    ingest_bytes: Optional[int],
+    audio_s: Optional[float],
+    transcript_end_s: float,
+) -> Optional[str]:
+    """Why the downloaded audio is not the audio the transcript was made from, or None.
+
+    A rediarize re-downloads the enclosure and puts the fresh voices on the OLD transcript's
+    timestamps. When the publisher has changed the file since (re-encoded, ads or a promo
+    inserted), those timestamps point at other speech: on the DGX block of 2026-10-23 one
+    episode's file grew 6.9 MB -> 9.2 MB and its six voices collapsed to four, a promo and an ad
+    merged into the host. The size recorded at ingest (``audio_preprocessing.original_bytes``)
+    decides when it exists; otherwise the measured duration against the transcript's last
+    segment: speech past the end of the audio, or audio running on past the last speech by more
+    than both ``_REDIARIZE_TAIL_MAX_S`` and ``_REDIARIZE_TAIL_MAX_SHARE`` of its length.
+    """
+    if ingest_bytes and downloaded_bytes is not None and downloaded_bytes != ingest_bytes:
+        return (
+            f"downloaded audio is {downloaded_bytes} bytes; "
+            f"the transcribed audio was {ingest_bytes}"
+        )
+    if audio_s:
+        if transcript_end_s > audio_s + 2.0:
+            return f"the transcript runs to {transcript_end_s:.0f} s; the audio is {audio_s:.0f} s"
+        tail = audio_s - transcript_end_s
+        if tail > _REDIARIZE_TAIL_MAX_S and tail > _REDIARIZE_TAIL_MAX_SHARE * audio_s:
+            return (
+                f"the audio runs {tail:.0f} s past the transcript's last speech ({audio_s:.0f} s)"
+            )
+    return None
+
+
+def _ingest_audio_bytes(txt_path: Path) -> Optional[int]:
+    """``original_bytes`` the episode's metadata recorded for the audio it was transcribed from."""
+    import json as _json
+
+    stem = txt_path.name[: -len(".txt")]
+    meta = txt_path.parent.parent / "metadata" / f"{stem}.metadata.json"
+    try:
+        doc = _json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    ledger = (doc.get("processing") or {}).get("stage_ledger") or {}
+    detail = (ledger.get("audio_preprocessing") or {}).get("detail") or {}
+    value = detail.get("original_bytes")
+    return int(value) if isinstance(value, int) and value > 0 else None
+
+
 def _rediarize_existing_transcript(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -4054,6 +4108,19 @@ def _rediarize_existing_transcript(
             "rediarize_only",
             error_type="NoSegments",
             detail="transcript has no segments to align",
+        )
+        return False, None, 0
+
+    mismatch = rediarize_audio_mismatch(
+        os.path.getsize(audio_path),
+        _ingest_audio_bytes(txt_path),
+        _duration_from_media_file(job),
+        max(float(s.get("end") or 0.0) for s in result["segments"]),
+    )
+    if mismatch:
+        logger.warning("[%s] rediarize_only: refused, %s", job.idx, mismatch)
+        _record_unresolved_transcript(
+            job, cfg, pipeline_metrics, "rediarize_only", error_type="AudioChanged", detail=mismatch
         )
         return False, None, 0
 
