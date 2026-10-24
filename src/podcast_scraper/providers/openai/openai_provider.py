@@ -742,6 +742,9 @@ class OpenAICompatibleProvider:
         # Speaker detection settings
         self.speaker_model = getattr(cfg, f"{ns}_speaker_model", "gpt-4o-mini")
         self.speaker_temperature = getattr(cfg, f"{ns}_temperature", 0.3)
+        _detection_t = getattr(cfg, "speaker_detection_temperature", None)
+        if isinstance(_detection_t, (int, float)) and not isinstance(_detection_t, bool):
+            self.speaker_temperature = float(_detection_t)
 
         # Summarization settings
         self.summary_model = getattr(cfg, f"{ns}_summary_model", "gpt-4o-mini")

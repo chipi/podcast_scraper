@@ -39,6 +39,9 @@ speaker_name_min_talk_share: 0.05
 ladder_rescue_rules: true
 transcript_naming: shadow
 voice_identity_rung: shadow
+# Metadata speaker detection at 0, not the provider's 0.3 (which also drives summaries): at 0.3 the
+# same episode gets a different candidate list run to run. The voice resolver already asks at 0.
+speaker_detection_temperature: 0.0
 
 summary_provider: vllm
 # #2342: the DGX is reached through the LiteLLM gateway (vllm_api_base, registry-governed),

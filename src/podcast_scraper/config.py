@@ -3730,6 +3730,19 @@ class Config(BaseModel):
             "detection, and pinning insights must not silently re-tune two other stages."
         ),
     )
+    speaker_detection_temperature: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=2.0,
+        alias="speaker_detection_temperature",
+        description=(
+            "Sampling temperature for metadata SPEAKER DETECTION specifically (the call that "
+            "proposes the episode's hosts and guests before the audio is heard). None falls back "
+            "to `<provider>_temperature` (0.3). The voice resolver already asks at 0.0; detection "
+            "at 0.3 lets the same episode get a different candidate list on each run. Kept apart "
+            "from `<provider>_temperature`, which also drives summarisation."
+        ),
+    )
     gi_insight_prompt_version: str = Field(
         default="v2",
         alias="gi_insight_prompt_version",

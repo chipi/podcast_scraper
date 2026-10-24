@@ -166,6 +166,29 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         self.assertEqual(detector.speaker_model, "gpt-4")
         self.assertEqual(detector.speaker_temperature, 0.5)
 
+    def test_speaker_detection_temperature_pins_detection_only(self):
+        """`speaker_detection_temperature` sets detection's temperature and leaves summaries'."""
+        from unittest.mock import MagicMock
+
+        from podcast_scraper import config
+
+        mock_cfg = MagicMock(spec=config.Config)
+        mock_cfg.speaker_detector_provider = "openai"
+        mock_cfg.openai_api_key = "sk-test123"
+        mock_cfg.openai_api_base = None
+        type(mock_cfg).openai_temperature = property(lambda self: 0.5)
+        type(mock_cfg).speaker_detection_temperature = property(lambda self: 0.0)
+        mock_cfg.__class__ = config.Config
+
+        detector = create_speaker_detector(mock_cfg)
+        self.assertEqual(detector.speaker_temperature, 0.0)
+        self.assertEqual(detector.summary_temperature, 0.5)
+
+    def test_speaker_detection_temperature_defaults_to_unset(self):
+        from podcast_scraper import config
+
+        self.assertIsNone(config.Config.model_fields["speaker_detection_temperature"].default)
+
     def test_initialize_success(self):
         """Test successful initialization."""
         detector = create_speaker_detector(self.cfg)
