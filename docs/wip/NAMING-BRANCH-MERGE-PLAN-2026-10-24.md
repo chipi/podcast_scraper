@@ -57,6 +57,26 @@ So "deploy only if better" is settled before the merge, not after it.
      downloaded audio is not the transcribed audio.
    - **The split-voice merge** (v49, on at 0.8 in the DGX profiles since v50) is part of what ships, so the
      table and the reviewer cover it.
+   - **Design, folded in by the operator on 2026-10-25** (one DGX block, shipped CLI, prod hold):
+     - **Three arms on the same episodes, in one block:** the deployed code, the deployed code
+       again, and the branch. The two deployed-code arms measure the noise floor (step 3 showed
+       the LLM's answers differ run to run on the same input); only branch-vs-deployed
+       differences beyond that floor count, each attributed from the decision trace.
+     - **Speaker detection pinned at temperature 0** in the profile copy (v47), so the candidate
+       lists do not move between arms.
+     - **Episodes:** val_v6, plus the episodes where v51-v53 can act (statement-only hosts:
+       217 on the snapshot; third-person-refused names E1d could take; floor-exemption cases),
+       plus a random sample where nothing should move.
+     - **Scored wrong names first;** a voice with no label row that a change names is judged by its
+       own words (the v417 shape) and reported.
+     - **The voice rung, as a promotion candidate,** scored from the shadow sidecars against the
+       ladder on the same arms: (a) publishing everywhere, (b) publishing only where the ladder
+       left a voice unnamed or the LLM resolution refused. Plus the error-spreading check: on
+       feeds with several episodes in the set, does a wrong history voice carry its name forward?
+       The operator decides promotion from that table.
+     - **Cost:** relabel ran at about 24 s per episode (step 3), so 3 arms x about 130 episodes is
+       about 2.5-3 h of DGX time. Batch-invariant serving on the DGX (a DGX decision) would make
+       the two deployed-code arms identical and the design cleaner.
 6. **Fresh independent reviewer:** reads the diff and the outcome table, and gives a verdict.
 7. **The operator's go, then merge #2393.**
 8. **Deploy:** a separate go, then the post-deploy checks.
