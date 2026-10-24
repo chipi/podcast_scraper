@@ -50,6 +50,23 @@ So "deploy only if better" is settled before the merge, not after it.
 7. **Deploy:** a separate go, then the post-deploy checks.
    - The 0034 / 0035 migrations are separate corpus changes under `CORPUS_CHANGE_METHOD.md`.
 
+## Loop status after follow-ups, round 1 (2026-10-24)
+
+Per work-list item (eval repo `NAMING-GATES-2026-10-22.md`), counted by the executor. Per-case
+detail is in the eval repo's DGX block plan.
+
+| # | Item | Status | Open |
+| --- | --- | --- | --- |
+| 1 | E1d + S30s rescues | 9 of 10 labelled fires right on held-out; the wrong one is S30s on a guest whose name is never stated | decision: keep S30s, drop it, or guard it |
+| 3 | Talk floor | Gate 1: 6 / 6 right. Gate 2: 15 / 20 right, 5 hosts' right names removed; a stated-host exemption would add 2 right and 2 wrong | decision: keep as is (recommended) |
+| 6 | LLM pass | better than the ladder on both gates; Gate 1 wrong 2.7% (budget 5%), unnamed 5.4% (criterion 2%); Gate 2 wrong 12.5% (criterion 10%) | decision: promotion scope |
+| 7 | All-agree | no measurable gain, a real cost | closed: passes = 1 |
+| 8 | Gate 2 | swap study done: the LLM fixes 58 of the ladder's swaps, adds 26, and names 21 voices the labels leave nameless | label check of the nameless hosts; voice rung needs a rediarize |
+| 2 | Voice rung | shadow safe; publish not measured on held-out | decision: a held-out rediarize run (DGX) |
+| 9 | Split-voice merge | 2 / 2 right; recall not measured | decision: a rediarize run on the split cases (DGX) |
+| 10 | Widening | no effect | closed; the flag stays off |
+| 11 | C1 rediarize | keeps the transcript; misleading log fixed; one diarization collapse from different audio input or configuration | decision: re-diarize the collapse case to separate them (DGX) |
+
 ## Not covered by step 1
 
 - **Prompt evidence:** the resolver prompt's own evidence line ("says this ABOUT them") still
