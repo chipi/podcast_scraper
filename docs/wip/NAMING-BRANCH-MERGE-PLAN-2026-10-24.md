@@ -67,6 +67,27 @@ detail is in the eval repo's DGX block plan.
 | 10 | Widening | on its own target population (run D) it publishes job titles and phrases as speakers; net worse | closed: removed (v41) |
 | 11 | C1 rediarize | keeps the transcript; misleading log fixed; y029's collapse is the publisher's file having changed (6.9 MB -> 9.2 MB) under an old transcript | open: decide a guard (refuse or flag when the downloaded audio differs from the transcribed one) |
 
+## Loop status, round 3 (2026-10-24 evening)
+
+Supersedes the table above where they differ. Per-case detail: the eval repo's DGX block plan,
+"Follow-ups, round 3".
+
+| # | Item | Status | Open |
+| --- | --- | --- | --- |
+| 1 | E1d + S30s rescues | as above (v40) | none |
+| 3 | Talk floor | as above (v40) | 2 co-hosts treated as guests: deferred to a later round (operator) |
+| 6 | LLM pass | Gate 2 wrong 14.4% on the corrected labels (was 12.5%) | stays in shadow (operator) |
+| 7 | All-agree | closed | none |
+| 8 | Gate 2 | the nameless-host label gaps are filled (eval `1019b1c`, 17 voices) | none |
+| 2 | Voice rung | run A (held-out rediarize) running; 135 of 136 measurable | read on val_v5 (val_v3 is no longer held-out) |
+| 9 | Split-voice merge | run B: 20 merges, none joining two labelled people; 17 of 48 split people on one voice at 0.8 | threshold: held-out check on run A's fingerprints, then the executor decides (operator) |
+| 10 | Widening | redone as typed steps (v42-v44): served effect not yet measured | step 3, a paired relabel after run A |
+| 11 | C1 rediarize | guard built (refuses when the downloaded audio is not the transcribed audio; duration fallback when no size was recorded) | none |
+| new | One name on two voices | v45: neither voice keeps it; resolver replay 30 names removed, nothing else; served on 6 faithful episodes: 3 wrong gone, 1 right gained, 0 right lost | served effect on the rest: step 3 |
+| new | Title words in every language | v46: fixed a v42 defect of mine (a test failing since v42) | none |
+| new | Speaker detection temperature | v47: detection can be pinned to 0 alone; both DGX profiles do | not measured on the DGX; the serving's batch-invariant mode is off (DGX decision) |
+| new | Host phrase about an event | v48: "a platform / initiative hosted by X" no longer adds a host; replay: exactly the 2 junk names removed | none |
+
 ## Not covered by step 1
 
 - **Prompt evidence:** the resolver prompt's own evidence line ("says this ABOUT them") still
@@ -74,9 +95,11 @@ detail is in the eval repo's DGX block plan.
   the prompt is an LLM-side change and needs a DGX measurement.
 - **The relabel-only shape:** why the snapshot's own runs of this show ended with the right served
   names while the relabel did not (a later rung put the host back there) is not traced.
-- **Other handle forms:** "find me at <name>", "follow me @<name>" were not searched for.
-- **The roster after the resolver:** the y007 / y008 replay stops at the resolver; the later
-  rungs were not replayed.
+- **Other handle forms:** searched 2026-10-24 (round 3): 51 handle phrases, 7 followed by a stated
+  name, 1 wrongly refuted (a speech-to-text misspelling of the host's name); left, a hidden name.
+- **The roster after the resolver:** replayed 2026-10-24 (round 3), the old side reproducing the
+  recorded run exactly: with the branch, both episodes' served names are right except one guest
+  left unnamed by the surname refusal.
 - **A false third-person refusal of a host:** on a two-voice show it can still move the host's
   name onto the guest, overriding a correct known-hosts baseline. Not seen on the snapshot.
 - **A rediarize with GI on:** that it rewrites the GI was read in the code, not run.
