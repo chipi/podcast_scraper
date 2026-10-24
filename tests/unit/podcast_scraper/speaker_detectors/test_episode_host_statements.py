@@ -32,6 +32,13 @@ def test_hosted_by_names_join_the_pool_beside_the_feeds_hosts() -> None:
         ("Hosted by philosopher Ada Wren Please do email us", ["Ada Wren"]),
         ("Hosted by Simplecast, an AdsWizz company.", []),  # one word: not a person's name
         ("Join Ada Wren for a walk.", []),  # the looser phrases are not host statements
+        # The subject of "hosted by" is an event or an organisation, not the episode (v48).
+        ("Live from the River Summit, a platform hosted by investor Tobias Holt.", []),
+        ("This initiative, backed by the Lane Fund, and hosted by Holt Partners, helps.", []),
+        ("Recorded at the Delta Conference, hosted by Mira Lane.", []),
+        # ...unless the show itself comes after it in the sentence.
+        ("Recorded at the Delta Conference, this episode is hosted by Mira Lane.", ["Mira Lane"]),
+        ("A summit recap. Hosted by Mira Lane.", ["Mira Lane"]),  # another sentence
     ],
 )
 def test_the_statements_read(description, expected) -> None:

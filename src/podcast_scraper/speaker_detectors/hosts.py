@@ -2430,6 +2430,8 @@ def hosts_stated_in_episode_text(
     out: List[str] = []
     for pattern in _HOST_PHRASES_BY_LANGUAGE[TARGET_LANGUAGE][:3]:
         for match in pattern.finditer(text):
+            if _hosts_something_else(text[: match.start()], TARGET_LANGUAGE):
+                continue
             for name in re.split(r"\s*(?:,|\band\b|&)\s*", match.group("names")):
                 toks = name.split()
                 # A missing full stop runs the next sentence's first word into the name:
@@ -2440,6 +2442,18 @@ def hosts_stated_in_episode_text(
                 if len(toks) >= 2 and name not in out:
                     out.append(name)
     return out
+
+
+def _hosts_something_else(before: str, language: str) -> bool:
+    """True when the sentence leading up to a host phrase makes an event or an organisation its
+    subject ("Live from the BIG Summit, a platform hosted by …") and names no show word after it
+    ("…, this episode is hosted by …" keeps it). Ladder doc v48."""
+    sentence = re.split(r"[.!?]\s+", before)[-1].lower()
+    words = re.findall(r"[^\W\d_]+", sentence)
+    things = naming_vocabulary.HOSTED_THING_WORDS.get(language, frozenset())
+    shows = naming_vocabulary.HOSTED_SHOW_WORDS.get(language, frozenset())
+    last_thing = max((i for i, w in enumerate(words) if w in things), default=-1)
+    return last_thing >= 0 and not any(w in shows for w in words[last_thing + 1 :])
 
 
 #: Imperatives a show note opens a sentence with; never the last word of a presenter's name.

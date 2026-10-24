@@ -3683,6 +3683,59 @@ PLACE_PREPOSITION: Dict[str, str] = {
     "pt": r"(?:Em|No|Na|De|Desde|Dentro\s+de)\s+",
 }
 
+#: Words that make the subject of an episode's "hosted by X" something other than the episode:
+#: an event or an organisation ("Live from the BIG Summit, a platform hosted by …", "This
+#: initiative, … and hosted by Briter Bridges"). Read in the same sentence, before the phrase.
+HOSTED_THING_WORDS: Dict[str, FrozenSet[str]] = {
+    "en": frozenset(
+        {
+            "summit",
+            "conference",
+            "platform",
+            "initiative",
+            "event",
+            "webinar",
+            "forum",
+            "festival",
+            "competition",
+            "hackathon",
+            "gala",
+            "awards",
+            "programme",
+            "accelerator",
+            "fund",
+            "foundation",
+            "institute",
+        }
+    ),
+    "es": frozenset(
+        {"cumbre", "conferencia", "plataforma", "iniciativa", "evento", "foro", "festival"}
+    ),
+    "it": frozenset(
+        {"vertice", "conferenza", "piattaforma", "iniziativa", "evento", "forum", "festival"}
+    ),
+    "fr": frozenset(
+        {"sommet", "conférence", "plateforme", "initiative", "événement", "forum", "festival"}
+    ),
+    "de": frozenset(
+        {"gipfel", "konferenz", "plattform", "initiative", "veranstaltung", "forum", "festival"}
+    ),
+    "pt": frozenset(
+        {"cúpula", "conferência", "plataforma", "iniciativa", "evento", "fórum", "festival"}
+    ),
+}
+
+#: ...unless the show itself is named after that word ("Recorded at the X Summit, this episode
+#: is hosted by …"): the host phrase then belongs to the episode again.
+HOSTED_SHOW_WORDS: Dict[str, FrozenSet[str]] = {
+    "en": frozenset({"episode", "show", "podcast", "series", "edition", "conversation"}),
+    "es": frozenset({"episodio", "programa", "podcast", "serie", "edición", "conversación"}),
+    "it": frozenset({"episodio", "puntata", "podcast", "serie", "edizione", "conversazione"}),
+    "fr": frozenset({"épisode", "émission", "podcast", "série", "édition", "conversation"}),
+    "de": frozenset({"folge", "episode", "sendung", "podcast", "serie", "ausgabe", "gespräch"}),
+    "pt": frozenset({"episódio", "programa", "podcast", "série", "edição", "conversa"}),
+}
+
 #: The conjunction joining two names in a list ("Alexandra Karppi, and Nina Panikova"). The
 #: ampersand and comma are punctuation and stay in `hosts.py`; only the WORD lives here.
 NAME_LIST_CONJUNCTION: Dict[str, str] = {
