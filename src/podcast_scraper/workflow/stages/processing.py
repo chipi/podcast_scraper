@@ -1008,6 +1008,10 @@ def hosts_for_episode(
 
     forced = override_hosts(episode)
     if forced is not None:
+        try:
+            episode.unbindable_hosts = []
+        except AttributeError:
+            pass
         return set(forced)
     hosts = set(result.cached_hosts or ())
     fallback = set(getattr(result, "episode_author_hosts", frozenset()) or ())
@@ -1043,18 +1047,33 @@ def hosts_for_episode(
             ]
         except (AttributeError, TypeError):
             stated_hosts = []
-    return set(
-        compose_episode_hosts(
+
+    def compose(with_statements: bool) -> List[str]:
+        return compose_episode_hosts(
             sorted(hosts - fallback),
             sorted(own),
             episode_title=getattr(episode, "title", None),
             episode_description=extract_episode_description(item) if item is not None else None,
             feed_title=result.feed_title,
-            more=stated_hosts,
+            more=stated_hosts if with_statements else (),
             episode_people=list(episode_people or ()),
             language=getattr(result, "language", None),
+            read_statements=with_statements,
         )
-    )
+
+    pool = compose(True)
+    # v51: a host the pool has ONLY from this episode's own statement (v43) or podcast:person (v44)
+    # anchors the seat, the guard and the spelling, but is not a name the resolver's LLM may bind:
+    # in step 3 of the 2026-10-24 DGX block its one served effect through the LLM was a wrong name.
+    base = compose(False)
+    from ...providers.ml.diarization.roster import _same_person_on_one_episode
+
+    unbindable = [n for n in pool if not any(_same_person_on_one_episode(n, b) for b in base)]
+    try:
+        episode.unbindable_hosts = unbindable
+    except AttributeError:
+        pass
+    return set(pool)
 
 
 def _fallback_to_episode_authors(

@@ -2364,6 +2364,7 @@ def compose_episode_hosts(
     more: Iterable[str] = (),
     episode_people: Iterable[str] = (),
     language: Optional[str] = TARGET_LANGUAGE,
+    read_statements: bool = True,
 ) -> List[str]:
     """The host pool of ONE episode, as a list the roster may paint names from.
 
@@ -2412,7 +2413,13 @@ def compose_episode_hosts(
     # labelled voice (credited hosts, or hosts the labels leave nameless).
     # Additive only: the byline rule below still reads the cue hosts alone, so a feed that names
     # nobody keeps its byline hosts exactly as before.
-    stated = people(hosts_stated_in_episode_text(episode_title, episode_description))
+    # ``read_statements=False`` composes the pool without them, so a caller can tell which names
+    # the pool gains ONLY from this episode's own statement (v51).
+    stated = (
+        people(hosts_stated_in_episode_text(episode_title, episode_description))
+        if read_statements
+        else []
+    )
     pool = _merge_people(feed_people, people(more), described, stated)
     if not described:
         pool = _merge_people(pool, people(episode_authors))

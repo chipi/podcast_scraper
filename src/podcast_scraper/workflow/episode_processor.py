@@ -3703,6 +3703,7 @@ def _relabel_existing_transcript(
         precomputed_diarization=diar,
         stated_voice_names=_stated_relabel or None,
         feed_hosts=feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
         # ADR-137 — title + description feed the LLM's host/guest role determination and gate
         # role-only resolution. FULL passes both; relabel_only omitting them resolved on a strictly
         # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
@@ -3856,6 +3857,7 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
         detected_speaker_names=job.detected_speaker_names,
         metadata_named=job.metadata_named,
         feed_hosts=job.feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
         detection_ran=getattr(job, "speaker_detection_ran", None),
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),
@@ -3882,6 +3884,7 @@ def _roster_native_segments(
     detected_speaker_names: Optional[List[str]] = None,
     metadata_named: Optional[List[str]] = None,
     feed_hosts: Optional[List[str]] = None,
+    unbindable_hosts: Optional[List[str]] = None,
     detection_ran: Optional[bool] = None,
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
@@ -3965,6 +3968,7 @@ def _roster_native_segments(
             precomputed_diarization=diar,
             stated_voice_names=stated_voice_names or None,
             feed_hosts=feed_hosts,
+            unbindable_hosts=unbindable_hosts,
             detection_ran=detection_ran,
             episode_title=episode_title,
             episode_description=episode_description,
@@ -4139,6 +4143,7 @@ def _rediarize_existing_transcript(
         job.detected_speaker_names,
         metadata_named=job.metadata_named,
         feed_hosts=feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
         # ADR-137: the naming step reads the same title and description as on a full run.
         episode_title=job.ep_title,
         episode_description=getattr(job.episode, "description", None),
@@ -5186,6 +5191,7 @@ def _maybe_speech_coverage_failover(
         metadata_named=job.metadata_named,
         cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
         feed_hosts=job.feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),
     )
@@ -5481,6 +5487,9 @@ def transcribe_media_to_text(
                     metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                     feed_hosts=job.feed_hosts,
+                    unbindable_hosts=getattr(
+                        getattr(job, "episode", None), "unbindable_hosts", None
+                    ),
                     # ADR-137 — title + description feed the LLM's host/guest role determination.
                     episode_title=job.ep_title,
                     episode_description=getattr(job.episode, "description", None),
@@ -6575,6 +6584,7 @@ def process_transcript_download(
                 detected_speaker_names=detected_speaker_names,
                 metadata_named=metadata_named,
                 feed_hosts=feed_hosts,
+                unbindable_hosts=getattr(episode, "unbindable_hosts", None),
                 detection_ran=speaker_detection_ran,
                 episode_title=getattr(episode, "title", None),
                 episode_description=getattr(episode, "description", None),

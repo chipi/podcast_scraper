@@ -1049,6 +1049,34 @@ def _apply_speaker_renames(roster: Any, renames: Optional[Mapping[str, str]]) ->
     return dataclasses.replace(roster, by_voice=by_voice)
 
 
+def resolution_candidates(
+    *,
+    metadata_named: Sequence[str],
+    guests: Sequence[str],
+    known_hosts: Sequence[str],
+    unbindable_hosts: Sequence[str] = (),
+) -> List[str]:
+    """The closed list of names the resolver's LLM may bind to a voice.
+
+    A host in ``unbindable_hosts`` (the pool has them only from this episode's own statement, v51)
+    is left out unless metadata detection or the guest list names the person too; it stays in
+    ``known_hosts`` for the seat, the stated-host guard and the spelling.
+    """
+    from .roster import _same_person_on_one_episode as same
+
+    others = [*metadata_named, *guests]
+
+    def unbindable(name: str) -> bool:
+        return any(same(name, u) for u in unbindable_hosts) and not any(
+            same(name, o) for o in others
+        )
+
+    hosts = [h for h in known_hosts if not unbindable(h)]
+    return one_entry_per_person(
+        filter_default_speaker_names(list(dict.fromkeys([*others, *hosts])))
+    )
+
+
 def voice_embeddings_block(diarization: Any) -> Optional[Dict[str, Any]]:
     """The sidecar's ``voice_embeddings``: one vector per diarized voice, keyed like ``voices``.
 
@@ -1080,6 +1108,7 @@ def apply_diarization_to_result(
     precomputed_diarization: Optional[DiarizationResult] = None,
     stated_voice_names: Optional[Mapping[str, str]] = None,
     feed_hosts: Optional[List[str]] = None,
+    unbindable_hosts: Optional[List[str]] = None,
     bypass_cache_read: bool = False,
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
@@ -1245,10 +1274,11 @@ def apply_diarization_to_result(
     # list that decides what a voice is allowed to be called. A placeholder in here is not a
     # harmless no-op — the resolver matched `Host` onto 59 production episodes' voices from exactly
     # this list, because a name in the closed list is by construction a name it may bind.
-    candidates = one_entry_per_person(
-        filter_default_speaker_names(
-            list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
-        )
+    candidates = resolution_candidates(
+        metadata_named=metadata_named or (),
+        guests=guests,
+        known_hosts=known_hosts,
+        unbindable_hosts=unbindable_hosts or (),
     )
     ad_intervals = _ad_intervals(segments)
     recurring_text = _feed_recurring_text(cfg)
