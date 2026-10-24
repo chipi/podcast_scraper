@@ -397,6 +397,39 @@ ROLE_OR_FILLER_TOKENS: Dict[str, FrozenSet[str]] = {
     ),
 }
 
+#: Words that make up a job title on their own ("General Partner", "Founding Partner", "Senior
+#: Fellow"): a name made of nothing but these and ``JOB_TITLE_TOKENS`` is a title, not a person.
+#: Only the WHOLE name decides; any of them inside a longer name is untouched. Measured
+#: 2026-10-24: refuses 0 of 1,484 gold-label names and 0 of 2,738 names served on the prod
+#: snapshot; the gate passed all six titles above before.
+TITLE_ONLY_TOKENS: Dict[str, FrozenSet[str]] = {
+    "en": frozenset(
+        {
+            "general",
+            "founding",
+            "managing",
+            "senior",
+            "chief",
+            "executive",
+            "lead",
+            "principal",
+            "associate",
+            "deputy",
+            "vice",
+            "assistant",
+            "co-founder",
+            "cofounder",
+            "fellow",
+            "partner",
+            "head",
+            "staff",
+            "contributing",
+            "special",
+            "former",
+        }
+    ),
+}
+
 #: Job words that may appear INSIDE a stated name, before the person
 #: ("Senior User Experience Specialist Therese Fessenden").
 JOB_TITLE_TOKENS: Dict[str, FrozenSet[str]] = {

@@ -1922,6 +1922,12 @@ def is_publishable_speaker_name(
     # longer name they are real surnames and given names: Christopher Guest, Ok Taecyeon.
     if lowered and all(t in role_filler for t in lowered):
         return False
+    # A job title on its own is not a person, at any length: "General Partner" and "Founding
+    # Partner" were published as speakers (the DGX block, 2026-10-23), and the job-title check
+    # below starts at three words. Only a name made of nothing else is refused.
+    title_only = _reject_vocab("title_only_tokens", language) | job_titles
+    if lowered and all(t in title_only for t in lowered):
+        return False
     if len(toks) >= 2:
         if lowered[-1] in org_tail or any(t.endswith(("'s", "’s")) for t in toks):
             return False
@@ -2088,6 +2094,7 @@ _NAMING_VOCABULARY_MAPS: Dict[str, Dict[str, Any]] = {
     "leading_role_words": _LEADING_ROLE_WORDS_BY_LANGUAGE,
     "show_tail_words": _SHOW_TAIL_WORDS_BY_LANGUAGE,
     "job_title_tokens": _JOB_TITLE_TOKENS_BY_LANGUAGE,
+    "title_only_tokens": naming_vocabulary.TITLE_ONLY_TOKENS,
     "trailing_job_tokens": _TRAILING_JOB_TOKENS_BY_LANGUAGE,
     "number_words": _NUMBER_WORDS_BY_LANGUAGE,
     "role_or_filler_tokens": _ROLE_OR_FILLER_TOKENS_BY_LANGUAGE,
