@@ -43,11 +43,23 @@ So "deploy only if better" is settled before the merge, not after it.
    - watch CI to green.
 3. **Ship the eval repo:** secrets scan; with the operator's go, push and merge to master (the
    scorer's voice map, the S7 readings, the DGX block plan).
-4. **Release gate on a prod-snapshot clone:** a before/after outcome table of what the deploy
-   changes on served names, with S7 (insight-weighted) beside the per-voice score.
-5. **Fresh independent reviewer:** reads the diff and the outcome table, and gives a verdict.
-6. **The operator's go, then merge #2393.**
-7. **Deploy:** a separate go, then the post-deploy checks.
+4. **A fresh held-out set (val_v6), added 2026-10-24 after run A:** val_v3 was read while building
+   the episode host statements, and val_v5 was used to choose the split-voice threshold (run A's
+   fingerprints). The release score needs labelled episodes nobody has looked at: picked, labelled
+   blind, and not opened until step 5 scores them.
+5. **Release gate on a prod-snapshot clone:** a before/after outcome table of what the deploy
+   changes on served names, with S7 (insight-weighted) beside the per-voice score, on val_v6.
+   - **Relabel, not rediarize:** run A rediarized from the publisher's current files (this corpus
+     has no audio archive); on the episodes whose audio had changed since ingest, wrong or
+     non-participant names went 22 -> 89 (unchanged audio: 17 -> 12). A rediarize in the gate
+     uses archived audio only, or it measures the audio, not the code.
+   - **The rediarize audio guard** (`73d93a40a`) is checked there: it refuses an episode whose
+     downloaded audio is not the transcribed audio.
+   - **The split-voice merge** (v49, on at 0.7 in the DGX profiles) is part of what ships, so the
+     table and the reviewer cover it.
+6. **Fresh independent reviewer:** reads the diff and the outcome table, and gives a verdict.
+7. **The operator's go, then merge #2393.**
+8. **Deploy:** a separate go, then the post-deploy checks.
    - The 0034 / 0035 migrations are separate corpus changes under `CORPUS_CHANGE_METHOD.md`.
 
 ## Loop status after follow-ups, round 1 (2026-10-24)
@@ -79,10 +91,10 @@ Supersedes the table above where they differ. Per-case detail: the eval repo's D
 | 6 | LLM pass | Gate 2 wrong 14.4% on the corrected labels (was 12.5%) | stays in shadow (operator) |
 | 7 | All-agree | closed | none |
 | 8 | Gate 2 | the nameless-host label gaps are filled (eval `1019b1c`, 17 voices) | none |
-| 2 | Voice rung | run A (held-out rediarize) running; 135 of 136 measurable | read on val_v5 (val_v3 is no longer held-out) |
-| 9 | Split-voice merge | run B: 20 merges, none joining two labelled people; 17 of 48 split people on one voice at 0.8 | threshold: held-out check on run A's fingerprints, then the executor decides (operator) |
+| 2 | Voice rung | run A, val_v5 with unchanged audio (28 episodes, 74 voices): right 45, wrong 0 (ladder 41 / 2, LLM 44 / 2); on 60 named host voices it fixes 10 and breaks 0 | stays in shadow; promotion on more data. Its reach on old episodes is limited: fingerprints need a fresh diarization, safe only from archived audio, and how many prod episodes have archived audio is not known here (prod to report) |
+| 9 | Split-voice merge | run B as above; held-out (run A): 181 different-person pairs, max 0.598 | done (v49): on at 0.7 in the DGX profiles |
 | 10 | Widening | redone as typed steps (v42-v44): served effect not yet measured | step 3, a paired relabel after run A |
-| 11 | C1 rediarize | guard built (refuses when the downloaded audio is not the transcribed audio; duration fallback when no size was recorded) | none |
+| 11 | C1 rediarize | guard built (refuses when the downloaded audio is not the transcribed audio; duration fallback when no size was recorded); run A, without it, shows the harm: changed audio 22 -> 89 bad names | must ship; checked in the release gate |
 | new | One name on two voices | v45: neither voice keeps it; resolver replay 30 names removed, nothing else; served on 6 faithful episodes: 3 wrong gone, 1 right gained, 0 right lost | served effect on the rest: step 3 |
 | new | Title words in every language | v46: fixed a v42 defect of mine (a test failing since v42) | none |
 | new | Speaker detection temperature | v47: detection can be pinned to 0 alone; both DGX profiles do | not measured on the DGX; the serving's batch-invariant mode is off (DGX decision) |
