@@ -46,6 +46,11 @@ _INTRO = (
 )
 
 
+#: Between the cue and the name, at most an honorific, or "at" for a host's own handle ("I'm at
+#: <name>", v39).
+_HONORIFIC = r"(?:(?:dr|doctor|professor|prof|mr|mrs|ms|miss|sir|dame|rev|reverend)\.?\s+|at\s+@?)?"
+
+
 def _lower(s: Optional[str]) -> str:
     return (s or "").strip().lower()
 
@@ -58,7 +63,10 @@ def introduced(name: str, voice: str, turns: Sequence[Tuple[str, str]]) -> Tuple
     pat = "(?:" + "|".join(toks) + ")"
     own = " ".join(t for v, t in turns if v == voice).lower()
     others = " ".join(t for v, t in turns if v != voice).lower()
-    selfintro = bool(re.search(rf"\b(?:i'm|i am|my name is)\s+(?:\w+\s+){{0,2}}{pat}\b", own))
+    # The name follows the cue directly, an honorific at most between (v52): the earlier
+    # "(?:\w+\s+){0,2}" read "so I'm hoping that <guest>'s going to ..." as the guest introducing
+    # themself (step 3 of the 2026-10-24 DGX block, x046).
+    selfintro = bool(re.search(rf"\b(?:i'm|i am|my name is)\s+{_HONORIFIC}{pat}\b", own))
     intro = bool(re.search(_INTRO + pat + r"\b", others))
     return selfintro, intro
 
@@ -82,6 +90,10 @@ def rescue_introduced(
             continue
         selfintro, intro = introduced(name, voice, turns)
         if not (selfintro or intro):
+            continue
+        # A name the model gave as a guest's never goes onto the voice the ladder seated as host
+        # (v52): the host's own talk mentions the guest, which is how x046's guest name landed.
+        if v.get("role") == "guest" and cur.role == "host":
             continue
         role = v.get("role") if v.get("role") in ("host", "guest") else cur.role
         by_voice[voice] = dataclasses.replace(

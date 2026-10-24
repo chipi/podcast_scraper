@@ -2,10 +2,10 @@
 
 | | |
 | --- | --- |
-| Doc version | 51 |
+| Doc version | 52 |
 | Last updated | 2026-10-24 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45), title-only words in every language (v46), speaker detection at temperature 0 (v47), a host phrase whose subject is an event (v48), split-voice merge on (v49), its threshold back to 0.8 (v50), stated hosts not LLM-bindable (v51) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45), title-only words in every language (v46), speaker detection at temperature 0 (v47), a host phrase whose subject is an event (v48), split-voice merge on (v49), its threshold back to 0.8 (v50), stated hosts not LLM-bindable (v51), E1d self-introduction and host seat (v52) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
 | Code content hash | `562c007357a5` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
@@ -26,6 +26,20 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v52, 2026-10-25.** The E1d rescue (`ladder_rescues.introduced`, `rescue_introduced`):
+  - a self-introduction is "I'm" / "I am" / "my name is" followed by the name directly, an
+    honorific (Dr., Professor, Mr., ...) or "at" (a handle, "I'm at <name>") at most between; it
+    was any two words, so "so I'm hoping that <guest>'s going to take on ..." and "today, I'm
+    chatting with <guest>" read as the guest introducing themself;
+  - a name the model gave as a guest's never goes onto the voice the ladder seated as host.
+  - Found by the independent advisor in step 3 of the 2026-10-24 DGX block (x046).
+  - Replay, `dc050caac` vs new, over every stored third-person-refused name on an unnamed or
+    E1d-named voice in the R1-GI, R5, D, B, A and step 3 copies (54 cases, 6 recorded fires): 3
+    changes, all firings stopped: x046 and z267 (guest names on the host; wrong), x033 (a guest
+    name on the host's seat; the episode's audio changed, so the scorer's "right" there is a
+    mixed voice). The other 4 recorded fires (all right) are unchanged; with the handle form kept,
+    no right name is lost. 3 mutants killed (old filler, no host-seat guard, no handle form).
 
 - **v51, 2026-10-25.** A host the episode's pool has ONLY from the episode's own statement (v43)
   or `<podcast:person role="host">` (v44) stays in `known_hosts` (the seat, the stated-host guard,

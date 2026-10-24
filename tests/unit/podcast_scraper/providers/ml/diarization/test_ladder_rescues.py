@@ -42,6 +42,9 @@ def _refused(voice: str, name: str, role: str = "guest") -> Dict[str, Any]:
     "turns, cue",
     [
         ([("SPEAKER_01", "Hi, I'm Maria Lindqvist and I farm.")], "self_intro"),
+        ([("SPEAKER_01", "Hello, I'm Dr. Lindqvist from the farm.")], "self_intro"),
+        ([("SPEAKER_01", "My name is Maria and I farm.")], "self_intro"),
+        ([("SPEAKER_01", "On the socials I'm at Maria Lindqvist.")], "self_intro"),  # a handle
         (
             [("SPEAKER_00", "Welcome Maria Lindqvist to the show."), ("SPEAKER_01", "Hi.")],
             "introduced",
@@ -80,6 +83,17 @@ def test_e1d_puts_an_introduced_refused_name_back(turns: List[Tuple[str, str]], 
         (
             "the voice is already named",
             _roster(SPEAKER_00=("Tobias Wren", "host"), SPEAKER_01=("Ann Lee", "guest")),
+            [("SPEAKER_01", "I'm Maria Lindqvist.")],
+        ),
+        (
+            # v52: step 3, x046 — the host said "so I'm hoping that <guest>'s going to ...".
+            "words between 'I'm' and the name are not an introduction",
+            _roster(SPEAKER_00=("Tobias Wren", "guest"), SPEAKER_01=(None, "guest")),
+            [("SPEAKER_01", "So I'm hoping that Maria's going to take on the hard part.")],
+        ),
+        (
+            "a guest's name never goes onto the voice the ladder seated as host",
+            _roster(SPEAKER_00=("Tobias Wren", "guest"), SPEAKER_01=(None, "host")),
             [("SPEAKER_01", "I'm Maria Lindqvist.")],
         ),
     ],
