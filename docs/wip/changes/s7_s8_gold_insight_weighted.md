@@ -165,6 +165,63 @@ _TODO_
 
 _TODO_
 
+## Extension 2026-10-24: S7 on an eval run's output (`--voice-map`)
+
+**Why:** the labels name the labelled run's voice ids and metadata path. An eval run writes a new
+run directory, and a rediarize renumbers the voices, so a lookup by the after voice id can name
+the wrong person. The first R1-GI S7 (`s7_r1gi_v4.json`, no map) read 390 wrong on 21 cases,
+against 122 on the same cases at baseline. Two of those 21 cases (y041 and y042) are in the after
+copy but not in the run's index; the map leaves them out, so the mapped R1-GI reading has 19 cases.
+
+**What changed:**
+
+- The eval scorer (`podcast-scraper-eval-data` `scripts/eval/naming/score.py`) also writes
+  `<rows>.voicemap.json`. Per case it holds the after metadata path and the after voice of EVERY
+  labelled voice; the rows cover scored labels only.
+- `gold_insights.py --voice-map` does four things:
+  - follows each case to its after path;
+  - re-keys the labels to the after voices;
+  - refuses a map made for another corpus;
+  - skips and names cases the map does not cover.
+- **Merged voices:** labels that disagree on one after voice put its insights in
+  `voice_map_ambiguous` (y029's collapse: 6 labels on one voice). Labels that agree count as one
+  person the labelled run split (y018 and y020, one host labelled twice) and are applied; they are
+  listed under `labelled_voices_merged_same_label`.
+- Without `--voice-map` the report is the same as before, apart from the new bucket's zero counts.
+  `s7_base_v4` was re-run and its rows are identical.
+
+**Tests:** 9 new scenario tests. 7 mutants, all killed: no re-key, never ambiguous, always
+ambiguous, agreement ignoring scored-ness, no ambiguous bucket, no after path, no corpus guard.
+
+**First readings** (val_v4, against the baseline on the same cases; the GI reran, so insight
+counts differ and the comparison is by bucket, not per insight):
+
+| run | cases | insights b / a | correct b / a | wrong b / a | unnamed b / a | ambiguous |
+| --- | --- | --- | --- | --- | --- | --- |
+| R1-GI | 19 | 971 / 1,099 | 620 / 915 | 122 / 171 | 223 / 5 | 0 |
+| R4 | 20 | 1,023 / 1,161 | 671 / 929 | 122 / 175 | 223 / 5 | 35 |
+| R5 | 20 | 1,023 / 1,161 | 671 / 929 | 122 / 175 | 223 / 5 | 35 |
+
+**Where the wrong insights moved** (R1-GI; R4 adds 4 in y017, a host / guest swap):
+
+- **Fixed:** y002 (the guest's 39 insights, named as another person before).
+- **New wrong:** y007 (35) and y008 (52). Both are the guest's voice served as the host's name
+  by `llm_resolution` after the relabel. Names per case: the eval repo's DGX block plan.
+- **Unchanged:** the y019 swap (84).
+
+S7 here measures the SERVED names (the ladder). The shadow namers' names are not on the insights.
+
+**Not covered:**
+
+- shadow namers' S7 (it needs their names swapped onto the insights);
+- R1 and R2: their after-states were overwritten;
+- R3: its after-state was recorded as copied to `R3_after`, which is no longer in scratch, and
+  when it went is not known;
+- R6: its 162 cases may still be in the run copy, but that was not checked or measured;
+- held-out sets;
+- the matcher limits above, which still apply;
+- per-insight before/after, impossible because the GI reran.
+
 ## Not covered
 
 _TODO_

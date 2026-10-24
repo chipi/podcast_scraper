@@ -21,6 +21,14 @@ because the token-subset rule counts a bare "Josh" as "Josh Elman", and ASR spel
 Dossi" / "Josh Dawsey") count as wrong. Conservation by insight id is asserted: every insight of
 an included case lands in exactly one bucket. Read-only. Criteria:
 ``docs/wip/changes/s7_s8_gold_insight_weighted.acceptance.md``.
+
+On an eval run's output (a relabel or a rediarize renumbers the voices and writes a new run), the
+labels' voice ids are the labelled run's, so a lookup by the after voice id names the wrong person.
+``voice_maps`` (the eval scorer's ``<rows>.voicemap.json``: per case the after run's metadata path
+and every labelled-run voice's after voice) follows each case to its after run and re-keys the
+labels. Two labelled voices on one after voice whose labels differ is ``voice_map_ambiguous``: its
+insights belong to neither label alone; labels that agree (one person the labelled run split) apply.
+A case the map does not cover is skipped and named.
 """
 
 from __future__ import annotations
@@ -41,6 +49,7 @@ BUCKETS = (
     "S7_correct",
     "S7_wrong",
     "S7_unnamed",
+    "voice_map_ambiguous",
 )
 _RAW = re.compile(r"^SPEAKER(_\d+)?$")
 _LABELS = re.compile(r"^labels_v(\d+)$")
@@ -148,8 +157,56 @@ def place(
     return "outside_segments", None, None
 
 
+def load_voice_maps(path: Path) -> Dict[str, Any]:
+    """The eval scorer's voice-map file: ``{"after": <corpus root>, "cases": {case id: {...}}}``."""
+    data = _load(Path(path))
+    if not isinstance(data, dict) or not isinstance(data.get("cases"), dict):
+        raise SystemExit(f"{path}: not a voice-map file (no 'cases')")
+    return data
+
+
+def relabel(label: Dict[str, Any], vmap: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """The label keyed by the after run's voices, and what the re-keying could not carry: label
+    voices the map lacks (``unmapped``) and after voices two labels map to (``ambiguous``)."""
+    m = vmap.get("map") or {}
+    by_after: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    unmapped: List[str] = []
+    for v in label.get("voices") or []:
+        if not isinstance(v, dict):
+            continue
+        hit = m.get(str(v.get("voice")))
+        if not hit or not hit[0]:
+            unmapped.append(str(v.get("voice")))
+            continue
+        by_after[str(hit[0])].append(
+            dict(v, voice=str(hit[0]), voice_before=str(v.get("voice")), map_share=hit[1])
+        )
+    voices: List[Dict[str, Any]] = []
+    ambiguous: Dict[str, List[str]] = {}
+    merged: Dict[str, List[str]] = {}
+    for a, vs in by_after.items():
+        # one person split in two by the labelled run's diarization and merged by the after run
+        # (a solo host labelled twice): every label says the same thing, so it applies
+        same = {
+            (str(x.get("name") or "").strip().lower(), str(x.get("role") or ""), is_scored(x))
+            for x in vs
+        }
+        if len(vs) > 1 and len(same) > 1:
+            ambiguous[a] = sorted(x["voice_before"] for x in vs)
+            continue
+        if len(vs) > 1:
+            merged[a] = sorted(x["voice_before"] for x in vs)
+        voices.append(dict(vs[0], voice_before="+".join(sorted(x["voice_before"] for x in vs))))
+    lost = {"unmapped": sorted(unmapped), "ambiguous": ambiguous, "merged_same_label": merged}
+    return dict(label, voices=voices), lost
+
+
 def score_case(
-    case: Dict[str, Any], label: Dict[str, Any], root: Path, texts: _Texts
+    case: Dict[str, Any],
+    label: Dict[str, Any],
+    root: Path,
+    texts: _Texts,
+    ambiguous: Optional[Dict[str, List[str]]] = None,
 ) -> Iterable[Dict[str, Any]]:
     """One row per Insight node of the served case."""
     meta_path = root / case["meta_relpath"]
@@ -202,7 +259,13 @@ def score_case(
             row.update(bucket="quote_not_placeable", reason=reason)
             yield row
             continue
+        if ambiguous and str(voice) in ambiguous:
+            row.update(bucket="voice_map_ambiguous", reason="+".join(ambiguous[str(voice)]))
+            yield row
+            continue
         lab = labels.get(str(voice))
+        if lab is not None and "voice_before" in lab:
+            row.update(voice_before=lab["voice_before"], map_share=lab.get("map_share"))
         if lab is None:
             row["bucket"] = "voice_not_labelled"
             yield row
@@ -231,12 +294,21 @@ def score_case(
 
 
 def run(
-    root: Path, gold: Path, sets: List[str], snapshot: str, labels: Optional[Dict[str, str]] = None
+    root: Path,
+    gold: Path,
+    sets: List[str],
+    snapshot: str,
+    labels: Optional[Dict[str, str]] = None,
+    voice_maps: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """The S7/S8 report over the given gold sets on ``root``. Asserts conservation."""
     from ..upgrade.corpus_selection import select_served_artifacts
 
     root = Path(root)
+    if voice_maps is not None and Path(str(voice_maps.get("after"))).resolve() != root.resolve():
+        raise SystemExit(
+            f"the voice map was made for {voice_maps.get('after')}, not {root}: voice ids differ"
+        )
     served_list = sorted(
         str(m.relative_to(root)) for m in select_served_artifacts(root, ".metadata.json")[0]
     )
@@ -260,6 +332,13 @@ def run(
         ),
         "sets": {},
     }
+    if voice_maps is not None:
+        report["voice_map"] = {
+            "after": voice_maps.get("after"),
+            "before": voice_maps.get("before"),
+            "cases": len(voice_maps["cases"]),
+            "sha256": hashlib.sha256(json.dumps(voice_maps, sort_keys=True).encode()).hexdigest(),
+        }
     rows_out: List[Dict[str, Any]] = []
     for gset in sets:
         gdir = gold / gset
@@ -268,10 +347,22 @@ def run(
             raise SystemExit(f"{gset}: no label directory")
         files_h = hashlib.sha256()
         skipped, included, no_label, misses, gi_missing = [], 0, 0, 0, 0
+        no_map: List[str] = []
+        unmapped: Dict[str, List[str]] = {}
+        merged: Dict[str, Dict[str, List[str]]] = {}
+        same_label: Dict[str, Dict[str, List[str]]] = {}
         rows: List[Dict[str, Any]] = []
+        relpaths: Dict[str, str] = {}
         for cf in sorted((gdir / "cases").glob("*.json")):
             case = json.loads(cf.read_text(encoding="utf-8"))
             files_h.update(cf.read_bytes())
+            vmap = None
+            if voice_maps is not None:
+                vmap = voice_maps["cases"].get(str(case.get("case_id")))
+                if vmap is None:
+                    no_map.append(str(case.get("case_id")))
+                    continue
+                case = dict(case, meta_relpath=vmap.get("after_relpath") or case["meta_relpath"])
             if case.get("meta_relpath") not in served:
                 skipped.append(case.get("case_id"))
                 continue
@@ -281,10 +372,21 @@ def run(
                 continue
             files_h.update(lf.read_bytes())
             label = json.loads(lf.read_text(encoding="utf-8"))
+            ambiguous: Dict[str, List[str]] = {}
+            if vmap is not None:
+                label, lost = relabel(label, vmap)
+                ambiguous = lost["ambiguous"]
+                if lost["unmapped"]:
+                    unmapped[str(case.get("case_id"))] = lost["unmapped"]
+                if ambiguous:
+                    merged[str(case.get("case_id"))] = ambiguous
+                if lost["merged_same_label"]:
+                    same_label[str(case.get("case_id"))] = lost["merged_same_label"]
+            relpaths[cf.name] = case["meta_relpath"]
             included += 1
             if not (root / (case["meta_relpath"][: -len(".metadata.json")] + ".gi.json")).is_file():
                 gi_missing += 1
-            case_rows = list(score_case(case, label, root, texts))
+            case_rows = list(score_case(case, label, root, texts, ambiguous))
             voices_here = {r["voice"] for r in case_rows if r["voice"]}
             misses += sum(
                 1
@@ -299,7 +401,9 @@ def run(
         ids = [(r["case"], r["insight"]) for r in rows]
         if len(ids) != len(set(ids)):
             raise AssertionError(f"{gset}: an insight counted twice")
-        total = _insight_total(root, gdir, served, ldir)
+        total = _insight_total(
+            root, gdir, served, ldir, relpaths if voice_maps is not None else None
+        )
         if len(rows) != total:
             raise AssertionError(f"{gset}: {len(rows)} rows for {total} insights")
         report["sets"][gset] = _summary(rows) | {
@@ -311,6 +415,13 @@ def run(
             "gi_missing": gi_missing,
             "labelled_voices_missing_from_segments": misses,
         }
+        if voice_maps is not None:
+            report["sets"][gset] |= {
+                "skipped_no_voice_map": sorted(no_map),
+                "labelled_voices_unmapped": unmapped,
+                "labelled_voices_merged": merged,
+                "labelled_voices_merged_same_label": same_label,
+            }
         rows_out += rows
     report["rows"] = sorted(rows_out, key=lambda r: (r["set"], str(r["case"]), r["insight"]))
     return report
@@ -342,13 +453,16 @@ def _voice_in_segments(root: Path, case: Dict[str, Any], voice: str) -> bool:
     return any(isinstance(r, dict) and str(r.get("speaker")) == voice for r in rows)
 
 
-def _insight_total(root: Path, gdir: Path, served: set, ldir: Path) -> int:
+def _insight_total(
+    root: Path, gdir: Path, served: set, ldir: Path, relpaths: Optional[Dict[str, str]] = None
+) -> int:
     n = 0
     for cf in sorted((gdir / "cases").glob("*.json")):
         case = json.loads(cf.read_text(encoding="utf-8"))
-        if case.get("meta_relpath") not in served or not (ldir / cf.name).is_file():
+        rel = case.get("meta_relpath") if relpaths is None else relpaths.get(cf.name)
+        if not isinstance(rel, str) or rel not in served or not (ldir / cf.name).is_file():
             continue
-        gi = _load(root / (case["meta_relpath"][: -len(".metadata.json")] + ".gi.json")) or {}
+        gi = _load(root / (rel[: -len(".metadata.json")] + ".gi.json")) or {}
         n += sum(
             1 for x in gi.get("nodes") or [] if isinstance(x, dict) and x.get("type") == "Insight"
         )

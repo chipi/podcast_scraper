@@ -600,3 +600,173 @@ def test_the_cli_passes_labels_through(tmp_path: Path, monkeypatch, capsys) -> N
     monkeypatch.setattr("sys.argv", argv + ["--labels", "nope"])
     with pytest.raises(SystemExit):
         cli.main()
+
+
+# An eval run's output: the after run renumbers the voices (Steve is SPEAKER_00 there) and is a
+# new run directory; the labels still name the labelled run's ids and path.
+SWAPPED = [
+    ("SPEAKER_01", "Gergely Orosz", "Welcome to the show, Steve."),
+    ("SPEAKER_00", "Steve McConnell", "Thanks for having me. I wrote the book."),
+    ("SPEAKER_01", "Gergely Orosz", "Tell me about the book."),
+]
+
+
+def _after(root: Path, insights, turns=SWAPPED) -> str:
+    return _episode(root, run="run_2", turns=turns, insights=insights)
+
+
+def _maps(root: Path, after_rel: str, m: Dict[str, Any], case: str = "c1") -> Dict[str, Any]:
+    return {
+        "after": str(root),
+        "before": "snap",
+        "cases": {case: {"after_relpath": after_rel, "method": "segments", "map": m}},
+    }
+
+
+SWAP_MAP = {"SPEAKER_00": ["SPEAKER_01", 1.0], "SPEAKER_01": ["SPEAKER_00", 1.0]}
+
+
+def test_a_voice_map_follows_the_case_to_its_after_run_and_its_renumbered_voices(
+    tmp_path: Path,
+) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(
+        root,
+        [
+            ("i:steve", [1], {"speaker": "Steve McConnell"}),
+            ("i:host", [0], {"speaker": "Gergely Orosz"}),
+        ],
+    )
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, SWAP_MAP))
+    assert _buckets(report) == {"i:steve": "S7_correct", "i:host": "S7_correct"}
+    row = next(r for r in report["rows"] if r["insight"] == "i:steve")
+    assert (row["voice"], row["voice_before"], row["map_share"]) == (
+        "SPEAKER_00",
+        "SPEAKER_01",
+        1.0,
+    )
+    assert report["voice_map"]["cases"] == 1
+    # without the map the same output is skipped: the labelled run is not in it
+    assert gi.run(root, gold, ["g"], "s")["sets"]["g"]["skipped_not_served"] == ["c1"]
+
+
+def test_without_the_map_renumbered_voices_score_the_wrong_person(tmp_path: Path) -> None:
+    """Why the map exists: the after voice id looked up in the labels names the other person."""
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(root, [("i:steve", [1], {"speaker": "Steve McConnell"})])
+    _gold(gold, "g", "c1", after, LABELS)
+    assert _buckets(_run(root, gold)) == {"i:steve": "S7_wrong"}
+    maps = _maps(root, after, SWAP_MAP)
+    assert _buckets(gi.run(root, gold, ["g"], "s", voice_maps=maps)) == {"i:steve": "S7_correct"}
+
+
+def test_two_labelled_voices_on_one_after_voice_are_ambiguous_not_either_person(
+    tmp_path: Path,
+) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    merged = [(("SPEAKER_00",) + t[1:]) for t in TURNS]
+    after = _after(
+        root,
+        [
+            ("i:a", [1], {"speaker": "Steve McConnell"}),
+            ("i:b", [0], {"speaker": "Steve McConnell"}),
+        ],
+        turns=merged,
+    )
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
+    m = {"SPEAKER_00": ["SPEAKER_00", 0.9], "SPEAKER_01": ["SPEAKER_00", 0.8]}
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, m))
+    assert _buckets(report) == {"i:a": "voice_map_ambiguous", "i:b": "voice_map_ambiguous"}
+    s = report["sets"]["g"]
+    assert s["labelled_voices_merged"] == {"c1": {"SPEAKER_00": ["SPEAKER_00", "SPEAKER_01"]}}
+    assert s["total"]["insights"] == 2 == sum(s["total"][b] for b in gi.BUCKETS)
+
+
+def test_one_person_the_labelled_run_split_and_the_after_run_merged_keeps_its_label(
+    tmp_path: Path,
+) -> None:
+    """A solo host labelled twice (two voices, one name and role) merged into one after voice: the
+    labels agree, so the insights are scored, not ambiguous."""
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    merged = [(("SPEAKER_00",) + t[1:]) for t in TURNS]
+    after = _after(root, [("i:a", [1], {"speaker": "Gergely Orosz"})], turns=merged)
+    labels = [
+        _lab("SPEAKER_00", "Gergely Orosz", "host", "medium"),
+        _lab("SPEAKER_01", "Gergely Orosz", "host"),
+    ]
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", labels)
+    m = {"SPEAKER_00": ["SPEAKER_00", 0.9], "SPEAKER_01": ["SPEAKER_00", 0.8]}
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, m))
+    assert _buckets(report) == {"i:a": "S7_correct"}
+    s = report["sets"]["g"]
+    assert s["labelled_voices_merged"] == {}
+    assert s["labelled_voices_merged_same_label"] == {
+        "c1": {"SPEAKER_00": ["SPEAKER_00", "SPEAKER_01"]}
+    }
+    # an unscored second label is not the same claim: ambiguous again
+    labels[1] = _lab("SPEAKER_01", "Gergely Orosz", "host", "low")
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", labels)
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, m))
+    assert _buckets(report) == {"i:a": "voice_map_ambiguous"}
+
+
+def test_an_unscored_label_is_carried_by_the_map_and_stays_s8(tmp_path: Path) -> None:
+    """The map covers every labelled voice, not only scored ones: an unscored voice's insights stay
+    S8_undecidable instead of falling to voice_not_labelled."""
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    labels = [LABELS[0], _lab("SPEAKER_01", "Steve McConnell", confidence="low")]
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", labels)
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, SWAP_MAP))
+    assert _buckets(report) == {"i": "S8_undecidable"}
+
+
+def test_a_label_voice_the_map_lacks_is_recorded_and_its_after_voice_is_not_labelled(
+    tmp_path: Path,
+) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
+    m = {"SPEAKER_00": ["SPEAKER_01", 1.0]}
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, m))
+    assert _buckets(report) == {"i": "voice_not_labelled"}
+    assert report["sets"]["g"]["labelled_voices_unmapped"] == {"c1": ["SPEAKER_01"]}
+
+
+def test_a_case_the_map_does_not_cover_is_skipped_and_named(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    _gold(gold, "g", "c1", after, LABELS)
+    report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, SWAP_MAP, case="other"))
+    s = report["sets"]["g"]
+    assert (s["skipped_no_voice_map"], s["included"], report["rows"]) == (["c1"], 0, [])
+
+
+def test_a_map_made_for_another_corpus_is_refused(tmp_path: Path) -> None:
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    _gold(gold, "g", "c1", after, LABELS)
+    with pytest.raises(SystemExit, match="voice map was made for"):
+        gi.run(root, gold, ["g"], "s", voice_maps=_maps(tmp_path / "other", after, SWAP_MAP))
+
+
+def test_the_cli_reads_a_voice_map_file(tmp_path: Path, monkeypatch) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "gold_cli", REPO / "scripts/measure/gold_insights.py"
+    )
+    assert spec and spec.loader
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    root, gold = tmp_path / "c", tmp_path / "gold"
+    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
+    vm, out = tmp_path / "rows.voicemap.json", tmp_path / "r.json"
+    vm.write_text(json.dumps(_maps(root, after, SWAP_MAP)))
+    argv = ["x", "--corpus", str(root), "--gold", str(gold), "--snapshot", "s", "--out", str(out)]
+    monkeypatch.setattr("sys.argv", argv + ["--voice-map", str(vm)])
+    assert cli.main() == 0
+    assert _buckets(json.loads(out.read_text())) == {"i": "S7_correct"}
+    vm.write_text("{}")
+    with pytest.raises(SystemExit, match="not a voice-map file"):
+        cli.main()
