@@ -2,10 +2,10 @@
 
 | | |
 | --- | --- |
-| Doc version | 48 |
+| Doc version | 49 |
 | Last updated | 2026-10-24 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45), title-only words in every language (v46), speaker detection at temperature 0 (v47), a host phrase whose subject is an event (v48) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45), title-only words in every language (v46), speaker detection at temperature 0 (v47), a host phrase whose subject is an event (v48), split-voice merge on at 0.7 (v49) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
 | Code content hash | `1c745ce154b9` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
@@ -26,6 +26,19 @@
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
+
+- **v49, 2026-10-24.** `prod_dgx_full` and `dev_dgx_full` turn the split-voice merge (v33) on,
+  at a fingerprint similarity of 0.7 (default 0.8).
+  - Run B (DGX, rediarize, 60 episodes whose labels put one person on two voices, merge at 0.8):
+    20 merges; in the 14 that joined a labelled person's two voices the second voice went from
+    unnamed or wrong to the right name; none joined two labelled people. Recall was low: 17 of
+    48 split people on one voice. Of the unmerged same-person pairs, 8 of 16 are at 0.7 or more.
+  - Held-out (run A's fingerprints, val_v3 + val_v5, the 60 episodes whose audio is the
+    transcribed audio): 181 pairs of different labelled people, the highest 0.598. So 0.7 keeps a
+    0.10 margin; 0.65 would keep 0.05. Held-out holds no split person, so it bounds false merges
+    only.
+  - NOT covered: voices under 10 s are never compared (`MIN_TALK_S`; 15 of B's 31 unmerged split
+    people); the merge acts only where a diarization runs (ingest, rediarize).
 
 - **v48, 2026-10-24.** An episode's "hosted by / presented by / co-host X" (v43) is not read when
   the sentence before it makes an event or an organisation its subject (`HOSTED_THING_WORDS`:
