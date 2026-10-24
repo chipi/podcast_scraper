@@ -701,6 +701,33 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
+def one_entry_per_person(names: Sequence[str]) -> List[str]:
+    """The candidate list with each person once: a later spelling of a person already listed
+    ("Jade McGlynn" after "Dr. Jade McGlynn", "Ashley Dimmig" after "Ashley DimmIG") is dropped.
+
+    A name in the closed list is a name the resolver may bind, and its one-name-one-voice rule
+    sees strings: two spellings of one person let it put that person on two voices (the DGX block,
+    2026-10-23: one translator on a guest's voice and on a clip's). Same person is
+    ``roster._same_person_on_one_episode`` (titles stripped, a generation suffix kept apart, a
+    one-word name never merged with a full name). The first spelling is kept, so today's order
+    decides, except that a spelling with stray capitals inside a word ("DimmIG") gives way to a
+    clean one. Measured on 421 stored lists: 2 such pairs in 1,197 entries, both one person.
+    """
+    from .roster import _same_person_on_one_episode
+
+    def stray_caps(name: str) -> bool:
+        return bool(re.search(r"[a-z][A-Z]{2,}", name))
+
+    kept: List[str] = []
+    for name in names:
+        hit = next((i for i, k in enumerate(kept) if _same_person_on_one_episode(name, k)), None)
+        if hit is None:
+            kept.append(name)
+        elif stray_caps(kept[hit]) and not stray_caps(name):
+            kept[hit] = name
+    return kept
+
+
 def _maybe_merge_split_voices(cfg: Any, diarization: Any) -> Tuple[Any, Optional[Dict[str, Any]]]:
     """``merge_split_voices``: one person's two diarized voices made one, by fingerprint, before
     alignment and naming; the report (every pair's similarity) goes into the sidecar."""
@@ -1218,8 +1245,10 @@ def apply_diarization_to_result(
     # list that decides what a voice is allowed to be called. A placeholder in here is not a
     # harmless no-op — the resolver matched `Host` onto 59 production episodes' voices from exactly
     # this list, because a name in the closed list is by construction a name it may bind.
-    candidates = filter_default_speaker_names(
-        list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
+    candidates = one_entry_per_person(
+        filter_default_speaker_names(
+            list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
+        )
     )
     ad_intervals = _ad_intervals(segments)
     recurring_text = _feed_recurring_text(cfg)
