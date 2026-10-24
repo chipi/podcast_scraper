@@ -96,8 +96,8 @@
   the sentence before it makes an event or an organisation its subject (`HOSTED_THING_WORDS`:
   summit, conference, platform, initiative, …) and names no show word after it
   (`HOSTED_SHOW_WORDS`: episode, show, podcast, series, …): "Live from the BIG Summit, a platform
-  hosted by investor and 2x NBA All-Star Baron Davis", "This initiative, … and hosted by Briter
-  Bridges". "Recorded at the X Summit, this episode is hosted by Y" still reads.
+  hosted by investor and 2x NBA All-Star Baron Davis", "This initiative, … and hosted by
+  <organisation>". "Recorded at the X Summit, this episode is hosted by Y" still reads.
   - Replay, old (`86195eec6`) vs new, over the 3,196 episodes of the 10-16 snapshot with the
     person check: 2 names removed (exactly those two), 0 added, nothing else changed; 3 mutants
     killed (no show-word exemption, whole text instead of the sentence, rule off).

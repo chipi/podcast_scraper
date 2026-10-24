@@ -3685,7 +3685,7 @@ PLACE_PREPOSITION: Dict[str, str] = {
 
 #: Words that make the subject of an episode's "hosted by X" something other than the episode:
 #: an event or an organisation ("Live from the BIG Summit, a platform hosted by …", "This
-#: initiative, … and hosted by Briter Bridges"). Read in the same sentence, before the phrase.
+#: initiative, … and hosted by <organisation>"). Read in the same sentence, before the phrase.
 HOSTED_THING_WORDS: Dict[str, FrozenSet[str]] = {
     "en": frozenset(
         {
