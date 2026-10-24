@@ -31,14 +31,21 @@
   default and in no profile) is removed: the module, its tests, the config key and the decision
   trace's `candidate_widening` input. Measured on the episodes it targets (the DGX block's run D,
   a relabel of the 12 labelled Gate 2 episodes where it adds a name):
-  - 2 right names gained;
-  - 2 junk names published as speakers: a job title ("General Partner") on a labelled person's
-    voice, and "Translator <name>" on a non-participant;
-  - the served ladder went 20 -> 19 right, 2 -> 3 wrong, 1 -> 2 names on nameless voices.
+  - no gain: of the 12 names it added there, none was a new participant. 4 were duplicates of a
+    person already on the list under an honorific or a job title ("Dr. X" vs "X", "Historian X"),
+    6 non-persons, 4 people who did not speak;
+  - 2 harms of its own: a job title ("General Partner") published on a labelled person's voice,
+    and "Translator <name>" on a non-participant;
+  - every other change in the run is the LLM's and detection's run-to-run variation (equivalent
+    relabels differ on about 12 of 540 voices).
 
-  Over the 421 labelled episodes with a fresh trace it adds a name on 12, a labelled person on
-  only 2; the rest include organisations and title phrases ("Pulitzer Prize", "Hugging Face",
-  "Breakthrough Energy"). The candidate list is again the detection's and the feed's names only.
+  Correction (2026-10-24, an independent review): this entry first said "2 right names gained"
+  and "20 -> 19 right, 2 -> 3 wrong". Both were wrong. The 2 names were already candidates, and
+  that scoring used labels the same day's blind-panel corrections then changed.
+
+  Why it failed, so a new take does not repeat it: the candidate list held strings, not persons
+  (a duplicate under another spelling defeats the one-name-one-voice rule), the publish gate
+  passes two-word job titles and organisations, and every cue name became a bindable candidate. The candidate list is again the detection's and the feed's names only.
   A profile that still sets the key now fails validation.
 
 - **v40, 2026-10-24.** Two rules, from the DGX block's follow-ups (operator decisions of
