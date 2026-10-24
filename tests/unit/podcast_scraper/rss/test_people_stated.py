@@ -5,6 +5,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET  # nosec B405
 
 import pytest
+from defusedxml.ElementTree import fromstring as safe_fromstring
 
 from podcast_scraper.rss.parser import extract_episode_people_stated
 
@@ -18,9 +19,9 @@ NS = (
 
 
 def _item(body: str) -> ET.Element:
-    item = ET.fromstring(f"<rss {NS}><channel><item>{body}</item></channel></rss>").find(
-        "channel/item"
-    )
+    item: ET.Element | None = safe_fromstring(
+        f"<rss {NS}><channel><item>{body}</item></channel></rss>"
+    ).find("channel/item")
     assert item is not None
     return item
 
