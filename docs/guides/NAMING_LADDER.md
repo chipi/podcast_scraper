@@ -33,6 +33,10 @@
   voice, and the two-voice complement or the swap moved it onto the guest's voice. The DGX block's
   relabel (R1-GI) and rediarize (R4) both served the host's name on the guest in two
   episodes, 87 wrong insights between them. The rule is main's (`b5923aab4`), not this branch's.
+  At the resolver step the fix makes one of the two right; in the other the guest's own name is
+  still refused (her surname alone occurs in her text inside another person's name), so that
+  guest is left unnamed instead of carrying the host's name. The roster after the resolver was
+  not replayed.
   Only after "I'm" / "I am"; "I'm at X's studio" is still a mention (possessive), and "this is at
   X" is not an introduction. Replay of the guard, old code from git: 2026-10-16 prod snapshot, 437
   episodes, 8,897 voice/name pairs, old code agrees with all 1,023 recorded verdicts; 2 pairs

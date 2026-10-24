@@ -26,6 +26,14 @@ So "deploy only if better" is settled before the merge, not after it.
        run copy (the two broken episodes).
      - No new refusal; 3 mutants killed.
      - The gate script is `scratchpad/replay_tp/gate.sh`, not committed.
+   - **What it fixes (the independent review, 2026-10-24):** y008 end to end at the resolver
+     step. In y007 the host is now accepted, but the guest's own name is still refused: her
+     surname alone occurs in her text inside another person's name. So she is left unnamed instead
+     of carrying the host's name. Whether to change that surname-only refusal is with an
+     independent advisor; the operator is not sure it is worth its complexity.
+   - **S7 corrected:** a rediarize does not regenerate GI, so the first R4 / R5 S7 readings
+     measured R1-GI's names on stale offsets. S7 now places each quote by its text and scores
+     the run's own roster (`--namer ladder`). See the S7 change doc.
 2. **Ship the branch:**
    - rebase onto main;
    - run `make ci-fast` once;
@@ -48,3 +56,9 @@ So "deploy only if better" is settled before the merge, not after it.
 - **The relabel-only shape:** why the snapshot's own runs of this show ended with the right served
   names while the relabel did not (a later rung put the host back there) is not traced.
 - **Other handle forms:** "find me at <name>", "follow me @<name>" were not searched for.
+- **The roster after the resolver:** the y007 / y008 replay stops at the resolver; the later
+  rungs were not replayed.
+- **A false third-person refusal of a host:** on a two-voice show it can still move the host's
+  name onto the guest, overriding a correct known-hosts baseline. Not seen on the snapshot.
+- **Stale GI after a rediarize:** the product reads a quote's speaker from the GI, and a rediarize
+  leaves the GI as it was. Not checked on prod.
