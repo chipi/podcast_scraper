@@ -16,6 +16,7 @@ import logging
 import os
 import re
 import time
+import xml.etree.ElementTree as ET  # nosec B405 (type checks only; parsing is defusedxml)
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -499,6 +500,11 @@ class EpisodeMetadata(BaseModel):
     #: The episode's OWN licence declarations (#2325) -- its ``<podcast:license>``,
     #: ``<creativeCommons:license>`` and show-note notices. The channel's are not copied in.
     licence: Optional[LicenceRecord] = None
+    #: Who the RSS item itself states is on the episode, as stated (``rss.parser.
+    #: extract_episode_people_stated``): bylines (``author`` / ``itunes_author`` / ``dc_creator``,
+    #: no role) and ``podcast_person`` (with role). Stored so naming and every relabel read the
+    #: same input as ingest; None when the item states nobody.
+    people_stated: Optional[List[Dict[str, Optional[str]]]] = None
 
     @field_serializer("published_date")
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
@@ -4104,6 +4110,10 @@ def _prepare_base_metadata_objects(
     )
     channel_licence = getattr(feed, "licence", None)
     item = getattr(episode, "item", None)
+    if isinstance(item, ET.Element):
+        from ..rss.parser import extract_episode_people_stated
+
+        episode_metadata.people_stated = extract_episode_people_stated(item) or None
     if channel_licence is not None and item is not None:
         episode_metadata.licence = episode_licence(
             item,

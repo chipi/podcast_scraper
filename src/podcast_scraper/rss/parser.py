@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET  # nosec B405
 from datetime import date, datetime, timezone
 from html import unescape
 from html.parser import HTMLParser
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urljoin
 
 from defusedxml.ElementTree import fromstring as safe_fromstring, ParseError as DefusedXMLParseError
@@ -762,6 +762,52 @@ def extract_episode_authors(item: ET.Element) -> List[str]:
         if author_clean and author_clean not in cleaned_authors:
             cleaned_authors.append(author_clean)
     return cleaned_authors
+
+
+#: Podcasting 2.0 namespace (``<podcast:person role="host">``).
+_PODCAST_NS = "https://podcastindex.org/namespace/1.0"
+#: A byline names several people: "Carin Zissis, Luisa Leme & Khalea Robertson", "EconTalk: Russ
+#: Roberts".
+_BYLINE_SPLIT = re.compile(r"\s*(?:,|;|&|:|\band\b)\s*")
+
+
+def extract_episode_people_stated(item: ET.Element) -> List[Dict[str, Optional[str]]]:
+    """Who the RSS item itself says is on this episode, as stated, one entry per name.
+
+    ``source`` is ``author`` / ``itunes_author`` / ``dc_creator`` (a byline: a credit list, hosts
+    and guests and producers alike, no role) or ``podcast_person`` (with its ``role`` attribute,
+    lower-cased, ``host`` when absent as the namespace defines). ``raw`` is the field's text. No
+    filtering happens here: whether a name is a person, and what it may do in naming, is decided
+    where it is used. An item that states nothing gives ``[]``.
+    """
+    out: List[Dict[str, Optional[str]]] = []
+    seen = set()
+
+    def add(name: str, source: str, role: Optional[str], raw: str) -> None:
+        name = " ".join(name.split())
+        key = (name.casefold(), source, role)
+        if name and key not in seen:
+            seen.add(key)
+            out.append({"name": name, "source": source, "role": role, "raw": raw})
+
+    for tag, source in (
+        ("author", "author"),
+        ("{http://www.itunes.com/dtds/podcast-1.0.dtd}author", "itunes_author"),
+        ("{http://purl.org/dc/elements/1.1/}creator", "dc_creator"),
+    ):
+        elem = item.find(tag)
+        raw = (elem.text or "").strip() if elem is not None else ""
+        if not raw:
+            continue
+        text = raw.split("<")[0] if "<" in raw and ">" in raw else raw
+        text = re.sub(r"\S+@\S+\s*\(([^)]*)\)", r"\1", text)  # RSS <author>: "x@y.z (Name)"
+        for part in _BYLINE_SPLIT.split(text):
+            add(part.strip(), source, None, raw)
+    for person in item.findall(f"{{{_PODCAST_NS}}}person"):
+        raw = (person.text or "").strip()
+        if raw:
+            add(raw, "podcast_person", (person.get("role") or "host").strip().lower(), raw)
+    return out
 
 
 def extract_episode_published_date(item: ET.Element) -> Optional[datetime]:
