@@ -46,9 +46,7 @@ def test_an_llm_name_the_voice_speaks_of_in_the_third_person_comes_off() -> None
 
 def test_a_refused_host_keeps_the_host_role() -> None:
     roster = _roster(
-        SPEAKER_00=SpeakerRole(
-            name="Sam Rowley", role="host", named=True, source="llm_resolution"
-        )
+        SPEAKER_00=SpeakerRole(name="Sam Rowley", role="host", named=True, source="llm_resolution")
     )
     aligned = [_seg("SPEAKER_00", "In this episode, Sam Rowly sits down with a general partner.")]
     v = _apply_llm_third_person_guard(roster, aligned).by_voice["SPEAKER_00"]
