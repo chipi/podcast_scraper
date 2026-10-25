@@ -935,7 +935,10 @@ def _side_namer_sidecars(
 
     def finish(r: Any) -> Any:
         return _apply_speaker_renames(
-            _apply_talk_floor(r, aligned, floor, llm_roles=llm_roles), speaker_renames
+            _apply_talk_floor(
+                _apply_llm_third_person_guard(r, aligned), aligned, floor, llm_roles=llm_roles
+            ),
+            speaker_renames,
         )
 
     ladder = side["ladder_roster"]
@@ -991,6 +994,49 @@ def talks_about_in_third_person(text: str, name: str) -> bool:
         if said.lower() == last.lower() or _surname_variant(said, last):
             return True
     return False
+
+
+def _apply_llm_third_person_guard(roster: Any, aligned: List[Any], trace: Any = None) -> Any:
+    """The roster with every LLM-resolution name taken off a voice whose own words speak of that
+    person in the third person (v54, :func:`talks_about_in_third_person`).
+
+    The resolver checks the same rule, but only on the passages it hands the model: on the
+    2026-10-25 release gate a voice whose full text says "That's <name>, the co-founder ..." kept
+    <name>. Over the stored DGX runs and the gate, on the voice's full text: 6 bad names off (a
+    credits read, a host thanking the guest by name, two announcers reading "In this episode, <host>
+    sits down with ..."), 3 right ones lost (one episode whose host sign-off the diarization put in
+    two guests' voices; a host introducing itself "with me <name>", which the self-introduction
+    test does not read: adding the form moved 107 resolver verdicts, so it was not added). The role
+    goes the way the resolver's refusal sends it.
+    """
+    from ....speaker_detectors.resolution import _role_after_third_person_refusal
+
+    texts: Dict[str, List[str]] = {}
+    for segment, speaker_id in aligned:
+        if speaker_id is not None:
+            texts.setdefault(speaker_id, []).append(str(segment.get("text") or ""))
+    by_voice = dict(roster.by_voice)
+    refused = []
+    for voice, role in roster.by_voice.items():
+        if not (role.named and role.source == "llm_resolution"):
+            continue
+        if not talks_about_in_third_person(" ".join(texts.get(voice, ())), role.name):
+            continue
+        by_voice[voice] = dataclasses.replace(
+            role,
+            name=voice,
+            role=_role_after_third_person_refusal(role.role) or "unknown",
+            named=False,
+            source="llm_third_person",
+            forced=False,
+        )
+        refused.append(voice)
+        if trace is not None:
+            trace.voice(voice, "llm_third_person", "removed", name=role.name)
+    if not refused:
+        return roster
+    logger.info("LLM third-person guard: %d name(s) taken off", len(refused))
+    return dataclasses.replace(roster, by_voice=by_voice)
 
 
 def _apply_talk_floor(
@@ -1498,6 +1544,7 @@ def apply_diarization_to_result(
     roster, side_namers = _run_side_namers(
         cfg, roster, aligned, diarization, episode_title, episode_description, naming_trace
     )
+    roster = _apply_llm_third_person_guard(roster, aligned, naming_trace)
     roster = _apply_talk_floor(
         roster,
         aligned,

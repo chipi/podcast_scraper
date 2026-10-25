@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| Doc version | 53 |
-| Last updated | 2026-10-24 |
+| Doc version | 54 |
+| Last updated | 2026-10-25 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45), title-only words in every language (v46), speaker detection at temperature 0 (v47), a host phrase whose subject is an event (v48), split-voice merge on (v49), its threshold back to 0.8 (v50), stated hosts not LLM-bindable (v51), E1d self-introduction and host seat (v52), no floor exemption for a voice that talks about the host (v53) |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45), title-only words in every language (v46), speaker detection at temperature 0 (v47), a host phrase whose subject is an event (v48), split-voice merge on (v49), its threshold back to 0.8 (v50), stated hosts not LLM-bindable (v51), E1d self-introduction and host seat (v52), no floor exemption for a voice that talks about the host (v53), the third-person guard on an LLM name's full text (v54) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `b6e6e12046f3` (see below) |
+| Code content hash | `8c65325f9f5c` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -27,6 +27,24 @@
 
 **Changelog**
 
+- **v54, 2026-10-25.** An LLM-resolution name comes off a voice whose own full text speaks of that
+  person in the third person (`pipeline._apply_llm_third_person_guard`, the v53
+  `talks_about_in_third_person` test; trace `llm_third_person` `removed`; source
+  `llm_third_person`). It runs before the talk floor, on the published roster and on the shadow
+  rosters.
+  - Found by the release gate (merge plan step 5, 2026-10-25): the resolver checks this rule, but
+    only on the passages it hands the model, so a voice whose full text says "That's <name>, the
+    co-founder ..." kept <name>.
+  - Replay of the function over the served rosters of the R1-GI / R5 / D / B / A / step 3 copies
+    and the three step-5 arms: 0 changes outside the rule; labelled, 4 bad names off (a credits
+    read, a host thanking the guest by name, the step-5 case) and 1 right lost in one arm and 2 in
+    two others (a host introducing itself "with me <name>"; a guest voice holding the host's
+    sign-off); unlabelled, 3 announcer or host voices unnamed and 1 more guest voice of that
+    sign-off. Three mutants killed (any rung's names, no text test, no removal).
+  - Not added: "with me <name>" as a self-introduction. On the stored answers it turned 107
+    resolver refusals into acceptances; too wide for the one name it was for.
+  - Not built, measured: the talk floor exempting a voice the LLM calls guest (3 right, 6 wrong
+    over the same runs: interview clips the LLM calls guests).
 - **v53, 2026-10-25.** The talk floor's host exemption (v40) does not keep a name on a voice
   whose own text speaks of that person in the third person (`talks_about_in_third_person`: the
   resolver's check, or the given name followed by the surname or an ASR rendering of it, unless
@@ -759,6 +777,7 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `s30_split_merge` | per voice `named` (`name`) | a split host's unnamed half named as the host (`ladder_rescue_rules`, off by default) |
 | `e1d_rescue` | per voice `named` (`name`, `cue` = `self_intro` / `introduced`) | an introduced name the third-person guard refused, put back on its voice (`ladder_rescue_rules`, off by default) |
 | `voice_identity` | per voice `named` / `removed` (`name`), in `publish` only; the rung's answer against the ladder is in the sidecar key `voice_identity` (v29), in `shadow` and `publish` | the feed fingerprint match: a voice given a group's name, or a name taken off a voice that is clearly not that person (off by default) |
+| `llm_third_person` | per voice `removed` (`name`) | an LLM-resolution name taken off a voice whose full text speaks of that person in the third person (v54) |
 | `talk_floor` | per voice `removed` (`name`, `talk_share`) | a name taken off a voice under `speaker_name_min_talk_share` of the episode's talk (off by default) |
 
 **Sources a voice's name can carry** (`voices[].source`). `_NAME_EVIDENCE_RANK` ranks four of them,
@@ -778,6 +797,7 @@ used when one person's voices disagree: `self_intro`, `introduced`, `publisher_t
   the voice identity bank.
 - `voice_identity` — the feed fingerprint match, in `publish` only (v26), and every name
   migration 0035 applies, respellings included. Does not vote in the voice identity bank.
+- `llm_third_person` — an LLM name taken off by the full-text third-person guard (v54; `named` is false).
 - `talk_floor` — unnamed by the talk floor (v26; `named` is false).
 - `forced` — placed by arithmetic. `raw` — unnamed.
 
