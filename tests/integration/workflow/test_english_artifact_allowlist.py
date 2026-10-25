@@ -93,6 +93,10 @@ ALLOWLIST: frozenset[str] = frozenset(
         "feed.language_source",
         "episode.language",
         "episode.language_source",
+        # Naming ladder v43 / v44 (release 2026-10-25): who the RSS item itself states is on the
+        # episode (byline, <podcast:person>), each entry {name, source, role, raw}. Added on
+        # purpose, declared here; its entries are dicts (OPAQUE_DICT_FIELDS below says why).
+        "episode.people_stated[]{}",
         # #2325 / #2326: each show's and episode's licence and copyright declarations, as the
         # feed states them. Added on purpose by that change, declared here (2026-10-11).
         "episode.licence.conflicts[]",
@@ -195,6 +199,11 @@ def _key_paths(obj: Any, prefix: str = "") -> Iterator[str]:
 #: ``test_no_undeclared_opaque_fields`` until someone states why its contents are unmeasurable
 #: here. The blindness is then a recorded limitation instead of an accident of the walker.
 OPAQUE_DICT_FIELDS: Dict[str, str] = {
+    "episode.people_stated[]{}": (
+        "one entry per person the RSS item states (rss.parser.extract_episode_people_stated): "
+        "name, source, role and raw, a plain dict built by the parser, not a model the walker "
+        "can descend; its keys are pinned by tests/unit/podcast_scraper/rss/test_people_stated.py"
+    ),
     "processing.config_snapshot{}": (
         "records the run Config verbatim, so its keys ARE the Config's fields — pinning them "
         "here would make this test fail on every unrelated config addition, which is what the "
