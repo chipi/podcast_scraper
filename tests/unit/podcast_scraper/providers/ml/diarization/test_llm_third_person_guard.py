@@ -2,15 +2,18 @@
 
 The resolver's third-person check reads only the passages it hands the model; a voice's full text
 can still say "That's <name>, the co-founder ..." or read the credits. Measured over the stored DGX
-runs and step 5 (2026-10-25): 6 bad names removed, 3 right lost (two in one episode whose host
-sign-off the diarization put in the guests' voices; one host introducing itself "with me <name>").
+runs and step 5 (2026-10-25), labelled voices: 4 bad names removed, 1-2 right lost per arm (a host
+introducing itself "with me <name>"; a guest voice holding the host's sign-off).
 """
 
 from __future__ import annotations
 
 import pytest
 
-from podcast_scraper.providers.ml.diarization.pipeline import _apply_llm_third_person_guard
+from podcast_scraper.providers.ml.diarization.pipeline import (
+    _apply_llm_third_person_guard,
+    talks_about_in_third_person,
+)
 from podcast_scraper.providers.ml.diarization.roster import SpeakerRole, SpeakerRoster
 
 pytestmark = [pytest.mark.unit]
@@ -67,3 +70,16 @@ def test_a_voice_that_introduces_itself_keeps_the_name() -> None:
     )
     aligned = [_seg("SPEAKER_00", "I'm Jane Doe, and that's Jane Doe's brother on the line.")]
     assert _apply_llm_third_person_guard(roster, aligned) is roster
+
+
+def test_a_voice_introducing_itself_in_its_own_language_keeps_the_name() -> None:
+    roster = _roster(
+        SPEAKER_00=SpeakerRole(name="Ana Pereda", role="host", named=True, source="llm_resolution")
+    )
+    aligned = [_seg("SPEAKER_00", "Hola, soy Ana Pereda. Gracias por escuchar a Ana Pereda.")]
+    assert _apply_llm_third_person_guard(roster, aligned, language="es") is roster
+
+
+def test_the_floor_exemption_reads_the_episode_language() -> None:
+    text = "Hola, soy Ana Pereda. Gracias por escuchar a Ana Pereda."
+    assert not talks_about_in_third_person(text, "Ana Pereda", "es")

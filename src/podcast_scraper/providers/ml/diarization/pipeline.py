@@ -932,11 +932,16 @@ def _side_namer_sidecars(
     from . import transcript_naming, voice_identity
 
     floor = float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0)
+    language = transcription_language(cfg)
 
     def finish(r: Any) -> Any:
         return _apply_speaker_renames(
             _apply_talk_floor(
-                _apply_llm_third_person_guard(r, aligned), aligned, floor, llm_roles=llm_roles
+                _apply_llm_third_person_guard(r, aligned, language=language),
+                aligned,
+                floor,
+                llm_roles=llm_roles,
+                language=language,
             ),
             speaker_renames,
         )
@@ -969,24 +974,30 @@ def _side_namer_sidecars(
     return out
 
 
-def talks_about_in_third_person(text: str, name: str) -> bool:
+def talks_about_in_third_person(text: str, name: str, language: Optional[str] = None) -> bool:
     """Whether a voice's own text speaks of ``name`` as someone else (v53).
 
     An announcer reading "In this episode, <host> sits down with ..." is seated and LLM-called host
     too (step 3 of the 2026-10-24 DGX block, v417); it is not the host. The resolver's third-person
     check, or the given name followed by the surname or an ASR rendering of it (a surname one or
     two letters off), unless the voice introduces itself as the person.
+
+    ``language`` is the episode's (``transcription_language``), as every resolver caller passes it:
+    left at English, "Hola, soy <name>" is not read as a self-introduction, and any later mention
+    of the name refutes the person's own voice (step 6 review, 2026-10-25).
     """
     from ....speaker_detectors.resolution import (
         _introduces_itself_as,
         _surname_variant,
         refuted_by_third_person,
+        TARGET_LANGUAGE,
     )
 
-    if refuted_by_third_person(text, name):
+    lang = language or TARGET_LANGUAGE
+    if refuted_by_third_person(text, name, lang):
         return True
     toks = name.split()
-    if len(toks) < 2 or _introduces_itself_as(text, name):
+    if len(toks) < 2 or _introduces_itself_as(text, name, lang):
         return False
     first, last = toks[0], toks[-1]
     for m in re.finditer(rf"\b{re.escape(first)}\s+([A-Za-z][\w'\-]+)", text, re.IGNORECASE):
@@ -996,18 +1007,21 @@ def talks_about_in_third_person(text: str, name: str) -> bool:
     return False
 
 
-def _apply_llm_third_person_guard(roster: Any, aligned: List[Any], trace: Any = None) -> Any:
+def _apply_llm_third_person_guard(
+    roster: Any, aligned: List[Any], trace: Any = None, language: Optional[str] = None
+) -> Any:
     """The roster with every LLM-resolution name taken off a voice whose own words speak of that
     person in the third person (v54, :func:`talks_about_in_third_person`).
 
     The resolver checks the same rule, but only on the passages it hands the model: on the
     2026-10-25 release gate a voice whose full text says "That's <name>, the co-founder ..." kept
-    <name>. Over the stored DGX runs and the gate, on the voice's full text: 6 bad names off (a
-    credits read, a host thanking the guest by name, two announcers reading "In this episode, <host>
-    sits down with ..."), 3 right ones lost (one episode whose host sign-off the diarization put in
-    two guests' voices; a host introducing itself "with me <name>", which the self-introduction
-    test does not read: adding the form moved 107 resolver verdicts, so it was not added). The role
-    goes the way the resolver's refusal sends it.
+    <name>. Replayed over the served rosters of seven stored DGX runs and the gate's three arms, on
+    the voice's full text: labelled voices, 4 bad names off (a credits read, a host thanking the
+    guest by name, the gate's case) and 1-2 right lost per arm (a host introducing itself "with me
+    <name>", which the self-introduction test does not read: adding the form moved 107 resolver
+    verdicts, so it was not added; a guest voice holding the host's sign-off); unlabelled voices, 3
+    announcer or host voices unnamed and one more guest voice of that sign-off. The role goes the
+    way the resolver's refusal sends it.
     """
     from ....speaker_detectors.resolution import _role_after_third_person_refusal
 
@@ -1020,7 +1034,7 @@ def _apply_llm_third_person_guard(roster: Any, aligned: List[Any], trace: Any = 
     for voice, role in roster.by_voice.items():
         if not (role.named and role.source == "llm_resolution"):
             continue
-        if not talks_about_in_third_person(" ".join(texts.get(voice, ())), role.name):
+        if not talks_about_in_third_person(" ".join(texts.get(voice, ())), role.name, language):
             continue
         by_voice[voice] = dataclasses.replace(
             role,
@@ -1045,6 +1059,7 @@ def _apply_talk_floor(
     floor: float,
     trace: Any = None,
     llm_roles: Optional[Mapping[str, str]] = None,
+    language: Optional[str] = None,
 ) -> Any:
     """The roster with every name taken off a voice that holds < ``floor`` of the episode's talk.
 
@@ -1087,7 +1102,7 @@ def _apply_talk_floor(
             texts.setdefault(speaker_id, []).append(str(segment.get("text") or ""))
 
     def talks_about(voice: str, name: str) -> bool:
-        return talks_about_in_third_person(" ".join(texts.get(voice, ())), name)
+        return talks_about_in_third_person(" ".join(texts.get(voice, ())), name, language)
 
     for voice, role in roster.by_voice.items():
         share = talk.get(voice, 0.0) / total
@@ -1544,13 +1559,16 @@ def apply_diarization_to_result(
     roster, side_namers = _run_side_namers(
         cfg, roster, aligned, diarization, episode_title, episode_description, naming_trace
     )
-    roster = _apply_llm_third_person_guard(roster, aligned, naming_trace)
+    roster = _apply_llm_third_person_guard(
+        roster, aligned, naming_trace, language=transcription_language(cfg)
+    )
     roster = _apply_talk_floor(
         roster,
         aligned,
         float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0),
         naming_trace,
         llm_roles=llm_voice_roles,
+        language=transcription_language(cfg),
     )
     roster = _apply_speaker_renames(roster, speaker_renames)
     enriched_result = dict(result)
