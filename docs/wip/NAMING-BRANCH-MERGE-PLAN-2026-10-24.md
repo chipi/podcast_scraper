@@ -43,10 +43,18 @@ So "deploy only if better" is settled before the merge, not after it.
    - watch CI to green.
 3. **Ship the eval repo:** secrets scan; with the operator's go, push and merge to master (the
    scorer's voice map, the S7 readings, the DGX block plan).
-4. **A fresh held-out set (val_v6), added 2026-10-24 after run A:** val_v3 was read while building
-   the episode host statements, and val_v5 was used to choose the split-voice threshold (run A's
-   fingerprints). The release score needs labelled episodes nobody has looked at: picked, labelled
-   blind, and not opened until step 5 scores them.
+4. **Done, 2026-10-25: a fresh held-out set (val_v6), added 2026-10-24 after run A:** val_v3 was
+   read while building the episode host statements, and val_v5 was used to choose the split-voice
+   threshold (run A's fingerprints). The release score needs labelled episodes nobody has looked
+   at: picked, labelled blind, and not opened until step 5 scores them.
+   - **val_v6** (eval PR #11): 80 blind cases from `snap1016/corpus` (seed 20261025), 27 feeds,
+     labelled by two Sonnet agents, audited by two Opus agents (205 labels, 27 changes); 364
+     voices, 205 named and scored.
+   - **gate5_v1** (eval PR #12): 51 cases picked by condition: 30 where v51 can act, 1 where the
+     E1d rescue can act, 20 random (nothing should move); same labelling and audit (147 labels,
+     20 changes).
+   - **Limit:** no unseen feed exists in prod (all 68 eligible feeds have earlier cases; the 10-24
+     snapshot has the same 81 feeds), so the gate measures new episodes of known shows.
 5. **Release gate on a prod-snapshot clone:** a before/after outcome table of what the deploy
    changes on served names, with S7 (insight-weighted) beside the per-voice score, on val_v6.
    - **Relabel, not rediarize:** run A rediarized from the publisher's current files (this corpus
@@ -77,6 +85,70 @@ So "deploy only if better" is settled before the merge, not after it.
      - **Cost:** relabel ran at about 24 s per episode (step 3), so 3 arms x about 130 episodes is
        about 2.5-3 h of DGX time. Batch-invariant serving on the DGX (a DGX decision) would make
        the two deployed-code arms identical and the design cleaner.
+   - **As run, 2026-10-25 (operator: scope everything, the panel rule, run at once):**
+     - **Arms:** deployed code `b60a89e` (the 10-20 deploy-all image `sha-b60a89e`; no pipeline
+       deploy since) twice, the branch `8e3c3af2e` once, in that order; each arm its own code's
+       shipped `dev_dgx_full` with GI, KG, vector search and summaries off
+       (`config/dgx_block/step5_*_nameonly.yaml` in the eval repo), and its own fresh copy of
+       `snap1016/corpus` (48 whole feeds, hash-checked identical before the run).
+     - **Detection temperature:** deployed code has no `speaker_detection_temperature` and its
+       config forbids unknown keys, so its arms detect at the provider's 0.3, as prod does; only
+       the branch arm is at 0. The two deployed arms measure exactly that run-to-run noise.
+     - **Episodes:** 212 labelled episodes: val_v6 77, gate5_v1 51, v51 episodes labelled in
+       earlier splits, the E1d candidates, the 3 v53 cases from the stored runs. 6 (3 val_v6, 3
+       v51) are out: their feeds are not in the corpus's `feeds.spec.yaml`, so a relabel cannot
+       reach them. The 103 v51 episodes with no labels are not run.
+     - **Panel rule:** every voice the branch alone changes (dep1 = dep2 != branch) is judged by
+       its label when it has a scored one; otherwise by a blind two-model panel (Opus + Fable,
+       full transcript, no served names). Voices where dep1 != dep2 are reported as noise, not
+       attributed. Tooling: eval `scripts/eval/naming/step5_table.py`, `step5_panel_prep.py`.
+     - **Checks before the run:** a 1-episode test per code version; on an episode with two
+       copies under one guid, the relabel rewrote the case's own copy; the scorer's copy choice
+       is checked per case after each arm.
+   - **Result, 2026-10-25** (10:34:58Z-12:23:37Z; 212 episodes per arm; scored 212 of 212 in
+     every arm, the scorer reading the rewritten copy in all 212). Labelled voices (1,090):
+
+     | | Deployed run 1 | Deployed run 2 | Branch |
+     | --- | --- | --- | --- |
+     | Bad names (wrong person, spurious, non-participant) | 87 | 78 | 51 |
+     | Right (named right + rightly unnamed) | 842 | 852 | 891 |
+     | Missing | 150 | 147 | 136 |
+     | Role errors | 11 | 13 | 12 |
+     | S7: insights on the wrong person (of 8,592) | 608 | 510 | 472 |
+     | S7: insights on the right person | 5,307 | 5,517 | 5,939 |
+
+     - **val_v6 (held-out), branch vs deployed run 1:** bad 33 -> 16, right 239 -> 259, S7 wrong
+       287 (195 in run 2) -> 171. Role errors 2 -> 4: one deployed noise, two the same in every
+       arm, one a wrong name made right with the wrong role.
+     - **Per voice (1,302):** 1,152 stable, 56 noise (the deployed runs differ), 94 changed by the
+       branch alone (82 labelled: right +49 / -13, bad -35 / +9; 12 unlabelled, to the panel).
+     - **The 18 harmful labelled changes, read one by one:** the talk floor taking self-introduced
+       guests and audience questioners off (5); the LLM resolution answering differently (6 bad:
+       co-host picks the labels cannot decide, a swap, a credit name on interview tape); v45 (2
+       right lost, 2 wrong removed, against deployed); a stated host forced onto a narrator; a
+       split-voice rescue; a third-person mention the resolver's passage sample did not hold. That
+       last one became **v54** (replay over seven stored runs and the gate: 4 bad off, 1-2 right
+       lost per arm). Measured and not built: a floor exemption for voices the LLM calls guest
+       (3 right, 6 wrong over the stored runs), "with me <name>" as a self-introduction (107
+       resolver verdicts moved).
+     - **Rediarize audio guard (`73d93a40a`), checked on the DGX:** on y029 (publisher file
+       changed since ingest) a branch rediarize refused before diarizing ("downloaded audio is
+       7660914 bytes; the transcribed audio was 6909843"), episode failed `AudioChanged`.
+     - **Shadow namers (promotion is a later decision):** voice rung filling only unnamed voices
+       33 right / 5 bad; LLM pass filling unnamed 103 right / 43 bad, publishing everywhere 437
+       right / 75 bad (ladder 360 / 51); 5 wrong voice-rung names repeat within a feed.
+     - **Panel:** Opus and Fable, blind (full transcript, no served names, no labels), agree on all 17 voices:
+       the 12 unlabelled branch changes and the 5 LLM-resolution cases. Unlabelled: the branch removes
+       8 bad names (3 on a promo, an announcer and a merged voice; 5 wrong people left unnamed, one of
+       them an ASR spelling of the right person), loses 2 right ones, adds 1 bad (an announcer given
+       the host's name: one of v54's refusals), corrects 1 spelling. The 5 LLM cases are all wrong per
+       the panel, the two co-host picks included. On these 17: branch 4 right / 7 unnamed / 6 wrong,
+       deployed 6 / 3 / 8 in both runs.
+     - **Not covered:** no unseen feed (all prod feeds have earlier cases); 6 episodes unreachable
+       (feeds not in `feeds.spec.yaml`); the 103 unlabelled v51 episodes; the voice rung and the
+       split-voice merge act only where the snapshot holds fingerprints; v54 ran through the real
+       pipeline on one episode where the LLM did not repeat the wrong name, so its in-pipeline
+       proof is the ladder scenario; labels are silver.
 6. **Fresh independent reviewer:** reads the diff and the outcome table, and gives a verdict.
 7. **The operator's go, then merge #2393.**
 8. **Deploy:** a separate go, then the post-deploy checks.
