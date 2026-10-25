@@ -1,7 +1,7 @@
 ---
 id: 0029_verify_reads_review_verdicts
 class: light
-status: open
+status: landed
 issue: none (found by prod's upgrade verify, 2026-10-19)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0029_naming_arc_voices_repaired.py
@@ -53,3 +53,4 @@ first (Stage 1, item 3), or 0031 is re-measured and its outcome rebuilt in the s
   reset is removed. Not re-derived by the reviewer: the clone lines above.
 - **Dry run and undo:** not applicable; it writes nothing. On prod after the deploy: `upgrade
   verify` shows `[OK]` for 0029.
+- **Landed 2026-10-20:** deployed with b60a89e27; prod's `upgrade verify` (08:43:28Z) reads `[OK ] 0029_naming_arc_voices_repaired`.

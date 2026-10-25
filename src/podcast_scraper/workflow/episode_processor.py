@@ -489,6 +489,7 @@ def download_media_for_transcription(
             episode=episode,
         )
     decision = media_route_skip_existing(episode, cfg, effective_output_dir, run_suffix)
+    rediarize = getattr(cfg, "pipeline_stage", None) == "rediarize_only"
     if decision.action == FORCED:
         # #925: a scoped reprocess (--reprocess-source) forces matching episodes
         # (e.g. whisper_transcription) back through download+transcribe so diarization
@@ -496,12 +497,21 @@ def download_media_for_transcription(
         # with no transcript URL); the override in _check_existing_transcript covers the
         # direct-download path. Falling through schedules a real download, so the
         # job.temp_media reuse skip below is bypassed too.
-        logger.info(
-            "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
-            episode.idx,
-            cfg.reprocess_source,
-            decision.path,
-        )
+        if rediarize:
+            # rediarize_only downloads the audio for the diarizer and keeps the transcript's
+            # text and timestamps (_rediarize_existing_transcript); the old message read as re-ASR.
+            logger.info(
+                "[%s] [#925] re-diarizing from the audio; the transcript text is kept: %s",
+                episode.idx,
+                decision.path,
+            )
+        else:
+            logger.info(
+                "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
+                episode.idx,
+                cfg.reprocess_source,
+                decision.path,
+            )
     elif decision.action == BACKFILL:
         logger.info(
             "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
@@ -577,6 +587,8 @@ def download_media_for_transcription(
             temp_media="",
             episode=episode,
         )
+    elif rediarize:
+        logger.info(f"[{episode.idx}] downloading audio to re-diarize: {display_title}")
     else:
         logger.info(f"[{episode.idx}] no transcript; downloading media: {display_title}")
 
@@ -3691,6 +3703,7 @@ def _relabel_existing_transcript(
         precomputed_diarization=diar,
         stated_voice_names=_stated_relabel or None,
         feed_hosts=feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
         # ADR-137 — title + description feed the LLM's host/guest role determination and gate
         # role-only resolution. FULL passes both; relabel_only omitting them resolved on a strictly
         # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
@@ -3844,6 +3857,7 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
         detected_speaker_names=job.detected_speaker_names,
         metadata_named=job.metadata_named,
         feed_hosts=job.feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
         detection_ran=getattr(job, "speaker_detection_ran", None),
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),
@@ -3870,6 +3884,7 @@ def _roster_native_segments(
     detected_speaker_names: Optional[List[str]] = None,
     metadata_named: Optional[List[str]] = None,
     feed_hosts: Optional[List[str]] = None,
+    unbindable_hosts: Optional[List[str]] = None,
     detection_ran: Optional[bool] = None,
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
@@ -3953,6 +3968,7 @@ def _roster_native_segments(
             precomputed_diarization=diar,
             stated_voice_names=stated_voice_names or None,
             feed_hosts=feed_hosts,
+            unbindable_hosts=unbindable_hosts,
             detection_ran=detection_ran,
             episode_title=episode_title,
             episode_description=episode_description,
@@ -3981,6 +3997,60 @@ def _roster_native_segments(
         )
         _capture_stage_exception(exc, stage="diarization")
         return result
+
+
+#: The audio may run on after the last speech (outro music): a gap counts only past both.
+_REDIARIZE_TAIL_MAX_S = 120.0
+_REDIARIZE_TAIL_MAX_SHARE = 0.10
+
+
+def rediarize_audio_mismatch(
+    downloaded_bytes: Optional[int],
+    ingest_bytes: Optional[int],
+    audio_s: Optional[float],
+    transcript_end_s: float,
+) -> Optional[str]:
+    """Why the downloaded audio is not the audio the transcript was made from, or None.
+
+    A rediarize re-downloads the enclosure and puts the fresh voices on the OLD transcript's
+    timestamps. When the publisher has changed the file since (re-encoded, ads or a promo
+    inserted), those timestamps point at other speech: on the DGX block of 2026-10-23 one
+    episode's file grew 6.9 MB -> 9.2 MB and its six voices collapsed to four, a promo and an ad
+    merged into the host. The size recorded at ingest (``audio_preprocessing.original_bytes``)
+    decides when it exists; otherwise the measured duration against the transcript's last
+    segment: speech past the end of the audio, or audio running on past the last speech by more
+    than both ``_REDIARIZE_TAIL_MAX_S`` and ``_REDIARIZE_TAIL_MAX_SHARE`` of its length.
+    """
+    if ingest_bytes and downloaded_bytes is not None and downloaded_bytes != ingest_bytes:
+        return (
+            f"downloaded audio is {downloaded_bytes} bytes; "
+            f"the transcribed audio was {ingest_bytes}"
+        )
+    if audio_s:
+        if transcript_end_s > audio_s + 2.0:
+            return f"the transcript runs to {transcript_end_s:.0f} s; the audio is {audio_s:.0f} s"
+        tail = audio_s - transcript_end_s
+        if tail > _REDIARIZE_TAIL_MAX_S and tail > _REDIARIZE_TAIL_MAX_SHARE * audio_s:
+            return (
+                f"the audio runs {tail:.0f} s past the transcript's last speech ({audio_s:.0f} s)"
+            )
+    return None
+
+
+def _ingest_audio_bytes(txt_path: Path) -> Optional[int]:
+    """``original_bytes`` the episode's metadata recorded for the audio it was transcribed from."""
+    import json as _json
+
+    stem = txt_path.name[: -len(".txt")]
+    meta = txt_path.parent.parent / "metadata" / f"{stem}.metadata.json"
+    try:
+        doc = _json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    ledger = (doc.get("processing") or {}).get("stage_ledger") or {}
+    detail = (ledger.get("audio_preprocessing") or {}).get("detail") or {}
+    value = detail.get("original_bytes")
+    return int(value) if isinstance(value, int) and value > 0 else None
 
 
 def _rediarize_existing_transcript(
@@ -4045,16 +4115,38 @@ def _rediarize_existing_transcript(
         )
         return False, None, 0
 
+    mismatch = rediarize_audio_mismatch(
+        os.path.getsize(audio_path),
+        _ingest_audio_bytes(txt_path),
+        _duration_from_media_file(job),
+        max(float(s.get("end") or 0.0) for s in result["segments"]),
+    )
+    if mismatch:
+        logger.warning("[%s] rediarize_only: refused, %s", job.idx, mismatch)
+        _record_unresolved_transcript(
+            job, cfg, pipeline_metrics, "rediarize_only", error_type="AudioChanged", detail=mismatch
+        )
+        return False, None, 0
+
     feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
+    # The audio a full run diarizes: the profile's preprocessing preset (resample, re-encode,
+    # loudness), as in transcribe_media_to_text. The raw download gave pyannote different audio
+    # from every episode the pipeline had processed, so fresh and stored voices were not
+    # comparable.
+    media = _preprocess_audio_if_needed(job, cfg, audio_path, pipeline_metrics)
     # No precomputed diarization + bypass_cache_read -> apply_diarization diarizes the AUDIO fresh
     # with the profile's diarizer and aligns the new voices to result["segments"] (the ASR text).
     result = apply_diarization_to_result(
         result,
-        audio_path,
+        media,
         cfg,
         job.detected_speaker_names,
         metadata_named=job.metadata_named,
         feed_hosts=feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
+        # ADR-137: the naming step reads the same title and description as on a full run.
+        episode_title=job.ep_title,
+        episode_description=getattr(job.episode, "description", None),
         bypass_cache_read=True,
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),
@@ -5099,6 +5191,7 @@ def _maybe_speech_coverage_failover(
         metadata_named=job.metadata_named,
         cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
         feed_hosts=job.feed_hosts,
+        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),
     )
@@ -5394,6 +5487,9 @@ def transcribe_media_to_text(
                     metadata_named=job.metadata_named,
                     cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
                     feed_hosts=job.feed_hosts,
+                    unbindable_hosts=getattr(
+                        getattr(job, "episode", None), "unbindable_hosts", None
+                    ),
                     # ADR-137 — title + description feed the LLM's host/guest role determination.
                     episode_title=job.ep_title,
                     episode_description=getattr(job.episode, "description", None),
@@ -6488,6 +6584,7 @@ def process_transcript_download(
                 detected_speaker_names=detected_speaker_names,
                 metadata_named=metadata_named,
                 feed_hosts=feed_hosts,
+                unbindable_hosts=getattr(episode, "unbindable_hosts", None),
                 detection_ran=speaker_detection_ran,
                 episode_title=getattr(episode, "title", None),
                 episode_description=getattr(episode, "description", None),

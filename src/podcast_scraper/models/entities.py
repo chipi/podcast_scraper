@@ -116,6 +116,10 @@ class Episode:
     # each filter dropped, and the guests corroboration refused, with reasons. Set by
     # `_detect_speakers_for_episode`; read into the diagnostics sidecar's `decision_trace`.
     speaker_detection_report: Optional[Dict[str, Any]] = None
+    # Hosts this episode's pool has ONLY from its own statement ("hosted by X", v43) or
+    # <podcast:person role="host"> (v44). Set by `hosts_for_episode`; they anchor the seat, the
+    # stated-host guard and the spelling, but are left out of the resolver's candidates (v51).
+    unbindable_hosts: List[str] = field(default_factory=list)
 
 
 @dataclass

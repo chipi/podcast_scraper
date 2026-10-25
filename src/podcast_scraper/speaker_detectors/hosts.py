@@ -982,7 +982,7 @@ def _feed_statement(
     development set (2026-10-03): the junk statements of record ("Two Carnegie Mellon", "Norman
     Conquest", "Americas Online", "Anglo Canadian", "Carnegie India") are refused by the person
     check individually and the real names beside them ("Tom Holland", "Dominic Sandbrook", "Emily
-    Hart", the author tags "Dan Saffer", "Nik Martelaro", "Carin Zissis", "Richard McColl") are
+    Hart", the author tags "Dan Saffer", "Nik Martelaro", "Carla Zane", "Richard McColl") are
     kept.
     """
     out: Set[str] = set()
@@ -1922,6 +1922,12 @@ def is_publishable_speaker_name(
     # longer name they are real surnames and given names: Christopher Guest, Ok Taecyeon.
     if lowered and all(t in role_filler for t in lowered):
         return False
+    # A job title on its own is not a person, at any length: "General Partner" and "Founding
+    # Partner" were published as speakers (the DGX block, 2026-10-23), and the job-title check
+    # below starts at three words. Only a name made of nothing else is refused.
+    title_only = _reject_vocab("title_only_tokens", language) | job_titles
+    if lowered and all(t in title_only for t in lowered):
+        return False
     if len(toks) >= 2:
         if lowered[-1] in org_tail or any(t.endswith(("'s", "’s")) for t in toks):
             return False
@@ -2088,6 +2094,7 @@ _NAMING_VOCABULARY_MAPS: Dict[str, Dict[str, Any]] = {
     "leading_role_words": _LEADING_ROLE_WORDS_BY_LANGUAGE,
     "show_tail_words": _SHOW_TAIL_WORDS_BY_LANGUAGE,
     "job_title_tokens": _JOB_TITLE_TOKENS_BY_LANGUAGE,
+    "title_only_tokens": naming_vocabulary.TITLE_ONLY_TOKENS,
     "trailing_job_tokens": _TRAILING_JOB_TOKENS_BY_LANGUAGE,
     "number_words": _NUMBER_WORDS_BY_LANGUAGE,
     "role_or_filler_tokens": _ROLE_OR_FILLER_TOKENS_BY_LANGUAGE,
@@ -2229,7 +2236,7 @@ def hosts_from_episode_description(
         roles.append(_HOST_ROLE_BEFORE_NAME_BY_LANGUAGE[_primary_subtag(language)])
     for match, own in ((m, cue is own_cue) for cue in cues for m in cue.finditer(text)):
         # THE SENTENCE CAN RUN THE OTHER WAY, and then the name in front of the cue is the GUEST.
-        # EconTalk: "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts about
+        # EconTalk: "Listen as journalist Simon Whitt speaks with EconTalk's Ross Rowley about
         # how Jensen pivoted..." — Witt is the guest and Roberts the host, and the plain
         # before-the-cue rule seats the guest as host. The show naming ITSELF right after the cue
         # is what marks the inversion, and it is the only evidence in the sentence that does.
@@ -2357,6 +2364,7 @@ def compose_episode_hosts(
     more: Iterable[str] = (),
     episode_people: Iterable[str] = (),
     language: Optional[str] = TARGET_LANGUAGE,
+    read_statements: bool = True,
 ) -> List[str]:
     """The host pool of ONE episode, as a list the roster may paint names from.
 
@@ -2397,10 +2405,86 @@ def compose_episode_hosts(
             language=language or TARGET_LANGUAGE,
         )
     )
-    pool = _merge_people(feed_people, people(more), described)
+    # The episode's own statement of who presents it: "hosted by X", "presented by X", "co-host X"
+    # (the first three host phrases, English). On rotating-host shows (Ottoman History, Planet
+    # Money, Latin America in Focus) it names hosts the feed does not list. Measured 2026-10-24
+    # over the 421 labelled episodes: beyond the feed's hosts it names 13 labelled hosts and 0
+    # labelled guests (the ladder had 7 of the 13 wrong, unnamed or as guest); 11 names are no
+    # labelled voice (credited hosts, or hosts the labels leave nameless).
+    # Additive only: the byline rule below still reads the cue hosts alone, so a feed that names
+    # nobody keeps its byline hosts exactly as before.
+    # ``read_statements=False`` composes the pool without them, so a caller can tell which names
+    # the pool gains ONLY from this episode's own statement (v51).
+    stated = (
+        people(hosts_stated_in_episode_text(episode_title, episode_description))
+        if read_statements
+        else []
+    )
+    pool = _merge_people(feed_people, people(more), described, stated)
     if not described:
         pool = _merge_people(pool, people(episode_authors))
     return pool
+
+
+def hosts_stated_in_episode_text(
+    episode_title: Optional[str], episode_description: Optional[str]
+) -> List[str]:
+    """Names an episode's title or description states as presenting it ("hosted by X and Y",
+    "presented by X", "co-host X"): the explicit host phrases of ``HOST_PHRASE_TEMPLATES``
+    (English), not the looser "join X" / trailing "with X" ones. Unfiltered; the caller checks
+    each name is a person."""
+    text = ". ".join(p.strip() for p in (episode_title or "", episode_description or "") if p)
+    out: List[str] = []
+    for pattern in _HOST_PHRASES_BY_LANGUAGE[TARGET_LANGUAGE][:3]:
+        for match in pattern.finditer(text):
+            if _hosts_something_else(text[: match.start()], TARGET_LANGUAGE):
+                continue
+            for name in re.split(r"\s*(?:,|\band\b|&)\s*", match.group("names")):
+                toks = name.split()
+                # A missing full stop runs the next sentence's first word into the name:
+                # "Hosted by philosopher Barney C. Smyth Please do email us".
+                while toks and toks[-1].lower() in _NEXT_SENTENCE_OPENERS:
+                    toks.pop()
+                name = " ".join(toks)
+                if len(toks) >= 2 and name not in out:
+                    out.append(name)
+    return out
+
+
+def _hosts_something_else(before: str, language: str) -> bool:
+    """True when the sentence leading up to a host phrase makes an event or an organisation its
+    subject ("Live from the BIG Summit, a platform hosted by …") and names no show word after it
+    ("…, this episode is hosted by …" keeps it). Ladder doc v48."""
+    sentence = re.split(r"[.!?]\s+", before)[-1].lower()
+    words = re.findall(r"[^\W\d_]+", sentence)
+    things = naming_vocabulary.HOSTED_THING_WORDS.get(language, frozenset())
+    shows = naming_vocabulary.HOSTED_SHOW_WORDS.get(language, frozenset())
+    last_thing = max((i for i, w in enumerate(words) if w in things), default=-1)
+    return last_thing >= 0 and not any(w in shows for w in words[last_thing + 1 :])
+
+
+#: Imperatives a show note opens a sentence with; never the last word of a presenter's name.
+_NEXT_SENTENCE_OPENERS = frozenset(
+    {
+        "please",
+        "listen",
+        "subscribe",
+        "follow",
+        "visit",
+        "join",
+        "check",
+        "learn",
+        "read",
+        "watch",
+        "email",
+        "contact",
+        "support",
+        "find",
+        "download",
+        "share",
+        "rate",
+    }
+)
 
 
 def recurrent_hosts_across_episodes(
@@ -2418,7 +2502,7 @@ def recurrent_hosts_across_episodes(
 
     Measured over the production snapshot: at ``>=3 episodes AND >=25%`` of a feed's transcribed
     episodes, **28 of 55 feeds yield a name and every name is that show's presenter or a standing
-    co-host** — zero guests, zero networks, zero sponsors, zero show names. Russ Roberts on 41 of
+    co-host** — zero guests, zero networks, zero sponsors, zero show names. Ross Rowley on 41 of
     41 EconTalk episodes, Noah Kravitz on 98 of 109 NVIDIA, Jessica Mendoza and Ryan Knutson on The
     Journal, Kevin Roose and Casey Newton on Hard Fork.
 
@@ -2539,7 +2623,7 @@ def detect_hosts_from_feed(
     author tags are both read and UNIONED — a statement no longer hides the tag behind it, and a
     junk name in the statement no longer empties it. "Two Carnegie Mellon faculty explore" used to
     beat the author tag "Dan Saffer and Nik Martelaro" (AI and Design); "...Council of the Americas
-    Online team brings..." used to block "Carin Zissis" (Latin America in Focus). One person stated
+    Online team brings..." used to block "Carla Zane" (Latin America in Focus). One person stated
     twice under two spellings is one entry (:func:`_merge_people`).
 
     NER over the title is the last resort, only when neither names anybody: it cannot tell a host

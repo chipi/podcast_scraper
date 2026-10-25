@@ -28,6 +28,27 @@ audio_preprocessing_profile: speech_optimal_v1
 speaker_detector_provider: vllm
 auto_speakers: true
 
+# Naming release (2026-10-23, podcast-scraper-eval-data NAMING-GATES / NAMING-RETHINK; ladder doc
+# v26-v31). Measured on held-out before any of it publishes:
+# - talk floor 5%: a name on a voice under 5% of the talk is taken off (held out: 9 bad names
+#   removed, 0 right lost; on served names 84 bad / 6 right);
+# - E1d + S30s rescues: 8 fires, 8 right on 181 held-out episodes;
+# - transcript naming and the voice rung in SHADOW: the ladder publishes, both answers are written
+#   beside it in the speaker-diagnostics sidecar for comparison (promotion is a later decision).
+speaker_name_min_talk_share: 0.05
+ladder_rescue_rules: true
+transcript_naming: shadow
+voice_identity_rung: shadow
+# Metadata speaker detection at 0, not the provider's 0.3 (which also drives summaries): at 0.3 the
+# same episode gets a different candidate list run to run. The voice resolver already asks at 0.
+speaker_detection_temperature: 0.0
+# One person split into two voices is merged by fingerprint, at 0.8 (ladder doc v49, v50): on the
+# split episodes 0.8 merged 14 labelled pairs, all right; on held-out no two different people reach
+# 0.6 (181 pairs, max 0.598). 0.7 would merge more, but a false merge names a whole voice wrongly
+# and 181 pairs is too few to bound that for prod; lower it only with a post-deploy merge audit.
+merge_split_voices: true
+merge_split_voices_threshold: 0.8
+
 summary_provider: vllm
 # #2342: the DGX is reached through the LiteLLM gateway (vllm_api_base, registry-governed),
 # so the vLLM provider authenticates with the gateway key the pipeline already holds.

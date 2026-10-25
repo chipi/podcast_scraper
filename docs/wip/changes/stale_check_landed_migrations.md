@@ -1,7 +1,7 @@
 ---
 id: stale_check_landed_migrations
 class: light
-status: open
+status: landed
 issue: none (the operator opens issues; INGESTION-ARC Stage 1, item 3)
 touches:
   - src/podcast_scraper/quality/change_gate.py
@@ -56,3 +56,4 @@ test (`check_landing`) compares with the tree's code digest.
   overstated sentences (the hook's empty-plan branch; "applied on prod" as checked by code),
   corrected above and in the method's v0.7 row; (3) the operator to know `landed` is a hand-set
   flag, stated above and in the report to the operator.
+- **Landed 2026-10-19:** on main since a213d5fa5; the prod watchdog (b297f2ab0) landed after it without re-measuring 0031.

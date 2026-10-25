@@ -165,6 +165,122 @@ _TODO_
 
 _TODO_
 
+## Extension 2026-10-24: S7 on an eval run's output (`--voice-map`)
+
+**Why:** the labels name the labelled run's voice ids and metadata path. An eval run writes a new
+run directory, and a rediarize renumbers the voices, so a lookup by the after voice id can name
+the wrong person. The first R1-GI S7 (`s7_r1gi_v4.json`, no map) read 390 wrong on 21 cases,
+against 122 on the same cases at baseline (219 of the 390 came from the voice mix-up: y004, y009,
+y016; 171 are real: y007, y008, y019). Two of those 21 cases (y041 and y042) are in the after
+copy but not in the run's index; the map leaves them out, so the mapped R1-GI reading has 19 cases.
+
+**What changed:**
+
+- The eval scorer (`podcast-scraper-eval-data` `scripts/eval/naming/score.py`) also writes
+  `<rows>.voicemap.json`. Per case it holds the after metadata path and the after voice of EVERY
+  labelled voice; the rows cover scored labels only.
+- `gold_insights.py --voice-map` does four things:
+  - follows each case to its after path;
+  - re-keys the labels to the after voices;
+  - refuses a map made for another corpus;
+  - skips and names cases the map does not cover.
+- **Merged voices:** labels that disagree on one after voice put its insights in
+  `voice_map_ambiguous` (y029's collapse: 6 labels on one voice). Labels that agree count as one
+  person the labelled run split (y018 and y020, one host labelled twice) and are applied; they are
+  listed under `labelled_voices_merged_same_label`.
+- Without `--voice-map` the report is the same as before, apart from the new bucket's zero counts.
+  `s7_base_v4` was re-run and its rows are identical.
+
+**Tests:** 9 new scenario tests. 7 mutants, all killed: no re-key, never ambiguous, always
+ambiguous, agreement ignoring scored-ness, no ambiguous bucket, no after path, no corpus guard.
+
+**Correction (2026-10-24, after an independent review):** the first R4 / R5 readings here were
+wrong. R4 and R5 ran a name-only profile with GI switched off (`gi=off` in all 67 config lines
+of each run's log), so all 124 GI files in the R4 and R5 copies are byte-identical to R1-GI's
+(sha256). A rediarize with GI on cascades to GI (`episode_processor` rediarize_only docstring; the
+prod profile has `generate_gi: true`); that path was read, not run. So the GI-stored names on R4 / R5 are R1-GI's names, and
+their quote offsets point into R1-GI's transcript, not the rediarized one. The earlier "R4 175
+wrong" and "y017 swap" were artefacts of that. The tables below replace them.
+
+**Placement now checks the quote's text.** If the text at a quote's offsets is not the quote, the
+quote is found by its text in the run's transcript; it is placed there when the text occurs exactly
+once (`relocated_by_quote_text`) and is `quote_not_placeable` / `quote_text_mismatch` otherwise.
+The baseline is unchanged: 0 relocated, rows identical. R4 / R5: 113 relocated, 6 mismatch.
+
+**Namers (`--namer`):** each placed insight is scored with the name the namer gives its voice.
+
+- `served` (default): the name stored on the GI insight.
+- `ladder`: the run's served roster from its speakers diagnostics, i.e. what a GI regenerated from
+  this run would carry. On R1-GI, whose GI was regenerated, it equals `served`.
+- `llm` / `voice`: the shadow namers' results.
+- A voice the namer gives no result is unnamed and counted (0 in every run below).
+- Only the name changes: the insights and their hidden flags are the run's GI's.
+- S7 compares names only; a right name with the wrong role counts as correct.
+
+Readings (val_v4, against the baseline on the same cases; the GI reran in R1-GI, so insight counts
+differ and the comparison is by bucket, not per insight):
+
+| run | namer | correct | wrong | unnamed | ambiguous | not placeable |
+| --- | --- | --- | --- | --- | --- | --- |
+| baseline (19-20 cases) | served | 620-671 | 122 | 223 | 0 | 2 |
+| R1-GI | served = ladder | 915 | 171 | 5 | 0 | 1 |
+| R1-GI | llm | 993 | 21 | 77 | 0 | 1 |
+| R1-GI | voice | 915 | 171 | 5 | 0 | 1 |
+| R4 | ladder | 934 | 171 | 5 | 31 | 7 |
+| R4 | llm | 999 | 21 | 90 | 31 | 7 |
+| R4 | voice | 957 | 0 | 153 | 31 | 7 |
+| R5 | ladder | 934 | 171 | 5 | 31 | 7 |
+| R5 | llm | 1,106 | 0 | 4 | 31 | 7 |
+| R5 | voice | 957 | 0 | 153 | 31 | 7 |
+
+**Where the wrong insights are:**
+
+- **Ladder:**
+  - fixed: y002 (39);
+  - new: y007 (35) and y008 (52), the guest served as the host by `llm_resolution` after a
+    third-person refusal of the host (ladder doc v39 fixes the host side);
+  - unchanged: the y019 swap (84).
+- **LLM:** all 21 wrong are y020 (one host labelled as two voices; R4 kept two voices, R5 merged
+  them). R5 has 0 wrong, but it is one episode and the LLM varies between identical runs (the
+  second review: 7 of 43 LLM voices differ between R4 and R5, the ladder 0), so the merge is not
+  established as the cause.
+- **The LLM rows carry the `SPEAKER_1` key bug:** the scorer reads the stored `model_result`, which
+  the buggy code wrote (the fix, `4491a7263`, came after the runs). By the second review's count,
+  most of the LLM's unnamed insights are voices the bug dropped: R4 74 of 90, R1-GI 61 of 77, R5 4
+  of 4. Re-keying the stored raw answers gives about 16 unnamed on R1-GI and R4 and 0 on R5, an
+  upper bound (it skips `model_result`'s role, publishable-name, talk-floor and rename filters).
+  Not re-checked here.
+- **Voice rung:**
+  - R1-GI: it does not engage on a relabel.
+  - R4 / R5: its 0 wrong comes from abstaining. It names hosts only (the reviewer's count, not
+    re-checked: one group per feed in 18 of the 19 episodes it engaged on) and leaves y007's and
+    y008's guests unnamed.
+  - It is a guard against a host's name on a guest, not a better namer than the LLM pass.
+
+**What the product shows:** it reads a quote's speaker from the GI (the quote's `speaker_id` ->
+the GI's person node). The GI's insight speaker is the segment's `speaker_label` at the first
+quote's start, which is what `--namer ladder` reads from the run's roster (equal on every placed
+R1-GI, R4 and R5 row, per the second review).
+
+**Not covered:**
+
+- **Sample:** 20 val_v4 episodes is a small set.
+- **val_v4 is not fresh for the voice rung:** it was pre-registered there, and its primary test
+  missed (p = 0.0591).
+- **Hiding:** what a promoted namer would hide (hidden flags are the run's GI's).
+- **Missing runs:**
+  - R1: its after-state was overwritten;
+  - R2: its sidecars (211 cases) survive in the run copy (the second review); not measured with S7;
+  - R3: its after-state was recorded as copied to `R3_after`, which is no longer in scratch, and
+    when it went is not known;
+  - R6: its 162 cases may still be in the run copy, but that was not checked or measured.
+- **The before:** the snapshot plus 0030; prod also has 0031, so the before is not prod's served
+  state.
+- **The LLM is nondeterministic between identical runs:** R4 vs R5 changed on 4 episodes whose
+  input did not change.
+- **The matcher limits above**, which still apply.
+- **No per-insight before/after:** the GI reran in R1-GI.
+
 ## Not covered
 
 _TODO_

@@ -423,6 +423,8 @@ let redrawDebounceTimer: ReturnType<typeof setTimeout> | null = null
 /** Prevents immediate redraws after layout completion (cooldown for watcher cascades). */
 let layoutCompletionCooldownUntil = 0
 let resizeObs: ResizeObserver | null = null
+/** Watches a container too small to lay out in, and redraws once it has a size. */
+let sizeWaitObs: ResizeObserver | null = null
 let zoomCenterTimer: ReturnType<typeof setTimeout> | null = null
 let lastZoomLevel = 1
 let navInstance: { destroy: () => void } | null = null
@@ -2453,7 +2455,49 @@ function exitRadialMode(): void {
   radialSnapshot = null
 }
 
+/** The container's content box, measured EXACTLY as cytoscape measures it (client size minus
+ *  padding, no fallback): a value cytoscape reads as NaN must read as NaN here too. */
+function containerContentSize(el: HTMLElement): { w: number; h: number } {
+  const style = window.getComputedStyle(el)
+  const px = (name: string): number => parseFloat(style.getPropertyValue(name))
+  return {
+    w: el.clientWidth - px('padding-left') - px('padding-right'),
+    h: el.clientHeight - px('padding-top') - px('padding-bottom'),
+  }
+}
+
+/** Whether cytoscape can lay out in ``el``. Mid handoff navigation the view can re-render while
+ *  ``container`` still holds the old, detached element; its computed padding is empty, so
+ *  cytoscape's width is NaN, its grid layout's bounding box is undefined, and
+ *  ``cytoscape({ container })`` throws ("can't access property h, bb is undefined"). A negative
+ *  content box does the same. A zero size is fine (it lays out at a point, then resizes). */
+function containerCanLayOut(el: HTMLElement): boolean {
+  if (!el.isConnected) return false
+  const { w, h } = containerContentSize(el)
+  return w >= 0 && h >= 0
+}
+
+function stopWaitingForContainerSize(): void {
+  if (sizeWaitObs) {
+    sizeWaitObs.disconnect()
+    sizeWaitObs = null
+  }
+}
+
+/** Redraw once ``el`` can be laid out in (see ``containerCanLayOut``). */
+function waitForContainerSize(el: HTMLElement): void {
+  stopWaitingForContainerSize()
+  if (typeof ResizeObserver === 'undefined') return
+  sizeWaitObs = new ResizeObserver(() => {
+    if (!containerCanLayOut(el)) return
+    stopWaitingForContainerSize()
+    scheduleRedraw()
+  })
+  sizeWaitObs.observe(el)
+}
+
 function destroyCy(): void {
+  stopWaitingForContainerSize()
   // Do not clear pendingViewportPreserve here — it must survive destroy+redraw until the new cy's layoutstop
   // (ego exit to full graph, Re-layout). egoPriorFullGraphViewportPreserve must survive enter-ego redraw too.
   pendingFocusCameraAfterLayoutHold = null
@@ -3669,12 +3713,13 @@ function redraw(): void {
     console.log('[GraphCanvas] FULL REDRAW - destroying and recreating graph')
     destroyCy()
     const el = container.value
-    if (!el) {
+    if (!el || !containerCanLayOut(el)) {
       graphCyNodeCount.value = 0
       releaseGraphCanvasLayoutHold()
       lastSelectedRelPathsCountAfterLayout = 0
       lastCommittedFilteredNodeIds.clear()
       lastCommittedEgoFocusCyId = ''
+      if (el) waitForContainerSize(el)
       return
     }
 

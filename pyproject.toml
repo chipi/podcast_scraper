@@ -27,7 +27,11 @@ dependencies = [
   "python-dotenv>=1.2.2,<2.0.0",  # For .env file support (RFC-013)
   "zipp>=4.1.0,<5.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
-  "filelock>=3.29.7,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
+  # Security fixes: CVE-2025-68146 (3.29.7); CVE-2026-112907, -112913, -112940 (4.2.1).
+  # 4.1.1+ requires Python 3.11, so the 3.10 floor keeps the last 3.10 line; CI and every
+  # image run 3.11+.
+  "filelock>=4.2.1,<5.0.0; python_version >= '3.11'",
+  "filelock>=3.29.7,<4.0.0; python_version < '3.11'",
   # Security fix: CVE-2026-63374 + CVE-2026-64847, both resolved in 4.14.2.
   #
   # Declared although nothing here imports it: anyio arrives transitively from httpx,
@@ -144,6 +148,9 @@ ml = [
   "openai-whisper>=20250625",
   # spaCy 3.8 / thinc 8.3 for numpy 2.x compatibility (required by pyannote.audio 4.x).
   "spacy>=3.8.0,<4.0.0",
+  # preshed 3.0.14 makes spaCy 3.8.16 raise OverflowError while loading en_core_web_sm;
+  # 3.0.13 loads it. Lift when a preshed release loads the model again.
+  "preshed>=3.0.13,<3.0.14",
   # spaCy's CLI imports ``click`` via typer (``spacy/cli/_util.py``).
   # typer-0.26.0+ dropped click from its hard deps in favour of having
   # consumers depend on it directly. The cloud-thin / API images still
@@ -400,6 +407,8 @@ podcast_scraper = [
     # The step-8 reviewers' verdicts list migrations read (upgrade/reviewer_verdicts.py). Missing from
     # the wheel, a migration that reads one refuses to run on prod.
     "upgrade/verdicts/*.tsv",
+    # The frozen change lists a migration applies (0034, 0035: upgrade/migrations/m003[45]_*.py).
+    "upgrade/lists/*.json",
     # The clone outcome each regime migration ships (upgrade/outcome_hook.py, method D5).
     "upgrade/outcomes/*.json",
 ]

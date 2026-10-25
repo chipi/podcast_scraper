@@ -68,3 +68,35 @@ def test_a_feed_that_states_its_hosts_is_unchanged() -> None:
 
 def test_an_episode_without_an_item_gets_only_the_non_fallback_hosts() -> None:
     assert hosts_for_episode(_fallback_result(), SimpleNamespace()) == set()
+
+
+_PODCAST = "https://podcastindex.org/namespace/1.0"
+
+
+def _person_episode(*people: tuple) -> SimpleNamespace:
+    item = ET.Element("item")
+    for name, role in people:
+        el = ET.SubElement(item, f"{{{_PODCAST}}}person")
+        el.text = name
+        if role:
+            el.set("role", role)
+    return SimpleNamespace(item=item, title="Ep")
+
+
+def _plain_result(hosts: set) -> HostDetectionResult:
+    return HostDetectionResult(cached_hosts=set(hosts), heuristics=None, feed_title="River Notes")
+
+
+def test_a_podcast_person_host_joins_the_episodes_pool() -> None:
+    got = hosts_for_episode(_plain_result({"Ada Wren"}), _person_episode(("Tobias Holt", "host")))
+    assert got == {"Ada Wren", "Tobias Holt"}
+
+
+def test_a_podcast_person_guest_adds_no_host() -> None:
+    got = hosts_for_episode(_plain_result({"Ada Wren"}), _person_episode(("Mira Lane", "guest")))
+    assert got == {"Ada Wren"}
+
+
+def test_a_podcast_person_without_a_role_is_a_host_as_the_namespace_defines() -> None:
+    got = hosts_for_episode(_plain_result(set()), _person_episode(("Tobias Holt", None)))
+    assert got == {"Tobias Holt"}

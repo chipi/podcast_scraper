@@ -397,6 +397,158 @@ ROLE_OR_FILLER_TOKENS: Dict[str, FrozenSet[str]] = {
     ),
 }
 
+#: Words that make up a job title on their own ("General Partner", "Founding Partner", "Senior
+#: Fellow"): a name made of nothing but these and ``JOB_TITLE_TOKENS`` is a title, not a person.
+#: Only the WHOLE name decides; any of them inside a longer name is untouched. Measured
+#: 2026-10-24: refuses 0 of 1,484 gold-label names and 0 of 2,738 names served on the prod
+#: snapshot; the gate passed all six titles above before.
+TITLE_ONLY_TOKENS: Dict[str, FrozenSet[str]] = {
+    "en": frozenset(
+        {
+            "general",
+            "founding",
+            "managing",
+            "senior",
+            "chief",
+            "executive",
+            "lead",
+            "principal",
+            "associate",
+            "deputy",
+            "vice",
+            "assistant",
+            "co-founder",
+            "cofounder",
+            "fellow",
+            "partner",
+            "head",
+            "staff",
+            "contributing",
+            "special",
+            "former",
+        }
+    ),
+    "es": frozenset(
+        {
+            "general",
+            "fundador",
+            "fundadora",
+            "jefe",
+            "jefa",
+            "principal",
+            "adjunto",
+            "adjunta",
+            "asociado",
+            "asociada",
+            "cofundador",
+            "cofundadora",
+            "socio",
+            "socia",
+            "ejecutivo",
+            "ejecutiva",
+            "senior",
+            "investigador",
+            "investigadora",
+            "exdirector",
+            "exdirectora",
+        }
+    ),
+    "it": frozenset(
+        {
+            "generale",
+            "fondatore",
+            "fondatrice",
+            "capo",
+            "delegato",
+            "delegata",
+            "principale",
+            "aggiunto",
+            "aggiunta",
+            "associato",
+            "associata",
+            "cofondatore",
+            "cofondatrice",
+            "socio",
+            "socia",
+            "esecutivo",
+            "esecutiva",
+            "senior",
+            "ricercatore",
+            "ricercatrice",
+        }
+    ),
+    "fr": frozenset(
+        {
+            "général",
+            "générale",
+            "fondateur",
+            "fondatrice",
+            "chef",
+            "délégué",
+            "déléguée",
+            "principal",
+            "principale",
+            "adjoint",
+            "adjointe",
+            "associé",
+            "associée",
+            "cofondateur",
+            "cofondatrice",
+            "exécutif",
+            "exécutive",
+            "senior",
+            "chercheur",
+            "chercheuse",
+        }
+    ),
+    "de": frozenset(
+        {
+            "geschäftsführender",
+            "geschäftsführende",
+            "leitender",
+            "leitende",
+            "stellvertretender",
+            "stellvertretende",
+            "mitgründer",
+            "mitgründerin",
+            "gründungspartner",
+            "gründungspartnerin",
+            "partner",
+            "partnerin",
+            "senior",
+            "chef",
+            "chefin",
+            "ehemaliger",
+            "ehemalige",
+        }
+    ),
+    "pt": frozenset(
+        {
+            "geral",
+            "fundador",
+            "fundadora",
+            "chefe",
+            "principal",
+            "adjunto",
+            "adjunta",
+            "associado",
+            "associada",
+            "cofundador",
+            "cofundadora",
+            "sócio",
+            "sócia",
+            "executivo",
+            "executiva",
+            "sénior",
+            "sênior",
+            "investigador",
+            "investigadora",
+            "pesquisador",
+            "pesquisadora",
+        }
+    ),
+}
+
 #: Job words that may appear INSIDE a stated name, before the person
 #: ("Senior User Experience Specialist Therese Fessenden").
 JOB_TITLE_TOKENS: Dict[str, FrozenSet[str]] = {
@@ -3529,6 +3681,59 @@ PLACE_PREPOSITION: Dict[str, str] = {
     "fr": r"(?:(?:À|A)|Au|Aux|De|Depuis|Dans|Chez)\s+",
     "de": r"(?:In|Im|Bei|Beim|Von|Vom|Aus|Auf)\s+",
     "pt": r"(?:Em|No|Na|De|Desde|Dentro\s+de)\s+",
+}
+
+#: Words that make the subject of an episode's "hosted by X" something other than the episode:
+#: an event or an organisation ("Live from the BIG Summit, a platform hosted by …", "This
+#: initiative, … and hosted by <organisation>"). Read in the same sentence, before the phrase.
+HOSTED_THING_WORDS: Dict[str, FrozenSet[str]] = {
+    "en": frozenset(
+        {
+            "summit",
+            "conference",
+            "platform",
+            "initiative",
+            "event",
+            "webinar",
+            "forum",
+            "festival",
+            "competition",
+            "hackathon",
+            "gala",
+            "awards",
+            "programme",
+            "accelerator",
+            "fund",
+            "foundation",
+            "institute",
+        }
+    ),
+    "es": frozenset(
+        {"cumbre", "conferencia", "plataforma", "iniciativa", "evento", "foro", "festival"}
+    ),
+    "it": frozenset(
+        {"vertice", "conferenza", "piattaforma", "iniziativa", "evento", "forum", "festival"}
+    ),
+    "fr": frozenset(
+        {"sommet", "conférence", "plateforme", "initiative", "événement", "forum", "festival"}
+    ),
+    "de": frozenset(
+        {"gipfel", "konferenz", "plattform", "initiative", "veranstaltung", "forum", "festival"}
+    ),
+    "pt": frozenset(
+        {"cúpula", "conferência", "plataforma", "iniciativa", "evento", "fórum", "festival"}
+    ),
+}
+
+#: ...unless the show itself is named after that word ("Recorded at the X Summit, this episode
+#: is hosted by …"): the host phrase then belongs to the episode again.
+HOSTED_SHOW_WORDS: Dict[str, FrozenSet[str]] = {
+    "en": frozenset({"episode", "show", "podcast", "series", "edition", "conversation"}),
+    "es": frozenset({"episodio", "programa", "podcast", "serie", "edición", "conversación"}),
+    "it": frozenset({"episodio", "puntata", "podcast", "serie", "edizione", "conversazione"}),
+    "fr": frozenset({"épisode", "émission", "podcast", "série", "édition", "conversation"}),
+    "de": frozenset({"folge", "episode", "sendung", "podcast", "serie", "ausgabe", "gespräch"}),
+    "pt": frozenset({"episódio", "programa", "podcast", "série", "edição", "conversa"}),
 }
 
 #: The conjunction joining two names in a list ("Alexandra Karppi, and Nina Panikova"). The

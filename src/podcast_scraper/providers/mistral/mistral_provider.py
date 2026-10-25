@@ -691,6 +691,16 @@ class MistralProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_mistral_retryable(),
             )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="mistral",
+                capability="speaker_detection",
+                stage="speaker_detection",
+                model=self.speaker_model,
+            )
 
             # Mistral SDK response structure: response.choices[0].message.content
             response_content = response.choices[0].message.content
@@ -1164,6 +1174,8 @@ class MistralProvider:
         system_prompt, user_prompt = build_megabundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             cache_transcript_prefix=self._cache_transcript_prefix,
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
@@ -1217,6 +1229,17 @@ class MistralProvider:
             recorder_name="record_llm_summarization_call",
             cfg=self.cfg,
             model=self.summary_model,
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="mistral",
+            capability="summarization",
+            stage="summarization",
+            model=self.summary_model,
+            call_metrics=call_metrics,
         )
         return parse_megabundle_response(raw_text)
 
@@ -1255,6 +1278,8 @@ class MistralProvider:
         system_prompt, user_prompt = build_extraction_bundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             cache_transcript_prefix=self._cache_transcript_prefix,
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
@@ -1308,6 +1333,17 @@ class MistralProvider:
             recorder_name="record_llm_summarization_call",
             cfg=self.cfg,
             model=self.summary_model,
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type="mistral",
+            capability="summarization",
+            stage="extraction_bundle",
+            model=self.summary_model,
+            call_metrics=call_metrics,
         )
         return parse_extraction_bundle_response(raw_text)
 
@@ -1350,6 +1386,9 @@ class MistralProvider:
             title=episode_title or "",
             **tmpl_kwargs,
         )
+        from ..ml.diarization.transcript_naming import with_bundled_field
+
+        user_prompt = with_bundled_field(user_prompt, params)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1433,6 +1472,10 @@ class MistralProvider:
             _record_cost(triggered_guardrail=True)
             raise
 
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
+
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -1446,8 +1489,6 @@ class MistralProvider:
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -1727,6 +1768,16 @@ class MistralProvider:
             max_tokens=gate_max_tokens,
             response_format={"type": "json_object"},
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="mistral",
+            capability="gi",
+            stage="gi",
+            model=self.summary_model,
+        )
         raw = response.choices[0].message.content
         content = ((raw if isinstance(raw, str) else "") or "").strip()
         content = _insight_salvage.strip_json_fence(content)
@@ -1735,7 +1786,9 @@ class MistralProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
-    def complete_text(self, prompt: str) -> str:
+    def complete_text(
+        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
+    ) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
@@ -1754,8 +1807,18 @@ class MistralProvider:
             model=self.summary_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            max_tokens=800,
+            max_tokens=int(max_tokens),
             response_format={"type": "json_object"},
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="mistral",
+            capability="speaker_detection",
+            stage=stage,
+            model=self.summary_model,
         )
         raw = response.choices[0].message.content
         content = ((raw if isinstance(raw, str) else "") or "").strip()
@@ -1840,6 +1903,16 @@ class MistralProvider:
                 cfg=self.cfg,
                 model=model,
             )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="mistral",
+                capability="kg",
+                stage="kg",
+                model=model,
+            )
             raw = response.choices[0].message.content
             content = (raw if isinstance(raw, str) else "") or ""
             return parse_kg_graph_response(
@@ -1917,7 +1990,14 @@ class MistralProvider:
                 raise
             in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
             apply_gil_evidence_llm_call_metrics(
-                call_metrics, pm, in_tok, out_tok, stage="extract_quotes"
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="mistral",
+                model=self.summary_model,
+                stage="extract_quotes",
             )
             raw = response.choices[0].message.content
             content = (raw if isinstance(raw, str) else "") or ""
@@ -2019,7 +2099,14 @@ class MistralProvider:
                 raise
             in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
             apply_gil_evidence_llm_call_metrics(
-                call_metrics, pm, in_tok, out_tok, stage="score_entailment"
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="mistral",
+                model=self.summary_model,
+                stage="score_entailment",
             )
             raw = response.choices[0].message.content
             content = (raw if isinstance(raw, str) else "0") or "0"

@@ -110,6 +110,21 @@ def get_feed_title() -> Optional[str]:
     return _FEED_TITLE
 
 
+_FEED_DESCRIPTION: Optional[str] = None
+
+
+def set_feed_description(description: Optional[str]) -> None:
+    """The channel description of the feed in flight (set with the title). Read by transcript
+    naming, whose prompt shows the show's own blurb, which usually names its hosts."""
+    global _FEED_DESCRIPTION
+    _FEED_DESCRIPTION = (description or "").strip() or None
+
+
+def get_feed_description() -> Optional[str]:
+    """The current feed's description, or ``None``."""
+    return _FEED_DESCRIPTION
+
+
 def set_profile(profile: Optional[str]) -> None:
     """Set the resolved profile name for this run."""
     global _PROFILE

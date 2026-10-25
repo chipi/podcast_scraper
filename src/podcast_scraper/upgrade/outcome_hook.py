@@ -199,11 +199,15 @@ def code_digest(module_name: str, extra: Optional[List[Path]] = None) -> str:
 
 
 def migration_digest(migration: Any) -> str:
-    """The migration's code digest as installed now, its verdicts file included when it has one."""
-    mod = type(migration).__module__
-    verdicts = getattr(importlib.import_module(mod), "verdicts_file", None)
-    extra = [verdicts()] if callable(verdicts) and verdicts().is_file() else []
-    return code_digest(mod, extra)
+    """The migration's code digest as installed now, with the plan-level inputs it reads: its
+    verdicts file and its frozen list (``list_file``), each when it has one."""
+    mod = importlib.import_module(type(migration).__module__)
+    extra = []
+    for hook in ("verdicts_file", "list_file"):
+        fn = getattr(mod, hook, None)
+        if callable(fn) and fn().is_file():
+            extra.append(fn())
+    return code_digest(type(migration).__module__, extra)
 
 
 # ---------------------------------------------------------------- plan

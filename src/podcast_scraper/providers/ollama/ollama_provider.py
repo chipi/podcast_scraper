@@ -984,6 +984,16 @@ class OllamaProvider:
                 max_delay=30.0,
                 retryable_exceptions=(Exception,),
             )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="ollama",
+                capability="speaker_detection",
+                stage="speaker_detection",
+                model=self.speaker_model,
+            )
 
             response_text = response.choices[0].message.content
             if not response_text:
@@ -1444,6 +1454,9 @@ class OllamaProvider:
             title=episode_title or "",
             **tmpl_kwargs,
         )
+        from ..ml.diarization.transcript_naming import with_bundled_field
+
+        user_prompt = with_bundled_field(user_prompt, params)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1528,7 +1541,9 @@ class OllamaProvider:
             )
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
-            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
+            pipeline_metrics.record_llm_bundled_clean_summary_call(
+                input_tokens, output_tokens, cost_usd=cost
+            )
 
         # Response-shape guardrail (ADR-099/100, #999/#1003).
         # Note: this fires BEFORE the JSON-parse block below; record the
@@ -1555,6 +1570,10 @@ class OllamaProvider:
             ):
                 pipeline_metrics.record_llm_bundled_parse_failure(kind)
 
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
+
         try:
             data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
@@ -1572,8 +1591,6 @@ class OllamaProvider:
         if not isinstance(bullets, list) or not bullets:
             _record_parse_failure("missing_bullets")
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         prompt_metadata = {
             "system": get_prompt_metadata(
@@ -2040,13 +2057,25 @@ class OllamaProvider:
             ),
             **_ollama_openai_chat_extra_kwargs(self.summary_model),
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="ollama",
+            capability="gi",
+            stage="gi",
+            model=self.summary_model,
+        )
         content = (response.choices[0].message.content or "").strip()
         _guardrails.check_chat_response(content, service="ollama")
         tiers = _json.loads(_json_object_from_response(content))
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
-    def complete_text(self, prompt: str) -> str:
+    def complete_text(
+        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
+    ) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
@@ -2061,8 +2090,18 @@ class OllamaProvider:
             model=self.summary_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            max_tokens=800,
-            **_ollama_openai_chat_extra_kwargs(self.summary_model),
+            max_tokens=int(max_tokens),
+            **_ollama_openai_chat_extra_kwargs(self.summary_model, num_ctx=self.summary_num_ctx),
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            response,
+            provider_type="ollama",
+            capability="speaker_detection",
+            stage=stage,
+            model=self.summary_model,
         )
         content = (response.choices[0].message.content or "").strip()
         _guardrails.check_chat_response(content, service="ollama")
@@ -2140,6 +2179,16 @@ class OllamaProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
                 error_context="ollama_local",
+            )
+            from ...utils.provider_metrics import record_response_cost
+
+            record_response_cost(
+                self.cfg,
+                response,
+                provider_type="ollama",
+                capability="kg",
+                stage="kg",
+                model=model,
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)

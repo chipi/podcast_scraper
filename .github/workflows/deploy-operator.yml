@@ -403,7 +403,10 @@ jobs:
           cache-dependency-path: web/gi-kg-viewer/package-lock.json
       - run: npm ci
       - name: Install Playwright Chromium
-        run: ./node_modules/.bin/playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          working-directory: web/gi-kg-viewer
+          browser: chromium
       - name: Live smoke vs the deployed operator viewer
         env:
           LIVE_BASE_URL: https://${{ vars.OPERATOR_DOMAIN || 'operator.closelistening.app' }}

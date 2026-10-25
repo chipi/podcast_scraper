@@ -53,3 +53,61 @@ def test_the_full_first_name_spoken_for_a_stated_short_form_is_a_self_introducti
 def test_an_honorific_between_the_cue_and_the_name_is_a_self_introduction() -> None:
     text = "Hello, I'm Dr. Tobias Wren and this is the show. Wren here, back after the break."
     assert not refuted_by_third_person(text, "Tobias Wren")
+
+
+# A host reading out their own handle: "On <platform>, I'm at <name>". Measured on the DGX
+# relabel of 2026-10-23 (two episodes of one interview show): the guard refused the host's name
+# on the host's own voice, and the two-voice complement / swap then put it on the guest's voice.
+
+
+def test_a_host_reading_their_own_handle_is_a_self_introduction() -> None:
+    text = (
+        "That is all for this week of River Notes. Find the show wherever you listen; "
+        "online I'm at Tobias Wren, and the newsletter is Wren Weekly."
+    )
+    assert not refuted_by_third_person(text, "Tobias Wren")
+
+
+def test_i_am_at_a_name_is_a_self_introduction() -> None:
+    assert not refuted_by_third_person("You can find me, I am at Tobias Wren.", "Tobias Wren")
+
+
+def test_i_am_at_someones_place_is_still_a_mention() -> None:
+    text = "Today I'm at Tobias Wren's studio, talking about what Wren built."
+    assert refuted_by_third_person(text, "Tobias Wren")
+
+
+def test_this_is_at_a_name_is_not_a_self_introduction() -> None:
+    # only "I'm" / "I am" take the handle form; "this is at X" is no introduction of anyone
+    text = "The reading this is at Tobias Wren, the bookshop on Main Street. Wren opens at nine."
+    assert refuted_by_third_person(text, "Tobias Wren")
+
+
+def test_the_host_keeps_their_name_and_the_guest_is_not_given_it() -> None:
+    """The episode shape end to end: the model answers both voices right; the host's voice is not
+    refused, so no complement or swap moves the host's name onto the guest's voice."""
+    import json
+
+    from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+    voices = {
+        "SPEAKER_00": "This is River Notes, and my guest is Ana Ruiz. "
+        "That is all for this week; online I'm at Tobias Wren, and the newsletter is Wren Weekly.",
+        "SPEAKER_01": "Glad to be here. Rivers move faster than you would think, Tobias.",
+    }
+    answer = {
+        "voices": {
+            "SPEAKER_00": {"name": "Tobias Wren", "role": "host"},
+            "SPEAKER_01": {"name": "Ana Ruiz", "role": "guest"},
+        }
+    }
+    report: dict = {}
+    out = resolve_voices_and_roles(
+        ["Ana Ruiz", "Tobias Wren"],
+        voices,
+        lambda _prompt: json.dumps(answer),
+        known_hosts=["Tobias Wren"],
+        report=report,
+    )
+    assert (out["SPEAKER_00"].name, out["SPEAKER_01"].name) == ("Tobias Wren", "Ana Ruiz")
+    assert not report.get("complement")

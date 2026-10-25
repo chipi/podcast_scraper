@@ -341,6 +341,49 @@ def record_provider_call_cost(
         logger.debug("llm_cost_event emission skipped: %s", exc)
 
 
+def record_response_cost(
+    cfg: Any,
+    response: Any,
+    *,
+    provider_type: str,
+    capability: str,
+    stage: str,
+    model: str,
+    call_metrics: Optional[ProviderCallMetrics] = None,
+    triggered_guardrail: bool = False,
+) -> None:
+    """One paid LLM response -> its cost: the ``llm_cost`` event and the run budget.
+
+    For call sites that hold a raw SDK response and no ``ProviderCallMetrics`` of their own (the
+    2026-10-23 cost audit: mega/extraction bundled, detect_speakers, KG, the value gate and
+    ``complete_text`` on several providers recorded tokens into ``metrics.json`` only, or nothing,
+    so neither the cost log nor the run budget saw them). Tokens come from the response through
+    ``token_accounting.extract_token_usage``, which reads every SDK's usage shape. Never raises.
+    """
+    try:
+        from podcast_scraper.workflow.token_accounting import extract_token_usage
+
+        usage = extract_token_usage(provider_type, response)
+        cm = call_metrics if call_metrics is not None else ProviderCallMetrics()
+        if usage.input_tokens is not None or usage.output_tokens is not None:
+            cm.set_tokens(int(usage.input_tokens or 0), int(usage.output_tokens or 0))
+        record_provider_call_cost(
+            cm,
+            None,
+            cfg=cfg,
+            provider_type=provider_type,
+            capability=capability,
+            model=model,
+            prompt_tokens=usage.input_tokens,
+            completion_tokens=usage.output_tokens,
+            triggered_guardrail=triggered_guardrail,
+            response=response,
+            stage=stage,
+        )
+    except Exception:  # noqa: BLE001 - accounting must never break a provider call
+        logger.debug("cost recording skipped for %s/%s", provider_type, stage, exc_info=True)
+
+
 def record_transcription_cost_to_pipeline(
     pipeline_metrics: Any,
     call_metrics: Optional[ProviderCallMetrics],

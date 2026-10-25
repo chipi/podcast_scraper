@@ -57,7 +57,8 @@ async function mockDashboardWithRuns(
       contentType: 'application/json',
       body: JSON.stringify({
         available: true,
-        stats: { total_vectors: 0, doc_type_counts: {} },
+        // As the API sends it: `feeds_indexed` is always present (schemas.py, default []).
+        stats: { total_vectors: 0, doc_type_counts: {}, feeds_indexed: [] },
         reindex_recommended: false,
         reindex_reasons: [],
       }),

@@ -701,6 +701,440 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
+def one_entry_per_person(names: Sequence[str]) -> List[str]:
+    """The candidate list with each person once: a later spelling of a person already listed
+    ("June McGarry" after "Dr. June McGarry", "Ashley Dunmore" after "Ashley DunMORE") is dropped.
+
+    A name in the closed list is a name the resolver may bind, and its one-name-one-voice rule
+    sees strings: two spellings of one person let it put that person on two voices (the DGX block,
+    2026-10-23: one translator on a guest's voice and on a clip's). Same person is
+    ``roster._same_person_on_one_episode`` (titles stripped, a generation suffix kept apart, a
+    one-word name never merged with a full name). The first spelling is kept, so today's order
+    decides, except that a spelling with stray capitals inside a word ("DunMORE") gives way to a
+    clean one. Measured on 421 stored lists: 2 such pairs in 1,197 entries, both one person.
+    """
+    from .roster import _same_person_on_one_episode
+
+    def stray_caps(name: str) -> bool:
+        return bool(re.search(r"[a-z][A-Z]{2,}", name))
+
+    kept: List[str] = []
+    for name in names:
+        hit = next((i for i, k in enumerate(kept) if _same_person_on_one_episode(name, k)), None)
+        if hit is None:
+            kept.append(name)
+        elif stray_caps(kept[hit]) and not stray_caps(name):
+            kept[hit] = name
+    return kept
+
+
+def _maybe_merge_split_voices(cfg: Any, diarization: Any) -> Tuple[Any, Optional[Dict[str, Any]]]:
+    """``merge_split_voices``: one person's two diarized voices made one, by fingerprint, before
+    alignment and naming; the report (every pair's similarity) goes into the sidecar."""
+    if not getattr(cfg, "merge_split_voices", False):
+        return diarization, None
+    from . import split_voices
+
+    merged, report = split_voices.merge(
+        diarization,
+        threshold=float(
+            getattr(cfg, "merge_split_voices_threshold", split_voices.DEFAULT_THRESHOLD)
+        ),
+    )
+    if report.get("merged"):
+        logger.info(
+            "split voices: merged %s",
+            ", ".join(f"{m['voice']}->{m['into']} ({m['similarity']})" for m in report["merged"]),
+        )
+    return merged, report
+
+
+def naming_passes(cfg: Any) -> int:
+    """``speaker_naming_passes``: how many times each naming LLM call is asked (>= 1)."""
+    try:
+        return max(1, int(getattr(cfg, "speaker_naming_passes", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _resolve_voices_k_passes(cfg: Any, **kwargs: Any) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """The resolver asked ``speaker_naming_passes`` times; a voice keeps a name only when every
+    pass gave it the same one (case-insensitive), and its role only when every pass agreed.
+
+    vLLM is not deterministic even at temperature 0: the same episode came back with different
+    names across passes (podcast-scraper-eval-data NAMING-RETHINK, self-consistency). One pass is
+    the default and is exactly the single call it always was; the first pass's report is the
+    report, and every further pass's report is kept under ``report["passes"]``.
+    """
+    k = naming_passes(cfg)
+    report = kwargs.pop("report")
+    names, roles = _resolve_voices_via_llm(cfg, report=report, **kwargs)
+    if k == 1:
+        return names, roles
+    runs = [(names, roles)]
+    extra: List[Dict[str, Any]] = []
+    for _ in range(k - 1):
+        rep: Dict[str, Any] = {}
+        runs.append(_resolve_voices_via_llm(cfg, report=rep, **kwargs))
+        extra.append(rep)
+    report["passes"] = extra
+    agreed_names: Dict[str, str] = {}
+    for voice, name in names.items():
+        if all(str(n.get(voice) or "").lower() == name.lower() for n, _ in runs):
+            agreed_names[voice] = name
+    agreed_roles: Dict[str, str] = {}
+    for voice, role in roles.items():
+        if all(r.get(voice) == role for _, r in runs):
+            agreed_roles[voice] = role
+    report["passes_agreed"] = {
+        "asked": k,
+        "names": sorted(agreed_names),
+        "dropped": sorted(set(names) - set(agreed_names)),
+    }
+    return agreed_names, agreed_roles
+
+
+def _ask_transcript_naming(
+    cfg: config.Config,
+    aligned: List[Any],
+    episode_title: Optional[str],
+    episode_description: Optional[str],
+) -> Any:
+    """Transcript naming's call (``transcript_naming``): the model's answer for every voice, as a
+    ``NamingAnswer`` (``ok`` False when it failed), or None when the profile has no LLM."""
+    from ....speaker_detectors.resolution import completion_fn_for
+    from ....summarization.factory import create_summarization_provider
+    from ....utils import correlation
+    from . import transcript_naming
+
+    try:
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+    except Exception as exc:  # noqa: BLE001 — the ladder's roster stands
+        logger.warning("transcript naming: no provider (%s); the ladder's names stand", exc)
+        return None
+    fn = completion_fn_for(provider)
+    if fn is None:
+        return None
+    mode = str(getattr(cfg, "llm_pipeline_mode", "staged") or "staged")
+    if mode in transcript_naming.BUNDLED_MODES and callable(
+        getattr(provider, f"summarize_{mode}", None)
+    ):
+        # The bundled call that reads the whole transcript answers instead (one call, not two):
+        # workflow/bundled_speaker_naming.py. A provider without that call falls back to the
+        # staged path, so it asks here.
+        return None
+
+    def complete(prompt: str) -> str:
+        return fn(  # type: ignore[call-arg]
+            prompt,
+            max_tokens=transcript_naming.MAX_OUTPUT_TOKENS,
+            stage=transcript_naming.COST_STAGE,
+        )
+
+    window = getattr(provider, "served_context_tokens", None)
+    window_tokens = window() if callable(window) else getattr(provider, "summary_num_ctx", None)
+    count = getattr(provider, "count_tokens", None)
+    asks = [
+        transcript_naming.ask(
+            aligned,
+            complete,
+            feed_title=correlation.get_feed_title(),
+            feed_description=correlation.get_feed_description(),
+            episode_title=episode_title,
+            episode_description=episode_description,
+            window_tokens=window_tokens if isinstance(window_tokens, int) else None,
+            count_tokens=count if callable(count) else None,
+            provider=type(provider).__name__,
+            model=getattr(provider, "summary_model", None),
+        )
+        for _ in range(naming_passes(cfg))
+    ]
+    return transcript_naming.agree(asks)
+
+
+def _run_side_namers(
+    cfg: config.Config,
+    roster: Any,
+    aligned: List[Any],
+    diarization: Any,
+    episode_title: Optional[str],
+    episode_description: Optional[str],
+    trace: Any,
+) -> Tuple[Any, Dict[str, Any]]:
+    """Transcript naming and the voice rung, each ``off | shadow | publish``.
+
+    Returns the roster (changed only by a ``publish`` mode) and what the sidecars need: each
+    namer's answer, and the ladder's roster before either touched it.
+    """
+    from ....utils import correlation
+    from . import transcript_naming, voice_identity
+
+    side: Dict[str, Any] = {
+        "ladder_roster": roster,
+        "naming_mode": transcript_naming.mode_of(cfg),
+        "naming_asked": None,
+        "voice_mode": voice_identity.mode_of(cfg),
+        "voice_report": None,
+        "voice_shadow_roster": None,
+    }
+    if side["naming_mode"] != "off":
+        try:
+            asked = _ask_transcript_naming(cfg, aligned, episode_title, episode_description)
+        except Exception as exc:  # noqa: BLE001 — the ladder's roster stands
+            logger.warning("transcript naming: failed (%s); the ladder's names stand", exc)
+            asked = transcript_naming.NamingAnswer(
+                "standalone", [], None, {"error": f"{type(exc).__name__}: {exc}"}
+            )
+        side["naming_asked"] = asked
+        if side["naming_mode"] == "publish" and asked is not None and asked.ok:
+            roster = transcript_naming.apply_answer(
+                roster, asked.pairs(), trace, language=transcription_language(cfg)
+            )
+    if side["voice_mode"] != "off":
+        out = str(getattr(cfg, "output_dir", "") or "")
+        report: Dict[str, Any] = {}
+        side["voice_report"] = report
+        args = (
+            diarization,
+            Path(out) if out else None,
+            correlation.get_episode_id(),
+            float(getattr(cfg, "voice_identity_threshold", 0.7)),
+        )
+        try:
+            if side["voice_mode"] == "publish":
+                roster = voice_identity.apply_to_roster(roster, *args, trace=trace, report=report)
+            else:
+                side["voice_shadow_roster"] = voice_identity.apply_to_roster(
+                    side["ladder_roster"], *args, report=report
+                )
+        except Exception as exc:  # noqa: BLE001 — the roster before the rung stands
+            logger.warning("voice identity: failed (%s); the roster before it stands", exc)
+            report.clear()
+            report["abstained"] = f"error: {type(exc).__name__}"
+            side["voice_shadow_roster"] = side["ladder_roster"]
+    return roster, side
+
+
+def _side_namer_sidecars(
+    cfg: config.Config,
+    side: Mapping[str, Any],
+    roster: Any,
+    aligned: List[Any],
+    speaker_renames: Optional[Mapping[str, str]],
+    llm_roles: Optional[Mapping[str, str]] = None,
+) -> Dict[str, Any]:
+    """The sidecar keys of the namers not publishing: each one's roster against the ladder's.
+
+    A side roster goes through the same talk floor and renames as the published one, so the two
+    are compared as served.
+    """
+    from . import transcript_naming, voice_identity
+
+    floor = float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0)
+    language = transcription_language(cfg)
+
+    def finish(r: Any) -> Any:
+        return _apply_speaker_renames(
+            _apply_talk_floor(
+                _apply_llm_third_person_guard(r, aligned, language=language),
+                aligned,
+                floor,
+                llm_roles=llm_roles,
+                language=language,
+            ),
+            speaker_renames,
+        )
+
+    ladder = side["ladder_roster"]
+    out: Dict[str, Any] = {}
+    if side["voice_report"] is not None:
+        if side["voice_mode"] == "shadow":
+            pair = (roster, finish(side["voice_shadow_roster"]))
+        else:
+            pair = (finish(ladder), roster)
+        out[voice_identity.SIDECAR_KEY] = voice_identity.sidecar(
+            side["voice_mode"], side["voice_report"], *pair
+        )
+    asked = side["naming_asked"]
+    if asked is not None:
+        mode = side["naming_mode"]
+        model_final = (
+            finish(
+                transcript_naming.apply_answer(
+                    ladder, asked.pairs(), language=transcription_language(cfg)
+                )
+            )
+            if asked.ok
+            else None
+        )
+        out[transcript_naming.SIDECAR_KEY] = transcript_naming.sidecar(
+            mode, asked, roster if mode == "shadow" else finish(ladder), model_final
+        )
+    return out
+
+
+def talks_about_in_third_person(text: str, name: str, language: Optional[str] = None) -> bool:
+    """Whether a voice's own text speaks of ``name`` as someone else (v53).
+
+    An announcer reading "In this episode, <host> sits down with ..." is seated and LLM-called host
+    too (step 3 of the 2026-10-24 DGX block, v417); it is not the host. The resolver's third-person
+    check, or the given name followed by the surname or an ASR rendering of it (a surname one or
+    two letters off), unless the voice introduces itself as the person.
+
+    ``language`` is the episode's (``transcription_language``), as every resolver caller passes it:
+    left at English, "Hola, soy <name>" is not read as a self-introduction, and any later mention
+    of the name refutes the person's own voice (step 6 review, 2026-10-25).
+    """
+    from ....speaker_detectors.resolution import (
+        _introduces_itself_as,
+        _surname_variant,
+        refuted_by_third_person,
+        TARGET_LANGUAGE,
+    )
+
+    lang = language or TARGET_LANGUAGE
+    if refuted_by_third_person(text, name, lang):
+        return True
+    toks = name.split()
+    if len(toks) < 2 or _introduces_itself_as(text, name, lang):
+        return False
+    first, last = toks[0], toks[-1]
+    for m in re.finditer(rf"\b{re.escape(first)}\s+([A-Za-z][\w'\-]+)", text, re.IGNORECASE):
+        said = m.group(1)
+        if said.lower() == last.lower() or _surname_variant(said, last):
+            return True
+    return False
+
+
+def _apply_llm_third_person_guard(
+    roster: Any, aligned: List[Any], trace: Any = None, language: Optional[str] = None
+) -> Any:
+    """The roster with every LLM-resolution name taken off a voice whose own words speak of that
+    person in the third person (v54, :func:`talks_about_in_third_person`).
+
+    The resolver checks the same rule, but only on the passages it hands the model: on the
+    2026-10-25 release gate a voice whose full text says "That's <name>, the co-founder ..." kept
+    <name>. Replayed over the served rosters of seven stored DGX runs and the gate's three arms, on
+    the voice's full text: labelled voices, 4 bad names off (a credits read, a host thanking the
+    guest by name, the gate's case) and 1-2 right lost per arm (a host introducing itself "with me
+    <name>", which the self-introduction test does not read: adding the form moved 107 resolver
+    verdicts, so it was not added; a guest voice holding the host's sign-off); unlabelled voices, 3
+    announcer or host voices unnamed and one more guest voice of that sign-off. The role goes the
+    way the resolver's refusal sends it.
+    """
+    from ....speaker_detectors.resolution import _role_after_third_person_refusal
+
+    texts: Dict[str, List[str]] = {}
+    for segment, speaker_id in aligned:
+        if speaker_id is not None:
+            texts.setdefault(speaker_id, []).append(str(segment.get("text") or ""))
+    by_voice = dict(roster.by_voice)
+    refused = []
+    for voice, role in roster.by_voice.items():
+        if not (role.named and role.source == "llm_resolution"):
+            continue
+        if not talks_about_in_third_person(" ".join(texts.get(voice, ())), role.name, language):
+            continue
+        by_voice[voice] = dataclasses.replace(
+            role,
+            name=voice,
+            role=_role_after_third_person_refusal(role.role) or "unknown",
+            named=False,
+            source="llm_third_person",
+            forced=False,
+        )
+        refused.append(voice)
+        if trace is not None:
+            trace.voice(voice, "llm_third_person", "removed", name=role.name)
+    if not refused:
+        return roster
+    logger.info("LLM third-person guard: %d name(s) taken off", len(refused))
+    return dataclasses.replace(roster, by_voice=by_voice)
+
+
+def _apply_talk_floor(
+    roster: Any,
+    aligned: List[Any],
+    floor: float,
+    trace: Any = None,
+    llm_roles: Optional[Mapping[str, str]] = None,
+    language: Optional[str] = None,
+) -> Any:
+    """The roster with every name taken off a voice that holds < ``floor`` of the episode's talk.
+
+    A person's name on a voice that barely speaks is, as measured, almost always a name on an ad,
+    a promo or a clip: on the labelled naming sets a 5% floor took 84 such names off what is served
+    and 6 right ones (briefly speaking hosts), and on held-out sets 13 and 0
+    (podcast-scraper-eval-data, docs/wip/NAMING-RETHINK-2026-10-22.md, "talk-share floor").
+    Talk is the aligned transcript segments' duration per voice, over every attributed segment.
+    ``floor`` <= 0 is off.
+
+    A host keeps the name: a voice the ladder seated as host (role ``host``) that the LLM
+    resolution also calls the host (``llm_roles``). On 3-5-voice episodes (panels, co-hosts, a
+    long interview) a real host can hold under 5%: on the DGX block's Gate 2 relabel the floor took
+    5 right host names off (1.5-4.4% of the talk); 3 of them were seated and LLM-called hosts,
+    and of its 22 right removals there and on held-out (ads, promos, clips) none was both. Either
+    signal alone is not enough: a seated promo voice and an LLM-called "host" promo voice were
+    both correct removals. Exempted voices are traced as ``kept_host``.
+
+    Both signals together were not enough either: on the 2026-10-24 step 3 relabel they kept the
+    host's name on the show's announcer, a voice reading "In this episode, <host> sits down with
+    ...". So a voice that speaks of the name in the third person is never exempt (v53,
+    :func:`talks_about_in_third_person`).
+    """
+    if floor <= 0:
+        return roster
+    talk: Dict[str, float] = {}
+    for segment, speaker_id in aligned:
+        if speaker_id is None:
+            continue
+        span = float(segment.get("end") or 0.0) - float(segment.get("start") or 0.0)
+        talk[speaker_id] = talk.get(speaker_id, 0.0) + max(0.0, span)
+    total = sum(talk.values())
+    if total <= 0:
+        return roster
+    by_voice = dict(roster.by_voice)
+    floored = []
+    texts: Dict[str, List[str]] = {}
+    for segment, speaker_id in aligned:
+        if speaker_id is not None:
+            texts.setdefault(speaker_id, []).append(str(segment.get("text") or ""))
+
+    def talks_about(voice: str, name: str) -> bool:
+        return talks_about_in_third_person(" ".join(texts.get(voice, ())), name, language)
+
+    for voice, role in roster.by_voice.items():
+        share = talk.get(voice, 0.0) / total
+        if role.named and share < floor:
+            if (
+                role.role == "host"
+                and (llm_roles or {}).get(voice) == "host"
+                and not talks_about(voice, role.name)
+            ):
+                if trace is not None:
+                    trace.voice(
+                        voice, "talk_floor", "kept_host", name=role.name, talk_share=round(share, 4)
+                    )
+                continue
+            by_voice[voice] = dataclasses.replace(
+                role, name=voice, role="unknown", named=False, source="talk_floor", forced=False
+            )
+            floored.append(voice)
+            if trace is not None:
+                trace.voice(
+                    voice, "talk_floor", "removed", name=role.name, talk_share=round(share, 4)
+                )
+    if not floored:
+        return roster
+    logger.info(
+        "talk floor: %d name(s) taken off voices under %.0f%% of the talk",
+        len(floored),
+        floor * 100,
+    )
+    return dataclasses.replace(roster, by_voice=by_voice)
+
+
 def _apply_speaker_renames(roster: Any, renames: Optional[Mapping[str, str]]) -> Any:
     """The roster with operator renames applied to its NAMED voices (#2283)."""
     if not renames:
@@ -718,6 +1152,34 @@ def _apply_speaker_renames(roster: Any, renames: Optional[Mapping[str, str]]) ->
         return roster
     logger.info("operator speaker renames applied: %s", "; ".join(renamed))
     return dataclasses.replace(roster, by_voice=by_voice)
+
+
+def resolution_candidates(
+    *,
+    metadata_named: Sequence[str],
+    guests: Sequence[str],
+    known_hosts: Sequence[str],
+    unbindable_hosts: Sequence[str] = (),
+) -> List[str]:
+    """The closed list of names the resolver's LLM may bind to a voice.
+
+    A host in ``unbindable_hosts`` (the pool has them only from this episode's own statement, v51)
+    is left out unless metadata detection or the guest list names the person too; it stays in
+    ``known_hosts`` for the seat, the stated-host guard and the spelling.
+    """
+    from .roster import _same_person_on_one_episode as same
+
+    others = [*metadata_named, *guests]
+
+    def unbindable(name: str) -> bool:
+        return any(same(name, u) for u in unbindable_hosts) and not any(
+            same(name, o) for o in others
+        )
+
+    hosts = [h for h in known_hosts if not unbindable(h)]
+    return one_entry_per_person(
+        filter_default_speaker_names(list(dict.fromkeys([*others, *hosts])))
+    )
 
 
 def voice_embeddings_block(diarization: Any) -> Optional[Dict[str, Any]]:
@@ -751,6 +1213,7 @@ def apply_diarization_to_result(
     precomputed_diarization: Optional[DiarizationResult] = None,
     stated_voice_names: Optional[Mapping[str, str]] = None,
     feed_hosts: Optional[List[str]] = None,
+    unbindable_hosts: Optional[List[str]] = None,
     bypass_cache_read: bool = False,
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
@@ -833,6 +1296,8 @@ def apply_diarization_to_result(
         )
         return result
 
+    diarization, split_report = _maybe_merge_split_voices(cfg, diarization)
+
     # #2187 A2: re-transcribe the speech the diarizer heard and the transcript skipped, BEFORE
     # alignment, so recovered words get their speaker the same way every other segment does.
     if transcribe_clip is not None:
@@ -914,8 +1379,11 @@ def apply_diarization_to_result(
     # list that decides what a voice is allowed to be called. A placeholder in here is not a
     # harmless no-op — the resolver matched `Host` onto 59 production episodes' voices from exactly
     # this list, because a name in the closed list is by construction a name it may bind.
-    candidates = filter_default_speaker_names(
-        list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
+    candidates = resolution_candidates(
+        metadata_named=metadata_named or (),
+        guests=guests,
+        known_hosts=known_hosts,
+        unbindable_hosts=unbindable_hosts or (),
     )
     ad_intervals = _ad_intervals(segments)
     recurring_text = _feed_recurring_text(cfg)
@@ -960,7 +1428,7 @@ def apply_diarization_to_result(
     # The resolver's FULL answer (#2276) — including what it proposed and was refused — goes into
     # the decision trace; the roster only ever sees the names that survived.
     llm_report: Dict[str, Any] = {}
-    llm_voice_names, llm_voice_roles = _resolve_voices_via_llm(
+    llm_voice_names, llm_voice_roles = _resolve_voices_k_passes(
         cfg,
         stated_names=candidates,
         voice_texts=real_voice_texts,
@@ -1077,6 +1545,31 @@ def apply_diarization_to_result(
                 ", ".join(restored_names),
             )
 
+    if getattr(cfg, "ladder_rescue_rules", False):
+        from . import ladder_rescues
+
+        roster = ladder_rescues.apply(
+            roster,
+            llm_report,
+            ordered_turns,
+            candidates,
+            naming_trace,
+            embeddings=dict(getattr(diarization, "speaker_embeddings", None) or {}),
+        )
+    roster, side_namers = _run_side_namers(
+        cfg, roster, aligned, diarization, episode_title, episode_description, naming_trace
+    )
+    roster = _apply_llm_third_person_guard(
+        roster, aligned, naming_trace, language=transcription_language(cfg)
+    )
+    roster = _apply_talk_floor(
+        roster,
+        aligned,
+        float(getattr(cfg, "speaker_name_min_talk_share", 0.0) or 0.0),
+        naming_trace,
+        llm_roles=llm_voice_roles,
+        language=transcription_language(cfg),
+    )
     roster = _apply_speaker_renames(roster, speaker_renames)
     enriched_result = dict(result)
     enriched_result["segments"] = _enriched_segments(aligned, roster)
@@ -1098,6 +1591,16 @@ def apply_diarization_to_result(
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
     enriched_result["speaker_diagnostics"]["decision_trace"] = naming_trace.to_dict()
+    if split_report is not None:
+        enriched_result["speaker_diagnostics"]["split_voices"] = split_report
+    try:
+        enriched_result["speaker_diagnostics"].update(
+            _side_namer_sidecars(
+                cfg, side_namers, roster, aligned, speaker_renames, llm_roles=llm_voice_roles
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 — a side record must not fail the published episode
+        logger.warning("side namers: sidecar not written (%s)", exc)
     voice_embeddings = voice_embeddings_block(diarization)
     if voice_embeddings:
         enriched_result["speaker_diagnostics"]["voice_embeddings"] = voice_embeddings

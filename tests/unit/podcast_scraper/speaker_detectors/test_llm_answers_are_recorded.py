@@ -98,7 +98,7 @@ class TestTheResolversFullAnswerIsRecorded:
         )
         outcomes = {v["said_voice"]: v["outcome"] for v in rep["verdicts"]}
         assert outcomes == {
-            "SPEAKER_01": "accepted",
+            "SPEAKER_01": "duplicate",
             "SPEAKER_02": "duplicate",
             "SPEAKER_09": "unmapped_voice",
             "SPEAKER_00": "role_only",

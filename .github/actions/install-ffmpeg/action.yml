@@ -1,0 +1,93 @@
+name: Install ffmpeg (cached)
+description: |
+  Installs ffmpeg and its shared libraries (torchcodec and pyannote need them to import; Whisper
+  needs the binary) from GitHub's Actions cache, and only on a miss from the Ubuntu mirror.
+
+  Why: every job used to run `apt-get update && apt-get install ffmpeg` against
+  azure.archive.ubuntu.com. That is 87 packages, 62.8 MB. On 2026-10-23 the mirror served it at
+  31 kB/s (`Fetched 51.9 MB in 27min 56s`), and test-unit (25 min timeout) and test-e2e-fast
+  (45 min) were cancelled inside this step before any test ran. On 2026-10-19..22 it took 0-4 min.
+
+  How: the .deb files this install downloads are cached under the runner image's OS and version
+  (`ImageOS`, `ImageVersion`), so the set always matches the libraries already on that image. A
+  new image (about weekly) downloads once and saves. On a hit nothing is fetched from the mirror
+  and `apt-get update` is skipped.
+
+  Keys: entries are saved as `<base>-<run id>` and restored by the `<base>-` prefix, so the
+  NEWEST entry for this image wins. A job whose cached files fail to install falls back to the
+  mirror and saves a fresh entry, which replaces the bad one from the next run on (an exact key
+  could never be overwritten). Jobs of one run share one key, so a first miss saves one entry, not
+  one per job. A healthy hit saves nothing.
+
+runs:
+  using: composite
+  steps:
+    - name: ffmpeg cache key
+      id: key
+      shell: bash
+      run: |
+        set -euo pipefail
+        base="apt-ffmpeg-v1-${ImageOS:-unknown}-${ImageVersion:-unknown}"
+        echo "dir=${RUNNER_TEMP}/apt-ffmpeg" >> "$GITHUB_OUTPUT"
+        echo "base=${base}" >> "$GITHUB_OUTPUT"
+        echo "key=${base}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore ffmpeg packages
+      id: restore
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.key.outputs.dir }}
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.base }}-
+
+    - name: Install ffmpeg
+      id: install
+      shell: bash
+      env:
+        DEB_DIR: ${{ steps.key.outputs.dir }}
+        RESTORED: ${{ steps.restore.outputs.cache-matched-key }}
+      run: |
+        set -euo pipefail
+        keep_debs() {
+          # apt-get keeps downloads by default, but some apt configs delete them; the cache needs them.
+          printf 'APT::Keep-Downloaded-Packages "true";\nBinary::apt::APT::Keep-Downloaded-Packages "true";\n' \
+            | sudo tee /etc/apt/apt.conf.d/99keep-downloaded-packages >/dev/null
+        }
+        from_mirror() {
+          keep_debs
+          # Capture only what this install downloads, not .deb files an earlier step left.
+          before=$(mktemp)
+          ls /var/cache/apt/archives/*.deb 2>/dev/null | sort > "$before" || true
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends ffmpeg
+          rm -rf "$DEB_DIR" && mkdir -p "$DEB_DIR"
+          ls /var/cache/apt/archives/*.deb 2>/dev/null | sort | comm -13 "$before" - \
+            | xargs -r -I{} cp {} "$DEB_DIR"/
+          if ls "$DEB_DIR"/*.deb >/dev/null 2>&1; then
+            echo "save=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ffmpeg: apt kept no .deb files; nothing to cache"
+            echo "save=false" >> "$GITHUB_OUTPUT"
+          fi
+        }
+        if [ -n "${RESTORED}" ] && ls "$DEB_DIR"/*.deb >/dev/null 2>&1; then
+          echo "ffmpeg: installing $(ls "$DEB_DIR"/*.deb | wc -l) cached packages (${RESTORED})"
+          if sudo dpkg -i "$DEB_DIR"/*.deb && ffmpeg -version >/dev/null 2>&1; then
+            echo "save=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ffmpeg: the cached packages (${RESTORED}) did not install; using the mirror and saving a fresh entry"
+            sudo apt-get -f install -y || true
+            from_mirror
+          fi
+        else
+          echo "ffmpeg: cache miss; downloading from the mirror once for this runner image"
+          from_mirror
+        fi
+        ffmpeg -version | head -1
+
+    - name: Save ffmpeg packages
+      if: steps.install.outputs.save == 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ steps.key.outputs.dir }}
+        key: ${{ steps.key.outputs.key }}

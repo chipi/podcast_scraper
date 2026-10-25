@@ -72,7 +72,7 @@ the caller. `logger=` preserves a caller's logger name; `ts=` backdates.
 
 | event_type | sink | emitter | key fields |
 | --- | --- | --- | --- |
-| `llm_cost` | log | `workflow/cost_monitoring.py` | provider, model, tokens, estimated_cost_usd, run_id, stage |
+| `llm_cost` | log | `workflow/cost_monitoring.py` | provider, model, tokens, estimated_cost_usd, run_id, stage. One event per paid LLM call, on every provider and method (summaries and every bundle, speaker detection and transcript naming, GI, the value gate, KG, quotes and entailment, translation), through `utils/provider_metrics.record_provider_call_cost`, which also charges the run budget; an unpriced model emits its tokens at $0. Contract test: `tests/e2e/test_llm_cost_events_mock_e2e.py` |
 | `pipeline_progress` | log | `workflow/stages/processing.py` | episodes_done, run_id (per-run progress; chart `last_value` by run_id) |
 | `search_query` | file | `search/query_log.py` | query_type (no raw text) |
 | `listen` | file | `server/app_user_state.py` | slug, feed_id, ts (ISO; episode OPENED) |

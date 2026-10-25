@@ -1193,6 +1193,90 @@ class Config(BaseModel):
             "montage podcast audio; lower splits more. Tune via the diarization eval harness."
         ),
     )
+    transcript_naming: Literal["off", "shadow", "publish"] = Field(
+        default="off",
+        alias="transcript_naming",
+        description=(
+            "Transcript naming: the LLM reads the WHOLE diarized transcript and names every voice "
+            "(providers/ml/diarization/transcript_naming.py). 'off'; 'shadow' = the ladder "
+            "publishes and the model's answer is written beside it in the speaker-diagnostics "
+            "sidecar (key `transcript_naming`) for comparison; 'publish' = a voice the model calls "
+            "host or guest takes that name, every other voice is unnamed, and the ladder's names "
+            "stand when the call fails. In the bundled modes (llm_pipeline_mode bundled / "
+            "mega_bundled / extraction_bundled) the bundled call answers instead and its answer "
+            "is RECORDED only: 'publish' publishes nothing more than 'shadow' there until the "
+            "bundled write-back exists. Off by default."
+        ),
+    )
+    merge_split_voices: bool = Field(
+        default=False,
+        alias="merge_split_voices",
+        description=(
+            "Before naming, two diarized voices of one episode whose fingerprints are at least "
+            "merge_split_voices_threshold similar are merged into the one that talks more (one "
+            "person split by the diarizer; providers/ml/diarization/split_voices.py). Needs a "
+            "diarizer that returns fingerprints. Off by default."
+        ),
+    )
+    merge_split_voices_threshold: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        alias="merge_split_voices_threshold",
+        description="Cosine similarity at which two voices of one episode are one person.",
+    )
+    speaker_naming_passes: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        alias="speaker_naming_passes",
+        description=(
+            "How many times each naming LLM call is asked: the ladder's resolution call and "
+            "transcript naming. With more than one, a voice keeps a name only when every pass "
+            "gave it the same one (vLLM is not deterministic even at temperature 0). 1 = one "
+            "call, as before; each extra pass costs one more call of each."
+        ),
+    )
+    ladder_rescue_rules: bool = Field(
+        default=False,
+        alias="ladder_rescue_rules",
+        description=(
+            "Two rescues right after the ladder (providers/ml/diarization/ladder_rescues.py): a "
+            "split host's unnamed half named as the host (S30s), and an unnamed voice given the "
+            "LLM's third-person-refused name when the conversation introduces it to that voice "
+            "(E1d). Measured held out: 9 fires, 8 right. Off by default."
+        ),
+    )
+    voice_identity_rung: Literal["off", "shadow", "publish"] = Field(
+        default="off",
+        alias="voice_identity_rung",
+        description=(
+            "Last naming rung: a voice that sounds like a person this feed's other episodes name "
+            "(fingerprint groups named by vote) takes that name, and the name leaves a voice that "
+            "clearly is not that person (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md, stage 3). "
+            "Same feed only. 'off'; 'shadow' = the ladder publishes and the rung's answer is "
+            "written beside it in the speaker-diagnostics sidecar (key `voice_identity`); "
+            "'publish' = the rung changes the roster. Off by default."
+        ),
+    )
+    voice_identity_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        alias="voice_identity_threshold",
+        description="Cosine similarity a voice needs to its feed group (0.7 as measured).",
+    )
+    speaker_name_min_talk_share: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        alias="speaker_name_min_talk_share",
+        description=(
+            "Talk floor: take the name off any voice holding less than this share of the "
+            "episode's talk (a name on a voice that barely speaks is, as measured, almost always "
+            "on an ad, a promo or a clip). 0 = off; 0.05 as measured."
+        ),
+    )
     diarization_min_cluster_size: Optional[int] = Field(
         default=None,
         ge=1,
@@ -3644,6 +3728,19 @@ class Config(BaseModel):
             "of the SAME model disagree — so a bake-off must pin this to 0. Kept separate from "
             "`<provider>_temperature` because that field also drives summarisation and speaker "
             "detection, and pinning insights must not silently re-tune two other stages."
+        ),
+    )
+    speaker_detection_temperature: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=2.0,
+        alias="speaker_detection_temperature",
+        description=(
+            "Sampling temperature for metadata SPEAKER DETECTION specifically (the call that "
+            "proposes the episode's hosts and guests before the audio is heard). None falls back "
+            "to `<provider>_temperature` (0.3). The voice resolver already asks at 0.0; detection "
+            "at 0.3 lets the same episode get a different candidate list on each run. Kept apart "
+            "from `<provider>_temperature`, which also drives summarisation."
         ),
     )
     gi_insight_prompt_version: str = Field(

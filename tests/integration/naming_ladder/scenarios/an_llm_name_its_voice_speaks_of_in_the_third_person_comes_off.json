@@ -1,0 +1,51 @@
+{
+ "why": "An LLM name on a voice whose own words introduce that person in the third person (release gate, 2026-10-25, ladder v54): the host opens a clip with \"That's <guest>, the co-founder ...\" in an ASR spelling of the guest's surname, which the resolver's exact-token test does not see, and the model put the guest's name on the host. The full-text guard takes it off; the guest's own voice is untouched.",
+ "feed": {
+  "title": "Founders Weekly",
+  "description": "Conversations with company founders."
+ },
+ "episode": {
+  "title": "Payments in Lagos (with Ada Okafor)"
+ },
+ "detected": {
+  "speaker_names": [],
+  "metadata_named": [
+   "Ada Okafor"
+  ]
+ },
+ "llm": {
+  "H": [
+   "Ada Okafor",
+   "guest"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "That's Ada Okafur, the co-founder and COO of Lagoon Pay. The point about fundraising keeps changing over the years, part 0. The point about fundraising keeps changing over the years, part 1. The point about fundraising keeps changing over the years, part 2. The point about fundraising keeps changing over the years, part 3. The point about fundraising keeps changing over the years, part 4. The point about fundraising keeps changing over the years, part 5. The point about fundraising keeps changing over the years, part 6. The point about fundraising keeps changing over the years, part 7."
+  ],
+  [
+   "G",
+   400,
+   "The point about investment platforms keeps changing over the years, part 0. The point about investment platforms keeps changing over the years, part 1. The point about investment platforms keeps changing over the years, part 2. The point about investment platforms keeps changing over the years, part 3. The point about investment platforms keeps changing over the years, part 4. The point about investment platforms keeps changing over the years, part 5. The point about investment platforms keeps changing over the years, part 6. The point about investment platforms keeps changing over the years, part 7. The point about investment platforms keeps changing over the years, part 8. The point about investment platforms keeps changing over the years, part 9. The point about investment platforms keeps changing over the years, part 10. The point about investment platforms keeps changing over the years, part 11. The point about investment platforms keeps changing over the years, part 12. The point about investment platforms keeps changing over the years, part 13. The point about investment platforms keeps changing over the years, part 14. The point about investment platforms keeps changing over the years, part 15. The point about investment platforms keeps changing over the years, part 16. The point about investment platforms keeps changing over the years, part 17. The point about investment platforms keeps changing over the years, part 18. The point about investment platforms keeps changing over the years, part 19. The point about investment platforms keeps changing over the years, part 20. The point about investment platforms keeps changing over the years, part 21. The point about investment platforms keeps changing over the years, part 22. The point about investment platforms keeps changing over the years, part 23. The point about investment platforms keeps changing over the years, part 24. The point about investment platforms keeps changing over the years, part 25. The point about investment platforms keeps changing over the years, part 26. The point about investment platforms keeps changing over the years, part 27. The point about investment platforms keeps changing over the years, part 28. The point about investment platforms keeps changing over the years, part 29. The point about investment platforms keeps changing over the years, part 30. The point about investment platforms keeps changing over the years, part 31. The point about investment platforms keeps changing over the years, part 32. The point about investment platforms keeps changing over the years, part 33. The point about investment platforms keeps changing over the years, part 34. The point about investment platforms keeps changing over the years, part 35. The point about investment platforms keeps changing over the years, part 36. The point about investment platforms keeps changing over the years, part 37. The point about investment platforms keeps changing over the years, part 38. The point about investment platforms keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   60,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7. The point about questions keeps changing over the years, part 8. The point about questions keeps changing over the years, part 9."
+  ],
+  [
+   "G",
+   300,
+   "The point about regulation keeps changing over the years, part 0. The point about regulation keeps changing over the years, part 1. The point about regulation keeps changing over the years, part 2. The point about regulation keeps changing over the years, part 3. The point about regulation keeps changing over the years, part 4. The point about regulation keeps changing over the years, part 5. The point about regulation keeps changing over the years, part 6. The point about regulation keeps changing over the years, part 7. The point about regulation keeps changing over the years, part 8. The point about regulation keeps changing over the years, part 9. The point about regulation keeps changing over the years, part 10. The point about regulation keeps changing over the years, part 11. The point about regulation keeps changing over the years, part 12. The point about regulation keeps changing over the years, part 13. The point about regulation keeps changing over the years, part 14. The point about regulation keeps changing over the years, part 15. The point about regulation keeps changing over the years, part 16. The point about regulation keeps changing over the years, part 17. The point about regulation keeps changing over the years, part 18. The point about regulation keeps changing over the years, part 19. The point about regulation keeps changing over the years, part 20. The point about regulation keeps changing over the years, part 21. The point about regulation keeps changing over the years, part 22. The point about regulation keeps changing over the years, part 23. The point about regulation keeps changing over the years, part 24. The point about regulation keeps changing over the years, part 25. The point about regulation keeps changing over the years, part 26. The point about regulation keeps changing over the years, part 27. The point about regulation keeps changing over the years, part 28. The point about regulation keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name_not": [
+    "Ada Okafor"
+   ]
+  }
+ }
+}

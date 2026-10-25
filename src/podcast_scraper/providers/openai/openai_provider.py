@@ -742,6 +742,9 @@ class OpenAICompatibleProvider:
         # Speaker detection settings
         self.speaker_model = getattr(cfg, f"{ns}_speaker_model", "gpt-4o-mini")
         self.speaker_temperature = getattr(cfg, f"{ns}_temperature", 0.3)
+        _detection_t = getattr(cfg, "speaker_detection_temperature", None)
+        if isinstance(_detection_t, (int, float)) and not isinstance(_detection_t, bool):
+            self.speaker_temperature = float(_detection_t)
 
         # Summarization settings
         self.summary_model = getattr(cfg, f"{ns}_summary_model", "gpt-4o-mini")
@@ -2323,6 +2326,8 @@ class OpenAICompatibleProvider:
         system_prompt, user_prompt = build_megabundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             cache_transcript_prefix=self._cache_transcript_prefix,
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
@@ -2385,6 +2390,17 @@ class OpenAICompatibleProvider:
             cfg=self.cfg,
             model=self.summary_model,
             provider_type=self._TELEMETRY_PROVIDER,
+        )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type=self._TELEMETRY_PROVIDER,
+            capability="summarization",
+            stage="summarization",
+            model=self.summary_model,
+            call_metrics=call_metrics,
         )
         return parse_megabundle_response(raw_text)
 
@@ -2430,6 +2446,8 @@ class OpenAICompatibleProvider:
         system_prompt, user_prompt = build_extraction_bundle_prompt(
             text,
             language=language,
+            # transcript naming's speakers field (transcript_naming.PARAMS_LABELS)
+            speaker_labels=(params or {}).get("speaker_naming_labels"),
             cache_transcript_prefix=self._cache_transcript_prefix,
             max_transcript_chars=config_constants.transcript_budget_chars(
                 getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
@@ -2493,6 +2511,17 @@ class OpenAICompatibleProvider:
             model=self.summary_model,
             provider_type=self._TELEMETRY_PROVIDER,
         )
+        from ...utils.provider_metrics import record_response_cost
+
+        record_response_cost(
+            self.cfg,
+            resp,
+            provider_type=self._TELEMETRY_PROVIDER,
+            capability="summarization",
+            stage="extraction_bundle",
+            model=self.summary_model,
+            call_metrics=call_metrics,
+        )
         return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
@@ -2537,6 +2566,9 @@ class OpenAICompatibleProvider:
             title=episode_title or "",
             **tmpl_kwargs,
         )
+        from ..ml.diarization.transcript_naming import with_bundled_field
+
+        user_prompt = with_bundled_field(user_prompt, params)
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -2621,6 +2653,7 @@ class OpenAICompatibleProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 triggered_guardrail=triggered_guardrail,
+                response=response,
             )
 
         # Response-shape guardrail (ADR-100, #1003) — empty content, thinking-
@@ -2633,6 +2666,10 @@ class OpenAICompatibleProvider:
         except _guardrails.GuardrailViolation:
             _record_cost(triggered_guardrail=True)
             raise
+
+        # The call is paid whether or not its JSON is usable, so it is counted before the shape
+        # checks below can raise (2026-10-23 cost audit: a bad answer was never billed).
+        _record_cost()
 
         try:
             data = json.loads(raw)
@@ -2647,8 +2684,6 @@ class OpenAICompatibleProvider:
             raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
-
-        _record_cost()
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(
@@ -2893,8 +2928,13 @@ class OpenAICompatibleProvider:
         # Preserve input order; a missing id keeps the insight (tier 3) rather than dropping it.
         return [int(tiers.get(f"i{idx}", 3)) for idx in range(len(insights))]
 
-    def complete_text(self, prompt: str) -> str:
+    def complete_text(
+        self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
+    ) -> str:
         """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+
+        ``max_tokens`` defaults to the resolver's 800; transcript naming asks for one answer per
+        voice of the whole episode and passes more. ``stage`` labels the call's cost and trace.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
         from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
@@ -2913,14 +2953,14 @@ class OpenAICompatibleProvider:
                 model=self.summary_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
-                **self._token_kwarg(800),
+                **self._token_kwarg(max_tokens),
                 response_format={"type": "json_object"},
-                _lf_stage="speaker_detection",
+                _lf_stage=stage,
             )
             # 2026-08-24 cost audit: ADR-110 resolver completions emitted no llm_cost
             # event. Inside _call so a re-roll's second call is also counted.
             self._emit_stage_cost(
-                stage="speaker_detection",
+                stage=stage,
                 capability="speaker_detection",
                 model=self.summary_model,
                 response=response,
