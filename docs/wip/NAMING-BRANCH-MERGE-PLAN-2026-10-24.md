@@ -117,11 +117,21 @@ So "deploy only if better" is settled before the merge, not after it.
      | S7: insights on the wrong person (of 8,592) | 608 | 510 | 472 |
      | S7: insights on the right person | 5,307 | 5,517 | 5,939 |
 
-     - **val_v6 (held-out), branch vs deployed run 1:** bad 33 -> 16, right 239 -> 259, S7 wrong
-       287 (195 in run 2) -> 171. Role errors 2 -> 4: one deployed noise, two the same in every
+     - **What clears the deployed noise** (the two deployed runs as its measure; step 6 review):
+       labelled bad names 87 / 78 -> 51 (runs differ by 9, gain 27-36), right 842 / 852 -> 891, S7
+       right-person insights 5,307 / 5,517 -> 5,939. **What does not:** S7 wrong-person insights
+       608 / 510 -> 472 (runs differ by 98, the branch 38 below run 2): "not worse", not shown
+       better.
+     - **val_v6 (held-out), branch vs deployed run 1:** bad 33 -> 16, right 239 -> 259; S7 wrong
+       287 (195 in run 2) -> 171, within the deployed noise. Role errors 2 -> 4: one deployed noise, two the same in every
        arm, one a wrong name made right with the wrong role.
-     - **Per voice (1,302):** 1,152 stable, 56 noise (the deployed runs differ), 94 changed by the
-       branch alone (82 labelled: right +49 / -13, bad -35 / +9; 12 unlabelled, to the panel).
+     - **Per voice (1,302):** 1,152 stable, 56 noise (the deployed runs differ), 94 where both
+       deployed runs agree and the branch differs (82 labelled: right +49 / -13, bad -35 / +9; 12
+       unlabelled, to the panel). One deployed pair cannot tell a branch change from noise per
+       voice: from 56 of 1,302 differing, about 29 of the 94 are expected by noise alone (step 6
+       review; the branch arm's own noise, at detection temperature 0, is not measured). The
+       direction holds (+49 / -13, -35 / +9 is far more one-sided than noise); the per-change
+       attribution below does not.
      - **The 18 harmful labelled changes, read one by one:** the talk floor taking self-introduced
        guests and audience questioners off (5); the LLM resolution answering differently (6 bad:
        co-host picks the labels cannot decide, a swap, a credit name on interview tape); v45 (2
@@ -149,6 +159,16 @@ So "deploy only if better" is settled before the merge, not after it.
        split-voice merge act only where the snapshot holds fingerprints; v54 ran through the real
        pipeline on one episode where the LLM did not repeat the wrong name, so its in-pipeline
        proof is the ladder scenario; labels are silver.
+     - **v54 is not held-out:** found on the gate's own episodes; its evidence is the replay over the
+       stored runs and the gate's arms (the table's branch arm is `8e3c3af2e`, without v54). It only
+       removes names. Accepting it on that evidence is the operator's call.
+     - **Non-English episodes:** the snapshot holds none, so nothing here measured them. The step 6
+       review found v53 / v54 reading every voice as English (fixed: the episode language is passed,
+       as every resolver caller passes it).
+     - **Relabel hosts:** a relabel reads the feed's frozen sibling hosts, so the episode-statement
+       hosts (v43 / v44, and v51) reached the gate only where that list was empty (36 of 212 cases
+       differ in known hosts); on ingest they always apply. Their served effect on feeds whose blurb
+       already names a host is not measured.
 6. **Fresh independent reviewer:** reads the diff and the outcome table, and gives a verdict.
 7. **The operator's go, then merge #2393.**
 8. **Deploy:** a separate go, then the post-deploy checks.
