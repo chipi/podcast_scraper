@@ -16,9 +16,9 @@ pytestmark = [pytest.mark.unit]
 REPO = Path(__file__).resolve().parents[4]
 # (voice, label, text): the transcript is "label: text" lines; spans are given explicitly.
 TURNS = [
-    ("SPEAKER_00", "Gergely Orosz", "Welcome to the show, Steve."),
-    ("SPEAKER_01", "Steve McConnell", "Thanks for having me. I wrote the book."),
-    ("SPEAKER_00", "Gergely Orosz", "Tell me about the book."),
+    ("SPEAKER_00", "Gerald Orban", "Welcome to the show, Steve."),
+    ("SPEAKER_01", "Stan McCormack", "Thanks for having me. I wrote the book."),
+    ("SPEAKER_00", "Gerald Orban", "Tell me about the book."),
 ]
 
 
@@ -103,7 +103,7 @@ def _lab(
     return {"voice": voice, "name": name, "role": role, "confidence": confidence}
 
 
-LABELS = [_lab("SPEAKER_00", "Gergely Orosz", "host"), _lab("SPEAKER_01", "Steve McConnell")]
+LABELS = [_lab("SPEAKER_00", "Gerald Orban", "host"), _lab("SPEAKER_01", "Stan McCormack")]
 
 
 def _run(root: Path, gold: Path, sets=("g",)) -> Dict[str, Any]:
@@ -119,12 +119,12 @@ def test_each_insight_is_judged_by_its_first_quotes_raw_voice(tmp_path: Path) ->
     meta = _episode(
         root,
         insights=[
-            ("i:steve", [1], {"speaker": "Steve McConnell"}),
-            ("i:first", [1, 0], {"speaker": "Gergely Orosz"}),  # first quote is Steve's voice
-            ("i:wrong", [0], {"speaker": "Steve McConnell"}),
+            ("i:steve", [1], {"speaker": "Stan McCormack"}),
+            ("i:first", [1, 0], {"speaker": "Gerald Orban"}),  # first quote is Steve's voice
+            ("i:wrong", [0], {"speaker": "Stan McCormack"}),
             ("i:unnamed", [1], {"speaker": "SPEAKER_01", "surfaceable": False}),
             ("i:speakerless", [1], {}),
-            ("i:none", [], {"speaker": "Steve McConnell"}),
+            ("i:none", [], {"speaker": "Stan McCormack"}),
         ],
     )
     _gold(gold, "g", "c1", meta, LABELS)
@@ -144,15 +144,15 @@ def test_one_name_on_two_voices_counts_each_insight_once(tmp_path: Path) -> None
     root, gold = tmp_path / "c", tmp_path / "gold"
     turns = [
         TURNS[0],
-        ("SPEAKER_01", "Steve McConnell", "One."),
-        ("SPEAKER_02", "Steve McConnell", "Two."),
+        ("SPEAKER_01", "Stan McCormack", "One."),
+        ("SPEAKER_02", "Stan McCormack", "Two."),
     ]
     meta = _episode(
         root,
         turns=turns,
         insights=[
-            ("i:a", [1], {"speaker": "Steve McConnell"}),
-            ("i:b", [2], {"speaker": "Steve McConnell"}),
+            ("i:a", [1], {"speaker": "Stan McCormack"}),
+            ("i:b", [2], {"speaker": "Stan McCormack"}),
         ],
     )
     _gold(gold, "g", "c1", meta, LABELS + [_lab("SPEAKER_02", "Someone Else")])
@@ -167,8 +167,8 @@ def test_hidden_and_shown_are_split_by_surfaceable_false_only(tmp_path: Path) ->
     meta = _episode(
         root,
         insights=[
-            ("i:h", [1], {"speaker": "Steve McConnell", "surfaceable": False}),
-            ("i:s", [1], {"speaker": "Steve McConnell"}),
+            ("i:h", [1], {"speaker": "Stan McCormack", "surfaceable": False}),
+            ("i:s", [1], {"speaker": "Stan McCormack"}),
         ],
     )
     _gold(gold, "g", "c1", meta, LABELS)
@@ -179,14 +179,14 @@ def test_hidden_and_shown_are_split_by_surfaceable_false_only(tmp_path: Path) ->
 @pytest.mark.parametrize(
     "label, bucket",
     [
-        (_lab("SPEAKER_01", "Steve McConnell", confidence="low"), "S8_undecidable"),
-        (_lab("SPEAKER_01", "Steve McConnell", role="unknown"), "S8_undecidable"),
+        (_lab("SPEAKER_01", "Stan McCormack", confidence="low"), "S8_undecidable"),
+        (_lab("SPEAKER_01", "Stan McCormack", role="unknown"), "S8_undecidable"),
         (_lab("SPEAKER_01", None, role="clip"), "scored_no_name"),
     ],
 )
 def test_unscored_and_nameless_labels(tmp_path: Path, label, bucket) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, [LABELS[0], label])
     assert _buckets(_run(root, gold)) == {"i": bucket}
 
@@ -200,7 +200,7 @@ def test_a_voice_with_no_label_and_a_quote_outside_every_segment(tmp_path: Path)
     doc = json.loads(gfile.read_text())
     for n in doc["nodes"]:
         if n["id"] == "quote:0":
-            n["properties"]["char_start"] = 0  # inside the "Gergely Orosz: " label, no segment
+            n["properties"]["char_start"] = 0  # inside the "Gerald Orban: " label, no segment
     gfile.write_text(json.dumps(doc))
     _gold(gold, "g", "c1", meta, [LABELS[0]])
     report = _run(root, gold)
@@ -229,7 +229,7 @@ def test_a_cross_run_ref_is_placed_not_lost(tmp_path: Path) -> None:
     meta = _episode(
         root,
         run="run_B",
-        insights=[("i", [1], {"speaker": "Steve McConnell"})],
+        insights=[("i", [1], {"speaker": "Stan McCormack"})],
         ref="../run_A/transcripts/ep.txt",
     )
     (root / "feeds/f/run_B/transcripts/ep.txt").unlink()
@@ -239,8 +239,8 @@ def test_a_cross_run_ref_is_placed_not_lost(tmp_path: Path) -> None:
 
 def test_a_case_no_longer_served_is_skipped_and_named(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    old = _episode(root, run="run_1", insights=[("i", [1], {"speaker": "Steve McConnell"})])
-    _episode(root, run="run_2", insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    old = _episode(root, run="run_1", insights=[("i", [1], {"speaker": "Stan McCormack"})])
+    _episode(root, run="run_2", insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", old, LABELS)
     s = _run(root, gold)["sets"]["g"]
     assert s["skipped_not_served"] == ["c1"] and s["included"] == 0
@@ -248,7 +248,7 @@ def test_a_case_no_longer_served_is_skipped_and_named(tmp_path: Path) -> None:
 
 def test_the_newest_label_set_is_chosen_by_number(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, [LABELS[0], _lab("SPEAKER_01", "Wrong Name")], labels="labels_v2")
     _gold(gold, "g", "c1", meta, LABELS, labels="labels_v10")
     s = _run(root, gold)["sets"]["g"]
@@ -257,7 +257,7 @@ def test_the_newest_label_set_is_chosen_by_number(tmp_path: Path) -> None:
 
 def test_a_case_without_a_label_file_is_counted_not_scored(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, LABELS)
     _gold(gold, "g", "c2", meta.replace("run_1", "run_9"), None)
     s = _run(root, gold)["sets"]["g"]
@@ -266,9 +266,7 @@ def test_a_case_without_a_label_file_is_counted_not_scored(tmp_path: Path) -> No
 
 def test_two_languages_are_split(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    a = _episode(
-        root, run="run_1", eid="e1", insights=[("i1", [1], {"speaker": "Steve McConnell"})]
-    )
+    a = _episode(root, run="run_1", eid="e1", insights=[("i1", [1], {"speaker": "Stan McCormack"})])
     b = _episode(
         root,
         run="run_2",
@@ -283,7 +281,7 @@ def test_two_languages_are_split(tmp_path: Path) -> None:
 
 
 def test_matcher_tiers() -> None:
-    assert gi.tier("Steve McConnell", "steve mcconnell") == "fold_exact"
+    assert gi.tier("Stan McCormack", "stan mccormack") == "fold_exact"
     assert gi.tier("Josh Elman", "Josh") == "token_subset"
     assert gi.tier("Josh Dawsey", "Josh Dawsy") == "fuzzy_or_title"
 
@@ -312,7 +310,7 @@ def test_the_scoring_rules_equal_the_naming_gates() -> None:
 
 def test_it_writes_nothing_and_is_deterministic(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, LABELS)
     for p in list(root.rglob("*")) + list(gold.rglob("*")):
         p.chmod(0o555 if p.is_dir() else 0o444)
@@ -327,7 +325,7 @@ def test_it_writes_nothing_and_is_deterministic(tmp_path: Path) -> None:
 def test_conservation_is_asserted_when_an_insight_would_be_lost(tmp_path: Path) -> None:
     """Two Insight nodes with one id: one would vanish from the buckets, so the run must refuse."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     gfile = root / meta.replace(".metadata.json", ".gi.json")
     doc = json.loads(gfile.read_text())
     doc["nodes"].append({"id": "i", "type": "Insight", "properties": {}})
@@ -339,7 +337,7 @@ def test_conservation_is_asserted_when_an_insight_would_be_lost(tmp_path: Path) 
 
 def test_a_quote_without_offsets_is_not_placeable_not_ungrounded(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     gfile = root / meta.replace(".metadata.json", ".gi.json")
     doc = json.loads(gfile.read_text())
     for n in doc["nodes"]:
@@ -373,7 +371,7 @@ def test_a_nameless_label_that_is_not_scored_is_s8_not_scored_no_name(
 ) -> None:
     """Reviewer R3: the common real case, a low-confidence or unknown label with no name."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, [LABELS[0], label])
     assert _buckets(_run(root, gold)) == {"i": "S8_undecidable"}
 
@@ -381,7 +379,7 @@ def test_a_nameless_label_that_is_not_scored_is_s8_not_scored_no_name(
 def test_a_served_case_with_no_label_file_is_counted_and_not_scored(tmp_path: Path) -> None:
     """Reviewer R12: the case is served, so only the missing label keeps it out."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, None)
     (gold / "g" / "labels_v1").mkdir()
     s = _run(root, gold)["sets"]["g"]
@@ -406,7 +404,7 @@ def _plain_segments(root: Path, meta: str, pad: int = 0) -> None:
 
 def test_segments_without_offsets_are_placed_by_text_length(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _plain_segments(root, meta)
     _gold(gold, "g", "c1", meta, LABELS)
     assert _buckets(_run(root, gold)) == {"i": "S7_correct"}
@@ -415,7 +413,7 @@ def test_segments_without_offsets_are_placed_by_text_length(tmp_path: Path) -> N
 def test_spans_refused_by_the_alignment_guard_are_not_outside_segments(tmp_path: Path) -> None:
     """Reviewer R5: the guard's refusal is its own reason."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _plain_segments(root, meta, pad=200)
     _gold(gold, "g", "c1", meta, LABELS)
     report = _run(root, gold)
@@ -427,7 +425,7 @@ def test_spans_refused_by_the_alignment_guard_are_not_outside_segments(tmp_path:
 def test_no_segments_is_spans_none_not_outside_segments(tmp_path: Path, segments) -> None:
     """Reviewer R19."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     segf = root / "feeds/f/run_1/transcripts/ep.segments.json"
     if segments is None:
         segf.unlink()
@@ -441,7 +439,7 @@ def test_no_segments_is_spans_none_not_outside_segments(tmp_path: Path, segments
 def test_a_ref_to_a_missing_transcript_is_unresolved_not_ungrounded(tmp_path: Path) -> None:
     """Reviewer R15."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _edit_quote(root, meta, "quote:1", transcript_ref="transcripts/gone.txt")
     _gold(gold, "g", "c1", meta, LABELS)
     report = _run(root, gold)
@@ -452,7 +450,7 @@ def test_a_ref_to_a_missing_transcript_is_unresolved_not_ungrounded(tmp_path: Pa
 def test_a_quote_through_an_adfree_ref_uses_the_adfree_segments(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
     meta = _episode(
-        root, insights=[("i", [1], {"speaker": "Steve McConnell"})], ref="transcripts/ep.adfree.txt"
+        root, insights=[("i", [1], {"speaker": "Stan McCormack"})], ref="transcripts/ep.adfree.txt"
     )
     tdir = root / "feeds/f/run_1/transcripts"
     (tdir / "ep.adfree.txt").write_text((tdir / "ep.txt").read_text())
@@ -476,9 +474,9 @@ def test_the_later_quote_sensitivity_counts_a_wrong_insight_whose_later_quote_is
             (
                 "i:later",
                 [0, 1],
-                {"speaker": "Steve McConnell"},
-            ),  # first quote Gergely's, then Steve's
-            ("i:none", [0], {"speaker": "Steve McConnell"}),
+                {"speaker": "Stan McCormack"},
+            ),  # first quote Gerald's, then Steve's
+            ("i:none", [0], {"speaker": "Stan McCormack"}),
         ],
     )
     _gold(gold, "g", "c1", meta, LABELS)
@@ -495,10 +493,10 @@ def test_the_flag_absent_count_is_insights_from_gi_excluding_a_flagless_insight(
     meta = _episode(
         root,
         insights=[
-            ("i:text", [1], {"speaker": "Steve McConnell", "text": "Books matter."}),
-            ("i:drop", [1], {"speaker": "Steve McConnell", "text": "Um.", "routing_tag": "drop"}),
-            ("i:notext", [1], {"speaker": "Steve McConnell"}),
-            ("i:hidden", [1], {"speaker": "Steve McConnell", "text": "X.", "surfaceable": False}),
+            ("i:text", [1], {"speaker": "Stan McCormack", "text": "Books matter."}),
+            ("i:drop", [1], {"speaker": "Stan McCormack", "text": "Um.", "routing_tag": "drop"}),
+            ("i:notext", [1], {"speaker": "Stan McCormack"}),
+            ("i:hidden", [1], {"speaker": "Stan McCormack", "text": "X.", "surfaceable": False}),
         ],
     )
     _gold(gold, "g", "c1", meta, LABELS)
@@ -511,7 +509,7 @@ def test_the_flag_absent_count_is_insights_from_gi_excluding_a_flagless_insight(
 def test_a_labelled_voice_missing_from_the_segments_is_counted(tmp_path: Path) -> None:
     """Reviewer R11: SPEAKER_00 has no insight but is in the segments; SPEAKER_09 is in neither."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, LABELS + [_lab("SPEAKER_09", "Nobody Here")])
     assert _run(root, gold)["sets"]["g"]["labelled_voices_missing_from_segments"] == 1
 
@@ -519,7 +517,7 @@ def test_a_labelled_voice_missing_from_the_segments_is_counted(tmp_path: Path) -
 def test_an_explicit_label_directory_overrides_the_newest(tmp_path: Path) -> None:
     """Reviewer R17."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, LABELS, labels="labels_v1")
     _gold(gold, "g", "c1", meta, [LABELS[0], _lab("SPEAKER_01", "Wrong Name")], labels="labels_v2")
     pinned = gi.run(root, gold, ["g"], "snap-test", {"g": "labels_v1"})
@@ -542,9 +540,9 @@ def test_entry_voices_counts_a_lists_voices_by_bucket_and_split(tmp_path: Path) 
     meta = _episode(
         root,
         insights=[
-            ("i:a", [1], {"speaker": "Steve McConnell"}),
+            ("i:a", [1], {"speaker": "Stan McCormack"}),
             ("i:b", [1], {"speaker": "SPEAKER_01", "surfaceable": False}),
-            ("i:c", [0], {"speaker": "Gergely Orosz"}),
+            ("i:c", [0], {"speaker": "Gerald Orban"}),
         ],
     )
     _gold(gold, "g", "c1", meta, LABELS)
@@ -561,7 +559,7 @@ def test_entry_voices_counts_a_lists_voices_by_bucket_and_split(tmp_path: Path) 
 
 def test_a_served_case_whose_gi_file_is_missing_is_counted(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gi_file(root, meta).unlink()
     _gold(gold, "g", "c1", meta, LABELS)
     s = _run(root, gold)["sets"]["g"]
@@ -570,7 +568,7 @@ def test_a_served_case_whose_gi_file_is_missing_is_counted(tmp_path: Path) -> No
 
 def test_the_report_names_what_the_ledger_records(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _w(root / "upgrade_ledger.json", {"applied": [{"id": "0029_x"}, {"id": "0001_a"}]})
     _gold(gold, "g", "c1", meta, LABELS)
     report = _run(root, gold)
@@ -586,7 +584,7 @@ def test_the_cli_passes_labels_through(tmp_path: Path, monkeypatch, capsys) -> N
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", meta, LABELS, labels="labels_v1")
     _gold(gold, "g", "c1", meta, [LABELS[0], _lab("SPEAKER_01", "Wrong Name")], labels="labels_v2")
     out = tmp_path / "r.json"
@@ -605,9 +603,9 @@ def test_the_cli_passes_labels_through(tmp_path: Path, monkeypatch, capsys) -> N
 # An eval run's output: the after run renumbers the voices (Steve is SPEAKER_00 there) and is a
 # new run directory; the labels still name the labelled run's ids and path.
 SWAPPED = [
-    ("SPEAKER_01", "Gergely Orosz", "Welcome to the show, Steve."),
-    ("SPEAKER_00", "Steve McConnell", "Thanks for having me. I wrote the book."),
-    ("SPEAKER_01", "Gergely Orosz", "Tell me about the book."),
+    ("SPEAKER_01", "Gerald Orban", "Welcome to the show, Steve."),
+    ("SPEAKER_00", "Stan McCormack", "Thanks for having me. I wrote the book."),
+    ("SPEAKER_01", "Gerald Orban", "Tell me about the book."),
 ]
 
 
@@ -633,8 +631,8 @@ def test_a_voice_map_follows_the_case_to_its_after_run_and_its_renumbered_voices
     after = _after(
         root,
         [
-            ("i:steve", [1], {"speaker": "Steve McConnell"}),
-            ("i:host", [0], {"speaker": "Gergely Orosz"}),
+            ("i:steve", [1], {"speaker": "Stan McCormack"}),
+            ("i:host", [0], {"speaker": "Gerald Orban"}),
         ],
     )
     _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
@@ -654,7 +652,7 @@ def test_a_voice_map_follows_the_case_to_its_after_run_and_its_renumbered_voices
 def test_without_the_map_renumbered_voices_score_the_wrong_person(tmp_path: Path) -> None:
     """Why the map exists: the after voice id looked up in the labels names the other person."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    after = _after(root, [("i:steve", [1], {"speaker": "Steve McConnell"})])
+    after = _after(root, [("i:steve", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", after, LABELS)
     assert _buckets(_run(root, gold)) == {"i:steve": "S7_wrong"}
     maps = _maps(root, after, SWAP_MAP)
@@ -669,8 +667,8 @@ def test_two_labelled_voices_on_one_after_voice_are_ambiguous_not_either_person(
     after = _after(
         root,
         [
-            ("i:a", [1], {"speaker": "Steve McConnell"}),
-            ("i:b", [0], {"speaker": "Steve McConnell"}),
+            ("i:a", [1], {"speaker": "Stan McCormack"}),
+            ("i:b", [0], {"speaker": "Stan McCormack"}),
         ],
         turns=merged,
     )
@@ -690,10 +688,10 @@ def test_one_person_the_labelled_run_split_and_the_after_run_merged_keeps_its_la
     labels agree, so the insights are scored, not ambiguous."""
     root, gold = tmp_path / "c", tmp_path / "gold"
     merged = [(("SPEAKER_00",) + t[1:]) for t in TURNS]
-    after = _after(root, [("i:a", [1], {"speaker": "Gergely Orosz"})], turns=merged)
+    after = _after(root, [("i:a", [1], {"speaker": "Gerald Orban"})], turns=merged)
     labels = [
-        _lab("SPEAKER_00", "Gergely Orosz", "host", "medium"),
-        _lab("SPEAKER_01", "Gergely Orosz", "host"),
+        _lab("SPEAKER_00", "Gerald Orban", "host", "medium"),
+        _lab("SPEAKER_01", "Gerald Orban", "host"),
     ]
     _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", labels)
     m = {"SPEAKER_00": ["SPEAKER_00", 0.9], "SPEAKER_01": ["SPEAKER_00", 0.8]}
@@ -705,7 +703,7 @@ def test_one_person_the_labelled_run_split_and_the_after_run_merged_keeps_its_la
         "c1": {"SPEAKER_00": ["SPEAKER_00", "SPEAKER_01"]}
     }
     # an unscored second label is not the same claim: ambiguous again
-    labels[1] = _lab("SPEAKER_01", "Gergely Orosz", "host", "low")
+    labels[1] = _lab("SPEAKER_01", "Gerald Orban", "host", "low")
     _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", labels)
     report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, m))
     assert _buckets(report) == {"i:a": "voice_map_ambiguous"}
@@ -715,8 +713,8 @@ def test_an_unscored_label_is_carried_by_the_map_and_stays_s8(tmp_path: Path) ->
     """The map covers every labelled voice, not only scored ones: an unscored voice's insights stay
     S8_undecidable instead of falling to voice_not_labelled."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
-    labels = [LABELS[0], _lab("SPEAKER_01", "Steve McConnell", confidence="low")]
+    after = _after(root, [("i", [1], {"speaker": "Stan McCormack"})])
+    labels = [LABELS[0], _lab("SPEAKER_01", "Stan McCormack", confidence="low")]
     _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", labels)
     report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, SWAP_MAP))
     assert _buckets(report) == {"i": "S8_undecidable"}
@@ -726,7 +724,7 @@ def test_a_label_voice_the_map_lacks_is_recorded_and_its_after_voice_is_not_labe
     tmp_path: Path,
 ) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    after = _after(root, [("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
     m = {"SPEAKER_00": ["SPEAKER_01", 1.0]}
     report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, m))
@@ -736,7 +734,7 @@ def test_a_label_voice_the_map_lacks_is_recorded_and_its_after_voice_is_not_labe
 
 def test_a_case_the_map_does_not_cover_is_skipped_and_named(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    after = _after(root, [("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", after, LABELS)
     report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, SWAP_MAP, case="other"))
     s = report["sets"]["g"]
@@ -745,7 +743,7 @@ def test_a_case_the_map_does_not_cover_is_skipped_and_named(tmp_path: Path) -> N
 
 def test_a_map_made_for_another_corpus_is_refused(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    after = _after(root, [("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", after, LABELS)
     with pytest.raises(SystemExit, match="voice map was made for"):
         gi.run(root, gold, ["g"], "s", voice_maps=_maps(tmp_path / "other", after, SWAP_MAP))
@@ -759,7 +757,7 @@ def test_the_cli_reads_a_voice_map_file(tmp_path: Path, monkeypatch) -> None:
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)
     root, gold = tmp_path / "c", tmp_path / "gold"
-    after = _after(root, [("i", [1], {"speaker": "Steve McConnell"})])
+    after = _after(root, [("i", [1], {"speaker": "Stan McCormack"})])
     _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
     vm, out = tmp_path / "rows.voicemap.json", tmp_path / "r.json"
     vm.write_text(json.dumps(_maps(root, after, SWAP_MAP)))
@@ -787,16 +785,16 @@ def test_a_shadow_namer_is_scored_by_the_name_it_gives_each_insights_voice(tmp_p
     meta = _episode(
         root,
         insights=[
-            ("i:guest", [1], {"speaker": "Gergely Orosz"}),  # served wrong
-            ("i:host", [0], {"speaker": "Gergely Orosz", "surfaceable": False}),
-            ("i:none", [], {"speaker": "Gergely Orosz"}),
+            ("i:guest", [1], {"speaker": "Gerald Orban"}),  # served wrong
+            ("i:host", [0], {"speaker": "Gerald Orban", "surfaceable": False}),
+            ("i:none", [], {"speaker": "Gerald Orban"}),
         ],
     )
     _diag(
         root,
         "run_1",
-        {"SPEAKER_01": {"name": "Steve McConnell", "role": "guest"}},
-        {"SPEAKER_00": {"name": "Steve McConnell", "role": "guest"}, "SPEAKER_01": {"name": None}},
+        {"SPEAKER_01": {"name": "Stan McCormack", "role": "guest"}},
+        {"SPEAKER_00": {"name": "Stan McCormack", "role": "guest"}, "SPEAKER_01": {"name": None}},
     )
     _gold(gold, "g", "c1", meta, LABELS)
     served = _buckets(_run(root, gold))
@@ -811,7 +809,7 @@ def test_a_shadow_namer_is_scored_by_the_name_it_gives_each_insights_voice(tmp_p
     t = llm["sets"]["g"]["total"]
     assert (t["namer_no_result"], t["S7_unnamed_hidden"]) == (1, 1)
     row = next(r for r in llm["rows"] if r["insight"] == "i:guest")
-    assert (row["stored"], row["stored_served"]) == ("Steve McConnell", "Gergely Orosz")
+    assert (row["stored"], row["stored_served"]) == ("Stan McCormack", "Gerald Orban")
     voice = gi.run(root, gold, ["g"], "s", namer="voice")
     assert _buckets(voice) == {
         "i:guest": "S7_unnamed",
@@ -823,8 +821,8 @@ def test_a_shadow_namer_is_scored_by_the_name_it_gives_each_insights_voice(tmp_p
 
 def test_a_shadow_namer_reads_the_after_runs_sidecar_through_the_voice_map(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    after = _after(root, [("i", [1], {"speaker": "Gergely Orosz"})])
-    _diag(root, "run_2", {"SPEAKER_00": {"name": "Steve McConnell"}}, {})
+    after = _after(root, [("i", [1], {"speaker": "Gerald Orban"})])
+    _diag(root, "run_2", {"SPEAKER_00": {"name": "Stan McCormack"}}, {})
     _gold(gold, "g", "c1", "feeds/f/run_1/metadata/ep.metadata.json", LABELS)
     report = gi.run(root, gold, ["g"], "s", voice_maps=_maps(root, after, SWAP_MAP), namer="llm")
     assert _buckets(report) == {"i": "S7_correct"}
@@ -851,7 +849,7 @@ def test_a_quote_whose_offsets_point_at_other_words_is_placed_by_its_text(tmp_pa
     """A rediarize rewrites the transcript and keeps the old GI: the offsets point at the host's
     words, the quote is the guest's. Placed by offset it would be scored on the host's voice."""
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _quote_text(root, meta, 1, "Thanks for having me. I wrote the book.", start=0)
     _gold(gold, "g", "c1", meta, LABELS)
     report = _run(root, gold)
@@ -861,13 +859,13 @@ def test_a_quote_whose_offsets_point_at_other_words_is_placed_by_its_text(tmp_pa
 
 def test_a_quote_text_found_twice_or_not_at_all_is_not_placed(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    turns = TURNS + [("SPEAKER_01", "Steve McConnell", "Tell me about the book.")]
+    turns = TURNS + [("SPEAKER_01", "Stan McCormack", "Tell me about the book.")]
     meta = _episode(
         root,
         turns=turns,
         insights=[
-            ("i:twice", [2], {"speaker": "Gergely Orosz"}),
-            ("i:gone", [1], {"speaker": "Steve McConnell"}),
+            ("i:twice", [2], {"speaker": "Gerald Orban"}),
+            ("i:gone", [1], {"speaker": "Stan McCormack"}),
         ],
     )
     _quote_text(root, meta, 2, "Tell me about the book.", start=0)
@@ -879,7 +877,7 @@ def test_a_quote_text_found_twice_or_not_at_all_is_not_placed(tmp_path: Path) ->
 
 def test_a_quote_whose_text_is_at_its_offsets_is_placed_as_before(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _quote_text(root, meta, 1, "Thanks  for having me.\nI wrote the book.")  # whitespace differs
     _gold(gold, "g", "c1", meta, LABELS)
     report = _run(root, gold)
@@ -889,12 +887,12 @@ def test_a_quote_whose_text_is_at_its_offsets_is_placed_as_before(tmp_path: Path
 
 def test_the_ladder_namer_scores_the_runs_roster_not_the_gi_names(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i:guest", [1], {"speaker": "Gergely Orosz"})])
+    meta = _episode(root, insights=[("i:guest", [1], {"speaker": "Gerald Orban"})])
     _w(
         root / "feeds/f/run_1/transcripts/ep.speakers.diagnostics.json",
         {
             "voices": [
-                {"voice": "SPEAKER_01", "resolved_name": "Steve McConnell", "named": True},
+                {"voice": "SPEAKER_01", "resolved_name": "Stan McCormack", "named": True},
                 {"voice": "SPEAKER_00", "resolved_name": "SPEAKER_00", "named": False},
             ]
         },
@@ -907,10 +905,10 @@ def test_the_ladder_namer_scores_the_runs_roster_not_the_gi_names(tmp_path: Path
 
 def test_the_ladder_namer_counts_a_voice_the_roster_did_not_name_as_unnamed(tmp_path: Path) -> None:
     root, gold = tmp_path / "c", tmp_path / "gold"
-    meta = _episode(root, insights=[("i", [1], {"speaker": "Steve McConnell"})])
+    meta = _episode(root, insights=[("i", [1], {"speaker": "Stan McCormack"})])
     _w(
         root / "feeds/f/run_1/transcripts/ep.speakers.diagnostics.json",
-        {"voices": [{"voice": "SPEAKER_01", "resolved_name": "Steve McConnell", "named": False}]},
+        {"voices": [{"voice": "SPEAKER_01", "resolved_name": "Stan McCormack", "named": False}]},
     )
     _gold(gold, "g", "c1", meta, LABELS)
     assert _buckets(gi.run(root, gold, ["g"], "s", namer="ladder")) == {"i": "S7_unnamed"}

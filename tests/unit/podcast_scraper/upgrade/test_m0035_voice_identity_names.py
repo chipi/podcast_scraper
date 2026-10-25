@@ -55,7 +55,7 @@ def _sibling(root: Path, run: str, eid: str, absolute: bool = False) -> None:
                 "voices": [
                     {
                         "voice": "SPEAKER_00",
-                        "resolved_name": "Gergely Orosz",
+                        "resolved_name": "Gerald Orban",
                         "named": True,
                         "role": "host",
                         "source": "self_intro",
@@ -76,15 +76,15 @@ def _feed(tmp_path: Path, ad_read: bool = False, absolute: bool = False) -> Dict
     turns: List[Tuple[str, str, Optional[str], str]] = []
     for i in range(12):
         turns.append(("SPEAKER_00", "SPEAKER_00", None, f"Question {i} about the book."))
-        turns.append(("SPEAKER_01", "Steve McConnell", "guest", f"Answer {i} about the book."))
+        turns.append(("SPEAKER_01", "Stan McCormack", "guest", f"Answer {i} about the book."))
     if ad_read:
         # The host reading an ad: the host's fingerprint, 1 of 25 turns (4%, under the floor).
         turns.append(("SPEAKER_02", "SPEAKER_02", None, "This episode is brought to you by."))
     p: Dict[str, Any] = fx._corpus(
         tmp_path,
-        speakers=[fx._speaker("Steve McConnell", "guest", ["SPEAKER_01"], "roster", "guest")],
+        speakers=[fx._speaker("Stan McCormack", "guest", ["SPEAKER_01"], "roster", "guest")],
         turns=turns,
-        known_hosts=["Gergely Orosz"],
+        known_hosts=["Gerald Orban"],
     )
     diag = fx._r(p["diag"])
     for v in diag["voices"]:
@@ -138,7 +138,7 @@ def test_the_detector_names_the_hosts_unnamed_voice_from_the_feeds_fingerprints(
     changes = m35.find_changes(tmp_path)
     assert list(changes) == [("ep", "SPEAKER_00")]
     old_name, old_role, new_name, new_role, why = changes[("ep", "SPEAKER_00")]
-    assert (old_name, new_name, new_role) == (None, "Gergely Orosz", "host")
+    assert (old_name, new_name, new_role) == (None, "Gerald Orban", "host")
     assert "fingerprint group at 1.00" in why
 
 
@@ -161,18 +161,18 @@ def test_a_reviewed_rename_is_written_on_every_surface_and_undone(
     assert not mig.verify(_ctx(tmp_path))[0]
     res = mig.apply(_ctx(tmp_path))
     assert res.details["refused"] == [] and len(res.details["episodes"]) == 1
-    assert "\nGergely Orosz: " in "\n" + p["txt"].read_text(encoding="utf-8")
+    assert "\nGerald Orban: " in "\n" + p["txt"].read_text(encoding="utf-8")
     for surface, names in t34.fx_surfaces(p).items():
-        assert "Gergely Orosz" in names, surface
+        assert "Gerald Orban" in names, surface
     host = {v["voice"]: v for v in fx._r(p["diag"])["voices"]}["SPEAKER_00"]
-    assert host["named"] and host["resolved_name"] == "Gergely Orosz"
+    assert host["named"] and host["resolved_name"] == "Gerald Orban"
     # Review M4: the rung's own names never vote, and this is the rung's name.
     assert host["source"] == vi.SOURCE
     assert mig.verify(_ctx(tmp_path))[0]
     assert (tmp_path / m35.RECEIPTS_FILE).is_file()
     restored, refused = m35.undo(tmp_path)
     assert restored and not refused
-    assert "Gergely Orosz:" not in p["txt"].read_text(encoding="utf-8")
+    assert "Gerald Orban:" not in p["txt"].read_text(encoding="utf-8")
 
 
 def test_a_rename_the_review_reads_as_wrong_is_not_written(
@@ -250,7 +250,7 @@ def test_a_name_this_migration_applied_does_not_vote_afterwards(
 def test_a_respelling_rename_takes_the_rungs_source_too(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Second review m2: "Gergely Oroz" -> the group's "Gergely Orosz" is the same person by
+    # Second review m2: "Gerald Oroz" -> the group's "Gerald Orban" is the same person by
     # same_person, and kept its old source, so it voted. Every 0035 name is the rung's.
     p = _feed(tmp_path)
     diag = fx._r(p["diag"])
@@ -258,16 +258,16 @@ def test_a_respelling_rename_takes_the_rungs_source_too(
     rows = seg if isinstance(seg, list) else seg["segments"]
     for r in rows:
         if r["speaker"] == "SPEAKER_00":
-            r["speaker_label"], r["speaker_role"] = "Gergely Oroz", "host"
+            r["speaker_label"], r["speaker_role"] = "Gerald Oroz", "host"
     p["seg"].write_text(json.dumps(seg), encoding="utf-8")
     for v in diag["voices"]:
         if v["voice"] == "SPEAKER_00":
-            v.update(named=True, resolved_name="Gergely Oroz", source="llm_resolution")
+            v.update(named=True, resolved_name="Gerald Oroz", source="llm_resolution")
     p["diag"].write_text(json.dumps(diag), encoding="utf-8")
     entries = m35.find_changes(tmp_path)
-    assert entries[("ep", "SPEAKER_00")][:3] == ("Gergely Oroz", "host", "Gergely Orosz")
+    assert entries[("ep", "SPEAKER_00")][:3] == ("Gerald Oroz", "host", "Gerald Orban")
     monkeypatch.setattr(m35, "load_list", lambda path=None: entries)
     _review(monkeypatch, tmp_path, entries, "CORRECT")
     m35.VoiceIdentityNamesMigration().apply(_ctx(tmp_path))
     host = {v["voice"]: v for v in fx._r(p["diag"])["voices"]}["SPEAKER_00"]
-    assert host["resolved_name"] == "Gergely Orosz" and host["source"] == vi.SOURCE
+    assert host["resolved_name"] == "Gerald Orban" and host["source"] == vi.SOURCE

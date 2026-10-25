@@ -703,14 +703,14 @@ def _resolve_voices_via_llm(
 
 def one_entry_per_person(names: Sequence[str]) -> List[str]:
     """The candidate list with each person once: a later spelling of a person already listed
-    ("Jade McGlynn" after "Dr. Jade McGlynn", "Ashley Dimmig" after "Ashley DimmIG") is dropped.
+    ("June McGarry" after "Dr. June McGarry", "Ashley Dunmore" after "Ashley DunMORE") is dropped.
 
     A name in the closed list is a name the resolver may bind, and its one-name-one-voice rule
     sees strings: two spellings of one person let it put that person on two voices (the DGX block,
     2026-10-23: one translator on a guest's voice and on a clip's). Same person is
     ``roster._same_person_on_one_episode`` (titles stripped, a generation suffix kept apart, a
     one-word name never merged with a full name). The first spelling is kept, so today's order
-    decides, except that a spelling with stray capitals inside a word ("DimmIG") gives way to a
+    decides, except that a spelling with stray capitals inside a word ("DunMORE") gives way to a
     clean one. Measured on 421 stored lists: 2 such pairs in 1,197 entries, both one person.
     """
     from .roster import _same_person_on_one_episode

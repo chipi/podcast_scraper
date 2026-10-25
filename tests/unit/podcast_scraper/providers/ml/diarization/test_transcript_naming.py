@@ -46,7 +46,7 @@ VOICES TO JUDGE: @VOICES@
 def _aligned():
     return [
         (
-            {"start": 0.0, "end": 5.0, "text": "Welcome to the show, I'm Russ Roberts."},
+            {"start": 0.0, "end": 5.0, "text": "Welcome to the show, I'm Ross Rowley."},
             "SPEAKER_00",
         ),
         ({"start": 5.0, "end": 9.0, "text": WORDS}, "SPEAKER_00"),
@@ -61,13 +61,13 @@ def _roster():
         by_voice={
             # The ladder swapped the two people.
             "SPEAKER_00": SpeakerRole(
-                name="Stephen Witt", role="guest", named=True, source="llm_resolution"
+                name="Simon Whitt", role="guest", named=True, source="llm_resolution"
             ),
             "SPEAKER_01": SpeakerRole(
-                name="Russ Roberts", role="host", named=True, source="llm_resolution"
+                name="Ross Rowley", role="host", named=True, source="llm_resolution"
             ),
             "SPEAKER_02": SpeakerRole(
-                name="Daniel Atkinson", role="guest", named=True, source="self_intro"
+                name="Dennis Aitken", role="guest", named=True, source="self_intro"
             ),
         },
         num_speakers=3,
@@ -75,9 +75,9 @@ def _roster():
 
 
 SWAP_FIX = (
-    '{"voices": {"SPEAKER_00": {"name": "Russ Roberts", "role": "host", "confidence": "high",'
-    ' "evidence": "[00:00] I\'m Russ Roberts"},'
-    ' "SPEAKER_01": {"name": "Stephen Witt", "role": "guest", "confidence": "medium",'
+    '{"voices": {"SPEAKER_00": {"name": "Ross Rowley", "role": "host", "confidence": "high",'
+    ' "evidence": "[00:00] I\'m Ross Rowley"},'
+    ' "SPEAKER_01": {"name": "Simon Whitt", "role": "guest", "confidence": "medium",'
     ' "evidence": ""}}}'
 )
 
@@ -107,17 +107,17 @@ def _sent(aligned, feed, feed_desc, title, desc) -> str:
 
 
 def test_the_transcript_block_merges_turns_and_keeps_the_measured_layout() -> None:
-    text = _sent(_aligned(), "EconTalk", "Hosted by Russ Roberts.", "Ep 1", "With Stephen Witt.")
+    text = _sent(_aligned(), "EconTalk", "Hosted by Ross Rowley.", "Ep 1", "With Simon Whitt.")
     lines = text.splitlines()
     assert lines[:6] == [
         "FEED: EconTalk",
-        "FEED DESCRIPTION: Hosted by Russ Roberts.",
+        "FEED DESCRIPTION: Hosted by Ross Rowley.",
         "EPISODE: Ep 1",
-        "EPISODE DESCRIPTION: With Stephen Witt.",
+        "EPISODE DESCRIPTION: With Simon Whitt.",
         "",
         "TRANSCRIPT (diarized voices; no names attached):",
     ]
-    assert lines[6].startswith("[00:00] SPEAKER_00: Welcome to the show, I'm Russ Roberts. word")
+    assert lines[6].startswith("[00:00] SPEAKER_00: Welcome to the show, I'm Ross Rowley. word")
     assert lines[7].startswith("[00:09] SPEAKER_01: Thanks for having me, Russ.")
     assert lines[8] == "[01:01] SPEAKER_02: This episode is brought to you by"
     assert lines[9] == "[01:04] UNATTRIBUTED: uh"
@@ -160,11 +160,11 @@ def test_a_swap_is_corrected_and_a_voice_it_does_not_call_a_participant_is_unnam
     trace = NamingTrace()
     out = tn.apply_answer(_roster(), asked.pairs(), trace, language="en")
     assert (out.by_voice["SPEAKER_00"].name, out.by_voice["SPEAKER_00"].role) == (
-        "Russ Roberts",
+        "Ross Rowley",
         "host",
     )
     assert (out.by_voice["SPEAKER_01"].name, out.by_voice["SPEAKER_01"].role) == (
-        "Stephen Witt",
+        "Simon Whitt",
         "guest",
     )
     assert out.by_voice["SPEAKER_00"].source == tn.SOURCE
@@ -179,8 +179,8 @@ def test_an_answer_that_drops_the_zero_padding_names_the_voice_it_meant() -> Non
     unpadded = SWAP_FIX.replace('"SPEAKER_01"', '"SPEAKER_1"')
     asked = _ask(lambda p: unpadded)
     assert asked.pairs() == {
-        "SPEAKER_00": ("Russ Roberts", "host"),
-        "SPEAKER_01": ("Stephen Witt", "guest"),
+        "SPEAKER_00": ("Ross Rowley", "host"),
+        "SPEAKER_01": ("Simon Whitt", "guest"),
     }
 
 
@@ -195,14 +195,14 @@ def test_a_name_the_model_confirms_keeps_the_ladders_source() -> None:
     roster = SpeakerRoster(
         by_voice={
             "SPEAKER_00": SpeakerRole(
-                name="Peter Attia", role="host", named=True, source="self_intro"
+                name="Paul Avery", role="host", named=True, source="self_intro"
             ),
         },
         num_speakers=1,
     )
-    out = tn.apply_answer(roster, {"SPEAKER_00": ("peter attia", "host")}, language="en")
+    out = tn.apply_answer(roster, {"SPEAKER_00": ("paul avery", "host")}, language="en")
     assert out.by_voice["SPEAKER_00"].source == "self_intro"
-    assert out.by_voice["SPEAKER_00"].name == "Peter Attia"
+    assert out.by_voice["SPEAKER_00"].name == "Paul Avery"
 
 
 def test_a_failed_skipped_or_unreadable_call_is_reported_not_raised() -> None:
@@ -262,7 +262,7 @@ def test_the_sidecar_compares_the_ladder_and_the_model_voice_by_voice() -> None:
     asked = _ask(lambda p: SWAP_FIX)
     ladder = SpeakerRoster(
         by_voice={
-            "SPEAKER_00": SpeakerRole(name="Stephen Witt", role="guest", named=True, source="x"),
+            "SPEAKER_00": SpeakerRole(name="Simon Whitt", role="guest", named=True, source="x"),
             "SPEAKER_01": SpeakerRole(name="SPEAKER_01", role="unknown", named=False, source="x"),
             "SPEAKER_02": SpeakerRole(name="Ad Voice", role="guest", named=True, source="x"),
             "SPEAKER_03": SpeakerRole(name="Russ", role="host", named=True, source="x"),

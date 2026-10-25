@@ -1091,7 +1091,7 @@ def _self_introduced_voices(diagnostics: Mapping[str, Any]) -> Set[str]:
     return out
 
 
-#: The roster source for a name a voice introduced ITSELF with ("I'm Peter Attia") — the one
+#: The roster source for a name a voice introduced ITSELF with ("I'm Paul Avery") — the one
 #: evidence that a name which also begins the show's title is the host, not the show.
 SELF_INTRO_SOURCE = "self_intro"
 
@@ -1179,7 +1179,7 @@ def _unplaced_speakers(
             continue
         if feed_title and names_the_show(name, feed_title, language):
             continue
-        # The record publishes the canonical spelling (#2130: `Ali Ghodsi)`, `Peter Attia, MD`).
+        # The record publishes the canonical spelling (#2130: `Ali Ghodsi)`, `Paul Avery, MD`).
         # Only AFTER the filters above, which keep judging the stated string exactly as before.
         name = canonical_person_name(name) or name
         if any(_one_person_on_this_record(name, p.name) for p in placed):
@@ -1247,7 +1247,7 @@ def _build_speaker_record(
         methods = [method_by_voice[v] for v in sp.voices if v in method_by_voice]
         # One person on two voices (a diarization split): if EITHER voice introduced itself, the
         # person did. Taking the first listed voice's source dropped a self-introduced host whose
-        # name is the show's ("The Peter Attia Drive") whenever the other voice was listed first.
+        # name is the show's ("The Paul Avery Drive") whenever the other voice was listed first.
         sp.source = (
             SELF_INTRO_SOURCE
             if SELF_INTRO_SOURCE in methods
@@ -1258,9 +1258,9 @@ def _build_speaker_record(
         # placed it would list a speaker no surface casts. A transcript still labelled with the
         # show's name is then reported by the sync check (LABEL_NOT_PLACED) — a roster to re-run.
         #
-        # UNLESS THE VOICE SAID IT. A show is named after its host often enough ("The Peter Attia
+        # UNLESS THE VOICE SAID IT. A show is named after its host often enough ("The Paul Avery
         # Drive"), and a title-prefix rule cannot tell that host from "Machine Learning Street".
-        # A self-introduction can: measured on prod, Peter Attia's voice named itself on all 40
+        # A self-introduction can: measured on prod, Paul Avery's voice named itself on all 40
         # episodes (source `self_intro`) and not one of the real show-name labels did (MLST,
         # Trivium China, Africa Tech Summit, Turkey Book — all `known_hosts` / `llm_resolution`).
         from ..speaker_detectors.hosts import names_the_show

@@ -7,7 +7,7 @@
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
 | Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + `2b7aab46e` (one person, one entry), `aee17d79e` (credential without a comma), `64654a8c9` (hailed guest), `b3fb1c941` (narrator seat), `66eaedd0c` (Phase C), `ee4d19961` (K8), `2fd6411dc` (F7 storyteller), `19da42c29` (new promos, stand-in, opener hail), `c2ac9fcfa` (commercial talk-share guard), title spelling references (v23), promo rule fixes (v24), question-lead host seat (v25), voice identity rung + talk floor + split-host record source (v26), transcript naming (v27), transcript naming shadow mode (v28), voice identity shadow mode (v29), E1d + S30s rescues (v30), transcript naming in the bundled calls (v31), naming passes (v32), split-voice merge (v33), candidate widening (v34), review fixes (v35, v36), widening name words (v37), transcript naming voice ids (v38), a host's own handle (v39), floor host exemption + S30s fingerprints (v40), candidate widening removed (v41), title-only names + one person per candidate (v42), episode host statements (v43), podcast:person hosts (v44), one name on two voices names neither (v45), title-only words in every language (v46), speaker detection at temperature 0 (v47), a host phrase whose subject is an event (v48), split-voice merge on (v49), its threshold back to 0.8 (v50), stated hosts not LLM-bindable (v51), E1d self-introduction and host seat (v52), no floor exemption for a voice that talks about the host (v53), the third-person guard on an LLM name's full text (v54), the episode language in v53 / v54 (v55) |
 | Known issues | [Naming ladder — known issues and limits](NAMING_KNOWN_ISSUES.md); how changes are judged: [naming gate runbook](NAMING_GATE_RUNBOOK.md) |
-| Code content hash | `0c7b553e9b64` (see below) |
+| Code content hash | `abbea2902fbc` (see below) |
 | Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
@@ -123,7 +123,7 @@
   the sentence before it makes an event or an organisation its subject (`HOSTED_THING_WORDS`:
   summit, conference, platform, initiative, …) and names no show word after it
   (`HOSTED_SHOW_WORDS`: episode, show, podcast, series, …): "Live from the BIG Summit, a platform
-  hosted by investor and 2x NBA All-Star Baron Davis", "This initiative, … and hosted by
+  hosted by investor and 2x All-Star Brian Dorsey", "This initiative, … and hosted by
   <organisation>". "Recorded at the X Summit, this episode is hosted by Y" still reads.
   - Replay, old (`86195eec6`) vs new, over the 3,196 episodes of the 10-16 snapshot with the
     person check: 2 names removed (exactly those two), 0 added, nothing else changed; 3 mutants
@@ -187,7 +187,7 @@
   "presented by X", "co-host X". These are the first three `HOST_PHRASE_TEMPLATES` (English),
   until now read only at feed level, not the looser "join X" or trailing "with X".
   - Names pass the same person check as the feed's hosts; a trailing next-sentence imperative
-    is trimmed ("... Barry C. Smith Please do email us").
+    is trimmed ("... Barney C. Smyth Please do email us").
   - Additive: a feed that names nobody keeps its byline hosts exactly as before.
   - Rotating-host shows are where it matters (Planet Money, Ottoman History, Unhedged, The Gray
     Area, Unbelievable?).
@@ -213,7 +213,7 @@
   - **One person, one candidate entry** (`pipeline.one_entry_per_person`): a later spelling of a
     person already listed is dropped (`roster._same_person_on_one_episode`: titles stripped,
     generations kept apart, a one-word name never merged with a full name). A spelling with
-    stray capitals ("DimmIG") gives way to a clean one; otherwise the first stays. Two spellings
+    stray capitals ("DunMORE") gives way to a clean one; otherwise the first stays. Two spellings
     of one person let the resolver put that person on two voices. On 421 stored lists it changes
     2 (both one person).
 
@@ -280,8 +280,8 @@
   (rediarize), 1 of 24 in R1-GI. A key that matches no asked voice keeps its own spelling. No rung
   changed; transcript naming is shadow-only.
 - **v37, 2026-10-23.** Candidate widening reads a name with an inner capital or a hyphen whole.
-  Its word pattern allowed only lowercase after a word's first letter, so "Jade McGlynn" was read
-  as "Jade Mc" and "Aled Maclean-Jones" as "Aled Maclean-", and those fragments passed the publish
+  Its word pattern allowed only lowercase after a word's first letter, so "June McGarry" was read
+  as "June Mc" and "Alun Macleod-Jones" as "Alun Macleod-", and those fragments passed the publish
   gate onto the candidate list. A word now takes one inner capital ("McCormick", "O'Brien",
   "DeShawn") and hyphenated parts, never a trailing hyphen. Found by the DGX-block test of R6, on
   the held-out set before any run. Still off by default.
@@ -572,7 +572,7 @@
   Professor) still counts as the same person, and so does a bare surname.
 - **v17, 2026-10-12.** Two rules changed (#2304, F2c). `title_subject` also accepts the person
   the title ENDS with ("[Dr. Jeff Beck]", "(Dan Hendrycks)", "| Josh Elman", "— Brad Carson",
-  "with Steve McConnell", read in the first 160 characters of title + description), when the
+  "with Stan McCormack", read in the first 160 characters of title + description), when the
   metadata states that person or a host voice greets them by first name ("Steve, welcome to the
   podcast"); only beside a host seated on its own evidence (self-introduced, presenting,
   performing the host role, or introducing others; not the opener seat, not the model's verdict

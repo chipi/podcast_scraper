@@ -982,7 +982,7 @@ def _feed_statement(
     development set (2026-10-03): the junk statements of record ("Two Carnegie Mellon", "Norman
     Conquest", "Americas Online", "Anglo Canadian", "Carnegie India") are refused by the person
     check individually and the real names beside them ("Tom Holland", "Dominic Sandbrook", "Emily
-    Hart", the author tags "Dan Saffer", "Nik Martelaro", "Carin Zissis", "Richard McColl") are
+    Hart", the author tags "Dan Saffer", "Nik Martelaro", "Carla Zane", "Richard McColl") are
     kept.
     """
     out: Set[str] = set()
@@ -2236,7 +2236,7 @@ def hosts_from_episode_description(
         roles.append(_HOST_ROLE_BEFORE_NAME_BY_LANGUAGE[_primary_subtag(language)])
     for match, own in ((m, cue is own_cue) for cue in cues for m in cue.finditer(text)):
         # THE SENTENCE CAN RUN THE OTHER WAY, and then the name in front of the cue is the GUEST.
-        # EconTalk: "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts about
+        # EconTalk: "Listen as journalist Simon Whitt speaks with EconTalk's Ross Rowley about
         # how Jensen pivoted..." — Witt is the guest and Roberts the host, and the plain
         # before-the-cue rule seats the guest as host. The show naming ITSELF right after the cue
         # is what marks the inversion, and it is the only evidence in the sentence that does.
@@ -2442,7 +2442,7 @@ def hosts_stated_in_episode_text(
             for name in re.split(r"\s*(?:,|\band\b|&)\s*", match.group("names")):
                 toks = name.split()
                 # A missing full stop runs the next sentence's first word into the name:
-                # "Hosted by philosopher Barry C. Smith Please do email us".
+                # "Hosted by philosopher Barney C. Smyth Please do email us".
                 while toks and toks[-1].lower() in _NEXT_SENTENCE_OPENERS:
                     toks.pop()
                 name = " ".join(toks)
@@ -2502,7 +2502,7 @@ def recurrent_hosts_across_episodes(
 
     Measured over the production snapshot: at ``>=3 episodes AND >=25%`` of a feed's transcribed
     episodes, **28 of 55 feeds yield a name and every name is that show's presenter or a standing
-    co-host** — zero guests, zero networks, zero sponsors, zero show names. Russ Roberts on 41 of
+    co-host** — zero guests, zero networks, zero sponsors, zero show names. Ross Rowley on 41 of
     41 EconTalk episodes, Noah Kravitz on 98 of 109 NVIDIA, Jessica Mendoza and Ryan Knutson on The
     Journal, Kevin Roose and Casey Newton on Hard Fork.
 
@@ -2623,7 +2623,7 @@ def detect_hosts_from_feed(
     author tags are both read and UNIONED — a statement no longer hides the tag behind it, and a
     junk name in the statement no longer empties it. "Two Carnegie Mellon faculty explore" used to
     beat the author tag "Dan Saffer and Nik Martelaro" (AI and Design); "...Council of the Americas
-    Online team brings..." used to block "Carin Zissis" (Latin America in Focus). One person stated
+    Online team brings..." used to block "Carla Zane" (Latin America in Focus). One person stated
     twice under two spellings is one entry (:func:`_merge_people`).
 
     NER over the title is the last resort, only when neither names anybody: it cannot tell a host

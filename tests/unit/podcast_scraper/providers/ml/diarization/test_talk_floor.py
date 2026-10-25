@@ -20,10 +20,10 @@ def _roster():
     return SpeakerRoster(
         by_voice={
             "SPEAKER_00": SpeakerRole(
-                name="Russ Roberts", role="host", named=True, source="self_intro"
+                name="Ross Rowley", role="host", named=True, source="self_intro"
             ),
             "SPEAKER_01": SpeakerRole(
-                name="Stephen Witt", role="guest", named=True, source="llm_resolution"
+                name="Simon Whitt", role="guest", named=True, source="llm_resolution"
             ),
             "SPEAKER_02": SpeakerRole(
                 name="Kim Cattrall", role="guest", named=True, source="llm_resolution"
@@ -94,10 +94,10 @@ def _quiet_host_roster(role: str = "host"):
     return SpeakerRoster(
         by_voice={
             "SPEAKER_00": SpeakerRole(
-                name="Russ Roberts", role="guest", named=True, source="self_intro"
+                name="Ross Rowley", role="guest", named=True, source="self_intro"
             ),
             "SPEAKER_01": SpeakerRole(
-                name="Stephen Witt", role="guest", named=True, source="llm_resolution"
+                name="Simon Whitt", role="guest", named=True, source="llm_resolution"
             ),
             "SPEAKER_02": SpeakerRole(
                 name="Ada Moderator", role=role, named=True, source="llm_resolution"

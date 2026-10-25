@@ -21,7 +21,7 @@ def test_a_spelling_with_stray_capitals_gives_way_to_the_clean_one() -> None:
 
 
 def test_a_legitimate_inner_capital_is_kept() -> None:
-    assert one_entry_per_person(["Jade McGlynn", "Jade Mcglynn"]) == ["Jade McGlynn"]
+    assert one_entry_per_person(["June McGarry", "June Mcgarry"]) == ["June McGarry"]
 
 
 @pytest.mark.parametrize(

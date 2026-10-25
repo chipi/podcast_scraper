@@ -4,7 +4,7 @@ frozen diarization — no audio, no re-ASR, no re-diarize).
 Guards the two bugs found before the v2.1 reprocess scaled:
   1. Relabel must read the identity from ``speaker_label`` (a finished corpus stores ``speaker``
      as None), not the raw ``speaker`` field — else it silently no-ops on every real episode.
-  2. The frozen labels are v2's *resolved names* ("Amy Lawrence"), so relabel anonymizes the
+  2. The frozen labels are v2's *resolved names* ("Ada Lowell"), so relabel anonymizes the
      clustering before re-resolving, and canonicalizes ASR-garbled host surnames against the
      feed-stated hosts ("Kevin Russo" -> "Kevin Roose").
 """
@@ -73,7 +73,7 @@ def _write_corpus(
                     # A finished corpus artifact: the pre-1.2.0 roster shape, plus a neighbouring
                     # key the relabel has no new information about and must not touch.
                     "content": {
-                        "speakers": [{"id": "host", "name": "Amy Lawrence", "role": "host"}],
+                        "speakers": [{"id": "host", "name": "Ada Lowell", "role": "host"}],
                         "transcript_source": "whisper_transcription",
                     },
                 }
@@ -176,14 +176,14 @@ def test_feed_hosts_from_sibling_metadata_malformed_json_returns_empty(tmp_path:
 def test_relabel_reads_speaker_label_anonymizes_and_canonicalizes(tmp_path: Path) -> None:
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"
-    # v2 crowned the ad-reader "Amy Lawrence" on the host voice and left the co-host a raw
+    # v2 crowned the ad-reader "Ada Lowell" on the host voice and left the co-host a raw
     # SPEAKER_NN; both self-intros carry ASR-garbled surnames.
     host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
     co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
     old_run, stem = _write_corpus(
         base,
         run_tag,
-        seg_labels=["Amy Lawrence", "SPEAKER_07"],
+        seg_labels=["Ada Lowell", "SPEAKER_07"],
         texts=[host_text, co_text],
     )
     new_run = base / "run_20260102-000000_t"  # the empty new run dir = effective_output_dir
@@ -197,7 +197,7 @@ def test_relabel_reads_speaker_label_anonymizes_and_canonicalizes(tmp_path: Path
     assert ok is True
     out = (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")
     # Regression #2a: v2's wrong name is not inherited (clustering was anonymized before resolving).
-    assert "Amy Lawrence" not in out
+    assert "Ada Lowell" not in out
     # Regression #2b: the garbled host surname canonicalized against the feed-stated host. Assert on
     # the speaker LABEL (colon-suffixed) — relabel fixes attribution, NOT the in-dialogue ASR text,
     # so "Kevin Russo" legitimately survives in the body ("I'm Kevin Russo, tech columnist").
@@ -457,7 +457,7 @@ def test_relabel_rewrites_the_speaker_record_to_match_the_new_labels(tmp_path: P
     host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
     co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
     old_run, stem = _write_corpus(
-        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+        base, run_tag, seg_labels=["Ada Lowell", "SPEAKER_07"], texts=[host_text, co_text]
     )
     new_run = base / "run_20260102-000000_t"
     new_run.mkdir(parents=True)
@@ -470,7 +470,7 @@ def test_relabel_rewrites_the_speaker_record_to_match_the_new_labels(tmp_path: P
     )
     names = {s["name"] for s in payload["content"]["speakers"]}
     # The wrong name the relabel removed from the transcript is gone from the record too.
-    assert "Amy Lawrence" not in names
+    assert "Ada Lowell" not in names
     assert "Kevin Roose" in names
     placed = [s for s in payload["content"]["speakers"] if s.get("placed")]
     assert placed, "a relabelled episode has voices, so the record must place someone"
@@ -524,7 +524,7 @@ def test_relabel_keeps_the_relabel_when_the_record_cannot_be_written(
     old_run, stem = _write_corpus(
         base,
         run_tag,
-        seg_labels=["Amy Lawrence", "SPEAKER_07"],
+        seg_labels=["Ada Lowell", "SPEAKER_07"],
         texts=["Welcome to Hard Fork. I'm Kevin Russo. " + ("Host turn. " * 60), "Hi. " * 80],
     )
     (old_run / "metadata" / f"{stem}.metadata.json").write_text("{ not json", encoding="utf-8")
@@ -543,7 +543,7 @@ def test_relabel_keeps_the_relabel_when_the_record_cannot_be_written(
     # The relabel itself still happened: v2's wrong name is gone from the transcript. (The host
     # surname is NOT canonicalized here — the unreadable metadata is also where the feed-stated
     # hosts come from, so there is no anchor to snap "Kevin Russo" against.)
-    assert "Amy Lawrence" not in out
+    assert "Ada Lowell" not in out
     assert any("still describes the OLD naming" in r.message for r in caplog.records)
 
 
@@ -564,7 +564,7 @@ def test_rediarize_reruns_diarization_and_aligns(tmp_path: Path) -> None:
     host_text = "Welcome to Hard Fork. I'm Kevin Russo. " + ("Host turn. " * 60)
     co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
     old_run, stem = _write_corpus(
-        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+        base, run_tag, seg_labels=["Ada Lowell", "SPEAKER_07"], texts=[host_text, co_text]
     )
     new_run = base / "run_20260102-000000_t"
     new_run.mkdir(parents=True)
@@ -590,7 +590,7 @@ def test_rediarize_reruns_diarization_and_aligns(tmp_path: Path) -> None:
     assert ok is True
     assert mock_provider.diarize.called  # re-diarized fresh (bypassed the audio-hash cache)
     out = (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")
-    assert "Amy Lawrence" not in out  # fresh diarization + resolution, v2's name not inherited
+    assert "Ada Lowell" not in out  # fresh diarization + resolution, v2's name not inherited
     assert "Kevin Roose:" in out  # feed_hosts canonicalized the self-intro on the fresh voices
 
 
@@ -627,7 +627,7 @@ def _relabel_with_cleaned(tmp_path: Path, cleaned_text: str):
     host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
     co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
     old_run, stem = _write_corpus(
-        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+        base, run_tag, seg_labels=["Ada Lowell", "SPEAKER_07"], texts=[host_text, co_text]
     )
     cleaned = old_run / "transcripts" / f"{stem}.cleaned.txt"
     cleaned.write_text(cleaned_text, encoding="utf-8")
@@ -641,10 +641,10 @@ def _relabel_with_cleaned(tmp_path: Path, cleaned_text: str):
 def test_relabel_rewrites_the_cleaned_transcripts_labels(tmp_path: Path) -> None:
     """Measured before: 52/129 control and 82/163 broken-set episodes kept the OLD names here."""
     cleaned = _relabel_with_cleaned(
-        tmp_path, "Amy Lawrence: Welcome to Hard Fork.\n\nSPEAKER_07: From Platformer.\n"
+        tmp_path, "Ada Lowell: Welcome to Hard Fork.\n\nSPEAKER_07: From Platformer.\n"
     )
     out = cleaned.read_text(encoding="utf-8")
-    assert "Amy Lawrence:" not in out
+    assert "Ada Lowell:" not in out
     assert "Kevin Roose: Welcome to Hard Fork." in out
     assert "\n\n" in out, "the cleaner's paragraph breaks are kept"
 
@@ -661,7 +661,7 @@ def test_relabel_keeps_prose_colons_in_the_cleaned_transcript(tmp_path: Path) ->
     real cleaned transcripts would have been removed or mangled."""
     cleaned = _relabel_with_cleaned(
         tmp_path,
-        "Amy Lawrence: Welcome to Hard Fork.\nSo, to recap: it was a big week.\n"
+        "Ada Lowell: Welcome to Hard Fork.\nSo, to recap: it was a big week.\n"
         "First: the chips.\nOne food scientist stuck with me: she said so.\n",
     )
     out = cleaned.read_text(encoding="utf-8")
@@ -832,7 +832,7 @@ def test_rediarize_refuses_when_the_downloaded_audio_is_not_the_transcribed_one(
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"
     old_run, stem = _write_corpus(
-        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=["Hello. " * 40] * 2
+        base, run_tag, seg_labels=["Ada Lowell", "SPEAKER_07"], texts=["Hello. " * 40] * 2
     )
     meta = old_run / "metadata" / f"{stem}.metadata.json"
     doc = json.loads(meta.read_text()) if meta.is_file() else {}
@@ -854,4 +854,4 @@ def test_rediarize_refuses_when_the_downloaded_audio_is_not_the_transcribed_one(
         ok, _rel, _ = _rediarize_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
     assert ok is False
     assert not provider.diarize.called
-    assert "Amy Lawrence" in (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")
+    assert "Ada Lowell" in (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")

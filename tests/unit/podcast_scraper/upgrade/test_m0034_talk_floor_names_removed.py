@@ -61,18 +61,18 @@ def _episode(tmp_path: Path) -> Dict[str, Any]:
     """Host and guest ten turns each; an ad read named as a person, one turn (4.8% of the talk)."""
     turns = []
     for i in range(10):
-        turns.append(("SPEAKER_00", "Gergely Orosz", "host", f"Question {i} about the book."))
-        turns.append(("SPEAKER_01", "Steve McConnell", "guest", f"Answer {i} about the book."))
-    turns.append(("SPEAKER_02", "Daniel Atkinson", "guest", "This episode is brought to you by."))
+        turns.append(("SPEAKER_00", "Gerald Orban", "host", f"Question {i} about the book."))
+        turns.append(("SPEAKER_01", "Stan McCormack", "guest", f"Answer {i} about the book."))
+    turns.append(("SPEAKER_02", "Dennis Aitken", "guest", "This episode is brought to you by."))
     p: Dict[str, Any] = fx._corpus(
         tmp_path,
         speakers=[
-            fx._speaker("Gergely Orosz", "host", ["SPEAKER_00"], "known_hosts", "host"),
-            fx._speaker("Steve McConnell", "guest", ["SPEAKER_01"], "roster", "guest"),
-            fx._speaker("Daniel Atkinson", "guest", ["SPEAKER_02"], "roster", "guest"),
+            fx._speaker("Gerald Orban", "host", ["SPEAKER_00"], "known_hosts", "host"),
+            fx._speaker("Stan McCormack", "guest", ["SPEAKER_01"], "roster", "guest"),
+            fx._speaker("Dennis Aitken", "guest", ["SPEAKER_02"], "roster", "guest"),
         ],
         turns=turns,
-        known_hosts=["Gergely Orosz"],
+        known_hosts=["Gerald Orban"],
     )
     return p
 
@@ -140,9 +140,7 @@ def test_the_floor_finds_only_the_named_voice_that_barely_speaks() -> None:
 
 
 def test_the_list_freezes_and_loads_back(tmp_path: Path) -> None:
-    changes = {
-        ("ep", "SPEAKER_02"): ("Daniel Atkinson", "guest", None, None, "talk share 4.8% < 5%")
-    }
+    changes = {("ep", "SPEAKER_02"): ("Dennis Aitken", "guest", None, None, "talk share 4.8% < 5%")}
     path = tmp_path / "list.json"
     m34.write_list(path, changes)
     assert m34.load_list(path) == changes
@@ -153,7 +151,7 @@ def test_the_detector_reads_the_served_corpus(tmp_path: Path) -> None:
     _episode(tmp_path)
     changes = m34.find_changes(tmp_path)
     assert list(changes) == [("ep", "SPEAKER_02")]
-    assert changes[("ep", "SPEAKER_02")][:4] == ("Daniel Atkinson", "guest", None, None)
+    assert changes[("ep", "SPEAKER_02")][:4] == ("Dennis Aitken", "guest", None, None)
 
 
 def test_the_reviewed_list_unnames_the_voice_on_every_surface_and_undoes(
@@ -168,10 +166,10 @@ def test_the_reviewed_list_unnames_the_voice_on_every_surface_and_undoes(
     res = mig.apply(_ctx(tmp_path))
     assert res.details["refused"] == [] and len(res.details["episodes"]) == 1
     text = p["txt"].read_text(encoding="utf-8")
-    assert "Daniel Atkinson:" not in text and "Gergely Orosz:" in text
+    assert "Dennis Aitken:" not in text and "Gerald Orban:" in text
     for surface, names in fx_surfaces(p).items():
-        assert "Daniel Atkinson" not in names, surface
-        assert "Steve McConnell" in names, surface
+        assert "Dennis Aitken" not in names, surface
+        assert "Stan McCormack" in names, surface
     diag = {v["voice"]: v for v in fx._r(p["diag"])["voices"]}
     assert not diag["SPEAKER_02"]["named"] and diag["SPEAKER_02"]["source"] == "raw"
     assert mig.verify(_ctx(tmp_path))[0]
@@ -182,7 +180,7 @@ def test_the_reviewed_list_unnames_the_voice_on_every_surface_and_undoes(
     assert not (tmp_path / m29.RECEIPTS_FILE).exists()
     restored, refused = m34.undo(tmp_path)
     assert restored and not refused
-    assert "Daniel Atkinson:" in p["txt"].read_text(encoding="utf-8")
+    assert "Dennis Aitken:" in p["txt"].read_text(encoding="utf-8")
 
 
 def test_without_a_verdict_nothing_is_written(

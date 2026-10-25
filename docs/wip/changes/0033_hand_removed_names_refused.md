@@ -22,7 +22,7 @@ hidden insight (operator, 2026-10-19), so this goes before the hidden-insight wo
 
 - **Found:** prod's `upgrade verify` after 0031's apply (2026-10-19 08:59Z) exits 1. One of its two
   FAIL lines is `0015_unpublishable_speaker_names_removed: 1 episode(s) still carry a refused name`,
-  for "Ep176_ David Roblin on Building" (run 20261014-073935). The same line was on prod's
+  for "Ep176_ Derek Rollins on Building" (run 20261014-073935). The same line was on prod's
   2026-10-17 verify, and it is identical before and after 0031 on the clone (`lost/clone30L`,
   `lost/gateworkB6c`). So it predates 0031.
 - **0015** removed unpublishable speaker names on 2026-10-03. Its `REMOVE` dict is a hand list of
@@ -64,20 +64,20 @@ hidden insight (operator, 2026-10-19), so this goes before the hidden-insight wo
   `{"id": "guest", "name": "Generation", "role": "guest", "voices": ["SPEAKER_00"], "source":
   "self_intro"}`. The self-introduction detector read segment 93, SPEAKER_00: "I'm Generation X, I
   suppose, without giving my age completely away." as "I'm <name>". The episode's stated guest,
-  David Roblin (`source: "episode_metadata"`), stays `placed: false`, no voice. ~~There is no LLM
+  Derek Rollins (`source: "episode_metadata"`), stays `placed: false`, no voice. ~~There is no LLM
   resolution in the inputs.~~ Wrong (step-8 reviewer, 2026-10-19): E's diagnostics hold a stored
-  LLM answer, `llm_resolution.verdicts[1] = {voice: SPEAKER_00, name: "David Roblin", outcome:
+  LLM answer, `llm_resolution.verdicts[1] = {voice: SPEAKER_00, name: "Derek Rollins", outcome:
   "third_person"}`. The roster replay reuses it, so a reprocess that gets the same answer seats
-  David Roblin; one that gets another answer, or none, is not covered.
-- **So it is a wrong person, not only junk.** SPEAKER_00 is very likely David Roblin: the stated
+  Derek Rollins; one that gets another answer, or none, is not covered.
+- **So it is a wrong person, not only junk.** SPEAKER_00 is very likely Derek Rollins: the stated
   guest, who talks about himself as the guest ("I'm a Welshman", "as I'm recruiting someone"). The
-  host's "David Roblin, welcome to The Long Run." (segment 29) is diarized onto SPEAKER_00 too, so it
+  host's "Derek Rollins, welcome to The Long Run." (segment 29) is diarized onto SPEAKER_00 too, so it
   cannot be read as an address. Two defects:
   1. the self-introduction detector accepts an ordinary word ("Generation" from "Generation X")
      as a name;
   2. the publish gate does not refuse 0015's hand-removed names, so nothing downstream catches it.
 - **The repair's choice, for step 4 and the reviewer:** remove the name (the voice becomes unnamed,
-  its 58 insights hidden), or name the voice David Roblin. Naming him is better for the listener but
+  its 58 insights hidden), or name the voice Derek Rollins. Naming him is better for the listener but
   is a decision from evidence, so it goes the way 0031's entries went: a reviewer reads the episode
   and writes a verdict, and the migration applies the verdict. A rule that seats the stated guest
   here is Stage 2's work, not this change's.
@@ -90,10 +90,10 @@ Dated: 2026-10-19
 S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 116,595; 2,685
 served episodes).
 
-**The episode** (E), `Ep176_ David Roblin on Building` (`run_20261014-073935`), read from its
-files: 62 insights, all shown, routing `surface` (58 under "Generation", 3 under "Luke
-Timmerman", 1 with no speaker); quotes: 109 on the "Generation" person, 5 on Luke Timmerman. The
-roster places "Generation" (guest, `self_intro`) on SPEAKER_00 and leaves David Roblin
+**The episode** (E), `Ep176_ Derek Rollins on Building` (`run_20261014-073935`), read from its
+files: 62 insights, all shown, routing `surface` (58 under "Generation", 3 under "Lewis
+Tamworth", 1 with no speaker); quotes: 109 on the "Generation" person, 5 on Lewis Tamworth. The
+roster places "Generation" (guest, `self_intro`) on SPEAKER_00 and leaves Derek Rollins
 (`episode_metadata`) unplaced.
 
 **The cause, reproduced** (`extract_self_introduced_host`, today's code): "I'm Generation X, I
@@ -103,7 +103,7 @@ it; they also pass "Millennial", "Boomer" and "Moral".
 **Two repairs for E.** The acceptance (step 5) picks one, from a fresh reviewer's verdict on
 SPEAKER_00:
 
-| Number (clone) | Before | U: unname SPEAKER_00 | N: name it David Roblin |
+| Number (clone) | Before | U: unname SPEAKER_00 | N: name it Derek Rollins |
 | --- | --- | --- | --- |
 | insights published under a hand-removed name | 58 | 0 | 0 |
 | quotes published under it | 109 | 0 | 0 |
@@ -111,7 +111,7 @@ SPEAKER_00:
 | S1 | 14,841 | 14,899 (+58) | 14,841 |
 | S2 | 26,351 | 26,409 (+58) | 26,351 |
 | S1n, S1c, S3, S10a, S10b, S12, A1 | as above | unchanged | unchanged |
-| insights shown under "David Roblin" | 0 | 0 | 58 |
+| insights shown under "Derek Rollins" | 0 | 0 | 58 |
 | episodes written | | 1 | 1 |
 
 - U removes the name the way 0015 does. 0015's own plan for E on the clone: 6,110 segments
@@ -119,7 +119,7 @@ SPEAKER_00:
   deleted; 1 bridge identity and 1 roster entry removed. E's 4 other insights stay shown, so S10a
   does not move.
 - N renames SPEAKER_00 voice by voice (m0025's rewrite, as 0031 does) from "Generation" to "David
-  Roblin", guest, and places the metadata entry on that voice. The same 6,110 segments and 109
+  Rollins", guest, and places the metadata entry on that voice. The same 6,110 segments and 109
   quotes change, and the 58 insights stay shown under the new name.
 
 **Two rules for future runs.** They write no corpus file, so no number above moves because of them:
@@ -149,15 +149,15 @@ S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 11
 
 - **Gating rows:** all unchanged (N keeps the 58 insights shown).
 - **E, after N:**
-  - roster 3 → 2 entries: Luke Timmerman (host, SPEAKER_01, unchanged), David Roblin (guest,
+  - roster 3 → 2 entries: Lewis Tamworth (host, SPEAKER_01, unchanged), Derek Rollins (guest,
     placed, SPEAKER_00); no "Generation";
-  - GI: 58 insights under "David Roblin", 3 Luke Timmerman, 1 none; 109 quotes to
-    `person:david-roblin`; 62 visible;
-  - KG: nodes 29 → 28, edges 30 → 29 (the "Generation" node merges into `person:david-roblin`,
+  - GI: 58 insights under "Derek Rollins", 3 Lewis Tamworth, 1 none; 109 quotes to
+    `person:derek-rollins`; 62 visible;
+  - KG: nodes 29 → 28, edges 30 → 29 (the "Generation" node merges into `person:derek-rollins`,
     which becomes role guest and takes the `GUESTS_ON` edge; the two `MENTIONS` edges become one);
-  - bridge: identities 27 → 26, `person:david-roblin` `{gi: true, kg: true}`;
+  - bridge: identities 27 → 26, `person:derek-rollins` `{gi: true, kg: true}`;
   - transcripts: "Generation:" prefixes 62 / 62 / 32 (`.txt` / `.adfree.txt` / `.cleaned.txt`)
-    become "David Roblin:"; "Generation" left once in `.txt`, `.adfree.txt` and `.anon.txt` (the
+    become "Derek Rollins:"; "Generation" left once in `.txt`, `.adfree.txt` and `.anon.txt` (the
     words "Generation X"), 0 in `.cleaned.txt`; every quote and ad-free segment offset carried
     (the prefix is 2 characters longer: `.txt` and `.adfree.txt` grow by 124 characters);
   - E's S12 stays 0 of 114.
@@ -182,9 +182,9 @@ S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 11
 - **Reprocess replay, predicted before its run** (criterion 16; dated 2026-10-19T14:54 UTC): the
   production roster replayed over every served episode of the clone (`scripts/measure/roster_replay.py`,
   hosts.py of a213d5fa5 vs this branch): exactly 1 voice changes its published name, E's
-  SPEAKER_00, from "Generation" to David Roblin or unnamed.
+  SPEAKER_00, from "Generation" to Derek Rollins or unnamed.
 - **Reprocess durability:** with both rules, a reprocess of E finds no self-introduced name for
-  SPEAKER_00; the roster's next rungs decide, and whether they seat David Roblin is measured at
+  SPEAKER_00; the roster's next rungs decide, and whether they seat Derek Rollins is measured at
   step 7 (criterion 16). If they do not, a reprocess hides E's 58 insights (a known loss, until
   Stage 2 seats the stated guest), never a wrong name.
 - **Corrections from the reviewer:** "I'm a Welshman" in step 3 is SPEAKER_00's seg 126 (seg 90 is on
@@ -201,7 +201,7 @@ self-introductions in its unseen held-out 2 ("I'm Mark I host the show", "I'm Wi
 here", "I'm Rose I work…", "I'm Bill T, your host", "I'm Grace O, and welcome"; old code named all
 5), and ci-fast was red (black on the held-out script; steps 6 and 8 of this record empty). With
 rule 1 alone, the stored-input replay of E leaves SPEAKER_00 unnamed (58 insights hidden on a
-reprocess); with rule 2 it seats David Roblin. **Operator, 2026-10-19, verbatim: "Narrow it
+reprocess); with rule 2 it seats Derek Rollins. **Operator, 2026-10-19, verbatim: "Narrow it
 (Recommended)"**: the one-letter words "I" and "A" count as the label's letter only when
 punctuation or the end of the text follows; a first name followed by an initial with no period
 ("Bill T,") stays refused, unnamed rather than wrongly named, as the operator's accepted cost.
@@ -223,7 +223,7 @@ Changes and their predicted effect (clone `lost/gateworkB6c`, as before):
    `both` → `summary` branch, unplaced entries not heard, 0031's `_outcome` `entries` and
    `receipts_file`).
 6. **Record:** step 3's "no LLM resolution in the inputs" is false (E's diagnostics hold a stored
-   LLM answer naming David Roblin, `third_person`); the replay reuses it, so criterion 16 holds
+   LLM answer naming Derek Rollins, `third_person`); the replay reuses it, so criterion 16 holds
    for a reprocess that gets the same LLM answer. Step 6 written. The verdicts file's
    `reviewed_commit` names the rebased step-4 commit (20ec7ab38).
 
@@ -238,7 +238,7 @@ diagnostics source. Undo: byte-identical. Full verify: 2 FAIL → 0.
 
 ## 5. Acceptance
 
-Written by a fresh reviewer (Opus advisor), 2026-10-19, before any code: [0033_hand_removed_names_refused.acceptance.md](0033_hand_removed_names_refused.acceptance.md), 28 criteria (A: the repair of E by N; B: the gate rule; C: the self-introduction rule with three held-out checks; D: unchanged corpus-wide; E: prod). The verdict on SPEAKER_00: CORRECT, David Roblin, with segment evidence. Step 4 is restated after it, above.
+Written by a fresh reviewer (Opus advisor), 2026-10-19, before any code: [0033_hand_removed_names_refused.acceptance.md](0033_hand_removed_names_refused.acceptance.md), 28 criteria (A: the repair of E by N; B: the gate rule; C: the self-introduction rule with three held-out checks; D: unchanged corpus-wide; E: prod). The verdict on SPEAKER_00: CORRECT, Derek Rollins, with segment evidence. Step 4 is restated after it, above.
 
 ### Revision B
 
@@ -257,7 +257,7 @@ Revision A (measured at step 7, c71664a6d):
   `extract_self_introduced_host` and `distinct_self_introductions`: a one-word capture followed by
   a lone capital letter that is not an initial is skipped, and the scan goes on.
 - **Migration** `upgrade/migrations/m0033_hand_removed_names_refused.py`: a one-entry list (E,
-  SPEAKER_00, "Generation"/guest → "David Roblin"/guest), its verdicts file
+  SPEAKER_00, "Generation"/guest → "Derek Rollins"/guest), its verdicts file
   `upgrade/verdicts/0033_hand_removed_names_refused.tsv`, its own receipts and backups; a subclass
   of 0031's migration (its `_outcome` and plan rows now take the list and receipts as parameters,
   0031's own by default). Registered after 0031 (`2.7.27`); 0032's record says it must renumber.
@@ -299,11 +299,11 @@ its plan read 0 episodes, 0 refused). Final measurement on **c71664a6d** (clean 
 | # | Check | Result |
 | --- | --- | --- |
 | 1 | verdict stored and read | `upgrade/verdicts/0033_hand_removed_names_refused.tsv`, CORRECT; no verdicts file: verify FAIL "verdicts file unusable", apply raises, E untouched (tests) |
-| 2 | E's roster | 2 entries: Luke Timmerman (host, SPEAKER_01), David Roblin (guest, placed, SPEAKER_00, `source: roster`); `normalized_entities`: no "generation", "david roblin" added |
-| 3 | E's GI | 58 insights David Roblin, 3 Luke Timmerman, 1 none; 109 quotes and 109 `SPOKEN_BY` to `person:david-roblin`; 6 Person nodes, no Generation; 0 hidden |
-| 4 | E's KG | nodes 29 → 28, edges 30 → 29; `person:david-roblin` role guest with `GUESTS_ON` and one `MENTIONS` |
-| 5 | E's bridge | 27 → 26; `person:david-roblin` `{gi: true, kg: true}` |
-| 6 | derived surfaces | "Generation:" prefixes 0 in `.txt`, `.adfree.txt`, `.cleaned.txt`; "David Roblin:" 62 / 62 / 40 (the 32 renamed plus 8 already in `.cleaned.txt`); "Generation" left once in `.txt`, `.adfree.txt`, `.anon.txt` and in segment text and words (the words "Generation X"); turns 0; context 0. **Deviation:** the diagnostics keep it 4 times, all in the decision record (`tried.per_voice_self_intro`, `decision_trace`), which records what the reader read; `resolved_name` is David Roblin |
+| 2 | E's roster | 2 entries: Lewis Tamworth (host, SPEAKER_01), Derek Rollins (guest, placed, SPEAKER_00, `source: roster`); `normalized_entities`: no "generation", "david roblin" added |
+| 3 | E's GI | 58 insights Derek Rollins, 3 Lewis Tamworth, 1 none; 109 quotes and 109 `SPOKEN_BY` to `person:derek-rollins`; 6 Person nodes, no Generation; 0 hidden |
+| 4 | E's KG | nodes 29 → 28, edges 30 → 29; `person:derek-rollins` role guest with `GUESTS_ON` and one `MENTIONS` |
+| 5 | E's bridge | 27 → 26; `person:derek-rollins` `{gi: true, kg: true}` |
+| 6 | derived surfaces | "Generation:" prefixes 0 in `.txt`, `.adfree.txt`, `.cleaned.txt`; "Derek Rollins:" 62 / 62 / 40 (the 32 renamed plus 8 already in `.cleaned.txt`); "Generation" left once in `.txt`, `.adfree.txt`, `.anon.txt` and in segment text and words (the words "Generation X"); turns 0; context 0. **Deviation:** the diagnostics keep it 4 times, all in the decision record (`tried.per_voice_self_intro`, `decision_trace`), which records what the reader read; `resolved_name` is Derek Rollins |
 | 7 | offsets | 114 of 114 quotes slice to their text; 3,736 of 3,736 ad-free segments slice to theirs; the ad map carried (`admaps_checked=1`) |
 | 8 | files written | 14, exactly the predicted list (metadata, gi, kg, bridge, context, segments, adfree.segments, turns, adfree.turns, `.txt`, `.adfree.txt`, `.cleaned.txt`, speakers.diagnostics, adfree.admap); every other file byte-identical (the gate's census) |
 | 9 | gating scoreboard | identical on every key (S1 14,841; S1n 7; S1c 0; S2 26,351; S3 7,710; S10a 178; S10b 2; S12 24; A1 357; insights 116,595); under a hand-removed name: 58 insights → 0, 109 quotes → 0, 1 episode → 0 |
@@ -313,7 +313,7 @@ its plan read 0 episodes, 0 refused). Final measurement on **c71664a6d** (clean 
 | 13 | gate refuses the 6 | every one, any case and spacing, both shapes, `en` and `es` (tests); one definition, `hosts.HAND_REMOVED_SPEAKER_NAMES`, which m0015 and m0019 read (`is`) |
 | 14 | gate old vs new | over the 2,679 distinct served roster names, exactly {"Generation"} flips (a213d5fa5 vs this branch, `scratchpad/gate_cmp.py`) |
 | 15 | 0015 and 0019 unchanged | `refused_names` and both `plan()` lines identical old vs new on the before-clone |
-| 16 | reprocess replay | the production roster over 2,684 of 2,685 served episodes (`roster_replay.py`, hosts.py old vs new): **2** voices change. E's SPEAKER_00 "Generation" → **David Roblin** (the next rungs seat the stated guest: the repair survives a reprocess). The Daily "The Best TV Shows of the 21st Century" SPEAKER_01 "Moral" → unnamed: a reprocess with today's code would publish 0015's hand-removed "Moral" again; rule 1 stops it. The prediction said 1: **wrong**, it missed this latent case. Not replayed: "AI Sychophancy with Steve Rathje" (no `.segments.json`). My first run launched shards 1–6 of 0–5 and missed shard 0; re-run, 0 changes there |
+| 16 | reprocess replay | the production roster over 2,684 of 2,685 served episodes (`roster_replay.py`, hosts.py old vs new): **2** voices change. E's SPEAKER_00 "Generation" → **Derek Rollins** (the next rungs seat the stated guest: the repair survives a reprocess). The Daily "The Best TV Shows of the 21st Century" SPEAKER_01 "Moral" → unnamed: a reprocess with today's code would publish 0015's hand-removed "Moral" again; rule 1 stops it. The prediction said 1: **wrong**, it missed this latent case. Not replayed: "AI Sychophancy with Steve Rathje" (no `.segments.json`). My first run launched shards 1–6 of 0–5 and missed shard 0; re-run, 0 changes there |
 | 17 | rule 2 is a class | `_LABEL_LETTER_FOLLOWS` (a lone capital letter, not an initial, after a one-word capture); refuses "I'm Generation X" through `extract_self_introduced_host` and `distinct_self_introductions` with rule 1 off (tests) |
 | 18 | census | Generation refused; the other 92 entries unchanged; Long, Gekoyo, Kanye's **not reached** (listed) |
 | 19 | generalisation guards | Faith, Robin, Jack, Brandon, "Steve Jobs" kept (tests); the cost: "I'm Robin X" is refused too (a real "Malcolm X" would be unnamed, not wrongly named) |
@@ -350,7 +350,7 @@ this run's.
 | B5 keep rule | tests (a)–(c); E has 0 mentions of its old Person, GI equals rev A's |
 | B6, B7 | tests; E's KG equals rev A's |
 | B8 mutations | 33 of 33 killed against a 1,838-passed, 0-failed baseline, 0 survivors ([log](0033_hand_removed_names_refused.mutations.log)) |
-| B9 replay | shards 0–5: 446, 443, 471, 437, 421, 466 = 2,684 episodes; exactly 2 changes: E SPEAKER_00 "Generation" → David Roblin (reuses E's stored LLM answer `third_person`; a reprocess with another or no answer is not covered), The Daily SPEAKER_01 "Moral" → unnamed |
+| B9 replay | shards 0–5: 446, 443, 471, 437, 421, 466 = 2,684 episodes; exactly 2 changes: E SPEAKER_00 "Generation" → Derek Rollins (reuses E's stored LLM answer `third_person`; a reprocess with another or no answer is not covered), The Daily SPEAKER_01 "Moral" → unnamed |
 | B10 held-out 1 | 246 captures, 1 change (E) |
 | B11 gold | val_v2 0 / 0, dev_v1 0 / 0 |
 | B14 full verify | 2 FAIL before, 0 after; only 0015's and 0033's lines change (32 lines) |
@@ -406,7 +406,7 @@ How each was met:
 
 ## 9. Operator review
 
-2026-10-20. The operator read the outcome (one episode named David Roblin on 58 insights and 109
+2026-10-20. The operator read the outcome (one episode named Derek Rollins on 58 insights and 109
 quotes; the two rules for every future run; the not-covered list) and judged it too small for a
 deploy of its own, then chose small daily deploys, verbatim: "For the reference, let's deploy what
 we prepared just to move on and not to hoard things. I think one deploy per day is good to plan and
@@ -433,9 +433,9 @@ insights_reattributed 58, kg_edges_moved 2, as the clone; **outcome hook: plan d
 - **Derived surfaces:** `enrich --only insight_density,insight_sentiment`: 1/1 each, EXIT=0;
   incremental `index`: 1 stale row pruned, reindexed 1, EXIT=0 (08:50:00Z).
 - **Criterion 28, search index, E's rows after the index** (prod session, read-only): aux 152 →
-  151, `person:unresolved-generation…` 1 → 0, "Generation" 1 → 0, "David Roblin" 5; insights 62,
+  151, `person:unresolved-generation…` 1 → 0, "Generation" 1 → 0, "Derek Rollins" 5; insights 62,
   "Generation" 0; segments 48, "Generation" 40 → 1 (the sentence "I'm Generation X, I suppose"),
-  "David Roblin" 42. As predicted; no row edits.
+  "Derek Rollins" 42. As predicted; no row edits.
 
 ## 12. Retrospective
 

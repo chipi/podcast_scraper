@@ -766,7 +766,7 @@ def extract_episode_authors(item: ET.Element) -> List[str]:
 
 #: Podcasting 2.0 namespace (``<podcast:person role="host">``).
 _PODCAST_NS = "https://podcastindex.org/namespace/1.0"
-#: A byline names several people: "Carin Zissis, Luisa Leme & Khalea Robertson", "EconTalk: Russ
+#: A byline names several people: "Carla Zane, Lucia Lemos & Kayla Robson", "EconTalk: Russ
 #: Roberts".
 _BYLINE_SPLIT = re.compile(r"\s*(?:,|;|&|:|\band\b)\s*")
 

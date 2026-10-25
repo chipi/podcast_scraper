@@ -264,9 +264,9 @@ def test_insights_are_counted_per_voice_by_their_first_quote(tmp_path: Path) -> 
     meta = gfx._episode(
         tmp_path,
         insights=[
-            ("i:a", [1], {"speaker": "Steve McConnell"}),
-            ("i:b", [1, 0], {"speaker": "Steve McConnell"}),
-            ("i:c", [0], {"speaker": "Gergely Orosz"}),
+            ("i:a", [1], {"speaker": "Stan McCormack"}),
+            ("i:b", [1, 0], {"speaker": "Stan McCormack"}),
+            ("i:c", [0], {"speaker": "Gerald Orban"}),
             ("i:none", [], {}),
         ],
     )

@@ -1,6 +1,6 @@
 """A host the show is named after is the host, when their own voice says so.
 
-"The Peter Attia Drive": the title-prefix rule (`names_the_show`) reads "Peter Attia" as the show,
+"The Paul Avery Drive": the title-prefix rule (`names_the_show`) reads "Paul Avery" as the show,
 so on prod (2026-10-01) all 40 episodes had no placed host and his quotes were episode-scoped as an
 "Unidentified speaker". His voice introduced itself on all 40 (roster source `self_intro`); none of
 the real show-name labels did (Machine Learning Street, Trivium China, Africa Tech Summit, Turkey
@@ -24,8 +24,8 @@ from podcast_scraper.workflow.metadata_generation import (
 
 pytestmark = [pytest.mark.unit]
 
-SHOW = "The Peter Attia Drive"
-HOST = "Peter Attia"
+SHOW = "The Paul Avery Drive"
+HOST = "Paul Avery"
 
 
 def _run(tmp_path: Path, label: str, source: str) -> Path:
@@ -51,7 +51,7 @@ class TestTheSpeakerRecord:
         self, tmp_path: Path
     ) -> None:
         # Second review n2: E1d gives source e1d_rescue; its cue (here the voice's own "I'm
-        # Peter Attia") is in the decision trace, and is the same evidence as self_intro.
+        # Paul Avery") is in the decision trace, and is the same evidence as self_intro.
         run = _run(tmp_path, HOST, "e1d_rescue")
         diag_path = run / "transcripts" / "ep.speakers.diagnostics.json"
         diag = json.loads(diag_path.read_text())
@@ -137,7 +137,7 @@ class TestGi:
     def test_a_self_introduced_host_keeps_a_corpus_wide_id(self) -> None:
         gq = SimpleNamespace(char_start=0, char_end=5)
         pid, name, _vt = _resolve_quote_speaker(gq, HOST, "ep1", "hello", None, SHOW, None, [HOST])
-        assert pid == "person:peter-attia" and name is None
+        assert pid == "person:paul-avery" and name is None
 
     def test_without_the_self_intro_it_is_still_episode_scoped(self) -> None:
         gq = SimpleNamespace(char_start=0, char_end=5)
