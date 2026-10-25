@@ -434,6 +434,19 @@ Neural speaker diarization runs as an **additive second pass** after local Whisp
 | `diarization_min_cluster_size` | _(config only)_ | `None` | Clusters smaller than this (≈12 default) are reassigned to the nearest speaker — drops short over-seg fragments |
 | `diarization_min_segment_ms` | _(config only)_ | `None` | Squelch: drop any speaker whose longest segment < this (ms); kills phantom micro-clusters, keeps real cameos. Per-feed overridable |
 
+**Speaker naming (naming release).** Naming of the diarized voices has its own fields, all off or
+neutral by default: `transcript_naming` (`off` / `shadow` / `publish`), `merge_split_voices` +
+`merge_split_voices_threshold` (0.8), `speaker_naming_passes` (1-5), `ladder_rescue_rules`,
+`voice_identity_rung` (`off` / `shadow` / `publish`) + `voice_identity_threshold` (0.7),
+`speaker_name_min_talk_share` (0 = off; 0.05 as measured) and `speaker_detection_temperature`
+(`None` = the provider's temperature). `shadow` modes write the answer into the
+speaker-diagnostics sidecar and publish nothing. Definitions:
+[API reference](REFERENCE.md#speaker-naming-naming-release-2026-10-25); behaviour and evidence:
+[Naming ladder](../guides/NAMING_LADDER.md). `prod_dgx_full` and `dev_dgx_full`
+set `speaker_name_min_talk_share: 0.05`, `ladder_rescue_rules: true`, `transcript_naming: shadow`,
+`voice_identity_rung: shadow`, `speaker_detection_temperature: 0.0`, `merge_split_voices: true`
+and `merge_split_voices_threshold: 0.8`.
+
 When diarization fails, the pipeline falls back to gap-based screenplay (`screenplay_gap_s`). Full
 narrative: [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 

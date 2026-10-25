@@ -27,12 +27,16 @@ scanning, Docker validation, documentation deployment, dependency updates, and m
 | **CodeQL Security**       | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly  |
 | **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push/PR paths per `docker.yml` (pipeline image, py)                         |
 | **Snyk Security Scan**    | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                       |
-| **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), push to release branches, manual                |
+| **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (01:43 UTC), push to release branches, manual                |
 | **Dependabot**            | `dependabot.yml` | Automated dependency update PRs                       | Scheduled weekly (Mondays), monthly for Docker                              |
 
 The table above is the **core CI** lane only. Additional hosting, deploy, corpus backup/restore, and
 DR drill workflows are summarized in the **OpenTofu / DR drill** and **Corpus backups** paragraphs
 below and in [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md).
+
+**`python-app.yml` triggers (2026-10-19):** besides push and PR, the workflow can be run by hand (`workflow_dispatch`): Stack test publishes images only after this workflow succeeds on the same sha, so a head whose own paths ran nothing (a docs- or outcome-only commit) is dispatched. A push also runs when it touches `src/podcast_scraper/upgrade/outcomes/**` (a regime migration's shipped outcome) or `docs/wip/changes/**` (its change record); both paths are in the `code` and `python` filters, so the test jobs run and `preload-ml-models` fetches the models they need. The reason is the landing test (`quality/test_change_gate.py`), which refuses a stale or unbound outcome or record; a commit that rebuilds only those files must run it. See [Corpus change method](../guides/CORPUS_CHANGE_METHOD.md).
+
+**Shared setup actions (`.github/actions/`):** `install-ffmpeg` and `install-playwright` replace the `apt-get install ffmpeg` and `playwright install --with-deps <browser>` steps that were copied into `python-app.yml`, `nightly.yml` and `drill-stack-playwright.yml`. `install-ffmpeg` installs the FFmpeg shared libraries that `torchcodec` (pulled in transitively by the `[search]` extra) and pyannote need to import. `install-playwright` takes `working-directory` (where the project's Playwright lives) and `browser` (`firefox` for the viewer lane, `chromium` for the player lane and the nightly synthetic-corpus job); the DR drill's stack-test lane installs firefox through it, so one cache entry serves both because the Playwright version, browser and system dependencies are the same. A change to how a runner gets either dependency is made once, in the action.
 
 **Stack test sequencing (post-PR #675 follow-up):** Stack test was switched from a parallel
 `push` trigger to a `workflow_run` trigger gated on Python application's `conclusion == 'success'`.
@@ -1608,7 +1612,7 @@ The system now passes the "minimal docs CI/CD" requirement:
 
 **Triggers:**
 
-- **Scheduled:** Daily at 2 AM UTC (cron: `0 2 * * *`)
+- **Scheduled:** Daily at 01:43 UTC (cron: `43 1 * * *`). Off the top of the hour on purpose: at `0 2 * * *` GitHub's scheduled-run queue started the run 4.5-5.5 h late (06:40-07:24 UTC, 2026-10-15..19)
 - **Push to release branches:** `release/**` (e.g., `release/2.4`, `release/2.5`)
 - **Manual dispatch:** `workflow_dispatch`
 
@@ -1627,7 +1631,7 @@ As of issue #248, the nightly workflow also runs on **push to release branches**
 
 **When It Runs:**
 
-- **Scheduled:** Daily at 2 AM UTC on default branch (main)
+- **Scheduled:** Daily at 01:43 UTC on default branch (main)
 - **On Push:** When commits are pushed to any `release/**` branch
 - **Manual:** Via workflow_dispatch for any branch
 
@@ -1759,7 +1763,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 | `preload-ml-models-nightly` | 3:30 | Fast with cache hit |
 | `nightly-lint` | 3:00 | Runs in parallel |
 | `nightly-docs` | 2:40 | Runs in parallel |
-| `nightly-test-unit` | 1:40 | No ML deps, runs in parallel |
+| `nightly-test-unit` | 1:40 | No ML deps, runs in parallel. Job cap is 30 min since 2026-10-19 (the suite ran 14-15+ min and hit the old 15 min cap on 6 of 8 nights, 2026-10-12..19) |
 | `nightly-viewer-unit` | ~1–2 | Vitest; same segment as unit + security-quality |
 | `nightly-test-integration` | 6:30 | After preload |
 | `nightly-test-e2e` | 11:30 | After preload |

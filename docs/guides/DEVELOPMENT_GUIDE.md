@@ -819,6 +819,18 @@ and `data/profiles/README.md`.
 
 **Always-on VPS:** the same Compose layers power production on Hetzner behind Tailscale. For how GitHub Actions, OpenTofu, and **`deploy-prod`** fit together, read [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) (and [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) for the promotion contract).
 
+**Corpus change gate.** A change to what the corpus serves (a migration, naming, GI voice flags, the
+ad cut) needs an open change record in `docs/wip/changes/<id>.md`, made from
+`docs/wip/changes/TEMPLATE.md`, with the method's steps 1 to 5 done before any code
+([Corpus change method](CORPUS_CHANGE_METHOD.md)). Three things enforce it, whatever wrote the file:
+the Claude Code `PreToolUse` hook in `.claude/settings.json`
+(`scripts/hooks/corpus_change_gate_hook.py`, on edits, writes and shell commands), the same script
+run as `corpus_change_gate_hook.py --staged` by the pre-commit hook, and the landing test in CI
+(`quality/test_change_gate.py`, which `python-app.yml` runs on a push that touches only an outcome
+or a change record). Content code staged without a ready record fails the commit with
+`corpus change gate: content code staged without a ready change record`. The paths it treats as
+content code are listed in `config/corpus_change_gate.json`.
+
 The pre-commit hook runs staged checks (format,
 lint, mypy, markdownlint, JSON/YAML validation) —
 **not** `make ci-fast`. Run `make ci-fast` manually

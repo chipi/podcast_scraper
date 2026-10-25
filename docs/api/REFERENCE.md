@@ -152,6 +152,20 @@ See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 - `cache_detected_hosts` (`bool`, default: `True`, alias: `"cache_detected_hosts"`): Cache detected host names across episodes.
 - `ner_model` (`Optional[str]`, default: `None`, alias: `"ner_model"`): spaCy NER model name (e.g., `"en_core_web_sm"`). If `None`, uses default.
 
+#### Speaker naming (naming release, 2026-10-25)
+
+All off or neutral by default; the ladder and what each rung does are in the [Naming ladder](../guides/NAMING_LADDER.md).
+
+- `transcript_naming` (`Literal["off", "shadow", "publish"]`, default: `"off"`): the LLM reads the whole diarized transcript and names every voice. `shadow` publishes the ladder's names and writes the model's answer beside them in the speaker-diagnostics sidecar (key `transcript_naming`); `publish` takes the model's host/guest names, leaves every other voice unnamed, and keeps the ladder's names when the call fails. In the bundled modes (`llm_pipeline_mode` `bundled` / `mega_bundled` / `extraction_bundled`) the bundled call answers and its answer is only recorded, so `publish` publishes nothing more than `shadow` there.
+- `merge_split_voices` (`bool`, default: `False`) and `merge_split_voices_threshold` (`float` 0-1, default: `0.8`): before naming, two diarized voices of one episode whose fingerprints are at least the threshold similar are merged into the one that talks more. Needs a diarizer that returns fingerprints.
+- `speaker_naming_passes` (`int` 1-5, default: `1`): how many times each naming LLM call (the ladder's resolution call and transcript naming) is asked; with more than one a voice keeps a name only when every pass gave it the same one. Each extra pass costs one more call of each.
+- `ladder_rescue_rules` (`bool`, default: `False`): the two rescues right after the ladder, S30s (a split host's unnamed half named as the host) and E1d (an unnamed voice given the LLM's third-person-refused name when the conversation introduces it to that voice).
+- `voice_identity_rung` (`Literal["off", "shadow", "publish"]`, default: `"off"`) and `voice_identity_threshold` (`float` 0-1, default: `0.7`): the last rung; a voice that sounds like a person this feed's other episodes name takes that name, and the name leaves a voice that clearly is not that person. Same feed only. `shadow` records the answer in the sidecar (key `voice_identity`) and publishes nothing.
+- `speaker_name_min_talk_share` (`float` 0-1, default: `0.0` = off; `0.05` as measured): the talk floor; a name comes off any voice holding less than this share of the episode's talk.
+- `speaker_detection_temperature` (`Optional[float]` 0-2, default: `None`): sampling temperature for metadata speaker detection only. `None` falls back to `<provider>_temperature` (0.3).
+
+Naming also reads two things recorded per episode, not configured: `people_stated` on the episode metadata (who the RSS item itself says is on the episode, from `author` / `itunes:author` / `dc:creator` bylines and `<podcast:person role=...>`, one entry per name with `name`, `source`, `role`, `raw`; absent when the item states nobody; `rss.parser.extract_episode_people_stated`), and the channel description of the feed in flight (`utils/correlation.get_feed_description`), which the transcript-naming prompt shows because it usually names the hosts.
+
 #### Metadata Generation
 
 - `generate_metadata` (`bool`, default: `True`, alias: `"generate_metadata"`): Generate per-episode metadata documents. CLI: `--no-generate-metadata` to disable.

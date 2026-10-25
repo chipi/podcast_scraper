@@ -27,7 +27,7 @@ Or drive the CLI directly (interactive confirmation, JSON, version ceiling):
 ```bash
 python -m podcast_scraper.cli upgrade status  --corpus-dir $CORPUS_DIR [--json]
 python -m podcast_scraper.cli upgrade list    --corpus-dir $CORPUS_DIR
-python -m podcast_scraper.cli upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0]
+python -m podcast_scraper.cli upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0] [--accept-plan-diff FILE]
 python -m podcast_scraper.cli upgrade verify  --corpus-dir $CORPUS_DIR
 ```
 
@@ -53,6 +53,40 @@ python -m podcast_scraper.cli upgrade verify  --corpus-dir $CORPUS_DIR
   the index in place) and recorded steps are skipped.
 - **Stop on failure:** if a step fails, earlier steps stay recorded; fix and re-run
   to resume from the failed step.
+
+## Regime migrations (0031 on): the outcome hook
+
+A migration from **0031** on changes what the corpus serves and applies on prod only as it was
+measured on a clone ([Corpus change method](CORPUS_CHANGE_METHOD.md), D5 and D15). `upgrade run`
+(not a dry run) enforces this in `upgrade/outcome_hook.py`, under the corpus lock and before the
+pre-upgrade snapshot; there is no flag that skips it. Migrations below 0031 run as before.
+
+- **A regime migration runs alone.** With another migration pending, the run refuses (exit 3) and
+  names what is pending: apply the earlier ones first, then this one with `--to <its version>`.
+  The one exception is a migration whose per-episode plan is empty on this corpus; it applies
+  unmeasured and says so.
+- **Static checks.** The shipped outcome `upgrade/outcomes/<id>.json` must exist, carry a
+  `GO` / `GO WITH CONDITIONS` verdict, have been measured on clean code, and its code digest must
+  equal the installed code's. Otherwise the run is refused (exit 3) and nothing is written.
+- **Plan check.** Prod's per-episode plan is compared with the clone's. Any difference stops the
+  run (exit 4) and writes every difference to
+  `.podcast_scraper/upgrade-outcomes/<id>.plan-diff.json`, the one file a stopped run writes.
+  After each entry has a cause and the operator has agreed, `--accept-plan-diff <file>` applies,
+  and only if prod's plan still differs exactly so.
+- **Measured apply.** The scoreboard is taken per episode before and after. A change that does
+  not match the clone's fails the run (exit 5): the apply **stays** and is in the ledger (no
+  automatic undo), the undo is named, and no later migration runs. The receipt
+  `.podcast_scraper/upgrade-outcomes/<id>.json` is written on every path past the apply.
+- **`--dry-run`** prints `outcome hook: plan diff N episode(s)` (or the refusal it would give) and
+  writes nothing.
+
+Registered today: 0031 (`NamedVoicesShownMigration`) and 0033
+(`HandRemovedNamesRefusedMigration`, which names the voice a reprocess published under a name 0015
+removed by hand). **Held, unregistered:** 0032 (`naming_voices_rederived`), 0034 (the talk floor
+applied to served episodes: a name comes off a voice holding less than 5% of the talk) and 0035
+(the voice identity rung applied to served episodes that carry fingerprints). Each applies a
+frozen, reviewed list (`upgrade/lists/`, verdicts in `upgrade/verdicts/`) and nothing else, with no
+LLM and no DGX; each is registered in `upgrade/registry.py` only after it passes its own gate.
 
 ## Forward-compatibility with a database
 

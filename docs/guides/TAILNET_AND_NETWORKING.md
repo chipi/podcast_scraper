@@ -43,6 +43,12 @@ tailnet, or to expose a service on it: **you change one file here and open a PR.
 | `tag:dr-drill` | throwaway DR-drill VPS | (dynamic) | disaster-recovery rehearsals only |
 
 `autogroup:admin` = the operator's own devices (laptop/phone/iPad); they reach everything.
+
+SSH to the DGX is allowed for `operator`, `ops`, `root`, `markodragoljevic` and `claude`
+(`policy.hujson`, `ssh` block). `claude` is the agents' account on the mini (`tag:homelab-host`) and
+its own login on the DGX (docker group, a status-only `gpu-mode-swap.sh` wrapper), so agents stop
+borrowing the operator's or `ops`' login. The homelab owns that DGX user; merge a policy change
+that names it only once the user exists.
 Tag ownership is declared in `policy.hujson` `tagOwners`.
 
 ---

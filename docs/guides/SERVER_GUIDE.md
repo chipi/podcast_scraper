@@ -128,6 +128,20 @@ it at `/` via `StaticFiles(directory=..., html=True)`.
 Pass `--no-static` (or `static_dir=False` in code) to skip mounting and
 run the API standalone.
 
+### Memory watchdog (`PODCAST_MEM_WATCHDOG_MB`)
+
+`create_app`'s lifespan starts `server/mem_watchdog.py` when `PODCAST_MEM_WATCHDOG_MB` is a
+positive integer (unset, `0` or non-numeric leaves it off; non-numeric also logs a warning). A
+daemon thread samples the process's resident memory (`/proc/self/status`, every second). Once it
+crosses the threshold it logs **one WARNING**,
+`mem watchdog: rss=<MB>MB in_flight=[<method> <path> <age>s; ...] threads=[<name>: <file:line fn> > ...]`,
+and again at each further 512 MB; it re-arms when memory falls back below the threshold. The
+in-flight requests come from `AccessLogMiddleware` (`utils/access_log.inflight_requests()`, oldest
+first) and the frames are each thread's innermost four `podcast_scraper` frames, so the next spike
+names its own code path. The player stack sets it to `2500` for `player-api` (steady RSS is
+1.1-1.6 GB); the reason is the 2026-10-17 and 2026-10-19 spikes from ~0.8 GB to 3.8-8 GB within a
+minute during an app home-screen burst after a start.
+
 ### CORS
 
 The CORS middleware allows `http://127.0.0.1:5173` and

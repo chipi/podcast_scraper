@@ -88,6 +88,17 @@ reload, caddy v2.11.4). Deploys reload and restart only if the reload is refused
 - **A service-env change** (`CADDY_BIND_ADDRS`, `GLITCHTIP_UPSTREAM`) still needs a restart:
   systemd reads `Environment` at start.
 
+## One lock for every tenant that edits the sites directory
+
+`deploy-player.sh` and `deploy-operator.sh` take `flock -w 300` on `/tmp/caddy-sites.lock` before
+they install their vhosts into `/etc/caddy/sites/` and release it after the reload, so two tenants'
+install, adapt and reload sequences (the player and operator stacks, orrery, the websites) never
+interleave. Every tenant that writes there takes the same lock. The file is opened read-only when it
+already exists, because `fs.protected_regular=2` refuses an `O_CREAT` open of another user's file
+in sticky `/tmp`, and `flock` needs no write access. A deploy that cannot get the lock within five
+minutes stops with `ERROR: could not take /tmp/caddy-sites.lock within 5 minutes; another tenant is
+editing the edge`: look for the other tenant's deploy, do not delete the lock file.
+
 ## What `apply-edge` does NOT manage
 
 - **The o11y collector** — that's the Alloy **container** at `/opt/vps-observability/` shipping

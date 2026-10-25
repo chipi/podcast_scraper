@@ -240,6 +240,16 @@ Pull the vhost + reload (`rm /etc/caddy/sites/player.caddy && systemctl reload c
 public down; or `docker compose -f compose/docker-compose.player-public.yml down`. The
 operator/tailnet surface is unaffected.
 
+### player-api memory cap
+
+`compose/docker-compose.player-public.yml` caps `player-api` at `mem_limit: 6g` and sets
+`PODCAST_MEM_WATCHDOG_MB=2500` ([memory watchdog](SERVER_GUIDE.md#memory-watchdog-podcast_mem_watchdog_mb)).
+Steady RSS is 1.1-1.6 GB. Uncapped, one process reached ~8 GB (2026-10-17 15:05, 2026-10-19 06:19)
+and drove the 15 GB box into a global OOM in which the kernel chose freely among tenants; capped,
+an overrun is killed inside the container. The cap was 4g for a day and the post-deploy smoke's
+home burst was killed at 3.8 GB anon (2026-10-19 08:28), so it is 6g until the allocation is
+found. A `player-api` restart with `OOMKilled` true in `docker inspect` is this cap, not a crash.
+
 ## MCP — remote agent access (RFC-112)
 
 Lets an external AI agent (claude.ai custom connector, Claude Code, Cursor) search + read the
