@@ -112,16 +112,42 @@ applied in daytime, never inside a nightly (00:00 to about 04:30Z). Each is regi
 migration tooling needs a new image for that is checked on day 1). 0032 stays held under its own
 gate (#2380), outside this plan.
 
-16. **0034, the talk floor on served episodes** (`m0034_talk_floor_names_removed`; measured on the
-    10-17 snapshot: 84 bad names off, 7 right lost). Not started: no frozen list or verdicts exist.
-    On a fresh prod snapshot (the day-1 backup): `find_changes`, freeze the list, a fresh
-    reviewer's verdicts, the outcome table, the operator's go, apply with the `corpus-migration`
-    skill, then verify every derived surface (GI, KG, bridge, search rows). *me, reviewer, operator*
-17. **0035, voice-rung names on fingerprinted served episodes** (`m0035_voice_identity_names`; 413
-    of 2,939 on 10-23, growing): the same, **after 0034** (0035 leaves voices under the floor to
-    0034). *me, reviewer, operator*
-18. **What the served corpus does not get:** names on episodes served before the deploy stay as
-    they are except where 0034 / 0035 reach; v39-v55 act on new episodes.
+16. **Status 2026-10-27: 0034, 0035 and 0036 are built, measured, reviewed and on main**
+    (`2914e562e`; records `docs/wip/changes/0034_talk_floor_names_removed.md`,
+    `0035_voice_identity_names.md`, `0036_bridge_identities_restored.md`). Each has its frozen list
+    and verdicts, a step-8 GO WITH CONDITIONS with the conditions closed, an outcome bound by sha256
+    in step 8, and the operator's go on the 12 step-9 points (2026-10-26, recorded in the records).
+    Measured on snapshot-prod-20261025: 0034 removes 175 names in 152 episodes; 0035 renames or
+    unnames 113 voices in 99 episodes; 0036 restores 101 bridge identities in 34 episodes and
+    rebuilds 16 damaged bridges. Every undo cycle on the clones PASS.
+17. **Deploy the image that carries them** (`sha-2914e56`): `prod-deploy` preflight, dispatch,
+    verify (as items 5-9). The migrations run from mounted source (prod tooling), but the ledger
+    target versions 2.7.28 / 2.7.29 / 2.7.30 are this code's. *prod*
+18. **Apply, after the deploy, in daytime, never inside a nightly (00:00 to about 04:30Z), with the
+    operator's go given to the prod session directly**, using the `corpus-migration` skill for
+    each (preflight, the CLI's dry run, gated apply, verify, ownership check, undo recorded). *prod*
+    1. **0034 alone** (`--to 2.7.28`): dry run first; the plan must equal the outcome's (0
+       differences; prod has episodes the snapshot lacks, each difference accepted with a cause by
+       the operator). After the apply: verify OK, and `https://iono.fm/e/1728203`'s files equal the
+       clone's (0035 also writes that episode).
+    2. **0035 alone** (`--to 2.7.29`): dry run with 0 plan differences against its outcome; apply;
+       verify OK.
+    3. **0036** (`--to 2.7.30`): dry run, apply, verify OK.
+    4. **`upgrade verify` (the 2.7 runbook's step 5): 0025 is expected to flag exactly 5 episodes,
+       accepted as known by the operator (spelling only, one person id each, no duplicate):**
+       `998e8fc4-c6fc-11f0-b555-4bf8880724ca`, `https://iono.fm/e/1729872`,
+       `https://iono.fm/e/1728106`, `Buzzsprout-19147714`, `Buzzsprout-19066916`. Any other 0025
+       flag, or any other migration failing verify, is a stop.
+    5. **Derived surfaces, for the episodes the three wrote** (each apply's `details.episodes`):
+       the sidecar refresh `enrich --only insight_density,insight_sentiment`, then an incremental
+       `index` for those episodes only. No full rebuild, no LLM, no DGX.
+    6. **Undo, if needed, in reverse:** 0036, then 0035, then 0034. After an undo of 0035 reset the
+       ledger `version` to 2.7.28 by hand (the runbook has no such step; the undo removes the
+       ledger entry but leaves the version).
+    7. **Report back:** each apply's receipt line and episode count, the verify output, the plan
+       diffs, and the derived-surface runs. *prod*
+**What the served corpus does not get:** names on episodes served before the deploy stay as
+they are except where 0034 / 0035 / 0036 reach; v39-v55 act on new episodes.
 
 ## Week 1-2: measurements that need the new code's own output
 
