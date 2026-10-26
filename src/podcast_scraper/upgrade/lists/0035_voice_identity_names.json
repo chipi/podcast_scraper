@@ -1,0 +1,1463 @@
+{
+ "migration": "0035_voice_identity_names",
+ "voices": [
+  [
+   "000a26a5-f6bd-45f2-ab2e-d9a88df22f45",
+   "SPEAKER_05",
+   "Khaman Maluach",
+   "guest",
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.93"
+  ],
+  [
+   "019fece8-b1ba-7529-898b-e09e53c4fa77",
+   "SPEAKER_00",
+   null,
+   null,
+   "James Green",
+   "guest",
+   "matches the feed's 'James Green' fingerprint group at 0.92"
+  ],
+  [
+   "01a05e5a-996e-7d99-b147-1826b0c8b703",
+   "SPEAKER_00",
+   null,
+   "host",
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.86"
+  ],
+  [
+   "01a0aee8-de39-7fcd-96d6-2d14d2d6dbe1",
+   "SPEAKER_00",
+   null,
+   null,
+   "James Green",
+   "guest",
+   "matches the feed's 'James Green' fingerprint group at 0.94"
+  ],
+  [
+   "05598a71-e662-4f2f-9cec-1001969bb6d4",
+   "SPEAKER_01",
+   "Jensen Huang",
+   "guest",
+   "Azeem Azhar",
+   "host",
+   "matches the feed's 'Azeem Azhar' fingerprint group at 0.95"
+  ],
+  [
+   "0912aefb-14d3-4cf4-8e7e-d6e9a163dca4",
+   "SPEAKER_11",
+   null,
+   "host",
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.95"
+  ],
+  [
+   "118818d6-cd43-11f1-8919-87c95e08c511",
+   "SPEAKER_03",
+   null,
+   "host",
+   "Michael Stevens",
+   "host",
+   "matches the feed's 'Michael Stevens' fingerprint group at 0.96"
+  ],
+  [
+   "1_2766140",
+   "SPEAKER_00",
+   "Yushan",
+   "guest",
+   null,
+   null,
+   "clearly not 'Yushan': similarity 0.05 to the feed's fingerprint group for that name"
+  ],
+  [
+   "1_2766140",
+   "SPEAKER_01",
+   null,
+   null,
+   "Yushan",
+   "guest",
+   "matches the feed's 'Yushan' fingerprint group at 0.98"
+  ],
+  [
+   "1_2766143",
+   "SPEAKER_02",
+   null,
+   null,
+   "Yushan",
+   "guest",
+   "matches the feed's 'Yushan' fingerprint group at 0.99"
+  ],
+  [
+   "1_2766152",
+   "SPEAKER_01",
+   "Yushun",
+   "guest",
+   "Yushan",
+   "guest",
+   "matches the feed's 'Yushan' fingerprint group at 0.97"
+  ],
+  [
+   "1_2766155",
+   "SPEAKER_01",
+   null,
+   null,
+   "Yushan",
+   "guest",
+   "matches the feed's 'Yushan' fingerprint group at 0.98"
+  ],
+  [
+   "1_2766212",
+   "SPEAKER_00",
+   null,
+   null,
+   "Yushan",
+   "guest",
+   "matches the feed's 'Yushan' fingerprint group at 0.98"
+  ],
+  [
+   "1_2766230",
+   "SPEAKER_00",
+   null,
+   null,
+   "Steve Hatherly",
+   "host",
+   "matches the feed's 'Steve Hatherly' fingerprint group at 0.97"
+  ],
+  [
+   "1_2766234",
+   "SPEAKER_02",
+   null,
+   null,
+   "Steve Hatherly",
+   "host",
+   "matches the feed's 'Steve Hatherly' fingerprint group at 0.98"
+  ],
+  [
+   "1_2766237",
+   "SPEAKER_01",
+   null,
+   null,
+   "Yushan",
+   "guest",
+   "matches the feed's 'Yushan' fingerprint group at 0.95"
+  ],
+  [
+   "1b967280-ce7b-11f1-8a29-072c10b8d7bc",
+   "SPEAKER_00",
+   "Sarah Guo",
+   "host",
+   "Elad Gil",
+   "host",
+   "matches the feed's 'Elad Gil' fingerprint group at 0.91"
+  ],
+  [
+   "1de6bacf-d263-468d-8866-de476116e3ec",
+   "SPEAKER_00",
+   null,
+   null,
+   "Laura Klein",
+   "host",
+   "matches the feed's 'Laura Klein' fingerprint group at 0.97"
+  ],
+  [
+   "20ebeb5b-2754-407d-acf9-5de99bc0e913",
+   "SPEAKER_01",
+   null,
+   null,
+   "Azeem Azhar",
+   "host",
+   "matches the feed's 'Azeem Azhar' fingerprint group at 0.93"
+  ],
+  [
+   "27f6f3fc-d362-400d-96f9-265dafc25aa1",
+   "SPEAKER_01",
+   "Anil Seth",
+   "guest",
+   "Azeem Azhar",
+   "host",
+   "matches the feed's 'Azeem Azhar' fingerprint group at 0.97"
+  ],
+  [
+   "2876593d-b266-405f-9328-d7a0178508aa",
+   "SPEAKER_04",
+   null,
+   "host",
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.93"
+  ],
+  [
+   "29d987a7-8718-4f28-be32-b04616951736",
+   "SPEAKER_01",
+   null,
+   null,
+   "Tim Scarfe",
+   "host",
+   "matches the feed's 'Tim Scarfe' fingerprint group at 0.94"
+  ],
+  [
+   "29d987a7-8718-4f28-be32-b04616951736",
+   "SPEAKER_03",
+   "Tim Scarfe",
+   "host",
+   null,
+   null,
+   "clearly not 'Tim Scarfe': similarity 0.14 to the feed's fingerprint group for that name"
+  ],
+  [
+   "33269f09-0cc0-4000-9376-1e6e7f80386b",
+   "SPEAKER_00",
+   "Jeremy Au",
+   "host",
+   null,
+   null,
+   "clearly not 'Jeremy Au': similarity -0.03 to the feed's fingerprint group for that name"
+  ],
+  [
+   "33269f09-0cc0-4000-9376-1e6e7f80386b",
+   "SPEAKER_01",
+   "Rosaline Chow Koo",
+   "guest",
+   "Jeremy Au",
+   "host",
+   "matches the feed's 'Jeremy Au' fingerprint group at 0.96"
+  ],
+  [
+   "3784cb27-6d5c-4134-ac82-7ceff7665df1",
+   "SPEAKER_06",
+   "Edward Glaeser",
+   "guest",
+   "Steve Levitt",
+   "host",
+   "matches the feed's 'Steve Levitt' fingerprint group at 0.97"
+  ],
+  [
+   "3e908044-b5e1-11f1-884d-d388697c8768",
+   "SPEAKER_01",
+   "Mark Normand",
+   "host",
+   "David Perell",
+   "host",
+   "matches the feed's 'David Perell' fingerprint group at 0.90"
+  ],
+  [
+   "41ca1334-4818-4c03-b9cf-443e5361600f",
+   "SPEAKER_01",
+   null,
+   null,
+   "Nik Martelaro",
+   "host",
+   "matches the feed's 'Nik Martelaro' fingerprint group at 0.87"
+  ],
+  [
+   "46984986-fc53-4b2c-a54a-7766da03fc4a",
+   "SPEAKER_00",
+   "Neil deGrasse Tyson",
+   "host",
+   null,
+   null,
+   "clearly not 'Neil deGrasse Tyson': similarity 0.09 to the feed's fingerprint group for that name"
+  ],
+  [
+   "46984986-fc53-4b2c-a54a-7766da03fc4a",
+   "SPEAKER_03",
+   null,
+   null,
+   "Neil deGrasse Tyson",
+   "host",
+   "matches the feed's 'Neil deGrasse Tyson' fingerprint group at 0.95"
+  ],
+  [
+   "475b1321-ad26-4173-aea2-3879b3da4511",
+   "SPEAKER_01",
+   null,
+   null,
+   "David Tizzard",
+   "host",
+   "matches the feed's 'David Tizzard' fingerprint group at 0.95"
+  ],
+  [
+   "4ae8ea8d-bfeb-4fa3-ac7a-31e2bc443ccd",
+   "SPEAKER_00",
+   null,
+   null,
+   "Azeem Azhar",
+   "host",
+   "matches the feed's 'Azeem Azhar' fingerprint group at 0.95"
+  ],
+  [
+   "4e6324ca-a887-11f1-b16c-27d7f954c236",
+   "SPEAKER_01",
+   "David Perell",
+   "host",
+   null,
+   null,
+   "clearly not 'David Perell': similarity 0.18 to the feed's fingerprint group for that name"
+  ],
+  [
+   "4e6324ca-a887-11f1-b16c-27d7f954c236",
+   "SPEAKER_02",
+   null,
+   null,
+   "David Perell",
+   "host",
+   "matches the feed's 'David Perell' fingerprint group at 0.96"
+  ],
+  [
+   "4e743da6-524a-4123-a1a4-bc8e2be55edf",
+   "SPEAKER_01",
+   null,
+   null,
+   "Azeem Azhar",
+   "host",
+   "matches the feed's 'Azeem Azhar' fingerprint group at 0.97"
+  ],
+  [
+   "50fd5b43-50c6-45c6-b71a-309713edd5ea",
+   "SPEAKER_01",
+   null,
+   null,
+   "Dan Saffer",
+   "host",
+   "matches the feed's 'Dan Saffer' fingerprint group at 0.98"
+  ],
+  [
+   "526dbadb-3357-41af-841d-04046dc9004a",
+   "SPEAKER_07",
+   null,
+   "host",
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.93"
+  ],
+  [
+   "552098c9-70cf-47a8-9e54-37a9137191e8",
+   "SPEAKER_05",
+   null,
+   null,
+   "Rachel Abrams",
+   "host",
+   "matches the feed's 'Rachel Abrams' fingerprint group at 0.97"
+  ],
+  [
+   "55525e90-74c0-11f1-b9d0-b743d8d6b365",
+   "SPEAKER_03",
+   null,
+   null,
+   "Natalie Brennan",
+   "host",
+   "matches the feed's 'Natalie Brennan' fingerprint group at 0.90"
+  ],
+  [
+   "55525e90-74c0-11f1-b9d0-b743d8d6b365",
+   "SPEAKER_04",
+   null,
+   "host",
+   "Julie Beck",
+   "host",
+   "matches the feed's 'Julie Beck' fingerprint group at 0.96"
+  ],
+  [
+   "5cdca311-7728-462e-8f46-eaa08090cbc2",
+   "SPEAKER_02",
+   "Dan Saffer",
+   "host",
+   null,
+   null,
+   "clearly not 'Dan Saffer': similarity 0.40 to the feed's fingerprint group for that name"
+  ],
+  [
+   "5cdca311-7728-462e-8f46-eaa08090cbc2",
+   "SPEAKER_03",
+   "Nik Martelaro",
+   "host",
+   "Dan Saffer",
+   "host",
+   "matches the feed's 'Dan Saffer' fingerprint group at 0.98"
+  ],
+  [
+   "6244ca0c-cdda-11f1-be2a-4fdc8347f8b3",
+   "SPEAKER_01",
+   null,
+   null,
+   "Andrew Huberman",
+   "host",
+   "matches the feed's 'Andrew Huberman' fingerprint group at 0.93"
+  ],
+  [
+   "66ed7536-8ad1-44b3-8a94-06c3160329e2",
+   "SPEAKER_02",
+   "Martin Casado",
+   "host",
+   null,
+   null,
+   "clearly not 'Martin Casado': similarity 0.34 to the feed's fingerprint group for that name"
+  ],
+  [
+   "66ed7536-8ad1-44b3-8a94-06c3160329e2",
+   "SPEAKER_03",
+   null,
+   null,
+   "Martin Casado",
+   "host",
+   "matches the feed's 'Martin Casado' fingerprint group at 0.96"
+  ],
+  [
+   "6f20e442-d3a2-4a3a-bbf3-fa874233e6aa",
+   "SPEAKER_02",
+   "Azim Azhar",
+   "guest",
+   "Azeem Azhar",
+   "host",
+   "matches the feed's 'Azeem Azhar' fingerprint group at 0.97"
+  ],
+  [
+   "75b67139-4dbc-4623-b009-3901c0572964",
+   "SPEAKER_01",
+   null,
+   null,
+   "Azeem Azhar",
+   "host",
+   "matches the feed's 'Azeem Azhar' fingerprint group at 0.95"
+  ],
+  [
+   "76838ad8-c242-11f1-9d09-5bed77e8bdd7",
+   "SPEAKER_01",
+   null,
+   null,
+   "David Perell",
+   "host",
+   "matches the feed's 'David Perell' fingerprint group at 0.98"
+  ],
+  [
+   "7828a162-9f91-11f1-96bb-931fe3702c1d",
+   "SPEAKER_01",
+   null,
+   null,
+   "Jonathan Wolf",
+   "host",
+   "matches the feed's 'Jonathan Wolf' fingerprint group at 0.94"
+  ],
+  [
+   "7c41b808-d2eb-4c2a-9be3-af189fa456c7",
+   "SPEAKER_01",
+   "Dan Saffer",
+   "host",
+   null,
+   null,
+   "clearly not 'Dan Saffer': similarity 0.35 to the feed's fingerprint group for that name"
+  ],
+  [
+   "7c41b808-d2eb-4c2a-9be3-af189fa456c7",
+   "SPEAKER_03",
+   "Nik Martelaro",
+   "host",
+   "Dan Saffer",
+   "host",
+   "matches the feed's 'Dan Saffer' fingerprint group at 0.95"
+  ],
+  [
+   "7d4f6bf6-bcb2-11f1-9e30-afa90f070c5b",
+   "SPEAKER_01",
+   "Dominic Sandbrook",
+   "host",
+   "Tom Holland",
+   "host",
+   "matches the feed's 'Tom Holland' fingerprint group at 0.94"
+  ],
+  [
+   "80d84934-9120-4a49-9227-90e522cbfaef",
+   "SPEAKER_05",
+   null,
+   "host",
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.95"
+  ],
+  [
+   "9065ec55-d220-469b-a725-037dee03d3a4",
+   "SPEAKER_01",
+   null,
+   null,
+   "Neil deGrasse Tyson",
+   "host",
+   "matches the feed's 'Neil deGrasse Tyson' fingerprint group at 0.96"
+  ],
+  [
+   "93208e83-1f35-4f41-a602-479f4cde61dc",
+   "SPEAKER_00",
+   "Dan Shipper",
+   "host",
+   null,
+   null,
+   "clearly not 'Dan Shipper': similarity -0.05 to the feed's fingerprint group for that name"
+  ],
+  [
+   "93208e83-1f35-4f41-a602-479f4cde61dc",
+   "SPEAKER_02",
+   "Kevin Kelly",
+   "guest",
+   "Dan Shipper",
+   "host",
+   "matches the feed's 'Dan Shipper' fingerprint group at 0.92"
+  ],
+  [
+   "9616ab52-164d-11f0-98f9-57955976ddbf",
+   "SPEAKER_02",
+   null,
+   null,
+   "Natalie Brennan",
+   "host",
+   "matches the feed's 'Natalie Brennan' fingerprint group at 0.97"
+  ],
+  [
+   "9616ab52-164d-11f0-98f9-57955976ddbf",
+   "SPEAKER_04",
+   "Natalie Brennan",
+   "host",
+   null,
+   null,
+   "clearly not 'Natalie Brennan': similarity 0.24 to the feed's fingerprint group for that name"
+  ],
+  [
+   "97da41be-c6fc-11f0-b555-2bd5e1122bd6",
+   "SPEAKER_04",
+   "Julia Longoria",
+   "host",
+   "Noam Hassenfeld",
+   "host",
+   "matches the feed's 'Noam Hassenfeld' fingerprint group at 0.96"
+  ],
+  [
+   "987ebd8e-c6fc-11f0-b555-9b37d4497fa5",
+   "SPEAKER_07",
+   null,
+   "host",
+   "Noam Hassenfeld",
+   "host",
+   "matches the feed's 'Noam Hassenfeld' fingerprint group at 0.92"
+  ],
+  [
+   "987ebd8e-c6fc-11f0-b555-9b37d4497fa5",
+   "SPEAKER_08",
+   "Jon Harrison",
+   "guest",
+   "Noam Hassenfeld",
+   "host",
+   "matches the feed's 'Noam Hassenfeld' fingerprint group at 0.88"
+  ],
+  [
+   "9b1bf597-6d68-4742-a05b-17dc8fe9bbd5",
+   "SPEAKER_03",
+   "Negin Farsad",
+   "host",
+   "Neil deGrasse Tyson",
+   "host",
+   "matches the feed's 'Neil deGrasse Tyson' fingerprint group at 0.97"
+  ],
+  [
+   "9ea7bc57-ef13-45ef-b281-34d05ed27bea",
+   "SPEAKER_02",
+   null,
+   null,
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.72"
+  ],
+  [
+   "9ee5a39d-2c60-4e67-a483-b32f404592e3",
+   "SPEAKER_00",
+   "Nik Martelaro",
+   "host",
+   "Dan Saffer",
+   "host",
+   "matches the feed's 'Dan Saffer' fingerprint group at 0.96"
+  ],
+  [
+   "9ee5a39d-2c60-4e67-a483-b32f404592e3",
+   "SPEAKER_01",
+   "Dan Saffer",
+   "host",
+   null,
+   null,
+   "clearly not 'Dan Saffer': similarity 0.37 to the feed's fingerprint group for that name"
+  ],
+  [
+   "Buzzsprout-16955065",
+   "SPEAKER_02",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.81"
+  ],
+  [
+   "Buzzsprout-16955065",
+   "SPEAKER_03",
+   "Euan Marshall",
+   "host",
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.85"
+  ],
+  [
+   "Buzzsprout-16998071",
+   "SPEAKER_00",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.81"
+  ],
+  [
+   "Buzzsprout-16998071",
+   "SPEAKER_01",
+   "Euan Marshall",
+   "host",
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.87"
+  ],
+  [
+   "Buzzsprout-17024331",
+   "SPEAKER_00",
+   null,
+   null,
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.83"
+  ],
+  [
+   "Buzzsprout-17042125",
+   "SPEAKER_00",
+   null,
+   null,
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-17503238",
+   "SPEAKER_00",
+   null,
+   null,
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.84"
+  ],
+  [
+   "Buzzsprout-17553285",
+   "SPEAKER_00",
+   null,
+   null,
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-17553285",
+   "SPEAKER_01",
+   null,
+   null,
+   "Isabela Cruz",
+   "host",
+   "matches the feed's 'Isabela Cruz' fingerprint group at 0.81"
+  ],
+  [
+   "Buzzsprout-17619394",
+   "SPEAKER_03",
+   null,
+   null,
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.85"
+  ],
+  [
+   "Buzzsprout-17937831",
+   "SPEAKER_00",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.87"
+  ],
+  [
+   "Buzzsprout-18009051",
+   "SPEAKER_02",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.87"
+  ],
+  [
+   "Buzzsprout-18264397",
+   "SPEAKER_00",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-18264397",
+   "SPEAKER_02",
+   "Carlos Nobre",
+   "host",
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.81"
+  ],
+  [
+   "Buzzsprout-18331009",
+   "SPEAKER_01",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-18372934",
+   "SPEAKER_00",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-18372934",
+   "SPEAKER_01",
+   "Thabata Cruz",
+   "host",
+   "Isabela Cruz",
+   "host",
+   "matches the feed's 'Isabela Cruz' fingerprint group at 0.91"
+  ],
+  [
+   "Buzzsprout-18519585",
+   "SPEAKER_03",
+   null,
+   "host",
+   "Ewan Marshall",
+   "host",
+   "matches the feed's 'Ewan Marshall' fingerprint group at 0.87"
+  ],
+  [
+   "Buzzsprout-18591871",
+   "SPEAKER_00",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.85"
+  ],
+  [
+   "Buzzsprout-18629745",
+   "SPEAKER_00",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-18678501",
+   "SPEAKER_01",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-18763144",
+   "SPEAKER_01",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.87"
+  ],
+  [
+   "Buzzsprout-18876100",
+   "SPEAKER_00",
+   null,
+   null,
+   "Gustavo Ribeiro",
+   "host",
+   "matches the feed's 'Gustavo Ribeiro' fingerprint group at 0.86"
+  ],
+  [
+   "Buzzsprout-19066916",
+   "SPEAKER_01",
+   "James N. Green",
+   "guest",
+   "James Green",
+   "guest",
+   "matches the feed's 'James Green' fingerprint group at 0.87"
+  ],
+  [
+   "Buzzsprout-19147714",
+   "SPEAKER_01",
+   "James N. Green",
+   "guest",
+   "James Green",
+   "guest",
+   "matches the feed's 'James Green' fingerprint group at 0.92"
+  ],
+  [
+   "Buzzsprout-19280635",
+   "SPEAKER_01",
+   null,
+   null,
+   "James Green",
+   "guest",
+   "matches the feed's 'James Green' fingerprint group at 0.91"
+  ],
+  [
+   "Buzzsprout-19545344",
+   "SPEAKER_01",
+   null,
+   null,
+   "James Green",
+   "guest",
+   "matches the feed's 'James Green' fingerprint group at 0.83"
+  ],
+  [
+   "Buzzsprout-20005821",
+   "SPEAKER_01",
+   "Dinny McMahon",
+   "host",
+   null,
+   null,
+   "clearly not 'Dinny McMahon': similarity 0.39 to the feed's fingerprint group for that name"
+  ],
+  [
+   "a31bf15e-5aaa-4f48-9556-601765b4feed",
+   "SPEAKER_03",
+   "Steve Levitt",
+   "host",
+   null,
+   null,
+   "clearly not 'Steve Levitt': similarity 0.13 to the feed's fingerprint group for that name"
+  ],
+  [
+   "a31bf15e-5aaa-4f48-9556-601765b4feed",
+   "SPEAKER_04",
+   null,
+   null,
+   "Steve Levitt",
+   "host",
+   "matches the feed's 'Steve Levitt' fingerprint group at 0.97"
+  ],
+  [
+   "a353187e-ea29-4e21-940d-7129aad784fa",
+   "SPEAKER_01",
+   null,
+   "host",
+   "David Tizzard",
+   "host",
+   "matches the feed's 'David Tizzard' fingerprint group at 0.91"
+  ],
+  [
+   "a4e97b90-85ba-11f1-9749-5b26812fa6f9",
+   "SPEAKER_05",
+   "John Nelson",
+   "host",
+   null,
+   null,
+   "clearly not 'John Nelson': similarity 0.06 to the feed's fingerprint group for that name"
+  ],
+  [
+   "aace7a12-cc44-11f1-a072-939a04ca9e18",
+   "SPEAKER_02",
+   "Dr Dariush Mozaffarian",
+   "guest",
+   "Jonathan Wolf",
+   "host",
+   "matches the feed's 'Jonathan Wolf' fingerprint group at 0.95"
+  ],
+  [
+   "ac35ba70-c643-11f1-9ae9-2f0797e8b730",
+   "SPEAKER_02",
+   "Prof Tim Spector",
+   "guest",
+   "Jonathan Wolf",
+   "host",
+   "matches the feed's 'Jonathan Wolf' fingerprint group at 0.95"
+  ],
+  [
+   "aebd96be-c44a-11f1-80a0-ef65a15b8484",
+   "SPEAKER_04",
+   "Brian Clark",
+   "host",
+   "Jordan Schneider",
+   "host",
+   "matches the feed's 'Jordan Schneider' fingerprint group at 0.96"
+  ],
+  [
+   "b0419e1c-c2b6-11f1-8a5a-b7a018cc2e95",
+   "SPEAKER_01",
+   null,
+   null,
+   "Jordan Schneider",
+   "host",
+   "matches the feed's 'Jordan Schneider' fingerprint group at 0.95"
+  ],
+  [
+   "b0a93d5e-1f25-11f1-990b-d34a49867db0",
+   "SPEAKER_02",
+   null,
+   null,
+   "Bren\u00e9 Brown",
+   "host",
+   "matches the feed's 'Bren\u00e9 Brown' fingerprint group at 0.99"
+  ],
+  [
+   "b11d71a6-1f25-11f1-990b-3b55932bbc65",
+   "SPEAKER_07",
+   null,
+   null,
+   "Adam Grant",
+   "host",
+   "matches the feed's 'Adam Grant' fingerprint group at 0.95"
+  ],
+  [
+   "b175c81a-1f25-11f1-990b-a3cbbc9ae640",
+   "SPEAKER_08",
+   null,
+   null,
+   "Adam Grant",
+   "host",
+   "matches the feed's 'Adam Grant' fingerprint group at 0.98"
+  ],
+  [
+   "b1a95ea0-1f25-11f1-990b-172472e27e33",
+   "SPEAKER_02",
+   null,
+   null,
+   "Bren\u00e9 Brown",
+   "host",
+   "matches the feed's 'Bren\u00e9 Brown' fingerprint group at 0.99"
+  ],
+  [
+   "b1d68830-1f25-11f1-990b-839276c688a5",
+   "SPEAKER_03",
+   null,
+   null,
+   "Bren\u00e9 Brown",
+   "host",
+   "matches the feed's 'Bren\u00e9 Brown' fingerprint group at 0.99"
+  ],
+  [
+   "b22b4fbe-1f25-11f1-990b-1718674eb070",
+   "SPEAKER_03",
+   null,
+   "host",
+   "Bren\u00e9 Brown",
+   "host",
+   "matches the feed's 'Bren\u00e9 Brown' fingerprint group at 0.99"
+  ],
+  [
+   "b22b4fbe-1f25-11f1-990b-1718674eb070",
+   "SPEAKER_04",
+   null,
+   null,
+   "Adam Grant",
+   "host",
+   "matches the feed's 'Adam Grant' fingerprint group at 0.95"
+  ],
+  [
+   "b28f69e0-1f25-11f1-990b-37773ffde874",
+   "SPEAKER_01",
+   null,
+   "host",
+   "Bren\u00e9 Brown",
+   "host",
+   "matches the feed's 'Bren\u00e9 Brown' fingerprint group at 0.98"
+  ],
+  [
+   "b28f69e0-1f25-11f1-990b-37773ffde874",
+   "SPEAKER_09",
+   null,
+   null,
+   "Adam Grant",
+   "host",
+   "matches the feed's 'Adam Grant' fingerprint group at 0.91"
+  ],
+  [
+   "b7e7cdb2-03b6-43ac-a7e3-f4dbe8382cca",
+   "SPEAKER_09",
+   null,
+   "host",
+   "Steve Levitt",
+   "host",
+   "matches the feed's 'Steve Levitt' fingerprint group at 0.96"
+  ],
+  [
+   "ba73ffec-7e4b-11f1-a6b4-bbd44a5ab88e",
+   "SPEAKER_05",
+   null,
+   null,
+   "Rory Stewart",
+   "host",
+   "matches the feed's 'Rory Stewart' fingerprint group at 0.93"
+  ],
+  [
+   "ba73ffec-7e4b-11f1-a6b4-bbd44a5ab88e",
+   "SPEAKER_07",
+   "Rory Stewart",
+   "host",
+   null,
+   null,
+   "clearly not 'Rory Stewart': similarity 0.03 to the feed's fingerprint group for that name"
+  ],
+  [
+   "bd1441d7-cb92-44bc-b86d-5fc0eb97af6b",
+   "SPEAKER_08",
+   null,
+   "host",
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.96"
+  ],
+  [
+   "bddd218e-ca24-11f1-bd2d-2715ea55a169",
+   "SPEAKER_03",
+   "Hada Rai",
+   "host",
+   "Hannah Fry",
+   "host",
+   "matches the feed's 'Hannah Fry' fingerprint group at 0.95"
+  ],
+  [
+   "c2312344-1ffe-4c61-b191-df26afe44067",
+   "SPEAKER_02",
+   null,
+   null,
+   "Steve Levitt",
+   "host",
+   "matches the feed's 'Steve Levitt' fingerprint group at 0.98"
+  ],
+  [
+   "c2b497da-b59b-41be-86a6-a966bd3ef724",
+   "SPEAKER_03",
+   "Eric",
+   "guest",
+   "Alex Rampell",
+   "host",
+   "matches the feed's 'Alex Rampell' fingerprint group at 0.93"
+  ],
+  [
+   "ce8e9a37-a732-4c58-a44a-a2a52d5dee63",
+   "SPEAKER_04",
+   "Dan Shipper",
+   "host",
+   null,
+   null,
+   "clearly not 'Dan Shipper': similarity 0.38 to the feed's fingerprint group for that name"
+  ],
+  [
+   "d86f541d-9341-4833-b84a-29e85df6d174",
+   "SPEAKER_02",
+   "Martin Casado",
+   "host",
+   null,
+   null,
+   "clearly not 'Martin Casado': similarity 0.29 to the feed's fingerprint group for that name"
+  ],
+  [
+   "d86f541d-9341-4833-b84a-29e85df6d174",
+   "SPEAKER_03",
+   null,
+   null,
+   "Martin Casado",
+   "host",
+   "matches the feed's 'Martin Casado' fingerprint group at 0.96"
+  ],
+  [
+   "db4aff8e-c7d1-11f1-be51-23df9a3eeb1f",
+   "SPEAKER_04",
+   null,
+   null,
+   "Tom Holland",
+   "host",
+   "matches the feed's 'Tom Holland' fingerprint group at 0.96"
+  ],
+  [
+   "e528e9e0-c951-11f1-a321-87b380f37b8f",
+   "SPEAKER_06",
+   "Peter Frankopan",
+   "guest",
+   "William Dalrymple",
+   "host",
+   "matches the feed's 'William Dalrymple' fingerprint group at 0.97"
+  ],
+  [
+   "e5417be4-4982-11f1-9d05-5f89e1e35fc5",
+   "SPEAKER_04",
+   "Julia Longoria",
+   "host",
+   "Noam Hassenfeld",
+   "host",
+   "matches the feed's 'Noam Hassenfeld' fingerprint group at 0.94"
+  ],
+  [
+   "f25e9982-86ff-42be-8e99-d04396268448",
+   "SPEAKER_00",
+   null,
+   null,
+   "Patrick McKenzie",
+   "host",
+   "matches the feed's 'Patrick McKenzie' fingerprint group at 0.94"
+  ],
+  [
+   "f41d447c-74c0-11f1-b837-2f41b41474de",
+   "SPEAKER_07",
+   null,
+   null,
+   "Julie Beck",
+   "host",
+   "matches the feed's 'Julie Beck' fingerprint group at 0.99"
+  ],
+  [
+   "fda9fe42-503d-11f1-a19f-77983bed38f5",
+   "SPEAKER_03",
+   "Giles Milton",
+   "guest",
+   "William Dalrymple",
+   "host",
+   "matches the feed's 'William Dalrymple' fingerprint group at 0.94"
+  ],
+  [
+   "feb77638-4603-4698-834a-ff328a9b9e05",
+   "SPEAKER_03",
+   null,
+   "host",
+   "Justin Norman",
+   "host",
+   "matches the feed's 'Justin Norman' fingerprint group at 0.85"
+  ],
+  [
+   "flightcast:01M3SP9F8QKB4V4J9RPKX41XFM",
+   "SPEAKER_01",
+   null,
+   "host",
+   "Dan Shipper",
+   "host",
+   "matches the feed's 'Dan Shipper' fingerprint group at 0.88"
+  ],
+  [
+   "flightcast:01M4BDW19ZFPED9TQ4S5DP60PY",
+   "SPEAKER_00",
+   null,
+   "host",
+   "Dan Shipper",
+   "host",
+   "matches the feed's 'Dan Shipper' fingerprint group at 0.97"
+  ],
+  [
+   "flightcast:01M4WXZJC42R6K30JBFDV56TDM",
+   "SPEAKER_01",
+   null,
+   "host",
+   "Dan Shipper",
+   "host",
+   "matches the feed's 'Dan Shipper' fingerprint group at 0.97"
+  ],
+  [
+   "gid://art19-episode-locator/V0/RGR5bIgIjrSDO1ZwoalysV6rbupJVWprI3m94EGKTNA",
+   "SPEAKER_00",
+   "Rupert Sheldrake",
+   "guest",
+   null,
+   null,
+   "clearly not 'Rupert Sheldrake': similarity 0.25 to the feed's fingerprint group for that name"
+  ],
+  [
+   "gid://art19-episode-locator/V0/RGR5bIgIjrSDO1ZwoalysV6rbupJVWprI3m94EGKTNA",
+   "SPEAKER_02",
+   "Peter Sj\u00f6stedt-Hughes",
+   "guest",
+   "Rupert Sheldrake",
+   "guest",
+   "matches the feed's 'Rupert Sheldrake' fingerprint group at 0.86"
+  ],
+  [
+   "gid://art19-episode-locator/V0/YjYuY82n3uzXhBBylISjxLLNNba9OpXVVIEpJsnv1Mo",
+   "SPEAKER_04",
+   "Amari Edwards",
+   "host",
+   null,
+   null,
+   "clearly not 'Amari Edwards': similarity 0.08 to the feed's fingerprint group for that name"
+  ],
+  [
+   "https://iono.fm/e/1727005",
+   "SPEAKER_01",
+   "Asime Nyute",
+   "guest",
+   "Asime Nite",
+   "host",
+   "matches the feed's 'Asime Nite' fingerprint group at 0.95"
+  ],
+  [
+   "https://iono.fm/e/1727005",
+   "SPEAKER_03",
+   "Alec Hogg",
+   "host",
+   null,
+   null,
+   "clearly not 'Alec Hogg': similarity 0.24 to the feed's fingerprint group for that name"
+  ],
+  [
+   "https://iono.fm/e/1727005",
+   "SPEAKER_04",
+   "David Shapiro",
+   "guest",
+   "Alec Hogg",
+   "host",
+   "matches the feed's 'Alec Hogg' fingerprint group at 0.96"
+  ],
+  [
+   "https://iono.fm/e/1727315",
+   "SPEAKER_01",
+   null,
+   "host",
+   "Alec Hogg",
+   "host",
+   "matches the feed's 'Alec Hogg' fingerprint group at 0.94"
+  ],
+  [
+   "https://iono.fm/e/1728106",
+   "SPEAKER_00",
+   "Willem Ells",
+   "guest",
+   "Willem Els",
+   "guest",
+   "matches the feed's 'Willem Els' fingerprint group at 0.98"
+  ],
+  [
+   "https://iono.fm/e/1728203",
+   "SPEAKER_05",
+   null,
+   null,
+   "Willem Els",
+   "guest",
+   "matches the feed's 'Willem Els' fingerprint group at 0.97"
+  ],
+  [
+   "https://iono.fm/e/1729071",
+   "SPEAKER_05",
+   null,
+   null,
+   "Alec Hogg",
+   "host",
+   "matches the feed's 'Alec Hogg' fingerprint group at 0.96"
+  ],
+  [
+   "https://iono.fm/e/1729872",
+   "SPEAKER_02",
+   "Wayne Susman",
+   "guest",
+   "Wayne Sussman",
+   "guest",
+   "matches the feed's 'Wayne Sussman' fingerprint group at 0.98"
+  ],
+  [
+   "https://iono.fm/e/1730397",
+   "SPEAKER_02",
+   null,
+   null,
+   "Tony Lennox",
+   "guest",
+   "matches the feed's 'Tony Lennox' fingerprint group at 0.97"
+  ],
+  [
+   "https://iono.fm/e/1730679",
+   "SPEAKER_01",
+   null,
+   null,
+   "Alec Hogg",
+   "host",
+   "matches the feed's 'Alec Hogg' fingerprint group at 0.95"
+  ],
+  [
+   "https://iono.fm/e/1730921",
+   "SPEAKER_03",
+   "Kerry Lannigan",
+   "guest",
+   "Kerry Lanigan",
+   "guest",
+   "matches the feed's 'Kerry Lanigan' fingerprint group at 0.97"
+  ],
+  [
+   "https://iono.fm/e/1731365",
+   "SPEAKER_06",
+   null,
+   "host",
+   "Alec Hogg",
+   "host",
+   "matches the feed's 'Alec Hogg' fingerprint group at 0.98"
+  ],
+  [
+   "https://iono.fm/e/1731365",
+   "SPEAKER_07",
+   null,
+   null,
+   "William Saunderson-Meyer",
+   "guest",
+   "matches the feed's 'William Saunderson-Meyer' fingerprint group at 0.97"
+  ],
+  [
+   "https://iono.fm/e/1731711",
+   "SPEAKER_00",
+   null,
+   null,
+   "Alec Hogg",
+   "host",
+   "matches the feed's 'Alec Hogg' fingerprint group at 0.93"
+  ],
+  [
+   "https://iono.fm/e/1731879",
+   "SPEAKER_05",
+   null,
+   null,
+   "Alec Hogg",
+   "host",
+   "matches the feed's 'Alec Hogg' fingerprint group at 0.95"
+  ],
+  [
+   "substack:post:177641179",
+   "SPEAKER_00",
+   "Dwarkesh Patel",
+   "host",
+   null,
+   null,
+   "clearly not 'Dwarkesh Patel': similarity 0.16 to the feed's fingerprint group for that name"
+  ],
+  [
+   "substack:post:177641179",
+   "SPEAKER_01",
+   "Sarah Paine",
+   "guest",
+   "Dwarkesh Patel",
+   "host",
+   "matches the feed's 'Dwarkesh Patel' fingerprint group at 0.88"
+  ],
+  [
+   "substack:post:186967347",
+   "SPEAKER_02",
+   null,
+   null,
+   "Dwarkesh Patel",
+   "host",
+   "matches the feed's 'Dwarkesh Patel' fingerprint group at 0.96"
+  ],
+  [
+   "substack:post:195859978",
+   "SPEAKER_00",
+   null,
+   null,
+   "Dwarkesh Patel",
+   "host",
+   "matches the feed's 'Dwarkesh Patel' fingerprint group at 0.93"
+  ],
+  [
+   "substack:post:220234130",
+   "SPEAKER_00",
+   null,
+   null,
+   "RJ Hanaki",
+   "host",
+   "matches the feed's 'RJ Hanaki' fingerprint group at 0.86"
+  ],
+  [
+   "substack:post:220234130",
+   "SPEAKER_01",
+   "RJ Hanaki",
+   "host",
+   null,
+   null,
+   "clearly not 'RJ Hanaki': similarity 0.17 to the feed's fingerprint group for that name"
+  ],
+  [
+   "substack:post:221358515",
+   "SPEAKER_02",
+   null,
+   null,
+   "Gergely Orosz",
+   "host",
+   "matches the feed's 'Gergely Orosz' fingerprint group at 0.93"
+  ],
+  [
+   "substack:post:221372257",
+   "SPEAKER_00",
+   "RJ Hanaki",
+   "host",
+   null,
+   null,
+   "clearly not 'RJ Hanaki': similarity 0.43 to the feed's fingerprint group for that name"
+  ],
+  [
+   "substack:post:221372257",
+   "SPEAKER_01",
+   "Evan Conrad",
+   "guest",
+   "RJ Hanaki",
+   "host",
+   "matches the feed's 'RJ Hanaki' fingerprint group at 0.95"
+  ],
+  [
+   "urn:bbc:podcast:m002c71g",
+   "SPEAKER_13",
+   null,
+   null,
+   "Hannah Fry",
+   "host",
+   "matches the feed's 'Hannah Fry' fingerprint group at 0.90"
+  ],
+  [
+   "urn:bbc:podcast:p0p2vv0y",
+   "SPEAKER_06",
+   "Misha Glenny",
+   "host",
+   "Melvyn Bragg",
+   "host",
+   "matches the feed's 'Melvyn Bragg' fingerprint group at 0.94"
+  ],
+  [
+   "urn:bbc:podcast:p0pbblh6",
+   "SPEAKER_09",
+   null,
+   "host",
+   "Melvyn Bragg",
+   "host",
+   "matches the feed's 'Melvyn Bragg' fingerprint group at 0.90"
+  ],
+  [
+   "youtube:MWX36ZYnsm0",
+   "SPEAKER_00",
+   "RJ Hanaki",
+   "host",
+   null,
+   null,
+   "clearly not 'RJ Hanaki': similarity 0.07 to the feed's fingerprint group for that name"
+  ],
+  [
+   "youtube:MWX36ZYnsm0",
+   "SPEAKER_02",
+   null,
+   null,
+   "RJ Hanaki",
+   "host",
+   "matches the feed's 'RJ Hanaki' fingerprint group at 0.81"
+  ]
+ ]
+}

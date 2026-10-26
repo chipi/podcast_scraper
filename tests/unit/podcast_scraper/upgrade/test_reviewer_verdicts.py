@@ -116,3 +116,80 @@ def test_the_conversion_script_maps_against_the_migrations_own_list(
     assert mod._entries("0099_x") == NAMES
     with pytest.raises(SystemExit, match="not registered"):
         mod._entries("0098_y")
+
+
+# The basis columns (0034's revision, operator 2026-10-26: keep the name unless the text shows
+# someone else). Every refusal below fails without its check.
+HEAD_B = HEAD.replace("\t".join(rv.COLUMNS), "\t".join(rv.COLUMNS_WITH_BASIS))
+LINE = rv.line_sha256("Hi, I'm Ann Lee.")
+
+
+def _row_b(verdict: str = "CORRECT", basis: str = "self_intro", idx: str = "12", line: str = LINE):
+    return _row(verdict=verdict).rstrip("\n") + "\t" + "\t".join((basis, idx, line)) + "\n"
+
+
+def test_a_file_with_the_basis_columns_reads_each_rows_basis_and_line() -> None:
+    v = rv.parse(HEAD_B + _row_b(), "0099_x", NAMES, require_basis=True)
+    row = v.get("ep1", "SPEAKER_00")
+    assert row is not None
+    assert (row.basis, row.segment_idx, row.line_sha256) == ("self_intro", 12, LINE)
+
+
+def test_an_undecidable_keep_needs_no_deciding_line() -> None:
+    v = rv.parse(HEAD_B + _row_b(basis="undecidable", idx="", line=""), "0099_x", NAMES)
+    row = v.get("ep1", "SPEAKER_00")
+    assert row is not None and row.verdict == "CORRECT" and row.segment_idx is None
+
+
+@pytest.mark.parametrize(
+    "row, why",
+    [
+        (_row_b(basis=""), "no basis"),
+        (_row_b(basis="vibes"), "basis 'vibes' is not one CORRECT allows"),
+        (_row_b(verdict="WRONG_PERSON", basis="undecidable"), "not one WRONG_PERSON allows"),
+        (_row_b(verdict="WRONG_PERSON", basis="self_intro"), "not one WRONG_PERSON allows"),
+        (_row_b(verdict="CORRECT", basis="another_person"), "not one CORRECT allows"),
+        (_row_b(verdict="WRONG_PERSON", basis="another_person", idx=""), "needs a segment_idx"),
+        (_row_b(verdict="WRONG_PERSON", basis="another_person", line=""), "needs a segment_idx"),
+        (_row_b(idx="twelve"), "is not a segment index"),
+        (_row_b(line="abc"), "is not a sha256"),
+        (_row_b(basis="undecidable", line="abc"), "is not a sha256"),
+        (_row_b(basis="undecidable", idx=""), "needs a segment_idx"),
+    ],
+)
+def test_every_unusable_basis_is_refused_with_its_reason(row: str, why: str) -> None:
+    with pytest.raises(rv.VerdictError, match=why):
+        rv.parse(HEAD_B + row, "0099_x", NAMES)
+
+
+def test_a_migration_that_requires_a_basis_refuses_a_file_without_the_columns() -> None:
+    with pytest.raises(rv.VerdictError, match="columns are"):
+        rv.parse(HEAD + _row(), "0099_x", NAMES, require_basis=True)
+    # Files written before the columns still read for migrations that do not require them.
+    assert rv.parse(HEAD + _row(), "0099_x", NAMES).get("ep1", "SPEAKER_00") is not None
+
+
+def test_a_migration_may_supply_its_own_basis_set_for_its_load_only() -> None:
+    row = _row_b(verdict="WRONG_PERSON", basis="undecidable", idx="", line="")
+    with pytest.raises(rv.VerdictError, match="not one WRONG_PERSON allows"):
+        rv.parse(HEAD_B + row, "0099_x", NAMES)
+    own = {**rv.BASES, "WRONG_PERSON": rv.BASES["WRONG_PERSON"] + (rv.UNDECIDABLE,)}
+    v = rv.parse(HEAD_B + row, "0099_x", NAMES, bases=own)
+    got = v.get("ep1", "SPEAKER_00")
+    assert got is not None and got.basis == "undecidable"
+    assert "undecidable" not in rv.BASES["WRONG_PERSON"]  # the default is untouched
+    with pytest.raises(rv.VerdictError, match="not one CORRECT allows"):
+        rv.parse(HEAD_B + _row_b(basis="vibes"), "0099_x", NAMES, bases=own)
+
+
+@pytest.mark.parametrize("basis", ["self_intro", "host_read", "gold"])
+def test_only_an_undecidable_keep_may_leave_its_deciding_line_empty(basis: str) -> None:
+    # Both columns empty is the undecidable shortcut; any other basis states a deciding line.
+    with pytest.raises(rv.VerdictError, match="needs a segment_idx and a line_sha256"):
+        rv.parse(HEAD_B + _row_b(basis=basis, idx="", line=""), "0099_x", NAMES)
+    with pytest.raises(rv.VerdictError, match="needs a segment_idx and a line_sha256"):
+        rv.parse(
+            HEAD_B + _row_b(verdict="WRONG_PERSON", basis="another_person", idx="", line=""),
+            "0099_x",
+            NAMES,
+        )

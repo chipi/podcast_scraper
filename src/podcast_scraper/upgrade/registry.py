@@ -52,6 +52,9 @@ from .migrations.m0029_naming_arc_voices_repaired import NamingArcVoicesRepaired
 from .migrations.m0030_adfree_cut_resynced import AdfreeCutResyncedMigration
 from .migrations.m0031_named_voices_shown import NamedVoicesShownMigration
 from .migrations.m0033_hand_removed_names_refused import HandRemovedNamesRefusedMigration
+from .migrations.m0034_talk_floor_names_removed import TalkFloorNamesRemovedMigration
+from .migrations.m0035_voice_identity_names import VoiceIdentityNamesMigration
+from .migrations.m0036_bridge_identities_restored import BridgeIdentitiesRestoredMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -123,6 +126,15 @@ _MIGRATIONS: List[Migration] = [
     # 0033 names the voice a reprocess published under a name 0015 removed by hand ("Generation"),
     # as a fresh review read it. 0032 stays unregistered (below), so 0033 follows 0031.
     HandRemovedNamesRefusedMigration(),
+    # 0034 takes a name off a served voice under 5% of its episode's talk, unless the review reads
+    # the name as that voice's own (frozen list + verdicts, snapshot-prod-20261025).
+    TalkFloorNamesRemovedMigration(),
+    # 0035 applies the voice identity rung's text-confirmed renames and unnamings on fingerprinted
+    # served episodes; it lists no voice under the floor, so it shares no voice with 0034.
+    VoiceIdentityNamesMigration(),
+    # 0036 gives every published GI / KG person the bridge identity the builder makes, where the
+    # bridge carries none (found by 0034's census; text only).
+    BridgeIdentitiesRestoredMigration(),
     # 0032_naming_voices_rederived (0031 until 2026-10-18; never ran on prod) is NOT registered:
     # it is HELD (#2380) and is registered here only after it passes its own gate, so no image
     # can run it by accident.

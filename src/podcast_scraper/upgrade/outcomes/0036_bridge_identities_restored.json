@@ -1,0 +1,531 @@
+{
+ "applied_before": [
+  "0001_faiss_to_lance",
+  "0002_two_tier_native_reindex",
+  "0003_gi_v3_typed_mentions",
+  "0004_insight_type_reindex",
+  "0005_gi_v3_1_route_and_tag",
+  "0006_kg_v2_typed_entities",
+  "0007_scope_bare_person_names",
+  "0008_object_entity_kind",
+  "0009_backfill_speaker_roles",
+  "0010_canonical_person_names",
+  "0011_shared_artwork_store",
+  "0012_org_speakers_removed",
+  "0013_artwork_thumbnails",
+  "0014_eponymous_hosts_restored",
+  "0015_unpublishable_speaker_names_removed",
+  "0016_ad_reader_names_removed",
+  "0017_speaker_names_canonicalised",
+  "0018_org_speakers_removed_residue",
+  "0019_descriptor_speaker_names_removed",
+  "0020_titled_person_ids_remerged",
+  "0021_backfill_feed_language",
+  "0022_derived_speaker_surfaces_resynced",
+  "0023_transcript_speaker_prefixes_resynced",
+  "0024_shared_removed_speaker_prefixes",
+  "0025_one_person_one_entry",
+  "0026_artwork_medium",
+  "0027_missing_covers_stored",
+  "0028_transcript_chunk_times",
+  "0029_naming_arc_voices_repaired",
+  "0030_adfree_cut_resynced",
+  "0031_named_voices_shown",
+  "0033_hand_removed_names_refused",
+  "0034_talk_floor_names_removed",
+  "0035_voice_identity_names"
+ ],
+ "code_digest": "e8f31a7020d329b76eb5069b6ae3a8d1c2507b3106181eb4227c46957a8fb904",
+ "code_dirty": false,
+ "code_sha": "c2c0dcad227b788d3ca1e6b46e853bfb33a8ecf9",
+ "computed_class": "full",
+ "conditions": [
+  "(1) rewrite section 7's reader bullet on the final clone (405 of 3,504 read, 12 of 34 written read, 10 of 16 rebuilt read, 46 of 101 pairs listed, 177 topic identities of which 100 GI-sourced, topic_person_ids 99 of 99 after and 15 of 99 before, person_profile 22 and 17 quotes for item 0002) and drop the 9/14, 157 and 16-of-90 claims; (2) commit the 12 unpublishable keys in the private eval repo, store the 11 near-duplicate list, expand the KG repair proposal; (3) add the acceptance-D tests (test count 52 unchanged, bar was +14) or have the bars dropped in the record; (4) operator ruling on read item 21 and the make ci-fast log attached before landing"
+ ],
+ "episode_deltas": {},
+ "migration": "0036_bridge_identities_restored",
+ "plan": [
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_api.substack.com_d04cbbb1/run_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926/metadata/0010 - Jennifer Gunter _ Eric Topol_ Di_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926.bridge.json": "3dd7252a95cfdb5c7f43c73ffb8166d86c61cc3cf62818b77fecf239c89c6c9d",
+    "feeds/rss_api.substack.com_d04cbbb1/run_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926/metadata/0010 - Jennifer Gunter _ Eric Topol_ Di_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926.gi.json": "470e24852dd74238ac35455dbea063a3bd6363ad51daa590f5bb41a1285d3ac2",
+    "feeds/rss_api.substack.com_d04cbbb1/run_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926/metadata/0010 - Jennifer Gunter _ Eric Topol_ Di_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926.kg.json": "863a954d8083b547a5888ff10d1bdeffa7c7ca143ad41ca91a012037ab2cc84c",
+    "feeds/rss_api.substack.com_d04cbbb1/run_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926/metadata/0010 - Jennifer Gunter _ Eric Topol_ Di_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926.metadata.json": "abfdbcd874da276470fb5b92a1e3f180780f9edcac836bd76cf13f66d98159a3"
+   },
+   "meta": "feeds/rss_api.substack.com_d04cbbb1/run_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926/metadata/0010 - Jennifer Gunter _ Eric Topol_ Di_a757c07f-7373-48a3-9e92-42a73a0559bf_20260901-002926.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_feeds.acast.com_c9151d47/run_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407/metadata/0001 - Zap is now selling Airtime_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407.bridge.json": "5032be7565cbf0951a6f5096e93bcba94739c19f1cd6de9608060944ad9e2594",
+    "feeds/rss_feeds.acast.com_c9151d47/run_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407/metadata/0001 - Zap is now selling Airtime_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407.gi.json": "08acd2f7129c032044782b5f90fc1d11b90b7586ff6f3d86d86989dbe262ee53",
+    "feeds/rss_feeds.acast.com_c9151d47/run_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407/metadata/0001 - Zap is now selling Airtime_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407.kg.json": "a93eb000930dd911e84753248ae71b92843337ae287ff9ac787ba7e2bc44f503",
+    "feeds/rss_feeds.acast.com_c9151d47/run_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407/metadata/0001 - Zap is now selling Airtime_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407.metadata.json": "8d80fea349d0680e4eccf1bd59858bbfe9d993c1b717bb1a8e83be726c4e664e"
+   },
+   "meta": "feeds/rss_feeds.acast.com_c9151d47/run_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407/metadata/0001 - Zap is now selling Airtime_78540c33-c850-4b63-bdb6-cfc35d0a5c49_20260911-164407.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_feeds.megaphone.fm_9316148d/run_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419/metadata/0017 - Will AI Give China or the US Tot_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419.bridge.json": "31704c9bf0bdde3992b2d50121c5abb0ab247acb2152b833d4e8584993a9b5af",
+    "feeds/rss_feeds.megaphone.fm_9316148d/run_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419/metadata/0017 - Will AI Give China or the US Tot_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419.gi.json": "2bbc88d00bbec47d610fe3cdc818b62fcd33bc06e9c37642945fa43ff377f1cd",
+    "feeds/rss_feeds.megaphone.fm_9316148d/run_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419/metadata/0017 - Will AI Give China or the US Tot_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419.kg.json": "dc1744802e561b252ac74b15e01be2bfa76814175013bca4054020691f843b2f",
+    "feeds/rss_feeds.megaphone.fm_9316148d/run_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419/metadata/0017 - Will AI Give China or the US Tot_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419.metadata.json": "b75b6e6cd2784db369e9de88fdabb12953ce423f9a0a635639658c62067176e3"
+   },
+   "meta": "feeds/rss_feeds.megaphone.fm_9316148d/run_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419/metadata/0017 - Will AI Give China or the US Tot_3c1d28fa-0a9f-4712-bba5-7f679c1d56e6_20260910-160419.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0007 - Sand heists and property rights _e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.bridge.json": "37b7e3ef7410f8d1dd84919a21328458bb1d1f5117269fcd59af832b693c2179",
+    "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0007 - Sand heists and property rights _e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.gi.json": "133e4804cfb2dba233172f2d8304b037f6ae2785af29d3a4565bafd409412783",
+    "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0007 - Sand heists and property rights _e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.kg.json": "31ceeb0a52ecdd3db431113f79a11c63ac8b95454982c7315494c6c37c684859",
+    "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0007 - Sand heists and property rights _e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.metadata.json": "48e645c5997ee88ebcd0d453ee8f5c4867c9f18a2ed27e77063c5bf758e81913"
+   },
+   "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0007 - Sand heists and property rights _e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 3,
+    "rebuilt_identities": 28
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0004 - Understanding the inner thoughts_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0004 - Understanding the inner thoughts_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.gi.json": "9eaf5e336cd7280d014ac2f7b715f91c0daeee254c78b079baddbc67075a2ff8",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0004 - Understanding the inner thoughts_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.kg.json": "e094ba374e7def42f985e98167bb138b55d022774ca804b574db62b01701da64",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0004 - Understanding the inner thoughts_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.metadata.json": "36322f17647f5351615ff0221e92560cecb8c2fc392ffac0022b35e1435bf6e0"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0004 - Understanding the inner thoughts_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 9,
+    "rebuilt_identities": 35
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0006 - 10 Years of AlphaGo_ The Turning_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0006 - 10 Years of AlphaGo_ The Turning_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.gi.json": "c6a3ac2420b5850e58184e699d18b994f4414cbef8deea7217b88672e23a9ba9",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0006 - 10 Years of AlphaGo_ The Turning_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.kg.json": "540d6395c4acebf94eb15faff7bc6699eb6c91cb906ed9b9ac46e003b61e62da",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0006 - 10 Years of AlphaGo_ The Turning_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.metadata.json": "955416572d3b46b761b61278d6ab9bfabc4842355fbd24a1a79b793edfdedc78"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402/metadata/0006 - 10 Years of AlphaGo_ The Turning_667b6bdd-643b-46d4-92e4-ff80e186cd87_20261003-201402.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 4,
+    "rebuilt_identities": 35
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0012 - Pt.1 Beyond Phishing_ Cyber Thre_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0012 - Pt.1 Beyond Phishing_ Cyber Thre_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "1a7ca7bc458203cb568e49ee5eb82304889e4248ebc127a3a132a3eb4b72d78d",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0012 - Pt.1 Beyond Phishing_ Cyber Thre_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "99e45ef9ade3668755a611a89c53ffe5f1cf0776483ccce7e953c3144fd3c13e",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0012 - Pt.1 Beyond Phishing_ Cyber Thre_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "1020973cf7d155c26a8f2535e84136e9aef507258c317de95a4539542e52023f"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0012 - Pt.1 Beyond Phishing_ Cyber Thre_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 8,
+    "rebuilt_identities": 33
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0013 - Genie 3_ An Infinite World Model_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0013 - Genie 3_ An Infinite World Model_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "5a3b90f8ae72bbb0998ff950051ad0c4097612449e2cdca50a5c5f133ddb5efa",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0013 - Genie 3_ An Infinite World Model_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "a43aea3033f67e6e604be0b2a478443a93c1eff71b4afce73327b4c77ccc253b",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0013 - Genie 3_ An Infinite World Model_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "6b0e2ec59885ade62bba3c856da00abec89ffc920a40a382fbf5bfcbb2cf5079"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0013 - Genie 3_ An Infinite World Model_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 2,
+    "rebuilt_identities": 31
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0015 - The Nature of AI_ Solving the Pl_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0015 - The Nature of AI_ Solving the Pl_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "2a256b7bac7be7dd266e5ed088a07e030f3e1c93102c31660af05fe77185eb6f",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0015 - The Nature of AI_ Solving the Pl_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "07a64b04a3c255ec5d0ee4a10df26f508704444f83ddeaa576328f81355dee5a",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0015 - The Nature of AI_ Solving the Pl_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "b88d18309333e136c215cd7222283416b81d24fa9ce32273b0892be3c3db1e60"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0015 - The Nature of AI_ Solving the Pl_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 2,
+    "rebuilt_identities": 30
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0017 - Redefining Robotics with Carolin_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0017 - Redefining Robotics with Carolin_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "f920779da455c2510e6ce074fa8c6e821d2d86f1323e6d7d70a35bd752c24a9f",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0017 - Redefining Robotics with Carolin_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "dc43ddeffb5f25193d69828672c555feb356fe1c5ba7a3d9d8b09dc9dfb54cf9",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0017 - Redefining Robotics with Carolin_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "2285e7769b4aeeec20d8cf368e59e7fa5487400fc3877a134c697a74630ec516"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0017 - Redefining Robotics with Carolin_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 7,
+    "rebuilt_identities": 32
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0022 - Gemini 2.0 and the Evolution of _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0022 - Gemini 2.0 and the Evolution of _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "abc22b6840343b0c4832fc871b23a06bbfad55ca6711e3be065d71632883a8ca",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0022 - Gemini 2.0 and the Evolution of _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "d369fa106af34d1c42da35bcdc15f06c605e196b6e151d6bd869c5080808192d",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0022 - Gemini 2.0 and the Evolution of _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "58a5c6b71ac13e70c5f12d2ac68f4027396ceeef447377f608b3676a7b793b29"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0022 - Gemini 2.0 and the Evolution of _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 3,
+    "rebuilt_identities": 32
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0023 - The Balancing Act_ Regulation _ _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0023 - The Balancing Act_ Regulation _ _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "74405cca85d35e49cc86250ead0dd1263c725fa65645c059f51778e07ce7f16c",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0023 - The Balancing Act_ Regulation _ _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "9135138627a11290dc013a61e00c5f23507982f00e52722c27575e559c566747",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0023 - The Balancing Act_ Regulation _ _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "63577679ea065a69e7b7d2a8214e381e38de65f749ba8f5e709e66fc43312435"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0023 - The Balancing Act_ Regulation _ _f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 4,
+    "rebuilt_identities": 34
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0024 - Inside NotebookLM with Raiza Mar_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0024 - Inside NotebookLM with Raiza Mar_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "aeed2ae09221383d1c25792e771cf1512adefdf9830c1241be42b29ea09126bc",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0024 - Inside NotebookLM with Raiza Mar_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "8ceef34c6b876d97f8bf912fa6617dbe80b64994e988910fee54f8e776197ced",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0024 - Inside NotebookLM with Raiza Mar_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "4cb0e8e0361b27fe52f1e6b5564db2e3d055737831f14782665f448e6298e750"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0024 - Inside NotebookLM with Raiza Mar_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 2,
+    "rebuilt_identities": 31
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0026 - The Ethics of AI Assistants with_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0026 - The Ethics of AI Assistants with_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "6a7cbae75f085ae511f4ba3ef293cb160ec1bffd43a740ae76d608c434104d72",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0026 - The Ethics of AI Assistants with_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "510e7979ff9a96120a5881dc15219aebea9789dae32473e2687ea3b28523b66e",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0026 - The Ethics of AI Assistants with_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "76994fa46e0e924ea8f700dc7109f3eb2c8b0abc2f9cb3bf96c3bea27d8ea439"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0026 - The Ethics of AI Assistants with_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 4,
+    "rebuilt_identities": 31
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0027 - AI in the Classroom with Irina J_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0027 - AI in the Classroom with Irina J_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "6c673304af6249197d0e9e47368a52aa9daaa9d5080822b61c26f6f2e3307ea4",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0027 - AI in the Classroom with Irina J_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "86afad2fc897cf02e266870f342b0d44f722b9aa0b972a8d38507fd5eb69f877",
+    "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0027 - AI in the Classroom with Irina J_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "74c5ca345abd986d6f828d3a8992e01a4c74a71978c7d70e1b5cbe7bc59cd400"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0027 - AI in the Classroom with Irina J_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 5,
+    "rebuilt_identities": 34
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311/metadata/0007 - The Math Behind Cartel Recruitme_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311/metadata/0007 - The Math Behind Cartel Recruitme_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311.gi.json": "5d26d4a910f2c6714830a22eacb046f7b8cc6a9286ceacae326494b72e28b3b6",
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311/metadata/0007 - The Math Behind Cartel Recruitme_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311.kg.json": "a96fd6c1abe3bb9af50f5d27b67b669144cb137243c825c07438382563c02013",
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311/metadata/0007 - The Math Behind Cartel Recruitme_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311.metadata.json": "e421e24a91068b14280ba2c579f721a33d93268bcc0a24ab062e32e071fc8e5d"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_aef1e4c0/run_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311/metadata/0007 - The Math Behind Cartel Recruitme_20b78e78-94e7-4d28-96c2-75e9d18a5c6e_20260905-184311.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 8,
+    "rebuilt_identities": 34
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826/metadata/0002 - How Is a Changing World Reshapin_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826.bridge.json": "43679bcfa31ab1bcb2882463739175cd923439891fe13e4c94ff09c8bd7bafb9",
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826/metadata/0002 - How Is a Changing World Reshapin_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826.gi.json": "0aa63a425570e53992cf8f03b5d94d5835e69890cab84ce3287a6278772802f2",
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826/metadata/0002 - How Is a Changing World Reshapin_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826.kg.json": "6c39677fffa12e27e7e7813ef1830eedba0d1d4bab558cbc38da293aa8831e99",
+    "feeds/rss_feeds.simplecast.com_aef1e4c0/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826/metadata/0002 - How Is a Changing World Reshapin_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826.metadata.json": "0880e33d206a471e3f3148a2af6f0dd682cd95dbd0d9b3077fab09ea6b27b16d"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_aef1e4c0/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826/metadata/0002 - How Is a Changing World Reshapin_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-021826.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 3,
+    "rebuilt_identities": 34
+   },
+   "inputs": {
+    "feeds/rss_feeds.simplecast.com_e739a158/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351/metadata/0001 - Databricks CEO on AI Pacing_ Cyb_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351.bridge.json": "43679bcfa31ab1bcb2882463739175cd923439891fe13e4c94ff09c8bd7bafb9",
+    "feeds/rss_feeds.simplecast.com_e739a158/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351/metadata/0001 - Databricks CEO on AI Pacing_ Cyb_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351.gi.json": "cc2a231dc85aacf0578aa17a59d36a831c32d80ac0cd62c2ea4209eeb59be7b1",
+    "feeds/rss_feeds.simplecast.com_e739a158/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351/metadata/0001 - Databricks CEO on AI Pacing_ Cyb_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351.kg.json": "eb737ee5a22227d63a6890ab4a777620b8ab7f401c2037fe211048d88f77a20b",
+    "feeds/rss_feeds.simplecast.com_e739a158/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351/metadata/0001 - Databricks CEO on AI Pacing_ Cyb_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351.metadata.json": "abc99844769cce9de2dae9ae6ceb427a29ddc87c8999700e42bc59f0ae10c1b9"
+   },
+   "meta": "feeds/rss_feeds.simplecast.com_e739a158/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351/metadata/0001 - Databricks CEO on AI Pacing_ Cyb_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-035351.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_media.rss.com_78d5c707/run_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103/metadata/0002 - The Portuguese Woman Building Co_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103.bridge.json": "da04d6b9256a8c1a3dea67ce3d75592328f07031223b41e6eb89abe32c82700c",
+    "feeds/rss_media.rss.com_78d5c707/run_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103/metadata/0002 - The Portuguese Woman Building Co_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103.gi.json": "9a1a2decbd2c66df8f6eb1eebd9bbf83053352368e326d971d32df8cfb6e36cb",
+    "feeds/rss_media.rss.com_78d5c707/run_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103/metadata/0002 - The Portuguese Woman Building Co_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103.kg.json": "7c91e6f1e4407fcda951f834422f5570fec71ad35620a4ac51dc52ef44a763d0",
+    "feeds/rss_media.rss.com_78d5c707/run_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103/metadata/0002 - The Portuguese Woman Building Co_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103.metadata.json": "e17743b5369d8e0aadb588b95b6b431084221a56b83af34e8d7e44445feff851"
+   },
+   "meta": "feeds/rss_media.rss.com_78d5c707/run_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103/metadata/0002 - The Portuguese Woman Building Co_e023f9b6-e79d-4757-b7d9-da1e55c66d6c_20260911-202103.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 5,
+    "rebuilt_identities": 30
+   },
+   "inputs": {
+    "feeds/rss_meduza.io_152318f0/run_e56a5100-b59a-4336-937d-092841671932_20260912-003835/metadata/0001 - Unpacking the economics behind R_e56a5100-b59a-4336-937d-092841671932_20260912-003835.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_meduza.io_152318f0/run_e56a5100-b59a-4336-937d-092841671932_20260912-003835/metadata/0001 - Unpacking the economics behind R_e56a5100-b59a-4336-937d-092841671932_20260912-003835.gi.json": "422cec4ffd5334fa0333bbc18737095e196d0845a6d494ab9bfb672b4c43bdb9",
+    "feeds/rss_meduza.io_152318f0/run_e56a5100-b59a-4336-937d-092841671932_20260912-003835/metadata/0001 - Unpacking the economics behind R_e56a5100-b59a-4336-937d-092841671932_20260912-003835.kg.json": "8d34e3d0c1a3f1645eecc858afd6f3fe3a59fd9f3e9e3ff3367b69dde1d16162",
+    "feeds/rss_meduza.io_152318f0/run_e56a5100-b59a-4336-937d-092841671932_20260912-003835/metadata/0001 - Unpacking the economics behind R_e56a5100-b59a-4336-937d-092841671932_20260912-003835.metadata.json": "5a6dcd77a2bf8a3098a62e8f2704ed762023bb32e708130e7b42f379da7970b7"
+   },
+   "meta": "feeds/rss_meduza.io_152318f0/run_e56a5100-b59a-4336-937d-092841671932_20260912-003835/metadata/0001 - Unpacking the economics behind R_e56a5100-b59a-4336-937d-092841671932_20260912-003835.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 12,
+    "rebuilt_identities": 39
+   },
+   "inputs": {
+    "feeds/rss_rss.art19.com_613e97d2/run_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847/metadata/0007 - _The China Debate We_re Not Havi_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847.bridge.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "feeds/rss_rss.art19.com_613e97d2/run_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847/metadata/0007 - _The China Debate We_re Not Havi_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847.gi.json": "c9bd1627d2046d16cd04f68672d05503470904194b85082f0d8b14b34b143318",
+    "feeds/rss_rss.art19.com_613e97d2/run_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847/metadata/0007 - _The China Debate We_re Not Havi_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847.kg.json": "7f66b5498873f86939ddb5324cf61636bf0a752f7b3d11c84f54da4a10d38c91",
+    "feeds/rss_rss.art19.com_613e97d2/run_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847/metadata/0007 - _The China Debate We_re Not Havi_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847.metadata.json": "235913c0cead874b6e284ab51836def0a0aff12777bef3ff444d046ed3500b5d"
+   },
+   "meta": "feeds/rss_rss.art19.com_613e97d2/run_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847/metadata/0007 - _The China Debate We_re Not Havi_ec41f5a5-78f2-4ed8-8d78-f75eedeb4ed7_20260831-185847.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_rss.iono.fm_5cbbfd48/run_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848/metadata/0007 - The economic sense of fighting m_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848.bridge.json": "0e3238c42b614419711288853fe9971ee6210498587418e9f4ce85aa03f1aac8",
+    "feeds/rss_rss.iono.fm_5cbbfd48/run_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848/metadata/0007 - The economic sense of fighting m_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848.gi.json": "1028844598c8c5aaea5248c23bb909ffe592e41be42d73ee1259c5db4ca218ed",
+    "feeds/rss_rss.iono.fm_5cbbfd48/run_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848/metadata/0007 - The economic sense of fighting m_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848.kg.json": "ba53db2a0ac2b2d2db202b49c06d99c18f0666b00d6a69fe2f9faa1f5b9d597d",
+    "feeds/rss_rss.iono.fm_5cbbfd48/run_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848/metadata/0007 - The economic sense of fighting m_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848.metadata.json": "c5524393907ba165cc228745ac87d813699842848cb7f7f188bf4022f1155c8a"
+   },
+   "meta": "feeds/rss_rss.iono.fm_5cbbfd48/run_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848/metadata/0007 - The economic sense of fighting m_c34e9535-ae61-4d47-8025-deb7da1fc348_20260911-193848.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413/metadata/0008 - Trucking Is Booming Again_ And D_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413.bridge.json": "7d9fc096d967c627ab5aa3a59b54fc5bd08073c0495da83b493177f6c1afc3f4",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413/metadata/0008 - Trucking Is Booming Again_ And D_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413.gi.json": "a9c4de0df4dce6fd70004c344c6a3e60d218d8e6d40166c03ab5d6ea1511b710",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413/metadata/0008 - Trucking Is Booming Again_ And D_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413.kg.json": "3dd86a92adc9ceb5fcc287541921c7f2a0b0bac75df1eb4e4cf945fdf9f18e27",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413/metadata/0008 - Trucking Is Booming Again_ And D_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413.metadata.json": "d16e35e20b3ff94f2bfe11bb24106dfe27f5a4ae4a5624c4b2c9dbfa1777160f"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413/metadata/0008 - Trucking Is Booming Again_ And D_09deafdd-8c23-4652-9ed1-5b90dcc04550_20260830-154413.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641/metadata/0001 - There_s a Mind-Boggling Number o_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641.bridge.json": "6a78c3098901b30eb6dc7b34ed0a689ecadd2e61bc559430651aa26b917836f0",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641/metadata/0001 - There_s a Mind-Boggling Number o_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641.gi.json": "04bbe006cc1b87fc6424dcebcc2d9c05735944fdd1f3663235c1c35c546bbb43",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641/metadata/0001 - There_s a Mind-Boggling Number o_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641.kg.json": "efd1f83ae11d476b7dcd1b4c65198ada49fda941d471f3af5e3363b82c5dca4f",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641/metadata/0001 - There_s a Mind-Boggling Number o_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641.metadata.json": "ae81133b0847f052563132726fb227d844a6ba3f70b188acde60f132414c137b"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641/metadata/0001 - There_s a Mind-Boggling Number o_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-043641.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0001 - Adam Posen Thinks Things Could G_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.bridge.json": "b0527e58a6ee2e203e9eb0b6938331efb7dcd6c88880c6e17f86b877eda115d8",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0001 - Adam Posen Thinks Things Could G_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.gi.json": "d4332772e3c6ec88e35c2d2b84e5a02f07e0a0a2c4bb8e4bc0beda981b2f63df",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0001 - Adam Posen Thinks Things Could G_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.kg.json": "eb3bda9d2106b79d34649af6fe149efa87da4cdda10ecf09cb7216403c9a67c9",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0001 - Adam Posen Thinks Things Could G_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json": "f1dac9f8ec7a4b0a7fc699a3112727a61d9e5c3b66fa208081a1dbf9a1948976"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0001 - Adam Posen Thinks Things Could G_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0002 - The Creator of Claude Code on Th_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.bridge.json": "ec6a924876a512d33f82b12e3239651afc3f8d3ea72688c3b364f0f46c228ab4",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0002 - The Creator of Claude Code on Th_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.gi.json": "34b1d0e979b7017d7c7b6003a1d9c6e36becd3bfd3ab6bc5f07da4b1ff278b11",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0002 - The Creator of Claude Code on Th_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.kg.json": "055d9adc92a79c381e210f1593a07fc9734a4b5a1e4d9780905d5675e92c3b4c",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0002 - The Creator of Claude Code on Th_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json": "9f66a559cbb7624344522cb0167c4c4bb03d8b5661476df7e85d0716a5dfd457"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0002 - The Creator of Claude Code on Th_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 2
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0004 - Why Soccer Analytics Works Like _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.bridge.json": "7275de3e2a1ad5bfb99ab67e58b002935c4c0d93dca1e1ebe51833c9190675c7",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0004 - Why Soccer Analytics Works Like _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.gi.json": "e1dd677c48a60d17dd83aeedda3957d6def8c1e239a88c646b455934f372bd01",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0004 - Why Soccer Analytics Works Like _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.kg.json": "9180363a5c6ad41c6be4cc55d9e3085d774f62592fc196b769b5ecbf244e940f",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0004 - Why Soccer Analytics Works Like _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json": "3974b88bdb5acf27df15bf9db3a34f92f04b29b90f66dfd7b7f883dec558a992"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0004 - Why Soccer Analytics Works Like _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0006 - Why AI Might Actually Create Mor_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.bridge.json": "fda446ca2f718e654f4dd57a25d663292f70e7b03e7c32c6dd75b1890cf54875",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0006 - Why AI Might Actually Create Mor_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.gi.json": "674790206adc4699c0a7af5014020fd31c590761838bff842a26c38a43bf63d9",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0006 - Why AI Might Actually Create Mor_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.kg.json": "7620d1056d07a3332939c8d781972d4d9e1b84e8a1f4aaa84d8280eaed0a431a",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0006 - Why AI Might Actually Create Mor_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json": "bb832c2016c5c60459d84a82449d9b3df1cd0630b624617367a5d45ff77eb2cd"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0006 - Why AI Might Actually Create Mor_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0007 - The Korean Levered ETFs Shaking _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.bridge.json": "cf472fd9e626f859017f4717522e5601132c35e6a5c592a1dcb6a71beeb1fb1d",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0007 - The Korean Levered ETFs Shaking _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.gi.json": "da6c325b137408abd61c59401d84e472dd733d34305deca4cea93c593048ba90",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0007 - The Korean Levered ETFs Shaking _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.kg.json": "ebbf20d6ce68a97f2e18fda7a8ef096d0ba76c7ef65a1fccab1a44d0935a5b0e",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0007 - The Korean Levered ETFs Shaking _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json": "30be609f00e1a6d38680890a78c99a3ef19132c93f6a4cf7d4ad1a811eff39ca"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0007 - The Korean Levered ETFs Shaking _274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 2
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0006 - How the Iranian Economy Actually_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.bridge.json": "92d90d971c44654d929da7053ccebac40431aaf12e008ec76171634caa0d6203",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0006 - How the Iranian Economy Actually_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.gi.json": "b725fd683b5f4b854de7c8e42f1b8f5d20c7efa63f4f93270411cc79c02bf17f",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0006 - How the Iranian Economy Actually_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.kg.json": "08b8694a0fec795b9dc2dd7fc2be25125777d1cde09ff02b8dba73497710af88",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0006 - How the Iranian Economy Actually_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.metadata.json": "4fcff7d49b9d576267844bcbd7299bb22ff129e0cf5d528e03983831e58f8012"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0006 - How the Iranian Economy Actually_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0010 - Why Apple Is Heading Into a Pivo_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.bridge.json": "4e778d077eb4d1a9171acef9f7f01b6a35fd3b545f282587611f7136ff5c76e9",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0010 - Why Apple Is Heading Into a Pivo_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.gi.json": "17f401705f76e7eb3486cafba45ce7dc22cd9472cadaa45a23e7b630adeb5381",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0010 - Why Apple Is Heading Into a Pivo_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.kg.json": "34434391df7315fc2d555d4f57efcc390a7d2923e537986b1837a9431b542441",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0010 - Why Apple Is Heading Into a Pivo_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.metadata.json": "0f7e39a4b9b7b30f2e75a7109fa3059fd48066bb30047a0eeffe5a430aacd4e2"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513/metadata/0010 - Why Apple Is Heading Into a Pivo_d8d441c2-ee02-42f5-8cc3-f58a887f25a4_20260831-212513.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936/metadata/0001 - Brad Setser on the US_s Unusual _ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936.bridge.json": "9d6b07132394f45a78fca2a551c516102ac99d713d2f9491e31311c3aa65e73e",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936/metadata/0001 - Brad Setser on the US_s Unusual _ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936.gi.json": "78bc72739026900cc5ea0e64de992337da5e65f68748457c0111d70cabea8836",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936/metadata/0001 - Brad Setser on the US_s Unusual _ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936.kg.json": "61ba586d61a61057a17114695a4aca4569ac625f654f5c35c493e3bf372969b4",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936/metadata/0001 - Brad Setser on the US_s Unusual _ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936.metadata.json": "e571bbfed25a3806fe4134bb2895e0a73a5bada817da21a3291dd7bcb27bfdb1"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936/metadata/0001 - Brad Setser on the US_s Unusual _ded6564a-6c86-4842-9230-fd299a7cbca9_20260830-224936.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0005 - How Lenovo_s CFO Is Allocating C_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.bridge.json": "86656ed2e317fdc8b95851df559f9153724bfe7bdc5d71293cbed617c82d8939",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0005 - How Lenovo_s CFO Is Allocating C_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.gi.json": "cc6f4e17fbade03cce4c5638a926db0c09bfa98698b93cab5b5e8a22c52ae0f2",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0005 - How Lenovo_s CFO Is Allocating C_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.kg.json": "f02cc90ec6b33ec783b726194171bc2b6b794c76d2bacba9aa780e3a7c9de9c8",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0005 - How Lenovo_s CFO Is Allocating C_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.metadata.json": "f1665a03005108c0cff932325204c1438a1a3d87c6d507a5329e31e12215b1ba"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0005 - How Lenovo_s CFO Is Allocating C_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.metadata.json"
+  },
+  {
+   "counts": {
+    "identities_added": 1
+   },
+   "inputs": {
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0009 - How Substack Creators Are Coveri_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.bridge.json": "7238ccb75556aabcfb5b85f6d520e58b8d65e61524c66a4271dbe0f37c025ac8",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0009 - How Substack Creators Are Coveri_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.gi.json": "e71de76a72948ade5201bb435b528f74b6c6906b71d105f7aad42a294c7e4a73",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0009 - How Substack Creators Are Coveri_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.kg.json": "70fbf62a171856cd039619f101faa7e77d394092b5213f79fd25e9827e2e5302",
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0009 - How Substack Creators Are Coveri_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.metadata.json": "143fc1b13d95062e2713b414415c48a8886bcea0ef03d914f9e1c9d68176f1c2"
+   },
+   "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449/metadata/0009 - How Substack Creators Are Coveri_f373b30d-ff0b-469c-9d46-52cbeab5521a_20260904-164449.metadata.json"
+  }
+ ],
+ "plan_sha256": "af308a6420d392460a862a859810c7726f6a1d009fef68eba7afd9355a408a1c",
+ "scoreboard_after": {
+  "A1_episodes_no_adfree": 2,
+  "A1_episodes_with_hits": 290,
+  "A1_marker_hits": 382,
+  "S10a_zero_visible": 187,
+  "S10b_zero_visible_panel": 2,
+  "S12_quotes_off_text": 24,
+  "S1_hidden_unknown": 16949,
+  "S1c_inconsistent": 0,
+  "S1n_named_but_hidden": 7,
+  "S2_hidden": 30226,
+  "S2_hidden_commercial": 94,
+  "S2_hidden_none": 0,
+  "S2_hidden_unidentified": 13183,
+  "S2_hidden_unknown": 16949,
+  "S3_outside_no_diagnostics": 0,
+  "S3_outside_no_voice": 0,
+  "S3_principal_unidentified": 8952,
+  "S3_voice_not_in_diagnostics": 0,
+  "episodes": 2966,
+  "episodes_no_gi": 0,
+  "insights": 130401,
+  "metadata_unreadable": 0,
+  "quotes": 252651,
+  "quotes_no_offsets": 0,
+  "quotes_ref_unresolved": 244
+ },
+ "scoreboard_before": {
+  "A1_episodes_no_adfree": 2,
+  "A1_episodes_with_hits": 290,
+  "A1_marker_hits": 382,
+  "S10a_zero_visible": 187,
+  "S10b_zero_visible_panel": 2,
+  "S12_quotes_off_text": 24,
+  "S1_hidden_unknown": 16949,
+  "S1c_inconsistent": 0,
+  "S1n_named_but_hidden": 7,
+  "S2_hidden": 30226,
+  "S2_hidden_commercial": 94,
+  "S2_hidden_none": 0,
+  "S2_hidden_unidentified": 13183,
+  "S2_hidden_unknown": 16949,
+  "S3_outside_no_diagnostics": 0,
+  "S3_outside_no_voice": 0,
+  "S3_principal_unidentified": 8952,
+  "S3_voice_not_in_diagnostics": 0,
+  "episodes": 2966,
+  "episodes_no_gi": 0,
+  "insights": 130401,
+  "metadata_unreadable": 0,
+  "quotes": 252651,
+  "quotes_no_offsets": 0,
+  "quotes_ref_unresolved": 244
+ },
+ "snapshot": "snapshot-prod-20261025+0034+0035",
+ "verdict": "GO WITH CONDITIONS",
+ "verdicts_sha256": null
+}

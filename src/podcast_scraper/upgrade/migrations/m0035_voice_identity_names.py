@@ -53,6 +53,16 @@ LIST_FILE = Path(__file__).resolve().parents[1] / "lists" / f"{MIGRATION_ID}.jso
 #: The pipeline's defaults (``voice_identity_threshold``; ``apply_to_roster``'s ``min_talk``).
 THRESHOLD = 0.7
 MIN_TALK_S = 60.0
+#: Voices the rung lists that this migration must not change, each with the operator's reason.
+EXCLUDED: Dict[rv.Key, str] = {
+    ("Buzzsprout-20005821", "SPEAKER_00"): (
+        "operator 2026-10-26: the right name, but the role the feed's group gives (guest) is wrong "
+        "for a voice that introduces itself as the stand-in host; a review cannot correct a role"
+    ),
+}
+#: 0035's bases: a RENAME may be WRONG_PERSON on ``undecidable`` (the name is not added for lack
+#: of evidence); an UNNAMING may not (a name comes off only when the text shows someone else).
+BASES = {**rv.BASES, "WRONG_PERSON": rv.BASES["WRONG_PERSON"] + (rv.UNDECIDABLE,)}
 
 
 def episode_changes(
@@ -120,7 +130,8 @@ def find_changes(root: Path) -> Dict[rv.Key, m29.Entry]:
     for meta_path in select_served_artifacts(Path(root), ".metadata.json")[0]:
         eid, changes = episode_changes(meta_path)
         for voice, entry in changes.items():
-            out[(eid, voice)] = entry
+            if (eid, voice) not in EXCLUDED:
+                out[(eid, voice)] = entry
     return out
 
 
@@ -161,10 +172,40 @@ class VoiceIdentityNamesMigration(m34.TalkFloorNamesRemovedMigration):
     _receipts_file = RECEIPTS_FILE
     _backup_tag = BACKUP_TAG
     _plan_label = "voice identity"
+    _verified = (
+        "every rename the review confirmed carries the fingerprint group's name, and every "
+        "unnaming the review confirmed is off its voice"
+    )
 
     def listed(self) -> Dict[rv.Key, m29.Entry]:
         """This migration's frozen list (``upgrade/lists/0035_voice_identity_names.json``)."""
         return load_list()
+
+    def _verdicts(self) -> rv.Verdicts:
+        """The frozen list's verdicts, with their basis columns and 0035's basis set."""
+        verdicts = rv.load(
+            self.id,
+            self.review_names(),
+            self._verdicts_dir,
+            listed=self.listed(),
+            require_basis=True,
+            bases=BASES,
+        )
+        for key, entry in self.listed().items():
+            v = verdicts.get(*key)
+            if v is None or v.basis != rv.UNDECIDABLE:
+                continue
+            if not entry[2] and v.verdict == "WRONG_PERSON":
+                raise rv.VerdictError(
+                    f"{key}: an unnaming applies only when the text shows someone else, "
+                    "not on 'undecidable'"
+                )
+            if entry[2] and v.verdict in ("CORRECT", "CORRECT_MISSPELLED"):
+                raise rv.VerdictError(
+                    f"{key}: a rename applies only on positive evidence in the text, "
+                    "not on 'undecidable'"
+                )
+        return verdicts
 
     def review_names(self) -> Dict[rv.Key, str]:
         """``{(episode id, voice): name judged}``: a rename's new name, an unnaming's old one."""
@@ -203,16 +244,9 @@ def list_file() -> Path:
 
 
 def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:
-    """Read-only: one row per episode the migration would write or refuses."""
-    mig = VoiceIdentityNamesMigration()
-    mig._apply, _missing = mig._reviewed()
-    write, refused, _totals = mig._scan(Path(root))
-    for ep in write + refused:
-        yield {
-            "meta": str(ep.meta.relative_to(root)),
-            "voices": dict(ep.voice_names),
-            "refused": ep.refused,
-        }
+    """Read-only: one row per episode the migration would write or refuses, with its counters
+    and input sha256s (0034's ``plan_rows``)."""
+    return m34.plan_rows(root, VoiceIdentityNamesMigration())
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

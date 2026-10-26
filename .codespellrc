@@ -1,6 +1,6 @@
 [codespell]
 skip = *.pyc,*.patch,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git,*/speaker_detectors/naming_vocabulary.py
-ignore-words-list = Ned,rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo,Wege,Technik
+ignore-words-list = Ned,rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo,Wege,Technik,Shepard,Didi
 # ist / sie / te: German and Dutch function words in the ad-language detector's word lists
 # (providers/ml/diarization/ad_signatures.py); not typos
 # coo: the job title COO in the stated-name trailing job tokens (speaker_detectors/hosts.py)
@@ -22,6 +22,7 @@ ignore-words-list = Ned,rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,
 # search/query_language.py, which detects a query's language from words that are common in
 # one language and rare in English. Every list there is deliberately foreign vocabulary, so
 # more of these will arrive as languages are added; not a typo of "is".
+# Shepard / Didi: people's served names in the 0034 verdicts file's name column (the data, not prose); not typos
 # Ned: a person's name (Ned Dwyer, a stated guest in a naming measurement note); not a typo of "Need"
 # Carin / Hart: people's names (Carin Zissis, Americas Quarterly; Emily Hart, Colombia Calling) —
 # measured evidence for the remove-only feed-host rule (#2075); not a typo of "Caring"

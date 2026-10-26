@@ -94,8 +94,21 @@ def floor_changes(rows: Sequence[dict], floor: float = FLOOR) -> Dict[str, m29.E
     for voice, (name, role) in served_by_voice(rows).items():
         share = talk.get(voice, 0.0) / total
         if name and share < floor:
-            out[voice] = (name, role, None, None, f"talk share {share:.1%} < {floor:.0%}")
+            # The seconds are in the entry, so the share can be recomputed without this code.
+            why = (
+                f"talk share {share:.1%} < {floor:.0%} "
+                f"(talk_s={talk.get(voice, 0.0):.3f} total_s={total:.3f})"
+            )
+            out[voice] = (name, role, None, None, why)
     return out
+
+
+def talk_seconds(why: str) -> Tuple[float, float]:
+    """``(voice seconds, episode seconds)`` from a list entry's evidence (``floor_changes``)."""
+    m = re.search(r"talk_s=([0-9.]+) total_s=([0-9.]+)", why)
+    if not m:
+        raise ValueError(f"no talk seconds in {why!r}")
+    return float(m.group(1)), float(m.group(2))
 
 
 def find_changes(root: Path) -> Dict[rv.Key, m29.Entry]:
@@ -166,6 +179,8 @@ class TalkFloorNamesRemovedMigration(m29.NamingArcVoicesRepairedMigration):
     _receipts_file = RECEIPTS_FILE
     _backup_tag = BACKUP_TAG
     _plan_label = "talk floor"
+    #: What a passing verify says this migration did (0035 names voices too, so it says its own).
+    _verified = "every voice the review confirmed is off the floor's name"
     _verdicts_dir: Optional[Path] = None
 
     def listed(self) -> Dict[rv.Key, m29.Entry]:
@@ -179,7 +194,16 @@ class TalkFloorNamesRemovedMigration(m29.NamingArcVoicesRepairedMigration):
     def _verdicts(self) -> rv.Verdicts:
         # The header binds the whole frozen list, not only the judged names (roles, the other
         # name, the evidence): an entry edited after the review refuses the load.
-        return rv.load(self.id, self.review_names(), self._verdicts_dir, listed=self.listed())
+        return rv.load(
+            self.id,
+            self.review_names(),
+            self._verdicts_dir,
+            listed=self.listed(),
+            # 0034's verdicts state a basis and a deciding line (4d, operator 2026-10-26: a
+            # removal needs text showing someone else; a voice nothing decides is kept). 0035
+            # inherits this method and reads its pre-basis file until its own revision.
+            require_basis=self.id == MIGRATION_ID,
+        )
 
     def _reviewed(self) -> Tuple[Dict[rv.Key, m29.Entry], List[rv.Key]]:
         """``(entries to apply, listed entries without a verdict)``."""
@@ -234,7 +258,7 @@ class TalkFloorNamesRemovedMigration(m29.NamingArcVoicesRepairedMigration):
                 False,
                 f"{len(write)} episode(s) still to write, {len(refused)} refused: {names[:5]}",
             )
-        return True, "every voice the review confirmed is off the floor's name"
+        return True, self._verified
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
         """Rewrite every episode with a reviewed voice still on its old name, with backups."""
@@ -252,18 +276,33 @@ def list_file() -> Path:
     return LIST_FILE
 
 
-def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:
-    """Read-only: one row per episode the migration would write or refuses."""
-    mig = TalkFloorNamesRemovedMigration()
+def plan_rows(root: Path, mig: "TalkFloorNamesRemovedMigration") -> Iterable[Dict[str, Any]]:
+    """One row per episode ``mig`` would write or refuses, as ``_scan`` sees it, with the
+    episode's counters and the sha256 of every file its plan read: the per-episode plan the
+    outcome hook diffs prod's against the clone's (as 0031's ``dry_run_rows``)."""
+    from ..read_recorder import recording
+
     mig._apply, _missing = mig._reviewed()
-    write, refused, _totals = mig._scan(Path(root))
-    for ep in write + refused:
+    for meta in select_served_artifacts(Path(root), ".metadata.json")[0]:
+        ep = mig._episode_class(meta, Path(root), **mig._episode_kwargs())
+        with recording(Path(root)) as rec:
+            planned = ep.plan()
+        if not planned and not ep.refused:
+            continue
+        if ep.refused:
+            ep._bump("refused")  # as ``_scan`` counts it, so rows sum to plan()'s totals
         yield {
-            "meta": str(ep.meta.relative_to(root)),
+            "meta": str(meta.relative_to(root)),
             "voices": dict(ep.voice_names),
             "refused": ep.refused,
             "counts": dict(sorted(ep.counts.items())),
+            "inputs": rec.inputs(),
         }
+
+
+def dry_run_report(root: Path) -> Iterable[Dict[str, Any]]:
+    """Read-only: one row per episode the migration would write or refuses."""
+    return plan_rows(root, TalkFloorNamesRemovedMigration())
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

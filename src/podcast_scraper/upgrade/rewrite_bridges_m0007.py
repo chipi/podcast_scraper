@@ -110,7 +110,10 @@ def apply_to_payload(payload: dict, mapping: Dict[str, str]) -> Tuple[dict, int]
     entries sharing one id, which would be a corrupt bridge.
     """
     if not mapping:
-        return payload, 0
+        # Always a copy: a caller that clears its payload and updates it from the result (m0017's
+        # bridge rewrite) emptied the bridge to `{}` when this returned the same dict; 0025 left
+        # 15 served bridges empty that way (found 2026-10-26).
+        return copy.deepcopy(payload), 0
     out = copy.deepcopy(payload)
     changes = 0
 

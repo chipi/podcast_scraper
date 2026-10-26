@@ -1044,7 +1044,10 @@ class _Episode:
                 props["speaker_id"] = quote_to[nid]
                 props.pop("speaker_name", None)
                 if quote_to[nid] is None:
-                    props["speaker_voice_type"] = "unknown"
+                    # A voice typed commercial (an ad read) is a correctly typed non-person class;
+                    # losing a name does not make it an unknown person (0034 criterion 12).
+                    if props.get("speaker_voice_type") != "commercial":
+                        props["speaker_voice_type"] = "unknown"
                 else:
                     props.pop("speaker_voice_type", None)
                 self._bump("quotes_reattributed")
@@ -1056,7 +1059,8 @@ class _Episode:
                 old = props["speaker"]
                 if new_label[old] in self.voice_names:  # unnamed: a raw voice id
                     props.pop("speaker", None)
-                    props["speaker_voice_type"] = "unknown"
+                    if props.get("speaker_voice_type") != "commercial":
+                        props["speaker_voice_type"] = "unknown"
                     props["surfaceable"] = False
                     if isinstance(props.get("tier"), int):
                         _apply_route_and_tag(props, props["tier"])
@@ -1178,18 +1182,35 @@ class _Episode:
             kg_ids = {
                 n.get("id") for n in (kg or {}).get("nodes") or [] if n.get("type") == "Person"
             }
+            # A person this rewrite took off every voice is not kept by an alias alone.
+            taken_off = set(getattr(self, "_stale_names", {}) or {})
+            alive = kg_ids | in_gi
             out = []
             for ident in ids:
                 ident_id = ident.get("id") if isinstance(ident, dict) else None
                 if isinstance(ident_id, str) and ident_id.startswith("person:"):
-                    if ident_id not in kg_ids and ident_id not in in_gi:
+                    # An identity can carry an older id with the GI / KG id only among its aliases
+                    # (found on snapshot-prod-20261025): it is the same person, kept while either
+                    # layer still holds any of its ids. Its own id still held keeps it outright
+                    # (GI may keep a person the KG rule drops, through a mention).
+                    keys = {ident_id} | {
+                        a
+                        for a in ident.get("aliases") or []
+                        if isinstance(a, str) and a.startswith("person:")
+                    }
+                    by_alias_only = ident_id not in alive and bool(keys & alive)
+                    if not keys & alive or (by_alias_only and ident_id in taken_off):
                         self._bump("bridge_identities_removed")
                         continue
                     src = ident.setdefault("sources", {})
                     if isinstance(src, dict):
-                        src["gi"], src["kg"] = ident_id in in_gi, ident_id in kg_ids
+                        src["gi"], src["kg"] = bool(keys & in_gi), bool(keys & kg_ids)
                 out.append(ident)
-            have_ids = {i.get("id") for i in out if isinstance(i, dict)}
+            have_ids = set()
+            for i in out:
+                if isinstance(i, dict):
+                    have_ids.add(i.get("id"))
+                    have_ids.update(a for a in i.get("aliases") or [] if isinstance(a, str))
             for pid in roles:
                 if pid not in have_ids:
                     name = next(n for n in self.voice_names.values() if n and person_id(n) == pid)

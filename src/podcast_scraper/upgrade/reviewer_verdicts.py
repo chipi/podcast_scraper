@@ -19,6 +19,14 @@ Every problem refuses the whole file with ``VerdictError`` and says which: an un
 missing header or column, a duplicate key, another migration's file, a row whose name is not the
 list's for that voice (stale), a row for no list entry. A missing file is an error for a migration
 that declares one; a file with no rows is valid and decides nothing.
+
+BASIS COLUMNS (0034's revision, operator 2026-10-26: keep the name unless the text shows someone
+else). A file may add ``basis``, ``segment_idx`` and ``line_sha256`` after ``evidence``
+(``COLUMNS_WITH_BASIS``); a migration that reads with ``require_basis`` refuses one without them.
+``basis`` names why, from the closed set its verdict allows (``BASES``); ``segment_idx`` is the
+deciding segment and ``line_sha256`` the sha256 of its text, so a public file proves its evidence
+without carrying transcript text. Absence of evidence is never a removal: a voice nothing decides
+is ``CORRECT`` with basis ``undecidable``, the one basis that has no deciding line.
 """
 
 from __future__ import annotations
@@ -29,10 +37,24 @@ import io
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Dict, Mapping, Optional, Sequence, Tuple
 
 VERDICTS = ("CORRECT", "CORRECT_MISSPELLED", "WRONG_PERSON")
 COLUMNS = ("episode_id", "meta", "voice", "name", "verdict", "evidence")
+COLUMNS_WITH_BASIS = COLUMNS + ("basis", "segment_idx", "line_sha256")
+UNDECIDABLE = "undecidable"
+_KEEP_BASES = ("self_intro", "addressed", "host_read", "continuity", "gold", "clip_own_person")
+BASES = {
+    "CORRECT": _KEEP_BASES + (UNDECIDABLE,),
+    "CORRECT_MISSPELLED": _KEEP_BASES + (UNDECIDABLE,),
+    "WRONG_PERSON": (
+        "another_person",
+        "ad_or_promo_not_own",
+        "clip_other_person",
+        "not_a_person",
+        "merged_voices",
+    ),
+}
 HEADER_KEYS = ("migration", "reviewed_commit", "list_sha256", "reviewer", "date")
 VERDICTS_DIR = Path(__file__).resolve().parent / "verdicts"
 
@@ -51,6 +73,9 @@ class Verdict:
     verdict: str
     evidence: str
     meta: str
+    basis: str = ""
+    segment_idx: Optional[int] = None
+    line_sha256: str = ""
 
 
 @dataclass
@@ -86,6 +111,8 @@ def parse(
     migration_id: str,
     names: Mapping[Key, str],
     listed: Optional[Mapping[Key, object]] = None,
+    require_basis: bool = False,
+    bases: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> Verdicts:
     """Validate ``text`` against the migration's list (``{(episode_id, voice): listed name}``).
 
@@ -93,6 +120,10 @@ def parse(
     roles, both names, the evidence). The header's ``list_sha256`` must then be that list's, so
     an entry edited after the review (a role flipped, an old name changed) fails the load, not
     only a judged name. Without it the hash covers ``names``, as before.
+
+    ``require_basis`` refuses a file without the basis columns (``COLUMNS_WITH_BASIS``).
+    ``bases`` replaces ``BASES`` for this load only (a migration whose verdicts mean something
+    else, e.g. 0035's "a rename not added for lack of evidence").
     """
     header: Dict[str, str] = {}
     body = []
@@ -115,8 +146,10 @@ def parse(
         raise VerdictError("no column header row")
     reader = csv.DictReader(io.StringIO("\n".join(body)), delimiter="\t")
     cols = tuple(reader.fieldnames or ())
-    if cols != COLUMNS:
-        raise VerdictError(f"columns are {cols}, expected {COLUMNS}")
+    if cols not in (COLUMNS, COLUMNS_WITH_BASIS) or (require_basis and cols != COLUMNS_WITH_BASIS):
+        expected = COLUMNS_WITH_BASIS if require_basis else COLUMNS
+        raise VerdictError(f"columns are {cols}, expected {expected}")
+    with_basis = cols == COLUMNS_WITH_BASIS
     out = Verdicts(migration_id=migration_id, header=header)
     for n, row in enumerate(reader, start=2):
         key = (row["episode_id"].strip(), row["voice"].strip())
@@ -133,14 +166,52 @@ def parse(
             raise VerdictError(
                 f"row {n}: stale: {key} reads {row['name'].strip()!r}, the list says {names[key]!r}"
             )
+        basis, idx, line = "", None, ""
+        if with_basis:
+            basis, idx, line = _basis(n, verdict, row, BASES if bases is None else bases)
         out.rows[key] = Verdict(
             name=row["name"].strip(),
             verdict=verdict,
             evidence=(row["evidence"] or "").strip(),
             meta=(row["meta"] or "").strip(),
+            basis=basis,
+            segment_idx=idx,
+            line_sha256=line,
         )
     out.sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
     return out
+
+
+def _basis(
+    n: int, verdict: str, row: Mapping[str, Optional[str]], bases: Mapping[str, Sequence[str]]
+) -> Tuple[str, Optional[int], str]:
+    """A row's ``(basis, segment_idx, line_sha256)``, or ``VerdictError`` naming what is wrong."""
+    basis = (row.get("basis") or "").strip()
+    raw_idx = (row.get("segment_idx") or "").strip()
+    line = (row.get("line_sha256") or "").strip()
+    if not basis:
+        raise VerdictError(f"row {n}: no basis")
+    allowed = tuple(bases.get(verdict, ()))
+    if basis not in allowed:
+        raise VerdictError(
+            f"row {n}: basis {basis!r} is not one {verdict} allows ({', '.join(allowed)})"
+        )
+    if basis == UNDECIDABLE:
+        # Nothing decided it, so no deciding line; a line given anyway must still be well formed.
+        if not raw_idx and not line:
+            return basis, None, ""
+    if not raw_idx or not line:
+        raise VerdictError(f"row {n}: basis {basis!r} needs a segment_idx and a line_sha256")
+    if not raw_idx.isdigit():
+        raise VerdictError(f"row {n}: segment_idx {raw_idx!r} is not a segment index")
+    if len(line) != 64 or any(c not in "0123456789abcdef" for c in line):
+        raise VerdictError(f"row {n}: line_sha256 {line!r} is not a sha256")
+    return basis, int(raw_idx), line
+
+
+def line_sha256(text: str) -> str:
+    """The ``line_sha256`` of a deciding line: its text, stripped, as UTF-8."""
+    return hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
 
 
 def load(
@@ -148,6 +219,8 @@ def load(
     names: Mapping[Key, str],
     directory: Optional[Path] = None,
     listed: Optional[Mapping[Key, object]] = None,
+    require_basis: bool = False,
+    bases: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> Verdicts:
     """The migration's verdicts file, validated; ``VerdictError`` when missing or unusable."""
     path = verdicts_path(migration_id, directory)
@@ -155,4 +228,6 @@ def load(
         raise VerdictError(
             f"no verdicts file {path.name}: this migration reads one (method step 8)"
         )
-    return parse(path.read_text(encoding="utf-8"), migration_id, names, listed)
+    return parse(
+        path.read_text(encoding="utf-8"), migration_id, names, listed, require_basis, bases
+    )

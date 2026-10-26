@@ -1,0 +1,4919 @@
+{
+ "migration": "0034_talk_floor_names_removed",
+ "voices": [
+  [
+   "009f0b40-fe1a-11f0-8285-af2213931041",
+   "SPEAKER_01",
+   "Ky Wright",
+   "guest",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=4.320 total_s=1861.990)"
+  ],
+  [
+   "00fc117b-ac68-403a-a2a6-17074a21e49b",
+   "SPEAKER_11",
+   "Joelle",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=13.940 total_s=2045.060)"
+  ],
+  [
+   "00fc117b-ac68-403a-a2a6-17074a21e49b",
+   "SPEAKER_12",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=55.380 total_s=2045.060)"
+  ],
+  [
+   "00fc117b-ac68-403a-a2a6-17074a21e49b",
+   "SPEAKER_13",
+   "Natalie Kitroeff",
+   "host",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=8.860 total_s=2045.060)"
+  ],
+  [
+   "0165ea4c-998b-11f0-8424-57140317994d",
+   "SPEAKER_02",
+   "Sarah Guo",
+   "host",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=127.581 total_s=3533.676)"
+  ],
+  [
+   "0235c1af-ecf6-4d7e-ad5a-6d8319398a2c",
+   "SPEAKER_06",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=58.880 total_s=3724.144)"
+  ],
+  [
+   "0308f04c-c356-11f1-835c-fbffaff6b369",
+   "SPEAKER_02",
+   "Vladimir Ilyich Lenin",
+   "guest",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=130.980 total_s=3882.520)"
+  ],
+  [
+   "038e11c4-1c07-4f5b-98c2-ab6508cd01e7",
+   "SPEAKER_02",
+   "John Zimmerman",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=50.700 total_s=3538.340)"
+  ],
+  [
+   "08584965-fc01-4cb2-bc20-65c8f85576f0",
+   "SPEAKER_01",
+   "Britney Luce",
+   "host",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=22.935 total_s=2371.534)"
+  ],
+  [
+   "08584965-fc01-4cb2-bc20-65c8f85576f0",
+   "SPEAKER_18",
+   "Pascal Pieduzzi",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=22.040 total_s=2371.534)"
+  ],
+  [
+   "08d6d2cc-b757-4226-8f0a-1ebeff3c3922",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=50.470 total_s=3859.136)"
+  ],
+  [
+   "095923e3-5c15-4936-b26b-b4b70018f8d6",
+   "SPEAKER_02",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 4.1% < 5% (talk_s=71.054 total_s=1723.072)"
+  ],
+  [
+   "0a68566a-808b-11f1-b623-cb4c3015daa2",
+   "SPEAKER_02",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=10.120 total_s=752.850)"
+  ],
+  [
+   "0a75fa68-5d50-4f41-b8dd-c1955184e397",
+   "SPEAKER_12",
+   "Rebecca Baird Remba",
+   "guest",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=41.760 total_s=1146.620)"
+  ],
+  [
+   "0b0d8ea8-031f-11f1-8796-ebcf6f384616",
+   "SPEAKER_02",
+   "Irene Zhang",
+   "guest",
+   null,
+   null,
+   "talk share 4.0% < 5% (talk_s=177.040 total_s=4403.960)"
+  ],
+  [
+   "0b6d7d93-34c0-4d01-9cd3-591d546db05b",
+   "SPEAKER_00",
+   "Veronica Lipinska",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=109.460 total_s=5299.300)"
+  ],
+  [
+   "0b6d7d93-34c0-4d01-9cd3-591d546db05b",
+   "SPEAKER_02",
+   "Elle",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=75.000 total_s=5299.300)"
+  ],
+  [
+   "0b6d7d93-34c0-4d01-9cd3-591d546db05b",
+   "SPEAKER_03",
+   "Lesley-Anne",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=31.020 total_s=5299.300)"
+  ],
+  [
+   "0b6d7d93-34c0-4d01-9cd3-591d546db05b",
+   "SPEAKER_04",
+   "Alex",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=34.420 total_s=5299.300)"
+  ],
+  [
+   "0b6d7d93-34c0-4d01-9cd3-591d546db05b",
+   "SPEAKER_07",
+   "David Wood",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=71.280 total_s=5299.300)"
+  ],
+  [
+   "0ba030fe-cc55-4061-b5f9-65f149696878",
+   "SPEAKER_03",
+   "Chenedu Echero",
+   "guest",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=97.000 total_s=2331.720)"
+  ],
+  [
+   "0d27da16-7bc1-11f1-b158-8bde5524a28e",
+   "SPEAKER_04",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=12.120 total_s=3881.270)"
+  ],
+  [
+   "0dcb75ec-ecb0-43b2-946f-447a52790176",
+   "SPEAKER_01",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=48.740 total_s=2065.670)"
+  ],
+  [
+   "0e910a81-d26f-4e7f-852a-b4ec0142c272",
+   "SPEAKER_03",
+   "Richard Mott",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=38.640 total_s=2719.079)"
+  ],
+  [
+   "0eae9881-6ba5-4034-a61d-8a9277248ffe",
+   "SPEAKER_01",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=100.121 total_s=2004.085)"
+  ],
+  [
+   "0ec506f0-e5ba-471b-99fd-4ba55d1622c7",
+   "SPEAKER_00",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=37.390 total_s=1805.109)"
+  ],
+  [
+   "0ec506f0-e5ba-471b-99fd-4ba55d1622c7",
+   "SPEAKER_03",
+   "Natasha Singer",
+   "guest",
+   null,
+   null,
+   "talk share 4.4% < 5% (talk_s=79.259 total_s=1805.109)"
+  ],
+  [
+   "0ec506f0-e5ba-471b-99fd-4ba55d1622c7",
+   "SPEAKER_08",
+   "Ed",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=14.285 total_s=1805.109)"
+  ],
+  [
+   "0ec506f0-e5ba-471b-99fd-4ba55d1622c7",
+   "SPEAKER_12",
+   "Anna",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=30.745 total_s=1805.109)"
+  ],
+  [
+   "10652924-571e-4b6e-bd4f-11f819c1dc21",
+   "SPEAKER_16",
+   "Ciara Gonzalez",
+   "guest",
+   null,
+   null,
+   "talk share 4.3% < 5% (talk_s=80.700 total_s=1873.910)"
+  ],
+  [
+   "10fe0293-3eff-4fdd-be3b-6020ff8b0e3a",
+   "SPEAKER_05",
+   "Eric Schmitt",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=20.475 total_s=1843.610)"
+  ],
+  [
+   "10fe0293-3eff-4fdd-be3b-6020ff8b0e3a",
+   "SPEAKER_07",
+   "Catherine Benholt",
+   "guest",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=50.610 total_s=1843.610)"
+  ],
+  [
+   "114d32ca-0f46-4a42-b717-ff63f75bec77",
+   "SPEAKER_01",
+   "Brittany Luce",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=32.580 total_s=2258.230)"
+  ],
+  [
+   "1199806b-8a3e-4770-912b-78a729bff09b",
+   "SPEAKER_05",
+   "Lanira",
+   "guest",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=10.160 total_s=3397.176)"
+  ],
+  [
+   "1294ea90-59b0-4b49-b54d-e93d748b53c5",
+   "SPEAKER_03",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=55.139 total_s=3499.422)"
+  ],
+  [
+   "133ae8ee-d61c-11f0-9faa-f3b5bab44ec7",
+   "SPEAKER_16",
+   "Claire White",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=16.980 total_s=1598.930)"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_03",
+   "Gemini",
+   "guest",
+   null,
+   null,
+   "talk share 0.1% < 5% (talk_s=2.440 total_s=1689.330)"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_08",
+   "Andy Baragani",
+   "guest",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=83.860 total_s=1689.330)"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_11",
+   "Jessica Shepard",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=21.520 total_s=1689.330)"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_16",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=32.980 total_s=1689.330)"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_17",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=25.320 total_s=1689.330)"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_18",
+   "Tessa West",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=13.300 total_s=1689.330)"
+  ],
+  [
+   "1366fb32-d61c-11f0-9faa-07c17f09b32c",
+   "SPEAKER_07",
+   "Jonquilyn Hill",
+   "host",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=27.980 total_s=1687.240)"
+  ],
+  [
+   "137ebaba-d61c-11f0-9faa-a33dac10337c",
+   "SPEAKER_13",
+   "Jade",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=13.780 total_s=1548.580)"
+  ],
+  [
+   "137ebaba-d61c-11f0-9faa-a33dac10337c",
+   "SPEAKER_14",
+   "Alyssa",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=27.100 total_s=1548.580)"
+  ],
+  [
+   "13cfefb6-b140-11f1-a095-d3251cd9c694",
+   "SPEAKER_03",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=30.500 total_s=808.120)"
+  ],
+  [
+   "13fcb6ee-12d5-48da-a00b-03a2306067f1",
+   "SPEAKER_05",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=58.605 total_s=3130.776)"
+  ],
+  [
+   "13fcb6ee-12d5-48da-a00b-03a2306067f1",
+   "SPEAKER_07",
+   "Liz",
+   "guest",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=60.056 total_s=3130.776)"
+  ],
+  [
+   "13fcb6ee-12d5-48da-a00b-03a2306067f1",
+   "SPEAKER_12",
+   "Ina",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=19.825 total_s=3130.776)"
+  ],
+  [
+   "15a8f8ac-ac89-11f1-b063-b351c13b0d1d",
+   "SPEAKER_04",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=41.200 total_s=1253.680)"
+  ],
+  [
+   "16423df8-69bf-11f1-8af7-c77940bc635c",
+   "SPEAKER_02",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=23.900 total_s=874.296)"
+  ],
+  [
+   "1_2721651",
+   "SPEAKER_02",
+   "Dai Kaiyi",
+   "guest",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=57.380 total_s=1488.020)"
+  ],
+  [
+   "1_2721875",
+   "SPEAKER_02",
+   "Yubo Koon",
+   "guest",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=61.820 total_s=1461.970)"
+  ],
+  [
+   "1_2765863",
+   "SPEAKER_03",
+   "Lita Semsem",
+   "guest",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=75.200 total_s=1516.890)"
+  ],
+  [
+   "1_2766017",
+   "SPEAKER_00",
+   "Tom",
+   "guest",
+   null,
+   null,
+   "talk share 4.7% < 5% (talk_s=57.140 total_s=1224.090)"
+  ],
+  [
+   "1_2766047",
+   "SPEAKER_00",
+   "Steve Hatherly",
+   "host",
+   null,
+   null,
+   "talk share 4.4% < 5% (talk_s=73.020 total_s=1665.300)"
+  ],
+  [
+   "1_2766128",
+   "SPEAKER_12",
+   "Lee",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=19.440 total_s=857.220)"
+  ],
+  [
+   "1a47c6cc-fe1a-11f0-80a0-6ba14d36565c",
+   "SPEAKER_04",
+   "John Feiner",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=14.020 total_s=2325.400)"
+  ],
+  [
+   "1a47c6cc-fe1a-11f0-80a0-6ba14d36565c",
+   "SPEAKER_09",
+   "Anne Applebaum",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=17.520 total_s=2325.400)"
+  ],
+  [
+   "1ab3380a-2b88-4b2b-8d2f-4cb5fcd07899",
+   "SPEAKER_05",
+   "Didi",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=132.100 total_s=3568.800)"
+  ],
+  [
+   "1ab3380a-2b88-4b2b-8d2f-4cb5fcd07899",
+   "SPEAKER_11",
+   "Nubi",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=50.140 total_s=3568.800)"
+  ],
+  [
+   "1abce225-afd1-4233-bb25-481995d56e63",
+   "SPEAKER_00",
+   "Ernie Carducci",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=9.680 total_s=2344.460)"
+  ],
+  [
+   "1b259b80-c059-4058-b28c-29b3e1f2a14e",
+   "SPEAKER_01",
+   "Matt Perault",
+   "host",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=91.100 total_s=2186.360)"
+  ],
+  [
+   "1fc1ca76-5133-4a16-b955-31f59d80b72f",
+   "SPEAKER_02",
+   "Funke Opeke",
+   "guest",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=93.400 total_s=2386.470)"
+  ],
+  [
+   "201de292-b347-44a2-8ad4-b4dc016defab",
+   "SPEAKER_03",
+   "Dominik Leusder",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=51.292 total_s=2898.547)"
+  ],
+  [
+   "2050514a-2131-40e9-bc90-b48f0113d17c",
+   "SPEAKER_02",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=57.357 total_s=2514.317)"
+  ],
+  [
+   "20992888-a881-48ed-b5bb-903ec0a34ba0",
+   "SPEAKER_06",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=24.000 total_s=1893.778)"
+  ],
+  [
+   "20992888-a881-48ed-b5bb-903ec0a34ba0",
+   "SPEAKER_11",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=15.675 total_s=1893.778)"
+  ],
+  [
+   "20e14ed3-7dd8-43ac-a467-7f9ab01a1858",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=31.830 total_s=1946.072)"
+  ],
+  [
+   "2252872c-1158-4a61-a931-e67662808b1b",
+   "SPEAKER_02",
+   "Rashi Gupta",
+   "guest",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=74.380 total_s=2047.700)"
+  ],
+  [
+   "2252872c-1158-4a61-a931-e67662808b1b",
+   "SPEAKER_04",
+   "Willard Adretz",
+   "guest",
+   null,
+   null,
+   "talk share 4.3% < 5% (talk_s=88.240 total_s=2047.700)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_01",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=68.406 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_03",
+   "Jennifer Salai",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=44.090 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_05",
+   "Helen Shaw",
+   "guest",
+   null,
+   null,
+   "talk share 4.4% < 5% (talk_s=90.729 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_09",
+   "Kevin Roose",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=12.240 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_10",
+   "Mikado Murphy",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=25.995 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_12",
+   "Madison Malone Kircher",
+   "guest",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=103.330 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_14",
+   "Jancy Dunn",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=12.085 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_15",
+   "Elena Bergeron",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=17.255 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_16",
+   "Bill Wasek",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=33.920 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_27",
+   "Jason Zinnerman",
+   "guest",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=78.899 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_28",
+   "Jason Ferrago",
+   "guest",
+   null,
+   null,
+   "talk share 4.1% < 5% (talk_s=84.624 total_s=2071.090)"
+  ],
+  [
+   "22b70e84-d662-4cd5-aad8-ffe24ee76aee",
+   "SPEAKER_30",
+   "Gia Corliss",
+   "guest",
+   null,
+   null,
+   "talk share 4.7% < 5% (talk_s=96.596 total_s=2071.090)"
+  ],
+  [
+   "2329358a-4af7-11f1-9cd6-53c2130a2578",
+   "SPEAKER_07",
+   "Gordon Carrera",
+   "guest",
+   null,
+   null,
+   "talk share 2.6% < 5% (talk_s=99.480 total_s=3841.440)"
+  ],
+  [
+   "23620594-fbe9-4538-8ba8-86087587067e",
+   "SPEAKER_05",
+   "Leila Faldil",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=23.990 total_s=1736.637)"
+  ],
+  [
+   "23620594-fbe9-4538-8ba8-86087587067e",
+   "SPEAKER_06",
+   "Brendan Brady",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=23.360 total_s=1736.637)"
+  ],
+  [
+   "23620594-fbe9-4538-8ba8-86087587067e",
+   "SPEAKER_13",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=39.510 total_s=1736.637)"
+  ],
+  [
+   "23a25459-0387-408d-9958-a70082454e95",
+   "SPEAKER_02",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=22.835 total_s=2641.167)"
+  ],
+  [
+   "23fe5a8c-d1c2-4e74-975b-b4b30028ce5d",
+   "SPEAKER_03",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=53.757 total_s=1587.811)"
+  ],
+  [
+   "24435582-a18b-11f1-969b-5781a2389e8a",
+   "SPEAKER_01",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=30.455 total_s=1100.085)"
+  ],
+  [
+   "25f3d896-f1a0-4870-b8fd-a2ff22d160c7",
+   "SPEAKER_00",
+   "Alex Rampell",
+   "host",
+   null,
+   null,
+   "talk share 2.6% < 5% (talk_s=95.320 total_s=3672.300)"
+  ],
+  [
+   "267391af-c63f-4343-a9be-55a5446379a0",
+   "SPEAKER_09",
+   "Lang Craighill",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=51.030 total_s=2424.206)"
+  ],
+  [
+   "277d8505-7c23-4f94-ac79-c48f1f9b89eb",
+   "SPEAKER_01",
+   "Ben Horowitz",
+   "host",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=106.360 total_s=2941.420)"
+  ],
+  [
+   "29b52580-0f56-41a6-8b8a-288bd604bc01",
+   "SPEAKER_00",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=33.670 total_s=1401.291)"
+  ],
+  [
+   "29b52580-0f56-41a6-8b8a-288bd604bc01",
+   "SPEAKER_04",
+   "Alexandra",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=29.280 total_s=1401.291)"
+  ],
+  [
+   "29d987a7-8718-4f28-be32-b04616951736",
+   "SPEAKER_00",
+   "Amar",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=24.560 total_s=3961.510)"
+  ],
+  [
+   "29e0b258-c055-4a45-87d7-271d5e50ea29",
+   "SPEAKER_00",
+   "Erik Torenberg",
+   "host",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=95.200 total_s=2580.160)"
+  ],
+  [
+   "29e0b258-c055-4a45-87d7-271d5e50ea29",
+   "SPEAKER_01",
+   "Alex Atallah",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=44.560 total_s=2580.160)"
+  ],
+  [
+   "2a3e72ef-8340-49d6-9a41-6f3c6377f200",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=56.141 total_s=3343.797)"
+  ],
+  [
+   "2a588a0a-6b2b-11f1-8e07-2f6f16e67b0b",
+   "SPEAKER_04",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=11.320 total_s=3605.910)"
+  ],
+  [
+   "2a835f8a-d569-11f0-85a0-dbad4e9c0a77",
+   "SPEAKER_13",
+   "Ming Yu",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=62.315 total_s=1676.295)"
+  ],
+  [
+   "2cf93b50-0df5-4c93-b590-4a28137f1240",
+   "SPEAKER_06",
+   "Frank Nguyen",
+   "guest",
+   null,
+   null,
+   "talk share 0.1% < 5% (talk_s=2.120 total_s=2085.090)"
+  ],
+  [
+   "2e282338-a7ea-4977-98ff-22a3c81f3187",
+   "SPEAKER_01",
+   "David Pawlan",
+   "host",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=102.340 total_s=2854.280)"
+  ],
+  [
+   "2e6155cd-e5f7-4427-acfc-c8b0e0848efc",
+   "SPEAKER_07",
+   "Lucas Babic",
+   "guest",
+   null,
+   null,
+   "talk share 4.7% < 5% (talk_s=109.725 total_s=2348.640)"
+  ],
+  [
+   "2ede0e96-7f66-4650-a6a3-4f59acf99686",
+   "SPEAKER_00",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=4.920 total_s=2131.410)"
+  ],
+  [
+   "2ede0e96-7f66-4650-a6a3-4f59acf99686",
+   "SPEAKER_01",
+   "Natalie Kitroeff",
+   "host",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=19.320 total_s=2131.410)"
+  ],
+  [
+   "2ede0e96-7f66-4650-a6a3-4f59acf99686",
+   "SPEAKER_02",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=53.700 total_s=2131.410)"
+  ],
+  [
+   "2ffbf42c-503f-4b51-9462-af3c5626c900",
+   "SPEAKER_09",
+   "Leila Faldil",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=23.240 total_s=2075.140)"
+  ],
+  [
+   "2ffbf42c-503f-4b51-9462-af3c5626c900",
+   "SPEAKER_14",
+   "Yuri Hoster",
+   "guest",
+   null,
+   null,
+   "talk share 4.5% < 5% (talk_s=93.720 total_s=2075.140)"
+  ],
+  [
+   "30afa319-c21f-4b7d-b602-75e687fe9405",
+   "SPEAKER_10",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=21.330 total_s=2216.317)"
+  ],
+  [
+   "3123d890-70b4-4b6c-a461-27bb204089fe",
+   "SPEAKER_13",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=50.740 total_s=2129.450)"
+  ],
+  [
+   "3346a500-eb7e-4419-a483-6859c9709058",
+   "SPEAKER_00",
+   "Ben Horowitz",
+   "host",
+   null,
+   null,
+   "talk share 4.5% < 5% (talk_s=109.780 total_s=2443.960)"
+  ],
+  [
+   "3346a500-eb7e-4419-a483-6859c9709058",
+   "SPEAKER_04",
+   "Ruby Justice-Villow",
+   "guest",
+   null,
+   null,
+   "talk share 0.1% < 5% (talk_s=3.060 total_s=2443.960)"
+  ],
+  [
+   "33cfff2f-cd21-4256-8e4b-4c19f0059163",
+   "SPEAKER_04",
+   "Gilbert Cruz",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=25.520 total_s=2145.814)"
+  ],
+  [
+   "34e47cf8-efba-4478-8edb-a0baa42e00af",
+   "SPEAKER_00",
+   "Aaron Levie",
+   "host",
+   null,
+   null,
+   "talk share 4.4% < 5% (talk_s=65.240 total_s=1497.400)"
+  ],
+  [
+   "3597f7aa-154c-4b01-b1d7-42f4918eb9e5",
+   "SPEAKER_00",
+   "Casey Newton",
+   "host",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=90.920 total_s=2497.612)"
+  ],
+  [
+   "360e9305-a300-4381-a4ee-640fd8833922",
+   "SPEAKER_02",
+   "Batuhan Taskaya)",
+   "host",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=87.680 total_s=2253.690)"
+  ],
+  [
+   "38112b09-8b96-41b6-8d9e-b8fb3f25061d",
+   "SPEAKER_00",
+   "Erik Torenberg",
+   "host",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=112.820 total_s=3135.100)"
+  ],
+  [
+   "38156bae-5b9a-11f1-a505-1f8a1aeec88c",
+   "SPEAKER_03",
+   "Bella",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=12.455 total_s=1014.204)"
+  ],
+  [
+   "38156bae-5b9a-11f1-a505-1f8a1aeec88c",
+   "SPEAKER_04",
+   "Elon Rosenbaum",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=23.505 total_s=1014.204)"
+  ],
+  [
+   "38156bae-5b9a-11f1-a505-1f8a1aeec88c",
+   "SPEAKER_06",
+   "Ben Cole",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=16.965 total_s=1014.204)"
+  ],
+  [
+   "382b7a08-2528-42bf-89a3-0977d83fffff",
+   "SPEAKER_01",
+   "Ali Ghodsi",
+   "host",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=96.040 total_s=3379.520)"
+  ],
+  [
+   "38e573bd-bb50-4999-915e-5500caaf1396",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=56.535 total_s=4064.002)"
+  ],
+  [
+   "3b7f6933-fbbc-4e6e-a0de-b46d00ff8723",
+   "SPEAKER_02",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=104.959 total_s=3785.454)"
+  ],
+  [
+   "3c3a059d-f03a-4152-bffe-02086cbad7c4",
+   "SPEAKER_05",
+   "Oker",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=10.160 total_s=2377.730)"
+  ],
+  [
+   "3c42dc4e-ca08-46cf-b2c6-b4c90112084e",
+   "SPEAKER_00",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=65.296 total_s=1799.982)"
+  ],
+  [
+   "3cab0976-a409-472e-870f-ea70c2adb5e5",
+   "SPEAKER_02",
+   "Sophia Dew",
+   "host",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=91.275 total_s=2353.048)"
+  ],
+  [
+   "3cab0976-a409-472e-870f-ea70c2adb5e5",
+   "SPEAKER_03",
+   "Martin Casado",
+   "guest",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=117.205 total_s=2353.048)"
+  ],
+  [
+   "3d555e36-2760-11f0-b67b-7305ab99d6da",
+   "SPEAKER_01",
+   "Professor Rae",
+   "guest",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=80.860 total_s=2268.830)"
+  ],
+  [
+   "3de1d217-e22e-443b-b52b-42c618c6df90",
+   "SPEAKER_11",
+   "Bethany McLean",
+   "host",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=21.860 total_s=2529.620)"
+  ],
+  [
+   "3de1d217-e22e-443b-b52b-42c618c6df90",
+   "SPEAKER_13",
+   "Luigi Zingales",
+   "host",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=77.140 total_s=2529.620)"
+  ],
+  [
+   "3f9d6ac8-7abc-4364-926d-900b2880fcb1",
+   "SPEAKER_04",
+   "Jennifer Lee",
+   "guest",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=62.620 total_s=2191.940)"
+  ],
+  [
+   "400c21cc-5609-11f1-be62-d74dbf872b2d",
+   "SPEAKER_04",
+   "Helen Lewis",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=19.880 total_s=3485.580)"
+  ],
+  [
+   "4135c7ba-51c7-40ef-9776-0981339d05f1",
+   "SPEAKER_03",
+   "Tracy Bennett",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=11.160 total_s=2365.760)"
+  ],
+  [
+   "4135c7ba-51c7-40ef-9776-0981339d05f1",
+   "SPEAKER_06",
+   "Winnalou",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=9.220 total_s=2365.760)"
+  ],
+  [
+   "4135c7ba-51c7-40ef-9776-0981339d05f1",
+   "SPEAKER_08",
+   "Sam Azersky",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=12.220 total_s=2365.760)"
+  ],
+  [
+   "4135c7ba-51c7-40ef-9776-0981339d05f1",
+   "SPEAKER_10",
+   "Joel Fagliano",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=14.640 total_s=2365.760)"
+  ],
+  [
+   "41c26687-bb10-4fcd-9c93-3358cab25770",
+   "SPEAKER_04",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=58.475 total_s=3682.436)"
+  ],
+  [
+   "43627a93-796f-4805-89ae-76c7bed4997d",
+   "SPEAKER_19",
+   "Brittany Luce",
+   "guest",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=40.480 total_s=1518.120)"
+  ],
+  [
+   "43f179b1-4f92-40bd-970a-92304623a98b",
+   "SPEAKER_08",
+   "Bob Edwards",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=12.060 total_s=1395.380)"
+  ],
+  [
+   "44783315-1fb8-4239-9164-2324ccf30293",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=56.200 total_s=4070.389)"
+  ],
+  [
+   "46365717-63d4-4477-8d5f-256cfe49bfbd",
+   "SPEAKER_04",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=23.685 total_s=1156.289)"
+  ],
+  [
+   "46365717-63d4-4477-8d5f-256cfe49bfbd",
+   "SPEAKER_11",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=20.915 total_s=1156.289)"
+  ],
+  [
+   "46b45ed6-748b-11f1-99ef-3bb80ac64520",
+   "SPEAKER_04",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=13.340 total_s=3575.720)"
+  ],
+  [
+   "4755719e-c0c6-49ea-927a-9f60c9113315",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=56.105 total_s=3730.530)"
+  ],
+  [
+   "4799f260-ea95-41b3-946f-b698c01fd776",
+   "SPEAKER_04",
+   "Mkholisim Soutwana",
+   "guest",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=83.700 total_s=2492.700)"
+  ],
+  [
+   "47e1118c-b3bf-11f1-a6e8-db04f8f6f9c2",
+   "SPEAKER_00",
+   "Jordan Schneider",
+   "host",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=98.800 total_s=4470.100)"
+  ],
+  [
+   "47f783de-0450-4f3b-9a6c-251b63ddff6e",
+   "SPEAKER_04",
+   "Natalie Kitroeff",
+   "host",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=14.000 total_s=1430.500)"
+  ],
+  [
+   "47f783de-0450-4f3b-9a6c-251b63ddff6e",
+   "SPEAKER_10",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "talk share 3.5% < 5% (talk_s=49.480 total_s=1430.500)"
+  ],
+  [
+   "4856e400-dd1b-11f0-802d-b3e1165719d0",
+   "SPEAKER_00",
+   "Sarah Guo",
+   "host",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=30.720 total_s=2268.076)"
+  ],
+  [
+   "4a8e203d-7e07-4a9c-b7ac-b1b8d8a24c05",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=24.085 total_s=2005.645)"
+  ],
+  [
+   "4ba8732a-bb65-11f1-a265-93acb5668ff9",
+   "SPEAKER_00",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=25.220 total_s=3271.030)"
+  ],
+  [
+   "4bfd4240-1520-4434-9269-7fa7774f722e",
+   "SPEAKER_04",
+   "Sam Rodriguez",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=34.880 total_s=2229.208)"
+  ],
+  [
+   "4bfd4240-1520-4434-9269-7fa7774f722e",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=50.755 total_s=2229.208)"
+  ],
+  [
+   "4cf13b6b-7d03-4104-83aa-bf44d94fb610",
+   "SPEAKER_05",
+   "Roberta Braga",
+   "guest",
+   null,
+   null,
+   "talk share 4.8% < 5% (talk_s=87.460 total_s=1808.770)"
+  ],
+  [
+   "4e16892d-3e2a-423c-bd8d-f3e26194a309",
+   "SPEAKER_02",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=30.460 total_s=1779.350)"
+  ],
+  [
+   "4e16892d-3e2a-423c-bd8d-f3e26194a309",
+   "SPEAKER_14",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=52.640 total_s=1779.350)"
+  ],
+  [
+   "4e48ebd0-0b41-4721-8e45-b489014fc1c7",
+   "SPEAKER_02",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=70.998 total_s=3652.192)"
+  ],
+  [
+   "50756e04-2fd5-49b1-be6f-c5de511b10e5",
+   "SPEAKER_01",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=15.760 total_s=1949.961)"
+  ],
+  [
+   "50756e04-2fd5-49b1-be6f-c5de511b10e5",
+   "SPEAKER_02",
+   "Natalie Kitroeff",
+   "host",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=75.475 total_s=1949.961)"
+  ],
+  [
+   "50756e04-2fd5-49b1-be6f-c5de511b10e5",
+   "SPEAKER_06",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 2.6% < 5% (talk_s=50.530 total_s=1949.961)"
+  ],
+  [
+   "50756e04-2fd5-49b1-be6f-c5de511b10e5",
+   "SPEAKER_08",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=20.160 total_s=1949.961)"
+  ],
+  [
+   "50b87109-f780-4c0d-aa33-2e91b4404b1d",
+   "SPEAKER_13",
+   "Brian Chen",
+   "guest",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=48.420 total_s=1682.020)"
+  ],
+  [
+   "50f2f680-8c88-406d-8a74-bd5ac9e45261",
+   "SPEAKER_07",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=45.265 total_s=2114.736)"
+  ],
+  [
+   "50f2f680-8c88-406d-8a74-bd5ac9e45261",
+   "SPEAKER_11",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=15.760 total_s=2114.736)"
+  ],
+  [
+   "5114c6d7-ce69-45f1-945f-d37ea476b349",
+   "SPEAKER_02",
+   "Anish Acharya",
+   "host",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=111.560 total_s=2958.300)"
+  ],
+  [
+   "519b7338-f6ec-4d99-a8a2-b496012a0db1",
+   "SPEAKER_03",
+   "Jill Wisenthal",
+   "guest",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=33.758 total_s=3248.454)"
+  ],
+  [
+   "52fe0cf1-8566-457b-aab0-b32791f4940f",
+   "SPEAKER_01",
+   "Sarah",
+   "guest",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=46.125 total_s=1203.789)"
+  ],
+  [
+   "537b0f9c-14cf-4503-829f-683473110cc0",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=23.810 total_s=1387.706)"
+  ],
+  [
+   "552098c9-70cf-47a8-9e54-37a9137191e8",
+   "SPEAKER_02",
+   "Karen Mosley",
+   "guest",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=37.160 total_s=1708.280)"
+  ],
+  [
+   "552098c9-70cf-47a8-9e54-37a9137191e8",
+   "SPEAKER_12",
+   "Madison Fairley",
+   "guest",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=32.580 total_s=1708.280)"
+  ],
+  [
+   "552098c9-70cf-47a8-9e54-37a9137191e8",
+   "SPEAKER_17",
+   "Jesse Otto Smith",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=30.240 total_s=1708.280)"
+  ],
+  [
+   "56901d28-494c-4668-9159-070848c75dbd",
+   "SPEAKER_00",
+   "Joel Cherico",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=8.160 total_s=1842.610)"
+  ],
+  [
+   "56a0e2d2-190f-4c57-bf41-97146c799d0c",
+   "SPEAKER_10",
+   "National Maritime Organization",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=48.800 total_s=1938.682)"
+  ],
+  [
+   "592de372-6471-4aac-b278-dda22e60055f",
+   "SPEAKER_03",
+   "Hamed Aleaziz",
+   "guest",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=28.350 total_s=1468.724)"
+  ],
+  [
+   "59d66c41-1d61-4f2b-ac1c-5be01952d968",
+   "SPEAKER_14",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=15.675 total_s=1889.249)"
+  ],
+  [
+   "5c2ff42e-91d6-11f1-a833-df13c1664f62",
+   "SPEAKER_01",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=31.870 total_s=926.596)"
+  ],
+  [
+   "5f2d7bdb-5340-4995-ae16-7fd05b548488",
+   "SPEAKER_08",
+   "Brian Chen",
+   "guest",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=47.900 total_s=1471.170)"
+  ],
+  [
+   "5fa389c6-e7b0-46b7-a4fd-271c048f61be",
+   "SPEAKER_01",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=43.790 total_s=1603.711)"
+  ],
+  [
+   "5fa389c6-e7b0-46b7-a4fd-271c048f61be",
+   "SPEAKER_04",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=20.825 total_s=1603.711)"
+  ],
+  [
+   "5fa389c6-e7b0-46b7-a4fd-271c048f61be",
+   "SPEAKER_08",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 3.1% < 5% (talk_s=50.515 total_s=1603.711)"
+  ],
+  [
+   "60217010-fc64-11f0-abc4-bb280ceaf3f1",
+   "SPEAKER_06",
+   "Nisha Chattal",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=16.600 total_s=2833.930)"
+  ],
+  [
+   "607c8baa-879f-11f1-8e61-8b43443a49dd",
+   "SPEAKER_03",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=27.840 total_s=822.560)"
+  ],
+  [
+   "60db6ad8-7c7f-11f1-9175-7f0c55935d35",
+   "SPEAKER_03",
+   "Jordan Schneider",
+   "host",
+   null,
+   null,
+   "talk share 3.5% < 5% (talk_s=123.040 total_s=3504.900)"
+  ],
+  [
+   "61f3a12e-bcd4-4285-9f36-1e6ddbb3cdf6",
+   "SPEAKER_03",
+   "Bethany McLean",
+   "host",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=6.860 total_s=3640.600)"
+  ],
+  [
+   "6211e32b-e1d9-4989-9f13-85c338359a23",
+   "SPEAKER_02",
+   "Raymond Ononiwu",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=10.180 total_s=2567.340)"
+  ],
+  [
+   "62fdb4dc-bc40-11f1-99dc-e342882eb5e7",
+   "SPEAKER_03",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=5.820 total_s=941.480)"
+  ],
+  [
+   "63b8eeb5-7de7-439d-8e88-5a05ef30ef17",
+   "SPEAKER_06",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=50.770 total_s=4029.223)"
+  ],
+  [
+   "63b8eeb5-7de7-439d-8e88-5a05ef30ef17",
+   "SPEAKER_08",
+   "Greta",
+   "guest",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=117.326 total_s=4029.223)"
+  ],
+  [
+   "63b8eeb5-7de7-439d-8e88-5a05ef30ef17",
+   "SPEAKER_09",
+   "Claire Krieger",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=119.512 total_s=4029.223)"
+  ],
+  [
+   "63b8eeb5-7de7-439d-8e88-5a05ef30ef17",
+   "SPEAKER_10",
+   "Vikram",
+   "guest",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=39.940 total_s=4029.223)"
+  ],
+  [
+   "644fa36a-c7c9-11f1-acb1-57e962f997d6",
+   "SPEAKER_06",
+   "Marina Hyde",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=52.040 total_s=2154.910)"
+  ],
+  [
+   "64c72df8-86f7-11f1-ae50-dfb0b198eafc",
+   "SPEAKER_00",
+   "Jordan Schneider",
+   "host",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=23.000 total_s=3805.140)"
+  ],
+  [
+   "655e460d-9b1f-42f3-8678-a3b8b561e964",
+   "SPEAKER_00",
+   "Andrew Chen)",
+   "host",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=104.020 total_s=4322.480)"
+  ],
+  [
+   "659a39f7-9763-4d45-bd48-825f1167e5ee",
+   "SPEAKER_03",
+   "Nate Cohn",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=23.900 total_s=1611.690)"
+  ],
+  [
+   "670ca1cd-b585-486b-b03a-b0caebbee694",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=50.775 total_s=3767.930)"
+  ],
+  [
+   "67c2241b-d7d3-471f-b4ff-0b05d2b3ead3",
+   "SPEAKER_04",
+   "Neeraj",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=18.475 total_s=1220.994)"
+  ],
+  [
+   "6a3c2ae0-b2da-11f1-a156-3bb52af15624",
+   "SPEAKER_04",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=31.780 total_s=922.260)"
+  ],
+  [
+   "6a6cbd2e61ae402f612bf288",
+   "SPEAKER_00",
+   "Robert Armstrong",
+   "host",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=54.790 total_s=3139.575)"
+  ],
+  [
+   "6a873554037681afc7cf36ef",
+   "SPEAKER_00",
+   "Olaf Storbeck",
+   "guest",
+   null,
+   null,
+   "talk share 4.8% < 5% (talk_s=45.440 total_s=945.936)"
+  ],
+  [
+   "6aae27ee7aa361c612d6d2db",
+   "SPEAKER_03",
+   "Pakistan",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=20.540 total_s=5068.330)"
+  ],
+  [
+   "6ada6a144281670f07aebaba",
+   "SPEAKER_01",
+   "Trade Nation",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=7.300 total_s=1038.400)"
+  ],
+  [
+   "6af9750d-2c4e-4da8-9591-d539c44b8443",
+   "SPEAKER_08",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 3.2% < 5% (talk_s=69.260 total_s=2181.690)"
+  ],
+  [
+   "6af9750d-2c4e-4da8-9591-d539c44b8443",
+   "SPEAKER_09",
+   "Natalie Kitroeff",
+   "host",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=12.240 total_s=2181.690)"
+  ],
+  [
+   "6baab6b1-70a4-4f0c-8031-ed0170be43ea",
+   "SPEAKER_03",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=65.534 total_s=2187.558)"
+  ],
+  [
+   "6baab6b1-70a4-4f0c-8031-ed0170be43ea",
+   "SPEAKER_04",
+   "Neeraj",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=18.515 total_s=2187.558)"
+  ],
+  [
+   "6be2f208-f197-42c1-bd01-4b859bfc26cb",
+   "SPEAKER_02",
+   "Guido Appenzeller",
+   "host",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=104.660 total_s=2697.940)"
+  ],
+  [
+   "6c6072b1-273d-4957-b43e-0d81e5220f50",
+   "SPEAKER_01",
+   "Max Brown",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=41.060 total_s=3006.820)"
+  ],
+  [
+   "6cdee2c5-a4e5-49f4-ac41-ccf835b24794",
+   "SPEAKER_00",
+   "Anna",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=24.785 total_s=1680.572)"
+  ],
+  [
+   "6cdee2c5-a4e5-49f4-ac41-ccf835b24794",
+   "SPEAKER_07",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=50.560 total_s=1680.572)"
+  ],
+  [
+   "6cdee2c5-a4e5-49f4-ac41-ccf835b24794",
+   "SPEAKER_09",
+   "Neeraj",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=18.995 total_s=1680.572)"
+  ],
+  [
+   "6eb845ef-3075-4858-9dbf-4dda8eca28fd",
+   "SPEAKER_02",
+   "David Clark",
+   "host",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=93.485 total_s=1869.864)"
+  ],
+  [
+   "6ebbe026-0058-4c5c-b697-9449fe2b9d8f",
+   "SPEAKER_00",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=47.830 total_s=1649.628)"
+  ],
+  [
+   "6f1d0668-af88-4f33-abb8-e5ffbc3bfc09",
+   "SPEAKER_00",
+   "Erik Torenberg",
+   "host",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=20.020 total_s=3006.210)"
+  ],
+  [
+   "6ff4f2dc-39ed-4d61-aaf9-e142348b8757",
+   "SPEAKER_02",
+   "Dan Hooper",
+   "host",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=26.440 total_s=2676.540)"
+  ],
+  [
+   "70775d03-ff2f-4143-9d1b-df6bd2cb60b3",
+   "SPEAKER_12",
+   "Brittany Luce",
+   "host",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=19.540 total_s=1530.650)"
+  ],
+  [
+   "710e3ed8-6304-4109-86a9-2bd5b7a3639e",
+   "SPEAKER_01",
+   "Casey Newton",
+   "host",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=64.429 total_s=3790.081)"
+  ],
+  [
+   "710e3ed8-6304-4109-86a9-2bd5b7a3639e",
+   "SPEAKER_06",
+   "Alison Gopnik",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=68.015 total_s=3790.081)"
+  ],
+  [
+   "710e3ed8-6304-4109-86a9-2bd5b7a3639e",
+   "SPEAKER_09",
+   "Claire Lee Woods",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=45.675 total_s=3790.081)"
+  ],
+  [
+   "7138f9e9-c846-403d-80ca-b7c7c364bc3f",
+   "SPEAKER_04",
+   "Monica Hirst",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=81.340 total_s=2200.420)"
+  ],
+  [
+   "715ff48a-41df-477b-bc5d-902a8567cdfd",
+   "SPEAKER_01",
+   "Dr. Keith Duggar",
+   "guest",
+   null,
+   null,
+   "talk share 4.9% < 5% (talk_s=44.680 total_s=906.480)"
+  ],
+  [
+   "72a3a37c-26d9-4944-a0ad-87741a081717",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=56.130 total_s=4407.754)"
+  ],
+  [
+   "730396fd-79a1-4bb7-b008-ea64e75d4fa9",
+   "SPEAKER_02",
+   "Brad Lander",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=49.220 total_s=1667.916)"
+  ],
+  [
+   "730396fd-79a1-4bb7-b008-ea64e75d4fa9",
+   "SPEAKER_08",
+   "Nicholas Fandos",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=23.530 total_s=1667.916)"
+  ],
+  [
+   "75146f27-8678-4168-a039-252695e61668",
+   "SPEAKER_02",
+   "Sebasti\u00e1n Zubieta",
+   "guest",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=6.600 total_s=2224.040)"
+  ],
+  [
+   "75240ddf-73ba-457d-9e3c-77bc90779f4f",
+   "SPEAKER_07",
+   "Peter Baker",
+   "guest",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=48.920 total_s=1803.820)"
+  ],
+  [
+   "76e31f39-1d5e-4d26-ae84-1e570e5ae78b",
+   "SPEAKER_12",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=15.705 total_s=1685.042)"
+  ],
+  [
+   "774dd005-8b31-4ba1-9549-b474011e8753",
+   "SPEAKER_03",
+   "Rory Johnston",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=32.279 total_s=1821.363)"
+  ],
+  [
+   "77d27e49-f26e-4c79-8913-b4cf01192cf5",
+   "SPEAKER_01",
+   "Tracy Alloway",
+   "host",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=38.414 total_s=1769.337)"
+  ],
+  [
+   "7a3568d9-8263-4e3a-8f8f-b4d00139959f",
+   "SPEAKER_04",
+   "Bill McBride",
+   "guest",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=57.542 total_s=1156.593)"
+  ],
+  [
+   "7a7bc90f-bc09-4df4-a4ec-67daf45507d2",
+   "SPEAKER_05",
+   "Juliette",
+   "guest",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=11.520 total_s=4688.510)"
+  ],
+  [
+   "7aabb5c6-c7c5-11f1-abe5-0fddc4ea7a14",
+   "SPEAKER_00",
+   "Marina Hyde",
+   "guest",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=52.460 total_s=2775.340)"
+  ],
+  [
+   "7b452031-f3a6-47d6-bb5f-bcfbdb6da4fe",
+   "SPEAKER_01",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 3.5% < 5% (talk_s=71.970 total_s=2069.986)"
+  ],
+  [
+   "7b452031-f3a6-47d6-bb5f-bcfbdb6da4fe",
+   "SPEAKER_07",
+   "Tyler Kulp",
+   "guest",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=57.175 total_s=2069.986)"
+  ],
+  [
+   "7bed9ee5-27ad-4a5f-997f-6edb31ddb397",
+   "SPEAKER_04",
+   "Chuck Nice",
+   "guest",
+   null,
+   null,
+   "talk share 4.1% < 5% (talk_s=178.760 total_s=4360.760)"
+  ],
+  [
+   "7cf3416e-ce6d-48bc-981c-2d51b01fd71b",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=50.520 total_s=3658.834)"
+  ],
+  [
+   "7cf9e5f0-c10d-4707-82c7-eb82d640ffd8",
+   "SPEAKER_00",
+   "Natalie Kitroeff",
+   "host",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=4.460 total_s=2013.940)"
+  ],
+  [
+   "7cf9e5f0-c10d-4707-82c7-eb82d640ffd8",
+   "SPEAKER_09",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=27.960 total_s=2013.940)"
+  ],
+  [
+   "7cfa1b97-c18b-442c-9a9f-5cbd5dc56da3",
+   "SPEAKER_04",
+   "Casey Newton",
+   "host",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=18.215 total_s=1557.694)"
+  ],
+  [
+   "7cfa1b97-c18b-442c-9a9f-5cbd5dc56da3",
+   "SPEAKER_08",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=58.720 total_s=1557.694)"
+  ],
+  [
+   "7d156235-f387-442d-92d2-b4ba0105ac94",
+   "SPEAKER_02",
+   "Wayne Sanders",
+   "guest",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=83.947 total_s=2952.184)"
+  ],
+  [
+   "7dae09ac-f8ea-485d-9cdf-cbb7c913da62",
+   "SPEAKER_07",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=32.050 total_s=1764.874)"
+  ],
+  [
+   "7ee00723-453c-4054-b591-ee23ec884540",
+   "SPEAKER_04",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=58.880 total_s=1739.184)"
+  ],
+  [
+   "7f51b2eb-0524-4cf5-b654-b4ce0132f318",
+   "SPEAKER_03",
+   "Tracy Alloway",
+   "host",
+   null,
+   null,
+   "talk share 4.6% < 5% (talk_s=68.040 total_s=1484.701)"
+  ],
+  [
+   "82c87af0-621b-4680-87eb-f7e8e5b5c949",
+   "SPEAKER_09",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=23.835 total_s=1875.013)"
+  ],
+  [
+   "8387538d-5ecf-4b07-a3f0-b4ab00e1cbc5",
+   "SPEAKER_00",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=49.035 total_s=2933.724)"
+  ],
+  [
+   "84e5f9f2-bff2-403b-bb41-b4c20134a223",
+   "SPEAKER_00",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=60.297 total_s=3897.920)"
+  ],
+  [
+   "8536937e-8b3b-11f1-9763-e3d9de9da801",
+   "SPEAKER_02",
+   "William Dalrymple",
+   "host",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=20.500 total_s=3216.780)"
+  ],
+  [
+   "856dd2e4-68f9-11f1-be0c-e35349805c45",
+   "SPEAKER_01",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=32.542 total_s=831.023)"
+  ],
+  [
+   "86d2fbbb-2128-4107-b27a-2713bf6bf182",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=55.910 total_s=3337.925)"
+  ],
+  [
+   "88fee8b7-98cf-46f0-9a69-e3f39cfe3979",
+   "SPEAKER_00",
+   "Lani Lum",
+   "guest",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=5.300 total_s=2435.560)"
+  ],
+  [
+   "8b7fcdec-fc64-11f0-b7b7-37646c9e4077",
+   "SPEAKER_02",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=23.840 total_s=3411.660)"
+  ],
+  [
+   "8b7fcdec-fc64-11f0-b7b7-37646c9e4077",
+   "SPEAKER_06",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=25.440 total_s=3411.660)"
+  ],
+  [
+   "8b7fcdec-fc64-11f0-b7b7-37646c9e4077",
+   "SPEAKER_09",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=20.280 total_s=3411.660)"
+  ],
+  [
+   "8b954230-fc64-11f0-b7b7-a30da83d8f32",
+   "SPEAKER_00",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=21.900 total_s=2706.300)"
+  ],
+  [
+   "8b954230-fc64-11f0-b7b7-a30da83d8f32",
+   "SPEAKER_09",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=25.480 total_s=2706.300)"
+  ],
+  [
+   "8b954230-fc64-11f0-b7b7-a30da83d8f32",
+   "SPEAKER_11",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=22.880 total_s=2706.300)"
+  ],
+  [
+   "8bab77c6-fc64-11f0-b7b7-3bf334b610de",
+   "SPEAKER_07",
+   "Finn Brunton",
+   "guest",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=64.900 total_s=2936.460)"
+  ],
+  [
+   "8bab77c6-fc64-11f0-b7b7-3bf334b610de",
+   "SPEAKER_08",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=33.720 total_s=2936.460)"
+  ],
+  [
+   "8d30821d-cf7d-4147-b00e-b4cb01647404",
+   "SPEAKER_03",
+   "Tracy Alloway",
+   "host",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=27.228 total_s=1940.904)"
+  ],
+  [
+   "8e813358-f9df-4e62-bdb0-36c6fd5f9d0b",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=23.970 total_s=1529.389)"
+  ],
+  [
+   "8f5e1454-6790-4e6c-891c-f71788c109dc",
+   "SPEAKER_14",
+   "Brian Chen",
+   "guest",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=48.940 total_s=1671.810)"
+  ],
+  [
+   "8f93902a-cccb-11f1-9e52-032c4fd59ded",
+   "SPEAKER_04",
+   "Volodymyr Zelensky",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=35.720 total_s=967.140)"
+  ],
+  [
+   "9061683e-b852-11f1-97f6-3b7777f2bb9e",
+   "SPEAKER_01",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=10.540 total_s=915.720)"
+  ],
+  [
+   "906e5071-7abc-4f2c-acb5-b4a5013ff33f",
+   "SPEAKER_02",
+   "Jill",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=21.156 total_s=3152.331)"
+  ],
+  [
+   "9214c273-93fb-476f-bb4a-1306e7fa4fe1",
+   "SPEAKER_04",
+   "Engy Ziedan",
+   "guest",
+   null,
+   null,
+   "talk share 0.1% < 5% (talk_s=2.640 total_s=1955.594)"
+  ],
+  [
+   "93bddc00-73cd-11f1-8649-5159ecc773cb",
+   "SPEAKER_00",
+   "Sonia",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=49.920 total_s=5762.130)"
+  ],
+  [
+   "93bddc00-73cd-11f1-8649-5159ecc773cb",
+   "SPEAKER_13",
+   "Zach",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=64.240 total_s=5762.130)"
+  ],
+  [
+   "94561f1e-45a0-42eb-b138-08792d74fd3b",
+   "SPEAKER_00",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=39.900 total_s=1419.040)"
+  ],
+  [
+   "94561f1e-45a0-42eb-b138-08792d74fd3b",
+   "SPEAKER_05",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=22.180 total_s=1419.040)"
+  ],
+  [
+   "94561f1e-45a0-42eb-b138-08792d74fd3b",
+   "SPEAKER_07",
+   "David Sanger",
+   "guest",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=53.440 total_s=1419.040)"
+  ],
+  [
+   "94561f1e-45a0-42eb-b138-08792d74fd3b",
+   "SPEAKER_10",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=35.300 total_s=1419.040)"
+  ],
+  [
+   "94855b15-9742-4344-bf6c-d6a1e0df51ea",
+   "SPEAKER_05",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 4.4% < 5% (talk_s=77.280 total_s=1752.300)"
+  ],
+  [
+   "94855b15-9742-4344-bf6c-d6a1e0df51ea",
+   "SPEAKER_12",
+   "Dani Blum",
+   "guest",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=51.020 total_s=1752.300)"
+  ],
+  [
+   "94b535a5-c226-4f43-b4c0-42d8b2c8c6af",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=55.706 total_s=3972.678)"
+  ],
+  [
+   "955986ad-c79e-4bcc-8536-3a7280540ab0",
+   "SPEAKER_04",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=22.675 total_s=1704.112)"
+  ],
+  [
+   "98652706-dd49-44e9-ada2-e00e56b2be77",
+   "SPEAKER_01",
+   "Nathan Lambert",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=16.980 total_s=3446.980)"
+  ],
+  [
+   "98be474c-c6fc-11f0-b555-739ee40222aa",
+   "SPEAKER_05",
+   "Noam Hassenfeld",
+   "host",
+   null,
+   null,
+   "talk share 4.1% < 5% (talk_s=65.220 total_s=1601.060)"
+  ],
+  [
+   "998e8fc4-c6fc-11f0-b555-4bf8880724ca",
+   "SPEAKER_09",
+   "Bird Pinkerton",
+   "guest",
+   null,
+   null,
+   "talk share 3.1% < 5% (talk_s=40.380 total_s=1315.040)"
+  ],
+  [
+   "9ac6cc5f-1327-48c1-8539-61e6fb1d39e4",
+   "SPEAKER_13",
+   "Miguel Gomez",
+   "guest",
+   null,
+   null,
+   "talk share 4.0% < 5% (talk_s=83.424 total_s=2071.466)"
+  ],
+  [
+   "9b82fa12-1ef5-11f1-b40d-63850382fe73",
+   "SPEAKER_06",
+   "Anita Arnon",
+   "guest",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=43.000 total_s=4231.760)"
+  ],
+  [
+   "9b82fa12-1ef5-11f1-b40d-63850382fe73",
+   "SPEAKER_11",
+   "William Durampo",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=52.660 total_s=4231.760)"
+  ],
+  [
+   "9c8d07cc-929a-11f1-afac-138170f27545",
+   "SPEAKER_04",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=29.015 total_s=856.795)"
+  ],
+  [
+   "9ccd9014-ddf7-4970-91f6-8bd9073646cb",
+   "SPEAKER_02",
+   "Max Brown",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=40.300 total_s=2046.820)"
+  ],
+  [
+   "9ccd9014-ddf7-4970-91f6-8bd9073646cb",
+   "SPEAKER_06",
+   "Celine Dion",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=61.020 total_s=2046.820)"
+  ],
+  [
+   "Buzzsprout-14268238",
+   "SPEAKER_00",
+   "Shalma Wegsman",
+   "host",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=101.640 total_s=2406.800)"
+  ],
+  [
+   "Buzzsprout-17921144",
+   "SPEAKER_02",
+   "Shalma Wegsman",
+   "host",
+   null,
+   null,
+   "talk share 4.9% < 5% (talk_s=90.900 total_s=1846.400)"
+  ],
+  [
+   "Buzzsprout-18519585",
+   "SPEAKER_00",
+   "R\u00f4mulo Neves",
+   "guest",
+   null,
+   null,
+   "talk share 3.5% < 5% (talk_s=29.660 total_s=849.093)"
+  ],
+  [
+   "a0e15df4-4a62-4b81-bbf5-b4ea00ed7a3c",
+   "SPEAKER_00",
+   "Tracy Alloway",
+   "host",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=33.802 total_s=2977.203)"
+  ],
+  [
+   "a0e15df4-4a62-4b81-bbf5-b4ea00ed7a3c",
+   "SPEAKER_01",
+   "Bhaskar Sunkara",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=47.173 total_s=2977.203)"
+  ],
+  [
+   "a11fa7a5-5ae0-4e30-9a22-bb588f5d7230",
+   "SPEAKER_02",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=22.925 total_s=3413.086)"
+  ],
+  [
+   "a1395046-9732-4e33-9560-dca3bca48170",
+   "SPEAKER_00",
+   "Hannah Fry",
+   "host",
+   null,
+   null,
+   "talk share 4.5% < 5% (talk_s=136.960 total_s=3058.120)"
+  ],
+  [
+   "a2226c4a-c4fe-48c0-b092-8333bcb869dc",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=55.981 total_s=4257.872)"
+  ],
+  [
+   "a2538d3c-7ef6-11f1-91b0-537876f3556f",
+   "SPEAKER_00",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=17.145 total_s=1309.733)"
+  ],
+  [
+   "a28c35ee-8147-11f1-85cb-73911f30b9fe",
+   "SPEAKER_00",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=37.480 total_s=3086.570)"
+  ],
+  [
+   "a3717c93-a145-4f25-9fe6-6b47cd11b9d1",
+   "SPEAKER_01",
+   "Erik Torenberg",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=99.836 total_s=2968.222)"
+  ],
+  [
+   "a45fa0f0-9b45-11f1-8911-6fbe3ebdd87d",
+   "SPEAKER_02",
+   "Sarah Nassauer",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=17.865 total_s=737.216)"
+  ],
+  [
+   "a4c1c410-a89c-11f1-a54a-bfcb3910c5c5",
+   "SPEAKER_02",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=6.800 total_s=993.740)"
+  ],
+  [
+   "a50e1862-381a-11f1-a32d-9fe48351d553",
+   "SPEAKER_03",
+   "Nisha Chital",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=16.740 total_s=2638.380)"
+  ],
+  [
+   "a5194659-370d-42e0-bc0b-c320072b24e6",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=50.080 total_s=4176.050)"
+  ],
+  [
+   "a5194659-370d-42e0-bc0b-c320072b24e6",
+   "SPEAKER_04",
+   "Jackie Stallone",
+   "guest",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=7.960 total_s=4176.050)"
+  ],
+  [
+   "a6a28c49-6456-487a-861d-92ce61e17798",
+   "SPEAKER_05",
+   "Nick Astoraro",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=24.720 total_s=3955.641)"
+  ],
+  [
+   "ab7d49f9-d234-4ecb-85f7-3503ad21ddb3",
+   "SPEAKER_12",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=15.675 total_s=1883.325)"
+  ],
+  [
+   "abf1153c-860b-11f1-90a5-97ab5e58f3a5",
+   "SPEAKER_06",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=26.460 total_s=1297.030)"
+  ],
+  [
+   "ac7406bd-0582-4820-af93-b4c100274867",
+   "SPEAKER_03",
+   "Scott Glenn",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=68.716 total_s=2921.214)"
+  ],
+  [
+   "acceb119-5645-4f38-a562-9c3b7198b254",
+   "SPEAKER_06",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=50.690 total_s=3617.932)"
+  ],
+  [
+   "ad8ee5b3-6b8e-4582-8524-9cb6c6e97a82",
+   "SPEAKER_02",
+   "Erik Torenberg",
+   "host",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=96.296 total_s=3616.489)"
+  ],
+  [
+   "ad8ee5b3-6b8e-4582-8524-9cb6c6e97a82",
+   "SPEAKER_03",
+   "Steven Sinofsky",
+   "guest",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=119.265 total_s=3616.489)"
+  ],
+  [
+   "ad9a591b-bcaa-40e6-8a1c-353e1bbb0704",
+   "SPEAKER_00",
+   "Shannon Maldonado",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=49.840 total_s=3766.610)"
+  ],
+  [
+   "ae2b3624-beb3-48ad-88be-b30749629103",
+   "SPEAKER_05",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=11.940 total_s=2005.310)"
+  ],
+  [
+   "ae2b3624-beb3-48ad-88be-b30749629103",
+   "SPEAKER_08",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=11.480 total_s=2005.310)"
+  ],
+  [
+   "b065ff24-6257-11f1-b40c-6f871b497d15",
+   "SPEAKER_00",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=35.865 total_s=1835.129)"
+  ],
+  [
+   "b0b41894-e030-4c4b-af57-190dad1ecfe2",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=56.070 total_s=4212.122)"
+  ],
+  [
+   "b0e586d9-8253-443e-93ea-b4d6dc8e1ae5",
+   "SPEAKER_04",
+   "Brian Chen",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=53.760 total_s=1472.190)"
+  ],
+  [
+   "b143850e-7e8f-4144-8299-b4e30171ca7d",
+   "SPEAKER_02",
+   "Tracy Alloway",
+   "host",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=35.225 total_s=3230.988)"
+  ],
+  [
+   "b14ced50-1f25-11f1-990b-3715009ae830",
+   "SPEAKER_06",
+   "Bren\u00e9 Brown",
+   "host",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=50.260 total_s=2216.450)"
+  ],
+  [
+   "b175c81a-1f25-11f1-990b-a3cbbc9ae640",
+   "SPEAKER_04",
+   "Seth Matlins",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=51.880 total_s=3394.250)"
+  ],
+  [
+   "b1a95ea0-1f25-11f1-990b-172472e27e33",
+   "SPEAKER_03",
+   "Seth Matlins",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=51.040 total_s=4702.400)"
+  ],
+  [
+   "b1d68830-1f25-11f1-990b-839276c688a5",
+   "SPEAKER_10",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=32.100 total_s=3822.600)"
+  ],
+  [
+   "b200d48c-1f25-11f1-990b-c36d0b182072",
+   "SPEAKER_04",
+   "Seth Matlins",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=50.740 total_s=2191.720)"
+  ],
+  [
+   "b260150a-1f25-11f1-990b-73ee76699165",
+   "SPEAKER_02",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=27.000 total_s=2786.940)"
+  ],
+  [
+   "b260150a-1f25-11f1-990b-73ee76699165",
+   "SPEAKER_03",
+   "John Feiner",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=14.160 total_s=2786.940)"
+  ],
+  [
+   "b260150a-1f25-11f1-990b-73ee76699165",
+   "SPEAKER_09",
+   "Ann Applebaum",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=17.520 total_s=2786.940)"
+  ],
+  [
+   "b27552ed-6e90-47a2-9753-20a21225f1b6",
+   "SPEAKER_04",
+   "Mehtaab Sawhney",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=74.740 total_s=3579.590)"
+  ],
+  [
+   "b28f69e0-1f25-11f1-990b-37773ffde874",
+   "SPEAKER_07",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=31.680 total_s=3532.120)"
+  ],
+  [
+   "b2a575f4-0510-434a-a74f-20488b6a4927",
+   "SPEAKER_06",
+   "Rob Copeland",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=28.800 total_s=3443.220)"
+  ],
+  [
+   "b36b086c-6a67-4e31-8360-67511439d497",
+   "SPEAKER_03",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=52.320 total_s=2104.270)"
+  ],
+  [
+   "b39f7bca-cbf7-11f1-afff-cba3fc3904e4",
+   "SPEAKER_05",
+   "Brian Schwartz",
+   "guest",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=25.700 total_s=960.660)"
+  ],
+  [
+   "b48c8862-7dea-11f1-857b-d704fd5b6dfe",
+   "SPEAKER_03",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=48.420 total_s=3180.120)"
+  ],
+  [
+   "b587b66a-193d-4669-af69-2003af848d97",
+   "SPEAKER_06",
+   "Dani Blum",
+   "guest",
+   null,
+   null,
+   "talk share 4.0% < 5% (talk_s=49.900 total_s=1237.700)"
+  ],
+  [
+   "b5913515-9316-4a70-9ebf-2f538837323d",
+   "SPEAKER_03",
+   "Shopify Erik Brynjolfsson",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=26.885 total_s=4016.070)"
+  ],
+  [
+   "b5913515-9316-4a70-9ebf-2f538837323d",
+   "SPEAKER_06",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=58.590 total_s=4016.070)"
+  ],
+  [
+   "b693e4de-c025-11f1-b89b-abcebad9decf",
+   "SPEAKER_03",
+   "Arthur Tellis",
+   "guest",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=122.200 total_s=3134.620)"
+  ],
+  [
+   "b7bfd2f7-c64b-4b37-a6b7-5568f6d21c05",
+   "SPEAKER_07",
+   "Stephen J. Dubner",
+   "host",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=37.240 total_s=2950.560)"
+  ],
+  [
+   "b7d968f5-b670-4f32-808b-3c45895accaf",
+   "SPEAKER_02",
+   "Gilbert Cruz",
+   "host",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=13.120 total_s=1602.084)"
+  ],
+  [
+   "b7d968f5-b670-4f32-808b-3c45895accaf",
+   "SPEAKER_03",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=68.060 total_s=1602.084)"
+  ],
+  [
+   "b7d968f5-b670-4f32-808b-3c45895accaf",
+   "SPEAKER_08",
+   "Neeraj",
+   "guest",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=4.160 total_s=1602.084)"
+  ],
+  [
+   "b986e0d3-bcd4-45ab-a6de-d53d066c2a2b",
+   "SPEAKER_02",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=35.655 total_s=1844.532)"
+  ],
+  [
+   "b986e0d3-bcd4-45ab-a6de-d53d066c2a2b",
+   "SPEAKER_03",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=52.395 total_s=1844.532)"
+  ],
+  [
+   "b986e0d3-bcd4-45ab-a6de-d53d066c2a2b",
+   "SPEAKER_07",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=50.860 total_s=1844.532)"
+  ],
+  [
+   "bcc22dff-b144-40ae-8f68-b4ab00f28c30",
+   "SPEAKER_00",
+   "Joeisenthal",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=27.718 total_s=3148.586)"
+  ],
+  [
+   "bf077a0c-bf95-4cec-82c6-c4bb9ad6e4f4",
+   "SPEAKER_07",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=58.661 total_s=3006.050)"
+  ],
+  [
+   "bf6646a8-cdd6-4d87-92bd-6d088fe36dc3",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=48.460 total_s=1451.160)"
+  ],
+  [
+   "bfd63d35-c7ad-4a5c-a603-b4a400dbfa65",
+   "SPEAKER_02",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=29.160 total_s=2611.371)"
+  ],
+  [
+   "brilliantexperience.podbean.com/4dd8def9-0685-3907-9427-006cf484c6c1",
+   "SPEAKER_01",
+   "Prajwal Paudyal",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=44.660 total_s=3166.580)"
+  ],
+  [
+   "brilliantexperience.podbean.com/602a0e4a-29c9-3078-bbb8-4395cc8c4ee8",
+   "SPEAKER_01",
+   "Marco Rivenathie",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=13.200 total_s=2750.080)"
+  ],
+  [
+   "c0d9d9c8-d686-11f0-a532-8f426a44ccd5",
+   "SPEAKER_10",
+   "Professor Hannah Fry",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=94.960 total_s=4159.560)"
+  ],
+  [
+   "c196b474-cd43-40c0-ab3a-2bed3756a248",
+   "SPEAKER_02",
+   "Winnalou",
+   "guest",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=7.600 total_s=4842.620)"
+  ],
+  [
+   "c196b474-cd43-40c0-ab3a-2bed3756a248",
+   "SPEAKER_04",
+   "Tracy Bennett",
+   "guest",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=15.660 total_s=4842.620)"
+  ],
+  [
+   "c196b474-cd43-40c0-ab3a-2bed3756a248",
+   "SPEAKER_06",
+   "Ian",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=33.820 total_s=4842.620)"
+  ],
+  [
+   "c196b474-cd43-40c0-ab3a-2bed3756a248",
+   "SPEAKER_07",
+   "Karen",
+   "guest",
+   null,
+   null,
+   "talk share 0.1% < 5% (talk_s=5.080 total_s=4842.620)"
+  ],
+  [
+   "c1b9decd-71f5-4fe5-bf64-ed311b0b40b8",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=48.120 total_s=2129.290)"
+  ],
+  [
+   "c1b9decd-71f5-4fe5-bf64-ed311b0b40b8",
+   "SPEAKER_03",
+   "Daniel Popper",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=31.860 total_s=2129.290)"
+  ],
+  [
+   "c1b9decd-71f5-4fe5-bf64-ed311b0b40b8",
+   "SPEAKER_09",
+   "Natalie Kitroeff",
+   "host",
+   null,
+   null,
+   "talk share 0.1% < 5% (talk_s=2.700 total_s=2129.290)"
+  ],
+  [
+   "c2a1670f-c52f-4f65-aae8-9fb9605fe30c",
+   "SPEAKER_02",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=28.460 total_s=2089.200)"
+  ],
+  [
+   "c2fe4ed8-55dd-11f1-ac33-7f47935be06c",
+   "SPEAKER_03",
+   "William Dalrymple",
+   "host",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=64.720 total_s=2883.740)"
+  ],
+  [
+   "c3325e88-7006-11f1-a611-6ba1cac6825b",
+   "SPEAKER_03",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 3.2% < 5% (talk_s=32.315 total_s=1024.459)"
+  ],
+  [
+   "c63edd4a-7b14-11f1-9f04-774f41cf9d34",
+   "SPEAKER_01",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 4.9% < 5% (talk_s=66.485 total_s=1369.105)"
+  ],
+  [
+   "c6a1d1d0-cfef-4373-8282-9e8f8fbc6278",
+   "SPEAKER_03",
+   "Tilly",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=21.220 total_s=3357.980)"
+  ],
+  [
+   "c6f32fd4-8028-11f1-85af-8769a81aeba0",
+   "SPEAKER_00",
+   "Katty Kaye",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=51.720 total_s=2219.620)"
+  ],
+  [
+   "c85ca0b8-06a3-4135-96f2-dbe71a97651a",
+   "SPEAKER_04",
+   "Brian Chen",
+   "guest",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=48.940 total_s=1352.220)"
+  ],
+  [
+   "c85ca0b8-06a3-4135-96f2-dbe71a97651a",
+   "SPEAKER_07",
+   "Brett Leatherman",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=31.680 total_s=1352.220)"
+  ],
+  [
+   "c89d8533-9397-49b1-9849-0bc560b5a443",
+   "SPEAKER_05",
+   "Catherine Benholt",
+   "guest",
+   null,
+   null,
+   "talk share 3.2% < 5% (talk_s=51.080 total_s=1577.180)"
+  ],
+  [
+   "c8fefeb8-8aaa-4b93-b648-2eb72051cce3",
+   "SPEAKER_09",
+   "Brittany Luce",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=15.535 total_s=2047.279)"
+  ],
+  [
+   "cc425097-55f4-4ae8-90a8-96d293d2d261",
+   "SPEAKER_00",
+   "Ali Khan Hemraj",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=16.660 total_s=2826.600)"
+  ],
+  [
+   "ccc902c3-3887-455a-ac40-cb253f1cc533",
+   "SPEAKER_07",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=23.775 total_s=1706.904)"
+  ],
+  [
+   "cd854692-d51b-11f0-a46a-c7e480a2e1a9",
+   "SPEAKER_02",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=20.360 total_s=2899.040)"
+  ],
+  [
+   "cd854692-d51b-11f0-a46a-c7e480a2e1a9",
+   "SPEAKER_05",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=23.500 total_s=2899.040)"
+  ],
+  [
+   "cd854692-d51b-11f0-a46a-c7e480a2e1a9",
+   "SPEAKER_06",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=25.260 total_s=2899.040)"
+  ],
+  [
+   "ce256bc4-53d4-445d-8ed9-e0e3040b60dc",
+   "SPEAKER_13",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=21.095 total_s=1835.875)"
+  ],
+  [
+   "ceec8f42-d7d2-4f0b-bca7-8220f454eef2",
+   "SPEAKER_03",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=50.295 total_s=2848.609)"
+  ],
+  [
+   "cf3994af-6383-4b79-a266-b4d50143f150",
+   "SPEAKER_03",
+   "Luke Kawa",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=17.749 total_s=2464.805)"
+  ],
+  [
+   "cfff7e08-f66c-4d48-aef4-4d092d1f25c3",
+   "SPEAKER_02",
+   "Christian Brachira",
+   "guest",
+   null,
+   null,
+   "talk share 3.5% < 5% (talk_s=93.060 total_s=2677.820)"
+  ],
+  [
+   "cfff7e08-f66c-4d48-aef4-4d092d1f25c3",
+   "SPEAKER_03",
+   "Bernard Dallet",
+   "guest",
+   null,
+   null,
+   "talk share 3.5% < 5% (talk_s=93.960 total_s=2677.820)"
+  ],
+  [
+   "d0138942-a77e-11f1-9f5e-537d1277241d",
+   "SPEAKER_02",
+   "James Holland",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=21.740 total_s=3970.940)"
+  ],
+  [
+   "d2969f99-b507-414a-a8c7-44e3d2270c19",
+   "SPEAKER_02",
+   "Maggie Haberman",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=24.000 total_s=1197.748)"
+  ],
+  [
+   "d2969f99-b507-414a-a8c7-44e3d2270c19",
+   "SPEAKER_03",
+   "Natalie Harp",
+   "guest",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=40.760 total_s=1197.748)"
+  ],
+  [
+   "d3124b51-7856-4fb4-8410-f35c13c97655",
+   "SPEAKER_00",
+   "Fair Credit",
+   "guest",
+   null,
+   null,
+   "talk share 4.8% < 5% (talk_s=109.060 total_s=2252.660)"
+  ],
+  [
+   "d33ffece-99d8-11f1-8cc6-f328fc037173",
+   "SPEAKER_01",
+   "Jordan Schneider",
+   "host",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=188.660 total_s=6506.060)"
+  ],
+  [
+   "d401b41a-8475-11f1-b12e-673e6ac9d8cd",
+   "SPEAKER_02",
+   "Jean Eaglesham",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=8.060 total_s=943.140)"
+  ],
+  [
+   "d59a87e0-59d3-11f1-b490-079168840939",
+   "SPEAKER_04",
+   "James",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=36.480 total_s=4404.180)"
+  ],
+  [
+   "d59a87e0-59d3-11f1-b490-079168840939",
+   "SPEAKER_09",
+   "Jim Stump",
+   "guest",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=157.560 total_s=4404.180)"
+  ],
+  [
+   "d867d354-76e2-11f1-84e8-ff42fe6fab7b",
+   "SPEAKER_00",
+   "Jordan Schneider",
+   "host",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=64.420 total_s=2545.500)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_00",
+   "Alexis Fledel",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=42.140 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_02",
+   "Brett Goldstein",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=90.700 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_03",
+   "Julia Louis-Dreyfus",
+   "guest",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=83.160 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_05",
+   "Johnny Knoxville",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=74.900 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_06",
+   "Coleman Domingo",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=55.040 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_08",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=49.220 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_11",
+   "Debra Jacobs",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=28.180 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_14",
+   "Padma Lakshmi",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=52.880 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_16",
+   "Andy Cohen",
+   "guest",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=65.820 total_s=2994.630)"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_18",
+   "John Caramonica",
+   "guest",
+   null,
+   null,
+   "talk share 3.1% < 5% (talk_s=93.060 total_s=2994.630)"
+  ],
+  [
+   "d996026e-5911-457a-b63a-da9fac3ab5c1",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 2.6% < 5% (talk_s=51.520 total_s=1951.400)"
+  ],
+  [
+   "d996026e-5911-457a-b63a-da9fac3ab5c1",
+   "SPEAKER_05",
+   "Sapna Maheshwari",
+   "guest",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=3.500 total_s=1951.400)"
+  ],
+  [
+   "da96fc88-0920-4aca-938c-7287124381fa",
+   "SPEAKER_07",
+   "Scott Simon",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=21.060 total_s=1621.077)"
+  ],
+  [
+   "dac96181-5b1e-4549-a0f9-b491013fe961",
+   "SPEAKER_02",
+   "Professor Milanovitch",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=68.717 total_s=3416.432)"
+  ],
+  [
+   "db1217e9-9a09-4f3b-a031-b6818db658ac",
+   "SPEAKER_04",
+   "Clarence",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=35.380 total_s=4701.680)"
+  ],
+  [
+   "db4aff8e-c7d1-11f1-be51-23df9a3eeb1f",
+   "SPEAKER_07",
+   "Marina Hyde",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=52.600 total_s=3801.940)"
+  ],
+  [
+   "db8ca4cd-e77d-4f84-9851-eb0931ddb05a",
+   "SPEAKER_03",
+   "Martin Mbonu",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=66.760 total_s=2691.720)"
+  ],
+  [
+   "dcf74a02-7bbb-11f1-85f5-8b7d358fdecc",
+   "SPEAKER_00",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=16.860 total_s=3255.420)"
+  ],
+  [
+   "debf8b10-0cf7-4ba7-a702-408bc4480bb4",
+   "SPEAKER_01",
+   "Amar",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=24.100 total_s=4596.220)"
+  ],
+  [
+   "df217bd7-0033-426c-8474-ceff49fcf6e9",
+   "SPEAKER_01",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "talk share 3.1% < 5% (talk_s=49.320 total_s=1605.120)"
+  ],
+  [
+   "df217bd7-0033-426c-8474-ceff49fcf6e9",
+   "SPEAKER_03",
+   "Daniel Popper",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=28.340 total_s=1605.120)"
+  ],
+  [
+   "e23755e3-6b21-4507-a5e7-3620e2f4618e",
+   "SPEAKER_04",
+   "Brittany Luce",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=18.980 total_s=1772.160)"
+  ],
+  [
+   "e27771ff-428a-48d3-a7f9-41f6c3fc3a82",
+   "SPEAKER_03",
+   "David Sanger",
+   "guest",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=53.360 total_s=1803.360)"
+  ],
+  [
+   "e32aa079-bf95-4a16-819a-17a5a96eb186",
+   "SPEAKER_06",
+   "Emmanuel Nji",
+   "guest",
+   null,
+   null,
+   "talk share 4.8% < 5% (talk_s=147.180 total_s=3055.280)"
+  ],
+  [
+   "e3ad66b4-bd54-48f7-8163-09e93951d6ec",
+   "SPEAKER_03",
+   "Rachel Abrams",
+   "host",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=41.645 total_s=1718.507)"
+  ],
+  [
+   "e3ad66b4-bd54-48f7-8163-09e93951d6ec",
+   "SPEAKER_05",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=32.160 total_s=1718.507)"
+  ],
+  [
+   "e4a2224f-f462-445a-9401-ad628eaee491",
+   "SPEAKER_09",
+   "Eric Abramovich",
+   "guest",
+   null,
+   null,
+   "talk share 4.4% < 5% (talk_s=75.900 total_s=1737.700)"
+  ],
+  [
+   "e4a2224f-f462-445a-9401-ad628eaee491",
+   "SPEAKER_10",
+   "Kenny Malone",
+   "host",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=46.740 total_s=1737.700)"
+  ],
+  [
+   "e5b7caa6-7e5e-44a1-a1a6-ff97ff75bd4f",
+   "SPEAKER_02",
+   "Guera Kiwana",
+   "guest",
+   null,
+   null,
+   "talk share 3.2% < 5% (talk_s=89.500 total_s=2790.140)"
+  ],
+  [
+   "e5b7caa6-7e5e-44a1-a1a6-ff97ff75bd4f",
+   "SPEAKER_03",
+   "Hans Otterling",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=67.640 total_s=2790.140)"
+  ],
+  [
+   "e60b15c2-c171-4b4c-8b11-9586ca73086c",
+   "SPEAKER_03",
+   "Feng",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=56.790 total_s=1540.645)"
+  ],
+  [
+   "e60b15c2-c171-4b4c-8b11-9586ca73086c",
+   "SPEAKER_07",
+   "Daron Acemoglu",
+   "guest",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=65.315 total_s=1540.645)"
+  ],
+  [
+   "e60b15c2-c171-4b4c-8b11-9586ca73086c",
+   "SPEAKER_13",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=21.115 total_s=1540.645)"
+  ],
+  [
+   "e723f8c0-c235-11f1-92f2-03a6ca111f0f",
+   "SPEAKER_04",
+   "Matt Kwong",
+   "guest",
+   null,
+   null,
+   "talk share 4.9% < 5% (talk_s=55.600 total_s=1134.140)"
+  ],
+  [
+   "e743621b-19a7-49c7-907e-07dd965ebd30",
+   "SPEAKER_00",
+   "Wilfred",
+   "guest",
+   null,
+   null,
+   "talk share 2.3% < 5% (talk_s=69.840 total_s=2986.560)"
+  ],
+  [
+   "e7d4a370-753a-11f1-9c9d-2b384050b389",
+   "SPEAKER_02",
+   "William Dalrymple",
+   "host",
+   null,
+   null,
+   "talk share 3.2% < 5% (talk_s=97.700 total_s=3017.120)"
+  ],
+  [
+   "e7efd285-4021-49bd-bbfa-de4c62e5cb71",
+   "SPEAKER_07",
+   "John Roberts",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=10.640 total_s=1902.980)"
+  ],
+  [
+   "e8457907-7885-4f02-bcb4-f2a213d743cf",
+   "SPEAKER_18",
+   "Brian Chen",
+   "guest",
+   null,
+   null,
+   "talk share 3.1% < 5% (talk_s=48.340 total_s=1577.980)"
+  ],
+  [
+   "e84a1455-bf13-4d7e-b178-e2f7b285850d",
+   "SPEAKER_00",
+   "Winnalou",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=8.320 total_s=1395.330)"
+  ],
+  [
+   "e84a1455-bf13-4d7e-b178-e2f7b285850d",
+   "SPEAKER_08",
+   "Sam Mazursky",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=9.400 total_s=1395.330)"
+  ],
+  [
+   "e84a1455-bf13-4d7e-b178-e2f7b285850d",
+   "SPEAKER_12",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=24.120 total_s=1395.330)"
+  ],
+  [
+   "eae61d33-b7f8-4944-b34c-fe24e145f603",
+   "SPEAKER_06",
+   "Suneer Prashad",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=11.040 total_s=3066.888)"
+  ],
+  [
+   "eae61d33-b7f8-4944-b34c-fe24e145f603",
+   "SPEAKER_07",
+   "Ben Mullen",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=24.710 total_s=3066.888)"
+  ],
+  [
+   "ec8ef41e-9021-43ba-a6fb-b46d013a0fc5",
+   "SPEAKER_01",
+   "Grace Shao",
+   "guest",
+   null,
+   null,
+   "talk share 2.6% < 5% (talk_s=75.358 total_s=2910.184)"
+  ],
+  [
+   "ec98d058-8146-11f1-9d64-2b04110c33f4",
+   "SPEAKER_00",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=25.220 total_s=3049.520)"
+  ],
+  [
+   "ee5028a8-75be-11f1-bab0-67711adf1682",
+   "SPEAKER_03",
+   "Isaiah Taylor",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=19.680 total_s=3398.095)"
+  ],
+  [
+   "ee5ee8be-70b6-11f1-8032-03fcd3307a86",
+   "SPEAKER_10",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=11.720 total_s=3129.370)"
+  ],
+  [
+   "ee665e22-5abb-4981-a58d-b481016ff97e",
+   "SPEAKER_05",
+   "Tushara Fernando",
+   "guest",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=28.558 total_s=2896.610)"
+  ],
+  [
+   "ef0fb53c-56a7-11f1-823b-6b194b39cee8",
+   "SPEAKER_00",
+   "Jordan Schneider",
+   "host",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=54.880 total_s=3773.770)"
+  ],
+  [
+   "ef0fb53c-56a7-11f1-823b-6b194b39cee8",
+   "SPEAKER_04",
+   "Jordan Schneider",
+   "host",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=114.060 total_s=3773.770)"
+  ],
+  [
+   "ef347198-77cb-4bf9-8e08-118d52d75132",
+   "SPEAKER_00",
+   "Shalma Wegsman",
+   "host",
+   null,
+   null,
+   "talk share 3.0% < 5% (talk_s=67.140 total_s=2259.660)"
+  ],
+  [
+   "f004446b-a024-4773-bd04-b497017ec344",
+   "SPEAKER_03",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=21.320 total_s=2910.147)"
+  ],
+  [
+   "f1dfec6a-dd9f-4207-b17a-8d09af66a51a",
+   "SPEAKER_13",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=45.055 total_s=1590.122)"
+  ],
+  [
+   "f1e95e09-16ed-4875-b4e9-61b3559d40dd",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=51.610 total_s=2187.962)"
+  ],
+  [
+   "f28385d3-13db-4257-8ff3-c125f51c963d",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=56.235 total_s=4328.970)"
+  ],
+  [
+   "f29b02f2-7fc8-11f1-8616-2fbfb59cd448",
+   "SPEAKER_01",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 3.2% < 5% (talk_s=32.465 total_s=1029.049)"
+  ],
+  [
+   "f2a8f88f-35f7-4417-82d9-d4f57f343ce9",
+   "SPEAKER_05",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=59.893 total_s=2234.561)"
+  ],
+  [
+   "f575756a-4e1e-11f1-8d69-1b8a204015dc",
+   "SPEAKER_03",
+   "William",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=53.720 total_s=3748.930)"
+  ],
+  [
+   "f575756a-4e1e-11f1-8d69-1b8a204015dc",
+   "SPEAKER_04",
+   "Anita Arnand",
+   "guest",
+   null,
+   null,
+   "talk share 2.6% < 5% (talk_s=98.300 total_s=3748.930)"
+  ],
+  [
+   "f6be2d45-7151-4edc-a6dc-2e0c08785835",
+   "SPEAKER_12",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=54.165 total_s=2756.078)"
+  ],
+  [
+   "f8ad589c-6503-4d8d-81b2-4a64dce7f60f",
+   "SPEAKER_11",
+   "Jesse Thorne",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=15.845 total_s=2481.722)"
+  ],
+  [
+   "fb846750-a55c-11f1-a799-df74af6e1adb",
+   "SPEAKER_01",
+   "David Runciman",
+   "host",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=11.280 total_s=3065.810)"
+  ],
+  [
+   "fc2055b9-b9ef-4546-a398-c89dc584373a",
+   "SPEAKER_02",
+   "Enzo",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=19.660 total_s=3369.220)"
+  ],
+  [
+   "fc255834-c015-49e9-85e3-ce766bc75999",
+   "SPEAKER_04",
+   "Juliette",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=32.840 total_s=2420.980)"
+  ],
+  [
+   "fc255834-c015-49e9-85e3-ce766bc75999",
+   "SPEAKER_05",
+   "Joelle",
+   "guest",
+   null,
+   null,
+   "talk share 0.1% < 5% (talk_s=3.600 total_s=2420.980)"
+  ],
+  [
+   "fc8d0d2b-9eb1-4ed2-bdfb-b4e9015241dc",
+   "SPEAKER_00",
+   "Joe Weisenthal",
+   "host",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=101.160 total_s=2040.812)"
+  ],
+  [
+   "fe103503-bf80-41e1-a389-253d028853ed",
+   "SPEAKER_06",
+   "Ryan",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=21.790 total_s=1821.590)"
+  ],
+  [
+   "fec918fe-bd0b-11f1-a71b-a30496ef2d4e",
+   "SPEAKER_01",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=29.180 total_s=896.860)"
+  ],
+  [
+   "feefff28-9cd6-11f1-909b-331abeddfd8f",
+   "SPEAKER_00",
+   "Ryan Knutson",
+   "host",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=21.105 total_s=860.450)"
+  ],
+  [
+   "feefff28-9cd6-11f1-909b-331abeddfd8f",
+   "SPEAKER_01",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=32.625 total_s=860.450)"
+  ],
+  [
+   "ffabb0eb-48cc-4ad4-8c96-b4b701728958",
+   "SPEAKER_00",
+   "Jill Weisenthal",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=81.556 total_s=3310.274)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/5vURCJ121J9Q0l9Jt2fY5AiEb4FBV8dwUCTxzHiphcQ",
+   "SPEAKER_06",
+   "Eric",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=30.060 total_s=3925.520)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/5vURCJ121J9Q0l9Jt2fY5AiEb4FBV8dwUCTxzHiphcQ",
+   "SPEAKER_08",
+   "Helen Zhang",
+   "guest",
+   null,
+   null,
+   "talk share 1.0% < 5% (talk_s=39.540 total_s=3925.520)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/5vURCJ121J9Q0l9Jt2fY5AiEb4FBV8dwUCTxzHiphcQ",
+   "SPEAKER_09",
+   "Julian Ventura",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=47.740 total_s=3925.520)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/5vURCJ121J9Q0l9Jt2fY5AiEb4FBV8dwUCTxzHiphcQ",
+   "SPEAKER_10",
+   "Yan Liu",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=42.760 total_s=3925.520)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/5vURCJ121J9Q0l9Jt2fY5AiEb4FBV8dwUCTxzHiphcQ",
+   "SPEAKER_11",
+   "Nitai Daitao",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=46.860 total_s=3925.520)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/8wT46qX06HADJaFeOlyA2UZY5KB_zpC5JF3n_Q9sijs",
+   "SPEAKER_00",
+   "Amari Edwards",
+   "host",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=85.320 total_s=2030.530)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/CTf886BEH0bOyfMsI_H4gTaBiESVUET4IYCJl1Oqd7E",
+   "SPEAKER_03",
+   "Amari Edwards",
+   "host",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=83.580 total_s=2534.610)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/Qv7FBZzmWSofe3h6RvBLOdnY-qA7avriRCjNsUIeECw",
+   "SPEAKER_00",
+   "Amari Edwards",
+   "host",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=48.400 total_s=1482.920)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/bbQzHx1pYbgJLYG2_ZzkbvcMg0tlrpqui9nADScUFSw",
+   "SPEAKER_00",
+   "Prabh",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=30.640 total_s=3790.630)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/bbQzHx1pYbgJLYG2_ZzkbvcMg0tlrpqui9nADScUFSw",
+   "SPEAKER_08",
+   "Asia Beckham",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=43.920 total_s=3790.630)"
+  ],
+  [
+   "gid://art19-episode-locator/V0/chnV5wGX9zw7NvFK4hh514cvv9N8d-1sGZh9v6-U9tw",
+   "SPEAKER_02",
+   "Zheng Xiaoqiong",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=72.900 total_s=3961.710)"
+  ],
+  [
+   "https://iono.fm/e/1716954",
+   "SPEAKER_02",
+   "Chris Dubester",
+   "guest",
+   null,
+   null,
+   "talk share 4.9% < 5% (talk_s=89.070 total_s=1804.890)"
+  ],
+  [
+   "https://iono.fm/e/1723065",
+   "SPEAKER_08",
+   "Lisa Schickerling",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=21.100 total_s=836.980)"
+  ],
+  [
+   "https://iono.fm/e/1726016",
+   "SPEAKER_02",
+   "Paul Smith",
+   "guest",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=29.660 total_s=1061.670)"
+  ],
+  [
+   "https://iono.fm/e/1727278",
+   "SPEAKER_01",
+   "Christine",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=47.520 total_s=1300.760)"
+  ],
+  [
+   "https://iono.fm/e/1728203",
+   "SPEAKER_01",
+   "Willem Els",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=21.540 total_s=1167.660)"
+  ],
+  [
+   "https://iono.fm/e/1728203",
+   "SPEAKER_08",
+   "Donald MacKay",
+   "guest",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=41.800 total_s=1167.660)"
+  ],
+  [
+   "https://iono.fm/e/1728505",
+   "SPEAKER_00",
+   "Alec Hogg",
+   "host",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=102.950 total_s=3507.520)"
+  ],
+  [
+   "https://iono.fm/e/1728505",
+   "SPEAKER_01",
+   "Christine",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=72.000 total_s=3507.520)"
+  ],
+  [
+   "https://iono.fm/e/1728877",
+   "SPEAKER_02",
+   "Tertuis Simmers",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=60.620 total_s=2854.280)"
+  ],
+  [
+   "https://iono.fm/e/1729872",
+   "SPEAKER_01",
+   "Christine",
+   "host",
+   null,
+   null,
+   "talk share 3.3% < 5% (talk_s=44.780 total_s=1368.960)"
+  ],
+  [
+   "https://iono.fm/e/1731141",
+   "SPEAKER_02",
+   "Christine Thank",
+   "guest",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=69.940 total_s=1837.000)"
+  ],
+  [
+   "https://iono.fm/e/1731302",
+   "SPEAKER_01",
+   "Alec Hogg",
+   "host",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=41.990 total_s=1123.820)"
+  ],
+  [
+   "substack:post:181207556",
+   "SPEAKER_02",
+   "Elena Verna",
+   "guest",
+   null,
+   null,
+   "talk share 3.8% < 5% (talk_s=199.385 total_s=5292.569)"
+  ],
+  [
+   "substack:post:196570345",
+   "SPEAKER_01",
+   "Eric Topol",
+   "host",
+   null,
+   null,
+   "talk share 0.2% < 5% (talk_s=8.640 total_s=3577.050)"
+  ],
+  [
+   "substack:post:197852876",
+   "SPEAKER_00",
+   "Ron Minsky",
+   "guest",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=28.500 total_s=8514.330)"
+  ],
+  [
+   "substack:post:197852876",
+   "SPEAKER_02",
+   "Dan Pontecorvo",
+   "guest",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=26.900 total_s=8514.330)"
+  ],
+  [
+   "substack:post:199994886",
+   "SPEAKER_01",
+   "Brandon Anderson",
+   "host",
+   null,
+   null,
+   "talk share 4.4% < 5% (talk_s=232.285 total_s=5289.269)"
+  ],
+  [
+   "substack:post:200432443",
+   "SPEAKER_03",
+   "Elad Gil",
+   "guest",
+   null,
+   null,
+   "talk share 5.0% < 5% (talk_s=108.600 total_s=2178.598)"
+  ],
+  [
+   "substack:post:204178365",
+   "SPEAKER_00",
+   "Gergely Orosz",
+   "host",
+   null,
+   null,
+   "talk share 4.0% < 5% (talk_s=311.908 total_s=7886.299)"
+  ],
+  [
+   "substack:post:213603862",
+   "SPEAKER_06",
+   "Meter Redwood",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=21.440 total_s=1376.560)"
+  ],
+  [
+   "substack:post:221632772",
+   "SPEAKER_03",
+   "Kevin Fisher",
+   "guest",
+   null,
+   null,
+   "talk share 4.8% < 5% (talk_s=187.700 total_s=3893.060)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-2177619757114602526",
+   "SPEAKER_00",
+   "Julie De Etem",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=17.100 total_s=3148.840)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-2177619757114602526",
+   "SPEAKER_03",
+   "Kate Dannes",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=47.280 total_s=3148.840)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-2177619757114602526",
+   "SPEAKER_05",
+   "Yi Takun",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=22.680 total_s=3148.840)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-2177619757114602526",
+   "SPEAKER_07",
+   "Graham Pitts",
+   "guest",
+   null,
+   null,
+   "talk share 0.7% < 5% (talk_s=22.060 total_s=3148.840)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-2177619757114602526",
+   "SPEAKER_08",
+   "Audrey",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=34.220 total_s=3148.840)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-9096706244812833516",
+   "SPEAKER_04",
+   "Yujal Yanukdag",
+   "guest",
+   null,
+   null,
+   "talk share 0.4% < 5% (talk_s=14.260 total_s=3207.400)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-9096706244812833516",
+   "SPEAKER_05",
+   "Graham Pitts",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=35.540 total_s=3207.400)"
+  ],
+  [
+   "tag:blogger.com,1999:blog-1793063735579568706.post-9096706244812833516",
+   "SPEAKER_07",
+   "Ella Fredentuono",
+   "guest",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=38.720 total_s=3207.400)"
+  ],
+  [
+   "tag:soundcloud,2010:tracks/2019650865",
+   "SPEAKER_01",
+   "Luke Timmerman",
+   "host",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=170.520 total_s=4424.480)"
+  ],
+  [
+   "tag:soundcloud,2010:tracks/2135080263",
+   "SPEAKER_02",
+   "Young Lee",
+   "guest",
+   null,
+   null,
+   "talk share 0.3% < 5% (talk_s=10.680 total_s=3434.140)"
+  ],
+  [
+   "tag:soundcloud,2010:tracks/2178767775",
+   "SPEAKER_02",
+   "Mags McCarthy",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=47.960 total_s=2920.410)"
+  ],
+  [
+   "tag:soundcloud,2010:tracks/458872548",
+   "SPEAKER_00",
+   "Emma Sulkowicz",
+   "guest",
+   null,
+   null,
+   "talk share 2.5% < 5% (talk_s=34.040 total_s=1380.360)"
+  ],
+  [
+   "tag:soundcloud,2010:tracks/458872548",
+   "SPEAKER_01",
+   "Kenneth Hamilton",
+   "guest",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=50.800 total_s=1380.360)"
+  ],
+  [
+   "urn:bbc:podcast:m0029rg8",
+   "SPEAKER_11",
+   "Guy",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=40.580 total_s=1723.080)"
+  ],
+  [
+   "urn:bbc:podcast:m0029ygv",
+   "SPEAKER_05",
+   "Delphine",
+   "guest",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=33.020 total_s=1596.530)"
+  ],
+  [
+   "urn:bbc:podcast:m002bgly",
+   "SPEAKER_05",
+   "Alison",
+   "guest",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=35.040 total_s=1564.320)"
+  ],
+  [
+   "urn:bbc:podcast:m002brpj",
+   "SPEAKER_04",
+   "Alexis",
+   "guest",
+   null,
+   null,
+   "talk share 1.4% < 5% (talk_s=23.160 total_s=1612.040)"
+  ],
+  [
+   "urn:bbc:podcast:m002brpj",
+   "SPEAKER_05",
+   "Maurizio Montalti",
+   "guest",
+   null,
+   null,
+   "talk share 4.0% < 5% (talk_s=65.120 total_s=1612.040)"
+  ],
+  [
+   "urn:bbc:podcast:m002c29k",
+   "SPEAKER_01",
+   "Anne",
+   "guest",
+   null,
+   null,
+   "talk share 1.8% < 5% (talk_s=29.780 total_s=1684.900)"
+  ],
+  [
+   "urn:bbc:podcast:m002c70n",
+   "SPEAKER_07",
+   "Professor Leslie Vosshall",
+   "guest",
+   null,
+   null,
+   "talk share 0.8% < 5% (talk_s=14.120 total_s=1672.760)"
+  ],
+  [
+   "urn:bbc:podcast:m002c70n",
+   "SPEAKER_09",
+   "Ilsa",
+   "guest",
+   null,
+   null,
+   "talk share 2.6% < 5% (talk_s=43.560 total_s=1672.760)"
+  ],
+  [
+   "urn:bbc:podcast:m002c71c",
+   "SPEAKER_12",
+   "Andrew",
+   "guest",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=26.560 total_s=1616.980)"
+  ],
+  [
+   "urn:bbc:podcast:m002c71f",
+   "SPEAKER_08",
+   "Peter Buist",
+   "guest",
+   null,
+   null,
+   "talk share 4.3% < 5% (talk_s=75.000 total_s=1750.380)"
+  ],
+  [
+   "urn:bbc:podcast:m002c71f",
+   "SPEAKER_09",
+   "Saskia",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=34.780 total_s=1750.380)"
+  ],
+  [
+   "urn:bbc:podcast:m002c71h",
+   "SPEAKER_00",
+   "Nicky Clayton",
+   "guest",
+   null,
+   null,
+   "talk share 4.0% < 5% (talk_s=67.060 total_s=1683.480)"
+  ],
+  [
+   "urn:bbc:podcast:m002c71h",
+   "SPEAKER_10",
+   "Eleanor",
+   "guest",
+   null,
+   null,
+   "talk share 2.8% < 5% (talk_s=47.640 total_s=1683.480)"
+  ],
+  [
+   "urn:bbc:podcast:m002l1yv",
+   "SPEAKER_07",
+   "Maia Young",
+   "guest",
+   null,
+   null,
+   "talk share 4.2% < 5% (talk_s=69.070 total_s=1627.950)"
+  ],
+  [
+   "urn:bbc:podcast:m002l1yv",
+   "SPEAKER_08",
+   "Robin",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=24.020 total_s=1627.950)"
+  ],
+  [
+   "urn:bbc:podcast:m002ldh6",
+   "SPEAKER_00",
+   "Nicola",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=24.200 total_s=1649.610)"
+  ],
+  [
+   "urn:bbc:podcast:m002ldh6",
+   "SPEAKER_03",
+   "Konto",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=24.140 total_s=1649.610)"
+  ],
+  [
+   "urn:bbc:podcast:m002lpfc",
+   "SPEAKER_06",
+   "Elizabeth",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=22.760 total_s=1688.720)"
+  ],
+  [
+   "urn:bbc:podcast:m002lzkc",
+   "SPEAKER_05",
+   "Faith",
+   "guest",
+   null,
+   null,
+   "talk share 0.9% < 5% (talk_s=15.200 total_s=1699.490)"
+  ],
+  [
+   "urn:bbc:podcast:m002m8zz",
+   "SPEAKER_05",
+   "Keith",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=26.560 total_s=1569.920)"
+  ],
+  [
+   "urn:bbc:podcast:m002m8zz",
+   "SPEAKER_11",
+   "Marlon",
+   "guest",
+   null,
+   null,
+   "talk share 1.3% < 5% (talk_s=20.760 total_s=1569.920)"
+  ],
+  [
+   "urn:bbc:podcast:m002mmj2",
+   "SPEAKER_10",
+   "Clemmie",
+   "guest",
+   null,
+   null,
+   "talk share 0.6% < 5% (talk_s=10.360 total_s=1649.300)"
+  ],
+  [
+   "urn:bbc:podcast:m002myr1",
+   "SPEAKER_02",
+   "Andrew",
+   "guest",
+   null,
+   null,
+   "talk share 2.2% < 5% (talk_s=35.380 total_s=1624.460)"
+  ],
+  [
+   "urn:bbc:podcast:m002myr1",
+   "SPEAKER_08",
+   "Professor Amaury Triaud",
+   "guest",
+   null,
+   null,
+   "talk share 4.8% < 5% (talk_s=77.660 total_s=1624.460)"
+  ],
+  [
+   "urn:bbc:podcast:m002n7mf",
+   "SPEAKER_06",
+   "Laurie",
+   "guest",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=23.360 total_s=1582.190)"
+  ],
+  [
+   "urn:bbc:podcast:m002nh61",
+   "SPEAKER_08",
+   "Jack",
+   "guest",
+   null,
+   null,
+   "talk share 1.1% < 5% (talk_s=17.700 total_s=1586.990)"
+  ],
+  [
+   "urn:bbc:podcast:m002ntwk",
+   "SPEAKER_08",
+   "Bernie",
+   "guest",
+   null,
+   null,
+   "talk share 1.7% < 5% (talk_s=27.500 total_s=1630.020)"
+  ],
+  [
+   "urn:bbc:podcast:m002nv73",
+   "SPEAKER_02",
+   "Jane",
+   "guest",
+   null,
+   null,
+   "talk share 2.0% < 5% (talk_s=32.070 total_s=1628.710)"
+  ],
+  [
+   "urn:bbc:podcast:m002pqnc",
+   "SPEAKER_01",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 1.5% < 5% (talk_s=46.500 total_s=3001.570)"
+  ],
+  [
+   "urn:bbc:podcast:m002r4v1",
+   "SPEAKER_04",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 2.7% < 5% (talk_s=79.900 total_s=2969.740)"
+  ],
+  [
+   "urn:bbc:podcast:m002rgh3",
+   "SPEAKER_03",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 2.1% < 5% (talk_s=60.160 total_s=2876.410)"
+  ],
+  [
+   "urn:bbc:podcast:m002s3dq",
+   "SPEAKER_06",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 1.2% < 5% (talk_s=42.140 total_s=3399.720)"
+  ],
+  [
+   "urn:bbc:podcast:m0031jz3",
+   "SPEAKER_09",
+   "Elterncaf\u00e9",
+   "guest",
+   null,
+   null,
+   "talk share 2.4% < 5% (talk_s=80.530 total_s=3306.340)"
+  ],
+  [
+   "urn:bbc:podcast:m0032qlc",
+   "SPEAKER_03",
+   "Wiz",
+   "guest",
+   null,
+   null,
+   "talk share 1.9% < 5% (talk_s=31.100 total_s=1612.960)"
+  ],
+  [
+   "urn:bbc:podcast:p0nwwkjc",
+   "SPEAKER_03",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 4.0% < 5% (talk_s=119.820 total_s=2971.060)"
+  ],
+  [
+   "urn:bbc:podcast:p0nx0z4j",
+   "SPEAKER_00",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 2.9% < 5% (talk_s=92.300 total_s=3203.880)"
+  ],
+  [
+   "urn:bbc:podcast:p0nx109x",
+   "SPEAKER_01",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 3.9% < 5% (talk_s=108.760 total_s=2782.380)"
+  ],
+  [
+   "urn:bbc:podcast:p0nxnf0t",
+   "SPEAKER_01",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 3.5% < 5% (talk_s=101.000 total_s=2916.790)"
+  ],
+  [
+   "urn:bbc:podcast:p0p1980m",
+   "SPEAKER_02",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 1.6% < 5% (talk_s=34.700 total_s=2118.970)"
+  ],
+  [
+   "urn:bbc:podcast:p0p1f993",
+   "SPEAKER_10",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=100.360 total_s=2956.040)"
+  ],
+  [
+   "urn:bbc:podcast:p0p2dn1j",
+   "SPEAKER_01",
+   "Asma Khalid",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=15.220 total_s=3042.020)"
+  ],
+  [
+   "urn:bbc:podcast:p0p2dn1j",
+   "SPEAKER_05",
+   "Tristan Redman",
+   "guest",
+   null,
+   null,
+   "talk share 0.5% < 5% (talk_s=16.440 total_s=3042.020)"
+  ],
+  [
+   "urn:bbc:podcast:p0p2dn1j",
+   "SPEAKER_11",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 3.6% < 5% (talk_s=108.480 total_s=3042.020)"
+  ],
+  [
+   "urn:bbc:podcast:p0p4m8xn",
+   "SPEAKER_00",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 3.7% < 5% (talk_s=106.360 total_s=2897.540)"
+  ],
+  [
+   "urn:bbc:podcast:p0p4mkxp",
+   "SPEAKER_06",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 4.1% < 5% (talk_s=107.080 total_s=2612.040)"
+  ],
+  [
+   "urn:bbc:podcast:p0p94prv",
+   "SPEAKER_00",
+   "Misha Glenny",
+   "host",
+   null,
+   null,
+   "talk share 3.4% < 5% (talk_s=82.480 total_s=2460.720)"
+  ],
+  [
+   "urn:bbc:podcast:p0p94prv",
+   "SPEAKER_02",
+   "Tom Gatti",
+   "guest",
+   null,
+   null,
+   "talk share 3.1% < 5% (talk_s=76.540 total_s=2460.720)"
+  ]
+ ]
+}

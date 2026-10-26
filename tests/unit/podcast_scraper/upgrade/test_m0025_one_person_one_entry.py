@@ -973,3 +973,77 @@ def test_the_host_takes_its_spelling_once_its_name_leaves_the_guests_voice(
     assert labels == {"SPEAKER_00": None, "SPEAKER_01": "Bernard Leong"}
     assert [s["name"] for s in _r(p["meta"])["content"]["speakers"]] == ["Bernard Leong"]
     _quotes_hold(p)
+
+
+@pytest.mark.parametrize("path", ["renamed", "voices", "unnamed"])
+def test_the_shared_rewrite_never_writes_a_bridge_without_its_identities(
+    tmp_path: Path, path: str
+) -> None:
+    # 0036 found 15 prod bridges that were `{}` after 0025. Whichever way the episode is rewritten
+    # (a name map, voice by voice, or a forced twin unnamed), a bridge keeps its `identities` list,
+    # its other keys and every non-person identity; the voice paths also drop a person no layer
+    # holds, and "unnamed" leaves no person at all.
+    if path == "renamed":
+        p = _corpus(
+            tmp_path,
+            speakers=[
+                _speaker("Professor Hannah Fry", "host", ["SPEAKER_00"], "self_intro", "host"),
+                _speaker("Joelle Barral", "guest", ["SPEAKER_01"], "llm_resolution", "guest"),
+            ],
+            turns=TITLED,
+            known_hosts=["Hannah Fry"],
+        )
+    elif path == "voices":
+        p = _corpus(
+            tmp_path,
+            **DEEPMIND_0014,
+            llm_voice_names={"SPEAKER_04": "Paige Bailey", "SPEAKER_02": "Hannah Fry"},
+        )
+    else:
+        p = _corpus(
+            tmp_path,
+            speakers=[
+                _speaker("Luke Timmerman", "host", ["SPEAKER_00"], "known_hosts", "host"),
+                _speaker("Andy Ratcliffe", "guest", ["SPEAKER_01"], "forced", "guest_1"),
+                _speaker("Andy Rachleff", "guest", ["SPEAKER_02"], "llm_resolution", "guest_2"),
+            ],
+            **ANDY,
+        )
+    br = p["meta"].with_name("ep.bridge.json")
+
+    def ident(iid: str, kind: str, name: str) -> Dict[str, Any]:
+        return {
+            "id": iid,
+            "type": kind,
+            "display_name": name,
+            "aliases": [],
+            "sources": {"gi": True, "kg": False},
+        }
+
+    others = [
+        ident("org:red-table", "org", "Red Table"),
+        ident("topic:big-data", "topic", "Big Data"),
+        ident("object:open-door", "object", "Open Door"),
+    ]
+    _w(
+        br,
+        {
+            "schema_version": "1.0",
+            "episode_id": "ep",
+            "emitted_at": "2025-03-04T05:06:07Z",
+            "identities": [ident("person:ghost-one", "person", "Ghost One")]
+            + ([ident("person:andy-ratcliffe", "person", "Andy Ratcliffe")] * (path == "unnamed"))
+            + others,
+        },
+    )
+    result = _apply(tmp_path)
+    assert result.details["episodes"], "the rewrite must have run on this episode"
+    doc = _r(br)
+    assert doc.get("schema_version") == "1.0" and doc.get("episode_id") == "ep"
+    assert doc.get("emitted_at") == "2025-03-04T05:06:07Z"
+    assert isinstance(doc.get("identities"), list)
+    assert [i for i in doc["identities"] if not i["id"].startswith("person:")] == others
+    if path != "renamed":
+        assert "person:ghost-one" not in {i["id"] for i in doc["identities"]}
+    if path == "unnamed":
+        assert doc["identities"] == others
