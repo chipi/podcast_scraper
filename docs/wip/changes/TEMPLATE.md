@@ -50,7 +50,7 @@ _TODO_
 
 ## 5. Acceptance
 
-Written by a fresh reviewer from the goal and the prediction, without seeing code.
+Prediction read by a fresh agent (method §4a), 5 minutes, before any code: rows added to section 4 and the step-8 spot checks, or "complete". No acceptance list.
 
 _TODO_
 
@@ -64,14 +64,15 @@ _TODO_
 
 Scoreboard before/after on a snapshot clone, counts per path, the full-clone undo, the per-episode
 plan, the derived-surface census, and the gate report (`NNNN_short_name.gate.json`, from
-`scripts/measure/corpus_change_gate.py`).
+`scripts/measure/corpus_change_gate.py`), the per-voice before/after excerpts (up to 10), and the
+builder's own GO or NO-GO with its deciding number.
 
 _TODO_
 
 ## 8. Verdict
 
-The fresh reviewer's verdict against each acceptance criterion, with its own numbers and its
-verdicts file.
+The §4a review block from a fresh agent: prediction vs gate, required items, the after-state read,
+open calls, VERDICT. No numbers of its own.
 
 _TODO_
 

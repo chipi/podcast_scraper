@@ -1,6 +1,6 @@
 # Corpus change method — how every change to what the corpus serves is planned, judged and shipped
 
-Status: **DRAFT v0.8** (2026-10-27). Practice runs: the 0030/0031 evaluation and 0030's go. Built under it: `0031_named_voices_shown` (the 0029 repair, through revision B.6), the S7/S8 instrument and the migration outcome hook, each with its record in `docs/wip/changes/`.
+Status: **DRAFT v0.9** (2026-10-27). Practice runs: the 0030/0031 evaluation and 0030's go. Built under it: `0031_named_voices_shown` (the 0029 repair, through revision B.6), the S7/S8 instrument and the migration outcome hook, each with its record in `docs/wip/changes/`.
 
 > **Renumbered 2026-10-18.** "0031" in this document is the naming re-derivation, now
 > `0032_naming_voices_rederived` (held under #2380, retired 2026-10-27 without running). The id 0031 now belongs to
@@ -37,7 +37,7 @@ any other change is judged.
 
 | # | Defect | Evidence | The gate |
 | --- | --- | --- | --- |
-| D1 | **The builder writes the check, scoped to the builder's own list.** It passes by construction. | 0031's `verify` asks only "does each listed voice carry the listed name?" It cannot see an insight. `m0025_parity.py` compares names per voice. | The acceptance list is written by the reviewer and attached to the issue **before a branch exists**. At step 8 the reviewer reads the gate report against the dated prediction and reads a sample of changed voices; recomputing a number is a test's job, not the review's (operator, 2026-10-27). |
+| D1 | **The builder writes the check, scoped to the builder's own list.** It passes by construction. | 0031's `verify` asks only "does each listed voice carry the listed name?" It cannot see an insight. `m0025_parity.py` compares names per voice. | The prediction is read by a fresh agent before a branch exists (step 5), which adds rows and never removes them; the acceptance criteria are the prediction plus the method's standing checks (§4a). At step 8 a fresh agent reads the gate report against the prediction and the after-state excerpts; recomputing a number is a test's job, never the review's (operator, 2026-10-27). |
 | D2 | **Every check measures change (old vs new); none measures the outcome against a target.** An episode broken under both counts as "agree". | `NAMING-COVERAGE-PLAN-2026-10-10.md` (deleted 2026-10-19; `git show ea1af916f:docs/wip/NAMING-COVERAGE-PLAN-2026-10-10.md`), "Why this was missed". The guardrail (#2334 S8) was moved later and never became an acceptance criterion. | The committed scoreboard command (*to build*, strategy 1a). `naming_gate.py` prints S7/S8 by default (*to build*, 1b). |
 | D3 | **Mechanics stand in for the outcome.** Undo byte-identity, order equivalence, quote integrity and CI green were reported as proof that the change works. | 0031 handover, 2026-10-17. | Report template (§5): outcome rows first, and a row without a measured value is rejected. Prod refuses a handover without the deploy table (§6; the rule must live in the prod session's own instructions). |
 | D4 | **Verdicts come before the measurement that decides them.** | Seven instances on 2026-10-17: "judged", "13× faster", "0031 ready", "expect refusals", "nobody tracks this", "the pipeline keeps producing it", unverified numbers in a review brief. | The step-4 prediction is a dated record on the issue. The template rejects a row with "predicted: —". Step 8 compares against the prediction, not against the builder's account. |
@@ -63,9 +63,10 @@ any other change is judged.
 2. **Predict before building.** The expected movement is written down as a number, with its
    population, before the work starts. A result that differs is investigated, not explained away.
    (D4, D11)
-3. **The judge is not the builder.** The acceptance criteria are written by an independent reviewer
-   from the goal, before the reviewer sees the change. The builder may add checks, never remove or
-   weaken them. (D1)
+3. **The judge is not the builder.** The prediction is read by an independent agent before any code
+   exists, and it may only add to it. The builder never removes or weakens a row. The judge at step 8
+   is a second fresh agent that reads what the tests and the gate produced; it does not produce
+   numbers. (D1)
 4. **Absolute, corpus-wide, on prod data.** Every outcome is measured over the whole served corpus
    on a prod snapshot clone, before and after, with the snapshot id. A subset or a fixture is never
    the evidence. (D2, D12)
@@ -214,14 +215,14 @@ is not done.
 | **2. Outcome and baseline** | Name the scoreboard numbers the change targets. Take the baseline on a fresh prod snapshot, with its snapshot id. No valid snapshot: stop and report. | Baseline table with command, output and snapshot id. | builder |
 | **3. Diagnosis by loss** | Rank causes by outcome lost, with a committed script over stored decision records (decision traces, LLM verdicts, diagnostics). Read samples of each top cause. | Ranked cause table, script path, read samples. | builder |
 | **4. Prediction** | For the chosen cause: **integers on a named snapshot** for each gating number and each of the change's own outcome numbers; the population reached and not reached (counts); trade-rule moves listed by identity; what must not move. "~" is not a prediction. "Within prediction" can only be claimed against integers. When the population moves (D15), the prediction is restated before apply, never explained after. | Dated prediction on the issue, before any code. | builder |
-| **5. Acceptance** | The reviewer checks step 1's reading list against the tracker, then writes the pass criteria from the goal and the prediction, without seeing code. The criteria name the change's **own** outcome numbers (definition, population, script). The §3 rows are a floor. | Acceptance list on the issue, before a branch exists. | reviewer |
+| **5. Acceptance** | **Prediction read, 5 minutes** (§4a): a fresh agent checks step 1's list against the tracker and reads sections 1–4; it returns at most 10 lines: rows the prediction lacks (an outcome number without an integer or population, a must-not-move row, a trade-rule move not by identity) and the spot checks it will read at step 8. The builder adds them, never removes them. No acceptance list is written; the acceptance criteria are the prediction plus the standing checks. | The step-5 output in the record, before a branch exists. | reviewer |
 | **6. Build** | Scenario test first (real-shaped data, every path from principle 8), then the change. A list migration stores the deciding evidence per entry (D13). | Tests and code. | builder |
-| **7. Measure** | On a snapshot clone: the scoreboard and the change's own numbers before and after; a whole-corpus replay; gold gates; counts per path; **a full-clone undo test** (restored N, refused 0, byte-identical to the snapshot, verify reads pending again); **the per-episode plan** with every counter (and, where cheap, each input file's sha256), for the step-10 diff; **the derived-surface census** (D17); **the full `upgrade verify`** over every migration the clone has applied, not only the change's own `verify` (`corpus_change_gate.py` records it as `verify_all`, and as `verify_regressions` every check that passed on the clone and fails after the change). | Before/after table, gate output, undo result, plan file, census. | builder |
-| **8. Verdict** | **A review reads; it does not recalculate, and it takes at most 5 minutes** (operator, 2026-10-27). The reviewer reads the gate report against the dated prediction and the acceptance list, row by row; reads a sample of at most 10 changed voices against their own text; and checks that nothing the method requires is missing (a verdict without its deciding segment, an unlisted refusal, a measurement on dirty code). It does not copy the corpus, apply, or re-run verify or the scoreboard: a number that must be recomputed is a test's job (the gate, the outcome hook, `make ci-fast`, `make test-integration`). If a number in the report looks wrong, the reviewer names it, and only that number is re-measured, with the operator's go. A miss sends the work back to step 3, never a reworded pass. Before landing, `make ci-fast` passes on the committed tree, log attached. | One line per check, GO or NO-GO with the reason; the ci-fast log. | reviewer |
+| **7. Measure** | On a snapshot clone: the scoreboard and the change's own numbers before and after; a whole-corpus replay; gold gates; counts per path; **a full-clone undo test** (restored N, refused 0, byte-identical to the snapshot, verify reads pending again); **the per-episode plan** with every counter (and, where cheap, each input file's sha256), for the step-10 diff; **the derived-surface census** (D17); **the full `upgrade verify`** over every migration the clone has applied, not only the change's own `verify` (`corpus_change_gate.py` records it as `verify_all`, and as `verify_regressions` every check that passed on the clone and fails after the change); **per-voice before/after excerpts** for every changed voice up to 10 (the deciding segment with the old and new label, the role, the names of the episode's other voices), so the step-8 read never opens the corpus; **the builder's own verdict**, GO or NO-GO with the one number that decides it, written before any review is launched. | Before/after table, gate output, undo result, plan file, census, excerpts, the builder's verdict. | builder |
+| **8. Verdict** | **Verdict read, 5 minutes, hard stop at 10** (§4a). A fresh agent, launched with the inputs as file paths and a time and token budget, reads the gate report against the dated prediction row by row, checks the required items are present, reads the after-state excerpts and the step-5 spot checks, answers the open judgment calls, and returns the §4a block. It runs nothing that walks the corpus. A doubted number follows the recalculation rule. A miss sends the work back to step 3, never a reworded pass. Before landing, `make ci-fast` passes on the committed tree, log attached. | The §4a block: GO, NO-GO or INCOMPLETE; the ci-fast log. | reviewer |
 | **9. Operator review** | The operator sees the table first, the mechanics second, and a not-covered list as long as the covered list. | Report (§5). | operator decides |
 | **10. Before apply / deploy** | **Prod produces its own per-episode plan, read-only** (the dry run plus the plan listing), and it is diffed against the clone's. Every difference is listed with its cause, or the run stops (D15); for a regime migration the outcome hook enforces this at the apply (exit 4 until an accept file lists each difference with its cause and the operator's go). For a deploy: everything it carries (pipeline code plus migrations, in runner order) runs on one fresh snapshot clone, and the gating numbers pass under principle 5. The run steps include every derived surface from the step-7 census. The job and its undo are written for exactly the migrations being run. | Plan diff; deploy table; run steps. | operator decides |
 | **11. After apply / deploy** | Re-measure on prod; check the apply's counts against the restated prediction (any other number stops before the derived-surface steps); run the reviewer's spot checks; read prod warnings for the affected window. | Post-run table. | builder, prod |
-| **12. Retrospective** | Any miss, surprise or correction becomes a method change (§7). | Changelog entry. | builder, operator |
+| **12. Retrospective** | Any miss, surprise or correction becomes a method change (§7). A defect a review could only have found by recomputing becomes a test at step 6 of the next change, never a recomputation at step 8. | Changelog entry. | builder, operator |
 
 ### The change gate: the procedure is enforced, not remembered
 
@@ -243,6 +244,94 @@ a write to a content file (gi, kg, bridge, segments, turns, context, speaker dia
 transcripts) or a content key (`content.speakers` in metadata), or any move of a gating number,
 makes it full. Light changes (covers, artwork sizes, chunk times) keep a two-line record. A skipped
 step is written `MISSED:`, and it counts only once the operator has accepted it in the record.
+
+### 4a. What a review is
+
+A review is a read of artefacts that already exist, by someone who did not make them, ending in one
+verdict. It takes at most 5 minutes. It produces no new numbers.
+
+**What a review is for.** Tests and the gate decide whether the numbers are what the code produces.
+They cannot decide these four things, and the review does:
+
+1. whether the numbers are the ones that were promised: the gate report against the dated
+   prediction, row by row, and whether each difference has a cause written in the record or a story;
+2. whether the change did what the goal says on the served text: what a listener now sees for the
+   changed voices, read in the after-state;
+3. whether anything the method requires is missing from the record. An item is present or it is
+   not; the reviewer does not fill it;
+4. the judgment calls the record leaves open, each answered in one line.
+
+**What a review is not.** It is not a second measurement. The gate
+(`scripts/measure/corpus_change_gate.py`: clone apply, scoreboard before and after, the full
+`upgrade verify`, files changed, per-episode deltas), the outcome hook (prod's plan against the
+clone's, after-numbers compared exactly), the landing test (a stale or unbound outcome refused), the
+unit and mutation tests, `make ci-fast`, `make test-integration` and the blind readers already
+recalculate everything that can be recalculated. A review that repeats any of them proves nothing
+they did not prove and costs the operator an hour. A review that re-derives a number and finds it
+wrong has found a missing test, not a reason to re-derive next time. Light changes have no review.
+
+**The trade, stated.** A defect that only a re-derivation would catch (0036 round 1: the migration
+matched the `{}` literal and not `{"identities": []}`) is caught by a scenario test per path and a
+mutation run at step 6, or it reaches prod and is fixed forward (decision 3, 2026-10-27). The review
+does not carry that weight any more; the tests do.
+
+**Two reviews per full change, and no others.**
+
+| | Prediction read (step 5) | Verdict (step 8) |
+| --- | --- | --- |
+| When | after the prediction is dated, before any code | after step 7, after the builder's own GO or NO-GO is in the record |
+| Who | a fresh agent; never the builder | a fresh agent; never the builder, never the step-5 agent, never resumed |
+| Inputs (file paths, given at launch) | the record, sections 1–4; the tracker and docs for step 1 | the record; `<id>.gate.json`; the frozen list and the verdicts file; the per-voice before/after excerpts from step 7; the step-5 output; the ci-fast log |
+| Checks | step 1's list against the tracker (D9); every gating number and each of the change's own numbers has an integer and a population (D4, D11); what must not move is listed; trade-rule moves are by identity; the spot checks it will read at step 8, each able to fail (D16) | (a) prediction vs gate, row by row, each difference with its cause accepted or not; (b) required items present: a deciding segment per verdict (D13), refusals listed, code clean at the sha that ships, undo and second-apply results, the derived-surface census against the gate's `files_changed_by_suffix` (D17), the not-covered list, the ci-fast log; (c) the after-state read: every changed voice up to 10, from the excerpts, plus the step-5 spot checks; (d) the open judgment calls |
+| Budget | 5 minutes | 5 minutes; a hard stop at 10 returns INCOMPLETE with what was read |
+| May run | nothing | nothing that walks the corpus. Opening a named file is reading; a script over `transcripts/` or `metadata/` is measuring |
+| Output | at most 10 lines: rows to add to the prediction, the spot checks; or "complete". The builder adds them and never removes them | the block below |
+
+**The acceptance criteria are the prediction** (its integers and populations, with the step-5 rows)
+**plus the method's standing checks** (the gate report, `verify_regressions` = 0, the full-clone
+undo, the second apply writing nothing, deciding evidence per entry, `make ci-fast` green on the
+committed tree). They are not restated per change. A criterion is an integer on a named snapshot or
+a yes/no on a named artefact, and it names which artefact answers it: a gate row, a test name, a
+hook check, a record section. A criterion that says "the reviewer measures", "with its own code" or
+"re-derives" is void.
+
+**Step-8 output, verbatim shape:**
+
+```text
+REVIEW <id>  <date>  commit <sha>  reviewer <agent>  minutes <n>
+INPUTS READ: <paths>
+PREDICTION vs GATE: <n> rows, <k> equal; differs: <row: predicted / measured / cause in record / accepted or not>
+REQUIRED ITEMS: segment per verdict <n/n>; refusals <n> listed; code clean <sha>; undo <recorded/missing>; second apply <recorded/missing>; census vs gate suffixes <equal/differs: ...>; not-covered <present/thin: ...>; ci-fast log <attached/missing>
+AFTER-STATE READ: <n> changed voices read, <n> right, <n> wrong (<ids>); spot checks <n> of <n> pass
+OPEN CALLS: <one line each>
+DOUBTED NUMBER: <none | the number, the reason, test or one re-measure>
+VERDICT: GO | NO-GO | INCOMPLETE  <one sentence: the deciding item>
+```
+
+**The recalculation rule.** A reviewer who doubts a number names it and the reason under DOUBTED
+NUMBER. Then one of two things happens, never a third:
+
+- the doubt would apply to any change: the builder writes the test (a gate row, a unit test, a hook
+  check) and the gate runs again, as the method already requires;
+- the doubt is particular to this change: one named number, re-measured once by the builder, with
+  the command and its cost stated first and the operator's go.
+
+Never: the reviewer re-measures; "every number"; a re-measure without the operator's go.
+
+**Never, in a review.** Each of these happened at 0037's step 8 on 2026-10-27:
+
+- copying the corpus (9 GB), applying the migration, running `upgrade verify` on anything, running
+  the scoreboard;
+- "measure every criterion with your own code": a reviewer with its own code is a second builder;
+- a launch without the inputs as file paths, a time budget and a token budget;
+- a run that continues past its budget, or whose output is not flushed: it returns INCOMPLETE and
+  what it read;
+- "waiting is cheaper than restarting" without the measurement that says so;
+- a review launched so that someone else owns the GO: the builder's GO or NO-GO is in the record
+  first.
+
+And at any time: rewording a NO-GO into a pass; adding criteria at step 8; treating an earlier
+review as evidence; re-reading what the blind readers read instead of what the clone serves.
 
 ## 5. Report template
 
@@ -282,17 +371,11 @@ CORRECTIONS SENT: <any earlier number this changes, and to whom>
   and decides deploys.
 - **Builder (executing agent):** steps 1–4, 6, 7, 11, 12. Never writes or weakens the acceptance
   criteria.
-- **Reviewer:** a **fresh** advisor agent per change, always spun out, never the builder and never
-  a resumed reviewer (operator decision, 2026-10-17: "the key thing"). It is bound by this
-  checklist:
-  - check step 1's reading list against the tracker;
-  - write acceptance before seeing code, naming the change's own outcome numbers;
-  - read the gate report against the prediction; never recompute it (that is the tests' job);
-  - take at most 5 minutes;
-  - choose and read its own sample, and write the verdicts file;
-  - choose the spot checks, each able to fail;
-  - compare against the dated prediction;
-  - treat earlier reviews as inputs, not evidence.
+- **Reviewers:** two fresh agents per full change, one at step 5 and one at step 8, never the builder,
+  never resumed (operator decision, 2026-10-17: "the key thing"). Each is launched with its inputs as
+  file paths, a 5-minute budget and a token budget, and is bound by §4a: it reads, it runs nothing
+  that walks the corpus, it produces no numbers, it returns INCOMPLETE on overrun, and it names a
+  doubted number instead of re-measuring it. Earlier reviews are inputs, not evidence.
 - **Prod session:** refuses any handover without the outcome table, the plan diff and the commands.
   The prod session loads its instructions from the agentic-ai-homelab repo, not from this one, so
   the rule lives in the homelab `corpus-migration` and `prod-batch-chain` skills and in the global
@@ -315,6 +398,7 @@ accepted. It must change a check, a gate or a step.
 | 0.6 | 2026-10-19 | First changes built under the method: 0031 to B.6, S7/S8, the outcome hook. Changes:<br>- the outcome hook is built (D5): a regime migration applies on prod only as measured on its clone, its outcome bound to code and verdict, prod's plan diffed against the clone's at the apply (step 10), each episode's after-numbers compared exactly;<br>- the CI landing test refuses a stale outcome (code changed after it was measured) and an outcome not bound by sha to the record's step 8;<br>- a commit that only rebuilds an outcome or edits a change record runs the Python CI (it ran none, so 5a6068338 published no images and its landing test never ran);<br>- step 8 requires `make ci-fast` green on the committed tree: two defects passed both reviewers' own test runs and were caught only by repo-wide rules (a plain `rglob`, missing docstrings);<br>- S7/S8 measured on the gold sets with a committed instrument (`scripts/measure/gold_insights.py`), pinned to the corpus state it ran on;<br>- the operator's ranking rule: a wrong name is worse than a hidden insight. |
 | 0.7 | 2026-10-19 | After 0031's apply, the landing test refused it as stale on every edit inside its 667-module import closure, including other sessions' server fixes. A landed record (`status: landed`, set by hand at step 12 after the apply; steps 10 and 11 filled) is no longer compared with today's code on main; at any later apply the outcome hook refuses unmeasured code, or with an empty plan refuses any write (operator: "A"; record `stale_check_landed_migrations`). |
 | 0.8 | 2026-10-27 | A review reads, it does not recalculate, and takes at most 5 minutes (operator, after a step-8 "review" for 0037 re-ran the full `upgrade verify` twice and every scoreboard on its own clone for over an hour). Recomputing is the tests' job; a suspicious number is named and only it is re-measured, with the operator's go. |
+| 0.9 | 2026-10-27 | §4a defines the review (operator, after the 0037 step-8 "review" re-ran the full upgrade verify twice and every scoreboard on its own 9 GB clone for over an hour, with no budget). Written by a fresh advisor (Fable 5) at the operator's request. Two reads per change, 5 minutes each, no numbers produced; the acceptance list is gone (0034 had five, each restating the prediction; 0037's ordered the reviewer to re-derive everything): the acceptance criteria are the prediction plus the standing checks; the builder's own verdict precedes any review; a recompute-found defect becomes a test (0036 round 1), the tests carry that weight. |
 
 ## Operator decisions (2026-10-26 / 27)
 

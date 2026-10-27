@@ -81,6 +81,10 @@ Dated: 2026-10-27
 ## 5. Acceptance
 
 Dated: 2026-10-27
+
+> Superseded 2026-10-27 by method v0.9: the acceptance criteria are section 4's integers plus the
+> standing checks; "by the reviewer's own code, not the builder's table" is void; criteria 1-17
+> below are kept as history and bind nobody.
 Written by: a fresh reviewer (sonnet subagent), from sections 1-4 only, without code.
 
 All measurements on a fresh clone of snapshot-prod-20261027 (id and clone id recorded), by the
@@ -196,6 +200,25 @@ D5's blind read (criterion 14): a fresh reader given name-stripped copies (reade
 host (addressed, segment 32), SPEAKER_01 the guest (host_read, segment 1). Open point for the
 reviewer: the reader notes SPEAKER_01 speaks as the host of that live session; the list gives the
 feed's host the host role.
+
+
+**Per-voice before/after excerpts** (method v0.9 step 7): the 4 affected runs copied from
+snapshot-prod-20261027 to a small corpus, 0037 applied there (the same counters as the gate), each
+voice's deciding segment and its label/role read before and after. They hold transcript text, so
+they live in the private eval repo, `podcast-scraper-eval-data-naming`,
+`data/eval/0037-excerpts-20261027/excerpts37.json` (script beside it). By id:
+
+| Episode | Voice | Before (label, role) | After | Other named voices after |
+|---|---|---|---|---|
+| `d99b4720-…` | SPEAKER_04 | feed host's name, host | the clip's speaker, guest | none |
+| `https://iono.fm/e/1732482` | SPEAKER_07 | another guest's name, guest | the interviewee, guest | 3, unchanged |
+| `substack:post:165726942` (D5) | SPEAKER_00 | guest's name, guest | feed host's name, host | SPEAKER_01 holds the guest's name |
+| `substack:post:165726942` (D5) | SPEAKER_01 | feed host's name, host | guest's name, guest | SPEAKER_00 holds the host's name |
+| `substack:post:216929530` | SPEAKER_00 | guest's name, guest | host's name, host | SPEAKER_01 holds the guest's name |
+| `substack:post:216929530` | SPEAKER_01 | host's name, host | guest's name, guest | SPEAKER_00 holds the host's name |
+
+**Builder's verdict: GO.** Deciding number: 6 of 6 listed voices renamed in 4 episodes, 0 refused,
+`verify_regressions` [] (gate report). The swaps exchange exactly; no voice holds both names.
 
 ## 8. Verdict
 
