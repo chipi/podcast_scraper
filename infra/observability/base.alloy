@@ -118,6 +118,21 @@ discovery.relabel "api" {
     target_label = "environment"
     replacement  = "prod"
   }
+  // `app`, as every other app's series carry: the three targets share job="api", so without it a
+  // query by app cannot tell podcast's api from the player's (homelab check 2026-10-27). The job
+  // name stays: alerts and dashboards read job="api" and `surface`.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(compose-api-1|operator-api-1)"
+    target_label  = "app"
+    replacement   = "podcast"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/player-api-1"
+    target_label  = "app"
+    replacement   = "player"
+  }
 }
 
 prometheus.scrape "api" {
@@ -210,6 +225,24 @@ loki.relabel "naming" {
     separator     = ";"
     regex         = ";(.+)"
     target_label  = "service"
+  }
+  // `app` for the app-event FILE sources, which carry only `job` (homelab check 2026-10-27: these
+  // five had `service` but no `app`). Set here, not on the file targets, for the reason above.
+  // The player's app-data events are the player's; the corpus-side search log and pipeline jobs
+  // are podcast's.
+  rule {
+    source_labels = ["app", "job"]
+    separator     = ";"
+    regex         = ";podcast-(listen|playback|accounts)"
+    target_label  = "app"
+    replacement   = "player"
+  }
+  rule {
+    source_labels = ["app", "job"]
+    separator     = ";"
+    regex         = ";podcast-(search|jobs)"
+    target_label  = "app"
+    replacement   = "podcast"
   }
   forward_to = [loki.write.logs_sink.receiver]
 }
