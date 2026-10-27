@@ -1,7 +1,9 @@
 # Handover: what runs in shadow on prod, and how to evaluate it (2026-10-27)
 
 For the next agent picking up the naming arc after the 2026-10-27 deploy (`sha-2914e56`, main
-`2914e562e`). Prod is the deploy; this file is what to measure from the new episodes it ingests.
+`2914e562e`). **Updated at the end of 2026-10-27**: see "What waits for this evaluation" below; the
+next deploy is the operator's first test of a new deploy method, so nothing new reaches prod before
+it. Prod is the deploy; this file is what to measure from the new episodes it ingests.
 Everything here is from the repo at `2290fa91a`; numbers marked *step 5* are from the pre-deploy
 measurement recorded in `docs/wip/NAMING-RELEASE-POST-DEPLOY-PLAN-2026-10-25.md` (items 19-21).
 
@@ -70,6 +72,22 @@ Also in the prod profile, live on new episodes since the deploy:
   bad, against the ladder's 360 / 51.
 - The operator's ruling: **transcript naming stays in shadow**; its data accumulates.
 
+## What waits for this evaluation
+
+- **0032's 91 uncovered voices** (48 additions, 29 renames, 14 unnamings; 0032 itself is retired,
+  `docs/wip/0032-ASSESSMENT-2026-10-27.md`). Operator, 2026-10-27: their reviewed list comes AFTER
+  this evaluation, because what the rungs and the LLM pass say on new episodes decides whether
+  re-deriving old episodes is worth it. Same machinery as 0037 (frozen list, two blind readers with
+  names hidden, verdicts bound to the list); the 29 renames first.
+- **The rungs' reach on old episodes:** archived audio covers 2,950 of 2,980 episodes (plan item 22,
+  closed on prod 2026-10-26; 18 size mismatches, 30 none).
+- **First shadow data exists:** prod's `naming_shadow_report` JSON from night 1
+  (`~markodragoljevic/prod-naming-20261027/naming_shadow_20261027.json` on the mini, plan item 12).
+  Night 1's blind read (21 episodes, private eval repo `data/eval/naming-night1-20261027/`) found
+  the ladder's served names wrong on 4 voices in 3 episodes, now fixed by 0037 (not yet applied).
+- **Reviews in this evaluation follow method v0.9 section 4a**: blind reads are evidence, not a
+  review; a review reads for at most 5 minutes and produces no numbers.
+
 ## Next steps for the evaluating agent
 
 1. After a week of nightlies, run the shadow report on prod (read only, the prod session runs it)
@@ -77,8 +95,7 @@ Also in the prod profile, live on new episodes since the deploy:
 2. For each side namer, blind-read a seeded sample of the non-agree voices, weighted by insights.
    Report right / wrong / undecidable per namer, plus the error-spreading count for the rung.
 3. Audit the split-voice merges at 0.8 on new episodes (plan item 19) before 0.7 is considered.
-4. Find how many served episodes have archived audio (plan item 22): that bounds the rung's reach
-   on old episodes.
+4. Archived audio is known (2,950 of 2,980): use it to bound the rung's reach on old episodes.
 5. Bring the table to the operator; promotion (`publish`) is his call, then a profile change and its
    own deploy.
 

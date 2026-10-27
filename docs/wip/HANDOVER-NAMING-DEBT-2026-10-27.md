@@ -1,7 +1,9 @@
 # Handover: what is still to fix or think about, after the 0034 / 0035 / 0036 release (2026-10-27)
 
 For the next agent on ingestion and naming. Each item says what was seen, where the evidence is,
-and what is open. None of these is being worked on now. Ids only; deciding text is in the private
+and what is open. None of these is being worked on now. **Updated at the end of 2026-10-27**: items
+marked FIXED landed on main that day; section E is what the day's validation pass added; start
+there. Ids only; deciding text is in the private
 eval repo. The release records are `docs/wip/changes/0034_talk_floor_names_removed.md`,
 `0035_voice_identity_names.md`, `0036_bridge_identities_restored.md`.
 
@@ -19,21 +21,23 @@ eval repo. The release records are `docs/wip/changes/0034_talk_floor_names_remov
    (2026-10-27, operator's go per step): re-run 0030's own apply after 0036. **Open:** a naming
    migration that re-renders text should recompute the cut as the pipeline does, or end with 0030's
    resync for the episodes it wrote.
-2. **Clone measurements ran each migration's own verify, never the full `upgrade verify`.** That is
-   why item 1 was found on prod, not on the clone. **Open:** every clone measurement runs the full
-   `upgrade verify` over all migrations and records it; consider adding it to
-   `scripts/measure/corpus_change_gate.py`.
+2. **FIXED: clone measurements ran each migration's own verify, never the full `upgrade verify`.**
+   `corpus_change_gate.py` now runs every applied migration's verify on the copy and reports
+   `verify_all` and `verify_regressions` (commit "gate: full upgrade verify on the clone"); method
+   step 7 requires it. Item 1's own fix (recompute the cut in naming migrations) is still open.
 3. **The code digest covers the whole migrations package.** An import-order or docstring change in
    one migration made all three outcomes stale (2026-10-26: three extra gate runs). **Open:**
    whether the digest should be per migration plus what it imports.
 4. **No way to re-run an applied migration for named episodes.** The 0030 re-run has to call the
    class from Python inside compose-api-1. **Open:** an `upgrade rerun <id> --episode ...` path
    with its own receipt.
-5. **Files left root-owned after each apply on prod:** `upgrade_ledger.json` and
+5. **FIXED (ledger, lock, outcome receipts and plan-diff now chowned to the corpus owner, commit
+   "upgrade: ledger and outcome receipts stay the corpus owner's"). Was:** files left root-owned after each apply on prod: `upgrade_ledger.json` and
    `.podcast_scraper/upgrade-outcomes/<id>.json`, chowned by hand after 0034 and 0035. The runner
    writes these outside the corpus-owner path (`match_corpus_owner`, `upgrade/ownership.py`, is
    called by `write_with_backup` in `upgrade/file_rewrite.py` for rewritten files only). **Open:** fix in the runner.
-6. **An undo removes the ledger entry but not the version.** After an undo of 0035 the version
+6. **FIXED (same commit: `record_reverted` rewinds the version when the reverted migration is the
+   last one and nothing has to be guessed). Was:** an undo removes the ledger entry but not the version. After an undo of 0035 the version
    stays 2.7.29 and is reset by hand (recorded in the 0035 record and the post-deploy plan).
 7. **`write_with_backup` keeps the first backup.** A migration that writes a file twice (0030
    re-run) keeps the pre-first-run copy, so an undo would also drop what later migrations wrote.
@@ -41,7 +45,8 @@ eval repo. The release records are `docs/wip/changes/0034_talk_floor_names_remov
    (not a mount; a container recreate deletes it). Two runs with snapshots do not fit the disk. On
    2026-10-27 only the latest snapshot was kept, and rollback relies on each migration's own undo
    plus the off-box daily corpus backup. **Open:** where whole-corpus snapshots should live.
-9. **Nothing in the committed tests guards the verdicts' hash chain.** The round-5 and round-6
+9. **PARTLY FIXED (`test_shipped_verdicts_complete.py`: one row per list entry, each decided row with
+   its segment and a 64-char hash; a deleted kept row now fails). Still open:** nothing in the committed tests guards the verdicts' hash chain. The round-5 and round-6
    reviewers' mutants survived the tests: an altered `line_sha256`, a changed `segment_idx`, a
    deleted kept row. Only the outcome bound to the verdicts sha catches them. **Open:** a test that
    checks each row's `line_sha256` against the served segment text.
@@ -92,6 +97,41 @@ eval repo. The release records are `docs/wip/changes/0034_talk_floor_names_remov
 - Later naming rounds (plan items 23-25): the "stated host answered as guest" refusal, two co-hosts
   typed as guests, the resolver prompt's evidence line (needs a DGX measurement).
 - Shadow evaluation: `docs/wip/HANDOVER-NAMING-SHADOW-2026-10-27.md`.
+
+## E. Added by the 2026-10-27 validation pass (read this first)
+
+20. **0037 (`named_voices_corrected`) is on main, NOT applied, and NOT to be applied or deployed
+    until the operator runs his new deploy method** (operator, 2026-10-27: the piled-up main is the
+    first test of that method). Six wrong-person voices in four episodes (#2094 D5 and night 1's
+    blind reads), a swap applied whole. Gate on snapshot-prod-20261027 at the shipped code: 4
+    episodes, 6 voices, 0 refused, `verify_regressions` []; second apply writes nothing; undo
+    byte-identical. Builder's GO; outcome built; record `docs/wip/changes/0037_named_voices_corrected.md`.
+    D5's roles stay as listed (operator: a one-off, no rule).
+21. **The forced-host-seat veto was rejected and reverted.** It would have refused a feed's host seat
+    on a voice that names the host in the third person (D5's cause). Replayed over 2545 served
+    episodes it fired on 52 voices, most of them real hosts introducing themselves in forms the
+    resolver does not read ("it's <host> with <show>", "your host, <host>", "<host> here"). Record:
+    `changes/known_host_third_person_veto.md` (status rejected). **Open:** a second attempt starts
+    at step 3, with those 52 as its test set.
+22. **0032 was retired** without running (`docs/wip/0032-ASSESSMENT-2026-10-27.md`): 67 of its
+    unnamings contradict 0034's review. **Its 91 uncovered voices** (48 additions, 29 renames, 14
+    unnamings) become their own reviewed list, AFTER the shadow evaluation (see the shadow handover).
+23. **D4's 43 candidates: 0 wrong names** (`docs/wip/D4-CLASSIFICATION-2026-10-27.md`). The big
+    unnamed voices beside them are hidden insights, a coverage question for its own record.
+24. **`d99b4720-283b-4f07-89c4-791b12acba2d`'s cause is unaddressed:** a feed host's name forced on a
+    clip voice that never mentions the host. 0037 fixes the served episode only.
+25. **A gate row is missing:** "wrong-person voices before / after" for a list the gold does not
+    cover. 0037's fix of 6 voices moved no scoreboard number (the step-8 read named it).
+26. **What a review is: method v0.9, section 4a** (written by a fresh advisor at the operator's
+    request after a step-8 "review" re-ran the full verify twice for over an hour). A review
+    reads, produces no numbers, 5 minutes; recomputing is the tests' job. **Open:** the first read
+    under it used 128,701 tokens against a 40k budget in 55 s: narrow the inputs, or a launcher with
+    a budget; the method says nothing enforces it.
+27. **Epic #2097's #2075 measurements, re-derived** (`docs/wip/EPIC-2097-MEASUREMENTS-2026-10-27.md`):
+    151 of 3006 served episodes with no named speaker; the detector returns 72% of form-named
+    guests; the golden set 10 of 11 (`hardfork-guest-in-record` fails, cause not established).
+    Inputs to the operator's closure decisions, not closures.
+28. **Prod findings left with the operator:** `player-digest-scheduler` declares no GlitchTip DSN.
 
 ## NOT covered by this handover
 
