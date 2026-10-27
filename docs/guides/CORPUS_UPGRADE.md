@@ -136,7 +136,17 @@ X.Y this was checked" — future migrations can rely on that history.
      boundary) describing the on-disk change from the caller's perspective.
    - Any RFC / ADR you're implementing — link the migration id
      (`m0004_<name>`) back from the RFC.
-8. **Consider a read-check.** If the migration is high-stakes (renames a
+8. **Resync the ad cut when a migration re-renders transcript text.** The ad cut
+   (`workflow/adfree_transcript.py`, `build_adfree_artifacts`) is computed from the LABELLED
+   screenplay: `Name:` markers, same-speaker turns merging, and the opening host-read
+   cross-promo detector all read the labels. A migration that renames voices and re-renders the
+   raw transcript while carrying the stored ad map leaves 0030's check failing where the new
+   labels change the cut (2026-10-27: 0035 on 2 episodes, where naming the second voice as the
+   host let today's cut find two host-read sponsor blocks). The pipeline already rebuilds the cut
+   after a relabel (`episode_processor.py`, `_produce_transcript_sidecars`); a migration must do
+   the same for the episodes it writes, or end with 0030's resync for them, and its clone
+   measurement runs the full `upgrade verify` to show it did.
+9. **Consider a read-check.** If the migration is high-stakes (renames a
    load-bearing field), extend `src/podcast_scraper/corpus_version.py`'s
    `assess_corpus_version_compat` with a warning when the corpus predates
    the change — so operators who skip the framework path still get told.

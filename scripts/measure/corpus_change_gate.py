@@ -27,7 +27,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -72,6 +72,30 @@ def _read(path: Path) -> Optional[bytes]:
     return path.read_bytes() if path.is_file() else None
 
 
+def _verify_all(
+    mid: str, applied: Any, clone: Path, work: Path
+) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """``upgrade verify`` as prod runs it (runbook step 5): every migration in the clone's ledger plus
+    this one, on the copy after the apply. A failing check is run again on the untouched clone, so a
+    failure this migration caused (2026-10-27: 0035 left 0030's ad cut stale on 2 episodes, seen
+    only on prod) is told apart from one the snapshot already had. Report only; the exit code is
+    unchanged."""
+    out: List[Dict[str, Any]] = []
+    regressions: List[str] = []
+    for m in get_migrations():
+        if m.id not in applied and m.id != mid:
+            continue
+        ok, msg = m.verify(MigrationContext(corpus_root=work))
+        row: Dict[str, Any] = {"id": m.id, "ok": ok, "message": msg}
+        if not ok and m.id != mid:
+            before_ok, before_msg = m.verify(MigrationContext(corpus_root=clone))
+            row["on_clone"] = {"ok": before_ok, "message": before_msg}
+            if before_ok:
+                regressions.append(m.id)
+        out.append(row)
+    return out, regressions
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--migration", required=True, help="registered migration id")
@@ -110,6 +134,7 @@ def main() -> int:
         print(f"no comparable plan: {exc}", file=sys.stderr)
     result = migration.apply(MigrationContext(corpus_root=args.work))
     ok, message = migration.verify(MigrationContext(corpus_root=args.work))
+    verify_all, regressions = _verify_all(migration.id, applied, args.clone, args.work)
     after = score_corpus(args.work)["total"]
     after_ep = outcome_hook.score_by_episode(args.work)
     after_hash = _hashes(args.work)
@@ -141,6 +166,8 @@ def main() -> int:
         "files_changed_by_suffix": dict(sorted(by_suffix.items())),
         "apply_message": result.message,
         "verify": {"ok": ok, "message": message},
+        "verify_all": verify_all,
+        "verify_regressions": regressions,
         "clone": str(args.clone),
         "code": {"sha": _git("rev-parse", "HEAD"), "dirty": bool(_git("status", "--porcelain"))},
         "snapshot": args.snapshot,
@@ -153,6 +180,10 @@ def main() -> int:
     }
     args.out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({k: report[k] for k in ("computed_class", "gating_moves", "files_changed")}))
+    failing = [v["id"] for v in verify_all if not v["ok"]]
+    print(f"upgrade verify, all applied: {len(verify_all) - len(failing)} ok, failing {failing}")
+    if regressions:
+        print(f"VERIFY REGRESSIONS (ok on the clone, failing after this migration): {regressions}")
     print(f"report: {args.out}")
     return 0
 
