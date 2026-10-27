@@ -18,7 +18,6 @@ eval-harness session; *operator* = a decision only the operator makes.
 | # | Item | Check |
 |---|---|---|
 | 7 | Corpus-scope enrichers stale after the migrations (grounding_rate, guest_coappearance, temporal_velocity, topic_cooccurrence_corpus, topic_theme_clusters, person_web) | after the 10-28 nightly: `corpus_status` (MCP) shows none stale for `corpus_artifacts_newer` |
-| 9 | PLAYER-1L fix (ca4ce2843, 9ee56fcd3) | after the next player deploy: its live smoke green, no new PLAYER-* audio issue in GlitchTip, player events carry release sha-<7> |
 | 9a | Alloy `app` labels (6370dde6b) | after `deploy-config.yml`: `app` on the five podcast file sources and the three api scrape targets |
 | 9b | GlitchTip DSNs in the app containers | checked 2026-10-27 (docker inspect, values not printed): compose-api, player-api, operator-api via secret files (`/run/secrets/podcast_sentry_dsn_*`, exported by the shim); player-mcp, player-obs via env, set; board-summarizer via secret. **player-digest-scheduler has no DSN at all** (compose declares none): its errors never reach GlitchTip. *operator*: add one or accept |
 
@@ -63,7 +62,6 @@ for main is settled, then validate all at once. Nothing below is validated yet.
 
 | # | Item | Status |
 |---|---|---|
-| 19 | player-api OOM-killed at the 6 GB cap 3x (10-26 13:46:07/13:46:31, 10-27 07:13:37). Cause found: `interest_episode_index` parsed the 500 MB `search/metadata.json` in one `json.loads` (peak 4,347 MiB measured) on the first home load of a user with interests after a restart or index rebuild (Homelab: kills 1-2 an onboarding user saving 6-20 interests, kill 3 a returning user). Fix on main: the indexer writes `search/interest_index.json` (16.5 MB), the reader uses only it (peak 167 MiB, identical map). Left: deploy + the one-off `python -m podcast_scraper.search.interest_index /app/output` on prod (until then interest features fall back to recency) | *prod*: fix committed; deploy needs the *operator*'s go |
 | 21 | Upgrade snapshots live in compose-api-1's writable layer: a deploy silently deletes them, and "rollback = this dir" only holds until then; note it in the corpus-migration skill, plus ~corpus-size free disk per snapshot (30 GB now) | moved to *ingestion* 2026-10-27 |
 | 27 | deploy-verify's Umami check reported 0 events after the deploys: homelab found traffic sparse (first Player event 15 min / 2 h after each deploy) and a real defect (a failed psql query read as 0 events); 0 now INCONCLUSIVE until the pre-deploy quiet gap has passed | *homelab*: fixed locally 2e41270 (agentic-ai-homelab), push waits for the *operator* |
 
@@ -71,6 +69,9 @@ for main is settled, then validate all at once. Nothing below is validated yet.
 
 | Date | Item | Evidence |
 |---|---|---|
+| 2026-10-27 | 19: player-api OOM fix deployed (sha-ab39fbd, `68706e872` + records `ab39fbd08`) | run 40548541386 success (preflight forced on the operator's go: Docker Build & Test and CodeQL path-skipped on the docs-only diff, both success on 68706e872); `prod-deploy verify` VERIFY PASS 10/10; `interest_index` on prod 17:24Z wrote 49,505 tokens (16.5 MB, deploy:docker), EXIT=0; in player-api-1 the reader gives 49,505 tokens / 72,204 pairs in 0.32 s, peak RSS 153 MiB; player-api restarts 0, OOMKilled false; `deploy-verify compare` DEPLOY-VERIFY PASS. Not yet seen: a real user's interest home load on the new code |
+| 2026-10-27 | 9: PLAYER-1L fix on prod | player post-deploy live smoke success (run 40548541386); GlitchTip: no player / player-api issue first seen since 17:13Z; player-api traces carry sha-ab39fbd |
+| 2026-10-27 | 0034 / 0035 / 0036 records landed (main was red on 68706e872) | steps 10-11 from the prod applies, `ab39fbd08`; `test_change_gate` 165 passed locally, CI #2408 success |
 | 2026-10-27 | 0032 retired (operator) | naming session: local commits 8b5ebec2d, 70733acfc (go out with its final push) |
 | 2026-10-27 | Migration leftovers removed (operator: whole dir; naming session agreed) | `/app/output/.podcast_scraper/upgrade-backups/` (1.7 GB) deleted 14:2xZ after confirming `snapshot-prod-20261027` (11:04Z, run 40491913697) holds it off-box; kept ledger, receipts, upgrade-outcomes; `upgrade status` 2.7.30 up to date |
 | 2026-10-27 | Housekeeping: 5 DGX / step-5 worktrees on the mini | `git worktree remove --force` as claude for podcast_scraper-0029-dgx, -dgx-new, -s5-branch, -s5-deployed, -s5-v54 (0 open files first); scratch corpora already deleted by the naming session; close-arc is the naming session's |
