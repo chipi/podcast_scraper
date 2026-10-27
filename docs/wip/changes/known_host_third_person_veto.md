@@ -1,10 +1,9 @@
 ---
 id: known_host_third_person_veto
 class: full
-status: open
+status: rejected      # 2026-10-27: failed acceptance 6/17 on its corpus reach; code reverted
 issue: "#2094 (D5)"
-touches:
-  - src/podcast_scraper/providers/ml/diarization/roster.py
+touches: []           # rejected: guards nothing
 ---
 
 # A feed's known host is never forced onto a voice that speaks of that host in the third person
@@ -151,11 +150,30 @@ and attributions; whether 5 is the right stop threshold; deploy, the prod plan d
 
 ## 7. Measure
 
-_TODO_
+Corpus reach, 2026-10-27, snapshot-prod-20261027 (11:04Z), scratch `rm27/veto_reach.py`: the
+roster with the new code and deterministic inputs only (`tried.known_hosts`, detected guests,
+metadata names, feed title, language; no LLM names) over every served episode with known hosts.
+
+- Served 3006; with known hosts 2545; replayed 2545; errors 0.
+- The veto fired on **52** voices. On **38** the served name is the host the veto refuses (36
+  seated by `known_hosts`, 2 by `voice_identity`): those would be unnamed on re-ingest.
+- What matched, read for all 38 (`rm27/veto_ctx.py`): most are the host introducing themselves in
+  forms `_introduces_itself_as` does not read: "Hello, it's <host> with <show>", "with me, your
+  host, <host>", "<host> here", "<host>, your personal astrophysicist", "Hallo, mein Name ist
+  <host>", "my name, though, is <host>", "I'm your host, <co-founder> <host>". The predicted reach
+  ("above 5 is read case by case") was exceeded by a factor of 10, and the cases read are wrong
+  refusals of real hosts, not D5-shaped ones.
 
 ## 8. Verdict
 
-_TODO_
+**Rejected, by the record's own acceptance** (criteria 6 and 17: one reached voice that is a wrong
+refusal stops the change). Not sent to a reviewer: the builder's reach alone fails it. The code and
+its tests are reverted (the revert commit names this record). D5's served episode is repaired by
+0037, which does not depend on this veto.
+
+What a second attempt would need (step 3 again, not started): a host-seat signal that tells an
+interviewer naming the host ("talking to <host>", "background on <host>") from the host naming
+themselves, measured over the same 52 before any code. Not on the current plan.
 
 ## 9. Operator review
 
