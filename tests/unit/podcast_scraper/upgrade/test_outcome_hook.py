@@ -568,3 +568,14 @@ def test_the_runner_guards_an_empty_plan_that_writes(_reset: Path, tmp_path: Pat
     runner = UpgradeRunner(FilesystemStateStore(root), [cast(Migration, Fake())])
     with pytest.raises(oh.HookOutcomeFailed, match="plan was empty but the apply wrote"):
         runner.run(MigrationContext(corpus_root=root), hold_lock=False)
+
+
+def test_the_outcome_receipt_and_its_new_dirs_go_to_the_corpus_owner(tmp_path, monkeypatch):
+    # Prod runs `upgrade run` as root: 0034's and 0035's outcome receipts were left root-owned.
+    seen = []
+    monkeypatch.setattr(oh, "match_corpus_owner", lambda root, paths: seen.append(list(paths)))
+    out = tmp_path / oh.OUT_DIR / "0099_x.json"
+    out.parent.mkdir(parents=True)
+    out.write_text("{}")
+    oh._own(tmp_path, out)
+    assert seen == [[out, tmp_path / oh.OUT_DIR, tmp_path / ".podcast_scraper"]]

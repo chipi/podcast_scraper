@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import List, Optional, Protocol, Set
 
 from ..corpus_version import corpus_code_version, read_produced_by
+from .ownership import match_corpus_owner
 
 LEDGER_FILE = "upgrade_ledger.json"
 
@@ -67,6 +68,10 @@ class FilesystemStateStore:
         tmp = self.ledger_path.with_suffix(self.ledger_path.suffix + ".tmp")
         tmp.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
         tmp.replace(self.ledger_path)
+        # Prod runs `upgrade run` as root; the ledger (and its lock) must stay the corpus owner's,
+        # or every later write as uid 1000 fails (chowned by hand after 0034 and 0035, 2026-10-27).
+        lock = self.ledger_path.with_suffix(self.ledger_path.suffix + ".lock")
+        match_corpus_owner(self.corpus_root, [p for p in (self.ledger_path, lock) if p.exists()])
 
     def current_version(self) -> Optional[str]:
         """Ledger version if set, else the manifest produced-by code version."""
@@ -129,10 +134,13 @@ class FilesystemStateStore:
         skipped it, and the ledger's version said 2.7.3 over pre-2.7.3 data with nothing able to
         tell (#2069).
 
-        Rewinding `version` is deliberately NOT attempted — it is a corpus-wide claim that other
-        migrations also advance, and guessing a predecessor would be worse than leaving it. Removing
-        the applied entry is what makes the migration re-runnable, which is the property that
-        matters.
+        `version` is rewound only when nothing has to be guessed: the reverted migration is the LAST
+        applied entry and `version` is its `to_version`; then the predecessor is on record, the new
+        last entry's `to_version`. Otherwise (an out-of-order undo, a version another migration
+        advanced, an entry without `to_version`) it is left as it is: a corpus-wide claim other
+        migrations also advance, and guessing would be worse than leaving it. On 2026-10-27 an
+        undo of 0035 would have left 2.7.29 over 2.7.28 data, to be reset by hand. Removing the
+        applied entry is what makes the migration re-runnable, the property that matters most.
 
         Same flock as `record_applied`: this is the same read-modify-write on the same file.
         """
@@ -152,6 +160,15 @@ class FilesystemStateStore:
             kept = [e for e in applied if not (isinstance(e, dict) and e.get("id") == migration_id)]
             if len(kept) == len(applied):
                 return False
+            last = applied[-1] if isinstance(applied[-1], dict) else {}
+            prev = kept[-1] if kept and isinstance(kept[-1], dict) else {}
+            if (
+                last.get("id") == migration_id
+                and last.get("to_version")
+                and ledger.get("version") == last.get("to_version")
+                and prev.get("to_version")
+            ):
+                ledger["version"] = prev["to_version"]
             ledger["applied"] = kept
             self._write_ledger(ledger)
             return True

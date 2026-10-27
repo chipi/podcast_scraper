@@ -38,7 +38,9 @@ def _names_35(entries):
 )
 def test_the_verdicts_file_has_one_row_for_every_list_entry(mod, names_of, kwargs) -> None:
     entries = mod.load_list(mod.LIST_FILE)
-    parsed = rv.load(mod.MIGRATION_ID, names_of(entries), listed=entries, require_basis=True, **kwargs)
+    parsed = rv.load(
+        mod.MIGRATION_ID, names_of(entries), listed=entries, require_basis=True, **kwargs
+    )
     missing = sorted(set(entries) - set(parsed.rows))
     assert not missing, f"{len(missing)} list entries without a verdict row, e.g. {missing[:3]}"
     assert len(parsed.rows) == len(entries)

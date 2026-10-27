@@ -38,6 +38,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
+from .ownership import created_dirs, match_corpus_owner
+
 REGIME = "0031"
 EXIT_REFUSED = 3
 EXIT_STOPPED = 4
@@ -59,6 +61,14 @@ REQUIRED = (
     "conditions",
 )
 OUT_DIR = Path(".podcast_scraper") / "upgrade-outcomes"
+
+
+def _own(root: Path, path: Path) -> None:
+    """The outcome receipt and plan diff belong to the corpus owner, not root (prod runs
+    `upgrade run` as root; chowned by hand after 0034 and 0035, 2026-10-27)."""
+    match_corpus_owner(root, [path, *created_dirs(path.parent, root)])
+
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]  # src/podcast_scraper
 
 
@@ -396,6 +406,7 @@ def prepare(
                     ),
                     encoding="utf-8",
                 )
+                _own(Path(root), out)
             lines = "\n".join(f"  {e['kind']:10} {e['meta']} {e.get('fields', '')}" for e in diff)
             raise HookStopped(
                 f"{migration.id}: prod's plan differs from the clone's in {len(diff)} episode(s); "
@@ -449,6 +460,7 @@ def measure(
     except Exception as exc:  # noqa: BLE001 - applied: say so, never pretend it passed
         receipt.update(verdict="NOT MEASURED", error=str(exc))
         path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
+        _own(Path(root), path)
         raise HookOutcomeFailed(
             f"{mig.id}: applied, but the after-scoreboard failed ({exc}); {undo_hint(mig)}"
         ) from exc
@@ -466,6 +478,7 @@ def measure(
         failures=fails,
     )
     path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
+    _own(Path(root), path)
     if fails:
         raise HookOutcomeFailed(
             f"{mig.id}: applied, and the outcome is not the measured one ({len(fails)}): "

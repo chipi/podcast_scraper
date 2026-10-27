@@ -75,11 +75,11 @@ def _read(path: Path) -> Optional[bytes]:
 def _verify_all(
     mid: str, applied: Any, clone: Path, work: Path
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
-    """``upgrade verify`` as prod runs it (runbook step 5): every migration in the clone's ledger plus
-    this one, on the copy after the apply. A failing check is run again on the untouched clone, so a
-    failure this migration caused (2026-10-27: 0035 left 0030's ad cut stale on 2 episodes, seen
-    only on prod) is told apart from one the snapshot already had. Report only; the exit code is
-    unchanged."""
+    """``upgrade verify`` as prod runs it (runbook step 5): every migration in the clone's ledger
+    plus this one, on the copy after the apply. A failing check is run again on the untouched
+    clone, so a failure this migration caused (2026-10-27: 0035 left 0030's ad cut stale on 2
+    episodes, seen only on prod) is told apart from one the snapshot already had. Report only;
+    the exit code is unchanged."""
     out: List[Dict[str, Any]] = []
     regressions: List[str] = []
     for m in get_migrations():
