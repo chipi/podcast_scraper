@@ -243,6 +243,13 @@ found three record items, fixed in step 7 and below: D5's segments reconciled; t
 decided by the operator; the not-covered list written. It also named a missing test: "wrong-person
 voices 6 -> 0" has no gate row when the gold does not cover the voices.
 
+Landing condition met: `make ci-fast` on 33f10ca3d (the outcome commit), all stages through
+`=== ci-fast DONE`, `CI_FAST_EXIT=0` (18:05Z; test-fast 0 failed); `make test-integration` on
+d2b95e39d (the gated code; since then only this outcome file and docs changed in the tree)
+`TEST_INTEGRATION_EXIT=0`, 4628 passed. Operator, 2026-10-27: no second verdict read ("if we
+agree that CI fast has to be green and we just agreed on D5, there's nothing to do another round of
+review"). 0037 is NOT to be applied before the operator's new deploy method.
+
 Verdict: GO (builder, 2026-10-27): 6 of 6 listed voices renamed in 4 episodes, 0 refused,
 `verify_regressions` [] (gate report d2b95e39d). Outcome 15cb660599688a2832950123258923b48c674f50c980ba77cd170d344b7d9cba.
 
