@@ -1,7 +1,7 @@
 ---
 id: 0034_talk_floor_names_removed
 class: full
-status: built, not applied
+status: landed
 issue: none (the operator opens issues; naming arc, 2026-10-23)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0034_talk_floor_names_removed.py
@@ -1647,3 +1647,29 @@ docstring fixes, every number and plan equal to the d94e4d13a run): `upgrade/out
 `make ci-fast` on the commit holding it: below.
 
 **Operator, 2026-10-26, on the 12 step-9 points:** "I'm okay with all 12 points and decisions we took. Let's keep moving forward." C4 closed: the three builder choices (majority in seconds; `e7d4a370` 02 removed under the third ruling; sibling episodes as evidence and a produced presenter role as an announcer) are accepted.
+
+## 10. Before apply / deploy
+
+By the prod session, on the operator's direct go (2026-10-27 ~08:50Z: "apply 0034 alone --to
+2.7.28"), on sha-2914e56 (deploy run 40473459447, `prod-deploy verify` VERIFY PASS 10/10,
+post_deploy_smoke green). Dry run 08:37Z on the deployed code: `would rewrite 152 episode(s)`,
+21 counters equal to the clone's (e.g. segments_relabelled 4794, quotes_moved 8309,
+roster_entries_unnamed 155, kg_persons_removed 141); **outcome hook: plan diff 0 episode(s)**.
+
+## 11. After apply / deploy
+
+- **Apply** 2026-10-27 08:46:29-08:55:50Z, `--to 2.7.28`, EXIT=0; receipt counters equal to the
+  dry run and the clone (21 counters). Undo recorded: `m0034_talk_floor_names_removed.undo`.
+- **Ownership:** 2 root-owned paths chowned to uid 1000 (operator's go, 09:31Z).
+- **`upgrade verify`** 09:21Z: 0034 [OK] ("every voice the review confirmed is off the floor's
+  name"); the only FAIL is 0025 on 1 episode (wild orchid), the known 0025 flag the operator
+  accepted (0035 section 8d).
+- **Derived surfaces** (once, after 0034, 0035, 0036 and the 0030 re-run): `enrich --only
+  insight_density,insight_sentiment` 248 ok, 0 failed; incremental `index` scanned 3004, skipped
+  2756, reindexed 248, EXIT=0. No rebuild.
+- **Snapshots:** the `upgrade-backups/` snapshots were deleted on the operator's go, after the
+  ingestion session validated them (2026-10-27). The undo above therefore no longer has its
+  backup: forward-only from here.
+- **Not verified by the prod session:** the corpus-scope enrichers after the next nightly (open
+  item 7, 2026-10-28); the search-index rows of the written episodes, read one by one; the app in
+  a browser on a written episode.

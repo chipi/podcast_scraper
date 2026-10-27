@@ -1,7 +1,7 @@
 ---
 id: 0035_voice_identity_names
 class: full
-status: built, not applied
+status: landed
 issue: none (the operator opens issues; naming arc, 2026-10-23)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0035_voice_identity_names.py
@@ -1190,3 +1190,30 @@ docstring fixes, every number and plan equal to the d94e4d13a run): `upgrade/out
 `make ci-fast` on the commit holding it: below.
 
 **Operator, 2026-10-26, on the 12 step-9 points:** "I'm okay with all 12 points and decisions we took. Let's keep moving forward." Round 4's step-9 items 1 to 8 accepted as listed, and the prod order (0034, check `iono.fm/e/1728203` against the clone, 0035 alone with `--to 2.7.29` and 0 plan differences, 0036; undo in reverse with the ledger version reset by hand; then the sidecar refresh and an incremental index for the written episodes); 0025's verify flags accepted as known (see the correction in section 7).
+
+## 10. Before apply / deploy
+
+By the prod session, on the operator's direct go (2026-10-27: "apply 0035 --to 2.7.29"), after
+0034, on sha-2914e56. Dry run 09:27Z: `would rewrite 99 episode(s)`, 27 counters equal to the
+clone's (e.g. segments_relabelled 56747, insights_reattributed 1590, voices_named 61);
+**outcome hook: plan diff 0 episode(s)**.
+
+## 11. After apply / deploy
+
+- **Apply** 2026-10-27 09:32:42-09:43:01Z, `--to 2.7.29`, EXIT=0; receipt counters equal to the
+  dry run and the clone (27 counters). Undo recorded: `m0035_voice_identity_names.undo`, then the
+  ledger version reset to 2.7.28 by hand.
+- **`upgrade verify`** 10:08Z: 0035 [OK]; FAILs: 0025 on the 5 known episodes (accepted, 8d) and
+  0030 on 2 episodes whose host-read sponsor blocks 0035's renames exposed. 0030 was re-run on those
+  2 (guarded dry run = 2 episodes, 8 counters; 14 files written), after which 0030 is [OK].
+- **Ownership:** 5 root-owned paths (0035, 0036, the 0030 re-run) chowned to uid 1000; OWNERSHIP
+  PASS.
+- **Derived surfaces** (once, after 0034, 0035, 0036 and the 0030 re-run): `enrich --only
+  insight_density,insight_sentiment` 248 ok, 0 failed; incremental `index` scanned 3004, skipped
+  2756, reindexed 248, EXIT=0. No rebuild.
+- **Snapshots:** the `upgrade-backups/` snapshots were deleted on the operator's go, after the
+  ingestion session validated them (2026-10-27). The undo above therefore no longer has its
+  backup: forward-only from here.
+- **Not verified by the prod session:** the corpus-scope enrichers after the next nightly (open
+  item 7, 2026-10-28); the search-index rows of the written episodes, read one by one; the app in
+  a browser on a written episode.

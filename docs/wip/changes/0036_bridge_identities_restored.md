@@ -1,7 +1,7 @@
 ---
 id: 0036_bridge_identities_restored
 class: full
-status: open
+status: landed
 issue: none (the operator opens issues; found by 0034's derived-surface census, 2026-10-26)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0036_bridge_identities_restored.py
@@ -424,3 +424,28 @@ Operator accepted: 2026-10-26: the sampled KG person "Walla" (round-1 read item 
 report measured at c2c0dcad2 (clean tree; the final gate after the format / lint / type /
 docstring fixes, every number and plan equal to the d94e4d13a run): `upgrade/outcomes/0036_bridge_identities_restored.json`, outcome 14d782ea8f9a062bba4dc07a3d1886653eaaebb682d7f23d92ace627b571100a.
 `make ci-fast` on the commit holding it: below.
+
+## 10. Before apply / deploy
+
+By the prod session, on the operator's direct go (2026-10-27 ~10:20Z: "0036 --to 2.7.30"),
+after 0034 and 0035, on sha-2914e56. Dry run 10:16Z: `restored 101 bridge identit(ies) in 34
+episode(s)`; identities_added 101, bridges_rebuilt 16, rebuilt_identities 523,
+unpublishable_left_out 12, as the gate; **outcome hook: plan diff 0 episode(s)**.
+
+## 11. After apply / deploy
+
+- **Apply** 2026-10-27 10:17:41-10:23:53Z, `--to 2.7.30`, EXIT=0; receipt equal to the dry run;
+  ledger at 2.7.30, 0 pending. Undo recorded: `m0036_bridge_identities_restored.undo`.
+- **`upgrade verify`** 10:57Z (after the 0030 re-run): 34 [OK] incl. 0030, 0034, 0035, 0036
+  ("every published GI / KG person has a bridge identity"); the only FAIL is 0025 on the 5 known
+  episodes.
+- **Ownership:** chowned with 0035's (5 paths); OWNERSHIP PASS.
+- **Derived surfaces** (once, after 0034, 0035, 0036 and the 0030 re-run): `enrich --only
+  insight_density,insight_sentiment` 248 ok, 0 failed; incremental `index` scanned 3004, skipped
+  2756, reindexed 248, EXIT=0. No rebuild.
+- **Snapshots:** the `upgrade-backups/` snapshots were deleted on the operator's go, after the
+  ingestion session validated them (2026-10-27). The undo above therefore no longer has its
+  backup: forward-only from here.
+- **Not verified by the prod session:** the corpus-scope enrichers after the next nightly (open
+  item 7, 2026-10-28); the search-index rows of the written episodes, read one by one; the app in
+  a browser on a written episode.
