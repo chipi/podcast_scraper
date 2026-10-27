@@ -256,3 +256,98 @@ def test_sidecar_drives_every_shared_enqueuer(tmp_path: Path, monkeypatch, capsy
     for label, _, _ in app_digest_dispatch.ENQUEUERS:
         assert f"{label}=1" in out, f"sidecar did not report {label}"
         assert f"{label}-1" in out, f"sidecar dropped {label}'s envelope id"
+
+
+# --- GlitchTip (operator, 2026-10-27): the sidecar had no network and no DSN, so a failing cadence
+# reached nobody but its own log. It now reports to player-api's project from an egress-only network.
+
+
+def _record_sentry(mod, monkeypatch, *, initialized: bool = True) -> list:
+    import sentry_sdk
+
+    sent: list = []
+    monkeypatch.setattr(sentry_sdk, "is_initialized", lambda: initialized)
+    monkeypatch.setattr(sentry_sdk, "capture_exception", lambda exc: sent.append(("exc", exc)))
+    monkeypatch.setattr(
+        sentry_sdk, "capture_message", lambda msg, level=None: sent.append(("msg", msg, level))
+    )
+    return sent
+
+
+def test_a_cycle_error_reaches_glitchtip(tmp_path: Path, monkeypatch, capsys) -> None:
+    mod = _load(tmp_path, monkeypatch)
+    sent = _record_sentry(mod, monkeypatch)
+    err = RuntimeError("something else entirely")
+
+    def boom() -> None:
+        raise err
+
+    monkeypatch.setattr(mod, "_run_once", boom)
+    mod._cycle()
+    assert sent == [("exc", err)]
+    assert (tmp_path / "hb" / "tick").exists()  # still beats
+
+
+def test_a_failing_cadence_reaches_glitchtip(tmp_path: Path, monkeypatch, capsys) -> None:
+    """The shared dispatcher catches a cadence's exception and returns it as text, so the outer
+    backstop never sees it; it has to be reported where the runner reads result.errors."""
+    mod = _load(tmp_path, monkeypatch)
+    sent = _record_sentry(mod, monkeypatch)
+    _stub_all(mod, monkeypatch, weekly=RuntimeError("outbox unreachable"), daily_recap=["ok"])
+    mod._run_once()
+    assert len(sent) == 1
+    kind, message, level = sent[0]
+    assert kind == "msg" and level == "error"
+    assert message.startswith("digest enqueuer weekly failed") and "outbox unreachable" in message
+
+
+def test_nothing_is_sent_when_reporting_is_off(tmp_path: Path, monkeypatch, capsys) -> None:
+    mod = _load(tmp_path, monkeypatch)
+    sent = _record_sentry(mod, monkeypatch, initialized=False)
+    _stub_all(mod, monkeypatch, weekly=RuntimeError("outbox unreachable"))
+    mod._cycle()
+    assert sent == []
+
+
+def test_reporting_uses_the_api_dsn_and_tags_the_component(tmp_path: Path, monkeypatch) -> None:
+    import sentry_sdk
+
+    from podcast_scraper.utils import sentry_init
+
+    mod = _load(tmp_path, monkeypatch)
+    calls: list = []
+
+    def _init(component: str) -> bool:
+        calls.append(component)
+        return True
+
+    monkeypatch.setattr(sentry_init, "init_sentry", _init)
+    tags: dict = {}
+    monkeypatch.setattr(sentry_sdk, "set_tag", lambda k, v: tags.__setitem__(k, v))
+    assert mod._init_error_reporting() is True
+    assert calls == ["api"] and tags == {"component": "digest-scheduler"}
+
+    monkeypatch.setattr(sentry_init, "init_sentry", lambda c: False)  # no DSN
+    assert mod._init_error_reporting() is False
+
+
+def test_compose_gives_the_scheduler_an_egress_only_network_and_the_dsn() -> None:
+    import yaml
+
+    public = yaml.safe_load(
+        (_REPO_ROOT / "compose" / "docker-compose.player-public.yml").read_text()
+    )
+    secrets = yaml.safe_load(
+        (_REPO_ROOT / "compose" / "docker-compose.player-secrets.yml").read_text()
+    )
+    sched = public["services"]["digest-scheduler"]
+    assert "network_mode" not in sched
+    assert sched["networks"] == ["digest_egress"]
+    others = [
+        name
+        for name, svc in public["services"].items()
+        if name != "digest-scheduler" and "digest_egress" in (svc.get("networks") or [])
+    ]
+    assert others == []  # no other container shares it, so it cannot reach the api
+    assert "PODCAST_SENTRY_DSN_API" in sched["environment"]
+    assert secrets["services"]["digest-scheduler"]["secrets"] == ["podcast_sentry_dsn_api"]

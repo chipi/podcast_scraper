@@ -474,12 +474,18 @@ services:
       DIGEST_CORPUS_ROOT: /app/output
       DIGEST_INTERVAL_SECONDS: "3600"
       DIGEST_HEARTBEAT_FILE: /heartbeat/tick
-      # Context only (log lines). No Sentry/OTEL init in the runner — network none makes them dead
-      # weight, and `command:` bypasses the image's opentelemetry-instrument wrapper.
+      # Environment + release for GlitchTip events and log lines. No OTEL: `command:` bypasses the
+      # image's opentelemetry-instrument wrapper.
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
-    # No network at all — the runner only touches mounted filesystems.
-    network_mode: none
+      # GlitchTip: player-api's project, tagged component=digest-scheduler by the runner. Prod
+      # mounts the DSN as a secret (player-secrets overlay; the image's shim exports it); empty = off.
+      PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+    # Its own network, used only to send errors to GlitchTip (operator, 2026-10-27; it had none, so
+    # a failing cadence was only a log line). Not the stack's default network: it cannot reach the
+    # api or any other container; the rest of its work is mounted files.
+    networks:
+      - digest_egress
     volumes:
       # Same read-only corpus + shared appdata bind mount the api uses (writes go through the
       # per-envelope FileLock the api also honors — multi-process-safe, verified 2026-08-07).
@@ -502,7 +508,7 @@ services:
     pids_limit: 64
     # Liveness = the loop is cycling: the runner rewrites /heartbeat/tick each cycle. Unhealthy if
     # it hasn't beaten within ~2 intervals → visible in `docker ps`. (The homelab dead-man alert
-    # covers the 'healthy but enqueuing nothing' case.) CMD-SHELL, no curl (network none): mtime.
+    # covers the 'healthy but enqueuing nothing' case.) CMD-SHELL, no curl: the heartbeat's mtime.
     healthcheck:
       test: ["CMD-SHELL", "test $(( $(date +%s) - $(stat -c %Y /heartbeat/tick 2>/dev/null || echo 0) )) -lt 7200"]
       interval: 5m
@@ -592,3 +598,7 @@ volumes:
     name: ${PODCAST_CORPUS_VOLUME:-compose_corpus_data}
   # (player_appdata is now a HOST bind mount on the api service — see above — so it is
   # backupable and durable; no Docker-managed volume declaration.)
+
+networks:
+  # The digest scheduler's egress-only network (GlitchTip); no other service joins it.
+  digest_egress: {}

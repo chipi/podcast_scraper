@@ -17,9 +17,10 @@ healthy "enqueued 0 envelope(s)" every hour (#2119). There is now one list, in
 ``server/app_digest_dispatch.py``, and adding to it wires both callers at once.
 
 It is pure filesystem work — reads the read-only corpus (``/app/output``) and the shared appdata
-bind mount (``/app/appdata``), writes ``DeliveryEnvelope``s to the outbox. NO network (the
-container runs ``network_mode: none``) and NO secrets. The homelab delivery worker drains the
-outbox over the tailnet and does the actual send (it has its own idempotency ledger).
+bind mount (``/app/appdata``), writes ``DeliveryEnvelope``s to the outbox. Its one network use is
+error reporting to GlitchTip (an egress-only network of its own; until 2026-10-27 it had none), and
+its one secret is that DSN. The homelab delivery worker drains the outbox over the tailnet and does
+the actual send (it has its own idempotency ledger).
 
 Hardening rationale (advisor review 2026-08-07):
 - Interval-aligned wake (not a fixed ``sleep``): a fixed sleep drifts forward and eventually
@@ -62,10 +63,47 @@ def _log_json(**fields: object) -> None:
     without regex over logs. Emitting the same ``correlation_id`` key here closes the join
     (#2119).
 
-    The sidecar runs ``network_mode: none`` and cannot emit OTEL spans; a structured log line
-    carrying the trace key is the correlation that isolation permits.
+    The sidecar emits no OTEL spans; a structured log line carrying the trace key is its
+    correlation.
     """
     print("[digest-scheduler-json] " + json.dumps(fields, sort_keys=True, default=str), flush=True)
+
+
+def _init_error_reporting() -> bool:
+    """GlitchTip for this sidecar: player-api's project (``PODCAST_SENTRY_DSN_API``, exported by
+    the image's secrets shim from the same secret the api gets), tagged
+    ``component=digest-scheduler``. Until 2026-10-27 the sidecar ran with no network and no DSN,
+    so a failing cadence was only a log line. No DSN -> off, as for every other component."""
+    try:
+        from podcast_scraper.utils.sentry_init import init_sentry
+
+        if not init_sentry("api"):
+            return False
+        import sentry_sdk
+
+        sentry_sdk.set_tag("component", "digest-scheduler")
+        return True
+    except Exception as exc:  # noqa: BLE001 — error reporting must never stop the loop
+        _log(f"error reporting off: {exc!r}")
+        return False
+
+
+def _report(exc: BaseException | None = None, *, message: str = "", **tags: str) -> None:
+    """Send one error to GlitchTip when reporting is on; never raises."""
+    try:
+        import sentry_sdk
+
+        if not sentry_sdk.is_initialized():
+            return
+        with sentry_sdk.new_scope() as scope:
+            for key, value in tags.items():
+                scope.set_tag(key, value)
+            if exc is not None:
+                sentry_sdk.capture_exception(exc)
+            else:
+                sentry_sdk.capture_message(message, level="error")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _beat() -> None:
@@ -91,6 +129,7 @@ def _run_once() -> None:
     for label, err in result.errors.items():
         _log(f"enqueuer {label} failed: {err}")
         _log_json(event="digest.enqueuer.failed", cadence=label, error=err, ts=ts)
+        _report(message=f"digest enqueuer {label} failed: {err}", cadence=label)
 
     # One structured line PER ENVELOPE, keyed on correlation_id — the same key the delivery
     # worker stamps on its spans, logs, metrics and the Resend header. This is what makes an
@@ -133,13 +172,16 @@ def _cycle() -> None:
         _run_once()
     except Exception as exc:  # noqa: BLE001 — a bad cycle must never kill the loop
         _log(f"cycle error: {exc!r}")
+        _report(exc)
     _beat()
 
 
 def main() -> NoReturn:
+    reporting = _init_error_reporting()
     _log(
         f"start: corpus={CORPUS_ROOT} data_dir={DATA_DIR} "
-        f"interval={INTERVAL_S}s offset={OFFSET_S}s heartbeat={HEARTBEAT}"
+        f"interval={INTERVAL_S}s offset={OFFSET_S}s heartbeat={HEARTBEAT} "
+        f"glitchtip={'on' if reporting else 'off'}"
     )
     while True:
         _cycle()
