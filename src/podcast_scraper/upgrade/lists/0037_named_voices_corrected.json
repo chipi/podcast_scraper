@@ -1,0 +1,11 @@
+{
+ "migration": "0037_named_voices_corrected",
+ "voices": [
+  ["d99b4720-283b-4f07-89c4-791b12acba2d", "SPEAKER_04", "Tim Scarfe", "host", "Kevin Buzzard", "guest", "night-1 readers A and B agree: clip_own_person segment 358 / self_intro segment 481; the feed host's name was forced on the clip's own speaker"],
+  ["https://iono.fm/e/1732482", "SPEAKER_07", "Ali Mazanderani", "guest", "Mzo Mpolase", "guest", "night-1 readers A and B agree: clip_own_person segment 68 / segment 57; the narrator introduces the interviewee whose answer this voice gives"],
+  ["substack:post:165726942", "SPEAKER_00", "Katie Couric", "guest", "Eric Topol", "host", "#2094 D5: the other voice says it is talking to this voice, the feed's host, by full name (addressed, segment 1)"],
+  ["substack:post:165726942", "SPEAKER_01", "Eric Topol", "host", "Katie Couric", "guest", "#2094 D5: addressed by the guest's given name by the other voice (addressed, segment 14), and speaks of the host in the third person throughout"],
+  ["substack:post:216929530", "SPEAKER_00", "Rob Snyder", "guest", "Lenny Rachitsky", "host", "night-1 readers A and B agree: addressed / host_read segment 18; hosts the show and welcomes the guest by name"],
+  ["substack:post:216929530", "SPEAKER_01", "Lenny Rachitsky", "host", "Rob Snyder", "guest", "night-1 readers A and B agree: addressed segment 14; welcomed by the host as the guest"]
+ ]
+}
