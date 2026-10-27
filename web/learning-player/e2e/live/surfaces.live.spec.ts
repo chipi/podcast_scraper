@@ -9,8 +9,17 @@ import { addSessionCookie, bearer, canMintSession } from './session'
  *
  * Per-user surfaces (Collections, Library, Queue, Favourites) are NOT here — they need a real Google
  * sign-in a headless smoke can't complete; they'd need a seeded test account (separate infra).
+ *
+ * ONE exception to data-agnostic (operator, 2026-10-27): the playback check opens a PINNED episode,
+ * `LIVE_SMOKE_EPISODE_SLUG`, and asserts its audio loads. Opening "the newest playable episode"
+ * made the smoke's result depend on whichever publisher was newest, and when that host's audio
+ * would not load from the CI runner the player filed it as a prod GlitchTip error (PLAYER-1J on
+ * 10-19, PLAYER-1L on 10-27: api.substack.com / pscrb.fm, both during the smoke) while the smoke,
+ * which only checked that an <audio> element existed, passed. Unset, it falls back to the newest
+ * ready, bridged episode, with the same assertion.
  */
 const gated = Boolean(process.env.PLAYER_PREVIEW_PASS)
+const pinnedEpisode = process.env.LIVE_SMOKE_EPISODE_SLUG || ''
 
 test.describe('public API contracts', () => {
   test.skip(
@@ -109,24 +118,36 @@ test.describe('signed-in UI surfaces', () => {
     await expect(page.getByTestId('browse-panel-episodes').getByTestId('catalog-from')).toBeVisible()
   })
 
-  test('Player opens a playable episode with a live audio element', async ({ page, request }) => {
-    // Pick a READY, audio-bridged episode — the absolute newest can be a pending (unprocessed) one
-    // with no transport, which is data-dependent and flaked in CI.
-    const list = (
-      await (await request.get('/api/app/episodes?page_size=15', { headers: bearer() })).json()
-    ).items as Array<{ slug: string; status: string; has_bridge: boolean }>
-    const ep = list?.find((e) => e.status === 'ready' && e.has_bridge)
-    expect(ep?.slug, 'prod must have a ready, playable episode').toBeTruthy()
+  test('Player opens a playable episode and its audio loads', async ({ page, request }) => {
+    let slug = pinnedEpisode
+    if (!slug) {
+      // Pick a READY, audio-bridged episode — the absolute newest can be a pending (unprocessed)
+      // one with no transport, which is data-dependent and flaked in CI.
+      const list = (
+        await (await request.get('/api/app/episodes?page_size=15', { headers: bearer() })).json()
+      ).items as Array<{ slug: string; status: string; has_bridge: boolean }>
+      slug = list?.find((e) => e.status === 'ready' && e.has_bridge)?.slug ?? ''
+    }
+    expect(slug, 'prod must have a ready, playable episode').toBeTruthy()
     await page.goto('/preview')
-    await page.goto(`/episode/${ep!.slug}`)
+    await page.goto(`/episode/${slug}`)
     await expect(page).toHaveURL(/\/episode\//)
     // The transport renders and the player-store <audio> element exists (audio-continuity contract).
     await expect(page.getByRole('button', { name: 'Play', exact: true }).first()).toBeVisible()
+    // ...and its audio loads: PlayerView calls player.load() on mount with preload=metadata, so the
+    // element reaches HAVE_METADATA without a play. A MediaError here is the failure a listener sees.
     await expect
-      .poll(() => page.evaluate(() => Boolean(document.querySelector('audio'))), {
-        timeout: 10_000,
-      })
-      .toBe(true)
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const a = document.querySelector('audio')
+            if (!a) return 'no audio element'
+            if (a.error) return `media error ${a.error.code}`
+            return a.readyState >= 1 ? 'loaded' : 'loading'
+          }),
+        { timeout: 45_000, message: `audio of ${slug} did not load` },
+      )
+      .toBe('loaded')
   })
 
   test('a show page renders its episode list', async ({ page, request }) => {
