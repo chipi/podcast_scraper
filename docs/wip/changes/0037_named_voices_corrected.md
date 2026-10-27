@@ -217,12 +217,34 @@ they live in the private eval repo, `podcast-scraper-eval-data-naming`,
 | `substack:post:216929530` | SPEAKER_00 | guest's name, guest | host's name, host | SPEAKER_01 holds the guest's name |
 | `substack:post:216929530` | SPEAKER_01 | host's name, host | guest's name, guest | SPEAKER_00 holds the host's name |
 
+**Open call decided (operator, 2026-10-27):** D5's roles stay as listed: the feed's host keeps the
+host role and the guest the guest role. It is a one-off ("a guest asking a lot of questions to the
+host"): no new rule. Prod serves the same pairing today, only on the wrong voices; 0037 moves each
+name, with its role, to the right voice.
+
+**D5's deciding segments, reconciled:** the list's evidence column is the builder's (segment 1:
+the other voice says it is talking to the host; segment 14: the host addresses the guest by given
+name); the verdicts are the blind reader C's (SPEAKER_00 addressed, segment 32; SPEAKER_01
+host_read, segment 1). Both point the same way for both voices; the verdicts file decides, and the
+list is not edited (its sha256 is bound by the verdicts and the code digest).
+
 **Builder's verdict: GO.** Deciding number: 6 of 6 listed voices renamed in 4 episodes, 0 refused,
 `verify_regressions` [] (gate report). The swaps exchange exactly; no voice holds both names.
 
 ## 8. Verdict
 
-_TODO_
+Order (operator, 2026-10-27: no GO while `make ci-fast` is red): the builder's GO below, then the
+outcome is built and `make ci-fast` runs green on that committed tree, then the §4a verdict read is
+launched with the green log; its verdict is the last line here.
+
+A first §4a read (2026-10-27, sonnet subagent, 55 s, 128,701 tokens against a 40k budget) returned
+NO-GO on the red ci-fast log (the only failure was this landing test, waiting for this outcome) and
+found three record items, fixed in step 7 and below: D5's segments reconciled; the open D5 role call
+decided by the operator; the not-covered list written. It also named a missing test: "wrong-person
+voices 6 -> 0" has no gate row when the gold does not cover the voices.
+
+Verdict: GO (builder, 2026-10-27): 6 of 6 listed voices renamed in 4 episodes, 0 refused,
+`verify_regressions` [] (gate report d2b95e39d). Outcome 15cb660599688a2832950123258923b48c674f50c980ba77cd170d344b7d9cba.
 
 ## 9. Operator review
 
@@ -242,4 +264,15 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- The scoreboard cannot show the fix: the gold covers none of the 6 voices, so "wrong-person voices
+  6 -> 0" rests on the plan (`diagnostics_voices_renamed=6`) and the excerpts, not on a gate row. A
+  gate row counting a list's wrong-person voices before and after is missing (any change, not only
+  0037).
+- The causes stay in the pipeline: a forced `known_hosts` seat on the wrong voice (D5, `d99b4720`;
+  the veto that addressed D5 was rejected), the LLM's pair swap (`216929530`), the LLM's guest name
+  on a clip voice (`1732482`). New episodes can repeat them.
+- Other wrong-person voices outside these 4 episodes: the night-1 read sampled 21 episodes; the rest
+  of the corpus was not read.
+- The search-index rows of the 4 episodes: refreshed by prod's incremental index after the apply,
+  not by the migration.
+- Prod's apply (steps 10-11): pending the operator's go.
