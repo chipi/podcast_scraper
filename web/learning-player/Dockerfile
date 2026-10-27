@@ -23,6 +23,12 @@ ARG VITE_UMAMI_WEBSITE_ID
 ENV VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}
 ARG VITE_UMAMI_SRC
 ENV VITE_UMAMI_SRC=${VITE_UMAMI_SRC}
+# The build's commit, for the GlitchTip release tag (`sha-<7>`, ADR-0010) and the build info.
+# The build context has no .git, so without it vite.config.ts falls back to "unknown" and every
+# player event carried release `sha-unknown` (homelab check 2026-10-27).
+#   docker buildx build --build-arg BUILD_SHA=<full sha>
+ARG BUILD_SHA
+ENV BUILD_SHA=${BUILD_SHA}
 RUN npm run build
 
 # ---- serve ----

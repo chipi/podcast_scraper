@@ -359,6 +359,8 @@ jobs:
               BUILD_ARGS+=(--build-arg "VITE_SENTRY_DSN_PLAYER=${VITE_SENTRY_DSN_PLAYER}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_SRC=${PLAYER_UMAMI_SRC}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}")
+              # The context has no .git: without this the bundle's release tag is `sha-unknown`.
+              BUILD_ARGS+=(--build-arg "BUILD_SHA=${GITHUB_SHA}")
               ;;
             pipeline-llm)
               # INSTALL_EXTRAS=llm = cloud-thin variant (OpenAI/Gemini SDKs).
