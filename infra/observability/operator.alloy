@@ -146,10 +146,12 @@ loki.process "podcast_denoise" {
 	// Pipeline correlation (P2). Every pipeline log line carries the run bracket
 	// `[run=<run_id> trace=<trace_id>]` (orchestration.py:2530 formatter); reprocess / enrich /
 	// sweep runs all stamp it. Extract run_id so VictoriaLogs is filterable by run — the thing
-	// you pivot on when a specific reprocess misbehaves. `run-[^\]\s]+` matches only a real run
-	// id (run-<ts>Z), so a line with `run=-` (no run) captures nothing and defaults "".
+	// you pivot on when a specific reprocess misbehaves. A real run id is `run-<ts>Z` or, for a
+	// scheduled / api-submitted job, the job's UUID (`[run=349d0b7e-cdbd-…`, which the first
+	// pattern alone missed, so no nightly line had a run_id until 2026-10-27). A line with
+	// `run=-` (no run) captures nothing and defaults "".
 	stage.regex {
-		expression = "\\[run=(?P<run_id>run-[^\\]\\s]+)"
+		expression = "\\[run=(?P<run_id>run-[^\\]\\s]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[\\]\\s]"
 	}
 
 	// Episode id WHEN PRESENT: only some lines carry `episode_id=<id>` (e.g. jsonl_emitter
@@ -159,8 +161,23 @@ loki.process "podcast_denoise" {
 		expression = "episode_id=(?P<episode_id>[^\\s)\\]]+)"
 	}
 
+	// `level` (LOG-STANDARD §Severity): the Python logging prefix `<date> <time>,<ms> LEVEL …` and
+	// uvicorn's `LEVEL:     …`, normalised to debug / info / warning / error / critical. A line
+	// without that prefix gets no level (VictoriaLogs drops the empty field), and the
+	// message-pattern severity stays the fallback for it.
+	stage.regex {
+		expression = "^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}(?:[,.]\\d+)? (?P<level>DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL)\\s"
+	}
+	stage.regex {
+		expression = "^(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL):\\s"
+	}
+	stage.template {
+		source   = "level"
+		template = "{{ if eq .Value \"WARN\" }}warning{{ else if eq .Value \"FATAL\" }}critical{{ else }}{{ ToLower .Value }}{{ end }}"
+	}
+
 	stage.structured_metadata {
-		values = {trace_id = "", run_id = "", episode_id = ""}
+		values = {trace_id = "", run_id = "", episode_id = "", level = ""}
 	}
 
 	// Events emitted to stdout (emit_event, sink="log") arrive behind the app's text log prefix

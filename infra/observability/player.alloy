@@ -109,8 +109,22 @@ loki.process "player_denoise" {
 	stage.regex {
 		expression = "(?:trace_id[=\":\\s]+|trace=|00-|sentry-trace[=\":\\s]+)(?P<trace_id>[a-f0-9]{32})"
 	}
+	// `level` (LOG-STANDARD §Severity): the Python logging prefix `<date> <time>,<ms> LEVEL …` and
+	// uvicorn's `LEVEL:     …`, normalised to debug / info / warning / error / critical. The
+	// scheduler / summarizer `[name] …` lines carry none and get no level; the message-pattern
+	// severity stays the fallback for them.
+	stage.regex {
+		expression = "^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}(?:[,.]\\d+)? (?P<level>DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL)\\s"
+	}
+	stage.regex {
+		expression = "^(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL):\\s"
+	}
+	stage.template {
+		source   = "level"
+		template = "{{ if eq .Value \"WARN\" }}warning{{ else if eq .Value \"FATAL\" }}critical{{ else }}{{ ToLower .Value }}{{ end }}"
+	}
 	stage.structured_metadata {
-		values = {trace_id = ""}
+		values = {trace_id = "", level = ""}
 	}
 }
 
