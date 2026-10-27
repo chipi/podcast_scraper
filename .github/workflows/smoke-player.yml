@@ -55,8 +55,6 @@ jobs:
           # the same surface without a redeploy.
           PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           PLAYER_SMOKE_USER_ID: ${{ vars.PLAYER_SMOKE_USER_ID }}
-          # The episode the playback check opens and asserts audio loads on (surfaces.live.spec.ts).
-          LIVE_SMOKE_EPISODE_SLUG: ${{ vars.LIVE_SMOKE_EPISODE_SLUG }}
         run: npm run test:e2e:live
       - name: Simulate failure (GlitchTip alert-path test)
         if: ${{ inputs.simulate_failure }}

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { addSessionCookie, bearer, canMintSession, gatePass, gateUser } from './session'
+import { mockEpisodeAudio } from './mock-audio'
 
 /**
  * Post-deploy live smoke for the offline arc (#1905, #1906, #1914, #1925).
@@ -192,6 +193,8 @@ test.describe('offline arc (test account)', () => {
     await request.get('/preview')
     const slug = await readySlug(request)
 
+    // Our fixture MP3 in place of the publisher's audio (./mock-audio.ts).
+    await mockEpisodeAudio(context, baseURL || 'https://closelistening.app')
     await page.goto(`/episode/${encodeURIComponent(slug)}?t=42`)
     await expect(page, 'bounced to the landing page — the page is not signed in').not.toHaveURL(
       /\/welcome/,
