@@ -167,7 +167,35 @@ cut, non-English ASR, deploy sequencing.
 
 ## 7. Measure
 
-_TODO_
+Gate (`scripts/measure/corpus_change_gate.py`, report `0037_named_voices_corrected.gate.json`):
+clone of snapshot-prod-20261027 (ledger 2.7.30, 0034-0036 applied), code d2b95e39d, clean tree,
+15:20-15:49Z. Rebased on origin/main first (68706e872 changed three files inside 0037's code
+digest), so the measured code is the code that ships.
+
+| Prediction (step 4) | Measured |
+|---|---|
+| 6 renames, 0 unnamings | `diagnostics_voices_renamed=6`; plan: `d99b4720` SPEAKER_04, D5 SPEAKER_00 + SPEAKER_01, `216929530` SPEAKER_00 + SPEAKER_01, `1732482` SPEAKER_07 |
+| 4 episodes written, 0 refused | rewrote 4, refused 0 |
+| 0037's verify | OK |
+| full `upgrade verify`, 0 new failures | 35 OK; failing only 0025 (the 5 known episodes, the same 5 on the untouched clone); `verify_regressions` [] |
+| S7-wrong -6 where the gold covers the voices; S1n not up; other voices 0 | **no scoreboard total moved** (`gating_moves` {}, per-episode deltas 0): the gold does not cover these 6 voices, so the change is "no effect" on the scoreboard, not a measured fall |
+
+Apply counters: segments relabelled 3868, quotes reattributed 333, quotes moved 386, insights
+reattributed 149, transcripts re-rendered 8, turns rebuilt 6, context rebuilt 2, KG persons
+removed 2 / added 1, GI persons added 1, bridge identities removed 2, admaps carried 3. 50 files
+written: `.segments.json` 8, `.turns.json` 6, `.txt` 4, `.adfree.txt` 4, `.cleaned.txt` 4,
+`.metadata.json` 4, `.gi.json` 4, `.bridge.json` 4, `.diagnostics.json` 4, `.kg.json` 3,
+`.admap.json` 3, `.context.json` 2.
+
+Idempotence and undo on the gate's copy (scratch `rm27/idem_undo37.py`): a second apply rewrote
+0 episodes and changed 0 files; `undo` restored 51, refused 0; afterwards 0 files differ from the
+snapshot; verify reads 0037 as pending again.
+
+D5's blind read (criterion 14): a fresh reader given name-stripped copies (reader C,
+`d5-blindread-20261027` in the private eval repo) confirmed both voices: SPEAKER_00 the feed's
+host (addressed, segment 32), SPEAKER_01 the guest (host_read, segment 1). Open point for the
+reviewer: the reader notes SPEAKER_01 speaks as the host of that live session; the list gives the
+feed's host the host role.
 
 ## 8. Verdict
 
