@@ -55,6 +55,7 @@ from .migrations.m0033_hand_removed_names_refused import HandRemovedNamesRefused
 from .migrations.m0034_talk_floor_names_removed import TalkFloorNamesRemovedMigration
 from .migrations.m0035_voice_identity_names import VoiceIdentityNamesMigration
 from .migrations.m0036_bridge_identities_restored import BridgeIdentitiesRestoredMigration
+from .migrations.m0037_named_voices_corrected import NamedVoicesCorrectedMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -135,6 +136,9 @@ _MIGRATIONS: List[Migration] = [
     # 0036 gives every published GI / KG person the bridge identity the builder makes, where the
     # bridge carries none (found by 0034's census; text only).
     BridgeIdentitiesRestoredMigration(),
+    # 0037 gives served voices holding another person's name their own (#2094 D5 and night 1's
+    # blind reads; frozen list + verdicts, a swap applied whole).
+    NamedVoicesCorrectedMigration(),
     # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27
     # (docs/wip/0032-ASSESSMENT-2026-10-27.md); the id stays unused.
 ]

@@ -15,6 +15,7 @@ from podcast_scraper.upgrade import reviewer_verdicts as rv
 from podcast_scraper.upgrade.migrations import (
     m0034_talk_floor_names_removed as m34,
     m0035_voice_identity_names as m35,
+    m0037_named_voices_corrected as m37,
 )
 
 pytestmark = [pytest.mark.unit]
@@ -33,8 +34,9 @@ def _names_35(entries):
     [
         (m34, _names_34, {}),
         (m35, _names_35, {"bases": m35.BASES}),
+        (m37, _names_35, {"bases": m35.BASES}),
     ],
-    ids=["0034", "0035"],
+    ids=["0034", "0035", "0037"],
 )
 def test_the_verdicts_file_has_one_row_for_every_list_entry(mod, names_of, kwargs) -> None:
     entries = mod.load_list(mod.LIST_FILE)

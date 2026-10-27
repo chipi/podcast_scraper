@@ -17,6 +17,7 @@ import pytest
 from podcast_scraper.upgrade import reviewer_verdicts as rv
 from podcast_scraper.upgrade.migration import MigrationContext
 from podcast_scraper.upgrade.migrations import m0037_named_voices_corrected as m37
+from podcast_scraper.upgrade.registry import get_migrations
 
 pytestmark = [pytest.mark.unit]
 
@@ -182,3 +183,13 @@ def test_an_entry_without_its_deciding_segment_or_a_name_is_refused(tmp_path: Pa
         path.write_text(json.dumps({"migration": m37.MIGRATION_ID, "voices": [row]}))
         with pytest.raises(m37.ListError):
             m37.load_list(path)
+
+
+def test_registered_after_0036_with_its_list_and_verdicts_shipped() -> None:
+    ids = [m.id for m in get_migrations()]
+    assert ids.index(m37.MIGRATION_ID) == ids.index("0036_bridge_identities_restored") + 1
+    entries = m37.load_list()
+    names = {k: str(e[2]) for k, e in entries.items()}
+    parsed = rv.load(m37.MIGRATION_ID, names, listed=entries, require_basis=True, bases=rv.BASES)
+    assert sorted(parsed.rows) == sorted(entries)
+    assert all(row.verdict == "CORRECT" for row in parsed.rows.values())
