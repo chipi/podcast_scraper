@@ -117,7 +117,7 @@ pushed** — the `[R]` items deploy together in one rebuild cycle (operator-gate
 
 ## Execution notes
 - Local test env: no complete `.venv` in this worktree; reuse a sibling repo venv
-  (`podcast_scraper-infra/.venv` has pytest/mypy) for deterministic tests; ML-dependent tests may
+  (a sibling worktree's `.venv` with pytest/mypy) for deterministic tests; ML-dependent tests may
   need `[ml,search]` — flag per item.
 - One commit per item (or tight sub-steps), tests green before commit, never push without approval.
 - The `[R]` items deploy together in one image rebuild → Stack test → deploy at the end of the batch.

@@ -774,7 +774,7 @@ its SessionEnd reaper fires; these orphans poll the GitHub API forever (observed
 surviving 8–14 days). `--stale-loops` sweeps them by FAMILY + SHAPE + AGE: a `gh run` call
 in an unbounded `while/until` loop, older than 2h (`CLEANUP_MAX_LOOP_AGE`), whose cwd is in
 **this project's family** (project-name prefix of the worktree — run from
-`~/Projects/podcast_scraper-infra` it reaps `~/Projects/podcast_scraper*` loops, so
+`~/Projects/podcast_scraper-player` it reaps `~/Projects/podcast_scraper*` loops, so
 `podcast_scraper-FUTURE` is swept but `orrery` is never touched). It reaches sibling
 worktrees but never another project. The automatic counterpart is the SessionEnd hook
 `~/.claude/hooks/session-reap.sh` (global, not in this repo), which family-scopes to the
