@@ -18,6 +18,10 @@ services:
   # upstream (http://api:8000) resolves to it — NOT the privileged operator api (absent here).
   api:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     environment:
       # Curated operator-read surface, each route ≥creator-gated (require_viewer_access).
@@ -104,6 +108,10 @@ services:
   # backend even though nginx proxies all of /api/ (defense in depth).
   viewer:
     image: ghcr.io/chipi/podcast-scraper-stack-viewer:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     environment:
       # Bootstrap the SPA's default corpus on first login. The image's nginx sub_filter

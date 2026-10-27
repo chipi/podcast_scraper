@@ -61,6 +61,13 @@ discovery.relabel "podcast" {
 		regex         = "/(.*)"
 		replacement   = "$1"
 	}
+	// The deployed release (compose label `release: sha-<7>`); loki.process moves it into the
+	// `release` field and drops it as a stream label (LOG-STANDARD: one value per deploy, not a
+	// stream). Absent on a container started before the label existed.
+	rule {
+		source_labels = ["__meta_docker_container_label_release"]
+		target_label  = "release"
+	}
 }
 
 loki.source.docker "podcast" {
@@ -104,6 +111,13 @@ discovery.relabel "operator_public" {
 		target_label  = "container"
 		regex         = "/(.*)"
 		replacement   = "$1"
+	}
+	// The deployed release (compose label `release: sha-<7>`); loki.process moves it into the
+	// `release` field and drops it as a stream label (LOG-STANDARD: one value per deploy, not a
+	// stream). Absent on a container started before the label existed.
+	rule {
+		source_labels = ["__meta_docker_container_label_release"]
+		target_label  = "release"
 	}
 }
 
@@ -177,7 +191,10 @@ loki.process "podcast_denoise" {
 	}
 
 	stage.structured_metadata {
-		values = {trace_id = "", run_id = "", episode_id = "", level = ""}
+		values = {trace_id = "", run_id = "", episode_id = "", level = "", release = ""}
+	}
+	stage.label_drop {
+		values = ["release"]
 	}
 
 	// Events emitted to stdout (emit_event, sink="log") arrive behind the app's text log prefix
@@ -192,6 +209,19 @@ loki.process "podcast_denoise" {
 
 		stage.regex {
 			expression = "(?P<event_json>\\{\"ts\": \".*\\})\\s*$"
+		}
+
+		// A bare JSON object has no message, so VictoriaLogs showed every event line as "missing
+		// _msg field" (2026-10-27). Add a `_msg` naming the event and its keys; every field of
+		// the event stays a field. The values used are ids, stage and model names (no quotes);
+		// should one ever carry a quote, VictoriaLogs keeps that line whole as text, nothing lost.
+		stage.json {
+			source      = "event_json"
+			expressions = {ev_type = "event_type", ev_stage = "stage", ev_operation = "operation", ev_model = "model", ev_episode = "episode_id", ev_done = "episodes_done"}
+		}
+		stage.template {
+			source   = "event_json"
+			template = "{{ TrimSuffix .Value \"}\" }}, \"_msg\": \"{{ .ev_type }}{{ with .ev_stage }} stage={{ . }}{{ end }}{{ with .ev_operation }} operation={{ . }}{{ end }}{{ with .ev_model }} model={{ . }}{{ end }}{{ with .ev_episode }} episode={{ . }}{{ end }}{{ with .ev_done }} episodes_done={{ . }}{{ end }}\"}"
 		}
 
 		stage.output {

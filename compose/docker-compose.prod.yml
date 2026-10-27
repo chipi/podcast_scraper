@@ -59,6 +59,10 @@
 services:
   viewer:
     image: ghcr.io/chipi/podcast-scraper-stack-viewer:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     build: !reset null
     restart: unless-stopped
     # Hardening (#1160 T-04): block privilege escalation + drop all Linux caps,
@@ -85,6 +89,10 @@ services:
 
   api:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     build: !reset null
     restart: unless-stopped
     # Hardening (#1160 T-04): drop all caps, re-add only what the entrypoint
@@ -237,6 +245,10 @@ services:
 
   pipeline-llm:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     build: !reset null
     # Hardening (#1160 T-04): same cap profile as ``api`` — parity by shared
     # non-root/su-exec entrypoint pattern (chown output + drop to ``podcast``).

@@ -16,6 +16,10 @@ services:
   # (http://api:8000) resolves to it — NOT the privileged operator api (absent here).
   api:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     ports:
       # Tailnet-only delivery-outbox seam (#1412 / ADR-145): the homelab delivery worker
@@ -202,6 +206,10 @@ services:
   # Inert unless INTERNAL_MCP_TOKEN is set (verify fails closed → every connect 401s).
   mcp:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     command:
       - "python"
@@ -289,6 +297,10 @@ services:
   # requires the ADMIN grant (APP_MCP_REQUIRE_ADMIN=true) — so only the operator can reach it.
   obs:
     image: ghcr.io/chipi/podcast-obs:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     command:
       - "serve"
@@ -405,6 +417,10 @@ services:
     # from main. Published by stack-test's publish job alongside api/viewer/pipeline-llm, so
     # ${PODCAST_IMAGE_TAG} now pins every container in this file to one sha.
     image: ghcr.io/chipi/podcast-scraper-learning-app:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     ports:
       # Loopback only — the Caddy edge (player.caddy) is the public front (ADR-114).
@@ -442,6 +458,10 @@ services:
   # anything), no ports, no docker.sock, no provider keys, read-only rootfs, cap_drop ALL.
   digest-scheduler:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     # Run as the image's non-root podcast uid directly. The entrypoint's privileged branch does
     # `setpriv --reuid=podcast`, which needs CAP_SETUID/SETGID — dropped here — so we must NOT go
@@ -507,6 +527,10 @@ services:
   # through the LiteLLM gateway (LITELLM_API_BASE) with the pipeline's gateway key (#2342).
   board-summarizer:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
+    # The deployed release (sha-<7>) as a container label: Alloy copies it into each log
+    # line's `release` field (LOG-STANDARD), the same value as GlitchTip / Langfuse release.
+    labels:
+      release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     user: "1000:1000"
     command: ["python", "/app/board_summarizer.py"]

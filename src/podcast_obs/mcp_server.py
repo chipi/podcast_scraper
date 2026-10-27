@@ -150,10 +150,9 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         return _run(config, target, github.recent_deploys, limit=limit)
 
     def prod_cost_today(target: Optional[str] = None) -> dict:
-        """LLM cost events over the last 24h for a deploy (VictoriaLogs llm_cost stream)."""
-        return _run(
-            config, target, lambda t: victoria.events(t, "llm_cost", window="24h", limit=500)
-        )
+        """LLM calls, tokens and cost over the last 24h for a deploy, per provider + model (summed
+        from the VictoriaLogs llm_cost stream). For one run or other slices use ``prod_usage``."""
+        return _run(config, target, lambda t: victoria.cost_rollup(t, window="24h"))
 
     def prod_usage(
         target: Optional[str] = None,

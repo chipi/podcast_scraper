@@ -93,7 +93,10 @@ def recent_traces(target: TargetConfig, limit: int = 10) -> dict:
     base = (target.langfuse_base_url or _CLOUD).rstrip("/")
     headers = {"Authorization": _auth_header(target)}
     url = f"{base}/api/public/traces"
-    params = {"limit": max(limit, 1)}
+    # Only the core fields + latency/cost (`metrics`): the full listing also loads input / output /
+    # observations, 5-11 s for 10 traces on prod's Langfuse against a 10 s timeout, so the tool
+    # timed out; with `fields` it took 0.5-0.7 s (measured 2026-10-27, 3 rounds each).
+    params = {"limit": max(limit, 1), "fields": "core,metrics"}
     try:
         payload = get_json(url, headers=headers, params=params, timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001

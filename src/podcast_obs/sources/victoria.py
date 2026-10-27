@@ -25,6 +25,7 @@ from ..result import err, ok
 
 _LOGS = "victorialogs.events"
 _LOGSRAW = "victorialogs.logs"
+_COST = "victorialogs.cost_rollup"
 _METRICS = "victoriametrics.query"
 _TRACES = "victoriatraces.traces"
 _TRACE = "victoriatraces.trace"
@@ -114,6 +115,55 @@ def events(
             "window": window,
             "count": len(rows),
             "events": rows,
+        },
+    )
+
+
+def cost_rollup(target: TargetConfig, *, window: str = "24h") -> dict:
+    """LLM calls, tokens and cost per provider + model over ``window``, summed in VictoriaLogs.
+
+    The raw ``llm_cost`` events were 766 KB for one prod day (2026-10-27), too large for an MCP
+    answer. No de-dup by request_id: 585 of 960 prod events that day carried none, so grouping by
+    it folds those into one bucket (376 calls instead of 960); the 375 that do were all distinct.
+    """
+    base = target.victorialogs_url
+    if not base:
+        return err(_COST, "victorialogs_url not configured", configured=False)
+    query = (
+        f"_time:{window} event_type:llm_cost | stats by (provider, model) count() calls, "
+        "sum(estimated_cost_usd) cost_usd, sum(prompt_tokens) prompt_tokens, "
+        "sum(completion_tokens) completion_tokens"
+    )
+    url = f"{base.rstrip('/')}/select/logsql/query"
+    try:
+        rows = get_ndjson(
+            url, params={"query": query}, headers=_headers(target), timeout=target.timeout
+        )
+    except Exception as exc:  # noqa: BLE001
+        return err(_COST, f"victorialogs query failed: {exc}")
+
+    def _num(row: dict, key: str) -> float:
+        return float(row.get(key) or 0)
+
+    rows = sorted(rows, key=lambda r: (-_num(r, "cost_usd"), -_num(r, "calls")))
+    by_model = [
+        {
+            "provider": r.get("provider") or None,
+            "model": r.get("model") or None,
+            "calls": int(_num(r, "calls")),
+            "cost_usd": round(_num(r, "cost_usd"), 6),
+            "prompt_tokens": int(_num(r, "prompt_tokens")),
+            "completion_tokens": int(_num(r, "completion_tokens")),
+        }
+        for r in rows
+    ]
+    return ok(
+        _COST,
+        {
+            "window": window,
+            "total_cost_usd": round(sum(_num(r, "cost_usd") for r in rows), 6),
+            "total_calls": int(sum(_num(r, "calls") for r in rows)),
+            "by_model": by_model,
         },
     )
 

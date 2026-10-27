@@ -80,6 +80,13 @@ discovery.relabel "player" {
 		regex         = "/(.*)"
 		replacement   = "$1"
 	}
+	// The deployed release (compose label `release: sha-<7>`); loki.process moves it into the
+	// `release` field and drops it as a stream label (LOG-STANDARD: one value per deploy, not a
+	// stream). Absent on a container started before the label existed.
+	rule {
+		source_labels = ["__meta_docker_container_label_release"]
+		target_label  = "release"
+	}
 }
 
 loki.source.docker "player" {
@@ -124,7 +131,10 @@ loki.process "player_denoise" {
 		template = "{{ if eq .Value \"WARN\" }}warning{{ else if eq .Value \"FATAL\" }}critical{{ else }}{{ ToLower .Value }}{{ end }}"
 	}
 	stage.structured_metadata {
-		values = {trace_id = "", level = ""}
+		values = {trace_id = "", level = "", release = ""}
+	}
+	stage.label_drop {
+		values = ["release"]
 	}
 }
 

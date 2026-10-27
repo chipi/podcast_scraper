@@ -173,15 +173,37 @@ def analytics(target: TargetConfig, *, window: str = "24h", frontend: Optional[s
     (operator-dev/-prod), so this reads whichever site this target's env is pointed at. Degrades
     to ``configured=False`` when Umami read creds aren't wired.
     """
-    site = _umami_site(target, frontend)
-    probes: dict[str, Callable[[], dict]] = {
-        "user_actions": lambda: umami.events(site, window=window),
-        "page_analytics": lambda: umami.stats(site, window=window),
-        "active_users": lambda: umami.active(site),
-    }
+
+    def probes(site: TargetConfig) -> dict[str, Callable[[], dict]]:
+        return {
+            "user_actions": lambda: umami.events(site, window=window),
+            "page_analytics": lambda: umami.stats(site, window=window),
+            "active_users": lambda: umami.active(site),
+        }
+
+    # No frontend on a target with one site per frontend (prod: player + operator): there is no
+    # default site, so this read nothing and reported all three signals "unconfigured" while both
+    # sites were live (2026-10-27). Answer for every frontend instead, each labelled.
+    if frontend is None and target.umami_website_ids and not target.umami_website_id:
+        per = {
+            fe: _collect(probes(_umami_site(target, fe))) for fe in sorted(target.umami_website_ids)
+        }
+        merged = {
+            key: sorted(f"{fe}.{label}" for fe, got in per.items() for label in got[key])
+            for key in ("live", "unconfigured", "failed")
+        }
+        return ok(
+            "analytics",
+            {"target": target.name, "frontend": None, "window": window, **merged, "frontends": per},
+        )
     return ok(
         "analytics",
-        {"target": target.name, "frontend": frontend, "window": window, **_collect(probes)},
+        {
+            "target": target.name,
+            "frontend": frontend,
+            "window": window,
+            **_collect(probes(_umami_site(target, frontend))),
+        },
     )
 
 
