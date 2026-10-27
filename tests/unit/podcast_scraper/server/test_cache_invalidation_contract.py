@@ -32,7 +32,7 @@ CONTRACT: dict[str, tuple[str, str]] = {
     "server/og/card.py::_font": ("static", "a font file shipped with the code"),
     "server/app_discover_view.py::_INTEREST_INDEX_CACHE": (
         "mtime",
-        "search/metadata.json (mtime, size), checked on every read",
+        "search/interest_index.json (mtime, size), checked on every read",
     ),
     "server/routes/app_episodes.py::_related_cache": (
         "ttl",

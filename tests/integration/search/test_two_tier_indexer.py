@@ -109,6 +109,8 @@ def test_writes_metadata_json_sidecar_with_char_offsets(tmp_path, monkeypatch):
 
     # Sidecar lands next to the lance index, where the verifier resolves <root>/search.
     assert (corpus / "search" / "metadata.json").is_file(), "metadata.json sidecar not written"
+    # ...and the small interest map the serving path reads instead of it (2026-10-27 OOM fix).
+    assert (corpus / "search" / "interest_index.json").is_file(), "interest_index.json not written"
 
     # The verifier's OWN reader must parse it and recover the transcript chunk char spans.
     from podcast_scraper.search.gil_chunk_offset_verify import (

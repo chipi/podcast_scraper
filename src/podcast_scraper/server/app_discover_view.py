@@ -20,6 +20,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from podcast_scraper.search.interest_index import INTEREST_INDEX_FILE
 from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -188,9 +189,6 @@ def _episode_features(
     return clusters, topic_ids, {p.id for p in persons}
 
 
-#: Sidecar doc types that carry an interest token (`source_id`) for an episode.
-_KG_DOC_TYPES = ("kg_topic", "kg_entity")
-
 #: How many candidates enter ranking, as a multiple of the requested page size.
 DISCOVER_POOL_MULTIPLE = 4
 
@@ -226,10 +224,13 @@ _INTEREST_INDEX_CACHE: dict[str, tuple[tuple[float, int], dict[str, set[str]]]] 
 def interest_episode_index(root: Path) -> dict[str, set[str]]:
     """``interest token -> {metadata_relative_path}`` for every episode carrying it.
 
-    Read from ``search/metadata.json``, the sidecar the two-tier indexer already writes: its
-    ``kg_topic`` / ``kg_entity`` rows carry ``source_id`` (``topic:…`` / ``person:…`` — the SAME id
-    space interests live in) alongside ``source_metadata_relative_path``. So the mapping the pool
-    needs is one JSON parse, not a KG load per episode.
+    Read from ``search/interest_index.json``, which the two-tier indexer writes next to
+    ``search/metadata.json`` (:mod:`podcast_scraper.search.interest_index`): the ``kg_topic`` /
+    ``kg_entity`` rows' ``source_id`` (``topic:…`` / ``person:…`` — the SAME id space interests live
+    in) mapped to their ``source_metadata_relative_path``.
+
+    Never ``metadata.json`` itself: it holds every row of the index (500 MB on prod, 2026-10-27),
+    and one ``json.loads`` of it inside a request got the player api OOM-killed at its 6 GB cap.
 
     Cached on the file's (mtime, size): the corpus is rewritten out-of-band by the pipeline rather
     than mutated in place, and everything else in this path re-reads per request, so a stale index
@@ -240,7 +241,7 @@ def interest_episode_index(root: Path) -> dict[str, set[str]]:
     by design: they are corpus-wide umbrellas (#1669), so they match essentially everything and
     would make the interest leg of the pool meaningless.
     """
-    path = root / "search" / "metadata.json"
+    path = root / "search" / INTEREST_INDEX_FILE
     try:
         stat = path.stat()
     except OSError:
@@ -256,13 +257,9 @@ def interest_episode_index(root: Path) -> dict[str, set[str]]:
         return {}
     index: dict[str, set[str]] = {}
     if isinstance(raw, dict):
-        for entry in raw.values():
-            if not isinstance(entry, dict) or entry.get("doc_type") not in _KG_DOC_TYPES:
-                continue
-            token = entry.get("source_id")
-            relpath = entry.get("source_metadata_relative_path")
-            if isinstance(token, str) and isinstance(relpath, str):
-                index.setdefault(token, set()).add(relpath)
+        for token, relpaths in raw.items():
+            if isinstance(token, str) and isinstance(relpaths, list):
+                index[token] = {p for p in relpaths if isinstance(p, str)}
     _INTEREST_INDEX_CACHE[key] = (stamp, index)
     return index
 

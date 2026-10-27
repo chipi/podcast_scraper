@@ -23,6 +23,7 @@ dist/
 # diff, so a clean clone needs no ML — and the binary index is not.
 tests/fixtures/viewer-validation-corpus/**/search/lance_index/
 tests/fixtures/viewer-validation-corpus/**/search/metadata.json
+tests/fixtures/viewer-validation-corpus/**/search/interest_index.json
 tests/fixtures/viewer-validation-corpus/**/search/episode_fingerprints.json
 
 # Incremental-processing ledgers, same category as episode_fingerprints.json above and
@@ -355,6 +356,7 @@ tests/fixtures/app-validation-corpus/v3/search/lance_index/
 # locally — see docs/guides/E2E_ON_INTEL_MAC.md.
 tests/fixtures/app-validation-corpus/v3/search/episode_fingerprints.json
 tests/fixtures/app-validation-corpus/v3/search/metadata.json
+tests/fixtures/app-validation-corpus/v3/search/interest_index.json
 # Per-user app state the e2e api writes INTO the fixture corpus (sessions, per-user files) — the
 # same class of runtime leak the `e2e/.app-state/` rules above cover, but written under the corpus
 # because the api is pointed at it directly. `/.app/` only anchors the repo root, so this path was

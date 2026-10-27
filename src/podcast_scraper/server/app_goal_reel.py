@@ -284,7 +284,7 @@ def _subject_token(root: Path) -> float:
     for rel in (
         # Which topic is on which episode: `interest_episode_index` reads this file. The lance dir's
         # own mtime moves only when a direct child appears or goes, not on every upsert.
-        "search/metadata.json",
+        "search/interest_index.json",
         "search/lance_index",
         "enrichments/topic_theme_clusters.json",
         "search/topic_clusters.json",

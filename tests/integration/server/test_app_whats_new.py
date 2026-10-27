@@ -17,6 +17,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.search.interest_index import build_interest_index, write_interest_index
 from podcast_scraper.server import app_sessions, app_user_state
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
@@ -64,6 +65,7 @@ def _corpus(root: Path) -> None:
         }
     }
     (root / "search" / "metadata.json").write_text(json.dumps(sidecar), encoding="utf-8")
+    write_interest_index(root / "search", build_interest_index(sidecar))
     themes = {
         "clusters": [
             {

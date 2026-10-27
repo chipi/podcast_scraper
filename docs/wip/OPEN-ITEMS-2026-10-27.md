@@ -47,23 +47,23 @@ for main is settled, then validate all at once. Nothing below is validated yet.
 
 | # | Item | Status |
 |---|---|---|
-| 22 | A. D5 (Ground Truths `substack:post:165726942`, names swapped). Cause from the diagnostics: `known_hosts` seated the feed host on the voice acting as host; no third-person guard covers `known_hosts` seating (guards cover LLM names, roster guests, the 5% floor). Plan: (1) code: apply the third-person check to `known_hosts` seating, change record steps 1-5; (2) served: a small text-only migration (~0037) swapping the pair back, plus item 8's 4 voices (C). Done when: a replay shows no host name on a voice that speaks of the host; on prod both voices and C's 4 carry their own names | in progress |
+| 22 | A. D5 (Ground Truths `substack:post:165726942`, names swapped). Cause from the diagnostics: `known_hosts` seated the feed host on the voice acting as host; no third-person guard covers `known_hosts` seating (guards cover LLM names, roster guests, the 5% floor). Plan: (1) code: apply the third-person check to `known_hosts` seating [rejected on its reach check, reverted 97eaf2850; 0037 repairs the served episode without it], change record steps 1-5; (2) served: a small text-only migration (~0037) swapping the pair back, plus item 8's 4 voices (C). Done when: a replay shows no host name on a voice that speaks of the host; on prod both voices and C's 4 carry their own names | in progress |
 | 23 | B. D4: classify the 43 candidates read-only (floor covers it / genuine / wrong name / undecidable); real wrong names join 22's migration | after 22's code fix |
 | 24 | Local commits on main, not pushed: 2b035c180 (gate runs full `upgrade verify`, verdicts completeness test, method rules, ad-cut resync step), 9153ca153 (ledger + outcome files chowned to the corpus owner; undo rewinds `version`). They move the 0034-0036 code digest, so the landing test stays red until the final pass rebuilds the outcomes | push waits for the operator |
 | 25 | Final validation pass: gates on the snapshot clone (0034 -> 0035 -> 0036 -> new), rebuild outcomes, ci-fast + test-integration, push, then delete the clone (`/Users/claude/projects/remeasure-20261027`, 9 G) | after 22-23 |
+| 28 | 0032's 91 voices not covered by later migrations (48 additions, 29 renames, 14 unnamings): a reviewed-list migration of their own, AFTER the current validation pass and AFTER the evaluation of LLM naming and the other shadow rungs on prod (operator, 2026-10-27) | *ingestion*, later |
 | 26 | Known and accepted: `upgrade verify` flags 0025 on the 5 known episodes, spelling only; the shared spelling-precedence rule is debt B10 | accepted |
 
 ## Naming plan, later
 
 | # | Item | Status |
 |---|---|---|
-| 17 | 0032 (`naming_voices_rederived`) held on its own gate (#2380), outside this plan | moved to *ingestion* 2026-10-27: assess still-needed vs retire after 0031/0033-0036; *operator* decides on the assessment |
 
 ## Found along the way, not yet followed up
 
 | # | Item | Status |
 |---|---|---|
-| 19 | player-api OOM-killed at the 6 GB cap 3 times since the 10-25 deploy (kernel: 10-26 13:46:07 and 13:46:31, 10-27 07:13:37, anon-rss ~6.27 GB), during real app use (beta traffic; an app-launch burst); the 1 s watchdog logged nothing before any kill, so the spike is sub-second or the watchdog is starved; the killing request never completes, so the access log cannot name it. Ruled out: the index pool warm-up, `PUT /interests` itself. Next: reproduce off prod (dev engine, snapshot-prod-20261027, same image + 6 GB cap, replay the launch burst endpoint by endpoint) — route awaiting the *operator* | *prod* |
+| 19 | player-api OOM-killed at the 6 GB cap 3x (10-26 13:46:07/13:46:31, 10-27 07:13:37). Cause found: `interest_episode_index` parsed the 500 MB `search/metadata.json` in one `json.loads` (peak 4,347 MiB measured) on the first home load of a user with interests after a restart or index rebuild (Homelab: kills 1-2 an onboarding user saving 6-20 interests, kill 3 a returning user). Fix on main: the indexer writes `search/interest_index.json` (16.5 MB), the reader uses only it (peak 167 MiB, identical map). Left: deploy + the one-off `python -m podcast_scraper.search.interest_index /app/output` on prod (until then interest features fall back to recency) | *prod*: fix committed; deploy needs the *operator*'s go |
 | 21 | Upgrade snapshots live in compose-api-1's writable layer: a deploy silently deletes them, and "rollback = this dir" only holds until then; note it in the corpus-migration skill, plus ~corpus-size free disk per snapshot (30 GB now) | moved to *ingestion* 2026-10-27 |
 | 27 | deploy-verify's Umami check reported 0 events after the deploys: homelab found traffic sparse (first Player event 15 min / 2 h after each deploy) and a real defect (a failed psql query read as 0 events); 0 now INCONCLUSIVE until the pre-deploy quiet gap has passed | *homelab*: fixed locally 2e41270 (agentic-ai-homelab), push waits for the *operator* |
 
@@ -71,6 +71,7 @@ for main is settled, then validate all at once. Nothing below is validated yet.
 
 | Date | Item | Evidence |
 |---|---|---|
+| 2026-10-27 | 0032 retired (operator) | naming session: local commits 8b5ebec2d, 70733acfc (go out with its final push) |
 | 2026-10-27 | Migration leftovers removed (operator: whole dir; naming session agreed) | `/app/output/.podcast_scraper/upgrade-backups/` (1.7 GB) deleted 14:2xZ after confirming `snapshot-prod-20261027` (11:04Z, run 40491913697) holds it off-box; kept ledger, receipts, upgrade-outcomes; `upgrade status` 2.7.30 up to date |
 | 2026-10-27 | Housekeeping: 5 DGX / step-5 worktrees on the mini | `git worktree remove --force` as claude for podcast_scraper-0029-dgx, -dgx-new, -s5-branch, -s5-deployed, -s5-v54 (0 open files first); scratch corpora already deleted by the naming session; close-arc is the naming session's |
 | 2026-10-27 | Umami on the player (operator: beta users are all on Android) | Homelab: Player site events from `android-app`, e.g. 10-26 89 page views / 193 custom events |

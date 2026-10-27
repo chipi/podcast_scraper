@@ -38,6 +38,7 @@ from .corpus_scope import (
     index_fingerprint_scope_key,
 )
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
+from .interest_index import build_interest_index, write_interest_index
 from .segments import link_insights_to_segments, link_insights_to_segments_by_text
 from .storylines import STORYLINE_DOC_TYPE, storyline_index_rows
 
@@ -997,6 +998,8 @@ def _finalize_index_build(
         json.dumps(index_metadata, ensure_ascii=False, sort_keys=True),
         encoding="utf-8",
     )
+    # The serving path's interest index, so no request ever parses metadata.json (500 MB on prod).
+    write_interest_index(Path(lance_path).parent, build_interest_index(index_metadata))
     # D2: LanceDB upserts write into per-table SUBDIRS and don't bump the top-level index dir
     # mtime — but read_lance_index_stats() caches on that mtime (perf_cache.lance_mtime) and derives
     # last_updated from it. Bump it after any build that changed the index so the stats endpoint +

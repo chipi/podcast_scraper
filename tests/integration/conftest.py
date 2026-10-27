@@ -287,6 +287,10 @@ def app_validation_search_index() -> Path:
         """
         if not (lance.is_dir() and sidecar.is_file()):
             return False
+        # An index built before the indexer wrote the interest map lacks it; rebuild rather than
+        # serve a cache the interest-aware tests would read as "no interests indexed".
+        if not (sidecar.parent / "interest_index.json").is_file():
+            return False
         meta_path = lance / "index_meta.json"
         if not meta_path.is_file():
             return True  # older index shape — leave previous behaviour alone
