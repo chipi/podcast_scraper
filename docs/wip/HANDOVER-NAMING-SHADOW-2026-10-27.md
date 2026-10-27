@@ -1,0 +1,91 @@
+# Handover: what runs in shadow on prod, and how to evaluate it (2026-10-27)
+
+For the next agent picking up the naming arc after the 2026-10-27 deploy (`sha-2914e56`, main
+`2914e562e`). Prod is the deploy; this file is what to measure from the new episodes it ingests.
+Everything here is from the repo at `2290fa91a`; numbers marked *step 5* are from the pre-deploy
+measurement recorded in `docs/wip/NAMING-RELEASE-POST-DEPLOY-PLAN-2026-10-25.md` (items 19-21).
+
+## What is in shadow
+
+Set in `config/profiles/prod_dgx_full.yaml` (comment above the keys says why):
+
+| Key | Mode | What it is | Where its answer is written |
+|---|---|---|---|
+| `transcript_naming` | `shadow` | An LLM reads the whole diarized transcript and names every voice (`providers/ml/diarization/transcript_naming.py`). | speaker-diagnostics sidecar, key `transcript_naming` |
+| `voice_identity_rung` | `shadow` | Last naming rung: a voice that sounds like a person this feed's other episodes name (fingerprint groups named by vote, same feed only) takes that name; a name leaves a voice that clearly is not that person. Threshold `voice_identity_threshold` 0.7. Design: `docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md`. | speaker-diagnostics sidecar, key `voice_identity` |
+
+In shadow the **ladder publishes**; each side namer's answer is only recorded beside it. `publish`
+would change the served roster. Field docs: `src/podcast_scraper/config.py` (`transcript_naming`,
+`voice_identity_rung`).
+
+Two caveats from the config docs:
+- In the bundled LLM modes (`llm_pipeline_mode` bundled / mega_bundled / extraction_bundled) the
+  bundled call answers instead of the transcript-naming call, and its answer is recorded only:
+  `publish` would publish nothing more than `shadow` there until the bundled write-back exists.
+- The sidecar file is `<base>.speakers.diagnostics.json` under the run's `transcripts/`.
+
+## What is published (not shadow) but still needs a post-deploy check
+
+Also in the prod profile, live on new episodes since the deploy:
+- `speaker_name_min_talk_share: 0.05`: the talk floor (a name on a voice under 5% of the talk
+  comes off). Served episodes got the same through migration 0034.
+- `ladder_rescue_rules: true`: the E1d and S30s rescues.
+- `merge_split_voices: true` at `merge_split_voices_threshold: 0.8`: two voices of one episode
+  whose fingerprints are 0.8 similar are merged as one person. The profile comment says 0.7 would
+  merge more but needs a post-deploy merge audit first (plan item 19).
+- `speaker_detection_temperature: 0.0`.
+
+## How to evaluate
+
+1. **The naming shadow report** (read only, sidecars only):
+   `python scripts/measure/naming_shadow_report.py --corpus /app/output [--json out.json] [--limit N]`
+   (module `src/podcast_scraper/quality/naming_shadow.py`, whose docstring defines every column).
+   Three tables:
+   - **Side namers:** per namer, episodes, calls that answered, and per voice agree / adds /
+     removes / changes against the ladder's published name. Every non-agree voice is listed. An
+     episode where the namer did not answer counts under `not_answered` by reason; a voice it never
+     judged is `not_judged` (the LLM pass skips voices under 40 words; the rung skips voices without
+     a fingerprint or under `voice_identity.MIN_VOICE_TALK_S`). Episodes written before these keys
+     existed count as `without`, never as agreement.
+   - **Talk floor:** every name the floor took off, by the role the LLM pass gave that voice (a
+     proxy: an `ad` / `promo` voice losing a name is the point; a `host` losing one is a loss to
+     read).
+   - **Rescues:** every voice E1d or S30s published, with the LLM's name for it beside it.
+   Each row carries the episode's insight count on that voice: read the rows with the most
+   insights first.
+2. **Counts do not say who is right.** Agree / changes only compare namers. To judge right or
+   wrong, read the listed voices against the transcript (blind reads, as for 0034 / 0035), or score
+   against gold:
+   `python scripts/measure/gold_insights.py ... --namer llm|voice|ladder` scores a shadow namer's
+   names in place of the GI's stored ones (S7 / S8: insight-weighted right / wrong / unnamed).
+   `--namer ladder` scores the roster the run served.
+3. **The promotion bar** is the operator's decision, from a table of right / wrong per namer on
+   new episodes. Rank a wrong name as worse than a hidden insight (operator's rule).
+
+## Where things stand (step 5, pre-deploy)
+
+- **Voice rung**, filling only unnamed voices: 33 right / 5 bad, and 5 wrong names repeated within
+  a feed (the error-spreading check: one wrong group name spreads to every episode of the feed).
+- **Transcript naming**, filling unnamed: 103 right / 43 bad; publishing everywhere 437 right / 75
+  bad, against the ladder's 360 / 51.
+- The operator's ruling: **transcript naming stays in shadow**; its data accumulates.
+
+## Next steps for the evaluating agent
+
+1. After a week of nightlies, run the shadow report on prod (read only, the prod session runs it)
+   and keep the JSON.
+2. For each side namer, blind-read a seeded sample of the non-agree voices, weighted by insights.
+   Report right / wrong / undecidable per namer, plus the error-spreading count for the rung.
+3. Audit the split-voice merges at 0.8 on new episodes (plan item 19) before 0.7 is considered.
+4. Find how many served episodes have archived audio (plan item 22): that bounds the rung's reach
+   on old episodes.
+5. Bring the table to the operator; promotion (`publish`) is his call, then a profile change and its
+   own deploy.
+
+## NOT covered by this handover
+
+- No shadow data from after the deploy has been read yet: the numbers above are pre-deploy.
+- The shadow report's reading of the bundled modes was not checked here.
+- Whether the prod session can run `naming_shadow_report.py` from the image (no mounted source:
+  compose-api-1 runs the image's site-packages, per the prod session 2026-10-27) was not tried.
+- The gold sets' coverage of new feeds was not checked.
