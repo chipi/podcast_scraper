@@ -42,24 +42,23 @@ eval-harness session; *operator* = a decision only the operator makes.
 
 | # | Item | Status |
 |---|---|---|
-| 16a | Plan item 19: split-voice merge audit at 0.8 on new episodes | weeks 1-2 |
-| 16b | Plan item 20: voice identity rung promotion — *operator* decides from its table | weeks 1-2 |
-| 16c | Plan item 21: transcript naming stays in shadow; data accumulates | ongoing |
+| 16 | Plan items 19-21 (split-voice merge audit; voice-rung promotion table for the *operator*; transcript naming in shadow) | in the naming session's hand-over `docs/wip/HANDOVER-NAMING-SHADOW-2026-10-27.md` ("Next steps" 2, 3, 5) |
 | 17 | 0032 (`naming_voices_rederived`) held on its own gate (#2380), outside this plan | held |
-| 18 | Housekeeping (plan items 26-28): DGX / step-5 worktrees (path by path, *operator*), scratch corpora, close the arc (`close-arc`) | after the migrations |
 
 ## Found along the way, not yet followed up
 
 | # | Item | Status |
 |---|---|---|
 | 19 | player-api memory: watchdog fired once (rss 3125 MB, 2026-10-25 19:43Z, cache warmer + 6 cold-start requests); under the 6 GB cap; the earlier OOM's cause not established | open |
-| 20 | Umami: 0 Player events in both post-deploy checks (10-25, 10-27); whether anyone used the player then is unchecked | open |
-| 21 | Upgrade snapshots live in compose-api-1's writable layer: a deploy silently deletes them, and "rollback = this dir" only holds until then; note it in the corpus-migration skill | open |
+| 21 | Migration leftovers: snapshots deleted; `.podcast_scraper/upgrade-backups/` (1.7 GB, incl. older migrations' and hand repairs' backups) to delete per the *operator*, after the naming session confirms nothing reads it; keep `upgrade_ledger.json`, receipts, `upgrade-outcomes/`. Also note in the corpus-migration skill that snapshots live in the container layer | waiting on ingestion's check |
+| 22 | deploy-verify's Umami line reported "0 events since the deploy" after 10-25 while Umami held 96 page views from the Android app: a bug in its window or site lookup | open (tool fix, homelab skill) |
 
 ## Closed (with evidence)
 
 | Date | Item | Evidence |
 |---|---|---|
+| 2026-10-27 | Housekeeping: 5 DGX / step-5 worktrees on the mini | `git worktree remove --force` as claude for podcast_scraper-0029-dgx, -dgx-new, -s5-branch, -s5-deployed, -s5-v54 (0 open files first); scratch corpora already deleted by the naming session; close-arc is the naming session's |
+| 2026-10-27 | Umami on the player (operator: beta users are all on Android) | Homelab: Player site events from `android-app`, e.g. 10-26 89 page views / 193 custom events |
 | 2026-10-27 | 0036's snapshot deleted (operator go) | `/app/.corpus-upgrade-backup-2.7.29-20261027T101817Z` removed; no snapshot left; 75 GB free |
 | 2026-10-27 | #2082 on served data (operator: no action needed) | all 23 audit hits superseded runs; 0 served |
 | 2026-10-27 | #2100 reconcile (operator: no action needed) | 102 served episodes in the 3 feeds all with correct speakers; DGX-DEFERRED row removed |
