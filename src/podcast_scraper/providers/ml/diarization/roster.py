@@ -3026,7 +3026,26 @@ def _name_host_voices(
         speaks_of = _speaks_of_by_first_name(
             text, unclaimed[0][0], feed_title
         ) and not _talks_to_the_cohost(text, unclaimed[0][0], [n for n, _ in host_pool])
-        if speaks_of:
+        # ...AND A VOICE THAT SAYS THE HOST'S FULL NAME OR SURNAME, NOT AS A SELF-INTRODUCTION,
+        # IS NOT THAT HOST (`refuted_by_third_person`, the resolver's rule, until now read only on
+        # LLM and guest names): #2094 D5, a guest interviewing the feed's one host opens the
+        # episode, takes the first seat, and says the host's name throughout. Same co-host-address
+        # exemption as the given-name veto; the feed's title is not a mention.
+        named_in_third_person = (
+            forced_name is not None
+            and not speaks_of
+            and refuted_by_third_person(
+                (
+                    re.sub(re.escape(feed_title), " ", text, flags=re.IGNORECASE)
+                    if feed_title
+                    else text
+                ),
+                unclaimed[0][0],
+                language,
+            )
+            and not _talks_to_the_cohost(text, unclaimed[0][0], [n for n, _ in host_pool])
+        )
+        if speaks_of or named_in_third_person:
             forced_name = None
         tr.voice(
             seat,
@@ -3037,6 +3056,7 @@ def _name_host_voices(
             greeted_by_that_name=addressed,
             rescued_from_bleed=rescued,
             speaks_of_by_given_name=speaks_of,
+            named_in_third_person=named_in_third_person,
             forced=forced_name is not None,
         )
 
