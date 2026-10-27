@@ -57,7 +57,7 @@ Every src change above moves the 0034-0036 code digest: CI's landing test stays 
 11. **Hand to prod:** 0037's apply goes through the corpus change method's step 9-10 (operator's
     go, prod's own plan diff against the clone's) and the `corpus-migration` skill. The veto
     reaches prod with the next deploy; the operator decides when.
-12. **Clean up:** delete the clones and the scratch corpora; `close-arc`.
+12. **Clean up:** delete the clones and the scratch corpora (done 2026-10-27). `close-arc`: not applicable: this repo has no `docs/history`, decisions log or NEXT_STEPS (operator, 2026-10-27: drop close-arc here); the arc's record is the change records, the method doc and the naming handovers.
 
 ## Not in this pass
 

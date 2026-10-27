@@ -191,7 +191,7 @@ they are except where 0034 / 0035 / 0036 reach; v39-v55 act on new episodes.
 26. The DGX and step-5 worktrees (`podcast_scraper-0029-dgx`, `-dgx-new`, `-s5-deployed`,
     `-s5-branch`, `-s5-v54`), each path approved. *operator, me*
 27. Scratch corpora (`s5c_*`, `dgxcorpus`; `snap1016` once 0034 / 0035 no longer need it). *me*
-28. Close the arc: history entry, NEXT_STEPS, decisions log (`close-arc`). *me*
+28. ~~Close the arc (`close-arc`)~~: not applicable: this repo has no `docs/history`, decisions log or NEXT_STEPS (operator, 2026-10-27: drop close-arc here); the arc's record is the change records, the method doc and the naming handovers.
 
 ## Not covered by this plan
 
