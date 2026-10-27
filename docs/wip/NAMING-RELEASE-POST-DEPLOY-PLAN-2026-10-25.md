@@ -4,6 +4,21 @@ What happens from the merge of PR #2393 (merge plan step 7) to the end of the na
 order it has to happen. The merge plan is `NAMING-BRANCH-MERGE-PLAN-2026-10-24.md`; its step 5
 result is the evidence this deploy rests on.
 
+## Status, 2026-10-27 13:00Z
+
+**Deployed: `sha-2914e56` (main `2914e562e`) at ~08:30Z** (deploy-all-prod run 40473459447;
+`prod-deploy verify` VERIFY PASS, 10 / 10). **Item 18 done:** 0034 (152 episodes), 0035 (99) and
+0036 (34) applied one at a time with `--to`, each receipt equal to its dry run and the measured
+clone, plan diff 0 each; corpus at 2.7.30, 0 pending. 0035's renames exposed two host-read sponsor
+blocks to today's ad cut (0030's verify failed on 2 episodes); fixed forward by re-running 0030's
+own apply on those 2 (operator: no restore, no undo). Final `upgrade verify`: every migration OK
+except 0025 on exactly the 5 known episodes. Ownership PASS; `enrich --only
+insight_density,insight_sentiment` 248 episodes ok; incremental `index` reindexed 248. Upgrade
+snapshots deleted (operator). Items 12 and 14 done (night 1 clean, timing inside the baseline);
+item 13 with the naming session; item 15's findings and close-out plan:
+`EPIC-2097-CLOSEOUT-PLAN-2026-10-27.md`. Item 22 done (2,950 of 2,980 episodes have archived
+audio). Open items across everything: `OPEN-ITEMS-2026-10-27.md`.
+
 ## Status, 2026-10-25 20:00Z
 
 **Deployed: `sha-89590c6` (main `89590c65a`) at 19:43:59Z** (deploy-all-prod run 40226957536;
