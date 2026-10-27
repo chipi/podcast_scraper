@@ -61,6 +61,14 @@ Every src change above moves the 0034-0036 code digest: CI's landing test stays 
 
 ## Not in this pass
 
+- **0032's 91 uncovered voices** (48 additions, 29 renames, 14 unnamings; operator 2026-10-27):
+  their own reviewed list, AFTER this pass and AFTER the evaluation of the LLM naming and the other
+  rungs running in shadow on prod. The same machinery as 0037: freeze the 91, two blind readers
+  with names hidden, keep only what both confirm, a migration with verdicts, a clone gate and a
+  reviewer. The 29 renames first (they can be wrong-name fixes). Estimate 2-3 h, unmeasured.
+- **The forced-host-seat veto:** rejected on its reach (52 fired, most real hosts introducing
+  themselves); reverted in 97eaf2850. A second attempt starts again at step 3.
+
 - Deploys (the operator plans none now).
 - The D4 big unnamed voices (hidden insights, a coverage question for its own record).
 - The `d99b4720` cause (a known host forced onto a clip voice that never mentions the host).

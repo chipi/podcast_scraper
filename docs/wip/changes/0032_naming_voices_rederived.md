@@ -1,11 +1,9 @@
 ---
 id: 0032_naming_voices_rederived
 class: light          # a retirement: it deletes code that is not registered and never ran
-status: open          # closed (landed) in the commit after the deletion
+status: retired       # 2026-10-27, deleted in 8b5ebec2d; never ran
 issue: 2380
-touches:
-  - src/podcast_scraper/upgrade/migrations/m0032_naming_voices_rederived.py
-  - src/podcast_scraper/upgrade/registry.py
+touches: []           # retired: guards nothing
 ---
 
 > **RETIRED 2026-10-27** (operator: "retire 32 now"). Assessment:
