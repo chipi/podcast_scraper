@@ -3,7 +3,7 @@
 Status: **DRAFT v0.7** (2026-10-19). Practice runs: the 0030/0031 evaluation and 0030's go. Built under it: `0031_named_voices_shown` (the 0029 repair, through revision B.6), the S7/S8 instrument and the migration outcome hook, each with its record in `docs/wip/changes/`.
 
 > **Renumbered 2026-10-18.** "0031" in this document is the naming re-derivation, now
-> `0032_naming_voices_rederived` (held, #2380). The id 0031 now belongs to
+> `0032_naming_voices_rederived` (held under #2380, retired 2026-10-27 without running). The id 0031 now belongs to
 > `0031_named_voices_shown`, the repair of what 0029 left hidden.
 
 ## Why this document exists

@@ -1,12 +1,28 @@
 ---
 id: 0032_naming_voices_rederived
-class: full           # full | light (see README.md); the gate measurement can overrule light
-status: open          # open | landed
+class: light          # a retirement: it deletes code that is not registered and never ran
+status: open          # closed (landed) in the commit after the deletion
 issue: 2380
-touches:              # every content-code path this change writes (globs allowed)
+touches:
   - src/podcast_scraper/upgrade/migrations/m0032_naming_voices_rederived.py
-  - src/podcast_scraper/upgrade/migrations/m0025_one_person_one_entry.py
+  - src/podcast_scraper/upgrade/registry.py
 ---
+
+> **RETIRED 2026-10-27** (operator: "retire 32 now"). Assessment:
+> [0032-ASSESSMENT-2026-10-27.md](../0032-ASSESSMENT-2026-10-27.md). Of its 166 voices, 67 are
+> unnamings that 0034's later, basis-bound review kept as `CORRECT`; running it would undo them.
+> 7 were done by 0034. The other 91 (48 additions, 29 renames, 14 unnamings) are planned as their
+> own reviewed list AFTER the current validation pass and after the evaluation of the LLM naming
+> and the other rungs running in shadow on prod. The module, its tests and the 0031 drift test
+> that compared against it are deleted; this record keeps the history.
+
+## 0. Why light
+
+The retirement deletes `m0032_naming_voices_rederived.py`, which is not in the registry and never
+ran on prod or in any image, and removes its comment from `registry.py`. No corpus file is read or
+written, and no registered migration's behaviour changes (their code digests move only by the
+registry comment, and the 0034-0036 outcomes are re-measured in the validation pass anyway).
+
 
 # 0032 — the names the deployed naming code gives 126 served episodes (held, #2380)
 

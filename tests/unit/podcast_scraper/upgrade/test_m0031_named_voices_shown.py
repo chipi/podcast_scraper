@@ -644,35 +644,6 @@ def test_apply_undo_apply_undo_restores_every_file_once_and_refuses_none(
     assert {k: p[k].read_bytes() for k in before} == before
 
 
-def test_the_moved_functions_stay_identical_to_0032s_copy() -> None:
-    """0032 keeps its own copy until its record opens it; until then the two must not drift."""
-    import ast
-
-    root = Path(__file__).resolve().parents[4] / "src/podcast_scraper/upgrade/migrations"
-
-    def funcs(name: str) -> dict:
-        """The FIRST definition of each name (0032 also has a migration-level ``plan``), its
-        docstring dropped: the two copies' code must not drift; their documentation may differ
-        (0032's file is gated by its own open record)."""
-        out: dict = {}
-        for n in ast.walk(ast.parse((root / name).read_text(encoding="utf-8"))):
-            if isinstance(n, ast.FunctionDef) and n.name not in out:
-                body = n.body
-                if (
-                    body
-                    and isinstance(body[0], ast.Expr)
-                    and isinstance(getattr(body[0], "value", None), ast.Constant)
-                    and isinstance(body[0].value.value, str)
-                ):
-                    n.body = body[1:]
-                out[n.name] = ast.dump(n, include_attributes=False)
-        return out
-
-    a, b = funcs("m0032_naming_voices_rederived.py"), funcs("voice_rewrite_derived.py")
-    for name in ("plan", "_recount", "_carry_admap", "_move_by_diff", "_move_offset"):
-        assert a[name] == b[name], name
-
-
 def test_an_offset_moves_through_a_character_diff() -> None:
     import difflib
 

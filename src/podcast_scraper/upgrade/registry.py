@@ -124,7 +124,7 @@ _MIGRATIONS: List[Migration] = [
     # again, shown where 0029 left them hidden under their name. The part of 0029 that went missing.
     NamedVoicesShownMigration(),
     # 0033 names the voice a reprocess published under a name 0015 removed by hand ("Generation"),
-    # as a fresh review read it. 0032 stays unregistered (below), so 0033 follows 0031.
+    # as a fresh review read it. 0032 was never registered (retired), so 0033 follows 0031.
     HandRemovedNamesRefusedMigration(),
     # 0034 takes a name off a served voice under 5% of its episode's talk, unless the review reads
     # the name as that voice's own (frozen list + verdicts, snapshot-prod-20261025).
@@ -135,9 +135,8 @@ _MIGRATIONS: List[Migration] = [
     # 0036 gives every published GI / KG person the bridge identity the builder makes, where the
     # bridge carries none (found by 0034's census; text only).
     BridgeIdentitiesRestoredMigration(),
-    # 0032_naming_voices_rederived (0031 until 2026-10-18; never ran on prod) is NOT registered:
-    # it is HELD (#2380) and is registered here only after it passes its own gate, so no image
-    # can run it by accident.
+    # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27
+    # (docs/wip/0032-ASSESSMENT-2026-10-27.md); the id stays unused.
 ]
 
 
