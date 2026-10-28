@@ -67,6 +67,8 @@ def test_stats_goes_quiet_when_corpus_scope_current(client: TestClient, tmp_path
 
 
 def test_force_flag_reaches_the_job_argv(client: TestClient, tmp_path: Path) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (tmp_path / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     r = client.post("/api/jobs/enrichment", json={"force": True, "corpus_only": True})
     assert r.status_code == 202, r.text
     reg = tmp_path / ".viewer" / "jobs.jsonl"
@@ -76,6 +78,8 @@ def test_force_flag_reaches_the_job_argv(client: TestClient, tmp_path: Path) -> 
 
 
 def test_default_submit_has_no_force(client: TestClient, tmp_path: Path) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (tmp_path / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     r = client.post("/api/jobs/enrichment", json={"corpus_only": True})
     assert r.status_code == 202, r.text
     reg = tmp_path / ".viewer" / "jobs.jsonl"

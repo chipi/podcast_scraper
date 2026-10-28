@@ -8,14 +8,19 @@ import { expect, test } from '@playwright/test'
  * ``command_type == "corpus_enrichment"``, and verifies the cancel
  * endpoint accepts the job id (command_type-agnostic cancel).
  *
- * Smoke-spec scope: the enricher set is empty in airgapped_thin
- * (chunk 2 wires real enrichers); the job's terminal status here is
- * "queued" → "running" → ("ok" with no work performed, or "cancelled"
- * if we cancel it before it picks up the slot). Either is acceptable.
+ * The seeded operator YAML has no ``profile:`` (the jobs-flow spec saves one later), and a submit
+ * with nothing to resolve an enricher from is a 400. So this spec seeds ``profile: airgapped_thin``
+ * (5 corpus-scope enrichers) through ``PUT /api/operator-config`` and puts the original back
+ * afterwards. Until 2026-10-28 it posted against the profile-less YAML, got a 202, and only
+ * checked the job was listed: the job then failed on every run with "resolved ZERO enrichers"
+ * (#1648) and nothing noticed. Now the submitted job must reach ``succeeded``; anything else
+ * fails the spec with the job's own error.
  */
 
 const CORPUS = '/app/output'
 const JOB_POLL_TIMEOUT_MS = 60_000
+const JOB_FINISH_TIMEOUT_MS = 180_000
+const TERMINAL = new Set(['succeeded', 'failed', 'cancelled'])
 
 type JobRecord = {
   job_id?: string
@@ -49,7 +54,50 @@ async function pollForJobInList(
   )
 }
 
+async function waitForJobTerminal(
+  request: import('@playwright/test').APIRequestContext,
+  jobId: string,
+  timeoutMs: number,
+): Promise<JobRecord> {
+  const deadline = Date.now() + timeoutMs
+  let last: JobRecord | undefined
+  while (Date.now() < deadline) {
+    const r = await request.get('/api/jobs', { params: { path: CORPUS } })
+    if (r.ok()) {
+      const body = (await r.json()) as { jobs?: JobRecord[] }
+      last = (Array.isArray(body.jobs) ? body.jobs : []).find((j) => j.job_id === jobId) ?? last
+      if (last?.status && TERMINAL.has(last.status)) return last
+    }
+    await new Promise((r2) => setTimeout(r2, 1000))
+  }
+  throw new Error(`enrichment job ${jobId} did not finish within ${timeoutMs}ms (last=${JSON.stringify(last)})`)
+}
+
 test.describe('stack test — RFC-088 enrichment job flow', () => {
+  let originalOperatorYaml: string | null = null
+
+  test.beforeAll(async ({ request }) => {
+    const got = await request.get('/api/operator-config', { params: { path: CORPUS } })
+    expect(got.ok(), `GET /api/operator-config ${got.status()}`).toBeTruthy()
+    originalOperatorYaml = ((await got.json()) as { content?: string }).content ?? ''
+    const seeded = /^profile:/m.test(originalOperatorYaml)
+      ? originalOperatorYaml
+      : `profile: airgapped_thin\n${originalOperatorYaml}`
+    const put = await request.put('/api/operator-config', {
+      params: { path: CORPUS },
+      data: { content: seeded },
+    })
+    expect(put.ok(), `PUT /api/operator-config ${put.status()}: ${await put.text()}`).toBeTruthy()
+  })
+
+  test.afterAll(async ({ request }) => { // codespell:ignore afterall (the Playwright hook)
+    if (originalOperatorYaml === null) return
+    await request.put('/api/operator-config', {
+      params: { path: CORPUS },
+      data: { content: originalOperatorYaml },
+    })
+  })
+
   test('POST /api/jobs/enrichment 202 + appears in /api/jobs with command_type', async ({
     request,
   }) => {
@@ -71,6 +119,13 @@ test.describe('stack test — RFC-088 enrichment job flow', () => {
     const jobId = accepted.job_id as string
     const listed = await pollForJobInList(request, jobId, JOB_POLL_TIMEOUT_MS)
     expect(listed.command_type).toBe('corpus_enrichment')
+
+    // The job must actually run: a 202 is not a result.
+    const done = await waitForJobTerminal(request, jobId, JOB_FINISH_TIMEOUT_MS)
+    expect(
+      done.status,
+      `enrichment job ${jobId} ended ${done.status} (error_reason=${done.error_reason ?? '-'})`,
+    ).toBe('succeeded')
   })
 
   test('POST /api/jobs/{job_id}/cancel is command_type-agnostic', async ({ request }) => {

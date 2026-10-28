@@ -80,3 +80,17 @@ def derive_enrichment_job_params(operator_yaml: Optional[Path]) -> Tuple[Optiona
 
 
 __all__ = ["derive_enrichment_job_params"]
+
+
+def operator_declares_enrichers(operator_yaml: Optional[Path]) -> bool:
+    """Whether the operator YAML names enrichers itself (a non-empty ``enrichment.enrichers``).
+
+    With no profile this is the only other way a child resolves a non-empty enricher set; when
+    both are missing the child fails with "resolved ZERO enrichers" (#1648), so the route refuses
+    the job at submit instead of accepting one that cannot run.
+    """
+    if operator_yaml is None or not operator_yaml.is_file():
+        return False
+    block = _load_yaml(operator_yaml).get("enrichment")
+    enrichers = block.get("enrichers") if isinstance(block, dict) else None
+    return isinstance(enrichers, dict) and bool(enrichers)
