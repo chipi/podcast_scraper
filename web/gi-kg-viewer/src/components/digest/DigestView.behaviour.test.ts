@@ -389,6 +389,23 @@ describe('DigestView — transient network failure', () => {
     expect(w.text()).not.toContain('NetworkError')
   })
 
+  it('a retry whose load was superseded during the backoff fetches nothing more', async () => {
+    vi.useFakeTimers()
+    vi.mocked(fetchCorpusDigest).mockRejectedValueOnce(
+      new TypeError('NetworkError when attempting to fetch resource.'),
+    )
+    const { w } = await mountDigest()
+    // Fetch #1 failed; its retry is waiting out the 500 ms backoff. A corpus revision bump starts
+    // a newer load (fetch #2), so the old chain is stale and must not fetch again.
+    const shell = useShellStore()
+    shell.corpusRevision = (shell.corpusRevision ?? 0) + 1
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(5000)
+    await flushPromises()
+    expect(vi.mocked(fetchCorpusDigest)).toHaveBeenCalledTimes(2)
+    expect(recentRows(w).length).toBeGreaterThan(0)
+  })
+
   it('an HTTP error is shown and not retried', async () => {
     vi.useFakeTimers()
     vi.mocked(fetchCorpusDigest).mockRejectedValueOnce(new Error('GET /api/corpus/digest failed 500'))

@@ -79,9 +79,6 @@ def derive_enrichment_job_params(operator_yaml: Optional[Path]) -> Tuple[Optiona
     return profile, bool(operator_has_provider or profile_needs_ml)
 
 
-__all__ = ["derive_enrichment_job_params"]
-
-
 def operator_declares_enrichers(operator_yaml: Optional[Path]) -> bool:
     """Whether the operator YAML names enrichers itself (a non-empty ``enrichment.enrichers``).
 
@@ -94,3 +91,6 @@ def operator_declares_enrichers(operator_yaml: Optional[Path]) -> bool:
     block = _load_yaml(operator_yaml).get("enrichment")
     enrichers = block.get("enrichers") if isinstance(block, dict) else None
     return isinstance(enrichers, dict) and bool(enrichers)
+
+
+__all__ = ["derive_enrichment_job_params", "operator_declares_enrichers"]

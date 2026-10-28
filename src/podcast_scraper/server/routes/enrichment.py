@@ -213,7 +213,8 @@ async def submit_enrichment_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 "No enrichers to run: the corpus operator config (viewer_operator.yaml) sets no "
-                "profile and no enrichment.enrichers block. Save a job profile first."
+                "profile and no enrichment.enrichers block. Save a job profile in the viewer, "
+                "or PUT /api/operator-config with a `profile:` line, then submit again."
             ),
         )
     rec = await asyncio.to_thread(

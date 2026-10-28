@@ -595,10 +595,12 @@ async function fetchDigestRetryingNetworkErrors<T>(seq: number, fetchOnce: () =>
       return await fetchOnce()
     } catch (e) {
       const backoff = DIGEST_NETWORK_RETRY_BACKOFF_MS[attempt]
-      if (!(e instanceof TypeError) || backoff === undefined || digestLoadGate.isStale(seq)) {
+      if (!(e instanceof TypeError) || backoff === undefined) {
         throw e
       }
       await new Promise((r) => setTimeout(r, backoff))
+      // One stale check, after the wait: a newer load (or the unmount) during the backoff stops
+      // the chain before it fetches again. A check before the wait would only skip the timer.
       if (digestLoadGate.isStale(seq)) {
         throw e
       }
@@ -810,6 +812,8 @@ watch(sinceYmd, () => {
 })
 
 onBeforeUnmount(() => {
+  // A retry still waiting in its backoff sees the bumped generation and stops.
+  digestLoadGate.invalidate()
   if (digestLensDebounceTimer) {
     clearTimeout(digestLensDebounceTimer)
     digestLensDebounceTimer = null

@@ -92,15 +92,20 @@ test.describe('stack test — RFC-088 enrichment job flow', () => {
 
   test.afterAll(async ({ request }) => { // codespell:ignore afterall (the Playwright hook)
     if (originalOperatorYaml === null) return
-    await request.put('/api/operator-config', {
+    const put = await request.put('/api/operator-config', {
       params: { path: CORPUS },
       data: { content: originalOperatorYaml },
     })
+    // A failed restore would leak `profile: airgapped_thin` into the specs that run after this one.
+    expect(put.ok(), `restore PUT /api/operator-config ${put.status()}: ${await put.text()}`).toBeTruthy()
   })
 
   test('POST /api/jobs/enrichment 202 + appears in /api/jobs with command_type', async ({
     request,
   }) => {
+    // Both waits must fit: the config's 120 s per-test timeout would otherwise kill a slow job
+    // as a bare "Test timeout" before waitForJobTerminal can report its record.
+    test.setTimeout(JOB_POLL_TIMEOUT_MS + JOB_FINISH_TIMEOUT_MS + 30_000)
     const submit = await request.post('/api/jobs/enrichment', {
       params: { path: CORPUS },
       data: { corpus_only: true },
