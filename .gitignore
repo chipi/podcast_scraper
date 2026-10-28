@@ -293,7 +293,6 @@ logs/
 data/autoresearch_baselines/autoresearch-local-*.json
 
 # pyinfra deploy debug log (transient per `make dgx-deploy` run)
-infra/dgx/converge/pyinfra-debug.log
 
 # Claude Code per-clone overrides. .claude/settings.json is shared and committed: it carries the
 # corpus change gate hook (docs/wip/changes/README.md).

@@ -83,28 +83,26 @@ join these into episode / person / topic surfaces without a schema bump. Fresh
 corpora produced by v2.7.0's pipeline emit these by default; older corpora can be
 enriched retroactively via `make enrich CORPUS=<dir>`.
 
-### Additive: instance-to-instance corpus portability (#1175)
+### Removed: `make export-corpus` / `make import-corpus` (#1175)
 
-`make export-corpus` + `make import-corpus` produce a portable snapshot (identical
-format to the CI backup path) and restore it locally — no `gh` dependency. Useful
-for laptop ↔ VPS moves, prod ↔ codespace transplants, and airgapped restores. See
-[Corpus airgap runbook](../guides/CORPUS_AIRGAP_RUNBOOK.md).
+Added in v2.7.0 and no longer shipped in this repository. They share their snapshot
+scripts with the backup and restore tooling, which is operator tooling and is not
+here. A corpus is a directory of files: copy it between instances with any tool, then
+run `make upgrade-corpus CORPUS_DIR=<path>` if it came from an older release.
 
 ### Deployment: `upgrade-check` gates on stale corpora (#1176)
 
-`scripts/ops/restore_corpus_from_tarball_host.sh` — invoked by
-`prod-restore-corpus.yml` / `drill-restore-corpus.yml` — now runs
+The operator restore path (not in this repository) now runs
 `podcast upgrade run --yes` between corpus extract and container recycle. A
 restore that lands an older snapshot onto a newer code deploy migrates the corpus
-before the api boots. Local restores (`make restore-corpus` /
-`make import-corpus`) should be followed by the same `make upgrade-corpus` step;
-see [Corpus airgap runbook](../guides/CORPUS_AIRGAP_RUNBOOK.md#post-import-apply-pending-upgrade-migrations).
+before the api boots. A corpus restored or copied by hand should be followed by
+`make upgrade-corpus CORPUS_DIR=<path>`.
 
 ### Related
 
 - [Corpus upgrade framework (#862)](../guides/CORPUS_UPGRADE.md) — registered-migrations
   list, ledger model, adding a migration.
-- [Corpus snapshot manifest and restore](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) —
+- Corpus snapshot manifest and restore —
   SSOT for backup / restore surfaces.
 - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md), [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md),
   [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md), [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md).

@@ -13,8 +13,8 @@
 > **RENUMBERED 156 → 157 (2026-09-30).** This was authored as ADR-156 while `main` independently
 > took that number for `ADR-156-topics-come-only-from-the-extractor.md`. Because the two
 > filenames differ, git merges them with **zero conflict markers** and the repo ends up with two
-> ADR-156s, each cited by different code. Commit messages in `podcast_scraper-infra` (`077f5cd`,
-> the `:8005` tailnet grant) and `agentic-ai-homelab` (`e80c61e`, `e889b65`, `afb6a23`, the
+> ADR-156s, each cited by different code. Commit messages elsewhere (`077f5cd`,
+> the `:8005` tailnet grant) and in `agentic-ai-homelab` (`e80c61e`, `e889b65`, `afb6a23`, the
 > co-resident vLLM stack) still say "ADR-156" and cannot be rewritten — they mean this document.
 > `scripts/tools/check_doc_structure.py` now compares numbered docs against `origin/main`, which
 > is the only place the collision is visible: every same-branch check passed on both sides.
@@ -96,18 +96,16 @@ stops at `:8002` and which does not translate.
 > The two notes below are kept for how the earlier claim came to be wrong, not because they still
 > describe the state.
 >
-> **SOURCE OF TRUTH FIXED, APPLY WAS MANUAL (2026-09-29).** The grant is merged to
-> `podcast_scraper-infra` main (PR #3), so the repo is now correct. **It is still not live on
-> the tailnet**: every workflow in that repo lives in `.github/workflows-staged/` — a deliberate
-> production-safety decision, 46 files, 8 of them with `schedule:` triggers that would fire
-> against prod on activation — so the documented "merging IS the apply" path does not run. The
+> **SOURCE OF TRUTH FIXED, APPLY WAS MANUAL (2026-09-29).** The grant is merged to the ACL's
+> source of truth. **It is still not live on the tailnet**: the documented "merging IS the
+> apply" path does not run there yet. The
 > ACL therefore has to be pushed to the tailnet by hand, from the Tailscale admin UI or with an
 > OAuth client holding the `acl` scope. Those credentials exist only as GitHub Actions secrets;
 > they are not available locally and `gh secret list` returns 403, so this cannot be done from a
 > session.
 >
-> **ORIGINAL FINDING (2026-09-29).** That grant is authored in
-> `podcast_scraper-infra/tailscale/policy.hujson` and **committed but unpushed**, so the LIVE
+> **ORIGINAL FINDING (2026-09-29).** That grant is authored in the tailnet policy
+> (`tailscale/policy.hujson`) and **committed but unpushed**, so the LIVE
 > policy does not carry `:8005`. Measured from the laptop: `:8003` completes a TCP connect in
 > 17 ms while `:8005` times out, with the translator listening on `0.0.0.0:8005` and healthy on
 > the box the whole time. The ADR previously stated the grant as fact because the Gate V access

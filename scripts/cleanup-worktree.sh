@@ -49,7 +49,7 @@
 #   C. Runaway agent poll-loops: a `gh run …` call stuck in an unbounded
 #      while/until loop, older than MAX_LOOP_AGE (default 2h, CLEANUP_MAX_LOOP_AGE),
 #      whose CWD is in the same project family as this worktree (project-name prefix,
-#      e.g. run from ~/Projects/podcast_scraper-infra -> ~/Projects/podcast_scraper*,
+#      e.g. run from ~/Projects/podcast_scraper-player -> ~/Projects/podcast_scraper*,
 #      so podcast_scraper-FUTURE is swept but orrery is NOT). These leak when a
 #      session dies before its SessionEnd reaper fires, orphaned in a sibling worktree
 #      nothing else targets (seen: loops surviving 8-14 days). It reaches sibling
@@ -144,7 +144,7 @@ in_worktree() {
 }
 
 # Family prefix for a project path: $HOME/<container>/<base>, <base> = instance dir
-# name up to its first '-'.  ~/Projects/podcast_scraper-infra & ~/Projects/podcast_
+# name up to its first '-'.  ~/Projects/podcast_scraper-player & ~/Projects/podcast_
 # scraper-FUTURE both -> ~/Projects/podcast_scraper (one family); ~/.treehouse/orrery-
 # 311982/... -> ~/.treehouse/orrery. Generic, not layout-specific.
 family_prefix() {
