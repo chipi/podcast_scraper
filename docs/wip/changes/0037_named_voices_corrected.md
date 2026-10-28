@@ -1,7 +1,7 @@
 ---
 id: 0037_named_voices_corrected
 class: full
-status: open
+status: landed        # applied on prod 2026-10-28 15:46Z (steps 10-11)
 issue: "#2094 (D5), naming plan item 13 (night 1)"
 touches:
   - src/podcast_scraper/upgrade/migrations/m0037_named_voices_corrected.py
@@ -255,19 +255,49 @@ Verdict: GO (builder, 2026-10-27): 6 of 6 listed voices renamed in 4 episodes, 0
 
 ## 9. Operator review
 
-_TODO_
+Operator, 2026-10-27: D5's roles kept as listed; no second verdict read (ci-fast green is the
+landing condition). Operator, 2026-10-28: the go for the apply ("start 0037 first"), after the
+deploy of sha-06b3601 that shipped it.
 
 ## 10. Before apply / deploy
 
-_TODO_
+Deployed with sha-06b3601 (deploy-all-prod run 40710256526, `deploy.py verify` PASS); the deploy
+ships 0037 and does not run it. Read-only on prod after the deploy (prod session, 2026-10-28):
+
+- `upgrade status`: 2.7.30, pending exactly `0037_named_voices_corrected`.
+- `upgrade verify`: every applied migration OK except 0025 on its 5 known episodes.
+- Dry run 15:36:35Z, corpus-migration skill preflight PASS (76 GB free, nothing busy, nightly 504
+  min away, pending exactly 0037): "would rewrite 4 episode(s)" with every counter equal to the
+  gate's line on the snapshot-prod-20261027 clone (segments_relabelled 3868, quotes_reattributed
+  333, insights_reattributed 149, diagnostics_voices_renamed 6, ...); no `refused=` counter (a
+  refusal is always printed as one, `m0029._scan`); "outcome hook: plan diff 0 episode(s)".
 
 ## 11. After apply / deploy
 
-_TODO_
+Applied 2026-10-28 15:46:14Z by the prod session on the operator's go:
+
+- "[applied] 0037_named_voices_corrected: rewrote 4 episode(s)", the same counters as the dry run
+  and the gate; "Now at version 2.7.31; 0 pending." EXIT=0.
+- Pre-upgrade snapshot `/app/.corpus-upgrade-backup-2.7.30-20261028T154633Z` (in compose-api-1's
+  writable layer: a container recreate deletes it); undo recorded: `m0037 undo(Path('/app/output'))`.
+- Verify 16:18Z: 0037 OK ("every rename the review confirmed carries the voice's own person's
+  name"); the only FAIL is 0025's 5 known episodes.
+- Ownership: "0 files written since the apply and not owned by uid 1000", OWNERSHIP PASS.
+- Derived surfaces: `enrich --only insight_density,insight_sentiment` (no --force) 16:19Z:
+  insight_density 4 ok / 0 failed, insight_sentiment 4 ok / 0 failed, EXIT=0; incremental
+  `index` (no --rebuild) 16:20-16:28Z: "scanned=3023 skipped=3019 reindexed=4 vectors=1186", 2
+  stale rows of superseded runs pruned, EXIT=0. Corpus-scope enrichers left to the nightly.
+- Served outcome, read by the builder through the Close Listening MCP (`episode_speaker_roster`,
+  2026-10-28) for D5: SPEAKER_00 = the feed's host, host, 1942.4 s (62.9%); SPEAKER_01 = the
+  guest, guest, 1145.8 s. The other 3 episodes were not read one by one.
 
 ## 12. Retrospective
 
-_TODO_
+- The forced-host-seat veto built for D5's cause was rejected on its own reach replay (52 fires,
+  mostly real hosts introducing themselves); 0037 repaired the served episode without it.
+- The first step-8 "review" re-derived the whole gate on its own clone for over an hour; method
+  v0.9 section 4a (a review reads, 5 minutes) came out of it.
+- A gate row counting a list's wrong-person voices before / after is missing (see Not covered).
 
 ## Not covered
 
@@ -282,4 +312,8 @@ _TODO_
   of the corpus was not read.
 - The search-index rows of the 4 episodes: refreshed by prod's incremental index after the apply,
   not by the migration.
-- Prod's apply (steps 10-11): pending the operator's go.
+- D5's speakers-diagnostics `resolution_attribution` block still describes the original naming run
+  (the LLM's names); 0037 does not rewrite that history block, so it contradicts the served roster.
+  Internal diagnostics only; not what the roster serves.
+- The served rosters of `d99b4720`, `1732482` and `216929530` were not read one by one after the
+  apply (the counts and verify match).
