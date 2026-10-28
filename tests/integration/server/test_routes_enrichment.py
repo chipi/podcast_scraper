@@ -15,6 +15,24 @@ from podcast_scraper.server.routes import enrichment as enrichment_route
 pytestmark = pytest.mark.integration
 
 
+class _FakeProc:
+    """A finished child: submit tests check the job row, never a real ``enrich`` run."""
+
+    pid = 91501
+
+    async def wait(self) -> int:
+        return 0
+
+
+async def _fake_spawn(argv, corpus_root: Path, log_abs: Path):  # noqa: ARG001
+    # Without a factory the route spawned a real ``python -m podcast_scraper.cli enrich`` in
+    # the TestClient's per-request event loop; the loop closed with the child's transport still
+    # open and its GC raised "Event loop is closed" at teardown (2026-10-28).
+    log_abs.parent.mkdir(parents=True, exist_ok=True)
+    log_abs.write_bytes(b"fake-log\n")
+    return _FakeProc()
+
+
 @pytest.fixture()
 def corpus(tmp_path: Path) -> Path:
     """A corpus directory with the minimal layout the routes expect."""
@@ -24,8 +42,10 @@ def corpus(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def app(corpus: Path) -> FastAPI:
-    """An ``enable_jobs_api=True`` app rooted at the test corpus."""
-    return create_app(corpus, static_dir=False, enable_jobs_api=True)
+    """An ``enable_jobs_api=True`` app rooted at the test corpus, spawning no real child."""
+    application = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    application.state.jobs_subprocess_factory = _fake_spawn
+    return application
 
 
 # ---------------------------------------------------------------------------
