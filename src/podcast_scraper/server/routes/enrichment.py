@@ -202,21 +202,13 @@ async def submit_enrichment_job(
     # the exact enrichers RFC-118's full-re-derive lever exists to re-derive.
     from podcast_scraper.enrichment.spawn_params import (
         derive_enrichment_job_params,
-        operator_declares_enrichers,
+        enrichment_submit_refusal,
     )
 
     profile, with_ml = await asyncio.to_thread(derive_enrichment_job_params, operator_yaml)
-    if profile is None and not await asyncio.to_thread(operator_declares_enrichers, operator_yaml):
-        # Nothing would resolve an enricher: the child would fail with "resolved ZERO enrichers"
-        # (#1648) after a 202. Refuse it here, like a disallowed profile.
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "No enrichers to run: the corpus operator config (viewer_operator.yaml) sets no "
-                "profile and no enrichment.enrichers block. Save a job profile in the viewer, "
-                "or PUT /api/operator-config with a `profile:` line, then submit again."
-            ),
-        )
+    refusal = await asyncio.to_thread(enrichment_submit_refusal, profile, operator_yaml)
+    if refusal is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=refusal)
     rec = await asyncio.to_thread(
         enqueue_enrichment_job,
         corpus,

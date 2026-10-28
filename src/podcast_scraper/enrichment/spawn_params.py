@@ -93,4 +93,31 @@ def operator_declares_enrichers(operator_yaml: Optional[Path]) -> bool:
     return isinstance(enrichers, dict) and bool(enrichers)
 
 
-__all__ = ["derive_enrichment_job_params", "operator_declares_enrichers"]
+#: The 400 detail when an enrichment submit has nothing to run.
+NOTHING_TO_RUN_DETAIL = (
+    "No enrichers to run: the corpus operator config (viewer_operator.yaml) sets no "
+    "profile and no enrichment.enrichers block. Save a job profile in the viewer, "
+    "or PUT /api/operator-config with a `profile:` line, then submit again."
+)
+
+
+def enrichment_submit_refusal(
+    profile: Optional[str], operator_yaml: Optional[Path]
+) -> Optional[str]:
+    """The reason to refuse an enrichment submit (the 400 detail), or ``None`` to accept it.
+
+    A job with no profile and no enricher named in the operator YAML resolves an empty set and
+    fails with "resolved ZERO enrichers" (#1648) after a 202; the route refuses it instead, as it
+    already does for a disallowed profile.
+    """
+    if profile is None and not operator_declares_enrichers(operator_yaml):
+        return NOTHING_TO_RUN_DETAIL
+    return None
+
+
+__all__ = [
+    "NOTHING_TO_RUN_DETAIL",
+    "derive_enrichment_job_params",
+    "enrichment_submit_refusal",
+    "operator_declares_enrichers",
+]
