@@ -43,7 +43,7 @@ def corpus(tmp_path: Path) -> Path:
 @pytest.fixture()
 def app(corpus: Path) -> FastAPI:
     """An ``enable_jobs_api=True`` app rooted at the test corpus, spawning no real child."""
-    application = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    application: FastAPI = create_app(corpus, static_dir=False, enable_jobs_api=True)
     application.state.jobs_subprocess_factory = _fake_spawn
     return application
 
