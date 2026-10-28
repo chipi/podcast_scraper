@@ -15,6 +15,24 @@ from podcast_scraper.server.routes import enrichment as enrichment_route
 pytestmark = pytest.mark.integration
 
 
+class _FakeProc:
+    """A finished child: submit tests check the job row, never a real ``enrich`` run."""
+
+    pid = 91501
+
+    async def wait(self) -> int:
+        return 0
+
+
+async def _fake_spawn(argv, corpus_root: Path, log_abs: Path):  # noqa: ARG001
+    # Without a factory the route spawned a real ``python -m podcast_scraper.cli enrich`` in
+    # the TestClient's per-request event loop; the loop closed with the child's transport still
+    # open and its GC raised "Event loop is closed" at teardown (2026-10-28).
+    log_abs.parent.mkdir(parents=True, exist_ok=True)
+    log_abs.write_bytes(b"fake-log\n")
+    return _FakeProc()
+
+
 @pytest.fixture()
 def corpus(tmp_path: Path) -> Path:
     """A corpus directory with the minimal layout the routes expect."""
@@ -24,8 +42,10 @@ def corpus(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def app(corpus: Path) -> FastAPI:
-    """An ``enable_jobs_api=True`` app rooted at the test corpus."""
-    return create_app(corpus, static_dir=False, enable_jobs_api=True)
+    """An ``enable_jobs_api=True`` app rooted at the test corpus, spawning no real child."""
+    application: FastAPI = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    application.state.jobs_subprocess_factory = _fake_spawn
+    return application
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +105,8 @@ def test_enrichment_status_rejects_missing_corpus_path_when_no_anchor(
 
 
 def test_submit_enrichment_job_returns_202_with_job_id(app: FastAPI, corpus: Path) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (corpus / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     client = TestClient(app)
     r = client.post(
         "/api/jobs/enrichment",
@@ -99,6 +121,8 @@ def test_submit_enrichment_job_returns_202_with_job_id(app: FastAPI, corpus: Pat
 
 
 def test_submit_enrichment_job_accepts_empty_body(app: FastAPI, corpus: Path) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (corpus / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     client = TestClient(app)
     r = client.post("/api/jobs/enrichment", params={"path": str(corpus)})
     assert r.status_code == 202
@@ -107,6 +131,8 @@ def test_submit_enrichment_job_accepts_empty_body(app: FastAPI, corpus: Path) ->
 def test_submit_enrichment_job_persists_command_type_in_jobs_list(
     app: FastAPI, corpus: Path
 ) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (corpus / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     client = TestClient(app)
     submit = client.post(
         "/api/jobs/enrichment",
@@ -504,3 +530,57 @@ def test_health_stale_days_none_when_never_run(app: FastAPI, corpus: Path) -> No
         "never_ran"
     ]
     assert row["stale_days"] is None
+
+
+# ---------------------------------------------------------------------------
+# Submit fails fast when no enricher can resolve (stack test, 2026-10-28)
+# ---------------------------------------------------------------------------
+#
+# ``stack-enrichment-job-flow.spec.ts`` posted ``{corpus_only: true}`` against a seeded operator
+# YAML with no ``profile:``; the route answered 202, ``derive_enrichment_job_params`` gave
+# ``(None, False)``, and the child failed on every run with "resolved ZERO enrichers" (#1648)
+# while nothing noticed. Like a disallowed profile, a configuration with nothing to run is a 400.
+
+
+def test_submit_enrichment_job_400_without_operator_yaml(app: FastAPI, corpus: Path) -> None:
+    client = TestClient(app)
+    r = client.post(
+        "/api/jobs/enrichment", params={"path": str(corpus)}, json={"corpus_only": True}
+    )
+    assert r.status_code == 400
+    assert "profile" in r.json()["detail"]
+
+
+def test_submit_enrichment_job_400_when_operator_yaml_has_no_profile(
+    app: FastAPI, corpus: Path
+) -> None:
+    _write_operator_yaml(corpus, "max_episodes: 4\nworkers: 1\n")
+    client = TestClient(app)
+    r = client.post(
+        "/api/jobs/enrichment", params={"path": str(corpus)}, json={"corpus_only": True}
+    )
+    assert r.status_code == 400
+    assert "profile" in r.json()["detail"]
+
+
+def test_submit_enrichment_job_202_with_enrichers_block_and_no_profile(
+    app: FastAPI, corpus: Path
+) -> None:
+    _write_operator_yaml(
+        corpus,
+        "enrichment:\n  enabled: true\n  enrichers:\n    insight_density:\n      enabled: true\n",
+    )
+    client = TestClient(app)
+    r = client.post(
+        "/api/jobs/enrichment", params={"path": str(corpus)}, json={"corpus_only": True}
+    )
+    assert r.status_code == 202
+
+
+def test_submit_enrichment_job_202_with_profile(app: FastAPI, corpus: Path) -> None:
+    _write_operator_yaml(corpus, "profile: airgapped_thin\n")
+    client = TestClient(app)
+    r = client.post(
+        "/api/jobs/enrichment", params={"path": str(corpus)}, json={"corpus_only": True}
+    )
+    assert r.status_code == 202

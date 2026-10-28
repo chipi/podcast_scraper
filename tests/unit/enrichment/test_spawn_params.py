@@ -11,7 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.enrichment.spawn_params import derive_enrichment_job_params
+from podcast_scraper.enrichment.spawn_params import (
+    derive_enrichment_job_params,
+    enrichment_submit_refusal,
+    NOTHING_TO_RUN_DETAIL,
+    operator_declares_enrichers,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -109,3 +114,56 @@ class TestProfileYamlEnricherResolution:
 
         monkeypatch.chdir(tmp_path)
         assert profile_sets._read_profile_yaml_enrichers("no_such_profile_xyz") == {}
+
+
+# ``operator_declares_enrichers``: the other way (besides a profile) a child resolves enrichers;
+# with neither, the route refuses the submit (400) instead of a 202 that fails with #1648.
+
+
+def test_declares_enrichers_false_without_a_yaml(tmp_path):
+    assert operator_declares_enrichers(None) is False
+    assert operator_declares_enrichers(tmp_path / "absent.yaml") is False
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "max_episodes: 4\n",
+        "enrichment: not-a-mapping\n",
+        "enrichment:\n  enabled: true\n",
+        "enrichment:\n  enrichers: {}\n",
+        "enrichment:\n  enrichers: [insight_density]\n",
+    ],
+    ids=[
+        "no-block",
+        "block-not-mapping",
+        "no-enrichers",
+        "empty-enrichers",
+        "enrichers-not-mapping",
+    ],
+)
+def test_declares_enrichers_false(tmp_path, text):
+    assert operator_declares_enrichers(_yaml(tmp_path, text)) is False
+
+
+def test_declares_enrichers_true_with_a_named_enricher(tmp_path):
+    yaml_path = _yaml(
+        tmp_path, "enrichment:\n  enrichers:\n    insight_density:\n      enabled: true\n"
+    )
+    assert operator_declares_enrichers(yaml_path) is True
+
+
+# ``enrichment_submit_refusal``: what the route returns 400 with (stack test, 2026-10-28).
+
+
+def test_refusal_without_profile_or_enrichers_names_the_fix(tmp_path):
+    reason = enrichment_submit_refusal(None, _yaml(tmp_path, "max_episodes: 4\n"))
+    assert reason == NOTHING_TO_RUN_DETAIL
+    assert "PUT /api/operator-config" in reason
+    assert enrichment_submit_refusal(None, None) == NOTHING_TO_RUN_DETAIL
+
+
+def test_no_refusal_with_a_profile_or_an_enrichers_block(tmp_path):
+    assert enrichment_submit_refusal("airgapped_thin", None) is None
+    block = "enrichment:\n  enrichers:\n    insight_density:\n      enabled: true\n"
+    assert enrichment_submit_refusal(None, _yaml(tmp_path, block)) is None

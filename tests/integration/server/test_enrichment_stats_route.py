@@ -13,6 +13,24 @@ from podcast_scraper.server.app import create_app
 pytestmark = pytest.mark.integration
 
 
+class _FakeProc:
+    """A finished child: submit tests check the job row, never a real ``enrich`` run."""
+
+    pid = 91501
+
+    async def wait(self) -> int:
+        return 0
+
+
+async def _fake_spawn(argv, corpus_root: Path, log_abs: Path):  # noqa: ARG001
+    # Without a factory the route spawned a real ``python -m podcast_scraper.cli enrich`` in
+    # the TestClient's per-request event loop; the loop closed with the child's transport still
+    # open and its GC raised "Event loop is closed" at teardown (2026-10-28).
+    log_abs.parent.mkdir(parents=True, exist_ok=True)
+    log_abs.write_bytes(b"fake-log\n")
+    return _FakeProc()
+
+
 @pytest.fixture
 def client(tmp_path: Path) -> TestClient:
     meta = tmp_path / "metadata"
@@ -22,6 +40,7 @@ def client(tmp_path: Path) -> TestClient:
     )
     (meta / "e1.gi.json").write_text("{}", encoding="utf-8")
     app = create_app(output_dir=tmp_path, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = _fake_spawn
     return TestClient(app)
 
 
@@ -67,6 +86,8 @@ def test_stats_goes_quiet_when_corpus_scope_current(client: TestClient, tmp_path
 
 
 def test_force_flag_reaches_the_job_argv(client: TestClient, tmp_path: Path) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (tmp_path / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     r = client.post("/api/jobs/enrichment", json={"force": True, "corpus_only": True})
     assert r.status_code == 202, r.text
     reg = tmp_path / ".viewer" / "jobs.jsonl"
@@ -76,6 +97,8 @@ def test_force_flag_reaches_the_job_argv(client: TestClient, tmp_path: Path) -> 
 
 
 def test_default_submit_has_no_force(client: TestClient, tmp_path: Path) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (tmp_path / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     r = client.post("/api/jobs/enrichment", json={"corpus_only": True})
     assert r.status_code == 202, r.text
     reg = tmp_path / ".viewer" / "jobs.jsonl"

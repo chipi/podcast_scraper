@@ -74,6 +74,8 @@ def test_pipeline_job_spawns_the_pipeline_cli(corpus: Path) -> None:
 
 
 def test_enrichment_job_spawns_the_enrichment_cli_not_pipeline(corpus: Path) -> None:
+    # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
+    (corpus / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
     captured: list[list[str]] = []
     app = create_app(corpus, static_dir=False, enable_jobs_api=True)
     app.state.jobs_subprocess_factory = _capturing_factory(captured)
