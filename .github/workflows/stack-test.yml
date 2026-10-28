@@ -132,6 +132,15 @@ jobs:
       - name: Dump compose logs on failure
         if: failure()
         run: |
+          # FULL api and viewer (nginx access + error: the image sends both to stdout/stderr) logs
+          # go into the uploaded artifact; the job log keeps only tails. On 2026-10-28 the tail of
+          # 200 viewer lines started after the failing request, so whether nginx answered the
+          # browser with a 499 / 502 / reset could not be seen.
+          mkdir -p tests/stack-test/test-results/compose-logs
+          for svc in api viewer; do
+            docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --timestamps "${svc}" \
+              > "tests/stack-test/test-results/compose-logs/${svc}.log" 2>&1 || true
+          done
           echo "::group::api container logs"
           docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=400 api || true
           echo "::endgroup::"
