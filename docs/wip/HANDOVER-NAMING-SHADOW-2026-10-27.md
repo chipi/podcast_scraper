@@ -99,6 +99,22 @@ Also in the prod profile, live on new episodes since the deploy:
 5. Bring the table to the operator; promotion (`publish`) is his call, then a profile change and its
    own deploy.
 
+## Monitoring and evaluation: decided after the rollout to the new infrastructure
+
+Operator, 2026-10-28: nothing below starts before the move to the new infrastructure and the other
+pending changes are done; then he decides each one. The fixes list is in
+`HANDOVER-NAMING-DEBT-2026-10-27.md`, section F.
+
+| # | What | When / trigger | Status |
+|---|---|---|---|
+| S1 | **Shadow evaluation** of the transcript-naming LLM pass and the voice identity rung (this file's "How to evaluate") | after about a week of nightlies on the deployed code | not started |
+| S2 | **0032's 91 uncovered voices** (48 additions, 29 renames, 14 unnamings) as a reviewed list | after S1: what the rungs say on new episodes decides whether re-deriving old ones is worth it | not started |
+| S3 | **Corpus-scope enrichers after the 2026-10-28 nightly** (open item 7): none stale for `corpus_artifacts_newer` after 0037's rewrite | the prod session reads `corpus_status` after the nightly | prod's check |
+| S4 | **The known wrong-name causes recurring on new episodes**: a feed host forced on the interviewer's voice (D5) or on a clip voice (`d99b4720`); the LLM's pair swap (`216929530`); a guest name on a clip voice (`1732482`) | a blind read of a fresh sample of new episodes, as night 1 did (21 episodes, private eval repo `data/eval/naming-night1-20261027/`); count each shape | not started |
+| S5 | **The talk floor's host exemption** (a seated host the LLM also calls host keeps its name under 5%): 2 of D4's 43 candidates kept a name this way, 1 of them undecidable | a count of `kept_host` traces on new episodes and a read of those | not started |
+
+Reviews in this work follow method v0.9 section 4a; blind reads are evidence, not a review.
+
 ## NOT covered by this handover
 
 - No shadow data from after the deploy has been read yet: the numbers above are pre-deploy.

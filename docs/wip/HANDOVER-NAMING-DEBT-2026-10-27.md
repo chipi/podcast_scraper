@@ -100,12 +100,11 @@ eval repo. The release records are `docs/wip/changes/0034_talk_floor_names_remov
 
 ## E. Added by the 2026-10-27 validation pass (read this first)
 
-20. **0037 (`named_voices_corrected`) is on main, NOT applied, and NOT to be applied or deployed
-    until the operator runs his new deploy method** (operator, 2026-10-27: the piled-up main is the
-    first test of that method). Six wrong-person voices in four episodes (#2094 D5 and night 1's
-    blind reads), a swap applied whole. Gate on snapshot-prod-20261027 at the shipped code: 4
-    episodes, 6 voices, 0 refused, `verify_regressions` []; second apply writes nothing; undo
-    byte-identical. Builder's GO; outcome built; record `docs/wip/changes/0037_named_voices_corrected.md`.
+20. **0037 (`named_voices_corrected`) is LANDED on prod** (applied 2026-10-28 15:46Z on the
+    operator's go, after the deploy of sha-06b3601; corpus 2.7.31, 0 pending; verify OK; ownership
+    PASS; enrich 4/4 and incremental index reindexed 4). Six wrong-person voices in four episodes
+    (#2094 D5 and night 1's blind reads), a swap applied whole; prod's dry run equalled the clone
+    gate counter for counter. Record `docs/wip/changes/0037_named_voices_corrected.md` (steps 1-12).
     D5's roles stay as listed (operator: a one-off, no rule).
 21. **The forced-host-seat veto was rejected and reverted.** It would have refused a feed's host seat
     on a voice that names the host in the third person (D5's cause). Replayed over 2545 served
@@ -115,7 +114,8 @@ eval repo. The release records are `docs/wip/changes/0034_talk_floor_names_remov
     at step 3, with those 52 as its test set.
 22. **0032 was retired** without running (`docs/wip/0032-ASSESSMENT-2026-10-27.md`): 67 of its
     unnamings contradict 0034's review. **Its 91 uncovered voices** (48 additions, 29 renames, 14
-    unnamings) become their own reviewed list, AFTER the shadow evaluation (see the shadow handover).
+    unnamings) become their own reviewed list, AFTER the shadow evaluation: tracked in the shadow
+    handover, not here.
 23. **D4's 43 candidates: 0 wrong names** (`docs/wip/D4-CLASSIFICATION-2026-10-27.md`). The big
     unnamed voices beside them are hidden insights, a coverage question for its own record.
 24. **`d99b4720-283b-4f07-89c4-791b12acba2d`'s cause is unaddressed:** a feed host's name forced on a
@@ -131,7 +131,30 @@ eval repo. The release records are `docs/wip/changes/0034_talk_floor_names_remov
     151 of 3006 served episodes with no named speaker; the detector returns 72% of form-named
     guests; the golden set 10 of 11 (`hardfork-guest-in-record` fails, cause not established).
     Inputs to the operator's closure decisions, not closures.
-28. **Prod findings left with the operator:** `player-digest-scheduler` declares no GlitchTip DSN.
+28. **Closed by prod:** `player-digest-scheduler` now reports to GlitchTip (06b3601c1, deployed with
+    sha-06b3601).
+
+## F. Later fixes: decided after the rollout to the new infrastructure
+
+Operator, 2026-10-28: nothing below starts before the move to the new infrastructure and the other
+pending changes are done; then he decides each one. None is started. Monitoring and the shadow
+evaluation are in `HANDOVER-NAMING-SHADOW-2026-10-27.md`.
+
+| # | Fix | What it would take | Status |
+|---|---|---|---|
+| F1 | The forced host seat on the wrong voice (D5's cause; item 21) | a second attempt from step 3: a signal that tells an interviewer naming the host from the host naming themselves, measured first over the 52 replay cases | not planned |
+| F2 | A host name forced on a clip voice (`d99b4720`'s cause; item 24) | diagnosis by loss on how many served episodes have it, then a pipeline rule | not planned |
+| F3 | D4's big unnamed voices (item 23) | a coverage change record: are they the small voice's person split by the diarizer, or someone else | not planned |
+| F4 | #2304: 289 episodes with no Moments, 230 because naming resolved nobody | overlaps F3 and the #2075 count (151 served episodes with no named speaker) | open issue, not part of this arc |
+| F5 | The gate row "wrong-person voices before / after" for lists the gold does not cover (item 25) | a gate row in `corpus_change_gate.py`, a test | not built |
+| F6 | Review budget enforcement (item 26) | narrower review inputs or a launcher with a token and time budget | not built |
+| F7 | The golden set's `hardfork-guest-in-record` failure (item 27) | find whether the snapshot predates a fix (a `record` case) or the code regressed | cause not established |
+| F8 | Item 1's open half: a naming migration that re-renders text recomputes the ad cut | in the shared rewrite, or 0030's resync at the end of each such migration | open |
+| F9 | Item 9's open half: a test of each verdict row's `line_sha256` against the served segment | a unit test over the shipped verdicts | open |
+| F10 | D5's diagnostics `resolution_attribution` still describes the original naming run | decide whether migrations rewrite that history block or readers ignore it | open, internal only |
+
+Operator's decisions, from measurements already made: whether to close #2075, #2093 and #2095
+(`docs/wip/EPIC-2097-MEASUREMENTS-2026-10-27.md`).
 
 ## NOT covered by this handover
 
