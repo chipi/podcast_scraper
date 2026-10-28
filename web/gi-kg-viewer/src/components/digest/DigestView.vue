@@ -579,6 +579,33 @@ function digestCoversMetadataPath(path: string): boolean {
   return false
 }
 
+/** Backoffs before each retry of a digest fetch that failed at the network level. */
+const DIGEST_NETWORK_RETRY_BACKOFF_MS = [500, 1500] as const
+
+/**
+ * A fetch ``TypeError`` (the browser's network failure: a dropped or refused connection) is
+ * retried, an HTTP error never is. The stack test caught it once (CI 2026-10-28): the digest API
+ * answered 6.6-9.4 s late under corpus-job load, the browser's fetch failed with "NetworkError when
+ * attempting to fetch resource.", and the Recent list stayed empty until a reload. A newer load
+ * (``seq`` stale) stops the retries.
+ */
+async function fetchDigestRetryingNetworkErrors<T>(seq: number, fetchOnce: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchOnce()
+    } catch (e) {
+      const backoff = DIGEST_NETWORK_RETRY_BACKOFF_MS[attempt]
+      if (!(e instanceof TypeError) || backoff === undefined || digestLoadGate.isStale(seq)) {
+        throw e
+      }
+      await new Promise((r) => setTimeout(r, backoff))
+      if (digestLoadGate.isStale(seq)) {
+        throw e
+      }
+    }
+  }
+}
+
 async function loadDigest(): Promise<void> {
   const seq = digestLoadGate.bump()
   error.value = null
@@ -595,11 +622,13 @@ async function loadDigest(): Promise<void> {
   loading.value = true
   try {
     const digestWindow = s ? 'since' : 'all'
-    const d = await fetchCorpusDigest(root, {
-      window: digestWindow,
-      since: s || undefined,
-      includeTopics: true,
-    })
+    const d = await fetchDigestRetryingNetworkErrors(seq, () =>
+      fetchCorpusDigest(root, {
+        window: digestWindow,
+        since: s || undefined,
+        includeTopics: true,
+      }),
+    )
     if (digestLoadGate.isStale(seq)) {
       return
     }

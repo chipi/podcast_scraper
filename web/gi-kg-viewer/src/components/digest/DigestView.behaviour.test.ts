@@ -306,3 +306,113 @@ describe('DigestView — states', () => {
     expect(vi.mocked(fetchCorpusDigest).mock.calls.at(-1)![1]).toMatchObject({ window: 'since', since: '2026-01-15' })
   })
 })
+
+/**
+ * Stack test flake, CI run 40736007754 attempt 1 (2026-10-28): three digest loads overlapped and
+ * answered 6.6-9.4 s late, the API had 4 rows, the Recent list rendered none and no further digest
+ * request followed. These pin that overlapping loads, with the gate's inputs flickering falsy in
+ * between, still end with the rows on screen.
+ */
+describe('DigestView — overlapping loads', () => {
+  function deferred<T>() {
+    let resolve!: (v: T) => void
+    const promise = new Promise<T>((r) => (resolve = r))
+    return { promise, resolve }
+  }
+
+  for (const flicker of ['healthStatus', 'corpusDigestApiAvailable'] as const) {
+    it(`a slow load superseded while ${flicker} is momentarily falsy still ends with rows shown`, async () => {
+      const slow = deferred<CorpusDigestResponse>()
+      vi.mocked(fetchCorpusDigest).mockReturnValueOnce(slow.promise)
+      const { w } = await mountDigest()
+      expect(recentRows(w)).toHaveLength(0)
+      const shell = useShellStore()
+      if (flicker === 'healthStatus') shell.healthStatus = null
+      else shell.corpusDigestApiAvailable = false
+      await flushPromises()
+      if (flicker === 'healthStatus') shell.healthStatus = 'ok'
+      else shell.corpusDigestApiAvailable = true
+      await flushPromises()
+      slow.resolve(digestOf())
+      await flushPromises()
+      expect(recentRows(w).length).toBeGreaterThan(0)
+    })
+  }
+
+  it('a slow load superseded while health is falsy, resolving BEFORE health returns, still ends with rows shown', async () => {
+    const slow = deferred<CorpusDigestResponse>()
+    vi.mocked(fetchCorpusDigest).mockReturnValueOnce(slow.promise)
+    const { w } = await mountDigest()
+    const shell = useShellStore()
+    shell.healthStatus = null
+    await flushPromises()
+    slow.resolve(digestOf())
+    await flushPromises()
+    shell.healthStatus = 'ok'
+    await flushPromises()
+    expect(recentRows(w).length).toBeGreaterThan(0)
+  })
+
+  it('two overlapping slow loads (a corpus revision bump mid-flight) end with the latest rows shown', async () => {
+    const first = deferred<CorpusDigestResponse>()
+    const second = deferred<CorpusDigestResponse>()
+    vi.mocked(fetchCorpusDigest).mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+    const { w } = await mountDigest()
+    const shell = useShellStore()
+    shell.corpusRevision = (shell.corpusRevision ?? 0) + 1
+    await flushPromises()
+    second.resolve(digestOf({ rows: [row(7)] }))
+    await flushPromises()
+    first.resolve(digestOf({ rows: [row(8), row(9)] }))
+    await flushPromises()
+    expect(recentRows(w)).toHaveLength(1)
+  })
+})
+
+/**
+ * The real cause of that flake, from the failed attempt's own page snapshot: the Digest tab showed
+ * "NetworkError when attempting to fetch resource." A transient network failure (a fetch
+ * ``TypeError``, not an HTTP status) left the Recent list empty until a reload.
+ */
+describe('DigestView — transient network failure', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('a network error on the first digest fetch is retried, and the rows render', async () => {
+    vi.useFakeTimers()
+    vi.mocked(fetchCorpusDigest).mockRejectedValueOnce(
+      new TypeError('NetworkError when attempting to fetch resource.'),
+    )
+    const { w } = await mountDigest()
+    await vi.advanceTimersByTimeAsync(5000)
+    await flushPromises()
+    expect(recentRows(w).length).toBeGreaterThan(0)
+    expect(w.text()).not.toContain('NetworkError')
+  })
+
+  it('an HTTP error is shown and not retried', async () => {
+    vi.useFakeTimers()
+    vi.mocked(fetchCorpusDigest).mockRejectedValueOnce(new Error('GET /api/corpus/digest failed 500'))
+    const { w } = await mountDigest()
+    const calls = vi.mocked(fetchCorpusDigest).mock.calls.length
+    await vi.advanceTimersByTimeAsync(5000)
+    await flushPromises()
+    expect(vi.mocked(fetchCorpusDigest).mock.calls.length).toBe(calls)
+    expect(w.text()).toContain('failed 500')
+  })
+
+  it('a network error that persists is shown after the retries, not retried forever', async () => {
+    vi.useFakeTimers()
+    // mountDigest installs a resolved default, so the persistent failure is queued once per try:
+    // the first fetch and both retries fail.
+    const netErr = () => new TypeError('NetworkError when attempting to fetch resource.')
+    vi.mocked(fetchCorpusDigest)
+      .mockRejectedValueOnce(netErr())
+      .mockRejectedValueOnce(netErr())
+      .mockRejectedValueOnce(netErr())
+    const { w } = await mountDigest()
+    await vi.advanceTimersByTimeAsync(30000)
+    await flushPromises()
+    expect(vi.mocked(fetchCorpusDigest)).toHaveBeenCalledTimes(3)
+    expect(w.text()).toContain('NetworkError')
+  })
+})
