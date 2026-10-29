@@ -47,7 +47,7 @@ def _tally_safety_net(pm: Optional[Any]) -> None:
 
 
 def _collect_episodes_for_summarization(
-    episodes: List[Episode],  # type: ignore[valid-type]  # type: ignore[valid-type]
+    episodes: List[Episode],  # type: ignore[valid-type]
     download_args: Optional[List[Tuple]],
     effective_output_dir: str,
     run_suffix: Optional[str],
