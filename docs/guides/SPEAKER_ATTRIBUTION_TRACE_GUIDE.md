@@ -213,7 +213,7 @@ POST /api/jobs?pipeline_stage=relabel_only[&feed=<feed>][&profile=<dgx profile>]
 since the migration wrote it — and `rederive_only` / `rediarize_only` rewrite `kg.json`, so after
 step 3 those refusals are correct: the re-enriched answer is the better one.
 
-Full sequence: `docs/wip/POST-DEPLOY-SPEAKER-ATTRIBUTION-2026-09-14.md`.
+Full sequence: `POST-DEPLOY-SPEAKER-ATTRIBUTION-2026-09-14 (not in this repository)`.
 
 ---
 
@@ -232,7 +232,7 @@ Do not assume these are sound; they are the best available, and each has a recor
 
 ## 8. Related
 
-- `docs/wip/POST-DEPLOY-SPEAKER-ATTRIBUTION-2026-09-14.md` — the production repair sequence
+- `POST-DEPLOY-SPEAKER-ATTRIBUTION-2026-09-14 (not in this repository)` — the production repair sequence
 - `src/podcast_scraper/kg/speaker_coherence.py` — the invariants, each with the defect it caught
 - `src/podcast_scraper/upgrade/role_ledger.py` — what m0009 changed and how to reverse it
 - `src/podcast_scraper/identity/roster_provenance.py` — measurement vs guess

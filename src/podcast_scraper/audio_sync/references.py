@@ -5,8 +5,8 @@ the stream it plays against the reference. New episodes get theirs at ingest, fr
 transcribed (``write_for_episode``). This command backfills the rest from the archive.
 
 For each selected episode:
-1. Its original comes from the audio archive (``docs/recipes/prod-audio-archive.md``), only when
-   the archive's provenance says it is byte-identical to the audio we transcribed. A later
+1. Its original comes from the audio archive (prod-audio-archive (not in this repository)),
+   only when the archive's provenance says it is byte-identical to the audio we transcribed. A later
    re-download carries other ads, and would make every offset wrong.
 2. The ad regions are the ones our transcript already marks (``episode_ad_spans``).
 3. The reference (fingerprints at checkpoints, ``podcast_scraper.audio_sync.reference``) is written

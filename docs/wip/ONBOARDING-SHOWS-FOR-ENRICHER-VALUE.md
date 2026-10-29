@@ -637,7 +637,7 @@ Odd Lots), and dense technical vocabulary (Ground Truths, The Long Run, Complex 
 Findings therefore land in **two** places, and confusing them loses information:
 
 - **This document** — content verdicts, buckets, depth decisions.
-- **`INCREMENTAL-ROLLOUT-FOLLOWUPS-2026-08-11.md`** — pipeline defects the probe exposes.
+- **INCREMENTAL-ROLLOUT-FOLLOWUPS-2026-08-11 (not in this repository)** — pipeline defects the probe exposes.
   Those are reusable across every feed, including the nine existing ones.
 
 ### Ad-read contamination — an explicit check (added 2026-08-13)
@@ -874,7 +874,7 @@ corroborated by the knowledge graph.
 
 ## 5j. Current state — verified live, 2026-08-29 (supersedes §1)
 
-Pulled from `GET /api/corpus/feeds?path=/app/output` on prod (`prod-podcast.<TAILNET>.ts.net`)
+Pulled from `GET /api/corpus/feeds?path=/app/output` on prod (`<prod-host>.<TAILNET>.ts.net`)
 plus a per-episode measurement pass over `GET /api/corpus/episodes/detail`. **14 feeds, 765
 episodes.** `GET /api/feeds` confirms `feeds.spec.yaml` carries the same 14 — spec and corpus
 are in sync.

@@ -190,15 +190,15 @@ browser-observable demos under `web/gi-kg-viewer/e2e/perf/`.
 
 ### Always-on hosting and prod-failover decisions
 
-[RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) lifts the published GHCR
+RFC-082 lifts the published GHCR
 image set onto a **Hetzner VPS** with **Tailscale-only ingress** by default. [ADR-079
 through ADR-083](../adr/index.md) lock OpenTofu, encrypted in-repo state, the drill
 workspace and ACL ownership, GitOps deploy after `stack-test`, and the Tailscale ingress
 choice. Prod-failover orchestration (DNS-first cutover, GHA triggers, drill-vs-incident
-separation) is designed under [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)
-with [ADR-089](../adr/ADR-089-prod-failover-orchestrator-separate-from-drill.md)–[ADR-091](../adr/ADR-091-prod-failover-gha-triggers-and-gates.md);
+separation) is designed under RFC-083
+with ADR-089–ADR-091;
 implementation lands post-2.6. Optional public TLS edge + multi-app hosting is documented
-in [RFC-087](../rfc/RFC-087-vps-public-edge-multi-compose.md).
+in RFC-087.
 
 Operator-facing playbooks: PROD_RUNBOOK.md, PROD_OPERATOR_CHEAT_SHEET.md, VPS_MULTI_APP_ONBOARDING.md.
 

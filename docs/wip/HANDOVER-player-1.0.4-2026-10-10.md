@@ -84,7 +84,7 @@ Branch `feat/player-1.0.4`, no PR yet. Living document: updated as each open ite
 
 The first part of this branch (#2305: migration 0028, the playback-milestone dedupe, Moments, the
 search changes) was deployed 2026-10-12/13 and its list executed. The rest of the branch has its
-own plan: **`docs/wip/POST-DEPLOY-BOARDS-AND-DGX-GATEWAY.md`**.
+own plan: **POST-DEPLOY-BOARDS-AND-DGX-GATEWAY (not in this repository)**.
 
 ## Next session: the competitive analysis findings
 

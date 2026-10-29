@@ -4,7 +4,7 @@
 - **Date**: 2026-08-12
 - **Authors**: Marko Dragoljevic, Claude
 - **Related RFC**: [RFC-117](../rfc/RFC-117-pipeline-supervision-and-absence-detection.md) (the full argument)
-- **Related ADRs**: [ADR-119](ADR-119-vendor-neutral-event-emission.md) (events, not scraped metrics), [ADR-142](ADR-142-litellm-prod-gateway.md) (prod-local gateway), [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (tailnet seam pattern)
+- **Related ADRs**: [ADR-119](ADR-119-vendor-neutral-event-emission.md) (events, not scraped metrics), ADR-142 (prod-local gateway), [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (tailnet seam pattern)
 - **Related issues**: [#1620](https://github.com/chipi/podcast_scraper/issues/1620) (programme), [#379](https://github.com/chipi/podcast_scraper/issues/379) (non-enforcing timeout), [#429](https://github.com/chipi/podcast_scraper/issues/429) (fail-fast)
 
 ## Context & Problem Statement

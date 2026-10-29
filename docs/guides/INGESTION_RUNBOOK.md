@@ -112,7 +112,7 @@ curl -s -X POST -G "https://<fqdn>/api/jobs" \
 Or read the key on the box and call the loopback API:
 
 ```bash
-ssh -i ~/.ssh/podcast_prod_operator deploy@<prod-ip> 'docker exec -i compose-api-1 python3 - <<PY
+ssh <prod-host> 'docker exec -i <api-container> python3 - <<PY
 import pathlib, urllib.request, urllib.parse
 key = pathlib.Path("/run/secrets/app_operator_api_key").read_text().strip()
 qs = urllib.parse.urlencode({

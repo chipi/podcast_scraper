@@ -53,7 +53,7 @@ Controls, all live in the arc code:
 - Local at-rest audio ≈ 0 by construction: per-run offload-to-cold + eviction is deployed and
   live-verified ("evicted 13 (1.16 GB); kept 0 not-yet-in-cold", zero errors). Peak local
   usage = one feed-run's audio.
-- Cold archive: Hetzner Storage Box (bx11, 1 TB). 700 episodes ≈ 70–100 GB — fits with
+- Cold archive: a remote storage box (1 TB). 700 episodes ≈ 70–100 GB — fits with
   wide margin next to the existing corpus audio.
 - Check `df -h /` on the box before batch one; the box was at 49% on 2026-08-23.
 
@@ -80,7 +80,7 @@ Per-batch checklist (10 minutes, same queries every time):
 2. Completion: `repaired/processed N/N` against the denominator; job status `completed`.
 3. Spend: LiteLLM SpendLogs delta ≈ estimate (the 2026-08-24 chain proved SpendLogs ==
    OpenRouter to the cent); Deepgram console delta for ASR.
-4. Eviction: VictoriaLogs `instance:prod-podcast "audio eviction"` shows the run's summary
+4. Eviction: VictoriaLogs `instance:<prod-host> "audio eviction"` shows the run's summary
    with `kept 0 not-yet-in-cold`, `0 unlink-failed`.
 5. Dedup: count of `#1656` warnings (money saved, and a signal about the feed's hygiene).
 6. Errors: GlitchTip untriaged events for the window; `enrich-common-run-failed` alert quiet.

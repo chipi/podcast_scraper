@@ -3,7 +3,7 @@
 - **Status**: Reassessment v2 (analysis; no code changed — reassess → propose → operator approves → implement)
 - **Date**: 2026-07-08
 - **For**: [#1161](https://github.com/chipi/podcast_scraper/issues/1161) (validates the D1
-  accept of the RW `docker.sock` — `docs/security/THREAT_MODEL.md` T-01)
+  accept of the RW `docker.sock` — THREAT_MODEL (not in this repository) T-01)
 - **Note**: supersedes the first-pass framing (which wrongly treated `/api/*` as
   "operator-only, keep private"). Corrected after operator reframe.
 

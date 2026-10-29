@@ -4,7 +4,7 @@ Compose definitions for running the platform end-to-end. **Build context is `..`
 
 For the operator's run-it-on-your-machine guide, start at [`docs/guides/DOCKER_COMPOSE_GUIDE.md`](../docs/guides/DOCKER_COMPOSE_GUIDE.md).
 
-**Cross-surface contract (which overlays apply where):** [`docs/guides/STACK_CONTRACT.md`](../docs/guides/STACK_CONTRACT.md).
+**Cross-surface contract (which overlays apply where):** STACK_CONTRACT (not in this repository).
 
 ## Files
 

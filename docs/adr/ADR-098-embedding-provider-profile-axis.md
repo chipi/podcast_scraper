@@ -3,13 +3,13 @@
 - **Status**: Accepted
 - **Date**: 2026-06-06
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) (§D4 superseded)
+- **Related RFCs**: RFC-089 (§D4 superseded)
 - **Related ADRs**: [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) (unaffected — embedding routing is profile-local, prod fallback contract unchanged)
 - **Related issues**: [#897](https://github.com/chipi/podcast_scraper/issues/897) (implementation)
 
 ## Context
 
-[RFC-089 §D4](../rfc/RFC-089-dgx-spark-tailnet-integration.md) introduced a custom FastAPI service on the DGX Spark — the "embedding shim" — to wrap `sentence-transformers/all-MiniLM-L6-v2` and expose `POST /embed` on port `:8001`. The shim existed because Ollama doesn't serve sentence-transformers checkpoints out of the box, and at the time RFC-089 was written, the corpus index was built against MiniLM and had to keep working.
+RFC-089 §D4 introduced a custom FastAPI service on the DGX Spark — the "embedding shim" — to wrap `sentence-transformers/all-MiniLM-L6-v2` and expose `POST /embed` on port `:8001`. The shim existed because Ollama doesn't serve sentence-transformers checkpoints out of the box, and at the time RFC-089 was written, the corpus index was built against MiniLM and had to keep working.
 
 During DGX bring-up (#810), the operator observed that two HTTP services on DGX (`:11434` Ollama + `:8001` shim) felt wrong. On audit, the framing was right: the shim is a stack-compatibility adapter, not a design choice. It has no functional reason to exist beyond "MiniLM was the model we'd already committed to."
 

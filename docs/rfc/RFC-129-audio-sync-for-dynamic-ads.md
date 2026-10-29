@@ -7,7 +7,7 @@
   - `docs/rfc/RFC-126-discover-rails-reasons-paging-and-reels.md` (short listens and Learn stitch
     clips across episodes; they need clip times that are right for the listener)
 - **Related Documents**:
-  - `docs/recipes/prod-audio-archive.md` (the archive this design reads its reference from)
+  - prod-audio-archive (not in this repository) (the archive this design reads its reference from)
   - `docs/recipes/audio-timing-drift.md` (the runbook: the one-off backfill, checks, diagnosis)
 - **Issue**: #2359
 
@@ -83,7 +83,7 @@ measurement above shows they often don't.
 
 **Constraints:**
 
-- Audio is never rehosted or proxied (`docs/recipes/prod-audio-archive.md`: the archive is for our
+- Audio is never rehosted or proxied (prod-audio-archive (not in this repository): the archive is for our
   own reprocessing). A proxy would also send the hosts' ad counting our server's address instead of
   the listener's.
 - The browser's cross-origin rules apply on the web. Measured on all 11 test episodes:
@@ -357,4 +357,4 @@ on a listener's stream (checked from a second country).
 - `web/learning-player/src/player/audioSync.ts`, `audioFingerprint.ts`, `audioSyncRegistry.ts`
 - `docs/recipes/audio-timing-drift.md`
 - `web/learning-player/src/player/audioTimeMap.ts`
-- `docs/recipes/prod-audio-archive.md`
+- prod-audio-archive (not in this repository)

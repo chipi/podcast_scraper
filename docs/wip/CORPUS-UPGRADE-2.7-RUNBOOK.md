@@ -19,7 +19,7 @@ the published image, and asserts **no data loss** (episode count before == after
 Do not proceed to prod until it's green.
 
 ## Phase B — PROD (only after the drill is green)
-1. **Fresh backup + Hetzner snapshot** — the external rollback point. (Corpus static
+1. **Fresh backup + host snapshot** — the external rollback point. (Corpus static
    → the last `snapshot-prod-*` is valid; snapshot the box before touching it.)
 2. **Deploy 2.7** (`deploy-prod`, `PROD_DEPLOY`). App boots against the un-migrated
    corpus (2.7 supports corpus code ≥ 2.6.0).

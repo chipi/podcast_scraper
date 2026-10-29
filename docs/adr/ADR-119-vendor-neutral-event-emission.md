@@ -3,7 +3,7 @@
 - **Status**: Proposed
 - **Date**: 2026-07-20
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
-- **Related ADRs**: [ADR-117](ADR-117-multi-tenant-observability-gitops.md) (the
+- **Related ADRs**: ADR-117 (the
   multi-tenant o11y ownership split this refines — each tenant owns its app
   telemetry; this ADR fixes *how* the app emits it)
 - **Tracking**: app-surface o11y (see `OBSERVABILITY_ARCHITECTURE.md`)

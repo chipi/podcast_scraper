@@ -3,8 +3,8 @@
 - **Status**: Accepted
 - **Date**: 2026-07-08
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
-- **Related**: [ADR-114](ADR-114-shared-multi-tenant-public-edge-caddy.md) (public edge),
-  [ADR-115](ADR-115-multi-tenant-secret-delivery-sops-tmpfs-files.md) (secret delivery),
+- **Related**: ADR-114 (public edge),
+  ADR-115 (secret delivery),
   [ADR-011](ADR-011-secure-credential-injection.md); threat model T-01
 - **Tracking**: [#1161](https://github.com/chipi/podcast_scraper/issues/1161) (umbrella).
   Children: **#1163** player-public (first), **#1164** RBAC across `/api/*`, **#1165**

@@ -6,7 +6,7 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-119-holistic-collections.md` (boards; the 2026-10-12 amendment adds the Brief)
 - **Related ADRs**:
-  - `docs/adr/ADR-142-litellm-prod-gateway.md` (the gateway, for a profile that uses it)
+  - ADR-142 (not in this repository) (the gateway, for a profile that uses it)
 - **Related UX specs**:
   - `docs/uxs/UXS-011-consumer-learning-app.md` (Collections; `BoardBrief`)
 
@@ -92,7 +92,7 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
   of every sweep, as the API reads `access_policy.json`. Absent, unreadable or `{"enabled": true}`
   runs; `{"enabled": false}` stops new summaries from the next sweep on (within five minutes) — the
   model is not even built. Summaries already made stay. To stop it:
-  `echo '{"enabled": false}' > /srv/podcast-scraper/player-appdata/board_summaries_settings.json`
+  `echo '{"enabled": false}' > <deploy-dir>/player-appdata/board_summaries_settings.json`
 - **The DGX's address**: Docker cannot resolve MagicDNS, so `deploy-player.sh` resolves
   `dgx-llm-1` on every deploy (`tailscale ip -4`) into `DGX_TAILNET_IP`, as it does `homelab`.
   Unresolved, the name points at loopback and the sidecar summarises nothing.

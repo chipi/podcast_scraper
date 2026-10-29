@@ -5608,7 +5608,7 @@ preprod-chaos-dgx-down:
 # THE GAP THIS CLOSES. `preprod-chaos-dgx-down` above reroutes only --dgx-whisper-port and
 # asserts cloud Whisper takes over. It passes cleanly while every LLM stage silently degrades,
 # which is exactly what happened in production: the autoresearch vLLM on :8003 is GPU-mode-gated
-# ("idle, not gone" — DGX_SERVING.md), so whisper on :8000 and pyannote on :8001 answered
+# ("idle, not gone" — DGX_SERVING (not in this repository)), so whisper on :8000 and pyannote on :8001 answered
 # normally while KG extraction and GI returned empty and the run recorded itself as clean.
 #
 # This is the realistic shape of a DGX incident: ONE service down, not the box.

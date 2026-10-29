@@ -32,8 +32,8 @@ Detail manuals (load on demand by any agent):
 
 - **LLM path (prod):** app -> LiteLLM gateway **on the prod VPS** -> OpenRouter -> vendor
   (ADR-142, one gateway per failure domain). DGX variant: the same prod gateway, or
-  direct vllm per profile, -> DGX. `infra/litellm/config.yaml` in THIS repo is the
-  gateway of record.
+  direct vllm per profile, -> DGX. the deployment's gateway config (not in this
+  repository) is the gateway of record.
 - **The homelab hosts OBSERVABILITY ONLY** (Langfuse, GlitchTip, VictoriaMetrics/Logs/
   Traces, Grafana). It is **never** on any prod or DGX LLM path. A fix for an
   LLM-routing problem never involves the `agentic-ai-homelab` repo.
@@ -49,7 +49,7 @@ Detail manuals (load on demand by any agent):
   "the env var should override the profile" by reading these files. Both were wrong; one
   nearly shipped a cross-repo change to the homelab gateway. **If you reach either
   conclusion you are re-deriving topology from config — STOP**, read
-  `docs/adr/ADR-142-litellm-prod-gateway.md` (the gateway runbook is operator
+  ADR-142 (not in this repository) (the gateway runbook is operator
   documentation, not in this repository), then re-check your premise before acting on it.
 
 ---
@@ -63,8 +63,8 @@ exists because a session burned time rediscovering something already written dow
 | --- | --- | --- |
 | **Observability — is X up? where is X?** | the operator observability runbook (not in this repository) § "Endpoint table" → § "Query crib" | every app's local port + tailnet path + health check; copy-paste log/metric/trace queries; the GlitchTip token recipe |
 | **MCP servers — which exist, are they live, how do I connect?** | `AGENTS.md` § "MCP servers — PROD vs DEV" → the operator observability runbook § "MCP servers" | that PROD content MCP is the **claude.ai connector, already available as `mcp__claude_ai_Close_Listening__*`** — no token, no setup; plus both prod URLs and the token-minting route |
-| **Deploying / running the obs MCP** | the operator observability runbook (not in this repository) § "MCP servers" | it runs on the prod host only, as the deployment's `obs` service. The homelab variant was deleted 2026-10-16; `docs/wip/OBS-MCP-ON-VPS-PLAN.md` is history (wrong subdomain) |
-| **LLM routing / gateway** | `docs/adr/ADR-142-litellm-prod-gateway.md` | prod does **not** call homelab; see § "Deployment topology" above |
+| **Deploying / running the obs MCP** | the operator observability runbook (not in this repository) § "MCP servers" | it runs on the prod host only, as the deployment's `obs` service. The homelab variant was deleted 2026-10-16; OBS-MCP-ON-VPS-PLAN (not in this repository) is history (wrong subdomain) |
+| **LLM routing / gateway** | ADR-142 (not in this repository) | prod does **not** call homelab; see § "Deployment topology" above |
 | **Prod ops — deploy, health, corpus paths, secrets** | the operator cheat sheet (not in this repository) | endpoints, host paths, daily commands, incident playbook, secret inventory |
 | **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml`, `docs/wip/CORPUS-EXPANSION-REGISTRY-2026-09.md` | the vetted feed list + every rejection with its reason |
 | **Enrichment quality gates** | `docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` §5f-§5j | the §5g probe protocol, §5i evidence-based gates, the 2h duration ceiling |
@@ -257,8 +257,8 @@ forever than have this violated. Full failure-mode analysis lives in
     Never invoke it yourself, even if the prior commit was authorized.
 
     Failure mode of record (2026-05-29): an unauthorized `gh workflow run "Infra
-    apply"` cascaded `hcloud_ssh_key.operator` drift into `hcloud_server.prod`
-    replacement → prod VPS destroyed mid-session.
+    apply"` cascaded an SSH-key change into replacing the prod server → the prod host
+    was destroyed mid-session.
 
 12. **`# forces replacement` in any plan output is a hard stop. `(sensitive
     value) # forces replacement` is doubly so.** Stateful resources (servers,

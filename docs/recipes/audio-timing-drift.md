@@ -21,8 +21,8 @@ hidden for drifting; no DGX, no model: CPU, ffmpeg, rclone (backfill only).
 All commands run in the pipeline image, on the live corpus (`/app/output`), on the prod host:
 
 ```bash
-cd /srv/podcast-scraper
-C="docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml"
+cd <deploy-dir>
+C="<the deployment's docker compose command for the control-plane stack>"
 $C run --rm --no-deps pipeline-llm python -m podcast_scraper.audio_sync <command> --corpus /app/output ...
 ```
 
@@ -80,7 +80,7 @@ version 1 reference, but downloads far more of the stream after a changed break;
 
 ## Verification
 
-- `find /srv/podcast-scraper/corpus -name '*.audioref.json' | wc -l` grows during the backfill.
+- `find <deploy-dir>/corpus -name '*.audioref.json' | wc -l` grows during the backfill.
 - Pipeline logs after an ingest run: `audio references (<run>): {'written': N, ...}`.
 
 ## Troubleshooting

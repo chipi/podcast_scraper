@@ -57,7 +57,7 @@ The gate passes on main locally (`6 passed`). The 03:00 run is the first real ve
 
 ## Incident
 
-`docs/incidents/2026-08-27-prod-search-index-deleted.md`. Search was down ~80 minutes because I ran
+2026-08-27-prod-search-index-deleted (not in this repository). Search was down ~80 minutes because I ran
 a destructive rebuild whose delete succeeded and whose build could not run. Five dispatches for one
 reindex. The report is weighted toward what to do differently — fix `--rebuild` at source, never
 delete before the replacement is proven, ship a read-only sibling with every destructive operation,
