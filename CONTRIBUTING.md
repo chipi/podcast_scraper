@@ -487,7 +487,7 @@ Prohibited categories and their placeholders:
 | Tailscale tailnet suffix | `<TAILNET>.ts.net` |
 | DGX FQDN (docs/YAML/READMEs) | `your-dgx.tailnet.ts.net` |
 | DGX FQDN (Python registry/scripts) | `{dgx_tailnet_host}` |
-| Prod VPS tailnet FQDN | `prod-podcast.<TAILNET>.ts.net` |
+| Prod host tailnet FQDN | `<PROD_HOST>.<TAILNET>.ts.net` |
 | Homelab FQDN | `homelab.<TAILNET>.ts.net` |
 | Tailscale IPs (any host) | `<HOMELAB_IP>`, `<DGX_IP>`, `<PROD_HOST_IP>` |
 | Hetzner public IP | `<HETZNER_IP>` |

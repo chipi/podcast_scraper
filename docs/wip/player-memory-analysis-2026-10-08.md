@@ -22,7 +22,7 @@ A Pixel 8 has 8 GB RAM. Android killing the app for `low_memory` on it points at
 footprint, not a weak phone. GlitchTip has nothing for the black regions — a raster failure throws
 no error — and nothing in the player project for 11:00–13:00 UTC on 2026-10-07.
 
-**Artwork on prod (read-only, `deploy@prod-podcast`).**
+**Artwork on prod (read-only, on the prod host).**
 
 - 1,318 stored originals, 957 MB; **all 1,318 have a 320px thumbnail**.
 - Longest edge: ≤600px 10 · 601–1400 383 · 1401–2000 244 · **2001–3000 677** · >3000 2.

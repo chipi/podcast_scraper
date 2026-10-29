@@ -33,7 +33,7 @@ is the thing we already accepted. (Same discipline as the deepgram freeze arbite
 | --- | --- | --- |
 | **v2.1** | speaker **naming** (on frozen deepgram diarization) | done |
 | **v2.2** | **diarization** → pyannote community-1 (DGX-local), full ~90-ep corpus | **MERGED — PR #1335** (Closes #1188, #1290, #1292–#1296, #1321, #1329–#1331) |
-| **v2.3** | **ASR** → faster-whisper turbo (DGX-local) + ADR-123 coverage failover | **MERGED** (bundled into #1355) — turbo primary, coverage failover retargeted large-v3→**MOSS** (#1273). Open follow-up **#1273 TODO 1** (int8-vs-fp16 serving test) BLOCKED on DGX SSH — [doc](1273-largev3-int8-vs-fp16-BLOCKED.md); NOT on the critical path. |
+| **v2.3** | **ASR** → faster-whisper turbo (DGX-local) + ADR-123 coverage failover | **MERGED** (bundled into #1355) — turbo primary, coverage failover retargeted large-v3→**MOSS** (#1273). Open follow-up **#1273 TODO 1** (int8-vs-fp16 serving test) BLOCKED on DGX SSH — doc; NOT on the critical path. |
 | **v2.4** | **GI/KG optimizations** — remove `GI_MAX_INSIGHTS_CEILING` (#1191) + KG Voice-node (#1220) + naming-4 speaker labeling + per-episode observability manifest | **MERGED — PR #1355** (squash `b24608fa`; Closes #1191, #1220, #1337, #1358–#1364) |
 | **v2.5** | **LLM** → Gemini replaced by a DGX-hosted local model (the gateway to a **fully-local** pipeline) | **CURRENT FRONT** — see the v2.5 stage detail below |
 
@@ -92,7 +92,7 @@ plate. The remaining single-variable step is the **naming/summarization LLM swap
    "gone"; an earlier probe as the wrong SSH user misreported that). The **supporting services**
    (faster-whisper ASR `:8000`, pyannote diarization `:8001`, MOSS ASR-failover `:8004`) are fixed —
    they run every reprocess but are NOT under research in v2.5. Full topology + access:
-   `docs/architecture/DGX_SERVING.md` → homelab SSOT `agentic-ai-homelab/infra/dgx/README.md`.
+   DGX_SERVING (not in this repository) → homelab SSOT `agentic-ai-homelab/infra/dgx/README.md`.
 
 ### The v2.5 sub-sequence
 
@@ -100,7 +100,7 @@ plate. The remaining single-variable step is the **naming/summarization LLM swap
   the bake-off in the autoresearch harness (`autoresearch/`, `JUDGING.md`,
   `bundled_prompt_tuning/`). **Serving:** bring the autoresearch vLLM up on `:8003` via
   `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research` (GPU sits idle until then — see
-  decision 5 + `docs/architecture/DGX_SERVING.md`). Serve the local LLM candidate set (Cohere
+  decision 5 + DGX_SERVING (not in this repository)). Serve the local LLM candidate set (Cohere
   Command, Qwen3-30B-A3B, DeepSeek — the Llama-class replacements for Gemini); deep-research each
   model's knobs (`feedback_deep_research_per_model`) and update
   `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`. Metric = judge-panel parity vs the 2.4-Gemini

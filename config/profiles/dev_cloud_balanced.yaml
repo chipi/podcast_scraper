@@ -247,8 +247,8 @@ log_level: INFO
 # the 2026-08-18 incident). The local audio-cache/ directory stops being written entirely.
 #
 # Credentials live in the host rclone config (RCLONE_CONFIG_AUDIOARCHIVE_* staged into the
-# container env by deploy-prod.yml, ADR-115) — never in this file. The remote is SFTP to the box
-# (u653903.your-storagebox.de:23); rclone is baked into the pipeline image.
+# container env by the deployment, ADR-115) — never in this file. The remote is SFTP to a storage
+# box the deployment configures; rclone is baked into the pipeline image.
 #
 # Fail-loud on misconfig (empty remote name / missing rclone binary raises at load); per-episode
 # upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.

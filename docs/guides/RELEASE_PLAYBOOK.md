@@ -301,7 +301,7 @@ version" class of misses (see Phase 6 note about v2.6.1).
 
 ```bash
 # 1. /api/health reports the expected version
-curl -fsS https://prod-podcast.<tailnet>/api/health | jq -r '.code_version'
+curl -fsS https://<prod-host>.<tailnet>/api/health | jq -r '.code_version'
 # expect: X.Y.Z exactly. Mismatch → Phase 6 was skipped, you need to
 # re-bump pyproject.toml + __init__.py, re-build, re-deploy.
 
@@ -309,12 +309,12 @@ curl -fsS https://prod-podcast.<tailnet>/api/health | jq -r '.code_version'
 # (auto, in the workflow). If it failed on /api/corpus/episodes only,
 # verify the smoke step is sending the CONTAINER corpus path
 # (PODCAST_DEFAULT_CORPUS_PATH=/app/output) not the HOST path
-# (PODCAST_CORPUS_HOST_PATH=/srv/podcast-scraper/corpus). The API
+# (PODCAST_CORPUS_HOST_PATH=<deploy-dir>/corpus). The API
 # validates path against its in-container root, which is the container
 # path. Fixed in deploy-prod.yml after the 2026-05-29 incident.
 
 # 3. Sanity-check the tailnet publishes
-curl -fsS -o /dev/null -w 'podcast :443 = %{http_code}\n' https://prod-podcast.<tailnet>/
+curl -fsS -o /dev/null -w 'podcast :443 = %{http_code}\n' https://<prod-host>.<tailnet>/
 # expect: 200
 ```
 

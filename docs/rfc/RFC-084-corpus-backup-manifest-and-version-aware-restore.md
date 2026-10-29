@@ -6,8 +6,8 @@
 - **Domain**: Infrastructure / backups / disaster recovery
 - **Tracking**: [GitHub #763](https://github.com/chipi/podcast_scraper/issues/763)
 - **Related RFCs**:
-  - [RFC-081](RFC-081-pre-prod-environment-and-control-plane.md) — Phase 1E corpus backup context
-  - [RFC-082](RFC-082-always-on-pre-prod-and-prod-hosting.md) — always-on host backup story
+  - RFC-081 — Phase 1E corpus backup context
+  - RFC-082 — always-on host backup story
   - [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) — **`corpus_manifest.json`** at corpus parent (distinct from **snapshot** manifest)
   - [RFC-004](RFC-004-filesystem-layout.md) — on-disk layout evolution
 - **Related ADRs**:

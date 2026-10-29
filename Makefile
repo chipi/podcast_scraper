@@ -710,7 +710,7 @@ quality: complexity deadcode docstrings spelling
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
 	# FastAPI routing uses the real request path, not the reconstructed URL. Traefik
-	# also normalises Host upstream in prod (compose/docker-compose.prod.yml). Fix is in
+	# also normalises Host upstream in prod. Fix is in
 	# starlette 1.0.1 but it ships as "Alpha" classifier and fastapi 0.136.x (latest)
 	# still pins starlette<1.0; atomic bump is unsafe today.
 	# TODO(PYSEC-2026-161): Drop this ignore once fastapi releases a version that
@@ -5608,7 +5608,7 @@ preprod-chaos-dgx-down:
 # THE GAP THIS CLOSES. `preprod-chaos-dgx-down` above reroutes only --dgx-whisper-port and
 # asserts cloud Whisper takes over. It passes cleanly while every LLM stage silently degrades,
 # which is exactly what happened in production: the autoresearch vLLM on :8003 is GPU-mode-gated
-# ("idle, not gone" — DGX_SERVING.md), so whisper on :8000 and pyannote on :8001 answered
+# ("idle, not gone" — DGX_SERVING (not in this repository)), so whisper on :8000 and pyannote on :8001 answered
 # normally while KG extraction and GI returned empty and the run recorded itself as clean.
 #
 # This is the realistic shape of a DGX incident: ONE service down, not the box.

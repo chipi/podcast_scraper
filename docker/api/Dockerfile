@@ -99,7 +99,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # All THREE signals need it, not just traces: metrics and logs default to `otlp` the same way,
 # and setting only OTEL_TRACES_EXPORTER left `opentelemetry_metrics_exporter` still raising.
 # `compose/docker-compose.stack.yml` already pins all three to `none` unconditionally, which is
-# the intent this image should have carried on its own. Note `docker-compose.vps-prod.yml`
+# the intent this image should have carried on its own. Note the prod deployment's overlay
 # overrides only TRACES (to `otlp`), so before this, prod inherited the broken gRPC default for
 # metrics too.
 #

@@ -50,7 +50,7 @@ This session supports it and does not dispatch. The full runbook is with the pro
 2. **Deploy.** Preflight, the operator's go, `deploy-all-prod.yml`, the gate, the box verify (every
    app container on the sha), the smokes, `deploy-verify compare` against the 06:35Z baseline.
    Infra post-deploy steps, owned by the prod session:
-   [AFTER-NEXT-DEPLOY-2026-10-17.md](AFTER-NEXT-DEPLOY-2026-10-17.md) (Caddy IPv6, `unscoped.alloy`,
+   AFTER-NEXT-DEPLOY-2026-10-17 (not in this repository) (Caddy IPv6, `unscoped.alloy`,
    the prod-ops-health timer).
 3. **0031 apply.**
    - The corpus is idle.

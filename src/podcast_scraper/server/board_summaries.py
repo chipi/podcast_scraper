@@ -3,9 +3,10 @@
 The first LLM call outside the pipeline, so everything here is about WHEN it may run and WHAT it
 may read:
 
-- It runs only in the ``board-summarizer`` sidecar (``infra/deploy/board_summarizer.py``), never in
-  a request. This module takes the model call as a plain function and imports no SDK, so the API
-  process that reads summaries for the Brief cannot call a model even by mistake.
+- It runs only in the ``board-summarizer`` sidecar
+  (``podcast_scraper.server.board_summarizer_runner``), never in a request. This module takes the
+  model call as a plain function and imports no SDK, so the API process that reads summaries for
+  the Brief cannot call a model even by mistake.
 - A board is summarised when its content changed, has been quiet for a while, was not summarised
   in the last day, and has two episodes or more; per user and per sweep there is a cap.
 - The budget is zero (operator 2026-10-13: the DGX profile costs nothing). Every call is priced

@@ -59,7 +59,7 @@ Items / median / newest are as measured 2026-10-01.
 
 1. **Dedupe against prod.** The dedupe above was against repo docs dated 2026-09-10, not the
    live prod corpus. Any feed already on prod: skip it and note it in the report.
-2. **Pipeline capacity.** The 2026-09-30 handover (`HANDOVER-2026-09-30-outage-fixed-corpus-mop-up.md`)
+2. **Pipeline capacity.** The 2026-09-30 handover (HANDOVER-2026-09-30-outage-fixed-corpus-mop-up (not in this repository))
    describes post-outage mop-up. Confirm nothing from that is still queued/running before adding
    26 jobs' worth of work.
 3. **Queue order vs the 72-feed expansion.** `config/corpus-expansion.feeds.yaml` lists 72

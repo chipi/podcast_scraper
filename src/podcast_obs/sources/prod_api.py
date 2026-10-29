@@ -1,7 +1,7 @@
 """Probes against a deploy's own ``/api`` surface — credential-free (needs only ``api_base``).
 
 Works against any deploy: a local ``make serve`` stack (``http://localhost:8080``), prod over
-Tailscale (``https://prod-podcast.<tailnet>``), or a drill. These three are the "basics" you can
+Tailscale (``https://<prod-host>.<tailnet>``), or a drill. These three are the "basics" you can
 observe before any external integration (GitHub/Sentry/Grafana) is wired.
 """
 

@@ -5,7 +5,7 @@ Since the queue sweeper landed it also runs unattended every 30 s, which raises 
 every rule in it: a wrong call is now silent and repeated.
 
 The pid it reasons about is not what it looks like. Production runs
-``PODCAST_PIPELINE_EXEC_MODE=docker`` (``compose/docker-compose.prod.yml``), where the
+``PODCAST_PIPELINE_EXEC_MODE=docker`` (set by the prod deployment), where the
 recorded pid belongs to the ``docker compose run`` *client* inside the API container while the
 work happens in a container on the host daemon. So after an API restart:
 

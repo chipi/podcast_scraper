@@ -441,7 +441,7 @@ def current_boot_id() -> str:
     operator asks for it:
 
     * In Docker exec mode — which is what production runs
-      (``compose/docker-compose.prod.yml`` sets ``PODCAST_PIPELINE_EXEC_MODE=docker``) — the
+      (the prod deployment sets ``PODCAST_PIPELINE_EXEC_MODE=docker``) — the
       recorded pid is the ``docker compose run`` *client* inside the API container, while the
       real work runs in a container on the host daemon. Kill the API container and the client
       dies with it; the job container keeps going. A restart would then see a dead pid and
@@ -1236,7 +1236,7 @@ def default_prior_boot_probe() -> Callable[[dict[str, Any]], bool | None]:
     Known limitation, stated rather than papered over: subprocess mode *inside a container
     that restarts* gets a fresh PID namespace too, and this probe would then trust a recycled
     pid. Nothing in the repo runs that combination — prod sets
-    ``PODCAST_PIPELINE_EXEC_MODE=docker`` (``compose/docker-compose.prod.yml``) — and fixing
+    ``PODCAST_PIPELINE_EXEC_MODE=docker`` (set by the prod deployment) — and fixing
     it properly needs a namespace identity the registry does not record today.
     """
     if docker_exec_mode():

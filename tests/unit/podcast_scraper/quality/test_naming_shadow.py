@@ -293,3 +293,69 @@ def test_listed_rows_carry_the_title_and_the_voices_insights(tmp_path: Path) -> 
     (r,) = ns.report(tmp_path)["namers"]["transcript_naming"]["differences"]
     assert "title" in r and "feed" in r and "insights" in r
     assert " | " in ns.render(ns.report(tmp_path))
+
+
+def _with_processing(p: Dict[str, Any], ts: str) -> None:
+    meta = json.loads(p["meta"].read_text(encoding="utf-8"))
+    meta["processing"] = {"processing_timestamp": ts}
+    p["meta"].write_text(json.dumps(meta), encoding="utf-8")
+
+
+def test_an_all_agree_episode_is_listed_with_its_run_date_and_outcomes(tmp_path: Path) -> None:
+    p = _episode(
+        tmp_path,
+        {
+            "transcript_naming": {
+                "ok": True,
+                "voices": {
+                    "SPEAKER_00": _voice("Arlo Venn", "Arlo Venn", "agree"),
+                    "SPEAKER_01": _voice("Katharine Quist", "Katharine Quist", "agree"),
+                },
+            }
+        },
+    )
+    _with_processing(p, "2026-10-29T03:12:00")
+    rep = ns.report(tmp_path)
+    (row,) = rep["episodes_shadowed"]
+    assert row["episode"] == "ep" and row["feed"] == "Some Show"
+    # Relative to the corpus root, never the host's absolute path; the date is the metadata's.
+    assert row["run"] == "feeds/f/run_1" and row["processed"] == "2026-10-29T03:12:00"
+    assert row["namers"] == {
+        "transcript_naming": {
+            "answered": True,
+            "outcomes": {"agree": 2, "adds": 0, "removes": 0, "changes": 0, "not_judged": 0},
+        }
+    }
+    # The cumulative tables are what they were: an all-agree episode lists no difference.
+    tn = rep["namers"]["transcript_naming"]
+    assert tn["episodes"] == 1 and tn["answered"] == 1 and tn["outcomes"]["agree"] == 2
+    assert tn["differences"] == [] and rep["episodes"] == 1
+
+
+def test_a_not_answered_episode_is_listed_with_its_reason(tmp_path: Path) -> None:
+    _episode(
+        tmp_path,
+        {
+            "voice_identity": {
+                "report": {"abstained": "no fingerprints for this episode"},
+                "voices": {
+                    "SPEAKER_00": _voice("Arlo Venn", "Arlo Venn", "agree", "fingerprint_result")
+                },
+            }
+        },
+    )
+    rep = ns.report(tmp_path)
+    (row,) = rep["episodes_shadowed"]
+    assert row["processed"] is None  # no processing block: absent, not a file time
+    assert row["namers"] == {
+        "voice_identity": {"answered": False, "reason": "no fingerprints for this episode"}
+    }
+    vi = rep["namers"]["voice_identity"]
+    assert vi["not_answered"] == {"no fingerprints for this episode": 1}
+    assert vi["answered"] == 0 and sum(vi["outcomes"].values()) == 0
+
+
+def test_an_episode_without_a_side_namer_is_not_listed(tmp_path: Path) -> None:
+    _episode(tmp_path, {})
+    rep = ns.report(tmp_path)
+    assert rep["episodes_shadowed"] == [] and rep["episodes"] == 1

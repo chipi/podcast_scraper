@@ -164,5 +164,5 @@ episodes. Episodes needed = `ceil((365 - span) / median_gap)`.
 
 Backfilling older episodes requires `episode_selection=unprocessed` **per request**.
 Setting it in the corpus-global operator YAML is TRAP 2 in
-`HANDOVER-2026-09-07-ready-to-scale.md`: it applies to the nightly too and turns it into a
+HANDOVER-2026-09-07-ready-to-scale (not in this repository): it applies to the nightly too and turns it into a
 back-catalogue crawler.

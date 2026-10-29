@@ -5,8 +5,8 @@
 
 Prints each stretch of the original's talk found in the stream: original seconds, and how far it
 moved (positive: later in the stream). The original comes from the audio archive
-(``docs/recipes/prod-audio-archive.md``), only where its provenance says it is byte-identical to
-what we transcribed. Read-only.
+(prod-audio-archive (not in this repository)), only where its provenance says it is
+byte-identical to what we transcribed. Read-only.
 """
 
 from __future__ import annotations

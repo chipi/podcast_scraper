@@ -104,7 +104,7 @@ def _env_default_pipeline_install_extras() -> str | None:
     When the corpus's operator YAML doesn't declare ``pipeline_install_extras``
     (e.g. fresh corpus, first-run prod), fall back to
     ``PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS`` if the host has set it. The
-    prod overlay (``compose/docker-compose.prod.yml``) sets it to ``llm`` so
+    prod deployment sets it to ``llm`` so
     first-run UX on the published image set works without operator
     YAML editing. Returns ``None`` if env unset or set to anything other
     than ``ml`` / ``llm`` (caller falls back to the strict YAML-required

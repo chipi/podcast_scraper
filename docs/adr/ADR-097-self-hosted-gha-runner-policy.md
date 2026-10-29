@@ -3,12 +3,12 @@
 - **Status**: Accepted
 - **Date**: 2026-05-23
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md)
+- **Related RFCs**: RFC-089
 - **Related ADRs**: [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) (companion — DGX in prod via primary-with-fallback contract)
 
 ## Context
 
-[RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) Tier 3 introduces an NVIDIA DGX Spark as a GitHub Actions self-hosted runner for autoresearch eval and ML-CI workloads. The repository (`chipi/podcast_scraper`) is **public**.
+RFC-089 Tier 3 introduces an NVIDIA DGX Spark as a GitHub Actions self-hosted runner for autoresearch eval and ML-CI workloads. The repository (`chipi/podcast_scraper`) is **public**.
 
 GitHub's own guidance is unambiguous: "We recommend that you only use self-hosted runners with private repositories." The threat model on a public repo with a self-hosted runner includes:
 
@@ -89,6 +89,6 @@ This ADR is revisitable only under one of these conditions:
 
 ## References
 
-- [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) §"Security" + §"Locked-in answers" #1
+- RFC-089 §"Security" + §"Locked-in answers" #1
 - GitHub guidance on self-hosted runners: <https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#self-hosted-runner-security>
 - `.github/SELF_HOSTED_RUNNER_ALLOWLIST.md` (to be created during RFC-089 P3 implementation)

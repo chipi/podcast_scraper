@@ -31,7 +31,7 @@ services:
     environment:
       # Read by nginx envsubst at container start to substitute into
       # ``sub_filter`` directives in default.conf.template (and the
-      # vps-prod overlay's nginx-prod.conf.template). main.ts reads
+      # a deployment's own nginx template). main.ts reads
       # these at Sentry init via ``window.__PODCAST_*__`` globals
       # injected into the served index.html. Defaults: ``dev`` /
       # empty so codespace + dev still work without env staging.

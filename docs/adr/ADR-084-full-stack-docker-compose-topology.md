@@ -65,4 +65,4 @@ laptop development.
 
 - [RFC-079: Full-stack Docker Compose topology](../rfc/RFC-079-full-stack-docker-compose.md)
 - [ADR-085: Ephemeral stack-test gate](ADR-085-ephemeral-stack-test-integration-gate.md)
-- [ADR-082: GitOps app deploy](ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) (promotion context)
+- ADR-082: GitOps app deploy (promotion context)

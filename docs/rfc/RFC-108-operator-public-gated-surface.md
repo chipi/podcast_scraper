@@ -3,17 +3,17 @@
 **Status:** Proposed
 **Date:** 2026-07-25
 **Epic:** [#1320](https://github.com/chipi/podcast_scraper/issues/1320)
-**Depends on / relates to:** [ADR-114](../adr/ADR-114-shared-multi-tenant-public-edge-caddy.md) (shared edge), [ADR-116](../adr/ADR-116-privilege-split-public-control-api.md) (privilege split — public vs control api), [THREAT_MODEL](../security/THREAT_MODEL.md) (T-01), the player launch (#1262).
+**Depends on / relates to:** ADR-114 (shared edge), [ADR-116](../adr/ADR-116-privilege-split-public-control-api.md) (privilege split — public vs control api), THREAT_MODEL (T-01), the player launch (#1262).
 
 ## Context
 
-The operator viewer (`gi-kg-viewer`) is served **tailnet-only** (`prod-podcast.tail…`, HTTPS via tailscale). That created a concrete problem: its browser telemetry can't cleanly reach the tailnet-only GlitchTip without either mixed-content hacks or egressing through a **public** tunnel — and today it wrongly egresses through **orrery's** domain (`telemetry.orrerylearn.com/1`).
+The operator viewer (`gi-kg-viewer`) is served **tailnet-only** (`<prod-host>.<tailnet>`, HTTPS via tailscale). That created a concrete problem: its browser telemetry can't cleanly reach the tailnet-only GlitchTip without either mixed-content hacks or egressing through a **public** tunnel — and today it wrongly egresses through **orrery's** domain (`telemetry.orrerylearn.com/1`).
 
 Rather than patch the telemetry routing, unify the two surfaces: make the operator viewer a **public, gated** surface on `operator.closelistening.app`, reusing the **player's** launch pattern (coming-soon `/preview` SECRET-COOKIE gate → Google OAuth → role), and consume telemetry/analytics via the **public closelistening subdomains** like the player. This retires the tailnet-only serve and the internal-routing problem in one move.
 
 ## The load-bearing constraint — T-01
 
-[THREAT_MODEL T-01](../security/THREAT_MODEL.md): the operator `api` container mounts `/var/run/docker.sock` **RW** and holds all 6 LLM keys. Its entire accepted mitigation (D1) is *"conditional on the api being provably private… the public consumer plane is a **separate least-privilege service** (no `docker.sock`, no keys)."* The **pre-public gate** mandates: no socket, no write-scope keys, least-privilege, authN/authZ + rate limiting.
+THREAT_MODEL T-01: the operator `api` container mounts `/var/run/docker.sock` **RW** and holds all 6 LLM keys. Its entire accepted mitigation (D1) is *"conditional on the api being provably private… the public consumer plane is a **separate least-privilege service** (no `docker.sock`, no keys)."* The **pre-public gate** mandates: no socket, no write-scope keys, least-privilege, authN/authZ + rate limiting.
 
 **Therefore "operator viewer public" must NOT mean "expose the privileged operator api."** It means a **new least-privilege public service** that mounts only the safe **read** surface — exactly the player's model, one rung wider.
 
@@ -65,5 +65,5 @@ This adds a **new public tenant** (the operator-public service) to the register.
 
 ## Alternatives considered
 - **Tailnet-internal Caddy relay for the viewer's GlitchTip DSN** (the "tiny fix"): keeps the operator private, same-origin relay to GlitchTip over the tailnet. Correct and smaller, but leaves the operator surface tailnet-only and doesn't unify the surfaces. **Rejected** in favor of the unification (operator's call).
-- **Dedicated tailnet-HTTPS GlitchTip host** (`glitchtip.tail…`): homelab-side, cleaner ingest but doesn't make the operator public. Orthogonal.
+- **Dedicated tailnet-HTTPS GlitchTip host** (`<glitchtip-host>.<tailnet>`): homelab-side, cleaner ingest but doesn't make the operator public. Orthogonal.
 - **Expose the full operator api behind the gate:** violates T-01's D1 (public plane must be least-privilege). **Rejected.**

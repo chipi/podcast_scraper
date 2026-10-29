@@ -19,7 +19,7 @@ were only touched to remove their WIP references.
   - Code/tests/README: `src/podcast_scraper/net/__init__.py`, `config.py`, `utils/runtime_env.py`,
     `tests/conftest.py`, `tests/integration/eval/test_v3_fixtures.py`, `web/learning-player/README.md`.
   - Dead WIP↔WIP links the deletions left were cleaned in `WIP_README.md`, `RFC-088-…AUDIT`,
-    `INFRA-HARDENING-PLAN.md`, `SPEAKER-PIPELINE-SUBSYSTEM-AUDIT.md`.
+    INFRA-HARDENING-PLAN (not in this repository), `SPEAKER-PIPELINE-SUBSYSTEM-AUDIT.md`.
 - Strict docs build green throughout (`make docs` → `MAKE_DOCS_EXIT=0`); zero dangling refs remain.
 
 ## HELD gaps — RESOLVED (promoted, then freed)

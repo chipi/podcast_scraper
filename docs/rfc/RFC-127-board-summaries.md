@@ -6,7 +6,7 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-119-holistic-collections.md` (boards; the 2026-10-12 amendment adds the Brief)
 - **Related ADRs**:
-  - `docs/adr/ADR-142-litellm-prod-gateway.md` (the gateway, for a profile that uses it)
+  - ADR-142 (not in this repository) (the gateway, for a profile that uses it)
 - **Related UX specs**:
   - `docs/uxs/UXS-011-consumer-learning-app.md` (Collections; `BoardBrief`)
 
@@ -92,7 +92,7 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
   of every sweep, as the API reads `access_policy.json`. Absent, unreadable or `{"enabled": true}`
   runs; `{"enabled": false}` stops new summaries from the next sweep on (within five minutes) — the
   model is not even built. Summaries already made stay. To stop it:
-  `echo '{"enabled": false}' > /srv/podcast-scraper/player-appdata/board_summaries_settings.json`
+  `echo '{"enabled": false}' > <deploy-dir>/player-appdata/board_summaries_settings.json`
 - **The DGX's address**: Docker cannot resolve MagicDNS, so `deploy-player.sh` resolves
   `dgx-llm-1` on every deploy (`tailscale ip -4`) into `DGX_TAILNET_IP`, as it does `homelab`.
   Unresolved, the name points at loopback and the sidecar summarises nothing.
@@ -287,7 +287,7 @@ same day for the beta).
 
 - `src/podcast_scraper/server/board_summaries.py` — the rules, the prompt, the store, one sweep.
   It takes the model call as a function and imports no SDK; the API imports it only to read.
-- `infra/deploy/board_summarizer.py` — the sidecar loop; `board-summarizer` in
+- `podcast_scraper.server.board_summarizer_runner` — the sidecar loop (`python -m`); `board-summarizer` in
   `compose/docker-compose.player-public.yml`; the DGX address in `infra/deploy/deploy-player.sh`.
 - `providers/common/summary_use_case.py` and the use case in every provider's `summarize`; the
   three templates in `prompts/shared/summarization/`; `board_summary_*` fields in `config.py`.
@@ -304,7 +304,7 @@ sweep on prod. Routing the DGX through LiteLLM, as every other model is: #2342.
 - Boards and the Brief: `src/podcast_scraper/server/app_board_view.py`,
   `server/routes/app_collections.py`, `web/learning-player/src/components/BoardBrief.vue`
 - The pattern: `digest-scheduler` in `compose/docker-compose.player-public.yml`,
-  `infra/deploy/digest_scheduler.py`
+  `podcast_scraper.server.digest_scheduler_runner`
 - Provider factory: `src/podcast_scraper/summarization/factory.py`; cost:
   `src/podcast_scraper/workflow/cost_monitoring.py`; fuse: `utils/llm_call_fuse.py`; the use case:
   `providers/common/summary_use_case.py`;

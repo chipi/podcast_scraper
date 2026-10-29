@@ -70,8 +70,8 @@ artifact** metadata on **`snapshot.tgz`**.
   behavior).
 - **Code**: landed in `scripts/ops/corpus_snapshot/`, thin **`make`** targets, and the workflows
   above; index **Code** column reads **Yes** ([#763](https://github.com/chipi/podcast_scraper/issues/763)).
-- **Cross-surface steady vs recovery playbooks:** [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md),
-  [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md).
+- **Cross-surface steady vs recovery playbooks:** ADR-093,
+  STACK_CONTRACT (not in this repository).
 
 ## References
 

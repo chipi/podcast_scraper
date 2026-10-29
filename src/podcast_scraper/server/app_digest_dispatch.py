@@ -5,9 +5,9 @@ WHY THIS EXISTS
 There are two processes that fire digests, and they must stay in step:
 
 * ``server/scheduler.py`` — the in-process APScheduler, used by the operator surface.
-* ``infra/deploy/digest_scheduler.py`` — the sidecar container, which is the ONLY path in
-  production for the player (it runs ``PODCAST_SERVE_APP_ONLY=1``, ADR-116, which force-disables
-  the in-process scheduler).
+* ``podcast_scraper.server.digest_scheduler_runner`` — the sidecar container, which is the ONLY
+  path in production for the player (it runs ``PODCAST_SERVE_APP_ONLY=1``, ADR-116, which
+  force-disables the in-process scheduler).
 
 They were maintained separately, and they drifted. ``daily_recap`` (#2039) and the monthly
 ``recommendations`` digest (wave-H) were added to the in-process scheduler and not to the

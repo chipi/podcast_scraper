@@ -99,6 +99,6 @@ for main is settled, then validate all at once. Nothing below is validated yet.
 | 2026-10-27 | player-mcp traces on the new release | `mcp.tool.corpus_status` trace at 10:42:45Z, sha-2914e56 |
 | 2026-10-27 | Homelab: corpus-migration `to_version`; advisor on fable + docs realigned | agentic-ai-homelab `3290b0b`, `9b4d806`; CI skills-index + docs success |
 | 2026-10-26 | Beta testers added to the player allowlist | `/app/appdata/access_policy.json` 12 addresses; audit record |
-| 2026-10-27 | Prod SSH access | key re-added to the agent; deploy@ and root@ ok |
+| 2026-10-27 | Prod SSH access | key re-added to the agent; prod access ok |
 | 2026-10-26 | eval-harness live on evals.humancopilot.eu | deploy 40286075873; edge 18 site files; probes 200 |
 | 2026-10-27 | Nightly CI | `gh run list --workflow nightly.yml`: success 10-26 and 10-27 |

@@ -35,7 +35,7 @@ Branch `feat/2344-2345-refs-and-storyline-summaries`, from main e6cc51be2. One P
 Done on the branch, each with tests: steps 1–5. Commits: stable ids (2512ba7d3), the reference
 pass, sidecar step and backfill command (7020abf0b), the player's "No longer available"
 (67193c205), storyline summaries and the board fixes (0b28f8da5). The post-deploy order is §7 of
-`POST-DEPLOY-BOARDS-AND-DGX-GATEWAY.md`.
+POST-DEPLOY-BOARDS-AND-DGX-GATEWAY (not in this repository).
 
 Measured on prod (read-only, 2026-10-14): 6 accounts, 3 of them hold 18 follows that point at
 nothing — 13 themes and 5 storylines renamed by re-clustering. No saved storylines, and no reference

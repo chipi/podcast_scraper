@@ -23,7 +23,7 @@ Ask things like:
 - *"Does our alerting match symptom-based paging?"*
 - *"Quick SRE check — what's the biggest gap in this runbook?"*
 
-**Repo anchors** (this checkout’s narrative, not part of the book): [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md), Prod runbook, CI workflows, DR drill runbook.
+**Repo anchors** (this checkout’s narrative, not part of the book): Hosting and infrastructure, Prod runbook, CI workflows, DR drill runbook.
 
 ---
 
@@ -129,7 +129,7 @@ returns digest for episode X”).
 
 - Single step that flips prod with no prior gate on representative workload
 - No documented rollback or rollback untested
-- CI green but no path that exercises prod-like compose (see [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md))
+- CI green but no path that exercises prod-like compose (see ADR-082, [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md))
 
 **Pass:** Change is batched, gated, observable, reversible; blast radius is understood.
 **Warn:** Good habits on paper; occasional exceptions without review.
@@ -217,7 +217,7 @@ If the system is safe but operationally immature, say so: reliability is **both*
 - [Chip Huyen ML / AI Critique](CHIP_HUYEN_ML_AI_CRITIQUE.md) — data, eval, foundation-model
   product design, production economics
 - [Tufte Chart Critique](TUFTE_CHART_CRITIQUE.md) — visualization and dashboards
-- [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) — how this repo’s
+- Hosting and infrastructure — how this repo’s
   always-on stack is meant to fit together
 - Prod runbook — operator procedures
 - CI workflows — what automation actually runs

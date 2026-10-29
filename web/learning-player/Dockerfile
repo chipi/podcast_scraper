@@ -9,11 +9,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install
 COPY . .
-# GlitchTip/Sentry DSN for the player's browser error reporting. Optional —
-# src/main.ts only initialises Sentry when VITE_SENTRY_DSN_PLAYER is set, so a
-# build with no DSN is silent (dev / CI). Must be present at `npm run build`
-# time (VITE_* is baked into the bundle). Pass via:
-#   docker buildx build --build-arg VITE_SENTRY_DSN_PLAYER=...
+# A baked GlitchTip DSN, for a build that runs without this nginx (a local test image). The
+# deployed web player takes its DSN at container start instead (PLAYER_SENTRY_DSN_WEB, below),
+# so CI passes nothing here. src/main.ts reports nothing when neither is set.
 ARG VITE_SENTRY_DSN_PLAYER
 ENV VITE_SENTRY_DSN_PLAYER=${VITE_SENTRY_DSN_PLAYER}
 # Umami analytics (optional, cookieless). main.ts injects the tracking script only
@@ -34,7 +32,16 @@ RUN npm run build
 # ---- serve ----
 FROM nginx:1.27-alpine AS serve
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# nginx.conf is a template: the image's entrypoint renders ${PLAYER_*} into it at start. The
+# output goes to /tmp, not conf.d, because the deployed container runs with a read-only root
+# and conf.d is deliberately not a tmpfs (an empty tmpfs there left nginx with no server block,
+# 2026-07-23). conf.d holds only an include of that exact file: if rendering ever fails, nginx
+# refuses to start instead of serving nothing.
+COPY nginx.conf /etc/nginx/templates/player.conf.template
+RUN printf 'include /tmp/player.conf;\n' > /etc/nginx/conf.d/default.conf
+ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp
+ENV NGINX_ENVSUBST_FILTER=^PLAYER_
+ENV PLAYER_SENTRY_DSN_WEB=
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1

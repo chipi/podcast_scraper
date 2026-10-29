@@ -101,12 +101,3 @@ def test_native_origins_are_never_trusted_for_cookie_writes(
     app = create_app(tmp_path, static_dir=False)
     for native in ("capacitor://localhost", "https://localhost", "http://localhost"):
         assert native not in app.state.trusted_origins
-
-
-def test_the_public_player_pins_its_real_domain() -> None:
-    compose = Path(__file__).resolve().parents[3] / "compose/docker-compose.player-public.yml"
-    text = compose.read_text(encoding="utf-8")
-    assert (
-        "PODCAST_SERVE_CORS_ORIGINS: ${PODCAST_SERVE_CORS_ORIGINS:-https://closelistening.app}"
-        in text
-    )

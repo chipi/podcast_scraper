@@ -7,7 +7,7 @@ failover is covered and the **LLM stages are never exercised under failure at al
 was considered tested while the KG path silently fabricated topics. It is also a make target,
 which means operator-run and never blocking a merge.
 
-THE INCIDENT. The autoresearch vLLM on ``dgx-llm-1:8003`` is GPU-mode-gated (DGX_SERVING.md: "when
+THE INCIDENT. The autoresearch vLLM on ``dgx-llm-1:8003`` is GPU-mode-gated (DGX_SERVING (not in this repository): "when
 the mode is free/idle, :8003 serves nothing — that is idle, not gone"). With it idle:
 
   * ``OpenAICompatibleProvider.extract_kg_graph`` swallowed the connection error and returned

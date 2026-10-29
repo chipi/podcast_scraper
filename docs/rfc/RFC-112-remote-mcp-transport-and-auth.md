@@ -11,7 +11,7 @@
   - `docs/rfc/RFC-095-generic-mcp-server.md` (the shipped stdio MCP server; this resolves its OQ-1)
   - `docs/rfc/RFC-098-learning-platform-foundation.md` (per-user identity + session auth reused here)
   - `docs/rfc/RFC-114-personal-corpus.md` (its personal-scope toggle depends on RFC-114 Phase 1)
-- **Related docs**: `docs/security/THREAT_MODEL.md` (T-13 — a new public ingress), ADR-114 (shared edge)
+- **Related docs**: THREAT_MODEL (not in this repository) (T-13 — a new public ingress), ADR-114 (shared edge)
 - **Decision provenance**: auth mechanism decided by client-capability research (2026-08-05) — see §2.
 
 ## Implementation status (2026-08-06)
@@ -49,7 +49,7 @@ Built on `feat/next-arc-rfcs` (unpushed). **Slices 1–4 landed + a fable-5 revi
   resource URL, checked at the resource boundary); **app-level per-principal rate-limit** (DCR per
   IP, token exchanges per client → 429). `Mcp-Session-Id`↔principal binding closed by design
   (per-request bearer re-verify → no ambient session authority).
-- **Accepted v1 residue** (see `docs/security/THREAT_MODEL.md` T-13): per-user corpus **scoping**
+- **Accepted v1 residue** (see THREAT_MODEL (not in this repository) T-13): per-user corpus **scoping**
   deferred (v1 shared-corpus); the in-process rate-limit assumes a single worker (move to a shared
   store if the api scales out).
 
@@ -189,7 +189,7 @@ this is the shared-credential / power-user convenience the docs bless for non-pe
 
 ### 7. Security posture (THREAT_MODEL expansion — implementation gate)
 
-`THREAT_MODEL.md` gains an MCP entry covering: OAuth code-interception (PKCE mandatory), token theft
+THREAT_MODEL (not in this repository) gains an MCP entry covering: OAuth code-interception (PKCE mandatory), token theft
 (short-lived + rotating refresh + revocable; PATs hashed + last-used), **Streamable-HTTP
 `Mcp-Session-Id` bound to the authenticating principal** (session-hijack), **Origin validation**
 (MCP-spec requirement; DNS-rebinding class), cross-user access (every call scoped to the token's user;
@@ -243,5 +243,5 @@ belongs to the user's agent). Audit connect/auth-fail via `app_audit`.
 ## References
 
 - RFC-095 (stdio MCP, OQ-1), PRD-041 FR6.4, RFC-098 (identity), RFC-114 (personal corpus — Phase 1
-  dependency), `THREAT_MODEL.md`, ADR-114 (shared edge). Client-capability research (2026-08-05):
+  dependency), THREAT_MODEL (not in this repository), ADR-114 (shared edge). Client-capability research (2026-08-05):
   Anthropic custom-connector docs (per-user → OAuth), MCP spec OAuth 2.1 + PKCE for public servers.

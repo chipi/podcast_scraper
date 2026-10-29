@@ -20,12 +20,10 @@ nav:
       - "Mobile store release (TestFlight + Play internal)": guides/MOBILE_STORE_RELEASE_RUNBOOK.md
       - "Ingestion runbook — nightly top-up vs backfill": guides/INGESTION_RUNBOOK.md
       - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
-      - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
       - "Audio timing on hosts that insert ads (RFC-129, #2359)": recipes/audio-timing-drift.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
       - Corpus reprocessing runbook: guides/CORPUS_REPROCESSING.md
       - Fresh pilot run + observe (agent runbook): guides/PILOT_RUN_AND_OBSERVE.md
-      - Stack contract (cross-surface audit): guides/STACK_CONTRACT.md
       - Operator surface post-deploy smoke test: guides/OPERATOR_SMOKE_TEST.md
       - "Consumer e2e on an Intel Mac (container harness)": guides/E2E_ON_INTEL_MAC.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
@@ -81,8 +79,6 @@ nav:
       - SRE Book Infra Critique: guides/SRE_BOOK_INFRA_CRITIQUE.md
       - Chip Huyen ML / AI Critique: guides/CHIP_HUYEN_ML_AI_CRITIQUE.md
       - Glossary: guides/GLOSSARY.md
-  - Security:
-      - Threat model (VPS + public edge, SSOT): security/THREAT_MODEL.md
   - Architecture:
       - architecture/index.md
       - architecture/ARCHITECTURE.md
@@ -91,8 +87,6 @@ nav:
       - "Test-corpus fixture ladder (v4)": architecture/TEST_CORPUS_FIXTURE_LADDER.md
       - Agent-navigable codebases: architecture/AGENT_NAVIGABLE_CODEBASE.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
-      - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
-      - DGX serving (bridge to homelab): architecture/DGX_SERVING.md
       - Corpus artifacts and viewer surfaces: architecture/CORPUS_ARTIFACTS_AND_SURFACES.md
       - "Arc: Multilingual ingest (v1)": architecture/MULTILINGUAL_ARC.md
       - "Arc: Multilingual ingest (v2)": architecture/MULTILINGUAL_ARC_V2.md
@@ -258,27 +252,15 @@ nav:
       - ADR-074 Multi-Feed Corpus Parent Layout and Manifest: adr/ADR-074-multi-feed-corpus-parent-layout-and-manifest.md
       - ADR-077 Local Ollama Model Selection — Core 5 from 11: adr/ADR-077-local-ollama-model-selection.md
       - ADR-078 GIL Evidence Stack Bundling — Per-Provider Champion Modes: adr/ADR-078-gil-evidence-bundling-per-provider-champions.md
-      - ADR-079 OpenTofu for Always-On Hosting IaC: adr/ADR-079-opentofu-for-always-on-hosting-iac.md
-      - ADR-080 OpenTofu State Encrypted In-Repo (sops + age): adr/ADR-080-opentofu-state-sops-age-in-git.md
-      - ADR-081 Drill OpenTofu Workspace and Tailscale ACL Ownership: adr/ADR-081-drill-opentofu-workspace-tailscale-acl-ownership.md
-      - ADR-082 GitOps App Deploy via stack-test and GitHub Actions: adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md
-      - ADR-083 Tailscale as Private Ingress for Always-On VPS: adr/ADR-083-tailscale-private-ingress-always-on-vps.md
       - ADR-084 Full-Stack Docker Compose Topology (API, Viewer, Pipeline): adr/ADR-084-full-stack-docker-compose-topology.md
       - ADR-085 Ephemeral Stack-Test Integration Gate on Main: adr/ADR-085-ephemeral-stack-test-integration-gate.md
       - ADR-086 Canonical Identity Layer and Per-Episode bridge.json Cross-Layer Join: adr/ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md
       - ADR-088 macOS Local CI Process Safety for ML Workloads: adr/ADR-088-macos-local-ci-process-safety-for-ml-workloads.md
-      - ADR-089 Prod Failover Orchestrator Is Separate from DR Drill: adr/ADR-089-prod-failover-orchestrator-separate-from-drill.md
-      - ADR-090 Prod Failover — DNS-First Cutover on Tailnet: adr/ADR-090-prod-failover-dns-first-cutover.md
-      - ADR-091 Prod Failover — GitHub Actions Triggers and Gates: adr/ADR-091-prod-failover-gha-triggers-and-gates.md
       - ADR-092 Corpus Snapshot Backup Manifest and Newest-Compatible Restore Default: adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md
-      - ADR-093 Canonical Stack Contract Versus Environment Adapters: adr/ADR-093-canonical-stack-contract-and-environment-adapters.md
       - ADR-094 Graph Handoff Orchestrator FSM: adr/ADR-094-graph-handoff-orchestrator-fsm.md
       - ADR-095 Three-Tier Viewer Test Pyramid + Production-Shaped Fixtures: adr/ADR-095-viewer-test-pyramid.md
       - ADR-125 No Per-Corpus UI State — USERPREFS-1 for User-Scoped Features: adr/ADR-125-no-per-corpus-ui-state.md
-      - ADR-126 Operator Analytics on Umami + Podcast Telemetry Ladder: adr/ADR-126-operator-analytics-umami-and-podcast-telemetry-ladder.md
       - ADR-127 Search-Index insight_type Column + Reindex-on-Upgrade: adr/ADR-127-search-index-insight-type-column.md
-      - ADR-128 Decouple Tailnet ACL from Hetzner OpenTofu: adr/ADR-128-decouple-tailnet-acl-from-hetzner-tofu.md
-      - ADR-129 Config-layer deploy by surface: adr/ADR-129-config-layer-deploy-by-surface.md
       - ADR-130 Provider-Agnostic Speaker-Name Recovery from Metadata: adr/ADR-130-provider-agnostic-name-recovery-from-metadata.md
       - ADR-131 Speech-Normalized Coverage Gate: adr/ADR-131-speech-normalized-coverage-gate.md
       - ADR-132 Per-Episode Processing Manifest — Schema, Stage Ownership, Versioning: adr/ADR-132-per-episode-processing-manifest-schema.md
@@ -290,9 +272,6 @@ nav:
       - ADR-138 Ad-Cleaning as a Standalone Stage: adr/ADR-138-ad-cleaning-as-a-standalone-stage.md
       - ADR-139 Text Normalization Contract: adr/ADR-139-text-normalization-contract.md
       - ADR-140 Versioned Labeling Profiles: adr/ADR-140-versioned-labeling-profiles.md
-      - ADR-141 Operator two-plane clarification (control + public): adr/ADR-141-operator-two-plane-clarification.md
-      - ADR-142 LiteLLM prod gateway: adr/ADR-142-litellm-prod-gateway.md
-      - ADR-143 Tailscale OAuth migration and tag self-ownership: adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md
       - ADR-144 Self-hosted delivery queue, outsourced last-mile: adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md
       - ADR-145 Channel-agnostic outbox seam: adr/ADR-145-channel-agnostic-outbox-seam.md
       - ADR-146 Your Week in-app surface and scheduling: adr/ADR-146-your-week-in-app-surface-and-scheduling.md
@@ -384,15 +363,10 @@ nav:
       - RFC-078 Ephemeral Acceptance Smoke Test (Post-Build Full-Stack Validation): rfc/RFC-078-ephemeral-acceptance-smoke-test.md
       - RFC-079 Full-Stack Docker Compose Topology: rfc/RFC-079-full-stack-docker-compose.md
       - RFC-080 Graph Visualization Extensions: rfc/RFC-080-graph-visualization-extensions.md
-      - RFC-081 Pre-prod Environment, Minimal Observability, and Mobile Control Plane: rfc/RFC-081-pre-prod-environment-and-control-plane.md
-      - RFC-082 Production Hosting (Always-On VPS, IaC + GitOps): rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md
-      - RFC-083 Production Failover — Orchestration, Spare Stack, and Traffic Cutover: rfc/RFC-083-prod-failover-orchestration-and-cutover.md
       - RFC-084 Corpus Snapshot Backup Manifest and Version-Aware Restore: rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md
       - RFC-085 Graph Handoff Orchestrator — Stabilization Retrospective: rfc/RFC-085-graph-handoff-orchestrator-retrospective.md
       - RFC-086 Viewer Three-Tier Test Pyramid + Production-Shaped Fixtures: rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md
-      - RFC-087 VPS Public Edge and Multi-Compose Hosting: rfc/RFC-087-vps-public-edge-multi-compose.md
       - RFC-088 Enrichment Layer Architecture: rfc/RFC-088-enrichment-layer-architecture.md
-      - RFC-089 DGX Spark — Tailnet-Integrated AI Workhorse: rfc/RFC-089-dgx-spark-tailnet-integration.md
       - RFC-090 Hybrid Retrieval Pipeline: rfc/RFC-090-hybrid-retrieval.md
       - RFC-091 KG Proximity Signal: rfc/RFC-091-kg-proximity-signal.md
       - RFC-092 ML Query Router: rfc/RFC-092-ml-query-router.md
@@ -479,7 +453,6 @@ nav:
   - Work in Progress:
       - wip/WIP_README.md
       - "WIP: Concurrent pipelines + HTTP retry metrics": wip/wip-concurrent-pipeline-http-retry-metrics.md
-      - "WIP: Full app-surface observability plan": wip/observability-app-surface-plan.md
 theme:
   name: material
   features:

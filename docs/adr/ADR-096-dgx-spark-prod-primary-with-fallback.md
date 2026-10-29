@@ -3,14 +3,14 @@
 - **Status**: Accepted
 - **Date**: 2026-05-23
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md), [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
-- **Related ADRs**: [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md), [ADR-097](ADR-097-self-hosted-gha-runner-policy.md)
+- **Related RFCs**: RFC-089, RFC-082
+- **Related ADRs**: ADR-093, [ADR-097](ADR-097-self-hosted-gha-runner-policy.md)
 
 > **Revision note (2026-05-23, same day as creation):** the original draft of this ADR excluded DGX from the prod path entirely on residential-SPOF grounds. Pivoted before any code shipped against it: cost arbitrage on prod Whisper transcription is meaningful (~90% of per-episode cost), and the mandatory-fallback pattern already required for non-prod consumers handles residential-SPOF cleanly. The new direction is: **DGX is allowed in prod with a per-stage cloud fallback contract.**
 
 ## Context
 
-The operator's NVIDIA DGX Spark Founders Edition joins the tailnet as `tag:dgx-llm-host` per [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md). It can host Whisper Large v3, Llama 3.3 70B, Qwen 2.5 72B, and similar models at ~$0 marginal cost.
+The operator's NVIDIA DGX Spark Founders Edition joins the tailnet as `tag:dgx-llm-host` per RFC-089. It can host Whisper Large v3, Llama 3.3 70B, Qwen 2.5 72B, and similar models at ~$0 marginal cost.
 
 The economic case for prod usage is asymmetric:
 
@@ -106,9 +106,9 @@ The reverse — adding NEW DGX-served stages to prod (e.g., summarization, GI, K
 
 ## References
 
-- [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) — full DGX integration design; this ADR supersedes that RFC's §"DGX excluded from prod path" framing
-- [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) — prod hosting + blast-radius contract; primary-with-fallback is the layer above
-- [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md) — environment-adapter discipline this ADR builds on
+- RFC-089 — full DGX integration design; this ADR supersedes that RFC's §"DGX excluded from prod path" framing
+- RFC-082 — prod hosting + blast-radius contract; primary-with-fallback is the layer above
+- ADR-093 — environment-adapter discipline this ADR builds on
 - [ADR-097](ADR-097-self-hosted-gha-runner-policy.md) — sister ADR on the GHA-runner side of RFC-089
 - #803 (deploy observability) — implements the fallback-rate Grafana panel + Sentry breadcrumb
 - Tailscale ACL: `tailscale/policy.hujson`

@@ -105,7 +105,7 @@ Also available: VictoriaMetrics + VictoriaTraces (ADR-117/119), Grafana, GlitchT
 |---|---|---|
 | `stop-prod-pipeline.yml` `dry_run=true` | **NO** | list containers + images. Fast, free. Use constantly. |
 | `stop-prod-pipeline.yml` `dump_stacks_first=true` `dry_run=false` | **NO** | SIGABRT each pipeline container (prints a full Python stack of every thread), then kill. This is how the audio-sweep hang was root-caused. |
-| `inspect-prod-corpus.yml` `checks=none` `reprocess_log=latest` | yes | read `/srv/podcast-scraper/logs/*.log` from the box |
+| `inspect-prod-corpus.yml` `checks=none` `reprocess_log=latest` | yes | read `<deploy-dir>/logs/*.log` from the box |
 | `inspect-prod-corpus.yml` `checks=startup_trace` | yes | times import/config/feed-resolution in the prod image + dumps root-logger handlers |
 | `inspect-prod-corpus.yml` `verify_recent_runs=true` | yes | POSITIVE assertion `attempts>=1, completed==attempts` — the audit reads `attempts==0` as healthy, so this is the only honest post-repair check |
 | `sweep-prod-audio.yml` | yes | the audio sweep, now on-demand. `dry_run=true` deletes nothing |

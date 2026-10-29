@@ -303,15 +303,8 @@ jobs:
       # rejected as "Invalid Dsn" → transport disabled → errors silently
       # dropped. Use the DASHLESS key here. The Python SDK accepts both.
       VITE_SENTRY_DSN_VIEWER: ${{ secrets.VITE_SENTRY_DSN_VIEWER }}
-      # Reads PROD_SENTRY_DSN_PLAYER_WEB, NOT a VITE_-prefixed twin. There is no
-      # `VITE_SENTRY_DSN_PLAYER` secret and there never was — this line used to
-      # reference one, so the build-arg resolved to empty, Vite inlined the prod
-      # branch of the DSN ternary as '' and `if (SENTRY_DSN_PLAYER)` was false.
-      # The player shipped with browser error reporting SILENTLY OFF while the
-      # wiring downstream (deploy-player.yml, the compose build-arg, main.ts) was
-      # all correct. The viewer above works only because its VITE_-prefixed secret
-      # happens to exist. Verified in the deployed bundle 2026-09-16 (#2088).
-      VITE_SENTRY_DSN_PLAYER: ${{ secrets.PROD_SENTRY_DSN_PLAYER_WEB }}
+      # No player DSN here: the learning-app image takes its DSN when the deployment starts it
+      # (PLAYER_SENTRY_DSN_WEB, rendered into index.html by its nginx), so this build bakes none.
       # Umami analytics ids are PUBLIC (they ship in the bundle) → GH vars.
       OPERATOR_UMAMI_SRC: ${{ vars.OPERATOR_UMAMI_SRC }}
       OPERATOR_UMAMI_WEBSITE_ID: ${{ vars.OPERATOR_UMAMI_WEBSITE_ID }}
@@ -365,7 +358,6 @@ jobs:
               BUILD_ARGS+=(--build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}")
               ;;
             learning-app)
-              BUILD_ARGS+=(--build-arg "VITE_SENTRY_DSN_PLAYER=${VITE_SENTRY_DSN_PLAYER}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_SRC=${PLAYER_UMAMI_SRC}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}")
               # The context has no .git: without this the bundle's release tag is `sha-unknown`.

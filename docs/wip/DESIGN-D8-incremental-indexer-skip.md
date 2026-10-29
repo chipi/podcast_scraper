@@ -1,7 +1,7 @@
 # Design note — D8: incremental (unchanged-skip) reindex for the two-tier indexer
 
 **Status:** APPROVED + IMPLEMENTED (2026-08-11) on branch `feat/incremental-processing-and-o11y`.
-Companion to `docs/wip/PROD-DEPLOY-ANOMALIES-2026-08-11.md` (§D8 RCA + Implementation status).
+Companion to PROD-DEPLOY-ANOMALIES-2026-08-11 (not in this repository) (§D8 RCA + Implementation status).
 Implemented exactly as designed below: fingerprint = sha256 of the collected `(doc_id, text)` rows +
 model_id + `_FP_SCHEMA_VERSION`, persisted to `search/episode_fingerprints.json`, skip when matched,
 full rebuild ignores fingerprints. Code: `search/two_tier_indexer.py` (`_episode_fingerprint`,
