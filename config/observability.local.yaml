@@ -1,9 +1,9 @@
 # Local observability config for the obs MCP run over stdio (`make serve-obs` / .mcp.json, #56).
 #
-# Points at the LOCAL `make serve` api and reads the SAME homelab backends prod does — your Mac is
-# on the tailnet, so MagicDNS `homelab` resolves DIRECTLY (no extra_hosts, unlike the prod
-# container). Secrets stay out of the file via `<field>_env:` indirection; source them from
-# `.env.obs.dev` (git-ignored) or your shell. Every source degrades to "not configured" without its
+# Points at the LOCAL `make serve` api. The observability backends' URLs are not in this file:
+# they come from `.env.obs.dev` (git-ignored; `make serve-obs` sources it), the same variables the
+# apps ship telemetry with (see `.env.obs.dev.example`). Secrets stay out of the file via
+# `<field>_env:` indirection, sourced the same way. Every source degrades to "not configured" without its
 # token, so this "just works" for api-health + logs out of the box; alerts/errors light up when you
 # add the Grafana / GlitchTip tokens.
 default_target: local
@@ -20,10 +20,8 @@ targets:
     sentry:
       environment: dev
       token_env: SENTRY_AUTH_TOKEN
-    # Alerts — self-hosted homelab Grafana (needs a read-scoped SA token).
+    # Alerts — Grafana (needs a read-scoped SA token). URL: PODCAST_OBS_GRAFANA_URL.
     grafana:
-      url: http://homelab:3000
       token_env: PODCAST_OBS_GRAFANA_TOKEN
-    # Logs — homelab VictoriaLogs (Loki-compatible read), tailnet-gated so no token.
-    victoria:
-      logs_url: http://homelab:9428
+    # Logs — VictoriaLogs (Loki-compatible read), no token. URL: PODCAST_OBS_VICTORIALOGS_URL, or
+    # derived from PODCAST_LOGS_PUSH_URL when unset.

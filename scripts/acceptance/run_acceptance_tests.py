@@ -821,7 +821,7 @@ def modify_config_for_fixtures(
         # Config-driven provider bases (NO env-var fallback in podcast_scraper.config): litellm,
         # qwen, vllm. OpenAICompatibleProvider reads ``cfg.<ns>_api_base`` directly, so the
         # env overrides above do NOT reach them — the CONFIG field must be rewritten or a fixture
-        # run dials the real host (the #1527 cloud_balanced -> homelab:4001 bug). Redirect all
+        # run dials the real host (the #1527 cloud_balanced -> <host>:4001 bug). Redirect all
         # three to the OpenAI-compatible E2E mock. (Only litellm is used by the current fast
         # matrix; qwen/vllm are covered pre-emptively so a future qwen/vllm acceptance profile
         # can't reintroduce the bug. Guarded by test_fixture_provider_redirect.py.)

@@ -39,7 +39,7 @@ _DSN_ENV = {
 }
 
 # NO LITERAL DSN (operator, 2026-10-03). Local dev used to fall back to a hardcoded
-# ``operator-dev`` DSN at ``homelab:8090``, a tailnet hostname. On the homelab box itself that
+# ``operator-dev`` DSN at ``<host>:8090``, a tailnet hostname. On the homelab box itself that
 # address is REFUSED (GlitchTip answers on 127.0.0.1 there), so every locally run server — the
 # Playwright e2e API included — retried three times per event and printed "Connection refused"
 # warnings. The comment promised the send "silently fails" elsewhere; it did not fail silently.

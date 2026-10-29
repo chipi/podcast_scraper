@@ -419,7 +419,7 @@ class TestWrapWithFallbackIfConfigured:
 
 
 class TestLiteLlmGatewayOutageFailsOverToDirectDeepseek:
-    """RFC-111 (#1482) repro: the litellm gateway (homelab:4001 -> OpenRouter) drops the
+    """RFC-111 (#1482) repro: the litellm gateway (obs.test:4001 -> OpenRouter) drops the
     connection — an APIConnectionError, not a model-side 503 — and cloud_balanced's
     ``summary_fallback_providers: [deepseek]`` must route to DIRECT DeepSeek (bypassing the
     dead gateway entirely). No network: both providers are mocked.

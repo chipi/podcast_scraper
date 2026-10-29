@@ -1036,7 +1036,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         tier="primary",
     ),
     # RFC-111 (#1482) gateway-outage fallback tier: DIRECT to api.deepseek.com, bypassing the
-    # homelab:4001 LiteLLM gateway entirely. Root-caused 2026-08-07 — a gateway CONNECTION failure
+    # <host>:4001 LiteLLM gateway entirely. Root-caused 2026-08-07 — a gateway CONNECTION failure
     # (APIConnectionError, not a model-side 503) exhausted the short retry window before the
     # operator could react. Same model as the litellm-routed primary above (deepseek-v4-flash), just
     # a different wire path, so a fallover doesn't also change WHICH model produced the output.
@@ -2302,7 +2302,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # rationale: podcast-scraper-eval-data:data/eval/rationale/gi_v3_not_v25.md
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
-        # RFC-111 (#1482): a homelab:4001 gateway CONNECTION outage must fail over to direct
+        # RFC-111 (#1482): a <host>:4001 gateway CONNECTION outage must fail over to direct
         # DeepSeek (same model, different wire path) rather than lose the whole LLM stack.
         summary_fallback=("deepseek_native_flash",),
         notes="Production cloud default: Deepgram nova-3 single-pass ASR+diarization (speakers "

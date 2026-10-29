@@ -31,7 +31,7 @@ llm_pipeline_mode: staged
 
 # groq_api_base omitted -> defaults to https://api.groq.com/openai/v1 (direct, no gateway).
 # Key from GROQ_API_KEY env. To route this same arm through the LiteLLM gateway instead, set
-# groq_api_base: http://homelab:4001/v1 and the models to the groq-* gateway aliases.
+# groq_api_base: http://<host>:4001/v1 and the models to the groq-* gateway aliases.
 groq_summary_model: qwen/qwen3.6-27b
 groq_speaker_model: qwen/qwen3.6-27b
 groq_cleaning_model: qwen/qwen3.6-27b

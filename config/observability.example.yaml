@@ -29,7 +29,7 @@ targets:
     #   environment: prod
     #   token_env: PODCAST_OBS_SENTRY_TOKEN
     # grafana:   # self-hosted homelab Grafana over the tailnet (NOT Grafana Cloud)
-    #   url: http://homelab:3000
+    #   url: http://your-obs-host:3000
     #   token_env: PODCAST_OBS_GRAFANA_TOKEN     # homelab Grafana service-account token
-    #   loki_url: http://homelab:9428            # homelab VictoriaLogs (Loki-compatible read)
+    #   loki_url: http://your-obs-host:9428            # homelab VictoriaLogs (Loki-compatible read)
     #   # no loki_user/token — homelab VictoriaLogs is tailnet-gated, no auth

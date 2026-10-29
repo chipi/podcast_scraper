@@ -53,7 +53,7 @@ def test_unconfigured_when_no_victoriametrics_url(monkeypatch) -> None:
 
 
 def test_aggregates_spend_budget_burn_per_key(monkeypatch) -> None:
-    _patch_target(monkeypatch, TargetConfig(name="t", victoriametrics_url="http://homelab:8428"))
+    _patch_target(monkeypatch, TargetConfig(name="t", victoriametrics_url="http://obs.test:8428"))
 
     def fake_instant(_target, query: str) -> dict:
         if "spend_usd" in query:
@@ -79,7 +79,7 @@ def test_aggregates_spend_budget_burn_per_key(monkeypatch) -> None:
 
 
 def test_reachable_false_when_a_query_errors(monkeypatch) -> None:
-    _patch_target(monkeypatch, TargetConfig(name="t", victoriametrics_url="http://homelab:8428"))
+    _patch_target(monkeypatch, TargetConfig(name="t", victoriametrics_url="http://obs.test:8428"))
 
     def flaky_instant(_target, query: str) -> dict:
         if "spend_usd" in query:
@@ -95,7 +95,7 @@ def test_reachable_false_when_a_query_errors(monkeypatch) -> None:
 
 
 def test_sorted_by_spend_desc(monkeypatch) -> None:
-    _patch_target(monkeypatch, TargetConfig(name="t", victoriametrics_url="http://homelab:8428"))
+    _patch_target(monkeypatch, TargetConfig(name="t", victoriametrics_url="http://obs.test:8428"))
 
     def multi_key(_target, query: str) -> dict:
         if "spend_usd" not in query:

@@ -2,7 +2,7 @@
 
 A SIBLING of :class:`OpenAIProvider` / :class:`VLLMProvider` over the shared
 :class:`~podcast_scraper.providers.openai.openai_provider.OpenAICompatibleProvider` transport. The
-gateway (``homelab:4001``) proxies to OpenRouter / direct vendors behind swappable ALIASES, so this
+gateway (``<host>:4001``) proxies to OpenRouter / direct vendors behind swappable ALIASES, so this
 provider's model fields name aliases (``homelab-qwen``, ``homelab-flash``, …), not vendor ids — the
 gateway decides the route. Named ``litellm`` (the stable component we run), not ``openrouter``
 (today's swappable backend), so telemetry/cost logs stay honest when a route moves.

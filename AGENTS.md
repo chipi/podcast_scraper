@@ -37,14 +37,14 @@ Detail manuals (load on demand by any agent):
 - **The homelab hosts OBSERVABILITY ONLY** (Langfuse, GlitchTip, VictoriaMetrics/Logs/
   Traces, Grafana). It is **never** on any prod or DGX LLM path. A fix for an
   LLM-routing problem never involves the `agentic-ai-homelab` repo.
-- `litellm_api_base: http://homelab:4001/v1` in `config/profiles/*.yaml` is the
-  **laptop-dev default**, not where prod routes. Prod overrides it on EVERY deploy:
-  viewer/API jobs via the D4 pin that rewrites `litellm_api_base` inside the box's
-  `viewer_operator.yaml` (`deploy-prod.yml`, "Pin litellm_api_base"); reprocess runs via
-  `--litellm-api-base`. The `LITELLM_API_BASE` env var feeds ONLY the
-  `/api/ops/gateway/auth` probe (`server/routes/ops.py`) and `scripts/eval/gateway_spend.py`.
-  **`Config` never reads that env var, and that is intentional** — profiles are the source
-  of truth, no runtime env-detect.
+- `litellm_api_base` (and the DGX profiles' `vllm_api_base` / `translate_api_base`) in
+  `config/profiles/*.yaml` is `${LITELLM_API_BASE}`, and `dgx_tailnet_host` is
+  `${DGX_TAILNET_HOST}`: the hosts come from the environment, with **no default** in this
+  repository. A dev box sets them in its gitignored `.env` (see `config/examples/.env.example`);
+  a deployment sets them in its own environment. `Config` refuses a profile whose host variable
+  is unset (`_reject_unexpanded_env_placeholders`), so a missing value fails at load, never at a
+  wrong host. A deployment can still pin the gateway per job (the viewer's
+  `viewer_operator.yaml`, reprocess runs via `--litellm-api-base`).
 - Two separate agent sessions have now burned hours concluding "prod calls homelab" or
   "the env var should override the profile" by reading these files. Both were wrong; one
   nearly shipped a cross-repo change to the homelab gateway. **If you reach either
@@ -469,7 +469,7 @@ This is not a style preference. It has produced wrong production behaviour:
 measured on production data?* If not, it is a hypothesis, and it is labelled
 as one. Acceptable sources for a conclusion:
 
-- VictoriaLogs / VictoriaMetrics (the o11y MCP, or `homelab:9428` direct)
+- VictoriaLogs / VictoriaMetrics (the o11y MCP, or `<host>:9428` direct)
 - the prod corpus artifacts themselves
 - the live serving stack's own reports (`/v1/models`, `/tokenize`, a 400's
   own error text — the server stating what IT computed)

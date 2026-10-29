@@ -70,7 +70,7 @@ auto_speakers: true
 # target operating point.
 summary_provider: litellm
 
-# LiteLLM gateway wiring (homelab:4001 -> OpenRouter deepseek-v4-flash), reasoning OFF — mirrors
+# LiteLLM gateway wiring (<host>:4001 -> OpenRouter deepseek-v4-flash), reasoning OFF — mirrors
 # cloud_openrouter. The governed model fields (litellm_*_model) are materialized near the file end.
 # NOTE: this profile now depends on the homelab LiteLLM gateway being reachable from the pipeline
 # host (tailnet) AND carrying the OpenRouter key. If the gateway is down, LLM stages fail.
@@ -90,7 +90,7 @@ litellm_extra_body:
     allow_fallbacks: true
 litellm_verify_served_model: true
 
-# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient homelab:4001 ->
+# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient <host>:4001 ->
 # OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
 # exhausted retry_with_metrics' short default window (~12s: 4 tries, 0.9s->2s->4s) before the
 # operator could react, and the whole grounding pass for that insight was lost. Two layers, in
@@ -100,7 +100,7 @@ litellm_verify_served_model: true
 #      pays the long window; the Field defaults (3 / 1.0s / 30.0s) are unchanged, so tests and
 #      every other profile keep today's short window.
 #   2. FAILOVER — if the gateway is still down after that, fail over to DIRECT DeepSeek (bypasses
-#      homelab:4001 entirely, hits api.deepseek.com), via the RFC-106 ordered failover chain
+#      <host>:4001 entirely, hits api.deepseek.com), via the RFC-106 ordered failover chain
 #      (registry-governed ``summary_fallback_providers`` — see the ``deepseek_native_flash``
 #      StageOption + ``cloud_balanced.summary_fallback`` in model_registry.py; materialized into the
 #      registry block near the bottom of this file, not hand-authored here). The same wrapped

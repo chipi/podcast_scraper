@@ -75,7 +75,7 @@ def _run_cli(profile: str, output_dir: Path) -> subprocess.CompletedProcess:
         # correctly the markers all appear.
         (
             # #1527 single-pass cloud_balanced: summary + speaker route through the LiteLLM
-            # gateway (homelab:4001 -> OpenRouter deepseek-v4-flash), so the provider marker is
+            # gateway (obs.test:4001 -> OpenRouter deepseek-v4-flash), so the provider marker is
             # ``litellm`` (was ``gemini`` before the gateway consolidation).
             "cloud_balanced",
             ["summary=on:litellm", "metadata=on:json"],

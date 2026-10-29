@@ -63,7 +63,7 @@ const app = createApp(App)
 // .env.mobile — the exact host/port/path depends on your serve topology (the ACL
 // caps homelab ports and 443 already serves Umami), so it is NOT hardcoded here.
 // NO LITERAL DSN (operator, 2026-10-03). This line used to end in
-// `|| 'http://<key>@homelab:8090/8'`, which is the same mistake the Umami block carried: a dev
+// `|| 'http://<key>@<host>:8090/8'`, which is the same mistake the Umami block carried: a dev
 // target baked into the source, pointing at a tailnet hostname that does not resolve from every
 // account, with a project id nothing verifies. The Umami twin turned out to reference a website
 // that does not exist at all — every dev event came back "Website not found." — and a hardcoded

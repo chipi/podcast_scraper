@@ -4,7 +4,7 @@ Complements :func:`podcast_obs.sources.victoria.recent_logs`: this source holds 
 exceptions; logs hold everything the containers logged. Use both for a full error picture.
 
 Backend is Sentry-API-compatible: point ``sentry_url`` at self-hosted **GlitchTip**
-(e.g. ``http://homelab:8090``) for the current stack, or leave it unset for Sentry SaaS.
+(e.g. ``http://<host>:8090``) for the current stack, or leave it unset for Sentry SaaS.
 """
 
 from __future__ import annotations

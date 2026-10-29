@@ -10,7 +10,7 @@
   directly. The harness MUST rewrite the CONFIG field; an env override is silently ignored.
 
 The original bug: #1527 switched ``cloud_balanced`` to ``litellm`` (config-only) but the harness
-only overrode env vars, so the fixture run dialed the real ``homelab:4001`` and CI went red on
+only overrode env vars, so the fixture run dialed the real ``obs.test:4001`` and CI went red on
 main-push (never on the PR). These tests make that class of failure a fast, on-PR check.
 """
 
@@ -104,7 +104,7 @@ def test_all_api_base_fields_are_classified() -> None:
         f"Unclassified *_api_base Config fields: {sorted(unclassified)}. Add each to "
         "_ENV_FALLBACK_API_BASES (env override) or _CONFIG_ONLY_API_BASES (and add a "
         "config_dict[...] redirect in modify_config_for_fixtures), else a fixture run may dial "
-        "real infra (the #1527 litellm/homelab:4001 bug)."
+        "real infra (the #1527 litellm/obs.test:4001 bug)."
     )
     # The classification must not name fields that no longer exist.
     assert (

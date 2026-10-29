@@ -2,7 +2,7 @@
 # homelab LiteLLM gateway.
 #
 # WHY THIS EXISTS. `cloud_balanced` routes every LLM stage through
-# `litellm_api_base: http://homelab:4001/v1` -> OpenRouter -> deepseek-v4-flash. That gateway is a
+# `litellm_api_base: http://<host>:4001/v1` -> OpenRouter -> deepseek-v4-flash. That gateway is a
 # single point of failure for the whole pipeline, and when it is down the LLM stages have nowhere
 # to go: KG extraction and GI return nothing. This profile removes the gateway from the path so
 # the pipeline can be exercised end-to-end while the gateway is unavailable, and so a gateway
@@ -111,7 +111,7 @@ deepseek_temperature: 0.3
 # an OpenRouter routing concept and means nothing when talking to DeepSeek directly.
 # (the deepseek_* settings themselves are consolidated further down — one block, not three)
 
-# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient homelab:4001 ->
+# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient <host>:4001 ->
 # OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
 # exhausted retry_with_metrics' short default window (~12s: 4 tries, 0.9s->2s->4s) before the
 # operator could react, and the whole grounding pass for that insight was lost. Two layers, in
@@ -121,7 +121,7 @@ deepseek_temperature: 0.3
 #      pays the long window; the Field defaults (3 / 1.0s / 30.0s) are unchanged, so tests and
 #      every other profile keep today's short window.
 #   2. FAILOVER — if the gateway is still down after that, fail over to DIRECT DeepSeek (bypasses
-#      homelab:4001 entirely, hits api.deepseek.com), via the RFC-106 ordered failover chain
+#      <host>:4001 entirely, hits api.deepseek.com), via the RFC-106 ordered failover chain
 #      (registry-governed ``summary_fallback_providers`` — see the ``deepseek_native_flash``
 #      StageOption + ``cloud_balanced.summary_fallback`` in model_registry.py; materialized into the
 #      registry block near the bottom of this file, not hand-authored here). The same wrapped

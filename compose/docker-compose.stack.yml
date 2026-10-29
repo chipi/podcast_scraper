@@ -123,7 +123,7 @@ services:
       # VictoriaMetrics READ endpoint for the Ops /api/ops/llm-gateway spend card (#53,
       # ADR-142): the tailnet control-plane api reads per-key LiteLLM spend from homelab
       # VictoriaMetrics via podcast_obs. No-op unless prod .env sets it (deploy-prod.yml
-      # sets homelab:8428). Without this passthrough the route returns configured=false.
+      # sets <host>:8428). Without this passthrough the route returns configured=false.
       PODCAST_OBS_VICTORIAMETRICS_URL: ${PODCAST_OBS_VICTORIAMETRICS_URL:-}
       # G1: put the active trace_id/span_id on every request log line (LoggingInstrumentor)
       # so an operator API log pivots to its trace. G4: drop /health spans so probe traffic

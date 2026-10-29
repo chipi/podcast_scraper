@@ -48,7 +48,7 @@ def test_the_switch_also_skips_the_committed_homelab_yaml(
     deployment config and is not tracked in this repository."""
     (tmp_path / "config").mkdir()
     (tmp_path / "config" / "observability.homelab.yaml").write_text(
-        "default_target: homelab\ntargets:\n  homelab:\n    api_base: http://homelab:8000\n",
+        "default_target: homelab\ntargets:\n  homelab:\n    api_base: http://obs.test:8000\n",
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)

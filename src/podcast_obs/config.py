@@ -58,7 +58,7 @@ class TargetConfig:
     sentry_token: Optional[str] = None
     sentry_environment: str = "prod"
     # Errors backend base URL. Default = Sentry SaaS; set to a self-hosted GlitchTip
-    # (e.g. http://homelab:8090) — Sentry-API-compatible, so only the base URL changes.
+    # (e.g. http://<host>:8090) — Sentry-API-compatible, so only the base URL changes.
     sentry_url: Optional[str] = None
     grafana_url: Optional[str] = None
     grafana_token: Optional[str] = None  # Grafana service-account token (alerting API)
@@ -394,8 +394,8 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         # the YAML literal ONLY, and ``load()`` takes this branch whenever ``PODCAST_OBS_CONFIG``
         # is set — which on prod it always is. So prod obs never saw the URLs the deploy renders
         # for every other container, and read static ``homelab:<port>`` values instead. Measured
-        # 2026-09-29 inside ``player-obs-1``: the tailnet ACL drops prod -> ``homelab:9428`` (logs)
-        # and ``homelab:3000`` (grafana) while allowing 8428 / 10428, and metrics / traces had no
+        # 2026-09-29 inside ``player-obs-1``: the tailnet ACL drops prod -> ``<host>:9428`` (logs)
+        # and ``<host>:3000`` (grafana) while allowing 8428 / 10428, and metrics / traces had no
         # URL at all — all four sources dead while the backends held live data.
         sentry_url=sentry.get("url") or platform["sentry_url"],
         grafana_url=grafana.get("url") or platform["grafana_url"],

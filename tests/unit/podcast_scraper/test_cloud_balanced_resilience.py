@@ -1,4 +1,4 @@
-"""cloud_balanced RFC-111 (#1482) gateway-resilience wiring: a transient homelab:4001 -> OpenRouter
+"""cloud_balanced RFC-111 (#1482) gateway-resilience wiring: a transient obs.test:4001 -> OpenRouter
 connection failure (APIConnectionError) must (1) hold/retry for minutes, not the ~12s default, and
 (2) fail over to DIRECT DeepSeek if the gateway stays down. This asserts the PROFILE materializes
 both — resolved config values, not wall-clock behaviour (the sleep-for-minutes case belongs to

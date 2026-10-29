@@ -28,7 +28,7 @@ def test_events_builds_logsql_with_surface_and_correlation(monkeypatch) -> None:
 
     monkeypatch.setattr(victoria, "get_ndjson", _fake)
     r = victoria.events(
-        _t(victorialogs_url="http://homelab:9428"),
+        _t(victorialogs_url="http://obs.test:9428"),
         "pipeline_stage",
         surface="pipeline",
         run_id="run-1",
@@ -67,7 +67,7 @@ def test_correlation_ids_match_the_alloy_shape_not_only_a_field(monkeypatch) -> 
 
     monkeypatch.setattr(victoria, "get_ndjson", _fake)
     rid = "e7ff4cf2-dcf4-483d-996a-052caf0a2082"
-    victoria.events(_t(victorialogs_url="http://homelab:9428"), "pipeline_stage", run_id=rid)
+    victoria.events(_t(victorialogs_url="http://obs.test:9428"), "pipeline_stage", run_id=rid)
     q = seen["query"]
     # The phrase branch is the one that reaches an Alloy-shipped row…
     assert f'_msg:"{rid}"' in q
@@ -116,7 +116,7 @@ def test_metrics_instant_parses_series(monkeypatch) -> None:
             "data": {"result": [{"metric": {"service": "podcast-api"}, "value": [0, "3.5"]}]}
         },
     )
-    r = victoria.metrics_instant(_t(victoriametrics_url="http://homelab:8428"), "up")
+    r = victoria.metrics_instant(_t(victoriametrics_url="http://obs.test:8428"), "up")
     assert r["ok"] and r["data"]["series"][0]["value"] == [0, "3.5"]
 
 
@@ -185,8 +185,8 @@ def test_sentry_api_base_defaults_to_saas() -> None:
 
 
 def test_sentry_api_base_uses_glitchtip_url() -> None:
-    t = _t(sentry_url="http://homelab:8090")
-    assert sentry._api_base(t) == "http://homelab:8090/api/0"
+    t = _t(sentry_url="http://obs.test:8090")
+    assert sentry._api_base(t) == "http://obs.test:8090/api/0"
 
 
 # --- config wiring -----------------------------------------------------------------

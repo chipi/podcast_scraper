@@ -3,12 +3,12 @@
 Prose alone did not stop this: two separate agent sessions re-derived the deployment topology
 from config files and both got it wrong, one nearly shipping a change to the homelab gateway
 repo for a problem that lives entirely on the prod VPS. AGENTS.md now states the topology as
-ground truth; these tests make the two concrete bad fixes fail loudly instead of looking
-reasonable.
+ground truth; these tests make the concrete bad fixes fail loudly instead of looking reasonable.
 
 What is actually true (see AGENTS.md "Deployment topology" and ADR-142): the homelab hosts
-observability only and is never on an LLM path. The homelab base URL in the profiles is the
-laptop-dev default, and prod overrides it every deploy via the D4 pin into viewer_operator.yaml.
+observability only and is never on an LLM path. Since 2026-10-29 the profiles name no gateway
+host at all: ``litellm_api_base`` is ``${LITELLM_API_BASE}``, filled from the environment by the
+profile's own expansion, with no default; each deployment sets it.
 """
 
 from __future__ import annotations
@@ -21,18 +21,16 @@ import pytest
 pytestmark = [pytest.mark.integration]
 
 REPO = Path(__file__).resolve().parents[3]
+_LOOPBACK = re.compile(r"https?://(127\.0\.0\.1|localhost)(:\d+)?(/|$)")
 
 
 def test_config_never_reads_the_litellm_base_from_the_environment() -> None:
-    """The tempting "fix" for the anomaly is env-detect in Config. It is forbidden.
+    """Config code must not bind the gateway field to an env var of its own.
 
-    Someone will observe that deploy-prod plumbs LITELLM_API_BASE, that Config ignores it, and
-    "fix" the inconsistency by binding the field to the env var. That would invert the operator's
-    profiles-are-the-source-of-truth rule and make the effective gateway depend on ambient process
-    state instead of the profile + explicit operator config.
-
-    LITELLM_API_BASE has exactly two legitimate consumers, neither of them Config: the
-    /api/ops/gateway/auth probe and scripts/eval/gateway_spend.py.
+    The profile states the gateway as ``${LITELLM_API_BASE}`` and the profile loader's generic
+    ``${VAR}`` expansion fills it, so the profile stays the one place that says where LLM calls go.
+    A second, hidden path in Config (a field default or validator reading the variable) would let
+    the effective gateway differ from what the profile says.
     """
     source = (REPO / "src" / "podcast_scraper" / "config.py").read_text(encoding="utf-8")
     assert "LITELLM_API_BASE" not in source, (
@@ -42,26 +40,22 @@ def test_config_never_reads_the_litellm_base_from_the_environment() -> None:
     )
 
 
-def test_every_homelab_gateway_default_is_annotated_as_a_dev_default() -> None:
-    """A bare ``http://homelab:4001/v1`` line is what starts the misreading.
+def test_profiles_name_no_gateway_host() -> None:
+    """Every ``litellm_api_base`` in the profiles is the ``${LITELLM_API_BASE}`` slot (or loopback).
 
-    Each occurrence must carry a nearby comment naming it a dev default, so an agent reading the
-    profile in isolation cannot conclude prod routes LLM traffic through the homelab. Strip the
-    comment and this fails — which is the point, because the comment is load-bearing context, not
-    decoration.
+    A literal host there is how this repository came to name a deployment's gateway, and how
+    the "prod calls homelab" misreading starts. The value comes from the environment, with no
+    default (Config refuses it unset).
     """
     offenders = []
     for path in sorted((REPO / "config" / "profiles").glob("*.yaml")):
-        lines = path.read_text(encoding="utf-8").splitlines()
-        for i, line in enumerate(lines):
-            if not re.match(r"\s*litellm_api_base:.*homelab", line):
-                continue
-            window = "\n".join(lines[max(0, i - 6) : i]).lower()
-            if "dev default" not in window and "adr-142" not in window:
-                offenders.append(f"{path.name}:{i + 1}")
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+            m = re.match(r"\s*litellm_api_base:\s*(\S+)", line)
+            value = m.group(1).strip("'\"") if m else ""
+            # Loopback is a local stand-in (fixture runs), not anyone's deployment.
+            if m and value != "${LITELLM_API_BASE}" and not _LOOPBACK.match(value):
+                offenders.append(f"{path.name}:{i + 1}: {m.group(1)}")
     assert not offenders, (
-        "these homelab litellm_api_base lines are unannotated, so an agent reading them in "
-        "isolation will conclude prod routes LLM calls through the homelab (it does not — the "
-        "homelab is observability-only). Add a comment naming it the laptop-dev default and "
-        "citing ADR-142:\n  " + "\n  ".join(offenders)
+        "litellm_api_base must be ${LITELLM_API_BASE} (set in .env / the deployment), not a "
+        "literal host:\n  " + "\n  ".join(offenders)
     )

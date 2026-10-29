@@ -1501,7 +1501,7 @@ jobs:
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     # Push-to-main runs the full acceptance gate. Additionally run on PRs that touch
     # acceptance-relevant paths (provider wiring / profiles / harness / E2E mock) so a
-    # fixture-run regression like #1527 (config-only litellm base dialing homelab:4001) is caught
+    # fixture-run regression like #1527 (config-only litellm base dialing <host>:4001) is caught
     # BEFORE merge, not only on the post-merge main-push run.
     if: |
       (

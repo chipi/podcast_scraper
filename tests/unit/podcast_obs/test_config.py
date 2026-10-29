@@ -119,14 +119,14 @@ def test_from_yaml_langfuse_keys_fall_back_to_env(
             targets:
               homelab:
                 langfuse:
-                  base_url: http://homelab:4000
+                  base_url: http://obs.test:4000
             """),
         encoding="utf-8",
     )
     t = ObservabilityConfig.from_yaml(config_path).target("homelab")
     assert t.langfuse_public_key == "pk-env"
     assert t.langfuse_secret_key == "sk-env"
-    assert t.langfuse_base_url == "http://homelab:4000"  # explicit YAML base_url still wins
+    assert t.langfuse_base_url == "http://obs.test:4000"  # explicit YAML base_url still wins
 
 
 def test_from_yaml_without_targets_raises(tmp_path) -> None:
@@ -306,7 +306,7 @@ def test_operator_key_from_yaml_falls_back_to_bare_name(tmp_path, monkeypatch) -
 # the backends held live data. The YAML path — the one `load()` takes whenever PODCAST_OBS_CONFIG is
 # set, i.e. always on prod — read backend URLs from YAML literals ONLY, so the settings the deploy
 # renders for every other container never reached obs; the literals it did carry pointed at
-# `homelab:9428` / `homelab:3000`, which the tailnet ACL drops for prod.
+# `obs.test:9428` / `obs.test:3000`, which the tailnet ACL drops for prod.
 
 _PLATFORM_VARS = (
     "PODCAST_OBS_VICTORIALOGS_URL",
@@ -340,7 +340,7 @@ def _render_like_the_prod_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PODCAST_OBS_GRAFANA_URL", "https://grafana.example.ts.net")
     monkeypatch.setenv("PODCAST_OBS_SENTRY_URL", "https://glitchtip.example.ts.net")
     monkeypatch.setenv(
-        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://homelab:10428/insert/opentelemetry/v1/traces"
+        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://obs.test:10428/insert/opentelemetry/v1/traces"
     )
 
 
@@ -356,7 +356,7 @@ def test_a_yaml_target_without_urls_takes_the_deploy_rendered_ones(tmp_path, mon
     assert t.grafana_url == "https://grafana.example.ts.net"
     assert t.sentry_url == "https://glitchtip.example.ts.net"
     # traces: the SAME endpoint the api exports to, reduced to its origin for reading
-    assert t.victoriatraces_url == "http://homelab:10428"
+    assert t.victoriatraces_url == "http://obs.test:10428"
 
 
 def test_both_config_paths_derive_urls_identically(tmp_path, monkeypatch) -> None:
@@ -385,11 +385,11 @@ def test_a_literal_url_in_the_yaml_still_wins(tmp_path, monkeypatch) -> None:
     cfg_path = tmp_path / "obs.yaml"
     cfg_path.write_text(
         "default_target: local\ntargets:\n  local:\n    api_base: http://localhost:8000\n"
-        "    victoria:\n      logs_url: http://homelab:9428\n",
+        "    victoria:\n      logs_url: http://obs.test:9428\n",
         encoding="utf-8",
     )
     t = ObservabilityConfig.load(cfg_path).target("local")
-    assert t.victorialogs_url == "http://homelab:9428"
+    assert t.victorialogs_url == "http://obs.test:9428"
     assert t.victoriametrics_url == "https://vm.example.ts.net"  # the omitted one still falls back
 
 

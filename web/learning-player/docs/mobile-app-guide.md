@@ -139,7 +139,7 @@ Keep the discipline:
 ## 5. Telemetry — port Orrery's env-ladder verbatim (you're 90% there)
 
 The player already uses `@sentry/vue` + Umami with a **tailnet-only dev DSN
-fallback** (`main.ts` — `homelab:8090/8` for Sentry, `homelab:3001` for Umami) —
+fallback** (`main.ts` — `<host>:8090/8` for Sentry, `<host>:3001` for Umami) —
 the *exact* pattern Orrery uses. So the two lessons transfer directly:
 
 - **Env ladder (Orrery ADR-082):** one isolated GlitchTip project + Umami site per

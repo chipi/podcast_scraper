@@ -283,7 +283,7 @@ Same Android app, plus:
   release). Release = prod-locked (`MOBILE_RELEASE=1`); an internal build carries the
   dev↔prod runtime switcher (guide §5).
 - **Dev-tier o11y on a real device needs https.** The committed dev defaults
-  (`homelab:8090` GlitchTip, `homelab:3001` Umami) are plain http. That works in
+  (`<host>:8090` GlitchTip, `<host>:3001` Umami) are plain http. That works in
   desktop `vite dev` (http origin) but a native WebView is an https origin, so the
   http calls are blocked (iOS App Transport Security + Android mixed-content). Expose
   the tailnet services over https with `tailscale serve`, then inject the https URLs

@@ -135,7 +135,7 @@ def test_a_curated_route_does_not_self_grade(name: str) -> None:
 
     # NOT self-grading is the invariant, and it holds for every profile. The exact alias is only
     # dictated for REGISTRY-GOVERNED profiles: `litellm` names a gateway, and profiles pointed at a
-    # different gateway instance (homelab_balanced -> http://homelab:4001) have their own alias
+    # different gateway instance (homelab_balanced -> http://obs.test:4001) have their own alias
     # namespace, where podcast-pro-0829 does not exist. Asserting the literal there would demand an
     # alias the gateway cannot serve.
     assert rater_model != _summariser_wire_model(cfg), (

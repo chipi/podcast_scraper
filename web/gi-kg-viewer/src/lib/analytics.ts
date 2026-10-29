@@ -26,7 +26,7 @@
 
 /** NO LITERAL TARGET (operator, 2026-10-03) — the same fix the player's analytics and every
  *  Sentry DSN got. This used to fall back, in `vite dev`, to a hardcoded `operator-dev` site at the
- *  tailnet host `homelab:3001`: a personal hostname baked into the source, which does not resolve
+ *  tailnet host `<host>:3001`: a personal hostname baked into the source, which does not resolve
  *  from every machine and is refused on the homelab box itself (services there answer on loopback).
  *
  *  Both rungs now come from the environment only:
