@@ -3,13 +3,13 @@
 - **Status**: Implemented (all migration steps landed under #1198)
 - **Tracking issue**: #1198
 - **Authors**: Marko
-- **Stakeholders**: Core Pipeline, Providers, DGX Infra, Cost/Resilience
+- **Stakeholders**: Core Pipeline, Providers, Infra, Cost/Resilience
 - **Related RFCs**:
   - `RFC-046` — profiles/registry as source of truth (moved to the private eval repo as RFC-006)
 - **Related work**:
   - `docs/guides/eval-reports/EVAL_MOSS_BAKEOFF_2026_07.md` (MOSS promoted as DGX transcription; #1174)
   - `#926` (the original lazy DGX-diarization → local fallback)
-  - `#1177` (MOSS service) · `#952` (faster-whisper on :8000)
+  - `#1177` (MOSS service) · `#952` (faster-whisper service)
 
 ## Abstract
 
@@ -26,7 +26,7 @@ Fallback today is **per-provider and inconsistent**:
   `openai`). `tailnet_dgx` diarization self-wraps its own lazy fallback (#926).
 - The **`moss` provider has no fallback at all** — so promoting MOSS as the DGX transcription default
   (#1174) silently dropped the fallback; `transcription_fallback_provider` is dead config for it.
-- The **LLM stages** (summary / GI / KG on Ollama :11434) have **no DGX-down fallback** — they fail
+- The **LLM stages** (summary / GI / KG on a self-hosted Ollama) have **no DGX-down fallback** — they fail
   if the box is unreachable.
 
 And a **single** fallback level cannot distinguish the two failure modes a DGX profile actually
@@ -34,7 +34,7 @@ faces:
 
 | Failure | What's reachable | Correct fallback |
 | --- | --- | --- |
-| One service crashes / its port is not in the tailnet ACL | rest of DGX is up | the **other DGX** provider for that stage |
+| One service crashes / its port is blocked by network policy | rest of DGX is up | the **other DGX** provider for that stage |
 | Whole DGX down / unreachable | nothing on the DGX | **cloud** (or local-mac) |
 
 A profile that falls straight from MOSS to cloud pays for (and leaks to) the cloud even when
@@ -53,9 +53,9 @@ gets identical behaviour and the per-provider self-wrapping in `tailnet_dgx_whis
 `tailnet_dgx` diarization is retired.
 
 ```text
-transcription (DGX prod):  moss → tailnet_dgx_whisper → openai
-diarization   (DGX prod):  tailnet_dgx (pyannote) → deepgram
-summary/gi/kg (DGX prod):  ollama(dgx) → gemini | openai
+transcription (self-hosted GPU):  moss → tailnet_dgx_whisper → openai
+diarization   (self-hosted GPU):  tailnet_dgx (pyannote) → deepgram
+summary/gi/kg (self-hosted GPU):  ollama(dgx) → gemini | openai
 ```
 
 ### Failure classification (do not cascade on bad input)
@@ -79,7 +79,7 @@ runtime default. This keeps the "profiles are views, the registry is the source 
 invariant (RFC-046) intact for fallback too.
 
 - **`ProfilePreset`** gains a per-stage **`<stage>_fallback: list[str]`** — an ordered list of
-  `StageOption` ids after the primary. Example (a DGX prod preset):
+  `StageOption` ids after the primary. Example (a self-hosted GPU preset):
 
   ```python
   transcription="moss_transcribe_diarize",
@@ -146,7 +146,7 @@ timeouts/5xx/connection-blips/guardrail-garbage and stops on content-determinist
 
 - **Diarization cloud tier**: `deepgram`, but only after a free local in-process pyannote tier
   (`dgx pyannote → local pyannote → deepgram`) so a caller that can run pyannote never pays.
-- **LLM-stage cloud tier**: `gemini` (the `cloud_balanced` summary tier) for the DGX prod profiles.
+- **LLM-stage cloud tier**: `gemini` (the `cloud_balanced` summary tier) for the self-hosted GPU profiles.
 - **`all-DGX / no-cloud` fail-closed**: yes — implemented as `ProfilePreset.allow_cloud_fallback`
   (default True). When False the resolver drops cloud tiers from every chain; the airgapped presets
   set it.

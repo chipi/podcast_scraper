@@ -2,8 +2,7 @@
 
 ``docs/guides/CORPUS_CHANGE_METHOD.md`` D5 and D15, step 0: a migration of the change regime (id
 0031 on) cannot apply without the outcome of its clone run shipped with the code, and prod's own
-per-episode plan must equal the clone's, every difference listed with its cause. Criteria:
-``docs/wip/changes/migration_outcome_hook.acceptance.md``.
+per-episode plan must equal the clone's, every difference listed with its cause..
 
 For each regime migration ``upgrade run`` (not a dry run), under the corpus lock:
 

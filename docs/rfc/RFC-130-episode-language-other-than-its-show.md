@@ -21,7 +21,7 @@ language pay nothing extra.
 
 The show keeps its language setting; that is the operator's direction and stays. But a show's
 language is a default, not a guarantee. Ottoman History Podcast declares `en` and publishes a
-Turkish-language series, hosted by Can Gümüş. On the production snapshot of 2026-10-15, 2 of 2,684
+Turkish-language series, hosted by Can Gümüş. On the corpus snapshot of 2026-10-15, 2 of 2,684
 served episodes are not in their show's language, and both are from this series:
 "Soykırımın Bürokrasisi" (2026-05-16) and "Cümle Fener Burada" (2026-09-30). Their titles,
 descriptions and transcripts are Turkish. The live feed labels 5 items `Türkçe`.
@@ -68,7 +68,7 @@ refused. An episode we could translate is silently lost.
 
 - Every episode is in one language. An episode split between two languages is out of scope.
 - "Supported" means `enabled` in `config/languages.yaml`: en, es, it, pt, de, fr.
-- Identification runs on the DGX ASR, the same model that transcribes; no new dependency.
+- Identification runs on the GPU-host ASR, the same model that transcribes; no new dependency.
 
 ## Design
 
@@ -93,7 +93,7 @@ the two Turkish ones 1-2%.
 Cost: three short ASR calls per flagged episode (2 in 2,684 on the snapshot).
 
 Why not the function words alone: they name the language correctly on the 15 v3 fixtures
-(es, it, fr, de, pt), but the production lists cover only seven languages (en, de, es, pt, fr, it,
+(es, it, fr, de, pt), but the language lists cover only seven languages (en, de, es, pt, fr, it,
 nl), so they cannot name Turkish or any language outside them. The ASR knows about a hundred.
 
 ### 3. Route
@@ -129,15 +129,15 @@ left them served as English. Now:
   a show language with no word list); agreement; `transcribe_clip` returning the detected language;
   the guard's two branches through `transcribe_media_to_text` (continues in the detected language;
   refused with `detected` in the record); metadata reading the detected language.
-- **DGX probe (operator's go):** the three-clip identification on the 15 v3 fixtures and the 2
+- **GPU-host probe (operator's go):** the three-clip identification on the 15 v3 fixtures and the 2
   Turkish episodes, every answer read.
 - **Replay over the snapshot:** only the 2 episodes change outcome.
 
 ## Results (2026-10-16)
 
-- **Identification on the DGX:** 51 of 51 clips named their language correctly, and all 17
+- **Identification on the GPU host:** 51 of 51 clips named their language correctly, and all 17
   episodes agreed: the 15 v3 fixtures (es, it, fr, de, pt, three each) and both Turkish episodes.
-  About 1.3 s per clip. The Turkish audio was the publisher's current file (prod keeps no audio for
+  About 1.3 s per clip. The Turkish audio was the publisher's current file (the deployment keeps no audio for
   those runs), so the stored timestamps may be slightly off; the clips still landed on Turkish speech.
 - **Replay over the snapshot:** the guard, unchanged, judged all 2,685 served transcripts and
   flagged exactly the 2 Turkish episodes. Only a flagged episode can take the new path, so no other

@@ -442,8 +442,8 @@ should:
 ### #928 / #929 / #930 / #931 — DGX-vs-cloud autoresearch (batch 3, 2026-06-10/11)
 
 **Eval set:** 5 v2 audio fixtures (`p0[1-5]_e01.mp3`, ~5 min each)
-across four transcription backends (MPS / CPU / DGX `whisper-openai`
-on `:8002` / DGX faster-whisper on `:8000`), three summary backends
+across four transcription backends (MPS / CPU / GPU-host `whisper-openai` /
+GPU-host faster-whisper), three summary backends
 (Ollama qwen3.5:35b at Q4 / vLLM R1-Distill-32B at bf16 / vLLM
 Qwen3.6-35B-A3B at bf16 added via Cell C), and a 3-way pyannote
 diarization run (MPS / CUDA / CPU). Reports under
@@ -460,18 +460,15 @@ diarization run (MPS / CUDA / CPU). Reports under
    yet that the contamination is total, not partial.
 
 2. **Long-form audio is the trigger condition for openai-whisper
-   autoregressive runaway.** The DGX whisper service produced WER
+   autoregressive runaway.** The GPU-host whisper service produced WER
    3.20 mean (5–9× extra hyp words) pre-fix because the API contract
    forced `temperature=0.0` scalar, disabling openai-whisper's
    built-in fallback schedule. Triggered reliably on the 5-min v2
    episodes; would trigger harder on the 30-90-min real podcasts
    the operator wants in production. Post-fix, the same episodes
    produced WER 0.102 / 4.56× realtime — within scoring noise of
-   MPS. The bug fix lives in
-   `infra/dgx/whisper-server/app.py` + the temperature-schedule
-   nuance is documented in the consumer-contract section of the
-   vllm-autoresearch README (moved to
-   <https://github.com/chipi/agentic-ai-homelab/> on 2026-06-12).
+   MPS. The bug fix and the
+   temperature-schedule nuance are tracked in the deployment repo.
    **Implication for v3
    audio**: episodes that span the autoregressive-runaway trigger
    window (multi-minute, conversational, technical-vocab) are
@@ -565,7 +562,7 @@ as the new justification, replacing quality as the prior
 justification). Neither is a fixture-side threshold.
 
 **Cross-ref:** Late-batch findings filed as follow-ups for next
-sessions — **#956** (DGX-over-Tailscale client resilience),
+sessions — **#956** (remote-GPU-host client resilience),
 **#957** (speaches/faster-whisper container root-cause; the
 faster-whisper sweep had a separate bug from openai-whisper's;
 empty output 4/5 episodes, hallucination 1/5),
@@ -577,7 +574,7 @@ empty output 4/5 episodes, hallucination 1/5),
 **#961** (R1-Distill reasoning-suppressed prompt — addresses
 the failure mode in point 5), **#962** (Gemini speaker
 detector provider deploy — unblocks the `cloud_*` slot of
-# 930's panel), **#963** (re-test DGX whisper under contention
+# 930's panel), **#963** (re-test GPU-host whisper under contention
 now that the temperature bug is fixed), **#964** (Wave audio
 hardening umbrella from the WIP audit).
 
@@ -587,12 +584,12 @@ hardening umbrella from the WIP audit).
 
 **Question:** is the community `faster-whisper` library (via Speaches)
 WER-equivalent to OpenAI's reference `openai-whisper` on real podcast
-audio, or do we need to swap the DGX prod path?
+audio, or do we need to swap the GPU-host default path?
 
 **Method:** 5 stratified episodes (~127 min audio), Deepgram nova-3 as
 silver reference (independent third engine; not gold). Three engines
-parallel-deployed on DGX: Speaches at `:8000` (faster-whisper int8 per
-# 948), whisper-openai wrapper at `:8002` (large-v3), Deepgram via API.
+parallel-deployed on a GPU host: Speaches (faster-whisper int8 per
+# 948), a whisper-openai wrapper (large-v3), Deepgram via API.
 
 **Verdict:** faster-whisper validated, no swap. Aggregate WER vs silver:
 faster 10.23% vs openai 12.97% (faster is 2.74pp BETTER than the
@@ -603,7 +600,7 @@ compounding across long transcripts, not engine breakdowns.
 
 **Engine-choice rationale (for v3 + future):** keep
 ``transcription_provider: tailnet_dgx_whisper`` (Speaches/faster-whisper)
-as the DGX prod path. The whisper-openai wrapper at `:8002` stays
+as the GPU-host default path. The whisper-openai wrapper stays
 deployed as a parallel-comparison sibling for future eval cycles, not
 as a routing target.
 

@@ -74,14 +74,14 @@ The two things that silently break a re-diarization:
 > hit … transcribe_sec=0.0`). Clearing the dir is reliable; `transcript_cache_enabled:
 > false` in the profile does **not** always take effect through the CLI merge.
 >
-> ⚠️ **Keep the machine awake for DGX runs** (`caffeinate -i …`, mains power). If it
-> sleeps mid-run the tailnet drops and every DGX diarize POST fails with `Connection
+> ⚠️ **Keep the machine awake for GPU-host runs** (`caffeinate -i …`, mains power). If it
+> sleeps mid-run the network link to the GPU host drops and every remote diarize POST fails with `Connection
 > reset by peer`, falling back to slow in-process pyannote.
 
 ### Full-reprocess procedure
 
-1. **Health gate** (abort if a required service is down). For DGX profiles, check the
-   Whisper (`:8000`) and pyannote (`:8001`) endpoints on the tailnet host before starting.
+1. **Health gate** (abort if a required service is down). For self-hosted GPU profiles, check the
+   Whisper and pyannote endpoints on the GPU host before starting.
 2. **Backup** — the reprocess **overwrites** transcripts/diarization/GI/KG/index:
 
    ```bash
@@ -103,7 +103,7 @@ The two things that silently break a re-diarization:
    shifts char offsets; GI is rebuilt against the new ad-free base so quotes re-derive
    exactly. A mismatch means GI was not rebuilt against the new transcript — investigate,
    do not proceed.
-5. **Full run** (`make migrate-diarization`), watch the scoping log line and DGX
+5. **Full run** (`make migrate-diarization`), watch the scoping log line and GPU-host
    fallback breadcrumbs. Budget ~6–7 min/episode for large-v3 + pyannote.
 6. **Post-run**: offsets clean, spot-check ~5 episodes (named screenplay + `SPOKEN_BY` +
    KG entities), episode count unchanged, a vector search returns sensible results.
@@ -120,7 +120,7 @@ reprocess:
   disk) and re-resolve only the *names* on it, then re-render the screenplay and cascade GI/KG.
   Use it after a change to the naming/roster logic. No audio, no ASR, no re-diarize.
 - **`--pipeline-stage rediarize_only`** — freeze the ASR text and re-diarize the **audio** with the
-  profile's diarizer (e.g. DGX pyannote `community-1`), align the fresh voices to the existing
+  profile's diarizer (e.g. self-hosted pyannote `community-1`), align the fresh voices to the existing
   transcript, then re-name and cascade. Use it to test a different diarizer without paying for ASR.
   Needs the source audio; does **not** apply to direct-download transcript feeds (they never had
   ASR to align to).
@@ -149,7 +149,7 @@ guards accept it (`transcription/punctuation_repair.py`). On prod 2026-10-14 the
 
 - **`--pipeline-stage repunctuate_only`** reads the stored transcript, measures its windows again,
   fetches the audio from the archive **by guid**, decodes **only** the still-flagged windows
-  through the DGX provider's clip call, and splices in the ones that pass. Speaker labels are
+  through the GPU provider's clip call, and splices in the ones that pass. Speaker labels are
   carried from the segments each new segment overlaps (`carry_speaker_identity`): no diarization,
   no roster, no LLM naming. The screenplay, `.segments.json` and `.turns.json` are rewritten,
   `.adfree.*` / `.anon.txt` are rebuilt where the pipeline builds them (and removed otherwise, so GI
@@ -193,7 +193,7 @@ work-list repair that repaired nothing; a mix exits 0 and logs the unfinished id
 repaired window is no longer flagged, so a second run does nothing; after the guards change, the
 same work-list reaches the windows they used to refuse. Each attempt is appended to
 `.asr.json["punctuation_repair"]` tagged `pass: "repunctuate_only"` with the run id,
-`repair_model` (the DGX model now serving) and `original_model`, so model drift between the
+`repair_model` (the GPU-host model now serving) and `original_model`, so model drift between the
 original decode and the repair is visible.
 
 **Known limits.**
@@ -272,7 +272,7 @@ make enrich-relational-edges CORPUS_DIR=<corpus>   # re-derive SPOKEN_BY
 - This is a **data operation**, not a code change — run it from `main` as a tracked
   operation, not bundled into a feature PR.
 - If the corpus feeds eval, record quality-vs-baseline before/after.
-- Profiles: DGX diarization → `cloud_with_dgx_primary.yaml`; cloud-only → `cloud_balanced.yaml`
+- Profiles: GPU-host diarization → `cloud_with_dgx_primary.yaml`; cloud-only → `cloud_balanced.yaml`
   (Deepgram diarization, Gemini everything-else, `gemini-2.5-flash-lite`).
 
 ## Reading a running reprocess — what the signals actually mean
@@ -370,8 +370,8 @@ it). Both appear in the per-episode ledger, which is what a mop-up batch should 
 
 ### `docker logs`, never the `logs/reprocess-*.log` file
 
-The file is written through the GitHub runner's ssh session. Cancel the run (or hit the
-6h cap) and the file stops growing **while the container keeps working**. A frozen file is
+The file is written through a remote/CI session. Cancel the run (or hit the session's
+time cap) and the file stops growing **while the container keeps working**. A frozen file is
 not a stalled job.
 
 ```bash

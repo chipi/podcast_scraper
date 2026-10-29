@@ -570,7 +570,6 @@ The single-container deployment style covered in **this** guide is appropriate w
 
 ## Related Documentation
 
-- Hosting and infrastructure — always-on VPS, Tailscale, OpenTofu, GitHub Actions, Compose (ADR spine)
 - [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md) - **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs)
 - [Service API](../api/SERVICE.md) - Service mode API reference
 - [Configuration API](../api/CONFIGURATION.md) - Config file format and options

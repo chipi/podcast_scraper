@@ -155,7 +155,7 @@ podcast mcp --corpus /path/to/corpus --transport http --host 127.0.0.1 --port 80
 
 **Remote transport (RFC-112).** `--transport http` serves Streamable HTTP behind a bearer-auth
 ASGI middleware: every connection presents an OAuth 2.1 access token or a personal-access token,
-which the server verifies against the app's tailnet-only `/internal/mcp/verify` seam (it never
+which the server verifies against the app's private-network-only `/internal/mcp/verify` seam (it never
 mounts the user store) and 401s otherwise. It also serves the public RFC 9728 protected-resource
 discovery doc. Env: `APP_MCP_VERIFY_URL` with `INTERNAL_MCP_TOKEN` (verify seam), `APP_MCP_ISSUER_URL`
 with `APP_MCP_RESOURCE_URL` (discovery), and optional `APP_MCP_ALLOWED_ORIGINS` (DNS-rebind guard). In
@@ -282,9 +282,9 @@ YAML contains `scheduled_jobs:`.
 
 ### Why API-level (not host-side cron)
 
-Works on Codespace pre-prod (no systemd) and VPS prod alike, persists with
+Works in dev containers and servers alike (no systemd needed), persists with
 the corpus (no host state to migrate on redeploy), and routes failures
-through the existing job-state webhook surface so Slack and Grafana
+through the existing job-state webhook surface so your alerting and dashboards
 already see the events. See [GH #708](https://github.com/chipi/podcast_scraper/issues/708).
 
 ### Schedule definition
@@ -513,19 +513,18 @@ catalog / DB-backed APIs ([#50][i50], [#347][i347]) — not the RSS-list or RFC-
 [i50]: https://github.com/chipi/podcast_scraper/issues/50
 [i347]: https://github.com/chipi/podcast_scraper/issues/347
 
-## Batch pipeline JSONL and Grafana Loki (#746)
+## Batch pipeline JSONL and log shipping (#746)
 
 Long **CLI / docker** batch runs can stream structured events through
 `workflow/jsonl_emitter.py` (`run_started`, `episode_finished`, `run_finished`)
-to `run.jsonl` when `jsonl_metrics_enabled` is true. For **Grafana Loki**, each
+to `run.jsonl` when `jsonl_metrics_enabled` is true. For a log store such as **Loki**, each
 line should be ingested as **one JSON log line**. The optional flag
 `jsonl_metrics_echo_stdout` duplicates every JSONL line to **stdout** so the
-existing **Grafana Agent** docker log pipeline (`compose/grafana-agent.yaml`)
-ships them with stable labels (**env**, **release**, **app**=`podcast_scraper`,
-compose **service** surfaced as **service_name** in VictoriaLogs). Use LogQL
+existing docker log pipeline of your log shipper
+can ship them with stable labels (for example **env**, **release**, **app**=`podcast_scraper`,
+compose **service** as **service_name**). Use LogQL
 `| json | event_type="run_finished"` in Explore or the imported dashboard
-`config/grafana/dashboards/common/grafana-dashboard-pipeline-execution.json` (also linked from
-`config/manual/`). Prometheus **`/metrics`** on the API container remains
+`config/manual/grafana-dashboard-pipeline-execution.json`. Prometheus **`/metrics`** on the API container remains
 separate from this JSONL path.
 
 ## Related docs

@@ -1,7 +1,7 @@
 /**
  * The Brief's search results, shaped for what a listener remembers (operator 2026-10-10).
  *
- * Measured on 94 real episodes (docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md): one mixed list of ten
+ * Measured on 94 real episodes: one mixed list of ten
  * gave the transcript a third of the slots — insights and their own supporting quotes took the rest
  * — and showed a transcript hit as a ~300-word block. So:
  *

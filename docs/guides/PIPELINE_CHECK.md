@@ -27,7 +27,7 @@ The last line prints `PIPELINE_CHECK_EXIT=0` (every check passed) or `1`. The on
 is `.test_outputs/pipeline-check/report.md`; the raw data (every decision, per side) sits next to
 it as `<check>.candidate.json` / `<check>.base.json`, with `findings.json`.
 
-Fixture mode needs no DGX and no network, and takes about a minute per check.
+Fixture mode needs no GPU host and no network, and takes about a minute per check.
 
 ## Parameters
 
@@ -125,14 +125,14 @@ Shipped checks:
 - `no-language` — a feed that declares nothing is refused before download (#2283).
 - `portuguese-variants` — `pt`, `pt-BR`, `pt-PT` on the Portuguese fixture feed, report only.
 
-## Real-episode mode (DGX)
+## Real-episode mode (GPU host)
 
 Fixture mode proves the choices. Real mode runs the **full pipeline** on real episodes — ASR,
 diarization, naming, summaries, insights, KG — so the same decisions are traced on a real run and
 the LLM's variation can be measured:
 
 ```bash
-export VLLM_API_KEY=EMPTY   # the DGX vLLM endpoints' key (infra/vllm/*/docker-compose.yml)
+export VLLM_API_KEY=EMPTY   # the GPU host's vLLM endpoints' key
 make pipeline-check REAL=1 BASE=origin/main FEED=<rss url> PROFILE=prod_dgx_full MAX_EPISODES=1
 ```
 
@@ -169,18 +169,18 @@ Safety: real mode forces `audio_storage_backend: local` (a profile may point at 
 archive; a check must never upload) and `vector_search: false`.
 
 `REUSE=1` re-runs only the comparison on the saved `worker.json` files — use it after changing
-the tool or the expectations, instead of spending the DGX again. Delete a run's directory to
+the tool or the expectations, instead of spending the GPU host again. Delete a run's directory to
 re-run just that run.
 
-**Only run real mode when the DGX is quiet** — it shares the GPU with production, and a busy GPU
+**Only run real mode when the GPU host is quiet** — it may share the GPU with other workloads, and a busy GPU
 makes a 30-minute episode take an hour in the Whisper queue. Check the GPU first:
 
 ```bash
-curl -s http://homelab:8428/api/v1/query --data-urlencode \
+curl -s http://<metrics-host>:8428/api/v1/query --data-urlencode \
   'query=avg_over_time(DCGM_FI_DEV_GPU_UTIL[10m])' | grep -o '"value":\[[^]]*\]'
 ```
 
-Cost: ASR twice per episode (the two warm-ups), plus five LLM passes. On a quiet DGX one
+Cost: ASR twice per episode (the two warm-ups), plus five LLM passes. On a quiet GPU host one
 35-minute episode took about 45 minutes in total (2026-10-06).
 
 ## Limits

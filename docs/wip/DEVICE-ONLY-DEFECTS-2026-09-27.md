@@ -24,7 +24,7 @@ menu a second time.
 | --- | --- |
 | The data is empty | Prod `collections.json` holds `AI`, `Investments`, `Tech` — read off the host |
 | The wire drops it | `list_collections` spreads `**c`; `Collection.name` is a required pydantic field; `withAbsoluteCovers` spreads |
-| The DOM lacks the text | Mounted with the real prod rows: names render on 1st, 2nd AND 3rd open. `getCollections` called 3×, correct every time |
+| The DOM lacks the text | Mounted with the real rows: names render on 1st, 2nd AND 3rd open. `getCollections` called 3×, correct every time |
 | It is a colour inherited through the teleport | The row now states `text-canvas-foreground` explicitly in both branches — verified present in the installed bundle |
 | `text-canvas-foreground` is not a generated class | It is: `.text-canvas-foreground{…color:color-mix(in srgb, var(--lp-canvas-foreground) …)}` |
 | `--lp-canvas-foreground` is out of scope in a teleported panel | All theme vars are declared on `:root` |

@@ -1295,8 +1295,7 @@ function clearBridgeHoverTitle(el: HTMLElement | null): void {
  *  memoise the bridge-id set keyed by ``(node-count, edge-count)`` on the
  *  core, so subsequent settle-callbacks skip the betweenness compute
  *  entirely. Cache invalidates automatically when a new artifact adds or
- *  removes elements (the counts change). Measurement:
- *  ``docs/wip/graph-v3/traces/README.md``. */
+ *  removes elements (the counts change). */
 let bridgeCacheKey: string | null = null
 let bridgeCacheIds: Set<string> | null = null
 let bridgeDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -4336,8 +4335,7 @@ watch(
           // check returns false on cold start and the residual 1200 ms
           // regression persists on that path. Root fix requires stable
           // ids across waves (data-model change) — tracked in #1211
-          // "Note on scope reduction". See
-          // ``docs/wip/graph-v3/traces/README.md`` §Where fast-path fires.
+          // "Note on scope reduction".
           const artForFast = gf.viewWithEgo(focusNodeId.value)
           if (artForFast && tryIncrementalAppendFastPath(artForFast)) {
             return

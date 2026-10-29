@@ -4,8 +4,8 @@
 - **Date**: 2026-10-10
 - **Authors**: Marko Dragoljevic
 - **See Also**: [ADR-162](ADR-162-mine-means-the-listeners-own-world.md) ("Mine"),
-  [UXS-012](../uxs/UXS-012-consumer-home.md) (Discover), the competitive scan
-  `docs/wip/discovery-competitive-analysis-2026-10-09.md`
+  [UXS-012](../uxs/UXS-012-consumer-home.md) (Discover), an earlier competitive scan
+  (in git history)
 
 ## Context & Problem Statement
 

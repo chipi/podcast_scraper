@@ -5907,7 +5907,7 @@ def _select_host_voices(
     #    was never seated. Only when everything above seated nobody and the pool holds exactly one
     #    publishable name, so the forced naming has a single answer; never a heard guest nor a
     #    positional non-host (an ad voice is never a candidate: `share` leaves ads out).
-    #    Measured on the gold sets (docs/wip/HOST-SEAT-BY-QUESTIONS-2366.md): the voice picked is
+    #    Measured on the gold sets: the voice picked is
     #    the host in 47/48 (dev_v1), 177/186 (val_v1), 56/64 (val_v2).
     host_voices.extend(
         _question_lead_seat(

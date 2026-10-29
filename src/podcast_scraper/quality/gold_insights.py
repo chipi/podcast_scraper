@@ -20,8 +20,7 @@ Every bucket is split shown / hidden (``surfaceable is False`` = hidden). S7 cor
 the matcher's tier: fold-exact, token-subset, fuzzy or title (``same_person``'s rules in order),
 because the token-subset rule counts a bare "Josh" as "Josh Elman", and ASR spellings ("Josh
 Dossi" / "Josh Dawsey") count as wrong. Conservation by insight id is asserted: every insight of
-an included case lands in exactly one bucket. Read-only. Criteria:
-``docs/wip/changes/s7_s8_gold_insight_weighted.acceptance.md``.
+an included case lands in exactly one bucket. Read-only.
 
 On an eval run's output (a relabel or a rediarize renumbers the voices and writes a new run), the
 labels' voice ids are the labelled run's, so a lookup by the after voice id names the wrong person.

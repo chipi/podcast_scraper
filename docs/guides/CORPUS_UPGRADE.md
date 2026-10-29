@@ -167,7 +167,7 @@ prod → HEAD** — the gap that matters for the next deploy. Older-than-prod
 state is not tested; that gap is history.
 
 **Steps 1–3 below are automated** by the `Bump prod-state marker + pinned fixture`
-step in `.github/workflows/deploy-prod.yml`, which opens a PR
+step of the deployment's deploy step, which opens a PR
 titled `chore(prod-marker): bump to sha-<short> after prod deploy` on every
 green deploy. Step 4 is the human-in-the-loop step; the unit test in
 `test_pinned_fixture_shape.py` fails the PR if you skip it.

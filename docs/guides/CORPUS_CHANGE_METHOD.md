@@ -39,7 +39,7 @@ any other change is judged.
 | --- | --- | --- | --- |
 | D1 | **The builder writes the check, scoped to the builder's own list.** It passes by construction. | 0031's `verify` asks only "does each listed voice carry the listed name?" It cannot see an insight. `m0025_parity.py` compares names per voice. | The prediction is read by a fresh agent before a branch exists (step 5), which adds rows and never removes them; the acceptance criteria are the prediction plus the method's standing checks (§4a). At step 8 a fresh agent reads the gate report against the prediction and the after-state excerpts; recomputing a number is a test's job, never the review's (operator, 2026-10-27). |
 | D2 | **Every check measures change (old vs new); none measures the outcome against a target.** An episode broken under both counts as "agree". | `NAMING-COVERAGE-PLAN-2026-10-10.md` (deleted 2026-10-19; `git show ea1af916f:docs/wip/NAMING-COVERAGE-PLAN-2026-10-10.md`), "Why this was missed". The guardrail (#2334 S8) was moved later and never became an acceptance criterion. | The committed scoreboard command (*to build*, strategy 1a). `naming_gate.py` prints S7/S8 by default (*to build*, 1b). |
-| D3 | **Mechanics stand in for the outcome.** Undo byte-identity, order equivalence, quote integrity and CI green were reported as proof that the change works. | 0031 handover, 2026-10-17. | Report template (§5): outcome rows first, and a row without a measured value is rejected. Prod refuses a handover without the deploy table (§6; the rule must live in the prod session's own instructions). |
+| D3 | **Mechanics stand in for the outcome.** Undo byte-identity, order equivalence, quote integrity and CI green were reported as proof that the change works. | 0031 handover, 2026-10-17. | Report template (§5): outcome rows first, and a row without a measured value is rejected. Prod refuses a handover without the deploy table (§6; the rule must live in the deployment tooling's own instructions). |
 | D4 | **Verdicts come before the measurement that decides them.** | Seven instances on 2026-10-17: "judged", "13× faster", "0031 ready", "expect refusals", "nobody tracks this", "the pipeline keeps producing it", unverified numbers in a review brief. | The step-4 prediction is a dated record on the issue. The template rejects a row with "predicted: —". Step 8 compares against the prediction, not against the builder's account. |
 | D5 | **Lessons are memories, not gates.** | 10-10 lesson, 10-16 memory rule, 10-17 repeat. | Migration outcome hook (built 2026-10-18/19, `upgrade/outcome_hook.py`): a regime migration (0031 on) applies on prod only as it was measured on its clone. The shipped outcome is bound to the code digest and the step-8 verdict; prod's per-episode plan must equal the clone's or each difference is accepted with a cause; every episode's after-numbers are compared exactly; the receipt is written on every path past the apply. |
 | D6 | **The gold sets and gate measure per-voice accuracy, not insights under the right person.** An 80% guest weighs the same as a 1% clip. A run that reads "0 better, 0 worse" is reported as a pass. | val_v1: 2,010 of 2,382 voices scored. Gates #2362–#2366 read `REGRESSIONS 0 / FIXES 0` on every set. | S7/S8 in `naming_gate.py` on the raw-voice join (*to build*, 1b). A run that moves 0 voices prints "no effect", never "pass", next to the insight-weighted delta. |
@@ -376,11 +376,9 @@ CORRECTIONS SENT: <any earlier number this changes, and to whom>
   file paths, a 5-minute budget and a token budget, and is bound by §4a: it reads, it runs nothing
   that walks the corpus, it produces no numbers, it returns INCOMPLETE on overrun, and it names a
   doubted number instead of re-measuring it. Earlier reviews are inputs, not evidence.
-- **Prod session:** refuses any handover without the outcome table, the plan diff and the commands.
-  The prod session loads its instructions from the agentic-ai-homelab repo, not from this one, so
-  the rule lives in the homelab `corpus-migration` and `prod-batch-chain` skills and in the global
-  `workstation/config/AGENTS.md` (operator approved, 2026-10-17). Until it is merged there, it is a
-  reminder, not a gate.
+- **Deployment side:** refuses any handover without the outcome table, the plan diff and the commands.
+  The deployment loads its instructions from the operator's deployment tooling (outside this
+  repository), so the rule lives there. Until it is merged there, it is a reminder, not a gate.
 
 ## 7. Changing the method
 
@@ -429,5 +427,5 @@ From the 0034 / 0035 / 0036 release (records in `docs/wip/changes/`):
    `NAMING_GATE_RUNBOOK.md` (whose "Accepting a change" and "Absolute coverage" sections point
    here). Referenced from the repo `AGENTS.md`, in the mkdocs nav, `docs-preflight` green before
    commit.
-5. **Where the prod session's refusal rule is written:** the homelab skills and global AGENTS.md
-   (§6). Approved.
+5. **Where the deployment's refusal rule is written:** the operator's deployment tooling (outside
+   this repository, §6). Approved.

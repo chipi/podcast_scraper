@@ -10,7 +10,7 @@
   - `docs/rfc/RFC-101-personal-knowledge-corpus.md` (resurfacing selection reused here)
   - `docs/rfc/RFC-068-corpus-digest-api-viewer.md` (the **corpus-wide** operator digest — explicitly NOT reused; different scope)
 - **Related ADRs**:
-  - `docs/adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md` (queue + last-mile decision)
+  - `ADR-144 (not in this repository)` (queue + last-mile decision)
   - `docs/adr/ADR-145-channel-agnostic-outbox-seam.md` (the seam as an architectural boundary)
 - **Related epic**: #1413 (delivery children #1412 infra, #1414 consent, #1415 assembler, #1416 seed)
 
@@ -95,7 +95,7 @@ file is the source of truth. The infra service (#1412) mirrors the same fixtures
 shape and endpoints are unchanged except the additive `expires_at`. Ratified: (1) `/status` idempotent
 per `id`; (2) `/pending` filters **current** consent, not the snapshot; (3) `expires_at` TTL added;
 (4) `failed` is an **always-terminal** dead-letter state; (5) push `410/404` → `status: "bounced"`
-suppression; (6) `/internal/*` auth is a tailnet-only shared token `INTERNAL_OUTBOX_TOKEN`. The
+suppression; (6) `/internal/*` auth is an internal-network-only shared token `INTERNAL_OUTBOX_TOKEN`. The
 `unsubscribe_ref` field name (was `unsubscribe_token`) is the ratified spelling — infra adopts `ref`.
 
 ### 2. Outbox transport (app exposes; delivery worker polls)
@@ -119,9 +119,9 @@ and the **Resend** worker itself.
   succeeded-but-unacked send); `failed` is **always-terminal** (the worker dead-letters as `failed`
   after N retries); a dead push subscription (`410 Gone` / `404`) reports `status: "bounced"` so the
   app suppresses it.
-- Internal service-to-service authentication uses a **tailnet-only shared token
-  `INTERNAL_OUTBOX_TOKEN`** (staged in the homelab sops-env + the app secret store; both halves must
-  agree the name to connect).
+- Internal service-to-service authentication uses a **internal-network-only shared token
+  `INTERNAL_OUTBOX_TOKEN`** (provisioned on both sides via the deployment's secret store; both halves
+  must agree the name to connect).
 - The app writes envelopes to a per-user (or global) append-only outbox on enqueue; the delivery
   worker leases + acks. Dedup + retry are keyed on `envelope.id`. The **app consent store is the ONLY
   suppression authority** (no external suppression list) — dropping a second queue removes the
@@ -157,7 +157,7 @@ deltas + auto-picks. Emit a `DeliveryEnvelope`. Wired into the existing in-proce
 
 ### 5. Infra side — the delivery service (#1412; specified in ADR-144, revised to Resend)
 
-A **thin stateless worker** on the homelab, tailnet-only, 443-egress-only. Drains the outbox →
+A **thin stateless worker** in the deployment's private network, egress-only. Drains the outbox →
 renders (`template` → Jinja) → delivers (Web Push via VAPID; email via the **Resend HTTP API**) →
 reports status (§2). Bounce/complaint via **cursor-based polling of Resend's events API** (no public
 webhook — the service has no public ingress). No Listmonk/Postgres/Redis: the **app outbox already is

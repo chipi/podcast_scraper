@@ -24,10 +24,9 @@ Practical guides for using and developing Podcast Scraper.
 | ------- | ------------- |
 | [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup, workflow, and [GI/KG viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — `make serve` / `serve-api` / `serve-ui`, `make test-ui-e2e` |
 | [Release Playbook](RELEASE_PLAYBOOK.md) | Standing plan before a public tag: eval/profiles policy (major vs minor), docs gates, release notes pattern, alignment with `vX.Y.Z` tags |
-| VPS multi-app onboarding | Add other Docker Compose apps on the same Tailscale VPS without new IaaC; isolation, GitOps, ports |
 | [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/`, env files, Makefile targets for the viewer |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI: `/api/*` (artifacts, CIL, search with optional **`lifted`**, explore, Corpus Library, index rebuild), OpenAPI `/docs`, static SPA, tests under `tests/integration/server/` |
-| [Notifications & Delivery Guide](NOTIFICATIONS_GUIDE.md) | End-to-end: subscriptions (Web Push + native iOS APNs), consent matrix, digest/recap/recommendations generation, the `/internal/outbox` seam, and the homelab last-mile worker (Resend / Web Push / APNs). Governed by ADR-144/145, RFC-110/122 |
+| [Notifications & Delivery Guide](NOTIFICATIONS_GUIDE.md) | End-to-end: subscriptions (Web Push + native iOS APNs), consent matrix, digest/recap/recommendations generation, the `/internal/outbox` seam, and the external last-mile delivery worker (Resend / Web Push / APNs). Governed by ADR-144/145, RFC-110/122 |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline flow, module roles, quirks, run tracking |
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
@@ -38,8 +37,6 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [SRE book infra critique](SRE_BOOK_INFRA_CRITIQUE.md) | Reliability rubric (SRE themes): SLIs/SLOs, error budget, toil, alerting, change risk, incidents — for reviewing runbooks, workflows, and ops design |
-| DR drill runbook | Drill-only GitHub workflows, typed confirms, orchestrator vs piecemeal paths |
-| Corpus snapshot manifest and restore | **Single hub:** local **`make`** vs GitHub Actions (prod, pre-prod, DR) for `snapshot.manifest.json` — [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) |
 
 ## Testing
 
@@ -77,7 +74,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Knowledge Graph](KNOWLEDGE_GRAPH_GUIDE.md) | KG: **`kg.json`**, entities/topics/relationships; **bridge** aligns KG with GIL for APIs; same [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [MCP server — tool reference & user guide](MCP_SERVER_GUIDE.md) | **RFC-095** generic MCP server: all 38 read tools grouped by family, the **resolve→pivot→chain** cross-surface workflow, Claude Desktop/Code config, maintenance — for humans and agents |
 | [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Preprocessing profiles (`cleaning_v4`, `cleaning_hybrid_after_pattern`, …) for transcript cleaning and hybrid_ml MAP input (RFC-042 / Issue #419) |
-| [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs); same compose shape on prod VPS — Hosting and infrastructure |
+| [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs); same compose shape on a server |
 | [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) | Running podcast_scraper as a single-container service (supervisor / systemd / scheduler-driven) |
 | [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) | LLM-only vs ML-enabled pipeline image tiers |
 

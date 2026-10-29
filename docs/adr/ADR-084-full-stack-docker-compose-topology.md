@@ -9,7 +9,7 @@
 
 The stack historically ran as separate laptop processes (`make serve-api`, Vite dev server, ad-hoc
 pipeline). That hid production gaps: no Nginx-served Vue build, no single compose story for CI or
-VPS deploys, and no shared volume contract between pipeline writers and API readers.
+production deployments, and no shared volume contract between pipeline writers and API readers.
 
 ## Decision
 
@@ -34,7 +34,7 @@ laptop development.
 
 ## Rationale
 
-- **Prod parity** — VPS deploys use the same image set and volume semantics as CI and local
+- **Prod parity** — production deployments use the same image set and volume semantics as CI and local
   **`make stack-test-*`**.
 - **Clear boundaries** — Nginx never reads corpus files; API + pipeline share data; viewer is static
   with reverse-proxy only.
@@ -45,14 +45,14 @@ laptop development.
 1. **Single mega-container** — Rejected; couples API ML deps with pipeline image bloat and slows
    iteration.
 2. **API serves Vue static in-process everywhere** — Rejected for this topology; Nginx matches
-   TLS and caching expectations on tailnet / prod.
+   TLS and caching expectations in private and production deployments.
 3. **Swarm or Nomad** — Rejected for same footprint reasons as Kubernetes.
 
 ## Consequences
 
 - **Positive**: One **`docker compose up`** story for demos, CI, and operator docs.
 - **Negative**: Large **`pipeline`** image pulls; disk and CI time must be budgeted.
-- **Neutral**: **`compose/docker-compose.prod.yml`** and host **`deploy.sh`** layer env-specific
+- **Neutral**: The deployment's own compose overlay and deploy script layer env-specific
    flags without changing the three-service shape.
 
 ## Implementation Notes
@@ -65,4 +65,3 @@ laptop development.
 
 - [RFC-079: Full-stack Docker Compose topology](../rfc/RFC-079-full-stack-docker-compose.md)
 - [ADR-085: Ephemeral stack-test gate](ADR-085-ephemeral-stack-test-integration-gate.md)
-- ADR-082: GitOps app deploy (promotion context)

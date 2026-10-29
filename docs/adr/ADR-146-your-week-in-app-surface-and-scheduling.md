@@ -3,13 +3,13 @@
 - **Status**: Accepted — 2026-08-07. Implemented on `feat/your-week` (#1412).
 - **Date**: 2026-08-07
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
-- **Related**: [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (the outbox seam this reuses), [ADR-144](ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md) (the delivery worker), [ADR-116](ADR-116-privilege-split-public-control-api.md) (app_only player), [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md), [RFC-101](../rfc/RFC-101-personal-knowledge-corpus.md), [PRD-046](../prd/PRD-046-delivery-and-curation.md)
+- **Related**: [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (the outbox seam this reuses), the external delivery worker, [ADR-116](ADR-116-privilege-split-public-control-api.md) (app_only player), [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md), [RFC-101](../rfc/RFC-101-personal-knowledge-corpus.md), [PRD-046](../prd/PRD-046-delivery-and-curation.md)
 - **Tracking**: epic #1413, infra slice #1412
 
 ## Context
 
 The personal digest ("Your Week") shipped as **email-only** (RFC-110): the app assembles a rollup
-(revisit + new-in-follows + trending-in-your-corpus) and enqueues a `DeliveryEnvelope`; the homelab
+(revisit + new-in-follows + trending-in-your-corpus) and enqueues a `DeliveryEnvelope`; the external delivery
 worker renders + sends it. Two problems surfaced once it was live:
 
 1. **The capability was gated behind email.** Turning the digest email off (a legitimate choice) lost
@@ -63,16 +63,16 @@ viewer's Digest tab / corpus digest), and was being reused for the personal one.
   request (threaded via an optional `catalog=` param — the email path omits it and is unchanged), so
   `/your-week` is one scan, not two.
 - **Follow-ups (known, not blocking):** the deep-rename of the internal `app_digest_personal` module +
-  the `your-week-digest.v1` template string stays deferred (it touches the homelab worker's vendored
-  schema — a coordinated cross-repo change). The homelab-side dead-man alert (`delivery-scheduler-silent`,
-  log-absence of the sidecar's ticks) is wired in the homelab repo but must be provisioned **after**
+  the `your-week-digest.v1` template string stays deferred (it touches the delivery worker's vendored
+  schema — a coordinated cross-repo change). The deployment's dead-man alert (`delivery-scheduler-silent`,
+  log-absence of the sidecar's ticks) must be provisioned **after**
   the sidecar is deployed (log-absence can't tell "died" from "not deployed yet").
 
 ## Alternatives considered
 
 - **In-process scheduler on the player** — rejected: app_only disables it by design (ADR-116);
   re-enabling would punch a hole in the least-privilege posture for a scheduling concern.
-- **Host systemd timer** — rejected: the deploy user's sudo is scoped to `systemctl restart caddy`
-  only; it cannot install units. The sidecar needs no host privileges.
+- **Host systemd timer** — rejected: the deploy user cannot install host services
+  (units). The sidecar needs no host privileges.
 - **Add `image_url` to the shared assembler / envelope** — rejected: it would change the frozen seam
-  contract + the homelab worker's vendored schema for an in-app-only rendering concern.
+  contract + the delivery worker's vendored schema for an in-app-only rendering concern.

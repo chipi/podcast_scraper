@@ -16,7 +16,7 @@ Everything here follows from one split.
 | Made by | `make mobile-build-internal`, `fastlane device`, `assembleDebug` | `make mobile-build-release`, `fastlane beta`, `bundleRelease` |
 | Goes to | the operator's own phone | TestFlight / Play internal testing |
 | Dev↔prod tier switch | present, in Settings › About | **absent** |
-| Dev API base (tailnet host) | baked in | **absent** |
+| Dev API base (private host) | baked in | **absent** |
 | App icon | muted | full colour |
 | `__MOBILE_INTERNAL__` | `true` | `false` |
 
@@ -190,7 +190,7 @@ point assumed and each assumption was wrong:
 ```text
 OK: preview gate credential absent from the release bundle
 OK: tier switch absent from the release bundle
-OK: no private tailnet hostname in the release bundle
+OK: no private hostname in the release bundle
 ```
 
 The reasoning is in the original credential check and applies to all three: a build-time
@@ -208,7 +208,7 @@ MOBILE_RELEASE=1 npm install && npm run build
 A variable prefix binds to **one** command. `npm install` does not read `MOBILE_RELEASE`;
 `npm run build` — the only command that does — ran without it. So `__MOBILE_INTERNAL__` was `true`
 in every release build ever produced, and the prod-locking the target advertises never happened.
-Two things shipped because of it: the dev↔prod tier switch, and the build host's **private tailnet
+Two things shipped because of it: the dev↔prod tier switch, and the build host's **private
 hostname** (`resolveDevApiBase()` derives it from the build machine when `VITE_DEV_API_BASE` is
 unset). Fixed with `export`, and the assertions above now stand where the assumption was.
 

@@ -20,7 +20,7 @@ Built on `feat/next-arc-rfcs` (unpushed). **Slices 1–4 landed + a fable-5 revi
 
 - **Slice 1** — `mcp_access` entitlement (orthogonal boolean on the user profile), PAT store
   (`clp_mcp_…`, SHA-256-hashed, O(1) index), `/api/app/mcp/tokens` CRUD, internal verify seam
-  (`POST /internal/mcp/verify`, tailnet-gated) that re-checks entitlement live.
+  (`POST /internal/mcp/verify`, internal-network-only) that re-checks entitlement live.
 - **Slice 2** — HTTP transport (`build_http_app` wraps `streamable_http_app()`), pure-ASGI
   `McpAuthMiddleware` (bearer → fail-closed verify → `current_mcp_user` contextvar), `run_server(transport=…)`.
 - **Slice 3** — OAuth 2.1 authorization server: DCR, PKCE-S256, single-use codes, rotating tokens,
@@ -31,18 +31,8 @@ Built on `feat/next-arc-rfcs` (unpushed). **Slices 1–4 landed + a fable-5 revi
 - **Review-hardening (fable-5)** — verify runs off the event loop (DoS fix); consent screen discloses
   the redirect origin + registration + a Deny button + clickjacking headers; scope allow-listed;
   DCR client/redirect_uri caps; expired-grant purge; Origin allow-list (DNS-rebind); scope carried in
-  the verify response; nginx proxies the root AS metadata.
-- **Deploy plumbing (built, 2026-08-06)** — the remote surface is wired end-to-end and
-  locally smoke-tested (discovery `200` + token-less `POST /mcp` → `401` with the `resource_metadata`
-  pointer). `compose/docker-compose.player-public.yml` gains an `mcp` service (same low-priv image,
-  `podcast mcp --transport http`, corpus RO, verifies via `api`'s tailnet-only seam); the api image
-  bundles the MCP SDK; a new `infra/caddy/mcp.caddy` fronts `mcp.<domain>`; `player.caddy` exempts the
-  OAuth AS paths from the coming-soon gate; the player nginx proxies the root AS metadata;
-  `deploy-player.sh` + `deploy-player.yml` stage `INTERNAL_MCP_TOKEN` + derived issuer/resource URLs
-  and install the `mcp` vhost **only when MCP is enabled**. Connector URL (what a client pastes) =
-  `https://mcp.<domain>/mcp`. See `docs/guides/PLAYER_PUBLIC_LAUNCH.md` §MCP.
-- **Deploy-time to turn it on** (operator): add DNS `A mcp.<domain> → VPS`; set GH secret
-  `PLAYER_INTERNAL_MCP_TOKEN`; run the player deploy. Unset secret = MCP stays fully inert.
+  the verify response; the front proxy serves the root AS metadata.
+- Deployment wiring is out of scope for this repository.
 - **Revocation + audit + rate-limit + aud (built 2026-08-06)** — user-facing per-connection
   disconnect (`GET`/`DELETE /api/app/mcp/connections`; forgets consent + drops the client's live
   grants); `app_audit` over the security events; **audience-bound tokens** (RFC 8707 — `aud` = the
@@ -57,10 +47,9 @@ Built on `feat/next-arc-rfcs` (unpushed). **Slices 1–4 landed + a fable-5 revi
 
 RFC-095 shipped a **stdio** MCP server: 38 tools over the corpus (search, graph, insights, catalog),
 run as a local subprocess of the agent client. That is single-user, local-only, no network. This RFC
-adds the deferred **remote transport** (RFC-095 OQ-1) so the platform hosts **one** MCP server on
-production that any entitled platform user reaches with **their own** cloud agent — bring-your-own-
+adds the deferred **remote transport** (RFC-095 OQ-1) so the platform hosts **one** MCP server that any entitled platform user reaches with **their own** cloud agent — bring-your-own-
 model, D6-safe (the model is the user's, never ours). The **same server** supports both transports
-(stdio for local dev, Streamable HTTP for prod). Because claude.ai custom connectors require
+(stdio for local dev, Streamable HTTP for hosted use). Because claude.ai custom connectors require
 **per-user OAuth** and the MCP spec makes **OAuth 2.1 + PKCE** the standard for *public* remote
 servers, v1 authenticates via an **OAuth 2.1 authorization server we host**; a static
 **personal-access token (PAT)** is a secondary convenience for CLI/dev clients (Claude Code, Cursor,
@@ -81,7 +70,7 @@ the platform's first public authenticated machine-to-machine ingress.
 
 ## Goals
 
-1. **One server, two transports.** stdio (local) + remote Streamable HTTP (prod), same tool set,
+1. **One server, two transports.** stdio (local) + remote Streamable HTTP (hosted), same tool set,
    launch-flag selected. No fork of the tool layer.
 2. **OAuth 2.1 authorization server (primary).** claude.ai / Claude Code / Cursor connect via the
    standard MCP OAuth flow (PKCE, Protected Resource Metadata, token validation), authenticating as a
@@ -110,7 +99,7 @@ the platform's first public authenticated machine-to-machine ingress.
 
 `run_server(transport, host, port, corpus_dir)` (the `podcast_obs` MCP already has this shape:
 `stdio | sse | streamable-http`) is adopted for the corpus MCP. CLI:
-`podcast mcp --transport stdio` (local, auth-free, local trust) or `--transport http …` (prod, auth
+`podcast mcp --transport stdio` (local, auth-free, local trust) or `--transport http …` (hosted, auth
 required). The tool registry is built once and served over whichever transport.
 
 ### 2. Auth (OAuth 2.1 primary; PAT secondary)
@@ -166,10 +155,10 @@ this is the shared-credential / power-user convenience the docs bless for non-pe
   app's per-user store (RFC-098). **Decision**: the MCP HTTP server **calls a small internal
   verification endpoint on the app** (`POST /internal/mcp/verify` — token/hash → user_id +
   entitlement + scope) rather than mounting the file store directly, so the two processes stay decoupled and the
-  store stays app-owned. (Tailnet-only internal call, same pattern as RFC-110's outbox seam.)
+  store stays app-owned. (Internal-network-only call, same pattern as RFC-110's outbox seam.)
 - **Token lookup is O(1)**: a `mcp_tokens_index` (SHA-256(token) → user_id) maintained by the token
   CRUD, not an O(users) scan per connect.
-- **Deployment**: its own vhost behind the shared Caddy edge (ADR-114), TLS-terminated, public.
+- **Deployment**: its own vhost behind the reverse proxy (ADR-114), TLS-terminated, public.
 
 ### 5. Connection management UI (both surfaces)
 
@@ -194,7 +183,7 @@ THREAT_MODEL (not in this repository) gains an MCP entry covering: OAuth code-in
 `Mcp-Session-Id` bound to the authenticating principal** (session-hijack), **Origin validation**
 (MCP-spec requirement; DNS-rebinding class), cross-user access (every call scoped to the token's user;
 vacuous in shared v1, load-bearing under RFC-114 — tests written against the future scope), DoS
-(app-level per-principal rate limits — the Caddy edge is IP-level only), TLS-only, and a named
+(app-level per-principal rate limits — the reverse proxy is IP-level only), TLS-only, and a named
 out-of-scope: transcript content flowing into the user's agent is third-party text (prompt-injection
 belongs to the user's agent). Audit connect/auth-fail via `app_audit`.
 

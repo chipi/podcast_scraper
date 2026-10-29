@@ -15,7 +15,7 @@ paged from the server.
 
 ## Background & Context
 
-The competitive scan (`docs/wip/discovery-competitive-analysis-2026-10-09.md`) found that no
+An earlier competitive scan (in git history) found that no
 podcast app recommends from what a listener highlighted, and that a grounded "why" is rare.
 Recommendation surfaces elsewhere fail in known ways: popularity feedback loops, several rails
 doing the same job, recommendations inside "mine" surfaces, and confabulated explanations.

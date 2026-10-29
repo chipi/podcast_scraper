@@ -4,16 +4,16 @@
 - **Date**: 2026-08-02
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Related**: [ADR-044](ADR-044-local-llm-backend-abstraction.md) (local LLM backend
-  abstraction), [ADR-143](ADR-149-corpus-reprocess-methodology.md) (reproducible
+  abstraction), [ADR-149](ADR-149-corpus-reprocess-methodology.md) (reproducible
   single-variable corpus arc — the reason this matters now), [ADR-124](ADR-124-model-governance-registry-sanctioned.md)
-  (registry-sanctioned model governance); agentic-ai-homelab `infra/vllm/autoresearch/`
-  (the compose that owns `--served-model-name`)
+  (registry-sanctioned model governance); the model-serving compose (outside this
+  repository) that owns `--served-model-name`
 
 ## Context
 
-DGX-served models reach the pipeline over vLLM's OpenAI-compatible HTTP API on `:8003`. Rather
+Models served by a vLLM server on a GPU host reach the pipeline over vLLM's OpenAI-compatible HTTP API. Rather
 than a first-class provider, that path was bolted onto the existing `openai` provider: a
-StageOption sets `provider="openai"` with the endpoint pointed at vLLM. The homelab starts vLLM
+StageOption sets `provider="openai"` with the endpoint pointed at vLLM. The serving side starts vLLM
 with `--served-model-name autoresearch` — a *stable alias* so repo config need not change when
 the slot's weights swap — so every DGX StageOption sets `model="autoresearch"`, and the real
 weights survive only in a comment / `extra_settings.underlying_hf_model`.
@@ -33,13 +33,13 @@ Three concrete defects (verified against the tree, branch `feat/naming-arc-and-c
    So the wire model + endpoint are governed by **nothing**.
 2. **The alias hides identity → reproducibility is violated.** Even the hand-authored key reads
    `autoresearch`, so **you cannot read a profile and know what produced the corpus**; the only
-   pin is a human loading the right compose. Directly violates ADR-143's single-variable rule.
+   pin is a human loading the right compose. Directly violates ADR-149's single-variable rule.
 3. **The abstraction is asymmetric.** Ollama options self-describe (`provider="ollama"`,
    `model="qwen3.5:35b"`); vLLM options name a *transport* (`openai`) and an *alias*
    (`autoresearch`). The layer types by wire protocol, not serving stack, so vLLM has no identity.
 
-`autoresearch` is the historical name of the single GB10 vLLM slot (born for judge/scoring runs),
-leaking into production model identity. The slot is GPU-mode-swapped to serve whatever weights are
+`autoresearch` is the historical name of the single vLLM slot (born for judge/scoring runs),
+leaking into production model identity. The slot is swapped to serve whatever weights are
 loaded — sometimes a judge, sometimes the production naming/summarization model. The v2.5 corpus
 arc (Gemini → DGX-local LLM swap) makes a reproducible, self-describing, **governed** representation
 a prerequisite (**Step 0**), not a nicety.
@@ -66,12 +66,12 @@ Verify the served model fail-closed at init. Take every DGX LLM stage local toge
    `REGISTRY_GOVERNED_FIELDS`; add `_emit_summary_model` / `_emit_speaker_model`-style routing
    (precedent: `_emit_transcription_model`) so the materializer writes the **provider-consumed**
    keys, killing the hand-authored block. **Materialize the endpoint in *template* form**
-   (`http://${DGX_TAILNET_HOST:-…}:8003/v1`), never `resolve_endpoint()` output (which bakes the
+   (`http://${LLM_HOST}:<port>/v1`), never `resolve_endpoint()` output (which bakes the
    materializer-runner's env or a fail-fast sentinel into the YAML). DGX StageOptions become
    `provider="vllm"`, `model="<real HF id>"` (e.g. `NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`);
    `underlying_hf_model` + `autoresearch` are removed.
 3. **Every producing LLM call goes DGX-local — one model choice across the whole series (closes
-   B1, the corpus-corrupting one).** *Single-variable* (ADR-143) means **one LLM choice applied
+   B1, the corpus-corrupting one).** *Single-variable* (ADR-149) means **one LLM choice applied
    across every producing call**, not one call: the single DGX model replaces Gemini for
    **summary, naming/labeling (`ner`), GI insight, KG extraction, and quote/entailment
    grounding** — no cloud LLM is left in a DGX-local corpus. Summary, GI-insight, and KG already
@@ -125,7 +125,7 @@ non-negotiable for a reproducibility ADR); run-suffix naming (cosmetic).
 A hard cutover breaks reruns forever: frozen `data/eval/configs/` (never-mutate) and live sweep
 drivers / judges (`evaluation/judges/vllm_chat.py`) reference `autoresearch`.
 
-- **Phase A.** Homelab serves **both** names `[<real-id>, autoresearch]`, **real id first**
+- **Phase A.** The serving side serves **both** names `[<real-id>, autoresearch]`, **real id first**
   (`/v1/models data[0].id` is the first entry; the init check keys off set-membership so order is
   safe, but old smoke configs asserting `data[0]` will fail during transition — expected).
 - **Phase B.** Land this repo's change requesting the real id; migrate **live** (non-frozen) eval
@@ -133,8 +133,8 @@ drivers / judges (`evaluation/judges/vllm_chat.py`) reference `autoresearch`.
 - **Phase C.** Drop the alias. Frozen `data/eval/configs/` referencing `autoresearch` are
   **accepted as retired** (never-mutate → not rewritten); new real-id configs are created
   downstream. We do **not** keep serving the alias to preserve old reruns.
-- **Unverified, verify on the DGX first:** what `response.model` echoes under multi-name serving on
-  the pinned `vllm:26.05` build. If per-call equality is chosen it must match empirically; the
+- **Unverified, verify on the GPU host first:** what `response.model` echoes under multi-name serving on
+  the pinned vLLM build. If per-call equality is chosen it must match empirically; the
   startup set-membership check does not depend on it.
 
 ## Consequences
@@ -146,8 +146,8 @@ double-serving as a covert vLLM shim.
 
 **Negative:** large surface — a namespace refactor of a 2,780-line provider, ~9 dispatch/enum
 sites, 4 pricing/governance files, endpoint-materialization plumbing, and the GI grounding flip.
-Cross-repo **phased** migration (homelab + repo, three phases); losing the floating alias means a
-homelab model swap now requires a matching registry/profile edit (the point, but friction); frozen
+**Phased** migration (serving side + repo, three phases); losing the floating alias means a
+serving-side model swap now requires a matching registry/profile edit (the point, but friction); frozen
 eval configs pin `autoresearch`, so the alias can only be *retired for live tooling*, not deleted.
 
 **Neutral:** the `OpenAICompatibleProvider` extraction is a config-namespace parameterization
@@ -182,7 +182,7 @@ non-DGX `openai` (cloud) path is untouched.
 - `config/` + `src/podcast_scraper/data/` — `pricing_assumptions.yaml`, `known_models.yaml` (both copies)
 - `workflow/helpers.py`, `workflow/metadata_generation.py`, `scripts/eval/onboard_model_smoke.py`,
   `evaluation/judges/vllm_chat.py`, `materialize_profiles.py`
-- agentic-ai-homelab `infra/vllm/autoresearch/docker-compose.yml` — owns `--served-model-name`
+- the model-serving compose (outside this repository) — owns `--served-model-name`
 
 ## As-built amendment (2026-08-03)
 
@@ -193,7 +193,7 @@ implementation extended/changed the plan:
    DGX profiles to consume **nothing** from the internet — every LLM stage AND every fallback is
    DGX-local. As built (prod_dgx_full, eval_default):
    - summary / naming / GI / KG / quote / entailment → `vllm` (real Qwen id);
-   - summary fallback → **DGX-local ollama** (`:11434`), not cloud gemini;
+   - summary fallback → **DGX-local ollama**, not cloud gemini;
    - transcription → DGX-whisper + local in-process whisper + MOSS coverage failover (**no cloud
      Whisper**); diarization → local pyannote (**no cloud deepgram**);
    - a test asserts all three load with zero cloud API keys and hold no cloud provider anywhere.
@@ -211,43 +211,32 @@ LLM tag lives in `extra_settings['speaker_llm_model']` → `{ns}_speaker_model`,
 and ollama. **This also fixed a latent bug**: the vllm naming option had been leaking its Qwen HF
 id into `ner_model` (a spaCy field) — `spacy.load()` would have crashed if the entity stage ran.
 
-**Phased homelab migration (S3) — NOT YET DONE.** The registry/profiles now request the real HF id
-on the wire; the homelab vLLM must serve under that `--served-model-name` (dual-name transition)
-before a live run passes the B3 check. Prepared as a handoff, not deployed — see the session
-handover in `docs/wip/`.
+**Phased serving-side migration (S3).** The registry/profiles now request the real HF id on the wire; the serving side must serve under that `--served-model-name` (dual-name transition) before a live run passes the B3 check.
 
 ## Amendment 2026-10-13 — through the LiteLLM gateway (#2342)
 
 The DGX profiles (`prod_dgx_full`, `dev_dgx_full`, `eval_default`, `fixture_validation_dgx`) now
-reach the DGX vLLM **through the LiteLLM gateway**, so every DGX call is metered and traced in
-Langfuse like every other model. Before this, none of the pipeline's DGX calls reached Langfuse
-(0 in 30 days on 2026-10-13, while `llm_cost` showed ~1,190 a day).
+reach the vLLM server **through a LiteLLM gateway**, so every DGX call is metered and traced in the
+tracing backend like every other model. Before this, none of the pipeline's DGX calls were traced.
 
 Everything this ADR decides still holds, because the gateway is a **transparent proxy**:
 
 - The provider is still `vllm` (`VLLMProvider`), unchanged. Only `vllm_api_base` changes, to
-  `${LITELLM_API_BASE:-http://homelab:4001/v1}` (the registry StageOption's endpoint; prod sets
-  `LITELLM_API_BASE` in the box `.env`), and `vllm_api_key_env: LITELLM_API_KEY`, the gateway key
-  the pipeline already holds.
+  `${LITELLM_API_BASE}` (the registry StageOption's endpoint), and `vllm_api_key_env:
+  LITELLM_API_KEY`, the gateway key the pipeline already holds.
 - The gateway alias **is** the real HF model id (`NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4`), so the
   wire model, the fail-closed served-model check (`GET /v1/models`) and telemetry
-  (`provider: vllm`, the real id) are as before. ADR-143's single-variable rule is untouched.
+  (`provider: vllm`, the real id) are as before. ADR-149's single-variable rule is untouched.
 - vLLM's `POST /tokenize` (#2050 exact token counts) has no OpenAI-API equivalent, so the gateway
-  passes it through to the DGX (`pass_through_endpoints`, `auth: false`, because per-key
+  passes it through to the vLLM server (an unauthenticated pass-through, because per-key
   pass-through permission is LiteLLM Enterprise-only; the route only counts tokens).
 - The alias is `$0` and has **no fallback of any kind**: a gateway fallback would turn a local call
-  into a paid cloud one, which "fully airgapped" (Key decision 1) rules out. The gateway runs on
-  our own hosts (the mini for dev, the prod VPS), so inference stays on our hardware; what is
-  added is one hop, and LiteLLM's Langfuse callback sending prompts to our homelab Langfuse.
+  into a paid cloud one, which "fully airgapped" (Key decision 1) rules out. The gateway and its
+  tracing backend are self-hosted, so inference stays on self-hosted hardware; what is added is one
+  hop, and the gateway's tracing callback sending prompts to the self-hosted tracing backend.
 - The gateway returns vLLM's `maximum context length` 400 text unchanged, so the learn-from-400
   recovery still works. Its `/v1/models` does not carry `max_model_len`; the provider then keeps
-  the declared window (65,536), which is what the DGX serves.
+  the declared window (65,536), which is what the server serves.
 
-Verified 2026-10-13, same fixture episode on `dev_dgx_full`, direct ×2 and through the gateway:
-every prompt built only from the transcript (summary, speaker detection, KG, the first GI chunk) has
-the same token count on both routes; the prompts built on earlier sampled output differ, and differ
-as much between the two direct runs. `/tokenize` returns the same token ids on both routes.
-
-Not moved: translation (TranslateGemma on `:8005`) still calls the DGX directly. It also uses
-`/tokenize`, on a different port, and one gateway path can pass through to one target only (see
-issue #2342).
+Not moved: translation still calls its model server directly. It also uses `/tokenize`, and one
+gateway path can pass through to one target only (see issue #2342).

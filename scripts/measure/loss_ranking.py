@@ -6,8 +6,7 @@
 
 Writes ``gold_wrong.jsonl``, ``corpus_hidden.jsonl``, ``seat_check.jsonl`` and ``summary.json`` to
 ``--out``, which must lie outside the git checkout: the rows carry gold-derived names, which are
-never committed. Prints the summary. Definitions: ``podcast_scraper.quality.loss_ranking``; the
-record: ``docs/wip/changes/loss_ranking.md``.
+never committed. Prints the summary. Definitions: ``podcast_scraper.quality.loss_ranking``.
 """
 
 from __future__ import annotations

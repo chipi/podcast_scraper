@@ -5,8 +5,7 @@ Prior to #1205 the endpoint ran up to eight ``_band`` invocations in a
 naked ``ThreadPoolExecutor.map`` — each of which called
 ``run_corpus_search`` and, transitively, sentence-transformers / sentencepiece
 / LanceDB. Concurrent first-touch of those native layers SIGSEGVed the api
-container mid-request (exit 139). See ``docs/wip/DIGEST-TOPICBAND-THREAD-UNSAFETY-ARM64.md``
-for the original arm64 report and commits ``b6955854`` / ``8b5a1c07`` /
+container mid-request (exit 139). See commits ``b6955854`` / ``8b5a1c07`` /
 ``62c049e5`` / ``0fe0854b`` for the LanceDB-side story.
 
 The current shape is: run the first band **inline** (serial warmup so the
@@ -147,6 +146,5 @@ def test_first_topic_band_completes_before_any_second_band_starts(
             f"(later.start={later['start']:.4f}, first.end={first['end']:.4f}). "
             f"This is the concurrent-first-touch shape that SIGSEGVs the api "
             f"container on arm64 and (per #1205) on x86_64 CI too. See "
-            f"docs/wip/DIGEST-TOPICBAND-THREAD-UNSAFETY-ARM64.md and commits "
-            f"b6955854 / 8b5a1c07 / 62c049e5 / 0fe0854b."
+            f"commits b6955854 / 8b5a1c07 / 62c049e5 / 0fe0854b."
         )

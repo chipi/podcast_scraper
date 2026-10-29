@@ -16,7 +16,7 @@ operational fields. Supply those via CLI flags.
 | [`local.yaml`](local.yaml) | Fully local / privacy-first, $0 | Whisper small.en + spaCy trf + qwen3.5:9b bundled |
 | [`local_dgx_balanced.yaml`](local_dgx_balanced.yaml) | Local DGX workstation | Whisper + spaCy trf + Ollama bundled + DGX pyannote |
 | [`local_dgx_full.yaml`](local_dgx_full.yaml) | Local DGX full ML stack | Whisper + spaCy trf + hybrid ML + DGX pyannote |
-| [`cloud_with_dgx_primary.yaml`](cloud_with_dgx_primary.yaml) | Prod: DGX Whisper + pyannote, cloud fallback | `tailnet_dgx_whisper` + `tailnet_dgx` diarize + Gemini summary ([ADR-096](../../docs/adr/ADR-096-dgx-spark-prod-primary-with-fallback.md), [#926](https://github.com/chipi/podcast_scraper/issues/926)) |
+| [`cloud_with_dgx_primary.yaml`](cloud_with_dgx_primary.yaml) | Prod: DGX Whisper + pyannote, cloud fallback | `tailnet_dgx_whisper` + `tailnet_dgx` diarize + Gemini summary (ADR-096, [#926](https://github.com/chipi/podcast_scraper/issues/926)) |
 | [`airgapped.yaml`](airgapped.yaml) | No network, no Ollama | Whisper medium.en + spaCy trf + SummLlama3.2-3B |
 | [`airgapped_thin.yaml`](airgapped_thin.yaml) | Minimal airgapped | Whisper tiny.en + spaCy sm |
 | [`dev.yaml`](dev.yaml) | Fastest/cheapest, CI-friendly, no GI/KG | Whisper tiny.en + spaCy sm + bart-led |

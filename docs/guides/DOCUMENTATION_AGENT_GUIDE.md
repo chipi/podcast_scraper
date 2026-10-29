@@ -13,7 +13,7 @@ The **podcast_scraper** project includes:
   - PRDs in `docs/prd/`
   - Guides in `docs/guides/`
   - API docs in `docs/api/`
-  - Architecture in `docs/architecture/` (includes Hosting and infrastructure for always-on Tailscale + OpenTofu + GHA + Compose)
+  - Architecture in `docs/architecture/`
   - MkDocs configuration in `mkdocs.yml`
 
 ## Documentation Updates Workflow

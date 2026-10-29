@@ -199,7 +199,7 @@ title or transcript.
   Glenny (merged BBC ad tag), Dr. Sharon Blackie (`empty_host_anchor`, 29% unattributed). Partly
   addressed in ladder v25 (`7_question_lead`): only one-host pools, about half of episodes give a
   signal at all, and val_v2 precision is 0.88. On the 2026-10-15 snapshot, 221 served episodes
-  still get no host on current code (`docs/wip/HOST-SEAT-BY-QUESTIONS-2366.md`); two-host pools
+  still get no host on current code; two-host pools
   (25 with a signal) and shows with no stated host (33) are not seated by it.
 - **Rosters wrong beyond a missing name** (#2367), read on the 2026-10-15 snapshot with the current
   roster. a16z Machine Age: the narrator lists three guests, the next voice is the interviewer
@@ -227,7 +227,7 @@ step; nothing here is built.
 
 ## Changes tried and rejected (so they are not tried again blind)
 
-The 2026-10-03/04 rows come from [the stated-guest-binding scoreboard](../wip/NAMING_SCOREBOARD_stated-guest-binding-2026-10.md); the parked experiment is `docs/wip/parked/naming-stated-guest-binding-PARKED.patch`.
+The 2026-10-03/04 rows come from the stated-guest-binding scoreboard; the parked experiment is in git history.
 
 | Change | What the replay showed |
 | --- | --- |

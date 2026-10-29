@@ -35,7 +35,7 @@ name is worse than a hidden insight (operator, 2026-10-19).
   takes the name off the tiny cluster; it does NOT give it back to the right voice.
 - Naming ladder v40 / v53: the pipeline floor's host exemption. New episodes keep a short host
   voice by that rule; served episodes keep it by a `CORRECT` verdict here. The two differ.
-- Merge plan `NAMING-BRANCH-MERGE-PLAN-2026-10-24.md`, step 5: the floor's measured costs (5 right
+- Merge plan `NAMING-BRANCH-MERGE-PLAN-2026-10-24 (not in this repository)`, step 5: the floor's measured costs (5 right
   host names off; self-introduced guests off; a guest exemption measured and not built: 3 right /
   6 wrong over the stored runs).
 - #2364 (Patreon shout-outs published as guests), #2367 (rosters wrong beyond a missing name),
@@ -417,7 +417,7 @@ Dated: 2026-10-26T18:36
 Dated: 2026-10-26T08:32
 
 Revised acceptance for the 4d revision, by a fresh reviewer (not the builder):
-[0034_talk_floor_names_removed.acceptance-B.md](0034_talk_floor_names_removed.acceptance-B.md).
+acceptance evidence (in git history).
 It replaces criteria 6, 24 and 25 of the first acceptance, adds 32 (two blind readers) and 33 (the
 nine carried removals), and names the evidence that closes 2, 3, 7, 12, 13, 17, 20, 21 and 23.
 Its integer bars (80 of 89, 2 of 120, 5 outside the draw, 5 of 9) are the reviewer's choice, not
@@ -430,7 +430,7 @@ verdicts file's `basis` / `segment_idx` / `line_sha256` columns, and the guard t
 Dated: 2026-10-26T09:50
 
 Acceptance addendum for the bridge-alias fix (4d, 09:50), by a fresh reviewer:
-[0034_talk_floor_names_removed.acceptance-C.md](0034_talk_floor_names_removed.acceptance-C.md):
+acceptance evidence (in git history):
 the re-measure equals the 09:27 one on every integer except `bridge_identities_removed` 99 -> 98
 and one episode's bridge; 5 of 5 fix mutants killed; the repro fails before and passes after. Its
 bars are the reviewer's choice: for the operator to accept.
@@ -439,7 +439,7 @@ Dated: 2026-10-26T10:09
 
 Acceptance addendum for the 10:08 correction (the bridge rule and the loader's per-migration
 basis set), by a fresh reviewer:
-[0034_talk_floor_names_removed.acceptance-D.md](0034_talk_floor_names_removed.acceptance-D.md).
+acceptance evidence (in git history).
 
 Operator accepted: 2026-10-26 (acceptance-C's and acceptance-D's bars; the recorded misses: the
 166 prediction, S1 +56 against +48 to +55, bridge_identities_removed 112 against 98 on 9a7118eb4).
@@ -459,7 +459,7 @@ empty `segment_idx` / `line_sha256` on that basis only and refuses it on every o
 
 Dated: 2026-10-26T11:31
 
-Fresh-reviewer acceptance addendum for the 11:29 defect fix(es), integer bars before the code fix: [0034_talk_floor_names_removed.acceptance-E.md](0034_talk_floor_names_removed.acceptance-E.md).
+Fresh-reviewer acceptance addendum for the 11:29 defect fix(es), integer bars before the code fix: acceptance evidence (in git history).
 
 ## 6. Build
 
@@ -1627,7 +1627,7 @@ checkable.
 9. Recurrence scan misses: varying produced spots, lines under 40 characters, a wrong label recurring identically, single-appearance voices, interview-structure cases.
 10. GO WITH CONDITIONS (below).
 
-Verdict: GO WITH CONDITIONS (1) settle `038e11c4` SPEAKER_02 and `d59a87e0` SPEAKER_09 in writing, each kept with its argued basis or flipped to WRONG_PERSON, and if either flips re-bind verdicts and list shas and re-run the gate, the undo cycle and the 0035 / 0036 re-measures; (2) remove the person name and the quoted sentence at `0034_talk_floor_names_removed.acceptance.md` line 275 and the transcript paraphrase for `e7d4a370` 02 in the 15:47 block; (3) bring the verdicts-file header (`reviewed_commit`, reviewer line, counts) to round 6 in the same change as (1), or state in the record that it is stale and that the outcome binds sha `142ce3ae...`; (4) the operator's recorded yes on the three builder choices in 8f.5 before any apply; (5) build the 0034 outcome bound to the final verdicts sha and run `make ci-fast` on the committed tree, since no committed test guards the hash, segment index or a deleted kept row
+Verdict: GO WITH CONDITIONS (1) settle `038e11c4` SPEAKER_02 and `d59a87e0` SPEAKER_09 in writing, each kept with its argued basis or flipped to WRONG_PERSON, and if either flips re-bind verdicts and list shas and re-run the gate, the undo cycle and the 0035 / 0036 re-measures; (2) remove the person name and the quoted sentence at acceptance evidence (in git history) line 275 and the transcript paraphrase for `e7d4a370` 02 in the 15:47 block; (3) bring the verdicts-file header (`reviewed_commit`, reviewer line, counts) to round 6 in the same change as (1), or state in the record that it is stale and that the outcome binds sha `142ce3ae...`; (4) the operator's recorded yes on the three builder choices in 8f.5 before any apply; (5) build the 0034 outcome bound to the final verdicts sha and run `make ci-fast` on the committed tree, since no committed test guards the hash, segment index or a deleted kept row
 
 **Round 6's conditions, closed by the builder (2026-10-26, after 8f):**
 - **C1** `038e11c4` 02 kept (`undecidable`) and `d59a87e0` 09 kept (`addressed`), each with its
@@ -1650,9 +1650,8 @@ docstring fixes, every number and plan equal to the d94e4d13a run): `upgrade/out
 
 ## 10. Before apply / deploy
 
-By the prod session, on the operator's direct go (2026-10-27 ~08:50Z: "apply 0034 alone --to
-2.7.28"), on sha-2914e56 (deploy run 40473459447, `prod-deploy verify` VERIFY PASS 10/10,
-post_deploy_smoke green). Dry run 08:37Z on the deployed code: `would rewrite 152 episode(s)`,
+In the deployment, on approval (2026-10-27 ~08:50Z), on the deployed build (deploy verify PASS 10/10,
+post-deploy smoke green). Dry run 08:37Z on the deployed code: `would rewrite 152 episode(s)`,
 21 counters equal to the clone's (e.g. segments_relabelled 4794, quotes_moved 8309,
 roster_entries_unnamed 155, kg_persons_removed 141); **outcome hook: plan diff 0 episode(s)**.
 
@@ -1660,16 +1659,16 @@ roster_entries_unnamed 155, kg_persons_removed 141); **outcome hook: plan diff 0
 
 - **Apply** 2026-10-27 08:46:29-08:55:50Z, `--to 2.7.28`, EXIT=0; receipt counters equal to the
   dry run and the clone (21 counters). Undo recorded: `m0034_talk_floor_names_removed.undo`.
-- **Ownership:** 2 root-owned paths chowned to uid 1000 (operator's go, 09:31Z).
+- **Ownership:** 2 root-owned paths chowned to the corpus owner (09:31Z).
 - **`upgrade verify`** 09:21Z: 0034 [OK] ("every voice the review confirmed is off the floor's
   name"); the only FAIL is 0025 on 1 episode (wild orchid), the known 0025 flag the operator
   accepted (0035 section 8d).
 - **Derived surfaces** (once, after 0034, 0035, 0036 and the 0030 re-run): `enrich --only
   insight_density,insight_sentiment` 248 ok, 0 failed; incremental `index` scanned 3004, skipped
   2756, reindexed 248, EXIT=0. No rebuild.
-- **Snapshots:** the `upgrade-backups/` snapshots were deleted on the operator's go, after the
-  ingestion session validated them (2026-10-27). The undo above therefore no longer has its
+- **Snapshots:** the `upgrade-backups/` snapshots were deleted on approval, after they were
+  validated (2026-10-27). The undo above therefore no longer has its
   backup: forward-only from here.
-- **Not verified by the prod session:** the corpus-scope enrichers after the next nightly (open
+- **Not verified:** the corpus-scope enrichers after the next nightly (open
   item 7, 2026-10-28); the search-index rows of the written episodes, read one by one; the app in
   a browser on a written episode.

@@ -1253,7 +1253,7 @@ class Config(BaseModel):
         description=(
             "Last naming rung: a voice that sounds like a person this feed's other episodes name "
             "(fingerprint groups named by vote) takes that name, and the name leaves a voice that "
-            "clearly is not that person (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md, stage 3). "
+            "clearly is not that person (voice-identity design, stage 3). "
             "Same feed only. 'off'; 'shadow' = the ladder publishes and the rung's answer is "
             "written beside it in the speaker-diagnostics sidecar (key `voice_identity`); "
             "'publish' = the rung changes the roster. Off by default."

@@ -353,7 +353,7 @@ next time someone audits.
   the profile pins an alias the gateway does not advertise. This is correct behaviour — fix the
   alias, do not disable the check. Never hand-edit `config/profiles/*.yaml`: they are a generated
   view of the model registry (ADR-112); use `make profiles-materialize`.
-- **Tailnet hostnames inside containers.** `litellm_api_base` may be a tailnet name the container
+- **Private hostnames inside containers.** `litellm_api_base` may be a private hostname the container
   cannot resolve even though the IP is reachable. Pass `--add-host <name>:<ip>`.
 - **Container stdout can be dropped** through a relayed Docker socket. If a container run prints
   nothing, do not conclude it crashed — write results to a file inside and `docker cp` them out.

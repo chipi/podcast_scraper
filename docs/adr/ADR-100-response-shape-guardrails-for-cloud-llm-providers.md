@@ -125,7 +125,7 @@ land on the same counter with `service` set per-provider. Cardinality math:
 | --- | --- | --- | --- |
 | Self-hosted (ADR-099) | 4 (whisper, ollama, vllm, pyannote) | ~2-3 each | ~10 |
 | Cloud (this ADR) | 4 mainstream (openai, anthropic, gemini, deepseek) | ~4 each (empty, thinking-prose, finish-length, bad-json) | ~16 |
-| **Total active series** | **~26** | | well under the 175-series DGX-side budget; <1% of Grafana free-tier 10k cap |
+| **Total active series** | **~26** | | well under the metric-series budget of the observability stack |
 
 The Mistral / Grok providers get the same helper when they next get
 PR work; estimated `+3 × 4 = 12` series later, still well within budget.
@@ -378,7 +378,6 @@ catch-and-degrade path returns the original transcript.
 ## References
 
 - ADR-099 — the self-hosted precedent
-- ADR-096 — the cloud fallback contract this builds on
 - Originating eval reports:
   - `docs/guides/eval-reports/EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md`
     (Gemini flash inconsistency, DeepSeek mixed)

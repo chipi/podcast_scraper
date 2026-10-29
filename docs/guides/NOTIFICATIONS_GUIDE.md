@@ -5,7 +5,7 @@ push, the daily recap, and the in-app inbox. This is the end-to-end map: who
 produces a notification, how consent gates it, how it crosses the app↔infra
 seam, and how the last-mile worker actually sends it.
 
-> **Design authority:** [ADR-144](../adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md)
+> **Design authority:** ADR-144
 > (self-hosted queue, outsourced last-mile), [ADR-145](../adr/ADR-145-channel-agnostic-outbox-seam.md)
 > (channel-agnostic outbox seam), [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md)
 > (full spec), [RFC-122](../rfc/RFC-122-post-episode-recap.md) (daily recap).
@@ -13,8 +13,7 @@ seam, and how the last-mile worker actually sends it.
 > **Where the code lives:** the *producer* half (subscriptions, consent,
 > generation, the outbox seam) is in this repo under
 > `src/podcast_scraper/server/`. The *delivery worker* (last-mile sender)
-> currently lives in the **homelab infra repo** at `agentic-ai-homelab/infra/delivery/`.
-> Its packaging is being reevaluated in
+> is an **external component**. Its packaging is being reevaluated in
 > [podcast_scraper#2077](https://github.com/chipi/podcast_scraper/issues/2077) —
 > that only moves *where the files live*, not how any of this works.
 
@@ -26,7 +25,7 @@ sends them, then reports terminal status back so the app can suppress bad
 recipients.
 
 ```text
- PRODUCER (this repo, learning-player API)          SEAM             LAST-MILE (homelab worker)
+ PRODUCER (this repo, learning-player API)          SEAM             LAST-MILE (external worker)
  ─────────────────────────────────────────   ─────────────────   ──────────────────────────────
  subscription  ─┐                             GET  /internal/      pull pending ──▶ render template
  consent matrix ─┼─▶ hourly scheduler ──▶     outbox/pending?         │              (Jinja, per channel)
@@ -48,7 +47,7 @@ recipients.
 - **Consent stays with the app.** The worker never reads or writes the consent
   store; the app filters at enqueue *and* re-checks at pull, and applies
   suppression from delivery feedback.
-- **Tailnet-only, egress-only.** The seam is a tailnet-internal HTTP API gated
+- **Private-network-only, egress-only.** The seam is an internal HTTP API on a private network, gated
   by a shared token; the worker only makes outbound calls (Resend / push over
   443).
 
@@ -203,90 +202,51 @@ fixtures under `tests/fixtures/delivery/`, contract test
 
 ---
 
-## Part 3 — Delivering (the homelab worker)
+## Part 3 — Delivering (external delivery worker)
 
-`agentic-ai-homelab/infra/delivery/` — a standalone Python package with no
-`podcast_scraper` dependency; it consumes only the **vendored** seam schema.
-See that repo's `README.md` and `HANDOVER-homelab.md`.
-
-### 3.1 Three long-running loops
-
-`delivery-email`, `delivery-push`, `delivery-events` (one worker per tenant per
-channel). Each loop: `GET …/pending?channel=…` → render the `template` (Jinja)
-→ send → `POST …/status`.
-
-- **email** → **Resend** HTTP API (443, reputation relay). Templates:
-  `your-week-digest`, `daily-recap`, `recommendations-digest`.
-- **push** → dispatched by subscription `kind`:
-  - `webpush` → self-hosted VAPID / RFC 8291 POST to the subscription endpoint
-  - `apns` → **APNs** token-based ES256-JWT over HTTP/2 (native iOS). Prod uses
-    the production APNs host (`apns_sandbox: false`); dev-signed builds need a
-    sandbox tenant (see §4).
-- **events** → polls Resend's events API (cursor-based) and posts
-  `bounced`/`complaint` back to the seam.
-
-### 3.2 Tenants
-
-`tenants.yaml` in the worker: one worker set per tenant.
-
-- **`podcast`** — prod. Drains the prod player-API outbox over the tailnet;
-  APNs `apns_sandbox: false`.
-- **`podcast-dev`** — dev twin. Its outbox URL is env-overridable
-  (`PODCAST_DEV_OUTBOX_URL`) so it follows wherever you run the dev API;
-  APNs `apns_sandbox: true` for dev-signed device builds.
-
-### 3.3 Reliability & observability
-
-- **Retry + dead-letter:** transient failures retry with backoff; `failed` is
-  terminal (dead-lettered after N).
-- **Idempotency:** keyed on envelope `id` end-to-end.
-- **o11y:** all three channels emit **logs** (JSONL → VictoriaLogs), **metrics**
-  (Prometheus `/metrics` → VictoriaMetrics, labeled by channel), and **traces**
-  (OTEL spans → VictoriaTraces, `service.name=delivery-worker`). Errors →
-  GlitchTip.
+The delivery worker is an **external component**: it drains the outbox over the
+private network, renders each envelope's `template`, sends mail / push, and posts
+terminal status back (`POST …/status`). It consumes only the seam schema
+([`delivery-envelope.schema.json`](../api/delivery-envelope.schema.json)) and has no
+`podcast_scraper` dependency. Its deployment is out of scope for this repository.
 
 ---
 
 ## Part 4 — Operating it
 
-### 4.1 Local dev testing (email + push, without TestFlight)
+### 4.1 Local dev testing
 
-The dev API (`make serve-api`, port `:8000`) serves `/internal/outbox`. It now
-binds `0.0.0.0` by default, so it's reachable over the tailnet with no extra
-flags:
+The dev API (`make serve-api`, port `:8000`) serves `/internal/outbox`. It binds
+`0.0.0.0` by default, so a delivery worker on the same private network can reach it
+with no extra flags:
 
 ```bash
-# laptop: run the dev API (token comes from .env → INTERNAL_OUTBOX_TOKEN)
+# run the dev API (token comes from .env → INTERNAL_OUTBOX_TOKEN)
 make serve-app-dev
-
-# mini: point the delivery worker's podcast-dev tenant at your laptop, once
-~/agentic-ai-homelab/infra/delivery/bin/dev-outbox.sh laptop
 ```
 
-Then a dev-signed iOS build registers its **sandbox** APNs token, a digest
-enqueues, and the `podcast-dev` worker (sandbox) delivers to your device.
-Email needs nothing extra — the `podcast-dev` email worker sends via Resend
-(real mail from the shared `mail_from`, so use safe recipients).
+Point your delivery worker's dev outbox URL at that API and give it the same token
+value. A dev-signed iOS build then registers a **sandbox** APNs token, a digest
+enqueues, and the worker delivers to your device. Email needs nothing extra beyond the
+worker's own sender configuration (real mail, so use safe recipients).
 
-### 4.2 Prod
+### 4.2 Production
 
-- **Server:** deploy the app (token-registration + enqueue code) to the prod
-  VPS via the normal player deploy.
-- **iOS:** a **TestFlight / App Store** build → production APNs tokens (matches
-  the prod `podcast` tenant's `apns_sandbox: false`).
-- **Worker:** already runs on the homelab mini for the `podcast` tenant.
+- **Server:** deploy the app (token-registration + enqueue code) through your normal
+  server deploy.
+- **iOS:** a **TestFlight / App Store** build → production APNs tokens (the worker's
+  tenant must use the production APNs host, not the sandbox).
+- **Worker:** run the delivery worker against the app's `/internal/outbox`.
 
-### 4.3 Config / env (both sides)
+### 4.3 Config / env (app side)
 
-| Where | Var | Purpose |
-| ------ | --- | ------- |
-| app | `INTERNAL_OUTBOX_TOKEN` | gate `/internal/outbox/*` (503 unset / 401 mismatch) |
-| app | `APP_VAPID_PUBLIC_KEY` | browser Web Push subscription |
-| worker | `PODCAST_INTERNAL_OUTBOX_TOKEN` | same value as the app's token |
-| worker | `RESEND_API_KEY` | email last-mile |
-| worker | `PODCAST_VAPID_PRIVATE_KEY` | Web Push signing (pairs the app's public key) |
-| worker | `PODCAST_APNS_AUTH_KEY` (+ key/team/bundle ids in `tenants.yaml`) | native iOS APNs |
-| worker | `PODCAST_DEV_OUTBOX_URL` | dev: point `podcast-dev` at the active dev API |
+| Var | Purpose |
+| --- | ------- |
+| `INTERNAL_OUTBOX_TOKEN` | gate `/internal/outbox/*` (503 unset / 401 mismatch); the worker presents the same value |
+| `APP_VAPID_PUBLIC_KEY` | browser Web Push subscription (the worker holds the matching private key) |
+
+Worker-side variables (sender API key, push signing keys, outbox URL) belong to the
+worker's own documentation.
 
 ---
 
@@ -309,7 +269,7 @@ daily recap doesn't touch the weekly digest.
 
 ## See also
 
-- [ADR-144 — Self-hosted delivery queue, outsourced last-mile](../adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md)
+- ADR-144 — Self-hosted delivery queue, outsourced last-mile
 - [ADR-145 — Channel-agnostic outbox seam](../adr/ADR-145-channel-agnostic-outbox-seam.md)
 - [RFC-110 — Outbound delivery and seam](../rfc/RFC-110-outbound-delivery-and-seam.md)
 - [RFC-122 — Post-episode recap](../rfc/RFC-122-post-episode-recap.md)

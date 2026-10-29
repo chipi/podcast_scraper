@@ -6,7 +6,7 @@
  *
  * Why: ten bugs on 2026-10-09 were one shape — a write on one surface, and another surface (kept
  * alive, or reading a store nobody told) still showing what it had before. Nothing enumerated the
- * writes, so nothing could say a pair was untested. docs/wip/e2e-cross-surface-gaps-2026-10-09.md
+ * writes, so nothing could say a pair was untested.
  *
  * `readers`: surfaces OTHER than the one making the write. Empty means the write shows nowhere else
  * (say why in `note`). `proof`: repo-relative test files (under web/learning-player) that cover the

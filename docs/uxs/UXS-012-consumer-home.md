@@ -381,9 +381,8 @@ because a theme is followed by its `tc:` token and the interests store already c
 
 ## Visual references
 
-`docs/wip/player/mockups/home-{a-search-first,b-resume-first}.{html,png}` — the two explored
-directions. **Decision: the adaptive hero** (resume-state borrows A's prominent search; both
-states keep "Ask your library" one glance away). WIP aids, not shipped assets.
+Two directions were explored (mockups in git history): search-first and resume-first. **Decision: the adaptive hero** (resume-state borrows A's prominent search; both
+states keep "Ask your library" one glance away). The mockups were design aids, not shipped assets.
 
 ## Home components (governed here)
 

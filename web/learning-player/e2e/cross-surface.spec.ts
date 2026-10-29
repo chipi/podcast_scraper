@@ -10,7 +10,7 @@ import { listenToOne, navTo, signInIsolated } from './helpers'
  * kept alive in the background, or reading a store nobody told — went on showing what it had before.
  * None was caught, because the suite navigates with `page.goto`: a full load rebuilds every store and
  * remounts every tab, so a stale copy can never be seen. `collections.spec.ts` ran bug #1's exact flow
- * and passed for exactly that reason. (docs/wip/e2e-cross-surface-gaps-2026-10-09.md)
+ * and passed for exactly that reason.
  *
  * ## The rule here
  *

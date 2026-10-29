@@ -82,7 +82,7 @@ test('add to a collection, create another, and find both with their items', asyn
   // --- 4. Library → Collections lists both ----------------------------------------------------
   // IN-APP, not `page.goto` (2026-10-09). A full load rebuilds every store, so a board the sheet made
   // but never told the shared store about looked fine here — this test passed while a board made
-  // from the sheet was missing from Library (docs/wip/e2e-cross-surface-gaps-2026-10-09.md).
+  // from the sheet was missing from Library.
   await navTo(page, 'library')
   await page.getByTestId('library-tab-collections').click()
   await expect(page.getByTestId('collections-load-error')).toHaveCount(0)

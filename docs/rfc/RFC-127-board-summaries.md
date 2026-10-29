@@ -29,10 +29,10 @@ themes and topics of its episodes. It lists; it does not say what the board is a
 episodes' summaries together reads as a list of sentences, not as one account (operator
 2026-10-12: "option two").
 
-Two facts about prod shape the design:
+Two facts about the deployment shape the design:
 
 - **Boards live only on the player plane.** `users/<id>/collections.json` is in the player
-  appdata (`compose/docker-compose.player-public.yml`), read and written by the player API alone.
+  appdata, read and written by the player API alone.
 - **That plane has no LLM.** The player API runs with no LLM keys, no `[llm]` SDKs and no scheduler
   (`PODCAST_SERVE_APP_ONLY=1`). The keys and the scheduler are on the operator plane, which does not
   mount the player appdata. Its image deliberately leaves out `[llm]`.
@@ -67,7 +67,7 @@ LLM. Giving the operator plane the player's user data would join two planes kept
 
 ### 1. Where it runs: a `board-summarizer` sidecar on the player stack
 
-A new service in `docker-compose.player-public.yml`, shaped like `digest-scheduler`:
+A new service on the player stack, shaped like `digest-scheduler`:
 
 - **Run as the pipeline is run**: the `pipeline-llm` image with its own entrypoint (secrets shim →
   `entrypoint.sh` → `opentelemetry-instrument` when tracing is on), the pipeline-llm service's
@@ -76,26 +76,22 @@ A new service in `docker-compose.player-public.yml`, shaped like `digest-schedul
   `init_otel()`, console logging at INFO). Only the command differs. So its `llm_cost` lines,
   traces and errors arrive where the pipeline's do, told apart by `stage=board_summary`.
 - **Mounts**: the corpus **read-only**; the player appdata **read-write** (it writes summaries).
-- **Network**: egress to the LiteLLM gateway in front of the DGX (`vllm_api_base` =
-  `LITELLM_API_BASE`, as for the pipeline; #2342) and the homelab traces endpoint. No inbound
+- **Network**: egress to the LLM gateway in front of the GPU host (`vllm_api_base` =
+  `LITELLM_API_BASE`, as for the pipeline; #2342) and the traces endpoint. No inbound
   port, no docker.sock.
-- **Secrets**: the pipeline's own — its GlitchTip DSN (`PROD_SENTRY_DSN_PIPELINE`) and its LiteLLM
-  gateway key (`LITELLM_PROJ_PODCAST_PROD_KEY` → `LITELLM_API_KEY`), staged by
-  `deploy-player.yml` into the player tenant's dir and mounted into this service only. The gateway
-  base comes from the same `vars.PROD_LITELLM_API_BASE` deploy-prod uses.
-- **Logs**: `player.alloy` keeps `player-board-summarizer-*` and labels it `surface=pipeline`.
+- **Secrets**: the pipeline's own — its error-reporting DSN and its LLM gateway key
+  (`LITELLM_API_KEY`), provided by the deployment and mounted into this service only. The gateway
+  base is the same one the pipeline uses.
+- **Logs**: the sidecar's logs are labelled `surface=pipeline`.
 - **Loop**: wakes every `BOARD_SUMMARY_INTERVAL_SECONDS` (default 300, offset 60 s so it never
   wakes with the digest), does one sweep, sleeps. A sweep with nothing changed reads files only.
-- **DGX availability**: the `:8003` slot is up only in the GPU's research mode. A sweep that cannot
+- **Model availability**: the model endpoint may be up only in the GPU host's research mode. A sweep that cannot
   reach it skips every board, counts `model_unreachable`, and the next sweep tries again.
 - **Kill switch**: `board_summaries_settings.json` in the player appdata root, read at the start
   of every sweep, as the API reads `access_policy.json`. Absent, unreadable or `{"enabled": true}`
   runs; `{"enabled": false}` stops new summaries from the next sweep on (within five minutes) — the
   model is not even built. Summaries already made stay. To stop it:
-  `echo '{"enabled": false}' > <deploy-dir>/player-appdata/board_summaries_settings.json`
-- **The DGX's address**: Docker cannot resolve MagicDNS, so `deploy-player.sh` resolves
-  `dgx-llm-1` on every deploy (`tailscale ip -4`) into `DGX_TAILNET_IP`, as it does `homelab`.
-  Unresolved, the name points at loopback and the sidecar summarises nothing.
+  `echo '{"enabled": false}' > <player-appdata>/board_summaries_settings.json`
 
 **Nothing changed, nothing sent.** A sweep with no eligible board makes no request to the model
 server at all: the provider is built every sweep (that touches no network) but initialised only
@@ -268,9 +264,8 @@ the section is absent. A failed or skipped run leaves the last good summary in p
 
 - **Phase 1**: the job, the store, `/brief`, the sheet, the sidecar and the kill switch (on), with
   the privacy policy updated in the same release.
-- **Before the first deploy**: confirm the player host reaches `dgx-llm-1:8003` over the tailnet (a
-  read-only `GET /v1/models`), as the pipeline does from the operator host.
-- **Monitoring**: `llm_cost` with `stage=board_summary` in Grafana (it stays at $0); per sweep:
+- **Before the first run**: verify the model endpoint is reachable (a read-only `GET /v1/models`).
+- **Monitoring**: `llm_cost` with `stage=board_summary` in the observability stack (it stays at $0); per sweep:
   eligible, summarised and skipped counts, by reason (`unchanged`, `too_soon`, `quiet`,
   `user_cap`, `budget`, `model_unreachable`, `switched_off`).
 
@@ -287,17 +282,17 @@ same day for the beta).
 
 - `src/podcast_scraper/server/board_summaries.py` — the rules, the prompt, the store, one sweep.
   It takes the model call as a function and imports no SDK; the API imports it only to read.
-- `podcast_scraper.server.board_summarizer_runner` — the sidecar loop (`python -m`); `board-summarizer` in
-  `compose/docker-compose.player-public.yml`; the DGX address in `infra/deploy/deploy-player.sh`.
+- `podcast_scraper.server.board_summarizer_runner` — the sidecar loop (`python -m`); `board-summarizer` as a
+  service on the player stack.
 - `providers/common/summary_use_case.py` and the use case in every provider's `summarize`; the
   three templates in `prompts/shared/summarization/`; `board_summary_*` fields in `config.py`.
 - `/collections/{id}/brief` carries `summary`; the Brief sheet shows it first, with its date and a
   note when the board changed since.
 - The privacy policy says boards are summarised by a model on our own servers.
 
-Not done, and needed before it runs in prod: confirm the player host reaches `dgx-llm-1:8003`
-(prod resolves the name; a `GET /v1/models` from the player host has not been run); the first
-sweep on prod. Routing the DGX through LiteLLM, as every other model is: #2342.
+Not done, and needed before it runs: verify the model endpoint is reachable from the player host
+(a `GET /v1/models`); the first live sweep. Routing the GPU host through the LLM gateway, as every
+other model is: #2342.
 
 ## References
 

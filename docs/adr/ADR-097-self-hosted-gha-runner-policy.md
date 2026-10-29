@@ -3,16 +3,14 @@
 - **Status**: Accepted
 - **Date**: 2026-05-23
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: RFC-089
-- **Related ADRs**: [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) (companion — DGX in prod via primary-with-fallback contract)
 
 ## Context
 
-RFC-089 Tier 3 introduces an NVIDIA DGX Spark as a GitHub Actions self-hosted runner for autoresearch eval and ML-CI workloads. The repository (`chipi/podcast_scraper`) is **public**.
+A GPU host is used as a GitHub Actions self-hosted runner for autoresearch eval and ML-CI workloads. The repository (`chipi/podcast_scraper`) is **public**.
 
 GitHub's own guidance is unambiguous: "We recommend that you only use self-hosted runners with private repositories." The threat model on a public repo with a self-hosted runner includes:
 
-- **Fork-PR workflow execution**: a malicious contributor opens a PR that modifies a workflow file to run code on the operator's hardware.
+- **Fork-PR workflow execution**: a malicious contributor opens a PR that modifies a workflow file to run code on self-hosted hardware.
 - **Persistent runner state pollution**: one job's residue (cached dependencies, environment variables, filesystem changes) affects the next job.
 - **Token/secret exposure**: a compromised job could exfiltrate runner-scoped tokens or environment secrets.
 - **Long-running malicious processes**: a job that doesn't terminate properly leaves resource-consuming processes on the runner.
@@ -21,11 +19,11 @@ The operator wants the throughput + cost benefits of self-hosted (GPU-class comp
 
 ## Decision
 
-Self-hosted runners on this repo are governed by a **three-layer mandatory policy**. All three layers must be in place before any workflow may target `runs-on: [self-hosted, dgx-spark]`. Removing any layer requires this ADR's explicit revision.
+Self-hosted runners on this repo are governed by a **three-layer mandatory policy**. All three layers must be in place before any workflow may target `runs-on: [self-hosted, <gpu-label>]`. Removing any layer requires this ADR's explicit revision.
 
 ### Layer 1 — Ephemeral runner mode
 
-The DGX runner is registered as **ephemeral** (the `--ephemeral` flag to `config.sh` or its container equivalent). After every job, the runner instance is destroyed and a fresh one is registered. Implications:
+The runner is registered as **ephemeral** (the `--ephemeral` flag to `config.sh` or its container equivalent). After every job, the runner instance is destroyed and a fresh one is registered. Implications:
 
 - Workspace files, environment variables, caches do not persist between jobs.
 - A malicious job cannot poison the next job's environment.
@@ -45,7 +43,7 @@ This setting addresses the most common attack: opportunistic fork-PRs scanning p
 
 ### Layer 3 — Explicit workflow allow-list
 
-A workflow may use `runs-on: [self-hosted, dgx-spark]` **only if** that workflow filename is listed in `.github/SELF_HOSTED_RUNNER_ALLOWLIST.md`. Enforcement:
+A workflow may use `runs-on: [self-hosted, <gpu-label>]` **only if** that workflow filename is listed in `.github/SELF_HOSTED_RUNNER_ALLOWLIST.md`. Enforcement:
 
 - Pre-commit hook OR CI check (TBD during P3 implementation): refuses commits / PRs that add `runs-on: self-hosted` (or `[self-hosted, ...]`) to a workflow file not in the allow-list.
 - The allow-list itself is owned by repository admins; PRs that modify the allow-list require explicit operator review.
@@ -70,14 +68,14 @@ The pre-commit hook / CI check should:
 The allow-list file format:
 
 ```markdown
-# Allow-listed workflows that may target [self-hosted, dgx-spark]
+# Allow-listed workflows that may target [self-hosted, <gpu-label>]
 # Per ADR-097. Adding to this list requires operator review.
 
 autoresearch-eval-nightly.yml
 ml-ci-warmup.yml
 ```
 
-The repository-settings audit (per Layer 2) should be a periodic operator check — there is no GitHub API to verify "Require approval for all outside collaborators" is set, so it must be a documented checklist item (see PROD_RUNBOOK § Credential rotation or similar standing audit).
+The repository-settings audit (per Layer 2) should be a periodic operator check — there is no GitHub API to verify "Require approval for all outside collaborators" is set, so it must be a documented checklist item (a standing audit).
 
 ## Reversal criteria
 
@@ -89,6 +87,5 @@ This ADR is revisitable only under one of these conditions:
 
 ## References
 
-- RFC-089 §"Security" + §"Locked-in answers" #1
 - GitHub guidance on self-hosted runners: <https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#self-hosted-runner-security>
-- `.github/SELF_HOSTED_RUNNER_ALLOWLIST.md` (to be created during RFC-089 P3 implementation)
+- `.github/SELF_HOSTED_RUNNER_ALLOWLIST.md`

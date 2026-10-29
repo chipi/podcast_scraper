@@ -4,12 +4,12 @@
 - **Date**: 2026-08-12
 - **Authors**: Marko Dragoljevic, Claude
 - **Related RFC**: [RFC-117](../rfc/RFC-117-pipeline-supervision-and-absence-detection.md) (the full argument)
-- **Related ADRs**: [ADR-119](ADR-119-vendor-neutral-event-emission.md) (events, not scraped metrics), ADR-142 (prod-local gateway), [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (tailnet seam pattern)
+- **Related ADRs**: [ADR-119](ADR-119-vendor-neutral-event-emission.md) (events, not scraped metrics), a local gateway, [ADR-145](ADR-145-channel-agnostic-outbox-seam.md) (internal-network seam pattern)
 - **Related issues**: [#1620](https://github.com/chipi/podcast_scraper/issues/1620) (programme), [#379](https://github.com/chipi/podcast_scraper/issues/379) (non-enforcing timeout), [#429](https://github.com/chipi/podcast_scraper/issues/429) (fail-fast)
 
 ## Context & Problem Statement
 
-Two production outages on 2026-08-12 were **one defect with two endings**. `CostCapExceeded`
+Two outages were **one defect with two endings**. `CostCapExceeded`
 raised in the main thread from a region of `orchestration.py` with no `try/finally`, orphaning
 a non-daemon worker whose continue-predicate defaults to `True`. With nothing queued it span
 for 4 h 15 m in total silence; with one job queued it raised
@@ -56,7 +56,7 @@ zero data.
 
 **Rejected:** re-attaching to an orphaned child after an api restart. The stdout pipe cannot be
 rewired, and crash-only relaunch is already proven safe in production. **Rejected:** a queue
-broker; unjustified on a single VPS when the corpus already serves as the ledger.
+broker; unjustified on a single host when the corpus already serves as the ledger.
 
 ### D5 — Budget exhaustion is a planned outcome, not an exception
 
@@ -87,7 +87,7 @@ and would have reported "alive" for four hours. Therefore:
 - **progress watermark** — monotonic completed-unit count plus `last_progress_at` (catches
   *alive but stuck*)
 
-The **child emits**, the **api sweeper evaluates**, **systemd + external alerting cover the
+The **child emits**, the **api sweeper evaluates**, **the process supervisor + external alerting cover the
 api**. Each layer is watched by a dumber, more reliable one.
 
 Alert on progress *age*, not on episode-completion timing:
@@ -118,12 +118,12 @@ go looking" — another dashboard reproduces it.
 
 ### D10 — Cost cap stays `abort`, with the threshold raised
 
-Raised to `$10.00` per run in the box's `viewer_operator.yaml` (was `$5.00`, inherited from
+Raised to `$10.00` per run in the operator config (was `$5.00`, inherited from
 `config/profiles/cloud_balanced.yaml:177-178`).
 
 **`action: warn` was considered and rejected.** It would make the buggy `abort` path
 unreachable — attractive short-term — but disables a guardrail to dodge a bug that D5 fixes
-properly. Real spend is separately bounded by the podcast-prod LiteLLM key cap.
+properly. Real spend is separately bounded by the gateway key budget.
 
 Note the cap measures **modelled** cost including transcription billed against a free Deepgram
 allowance, so it constrains a number that does not correspond to the actual bill. Recalibrating
@@ -163,5 +163,5 @@ rationalisation in this case, because the two were never separable.
 forever isolates nothing.
 
 **A supervision framework / external orchestrator.** Rejected as disproportionate for a
-single-VPS deployment whose api already supervises subprocesses and whose corpus already
+single-host deployment whose api already supervises subprocesses and whose corpus already
 functions as a ledger.

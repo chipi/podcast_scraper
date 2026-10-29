@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """How much talk before the first ad pattern does the forced start=0 pre-roll cut take? (read-only)
 
-    .venv/bin/python scripts/eval/preroll_cut_audit.py <dir of *.segments.json> out.json
+Usage::
 
-Results: docs/wip/PREROLL-CUT-PROD-AUDIT-2026-10-15.md
+    .venv/bin/python scripts/eval/preroll_cut_audit.py <dir of *.segments.json> out.json
 """
 
 from __future__ import annotations

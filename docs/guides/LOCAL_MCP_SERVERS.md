@@ -1,7 +1,7 @@
 # Running both MCP servers locally (zero-config)
 
 The platform exposes **two** MCP servers — **content** (Close Listening: search/explore the
-corpus) and **observability** (`podcast_obs`: how prod/homelab is doing). Both run locally over
+corpus) and **observability** (`podcast_obs`: how the deployment is doing). Both run locally over
 **stdio** (local trust — no tokens, no ports, no edge), pointed at whatever `make serve` is
 serving. This is the same design that runs them on prod, just without the auth/edge apparatus
 (which only guards the networked `http` transport).
@@ -12,8 +12,8 @@ serving. This is the same design that runs them on prod, just without the auth/e
 make serve        # local api (:8000) + viewer — the content MCP reads this corpus (./output)
 ```
 
-Your Mac is on the tailnet, so the observability MCP reads the homelab backends
-(`homelab:3000` Grafana, `homelab:9428` VictoriaLogs) **directly** via MagicDNS — no extra
+If the observability backends are reachable from your machine, the observability MCP reads them
+(`<obs-host>:3000` Grafana, `<obs-host>:9428` VictoriaLogs) **directly** — no extra
 wiring. Sources without a token just report "not configured", so it works out of the box for
 API-health + logs; drop `PODCAST_OBS_GRAFANA_TOKEN` / `SENTRY_AUTH_TOKEN` into a git-ignored
 `.env.obs.dev` to light up alerts/errors.
@@ -56,7 +56,7 @@ prod `ops.`/`mcp.` vhosts (see the prod runbook).
 
 ## Point observability somewhere else
 
-`config/observability.local.yaml` has a `local` target (localhost api + homelab reads). Add more
+`config/observability.local.yaml` has a `local` target (localhost api + remote observability reads). Add more
 targets (or edit it) and select with `--target`:
 
 ```bash

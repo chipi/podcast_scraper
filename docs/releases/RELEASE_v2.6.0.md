@@ -10,7 +10,7 @@ v2.6.0 is a **minor release** that ships three substantial bodies of work on top
 
 1. **A full browser surface** for exploring processed corpora — a **Vue 3 + Vite** GI/KG viewer on a **FastAPI** server, **semantic corpus search** (FAISS) exposed in the UI and CLI, **Corpus Library**, **Digest**, **Graph**, and **Dashboard** experiences, and a **graph exploration toolkit** for Cytoscape-based GI/KG views.
 2. **A hardened pipeline-to-viewer experience** — **graph handoff orchestrator** (8-state FSM with envelope contract and generation-token concurrency across 13 entry points, ADR-094 / RFC-085), **viewer test pyramid** (Tier-1 mocks → Tier-2 production-shaped fixtures → Tier-3 real corpus, ADR-095 / RFC-086), and viewer performance tail trims (#767/#768/#769).
-3. **Operator and hosting maturity** — **always-on hosting** design and the Hetzner VPS playbook (RFC-082), **corpus snapshot backup manifest + version-aware restore** (RFC-084, ADR-092, `make restore-corpus` / `restore-corpus-prod`), **canonical stack contract + environment adapters** (ADR-093), prod-failover decisions (ADR-089/090/091), and the **AGENTS.md** canonicalization (PR #786 — single source of truth across all AI assistants).
+3. **Operator maturity** — **corpus snapshot backup manifest + version-aware restore** (RFC-084, ADR-092, `make restore-corpus` / `restore-corpus-prod`), **canonical stack contract + environment adapters** (ADR-093), and the **AGENTS.md** canonicalization (PR #786 — single source of truth across all AI assistants).
 
 On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles** (RFC-064 / RFC-066), sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
 
@@ -186,21 +186,7 @@ browser-observable demos under `web/gi-kg-viewer/e2e/perf/`.
 
 ---
 
-## Spotlight — Operator playbook, backup/restore, and stack contract
-
-### Always-on hosting and prod-failover decisions
-
-RFC-082 lifts the published GHCR
-image set onto a **Hetzner VPS** with **Tailscale-only ingress** by default. [ADR-079
-through ADR-083](../adr/index.md) lock OpenTofu, encrypted in-repo state, the drill
-workspace and ACL ownership, GitOps deploy after `stack-test`, and the Tailscale ingress
-choice. Prod-failover orchestration (DNS-first cutover, GHA triggers, drill-vs-incident
-separation) is designed under RFC-083
-with ADR-089–ADR-091;
-implementation lands post-2.6. Optional public TLS edge + multi-app hosting is documented
-in RFC-087.
-
-Operator-facing playbooks: PROD_RUNBOOK.md, PROD_OPERATOR_CHEAT_SHEET.md, VPS_MULTI_APP_ONBOARDING.md.
+## Spotlight — Backup/restore and stack contract
 
 ### Corpus snapshot backup manifest + version-aware restore (RFC-084, ADR-092)
 

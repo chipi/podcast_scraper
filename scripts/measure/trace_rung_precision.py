@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import naming_gate as G  # noqa: E402
 
-#: Decisions that put a name on the voice (see docs/wip/NAMING_DECISION_TRACE.md, step semantics).
+#: Decisions that put a name on the voice (the trace's step semantics).
 SETS_A_NAME = frozenset(
     {
         "named",

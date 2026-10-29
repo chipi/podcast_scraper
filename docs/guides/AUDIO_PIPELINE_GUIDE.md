@@ -14,7 +14,7 @@ field see [CONFIGURATION.md](../api/CONFIGURATION.md). For CLI flags see [CLI.md
 | Wave | Issues | What shipped |
 | ---- | ------ | ------------ |
 | **Wave 1** (#850) | #269, #286, #486, #19, #597 | `speaker_detectors/` refactor; `AudioChunker` for oversized API files; `CommercialDetector` Phase 1; single Whisper progress bar; Deepgram Nova-3 provider |
-| **Wave 2** | #482, #488 | pyannote neural diarization (default on for local Whisper); commercial Phase 2 diarization signals; DGX `tailnet_dgx_whisper` diarize support |
+| **Wave 2** | #482, #488 | pyannote neural diarization (default on for local Whisper); commercial Phase 2 diarization signals; self-hosted GPU `tailnet_dgx_whisper` diarize support |
 | **Wave 3** | #414, #547 | `pipeline_stage` (`full` / `audio_only` / `enrich_only`); transcript cache fingerprint by STT provider/model; persist episode MP3 under corpus **`media/`**; `GET /api/corpus/media`; viewer transcript dialog `<audio>` with seek to `timestamp_start_ms` (local serve only) |
 
 Design specs: [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) (diarization),
@@ -28,7 +28,7 @@ Design specs: [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) (diarizatio
 | Provider | Config value | When to use |
 | -------- | ------------- | ----------- |
 | Local Whisper | `whisper` | Default local path; supports screenplay + neural diarization |
-| DGX Whisper (tailnet) | `tailnet_dgx_whisper` | Prod primary on DGX with cloud fallback ([ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md)); same diarize/screenplay rules as local Whisper |
+| Self-hosted GPU Whisper (private network) | `tailnet_dgx_whisper` | Self-hosted GPU primary with cloud fallback (ADR-096); same diarize/screenplay rules as local Whisper |
 | OpenAI | `openai` | Cloud STT (`whisper-1`); plain text output; no local diarization |
 | Gemini | `gemini` | Cloud STT |
 | Mistral | `mistral` | Cloud STT |
@@ -227,14 +227,12 @@ diarization.
 
 ---
 
-## DGX prod profile
+## Self-hosted GPU profile
 
 [`cloud_with_dgx_primary.yaml`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/cloud_with_dgx_primary.yaml)
 sets `transcription.primary: tailnet_dgx_whisper` with OpenAI fallback, plus `screenplay: true` and
 `diarize: true`. Diarization runs on the machine that holds the audio file after transcription
-(local pipeline host), not on the remote DGX Whisper HTTP service unless you colocate processing.
-
-See DGX Runbook for tailnet and validation steps.
+(local pipeline host), not on the remote GPU Whisper HTTP service unless you colocate processing.
 
 ---
 
@@ -281,7 +279,7 @@ transcript is saved. So `transcript(ep1) → LLM(ep1)` runs concurrently with
 
 - **Knob:** `transcription_parallelism` (default 1) drives how many episodes
   are transcribed simultaneously. **Whisper local is safest at 1** (GPU/CPU
-  contention). **API providers** (OpenAI, Deepgram, DGX) can safely go higher.
+  contention). **API providers** (OpenAI, Deepgram, self-hosted GPU) can safely go higher.
 - **Knob:** `processing_parallelism` (default 2) drives how many episodes are
   in LLM work simultaneously. Rate-limit-bounded for API summarizers.
 
@@ -289,7 +287,7 @@ transcript is saved. So `transcript(ep1) → LLM(ep1)` runs concurrently with
 Whisper AND local summarization run on Apple MPS (single GPU), the pipeline
 holds LLM work until all transcription is done (`stages/processing.py`
 `should_serialize_mps`). On dedicated hardware (Whisper on GPU + LLM via
-API/DGX) the two overlap in full.
+API/GPU host) the two overlap in full.
 
 **How to check whether overlap is actually happening** — every run's summary
 JSON reports `processing_overlap_ratio`, `processing_thread_busy_ratio`,

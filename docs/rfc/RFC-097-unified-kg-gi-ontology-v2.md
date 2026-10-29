@@ -164,9 +164,8 @@ that never made it into a release.
   existing corpora before the viewer ships against the new shape
   (matches RFC-072 migration pattern; minimizes dual-shape
   complexity in viewer code).
-- **DGX research mode for eval runs.** The silver rebuild + candidate
-  sweep uses the project's `gpu-mode-swap.sh research` slot — never
-  `code` (which is coder-next, off-limits).
+- **GPU host in its research/eval mode.** The silver rebuild + candidate
+  sweep runs on a GPU host in its research/eval mode.
 - **Silver/judge vendor disjoint from candidates.** Re-baseline must
   not pick a silver+judge vendor that matches any single candidate
   (#939 Sonnet-mimicry lesson; documented in
@@ -185,8 +184,7 @@ that never made it into a release.
 - Semantic-match threshold for ABOUT / MENTIONS_PERSON / MENTIONS_ORG
   emission can reuse `search/topic_clusters.py`'s Pareto-0.75
   pattern from #1035 NER pre-pass. Precision over recall.
-- Production prod-v2 corpus (99 episodes at
-  `.test_outputs/manual/prod-v2/corpus`) is intact and migration-ready.
+- The reference v2 corpus (99 episodes) is intact and migration-ready.
 
 ## Design & Implementation
 
@@ -367,7 +365,7 @@ Registered in `src/podcast_scraper/migrations/gil_kg_identity_migrations.py`
 + `src/podcast_scraper/upgrade/migrations/`. `corpus_version.py`
 constant bumped.
 
-Pre-flight: dry-run all three against `.test_outputs/manual/prod-v2/corpus`
+Pre-flight: dry-run all three against the reference v2 corpus
 (99 eps) in copy mode; diff before/after.
 
 ## Key Decisions
@@ -592,11 +590,11 @@ one PR at the end):**
 **Success Criteria:**
 
 1. Full silver rebuild scoreboards (Opus 4.7 + Sonnet 4.6 +
-   DGX Qwen3-30B + others) published with non-regressive
+   a self-hosted Qwen3-30B + others) published with non-regressive
    KG/GI coverage on the new shape.
 2. Position Tracker + Person Profile usable end-to-end on the
-   prod-v2 corpus (99 eps).
-3. Migration scripts dry-run clean on prod-v2 corpus.
+   reference v2 corpus (99 eps).
+3. Migration scripts dry-run clean on reference v2 corpus.
 4. Grounding contract preserved bit-for-bit: every Insight with
    `grounded=true` has ≥1 SUPPORTED_BY edge; no descriptive edge
    promotes ungrounded Insights.
@@ -685,7 +683,7 @@ Together they provide:
 4. **Chunk 6** — `cli upgrade run` (m0006),
    `scripts/backfill_gi_insight_type.py`,
    `scripts/compute_gi_position_hints.py` rewrite existing corpora.
-   Dry-run first against prod-v2 corpus (99 eps) in copy mode.
+   Dry-run first against reference v2 corpus (99 eps) in copy mode.
 5. **Chunk 7** — silver rebuild on new shape; full candidate sweep
    re-baseline.
 6. **Chunk 8** — viewer ships against new shape only (post-migration).

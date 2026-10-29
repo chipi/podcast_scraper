@@ -11,7 +11,7 @@
 
 The 2026-08-03 amendment below says the registry emits `transcription_speech_coverage_min=0.85`
 for `prod_dgx_full`. It no longer does: on 2026-08-04 that profile set the gate OFF (`0.0`, no
-failover model) because ASR on the model bake-off profile must stay constant — always the DGX
+failover model) because ASR on the model bake-off profile must stay constant — always the self-hosted
 Whisper (`model_registry.py`, the `prod_dgx_full` preset). `cloud_with_dgx_primary` keeps `0.85`.
 
 With the gate off, `speech_coverage` was recorded as `null`, because the coverage was computed only
@@ -118,7 +118,7 @@ breadcrumb) is unchanged — only the metric's denominator changes, plus the bre
 
 ### The implementation fork (the decision that needs your call)
 
-The gate runs **client-side** (in `fallback.py`), but the whisper model is a **remote DGX server** —
+The gate runs **client-side** (in `fallback.py`), but the whisper model is a **remote self-hosted server** —
 so `speech_seconds` is not free. `ffmpeg silencedetect` (already a dependency) is **not** sufficient:
 it is energy-based and detects *silence*, not *music*, and music is exactly the false-positive case.
 The viable options:
@@ -126,13 +126,13 @@ The viable options:
 | # | approach | new dep? | catches music? | where VAD runs | cost |
 | --- | --- | --- | --- | --- | --- |
 | **A** | **silero-vad client-side** | **yes** (silero-vad, ~2 MB torch model) | yes | laptop CPU | ~1–3 s/ep; keeps the gate exactly where ADR-123 put it |
-| **B** | **DGX whisper server enables `vad_filter`, returns `speech_seconds`** | no (client) | yes | DGX (where faster-whisper already is) | server-side change to homelab infra |
-| **C** | **reuse pyannote diarization as the VAD** (Σ speaker-speech / audio) | no | yes (music has no speaker) | DGX (already running) | move the gate downstream of diarization; re-transcribe-only on failover (diarization stays valid) |
+| **B** | **the whisper server enables `vad_filter`, returns `speech_seconds`** | no (client) | yes | the whisper server (where faster-whisper already is) | server-side change to infrastructure outside this repository |
+| **C** | **reuse pyannote diarization as the VAD** (Σ speaker-speech / audio) | no | yes (music has no speaker) | the GPU host (already running) | move the gate downstream of diarization; re-transcribe-only on failover (diarization stays valid) |
 
 - **A** is the smallest change to *this* repo but adds a client runtime dependency (needs approval
   per the no-new-deps rule).
-- **B** is architecturally cleanest (VAD where the model is, zero client cost) but touches the DGX
-  whisper server, i.e. homelab infra outside this repo.
+- **B** is architecturally cleanest (VAD where the model is, zero client cost) but touches the remote self-hosted
+  whisper server, i.e. infrastructure outside this repository.
 - **C** adds no dependency and reuses a signal we already compute, but relocates the gate from the
   transcription-provider wrapper to the orchestration level (after diarization) — a larger refactor
   of ADR-123's clean wrapper design. Diarization is audio-based, so it is valid for both the turbo
@@ -142,7 +142,7 @@ The viable options:
 regions the diarizer already produces.
 
 **C is provider-agnostic, not pyannote-specific.** Every diarization provider (Deepgram, MOSS,
-Gemini, pyannote, tailnet-DGX) returns the same `DiarizationResult(segments=[start,end,speaker])`, so
+Gemini, pyannote, self-hosted DGX) returns the same `DiarizationResult(segments=[start,end,speaker])`, so
 `speech_seconds = Σ(merged segments)` reads off the common interface regardless of which diarizer
 runs. Two consequences to design for:
 
@@ -189,7 +189,7 @@ and the two anchor points.
   this only changes what the *next* reprocess does.
 - **Breadcrumb gains `speech_coverage` + `speech_seconds`** alongside the existing raw coverage, so
   provenance shows both.
-- One of: a new client dep (A), a DGX server change (B), or a gate relocation (C) — the open decision.
+- One of: a new client dep (A), a whisper-server change (B), or a gate relocation (C) — the open decision.
 
 ## Validation plan
 

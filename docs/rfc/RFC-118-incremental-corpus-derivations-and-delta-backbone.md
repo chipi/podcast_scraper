@@ -4,7 +4,7 @@
 - **Authors**: Marko Dragoljevic (chipi), Claude
 - **Stakeholders**: Operator (sign-off), pipeline + enrichment + search maintainers
 - **Related RFCs/ADRs**: [RFC-088](RFC-088-enrichment-layer-architecture.md) (enrichment layer; its incremental non-goal is the thing this reverses), [ADR-104](../adr/ADR-104-enrichment-layer-boundary-vs-kg-direct.md) (enrichment boundary)
-- **Related documents**: `docs/wip/ARCH-CORPUS-DERIVATIONS-REFACTOR.md` (the prior two-mode analysis this formalises)
+- **Related documents**: the earlier two-mode analysis this formalises (in git history)
 
 > Written after a single-episode reprocess on prod (2026-08-23) drove a **full-corpus** enrichment
 > pass whose `topic_consensus` (DeBERTa NLI, pairwise) ran ~28 minutes and **timed out**
