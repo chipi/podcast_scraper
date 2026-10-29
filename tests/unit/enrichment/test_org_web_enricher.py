@@ -181,6 +181,17 @@ def test_logo_hosted_when_provider_returns_validated_image(monkeypatch, tmp_path
     assert org_web.org_logo_path(tmp_path, "org:acme") is not None
 
 
+def test_org_logo_path_cannot_escape_the_logo_dir(tmp_path: Path) -> None:
+    logo_dir = org_web._logo_dir(tmp_path)
+    logo_dir.mkdir(parents=True)
+    (tmp_path / "secret.png").write_bytes(b"\x89PNG")
+    (logo_dir / "acme.png").write_bytes(b"\x89PNG")
+    for hostile in ("org:../../secret", "../../secret", "/etc/passwd", "org:..%2f..%2fsecret"):
+        assert org_web.org_logo_path(tmp_path, hostile) is None
+    found = org_web.org_logo_path(tmp_path, "org:acme")
+    assert found is not None and found[0] == logo_dir / "acme.png"
+
+
 def test_unhostable_logo_caches_a_skip_and_never_refetches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
     prov = _LogoProvider({"org:acme"}, org_web.IMAGE_SKIP)

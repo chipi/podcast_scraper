@@ -50,3 +50,40 @@ def test_rejects_path_outside_anchor(tmp_path: Path) -> None:
     with pytest.raises(CorpusPathRequestError) as exc_info:
         resolve_corpus_path_param(str(outside), anchor)
     assert exc_info.value.status_code == 400
+
+
+def test_rejects_dotdot_escape_from_anchor(tmp_path: Path) -> None:
+    anchor = tmp_path / "allowed"
+    anchor.mkdir()
+    (tmp_path / "outside").mkdir()
+    with pytest.raises(CorpusPathRequestError) as exc_info:
+        resolve_corpus_path_param(str(anchor / ".." / "outside"), anchor)
+    assert exc_info.value.status_code == 400
+
+
+def test_rejects_sibling_sharing_the_anchor_name_prefix(tmp_path: Path) -> None:
+    anchor = tmp_path / "corpus"
+    anchor.mkdir()
+    sibling = tmp_path / "corpus-evil"
+    sibling.mkdir()
+    with pytest.raises(CorpusPathRequestError) as exc_info:
+        resolve_corpus_path_param(str(sibling), anchor)
+    assert exc_info.value.status_code == 400
+
+
+def test_relative_dotdot_param_is_resolved_against_anchor_and_rejected(tmp_path: Path) -> None:
+    anchor = tmp_path / "allowed"
+    anchor.mkdir()
+    with pytest.raises(CorpusPathRequestError) as exc_info:
+        resolve_corpus_path_param("../outside", anchor, must_be_dir=False)
+    assert exc_info.value.status_code == 400
+
+
+def test_anchor_that_is_not_a_directory_is_rejected_when_dir_required(tmp_path: Path) -> None:
+    anchor = tmp_path / "not-a-dir"
+    anchor.write_text("x", encoding="utf-8")
+    with pytest.raises(CorpusPathRequestError) as exc_info:
+        resolve_corpus_path_param(str(anchor), anchor)
+    assert exc_info.value.status_code == 400
+    assert "Not a directory" in (exc_info.value.detail or "")
+    assert resolve_corpus_path_param(str(anchor), anchor, must_be_dir=False) == anchor.resolve()

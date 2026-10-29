@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import io
 import json
+from urllib.parse import urlparse
 
 import httpx
 import pytest
@@ -40,6 +41,13 @@ THUMB_URL = (
     "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Example.png/640px-Example.png"
 )
 FULL_URL = "https://upload.wikimedia.org/wikipedia/commons/a/ab/Example.png"
+
+# Compare hosts, not substrings: "wikipedia.org" in a URL also matches a path or another host.
+_METERED_HOSTS = frozenset({"commons.wikimedia.org", "wikipedia.org"})
+
+
+def _host(url: str) -> str:
+    return (urlparse(url).hostname or "").lower()
 
 
 @pytest.fixture(autouse=True)
@@ -107,7 +115,7 @@ def test_only_one_request_touches_the_metered_text_cluster() -> None:
     """The whole point is the load on commons/wikidata/wikipedia, not the total request count."""
     _, seen = _run(thumburl=THUMB_URL)
 
-    metered = [u for u in seen if "commons.wikimedia.org" in u or "wikipedia.org" in u]
+    metered = [u for u in seen if _host(u) in _METERED_HOSTS or _host(u).endswith(".wikipedia.org")]
 
     assert len(metered) == 1, f"expected exactly one metered request, got {metered}"
 
@@ -147,7 +155,7 @@ def test_an_off_allowlist_direct_url_is_refused() -> None:
 
     assert result is IMAGE_SKIP
     assert not any(
-        "evil.example.com" in u for u in seen
+        _host(u) == "evil.example.com" for u in seen
     ), f"an off-allowlist host must never be requested, got {seen}"
 
 

@@ -150,6 +150,16 @@ def test_the_same_link_cannot_be_used_twice(tmp_path: Path) -> None:
     assert "already been used" in again.json()["detail"]
 
 
+def test_consume_refuses_a_token_id_that_would_leave_the_used_dir(tmp_path: Path) -> None:
+    data_dir = tmp_path / "appdata"
+    for hostile in ("../escape", "..", "a/../../escape", "/abs"):
+        assert app_magic_link.consume(data_dir, hostile) is False
+    assert not (data_dir / "escape.json").exists()
+    assert not (tmp_path / "escape.json").exists()
+    assert app_magic_link.consume(data_dir, "ok-token") is True
+    assert app_magic_link.consume(data_dir, "ok-token") is False
+
+
 def test_a_disallowed_address_is_refused_at_verify_without_burning_the_token(
     tmp_path: Path,
 ) -> None:

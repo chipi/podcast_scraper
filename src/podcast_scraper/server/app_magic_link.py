@@ -33,6 +33,7 @@ Three properties, and why each is enforced here
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 import time
 from pathlib import Path
@@ -131,7 +132,12 @@ def consume(data_dir: Path, token_id: str, *, now: int | None = None) -> bool:
     try:
         directory = _used_dir(data_dir)
         directory.mkdir(parents=True, exist_ok=True)
-        marker = directory / f"{token_id}.json"
+        # normalize + prefix-check inline: CodeQL only honours the guard in this function
+        used_root = os.path.normpath(str(directory))
+        marker_s = os.path.normpath(os.path.join(used_root, f"{token_id}.json"))
+        if not marker_s.startswith(used_root + os.sep):
+            return False
+        marker = Path(marker_s)
         with FileLock(str(directory / f".{token_id}.lock"), timeout=_LOCK_TIMEOUT_S):
             if marker.exists():
                 return False
