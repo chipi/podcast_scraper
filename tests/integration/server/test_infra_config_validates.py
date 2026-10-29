@@ -118,6 +118,10 @@ def test_player_nginx_rate_limits_api() -> None:
 
 
 def test_player_nginx_syntax_ok() -> None:
+    # nginx.conf is a template: the learning-app image renders ${PLAYER_*} into /tmp/player.conf
+    # at start and conf.d only includes it (web/learning-player/Dockerfile). Test it the same way,
+    # so `nginx -t` sees the rendered config, not the raw ${PLAYER_SENTRY_DSN_WEB}. The include
+    # stub is written inside the container, so only the repo file is mounted.
     proc = subprocess.run(  # noqa: S603
         [
             "docker",
@@ -125,11 +129,20 @@ def test_player_nginx_syntax_ok() -> None:
             "--rm",
             "--add-host",
             "api:127.0.0.1",
+            "-e",
+            "NGINX_ENVSUBST_OUTPUT_DIR=/tmp",
+            "-e",
+            "NGINX_ENVSUBST_FILTER=^PLAYER_",
+            "-e",
+            "PLAYER_SENTRY_DSN_WEB=https://testkey@glitchtip.invalid/1",
             "-v",
-            f"{NGINX_CONF}:/etc/nginx/conf.d/default.conf:ro",
+            f"{NGINX_CONF}:/etc/nginx/templates/player.conf.template:ro",
+            "--entrypoint",
+            "sh",
             "nginx:1.27-alpine",
-            "nginx",
-            "-t",
+            "-c",
+            "printf 'include /tmp/player.conf;\\n' > /etc/nginx/conf.d/default.conf"
+            " && /docker-entrypoint.sh nginx -t",
         ],
         capture_output=True,
         text=True,
