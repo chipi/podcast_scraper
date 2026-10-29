@@ -23,6 +23,11 @@ podcast-scraper-eval-data ``docs/wip/NAMING-GATES-2026-10-22.md``). Three tables
 
 Episodes written before these keys existed are counted as ``without``, never as agreement.
 
+``episodes_shadowed`` lists every episode that has a side namer's key: its run (relative to the
+corpus root), its processing timestamp from the metadata, and per namer its outcome counts or why
+it did not answer. A daily snapshot diffs these ids against the previous one to see last night's
+episodes; the tables above only count an all-agree or a not-answered episode.
+
 Every listed row carries the episode's feed and title and ``insights``: how many of the episode's GI
 insights sit on that voice (placed as S7 places them, ``gold_insights.place``: the first
 ``SUPPORTED_BY`` quote, checked by its text), so the rows a reader should read first are the ones
@@ -201,9 +206,34 @@ def rescue_rows(eid: str, diag: Mapping[str, Any]) -> List[Dict[str, Any]]:
     return out
 
 
+def episode_row(root: Path, eid: str, meta_path: Path, per_namer: Dict[str, Any]) -> Dict[str, Any]:
+    """One shadowed episode: where it lives and when it was processed, with each namer's result.
+
+    ``run`` is relative to the corpus root, so the row reads the same on any host; ``processed``
+    is the metadata's own processing timestamp, never a file time."""
+    meta = _load(meta_path) or {}
+    run = Path(meta_path).parent.parent
+    try:
+        rel = run.relative_to(root)
+    except ValueError:
+        rel = run.resolve().relative_to(Path(root).resolve())
+    return {
+        "episode": eid,
+        "feed": str((meta.get("feed") or {}).get("title") or ""),
+        "title": str((meta.get("episode") or {}).get("title") or ""),
+        "run": rel.as_posix(),
+        "processed": (meta.get("processing") or {}).get("processing_timestamp"),
+        "namers": per_namer,
+    }
+
+
 def report(root: Path) -> Dict[str, Any]:
-    """The three tables over every served episode of ``root``."""
+    """The three tables over every served episode of ``root``, plus ``episodes_shadowed``: one row
+    per episode that has a side namer's key, so a reader can tell which episodes are new since an
+    earlier report and what each namer did on each (an all-agree episode or a not-answered one
+    is otherwise only a count)."""
     episodes = 0
+    episode_rows: List[Dict[str, Any]] = []
     namers: Dict[str, Dict[str, Any]] = {
         n: {
             "episodes": 0,
@@ -219,6 +249,7 @@ def report(root: Path) -> Dict[str, Any]:
     for eid, meta_path, diag in served_diagnostics(root):
         episodes += 1
         listed: List[Dict[str, Any]] = []
+        per_namer: Dict[str, Any] = {}
         for n in NAMERS:
             if not isinstance(diag.get(n), dict):
                 continue
@@ -227,13 +258,22 @@ def report(root: Path) -> Dict[str, Any]:
             reason = not_answered(diag[n], n)
             if reason:
                 t["not_answered"][reason] += 1
+                per_namer[n] = {"answered": False, "reason": reason}
                 continue
             t["answered"] += 1
+            mine: Counter = Counter()
             for r in namer_rows(eid, diag, n):
                 t["outcomes"][r["outcome"]] += 1
+                mine[r["outcome"]] += 1
                 if r["outcome"] not in ("agree", NOT_JUDGED):
                     t["differences"].append(r)
                     listed.append(r)
+            per_namer[n] = {
+                "answered": True,
+                "outcomes": {o: mine.get(o, 0) for o in (*OUTCOMES, NOT_JUDGED)},
+            }
+        if per_namer:
+            episode_rows.append(episode_row(root, eid, meta_path, per_namer))
         ep_floor, ep_rescues = floor_rows(eid, diag), rescue_rows(eid, diag)
         floor.extend(ep_floor)
         rescues.extend(ep_rescues)
@@ -262,6 +302,7 @@ def report(root: Path) -> Dict[str, Any]:
             ),
             "rows": rescues,
         },
+        "episodes_shadowed": episode_rows,
     }
 
 
