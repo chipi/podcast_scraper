@@ -279,9 +279,11 @@ ENV HF_HUB_OFFLINE=${HF_OFFLINE} \
 # It comes from rclone's own release, not Debian: Debian 13's package is built with Go 1.23.2,
 # whose standard library carried 27 Snyk findings (1 critical); the release is built with a
 # current Go. Pinned by version AND sha256 (from the release's SHA256SUMS); a bump changes both.
-ARG RCLONE_VERSION=v1.75.2
-ARG RCLONE_SHA256_AMD64=349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702
-ARG RCLONE_SHA256_ARM64=7e1e8d69654941b7b7df84ee74c5f7fb09cce7d5496947fb7bf16b55ff427d10
+# The args are PIN_-prefixed: rclone reads every RCLONE_* environment variable as a flag, and an
+# RCLONE_VERSION build arg made `rclone version` fail with CRITICAL during the build.
+ARG PIN_RCLONE_VERSION=v1.75.2
+ARG PIN_RCLONE_SHA256_AMD64=349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702
+ARG PIN_RCLONE_SHA256_ARM64=7e1e8d69654941b7b7df84ee74c5f7fb09cce7d5496947fb7bf16b55ff427d10
 ARG TARGETARCH
 ARG INSTALL_EXTRAS
 # Debian CDN can serve truncated .deb during mirror sync (CI Snyk/docker flakes).
@@ -303,14 +305,16 @@ COPY docker/pipeline/install_rclone.py /tmp/install_rclone.py
 RUN set -eu; \
     arch="${TARGETARCH:-amd64}"; \
     case "$arch" in \
-      amd64) sha="$RCLONE_SHA256_AMD64" ;; \
-      arm64) sha="$RCLONE_SHA256_ARM64" ;; \
+      amd64) sha="$PIN_RCLONE_SHA256_AMD64" ;; \
+      arm64) sha="$PIN_RCLONE_SHA256_ARM64" ;; \
       *) echo "no pinned rclone checksum for $arch"; exit 1 ;; \
     esac; \
-    python3 /tmp/install_rclone.py "$RCLONE_VERSION" "$arch" "$sha" /usr/local/bin/rclone; \
+    python3 /tmp/install_rclone.py "$PIN_RCLONE_VERSION" "$arch" "$sha" /usr/local/bin/rclone; \
     chmod 0755 /usr/local/bin/rclone; \
     rm -f /tmp/install_rclone.py; \
-    /usr/local/bin/rclone version | head -1
+    /usr/local/bin/rclone version > /tmp/rclone-version; \
+    head -1 /tmp/rclone-version; \
+    rm -f /tmp/rclone-version
 
 # Create non-root user for security
 # UID 1000 is a common convention for application users
