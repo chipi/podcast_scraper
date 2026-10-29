@@ -29,11 +29,12 @@ applyPreset()
 
 const app = createApp(App)
 
-// Sentry init for the viewer — gated on ``VITE_SENTRY_DSN_VIEWER`` so
-// the default behaviour (no DSN) stays a true no-op for dev / CI / any
-// build that hasn't passed the build-arg through. The DSN reaches Vite
-// at build time via ``VITE_*`` env vars; the docker viewer build needs
-// to pass ``VITE_SENTRY_DSN_VIEWER`` as a build-arg.
+// Sentry init for the viewer — gated on a DSN, so the default behaviour (no DSN) stays a true
+// no-op for dev / CI / any image whose container sets none. The deployed viewer takes its DSN at
+// container start: nginx injects ``window.__PODCAST_SENTRY_DSN_VIEWER__`` from the container's
+// ``PODCAST_SENTRY_DSN_VIEWER`` (see docker/viewer/default.conf.template), so one image serves
+// every deployment and no DSN is baked by CI. ``VITE_SENTRY_DSN_VIEWER`` (a build-arg) still
+// works for a local build that runs without that nginx.
 //
 // ``environment`` is RUNTIME-injected via nginx ``sub_filter`` (Item 1 /
 // RFC-082 follow-up) so ONE viewer image serves prod + preprod with the
@@ -51,21 +52,26 @@ const app = createApp(App)
 // NO LITERAL DSN (operator, 2026-10-03) — the same fix the player's main.ts and the server's
 // sentry_init.py got. This used to fall back, in ``vite dev``, to a hardcoded ``operator-dev`` DSN
 // at the tailnet host ``homelab``, which does not resolve from every machine and is refused on the
-// homelab box itself. The DSN now comes from the environment only: ``VITE_SENTRY_DSN_VIEWER`` for
-// prod (docker build-arg) and ``VITE_SENTRY_DSN_VIEWER_DEV`` for the dev rung (a local .env).
+// homelab box itself. The DSN now comes from the environment only: the container's
+// ``PODCAST_SENTRY_DSN_VIEWER`` when deployed (above) and ``VITE_SENTRY_DSN_VIEWER_DEV`` for the
+// dev rung (a local .env).
 // With neither set, error reporting is a true no-op. ``VITE_ANALYTICS_OFF=1`` (vitest +
 // playwright) still keeps the dev rung off in tests.
 const devSentryDsn =
   import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
     ? (import.meta.env.VITE_SENTRY_DSN_VIEWER_DEV as string | undefined) || undefined
     : undefined
+const runtimeEnv = window as Window & {
+  __PODCAST_ENV__?: string
+  __PODCAST_RELEASE__?: string
+  __PODCAST_SENTRY_DSN_VIEWER__?: string
+}
 const SENTRY_DSN_VIEWER =
-  (import.meta.env.VITE_SENTRY_DSN_VIEWER as string | undefined) || devSentryDsn
+  runtimeEnv.__PODCAST_SENTRY_DSN_VIEWER__ ||
+  (import.meta.env.VITE_SENTRY_DSN_VIEWER as string | undefined) ||
+  devSentryDsn
 if (SENTRY_DSN_VIEWER) {
-  const w = window as Window & {
-    __PODCAST_ENV__?: string
-    __PODCAST_RELEASE__?: string
-  }
+  const w = runtimeEnv
   Sentry.init({
     app,
     dsn: SENTRY_DSN_VIEWER,

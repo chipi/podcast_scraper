@@ -298,13 +298,9 @@ jobs:
       # injects only the ones the matrix image needs. GitHub leaves the
       # rest empty, which is a no-op. Secrets are NEVER placed in the
       # matrix include (that would print them in logs).
-      # ⚠ GOTCHA (2026-07-22): the browser @sentry SDK's DSN parser uses \w+
-      # for the public key (NO dashes), so a GlitchTip dashed-UUID key is
-      # rejected as "Invalid Dsn" → transport disabled → errors silently
-      # dropped. Use the DASHLESS key here. The Python SDK accepts both.
-      VITE_SENTRY_DSN_VIEWER: ${{ secrets.VITE_SENTRY_DSN_VIEWER }}
-      # No player DSN here: the learning-app image takes its DSN when the deployment starts it
-      # (PLAYER_SENTRY_DSN_WEB, rendered into index.html by its nginx), so this build bakes none.
+      # No browser DSN here: the viewer and learning-app images take theirs when the deployment
+      # starts them (PODCAST_SENTRY_DSN_VIEWER / PLAYER_SENTRY_DSN_WEB, injected into index.html by
+      # their nginx), so this build bakes none.
       # Umami analytics ids are PUBLIC (they ship in the bundle) → GH vars.
       OPERATOR_UMAMI_SRC: ${{ vars.OPERATOR_UMAMI_SRC }}
       OPERATOR_UMAMI_WEBSITE_ID: ${{ vars.OPERATOR_UMAMI_WEBSITE_ID }}
@@ -352,7 +348,6 @@ jobs:
           BUILD_ARGS=()
           case "${MATRIX_IMAGE}" in
             viewer)
-              BUILD_ARGS+=(--build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_SRC=${OPERATOR_UMAMI_SRC}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_WEBSITE_ID=${OPERATOR_UMAMI_WEBSITE_ID}")
               BUILD_ARGS+=(--build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}")

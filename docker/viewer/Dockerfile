@@ -14,10 +14,9 @@ WORKDIR /viewer
 ARG VITE_DEFAULT_GRAPH_LENS_DAYS
 ENV VITE_DEFAULT_GRAPH_LENS_DAYS=${VITE_DEFAULT_GRAPH_LENS_DAYS}
 
-# Sentry DSN + env tags for the viewer's runtime error reporting.
-# All three are optional — Vue main.ts only initialises Sentry when
-# VITE_SENTRY_DSN_VIEWER is set, so a build with no DSN is silent.
-# See RFC-081 §Layer 2 + issue #681. Pass via:
+# A baked Sentry DSN, for a local build that runs without this image's nginx. A deployed viewer
+# takes its DSN at container start instead (PODCAST_SENTRY_DSN_VIEWER, below), so CI passes
+# nothing here; main.ts reports nothing when neither is set. See RFC-081 §Layer 2 + issue #681.
 #   docker buildx build --build-arg VITE_SENTRY_DSN_VIEWER=...
 ARG VITE_SENTRY_DSN_VIEWER
 ENV VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}
@@ -74,6 +73,9 @@ ENV PODCAST_RELEASE=
 # Optional VPS default for nginx ``sub_filter`` corpus-path injection (empty
 # in Codespaces / local dev).
 ENV PODCAST_DEFAULT_CORPUS_PATH=
+# The viewer's GlitchTip DSN, injected at request time like PODCAST_ENV (main.ts reads
+# window.__PODCAST_SENTRY_DSN_VIEWER__). Empty = error reporting off.
+ENV PODCAST_SENTRY_DSN_VIEWER=
 # Restrict envsubst to ``${PODCAST_*}`` so nginx's own ``${host}`` /
 # ``${uri}`` etc. (and any future single-dollar-style nginx vars in
 # the template) are NOT mangled.

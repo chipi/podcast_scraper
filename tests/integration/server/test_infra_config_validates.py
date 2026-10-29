@@ -95,6 +95,22 @@ def test_viewer_nginx_preserves_forwarded_proto() -> None:
     ), "must NOT forward the loopback $scheme (http) as the edge proto"
 
 
+def test_viewer_dsn_is_injected_at_container_start() -> None:
+    # The deployed viewer takes its GlitchTip DSN from the container (PODCAST_SENTRY_DSN_VIEWER),
+    # not from a CI build-arg: nginx's envsubst renders it into index.html, main.ts reads it.
+    conf = VIEWER_NGINX_CONF.read_text()
+    assert 'window.__PODCAST_SENTRY_DSN_VIEWER__="${PODCAST_SENTRY_DSN_VIEWER}"' in conf
+    dockerfile = (REPO / "docker" / "viewer" / "Dockerfile").read_text()
+    assert "ENV PODCAST_SENTRY_DSN_VIEWER=" in dockerfile, "empty default, so envsubst renders ''"
+    assert (
+        "ENV NGINX_ENVSUBST_FILTER=^PODCAST_" in dockerfile
+    ), "the PODCAST_ var must be substituted"
+    main_ts = (REPO / "web" / "gi-kg-viewer" / "src" / "main.ts").read_text()
+    assert "__PODCAST_SENTRY_DSN_VIEWER__" in main_ts
+    stack_test = (REPO / ".github" / "workflows" / "stack-test.yml").read_text()
+    assert "VITE_SENTRY_DSN_VIEWER" not in stack_test, "CI must not bake a viewer DSN"
+
+
 def test_viewer_nginx_rate_limits_api() -> None:
     # RFC-108 / T-06: the operator-public viewer must rate-limit like the player nginx,
     # keyed on the REAL client IP (real_ip recovers it from XFF), with a tighter zone on
