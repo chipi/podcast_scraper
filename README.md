@@ -144,7 +144,6 @@ Choose the installation method based on your use case:
 | **OpenAI only** | `pip install -e ".[llm]"` | Core + OpenAI, Gemini, Anthropic, Mistral SDKs | ~50MB |
 | **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, LanceDB, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
 | **Both** (recommended) | `pip install -e ".[ml,llm]"` | Local ML + all LLM API SDKs | ~1-3GB |
-| **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (RFC-047; `make run-compare`) | moderate |
 | **GI/KG viewer API** | `pip install -e ".[dev]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
 | **Monitor profiling extras** (optional) | `pip install -e ".[monitor]"` | `py-spy` + `memray` integrated with `--monitor` / `--memray` (RFC-065); **not** required for `--monitor` alone | small |
 
@@ -394,11 +393,14 @@ python -m podcast_scraper.cli --help
 After install, most people want **packaged defaults** (profile), **their own knobs** (operator YAML), and **where the RSS URLs live** (feeds file or spec). The CLI wires all three together; you do **not** need to merge YAML by hand.
 
 ```bash
-# From the repo root, venv active, API keys in .env or the environment:
+# From the repo root, venv active, API keys in .env or the environment.
+# my_operator.yaml is your own small file, e.g.:
+#   output_dir: output
+#   max_episodes: 3
 python -m podcast_scraper.cli \
   --profile cloud_balanced \
-  --config config/manual/operator_defaults.yaml \
-  --feeds-spec config/manual/feeds.spec.registry_10.yaml
+  --config my_operator.yaml \
+  --feeds-spec config/examples/feeds.spec.example.yaml
 ```
 
 | Flag | Role |
@@ -411,7 +413,7 @@ python -m podcast_scraper.cli \
 
 **Alternative:** `--config config/profiles/cloud_balanced.yaml` alone is valid when the feed URL(s) live **inside** that YAML (`rss` / `rss_urls` / `feeds`) or you pass a URL on the command line. Use **`--profile` + `--config`** when your operator file is small (paths, limits, flags) and the profile stays the packaged preset.
 
-In-repo references: `config/examples/feeds.spec.example.yaml`, `config/manual/operator_defaults.yaml`, `config/profiles/cloud_balanced.yaml`. Deeper detail: [CONFIGURATION.md](docs/api/CONFIGURATION.md) (RSS / multi-feed), [RSS_GUIDE.md](docs/guides/RSS_GUIDE.md).
+In-repo references: `config/examples/feeds.spec.example.yaml`, `config/examples/config.example.yaml` (every operator option, commented), `config/profiles/cloud_balanced.yaml`. Deeper detail: [CONFIGURATION.md](docs/api/CONFIGURATION.md) (RSS / multi-feed), [RSS_GUIDE.md](docs/guides/RSS_GUIDE.md).
 
 #### Basic Usage with Example Config (Recommended for First-Time Users)
 
