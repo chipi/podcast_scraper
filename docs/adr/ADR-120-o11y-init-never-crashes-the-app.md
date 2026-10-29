@@ -5,7 +5,7 @@
 
 ## Context
 
-On 2026-07-22, while diagnosing the ADR-115 secrets cutover, a single bad
+On 2026-07-22, while diagnosing a secrets cutover, a single bad
 environment value took the whole api process down: `init_sentry` called
 `sentry_sdk.init(dsn=...)` unguarded, so a **non-empty but malformed DSN** raised
 `sentry_sdk.utils.BadDsn: Unsupported scheme ''` and crash-looped the app at
@@ -15,8 +15,7 @@ mis-delivering secrets.
 Telemetry is *support* infrastructure. A misconfigured or unreachable telemetry
 backend, a bad DSN, a missing optional package — none of these are worth taking
 the product down for. The same principle already governs the deploy path
-(`deploy.sh`: "telemetry must never break the app" — the `HOMELAB_TAILNET_IP`
-fallback); this ADR makes it a code-level invariant too.
+(the deploy script's telemetry-endpoint fallback: "telemetry must never break the app"); this ADR makes it a code-level invariant too.
 
 ## Decision
 

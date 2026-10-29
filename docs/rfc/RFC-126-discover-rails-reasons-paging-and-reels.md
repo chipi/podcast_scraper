@@ -12,7 +12,6 @@
     reel (amended)
   - `docs/adr/ADR-164-discover-is-a-taste.md` — server-paged rails, one card per episode
   - `docs/adr/ADR-165-validation-corpus-grounds-every-insight.md` — the fixture these are proved on
-- **Working plan**: `docs/wip/DISCOVER-ARC-PLAN-2026-10-10.md`
 
 ## Abstract
 
@@ -269,5 +268,4 @@ minimum.
 
 ## References
 
-- `docs/wip/discovery-competitive-analysis-2026-10-09.md`
-- `docs/wip/DISCOVER-ARC-PLAN-2026-10-10.md`
+- An earlier competitive analysis and the discover arc plan (in git history)

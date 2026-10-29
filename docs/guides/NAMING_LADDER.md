@@ -495,8 +495,8 @@
   - `voice_identity` (`voice_identity_rung`, threshold `voice_identity_threshold` 0.7): a voice that
     matches a fingerprint group of the feed's OTHER episodes (named by vote: >= 2 episodes and more
     than half of the group's named members) takes that name; the name leaves a voice clearly not
-    that person (similarity < 0.5). The rung's own names never vote. Design:
-    `docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md`, stage 3. Needs stored fingerprints (4% of the
+    that person (similarity < 0.5). The rung's own names never vote. Design: stage 3 of
+    the voice-identity design. Needs stored fingerprints (4% of the
     10-17 corpus copy has them), so it acts on new episodes as feed banks grow.
   - `talk_floor` (`speaker_name_min_talk_share`, 0.05 as measured): after every rung, a named voice
     holding less than that share of the episode's talk (aligned segments' duration) is unnamed. A
@@ -512,8 +512,8 @@
   every step above seated nobody and the pool holds exactly one publishable name, the voice that
   asks questions at least twice as often as every other voice with 10% or more of the non-ad talk
   (`_question_lead_voice`, "?" per 1,000 words, a transcript with at least 20 full stops) takes the
-  seat, under step 6's guards; the forced naming then gives it the pool's one name. Measured in
-  `docs/wip/HOST-SEAT-BY-QUESTIONS-2366.md`: the voice picked is the host in 47/48 (dev_v1),
+  seat, under step 6's guards; the forced naming then gives it the pool's one name. Measured on the
+  gold sets: the voice picked is the host in 47/48 (dev_v1),
   177/186 (val_v1), 56/64 (val_v2). Snapshot replay: 6 voices change, all better.
 - **v24, 2026-10-15.** The promo rule (`_self_introduced_promo_voices`, in `inputs.ad_voices`),
   two fixes (#2364): it reads each voice with one space between words (two segments joined at

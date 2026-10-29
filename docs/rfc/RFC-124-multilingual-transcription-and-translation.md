@@ -2,7 +2,7 @@
 
 - **Status**: Draft
 - **Authors**: Marko
-- **Stakeholders**: Pipeline (transcription, diarization, translation, ad-free base, summary/GI/KG), DGX serving, player (segments contract), search, operator feed curation
+- **Stakeholders**: Pipeline (transcription, diarization, translation, ad-free base, summary/GI/KG), model serving, player (segments contract), search, operator feed curation
 - **Related PRDs**:
   - `docs/prd/PRD-047-multilingual-ingest.md` — product requirements this RFC implements (FR1–FR4, FR6, FR7)
 - **Related RFCs**:
@@ -54,7 +54,7 @@ erroring. The arc notes (§5.2) carry the same list with slice ids.
 
 1. **Silent degradation to an unusable model.** `whisper_utils.normalize_whisper_model_name` drops
    `.en` for non-English, then builds a chain from `FALLBACK_WHISPER_MODELS_MULTILINGUAL` down to
-   `tiny`. Prod's local fallback default is `base.en` (`config_constants.py:332`), so for Greek the
+   `tiny`. The profile's local fallback default is `base.en` (`config_constants.py:332`), so for Greek the
    chain is `["base", "tiny"]`. The DGX path never passes through the normalizer — `dgx_whisper_model`
    is an HF id — so this hazard lives entirely in the fallback tier.
 2. **No per-episode language path exists.** Providers read run-global config when the argument is
@@ -110,7 +110,7 @@ Hazard 4 is why translation precedes ad detection (§3).
 - No silent model substitution for translation. A different model invalidates the bake-off evidence
   the language was enabled on, so an unavailable model means **defer**, not **fall back**.
 - Only models whose license permits this deployment (EU operator, commercial product) are eligible.
-- Runs on the DGX Spark as its own served process. English ingest keeps priority in the work queue.
+- Runs on a GPU host as its own served process. English ingest keeps priority in the work queue.
 - **One translation pass per episode.** The full-timeline text is translated exactly once; every other
   English artifact is derived from it by existing deterministic machinery.
 - **No embedding-model change anywhere in this RFC** (D-14).
@@ -286,7 +286,7 @@ that every language shares, English included, and each now has a decision record
 | Whisper honours the language it is sent: Spanish audio requested as `en` came back as correct Spanish text reporting `en`, so a wrong feed tag passes silently. | The transcript must read as its declared language (function-word counts) or the episode fails loud. No auto-correction. | [ADR-158](../adr/ADR-158-transcript-must-read-as-its-declared-language.md) |
 | Long-form decoding skips speech the diarizer hears (80k_03 raw: 77 words; V.6b: 57 gaps over six episodes). | Detected (`untranscribed_speech`), then re-transcribed gap by gap through a one-request clip call and spliced in, tagged `recovered`. | [ADR-159](../adr/ADR-159-recover-untranscribed-speech-through-a-clip-call.md) |
 | Whisper invents subtitle credits: nine "Sous-titrage Société Radio-Canada" segments covered the French opening, including the host's self-introduction. | Whole-segment invented lines are removed after ASR; their time becomes a recoverable gap. | [ADR-160](../adr/ADR-160-remove-whole-segment-invented-lines.md) |
-| Punctuation breaks off part-way and stays off: 5 of 6 V.6b feeds and 121 of 2,421 prod episodes of 20+ minutes, while the whole-episode figure passes. | Judged per 10-minute window; a broken window is re-transcribed on its own with a punctuated prompt in the episode's language (25 of 25 non-English and 9 of 10 English windows repaired). | [ADR-161](../adr/ADR-161-repair-punctuation-per-window.md) |
+| Punctuation breaks off part-way and stays off: 5 of 6 V.6b feeds and 121 of 2,421 corpus episodes of 20+ minutes, while the whole-episode figure passes. | Judged per 10-minute window; a broken window is re-transcribed on its own with a punctuated prompt in the episode's language (25 of 25 non-English and 9 of 10 English windows repaired). | [ADR-161](../adr/ADR-161-repair-punctuation-per-window.md) |
 | Translation status `failed` for one refused 114-character unit (Spanish), which skips summary, GI and KG for the episode (§5.3). | Not changed here — recorded as an open question (below). | — |
 
 What V.6b ruled out, so it is not re-proposed: a prompt sent once with the whole file (it shapes
@@ -718,7 +718,7 @@ finding Greek content by meaning — is explicitly out of scope for this arc. It
 multilingual encoder, which re-embeds every existing English episode, changes vector dimensionality
 (migration plus reader-support bump), forces a corpus-wide reindex with cutover and rollback, and drags
 along `search/insight_clusters.json`, `kg/topic_clustering`, `search/query_router` and
-`search/quality_metrics.py`'s hardcoded `_ZERO_VECTOR_DIM = 384` — all gated on a prod-derived eval set
+`search/quality_metrics.py`'s hardcoded `_ZERO_VECTOR_DIM = 384` — all gated on a corpus-derived eval set
 that does not exist. It belongs with internationalizing the application, when a listener can search in
 whatever language they choose. See the arc notes, "Explicitly not in this arc".
 
@@ -824,7 +824,7 @@ The per-episode manifest (RFC-109) gains:
 `skipped_unsupported_language`, `deferred_quality_floor`, `language_mismatch` — need log and metric
 surfacing plus a runbook entry, or the phase that exists to remove silent failures introduces three.
 
-Grafana: translation wall time, units/sec, pending backlog, failures by language, and ad-chars-removed
+Observability stack metrics: translation wall time, units/sec, pending backlog, failures by language, and ad-chars-removed
 by language.
 
 ## Key Decisions
@@ -855,7 +855,7 @@ by language.
     the only witness, because ASR echoes the language it is sent.
 14. **Speech the diarizer hears and ASR skipped is recovered by clip, never through the episode
     path** (ADR-159): the episode path's guardrail, retries and breaker turned one sparse clip into
-    an 18-minute stall holding the DGX lock.
+    an 18-minute stall holding the GPU lock.
 15. **Invented lines go by whole segment only** (ADR-160).
 16. **Punctuation is judged and repaired per window** (ADR-161).
 

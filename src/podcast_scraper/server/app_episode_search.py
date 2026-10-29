@@ -5,7 +5,7 @@ highlight it or to find the insight about it. Two additions to the Brief's searc
 only the episode's timed transcript (its ``segments.json``) — no index, no model:
 
 * :func:`exact_passages` — the passages that contain every remembered word, verbatim, with their
-  real times. Measured on 94 real episodes (``docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md``), four
+  real times. Measured on 94 real episodes, four
   remembered words verbatim found their passage in the search's top 10 only 73% of the time; a
   plain word search found it every time, usually as the only match.
 * :func:`time_transcript_hits` — a real start time for the search's transcript results. The index

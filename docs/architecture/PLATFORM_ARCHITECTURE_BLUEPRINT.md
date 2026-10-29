@@ -312,11 +312,11 @@ into a file-backed outbox; a **stateless last-mile worker** pulls them over a
 token-gated `/internal/outbox` API, renders per channel, and sends via Resend
 (email) / Web Push (VAPID) / APNs (native iOS), reporting terminal status back
 so the app can suppress bad recipients. The worker currently lives in the
-homelab infra repo (`agentic-ai-homelab/infra/delivery/`); its packaging is
+an external delivery-worker component; its packaging is
 under reevaluation ([#2077](https://github.com/chipi/podcast_scraper/issues/2077)).
 
 Full walkthrough: **[Notifications & Delivery Guide](../guides/NOTIFICATIONS_GUIDE.md)**.
-Design: [ADR-144](../adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md),
+Design: ADR-144,
 [ADR-145](../adr/ADR-145-channel-agnostic-outbox-seam.md),
 [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md).
 
@@ -365,7 +365,7 @@ enqueues a `ProcessingJob` and the ProcessingProcessor picks it up while the
 next audio episode is still being transcribed. Not a stage barrier.
 
 **When audio and LLM DO serialize:** only when both run on Apple MPS
-(`should_serialize_mps`). On dedicated hardware (GPU + API/DGX) they overlap
+(`should_serialize_mps`). On dedicated hardware (GPU + API host) they overlap
 in full.
 
 **Cross-feed pipelining is currently OUT of scope.** `corpus_operations.py`
@@ -1278,8 +1278,8 @@ have 300W PSU — verify before buying.
 | **Total** | | **~€300–365 + API costs** |
 
 **When this makes sense:** If you primarily use cloud providers for transcription and
-summarization (the existing multi-provider architecture), you don't need a GPU at all. The mini
-PC handles API orchestration, GIL/KG extraction (cloud tier), LanceDB indexing, and the viewer.
+summarization (the existing multi-provider architecture), you don't need a GPU at all. The small
+host handles API orchestration, GIL/KG extraction (cloud tier), LanceDB indexing, and the viewer.
 Local ML (Whisper, BART) would be very slow on CPU-only.
 
 #### D.14.2 Linux PC — Optimal tier (~€800–1200)
@@ -1492,10 +1492,9 @@ application already emits (logs, metrics) and **visualizes** it.
 - **Composable** — add only what you need: Grafana-only is the simplest start; Prometheus
   adds metrics; Loki adds log aggregation.
 
-**Adopted approach (pre-2026-07):** Grafana Cloud Free Tier (10k metrics, 50 GB logs/traces — free)
-was used as an alternative to self-hosting. As of 2026-07 this estate moved to **fully self-hosted
-observability** on homelab (VictoriaMetrics + VictoriaLogs + GlitchTip on the Mac mini); Alloy agents
-on the VPS/DGX ship via remote-write. Grafana Cloud is no longer in use.
+**Adopted approach:** a self-hosted observability stack (VictoriaMetrics, VictoriaLogs,
+GlitchTip), with collector agents on each host shipping via remote-write. A hosted free tier
+(e.g. Grafana Cloud) is an alternative to self-hosting.
 
 ### E.3 Metrics to expose (application → Prometheus)
 

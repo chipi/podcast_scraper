@@ -509,8 +509,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
   (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
-  **Search this episode is for what a listener remembers** (operator 2026-10-10; eval
-  `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`): it searches only this episode, and its results come
+  **Search this episode is for what a listener remembers** (operator 2026-10-10): it searches only this episode, and its results come
   in two groups — **In the transcript** (the words verbatim first, then the words in any order or
   form; each result cut to the sentence holding the words, the words marked, "Play from" where it
   was said, and the bookmark, the app's highlight control, which saves that sentence) and **Insights**. The episode's own
@@ -1465,10 +1464,9 @@ review or rebuild it.
 
 ## Visual references
 
-Annotated phone mockups of the three explored directions live in
-`docs/wip/player/mockups/` (HTML + PNG). **Direction B (Editorial Bold)** is the adopted baseline;
+Annotated phone mockups explored three directions (in git history). **Direction B (Editorial Bold)** is the adopted baseline;
 the Player's artwork zone additionally borrows the adaptive/immersive now-playing treatment explored in
-Direction C. These are design aids (WIP), not shipped assets.
+Direction C. The mockups were design aids, not shipped assets.
 
 ## Acceptance criteria (for issues / review)
 

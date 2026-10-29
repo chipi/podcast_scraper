@@ -1185,7 +1185,7 @@ def resolution_candidates(
 def voice_embeddings_block(diarization: Any) -> Optional[Dict[str, Any]]:
     """The sidecar's ``voice_embeddings``: one vector per diarized voice, keyed like ``voices``.
 
-    Stored for cross-episode voice identity (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md): the
+    Stored for cross-episode voice identity: the
     diarizer already computes these and nothing else keeps them. The model name travels with
     them because vectors from different diarization models are not comparable. ``None`` when the
     diarizer gave none, so the key is absent rather than empty.

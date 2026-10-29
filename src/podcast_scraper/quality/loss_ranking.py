@@ -1,7 +1,7 @@
 """The loss ranking (INGESTION-ARC Stage 2, 2.2 and 2.3): why names are wrong, why insights hide.
 
-Read-only. Two populations, each counted in full and classed once, by definitions fixed in the
-change record ``docs/wip/changes/loss_ranking.md`` (step 5, A1–A11):
+Read-only. Two populations, each counted in full and classed once, by definitions fixed before the
+run (step 5, A1–A11):
 
 - **Gold, wrong names.** Every ``S7_wrong`` row the committed S7 code (``gold_insights``) yields,
   classed by how the stored name relates to the episode's labels: ``binding`` (another labelled

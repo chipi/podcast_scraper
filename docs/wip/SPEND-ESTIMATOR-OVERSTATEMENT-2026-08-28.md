@@ -8,7 +8,7 @@ intends.
 ## The measurement
 
 One sweep window (`b5f885ca`, 2026-08-28 16:57–19:07 UTC), 14 feeds, all LLM traffic through
-the prod LiteLLM gateway (`deepseek-v4-flash`):
+the LiteLLM gateway (`deepseek-v4-flash`):
 
 | Source | LLM cost | How obtained |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ real cost and falls back to the local pricing table only when it finds none. It 
 places — `response.usage.cost` (OpenRouter style) and `_hidden_params["response_cost"]`
 (LiteLLM's own SDK).
 
-Probed the prod gateway directly from `compose-api-1`:
+Probed the gateway directly from the api container:
 
 ```text
 usage: None                       # the gateway strips usage from the body

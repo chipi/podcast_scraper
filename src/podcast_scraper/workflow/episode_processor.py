@@ -165,9 +165,8 @@ def _audio_sec_for_transcription_job(
     Disrupting Japan is missing it on 7 of 266 — including, by luck, the newest, which is exactly
     what an ``episode_order=newest max_episodes=1`` probe fetches.
 
-    This is not cosmetic: batch sizing divides by mean audio length (see
-    ``docs/wip/BACKFILL-TO-ONE-YEAR-2026-09-10.md``), so a feed reporting 0 looks free and will
-    overshoot the 4h processing-loop cap. Transcription cost estimation reads it too
+    This is not cosmetic: batch sizing divides by mean audio length, so a feed reporting 0 looks
+    free and will overshoot the 4h processing-loop cap. Transcription cost estimation reads it too
     (``audio_minutes``), so a missing duration silently zeroes the per-episode cost estimate.
     """
     episode_duration_seconds = getattr(job, "episode_duration_seconds", None)

@@ -109,7 +109,7 @@ guards the scale run against regressions.
   `bundled_prompt_tuning/`).
 - **Profiles**: `config/profiles/prod_dgx_*.yaml`, `cloud_with_dgx_primary.yaml` select the
   producing models per version.
-- **LLM serving is external** (DGX / homelab) and its topology is operationally transient —
+- **LLM serving is external** (a self-hosted GPU host) and its topology is operationally transient —
   the methodology depends on *a* served candidate set, not a fixed host.
 
 ## Addendum (2026-10-14): `repunctuate_only` — a window-scoped single-variable reprocess

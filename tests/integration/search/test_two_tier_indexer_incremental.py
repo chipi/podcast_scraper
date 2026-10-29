@@ -1,6 +1,6 @@
 """Guardrail: the two-tier indexer must be INCREMENTAL — re-embedding only new/changed episodes.
 
-This is the D8 regression suite (see docs/wip/DESIGN-D8-incremental-indexer-skip.md). It reproduces
+This is the D8 regression suite. It reproduces
 the prod defect where every incremental corpus add re-embedded the ENTIRE corpus (O(N)): adding one
 episode to 107 took ~10.6 min because ``build_two_tier_index`` had no unchanged-episode skip and
 ``episodes_skipped_unchanged`` was a dead stat.

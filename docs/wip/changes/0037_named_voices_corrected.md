@@ -12,17 +12,17 @@ touches:
 
 Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md). Operator, 2026-10-27:
 land the fixes as hypotheses, validate everything once at the end. The served half of item A
-(D5), with item C (night 1); the pipeline half of D5 is
-[known_host_third_person_veto](known_host_third_person_veto.md). Text only: no DGX, no relabel,
+(D5), with item C (night 1); the pipeline half of D5 was
+the change record `known_host_third_person_veto` (rejected, no longer in the tree). Text only: no GPU host, no relabel,
 no LLM (the corpus fix ladder, rung 2).
 
 ## 1. Intake
 
 - **D5** (#2094; prod's measurement over 3006 served, 2026-10-27): `substack:post:165726942`, two
   voices, each holding the other's name (host seat by `known_hosts`, guest by `llm_resolution`).
-  Evidence: `~markodragoljevic/prod-naming-20261027/d5/` (`files.sha256`).
-- **Night 1, plan item 13** (two blind readers over 21 sampled episodes; private eval repo
-  `podcast-scraper-eval-data-naming`, `data/eval/naming-night1-20261027/`: `packets.jsonl`,
+  Evidence: the measurement's D5 directory (`files.sha256`), not in this repository.
+- **Night 1, plan item 13** (two blind readers over 21 sampled episodes; eval data repository
+  (not in this repository), `data/eval/naming-night1-20261027/`: `packets.jsonl`,
   `reader_A.tsv`, `reader_B.tsv`, `key.json`). Both readers agree on every voice below:
   - `substack:post:216929530`: `SPEAKER_00` and `SPEAKER_01` swapped (both `llm_resolution`;
     basis `addressed` / `host_read`, deciding segments 18 and 14).
@@ -196,7 +196,7 @@ Idempotence and undo on the gate's copy (scratch `rm27/idem_undo37.py`): a secon
 snapshot; verify reads 0037 as pending again.
 
 D5's blind read (criterion 14): a fresh reader given name-stripped copies (reader C,
-`d5-blindread-20261027` in the private eval repo) confirmed both voices: SPEAKER_00 the feed's
+`d5-blindread-20261027` in the eval data repository) confirmed both voices: SPEAKER_00 the feed's
 host (addressed, segment 32), SPEAKER_01 the guest (host_read, segment 1). Open point for the
 reviewer: the reader notes SPEAKER_01 speaks as the host of that live session; the list gives the
 feed's host the host role.
@@ -205,7 +205,7 @@ feed's host the host role.
 **Per-voice before/after excerpts** (method v0.9 step 7): the 4 affected runs copied from
 snapshot-prod-20261027 to a small corpus, 0037 applied there (the same counters as the gate), each
 voice's deciding segment and its label/role read before and after. They hold transcript text, so
-they live in the private eval repo, `podcast-scraper-eval-data-naming`,
+they live in the eval data repository (not in this repository),
 `data/eval/0037-excerpts-20261027/excerpts37.json` (script beside it). By id:
 
 | Episode | Voice | Before (label, role) | After | Other named voices after |
@@ -246,9 +246,8 @@ voices 6 -> 0" has no gate row when the gold does not cover the voices.
 Landing condition met: `make ci-fast` on 33f10ca3d (the outcome commit), all stages through
 `=== ci-fast DONE`, `CI_FAST_EXIT=0` (18:05Z; test-fast 0 failed); `make test-integration` on
 d2b95e39d (the gated code; since then only this outcome file and docs changed in the tree)
-`TEST_INTEGRATION_EXIT=0`, 4628 passed. Operator, 2026-10-27: no second verdict read ("if we
-agree that CI fast has to be green and we just agreed on D5, there's nothing to do another round of
-review"). 0037 is NOT to be applied before the operator's new deploy method.
+`TEST_INTEGRATION_EXIT=0`, 4628 passed. Decision, 2026-10-27: no second verdict read (CI fast has to be green and D5 was agreed, so there
+is nothing for another round of review). 0037 is NOT to be applied before the new deploy method.
 
 Verdict: GO (builder, 2026-10-27): 6 of 6 listed voices renamed in 4 episodes, 0 refused,
 `verify_regressions` [] (gate report d2b95e39d). Outcome 15cb660599688a2832950123258923b48c674f50c980ba77cd170d344b7d9cba.
@@ -256,17 +255,17 @@ Verdict: GO (builder, 2026-10-27): 6 of 6 listed voices renamed in 4 episodes, 0
 ## 9. Operator review
 
 Operator, 2026-10-27: D5's roles kept as listed; no second verdict read (ci-fast green is the
-landing condition). Operator, 2026-10-28: the go for the apply ("start 0037 first"), after the
-deploy of sha-06b3601 that shipped it.
+landing condition). Approval, 2026-10-28: the go for the apply, after the
+deploy that shipped it.
 
 ## 10. Before apply / deploy
 
-Deployed with sha-06b3601 (deploy-all-prod run 40710256526, `deploy.py verify` PASS); the deploy
-ships 0037 and does not run it. Read-only on prod after the deploy (prod session, 2026-10-28):
+Deployed (deploy verify PASS); the deploy
+ships 0037 and does not run it. Read-only in the deployment after the deploy (2026-10-28):
 
 - `upgrade status`: 2.7.30, pending exactly `0037_named_voices_corrected`.
 - `upgrade verify`: every applied migration OK except 0025 on its 5 known episodes.
-- Dry run 15:36:35Z, corpus-migration skill preflight PASS (76 GB free, nothing busy, nightly 504
+- Dry run 15:36:35Z, preflight PASS (76 GB free, nothing busy, nightly 504
   min away, pending exactly 0037): "would rewrite 4 episode(s)" with every counter equal to the
   gate's line on the snapshot-prod-20261027 clone (segments_relabelled 3868, quotes_reattributed
   333, insights_reattributed 149, diagnostics_voices_renamed 6, ...); no `refused=` counter (a
@@ -274,21 +273,20 @@ ships 0037 and does not run it. Read-only on prod after the deploy (prod session
 
 ## 11. After apply / deploy
 
-Applied 2026-10-28 15:46:14Z by the prod session on the operator's go:
+Applied 2026-10-28 15:46:14Z on approval:
 
 - "[applied] 0037_named_voices_corrected: rewrote 4 episode(s)", the same counters as the dry run
   and the gate; "Now at version 2.7.31; 0 pending." EXIT=0.
-- Pre-upgrade snapshot `/app/.corpus-upgrade-backup-2.7.30-20261028T154633Z` (in compose-api-1's
+- Pre-upgrade snapshot `/app/.corpus-upgrade-backup-2.7.30-20261028T154633Z` (in the api container's
   writable layer: a container recreate deletes it); undo recorded: `m0037 undo(Path('/app/output'))`.
 - Verify 16:18Z: 0037 OK ("every rename the review confirmed carries the voice's own person's
   name"); the only FAIL is 0025's 5 known episodes.
-- Ownership: "0 files written since the apply and not owned by uid 1000", OWNERSHIP PASS.
+- Ownership: "0 files written since the apply and not owned by the corpus owner", OWNERSHIP PASS.
 - Derived surfaces: `enrich --only insight_density,insight_sentiment` (no --force) 16:19Z:
   insight_density 4 ok / 0 failed, insight_sentiment 4 ok / 0 failed, EXIT=0; incremental
   `index` (no --rebuild) 16:20-16:28Z: "scanned=3023 skipped=3019 reindexed=4 vectors=1186", 2
   stale rows of superseded runs pruned, EXIT=0. Corpus-scope enrichers left to the nightly.
-- Served outcome, read by the builder through the Close Listening MCP (`episode_speaker_roster`,
-  2026-10-28) for D5: SPEAKER_00 = the feed's host, host, 1942.4 s (62.9%); SPEAKER_01 = the
+- Served outcome, read by the builder through the MCP episode_speaker_roster tool (2026-10-28) for D5: SPEAKER_00 = the feed's host, host, 1942.4 s (62.9%); SPEAKER_01 = the
   guest, guest, 1145.8 s. The other 3 episodes were not read one by one.
 
 ## 12. Retrospective

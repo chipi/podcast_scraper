@@ -5,7 +5,7 @@
 (the text ``ad_time_intervals`` reads). Run it under the code before the fix and after, then
 ``--compare`` with the hand-read categories of the 289 prod episodes that had a pre-roll cut
 (``short`` and ``promo``: the lead before the first ad pattern is an ad or show promo; ``CONTENT``:
-it is the episode's own talk; see docs/wip/PREROLL-CUT-PROD-AUDIT-2026-10-15.md).
+it is the episode's own talk).
 
     PYTHONPATH=<old checkout>/src python scripts/eval/replay_preroll_cut.py run DIR old.json
     python scripts/eval/replay_preroll_cut.py run DIR new.json

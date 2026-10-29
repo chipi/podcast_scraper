@@ -121,7 +121,7 @@ real names twice (D12, D22's first model).
   `translate_fresh` (memory discarded, 4 in flight), `translate_fresh_serial` (1 at a time).
 - The `translate*` variants re-translate EVERY episode of the copied feed; `--episodes` does not
   narrow a copy.
-- DGX: 1-2 episodes without asking; more needs the operator's yes. Before spending a DGX run on a
+- GPU-host runs: 1-2 episodes; more needs approval. Before spending a GPU-host run on a
   phenomenon, check which episode carries it: the arc ran the stretched-word test on the wrong
   Radio Ambulante episode once (D16).
 - A config `null` now unsets a profile value (D20); before `df5535a38` it was silently ignored.
@@ -160,14 +160,14 @@ real names twice (D12, D22's first model).
   transcript gap of 3 s+ not already retried is now re-transcribed, and its text kept only when it
   holds 3+ words that are not fillers (the D16 rule; `transcription_recover_silent_gaps`). Measured
   2026-10-11 on the 24 reference episodes by cutting every gap and decoding it with the pipeline's
-  clip transcriber, which on `prod_dgx_full` is the DGX Whisper server: main-voice adjusted errors
+  clip transcriber, which on `prod_dgx_full` is the self-hosted Whisper server: main-voice adjusted errors
   2861 -> 2761 (2780 keeping every gap); 8 episodes better (SWR 10-07 -23, Radio Ambulante 07-21
   -26), 15 unchanged including 5 of 6 English, Rádio Novelo 09-24 +3. The 1-2 word decodes of
   music gaps ("for", "Hmm.", "Episodio") were what made episodes worse without the floor. Of the
   26 gaps kept where the reference has nothing, about 18 read as real speech the publisher did not
   transcribe (foreign-language tape, songs, promos) and about 4 as invented ("That's it for this."
   over 18.6 s of music, "Bye! Bye! Bye! Bye!"); not listened to. Checked on the full chain on the
-  DGX, main-voice adjusted: SWR 10-07 0.0454 -> 0.0402 (the estimate exactly), Throughline 10-08
+  GPU host, main-voice adjusted: SWR 10-07 0.0454 -> 0.0402 (the estimate exactly), Throughline 10-08
   0.0389 -> 0.0379 (estimated 0.0362; run before the fix below). The first SWR run exposed a bug:
   a gap the diarized retry had partly covered (70.6-74.2 s of 74.0-81.2 s) was skipped whole, and
   the intro in its uncovered part was lost; retried stretches are now subtracted from a gap.

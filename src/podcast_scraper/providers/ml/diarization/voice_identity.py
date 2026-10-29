@@ -1,6 +1,6 @@
 """Cross-episode voice identity: the last rung of the naming ladder (design stage 3).
 
-docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md. Each diarized voice carries a fingerprint (the
+Each diarized voice carries a fingerprint (the
 diarizer's per-speaker embedding, stored as ``voice_embeddings`` in the speakers diagnostics
 sidecar). This rung compares the episode's voices with the voices of the SAME feed's other
 episodes:

@@ -27,8 +27,8 @@ class DiarizationResult:
     # diarizers (Deepgram/Gemini) set the billed cost so the processing manifest can record it
     # (RFC-109 / ADR-132). Provider-agnostic: consumers read this field, not a provider specific.
     cost_usd: Optional[float] = None
-    # One embedding per diarized voice, keyed by its label (cross-episode voice identity, #2304;
-    # docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md). Empty when the diarizer gives none (cloud,
+    # One embedding per diarized voice, keyed by its label (cross-episode voice identity, #2304).
+    # Empty when the diarizer gives none (cloud,
     # MOSS, a relabel of an episode diarized before capture, an older DGX server).
     speaker_embeddings: Dict[str, List[float]] = field(default_factory=dict)
     # The model that made ``speaker_embeddings`` when it is not ``model_name``: a relabel carries

@@ -2,7 +2,7 @@
 
 Golden diarization fixtures for the speaker roster (`resolve_speaker_roster`,
 `src/podcast_scraper/providers/ml/diarization/roster.py`). Tracked by #1189;
-sequencing lives in `docs/wip/1000-EPISODES-REPROCESS-PLAN.md`; the case
+the case
 catalogue and rationale live in `docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md` (§G,
 "The anatomy of a real episode").
 

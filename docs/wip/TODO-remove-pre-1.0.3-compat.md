@@ -73,7 +73,7 @@ routes (`TopicPerspectives.vue` always passes a page — to confirm), `GET /play
 have no product caller in 1.0.3 — but other clients (live smoke specs, the operator viewer, MCP) are
 not checked yet.
 
-**Client side (1.0.4), now that prod has the routes:** the `total === undefined` local-paging
+**Client side (1.0.4), now that the deployment has the routes:** the `total === undefined` local-paging
 branches and the `/episodes/batch` / `/favorites/refs` 404 fallbacks. Caveat: the `page…Locally`
 functions are ALSO the unit tests' fake server (`src/test/apiViaSpies.ts`, 14 spec files), so
 removing the fallbacks means moving those functions under `src/test/`, not deleting them.

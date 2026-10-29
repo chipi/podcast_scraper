@@ -144,8 +144,7 @@ def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, 
     holds the raw candidate lists the roster was given, including the pre-listening guess, and
     returning it here put a second, contradictory answer to "who spoke" in front of the caller.
     ``voice_embeddings`` is omitted too: a voiceprint is biometric data, stored for cross-episode
-    voice identity inside the corpus and never served
-    (docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md).
+    voice identity inside the corpus and never served.
     Distinct from ``who_said_about_topic`` / ``person_positions`` (knowledge-graph person queries).
     """
     from ...server.app_content_source import transcript_corpus_relpath, transcript_relpath

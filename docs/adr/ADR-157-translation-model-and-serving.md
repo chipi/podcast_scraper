@@ -5,17 +5,14 @@
 - **Authors**: Marko Dragoljevic
 - **Issues**: [#2169](https://github.com/chipi/podcast_scraper/issues/2169) (epic),
   [#2186](https://github.com/chipi/podcast_scraper/issues/2186) (V.6a)
-- **See Also**: [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md),
-  [ADR-122](ADR-122-self-hosted-model-resilience-policy.md),
+- **See Also**: [ADR-122](ADR-122-self-hosted-model-resilience-policy.md),
   [ADR-155](ADR-155-pin-every-model-checkpoint.md),
   [MULTILINGUAL_ARC](../architecture/MULTILINGUAL_ARC.md) §6.1
 
 > **RENUMBERED 156 → 157 (2026-09-30).** This was authored as ADR-156 while `main` independently
 > took that number for `ADR-156-topics-come-only-from-the-extractor.md`. Because the two
 > filenames differ, git merges them with **zero conflict markers** and the repo ends up with two
-> ADR-156s, each cited by different code. Commit messages elsewhere (`077f5cd`,
-> the `:8005` tailnet grant) and in `agentic-ai-homelab` (`e80c61e`, `e889b65`, `afb6a23`, the
-> co-resident vLLM stack) still say "ADR-156" and cannot be rewritten — they mean this document.
+> ADR-156s, each cited by different code. Commit messages elsewhere still say "ADR-156" and cannot be rewritten — they mean this document.
 > `scripts/tools/check_doc_structure.py` now compares numbered docs against `origin/main`, which
 > is the only place the collision is visible: every same-branch check passed on both sides.
 
@@ -34,10 +31,10 @@ model revealed.
 > alternative has ever been run.** "Alternatives considered" below reasons from published scores,
 > licences and serving shape; none of those candidates was benchmarked against this one on real
 > episodes. The throughput figure that would have informed the comparison (4.3 tok/s) was taken on a
-> ~96% loaded DGX, so it measures contention rather than capacity and cannot settle anything either.
+> heavily loaded GPU host, so it measures contention rather than capacity and cannot settle anything either.
 >
 > So read §1 as "this is what is deployed and it is good enough to build on", not "this is the
-> model". The cross-model quality-and-throughput benchmark on an idle box is **V.3b** in the arc,
+> model". The cross-model quality-and-throughput benchmark on an idle GPU host is **V.3b** in the arc,
 > and it may replace this pick. Everything else in this ADR — the co-resident serving decision, the
 > `/v1/completions` contract, the memory sizing, the Gemma licence position — stands on its own
 > measurements and is unaffected.
@@ -53,11 +50,11 @@ diminishing returns.
 
 > **CORRECTED 2026-09-30.** This paragraph read "Decisively, the 12B **co-resides with the 30B
 > summary model** at bf16 and the 27B would not." That is a claim D-31 had already **retracted as
-> wrong** two days earlier: 74.6 GiB was measured available on the DGX with everything loaded, and
+> wrong** two days earlier: ample memory was measured available on the GPU host with everything loaded, and
 > the served LLM is FP4 at ~15–18 GB rather than bf16, so a 27B would co-reside. Writing this ADR
 > from the shortlist reintroduced a claim the arc notes had withdrawn — and "decisively" did the
 > damage, promoting a memory constraint that does not exist to the deciding factor. The real
-> reason is quality-per-throughput plus leaving ~50 GB of headroom for D-31's shared-service
+> reason is quality-per-throughput plus leaving ample headroom for D-31's shared-service
 > ambition; the 27B upgrade path stays open, and an FP8 27B sits at roughly a bf16 12B's
 > footprint.
 
@@ -68,51 +65,12 @@ Revision pinned per [ADR-155](ADR-155-pin-every-model-checkpoint.md).
 the HF API returns **200 on metadata and 403 on files**, which presents as a boot hang rather than
 an auth failure.
 
-### 2. Served CO-RESIDENT on `:8005`, not swapped against `:8003`
+### 2. Served by its own endpoint, alongside the summary model
 
-Every other vLLM stack in the homelab shares `:8003` under a single-owner rule enforced by
-`gpu-mode-swap.sh`. This one is different **by design**: translation runs immediately before
-summary inside `generate_episode_metadata`, so one episode needs both models. Swapping per episode
-would mean two model loads per episode, which is not a usable shape.
-
-Therefore:
-
-- `gpu-mode-swap.sh prod` brings up the serving vLLM **and** the translator.
-- `stop_all_composes` deliberately excludes the translator, so swapping *into* prod cannot tear
-  down the translator it is about to need; `free` uses a variant that does include it.
-- `current_mode()` excludes it from the single-owner count — counting it would report
-  `BROKEN-BOTH` for the correct state — so `status` reports it separately.
-- A translator that fails to start **warns without failing the swap**: the summary model is
-  already serving by then, and reporting `prod` as failed would say summarization is down when it
-  is not.
-
-The tailnet ACL grants `:8005` to the same three sources that reach `:8003` — `tag:prod`,
-admin/gha-deployer, and `tag:homelab-host` for metrics — but **not** `tag:dr-drill`, whose grant
-stops at `:8002` and which does not translate.
-
-> **LIVE ON THE TAILNET (2026-09-30).** Applied by the operator. Measured from the laptop against
-> the unauthenticated `/health`: `:8003` → `200` in 8.4 ms, `:8005` → `200` in **7.4 ms**. Both
-> return `401` on `/v1/models` — the same shape on both ports, so that is the bearer, not the ACL.
-> The two notes below are kept for how the earlier claim came to be wrong, not because they still
-> describe the state.
->
-> **SOURCE OF TRUTH FIXED, APPLY WAS MANUAL (2026-09-29).** The grant is merged to the ACL's
-> source of truth. **It is still not live on the tailnet**: the documented "merging IS the
-> apply" path does not run there yet. The
-> ACL therefore has to be pushed to the tailnet by hand, from the Tailscale admin UI or with an
-> OAuth client holding the `acl` scope. Those credentials exist only as GitHub Actions secrets;
-> they are not available locally and `gh secret list` returns 403, so this cannot be done from a
-> session.
->
-> **ORIGINAL FINDING (2026-09-29).** That grant is authored in the tailnet policy
-> (`tailscale/policy.hujson`) and **committed but unpushed**, so the LIVE
-> policy does not carry `:8005`. Measured from the laptop: `:8003` completes a TCP connect in
-> 17 ms while `:8005` times out, with the translator listening on `0.0.0.0:8005` and healthy on
-> the box the whole time. The ADR previously stated the grant as fact because the Gate V access
-> check was run ON the DGX against `127.0.0.1` — which proves the service works and proves
-> nothing about the tailnet. **The lesson, which outlives the fix: a loopback probe is not an
-> access check.** Until the apply happened the translator was reachable only from the box, which
-> is where the S2.3 measurement rig was run for exactly that reason.
+It is served by its own endpoint alongside the summary model; how and where is the deployment's
+concern. Translation runs immediately before summary inside `generate_episode_metadata`, so one
+episode needs both models at once and swapping per episode (two model loads per episode) is not a
+usable shape.
 
 ### 3. Called through `/v1/completions`, NOT the chat route
 
@@ -133,30 +91,17 @@ goal is to accurately convey the meaning and nuance of the original text.
 The language-name map it needs (`es` → `Spanish`, plus hundreds of regional subtags) lives in
 `chat_template.jinja` inside the model snapshot.
 
-### 4. `--gpu-memory-utilization=0.32`, re-sized to 0.26 and max-model-len 4096
+### 4. Sized to fit next to the summary model, `max-model-len` 4096
 
-The fraction is of **total** unified memory (121.7 GiB) and must cover **weights plus KV cache**.
+The memory fraction the translator claims must cover **weights plus KV cache** and fit within GPU
+memory next to the summary model. A budget that left almost nothing for cache after the weights was
+refused by vLLM (`No available memory for the cache blocks`), so sizing is weights plus cache, never
+weights alone. The measured workload is far below any cache that fits: 141 production units,
+serial, total tokens p95 141, max 433, so `max-model-len` 4096 is ample.
 
-| | GiB |
-| --- | --- |
-| total usable (GB10) | 121.7 |
-| prod-vllm's *actual* footprint | 29.1 |
-| other compute apps | 5.1 |
-| TranslateGemma-12B weights | **23.3** |
-
-`0.20` (= 24.3 GiB) was tried and vLLM refused — `No available memory for the cache blocks` — with
-~1 GiB left for cache. `0.32` gives a 38.9 GiB budget → **72,086 tokens of KV cache, 8.80×
-concurrency** at `max-model-len` 8192.
-
-**Re-sized 2026-09-30 to `0.26` and `max-model-len` 4096** (agentic-ai-homelab cd0dabd,
-homelab #81, agreed with the service owner; kept by the operator 2026-10-09). `0.32` put the DGX
-back in the memory regime that preceded the September freezes (MemFree ~44 GB → ~2 GB). The
-measured workload is far below either size: 141 production units, serial, total tokens p95 141,
-max 433. `0.26` (~31.6 GiB) leaves ~8 GiB of KV cache, ~3.6× one worst-case 4,096-token request.
-
-The reasoning error worth preserving: prod-vllm is *allowed* 0.75 but **holds 29 GiB**. The
-fraction is a ceiling a stack may claim, not what it occupies — which is what makes co-residency
-possible, and is knowable only by measuring.
+The reasoning error worth preserving: a co-resident stack is *allowed* a large fraction but may hold
+far less. The fraction is a ceiling a stack may claim, not what it occupies — which is what makes
+co-residency possible, and is knowable only by measuring.
 
 ## Evidence
 
@@ -178,8 +123,8 @@ Three consequences, each now evidence rather than assumption:
 3. **It translates the show title** (`Sesiones de Sendero` → `Trail Sessions`), which is why S2.4
    now carries an explicit title decision — drifting into it renames every show.
 
-**Throughput is not yet known.** 4.3 tok/s (74 tokens in 17.1 s), measured while the box was at
-~96% GPU under a production load. That is contention, not capacity. S2.10 needs a quiet box.
+**Throughput is not yet known.** 4.3 tok/s (74 tokens in 17.1 s), measured while the GPU host was
+under heavy production load. That is contention, not capacity. S2.10 needs a quiet host.
 
 ### 5. The model's input context is 2K, and the guard is client-side
 
@@ -226,13 +171,13 @@ calling it internally and publishing its output is covered by §4.3.
 ## Consequences
 
 - Translation and summarization co-reside, so a translated episode costs one pipeline pass rather
-  than two GPU mode swaps.
-- A sustained DGX outage stops ingest rather than degrading, because the DGX profiles now use
+  than two model swaps.
+- A sustained GPU-host outage stops ingest rather than degrading, because the DGX profiles now use
   ADR-122's `hold` — see the S0.7 note in the arc. A halted run is recoverable; a corpus of
   confidently wrong transcripts is not.
 - `translate_api_base` / `translate_model` are **registry-governed**, so a profile cannot silently
   route translation somewhere unsanctioned, and the acceptance harness redirects the endpoint so a
-  fixture run cannot dial the real DGX.
+  fixture run cannot dial the real GPU host.
 
   > **THIS WAS FALSE WHEN WRITTEN, AND IS TRUE AS OF 2026-09-30.** Both fields were declared on
   > `ProfilePreset` and listed in `REGISTRY_GOVERNED_FIELDS`, which is what the claim was based
@@ -256,4 +201,3 @@ calling it internally and publishing its output is covered by §4.3.
   which would remove the Gemma-terms question entirely if it ever became load-bearing.
 - **Qwen3-30B (already served)** — no second model to deploy, but it is a general instruct model
   rather than a translation fine-tune, and using the summary model to translate its own input
-  would make the summary's provenance circular.

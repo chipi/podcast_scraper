@@ -24,8 +24,8 @@ So a single precedence cannot serve both, and that is why resolution takes a
 :class:`TranscriptPurpose` rather than being a function of the path alone. Asking for a
 transcript without saying what for is the bug this module exists to make unrepresentable.
 
-``docs/wip/2170-TRANSCRIPT-RESOLVER-INVENTORY.md`` lists every reader, its purpose, and the
-sites deliberately left resolving their own way.
+``tests/fixtures/goldens/transcript_resolver.golden.json`` records each reader's answer per
+episode.
 """
 
 from __future__ import annotations

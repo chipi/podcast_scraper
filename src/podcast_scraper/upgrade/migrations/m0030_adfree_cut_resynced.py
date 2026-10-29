@@ -28,8 +28,8 @@ nowhere in today's ad-free text, go from GI and KG with their edges; the bridge 
 left in neither, and the metadata counts and context digest follow. Read on the snapshot: 52 of
 the 54 insights removed restate a sponsor read (Felix by Rogo, Ramp's "small advantages
 compound", Buildkite), and of the 174 entity nodes removed all but 3 are sponsors or show promos.
-The 2 insights and 3 nodes that are real talk lost their only text to a segment shared with an ad
-(docs/wip/AD-CUT-SEGMENT-STRADDLE.md). A host's or guest's node is never removed. Text today's cut
+The 2 insights and 3 nodes that are real talk lost their only text to a segment shared with an ad.
+A host's or guest's node is never removed. Text today's cut
 keeps that an older cut removed has no insights; adding them needs the LLM, so it is left.
 
 A quote already off its own text is placed on the one occurrence of it, as enrich-edges does at

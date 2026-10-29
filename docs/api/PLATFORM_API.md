@@ -252,7 +252,7 @@ request-time LLM (D6). **Auth-gated** except the unsubscribe GET (one-click, tok
 | GET | `/api/app/push/vapid-key` | The public VAPID key for the browser Push subscription (`VapidKeyResponse`). |
 | POST, DELETE | `/api/app/push/subscribe` | Register / remove a Web Push subscription `{endpoint, keys{…}}` → `{count}` of active subscriptions (`PushSubscriptionsResponse`). |
 
-> The delivery **outbox** is an internal, channel-agnostic seam (`/internal/outbox`, tailnet-only,
+> The delivery **outbox** is an internal, channel-agnostic seam (`/internal/outbox`, private-network-only,
 > `INTERNAL_OUTBOX_TOKEN`-gated) — the last-mile sender drains it; it is not part of the public
 > consumer surface.
 
@@ -322,7 +322,7 @@ to the platform's remote MCP server and search/read the shared corpus **as them*
 LLM (D6). Two auth paths: **OAuth 2.1 + PKCE** (per-user connectors like claude.ai) and **personal-access
 tokens** (CLI clients). Everything here is gated by the **`mcp_access`** entitlement (an orthogonal
 boolean grant; **403** without it) on top of the session. The remote MCP server itself is a **separate
-service on its own vhost** (`mcp.<domain>/mcp`) — see the operator's player launch runbook §MCP (not in this repository).
+service on its own vhost** (`mcp.<domain>/mcp`) — its deployment is outside this repository.
 
 **Token management + connector config** (`mcp_access`-gated):
 
@@ -348,7 +348,7 @@ service on its own vhost** (`mcp.<domain>/mcp`) — see the operator's player la
 > **MCP server** on `mcp.<domain>`, not the app — it points a cold client back to the authorization
 > server here.
 
-**Internal verify seam** (service-to-service, **tailnet-only**, NOT on the public edge):
+**Internal verify seam** (service-to-service, **private-network-only**, NOT on the public edge):
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -368,7 +368,7 @@ covers `/api/feeds`, `/api/operator-config`, `/api/ops`, `/api/jobs*`, `/api/sch
   their session; headless automation can use the key.
 - **Enforced only when it can be:** the gate activates when platform auth is configured (a session
   secret + per-user data dir) **or** a key is set. A bare deployment with neither keeps the prior
-  network-only (Tailscale, RFC-082) behavior — no lockout on upgrade.
+  network-only behavior — no lockout on upgrade.
 - Every mutating operator request is appended to `<APP_DATA_DIR>/audit.jsonl` (best-effort).
 - Roles: `listener` (player only) < `creator` (viewer base) < `admin` (+ Dashboard/Ops/Config/users).
   Bootstrap admins via `APP_ADMIN_EMAILS`.
@@ -402,7 +402,7 @@ returns 503 → every agent connect 401), which is the safe default.
 | `APP_MCP_RESOURCE_URL` | app + mcp | _(unset)_ | The MCP server's public origin (e.g. `https://mcp.<domain>`). The connector URL a client pastes is this + `/mcp`; also the RFC 9728 `resource` identifier. |
 | `APP_MCP_VERIFY_URL` | mcp | _(unset → auth fails closed)_ | Where the `mcp` server verifies bearers (compose-network URL of the app's seam, e.g. `http://api:8000/internal/mcp/verify`). |
 | `APP_MCP_ALLOWED_ORIGINS` | mcp | _(unset → no browser Origin gating)_ | Comma-sep browser `Origin` allow-list (DNS-rebind guard). claude.ai connects server-side (no Origin) so empty is safe; set e.g. `https://claude.ai` to lock the browser surface. |
-| `MCP_PORT` | mcp (compose) | `8009` | Loopback port the `mcp` container publishes for the Caddy `mcp.<domain>` vhost. |
+| `MCP_PORT` | mcp (compose) | `8009` | Loopback port the `mcp` container publishes for the reverse-proxy `mcp.<domain>` vhost. |
 
 ---
 

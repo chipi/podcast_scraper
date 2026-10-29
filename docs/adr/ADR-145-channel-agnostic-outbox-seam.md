@@ -3,7 +3,7 @@
 - **Status**: Accepted — 2026-08-04 (operator ratified the seam as the app↔infra boundary). **App side implemented** (epic #1413: `app_outbox_store`, `routes/internal_outbox`, `app_digest_personal`, the scheduler `digest` job, the Web Push path). The infra delivery worker (#1412) is the remaining half.
 - **Date**: 2026-08-04
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
-- **Related**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (full schema + endpoints), [ADR-144](ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md) (what runs on the infra side), [PRD-046](../prd/PRD-046-delivery-and-curation.md), the D6 no-request-time-LLM rule
+- **Related**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (full schema + endpoints), the delivery worker (external, what runs on the other side of the seam), [PRD-046](../prd/PRD-046-delivery-and-curation.md), the D6 no-request-time-LLM rule
 - **Tracking**: epic #1413 (app slices #1414/#1415 produce it; infra slice #1412 consumes it)
 
 ## Context
@@ -40,7 +40,7 @@ delivery worker drains.** They touch **only** here.
 
 ### Seam v1.1 amendments (ratified 2026-08-04, post-advisor review — #1412/#1413)
 
-Dropping Listmonk (ADR-144 revision) makes the **app consent store the ONLY suppression authority**,
+Dropping Listmonk makes the **app consent store the ONLY suppression authority**,
 which sharpens the contract:
 
 - **`/status` is idempotent per `id`** — a repeated terminal status is a no-op (retry after a
@@ -48,13 +48,12 @@ which sharpens the contract:
 - **`/pending` filters *current* consent, not the snapshot.** `consent_snapshot` in the envelope is
   **informational only**; the stateless worker cannot re-check, so the app must exclude a
   since-unsubscribed user and any past-`expires_at` envelope at drain time.
-- **`expires_at` added** to `DeliveryEnvelope` (additive) — a homelab-down window must not flush stale
+- **`expires_at` added** to `DeliveryEnvelope` (additive) — a delivery-worker-down window must not flush stale
   digests on recovery.
 - **`failed` is always-terminal** — the worker dead-letters as `failed` after N retries.
 - **Push `410 Gone` / `404` → `status: "bounced"`** — a dead push subscription is the push analog of
   an email bounce; the app then suppresses it (so it stops enqueuing to dead subscriptions).
-- **`/internal/*` auth** is a **tailnet-only shared token `INTERNAL_OUTBOX_TOKEN`** (homelab sops-env
-  and the app secret store; both halves must agree the name to connect).
+- **`/internal/*` auth** is an **internal-network-only shared token `INTERNAL_OUTBOX_TOKEN`** (provisioned to both sides by the deployment's secret store; both halves must agree the name to connect).
 
 The frozen envelope shape (beyond additive `expires_at`) and the two endpoints are unchanged.
 
@@ -90,7 +89,7 @@ channel-agnostic keeps *all* rendering + channel logic on the infra side; adding
 
 - **App calls a transactional send API directly, per message.** Simplest, but couples product code to
   a channel + provider, forces the app to render, and puts a mail dependency in app CI. Rejected —
-  the whole point is a delegable, testable boundary. See ADR-144 for the build-vs-buy side.
+  the whole point is a delegable, testable boundary.
 - **Per-channel handoff endpoints** (`send-email` / `send-push`). Leaks channel specifics into the app
   and duplicates rendering. Rejected in favour of the channel-agnostic envelope.
 - **Shared database table as the seam** instead of HTTP endpoints. Would couple both sides to the

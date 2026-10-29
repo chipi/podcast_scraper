@@ -15,7 +15,7 @@ touches:
 # 0033 — a name a migration removed by hand cannot come back through a reprocess
 
 Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md) §4. Plan:
-[INGESTION-ARC-2026-10-19.md](../INGESTION-ARC-2026-10-19.md), Stage 1. A wrong name is worse than a
+INGESTION-ARC-2026-10-19 (not in this repository), Stage 1. A wrong name is worse than a
 hidden insight (operator, 2026-10-19), so this goes before the hidden-insight work.
 
 ## 1. Intake
@@ -204,7 +204,7 @@ rule 1 alone, the stored-input replay of E leaves SPEAKER_00 unnamed (58 insight
 reprocess); with rule 2 it seats Derek Rollins. **Operator, 2026-10-19, verbatim: "Narrow it
 (Recommended)"**: the one-letter words "I" and "A" count as the label's letter only when
 punctuation or the end of the text follows; a first name followed by an initial with no period
-("Bill T,") stays refused, unnamed rather than wrongly named, as the operator's accepted cost.
+("Bill T,") stays refused, unnamed rather than wrongly named, as an accepted cost.
 
 Changes and their predicted effect (clone `lost/gateworkB6c`, as before):
 
@@ -238,13 +238,13 @@ diagnostics source. Undo: byte-identical. Full verify: 2 FAIL → 0.
 
 ## 5. Acceptance
 
-Written by a fresh reviewer (Opus advisor), 2026-10-19, before any code: [0033_hand_removed_names_refused.acceptance.md](0033_hand_removed_names_refused.acceptance.md), 28 criteria (A: the repair of E by N; B: the gate rule; C: the self-introduction rule with three held-out checks; D: unchanged corpus-wide; E: prod). The verdict on SPEAKER_00: CORRECT, Derek Rollins, with segment evidence. Step 4 is restated after it, above.
+Written by a fresh reviewer (Opus advisor), 2026-10-19, before any code (acceptance evidence, in git history), 28 criteria (A: the repair of E by N; B: the gate rule; C: the self-introduction rule with three held-out checks; D: unchanged corpus-wide; E: prod). The verdict on SPEAKER_00: CORRECT, Derek Rollins, with segment evidence. Step 4 is restated after it, above.
 
 ### Revision B
 
 Dated: 2026-10-19T19:35
 
-Written by a fresh step-5 reviewer before any revision-B code (first 19:07 UTC, amended 19:34 UTC after the operator's answer to its finding 1, verbatim "Exempt only 'I' (Recommended)": the narrowing gave back the wrong names "Grade" and "Category"): [the acceptance file, Revision B](0033_hand_removed_names_refused.acceptance.md), criteria B1–B15. Of the original 28, 6, 8, 16, 21 and 26 are amended there; the rest stand and are re-measured.
+Written by a fresh step-5 reviewer before any revision-B code (first 19:07 UTC, amended 19:34 UTC after the answer to its finding 1, "Exempt only 'I' (Recommended)": the narrowing gave back the wrong names "Grade" and "Category"): acceptance evidence (in git history), criteria B1–B15. Of the original 28, 6, 8, 16, 21 and 26 are amended there; the rest stand and are re-measured.
 
 ## 6. Build
 
@@ -349,7 +349,7 @@ this run's.
 | B4 held-out 2b | the revision-B step-8 reviewer's |
 | B5 keep rule | tests (a)–(c); E has 0 mentions of its old Person, GI equals rev A's |
 | B6, B7 | tests; E's KG equals rev A's |
-| B8 mutations | 33 of 33 killed against a 1,838-passed, 0-failed baseline, 0 survivors ([log](0033_hand_removed_names_refused.mutations.log)) |
+| B8 mutations | 33 of 33 killed against a 1,838-passed, 0-failed baseline, 0 survivors (mutation log in git history) |
 | B9 replay | shards 0–5: 446, 443, 471, 437, 421, 466 = 2,684 episodes; exactly 2 changes: E SPEAKER_00 "Generation" → Derek Rollins (reuses E's stored LLM answer `third_person`; a reprocess with another or no answer is not covered), The Daily SPEAKER_01 "Moral" → unnamed |
 | B10 held-out 1 | 246 captures, 1 change (E) |
 | B11 gold | val_v2 0 / 0, dev_v1 0 / 0 |
@@ -406,17 +406,15 @@ How each was met:
 
 ## 9. Operator review
 
-2026-10-20. The operator read the outcome (one episode named Derek Rollins on 58 insights and 109
-quotes; the two rules for every future run; the not-covered list) and judged it too small for a
-deploy of its own, then chose small daily deploys, verbatim: "For the reference, let's deploy what
-we prepared just to move on and not to hoard things. I think one deploy per day is good to plan and
-be incremental." The bundle: 0033, 0029's verify fix (on main since a213d5fa5) and prod's memory
+2026-10-20. The outcome was read (one episode named Derek Rollins on 58 insights and 109
+quotes; the two rules for every future run; the not-covered list) and judged too small for a
+deploy of its own; the decision was small daily deploys, to move on and stay incremental. The bundle: 0033, 0029's verify fix (on main since a213d5fa5) and a memory
 watchdog (b297f2ab0). ci-fast on 47ad8b544: `MAKE_EXIT=0`.
 
 ## 10. Before apply / deploy
 
-By the prod session, on the operator's direct go ("Ok, you have my go", 2026-10-20): deploy of
-b60a89e27 (run 39391480174), every job and both post-deploy smokes passed, `prod-deploy` VERIFY
+In the deployment, on approval (2026-10-20): deploy of
+b60a89e27, every job and both post-deploy smokes passed, deploy verify
 PASS. Preflight PASS, pending exactly `0033_hand_removed_names_refused`. Dry run on the deployed
 code: `would rewrite 1 episode(s)`, segments_relabelled 6,110, quotes_reattributed 109,
 insights_reattributed 58, kg_edges_moved 2, as the clone; **outcome hook: plan diff 0 episode(s)**.
@@ -427,12 +425,12 @@ insights_reattributed 58, kg_edges_moved 2, as the clone; **outcome hook: plan d
   Receipt verdict PASS, outcome acb383cfa44a…, failures none; totals before = after on every
   metric (prod: S1 16,381, S1n 7, S2 29,626, S3 9,049, S10a 189, S10b 2, S12 24, A1 371), as
   predicted for a rename (the clone measured the scoreboard identical on every key).
-- **Ownership:** `upgrade_ledger.json` and the 0033 receipt were root-owned; chowned to 1000.
+- **Ownership:** `upgrade_ledger.json` and the 0033 receipt were root-owned; chowned to the corpus owner.
 - **`upgrade verify`** (08:43:28Z) exit 0, no FAIL line: 0015 [OK] ("no served surface carries any
   of 31 refused name(s)"), 0029 [OK], 0033 [OK] (insights_checked 58, served_listed 1).
 - **Derived surfaces:** `enrich --only insight_density,insight_sentiment`: 1/1 each, EXIT=0;
   incremental `index`: 1 stale row pruned, reindexed 1, EXIT=0 (08:50:00Z).
-- **Criterion 28, search index, E's rows after the index** (prod session, read-only): aux 152 →
+- **Criterion 28, search index, E's rows after the index** (read-only): aux 152 →
   151, `person:unresolved-generation…` 1 → 0, "Generation" 1 → 0, "Derek Rollins" 5; insights 62,
   "Generation" 0; segments 48, "Generation" 40 → 1 (the sentence "I'm Generation X, I suppose"),
   "Derek Rollins" 42. As predicted; no row edits.

@@ -6,7 +6,7 @@
 - **Parent PRD**: [PRD-035](PRD-035-learning-platform.md) (learning platform — Principle 2, the consolidation moat)
 - **Builds on**: [PRD-041](PRD-041-consolidation.md) (personal knowledge corpus — **shipped**), [PRD-040](PRD-040-capture.md) (highlights/notes), [PRD-039](PRD-039-player.md) (playback history)
 - **Related RFCs**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (outbound delivery + the app↔infra seam), [RFC-111](../rfc/RFC-111-curation-surfaces.md) (curation surfaces), [RFC-101](../rfc/RFC-101-personal-knowledge-corpus.md) (the shipped substrate), [RFC-095](../rfc/RFC-095-generic-mcp-server.md) (BYO-agent north-star)
-- **Related ADRs**: [ADR-144](../adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md) (self-hosted queue + outsourced last-mile), [ADR-145](../adr/ADR-145-channel-agnostic-outbox-seam.md) (the channel-agnostic outbox seam)
+- **Related ADRs**: ADR-144 (self-hosted queue + outsourced last-mile), [ADR-145](../adr/ADR-145-channel-agnostic-outbox-seam.md) (the channel-agnostic outbox seam)
 - **Related epic**: [#1413](https://github.com/chipi/podcast_scraper/issues/1413) (children #1412, #1414–#1419)
 - **Scope**: consumer learning-player (`web/learning-player` + `/api/app/*`). Operator viewer out of scope.
 

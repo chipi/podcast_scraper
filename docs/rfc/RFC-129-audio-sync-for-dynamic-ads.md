@@ -7,7 +7,7 @@
   - `docs/rfc/RFC-126-discover-rails-reasons-paging-and-reels.md` (short listens and Learn stitch
     clips across episodes; they need clip times that are right for the listener)
 - **Related Documents**:
-  - prod-audio-archive (not in this repository) (the archive this design reads its reference from)
+  - the audio archive (deployment side; the archive this design reads its reference from)
   - `docs/recipes/audio-timing-drift.md` (the runbook: the one-off backfill, checks, diagnosis)
 - **Issue**: #2359
 
@@ -15,7 +15,7 @@
 
 Hosts that insert ads when an episode is fetched shift the audio a listener gets away from the audio
 we transcribed. Every time we serve (transcript, insights, Moments, short listens, links with `?t=`)
-can then be seconds or minutes off. Measured: the shift differs between two European countries
+can then be seconds or minutes off. Measured: the shift differs between two network locations
 fetching in the same minute, so no single map made on the server is right for every listener. This
 RFC builds the map **per listener, on the device**: the server keeps a fingerprint of the
 **original audio from the archive** (the exact bytes we transcribed), and the app lines up small
@@ -32,20 +32,20 @@ highlight that runs ahead of or behind the voice, "Play from" landing on an ad.
 
 **Measured, 2026-10-15/16:**
 
-- A length probe over prod episodes found 64 of 402 more than 20 s longer or shorter than what we
+- A length probe over corpus episodes found 64 of 402 more than 20 s longer or shorter than what we
   transcribed, concentrated on a handful of hosts.
-- Eleven episodes on six of those hosts, downloaded in the same minute from Germany (the prod
-  server) and the Netherlands (a laptop), and lined up against the archived original:
+- Eleven episodes on six of those hosts, downloaded in the same minute from two different network
+  locations, and lined up against the archived original:
 
   | Outcome | Episodes |
   |---|---|
   | Same audio as the original (offset 0.00 s throughout) | 5 |
-  | Changed since ingest, same in both countries | 1 |
-  | Changed, and **different between the two countries** | 3 |
+  | Changed since ingest, same in both locations | 1 |
+  | Changed, and **different between the two locations** | 3 |
   | No original in the archive to compare with | 2 |
 
-  Example, one episode: after the mid-roll, the talk is 70.5 s earlier than in our copy in
-  the Netherlands and 76.0 s earlier in Germany.
+  Example, one episode: after the mid-roll, the talk is 70.5 s earlier than in our copy from
+  one location and 76.0 s earlier from the other.
 - Two requests a few minutes apart from the same place returned byte-identical files (4 of 4).
 - **What fills a break changes over hours.** Re-downloaded the same afternoon:
   - one episode's opening ads had grown by 15.4 s;
@@ -83,7 +83,7 @@ measurement above shows they often don't.
 
 **Constraints:**
 
-- Audio is never rehosted or proxied (prod-audio-archive (not in this repository): the archive is for our
+- Audio is never rehosted or proxied (the audio archive, deployment side: the archive is for our
   own reprocessing). A proxy would also send the hosts' ad counting our server's address instead of
   the listener's.
 - The browser's cross-origin rules apply on the web. Measured on all 11 test episodes:
@@ -106,14 +106,13 @@ measurement above shows they often don't.
 
 - **Source:** at ingest, the run's own downloaded audio, before eviction. For the one-off backfill,
   the archived original, only where its provenance says `byte_identical_to_transcribed_audio:
-  true`. Measured on prod, 2026-10-16:
-  - 2,591 archived files, 156 GiB;
+  true`. On the reference corpus:
   - about 2,900 provenance records say byte-identical;
   - 120 are later re-downloads (`backfill_refetch`) with different ads, which cannot serve as a
     reference.
 - **Fingerprint:** per 20 ms frame, the log energy in 16 frequency bands, made level-free. Plain
   loudness was tried first. It could not place break edges: three thresholds each fixed one case and
-  broke another. With 16 bands, the edges in original time agree between Germany and the Netherlands
+  broke another. With 16 bands, the edges in original time agree between the two locations
   to within 0.05 s on 6 of 7 edges measured (0.44 s on the seventh).
 - **Checkpoints, not the whole file.** The app does not need the fingerprint of the whole episode,
   only short windows where the offset can change:
@@ -128,8 +127,7 @@ measurement above shows they often don't.
 - **Long windows (version 2).** Each checkpoint also keeps a window of up to 192 s, stopping where
   the original's next ad starts, served one at a time only when a search needs it. On disk this is
   about 2.6 MB per hour of audio (one real hour: 2.64 MB with 13 long windows; 140 KB of it is the
-  reference the app fetches up front). For the backfill of about 2,600 episodes, about 7 GB; prod
-  had 93 GB free on 2026-10-16.
+  reference the app fetches up front). For the backfill of about 2,600 episodes, about 7 GB.
 - **Stored** next to the episode's other artifacts. It is a deterministic text/binary artifact, built
   from the archive by a CPU job: no DGX, no model.
 
@@ -263,7 +261,7 @@ No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we 
 ## Key Decisions
 
 1. **The device measures; the server only provides the reference.**
-   - The worst case is per-listener ads, measured as real (3 of 9 differ between two countries).
+   - The worst case is per-listener ads, measured as real (3 of 9 differ between two locations).
 2. **The reference is the audio we transcribed, not today's stream.**
    - It is exactly the audio our transcript times are measured on, so the map has no error of its
      own. Whisper word times and differences between encodes are no longer part of the result.
@@ -301,7 +299,7 @@ No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we 
   - byte-to-time for constant and variable bitrate.
 - **Player:** the device sync module against canned range responses; the state table above.
 - **Real-data check before rollout:**
-  - the 11-episode set from Germany and the Netherlands, run through the reference builder and a
+  - the 11-episode set from two network locations, run through the reference builder and a
     simulated device;
   - `clip_alignment_check.py` on every Moment of the changed episodes must match the original's
     result.
@@ -322,7 +320,7 @@ No state hides an episode: operator 2026-10-16, "we are not hiding episodes, we 
 - the offsets found.
 
 **Success:** on the changed episodes, every Moment that plays what it says on the original also does
-on a listener's stream (checked from a second country).
+on a listener's stream (checked from a second location).
 
 ## Open Questions
 
@@ -339,7 +337,7 @@ on a listener's stream (checked from a second country).
 5. Byte-to-time accuracy on the variable-bitrate files we actually see.
 6. Episodes without an exact original in the archive (re-downloads, never archived): Estimated only,
    or build a reference from the transcript's word times?
-7. One edge differed by 0.44 s between the two countries (a start of talk). Not explained.
+7. One edge differed by 0.44 s between the two locations (a start of talk). Not explained.
 8. Does bounding the search by the stream's length cut the device cost to a few hundred KB, and keep
    the sync after a break grows by minutes?
 9. Can iOS and Android playback hand the bytes it downloads to the sync?
@@ -357,4 +355,4 @@ on a listener's stream (checked from a second country).
 - `web/learning-player/src/player/audioSync.ts`, `audioFingerprint.ts`, `audioSyncRegistry.ts`
 - `docs/recipes/audio-timing-drift.md`
 - `web/learning-player/src/player/audioTimeMap.ts`
-- prod-audio-archive (not in this repository)
+- the audio archive (deployment side)

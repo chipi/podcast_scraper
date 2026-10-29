@@ -3,8 +3,7 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * The Brief's search, for what a listener remembers (operator 2026-10-10; eval in
- * docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md). Real backend, committed fixture corpus: a few words
+ * The Brief's search, for what a listener remembers (operator 2026-10-10). Real backend, committed fixture corpus: a few words
  * from the episode find the sentence that says them, the words marked, playable from where they
  * were said, and saved as a highlight from there.
  */

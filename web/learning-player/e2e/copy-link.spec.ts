@@ -8,7 +8,7 @@ import { expectSignedIn, signInIsolated } from './helpers'
  * opened the same OS sheet. They COPY now. The link is the one https URL for the thing — the same
  * link the emails carry and the installed app claims — so this walks the web half of the flow end
  * to end: copy it, open it signed out, sign in, land on the same episode. (The in-app half needs the
- * deployed /.well-known files and a device; see docs/wip/APP-LINKS-PRE-BUILD-TODO-2026-10-05.md.)
+ * deployed /.well-known files and a device.)
  */
 test('Copy link and Copy text put the episode on the clipboard, and the link opens it — through sign-in', async ({
   page,

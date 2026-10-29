@@ -27,7 +27,7 @@ reachable anonymously — treat that test as the source of truth over this page:
 
 ### The admin surface and cross-site writes
 
-- **Admin routes are tailnet-only.** `/api/app/admin/*` (users, access policy),
+- **Admin routes are restricted to a private network, not on the public edge.** `/api/app/admin/*` (users, access policy),
   `/api/app/ranking-config` and the `/api/app/graph-events/*` readout require an admin session
   (`get_admin_user`: anonymous 401, non-admin 403) AND are never proxied by the public player
   nginx — it answers 404 for them (operator decision 2026-10-05). `POST /api/app/graph-events`
@@ -46,7 +46,7 @@ reachable anonymously — treat that test as the source of truth over this page:
   the value before and after. All in the JSONL audit log at `<app_data_dir>/audit.jsonl`.
 
 **NOT covered by this page:** the operator/viewer surface (`/api/corpus/*`, `/api/jobs/*`) has its
-own gating, and nothing here describes rate limits, CORS, or the shared Caddy edge (ADR-114).
+own gating, and nothing here describes rate limits, CORS, or the reverse proxy at the edge.
 
 Two rows on this page claimed otherwise until 2026-09-18 — `episodes/{slug}/stats` was marked
 "public, no auth" and `episodes/{slug}/segments` said access "becomes auth-gated in later Epic-1

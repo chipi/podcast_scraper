@@ -3,24 +3,23 @@
 - **Status**: Accepted
 - **Date**: 2026-06-15
 - **Authors**: Podcast Scraper Team
-- **Related ADRs**: [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) (DGX-as-primary fallback contract; this ADR extends the failure-mode classification that contract relies on)
 - **Related issues**: [#999](https://github.com/chipi/podcast_scraper/issues/999) (this implementation), [#996](https://github.com/chipi/podcast_scraper/issues/996) (originating evidence), [#956](https://github.com/chipi/podcast_scraper/issues/956) (the connection-level resilience layer this ADR complements), [#1002](https://github.com/chipi/podcast_scraper/issues/1002) (threshold fine-tuning follow-up)
-- **Related code**: `src/podcast_scraper/providers/tailnet_dgx/resilience.py` (existing layer this ADR extends), `infra/dgx/{whisper-server,pyannote-server}/` (services this defends)
+- **Related code**: `src/podcast_scraper/providers/tailnet_dgx/resilience.py` (existing layer this ADR extends), the self-hosted inference servers (services this defends)
 
 ## Context
 
-The `tailnet_dgx.resilience` layer (#956) handles **connection-level failures** from self-deployed inference services on the DGX — timeouts, connection resets, circuit-breaker tripping. That's the right shape for the failure modes it was designed for, and the contract is documented in ADR-096 (DGX-as-primary with cloud fallback).
+The `tailnet_dgx.resilience` layer (#956) handles **connection-level failures** from self-deployed inference services on a GPU host — timeouts, connection resets, circuit-breaker tripping. That's the right shape for the failure modes it was designed for, and the primary-with-cloud-fallback contract builds on it.
 
-The 2026-06-15 #996 catastrophic-tail sweep (`EVAL_WHISPER_CONTENTION_AUTORESEARCH_2026_06_15.md`) measured **20% catastrophic failures** under vLLM contention on the GB10 box. Of those failures, **two of three failure modes are caught by the resilience layer** (hang, connection reset). The third — **"successful HTTP 200 response containing semantically corrupted content"** — is structurally invisible to the resilience layer because the transport completed normally.
+The 2026-06-15 #996 catastrophic-tail sweep (`EVAL_WHISPER_CONTENTION_AUTORESEARCH_2026_06_15.md`) measured **20% catastrophic failures** under vLLM contention on a GPU host. Of those failures, **two of three failure modes are caught by the resilience layer** (hang, connection reset). The third — **"successful HTTP 200 response containing semantically corrupted content"** — is structurally invisible to the resilience layer because the transport completed normally.
 
 The same systemic gap exists across every self-deployed inference service:
 
 | Service | Observed silent-corruption mode | Source |
 | --- | --- | --- |
-| DGX whisper-openai | WER=1.000 garbage transcript under GPU contention | `EVAL_WHISPER_CONTENTION_2026_06` p03_e01; `EVAL_WHISPER_CONTENTION_AUTORESEARCH_2026_06_15` p08_e01 (in-band catastrophic) |
-| DGX Ollama (qwen3.5 family) | Empty `content` because thinking-budget consumed all `num_predict` tokens before output emission | `EVAL_REAL90_2026_06`; `EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14` Ollama re-run |
-| DGX vLLM autoresearch | Malformed JSON, mid-truncation, prepended reasoning prose | `EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14` cross-provider sweep |
-| DGX pyannote | Hypothetical: single-speaker labels for multi-speaker audio under load | Not yet observed; preventive |
+| Self-hosted whisper-openai | WER=1.000 garbage transcript under GPU contention | `EVAL_WHISPER_CONTENTION_2026_06` p03_e01; `EVAL_WHISPER_CONTENTION_AUTORESEARCH_2026_06_15` p08_e01 (in-band catastrophic) |
+| Self-hosted Ollama (qwen3.5 family) | Empty `content` because thinking-budget consumed all `num_predict` tokens before output emission | `EVAL_REAL90_2026_06`; `EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14` Ollama re-run |
+| Self-hosted vLLM autoresearch | Malformed JSON, mid-truncation, prepended reasoning prose | `EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14` cross-provider sweep |
+| Self-hosted pyannote | Hypothetical: single-speaker labels for multi-speaker audio under load | Not yet observed; preventive |
 
 The pattern: **structurally-valid HTTP responses with semantically-wrong content propagate downstream as if real.** Whisper garbage → summarizer summarizes garbage → GI extracts entities from hallucinations → KG builds a graph from invented facts. The client at any layer of the stack has no way to know without a content-aware check.
 
@@ -40,8 +39,8 @@ class GuardrailViolation(Exception):
     content fails a structural sanity check.
 
     Behavior: the existing fallback logic catches this as a sibling of
-    TimeoutLike — DGX call counts as a failure, breaker records it, the
-    consumer falls back to its cloud equivalent. No retry against DGX
+    TimeoutLike — the self-hosted service call counts as a failure, breaker records it, the
+    consumer falls back to its cloud equivalent. No retry against the service
     (a contention-driven garbage response is unlikely to fix itself
     on immediate retry; falling back is cheaper than re-pinging).
     """
@@ -111,7 +110,7 @@ Other shapes were considered:
 ### Positive
 
 - The systemic gap is closed by a single small primitive (~50 lines of new code in `resilience.py`) that every current and future self-deployed service inherits.
-- The fallback path is unchanged from the operator's perspective. `GuardrailViolation` behaves exactly like a 500 or timeout from the consumer's view: DGX fails, breaker counts, cloud picks up.
+- The fallback path is unchanged from the operator's perspective. `GuardrailViolation` behaves exactly like a 500 or timeout from the consumer's view: the self-hosted service fails, breaker counts, cloud picks up.
 - The fine-tuning tracker (#1002) gives us a place to land threshold changes with evidence later, without that work blocking #999.
 
 ### Negative
@@ -159,7 +158,7 @@ Other shapes were considered:
   (`tests/unit/podcast_scraper/providers/test_resilience_and_guardrails.py`).
 - [x] Integration tests: `test_tailnet_dgx_*.py` patterns extended with
   guardrail scenarios.
-- [x] E2E test: end-to-end fallback proven on real DGX, see
+- [x] E2E test: end-to-end fallback proven against a real self-hosted service, see
   `docs/guides/eval-reports/EVAL_DGX_GUARDRAILS_REAL_VALIDATION_2026_06_15.md`.
 - [x] ADR-105 referenced from implementation sites
   (`providers/guardrails/__init__.py`, `exceptions.py`, `_telemetry.py`,
@@ -195,7 +194,7 @@ in this ADR remain valid; the module paths in the checklist (and in the
 "Related code" header at the top) refer to the now-renamed modules.
 
 The counter rename **drops historical timeseries** (acceptable trade per
-operator review at the time of the refactor) — Grafana panels keyed on the
+operator review at the time of the refactor) — Dashboard panels keyed on the
 old name need a one-character update.
 
 ## References
@@ -206,10 +205,7 @@ old name need a one-character update.
   - `docs/guides/eval-reports/EVAL_REAL90_2026_06.md` § "qwen3.5 burns budget on thinking"
   - `docs/guides/eval-reports/EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md` § "Ollama"
 - Existing resilience contract:
-  - `docs/adr/ADR-096-dgx-spark-prod-primary-with-fallback.md`
   - `src/podcast_scraper/providers/tailnet_dgx/resilience.py`
-- Observability substrate (Prometheus scrape + Sentry init):
-  - `docs/guides/DGX_RUNBOOK.md` § "DGX observability"
-  - `compose/grafana-agent.yaml` (`dgx-guardrail-violations` series ride on the existing pipeline-side remote_write)
+- Observability substrate (Prometheus scrape + Sentry init): the observability agent config (the guardrail-violation series ride on the existing pipeline-side remote_write)
 EOF
 )

@@ -139,8 +139,8 @@ _MIGRATIONS: List[Migration] = [
     # 0037 gives served voices holding another person's name their own (#2094 D5 and night 1's
     # blind reads; frozen list + verdicts, a swap applied whole).
     NamedVoicesCorrectedMigration(),
-    # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27
-    # (docs/wip/0032-ASSESSMENT-2026-10-27.md); the id stays unused.
+    # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27;
+    # the id stays unused.
 ]
 
 

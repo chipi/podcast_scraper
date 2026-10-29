@@ -156,9 +156,8 @@ player's deploy default, so what this view shows is what phones are served.
   does not need to match it.
 - **Test runs never see production data** (operator, 2026-10-06). Both e2e API servers set
   `PODCAST_DEV_OBS_ENV=0`. That skips the dev observability env file (`.env.obs.dev`) and the
-  auto-discovered `config/observability.homelab.yaml`, so Ops in a test run reads
-  `target: default` with every external source unconfigured. It used to return live production
-  gateway spend.
+  auto-discovered observability config (`config/observability.<target>.yaml`), so Ops in a test run reads
+  `target: default` with every external source unconfigured. It used to return live gateway spend.
 
 ## Testing
 

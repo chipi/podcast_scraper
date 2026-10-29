@@ -138,7 +138,7 @@ Dated: 2026-10-26T14:46
 Dated: 2026-10-26T10:44
 
 Written by a fresh step-5 reviewer, without seeing code:
-[0036_bridge_identities_restored.acceptance.md](0036_bridge_identities_restored.acceptance.md).
+acceptance evidence (in git history).
 Integer pass bars on snapshot-prod-20261025 with 0034 and 0035 applied: 102 identities added in 34
 episodes (only those 34 bridge files written), publishable gaps 0, the 12 unpublishable untouched,
 each identity byte-equal to `bridge_builder._collect_identity` over the GI then the KG node, every
@@ -148,15 +148,15 @@ section lists 14 items.
 
 Dated: 2026-10-26T10:55
 
-A fresh reviewer's addendum for the 15 empty-bridge rebuilds, with its integer pass bars and Not covered section: [0036_bridge_identities_restored.acceptance-B.md](0036_bridge_identities_restored.acceptance-B.md).
+A fresh reviewer's addendum for the 15 empty-bridge rebuilds, with its integer pass bars and Not covered section: acceptance evidence (in git history).
 
 Dated: 2026-10-26T11:31
 
-Fresh-reviewer acceptance addendum for D1 and D2, integer bars before the code fix: [0036_bridge_identities_restored.acceptance-C.md](0036_bridge_identities_restored.acceptance-C.md).
+Fresh-reviewer acceptance addendum for D1 and D2, integer bars before the code fix: acceptance evidence (in git history).
 
 Dated: 2026-10-26T14:19
 
-Fresh-reviewer acceptance addendum for D3 and D4 and the step-8 record corrections, integer bars before the code fix: [0036_bridge_identities_restored.acceptance-D.md](0036_bridge_identities_restored.acceptance-D.md).
+Fresh-reviewer acceptance addendum for D3 and D4 and the step-8 record corrections, integer bars before the code fix: acceptance evidence (in git history).
 
 ## 6. Build
 
@@ -354,7 +354,7 @@ gate report or the builder's blocks. Mutations ran only in a `git archive 0e9f44
 | 2. Appended identities in id order | closed | 18 appended bridges (20 identities): sorted before 18 of 18, after 18 of 18; existing identities a subsequence of the written list in 18 of 18 (0 moved), existing values changed 0, non-identity keys changed 0, duplicate ids 0 (0 over all 34 written). |
 | 3a. The 12 unpublishable keys stored | partly closed | 12 (episode, person id) pairs are in the private eval repo, `podcast-scraper-eval-data-naming/data/eval/migrations/0036_bridge_identities_restored.unpublishable.json` (ids carry names, so not in this repo): 12 distinct pairs, equal to my own count of the after-clone's persons with no bridge identity (12 of 12), all KG-only; 10 are one label id in 2 feeds. The file is UNTRACKED in that repo (`git status`: `??`), and acceptance-D 17 asked for it under `docs/wip/changes/`. |
 | 3b. Near-duplicate count | partly closed | Section 7 states 11 of 101 at difflib 0.78; the list of the 11 (acceptance-D 18) is stored nowhere I can find. Not re-derived by me. |
-| 3c. KG repair proposal | partly closed | Section 7 has a 3-line proposal. Acceptance-D 19 asked for the 12 episodes, the two-layer check, dry-run, verify, undo, ownership, the derived surfaces to re-derive and "awaiting the operator's go"; most of that is absent. |
+| 3c. KG repair proposal | partly closed | Section 7 has a 3-line proposal. Acceptance-D 19 asked for the 12 episodes, the two-layer check, dry-run, verify, undo, ownership, the derived surfaces to re-derive and "awaiting approval"; most of that is absent. |
 | 3d. Section 7 reader claims corrected | NOT closed for the final state | Section 7's reader bullet carries the 14-bridge numbers (9 of 14 read, 157 topics, 90 of 90, 16 of 90). On the final 16-bridge clone I measured: CIL readers read 405 of 3,504 bridges; 12 of the 34 written are read; 10 of the 16 rebuilt are read (the 10th is the item 0002 bridge); `episodes_for_bridge_node_id` lists 46 of 101 restored pairs (22 GI-sourced, 24 KG-only), 0 before; the 10 read rebuilt bridges bring back 177 topic identities (100 GI-sourced, 99 distinct ids); `topic_person_ids` is non-empty for 99 of 99 of those ids after, 15 of 99 before. 7b says it supersedes the numbers above but does not restate the reader paragraph. |
 | 4a. Ruling on read item 21 (one unconfirmed one-token KG person) | NOT closed | The record has no ruling and no line saying none was given. |
 | 4b. `make ci-fast` log attached | NOT closed | No log in the record or beside it; I did not run ci-fast either. |
@@ -410,7 +410,7 @@ gate report or the builder's blocks. Mutations ran only in a `git archive 0e9f44
    quotes for the two persons of item 0002) and remove the 9 / 14, 157, 90 of 90 and 16 of 90 claims.
 2. Commit the unpublishable-keys file in the private eval repo and link it from section 3; store the list of the 11
    near-duplicates (episode key, person id, other person id) beside it; expand the KG repair proposal to what
-   acceptance-D 19 lists, marked as awaiting the operator's go.
+   acceptance-D 19 lists, marked as awaiting approval.
 3. Add the acceptance-D tests (over-reach 3, no-`episode_id` guard 4, verify 2, D4 insertion and unsorted order 5 or
    more) so the test count rises by at least 14, or have the acceptance author drop those bars in the record.
 4. The operator rules on read item 21 (or the record says none was given), and the `make ci-fast` log is attached to
@@ -427,8 +427,8 @@ docstring fixes, every number and plan equal to the d94e4d13a run): `upgrade/out
 
 ## 10. Before apply / deploy
 
-By the prod session, on the operator's direct go (2026-10-27 ~10:20Z: "0036 --to 2.7.30"),
-after 0034 and 0035, on sha-2914e56. Dry run 10:16Z: `restored 101 bridge identit(ies) in 34
+In the deployment, on approval (2026-10-27 ~10:20Z),
+after 0034 and 0035, on the deployed build. Dry run 10:16Z: `restored 101 bridge identit(ies) in 34
 episode(s)`; identities_added 101, bridges_rebuilt 16, rebuilt_identities 523,
 unpublishable_left_out 12, as the gate; **outcome hook: plan diff 0 episode(s)**.
 
@@ -443,9 +443,9 @@ unpublishable_left_out 12, as the gate; **outcome hook: plan diff 0 episode(s)**
 - **Derived surfaces** (once, after 0034, 0035, 0036 and the 0030 re-run): `enrich --only
   insight_density,insight_sentiment` 248 ok, 0 failed; incremental `index` scanned 3004, skipped
   2756, reindexed 248, EXIT=0. No rebuild.
-- **Snapshots:** the `upgrade-backups/` snapshots were deleted on the operator's go, after the
-  ingestion session validated them (2026-10-27). The undo above therefore no longer has its
+- **Snapshots:** the `upgrade-backups/` snapshots were deleted on approval, after they were
+  validated (2026-10-27). The undo above therefore no longer has its
   backup: forward-only from here.
-- **Not verified by the prod session:** the corpus-scope enrichers after the next nightly (open
+- **Not verified:** the corpus-scope enrichers after the next nightly (open
   item 7, 2026-10-28); the search-index rows of the written episodes, read one by one; the app in
   a browser on a written episode.

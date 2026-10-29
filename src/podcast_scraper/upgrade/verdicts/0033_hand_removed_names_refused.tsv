@@ -1,7 +1,7 @@
 # migration: 0033_hand_removed_names_refused
 # reviewed_commit: 20ec7ab38
 # list_sha256: c7ff63d743f906d0de4c8e3b72b4643600e6e6faeeb42c1664698568df7f4ea8
-# reviewer: step-5 reviewer, a fresh Opus advisor (docs/wip/changes/0033_hand_removed_names_refused.acceptance.md)
+# reviewer: step-5 reviewer, a fresh Opus advisor
 # date: 2026-10-19
 episode_id	meta	voice	name	verdict	evidence
 tag:soundcloud,2010:tracks/2067916744	feeds/rss_feeds.soundcloud.com_c56bfb45/run_20261014-073935/metadata/0001 - Ep176_ David Roblin on Building _20261014-073935.metadata.json	SPEAKER_00	David Roblin	CORRECT	CORRECT: host (SPEAKER_01) seg 3 'Today's guest is David Roblin'; SPEAKER_00 answers as the guest: seg 30 'Thanks, Luke. It's an absolute pleasure to be on.', seg 43 'my company', segs 67-68 (the Crick, as the host's seg 18), seg 91 answering 'Where are you from, David?', seg 3699 'I want Relation to be...'

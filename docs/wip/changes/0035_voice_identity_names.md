@@ -220,7 +220,7 @@ Dated: 2026-10-26T11:29
 Dated: 2026-10-26T09:21
 
 Revised acceptance for the 4d revision, by a fresh reviewer (not the builder):
-[0035_voice_identity_names.acceptance-B.md](0035_voice_identity_names.acceptance-B.md). Its integer bars
+acceptance evidence (in git history). Its integer bars
 (74 of 82 reader agreement, the sample sizes, the S10a range) are the reviewer's choice, not
 measured: for the operator to accept.
 
@@ -244,7 +244,7 @@ Operator accepted: 2026-10-26 (the MISSED order of steps 4 and 5, for 0034 and 0
 
 Dated: 2026-10-26T11:31
 
-Fresh-reviewer acceptance addendum for the 11:29 defect fix(es), integer bars before the code fix: [0035_voice_identity_names.acceptance-C.md](0035_voice_identity_names.acceptance-C.md).
+Fresh-reviewer acceptance addendum for the 11:29 defect fix(es), integer bars before the code fix: acceptance evidence (in git history).
 
 ## 6. Build
 
@@ -592,7 +592,7 @@ Step-8 reviewer, round 2: a fresh agent, 2026-10-26, not the builder, not the ro
 reader (C, D, E) and not a resumed session. Code under review: HEAD `7fd0eff36` on
 `feat/m0034-list` (migration, list, verdicts and tests identical to the measured commit `2080d1cb2`;
 `git diff 2080d1cb2 7fd0eff36 -- src tests` touches only m0036 and the registry line). Judged
-against `0035_voice_identity_names.acceptance-B.md`. Data read only: base `gate34e` (snapshot
+against acceptance evidence (in git history). Data read only: base `gate34e` (snapshot
 `snapshot-prod-20261025` with the final 0034), after `gate35b`. Every integer below is from a command
 I ran, with my own code in `scratchpad/r8b35/` (`c1.py` to `c23.py`, `treediff.py`, `mut.py`, `refind.py`,
 `undo2.py`, `view*.py`); ids only, no names, no transcript text. Earlier reviews were inputs, not evidence.
@@ -1089,8 +1089,8 @@ a behavioural one, and it holds by construction; it is acceptable as the "one wr
 **(3) The 15 against 16 and the ledger version: recorded; one pointer is false.** The builder's
 notes state 15 and 15 and the cause (0034 round 3 turned two of the snapshot's 17 into non-empty
 `{"identities": []}`); I measured 15 and 15 again on the round-4 base, 0 written. The ledger
-`version` after an undo I reproduced (below). The note says a prod undo "resets `version` to 2.7.28
-by hand (the runbook step)"; `docs/wip/CORPUS-UPGRADE-2.7-RUNBOOK.md` has 0 hits for `2.7.28`,
+`version` after an undo I reproduced (below). The note says an undo "resets `version` to 2.7.28
+by hand (the runbook step)"; the 2.7 upgrade runbook (since removed) had 0 hits for `2.7.28`,
 `0035`, `0034` or `undo`, so there is no such runbook step to point at.
 
 **(4) Outcome, sha256, `make ci-fast`: not done, and cannot be before this verdict.** In
@@ -1193,8 +1193,8 @@ docstring fixes, every number and plan equal to the d94e4d13a run): `upgrade/out
 
 ## 10. Before apply / deploy
 
-By the prod session, on the operator's direct go (2026-10-27: "apply 0035 --to 2.7.29"), after
-0034, on sha-2914e56. Dry run 09:27Z: `would rewrite 99 episode(s)`, 27 counters equal to the
+In the deployment, on approval (2026-10-27), after
+0034, on the deployed build. Dry run 09:27Z: `would rewrite 99 episode(s)`, 27 counters equal to the
 clone's (e.g. segments_relabelled 56747, insights_reattributed 1590, voices_named 61);
 **outcome hook: plan diff 0 episode(s)**.
 
@@ -1206,14 +1206,14 @@ clone's (e.g. segments_relabelled 56747, insights_reattributed 1590, voices_name
 - **`upgrade verify`** 10:08Z: 0035 [OK]; FAILs: 0025 on the 5 known episodes (accepted, 8d) and
   0030 on 2 episodes whose host-read sponsor blocks 0035's renames exposed. 0030 was re-run on those
   2 (guarded dry run = 2 episodes, 8 counters; 14 files written), after which 0030 is [OK].
-- **Ownership:** 5 root-owned paths (0035, 0036, the 0030 re-run) chowned to uid 1000; OWNERSHIP
+- **Ownership:** 5 root-owned paths (0035, 0036, the 0030 re-run) chowned to the corpus owner; OWNERSHIP
   PASS.
 - **Derived surfaces** (once, after 0034, 0035, 0036 and the 0030 re-run): `enrich --only
   insight_density,insight_sentiment` 248 ok, 0 failed; incremental `index` scanned 3004, skipped
   2756, reindexed 248, EXIT=0. No rebuild.
-- **Snapshots:** the `upgrade-backups/` snapshots were deleted on the operator's go, after the
-  ingestion session validated them (2026-10-27). The undo above therefore no longer has its
+- **Snapshots:** the `upgrade-backups/` snapshots were deleted on approval, after they were
+  validated (2026-10-27). The undo above therefore no longer has its
   backup: forward-only from here.
-- **Not verified by the prod session:** the corpus-scope enrichers after the next nightly (open
+- **Not verified:** the corpus-scope enrichers after the next nightly (open
   item 7, 2026-10-28); the search-index rows of the written episodes, read one by one; the app in
   a browser on a written episode.

@@ -4,14 +4,13 @@
 - **Date**: 2026-06-06
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: RFC-089 (§D4 superseded)
-- **Related ADRs**: [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) (unaffected — embedding routing is profile-local, prod fallback contract unchanged)
 - **Related issues**: [#897](https://github.com/chipi/podcast_scraper/issues/897) (implementation)
 
 ## Context
 
-RFC-089 §D4 introduced a custom FastAPI service on the DGX Spark — the "embedding shim" — to wrap `sentence-transformers/all-MiniLM-L6-v2` and expose `POST /embed` on port `:8001`. The shim existed because Ollama doesn't serve sentence-transformers checkpoints out of the box, and at the time RFC-089 was written, the corpus index was built against MiniLM and had to keep working.
+RFC-089 §D4 introduced a custom FastAPI service on a GPU host — the "embedding shim" — to wrap `sentence-transformers/all-MiniLM-L6-v2` and expose `POST /embed` on a dedicated port. The shim existed because Ollama doesn't serve sentence-transformers checkpoints out of the box, and at the time RFC-089 was written, the corpus index was built against MiniLM and had to keep working.
 
-During DGX bring-up (#810), the operator observed that two HTTP services on DGX (`:11434` Ollama + `:8001` shim) felt wrong. On audit, the framing was right: the shim is a stack-compatibility adapter, not a design choice. It has no functional reason to exist beyond "MiniLM was the model we'd already committed to."
+During GPU-host bring-up (#810), the operator observed that two HTTP services on the GPU host (the LLM server + the embedding shim) felt wrong. On audit, the framing was right: the shim is a stack-compatibility adapter, not a design choice. It has no functional reason to exist beyond "MiniLM was the model we'd already committed to."
 
 The initial plan was to replace the shim with Ollama-served `nomic-embed-text`. That hypothesis came from generic MTEB averages (~5–8 point lead over MiniLM) and the observation that podcast transcript chunks regularly exceed MiniLM's 256-token context limit. The plan **changed** based on empirical data described below.
 
@@ -19,9 +18,9 @@ The initial plan was to replace the shim with Ollama-served `nomic-embed-text`. 
 
 **Embedding provider becomes a profile-level axis** — `vector_embedding_provider: Literal["sentence_transformers", "ollama"]`. The architecture supports both backends end-to-end (config schema, loader router, index-metadata persistence, staleness detection that rebuilds FAISS on provider mismatch).
 
-**`sentence_transformers` remains the default for every profile, including DGX.** DGX-served Ollama embeddings are available via the new axis but not enabled in any shipped profile. The Ollama embedding client exists; the door is open; no profile crosses it today.
+**`sentence_transformers` remains the default for every profile, including those that use a GPU host.** Ollama-served embeddings are available via the new axis but not enabled in any shipped profile. The Ollama embedding client exists; the door is open; no profile crosses it today.
 
-**The shim is deleted.** `infra/dgx/embedding-shim/` is removed; RFC-089 §D4 is marked superseded. DGX runs Ollama only for LLM stages (summary, GI, KG, autoresearch) and Whisper for transcription (per ADR-096); embeddings stay in-process on whatever host runs the pipeline.
+**The shim is deleted.** The embedding shim is removed; RFC-089 §D4 is marked superseded. The GPU host serves only LLM stages (summary, GI, KG, autoresearch) and Whisper for transcription; embeddings stay in-process on whatever host runs the pipeline.
 
 **Vector indexes record their provider** in `index_meta.json`. The staleness checker has a new `REASON_EMBEDDING_PROVIDER_MISMATCH` reason; switching `vector_embedding_provider` invalidates existing indexes and triggers a rebuild on next index run. This is correct: vectors are not comparable across providers even when the model id is nominally the same.
 
@@ -45,8 +44,8 @@ The three modes together show a useful methodological lesson worth preserving wi
 
 ### Positive
 
-- DGX runs **only Ollama** for the pipeline's purposes — clean mental model, one service per concern (LLM = Ollama on DGX, embeddings = sentence_transformers on host).
-- No new operational dependency for embedding (no Ollama-up requirement, no tailnet round-trip on the critical path).
+- The GPU host runs **only Ollama** for the pipeline's purposes — clean mental model, one service per concern (LLM = Ollama on the GPU host, embeddings = sentence_transformers on host).
+- No new operational dependency for embedding (no Ollama-up requirement, no network round-trip on the critical path).
 - Embedding latency stays at ~7 ms p50 in-process instead of ~33 ms p50 over HTTP.
 - No 2× FAISS storage cost from 768-dim vectors.
 - The provider abstraction is in place if the answer changes — a future better-than-MiniLM model that wins under fair chunking can be enabled by flipping a profile field.
@@ -59,20 +58,20 @@ The three modes together show a useful methodological lesson worth preserving wi
 
 ### Out of scope
 
-- Switching prod (`cloud_with_dgx_primary`) to DGX embeddings. Same conclusion as for local DGX — empirically not justified, and ADR-096's fallback contract was built around Whisper, not embeddings.
+- Switching a production profile (`cloud_with_dgx_primary`) to GPU-host embeddings. Same conclusion as for local use — empirically not justified, and the fallback contract was built around Whisper, not embeddings.
 - Other Ollama embedding models (`mxbai-embed-large` etc.). The harness can score them when needed; revisit when there's a reason to think the answer would flip.
 - Replacing the GI subsystem's embedding model.
 
 ## Alternatives considered
 
 1. **Keep the shim.** Status-quo of RFC-089 §D4. Rejected: it was a stack-compatibility adapter without an architectural rationale. The shim is gone regardless of which provider wins.
-2. **Switch DGX profiles to Ollama + `nomic-embed-text` as default.** Initial plan based on MTEB and the truncation hypothesis. Rejected after the empirical A/B: nomic loses to MiniLM under production-realistic chunking on this corpus, and the HTTP+model latency is real.
+2. **Switch GPU-host profiles to Ollama + `nomic-embed-text` as default.** Initial plan based on MTEB and the truncation hypothesis. Rejected after the empirical A/B: nomic loses to MiniLM under production-realistic chunking on this corpus, and the HTTP+model latency is real.
 3. **Run embeddings on laptop CPU forever, no abstraction.** Rejected: the abstraction is cheap and gives operators a clean knob to retest periodically as new embedding models ship.
 
 ## References
 
 - #897 — implementation issue
-- #810 — DGX bring-up (where the friction surfaced)
+- #810 — GPU-host bring-up (where the friction surfaced)
 - `src/podcast_scraper/providers/ml/embedding_ollama.py` — Ollama embedding client (available, unused by default)
 - `src/podcast_scraper/providers/ml/embedding_loader.py` — router by `provider`
 - `src/podcast_scraper/server/index_staleness.py` — `REASON_EMBEDDING_PROVIDER_MISMATCH`

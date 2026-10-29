@@ -211,4 +211,33 @@ median + visually inspect the settle screenshot.
 
 ---
 
+## UX — user-preferences import/export and reset button
+
+**Surfaced by:** graph v3 hardening follow-ups (FU1.2) / 2026-07-17
+**Category:** UX
+**Estimated cost:** S
+
+**Context:** the preferences API is done (GET returns the payload, PUT replaces it, and
+`useUserPreferencesStore.resetToDefaults()` PUTs `{}`), but there is no UI for it: no
+"download my preferences JSON" / "restore from file" pair on the account settings page, and no
+reset-to-defaults button. `graphFilters.allowedTypes` (per-corpus) is not persisted yet either.
+
+**Handle:** pure client work in `web/gi-kg-viewer`; no server change.
+
+---
+
+## Verify — Speaker and Quote node shapes on a real corpus
+
+**Surfaced by:** graph v3 hardening follow-ups (FU3) / 2026-07-17
+**Category:** verification
+**Estimated cost:** XS
+
+**Context:** the Speaker (round-diamond) and Quote (round-tag) shapes are verified in code
+only; no corpus at the time emitted either type at scale.
+
+**Handle:** load a corpus with Speaker or Quote nodes and take one screenshot of each on the
+canvas.
+
+---
+
 *More items land here as they're surfaced. See git history of this file for the diary of what was addressed.*

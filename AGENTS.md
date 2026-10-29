@@ -66,8 +66,7 @@ exists because a session burned time rediscovering something already written dow
 | **Deploying / running the obs MCP** | the operator observability runbook (not in this repository) § "MCP servers" | it runs on the prod host only, as the deployment's `obs` service. The homelab variant was deleted 2026-10-16; OBS-MCP-ON-VPS-PLAN (not in this repository) is history (wrong subdomain) |
 | **LLM routing / gateway** | ADR-142 (not in this repository) | prod does **not** call homelab; see § "Deployment topology" above |
 | **Prod ops — deploy, health, corpus paths, secrets** | the operator cheat sheet (not in this repository) | endpoints, host paths, daily commands, incident playbook, secret inventory |
-| **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml`, `docs/wip/CORPUS-EXPANSION-REGISTRY-2026-09.md` | the vetted feed list + every rejection with its reason |
-| **Enrichment quality gates** | `docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` §5f-§5j | the §5g probe protocol, §5i evidence-based gates, the 2h duration ceiling |
+| **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml` | the vetted feed list + every rejection with its reason |
 | **Prod ops procedures — load the SKILL, don't hand-roll** | the skill (`~/.claude/skills/<name>/SKILL.md`, source in `agentic-ai-homelab/workstation/claude/skills/`) | `prod-deploy` (preflight a sha / dispatch / verify the box), `prod-batch-chain` (reprocess/backfill batches before the nightly; hold/resume), `prod-job-progress` (progress + ETA, no silent zeros), `corpus-migration` (upgrade dry-run → gated apply → verify → ownership), `session-handoff-msg` (check a message to another session), `ci-step-local` (test a workflow step / systemd unit before pushing). Job configs live in `~/.local/state/<skill>/` |
 
 **The failure this table prevents:** on 2026-09-05 a session spent an hour probing observability

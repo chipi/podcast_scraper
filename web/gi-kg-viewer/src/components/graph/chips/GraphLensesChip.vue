@@ -43,7 +43,7 @@ const storylinesAvailable = computed(() => artifacts.storylinesDoc != null)
    edges. If the current display artifact has zero source Insight→Topic
    ABOUT edges AND zero Quote→Person SPOKEN_BY edges then the toggle
    would render nothing at all — hide the row to avoid a dead control
-   (RFC-080 V1). FU2 in graph-v3/HARDEN-FOLLOWUPS-2026-07-17.md. */
+   (RFC-080 V1). */
 const aggregatedEdgesAvailable = computed(() => {
   const edges = artifacts.displayArtifact?.data?.edges
   if (!Array.isArray(edges) || edges.length === 0) return false

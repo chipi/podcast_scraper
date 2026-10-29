@@ -3,19 +3,17 @@
 - **Status**: Proposed
 - **Date**: 2026-07-20
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
-- **Related ADRs**: ADR-117 (the
-  multi-tenant o11y ownership split this refines — each tenant owns its app
-  telemetry; this ADR fixes *how* the app emits it)
+- **Context**: each tenant owns its app telemetry; this ADR fixes *how* the app emits it
 - **Tracking**: app-surface o11y (see `OBSERVABILITY_ARCHITECTURE.md`)
 
 ## Context
 
-ADR-117 says each tenant owns its app metrics/logs. It does not say *how* the app
+Each tenant owns its app metrics/logs; that principle does not say *how* the app
 should emit them. Today emission is ad-hoc: `emit_llm_cost_event()` writes JSON via
 a logger to stdout; `append_query_event()` / `append_listen_event()` write JSON to
 per-corpus files — three shapes, three code paths, no shared envelope, and an
-implicit assumption that "logs go to Loki." When we moved off Grafana Cloud to a
-self-hosted VictoriaMetrics/VictoriaLogs stack, nothing in the *app* had to change —
+implicit assumption that "logs go to Loki." When the stack moved to a
+self-hosted VictoriaMetrics/VictoriaLogs backend, nothing in the *app* had to change —
 which is the property we want to make explicit and permanent, so a fork can ship to
 any backend without touching app code.
 
@@ -42,7 +40,7 @@ nothing else. **Shipping is a separate, pluggable layer.**
 
 3. **Shipping** is out-of-app config, not code. Contract = "canonical JSONL on
    stdout/file" + "Prometheus `/metrics`". The **reference adapter** is Grafana
-   Alloy → VictoriaLogs/VictoriaMetrics (infra repo). Swapping is a shipping-config
+   Alloy → VictoriaLogs/VictoriaMetrics (deployment-side). Swapping is a shipping-config
    change (repoint `loki.write`; swap Alloy for Vector/Fluent Bit; add
    `otelcol`/Kafka/S3/Datadog output). The app never imports a vendor SDK.
 
@@ -64,13 +62,11 @@ GlitchTip→Sentry, VictoriaLogs→Loki by config/DSN, no app change. Traces are
 env-var driven (`opentelemetry-instrument`, zero app code); the OTLP traces
 endpoint uses the traces-specific var with VictoriaTraces' non-standard full path.
 This ADR governs the LOGS/EVENTS emit side (`emit_event`); the same discipline
-applies across the whole table. Backend/handover pointers live in the homelab
-repo's o11y handover docs (`agentic-ai-homelab`).
+applies across the whole table. Backend wiring is documented with the deployment, outside this repository.
 
 ## Consequences
 
-**Positive:** app is vendor-neutral (Grafana/Loki is a swappable sink, per ADR-117
-per-tenant ownership); one envelope makes events queryable in *any* backend;
+**Positive:** app is vendor-neutral (the dashboard/log backend is a swappable sink); one envelope makes events queryable in *any* backend;
 forkability becomes a first-class feature; metrics and events follow the same
 producer/consumer discipline.
 

@@ -31,9 +31,8 @@ Kamen" for "Debra Kamin"). Step 0 (S7/S8 and the migration hook not built) is NO
 MISSED: no reading list was written before the build. Written after it, 2026-10-18:
 
 - #2380, 0031 (now 0032) is defective: a voice it names keeps its insights hidden; the gain path.
-- `docs/wip/EVAL-0030-0031-2026-10-17.md`: 0032 (then 0031) held on S1n +1,085.
-- `docs/wip/NAMING-STRATEGY-2026-10-17.md` item 2: fix the rewrite 0031 inherits from m0025. (The strategy is folded into
-  `docs/wip/INGESTION-ARC-2026-10-19.md` since 2026-10-19; `git show 7f7bf2fc6:docs/wip/NAMING-STRATEGY-2026-10-17.md`.)
+- The 2026-10-17 evaluation of 0030 and 0031 (in git history): 0032 (then 0031) held on S1n +1,085.
+- The 2026-10-17 naming strategy, item 2: fix the rewrite 0031 inherits from m0025. (In git history: `git show 7f7bf2fc6:docs/wip/NAMING-STRATEGY-2026-10-17.md`.)
 - `docs/guides/CORPUS_CHANGE_METHOD.md` v0.4: §3 metric definitions, S1n gating.
 - `m0029_naming_arc_voices_repaired.py`: 83 voices, frozen list, applied on prod.
 - `m0025_one_person_one_entry.py` `_segments_by_voice` / `_gi_by_voice`: the shared rewrite.
@@ -321,7 +320,7 @@ Revision B.4: the reviewer's amendment (10:06), appended to the acceptance file.
 
 Dated: 2026-10-18T09:27
 
-Revision B.3: the reviewer's amendment (09:27), appended to [the acceptance file](0031_named_voices_shown.acceptance-B.md).
+Revision B.3: the reviewer's amendment (09:27), appended to the acceptance file (acceptance evidence, in git history).
 
 Dated: 2026-10-18T08:45
 
@@ -330,7 +329,7 @@ Revision B.2: the reviewer's amendment, appended to the same file (below the 08:
 Dated: 2026-10-18T08:22
 
 Revision B: the fresh reviewer's criteria, written before any revision-B code:
-[0031_named_voices_shown.acceptance-B.md](0031_named_voices_shown.acceptance-B.md).
+acceptance evidence (in git history).
 
 MISSED: no reviewer wrote acceptance criteria before the code. The fresh reviewer was launched
 only after the build (step 8).
@@ -579,20 +578,20 @@ Shipped outcome (replaces affb5658…, which carried `conditions: []`; the hook'
 sha256 155b178a40794f21ca1bcdad4ccf29bb43ca47b68312686ec04981e976b2731b, rebuilt from the same
 13:29:41 gate report (code digest abd29583…), now carrying B.6's condition.
 
-**Re-measured on main at 417189d4d** (the prod session's 829111e68 and 417189d4d, ffmpeg stderr
+**Re-measured on main at 417189d4d** (the deployment's 829111e68 and 417189d4d, ffmpeg stderr
 decoded with UTF-8 replace in `transcription/digital_silence.py`, `providers/mistral/
 mistral_provider.py` and `providers/resilience/sockets.py`, all in 0031's import closure; the
 hook refused 155b178a… on prod at step 4 with "the installed code is not the code that was
 measured"). Gate report 2026-10-19T05:34:40, clean: `diff -rq lost/gateworkB6b lost/gateworkB6c`
 over the whole tree is empty; `plan_sha256` e85a2670…; the same moves; code digest abd29583… →
-5d5477d0… (the prod session computed the same for 417189d4d).
+5d5477d0… (the deployment's side computed the same for 417189d4d).
 
 Shipped outcome (replaces 155b178a…): sha256 29f318e69dae8755b8a81f9337c8862ee8add5547fa537fced3e34255adbb1bb, built from that report and the B.6 verdict,
 its condition carried.
 
 ## 9. Operator review
 
-Operator, 2026-10-19, verbatim: "Push, A, go". The three questions it answers:
+Approval, 2026-10-19: push, A, go. The three questions it answers:
 - push 5a6068338 (the outcome re-measured on 417189d4d);
 - A: freeze changes to 0031's import closure until 0031 is applied, rather than moving the stale
   check to the deploy path;
@@ -601,11 +600,10 @@ Operator, 2026-10-19, verbatim: "Push, A, go". The three questions it answers:
 
 ## 10. Before apply / deploy
 
-**Road step 4, prod's plan against the clone's** (the prod session, read-only, 2026-10-19
+**Road step 4, prod's plan against the clone's** (read-only, in the deployment, 2026-10-19
 05:24 to 05:29Z; no reprocess, sweep or pipeline container up, job registry 0 running / 0
-queued; code from `git archive` on PYTHONPATH as uid 1000; nothing written: `find -newermt` shows
-only `.viewer/jobs.jsonl` and its lock; its files under `~/.local/state/corpus-migration/
-podcast-0031/`).
+queued; code from `git archive` on PYTHONPATH as the corpus owner; nothing written: `find -newermt` shows
+only `.viewer/jobs.jsonl` and its lock;).
 - Prod ledger: 0029 at 2026-10-12T18:45:18Z, 0030 at 2026-10-17T20:39:44Z; pending exactly
   `0031_named_voices_shown`.
 - At 417189d4d with outcome 155b178a…: refused, "the installed code is not the code that was
@@ -616,28 +614,27 @@ podcast-0031/`).
   `feeds/rss_rss.art19.com_41402031/run_20261014-121633/metadata/0001 - Taking down the cultural
   elite __20261014-121633.metadata.json`.
 - **Its cause, from prod's data:**
-  - Prod reprocessed the episode on 2026-10-17 ("Reprocess prod corpus (#1199)", GitHub run
-    39009633001, dispatched 06:21:54Z, success 07:24:06Z), after the clone's snapshot.
+  - Prod reprocessed the episode on 2026-10-17 ("Reprocess prod corpus (#1199)", a batch
+    dispatched 06:21:54Z, success 07:24:06Z), after the clone's snapshot.
   - Prod serves the new `run_20261017-070357` (`select_served_artifacts`); the 10-14 run is no
     longer served there.
   - The served run already names SPEAKER_01 "Catherine Liu" on all 1,553 of its segments (plain
     and ad-free) and has 0 of 45 insights hidden. 0031 has nothing to do there.
   - On the clone (10-16) the 10-14 run is served, so 0031 names the voice and shows its 34
     insights (S1 −34, S2 −34, S10a −1). On prod those insights are already shown.
-  - Not checked: who dispatched run 39009633001, and its worklist.
+  - Not checked: who dispatched that batch, and its worklist.
 - The difference makes prod's outcome smaller, not worse. Applying needs an accept file for
-  this one entry (cause above) with the operator's go verbatim (step 5).
+  this one entry (cause above) with the recorded approval (step 5).
 
 ## 11. After apply / deploy
 
-Applied on prod 2026-10-19 by the prod session: deploy of e151a5c07 on the operator's "Gonforndeploy"
-(08:25Z, run 39222548064, VERIFY PASS, every app container on sha-e151a5c), then 0031 on the
-operator's "Go" (~08:32Z), both given to the prod session directly.
+Applied in the deployment 2026-10-19: deploy of e151a5c07 on approval
+(08:25Z, verify PASS, every app container on that build), then 0031 on approval (~08:32Z).
 
 - **Dry run at the deployed code:** 53 episodes, counters equal to the 05:26 run; the hook stopped
   on exactly the one `clone_only` entry (step 10's cause).
 - **Apply:** 08:31:05–08:36:18Z, `upgrade run --accept-plan-diff` (accept file sha256 037e16a9…,
-  operator_go verbatim), exit 0, 53 episodes rewritten, counters equal to the dry run; now 2.7.25,
+  approval recorded), exit 0, 53 episodes rewritten, counters equal to the dry run; now 2.7.25,
   0 pending.
 - **The hook's receipt, verdict PASS** (outcome 29f318e6…), prod's own totals:
 
@@ -652,7 +649,7 @@ operator's "Go" (~08:32Z), both given to the prod session directly.
 
   Every episode's moves equal the clone's (the hook's exact compare), the one reprocessed episode
   excepted as accepted.
-- **Ownership:** 2 root-owned files (the ledger, the receipt) chowned back to 1000.
+- **Ownership:** 2 root-owned files (the ledger, the receipt) chowned back to the corpus owner.
 - **`upgrade verify`:** exit 1. 0031 `[OK]` (`insights_checked=2464, served=2843,
   served_listed=71`). Two FAIL lines, each reproduced on the clone:
   - 0029, the Espinoza episode: 0031's WRONG_PERSON verdict, which 0029's verify does not know;
@@ -672,24 +669,24 @@ operator's "Go" (~08:32Z), both given to the prod session directly.
   - `.anon.txt` ×1, `.context.json` ×51, `.manifest.json` ×2: no refresh. The first two were
     verified byte- or field-equal to a rebuild on the clone; the manifest is the run's own record
     (judgement);
-  - corpus-level enrichers, run on demand on the operator's go (09:39–10:22Z): `enrich --corpus-only
+  - corpus-level enrichers, run on demand on approval (09:39–10:22Z): `enrich --corpus-only
     --only topic_cooccurrence_corpus,topic_theme_clusters,temporal_velocity,grounding_rate,guest_coappearance`,
     5 / 5 ok (the corpus config also enables `person_web` and `org_web`, web lookups, left out);
     `insight-clusters --output-dir /app/output` at the CLI default 0.75: insights 140,516, clusters
     7,646, cross-episode 4,167. Nothing in the nightly builds insight clusters, so the census's
     "corpus level: the nightly's … insight clusters" was wrong. The run re-embedded every insight
-    on CPU (33 min, about 5.3 GiB in an uncapped container; the box fell to 3.3 GB available).
+    on CPU (33 min, about 5.3 GiB in an uncapped container; the host fell to 3.3 GB available).
 - **Spot checks:** Espinoza's SPEAKER_00 unnamed on all 253 segments, no `speaker_role`, diagnostics
   role `unknown`, 0 quotes or insights under "Justin Norman"; three random written episodes carry
   their named voices on segments, quotes and shown insights.
 - **Snapshot:** the CLI's 29 GB snapshot sits in the container's writable layer; 0031's undo does not
-  need it (its receipts and backups are in the corpus). Keeping it is the operator's call.
+  need it (its receipts and backups are in the corpus). Keeping it is a decision for the maintainer.
 
 ## 12. Retrospective
 
 0031 did what it predicted on prod, to the integer: S1 −1,336, S1n −1,779, S2 −1,862, S3 −526,
 S10a −11, nothing gating rose. The hook stopped the run on the one episode prod had changed since
-the clone, and the accept file recorded its cause and the operator's go. The misses, each with the
+the clone, and the accept file recorded its cause and the approval. The misses, each with the
 check that would have caught it:
 
 1. **The full `upgrade verify` was not run on the clone after 0031.** 0029's verify then failed on
