@@ -77,7 +77,15 @@ def resolve_corpus_path_param(
     # Inline sanitizer: normpath + startswith (CodeQL py/path-injection recognises this).
     normed = os.path.normpath(normed)
     safe_prefix = anchor_str + os.sep
-    if normed != anchor_str and not normed.startswith(safe_prefix):
+    # CodeQL only honours a ``startswith`` guard that is the SOLE route to the code after it: the
+    # ``a != anchor and not startswith`` / ``== or startswith`` forms leave the equal-to-anchor
+    # path unguarded and the taint survives. So the anchor itself is answered first, from the
+    # trusted ``anchor_str``, and everything else must pass the bare ``startswith`` check.
+    if normed == anchor_str:
+        if must_be_dir and not os.path.isdir(anchor_str):
+            raise CorpusPathRequestError(status_code=400, detail=f"Not a directory: {anchor_str}")
+        return Path(anchor_str)
+    if not normed.startswith(safe_prefix):
         raise CorpusPathRequestError(
             status_code=400,
             detail="path must be the configured corpus root or a subdirectory of it.",

@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 import urllib.parse
@@ -112,8 +113,13 @@ def org_logo_path(corpus_root: Path, org_id: str) -> tuple[Path, str] | None:
 
     directory = _logo_dir(corpus_root)
     stem = _safe_name(org_id)
+    logo_root = os.path.normpath(str(directory))
     for ext, media in _EXT_MEDIA.items():
-        candidate = directory / f"{stem}.{ext}"
+        # normalize + prefix-check inline: CodeQL only honours the guard in this function
+        candidate_s = os.path.normpath(os.path.join(logo_root, f"{stem}.{ext}"))
+        if not candidate_s.startswith(logo_root + os.sep):
+            continue
+        candidate = Path(candidate_s)
         # is_file() follows symlinks, so also require the resolved target stays inside the logo dir.
         if candidate.is_file() and resolves_under_root(candidate, directory):
             return candidate, media
