@@ -41,15 +41,14 @@ applyDirection(
 const app = createApp(App)
 
 // Sentry/GlitchTip init for the consumer player — mirrors the viewer
-// (web/gi-kg-viewer/src/main.ts). Gated on ``VITE_SENTRY_DSN_PLAYER`` so the
-// default (no DSN) stays a true no-op for dev / CI / any build without the
-// build-arg. The DSN reaches Vite at build time (baked into the bundle); the
-// docker build passes it via ``--build-arg VITE_SENTRY_DSN_PLAYER=...``. Points
-// at the self-hosted GlitchTip through the public ingest edge — the player is a
-// browser client, so it can't reach the tailnet-only backend directly.
-// Unlike the viewer, the player nginx does no runtime ``sub_filter`` env
-// injection, so ``environment`` comes from the build mode and ``release`` from
-// the existing ``__BUILD_SHA__`` define.
+// (web/gi-kg-viewer/src/main.ts). The deployed web player's DSN arrives at runtime:
+// the image's nginx writes ``window.__PLAYER_SENTRY_DSN__`` into index.html from the
+// container's PLAYER_SENTRY_DSN_WEB, so the image built in CI carries no prod value.
+// Native builds have no nginx and bake ``VITE_SENTRY_DSN_PLAYER`` (.env.mobile).
+// Points at the self-hosted GlitchTip through the public ingest edge — the player
+// is a browser client, so it can't reach the tailnet-only backend directly.
+// ``environment`` comes from the build mode and ``release`` from the existing
+// ``__BUILD_SHA__`` define.
 // Dev rung of the env ladder (dev → prod; the player has no staging). In `vite
 // dev` (desktop, http origin) errors go to the dedicated `player-dev` GlitchTip
 // project via the Tailscale host `homelab` — NO fixed IP, tailnet-only; a
@@ -72,7 +71,8 @@ const app = createApp(App)
 //
 // Both tiers now come from the environment and nothing else:
 //
-//   VITE_SENTRY_DSN_PLAYER      — prod, baked as a docker build-arg
+//   window.__PLAYER_SENTRY_DSN__ — prod web, set by the deployed container (see above)
+//   VITE_SENTRY_DSN_PLAYER      — prod, baked; native release builds
 //   VITE_SENTRY_DSN_PLAYER_DEV  — the dev rung; `.env.mobile` supplies an https URL for on-device
 //                                 use, because a native WebView blocks a plain-http DSN as mixed
 //                                 content
@@ -85,9 +85,13 @@ const devDefault = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !==
 // player-dev GlitchTip + environment='dev' — same channel split as the web dev rung. prod (+ web +
 // release) keeps the baked prod DSN. Umami stays the prod site (unified UX), so it is NOT switched.
 const nativeDevTier = tierSwitchEnabled() && getTier() === 'dev'
+const RUNTIME_SENTRY_DSN_PLAYER =
+  (window as { __PLAYER_SENTRY_DSN__?: string }).__PLAYER_SENTRY_DSN__ || ''
 const SENTRY_DSN_PLAYER = nativeDevTier
   ? DEV_SENTRY_DSN_PLAYER
-  : import.meta.env.VITE_SENTRY_DSN_PLAYER || (devDefault ? DEV_SENTRY_DSN_PLAYER : '')
+  : RUNTIME_SENTRY_DSN_PLAYER ||
+    import.meta.env.VITE_SENTRY_DSN_PLAYER ||
+    (devDefault ? DEV_SENTRY_DSN_PLAYER : '')
 if (SENTRY_DSN_PLAYER) {
   // @sentry/capacitor wraps @sentry/vue: one init drives the JS SDK AND the native
   // sentry-cocoa / sentry-android SDKs, so a crash in the Swift/Kotlin shell (outside

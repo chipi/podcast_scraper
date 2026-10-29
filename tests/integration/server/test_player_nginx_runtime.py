@@ -15,6 +15,7 @@ real backend) by covering the containerized nginx path-filter + rate-limit.
 from __future__ import annotations
 
 import http.server
+import re
 import shutil
 import socket
 import subprocess
@@ -32,6 +33,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 IMAGE = "podcast-scraper-learning-app:latest"
 NGINX_HOST_PORT = 18092
+# Not a real key: the test only checks that the deployment's value reaches the page.
+RUNTIME_DSN = "https://testkey@glitchtip.invalid/1"
 
 
 def _pick_free_port() -> int:
@@ -97,7 +100,7 @@ def player_base() -> Iterator[str]:
     conf_source = Path(__file__).resolve().parents[3] / "web/learning-player/nginx.conf"
     rendered_conf = _render_nginx_conf(conf_source, stub_port)
     conf_dir = Path(tempfile.mkdtemp(prefix="lp-nginx-runtime-"))
-    conf_path = conf_dir / "default.conf"
+    conf_path = conf_dir / "player.conf.template"
     conf_path.write_text(rendered_conf, encoding="utf-8")
 
     # Stub upstream binds all interfaces so the container-side nginx can reach
@@ -116,8 +119,20 @@ def player_base() -> Iterator[str]:
             "api:host-gateway",
             "-p",
             f"{NGINX_HOST_PORT}:80",
+            # The deployed shape: read-only root with tmpfs scratch only, conf.d NOT a tmpfs.
+            # The image renders its config template into /tmp at start, so this also proves that
+            # rendering works where the root is read-only.
+            "--read-only",
+            "--tmpfs",
+            "/var/cache/nginx",
+            "--tmpfs",
+            "/var/run",
+            "--tmpfs",
+            "/tmp",
+            "-e",
+            f"PLAYER_SENTRY_DSN_WEB={RUNTIME_DSN}",
             "-v",
-            f"{conf_path}:/etc/nginx/conf.d/default.conf:ro",
+            f"{conf_path}:/etc/nginx/templates/player.conf.template:ro",
             IMAGE,
         ],
         capture_output=True,
@@ -221,3 +236,29 @@ def test_new_listener_routes_fall_through_to_spa(player_base: str, path: str) ->
     code, body = _get(f"{player_base}{path}")
     assert code == 200, f"{path} returned {code}, expected 200 (SPA fallback)"
     assert '<div id="app">' in body, f"{path} did not serve the SPA index.html"
+
+
+# --------------------------------------------------------------------------- #
+# The GlitchTip DSN comes from the deployment, not the build
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("path", ["/", "/index.html", "/topic/topic:ai", "/browse/topics"])
+def test_every_document_carries_the_deployments_dsn(player_base: str, path: str) -> None:
+    # The image is built in CI with no DSN; the container's PLAYER_SENTRY_DSN_WEB must reach every
+    # document, or the deployed player reports nothing and nobody notices (#2088 was that shape).
+    code, body = _get(f"{player_base}{path}")
+    assert code == 200
+    assert f'window.__PLAYER_SENTRY_DSN__="{RUNTIME_DSN}"' in body, f"{path} lacks the runtime DSN"
+
+
+def test_the_dsn_is_set_once_before_the_app_runs(player_base: str) -> None:
+    _code, body = _get(f"{player_base}/")
+    assert body.count("window.__PLAYER_SENTRY_DSN__") == 1
+    # The inline script runs while the document parses; the app entry is a module script, which
+    # is deferred until parsing ends, so main.ts always sees the value whatever the tag order.
+    head = body[: body.index("</head>")]
+    entry = re.search(r"<script\b[^>]*\bsrc=\"[^\"]*/assets/[^\"]+\.js\"[^>]*>", body)
+    assert entry, "no app entry script found"
+    assert 'type="module"' in entry.group(0), "the app entry must be a (deferred) module script"
+    assert "window.__PLAYER_SENTRY_DSN__" in head
