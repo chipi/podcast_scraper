@@ -115,6 +115,53 @@ pending changes are done; then he decides each one. The fixes list is in
 
 Reviews in this work follow method v0.9 section 4a; blind reads are evidence, not a review.
 
+## Early-results protocol (agreed with the prod session, 2026-10-29)
+
+The operator asked for a preliminary read of both shadow namers before the week-long evaluation,
+and for a protocol for early results. Nothing changes on prod: promotion and profile changes stay
+the operator's decision.
+
+**Daily (prod session):** after each nightly, `podcast_scraper.quality.naming_shadow.report` on
+prod, stored on the mini as `~markodragoljevic/prod-naming-20261027/naming_shadow_<YYYYMMDD>.json`.
+The message carries, besides the cumulative counts: the episodes new since the previous report and
+each namer's outcomes for them alone; each row's run dir / date; last night's non-agree rows (ids
+only); the voice_identity spreading check (one name added or changed on 2 or more episodes of a
+feed); not_answered reasons for the new episodes; talk-floor host removals on the new episodes.
+
+**Rounds:** round 1 after night 3, round 2 at the week mark (that one is S1, the full
+evaluation). Each round samples only voices not read before.
+
+| Step | Who |
+|---|---|
+| sample 12 non-agree voices per namer, seeded, weighted by insights, the unnamed-voice cases (adds) first, then changes / removes | naming session |
+| copy each sampled episode's `.segments.json`, transcript `.txt`, `.metadata.json`, `.speakers.diagnostics.json` to `~/prod-naming-20261027/shadow-r<N>/` on the mini, read-only | prod session |
+| name-stripped packets; 2 blind sonnet readers, 15 min cap each, token use reported | naming session |
+| score: both readers back the namer / the ladder / OTHER / undecidable / readers disagree, with insights per bucket | naming session |
+
+**Signals** (small-sample signals, not rates):
+
+| Namer | Right direction | Stop |
+|---|---|---|
+| transcript_naming | adds: both readers back it on 9 or more of 12, at most 1 wrong person; changes: right more often than the ladder | 3 or more wrong-person adds in 12, or one repeated failure shape (an ad / promo / clip voice named as the host) |
+| voice_identity | adds right on 9 or more of 12, no spreading | any spreading (the same wrong name on 2 or more episodes of a feed), or 2 or more wrong-person adds |
+
+Anything between the two keeps shadowing with no change.
+
+**Kept:** packets, reader TSVs, key and the scored table in the private eval repo
+(`data/eval/naming-shadow-r<N>-<date>/`); one ids-only summary row per round below. Blind reads are
+evidence, not a review (method v0.9 section 4a); a review, if wanted, is a 5-minute read of the
+scored table against this protocol.
+
+### Results so far
+
+| Round | Date | transcript_naming | voice_identity | Notes |
+|---|---|---|---|---|
+| night 1 (pre-protocol) | 2026-10-27 | changes, 19 judged: ladder right 10 (134 insights), shadow right 7 (148), undecidable 2. A coin flip against the ladder; adds never sampled | 1 judged, readers disagree: no signal | from the night-1 blind read (21 episodes); rescues 2 of 2 right |
+
+Reported on prod 2026-10-29 (cumulative over 82 episodes): transcript_naming agree 258 / adds 56 /
+removes 6 / changes 36 / not_judged 97; voice_identity agree 304 / adds 19 / removes 5 / changes 4 /
+not_judged 63 (10 episodes not answered: 9 no voted group in the feed, 1 no fingerprints).
+
 ## NOT covered by this handover
 
 - No shadow data from after the deploy has been read yet: the numbers above are pre-deploy.
