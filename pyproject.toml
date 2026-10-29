@@ -22,9 +22,9 @@ dependencies = [
   "rich>=15.0.0,<16.0.0",
   "defusedxml>=0.7.1,<1.0.0",
   "platformdirs>=3.11.0,<5.0.0",
-  "pydantic>=2.13.4,<3.0.0",
+  "pydantic>=2.14.1,<3.0.0",
   "PyYAML>=6.0.3,<7.0.0",
-  "python-dotenv>=1.2.2,<2.0.0",  # For .env file support (RFC-013)
+  "python-dotenv>=1.2.4,<2.0.0",  # For .env file support (RFC-013)
   "zipp>=4.1.0,<5.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
   # Security fixes: CVE-2025-68146 (3.29.7); CVE-2026-112907, -112913, -112940 (4.2.1).
@@ -233,7 +233,7 @@ compare = [
   # tornado (pulled by streamlit, no upper bound there) had three advisories in 6.5.8 fixed by
   # 6.5.9 (pip-audit, 2026-10-01). Security floor so a venv built before the fix resolves past it;
   # drop when streamlit requires >=6.5.9 itself. Same pattern as the pyjwt floor in [dev].
-  "tornado>=6.5.9",
+  "tornado>=6.5.10",
   "plotly>=6.7.0,<7.0.0",
   "pandas>=2.3.3,<3.0.0",
   "rouge-score>=0.1.2,<1.0.0",
@@ -345,7 +345,7 @@ dev = [
   "pytest-rerunfailures>=16.4,<17.0",  # Flaky test reruns (RFC-018)
   "pytest-socket>=0.8.0,<1.0.0",  # Network blocking for E2E tests (RFC-019)
   "pytest-json-report>=1.5.0,<2.0.0",  # JSON test reports for metrics (RFC-025)
-  "mypy==2.3.0",  # pinned exactly: a floating range let CI drift to 2.2.0 (differing jinja2 inference)
+  "mypy==2.4.0",  # pinned exactly: a floating range let CI drift to 2.2.0 (differing jinja2 inference)
   "types-PyYAML>=6.0.12,<7.0.0",
   "bandit>=1.9.4,<2.0.0",
   "pip-audit>=2.10.1,<3.0.0",
