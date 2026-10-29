@@ -31,7 +31,7 @@ def _vllm() -> VLLMProvider:
             rss="https://example.com/feed.xml",
             summary_provider="vllm",
             generate_summaries=True,
-            vllm_api_base="http://homelab:4001/v1",
+            vllm_api_base="http://gateway.test:4001/v1",
             vllm_summary_model=_MODEL,
         )
     )

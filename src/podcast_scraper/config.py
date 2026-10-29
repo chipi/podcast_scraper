@@ -561,7 +561,7 @@ def resolve_profile_layers(
 
 # Example values shipped in profiles/docs — never a reachable host.
 _PLACEHOLDER_DGX_HOSTS = frozenset(
-    {"your-dgx.tailnet.ts.net", "your-dgx", "<tailnet>", "dgx.example.com"}
+    {"your-dgx.tailnet.ts.net", "your-dgx", "your-dgx-host", "<tailnet>", "dgx.example.com"}
 )
 
 
@@ -1661,7 +1661,7 @@ class Config(BaseModel):
     dgx_tailnet_host: Optional[str] = Field(
         default=None,
         alias="dgx_tailnet_host",
-        description="MagicDNS hostname for DGX Ollama (RFC-089), e.g. dgx-llm-1.tailnet.ts.net.",
+        description="MagicDNS hostname for DGX Ollama (RFC-089), e.g. my-dgx.tailnet.ts.net.",
     )
     dgx_ollama_port: int = Field(
         default=11434,
@@ -2732,7 +2732,7 @@ class Config(BaseModel):
     litellm_api_base: Optional[str] = Field(
         default=None,
         alias="litellm_api_base",
-        description="LiteLLM gateway base URL (e.g. http://homelab:4001/v1). Set by the profile.",
+        description="LiteLLM gateway base URL (e.g. http://your-litellm-gateway:4001/v1).",
     )
     litellm_api_key: Optional[str] = Field(
         default=None,
@@ -6822,10 +6822,34 @@ class Config(BaseModel):
         if _host in _PLACEHOLDER_DGX_HOSTS:
             raise ValueError(
                 f"dgx_tailnet_host is still the example value {_host!r}. Set it to the real "
-                "MagicDNS name (e.g. dgx-llm-1) in the profile or operator YAML — with the "
-                "placeholder the DGX is unreachable and the run silently falls back to cloud "
-                "ASR while reporting the DGX profile."
+                "MagicDNS name (DGX_TAILNET_HOST in your .env, or the profile / operator YAML) — "
+                "with the placeholder the DGX is unreachable and the run silently falls back to "
+                "cloud ASR while reporting the DGX profile."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _reject_unexpanded_env_placeholders(self) -> "Config":
+        """Host-bearing fields must not still hold a ``${NAME}`` after env expansion.
+
+        Profiles carry ``${NAME}`` host placeholders with no fallback, and
+        ``_expand_env_in_string`` keeps the literal when the variable is unset. Left alone, that
+        literal reaches the HTTP client as a hostname and the run degrades or fails far from the
+        cause. Fail here, naming the variable. ``None`` / empty values are fine.
+        """
+        for field_name in type(self).model_fields:
+            if field_name != "dgx_tailnet_host" and not field_name.endswith("_api_base"):
+                continue
+            value = getattr(self, field_name, None)
+            if not isinstance(value, str):
+                continue
+            match = _ENV_VAR_PATTERN.search(value)
+            if match:
+                name = match.group("name")
+                raise ValueError(
+                    f"{field_name} references ${{{name}}}, which is not set: put it in your "
+                    ".env (see config/examples/.env.example)"
+                )
         return self
 
     @model_validator(mode="after")

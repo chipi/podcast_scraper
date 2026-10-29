@@ -46,7 +46,7 @@ openai_transcription_model: whisper-1
 # is unused while diarization_provider=tailnet_dgx.
 diarize: true
 diarization_provider: tailnet_dgx
-dgx_tailnet_host: dgx-llm-1
+dgx_tailnet_host: ${DGX_TAILNET_HOST}
 dgx_diarize_model: pyannote/speaker-diarization-community-1  # pinned per #1170; DGX serves this
 # PURE community-1: no silent degrade to local/deepgram — a DGX outage halts the batch (visible)
 # rather than injecting a different diarization backend and contaminating the single-variable gate.

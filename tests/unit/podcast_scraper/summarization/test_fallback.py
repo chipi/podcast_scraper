@@ -430,7 +430,7 @@ class TestLiteLlmGatewayOutageFailsOverToDirectDeepseek:
     ) -> None:
         primary = _FakeProvider(
             "litellm",
-            raises=ConnectionError("APIConnectionError: connection to homelab:4001 failed"),
+            raises=ConnectionError("APIConnectionError: connection to gateway.test:4001 failed"),
         )
         deepseek = _FakeProvider("deepseek")
         _patch_factory(monkeypatch, deepseek)

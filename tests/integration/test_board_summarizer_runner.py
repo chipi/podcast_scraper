@@ -73,7 +73,7 @@ def test_a_model_that_is_away_ends_the_cycle_quietly(
     mod = _load(tmp_path, monkeypatch)
 
     def away() -> Any:
-        raise ConnectionError("dgx-llm-1:8003 refused")
+        raise ConnectionError("dgx.test:8003 refused")
 
     monkeypatch.setattr(mod, "_provider", away)
     mod._run_once()
@@ -96,14 +96,14 @@ def test_the_dgx_profile_builds_the_vllm_provider_with_no_failover(
     _offline(monkeypatch)
     mod = _load(tmp_path, monkeypatch)
     monkeypatch.delenv("VLLM_API_KEY", raising=False)
-    monkeypatch.delenv("LITELLM_API_BASE", raising=False)
+    monkeypatch.setenv("LITELLM_API_BASE", "http://gateway.test:4001/v1")
     monkeypatch.setenv("LITELLM_API_KEY", "sk-gateway-test")
     cfg, provider = mod._provider()
     assert type(provider) is VLLMProvider
     assert cfg.summary_provider == "vllm" and list(cfg.summary_fallback_providers or []) == []
     # As the prod pipeline (#2342): the DGX through the LiteLLM gateway, with the pipeline's
     # gateway key; the wire model is still the DGX's real id.
-    assert cfg.vllm_api_base == "http://homelab:4001/v1"
+    assert cfg.vllm_api_base == "http://gateway.test:4001/v1"
     assert provider._resolve_api_key(cfg) == "sk-gateway-test"
     assert provider.summary_model == "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4"
 

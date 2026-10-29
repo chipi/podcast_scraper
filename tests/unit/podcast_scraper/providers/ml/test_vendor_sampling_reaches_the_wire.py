@@ -104,7 +104,7 @@ def _vllm_provider(**overrides: Any):
         speaker_detector_provider="vllm",
         generate_summaries=True,
         generate_metadata=True,
-        vllm_api_base="http://dgx-llm-1:8003/v1",
+        vllm_api_base="http://dgx.test:8003/v1",
         vllm_summary_model="NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",
         vllm_speaker_model="NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",
     )

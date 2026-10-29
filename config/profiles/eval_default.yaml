@@ -40,7 +40,7 @@ profile: eval_default
 transcription:
   primary: tailnet_dgx_whisper
 
-dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+dgx_tailnet_host: ${DGX_TAILNET_HOST}
 dgx_whisper_model: Systran/faster-whisper-large-v3
 dgx_whisper_port: 8000  # faster-whisper; :8002 (openai-whisper) was retired
 
@@ -169,7 +169,7 @@ enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
-vllm_api_base: ${LITELLM_API_BASE:-http://homelab:4001/v1}
+vllm_api_base: ${LITELLM_API_BASE}
 vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 ner_model: en_core_web_trf
 transcription_fallback_providers: [whisper]
@@ -180,5 +180,5 @@ gil_evidence_quote_bundle_chunk: 8
 vllm_presence_penalty: 1.5
 vllm_max_context_tokens: 65536
 llm_served_context_tokens: 65536
-translate_api_base: ${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1
+translate_api_base: ${LITELLM_API_BASE}/translate/v1
 translate_model: google/translategemma-12b-it

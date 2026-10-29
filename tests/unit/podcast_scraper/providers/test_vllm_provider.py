@@ -11,7 +11,7 @@ from typing import Any, Dict
 import pytest
 import yaml
 
-from podcast_scraper.config import Config
+from podcast_scraper.config import _expand_env_vars, Config
 from podcast_scraper.providers.openai.openai_provider import (
     OpenAICompatibleProvider,
     OpenAIProvider,
@@ -291,6 +291,7 @@ class TestServedModelVerification:
 def _dgx_profile_cfg(name: str) -> Config:
     with open(f"config/profiles/{name}.yaml") as f:
         data = {k: v for k, v in yaml.safe_load(f).items() if k != "profile"}
+    data = _expand_env_vars(data)
     data.setdefault("rss_url", "https://example.com/feed.xml")
     return Config(**data)
 

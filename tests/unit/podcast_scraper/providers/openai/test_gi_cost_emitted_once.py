@@ -24,7 +24,7 @@ def _cfg() -> Config:
         {
             "rss_url": "https://example.com/f.rss",
             "summary_provider": "vllm",
-            "vllm_api_base": "http://dgx-llm-1:8003/v1",
+            "vllm_api_base": "http://dgx.test:8003/v1",
         }
     )
 

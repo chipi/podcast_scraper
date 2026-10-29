@@ -84,8 +84,8 @@ class TestVendorDefaultEndpoint:
     def test_api_base_override_routes_via_gateway(self):
         # Same class, config-only switch: pointing groq_api_base at a LiteLLM gateway routes
         # Groq THROUGH the gateway instead of direct (ADR-147).
-        p = GroqProvider(_groq_cfg(groq_api_base="http://homelab:4001/v1"))
-        assert p.cfg.groq_api_base == "http://homelab:4001/v1"
+        p = GroqProvider(_groq_cfg(groq_api_base="http://gateway.test:4001/v1"))
+        assert p.cfg.groq_api_base == "http://gateway.test:4001/v1"
 
 
 class TestWarnNotRaiseAuth:

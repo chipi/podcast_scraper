@@ -1296,8 +1296,8 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         model="NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",  # real HF id on the wire (ADR-147)
         # #2342: through the LiteLLM gateway, a transparent proxy in front of the DGX (alias = this
         # real model id; /tokenize passed through), so every call is metered and reaches Langfuse.
-        # Dev: the homelab gateway. Prod: LITELLM_API_BASE, which the deploy already sets.
-        endpoint="${LITELLM_API_BASE:-http://homelab:4001/v1}",
+        # The LiteLLM gateway; LITELLM_API_BASE comes from the environment, no default.
+        endpoint="${LITELLM_API_BASE}",
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
@@ -1719,7 +1719,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         # ollama_speaker_detector); the LLM that does speaker NAMING is `speaker_llm_model` below,
         # emitted to vllm_speaker_model. This split keeps ner_model a spaCy id, never a Qwen id.
         model="en_core_web_trf",
-        endpoint="${LITELLM_API_BASE:-http://homelab:4001/v1}",  # #2342, as the summary option
+        endpoint="${LITELLM_API_BASE}",  # #2342, as the summary option
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
@@ -2451,7 +2451,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
         # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
         # translation reaches Langfuse too; the provider and its paths are unchanged.
-        translate_api_base="${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1",
+        translate_api_base="${LITELLM_API_BASE}/translate/v1",
         translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
@@ -2528,7 +2528,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
         # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
         # translation reaches Langfuse too; the provider and its paths are unchanged.
-        translate_api_base="${LITELLM_API_BASE:-http://homelab:4001/v1}/translate/v1",
+        translate_api_base="${LITELLM_API_BASE}/translate/v1",
         translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
@@ -2931,25 +2931,18 @@ def _emit_transcription_model(tx: StageOption, settings: Dict[str, Any]) -> None
         settings["dgx_whisper_model"] = tx.model
 
 
-# The MagicDNS name the DGX actually answers on. A DEFAULT, not a hardcode: the env var still
-# overrides it for a laptop or another tailnet, exactly like litellm_api_base's homelab default.
-#
-# It used to default to the example string ``your-dgx.tailnet.ts.net``, which is worse than
-# having no default at all — the "is it set" validator passed, the run started, the health
-# probe failed against a host that does not exist, and the chain degraded to cloud ASR while
-# every signal still reported the DGX profile. Config now also REJECTS the example value, so
-# the two guards agree: a real default here, and a loud failure if anyone reintroduces a
-# placeholder.
-DEFAULT_DGX_TAILNET_HOST = "dgx-llm-1"
+# No default host. A placeholder default once passed the "is it set" validator, the DGX health
+# probe then failed against a host that does not exist, and the run quietly degraded to cloud ASR
+# while every signal still reported the DGX profile. Profiles carry ``${DGX_TAILNET_HOST}`` with
+# no fallback; the operator's gitignored ``.env`` supplies it and Config fails loudly when it is
+# unset (see ``_reject_unexpanded_env_placeholders``).
 
 
 def _endpoint_to_env_template(endpoint: str) -> str:
     """Convert a StageOption endpoint's ``{dgx_tailnet_host}`` placeholder into the profile's
-    ``${DGX_TAILNET_HOST:-<default>}`` env-substitution form — host-portable and machine
+    ``${DGX_TAILNET_HOST}`` env-substitution form — host-portable and machine
     independent, unlike ``resolve_endpoint`` which bakes the materializer-runner's env."""
-    return endpoint.replace(
-        "{dgx_tailnet_host}", "${DGX_TAILNET_HOST:-" + DEFAULT_DGX_TAILNET_HOST + "}"
-    )
+    return endpoint.replace("{dgx_tailnet_host}", "${DGX_TAILNET_HOST}")
 
 
 def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:

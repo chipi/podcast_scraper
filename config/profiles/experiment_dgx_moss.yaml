@@ -31,7 +31,7 @@
 # not until MOSS wins the audio bake-off.
 
 
-dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+dgx_tailnet_host: ${DGX_TAILNET_HOST}
 
 # --- audio: MOSS for BOTH stages (one model, one inference) --------------------------------------
 transcription_provider: moss
@@ -67,7 +67,7 @@ transcript_cleaning_strategy: pattern
 
 # --- summary / GI / KG: unchanged, so the comparison isolates the audio stage ---------------------
 summary_provider: ollama
-ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
+ollama_api_base: http://${DGX_TAILNET_HOST}:11434/v1
 ollama_summary_model: qwen3.5:35b
 ollama_num_ctx: 32768
 llm_pipeline_mode: staged

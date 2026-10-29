@@ -372,7 +372,7 @@ def test_a_model_that_is_away_ends_the_sweep_and_keeps_the_last_summary(tmp_path
     )
     _board(tmp_path, U1, "C", _episodes(2))
     model = Model()
-    model.raise_ = ConnectionError("dgx-llm-1:8003 refused")
+    model.raise_ = ConnectionError("dgx.test:8003 refused")
     result = _sweep(tmp_path, model)
     assert result.stopped == "model_unreachable" and len(model.prompts) == 1
     assert bs.read_summaries(tmp_path, U1)[cid]["text"] == "Old."

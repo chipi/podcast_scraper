@@ -137,6 +137,21 @@ def _isolate_git_env(monkeypatch) -> None:
         monkeypatch.delenv(_var, raising=False)
 
 
+#: Neutral stand-ins for the two deployment hosts profiles take from the environment. The repo
+#: ships no default for them (an unset one fails Config validation), so a test that loads a
+#: profile needs a value; the tests that exercise the unset case delenv it themselves.
+_TEST_DEPLOYMENT_HOSTS = {
+    "DGX_TAILNET_HOST": "dgx.test",
+    "LITELLM_API_BASE": "http://gateway.test:4001/v1",
+}
+
+
+@pytest.fixture(autouse=True)
+def _deployment_host_env(monkeypatch) -> None:
+    for _name, _value in _TEST_DEPLOYMENT_HOSTS.items():
+        monkeypatch.setenv(_name, _value)
+
+
 #: LLM SDKs. NOT core dependencies — they live in the ``[llm]`` extra, so CI's unit job
 #: (``pip install -e ".[dev]"``) does not have them and test modules legitimately stub them
 #: there. The rule is therefore conditional: replacing one of these with a Mock is a defect only

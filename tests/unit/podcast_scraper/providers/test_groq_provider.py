@@ -73,8 +73,8 @@ class TestVendorDefaultEndpoint:
 
     def test_gateway_override_wins(self):
         # Pointing groq_api_base at a LiteLLM gateway alias routes the same class via the gateway.
-        p = GroqProvider(_groq_cfg(groq_api_base="http://homelab:4001/v1"))
-        assert p.cfg.groq_api_base == "http://homelab:4001/v1"
+        p = GroqProvider(_groq_cfg(groq_api_base="http://gateway.test:4001/v1"))
+        assert p.cfg.groq_api_base == "http://gateway.test:4001/v1"
 
 
 class TestOwnCostNamespace:

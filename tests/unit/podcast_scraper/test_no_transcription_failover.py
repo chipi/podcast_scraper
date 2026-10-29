@@ -72,7 +72,7 @@ class TestTheDgxProfilesHold:
         cfg = config_mod.Config(
             rss="https://example.com/f.xml",
             profile="prod_dgx_full",
-            dgx_tailnet_host="dgx-llm-1",
+            dgx_tailnet_host="dgx.test",
         )
         from podcast_scraper.providers.resilience import FailureStrategy
         from podcast_scraper.providers.resilience.policy import resolve_failure_strategy

@@ -33,7 +33,7 @@ def test_factory_builds_litellm_provider_for_all_llm_stages() -> None:
             "quote_extraction_provider": "litellm",
             "entailment_provider": "litellm",
             "kg_extraction_provider": "litellm",
-            "litellm_api_base": "http://homelab:4001/v1",
+            "litellm_api_base": "http://gateway.test:4001/v1",
             "litellm_api_key": "sk-test",
             "litellm_summary_model": "homelab-qwen",
             "litellm_verify_served_model": False,  # no network in unit
@@ -47,7 +47,7 @@ def test_factory_builds_litellm_provider_for_all_llm_stages() -> None:
     # module (test_capabilities / test_provider_params) installs a session-wide openai.OpenAI Mock
     # with no teardown, so p.client.base_url is a Mock in a full-suite run (the vllm test documents
     # the same trap). The base's client_kwargs base_url wiring is covered by the base's own tests.
-    assert p.cfg.litellm_api_base == "http://homelab:4001/v1"
+    assert p.cfg.litellm_api_base == "http://gateway.test:4001/v1"
 
 
 def test_reasoning_off_extra_body_wraps_the_client_for_every_call() -> None:
@@ -63,7 +63,7 @@ def test_reasoning_off_extra_body_wraps_the_client_for_every_call() -> None:
         {
             "profile": "prod_dgx_full",
             "summary_provider": "litellm",
-            "litellm_api_base": "http://homelab:4001/v1",
+            "litellm_api_base": "http://gateway.test:4001/v1",
             "litellm_api_key": "sk-test",
             "litellm_summary_model": "homelab-qwen",
             "litellm_extra_body": {"reasoning": {"enabled": False}},
@@ -81,7 +81,7 @@ def _litellm_provider(monkeypatch, **overrides):
     base = {
         "profile": "prod_dgx_full",
         "summary_provider": "litellm",
-        "litellm_api_base": "http://homelab:4001/v1",
+        "litellm_api_base": "http://gateway.test:4001/v1",
         "litellm_api_key": "sk-test",
         "litellm_summary_model": "homelab-qwen",
         "litellm_verify_served_model": True,

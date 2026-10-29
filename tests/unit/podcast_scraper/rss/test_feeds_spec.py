@@ -455,7 +455,7 @@ class TestRoutingIsOwnedByThePin:
             "LITELLM_API_KEY",
         ):
             monkeypatch.setenv(key, "dummy-for-validation")
-        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx-llm-1")
+        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx.test")
         from podcast_scraper import config as config_mod
 
         return config_mod.Config(

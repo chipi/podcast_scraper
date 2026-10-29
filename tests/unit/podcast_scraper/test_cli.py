@@ -3000,12 +3000,12 @@ class TestLoadAndMergeConfig(unittest.TestCase):
         """An operator YAML pinning vllm_api_base overrides the profile's governed endpoint."""
         with self.assertLogs("podcast_scraper.cli", level="WARNING") as cm:
             cli._warn_config_file_pins_vllm_endpoint(
-                {"profile": "prod_dgx_full", "vllm_api_base": "http://dgx-llm-1:8003/v1"},
+                {"profile": "prod_dgx_full", "vllm_api_base": "http://dgx.test:8003/v1"},
                 "viewer_operator.yaml",
                 None,
             )
         joined = "\n".join(cm.output)
-        self.assertIn("vllm_api_base=http://dgx-llm-1:8003/v1", joined)
+        self.assertIn("vllm_api_base=http://dgx.test:8003/v1", joined)
         self.assertIn("prod_dgx_full", joined)
 
     def test_config_file_vllm_api_base_without_a_profile_is_not_warned(self):

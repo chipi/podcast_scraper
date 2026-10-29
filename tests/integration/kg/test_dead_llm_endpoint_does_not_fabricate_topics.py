@@ -57,7 +57,7 @@ class _DeadEndpointProvider:
     def extract_kg_graph(self, *_a: Any, **_kw: Any) -> None:
         self.primary_calls += 1
         try:
-            raise ConnectionRefusedError("dgx-llm-1:8003 refused")
+            raise ConnectionRefusedError("dgx.test:8003 refused")
         except Exception:
             return None  # mirrors the real `except Exception: return None`
 

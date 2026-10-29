@@ -2,7 +2,7 @@
 
 WHY THE FLAG EXISTS
 ``litellm_api_base`` is set by the PROFILE — ``config/profiles/cloud_balanced.yaml`` pins
-``http://homelab:4001/v1`` — and LiteLLM was the ONE provider namespace with no ``--*-api-base``
+the gateway base — and LiteLLM was the ONE provider namespace with no ``--*-api-base``
 flag while eight siblings had one (openai / gemini / anthropic / mistral / deepgram / deepseek /
 grok / ollama). Its only override layer was the box's ``viewer_operator.yaml``.
 
@@ -38,7 +38,7 @@ pytestmark = [pytest.mark.unit]
 
 _BASE = ["https://example.com/feed.xml", "--output-dir", "/tmp/_litellm_api_base_flag_test"]
 
-_HOMELAB = "http://homelab:4001/v1"
+_HOMELAB = "http://gateway.test:4001/v1"
 _PROD_GATEWAY = "http://127.0.0.1:4001/v1"
 
 

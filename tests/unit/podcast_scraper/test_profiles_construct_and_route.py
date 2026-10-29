@@ -60,10 +60,10 @@ class TestOpenAIRoutingPrecedence:
         """A DGX profile must route to the DGX, never a stale ambient OPENAI_API_BASE. ADR-147
         moved the DGX routing off openai onto vllm_api_base, so a stale OPENAI_API_BASE cannot
         leak into the DGX path. Since #2342 that base is the LiteLLM gateway in front of the DGX
-        (LITELLM_API_BASE, else the homelab gateway), and the wire model is still the DGX's real
-        model id, which the gateway serves under the same name."""
+        (LITELLM_API_BASE, from the environment, no default), and the wire model is still the DGX's
+        real model id, which the gateway serves under the same name."""
         monkeypatch.setenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-        monkeypatch.delenv("LITELLM_API_BASE", raising=False)
+        monkeypatch.setenv("LITELLM_API_BASE", "http://gateway.test:4001/v1")
         cfg = Config.model_validate(
             {
                 "profile": "prod_dgx_full",
@@ -72,7 +72,7 @@ class TestOpenAIRoutingPrecedence:
             }
         )
         assert cfg.summary_provider == "vllm"
-        assert cfg.vllm_api_base == "http://homelab:4001/v1", cfg.vllm_api_base
+        assert cfg.vllm_api_base == "http://gateway.test:4001/v1", cfg.vllm_api_base
         assert "openai.com" not in (cfg.vllm_api_base or "")
         assert cfg.vllm_summary_model == "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4"
         assert cfg.vllm_api_key_env == "LITELLM_API_KEY"

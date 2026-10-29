@@ -87,32 +87,53 @@ class TestEnvVarExpansionInConfigLoad:
         for name in ("GEMINI_API_KEY", "OPENAI_API_KEY", "DEEPGRAM_API_KEY"):
             monkeypatch.setenv(name, "test-dummy")
 
-    def test_dgx_tailnet_host_env_var_expands_in_profile_yaml(
+    def test_both_host_vars_set_expand_in_profile_yaml(
         self, _fake_keys: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """When DGX_TAILNET_HOST is set, the profile's
-        ``${DGX_TAILNET_HOST:-…}`` template substitutes to the env value."""
-        monkeypatch.setenv("DGX_TAILNET_HOST", "my-real-dgx.tailnet.ts.net")
+        """With both host variables set, the profile's ``${...}`` templates expand."""
+        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx.test")
+        monkeypatch.setenv("LITELLM_API_BASE", "http://gateway.test:4001/v1")
         cfg = Config.model_validate({"profile": "cloud_with_dgx_primary"})
-        assert cfg.dgx_tailnet_host == "my-real-dgx.tailnet.ts.net"
+        assert cfg.dgx_tailnet_host == "dgx.test"
+        assert cfg.litellm_api_base == "http://gateway.test:4001/v1"
 
-    def test_dgx_tailnet_host_default_when_env_unset(
+    def test_unset_dgx_tailnet_host_fails_loudly(
         self, _fake_keys: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """When DGX_TAILNET_HOST is unset, the YAML's ``:-`` default kicks in — and that
-        default must be a REACHABLE host, not a placeholder.
-
-        It used to be ``your-dgx.tailnet.ts.net``. That satisfied the "is it set" validator,
-        so a DGX-pinned run started, failed its health probe against a host that does not
-        exist, and degraded to cloud ASR while every signal still reported the DGX profile.
-        A placeholder that passes validation is worse than no default at all, so the default
-        is now the real MagicDNS name and Config rejects the example value outright.
-        """
-        from podcast_scraper.providers.ml.model_registry import DEFAULT_DGX_TAILNET_HOST
-
+        """No built-in default: a placeholder that passes validation once let a DGX-pinned run
+        start, fail its health probe and degrade to cloud ASR while reporting the DGX profile.
+        An unset ``DGX_TAILNET_HOST`` must stop at Config validation, naming the variable."""
         monkeypatch.delenv("DGX_TAILNET_HOST", raising=False)
-        cfg = Config.model_validate({"profile": "cloud_with_dgx_primary"})
-        assert cfg.dgx_tailnet_host == DEFAULT_DGX_TAILNET_HOST
-        assert "your-dgx" not in str(
-            cfg.dgx_tailnet_host
-        ), "the shipped default is a placeholder again — a DGX pin would silently fall back"
+        monkeypatch.setenv("LITELLM_API_BASE", "http://gateway.test:4001/v1")
+        with pytest.raises(ValueError, match=r"DGX_TAILNET_HOST.*is not set.*\.env"):
+            Config.model_validate({"profile": "cloud_with_dgx_primary"})
+
+    def test_empty_dgx_tailnet_host_fails_loudly(
+        self, _fake_keys: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DGX_TAILNET_HOST", "")
+        monkeypatch.setenv("LITELLM_API_BASE", "http://gateway.test:4001/v1")
+        with pytest.raises(ValueError, match="DGX_TAILNET_HOST"):
+            Config.model_validate({"profile": "cloud_with_dgx_primary"})
+
+    def test_unset_litellm_api_base_fails_loudly(
+        self, _fake_keys: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Same contract for a gateway base carried by an ``*_api_base`` field."""
+        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx.test")
+        monkeypatch.delenv("LITELLM_API_BASE", raising=False)
+        with pytest.raises(ValueError, match=r"LITELLM_API_BASE.*is not set.*\.env"):
+            Config.model_validate({"profile": "cloud_with_dgx_primary"})
+
+    def test_unset_var_in_api_base_field_names_the_field(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("LITELLM_API_BASE", raising=False)
+        with pytest.raises(ValueError, match=r"vllm_api_base.*LITELLM_API_BASE"):
+            Config.model_validate({"vllm_api_base": "${LITELLM_API_BASE}"})
+
+    def test_none_and_empty_host_fields_do_not_raise(self) -> None:
+        """Only an unexpanded ``${...}`` is an error; a field with no value is legitimate."""
+        cfg = Config.model_validate({"litellm_api_base": "", "dgx_tailnet_host": None})
+        assert cfg.dgx_tailnet_host is None
+        assert not cfg.litellm_api_base

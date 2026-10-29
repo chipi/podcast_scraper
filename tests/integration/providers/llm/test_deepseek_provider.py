@@ -64,8 +64,8 @@ class TestDirectAndGatewayEndpoint:
         # Same class, config-only switch: pointing deepseek_api_base at a LiteLLM gateway routes
         # DeepSeek THROUGH the gateway instead of direct (ADR-147). Asserting the live client's
         # base_url is fragile (a sibling test installs a global openai mock); assert the config.
-        p = DeepSeekProvider(_ds_cfg(deepseek_api_base="http://homelab:4001/v1"))
-        assert p.cfg.deepseek_api_base == "http://homelab:4001/v1"
+        p = DeepSeekProvider(_ds_cfg(deepseek_api_base="http://gateway.test:4001/v1"))
+        assert p.cfg.deepseek_api_base == "http://gateway.test:4001/v1"
 
 
 class TestKeyRequiredAuth:

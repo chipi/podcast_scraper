@@ -19,7 +19,7 @@
 
 # --- transcription: DGX faster-whisper (self-hosted), large-v3-TURBO ----------------------------
 transcription_provider: tailnet_dgx_whisper
-dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+dgx_tailnet_host: ${DGX_TAILNET_HOST}
 dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
 dgx_whisper_port: 8000
 # ADR-096 declares a fallback (local whisper, never cloud). NOTE: under the hold strategy below

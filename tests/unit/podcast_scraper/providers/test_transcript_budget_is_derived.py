@@ -178,7 +178,7 @@ class TestTheProviderPrefersWhatTheServerSaid:
             speaker_detector_provider="vllm",
             generate_summaries=True,
             generate_metadata=True,
-            vllm_api_base="http://dgx-llm-1:8003/v1",
+            vllm_api_base="http://dgx.test:8003/v1",
             vllm_summary_model=m,
             vllm_speaker_model=m,
             vllm_verify_served_model=False,

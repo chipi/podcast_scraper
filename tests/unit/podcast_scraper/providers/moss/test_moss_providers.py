@@ -37,7 +37,7 @@ _RESPONSE = {
 def _cfg() -> config.Config:
     return config.Config(
         rss="https://example.com/feed.xml",
-        dgx_tailnet_host="dgx-llm-1",
+        dgx_tailnet_host="dgx.test",
     )
 
 
@@ -142,7 +142,7 @@ def test_both_factories_resolve_to_moss() -> None:
         rss="https://example.com/feed.xml",
         transcription_provider="moss",
         diarization_provider="moss",
-        dgx_tailnet_host="dgx-llm-1",
+        dgx_tailnet_host="dgx.test",
     )
     assert isinstance(create_transcription_provider(cfg), MossTranscriptionProvider)
     assert isinstance(create_diarization_provider(cfg), MossDiarizationProvider)
@@ -152,7 +152,7 @@ def test_experiment_dgx_moss_profile_is_fully_local() -> None:
     """The MOSS profile must not leak to a commercial API on any stage."""
     import os
 
-    os.environ.setdefault("DGX_TAILNET_HOST", "dgx-llm-1")
+    os.environ.setdefault("DGX_TAILNET_HOST", "dgx.test")
     cfg = config.Config.model_validate(
         {"profile": "experiment_dgx_moss", "rss_url": "https://example.com/feed.xml"}
     )

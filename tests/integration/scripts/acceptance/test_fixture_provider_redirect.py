@@ -125,9 +125,9 @@ def test_config_only_api_bases_are_redirected_to_the_mock(tmp_path, monkeypatch)
             {
                 "rss": "https://real.example.com/feed.xml",
                 "feeds": ["https://real.example.com/feed.xml"],
-                "litellm_api_base": "http://homelab:4001/v1",
-                "qwen_api_base": "http://homelab:4002/v1",
-                "vllm_api_base": "http://homelab:4003/v1",
+                "litellm_api_base": "http://gateway.test:4001/v1",
+                "qwen_api_base": "http://gateway.test:4002/v1",
+                "vllm_api_base": "http://gateway.test:4003/v1",
             }
         ),
         encoding="utf-8",

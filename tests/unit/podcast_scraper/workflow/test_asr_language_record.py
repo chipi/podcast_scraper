@@ -336,7 +336,7 @@ class TestTheDgxClipCall:
         cfg = Config(
             rss="https://example.com/f.xml",
             transcription_provider="tailnet_dgx_whisper",
-            dgx_tailnet_host="dgx-llm-1",
+            dgx_tailnet_host="dgx.test",
             transcription_fallback_providers=["tailnet_dgx_whisper", "whisper"],
         )
         return TailnetDgxWhisperTranscriptionProvider(cfg)
