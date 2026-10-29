@@ -5,9 +5,7 @@
 # runtime profile — intentionally not in `_PROFILE_PRESETS`. Will be
 # deleted once the docs link cleanup completes (post-v2.7).
 #
-# Preferred workflow:
-#   make profile-freeze VERSION=vX.Y.Z \
-#     PIPELINE_CONFIG=config/profiles/freeze/<provider>.yaml
+# `make profile-freeze` is retired from this repository (#2134).
 #
 # The freeze/ profiles pair with freeze/_defaults.yaml for operational fields
 # (rss, output_dir, max_episodes, whisper_device). See config/profiles/README.md

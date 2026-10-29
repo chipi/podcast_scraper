@@ -135,9 +135,6 @@ Agent compares metrics.json (run 1 vs run 2):
    dominated by Whisper, not the summarizer)."
 ```
 
-For visual comparison across many runs, the Streamlit run comparison tool
-(`make run-compare`, RFC-047/066) provides charts and delta tables.
-
 ---
 
 ## Use cases
@@ -280,9 +277,6 @@ cat output/metrics.json
 
 # Compare with frozen release profile
 python scripts/eval/profile/diff_profiles.py data/profiles/v0.42.yaml data/profiles/v0.43.yaml
-
-# Run comparison tool (Streamlit, visual)
-make run-compare
 ```
 
 ---
@@ -296,7 +290,6 @@ make run-compare
 | Performance Profile Guide (moved to the private eval repo) | Frozen release profiles, `freeze_profile.py` (RFC-064) |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline stages, module roles, `metrics.json` |
 | [Testing Guide](TESTING_GUIDE.md) | `make ci-fast`, `make test`, test commands |
-| [Run Comparison Tool](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md) | Streamlit UI for comparing runs (RFC-047/066) |
 
 ### RFCs
 

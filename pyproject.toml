@@ -63,9 +63,7 @@ dependencies = [
   # shared LINK unfurls as the card (`server/og/`). Core, not an extra — the `create_app` import
   # chain (SpaStaticFiles → og.build) reaches it, so every context that boots the server (api
   # image, dev, tests) needs it. Pure wheels, no system libs for PNG + bundled-TTF text.
-  # >=13: pillow 12.3.0 carries 8 CVEs fixed in 13.0.0 (pip-audit, nightly 2026-10-21). This
-  # leaves the `compare` extra unresolvable until streamlit lifts its own `pillow<13` cap
-  # (1.66.0, 2026-10-14, still has it); CI and the images do not install `compare`.
+  # >=13: pillow 12.3.0 carries 8 CVEs fixed in 13.0.0 (pip-audit, nightly 2026-10-21).
   "pillow>=13.0.0,<14.0.0",
   # JSON Schema validation for the GI / KG / enrichment artifact + config schemas. CORE, not dev:
   # FOUR runtime modules import it — `gi/schema.py`, `kg/schema.py`,
@@ -92,7 +90,6 @@ dependencies = [
 #   search    — Minimum local ML for the vector index (sentence-transformers + lancedb + torch CPU).
 #               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
 #               build its LanceDB index without dragging in spaCy/Whisper/Pegasus from [ml].
-#   compare   — Streamlit compare UI (RFC-047)
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
 #   (FastAPI / uvicorn / metrics / scheduler for ``podcast serve`` live in [dev], not a separate extra.)
 #   observability — standalone prod control plane (#803, ``podcast_obs``). LIGHT by design.
@@ -226,17 +223,6 @@ ml = [
   # and the teardown crash above is Linux-only, so CI stays on the proven build.
   "torchcodec<0.15; sys_platform != 'darwin'",
   "torchcodec>=0.16,<0.17; sys_platform == 'darwin'",
-]
-# Streamlit run comparison UI (RFC-047, Issue #373)
-compare = [
-  "streamlit>=1.41.0,<2.0.0",
-  # tornado (pulled by streamlit, no upper bound there) had three advisories in 6.5.8 fixed by
-  # 6.5.9 (pip-audit, 2026-10-01). Security floor so a venv built before the fix resolves past it;
-  # drop when streamlit requires >=6.5.9 itself. Same pattern as the pyjwt floor in [dev].
-  "tornado>=6.5.10",
-  "plotly>=6.7.0,<7.0.0",
-  "pandas>=2.3.3,<3.0.0",
-  "rouge-score>=0.1.2,<1.0.0",
 ]
 # LLM API providers - grouped for CI/test convenience
 llm = [
@@ -528,7 +514,7 @@ disable_warnings = ["couldnt-parse"]
 show_missing = true
 skip_covered = true
 precision = 2
-# Prevent exit 1 when coverage hits unparseable paths (e.g. MagicMock from pytest-xdist)
+# Prevent exit 1 when coverage hits unparsable paths (e.g. MagicMock from pytest-xdist)
 ignore_errors = true
 # Note: fail_under is NOT set globally because different test types have different coverage:
 # - Unit tests: ~70-80% (isolated, high coverage)

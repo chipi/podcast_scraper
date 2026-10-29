@@ -22,7 +22,7 @@ This guide covers unit test implementation details: what to mock, isolation patt
 
 ## Pyproject extras: what unit tests may depend on
 
-**Rule:** Tests under `tests/unit/` must **only** depend on **`[dev]`** and must not pull in **`[ml]`**, **`[llm]`**, **`[compare]`**, real model stacks, or **FastAPI `TestClient` / `create_app` wiring** (those live in **`tests/integration/`**). Anything declared under **`[project.optional-dependencies].dev`** in `pyproject.toml` (including FastAPI) is **allowed to be installed**, but **`check_test_policy.py`** still forbids FastAPI imports in `tests/unit/` — use **`unittest.mock.patch`** / **`patch.dict(sys.modules, …)`** or move the test.
+**Rule:** Tests under `tests/unit/` must **only** depend on **`[dev]`** and must not pull in **`[ml]`**, **`[llm]`**, real model stacks, or **FastAPI `TestClient` / `create_app` wiring** (those live in **`tests/integration/`**). Anything declared under **`[project.optional-dependencies].dev`** in `pyproject.toml` (including FastAPI) is **allowed to be installed**, but **`check_test_policy.py`** still forbids FastAPI imports in `tests/unit/` — use **`unittest.mock.patch`** / **`patch.dict(sys.modules, …)`** or move the test.
 
 **Baseline extra:** **`[dev]`** — this is what `check_unit_test_imports.py` and “no ML at import time” checks target. Treat anything declared under **`[project.optional-dependencies].dev`** in `pyproject.toml` (and its transitive wheels) as **allowed** for unit tests. Do **not** assume **`[ml]`** is installed.
 

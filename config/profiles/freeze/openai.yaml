@@ -2,10 +2,7 @@
 # Provider-only prescription; operational fields (rss, output_dir, max_episodes)
 # are injected by freeze_profile.py (E2E fixture) or CLI.
 #
-# Run:
-#   make profile-freeze VERSION=v2.6.0-openai \
-#     PIPELINE_CONFIG=config/profiles/freeze/openai.yaml \
-#     DATASET_ID=e2e_podcast1_mtb_n2
+# `make profile-freeze` is retired from this repository (#2134).
 
 # Transcription — OpenAI's Whisper API
 transcription_provider: openai

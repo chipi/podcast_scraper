@@ -824,7 +824,7 @@ and summarization.
 - **Core**: `openai` (OpenAI, DeepSeek, Grok OpenAI-compat)
 - **Optional `[llm]` extra**: `google-genai`, `google-api-core`, `anthropic`, `mistralai`, `httpx` (Ollama health checks; Ollama itself is a separate local server)
 
-**Other optional extras:** `[compare]` (Streamlit run comparison, RFC-047), `[dev]` (tooling, typecheck, security, and **FastAPI / uvicorn** for the RFC-062 viewer API), `[monitor]` (optional profiling, RFC-065)
+**Other optional extras:** `[dev]` (tooling, typecheck, security, and **FastAPI / uvicorn** for the RFC-062 viewer API), `[monitor]` (optional profiling, RFC-065)
 
 **Search dependencies** (included in `[ml]`):
 `sentence-transformers` (embeddings), `lancedb`
@@ -1078,26 +1078,6 @@ For detailed error handling patterns and implementation guidelines, see [Develop
 Beyond the core `src/` package, the repository includes
 standalone tools and scripts that support development,
 evaluation, and operations.
-
-### `tools/run_compare/` (RFC-047, RFC-066)
-
-Streamlit UI for comparing ML evaluation runs from
-`data/eval/` artifacts (`metrics.json`,
-`predictions.jsonl`, optional `diagnostics.jsonl`).
-Install via `pip install -e '.[compare]'`; run with
-`make run-compare`.
-
-Pages: **Home** (token/latency charts, ROUGE
-aggregates), **KPIs** (wide table with ROUGE-L F1),
-**Delta** (baseline vs candidates), **Episodes**
-(intersection comparison, diffs), **Performance**
-(RFC-066 — frozen profiles from
-`data/profiles/*.yaml` joined by release key;
-resource deltas, per-stage trends, quality-vs-cost
-scatter). See
-`RFC-047` (moved to the private eval repo as RFC-007)
-and
-`RFC-066` (moved to the private eval repo as RFC-009).
 
 ### `scripts/` Directory
 

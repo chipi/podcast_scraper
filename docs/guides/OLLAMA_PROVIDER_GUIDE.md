@@ -330,8 +330,7 @@ ollama run llama3.3:latest "Hello, test"
 
 1. Check Ollama logs (macOS example): `cat ~/.ollama/logs/server.log` or run `ollama serve` in a terminal and watch stderr.
 2. Run a tiny prompt: `ollama run <your-tag> "Say hello in one sentence."`
-3. Use a smaller quant / tag, close other GPU-heavy apps, or set a longer read timeout for eval runs only:
-   `EXPERIMENT_OLLAMA_READ_TIMEOUT=600 make experiment-run CONFIG=...`
+3. Use a smaller quant / tag, close other GPU-heavy apps.
 4. For persistent 500s on one model only, try another tag from [ollama.com/library](https://ollama.com/library) or reduce transcript size (preprocessing / chunking).
 
 ### Issue: Connection Refused on Custom Port

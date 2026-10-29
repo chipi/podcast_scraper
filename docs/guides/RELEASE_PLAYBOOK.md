@@ -51,7 +51,7 @@ defensible on **two** axes:
 1. **Evaluation (quality)** — `Experiment Guide`, baselines under `data/eval/`,
    `Evaluation reports`.
 2. **Performance (resource / wall time)** — Performance Profile Guide (moved to the private eval repo),
-   `make profile-freeze` / `make profile-diff`, artifacts under `data/profiles/`, companion
+   artifacts under `data/profiles/`, companion
    `*.stage_truth.json`, `Performance reports`.
 
 ---
@@ -90,27 +90,8 @@ matrix table for major.
 
 **Inputs:** Provider matrix from Phase 1; clean working tree on release branch.
 
-**Steps — eval (quality):**
-
-```bash
-# Per Experiment Guide workflow: dataset, baseline, experiment run
-make experiment-run CONFIG=data/eval/configs/<release_eval>.yaml
-# Publish or link eval report under docs/guides/eval-reports/
-```
-
-**Steps — profiles (resource cost):**
-
-```bash
-make profile-freeze VERSION=vX.Y.Z \
-  PIPELINE_CONFIG=config/profiles/freeze/<preset>.yaml \
-  DATASET_ID=<label>
-
-# Optional: compare to previous release
-make profile-diff FROM=vPREVIOUS TO=vX.Y.Z
-```
-
-- Commit `data/profiles/<version>.yaml` and `<version>.stage_truth.json`.
-- Update `performance reports` if publishing a written snapshot.
+**Steps:** The eval run, `make profile-freeze` and `make profile-diff` are retired from
+this repository (#2134).
 
 **If skipping for minor:** Add a subsection to release notes: "Eval/profiles unchanged from
 vX.Y.(Z-1)."
@@ -318,7 +299,7 @@ Use this shape when splitting phases into issues, PR subtasks, or agent steps:
 | Phase | Status today | Target |
 | ----- | ------------ | ------ |
 | 1. Scope | `manual` | `manual` (human decision) |
-| 2. Eval + profiles | `manual` | `partial` — `make profile-freeze` is scripted; eval run is scripted; publishing report is manual |
+| 2. Eval + profiles | `manual` | `partial` — eval run and profile capture are retired from this repository (#2134); publishing report is manual |
 | 3. Engineering gates | `partial` — `make pre-release` = check script + `make ci`; optional `make quality` | `ci` — extend script (changelog file, stricter rules) per ADR-031 evolution |
 | 4. Docs + links | `partial` — `make docs` + `make lint-markdown` catch structural issues; stale prose is manual | `partial` + external link checker (planned) |
 | 5. Release notes | `manual` | `partial` — `make release-docs-prep` stubs the file; content is manual |
@@ -338,7 +319,6 @@ Items that would close gaps between the current manual workflow and full automat
 | **R-03** | **External link checker** — periodic or pre-release job (e.g. `lychee` or `linkchecker`) against the built site to catch 404s on external URLs that `make docs --strict` does not verify. | Small | Phase 4 link coverage |
 | **R-04** | **Tag-triggered GitHub Release workflow** — `.github/workflows/release.yml`: on `push` of `v*` tag, build, optionally publish to PyPI or registry, create GitHub Release from `docs/releases/RELEASE_vX.Y.Z.md`. | Medium | Phase 7 CI automation |
 | **R-05** | **Diff-to-docs mapper** — lightweight script or agent skill: given `git diff --name-only`, output the list of docs from the Phase 4 sweep table that should be reviewed. Input: ref range. Output: file list + "review needed" flag. | Small | Phase 4 agent execution |
-| **R-06** | **Eval + profile matrix runner** — wrapper that runs `make experiment-run` and `make profile-freeze` for each row in a provider matrix config (YAML list of presets). Produces a summary table. | Medium | Phase 2 scaling for major releases |
 
 ---
 

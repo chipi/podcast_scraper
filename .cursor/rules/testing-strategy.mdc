@@ -140,7 +140,7 @@ def test_sanitize():
 ### Unit tests and `pyproject` extras (mandatory for authors)
 
 - **`tests/unit/`** must **only** depend on **`[dev]`** — never on **`[ml]`**, **`[llm]`**,
-  **`[compare]`**, or real ML stacks. If a test needs **FastAPI `TestClient` / `create_app`**, torch,
+  or real ML stacks. If a test needs **FastAPI `TestClient` / `create_app`**, torch,
   spaCy, httpx, lancedb, etc., it belongs in **`tests/integration/`**, not `tests/unit/` (policy, even though `[dev]` ships FastAPI).
 - **Do not use `pytest.importorskip()` in `tests/unit/`** to paper over missing extras.
   `importorskip` causes the test to be silently skipped in CI (which only installs `.[dev]`),

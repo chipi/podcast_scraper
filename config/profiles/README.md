@@ -91,8 +91,9 @@ stages; both are now user-configurable from deployment profiles (#634).
 
 ## `config/profiles/freeze/*.yaml` — performance capture profiles
 
-Companion profiles used by `make profile-freeze` (RFC-064) to capture
-per-provider timing and cost profiles under a fixed E2E fixture. Each freeze
+Companion profiles for capturing per-provider timing and cost profiles under a
+fixed E2E fixture (RFC-064); `make profile-freeze` is retired from this
+repository (#2134). Each freeze
 profile is **maximally oriented toward its provider** (filename = provider)
 and is merged with [`freeze/_defaults.yaml`](freeze/_defaults.yaml) at
 run time to supply operational fields.
@@ -106,7 +107,7 @@ See [`freeze/README.md`](freeze/README.md) for the workflow and matrix.
 Cross-link only: the acceptance runner merges
 [`MAIN_ACCEPTANCE_CONFIG.yaml`](../acceptance/MAIN_ACCEPTANCE_CONFIG.yaml) with YAML under
 [`fragments/`](../acceptance/fragments/). That layout is independent of
-`make profile-freeze`; see [`acceptance/README.md`](../acceptance/README.md)
+the freeze profiles; see [`acceptance/README.md`](../acceptance/README.md)
 for stems, env vars, and CI usage.
 
 ## Legacy

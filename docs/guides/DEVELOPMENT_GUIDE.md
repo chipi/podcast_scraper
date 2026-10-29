@@ -226,25 +226,13 @@ make analyze-test-memory TARGET=test-integration WORKERS=4
 
 ### Quality Evaluation
 
-Evaluation is handled automatically by the experiment runner. When you run an experiment with `--baseline` and/or `--reference` flags, the system automatically computes metrics and comparisons.
+The experiment runner (`make experiment-run`) is retired from this repository (#2134).
 
 **When to use:**
 
 - After modifying cleaning logic in `preprocessing.py`
 - When testing new summarization models or chunking strategies
 - Before major releases to ensure no regression in output quality
-
-**Usage:**
-
-```bash
-# Run experiment with automatic evaluation
-make experiment-run \
-  CONFIG=data/eval/configs/my_config.yaml \
-  BASELINE=baseline_prod_authority_v1 \
-  REFERENCE=silver_gpt52_v1
-```
-
-For details, see the **`Experiment Guide`** (Step 4: Evaluate Results).
 
 ## Environment Setup
 
@@ -712,23 +700,6 @@ Playwright or MCP clicking the wrong **Search**):
 Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
 [CLI API](../api/CLI.md) (`gi` / `kg` / `search` / `index` subcommands).
 
-## Run Comparison Tool (RFC-047 / RFC-066)
-
-Streamlit UI for comparing ML evaluation runs and
-performance profiles. Lives in `tools/run_compare/`
-(outside `src/`).
-
-- **Extra:** `pip install -e ".[compare]"`
-- **Run:** `make run-compare`
-- **Pages:** Home (ROUGE charts), KPIs, Delta
-  (baseline vs candidates), Episodes (side-by-side
-  diffs), Performance (frozen profiles, resource
-  deltas, per-stage trends)
-- **Details:**
-  [tools/run_compare/README.md](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md),
-  `RFC-047` (moved to the private eval repo as RFC-007),
-  `RFC-066` (moved to the private eval repo as RFC-009)
-
 ## Evaluation artifacts (`data/eval/`)
 
 The `data/eval/` tree is the project's ML quality
@@ -756,28 +727,8 @@ regenerated or discarded.
 
 ### Common workflows
 
-```bash
-# Run an experiment against a baseline
-make experiment-run \
-  CONFIG=data/eval/configs/my_config.yaml \
-  BASELINE=baseline_prod_authority_v1
-
-# Compare runs visually (Streamlit)
-make run-compare
-
-# Promote a successful run to baseline
-make run-promote RUN_ID=run_xxx \
-  --as baseline PROMOTED_ID=baseline_v2 \
-  REASON="New production baseline"
-
-# List baselines and runs
-make baselines-list
-make runs-list
-```
-
-**Full guide:**
-`Experiment Guide` and
-`data/eval/README.md`.
+The experiment, run-compare, run-promote, baselines-list and runs-list
+commands are retired from this repository (#2134).
 
 ## Performance profiles (`data/profiles/`)
 
@@ -788,14 +739,8 @@ metadata for a specific provider configuration.
 
 ### Workflow
 
-```bash
-# Capture a profile from a pipeline run
-make profile-freeze VERSION=v2.6-openai \
-  PIPELINE_CONFIG=config/profiles/freeze/openai.yaml
-
-# Compare two profiles
-make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
-```
+The profile-freeze and profile-diff commands are retired from this repository
+(#2134).
 
 Profiles live in `data/profiles/<version>.yaml`.
 Pipeline capture configs live in
@@ -831,9 +776,8 @@ before pushing.
 | `[dev]` | Tooling plus FastAPI / uvicorn / viewer scheduler deps | Always for development |
 | `[ml]` | Local ML (Whisper, spaCy, torch, LanceDB, etc.) | When using local models |
 | `[llm]` | LLM API SDKs (openai, google-genai, anthropic, mistralai, httpx) | When using cloud providers |
-| `[compare]` | Streamlit | When using `make run-compare` |
 
-`make init` installs `[dev,ml,llm]`. Add `[compare]` manually when needed.
+`make init` installs `[dev,ml,llm]`.
 
 ## Markdown Linting
 

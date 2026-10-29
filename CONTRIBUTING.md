@@ -129,14 +129,9 @@ cp config/examples/.env.example .env
 make ci-fast
 ```
 
-### Optional extras (run comparison)
+### Install scope
 
-`make init` installs `[dev,ml,llm]` (includes FastAPI via `[dev]`). Add `[compare]`
-only when you use the Streamlit comparison UI:
-
-```bash
-pip install -e ".[compare]"   # Streamlit run comparison (make run-compare)
-```
+`make init` installs `[dev,ml,llm]` (includes FastAPI via `[dev]`).
 
 For a lighter install without ML (docs-only or
 API-only work): `make init-no-ml` or
@@ -455,13 +450,10 @@ performance before merging.
 
 **Quality validation (`data/eval/`):**
 
-1. Create or reuse a config in `data/eval/configs/`
-2. `make experiment-run CONFIG=data/eval/configs/your_config.yaml`
-3. Compare against a baseline:
-   `make experiment-run CONFIG=... BASELINE=baseline_prod_authority_v1`
-4. If quality is acceptable, promote:
-   `make run-promote RUN_ID=... --as baseline`
-5. **Materialize the decision into the registry.** When the eval proves a
+The experiment, run-compare and run-promote commands are retired from this
+repository (#2134).
+
+**Materialize the decision into the registry.** When the eval proves a
    new default — transcription backend, summary model, GI/KG threshold — the
    eval report is necessary but not sufficient. Update the relevant
    `StageOption` / `ProfilePreset` in
@@ -516,10 +508,8 @@ sentinel.
 
 **Performance validation (`data/profiles/`):**
 
-1. Run the pipeline with a capture config:
-   `make profile-freeze VERSION=v2.6-your-provider`
-2. Compare against an existing profile:
-   `make profile-diff FROM=v2.6-wip-openai TO=v2.6-your-provider`
+The profile-freeze and profile-diff commands are retired from this repository
+(#2134).
 
 See Experiment Guide (moved to the private eval repo)
 and

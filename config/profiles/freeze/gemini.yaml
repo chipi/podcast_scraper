@@ -2,10 +2,7 @@
 # Gemini has native audio input, so uses provider transcription end-to-end.
 # Provider-only prescription; operational fields injected by freeze_profile / CLI.
 #
-# Run:
-#   make profile-freeze VERSION=v2.6.0-gemini \
-#     PIPELINE_CONFIG=config/profiles/freeze/gemini.yaml \
-#     DATASET_ID=e2e_podcast1_mtb_n2
+# `make profile-freeze` is retired from this repository (#2134).
 
 # Transcription — Gemini audio input
 transcription_provider: gemini

@@ -2,10 +2,7 @@
 # EU-resident end-to-end: voxtral-mini-latest transcription + mistral-large.
 # Provider-only prescription; operational fields injected by freeze_profile / CLI.
 #
-# Run:
-#   make profile-freeze VERSION=v2.6.0-mistral \
-#     PIPELINE_CONFIG=config/profiles/freeze/mistral.yaml \
-#     DATASET_ID=e2e_podcast1_mtb_n2
+# `make profile-freeze` is retired from this repository (#2134).
 
 # Transcription — Mistral voxtral-mini-latest
 transcription_provider: mistral

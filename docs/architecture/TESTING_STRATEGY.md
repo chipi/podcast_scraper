@@ -336,7 +336,7 @@ In short:
 
 **Contract for `tests/unit/`:**
 
-1. **Never require any non-`[dev]` extra** (`[ml]`, `[llm]`, `[compare]`, etc.).
+1. **Never require any non-`[dev]` extra** (`[ml]`, `[llm]`, etc.).
    Real LanceDB, Whisper, spaCy, **FastAPI `TestClient` / `create_app`**, httpx, cloud SDKs, etc. belong in **integration** or
    **E2E** tests (with the workflow installing the right extras). Use **mocks**,
    **`sys.modules` stubs**, or **lazy imports** in unit tests.

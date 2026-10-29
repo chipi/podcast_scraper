@@ -177,24 +177,8 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 
 ## Evaluation and Profiles
 
-```bash
-# Run an experiment against a baseline
-make experiment-run \
-  CONFIG=data/eval/configs/my_config.yaml \
-  BASELINE=baseline_prod_authority_v1
-
-# Promote a successful run to baseline
-make run-promote RUN_ID=run_xxx \
-  --as baseline PROMOTED_ID=baseline_v2 \
-  REASON="New production baseline"
-
-# Capture a performance profile
-make profile-freeze VERSION=v2.6-openai \
-  PIPELINE_CONFIG=config/profiles/freeze/openai.yaml
-
-# Compare two profiles
-make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
-```
+The experiment, run-promote, profile-freeze and profile-diff commands are retired
+from this repository (#2134).
 
 **Docs:**
 `Experiment Guide`

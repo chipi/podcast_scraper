@@ -641,30 +641,7 @@ a quick smoke test beyond what the spec suite covers.
  Report a summary table."
 ```
 
-### UC-4: Run comparison tool (Streamlit) — network profiling
-
-**Problem:** The Streamlit comparison tool (`make run-compare`, port 8501) loads
-slowly or shows stale data. You don't know if it's a slow API call, a large payload,
-or a rendering issue.
-
-**Tool:** Chrome DevTools MCP attached to your live Chrome session.
-
-**Flow:**
-
-1. Open the Streamlit app in Chrome (`chrome-dev`), navigate to the Performance tab
-2. Trigger the slow action (load a comparison, switch pages)
-3. Tell the agent: "Profile the network calls that just fired — which took longest,
-   what did they return, any errors?"
-4. Agent reports: timing per request, payload sizes, any 4xx/5xx
-5. If a specific call is the culprit: "Trace that back to the Python handler and
-   tell me where the bottleneck is"
-
-**Boundary:** this covers browser-visible HTTP traffic only. If the bottleneck is
-inside a Python function that Streamlit calls synchronously (e.g., a slow model
-inference), the agent sees a slow response but not *why* it's slow internally — that
-is `py-spy` territory (RFC-064).
-
-### UC-5: Catching silent failures in pipeline output UI
+### UC-4: Catching silent failures in pipeline output UI
 
 **Problem:** The pipeline runs, produces output, the UI shows "success" — but the
 displayed data is wrong or incomplete. No exception was raised.
@@ -684,7 +661,7 @@ displayed data is wrong or incomplete. No exception was raised.
 
 This is the "network tab tells you why, not just what" pattern.
 
-### UC-6: Post-run UI validation (future)
+### UC-5: Post-run UI validation (future)
 
 **Problem:** After a pipeline run, results are written and the viewer should reflect
 the new data. You want an automated check that the UI actually updated, not just that
@@ -920,9 +897,6 @@ make test-ui-e2e
 
 # Start the GI/KG viewer dev server (for manual browsing)
 make serve
-
-# Start the Streamlit comparison tool
-make run-compare
 ```
 
 ---

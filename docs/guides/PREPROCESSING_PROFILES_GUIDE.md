@@ -285,17 +285,7 @@ preprocessing_profile: "cleaning_v4"
 # ... rest of config
 ```
 
-Run the experiment:
-
-```bash
-make experiment-run CONFIG=data/eval/configs/test_cleaning_v4.yaml
-```
-
-Check the fingerprint to verify the profile was recorded:
-
-```bash
-cat data/eval/runs/test_cleaning_v4/fingerprint.json | jq '.preprocessing'
-```
+The experiment runner (`make experiment-run`) is retired from this repository (#2134).
 
 ---
 

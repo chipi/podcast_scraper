@@ -3,10 +3,7 @@
 # grok-4.3 is the current general x.ai model (grok-2 / grok-beta / grok-3-mini are stale).
 # Provider-only prescription; operational fields injected by freeze_profile / CLI.
 #
-# Run:
-#   make profile-freeze VERSION=v2.6.0-grok \
-#     PIPELINE_CONFIG=config/profiles/freeze/grok.yaml \
-#     DATASET_ID=e2e_podcast1_mtb_n2
+# `make profile-freeze` is retired from this repository (#2134).
 
 # Transcription — local Whisper (Grok has no transcription API)
 transcription_provider: whisper

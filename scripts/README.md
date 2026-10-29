@@ -29,55 +29,8 @@ Scripts for running E2E acceptance tests, analyzing results, and generating perf
 
 See the **[Testing Guide](../docs/guides/TESTING_GUIDE.md)** for complete usage instructions.
 
-**Quick examples:**
-
-```bash
-# Run acceptance tests
-make test-acceptance CONFIGS="config/examples/config.example.yaml"
-
-# Analyze results
-make analyze-acceptance SESSION_ID=20260208_101601
-
-```
-
----
-
-## Evaluation Scripts (`eval/`)
-
-Evaluation scripts for the AI quality and experimentation platform:
-
-### Core Scripts
-
-- **`run_experiment.py`** - Run experiments with complete evaluation loop (runner + scorer + comparator)
-- **`materialize_baseline.py`** - Create frozen baseline artifacts from current system state
-- **`materialize_dataset.py`** - Materialize datasets from dataset JSON definitions
-- **`promote_run.py`** - Promote runs to baselines or references
-
-### Dataset Management
-
-- **`create_dataset_json.py`** - Create canonical dataset JSON files from source data
-- **`generate_episode_metadata.py`** - Generate episode metadata from RSS XML files
-- **`generate_source_index.py`** - Generate source inventory index.json files
-
-### Usage
-
-See the **Experiment Guide (moved to the private eval repo)** for complete usage instructions.
-
-**Quick examples:**
-
-```bash
-# Create a dataset
-make dataset-create DATASET_ID=my_dataset_v1
-
-# Materialize a baseline
-make baseline-create BASELINE_ID=my_baseline_v1 DATASET_ID=my_dataset_v1
-
-# Run an experiment
-make experiment-run CONFIG=data/eval/configs/my_experiment.yaml
-
-# Promote a run
-make run-promote RUN_ID=run_xxx --as baseline PROMOTED_ID=baseline_v2 REASON="..."
-```
+The dataset, baseline, experiment and run-promote `make` commands are retired from this
+repository (#2134).
 
 ### Evaluation Dataset Structure
 

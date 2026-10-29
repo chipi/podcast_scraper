@@ -1,4 +1,5 @@
-# Freeze-operational defaults for `make profile-freeze` runs.
+# Freeze-operational defaults for profile-freeze runs (`make profile-freeze` is retired
+# from this repository (#2134).)
 #
 # `config/profiles/*.yaml` profiles describe providers/research; they are
 # intentionally free of operational fields (rss, output_dir, max_episodes).

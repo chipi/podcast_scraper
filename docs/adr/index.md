@@ -237,7 +237,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 
 - **Multi-feed manifest** as an **immutable external contract** beyond [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) — partially addressed by **ADR-074**.
 - **`.pipeline_status.json` schema** if external monitors depend on it and breaking changes need versioning.
-- **Profile YAML** for **non-Python** consumers beyond `tools/run_compare` / **`make profile-diff`** — partially addressed by **ADR-075**.
+- **Profile YAML** for **non-Python** consumers beyond the retired run-compare tool and `make profile-diff` (#2134) — partially addressed by **ADR-075**.
 - **RFC-070** + **ADR-060** when platform vector backends land materially.
 - **Full-stack Compose, stack-test, CIL or bridge, autoresearch v2, macOS ML process safety** — see **ADR-084**–**ADR-088** (normative detail remains in **RFC-072**, **RFC-073** v2 file, **RFC-074**, **RFC-078**, **RFC-079**).
 - **Corpus snapshot tarball metadata + version-aware restore** — **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)** (Completed); **ADR-092**; GitHub #763.

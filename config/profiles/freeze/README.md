@@ -1,13 +1,13 @@
 # Performance capture profiles (RFC-064)
 
-Used by `make profile-freeze` to capture per-provider timing and cost profiles
-under a fixed E2E fixture. Frozen outputs land in
+Per-provider timing and cost capture profiles under a fixed E2E fixture
+(`make profile-freeze` is retired from this repository (#2134)). Frozen outputs land in
 `data/profiles/` per release tag — that tree moved to `chipi/podcast-scraper-eval-data`
 in arc 2, since a frozen profile is a materialised research artifact.
 
 ## How it works
 
-`scripts/eval/freeze_profile.py` loads two YAMLs in order:
+A capture merges two YAMLs in order:
 
 1. [`_defaults.yaml`](_defaults.yaml) — operational fields (RSS placeholder,
    `output_dir` root, `max_episodes`, `whisper_device`, `transcribe_missing`).
@@ -38,28 +38,8 @@ back to local Whisper `small.en` (production WER sweet spot) and spaCy trf.
 | [`ollama_llama32.yaml`](ollama_llama32.yaml) | Whisper `small.en` | Ollama `llama3.2:3b` | Ollama `llama3.2:3b` | `ollama pull llama3.2:3b` |
 | [`ollama_qwen35.yaml`](ollama_qwen35.yaml) | Whisper `small.en` | Ollama `qwen3.5:35b` | Ollama `qwen3.5:35b` bundled | `ollama pull qwen3.5:35b` |
 
-## Usage
-
-```bash
-make profile-freeze VERSION=v2.6.0-gemini \
-  PIPELINE_CONFIG=config/profiles/freeze/gemini.yaml \
-  DATASET_ID=e2e_podcast1_mtb_n2
-```
-
-**Order for a release:** ML first, then cloud, then Ollama. **Compare
-profiles on the same hostname.** **Minimal subset** if time is tight:
-`ml_dev` + `ml_prod` + `openai`.
-
-Capture outputs land under `.tmp/profile_capture/e2e/<profile>/`
-(gitignored). **Commit** only the frozen YAMLs in `data/profiles/`.
-
 ## Operator notes
 
-- **Override the RSS placeholder** with `--rss <url>` on the freeze_profile
-  CLI (or `--e2e-feed <fixture_name>` to pick a different fixture).
-- **Override the output root** with `--output <path>` on freeze_profile (this
-  writes the frozen YAML; the intermediate capture output is still under
-  `_defaults.yaml`'s `output_dir`).
 - **Edit [`_defaults.yaml`](_defaults.yaml)** only when the change applies to
   all freeze captures (e.g. switching capture device to `mps` for Apple
   Silicon profiling).
