@@ -9,7 +9,7 @@
 # Build (from repo root):
 #   docker build -f docker/observability/Dockerfile -t podcast-obs:latest .
 # One-shot probe:
-#   docker run --rm -e PODCAST_OBS_API_BASE=https://prod-podcast.<tailnet> podcast-obs summary
+#   docker run --rm -e PODCAST_OBS_API_BASE=https://<prod-host>.<tailnet> podcast-obs summary
 # Run the agent-facing MCP/HTTP control plane:
 #   docker run --rm -p 8848:8848 \
 #     -v "$PWD/config/observability.yaml:/config/observability.yaml:ro" \

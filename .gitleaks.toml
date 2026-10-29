@@ -64,7 +64,7 @@ regexes = [
     # e.g. "API, Infra/Delivery" → extracted secret = "Infra/Delivery"
     '''(?i)^(?:infra|delivery|server|consumer|stakeholder)[/,]''',
 
-    # Observability label strings — "api,instance=prod-podcast" style PromQL selectors
+    # Observability label strings — "api,instance=<host>" style PromQL selectors
     '''(?:job|instance|surface|app)=(?:[a-z][a-z0-9_-]+)''',
 
     # Local dev bearer token documented in runbooks — "buddy-is-the-king" is the

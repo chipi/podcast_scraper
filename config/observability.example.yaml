@@ -19,7 +19,7 @@ targets:
 
   # Prod over Tailscale. Fill in the rest as you wire each source (later slices).
   prod:
-    api_base: https://prod-podcast.tail-xxxxx.ts.net
+    api_base: https://<prod-host>.tail-xxxxx.ts.net
     # github:
     #   repo: chipi/podcast_scraper
     #   token_env: PODCAST_OBS_GH_TOKEN        # a read-only Actions:read token

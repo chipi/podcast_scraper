@@ -63,7 +63,7 @@ exists because a session burned time rediscovering something already written dow
 | --- | --- | --- |
 | **Observability — is X up? where is X?** | the operator observability runbook (not in this repository) § "Endpoint table" → § "Query crib" | every app's local port + tailnet path + health check; copy-paste log/metric/trace queries; the GlitchTip token recipe |
 | **MCP servers — which exist, are they live, how do I connect?** | `AGENTS.md` § "MCP servers — PROD vs DEV" → the operator observability runbook § "MCP servers" | that PROD content MCP is the **claude.ai connector, already available as `mcp__claude_ai_Close_Listening__*`** — no token, no setup; plus both prod URLs and the token-minting route |
-| **Deploying / running the obs MCP** | the operator observability runbook (not in this repository) § "MCP servers" | it runs on the VPS only (`compose/docker-compose.player-public.yml` service `obs`). The homelab variant was deleted 2026-10-16; `docs/wip/OBS-MCP-ON-VPS-PLAN.md` is history (wrong subdomain) |
+| **Deploying / running the obs MCP** | the operator observability runbook (not in this repository) § "MCP servers" | it runs on the prod host only, as the deployment's `obs` service. The homelab variant was deleted 2026-10-16; `docs/wip/OBS-MCP-ON-VPS-PLAN.md` is history (wrong subdomain) |
 | **LLM routing / gateway** | `docs/adr/ADR-142-litellm-prod-gateway.md` | prod does **not** call homelab; see § "Deployment topology" above |
 | **Prod ops — deploy, health, corpus paths, secrets** | the operator cheat sheet (not in this repository) | endpoints, host paths, daily commands, incident playbook, secret inventory |
 | **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml`, `docs/wip/CORPUS-EXPANSION-REGISTRY-2026-09.md` | the vetted feed list + every rejection with its reason |
@@ -705,16 +705,10 @@ asked the operator to mint a token for a server it was already connected to.
 read the URL — `mcp.closelistening.app` = prod. Cross-check a data timestamp
 (`corpus_status.artifact_newest_mtime`) against the box if it matters.
 
-**Reaching prod directly (when the MCP/obs path is down, e.g. after a reboot):**
-the prod API is loopback-only on the VPS (`127.0.0.1:8000`, T-01 keeps it off
-the tailnet), so `curl`ing `prod-podcast:8099` from your Mac will time out
-(ACL). Instead SSH in read-only: `ssh deploy@prod-podcast` (tailnet), then curl
-loopback or `docker exec player-mcp-1 …` to read `/app/output` straight.
-
-Copy-paste recipes live in the operator observability runbook (not in this repository): the **"Query crib"**
-(logs/metrics/traces/errors against the homelab backends, incl. the GlitchTip token) and
-**"Reaching the prod VPS box directly"** (SSH corpus/version/LLM-spend on `prod-podcast`,
-plus the `homelab`-Mac docker path + `manage.py shell` gotcha).
+**Reaching prod directly (when the MCP/obs path is down):** this repository does not
+describe the deployment. The prod API is loopback-only on its host (T-01 keeps it off the
+network); the operator's runbook (not in this repository) has the access recipes and the
+**"Query crib"** for logs, metrics, traces and errors.
 
 ### Make commands, never direct tools
 

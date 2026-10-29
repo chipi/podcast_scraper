@@ -7,7 +7,7 @@ same review, so the review is a tool, not a remembered sequence of one-liners.
 
 Read-only. Runs inside the api container, against the corpus it serves::
 
-    ssh root@prod-podcast 'docker exec -i compose-api-1 python - "Gray Area"' \\
+    ssh <prod-host> 'docker exec -i <api-container> python - "Gray Area"' \\
         < scripts/audit/show_review.py
 
 The argument is a case-insensitive substring of the feed title (or the feed directory name).

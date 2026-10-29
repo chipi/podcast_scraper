@@ -10,11 +10,9 @@ For the operator's run-it-on-your-machine guide, start at [`docs/guides/DOCKER_C
 
 | File | Purpose |
 | ---- | ------- |
-| `docker-compose.stack.yml` | **Base** — `viewer` (Nginx + SPA), `api` (FastAPI), and the `pipeline` / `pipeline-llm` services (Compose profiles `pipeline` / `pipeline-llm`, only spawned per job). Production-ready when paired with the `prod` and `jobs-docker` overlays below. |
+| `docker-compose.stack.yml` | **Base** — `viewer` (Nginx + SPA), `api` (FastAPI), and the `pipeline` / `pipeline-llm` services (Compose profiles `pipeline` / `pipeline-llm`, only spawned per job). Production-ready when paired with the `jobs-docker` overlay below and a deployment's own overlays. |
 | `docker-compose.stack-test.yml` | **Overlay** — adds `mock-feeds` (Nginx sidecar serving bundled RSS / audio / transcripts) plus the Docker job-mode wiring on the `api` service so the API factory can spawn pipeline containers. Used by `make stack-test-*` and the GitHub stack-test workflow. |
 | `docker-compose.jobs-docker.yml` | **Overlay** — production equivalent of the stack-test overlay's job-mode wiring: bind-mounts the host repo + `/var/run/docker.sock` into `api` and sets `PODCAST_PIPELINE_EXEC_MODE=docker`. Merge this on top of `stack.yml` when you want production deployments to spawn jobs the same way the stack-test does, without the `mock-feeds` sidecar. |
-| `docker-compose.prod.yml` | **Overlay** — restart policies for long-running services (`viewer`, `api`). Site-local volume / network changes go in your own override on top of this. |
-| `docker-compose.vps-prod.yml` | **Overlay** — prod/drill VPS nginx template, landing page, and host publish for viewer **`:8080`**; merge with **`stack.yml`** + **`prod.yml`** on always-on hosts (omitted on Codespaces). See [STACK_CONTRACT.md](../docs/guides/STACK_CONTRACT.md). |
 
 ## Quick reference
 
@@ -27,12 +25,11 @@ make stack-test-up
 make stack-test-seed                      # default ml variant
 # open http://127.0.0.1:8090
 
-# Production-style without mock-feeds (Docker job mode + restart policies)
+# Production-style without mock-feeds (Docker job mode)
 export PODCAST_DOCKER_PROJECT_DIR="$PWD"
 docker compose \
   -f compose/docker-compose.stack.yml \
   -f compose/docker-compose.jobs-docker.yml \
-  -f compose/docker-compose.prod.yml \
   up -d
 ```
 
