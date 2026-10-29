@@ -1,7 +1,7 @@
 """Unit-ish coverage for the delivery digest-scheduler sidecar runner (#1412).
 
-The runner (``infra/deploy/digest_scheduler.py``) is a standalone script mounted into the compose
-sidecar, not part of the package — loaded here by path. These lock the loop behaviour the sidecar
+The runner (``podcast_scraper.server.digest_scheduler_runner``) is the sidecar's entry point,
+started as ``python -m``; loaded here by path. These lock the loop behaviour the sidecar
 depends on: interval alignment (never skip a slot hour), heartbeat liveness, and — most importantly
 — that one bad enqueue cycle never kills the loop.
 """
@@ -18,7 +18,7 @@ pytest.importorskip("fastapi")  # _run_once imports the server package
 pytestmark = pytest.mark.integration
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_RUNNER = _REPO_ROOT / "infra" / "deploy" / "digest_scheduler.py"
+_RUNNER = _REPO_ROOT / "src" / "podcast_scraper" / "server" / "digest_scheduler_runner.py"
 
 
 def _load(tmp_path: Path, monkeypatch, *, interval: int = 3600, offset: int = 120):
@@ -144,7 +144,7 @@ def test_neither_scheduler_owns_a_private_enqueuer_list(tmp_path: Path, monkeypa
 
     sources = {
         "server/scheduler.py": _REPO_ROOT / "src" / "podcast_scraper" / "server" / "scheduler.py",
-        "infra/deploy/digest_scheduler.py": _RUNNER,
+        "server/digest_scheduler_runner.py": _RUNNER,
     }
     for label, path in sources.items():
         direct = re.findall(

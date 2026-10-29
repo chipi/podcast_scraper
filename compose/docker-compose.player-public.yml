@@ -468,7 +468,7 @@ services:
     # through it; a plain `user:` makes entrypoint.sh take its non-root `exec "$@"` path. uid 1000
     # matches the api's post-drop identity, keeping appdata file ownership uniform.
     user: "1000:1000"
-    command: ["python", "/app/digest_scheduler.py"]
+    command: ["python", "-m", "podcast_scraper.server.digest_scheduler_runner"]
     environment:
       APP_DATA_DIR: /app/appdata
       DIGEST_CORPUS_ROOT: /app/output
@@ -492,7 +492,6 @@ services:
       - corpus_data:/app/output:ro
       - ${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}:/app/appdata
       # The committed runner, read-only (present on every box after the deploy's git reset).
-      - ../infra/deploy/digest_scheduler.py:/app/digest_scheduler.py:ro
     read_only: true
     tmpfs:
       - /tmp
@@ -539,7 +538,7 @@ services:
       release: ${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     user: "1000:1000"
-    command: ["python", "/app/board_summarizer.py"]
+    command: ["python", "-m", "podcast_scraper.server.board_summarizer_runner"]
     environment:
       APP_DATA_DIR: /app/appdata
       BOARD_SUMMARY_CORPUS_ROOT: /app/output
@@ -569,7 +568,6 @@ services:
     volumes:
       - corpus_data:/app/output:ro
       - ${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}:/app/appdata
-      - ../infra/deploy/board_summarizer.py:/app/board_summarizer.py:ro
     read_only: true
     tmpfs:
       - /tmp

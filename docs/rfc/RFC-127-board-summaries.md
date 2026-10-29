@@ -287,7 +287,7 @@ same day for the beta).
 
 - `src/podcast_scraper/server/board_summaries.py` — the rules, the prompt, the store, one sweep.
   It takes the model call as a function and imports no SDK; the API imports it only to read.
-- `infra/deploy/board_summarizer.py` — the sidecar loop; `board-summarizer` in
+- `podcast_scraper.server.board_summarizer_runner` — the sidecar loop (`python -m`); `board-summarizer` in
   `compose/docker-compose.player-public.yml`; the DGX address in `infra/deploy/deploy-player.sh`.
 - `providers/common/summary_use_case.py` and the use case in every provider's `summarize`; the
   three templates in `prompts/shared/summarization/`; `board_summary_*` fields in `config.py`.
@@ -304,7 +304,7 @@ sweep on prod. Routing the DGX through LiteLLM, as every other model is: #2342.
 - Boards and the Brief: `src/podcast_scraper/server/app_board_view.py`,
   `server/routes/app_collections.py`, `web/learning-player/src/components/BoardBrief.vue`
 - The pattern: `digest-scheduler` in `compose/docker-compose.player-public.yml`,
-  `infra/deploy/digest_scheduler.py`
+  `podcast_scraper.server.digest_scheduler_runner`
 - Provider factory: `src/podcast_scraper/summarization/factory.py`; cost:
   `src/podcast_scraper/workflow/cost_monitoring.py`; fuse: `utils/llm_call_fuse.py`; the use case:
   `providers/common/summary_use_case.py`;

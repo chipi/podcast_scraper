@@ -428,9 +428,9 @@ def make_app_spawn_callback(app: Any) -> Any:
                 logger.warning("scheduler: digest %r fired but app_data_dir unset; skipping", name)
                 return
             # Every enqueuer lives in app_digest_dispatch.ENQUEUERS, which the production sidecar
-            # (infra/deploy/digest_scheduler.py) drives from the same list. Adding one there wires
-            # both paths; maintaining two lists is what shipped daily_recap and the monthly
-            # recommendations digest dead to prod (#2119). Each enqueuer applies its own
+            # (podcast_scraper.server.digest_scheduler_runner) drives from the same list. Adding
+            # one there wires both paths; maintaining two lists is what shipped daily_recap and the
+            # monthly recommendations digest dead to prod (#2119). Each enqueuer applies its own
             # cadence-slot gate and per-period envelope id, so an hourly fire is idempotent.
             result = app_digest_dispatch.enqueue_all_due(corpus_root, Path(data_dir))
             logger.info(

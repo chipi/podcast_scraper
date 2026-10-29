@@ -24,7 +24,13 @@ pytest.importorskip("fastapi")  # _run_once imports the server package
 
 pytestmark = pytest.mark.integration
 
-_RUNNER = Path(__file__).resolve().parents[2] / "infra" / "deploy" / "board_summarizer.py"
+_RUNNER = (
+    Path(__file__).resolve().parents[2]
+    / "src"
+    / "podcast_scraper"
+    / "server"
+    / "board_summarizer_runner.py"
+)
 _CORPUS = Path(__file__).resolve().parents[1] / "fixtures" / "app-validation-corpus" / "v3"
 
 
