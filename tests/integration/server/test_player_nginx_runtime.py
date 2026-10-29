@@ -100,6 +100,10 @@ def player_base() -> Iterator[str]:
     conf_source = Path(__file__).resolve().parents[3] / "web/learning-player/nginx.conf"
     rendered_conf = _render_nginx_conf(conf_source, stub_port)
     conf_dir = Path(tempfile.mkdtemp(prefix="lp-nginx-runtime-"))
+    # mkdtemp makes the dir 0700. The container's root reads the mount, and on an engine in a VM
+    # (virtiofs keeps the host owner) that root is another user, so the template went unread and
+    # nginx, finding no rendered config, refused to start.
+    conf_dir.chmod(0o755)
     conf_path = conf_dir / "player.conf.template"
     conf_path.write_text(rendered_conf, encoding="utf-8")
 
