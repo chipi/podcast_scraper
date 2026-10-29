@@ -190,7 +190,9 @@ def _safe_return_to(value: str | None) -> str | None:
     # redirect oddly, so bound it here — nothing legitimate is near this.
     if len(value) > _MAX_RETURN_TO_CHARS:
         return None
-    return value
+    # Rebuilt behind a constant "/" (the checks above guarantee exactly one): a redirect target
+    # whose prefix is ours, which is the form CodeQL's py/url-redirection recognises as safe.
+    return "/" + value[1:]
 
 
 @router.get("/auth/login")
@@ -254,10 +256,14 @@ def app_auth_login(
     url = provider.authorization_url(
         state=signed_state, redirect_uri=_callback_uri(request), login_hint=as_
     )
+    # The cookie binds this browser to the flow with the nonce alone. The flow's details (grant,
+    # platform, return_to, provider) travel in the signed `state` and are read from there; keeping
+    # request-derived values out of the cookie leaves nothing for a request to inject into it.
+    cookie_state = app_sessions.sign({"state": nonce, "iat": int(time.time())}, secret)
     resp = RedirectResponse(url, status_code=307)
     resp.set_cookie(
         app_sessions.STATE_COOKIE,
-        signed_state,
+        cookie_state,
         max_age=600,
         httponly=True,
         samesite="lax",
@@ -319,9 +325,15 @@ def _complete_callback(
     from_state = app_sessions.verify(state, secret, max_age=600)
 
     saved = None
-    if from_cookie is not None and from_cookie.get("state") == (from_state or {}).get("state"):
-        # Normal path, unchanged strength: cookie present AND agreeing with the echoed state.
-        saved = from_cookie
+    if (
+        from_cookie is not None
+        and from_state is not None
+        and from_cookie.get("state") == from_state.get("state")
+    ):
+        # Normal path, unchanged strength: cookie present AND agreeing with the echoed state. The
+        # cookie carries only the nonce; the flow's details come from the echoed state, which is
+        # equally ours (same HMAC, same 600s window).
+        saved = from_state
     elif from_cookie is None and from_state is not None:
         # The cookie did not come back — a cross-context handoff, not an attack signal we can
         # act on. The echoed state is signed by us and inside its 600s window, so the flow is

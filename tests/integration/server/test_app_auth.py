@@ -118,6 +118,27 @@ def test_login_return_to_open_redirect_guard(tmp_path: Path) -> None:
         client.cookies.clear()
 
 
+def test_state_cookie_carries_only_the_nonce(tmp_path: Path) -> None:
+    """Request-derived values (return_to, grant, platform) ride the signed ``state``, not the cookie.
+
+    The cookie binds the browser to the flow with the nonce alone; the callback reads the flow's
+    details from the echoed state, which carries the same nonce.
+    """
+    client = TestClient(_app(tmp_path))
+    resp = client.get(
+        "/api/app/auth/login",
+        params={"return_to": "/somewhere?x=1", "platform": "native"},
+        follow_redirects=False,
+    )
+    cookie = client.cookies.get(app_sessions.STATE_COOKIE)
+    payload = app_sessions.verify(cookie, "test-secret", max_age=600)
+    assert payload is not None and set(payload) == {"state", "iat"}, payload
+    state = str(parse_qs(urlparse(resp.headers["location"]).query)["state"][0])
+    from_state = app_sessions.verify(state, "test-secret", max_age=600) or {}
+    assert from_state.get("state") == payload["state"]
+    assert from_state.get("return_to") == "/somewhere?x=1"
+
+
 def test_callback_rejects_bad_state(tmp_path: Path) -> None:
     client = TestClient(_app(tmp_path))
     _login_state(client)
