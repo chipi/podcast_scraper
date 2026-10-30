@@ -41,10 +41,10 @@ from podcast_scraper.server.app_digest_common import (
     local_day as _local_day,
     local_now as _local_now,
 )
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import get_user, list_users, User
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.schemas import AppEpisodeRecap
+from podcast_scraper.server.slugs import resolve_slug
 
 logger = logging.getLogger(__name__)
 

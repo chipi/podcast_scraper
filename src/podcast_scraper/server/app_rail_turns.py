@@ -16,8 +16,8 @@ def episode_entity_ids(root: Path, kg_relative_path: Optional[str]) -> set[str]:
     """The person and topic ids an episode's KG names (empty without a KG)."""
     if not kg_relative_path:
         return set()
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     persons, _orgs, topics = entities_from_kg(load_json_artifact(root, kg_relative_path))
     return {e.id for e in [*persons, *topics] if getattr(e, "id", None)}

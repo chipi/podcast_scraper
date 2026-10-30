@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`podcast_scraper.server.app_corpus_access`.
+"""Unit tests for :mod:`podcast_scraper.server.corpus_access`.
 
 The two filesystem helpers the consumer ``/api/app/*`` routes share: resolve the corpus
 root (or 503) and path-safely load a JSON artifact (or ``None`` on missing/unreadable/escape).
@@ -14,7 +14,7 @@ from typing import cast
 import pytest
 from fastapi import Request
 
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
+from podcast_scraper.server.corpus_access import corpus_root_or_503, load_json_artifact
 
 pytestmark = [pytest.mark.integration]
 

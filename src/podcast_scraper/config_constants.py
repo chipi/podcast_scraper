@@ -312,9 +312,6 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 #                                                       1.5s/ep, ~$0.00047/ep; best balance of
 #                                                       quality × latency × cost)
 #
-# See: AI_PROVIDER_COMPARISON_GUIDE.md (private eval repo) for the two absolute picks and
-# docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md for the full 20-model matrix.
-#
 # PROD_DEFAULT points to Tier 2 (pure ML): guaranteed to work with no external daemons.
 # For best local quality when Ollama is available, use OLLAMA_DEFAULT_SUMMARY_MODEL (Tier 3).
 #

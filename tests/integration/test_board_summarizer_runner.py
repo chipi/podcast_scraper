@@ -183,7 +183,7 @@ def test_a_bart_led_profile_summarises_the_material_as_a_document_at_no_cost(
 
 def _board_with_two_episodes(tmp_path: Path) -> tuple[str, str]:
     from podcast_scraper.server import app_collections_store
-    from podcast_scraper.server.app_slugs import _slug_index
+    from podcast_scraper.server.slugs import _slug_index
 
     uid = "u_" + "a" * 24
     data_dir = tmp_path / "app"

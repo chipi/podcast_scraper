@@ -20,7 +20,9 @@ friendly, lightweight, and extensible to future platform views.
 We adopt **Playwright** as the browser E2E test framework:
 
 1. **Test runner**: Playwright Test with TypeScript.
-2. **Browser**: **Firefox** (Desktop profile in `playwright.config.ts`); other engines optional.
+2. **Browser**: **Chrome** locally (Desktop Chrome in `playwright.config.ts`), the same engine as the
+   live and validation configs and the player suite; **Firefox** under `CI` until the workflows
+   install Chromium for this suite (they install only Firefox today). Other engines optional.
 3. **Test location**: `web/gi-kg-viewer/e2e/*.spec.ts` alongside the frontend source.
 4. **Test fixtures**: Deterministic data via `e2e/fixtures.ts`, helpers, and route mocks
    in specs (see repository).

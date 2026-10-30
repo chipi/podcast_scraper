@@ -15,7 +15,7 @@ from unittest.mock import patch
 import pytest
 from PIL import Image
 
-from podcast_scraper.server.app_artwork import artwork_url, ensure_medium
+from podcast_scraper.server.artwork import artwork_url, ensure_medium
 from podcast_scraper.upgrade.migration import MigrationContext
 from podcast_scraper.upgrade.migrations.m0026_artwork_medium import ArtworkMediumMigration
 from podcast_scraper.upgrade.registry import get_migrations
@@ -66,7 +66,7 @@ def test_a_small_original_is_never_upscaled(tmp_path: Path) -> None:
 def test_a_read_only_server_serves_an_existing_medium(tmp_path: Path) -> None:
     original = _store(tmp_path, _jpeg())
     ArtworkMediumMigration().apply(MigrationContext(corpus_root=tmp_path))
-    with patch("podcast_scraper.server.app_artwork.write_medium", side_effect=AssertionError):
+    with patch("podcast_scraper.server.artwork.write_medium", side_effect=AssertionError):
         path, media_type = ensure_medium(tmp_path, str(original))
     assert path == str(medium_path(tmp_path, str(original))) and media_type == "image/jpeg"
 
@@ -75,7 +75,7 @@ def test_a_missing_medium_on_a_read_only_server_falls_back_to_the_original(
     tmp_path: Path,
 ) -> None:
     original = _store(tmp_path, _jpeg())
-    with patch("podcast_scraper.server.app_artwork.write_medium", return_value=False):
+    with patch("podcast_scraper.server.artwork.write_medium", return_value=False):
         path, media_type = ensure_medium(tmp_path, str(original))
     assert path == str(original) and media_type == "image/jpeg"
 

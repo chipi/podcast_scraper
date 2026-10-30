@@ -214,7 +214,7 @@ def test_digest_spawn_calls_enqueue_due_digests(
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_personal, app_digest_recommendations
-    from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
+    from podcast_scraper.server.scheduler import make_app_spawn_callback
 
     calls: list[Path] = []
     rec_calls: list[Path] = []
@@ -232,7 +232,7 @@ def test_digest_spawn_calls_enqueue_due_digests(
     monkeypatch.setattr(app_digest_recommendations, "enqueue_due_recommendations", _fake_rec)
     app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
     spawn = make_app_spawn_callback(app)
-    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)
+    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", "digest")
     assert calls == [tmp_path / "appdata"]
     assert rec_calls == [tmp_path / "appdata"]
 
@@ -246,15 +246,14 @@ def test_digest_spawn_drives_every_shared_enqueuer(
     and silently skipped — which is the shape of the original bug. This one is derived from
     ``app_digest_dispatch.ENQUEUERS``, so it grows automatically with the list.
     """
-    import importlib
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_dispatch
-    from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
+    from podcast_scraper.server.scheduler import make_app_spawn_callback
 
     seen: list[str] = []
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
 
         def _fake(root: Path, data_dir: Path, now: int | None = None, _l: str = label) -> list[str]:
             seen.append(_l)
@@ -264,7 +263,7 @@ def test_digest_spawn_drives_every_shared_enqueuer(
 
     app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
     spawn = make_app_spawn_callback(app)
-    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)
+    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", "digest")
 
     assert seen == [label for label, _, _ in app_digest_dispatch.ENQUEUERS]
 
@@ -273,15 +272,14 @@ def test_digest_spawn_survives_a_failing_enqueuer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A broken assembler must not take down the scheduled fire or the other cadences."""
-    import importlib
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_dispatch
-    from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
+    from podcast_scraper.server.scheduler import make_app_spawn_callback
 
     survived: list[str] = []
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
         if label == app_digest_dispatch.ENQUEUERS[0][0]:
 
             def _boom(root: Path, data_dir: Path, now: int | None = None) -> list[str]:
@@ -300,6 +298,6 @@ def test_digest_spawn_survives_a_failing_enqueuer(
 
     app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
     spawn = make_app_spawn_callback(app)
-    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)  # no raise
+    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", "digest")  # no raise
 
     assert survived == [label for label, _, _ in app_digest_dispatch.ENQUEUERS[1:]]

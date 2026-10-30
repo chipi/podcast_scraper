@@ -43,8 +43,8 @@ PER_TOPIC = 2
 def engaged_topics(root: Path, data_dir: Path, user_id: str) -> list[tuple[str, str]]:
     """``[(topic id, label)]`` the listener engages with most, umbrellas dropped."""
     from podcast_scraper.server.app_discover_view import interest_episode_index
-    from podcast_scraper.server.app_slugs import _slug_index
     from podcast_scraper.server.app_user_corpus import derived_interest_counts
+    from podcast_scraper.server.slugs import _slug_index
 
     index = interest_episode_index(root)
     total = len(_slug_index(root))
@@ -84,9 +84,9 @@ def speakers_heard(root: Path, episodes: set[str]) -> set[str]:
     """Every host and guest of the listener's heard-or-captured episodes (their KG roles). Someone
     they already hear — the host of a show they listen to — is never "another view", whatever the
     topic (2026-10-11: the topic-only rule offered a heard host once his lines moved topic)."""
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_kg_view import entities_from_kg
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.kg_view import entities_from_kg
+    from podcast_scraper.server.slugs import resolve_slug
 
     out: set[str] = set()
     for slug in episodes:
@@ -106,8 +106,8 @@ def another_view_rail(
     root: Path, data_dir: Path, user_id: str, *, limit: int = 6
 ) -> list[TrendingEpisodeCard]:
     """A different speaker on each of the listener's topics (see the module docstring)."""
-    from podcast_scraper.server.app_relational_view import build_topic_perspectives
     from podcast_scraper.server.app_user_corpus import experienced_episode_set, saved_episode_set
+    from podcast_scraper.server.relational_view import build_topic_perspectives
 
     topics = engaged_topics(root, data_dir, user_id)
     if not topics:

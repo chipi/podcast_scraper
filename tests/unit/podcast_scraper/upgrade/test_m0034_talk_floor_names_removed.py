@@ -46,7 +46,7 @@ def fx_surfaces(p: Dict[str, Any]) -> Dict[str, set]:
         "segments": {r.get("speaker_label") for r in _rows(fx._r(p["seg"]))},
         "gi persons": {n["properties"]["name"] for n in gi["nodes"] if n["type"] == "Person"},
         # Readers resolve a quote's speaker from its speaker_id through the Person node
-        # (gi/load.py, server/app_gi_view.py); the rewrite clears the authored speaker_name.
+        # (gi/load.py, server/gi_view.py); the rewrite clears the authored speaker_name.
         "gi quotes": {
             people.get(n["properties"].get("speaker_id"))
             for n in gi["nodes"]

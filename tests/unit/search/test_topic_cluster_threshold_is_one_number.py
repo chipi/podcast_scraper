@@ -21,8 +21,8 @@ import re
 
 import pytest
 
-from podcast_scraper.search.cli_handlers import parse_topic_clusters_argv
 from podcast_scraper.search.topic_clusters import DEFAULT_TOPIC_CLUSTER_THRESHOLD
+from podcast_scraper.search.topic_clusters_cli import parse_topic_clusters_argv
 
 pytestmark = pytest.mark.unit
 

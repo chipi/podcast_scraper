@@ -2718,9 +2718,8 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                     if not benchmark_script.exists():
                         logger.warning(
                             "--auto-benchmark: generate_performance_benchmark.py is not "
-                            "in this repo. It moved to the private eval repo "
-                            "(chipi/podcast-scraper-eval-data) with the performance "
-                            "story; run it there against this session's output."
+                            "in this repo; it left with the performance reports, so "
+                            "no benchmark is generated for this session."
                         )
                     if benchmark_script.exists():
                         logger.info("")

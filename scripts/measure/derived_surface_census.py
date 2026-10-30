@@ -48,10 +48,10 @@ CORPUS_LEVEL = "the nightly's corpus enrichers (deterministic) and insight clust
 #: Request-time readers of insight visibility / speaker names. Their caches key on
 #: ``perf_cache.corpus_mtime``, which includes ``upgrade_ledger.json``: an apply invalidates them.
 READERS = (
-    "server/app_gi_view.py (insights_from_gi: the surfaceable gate)",
+    "server/gi_view.py (insights_from_gi: the surfaceable gate)",
     "server/routes/app_episodes.py (episode insights, _related_cache)",
     "server/app_auto_picks.py, app_board_view.py, app_captured_rail.py, app_episode_notes.py, "
-    "app_moments.py, app_recap_view.py, app_relational_view.py, app_trending_episodes.py",
+    "app_moments.py, app_recap_view.py, relational_view.py, app_trending_episodes.py",
     "og/build.py (share cards); mcp/tools/gi.py; search/corpus_search.py (speaker scope)",
 )
 

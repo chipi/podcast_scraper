@@ -64,8 +64,8 @@ def main(argv: Optional[list] = None) -> int:
     from podcast_scraper.audio_sync.drift import served_url
     from podcast_scraper.audio_sync.references import reference_relpath
     from podcast_scraper.server.app_audio_drift import DRIFT_FILE, MAPS_FILE
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_episode_search import episode_segments_relpath
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     ap = argparse.ArgumentParser(
         prog="podcast_scraper.audio_sync build-maps",

@@ -101,7 +101,7 @@ Mounted under the app **`/api`** prefix:
 ## Non-goals
 
 - **Not** implementing new chart types or ML-based anomaly detection in this RFC’s scope.
-- **Not** merging with **Streamlit** run-compare or **RFC-064** profile YAML.
+- **Not** merging with **Streamlit** run-compare or profile YAML.
 - **Not** adding **Postgres** for dashboard queries (**RFC-051**).
 
 ## Testing

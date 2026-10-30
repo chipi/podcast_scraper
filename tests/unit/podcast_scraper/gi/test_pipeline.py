@@ -1132,9 +1132,8 @@ class TestTheGroundingScoresSURVIVEToTheMetric:
         assert "nli_score" not in props
         validate_artifact(out)
 
-    # test_the_reported_metric_is_the_score_we_actually_grounded_with moved to
-    # chipi/podcast-scraper-eval-data (tests/unit/podcast_scraper_eval/
-    # test_grounding_scores_reach_the_metric.py) with gi_scorer. The two tests
+    # test_the_reported_metric_is_the_score_we_actually_grounded_with moved out
+    # with gi_scorer and the eval harness. The two tests
     # above stay here because they assert what the PIPELINE emits — the score
     # rides the SUPPORTED_BY edge, and never the Quote node. If the edge shape
     # changes these go red on the shape and the moved one goes red on the number.

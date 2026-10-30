@@ -9,7 +9,6 @@
   - `docs/prd/PRD-031-search.md` — Search product
 - **Related RFCs**:
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — ships the rules-based router this replaces
-  - `RFC-057` (moved to the private eval repo as RFC-002) — eval loop that produces labeled queries
 - **Related Documents**:
   - `config/search.yaml` — router mode switch
 
@@ -69,7 +68,7 @@ robust and improves continuously as query patterns emerge from the eval loop.
 
 **Assumptions:**
 
-- The eval loop (RFC-057) and viewer Search usage can produce ≥500 labeled queries before training
+- The eval loop and viewer Search usage can produce ≥500 labeled queries before training
   is worthwhile.
 - A ~100M-parameter encoder with a classification head is sufficient for 5-class short-text
   routing.
@@ -207,7 +206,6 @@ rate trends down after the switch.
 | RFC | Relationship |
 | --- | --- |
 | RFC-090 | Defines `QueryRouter`, `SIGNAL_WEIGHTS`, `TIER_WEIGHTS_BY_QUERY`; this RFC swaps `classify()` |
-| RFC-057 | Autoresearch eval loop is the training-data source |
 
 ## Benefits
 
@@ -232,7 +230,6 @@ rate trends down after the switch.
 ## References
 
 - **Related PRD**: `docs/prd/PRD-032-hybrid-corpus-search.md`
-- **Related RFC**: `docs/rfc/RFC-090-hybrid-retrieval.md`,
-  `RFC-057` (moved to the private eval repo as RFC-002)
+- **Related RFC**: `docs/rfc/RFC-090-hybrid-retrieval.md`
 - **Source Code**: `src/podcast_scraper/search/router.py` (rules router from RFC-090)
 - **Config**: `config/search.yaml`

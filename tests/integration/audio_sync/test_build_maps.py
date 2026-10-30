@@ -42,7 +42,7 @@ def test_maps_a_drifted_episode_from_its_reference(
     meta.write_text(json.dumps(doc), encoding="utf-8")
 
     # The reference, as ingest writes it, from the audio we transcribed.
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     row = next(r for r in cached_catalog(root) if r.metadata_relative_path == rel)
     assert references.write_for_episode(root, row, str(AUDIO / "p01_e01.mp3"), "g-1")

@@ -379,8 +379,8 @@ def test_personal_entity_ids_spans_follows_saves_and_their_clusters(tmp_path: Pa
 # SHOW, one they follow, saved, or heard / captured from / saved an episode of.
 def _world_corpus(root: Path) -> dict[str, str]:
     """Five shows, one episode each; returns ``feed_id -> that episode's slug``."""
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.catalog_cache import cached_catalog
+    from podcast_scraper.server.slugs import slug_for_row
 
     for i, feed in enumerate(("followed", "savedshow", "captured", "savedep", "other")):
         for w, wk in enumerate(("2026-06-08", "2026-06-15", "2026-06-22")):
@@ -444,9 +444,9 @@ def test_trending_shows_mine_ranks_only_the_listeners_shows(tmp_path: Path) -> N
 
 def test_world_episodes_add_saved_and_every_episode_of_a_followed_show(tmp_path: Path) -> None:
     """Search "mine": heard/captured, plus saved episodes, plus a followed show's episodes."""
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.app_user_corpus import world_episode_set
+    from podcast_scraper.server.catalog_cache import cached_catalog
+    from podcast_scraper.server.slugs import slug_for_row
 
     slugs = _world_corpus(tmp_path)
     data = tmp_path / "appdata"

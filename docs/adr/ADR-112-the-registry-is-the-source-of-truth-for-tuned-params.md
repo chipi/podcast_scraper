@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-15
 **Deciders:** Marko
-**Related:** ADR-111 (eval and pipeline are one set of bricks), #907 (registry-layered profiles), #939 (same-vendor judge bias)
+**Related:** #907 (registry-layered profiles), #939 (same-vendor judge bias)
 
 ## Context
 
@@ -32,7 +32,7 @@ production ran whichever door the caller came in through. Worse:
 * `gi_value_gate_enabled` defaulted to `False`, so a profile that forgot the key shipped **ungated**
   and the run looked fine.
 
-Every one of these is ADR-111's allowlist bug, one layer along: a key nobody copies does not error,
+Every one of these is an allowlist bug, one layer along: a key nobody copies does not error,
 it takes a default, and the default is usually "off".
 
 ## Decision

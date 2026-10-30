@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
+from podcast_scraper.server.kg_view import entities_from_kg, objects_from_kg
 
 pytestmark = pytest.mark.unit
 

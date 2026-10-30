@@ -20,8 +20,8 @@ pytestmark = [pytest.mark.unit]
 
 def _write_episode(root: Path, *, stem: str, episode_id: str) -> str:
     """Write a minimal episode and return its resolved slug."""
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)

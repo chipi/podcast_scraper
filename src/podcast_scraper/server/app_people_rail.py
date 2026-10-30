@@ -40,10 +40,10 @@ class KeptHearing:
 def people_kept_hearing(root: Path, data_dir: Path, user_id: str) -> list[KeptHearing]:
     """Speakers in at least ``MIN_EPISODES`` of the listener's episodes, most heard first."""
     from podcast_scraper.identity.bare_name_scope import is_scoped_person_id
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_kg_view import entities_from_kg
-    from podcast_scraper.server.app_slugs import resolve_slug
     from podcast_scraper.server.app_user_corpus import experienced_episode_set
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.kg_view import entities_from_kg
+    from podcast_scraper.server.slugs import resolve_slug
 
     counts: Counter[str] = Counter()
     names: dict[str, str] = {}
@@ -74,12 +74,12 @@ def people_rail(
     root: Path, data_dir: Path, user_id: str, *, limit: int = 6
 ) -> list[TrendingEpisodeCard]:
     """Episodes on other shows with the people the listener keeps hearing (module docstring)."""
-    from podcast_scraper.server.app_slugs import resolve_slug
     from podcast_scraper.server.app_user_corpus import (
         experienced_episode_set,
         followed_show_ids,
         saved_episode_set,
     )
+    from podcast_scraper.server.slugs import resolve_slug
 
     people = people_kept_hearing(root, data_dir, user_id)
     if not people:

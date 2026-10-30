@@ -7,7 +7,7 @@
   - [ADR-015: Deep Provider Fingerprinting](../adr/ADR-015-deep-provider-fingerprinting.md)
   - [ADR-016: Typed Provider Parameter Models](../adr/ADR-016-typed-provider-parameter-models.md)
   - [ADR-017: Registered Preprocessing Profiles](../adr/ADR-017-registered-preprocessing-profiles.md)
-- **Related RFCs**: `RFC-015` (moved to the private eval repo as RFC-004), `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
+- **Related RFCs**: `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
 - **Related Issues**: [#303](https://github.com/chipi/podcast_scraper/issues/303) (RFC-016 Implementation)
 - **Updated**: 2026-01-16
 
@@ -76,11 +76,11 @@
 
 ## Abstract
 
-** Quick Summary:** This RFC is **complete**. All phases are implemented: provider protocols, implementations, factories, comprehensive fingerprinting, preprocessing profiles, and evaluation infrastructure. The system is production-ready and fully supports the experiment pipeline (RFC-015). Legacy module cleanup is optional and low priority.
+** Quick Summary:** This RFC is **complete**. All phases are implemented: provider protocols, implementations, factories, comprehensive fingerprinting, preprocessing profiles, and evaluation infrastructure. The system is production-ready and fully supports the experiment pipeline. Legacy module cleanup is optional and low priority.
 
 ---
 
-This RFC identifies the refactoring and modularization needed to support the AI experiment pipeline (RFC-015) while maintaining the existing production workflow. **This refactoring aligns with and builds upon the modularization already completed in RFC-029 (Provider Refactoring Consolidation)**. The goal is to create clean abstractions that allow the experiment pipeline to run independently without duplicating code or interfering with the main pipeline.
+This RFC identifies the refactoring and modularization needed to support the AI experiment pipeline while maintaining the existing production workflow. **This refactoring aligns with and builds upon the modularization already completed in RFC-029 (Provider Refactoring Consolidation)**. The goal is to create clean abstractions that allow the experiment pipeline to run independently without duplicating code or interfering with the main pipeline.
 
 **Key Concept**: The experiment pipeline wraps existing pieces (gold data, HF baseline, eval scripts) in a repeatable pipeline. The provider system enables this by allowing the experiment runner to reuse production providers without code duplication. Once the structure is in place, adding new providers is just "add config + small backend class".
 
@@ -1132,8 +1132,6 @@ Every provider output includes:
 ## Related Documents
 
 - `docs/prd/PRD-007-ai-experiment-pipeline.md`: Product requirements, use cases, and functional specifications
-- `RFC-015` (moved to the private eval repo as RFC-004): Technical design and implementation details (updated with baseline-first concepts)
-- `RFC-041` (moved to the private eval repo as RFC-005): Benchmarking framework (complementary, shares baseline concept)
 - `docs/rfc/RFC-013-openai-provider-implementation.md`: OpenAI provider design (shared refactoring plan)
 - `docs/rfc/RFC-017-prompt-management.md`: Prompt management and loading implementation
 - `docs/prd/PRD-006-openai-provider-integration.md`: Product requirements for OpenAI integration

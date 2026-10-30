@@ -28,9 +28,9 @@ def main() -> int:
     from podcast_scraper.server import app_sessions, app_user_state
     from podcast_scraper.server.app import create_app
     from podcast_scraper.server.app_access import AccessPolicy
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.app_user_store import get_or_create_user
+    from podcast_scraper.server.catalog_cache import cached_catalog
+    from podcast_scraper.server.slugs import slug_for_row
 
     root = args.corpus.resolve()
     data = Path(tempfile.mkdtemp())

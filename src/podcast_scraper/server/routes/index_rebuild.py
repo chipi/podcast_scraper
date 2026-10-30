@@ -70,8 +70,9 @@ def _spawn_rebuild_thread(
             vector_index_types=vector_index_types,
         )
         index_corpus(output_dir, cfg, rebuild=rebuild)
-        # Build topic_clusters.json off the just-built LanceDB index (reads search/lance_index).
-        from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+        # Build topic_clusters.json off the just-built LanceDB index (reads search/lance_index);
+        # a no-op when no installed extension provides themes.
+        from podcast_scraper.search.groupings import build_topic_clusters_for_corpus
 
         build_topic_clusters_for_corpus(output_dir, threshold=topic_cluster_threshold)
     except Exception as exc:
@@ -166,7 +167,7 @@ def _spawn_topic_clusters_thread(
     """(Re)build topic_clusters.json off the request thread; clear the gate in ``finally``."""
     err: Optional[str] = None
     try:
-        from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+        from podcast_scraper.search.groupings import build_topic_clusters_for_corpus
 
         build_topic_clusters_for_corpus(output_dir, threshold=threshold)
     except Exception as exc:  # noqa: BLE001
@@ -180,6 +181,7 @@ def _spawn_topic_clusters_thread(
     "/corpus/topic-clusters/rebuild",
     status_code=202,
     responses={
+        404: {"description": "No installed extension provides themes"},
         409: {"description": "A rebuild is already running for this corpus"},
         503: {"description": "LanceDB unavailable"},
     },
@@ -201,6 +203,10 @@ def rebuild_topic_clusters(
     gate, so it is mutually exclusive with an index rebuild (both write ``search/``). Poll
     ``GET /api/corpus/topic-clusters`` for completion.
     """
+    from podcast_scraper.search import groupings
+
+    if not groupings.available():
+        raise HTTPException(status_code=404, detail="Themes are not installed.")
     try:
         import lancedb  # noqa: F401
     except ImportError:
@@ -229,39 +235,3 @@ def rebuild_topic_clusters(
     )
     thread.start()
     return JSONResponse(status_code=202, content={"accepted": True, "corpus_path": corpus_key})
-
-
-@router.post(
-    "/corpus/storylines/seed",
-    responses={400: {"description": "Bad corpus path or mode"}},
-)
-async def storylines_history_seed(
-    request: Request,
-    path: str | None = Query(
-        default=None, description="Corpus output dir. Omit for server default."
-    ),
-    mode: str = Query(default="preview", description="preview | apply | undo"),
-    _user=Depends(require_viewer_access),
-) -> JSONResponse:
-    """The storyline history seed (RFC-128, #2349), from the dashboard: ``preview`` replays and
-    reports without writing; ``apply`` writes the seed the next storyline run takes in (and the
-    chart's past); ``undo`` withdraws it, or seeds back what a taken one replaced.
-
-    Operator surface only, like the theme rebuild beside it. Never writes the storyline artifact,
-    so it cannot race a run. Seconds on production (no model).
-    """
-    import asyncio
-
-    from podcast_scraper.search import storyline_history
-
-    if mode not in ("preview", "apply", "undo"):
-        raise HTTPException(status_code=400, detail="mode must be preview, apply or undo.")
-    fallback = getattr(request.app.state, "output_dir", None)
-    root = _resolve_corpus_root(path, fallback)
-    if root is None:
-        raise HTTPException(status_code=400, detail="Corpus path is required (query or default).")
-    if mode == "undo":
-        result = await asyncio.to_thread(storyline_history.undo, root)
-    else:
-        result = await asyncio.to_thread(storyline_history.seed, root, apply=mode == "apply")
-    return JSONResponse({"mode": mode, **result})

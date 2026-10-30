@@ -3,7 +3,6 @@
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002)
 - **Supersedes**: `ml_prod_authority_v1` (Pegasus+LED) — see [ADR-067](ADR-067-pegasus-led-retirement-podcast-content.md)
 - **See Also**: [ADR-048](ADR-048-centralized-model-registry.md)
 
@@ -11,7 +10,7 @@
 
 Following Pegasus retirement (ADR-067), the project needed a validated local ML summarization
 baseline for podcast content. `ml_small_authority` (BART-small + LED) existed as a development
-baseline but had not been swept for optimal parameters. RFC-057 Track B defined a greedy
+baseline but had not been swept for optimal parameters. Track B defined a greedy
 one-param-at-a-time sweep ratchet to find the best local ML configuration empirically.
 
 ## Decision
@@ -22,7 +21,7 @@ Register in `model_registry.py` and set as `PROD_DEFAULT_SUMMARY_MODE_ID`.
 
 ## Sweep Methodology
 
-RFC-057 Track B uses a greedy ratchet:
+Track B uses a greedy ratchet:
 
 - **Accept threshold**: ≥ +1% relative ROUGE-L gain over current best
 - **Early stop**: 3 consecutive rejections within a param group
@@ -103,7 +102,7 @@ the hybrid ML architecture (ADR-069).
 ## Consequences
 
 - **Positive**: 189% ROUGE-L improvement over Pegasus baseline in production.
-- **Positive**: Establishes a reproducible sweep methodology (RFC-057 Track B ratchet) for
+- **Positive**: Establishes a reproducible sweep methodology (Track B ratchet) for
   future model promotions.
 - **Neutral**: This mode is now the privacy-first fallback. The recommended production path
   is the hybrid ML pipeline (ADR-069), which surpasses this by a further +22.9%.
@@ -115,13 +114,11 @@ the hybrid ML architecture (ADR-069).
 - **Registry entry**: `src/podcast_scraper/providers/ml/model_registry.py` →
   `_mode_registry["ml_bart_led_autoresearch_v1"]`
 - **Canonical eval config**: `data/eval/configs/ml/baseline_ml_bart_led_autoresearch_v1.yaml`
-- **Sweep TSVs**: `autoresearch/ml_param_tuning/results/bart_led_sweep_*.tsv`
 - **Default constant**: `src/podcast_scraper/config_constants.py` →
   `PROD_DEFAULT_SUMMARY_MODE_ID = "ml_bart_led_autoresearch_v1"`
 
 ## References
 
-- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [ADR-067: Pegasus Retirement](ADR-067-pegasus-led-retirement-podcast-content.md)
 - [ADR-048: Centralized Model Registry](ADR-048-centralized-model-registry.md)
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)

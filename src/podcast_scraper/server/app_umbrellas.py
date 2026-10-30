@@ -19,7 +19,7 @@ from collections import Counter
 from pathlib import Path
 
 from podcast_scraper import perf_cache
-from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.catalog_cache import cached_catalog
 
 #: A followed interest, or a listed subject, reaching at least this share of episodes is an
 #: umbrella. Re-exported by ``app_user_corpus`` for "Mine" (#1669).
@@ -67,8 +67,7 @@ def umbrella_tokens(root: Path) -> frozenset[str]:
     of its members' episodes. Never raises: a guard that fails must not take a page down."""
 
     def build() -> frozenset[str]:
-        from podcast_scraper.search.storylines import storyline_map_by_topic
-        from podcast_scraper.search.topic_clusters import theme_map_by_topic
+        from podcast_scraper.search.groupings import storyline_map_by_topic, theme_map_by_topic
 
         episodes = corpus_episode_topics(root)
         if len(episodes) < UMBRELLA_MIN_EPISODES:

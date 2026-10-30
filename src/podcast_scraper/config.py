@@ -3657,9 +3657,9 @@ class Config(BaseModel):
         ),
     )
     gi_max_insights: int = Field(
-        # 50, tracking the registry's researched GI option (provider_chunked_gated_v3,
-        # EVAL_GEMINI_VS_QWEN_10EP_2026_07) — test_the_config_default_is_not_a_trap requires the
-        # no-profile default to match what we measured. This was 12 while cloud_balanced ran the
+        # 50, tracking the registry's researched GI option (provider_chunked_gated_v3) —
+        # test_the_config_default_is_not_a_trap requires the no-profile default to match
+        # what we measured. This was 12 while cloud_balanced ran the
         # v25 option; 12 is the value provider_n12_grounded_bundled was DEPRECATED for on
         # 2026-07-14 ("never measured; providers clamped to 10 regardless"), so the default is
         # back on the researched number. The cap is not what protects quality — the value gate is
@@ -3916,12 +3916,10 @@ class Config(BaseModel):
             "Minimum mean cosine similarity for merging topic clusters in "
             "``search/topic_clusters.py``. 0.70 measured on the REAL corpus, twice and "
             "independently: RFC-075's production sweep (1,178 topics, 2026-04) and a ~9.5k-topic "
-            "sweep on the 1,066-episode corpus (2026-09-02, "
-            "``eval-data/scripts/eval/score/topic_cluster_threshold_sweep.py`` — see its "
-            "warning: the exact topic count is quoted inconsistently across this work and "
-            "is approximate). "
+            "sweep on the 1,066-episode corpus (2026-09-02; the exact topic count is "
+            "quoted inconsistently across this work and is approximate). "
             "The previous 0.75 came from v2 FIXTURES "
-            "(EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08, 6 clusters) and did not survive contact "
+            "(tier-1 tuning, 6 clusters) and did not survive contact "
             "with a real corpus: at 0.75 the live corpus sat at 85.7% singletons against the 69% "
             "RFC-075 measured at 0.70 on a corpus 8x smaller, and 38.6% of surviving clusters had "
             "merged within 0.03 of the threshold — mass piled against the wall. 0.75 -> 0.70 "

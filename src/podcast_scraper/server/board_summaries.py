@@ -184,7 +184,7 @@ def content_fingerprint(board: Board, root: Optional[Path] = None) -> str:
 
     With ``root``, only episodes still in the corpus count (#2344): one that left the corpus
     changes what the summary can be written from, so it is redone; without it, every slug."""
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.slugs import resolve_slug
 
     moments = sorted(str(m.get("ref")) for m in board.items if m.get("kind") == "highlight")
     slugs = board_episode_slugs(board)
@@ -223,7 +223,7 @@ def build_material(root: Path, board: Board, limits: Limits) -> Optional[dict[st
     a ceiling whatever the board holds. None when fewer than ``limits.min_episodes`` of the board's
     episodes are in the corpus. Nothing the user typed is in it."""
     from podcast_scraper.server.app_recap_view import build_episode_recap
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.slugs import resolve_slug
 
     episodes: list[dict[str, Any]] = []
     titles: dict[str, str] = {}

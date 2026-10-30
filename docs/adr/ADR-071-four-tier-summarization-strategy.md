@@ -3,15 +3,14 @@
 - **Status**: Accepted
 - **Date**: 2026-04-04
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002),
-  [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
+- **Related RFCs**: [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - **See Also**: [ADR-068](ADR-068-bart-led-as-ml-production-baseline.md),
   [ADR-069](ADR-069-hybrid-ml-pipeline-as-production-direction.md),
   [ADR-070](ADR-070-bart-base-as-hybrid-map-stage.md)
 
 ## Context & Problem Statement
 
-RFC-057 Track B autoresearch produced multiple promoted summarization modes across different
+Track B autoresearch produced multiple promoted summarization modes across different
 architectural families: pure ML (HuggingFace MAP+REDUCE), hybrid ML (HF MAP + Ollama REDUCE),
 direct LLM (full transcript → Ollama), and cloud LLM. A direct comparison experiment
 (`direct_llama32_3b_benchmark_paragraph_v1`) revealed that the hybrid MAP stage is not
@@ -171,7 +170,6 @@ an external process.
 
 ## References
 
-- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [RFC-042: Hybrid Podcast Summarization Pipeline](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - [ADR-068: BART+LED as ML Production Baseline](ADR-068-bart-led-as-ml-production-baseline.md)
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)

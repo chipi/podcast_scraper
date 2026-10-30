@@ -17,17 +17,16 @@ from pathlib import Path
 from typing import Any, Optional
 
 from podcast_scraper.server import app_collections_store, app_user_state
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_goal_reel import episode_clips, hydrate, ReelClip
-from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_moments import Moment, MomentsConfig
 from podcast_scraper.server.app_recap_view import signature_quote
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_umbrellas import umbrella_tokens
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.content_source import row_to_summary
+from podcast_scraper.server.corpus_access import load_json_artifact
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
+from podcast_scraper.server.gi_view import insights_from_gi
+from podcast_scraper.server.kg_view import entities_from_kg
 from podcast_scraper.server.schemas import (
     AppBoardBrief,
     AppBoardHolds,
@@ -36,6 +35,7 @@ from podcast_scraper.server.schemas import (
     AppBoardThread,
     AppBoardVoice,
 )
+from podcast_scraper.server.slugs import resolve_slug
 
 #: A board's short listen is addressed as ``board:<collection id>``, beside ``topic:`` and the rest.
 BOARD_SUBJECT_PREFIX = "board:"
@@ -152,7 +152,7 @@ def build_board_brief(root: Path, board: Board) -> AppBoardBrief:
         top_storylines_by_member_count,
     )
     from podcast_scraper.search.topic_clusters import theme_map_by_topic
-    from podcast_scraper.server.app_relational_view import hosted_photo_urls
+    from podcast_scraper.server.relational_view import hosted_photo_urls
 
     rows = [
         (slug, row)
