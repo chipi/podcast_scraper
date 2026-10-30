@@ -12,8 +12,10 @@ import pytest
 from podcast_scraper.enrichment.protocol import EnricherTier
 from podcast_scraper.enrichment.query_enrichers import (
     ALL_DETERMINISTIC_QUERY_ENRICHER_IDS,
-    QueryTopicRelatednessEnricher,
     register_deterministic_query_enrichers,
+)
+from podcast_scraper.enrichment.query_enrichers.query_topic_relatedness import (
+    QueryTopicRelatednessEnricher,
 )
 from podcast_scraper.enrichment.query_protocol import (
     make_request_ctx,

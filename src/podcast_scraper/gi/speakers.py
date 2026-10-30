@@ -275,7 +275,7 @@ def _person_display_name(nodes: List[Dict], person_id: Optional[str]) -> Optiona
 def _rewrite_quote_attribution(nodes: List[Dict], attribution: Dict[str, str]) -> None:
     """Point each Quote's OWN ``speaker_id`` / ``speaker_name`` at the recomputed answer (#2062).
 
-    Rewriting SPOKEN_BY alone does not change what a reader sees. ``server/app_gi_view`` resolves a
+    Rewriting SPOKEN_BY alone does not change what a reader sees. ``server/gi_view`` resolves a
     quote's speaker as ``speaker_name`` or the quote's own ``speaker_id`` BEFORE consulting the
     edge, and the pipeline stamps both onto the Quote — 4,898 of 7,343 quotes in a production
     sample carry ``speaker_id`` and 982 carry ``speaker_name``. So a remediation that fixed only
@@ -427,7 +427,7 @@ def add_spoken_by_edges(
             # cannot carry: `Patrick O'Shaughnessy` came back as `Patrick Oshaughnessy`. Measured
             # on the production snapshot: 17 person ids whose KG name and GI name differ solely
             # because of this. With `--replace-speakers` that name is then stamped onto
-            # `quote.speaker_name`, which `app_gi_view` reads FIRST, so the mangled spelling wins
+            # `quote.speaker_name`, which `gi_view` reads FIRST, so the mangled spelling wins
             # on the insight surface and no later rename can reach it (`apply_display_names`
             # rewrites Person nodes, not quote properties).
             #

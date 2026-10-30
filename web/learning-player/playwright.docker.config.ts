@@ -19,6 +19,10 @@
  */
 import { defineConfig, devices } from '@playwright/test'
 
+import { platformRoot } from './platform-root.mjs'
+
+const ROOT = platformRoot()
+
 export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/validation/**', '**/live/**'],
@@ -40,11 +44,11 @@ export default defineConfig({
   // NOTE: no API webServer here — the API runs in Docker on :8011 (started by hand).
   webServer: [
     {
-      command: '../../.venv/bin/python ../../scripts/tools/run_e2e_mock_server.py --port 18765',
+      command: `"${ROOT}/.venv/bin/python" "${ROOT}/scripts/tools/run_e2e_mock_server.py" --port 18765`,
       url: 'http://127.0.0.1:18765/audio/p05_e03.mp3',
       reuseExistingServer: true,
       timeout: 120_000,
-      env: { PYTHONPATH: '../../src:../..' },
+      env: { PYTHONPATH: `${ROOT}/src:${ROOT}` },
     },
     {
       command: 'npm run build && npm run preview -- --port 4174 --strictPort --host 127.0.0.1',

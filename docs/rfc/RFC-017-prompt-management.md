@@ -6,7 +6,7 @@
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
 - **Related ADRs**:
   - [ADR-018: Externalized Prompt Management](../adr/ADR-018-externalized-prompt-management.md)
-- **Related RFCs**: `docs/rfc/RFC-012-episode-summarization.md`, `docs/rfc/RFC-013-openai-provider-implementation.md`, `RFC-015` (moved to the private eval repo as RFC-004)
+- **Related RFCs**: `docs/rfc/RFC-012-episode-summarization.md`, `docs/rfc/RFC-013-openai-provider-implementation.md`
 - **Related Issues**: (to be created)
 
 ## Abstract
@@ -792,7 +792,6 @@ Following the modularization plan's incremental approach:
 
 ## References
 
-- RFC-015: AI Experiment Pipeline
 - RFC-013: OpenAI Provider Implementation
 - RFC-016: Modularization for AI Experiments
 - RFC-021: Modularization Refactoring Plan - Overall modularization strategy (historical reference)

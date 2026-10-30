@@ -12,7 +12,8 @@ from fastapi.testclient import TestClient
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
-from podcast_scraper.server.app_oauth import _apple_name, OAuthIdentity
+from podcast_scraper.server.app_oauth import OAuthIdentity
+from podcast_scraper.server.app_oauth_providers import _apple_name
 
 pytestmark = [pytest.mark.integration, pytest.mark.app]
 

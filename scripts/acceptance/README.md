@@ -34,8 +34,8 @@ They are **not** the same as the **evaluation framework** in `scripts/eval/` (ex
   - Compares runs, summarizes pass/fail, timing, resource usage.
   - Use after a session or with `make analyze-acceptance SESSION_ID=...`.
 
-The performance-benchmark report (`generate_performance_benchmark.py`) moved to
-the private eval repo with the rest of the performance story. `--auto-benchmark`
+The performance-benchmark report (`generate_performance_benchmark.py`) is no
+longer part of this repo. `--auto-benchmark`
 still accepts the flag and now says so rather than skipping in silence.
 
 ## How It Works
@@ -103,4 +103,4 @@ Run with a per-run timeout (e.g. 600 seconds) so long configs are killed and rep
 python scripts/acceptance/run_acceptance_tests.py --from-fast-stems --use-fixtures --timeout 600
 ```
 
-See `config/acceptance/README.md` for the fast matrix, fragments, and provider prerequisites. For the full experiment and evaluation workflow (datasets, baselines, metrics), see `EXPERIMENT_GUIDE.md` (moved to the private eval repo) and `scripts/eval/README.md`.
+See `config/acceptance/README.md` for the fast matrix, fragments, and provider prerequisites.

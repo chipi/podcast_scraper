@@ -12,8 +12,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
 
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_momentum import MomentumConfig, resolve_as_of_week, trending
+from podcast_scraper.server.corpus_access import corpus_root_or_503
 from podcast_scraper.server.schemas import AppCorpusTrendingResponse, AppTrendingEntity
 
 router = APIRouter(tags=["corpus"])

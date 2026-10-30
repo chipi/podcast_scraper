@@ -1,0 +1,344 @@
+"""Installed extensions: how packages add to the platform (ADR-166 decision 4).
+
+A package that wants to add routes or take part in account
+deletion publishes an :class:`Extension` under the ``podcast_scraper.extensions`` entry-point group;
+the server and the account-deletion path read :func:`load_extensions` and act on what they find.
+Absent package, absent feature — the platform runs, tests and deploys without any of them.
+
+An extension module must import with the platform's core dependencies only: the pipeline image
+has no web stack, and enrichment loads extensions too. So routers are a callable the server invokes,
+and hooks import what they need inside their own bodies.
+
+Extensions that live in this tree are listed in ``_IN_TREE``. Each is optional: a module that is
+not there is skipped. An extension found both in-tree and through an entry point is loaded once,
+by name, and the installed package wins (ADR-166 decision 6).
+"""
+
+from __future__ import annotations
+
+import importlib
+import logging
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from importlib import metadata
+from pathlib import Path
+from typing import Any, Callable, Iterator, Literal, Mapping, Sequence, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi import APIRouter
+
+    from podcast_scraper.search.groupings import TopicGroupings
+    from podcast_scraper.server.app_user_store import User
+
+logger = logging.getLogger(__name__)
+
+ENTRY_POINT_GROUP = "podcast_scraper.extensions"
+
+#: Where a router mounts. ``operator`` is the operator read plane (``/api``, full posture only;
+#: also the curated public operator plane when ``operator_public`` is set), ``app`` the consumer
+#: plane (``/api/app``), ``internal`` the service-to-service plane (``/internal``), ``root`` the
+#: app root (well-known documents).
+Plane = Literal["operator", "app", "internal", "root"]
+
+_PREFIX: dict[str, str] = {
+    "operator": "/api",
+    "app": "/api/app",
+    "internal": "/internal",
+    "root": "",
+}
+
+#: ``(data_dir, user) -> {count_name: n}``. Runs before the user's directory is removed; must be
+#: idempotent. The counts reach the deletion log and the admin response, never an address or token.
+AccountDeletedHook = Callable[[Path, "User"], dict[str, int]]
+
+#: ``(data_dir, user, provider)``. Runs once, right after sign-up creates the account (Google, Apple
+#: or email link). An app records its own first-use state here.
+AccountCreatedHook = Callable[[Path, "User", str], None]
+
+#: ``(app)``. Runs once while the server app is built, after sign-in and the user data directory
+#: are configured and before it serves. Must not raise into startup.
+AppConfiguredHook = Callable[[Any], None]
+
+#: ``(app) -> stop | None``. Runs when the server starts serving; must not block or raise. The
+#: returned callable, if any, runs at shutdown.
+ServerStartedHook = Callable[[Any], "Callable[[], None] | None"]
+
+#: ``(job_name, corpus_root, app)``. Fires a scheduled job of a kind the extension owns.
+JobRunner = Callable[[str, Path, Any], None]
+
+#: ``(data_dir, user_id | None) -> {"entities": [{"kind", "entity_id", "weekly_counts"}]}``: what
+#: listeners did with each entity per week (saves, plays, opens, follows). Trending blends it in.
+EngagementSeries = Callable[[Path, "str | None", "dict[str, int] | None"], dict[str, Any]]
+
+#: In-tree extension modules, each exposing ``EXTENSION``.
+_IN_TREE: tuple[str, ...] = (
+    "podcast_scraper.server.app_mcp_extension",
+    "podcast_scraper.server.app_player_extension",
+    "podcast_scraper.enrichment.intelligence_extension",
+)
+
+
+@dataclass(frozen=True)
+class RouterMount:
+    """One router and the plane it mounts on."""
+
+    router: APIRouter
+    plane: Plane
+    #: Operator-plane routers only: also mount on the curated public operator surface (RFC-108).
+    operator_public: bool = False
+
+    @property
+    def prefix(self) -> str:
+        return _PREFIX[self.plane]
+
+
+def _no_routers() -> Sequence[RouterMount]:
+    return ()
+
+
+def _none() -> Sequence[Any]:
+    return ()
+
+
+def _no_query_enrichers(corpus_root_provider: Callable[[], Path]) -> Sequence[Any]:
+    return ()
+
+
+@dataclass(frozen=True)
+class EnrichmentContribution:
+    """Enrichers an extension adds (ADR-166 decision 5). Each part is a callable so importing the
+    extension stays cheap; the enrichment code calls them where it builds its registries."""
+
+    #: Every enricher class the extension owns. Their class-level ``manifest`` feeds the accuracy
+    #: gate, the config schema and the profile sets, without instantiating anything.
+    enricher_classes: Callable[[], Sequence[type]] = _none
+    #: Deterministic enricher instances, registered wherever the platform registers its own.
+    deterministic: Callable[[], Sequence[Any]] = _none
+    #: ``--with-ml`` wiring: ``(enricher_registry, enricher_set) -> None``.
+    ml_wiring: Callable[[Any, Any], None] | None = None
+    #: WEB-tier enricher instances (registered always; profile membership decides if they run).
+    web: Callable[[], Sequence[Any]] = _none
+    #: Query enricher instances, built per search registry: ``(corpus_root_provider) -> [...]``.
+    query_enrichers: Callable[[Callable[[], Path]], Sequence[Any]] = _no_query_enrichers
+    #: Accuracy scorer instances for the eval gate.
+    scorers: Callable[[], Sequence[Any]] = _none
+    #: Registers the extension's provider types on the global provider-type registry.
+    provider_types: Callable[[], None] | None = None
+
+
+#: ``(corpus_root, entity_id) -> (path, media_type)`` of an image the extension hosts, or None.
+HostedImage = Callable[[Path, str], "tuple[Path, str] | None"]
+
+
+@dataclass(frozen=True)
+class ShareCardContribution:
+    """What the public share cards (OG images) draw from an extension; each part is optional."""
+
+    #: ``(corpus_root, kind) -> {entity_id: (velocity, weekly_series)}`` over the past year.
+    trends: Callable[[Path, str], Mapping[str, tuple[float, tuple[float, ...]]]] | None = None
+    person_image_path: HostedImage | None = None
+    org_logo_path: HostedImage | None = None
+
+
+@dataclass(frozen=True)
+class CliCommand:
+    """A ``podcast_scraper <name>`` subcommand. ``parse(argv)`` returns the namespace (with
+    ``command`` set to the name); ``run(args, log)`` returns the exit code. Both import lazily."""
+
+    parse: Callable[[Sequence[str]], Any]
+    run: Callable[[Any, logging.Logger], int]
+
+
+@dataclass(frozen=True)
+class Extension:
+    """What one installed package adds to the platform. Every part is optional."""
+
+    name: str
+    #: Called by the server only, so building the routers may import the web stack.
+    routers: Callable[[], Sequence[RouterMount]] = _no_routers
+    account_deleted: Sequence[AccountDeletedHook] = field(default_factory=tuple)
+    account_created: Sequence[AccountCreatedHook] = field(default_factory=tuple)
+    enrichment: EnrichmentContribution | None = None
+    #: Themes and storylines: the read side, the index rows, the builder and the search operators.
+    groupings: TopicGroupings | None = None
+    share_cards: ShareCardContribution | None = None
+    app_configured: Sequence[AppConfiguredHook] = field(default_factory=tuple)
+    server_started: Sequence[ServerStartedHook] = field(default_factory=tuple)
+    #: Scheduled-job kinds the extension runs, by the ``kind`` a ``scheduled_jobs:`` entry names.
+    job_kinds: Mapping[str, JobRunner] = field(default_factory=dict)
+    cli_commands: Mapping[str, CliCommand] = field(default_factory=dict)
+    engagement_series: EngagementSeries | None = None
+    #: Sign-in providers by name (``APP_OAUTH_PROVIDER`` / ``APP_OAUTH_PROVIDERS``), each built
+    #: from its own env: ``() -> OAuthProvider | None``.
+    oauth_providers: Mapping[str, Callable[[], Any]] = field(default_factory=dict)
+    #: Caches the extension keeps outside ``perf_cache``, by the key ``/api/ops/cache-stats``
+    #: reports them under: ``() -> stats``.
+    cache_stats: Mapping[str, Callable[[], Any]] = field(default_factory=dict)
+
+
+_override: list[Extension] | None = None
+_discovered: list[Extension] | None = None
+
+
+def _from_module(module_name: str) -> Extension | None:
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as exc:
+        if exc.name is not None and module_name.startswith(exc.name):
+            return None  # removed by the split: absent package, absent feature
+        raise
+    ext = getattr(module, "EXTENSION", None)
+    if not isinstance(ext, Extension):
+        raise TypeError(f"{module_name}.EXTENSION is not an Extension")
+    return ext
+
+
+def load_extensions() -> list[Extension]:
+    """Every installed extension, installed packages before in-tree modules, one per name.
+    Discovered once per process:
+    read paths consult it per request, and a scan of the installed distributions costs ~17 ms."""
+    global _discovered
+    if _override is not None:
+        return list(_override)
+    if _discovered is None:
+        _discovered = _discover()
+    return list(_discovered)
+
+
+def _discover() -> list[Extension]:
+    # Installed packages first: an image that installs an extension must run it, not the in-tree
+    # copy. The in-tree module only fills a name nothing installed provides. Either way each name
+    # loads once, so no route registers twice.
+    found: dict[str, Extension] = {}
+    for ep in metadata.entry_points(group=ENTRY_POINT_GROUP):
+        ext = ep.load()
+        if callable(ext) and not isinstance(ext, Extension):
+            ext = ext()
+        if not isinstance(ext, Extension):
+            raise TypeError(f"entry point {ep.name} ({ep.value}) is not an Extension")
+        if ext.name in found:
+            logger.debug(
+                "extension %s already installed; skipping entry point %s", ext.name, ep.value
+            )
+            continue
+        found[ext.name] = ext
+    for module_name in _IN_TREE:
+        ext = _from_module(module_name)
+        if ext is not None and ext.name not in found:
+            found[ext.name] = ext
+        elif ext is not None:
+            logger.debug(
+                "extension %s is installed; skipping the in-tree %s", ext.name, module_name
+            )
+    return list(found.values())
+
+
+def enrichment_contributions() -> list[EnrichmentContribution]:
+    """Every installed extension's enrichment contribution, in load order."""
+    return [ext.enrichment for ext in load_extensions() if ext.enrichment is not None]
+
+
+def share_card_contributions() -> list[ShareCardContribution]:
+    """Every installed extension's share-card contribution, in load order."""
+    return [ext.share_cards for ext in load_extensions() if ext.share_cards is not None]
+
+
+def cli_command(name: str) -> CliCommand | None:
+    """The installed subcommand called *name*, if any."""
+    for ext in load_extensions():
+        if name in ext.cli_commands:
+            return ext.cli_commands[name]
+    return None
+
+
+def job_runner(kind: str) -> JobRunner | None:
+    """The installed runner for scheduled jobs of *kind*, if any."""
+    for ext in load_extensions():
+        if kind in ext.job_kinds:
+            return ext.job_kinds[kind]
+    return None
+
+
+def extension_cache_stats() -> dict[str, Any]:
+    """Every installed extension's caches kept outside ``perf_cache``, by key."""
+    return {key: stats() for ext in load_extensions() for key, stats in ext.cache_stats.items()}
+
+
+def engagement_series() -> EngagementSeries | None:
+    """The installed listener-engagement source, if any."""
+    for ext in load_extensions():
+        if ext.engagement_series is not None:
+            return ext.engagement_series
+    return None
+
+
+def run_app_configured(app: Any) -> None:
+    """Every extension's ``app_configured`` hook, in load order; a failing one is logged."""
+    for ext in load_extensions():
+        for hook in ext.app_configured:
+            try:
+                hook(app)
+            except Exception:  # noqa: BLE001 — an extension never breaks the platform's startup
+                logger.exception("extension %s: app_configured hook failed", ext.name)
+
+
+def run_server_started(app: Any) -> list[Callable[[], None]]:
+    """Every extension's ``server_started`` hook; returns the stop callables to run at shutdown."""
+    stops: list[Callable[[], None]] = []
+    for ext in load_extensions():
+        for hook in ext.server_started:
+            try:
+                stop = hook(app)
+            except Exception:  # noqa: BLE001 — an extension never breaks the platform's startup
+                logger.exception("extension %s: server_started hook failed", ext.name)
+                continue
+            if stop is not None:
+                stops.append(stop)
+    return stops
+
+
+def run_account_created(data_dir: Path, user: User, provider: str) -> None:
+    """Every extension's ``account_created`` hook, in load order."""
+    for ext in load_extensions():
+        for hook in ext.account_created:
+            hook(data_dir, user, provider)
+
+
+@contextmanager
+def use_extensions(extensions: Sequence[Extension]) -> Iterator[None]:
+    """Replace discovery with *extensions* for the duration (tests: a fake app, or none)."""
+    global _override
+    previous = _override
+    _override = list(extensions)
+    try:
+        yield
+    finally:
+        _override = previous
+
+
+__all__ = [
+    "AccountCreatedHook",
+    "AccountDeletedHook",
+    "AppConfiguredHook",
+    "CliCommand",
+    "EngagementSeries",
+    "JobRunner",
+    "ServerStartedHook",
+    "ENTRY_POINT_GROUP",
+    "EnrichmentContribution",
+    "Extension",
+    "HostedImage",
+    "Plane",
+    "RouterMount",
+    "ShareCardContribution",
+    "cli_command",
+    "engagement_series",
+    "enrichment_contributions",
+    "job_runner",
+    "load_extensions",
+    "run_account_created",
+    "run_app_configured",
+    "run_server_started",
+    "share_card_contributions",
+    "use_extensions",
+]

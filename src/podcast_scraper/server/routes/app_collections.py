@@ -21,13 +21,12 @@ from podcast_scraper.server import (
     app_user_state,
     board_summaries,
 )
-from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_drift import play_window
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.artwork import artwork_url
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.content_source import row_to_summary
+from podcast_scraper.server.corpus_access import corpus_root_or_503
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -46,6 +45,7 @@ from podcast_scraper.server.schemas import (
     CollectionSearchResponse,
     CollectionsResponse,
 )
+from podcast_scraper.server.slugs import resolve_slug
 
 router = APIRouter(tags=["app"])
 logger = logging.getLogger(__name__)

@@ -285,7 +285,7 @@ def score_case(
             else:
                 first[src] = str(e.get("to"))
     labels = {str(v.get("voice")): v for v in label.get("voices") or [] if isinstance(v, dict)}
-    from ..server.app_gi_view import insights_from_gi
+    from ..server.gi_view import insights_from_gi
 
     served_ids = {str(i.id) for i in insights_from_gi(gi) or []}
     for iid, node in nodes.items():

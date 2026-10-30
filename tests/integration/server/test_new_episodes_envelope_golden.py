@@ -26,8 +26,8 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from podcast_scraper.server import app_new_episode_digest as ned, app_user_state
-from podcast_scraper.server.app_slugs import episode_slug
 from podcast_scraper.server.app_user_store import get_or_create_user
+from podcast_scraper.server.slugs import episode_slug
 
 # `app` explicitly: the marker is auto-applied only to test_app_*.py, and without it the PR suite
 # (`integration and (critical_path or app)`) never ran this golden — it ran only post-merge.

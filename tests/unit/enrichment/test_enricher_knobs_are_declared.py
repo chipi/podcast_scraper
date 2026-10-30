@@ -14,6 +14,7 @@ declared. This test exists so the next knob cannot repeat it.
 
 from __future__ import annotations
 
+import inspect
 import pathlib
 import re
 
@@ -29,14 +30,6 @@ pytestmark = pytest.mark.unit
 #: override on the operator config surface, which is worse than leaving it undeclared.
 _TEST_ONLY_KNOBS = {"now"}
 
-_ENRICHERS_DIR = (
-    pathlib.Path(__file__).resolve().parents[3]
-    / "src"
-    / "podcast_scraper"
-    / "enrichment"
-    / "enrichers"
-)
-
 
 def _registry() -> EnricherRegistry:
     reg = EnricherRegistry()
@@ -44,8 +37,15 @@ def _registry() -> EnricherRegistry:
     return reg
 
 
+def _source(enricher_id: str) -> pathlib.Path:
+    """The module the enricher's class is defined in, wherever its package lives (an extension's
+    enrichers are not under ``podcast_scraper``, ADR-166)."""
+    found = inspect.getsourcefile(type(_registry().get(enricher_id)))
+    return pathlib.Path(found) if found else pathlib.Path(f"<no source for {enricher_id}>")
+
+
 def _knobs_read(enricher_id: str) -> set[str]:
-    src = _ENRICHERS_DIR / f"{enricher_id}.py"
+    src = _source(enricher_id)
     if not src.is_file():
         return set()
     return set(re.findall(r'config\.get\(\s*"([a-z_]+)"', src.read_text(encoding="utf-8")))
@@ -79,7 +79,7 @@ def test_declared_knobs_are_actually_read(enricher_id: str) -> None:
     appears somewhere in the enricher's own source.
     """
     manifest = _registry().get(enricher_id).manifest
-    src = _ENRICHERS_DIR / f"{enricher_id}.py"
+    src = _source(enricher_id)
     if not src.is_file():
         pytest.skip(f"{enricher_id} has no single-module source")
     text = src.read_text(encoding="utf-8")
@@ -95,8 +95,7 @@ def test_the_audit_covers_every_registered_enricher() -> None:
     ids = sorted(_registry().all_ids())
     assert len(ids) >= 7, f"expected the deterministic enricher set, got {ids}"
     for eid in ids:
+        src = _source(eid)
         assert (
-            _ENRICHERS_DIR / f"{eid}.py"
-        ).is_file(), (
-            f"{eid} has no module at the audited path — the knob audit would skip it silently"
-        )
+            src.is_file() and src.stem == eid
+        ), f"{eid} has no module of its own ({src}) — the knob audit would skip it silently"

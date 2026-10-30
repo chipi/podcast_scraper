@@ -16,7 +16,7 @@ from podcast_scraper.search.compare import (
     compare_subjects,
     SubjectRef as CompareSubjectRef,
 )
-from podcast_scraper.search.operators import cluster_hits, consensus_pairs_for_hits
+from podcast_scraper.search.groupings import search_operators
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.query_enricher_helper import apply_query_enrichers
@@ -119,8 +119,9 @@ async def search_corpus(
             "Search v3 §S4b result-set operator: ``cluster`` (group by topic / theme "
             "cluster) or ``consensus`` (read enrichments/topic_consensus.json and "
             "filter pairs to topics in the hit set). Both run Python-side AFTER the "
-            "hybrid pipeline returns — no new native combine site. Anything else is "
-            "treated as no operator (plain top-k response, ``operator=null``)."
+            "hybrid pipeline returns — no new native combine site. Anything else, or an "
+            "operator no installed extension provides, is treated as no operator (plain "
+            "top-k response, ``operator=null``)."
         ),
     ),
 ) -> CorpusSearchApiResponse:
@@ -211,18 +212,18 @@ async def search_corpus(
     operator_key: str | None = None
     clusters: list[SearchClusterGroupModel] | None = None
     consensus_pairs: list[SearchConsensusPairModel] | None = None
-    if operator and operator.strip().lower() in _VALID_OPERATORS:
+    operators = search_operators() if operator else {}
+    if operator and operator.strip().lower() in _VALID_OPERATORS.intersection(operators):
         operator_key = operator.strip().lower()
         hit_dicts = [{"doc_id": h.doc_id, "metadata": dict(h.metadata)} for h in hits]
         try:
             # Off the event loop too (these read corpus files + cluster); no
             # LanceDB native access, so no gate needed — just don't block.
+            rows = await run_in_threadpool(operators[operator_key], hit_dicts, root)
             if operator_key == "cluster":
-                cluster_rows = await run_in_threadpool(cluster_hits, hit_dicts, root)
-                clusters = [SearchClusterGroupModel(**row) for row in cluster_rows]
+                clusters = [SearchClusterGroupModel(**row) for row in rows]
             elif operator_key == "consensus":
-                pairs = await run_in_threadpool(consensus_pairs_for_hits, hit_dicts, root)
-                consensus_pairs = [SearchConsensusPairModel(**p) for p in pairs]
+                consensus_pairs = [SearchConsensusPairModel(**p) for p in rows]
         except Exception as exc:  # noqa: BLE001 — never break /api/search
             logger.warning("operator %r failed: %s", operator_key, exc)
             if operator_key == "cluster":

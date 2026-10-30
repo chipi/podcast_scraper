@@ -1,13 +1,11 @@
 # Provider Deep Dives
 
-> **v2 authoritative data**: ``eval-reports/EVAL_HELDOUT_V2_2026_04.md`` is the latest (2026-04-16) 20-model held-out matrix. Per-provider quality numbers below are **v1-era** — preserved for continuity, superseded by v2 for any new decision. See also the top-of-page "Use these two" picks in the AI Provider Comparison Guide (moved to the private eval repo).
+> **v2 authoritative data**: the v2 matrix is the latest (2026-04-16) 20-model held-out matrix. Per-provider quality numbers below are **v1-era** — preserved for continuity, superseded by v2 for any new decision.
 >
 > **Per-provider reference cards, magic quadrant analysis, and visual comparisons.**
 
 This page is the detailed reference for each provider's capabilities, pricing, models,
-and strategic positioning. For the decision-oriented summary, see the
-AI Provider Comparison Guide (moved to the private eval repo). For measured
-performance numbers, see the `Evaluation Reports`.
+and strategic positioning.
 
 ---
 
@@ -525,10 +523,6 @@ DeepSeek           │███████████████████�
 
 ## Related Documentation
 
-- AI Provider Comparison Guide (moved to the private eval repo) — decision matrix
-  and recommended configurations
-- `Evaluation Reports` — methodology, metrics, and measured
-  performance
 - [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) — complete Ollama setup and
   troubleshooting
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md)

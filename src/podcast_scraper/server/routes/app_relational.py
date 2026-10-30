@@ -17,8 +17,10 @@ from typing import Literal, TypeVar
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_relational_view import (
+from podcast_scraper.server.app_user_corpus import user_episode_set
+from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.corpus_access import corpus_root_or_503
+from podcast_scraper.server.relational_view import (
     build_cluster_perspectives,
     build_org_card,
     build_person_card,
@@ -28,8 +30,6 @@ from podcast_scraper.server.app_relational_view import (
     build_topic_perspectives,
     resolve_entity,
 )
-from podcast_scraper.server.app_user_corpus import user_episode_set
-from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppClusterCard,

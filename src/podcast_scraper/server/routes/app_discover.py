@@ -25,9 +25,6 @@ from podcast_scraper.server import (
 from podcast_scraper.server.app_another_view_rail import engaged_topics
 from podcast_scraper.server.app_audio_drift import play_window
 from podcast_scraper.server.app_audit import append_audit
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_discover_rails import (
     FIRST,
     first_pages,
@@ -56,8 +53,6 @@ from podcast_scraper.server.app_ranking_config import (
     ranking_config_from_dict,
     ranking_config_to_dict,
 )
-from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
-from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
 from podcast_scraper.server.app_trending_episodes import TrendingEpisodeCard
 from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.app_user_corpus import (
@@ -66,6 +61,10 @@ from podcast_scraper.server.app_user_corpus import (
     user_episode_set,
 )
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.content_source import row_to_summary
+from podcast_scraper.server.corpus_access import corpus_root_or_503
+from podcast_scraper.server.relational_view import hosted_photo_urls, search_interests
 from podcast_scraper.server.routes.app_auth import (
     get_admin_user,
     get_current_user,
@@ -106,6 +105,7 @@ from podcast_scraper.server.schemas import (
     AppTrendingResponse,
     AppWhatsNewResponse,
 )
+from podcast_scraper.server.slugs import resolve_slug, slug_for_row
 
 # Every kind the momentum layer can rank (RFC-103). Namespaced ids per kind. `organization` (#2031)
 # is accepted so the surface can request it, but stays honest-empty until the content-series
@@ -390,8 +390,8 @@ def app_discover_rail_page(
 
 def _topic_label(root: Path, topic_id: str, slugs: list[str]) -> str:
     """The topic's display label, from the KG of an episode that names it; else the id's words."""
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     for slug in slugs[:3]:
         row = resolve_slug(root, slug)

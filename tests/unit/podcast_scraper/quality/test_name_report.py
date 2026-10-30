@@ -246,7 +246,7 @@ def test_r1_detects_both_raw_shapes_when_a_surface_shows_them(
     corpus: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The report must catch what the app shows; here the pre-S3 behaviour is restored by fakes."""
-    from podcast_scraper.server import app_gi_view, segments_view
+    from podcast_scraper.server import gi_view, segments_view
     from podcast_scraper.server.schemas import AppInsight, AppQuote, TranscriptSegment
 
     def fake_insights(gi, *, limit=None, unattributed_fallback=False):
@@ -268,7 +268,7 @@ def test_r1_detects_both_raw_shapes_when_a_surface_shows_them(
             for r in raw
         ]
 
-    monkeypatch.setattr(app_gi_view, "insights_from_gi", fake_insights)
+    monkeypatch.setattr(gi_view, "insights_from_gi", fake_insights)
     monkeypatch.setattr(segments_view, "to_contract_segments", fake_segments)
     report = name_report.run(corpus)
     r1 = report["r1_raw_labels"]

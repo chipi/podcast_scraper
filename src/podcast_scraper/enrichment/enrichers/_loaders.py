@@ -82,7 +82,7 @@ def topic_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
     filtered on the way out, at the two read chokepoints:
 
     * this one, for every corpus enricher, and
-    * ``server.app_kg_view.entities_from_kg`` + ``server.feed_signals._accumulate_kg_entities``,
+    * ``server.kg_view.entities_from_kg`` + ``server.feed_signals._accumulate_kg_entities``,
       for the episode chips, followable interests, discover ranking, show top-topics and the
       #1932 connectivity metric.
 

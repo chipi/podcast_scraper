@@ -5,7 +5,7 @@ Pure dict-in / model-out — no HTTP, no disk.
 
 from __future__ import annotations
 
-from podcast_scraper.server.app_gi_view import insights_from_gi
+from podcast_scraper.server.gi_view import insights_from_gi
 
 
 def _gi() -> dict:

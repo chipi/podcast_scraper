@@ -37,7 +37,7 @@ We adopt a **Hybrid MAP-REDUCE Summarization Strategy**:
   (`transcript_cleaning_strategy`) and internal hybrid preprocessing profiles are layered.
   Using `cleaning_hybrid_after_pattern` when the workflow already ran pattern cleaning
   avoids redundant sponsor/outro passes while keeping v4-only normalization before MAP;
-  quantitative comparison of preprocessing depth belongs in RFC-041 benchmarking runs.
+  quantitative comparison of preprocessing depth belongs in benchmarking runs.
 
 ## References
 

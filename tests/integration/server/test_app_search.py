@@ -20,9 +20,9 @@ from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
-from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_store import get_or_create_user
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+from podcast_scraper.server.slugs import slug_for_row
 
 pytestmark = [pytest.mark.integration]
 

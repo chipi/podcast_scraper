@@ -27,8 +27,8 @@ from podcast_scraper.server import (
 )
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
-from podcast_scraper.server.app_slugs import episode_slug
 from podcast_scraper.server.app_user_store import get_or_create_user
+from podcast_scraper.server.slugs import episode_slug
 
 pytestmark = pytest.mark.integration
 

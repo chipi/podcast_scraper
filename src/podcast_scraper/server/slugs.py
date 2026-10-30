@@ -18,7 +18,7 @@ from pathlib import Path
 
 from podcast_scraper import perf_cache
 from podcast_scraper.identity.slugify import slugify
-from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 
 _HASH_LEN = 10  # hex chars of the stable discriminator suffix

@@ -26,8 +26,8 @@ from podcast_scraper.server.app_learning_path import (  # noqa: E402
     PATH_DAYS,
 )
 from podcast_scraper.server.app_reasons import MIN_SUPPORT, quote_support  # noqa: E402
-from podcast_scraper.server.app_slugs import resolve_slug  # noqa: E402
 from podcast_scraper.server.app_user_store import get_or_create_user  # noqa: E402
+from podcast_scraper.server.slugs import resolve_slug  # noqa: E402
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("app_validation_search_index")]
 

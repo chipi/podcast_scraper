@@ -14,18 +14,18 @@ For **where Playwright fits** in the overall strategy (pyramid, CI jobs, pytest 
 
 ## Browser E2E (Playwright) {#browser-e2e-playwright}
 
-The GI/KG **Vue** viewer (`web/gi-kg-viewer`) uses **Playwright** (TypeScript, **Firefox**), not
+The GI/KG **Vue** viewer (`web/gi-kg-viewer`) uses **Playwright** (TypeScript; **Chrome** locally, **Firefox** in CI), not
 pytest. This section summarizes the **browser** stack only; everything below *Overview* in this
 file remains **pytest** E2E.
 
 | Topic | Detail |
 | ----- | ------ |
-| **Run from repo root** | `make test-ui-e2e` (`npm install`, `playwright install firefox`, `npm run test:e2e`) |
+| **Run from repo root** | `make test-ui-e2e` (`npm install`, `playwright install chromium`, `npm run test:e2e`) |
 | **Run in package** | `cd web/gi-kg-viewer && npm run test:e2e` |
 | **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** with **`reuseExistingServer: true`** so a dev server already bound to that port is reused (helps when **`CI=true`** is set locally and would otherwise force a second **strictPort** bind) |
 | **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
 | **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
-| **Consumer player** | The learning player has its own parallel e2e (`web/learning-player/e2e/*.spec.ts`, mobile+desktop **Chrome** — note the viewer suite uses Firefox), running against a **real API over the committed `app-validation-corpus/v3`**. Surface map: [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/e2e/E2E_SURFACE_MAP.md). Run with `cd web/learning-player && npm run test:e2e`. **Mocks:** the suite is *nearly* mock-free — one audio route stub (`routeLoadableAudio`, tracked by [#1618](https://github.com/chipi/podcast_scraper/issues/1618)) plus 5 data-shape stubs in 3 specs for states the corpus cannot yet produce. Do not add more; add fixtures instead. |
+| **Consumer player** | The learning player has its own parallel e2e (`web/learning-player/e2e/*.spec.ts`, mobile+desktop **Chrome** — the viewer suite runs Chrome too, except in CI where it still runs Firefox), running against a **real API over the committed `app-validation-corpus/v3`**. Surface map: [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/e2e/E2E_SURFACE_MAP.md). Run with `cd web/learning-player && npm run test:e2e`. **Mocks:** the suite is *nearly* mock-free — one audio route stub (`routeLoadableAudio`, tracked by [#1618](https://github.com/chipi/podcast_scraper/issues/1618)) plus 5 data-shape stubs in 3 specs for states the corpus cannot yet produce. Do not add more; add fixtures instead. |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
 | **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
 | **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |

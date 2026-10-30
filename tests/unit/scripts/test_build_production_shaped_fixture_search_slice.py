@@ -4,8 +4,9 @@ Two responsibilities:
 
 1. The hand-authored ``search-v3/mocks.json`` under
    ``web/gi-kg-viewer/e2e/fixtures/production-shaped/`` is well-formed and its
-   scenarios cover the 5 shapes RFC-107 / UXS-016 spec (compound-lift,
-   enriched-answer, operator-cluster, operator-consensus, temporal-intent).
+   scenarios cover the public shapes RFC-107 / UXS-016 spec (compound-lift,
+   temporal-intent). The cluster and consensus operators and the enriched answer read
+   enrichers outside the base set (ADR-166) and have no scenario here.
 2. Every ``episode_id`` the mocks reference exists in the parent fixture's
    ``manifest.json`` — so hit-card handoffs to Library / Graph resolve
    cleanly against the same fixture and don't break spec-time.
@@ -26,9 +27,6 @@ PARENT_MANIFEST = FIXTURE_ROOT / "manifest.json"
 
 EXPECTED_SCENARIOS = {
     "compound-lift",
-    "enriched-answer",
-    "operator-cluster",
-    "operator-consensus",
     "temporal-intent",
 }
 
@@ -95,77 +93,6 @@ def test_compound_lift_scenario_carries_lifted_block(mocks: dict[str, Any]) -> N
         for k in ("insight", "speaker", "topic", "quote"):
             assert k in lifted, f"compound-lift hit missing lifted.{k}"
         assert lifted["insight"].get("grounded") is True, "lifted.insight must be grounded"
-
-
-def test_enriched_answer_scenario_has_grounded_sources(mocks: dict[str, Any]) -> None:
-    # Enrichment moved from a top-level ``enriched`` block to per-hit
-    # ``metadata.query_enrichments.related_topics`` (RFC-088 QueryEnricher
-    # chain, wired in commit a26e0a5e). "Grounded" here means: at least one
-    # hit is an ``insight`` doc_type (the only tier that carries grounded
-    # claims) AND at least one hit carries a related_topics decoration.
-    resp = mocks["scenarios"]["enriched-answer"]["response"]
-    hits = resp.get("results", [])
-    assert hits, "enriched-answer scenario has no hits"
-    grounded_hits = [h for h in hits if h.get("metadata", {}).get("doc_type") == "insight"]
-    assert grounded_hits, "enriched-answer scenario has no insight-tier (grounded) hits"
-    decorated = [
-        h
-        for h in hits
-        if isinstance(h.get("metadata", {}).get("query_enrichments"), dict)
-        and h["metadata"]["query_enrichments"].get("related_topics")
-    ]
-    assert decorated, "no hit carries metadata.query_enrichments.related_topics"
-
-
-def test_operator_cluster_has_min_two_members(mocks: dict[str, Any]) -> None:
-    # Response shape: top-level ``operator="cluster"`` + top-level ``clusters``
-    # list of {cluster_id, cluster_kind, label, size, hit_indices} — matches
-    # SearchClusterGroupModel in server/schemas.py.
-    resp = mocks["scenarios"]["operator-cluster"]["response"]
-    assert resp.get("operator") == "cluster"
-    clusters = resp.get("clusters", [])
-    assert clusters, "no clusters in operator-cluster scenario"
-    # The mocks are 9-episode/small-corpus samples — RFC-107 §T1's ≥5-member
-    # invariant belongs on a full-corpus e2e; the fixture floor is ≥2 members
-    # (still exercises multi-hit grouping, hit_indices lookup, cluster
-    # labelling).
-    assert any(
-        c.get("size", 0) >= 2 for c in clusters
-    ), f"no cluster has ≥2 members (sizes: {[c.get('size') for c in clusters]})"
-    # And every cluster's hit_indices actually resolves within the results
-    # page — otherwise the client can't lift a card from a cluster.
-    results = resp.get("results", [])
-    for c in clusters:
-        for idx in c.get("hit_indices", []):
-            assert 0 <= idx < len(results), (
-                f"cluster {c.get('cluster_id')!r} hit_index {idx} out of range "
-                f"(results has {len(results)})"
-            )
-
-
-def test_operator_consensus_has_shipped_tuple_shape(mocks: dict[str, Any]) -> None:
-    # Response shape: top-level ``operator="consensus"`` + top-level
-    # ``consensus_pairs`` list (SearchConsensusPairModel in server/schemas.py).
-    resp = mocks["scenarios"]["operator-consensus"]["response"]
-    assert resp.get("operator") == "consensus"
-    pairs = resp.get("consensus_pairs", [])
-    assert pairs, "no pairs in operator-consensus scenario"
-    required = {
-        "topic_id",
-        "person_a_id",
-        "person_b_id",
-        "insight_a_id",
-        "insight_b_id",
-        "contradiction_score",
-    }
-    for pair in pairs:
-        missing = required - set(pair.keys())
-        assert not missing, f"consensus pair missing tuple fields: {sorted(missing)}"
-        # Consensus per ADR-108: low contradiction_score + high embedding cosine ⇒ agreement.
-        # The mocks encode agreement, so contradiction_score should be low.
-        assert (
-            pair["contradiction_score"] < 0.5
-        ), f"consensus pair should have low contradiction_score (got {pair['contradiction_score']})"
 
 
 def test_temporal_intent_scenario_has_query_type(mocks: dict[str, Any]) -> None:

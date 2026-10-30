@@ -96,7 +96,7 @@ make ci                      # Full CI suite (+ Playwright, coverage enforce)
 | `make test` | All tests | ~8min |
 | `make test-nightly` | Nightly tests (production models) | ~4hrs |
 | `make test-ui` | Vitest unit tests for `web/gi-kg-viewer` TS utils (no browser) | ~1s |
-| `make test-ui-e2e` | Playwright E2E for `web/gi-kg-viewer` (Firefox; installs browsers) | ~1–3 min |
+| `make test-ui-e2e` | Playwright E2E for `web/gi-kg-viewer` (Chrome; installs browsers) | ~1–3 min |
 | `make test-acceptance-fixtures-fast` | Full-pipeline acceptance **fast matrix** + E2E fixtures (materializes **`MAIN_ACCEPTANCE_CONFIG.yaml`** rows) | slow (CI-scale) |
 
 Full-pipeline acceptance presets: **`make test-acceptance CONFIGS="…"`** or **`FROM_FAST_STEMS=1`** **`USE_FIXTURES=1`** — see [Testing Guide — E2E Acceptance Tests](TESTING_GUIDE.md#e2e-acceptance-tests) and **`scripts/acceptance/README.md`**.
@@ -152,7 +152,7 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 | `make serve-api SERVE_OUTPUT_DIR=…` | API only on **8000** |
 | `make serve-ui` | Vite only on **5173** (proxies `/api` → 8000) |
 | `make test-ui` | Vitest unit tests for TS utils (fast, no browser) |
-| `make test-ui-e2e` | Playwright tests (Firefox; Vite on **5174** inside config) |
+| `make test-ui-e2e` | Playwright tests (Chrome; Vite on **5174** inside config) |
 
 **Prerequisites:** `pip install -e ".[dev]"`; once per clone, `cd web/gi-kg-viewer && npm install && npm run build` to serve the built SPA from `serve`.
 
@@ -167,7 +167,6 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 
 | Need | Guide |
 | ---- | ----- |
-| Compare providers (cost, quality, speed, privacy) | AI Provider Comparison (moved to the private eval repo) |
 | Per-provider specs, benchmarks, magic quadrant | [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) |
 | Implement a new provider | [Provider Implementation](PROVIDER_IMPLEMENTATION_GUIDE.md) |
 | Quick provider config | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
@@ -181,9 +180,7 @@ The experiment, run-promote, profile-freeze and profile-diff commands are retire
 from this repository (#2134).
 
 **Docs:**
-`Experiment Guide`
-· Performance Profile Guide (moved to the private eval repo)
-· `data/eval/README.md`
+`data/eval/README.md`
 · `data/profiles/README.md`
 
 ---
@@ -350,10 +347,7 @@ On **`main`**, GitHub Actions runs **`stack-test.yml`** against the same topolog
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Full development workflow
 - [Testing Guide](TESTING_GUIDE.md) - Detailed test information
-- AI Provider Comparison (moved to the private eval repo) - Provider decision guide
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) - Per-provider benchmarks
-- `Experiment Guide` - Eval datasets and baselines
-- Performance Profile Guide (moved to the private eval repo) - Release timing snapshots
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled
 - [CLI Reference](../api/CLI.md) - All CLI options

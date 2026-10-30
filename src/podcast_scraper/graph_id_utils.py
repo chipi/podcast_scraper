@@ -182,7 +182,7 @@ _SPEAKER_PLACEHOLDER_PATTERN = re.compile(
     # surname anywhere in the episode identifies someone within that episode and nobody
     # globally — the same under-specification as SPEAKER_03, so it belongs in the same bucket.
     # This one line is what makes the whole change land: the predicate is consulted in twelve
-    # modules, INCLUDING `app_kg_view.entities_from_kg`, which is the single source for entity
+    # modules, INCLUDING `kg_view.entities_from_kg`, which is the single source for entity
     # cards, discover ranking rows and derived interests. Without it the scoped ids would still
     # be followable episode-local people — the thing the change exists to prevent.
     r"|^person:unresolved-.+$",

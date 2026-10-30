@@ -14,12 +14,12 @@ import pytest
 
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_discover_view import interest_episode_index
-from podcast_scraper.server.app_slugs import _slug_index
 from podcast_scraper.server.app_user_corpus import (
     followed_interest_episodes,
     UMBRELLA_TOPIC_SHARE,
     world_episode_set,
 )
+from podcast_scraper.server.slugs import _slug_index
 
 # The rails, reels and Mine read the search sidecar (`interest_episode_index`), which is gitignored:
 # this builds it once per session, rebuilds it when the corpus changes, and skips without a model.

@@ -116,7 +116,7 @@ CLOUD_BALANCED_EXPECTED = {
 
 CLOUD_QUALITY_OVERRIDES = {
     # openai-whisper-1 is the quality-tier transcription default — it won the
-    # real-human-GT ASR bake-off (EVAL_ASR_5MODEL_BAKEOFF_2026_07 / #1273);
+    # real-human-GT ASR bake-off (#1273);
     # Deepgram nova-3 stays for DIARIZATION only (+ native screenplay).
     "transcription_provider": "openai",
     "deepgram_model": "nova-3",

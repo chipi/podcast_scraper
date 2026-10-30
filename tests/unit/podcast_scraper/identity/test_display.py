@@ -11,7 +11,7 @@ from typing import Dict, List
 import pytest
 
 from podcast_scraper.identity import display as D, ledger as L
-from podcast_scraper.server.app_gi_view import insights_from_gi
+from podcast_scraper.server.gi_view import insights_from_gi
 
 pytestmark = pytest.mark.unit
 

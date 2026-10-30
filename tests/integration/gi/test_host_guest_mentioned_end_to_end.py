@@ -34,7 +34,7 @@ import pytest
 from podcast_scraper.gi.speakers import add_spoken_by_edges
 from podcast_scraper.kg.io import write_artifact
 from podcast_scraper.kg.pipeline import build_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.kg_view import entities_from_kg
 
 pytestmark = pytest.mark.integration
 

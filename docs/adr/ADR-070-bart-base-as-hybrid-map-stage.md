@@ -3,8 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-04-04
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002),
-  [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
+- **Related RFCs**: [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - **See Also**: [ADR-069](ADR-069-hybrid-ml-pipeline-as-production-direction.md),
   [ADR-068](ADR-068-bart-led-as-ml-production-baseline.md)
 
@@ -129,13 +128,9 @@ extra capacity is unused since the chunking strategy is constrained by the small
 - **Champion config**: `data/eval/configs/ml/baseline_ml_hybrid_bart_llama32_3b_autoresearch_v1.yaml`
 - **Registry entry**: `src/podcast_scraper/providers/ml/model_registry.py` →
   `_mode_registry["ml_hybrid_bart_llama32_3b_autoresearch_v1"]`
-- **Sweep TSVs**: `autoresearch/ml_param_tuning/results/bart_llama32_3b_sweep_*.tsv`
-- **LongT5 sweep TSVs**: `autoresearch/ml_param_tuning/results/longt5_llama32_3b_sweep_*.tsv`,
-  `autoresearch/ml_param_tuning/results/longt5_led_sweep_*.tsv`
 
 ## References
 
-- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [RFC-042: Hybrid Podcast Summarization Pipeline](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)
 - [ADR-068: BART+LED as ML Production Baseline](ADR-068-bart-led-as-ml-production-baseline.md)

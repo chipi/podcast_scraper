@@ -70,7 +70,7 @@ gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A + Layer B both bundled.
 # Coverage vs Sonnet-4.6 silver: 75% (staged) → 82% (+7pp). 92% calls cut.
-# ADR-078; results in autoresearch/gil_evidence_bundling/results.tsv.
+# ADR-078.
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
 

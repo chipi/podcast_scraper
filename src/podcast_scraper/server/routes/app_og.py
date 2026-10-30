@@ -16,7 +16,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.corpus_access import corpus_root_or_503
 from podcast_scraper.server.og.build import build_og_model, OG_KINDS
 from podcast_scraper.server.og.card import render_card_png
 

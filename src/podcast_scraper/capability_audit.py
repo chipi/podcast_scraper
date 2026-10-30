@@ -40,13 +40,13 @@ from podcast_scraper.search.topic_clusters import (
     theme_map_by_topic,
     top_themes_by_member_count,
 )
-from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_discover_view import (
     _episode_features,
     _pool_window,
     build_discover_pool,
     rank_discover,
 )
+from podcast_scraper.server.corpus_access import load_json_artifact
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
 #: The picker's default page size, mirroring ``GET /api/app/themes?limit=``.

@@ -26,8 +26,8 @@ from fastapi.testclient import TestClient
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
-from podcast_scraper.server.app_slugs import _slug_index
 from podcast_scraper.server.app_user_store import get_or_create_user
+from podcast_scraper.server.slugs import _slug_index
 
 pytestmark = [pytest.mark.integration]
 
@@ -105,13 +105,13 @@ def test_the_clips_that_ran_into_a_break_still_play_and_end_before_it(corpus: Pa
     """Every clip that could play for these points — the episode's moment CANDIDATES, not only
     the ones picked: on the real timeline (2026-10-15) p04_e01 picks two other moments, and the
     clip for this point, still built and still ending at the break, is no longer among them."""
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
     from podcast_scraper.server.app_episode_search import (
         episode_ad_spans,
         episode_segments,
         episode_turn_starts,
     )
     from podcast_scraper.server.app_moments import MomentsConfig, score_candidates
+    from podcast_scraper.server.corpus_access import load_json_artifact
 
     rows = {
         Path(r.metadata_relative_path).name[: -len(".metadata.json")]: r
