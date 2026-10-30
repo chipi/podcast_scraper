@@ -222,7 +222,12 @@ def test_r1_finds_no_raw_label_on_any_surface_after_s3(corpus: Path) -> None:
     # RFC-131 S3: the app no longer shows raw labels, so R1 measures zero on this corpus. The
     # report's own detection is tested below against builders that still show them.
     report = name_report.run(corpus)
-    assert {k: v for k, v in report["r1_raw_labels"].items() if k.endswith(":raw")} == {}
+    shown = {
+        k: v
+        for k, v in report["r1_raw_labels"].items()
+        if k.endswith(":raw") and not k.startswith("data_")  # data_* is what the files hold
+    }
+    assert shown == {}
     assert "Zed Superseded" not in json.dumps(report)
 
 
@@ -407,3 +412,9 @@ def test_r1_detects_raw_labels_on_search_and_the_mcp_roster(
     assert r1["search_insight_quotes:raw"]["items"] >= 2
     assert r1["search_lifted_speaker:raw"]["items"] >= 1
     assert r1["mcp_speaker_roster:raw"]["episodes"] == 6
+
+
+def test_data_level_counts_give_the_before_whatever_the_surfaces_do(corpus: Path) -> None:
+    r1 = name_report.run(corpus)["r1_raw_labels"]
+    # Fixture: SPEAKER_07 (a1), unknown_guest_1 (a2) and SPEAKER_04 (c1) each speak one quote.
+    assert r1["data_quotes:raw"] == {"episodes": 3, "items": 3}

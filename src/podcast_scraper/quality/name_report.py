@@ -258,7 +258,13 @@ def measure_episode(ep: Episode) -> EpisodeResult:
 
     if isinstance(gi, dict):
         raw_rows.extend(_read_model_rows(ep, gi))
+        raw_rows.extend(_data_rows(ep, gi))
     raw_rows.extend(_roster_rows(ep, roster))
+    raw_rows.extend(
+        _row(ep, "data_roster_entries", s["name"], "raw")
+        for s in roster
+        if label_kind(str(s.get("name") or "")) == "raw"
+    )
 
     kg = ep.artifact(".kg.json")
     kg_ids_by_name: Dict[str, Set[str]] = defaultdict(set)
@@ -335,6 +341,31 @@ def _read_model_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
             rows.append(_row(ep, "search_lifted_speaker", speaker["display_name"], "raw"))
         elif not speaker["display_name"] and is_raw_label_person_id(speaker["id"]):
             rows.append(_row(ep, "search_lifted_speaker", speaker["id"], "raw"))
+    return rows
+
+
+def _data_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """What the artifacts hold, before any display rule: the "before" of the read-model surfaces.
+
+    ``data_quotes``: quotes spoken (SPOKEN_BY) by a Person whose name is a raw label; an
+    unfiltered read model shows each as that name. ``data_bridge_identities``: bridge identities
+    whose display name is a raw label; an unfiltered lifted speaker shows each.
+    """
+    rows: List[Dict[str, Any]] = []
+    raw_persons = {
+        n.get("id")
+        for n in gi.get("nodes") or []
+        if isinstance(n, dict)
+        and n.get("type") == "Person"
+        and label_kind(str((n.get("properties") or {}).get("name") or "")) == "raw"
+    }
+    for e in gi.get("edges") or []:
+        if isinstance(e, dict) and e.get("type") == "SPOKEN_BY" and e.get("to") in raw_persons:
+            rows.append(_row(ep, "data_quotes", str(e.get("to")), "raw"))
+    bridge = ep.artifact(".bridge.json") or {}
+    for ident in bridge.get("identities") or [] if isinstance(bridge, dict) else []:
+        if isinstance(ident, dict) and label_kind(str(ident.get("display_name") or "")) == "raw":
+            rows.append(_row(ep, "data_bridge_identities", str(ident.get("display_name")), "raw"))
     return rows
 
 
