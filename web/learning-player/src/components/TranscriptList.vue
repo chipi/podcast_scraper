@@ -17,12 +17,13 @@ import type { GroundedSpan } from '../player/insights'
 import { quoteHighlight } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { selectionSubRange, spanFromParagraph, type ParagraphSpan } from '../player/transcriptCapture'
-import { speakerLabel } from '../utils/format'
+import { segmentSpeakerLabel } from '../utils/format'
 
 type Split = { pre: string; match: string; post: string }
 interface Paragraph {
   key: string
   speaker: string | null
+  speakerText: string | null
   showSpeaker: boolean
   start: number
   hasGrounded: boolean
@@ -117,6 +118,7 @@ const paragraphs = computed<Paragraph[]>(() => {
       out.push({
         key: seg.id,
         speaker: seg.speaker ?? null,
+        speakerText: segmentSpeakerLabel(seg, t),
         showSpeaker: showSpeaker(i),
         start: seg.start,
         hasGrounded: false,
@@ -209,7 +211,7 @@ watch(
              the bare time, never a dangling dot. -->
         <template v-if="para.showSpeaker">
           <span aria-hidden="true" class="select-none text-xs text-disabled">·</span>
-          <span class="lp-speaker">{{ speakerLabel(para.speaker) }}</span>
+          <span class="lp-speaker">{{ para.speakerText }}</span>
         </template>
       </div>
       <!-- `relative` HERE, not on the row: the save glyph is placed against the PARAGRAPH, so it sits

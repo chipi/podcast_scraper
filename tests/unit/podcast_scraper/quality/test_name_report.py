@@ -218,18 +218,50 @@ def test_served_episodes_keep_only_the_newest_run(corpus: Path) -> None:
     ]
 
 
-def test_r1_counts_both_raw_shapes_on_insights_and_the_transcript(corpus: Path) -> None:
+def test_r1_finds_no_raw_label_on_any_surface_after_s3(corpus: Path) -> None:
+    # RFC-131 S3: the app no longer shows raw labels, so R1 measures zero on this corpus. The
+    # report's own detection is tested below against builders that still show them.
+    report = name_report.run(corpus)
+    assert {k: v for k, v in report["r1_raw_labels"].items() if k.endswith(":raw")} == {}
+    assert "Zed Superseded" not in json.dumps(report)
+
+
+def test_r1_detects_both_raw_shapes_when_a_surface_shows_them(
+    corpus: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The report must catch what the app shows; here the pre-S3 behaviour is restored by fakes."""
+    from podcast_scraper.server import app_gi_view, segments_view
+    from podcast_scraper.server.schemas import AppInsight, AppQuote, TranscriptSegment
+
+    def fake_insights(gi, *, limit=None, unattributed_fallback=False):
+        names = sorted(
+            n["properties"]["name"]
+            for n in gi.get("nodes", [])
+            if n.get("type") == "Person"
+            and name_report.label_kind(n["properties"]["name"]) == "raw"
+            and (unattributed_fallback or n["id"] != "person:speaker-c1-04")
+        )
+        return [
+            AppInsight(id=f"i{k}", text="t", grounded=True, quotes=[AppQuote(text="q", speaker=n)])
+            for k, n in enumerate(names)
+        ]
+
+    def fake_segments(raw):
+        return [
+            TranscriptSegment(id="s", start=0, end=1, text="x", speaker=r.get("speaker_label"))
+            for r in raw
+        ]
+
+    monkeypatch.setattr(app_gi_view, "insights_from_gi", fake_insights)
+    monkeypatch.setattr(segments_view, "to_contract_segments", fake_segments)
     report = name_report.run(corpus)
     r1 = report["r1_raw_labels"]
     assert r1["insights_default:raw"] == {"episodes": 2, "items": 2}
     # Feed C's unattributed raw-label insight appears on the fallback path only.
     assert r1["insights_fallback:raw"] == {"episodes": 3, "items": 3}
     assert r1["transcript_segments:raw"] == {"episodes": 1, "items": 1}
-    # The people chips drop scoped placeholders and SPEAKER_NN, but not the detector default.
-    assert r1["episode_people_chips:raw"] == {"episodes": 1, "items": 1}
     names = {row["name"] for row in report["r1_rows"]}
     assert names == {"SPEAKER_07", "SPEAKER_04", "unknown_guest_1"}
-    assert "Zed Superseded" not in json.dumps(report)
 
 
 def test_roster_mode_pairs_listings_and_voice_mode_pairs_voices(corpus: Path) -> None:

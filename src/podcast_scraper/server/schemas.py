@@ -18,8 +18,21 @@ class TranscriptSegment(BaseModel):
     text: str = Field(description="Segment transcript text.")
     speaker: str | None = Field(
         default=None,
-        description="Speaker label/id when diarized (canonical person:{slug} when "
-        "resolved, else raw label); omitted when unknown.",
+        description="Speaker to show, in English: a person's name, or a label for a voice that is "
+        "not a named person ('Host', 'Brief speaker', 'Advertisement', 'Unidentified speaker N'). "
+        "Never a raw diarization label. Clients that localise use speaker_kind / speaker_index.",
+    )
+    speaker_kind: str | None = Field(
+        default=None,
+        description="What the speaker is: 'person' (speaker is their name), 'host' (an unnamed "
+        "host), 'brief' (a short cameo), 'advertisement', 'unidentified' (an unnamed voice, "
+        "numbered by speaker_index), or 'role' (a role word such as 'Guest' shown as is). None "
+        "when the segment has no speaker at all.",
+    )
+    speaker_index: int | None = Field(
+        default=None,
+        description="For speaker_kind 'unidentified': 1, 2, ... by first appearance in the "
+        "episode, so a reader can tell two unnamed voices apart. Computed when served; not an id.",
     )
 
 

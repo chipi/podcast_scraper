@@ -47,12 +47,15 @@ class TestToContractSegments:
         assert [s.id for s in out] == ["seg_0000", "seg_0001", "seg_0002"]
         assert out[0].start == 0.0 and out[0].end == 2.5 and out[0].text == "Hello."
         assert out[0].speaker == "Alice"  # speaker_label wins
-        assert out[1].speaker == "SPEAKER_01"  # speaker_id fallback
+        # A raw diarization id is never shown (RFC-131 S3, operator 2026-10-30): numbered instead.
+        assert out[1].speaker == "Unidentified speaker 1"
+        assert (out[1].speaker_kind, out[1].speaker_index) == ("unidentified", 1)
         assert out[2].speaker == "raw-tag"  # speaker fallback
 
     def test_voice_type_renders_friendly_label(self) -> None:
-        # A cameo/commercial voice shows a friendly label; a substantive unknown keeps its raw id;
-        # a named voice with no voice_type is unchanged. The id-bearing speaker_label is untouched.
+        # A cameo/commercial voice shows a friendly label; a substantive unknown is "Unidentified
+        # speaker N" (RFC-131 S3; it used to keep its raw id); a named voice with no voice_type is
+        # unchanged. The id-bearing speaker_label is untouched.
         raw = [
             {
                 "start": 0.0,
@@ -80,7 +83,7 @@ class TestToContractSegments:
         out = to_contract_segments(raw)
         assert out[0].speaker == "Brief speaker"
         assert out[1].speaker == "Advertisement"
-        assert out[2].speaker == "SPEAKER_04"  # substantive unknown keeps its raw id
+        assert out[2].speaker == "Unidentified speaker 1"  # never the raw id (RFC-131 S3)
         assert out[3].speaker == "Alice"
 
     def test_unnamed_host_renders_as_host(self) -> None:

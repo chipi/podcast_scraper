@@ -38,6 +38,12 @@ PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization", "Object"}
 #: episodes, so such a label must be episode-scoped, never a global id (#1b).
 _BARE_SPEAKER_LABEL_RE = re.compile(r"^\s*speaker[\s_\-]*\d+\s*$", re.IGNORECASE)
 
+#: The speaker detector's failure default (``speaker_detectors.constants.DEFAULT_SPEAKER_NAMES``):
+#: ``unknown_guest_1``. A label, never a person; before RFC-131 it slugged to the GLOBAL id
+#: ``person:unknown-guest-1`` and rendered as a speaker card, because the numbered pattern above
+#: needs "speaker".
+_DETECTOR_DEFAULT_LABEL_RE = re.compile(r"^\s*unknown[\s_\-]*guest[\s_\-]*\d+\s*$", re.IGNORECASE)
+
 #: ROLE words that name a position in the conversation, not a human being.
 #:
 #: Identical failure to the numbered labels above, and it went unnoticed because the regex only
@@ -115,6 +121,19 @@ def is_numbered_speaker_label(name: Optional[str]) -> bool:
     return bool(name and _BARE_SPEAKER_LABEL_RE.match(str(name)))
 
 
+def is_raw_speaker_label(name: Optional[str]) -> bool:
+    """True when *name* is a raw label that must never be shown as a speaker (RFC-131, S3).
+
+    A numbered diarization label (``SPEAKER_07``, ``Speaker 3``) or the speaker detector's failure
+    default (``unknown_guest_1``). Role words are NOT raw: "Host" stays readable inside its own
+    episode; :func:`is_bare_speaker_label` is the wider placeholder test that includes them.
+    """
+    if not name:
+        return False
+    text = str(name)
+    return bool(_BARE_SPEAKER_LABEL_RE.match(text) or _DETECTOR_DEFAULT_LABEL_RE.match(text))
+
+
 def is_bare_speaker_label(name: Optional[str]) -> bool:
     """True when *name* is a placeholder rather than a real person.
 
@@ -122,12 +141,14 @@ def is_bare_speaker_label(name: Optional[str]) -> bool:
 
     * a numbered diarization label — ``SPEAKER_03`` (#1b);
     * a ROLE word — ``Host``, ``Guest``, ``Interviewer`` (#2059). Same bug, missed for a year
-      because the regex required digits.
+      because the regex required digits;
+    * the speaker detector's failure default — ``unknown_guest_1`` (RFC-131, S3), which neither
+      shape matched, so it became a global person.
     """
     if not name:
         return False
     text = str(name).strip()
-    if _BARE_SPEAKER_LABEL_RE.match(text):
+    if _BARE_SPEAKER_LABEL_RE.match(text) or _DETECTOR_DEFAULT_LABEL_RE.match(text):
         return True
     return text.casefold() in _ROLE_LABELS
 
@@ -262,7 +283,12 @@ def _scoped_speaker_person_id(label: str, episode_id: str) -> str:
     """
     ep_slug = slugify_label(str(episode_id))
     digits = re.sub(r"\D", "", label)
-    discriminator = digits if digits else (slugify_label(label) or "0")
+    if _DETECTOR_DEFAULT_LABEL_RE.match(label):
+        # Its own family: digits alone would give `unknown_guest_1` the id of `SPEAKER_1`. Still a
+        # placeholder by shape (`person:speaker-...` ending in a digit).
+        discriminator = f"unknown-guest-{digits}"
+    else:
+        discriminator = digits if digits else (slugify_label(label) or "0")
     return f"person:speaker-{ep_slug}-{discriminator}"
 
 

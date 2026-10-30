@@ -26,6 +26,7 @@ from ..graph_id_utils import (
     episode_node_id,
     gil_insight_node_id,
     gil_quote_node_id,
+    is_raw_speaker_label,
     person_node_id,
     topic_node_id_from_slug,
 )
@@ -922,7 +923,13 @@ def _voice_type_for_char_range(
     char_end: int,
     segments: List[Dict[str, Any]],
 ) -> Optional[str]:
-    """The ``voice_type`` of the voice speaking at ``char_start`` — ``None`` when it is a person."""
+    """The ``voice_type`` of the voice speaking at ``char_start`` — ``None`` when it is a person.
+
+    A segment whose label is still a raw diarization label (``SPEAKER_07``) or the speaker
+    detector's default (``unknown_guest_1``), and that carries no voice type, is a voice we failed
+    to name: ``unknown`` (RFC-131, S3). Without this it fell through to a Person node named after
+    the label, with surfaceable insights; 15 served episodes written after #2126 showed it.
+    """
     if not segments or char_start >= char_end:
         return None
     spans = _segment_char_spans(transcript, segments)
@@ -931,7 +938,12 @@ def _voice_type_for_char_range(
     for seg_start, seg_end, seg in spans:
         if seg_start <= char_start < seg_end:
             vt = seg.get("voice_type")
-            return str(vt) if vt else None
+            if vt:
+                return str(vt)
+            label = seg.get("speaker_label")
+            if isinstance(label, str) and is_raw_speaker_label(label):
+                return "unknown"
+            return None
     return None
 
 

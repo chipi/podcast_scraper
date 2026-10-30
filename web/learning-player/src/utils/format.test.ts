@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatPlayedAt, formatDuration, formatMonthYear, formatPublishDate } from './format'
+import { formatPlayedAt, formatDuration, formatMonthYear, formatPublishDate, segmentSpeakerLabel } from './format'
 
 describe('formatDuration', () => {
   it('returns minutes under an hour', () => {
@@ -72,5 +72,29 @@ describe('formatListened (operator 2026-10-12)', () => {
     expect(formatListened(3599)).toBe('60 min')
     expect(formatListened(3600 * 4.24)).toBe('4.2h')
     expect(formatListened(3600 * 12.6)).toBe('13h')
+  })
+})
+
+describe('segmentSpeakerLabel (RFC-131 L7)', () => {
+  const t = (key: string, values?: Record<string, unknown>) => `${key}|${values?.n ?? ''}`
+
+  it('localises an unidentified voice with its number', () => {
+    expect(
+      segmentSpeakerLabel({ speaker: 'Unidentified speaker 2', speaker_kind: 'unidentified', speaker_index: 2 }, t),
+    ).toBe('player.speakerUnidentified|2')
+  })
+
+  it('localises host, brief and advertisement', () => {
+    expect(segmentSpeakerLabel({ speaker: 'Host', speaker_kind: 'host' }, t)).toBe('player.speakerHost|')
+    expect(segmentSpeakerLabel({ speaker: 'Brief speaker', speaker_kind: 'brief' }, t)).toBe('player.speakerBrief|')
+    expect(segmentSpeakerLabel({ speaker: 'Advertisement', speaker_kind: 'advertisement' }, t)).toBe(
+      'player.speakerAdvertisement|',
+    )
+  })
+
+  it('shows a person, and anything from an older server, as sent', () => {
+    expect(segmentSpeakerLabel({ speaker: 'Jorna Velt', speaker_kind: 'person' }, t)).toBe('Jorna Velt')
+    expect(segmentSpeakerLabel({ speaker: 'Jorna Velt' }, t)).toBe('Jorna Velt')
+    expect(segmentSpeakerLabel({ speaker: null }, t)).toBeNull()
   })
 })

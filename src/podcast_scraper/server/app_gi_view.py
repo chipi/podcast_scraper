@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from podcast_scraper.graph_id_utils import is_raw_speaker_label
 from podcast_scraper.server.schemas import AppInsight, AppQuote
 from podcast_scraper.translation.provenance import translated_from
 
@@ -41,8 +42,14 @@ def _speaker_name(artifact: Any, person_id: Any) -> str | None:
     node because there is no person to have one. Measured on the committed corpus: 93% of quote
     speakers are such placeholders, and every one of the 26 real people has a name.
 
-    That absence is the test — no regex on placeholder ids, no guessing at what one looks like.
-    Either the graph can name you or it cannot.
+    That absence is the test for a voice nobody named.
+
+    A RAW LABEL IS NOT A NAME EITHER (RFC-131, S3, operator decision 2026-10-30). Measured on the
+    served corpus: 66 insights in 21 episodes reached listeners with a speaker called
+    ``SPEAKER_07`` or ``unknown_guest_1``. The pipeline still writes a Person node named after the
+    raw label when a segment carries the label without a voice type. So a node's name that is a raw
+    label (``graph_id_utils.is_raw_speaker_label``) resolves to no name. This supersedes #1978's "no
+    regex on placeholder ids" for those two shapes only: role words ("Host") still render, below.
 
     The previous chain tried ``speaker_id`` BEFORE any lookup, so a raw ``person:speaker-01``
     reached the UI as a speaker's name. Stripping it to ``speaker-01`` would only have made the
@@ -77,10 +84,25 @@ def _speaker_name(artifact: Any, person_id: Any) -> str | None:
         props = node.get("properties")
         if isinstance(props, dict):
             raw = props.get("name") or props.get("display_name")
-            if isinstance(raw, str) and raw.strip():
+            if isinstance(raw, str) and raw.strip() and not is_raw_speaker_label(raw):
                 return raw.strip()
         return None
     return None
+
+
+def _is_raw_label_speaker(artifact: Any, person_id: Any) -> bool:
+    """True when ``person_id`` is a Person node whose name is a raw label (``SPEAKER_07``)."""
+    if not isinstance(person_id, str) or not person_id.strip():
+        return False
+    pid = person_id.strip()
+    for node in (artifact or {}).get("nodes") or []:
+        if isinstance(node, dict) and node.get("type") == "Person" and node.get("id") == pid:
+            props = node.get("properties")
+            name = (
+                props.get("name") or props.get("display_name") if isinstance(props, dict) else None
+            )
+            return is_raw_speaker_label(name if isinstance(name, str) else None)
+    return False
 
 
 def insights_from_gi(
@@ -150,23 +172,13 @@ def insights_from_gi(
         # They stay in the artifact: a FACT is still a fact, and the corpus needs them for
         # CONNECT — story threads across episodes never needed a speaker. This gate is about
         # what we PUBLISH as somebody's insight, not about what we keep.
-        unattributed = props.get("surfaceable") is False
-        if unattributed:
-            if not unattributed_fallback:
-                continue
-            # Never an advert read, and never a tier that would not have reached a surface even
-            # with a named speaker (``_apply_route_and_tag``: SURFACE needs tier >= USEFUL).
-            if _opt_str(props.get("speaker_voice_type")) == "commercial":
-                continue
-            tier_raw = _opt_int(props.get("tier"))
-            if tier_raw is not None and tier_raw < TIER_USEFUL:
-                continue
         # ADR-135/#1191: a `drop`-tagged insight (FILLER) is not published on any surface.
         if _opt_str(props.get("routing_tag")) == "drop":
             continue
         insight_id = node.get("id")
 
         quote_models: list[AppQuote] = []
+        named = raw_labelled = 0
         for quote_id in supported.get(insight_id, []):
             qp = quotes.get(quote_id)
             if qp is None:
@@ -178,11 +190,20 @@ def insights_from_gi(
             # committed corpus today, but it is the authored field and it wins if present). Then the
             # graph, for both the quote's own `speaker_id` and the SPOKE_BY edge. A raw id is never
             # a fallback — an unnamed voice yields None, and the surface renders no attribution.
+            authored = _opt_str(qp.get("speaker_name"))
             speaker = (
-                _opt_str(qp.get("speaker_name"))
+                (authored if authored and not is_raw_speaker_label(authored) else None)
                 or _speaker_name(artifact, qp.get("speaker_id"))
                 or _speaker_name(artifact, spoken_by.get(quote_id))
             )
+            if speaker:
+                named += 1
+            elif (
+                is_raw_speaker_label(authored)
+                or _is_raw_label_speaker(artifact, qp.get("speaker_id"))
+                or _is_raw_label_speaker(artifact, spoken_by.get(quote_id))
+            ):
+                raw_labelled += 1
             quote_models.append(
                 AppQuote(
                     text=qtext,
@@ -194,6 +215,32 @@ def insights_from_gi(
                     translated_from=translated_from(qp),
                 )
             )
+
+        # AN UNATTRIBUTED STANCE IS NOT A STANCE. It is a floating opinion that nobody holds and
+        # nobody can disagree with, so it does not belong on a surface — whatever the classifier
+        # called it. GI marks these `surfaceable: False` when the speaking voice is not a named
+        # person (an advertisement, a voice we failed to name, or the vox-pop of a narrated piece
+        # that nobody names).
+        #
+        # A voice whose only "name" is a raw label is the same case, decided here at read time
+        # (RFC-131, S3): GI left those `surfaceable` because the segment carried the label without
+        # a voice type. With no named quote and at least one raw-labelled one, the insight is
+        # unattributed.
+        #
+        # They stay in the artifact: a FACT is still a fact, and the corpus needs them for
+        # CONNECT — story threads across episodes never needed a speaker. This gate is about
+        # what we PUBLISH as somebody's insight, not about what we keep.
+        unattributed = props.get("surfaceable") is False or (named == 0 and raw_labelled > 0)
+        if unattributed:
+            if not unattributed_fallback:
+                continue
+            # Never an advert read, and never a tier that would not have reached a surface even
+            # with a named speaker (``_apply_route_and_tag``: SURFACE needs tier >= USEFUL).
+            if _opt_str(props.get("speaker_voice_type")) == "commercial":
+                continue
+            tier_raw = _opt_int(props.get("tier"))
+            if tier_raw is not None and tier_raw < TIER_USEFUL:
+                continue
 
         grounded_prop = props.get("grounded")
         grounded = bool(grounded_prop) if isinstance(grounded_prop, bool) else bool(quote_models)

@@ -32,6 +32,28 @@ export function speakerLabel(s: string | null): string | null {
   return s.startsWith('person:') ? s.slice('person:'.length).replace(/-/g, ' ') : s
 }
 
+/** The i18n key for a typed speaker kind (RFC-131 L7); null for a kind shown by its own text. */
+const SPEAKER_KIND_KEYS: Record<string, string> = {
+  unidentified: 'player.speakerUnidentified',
+  host: 'player.speakerHost',
+  brief: 'player.speakerBrief',
+  advertisement: 'player.speakerAdvertisement',
+}
+
+/**
+ * The speaker line for a transcript segment, in the listener's language. A voice that is not a
+ * named person arrives typed (`speaker_kind`, `speaker_index`) so it is localised here; a person,
+ * or a server that predates the typed fields, shows `speaker` as sent.
+ */
+export function segmentSpeakerLabel(
+  seg: { speaker: string | null; speaker_kind?: string | null; speaker_index?: number | null },
+  t: (key: string, values?: Record<string, unknown>) => string,
+): string | null {
+  const key = seg.speaker_kind ? SPEAKER_KIND_KEYS[seg.speaker_kind] : undefined
+  if (key) return t(key, { n: seg.speaker_index ?? '' })
+  return speakerLabel(seg.speaker)
+}
+
 /** Format a `YYYY-MM-DD` publish date for the given locale; raw string on parse failure. */
 export function formatPublishDate(iso: string | null | undefined, locale = 'en'): string | null {
   if (!iso) return null

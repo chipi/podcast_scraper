@@ -182,6 +182,11 @@ export interface Segment {
   end: number
   text: string
   speaker: string | null
+  /** What the speaker is: person | host | brief | advertisement | unidentified | role. Absent on
+   *  older servers; `speaker` (English) is the fallback. */
+  speaker_kind?: string | null
+  /** For `unidentified`: 1, 2, … by first appearance in the episode; not an id. */
+  speaker_index?: number | null
 }
 
 export interface SegmentsResponse {
