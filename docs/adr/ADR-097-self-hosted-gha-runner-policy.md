@@ -1,6 +1,10 @@
 # ADR-097: GitHub Actions self-hosted runner policy on public repos
 
-- **Status**: Accepted
+> **Superseded (2026-10-30):** the self-hosted runner was removed from this repository and its
+> host, so there is nothing for this policy to govern. The allowlist, its check script and the
+> `dgx-spark` actionlint label were deleted with it. Body kept as frozen history.
+
+- **Status**: Superseded (no self-hosted runner exists)
 - **Date**: 2026-05-23
 - **Authors**: Podcast Scraper Team
 

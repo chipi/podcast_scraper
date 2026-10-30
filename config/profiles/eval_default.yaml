@@ -25,8 +25,8 @@
 #     CLARITY: prod is for serving real users; eval_default is for running
 #     comparisons. Operators can flip either without affecting the other.
 #
-# Compose defaults applied to ~/agentic-ai-homelab/infra/vllm/autoresearch/
-# docker-compose.yml on 2026-06-17 (lever A + C from #1016 §5):
+# Compose defaults applied to the autoresearch serving stack's compose
+# on 2026-06-17 (lever A + C from #1016 §5):
 #   - --max-num-seqs=4 (down from 64; KV peak was 2.5% even at 64)
 #   - --enforce-eager (saves 2-4 min boot at ~10-15% inference perf cost)
 # These are RIGHT for eval-loop iteration. For prod-mirror benchmark runs,
