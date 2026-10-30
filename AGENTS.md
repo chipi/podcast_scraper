@@ -67,7 +67,7 @@ exists because a session burned time rediscovering something already written dow
 | **LLM routing / gateway** | ADR-142 (not in this repository) | prod does **not** call homelab; see § "Deployment topology" above |
 | **Prod ops — deploy, health, corpus paths, secrets** | the operator cheat sheet (not in this repository) | endpoints, host paths, daily commands, incident playbook, secret inventory |
 | **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml` | the vetted feed list + every rejection with its reason |
-| **Prod ops procedures — load the SKILL, don't hand-roll** | the skill (`~/.claude/skills/<name>/SKILL.md`, source in `agentic-ai-homelab/workstation/claude/skills/`) | `prod-deploy` (preflight a sha / dispatch / verify the box), `prod-batch-chain` (reprocess/backfill batches before the nightly; hold/resume), `prod-job-progress` (progress + ETA, no silent zeros), `corpus-migration` (upgrade dry-run → gated apply → verify → ownership), `session-handoff-msg` (check a message to another session), `ci-step-local` (test a workflow step / systemd unit before pushing). Job configs live in `~/.local/state/<skill>/` |
+| **Prod ops procedures — load the SKILL, don't hand-roll** | the skill (`~/.claude/skills/<name>/SKILL.md`, linked there by the operator's workstation install) | `prod-deploy` (preflight a sha / dispatch / verify the box), `prod-batch-chain` (reprocess/backfill batches before the nightly; hold/resume), `prod-job-progress` (progress + ETA, no silent zeros), `corpus-migration` (upgrade dry-run → gated apply → verify → ownership), `session-handoff-msg` (check a message to another session), `ci-step-local` (test a workflow step / systemd unit before pushing). Job configs live in `~/.local/state/<skill>/` |
 
 **The failure this table prevents:** on 2026-09-05 a session spent an hour probing observability
 endpoints by guessing ports, concluded GlitchTip and Umami were down (they were healthy — wrong
@@ -1203,7 +1203,7 @@ when you change a row.
 
 The compendium pairs with the homelab compose
 (`/opt/vllm-autoresearch/docker-compose.yml`, generated from
-`infra/dgx/converge/deploy.py` in the agentic-ai-homelab repo) which
+the DGX converge tooling, outside this repo) which
 holds the *default* per-slot flags. When the compose's defaults are
 outdated relative to the compendium, the compendium wins for sweep
 scripts — but flag a follow-up to push the compendium values back into

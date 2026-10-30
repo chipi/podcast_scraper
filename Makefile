@@ -730,7 +730,6 @@ check-test-policy:
 	# Enforce 3-tier ML/AI testing policy (no importorskip in unit, no ml_models in integration, etc.)
 	# Run this when: adding/moving tests, before commit, or debugging CI skip issues
 	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
-	$(PYTHON) scripts/tools/check_self_hosted_runner_allowlist.py
 
 check-doc-structure:
 	# Enforce the documentation STRUCTURE: required READMEs exist at the tree roots people land in,

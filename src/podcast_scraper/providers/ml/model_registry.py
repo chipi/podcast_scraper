@@ -1303,7 +1303,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
             "chat_template_kwargs": {"enable_thinking": False},
             # The window this DEPLOYMENT serves (#2050/#1985). Verified live against
             # GET /v1/models on 2026-09-13: max_model_len=65536, matching the
-            # `--max-model-len=65536` in agentic-ai-homelab's autoresearch compose.
+            # `--max-model-len=65536` in the autoresearch serving stack's compose.
             #
             # It was 32768, set for an eval harness — "autoresearch summary inputs cap at ~30k
             # tokens so we don't need the full 128k window" — and became this pipeline's
@@ -2547,8 +2547,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "own downstream consumer — bias-clean baseline gives more defensible "
             "self-comparison when running future autoresearch cohorts. "
             "Style-neutral (Δ S−O = 0.0) means new candidates' rankings don't "
-            "get distorted by judge-vendor bias. The autoresearch compose at "
-            "~/agentic-ai-homelab/infra/vllm/autoresearch/docker-compose.yml has "
+            "get distorted by judge-vendor bias. The autoresearch serving stack's "
+            "compose has "
             "had --max-num-seqs=4 + --enforce-eager defaults applied since "
             "2026-06-17 (lever A + C from #1016 §5) — these are right for the "
             "eval-loop iteration cadence. "
