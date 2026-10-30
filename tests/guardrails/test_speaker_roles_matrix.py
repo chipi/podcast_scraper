@@ -120,11 +120,11 @@ def test_the_roster_is_the_only_source_when_it_heard_the_episode() -> None:
     """
     import inspect
 
-    # #2075 made this structural: the function takes no hint at all.
-    assert list(inspect.signature(_speaker_lists_for_graph).parameters) == [
-        "speakers",
-        "feed_title",
-    ]
+    # #2075 made this structural: the function takes no hint at all. `language` (#2324) is not a
+    # hint: it only tells `names_the_show` which language the show title is in.
+    params = list(inspect.signature(_speaker_lists_for_graph).parameters)
+    assert params == ["speakers", "feed_title", "language"]
+    assert not any("detected" in p or "hint" in p for p in params)
     hosts, guests = _speaker_lists_for_graph(
         _roster(("Real Host", "host"), ("Real Guest", "guest")),
     )
