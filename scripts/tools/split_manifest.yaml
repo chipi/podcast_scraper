@@ -18,6 +18,10 @@
 
 player:
   package: closelistening_player
+  # Own source since 2026-10-30 (the last regeneration was from split branch c652b3877 on main
+  # 5d2b3d6b5): edited in its repo, never regenerated. The entries below still tell split_probe.py
+  # what moves; split_copy.py skips this repo.
+  own_source: true
   # Appended to the scaffold .gitignore: the public repo keeps these in its root .gitignore under
   # web/learning-player/, which the copy does not carry. The fastlane, keystore and .p8 lines are
   # the secret backstops.
@@ -207,6 +211,10 @@ player:
 # it on its own; split_probe.py checks that.
 common:
   package: closelistening_common
+  # Own source since 2026-10-30 (the last regeneration was from split branch c652b3877 on main
+  # 5d2b3d6b5): edited in its repo, never regenerated. The entries below still tell split_probe.py
+  # what moves; split_copy.py skips this repo.
+  own_source: true
   # Registered under the podcast_scraper.extensions entry-point group (ADR-166 decision 4);
   # the module path is rewritten like any moved module.
   entry_points:

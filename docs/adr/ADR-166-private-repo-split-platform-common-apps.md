@@ -217,6 +217,13 @@ After the cutover, a change that needs both sides lands as two PRs: public first
 test against a fake app in this repo's tests; then the private one, which moves its pin. Private
 CI runs against its pin and nightly against public `main`.
 
+**Amended 2026-10-30: Common and Player are own source.** With Player and the UI frozen and
+ready to move, regenerating them gave nothing more. After a last regeneration (from the split
+branch rebased onto `main` at `5d2b3d6b5`), Common and Player are marked `own_source` like Studio:
+edited in their repos and never wiped by `split_copy.py`. A change on `main` that they need is
+ported by hand, the private commit naming the public commit. The manifest still lists what moves,
+so `split_probe.py` keeps measuring the seams.
+
 ### 9. Images and deploy
 
 The Player repo builds the production API image as the public API image plus Common and Player,
