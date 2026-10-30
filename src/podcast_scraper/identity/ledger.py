@@ -35,7 +35,7 @@ LEDGER_SCHEMA_VERSION = "identity-ledger/1"
 
 #: The rules that decided the joins. Bump it whenever a rule or guard changes what joins, so a
 #: ledger written by the previous rules is refused (no joins) until it is rebuilt.
-RULE_VERSION = "cluster-same-show/1"
+RULE_VERSION = "cluster-same-show-guarded/2"
 
 #: Ledger states, for logs and the state gauge.
 STATE_OK = "ok"
@@ -62,15 +62,23 @@ def corpus_token(root: Path | str) -> Dict[str, Any]:
 
 
 def build_ledger(root: Path | str) -> Dict[str, Any]:
-    """Build the ledger for a corpus root, from corpus text only. Writes nothing."""
+    """Build the ledger for a corpus root, from corpus text only. Writes nothing.
+
+    The joins are the cluster rule's, with the identity guards inside the join test (ADR-167);
+    each refused join is recorded in ``blocked_joins``.
+    """
     import podcast_scraper
+    from podcast_scraper.identity.guards import candidate_guard, collect_episode_evidence
     from podcast_scraper.kg.entity_clusters import (
         build_entity_canonical_map,
         collect_entity_candidates,
     )
 
     root = Path(root)
-    payload, _id_map = build_entity_canonical_map(collect_entity_candidates(root))
+    payload, _id_map = build_entity_canonical_map(
+        collect_entity_candidates(root), guard=candidate_guard(collect_episode_evidence(root))
+    )
+    blocked = payload.pop("blocked_joins", [])
     return {
         "schema_version": LEDGER_SCHEMA_VERSION,
         "rule_version": RULE_VERSION,
@@ -78,7 +86,7 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
         "corpus_token": corpus_token(root),
         "built_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "clusters_payload": payload,
-        "blocked_joins": [],
+        "blocked_joins": blocked,
     }
 
 

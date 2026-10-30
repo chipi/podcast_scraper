@@ -30,7 +30,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
 from ..identity.person_match import cluster_variants as _are_xep_variants
@@ -111,8 +111,29 @@ def build_entity_canonical_map(
     candidates: Dict[str, EntityCandidate],
     *,
     same_show_required: bool = True,
+    guard: Optional[Callable[[EntityCandidate, EntityCandidate], Optional[Tuple[str, str]]]] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, str]]:
-    """Cluster variants and return ``(entity_clusters_payload, variant→canonical map)``."""
+    """Cluster variants and return ``(entity_clusters_payload, variant→canonical map)``.
+
+    ``guard(candidate, member)`` (ADR-167), for persons: a candidate joins a cluster only if it
+    matches some member and the guard fires against no member; otherwise the next eligible cluster
+    is tried. Each refusal is recorded in the payload's ``blocked_joins`` as
+    ``[candidate_id, member_id, guard, episode_id]``. Without a guard the build is unchanged.
+    """
+    blocked: List[List[str]] = []
+
+    def joins(cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
+        if not any(_are_xep_variants(cand.name, m.name, kind) for m in cluster):
+            return False
+        if guard is None or kind != "person":
+            return True
+        for m in cluster:
+            fired = guard(cand, m)
+            if fired is not None:
+                blocked.append([cand.id, m.id, fired[0], fired[1]])
+                return False
+        return True
+
     by_kind: Dict[str, List[EntityCandidate]] = {}
     for cand in candidates.values():
         by_kind.setdefault(cand.kind, []).append(cand)
@@ -127,7 +148,7 @@ def build_entity_canonical_map(
         if not same_show_required:
             for cand in items_sorted:
                 for cluster in clusters:
-                    if any(_are_xep_variants(cand.name, m.name, kind) for m in cluster):
+                    if joins(cand, cluster, kind):
                         cluster.append(cand)
                         break
                 else:
@@ -144,7 +165,7 @@ def build_entity_canonical_map(
             for cand in items_sorted:
                 eligible = sorted({i for s in cand.shows for i in clusters_by_show.get(s, ())})
                 for i in eligible:
-                    if any(_are_xep_variants(cand.name, m.name, kind) for m in clusters[i]):
+                    if joins(cand, clusters[i], kind):
                         clusters[i].append(cand)
                         break
                 else:
@@ -179,6 +200,8 @@ def build_entity_canonical_map(
         "merged_variants": len(id_map),
         "clusters": clusters_out,
     }
+    if guard is not None:
+        payload["blocked_joins"] = blocked
     return payload, id_map
 
 
