@@ -92,7 +92,11 @@ export default defineConfig({
       // ``make test-app-e2e`` locally when the first run of playwright
       // failed with `../.venv/bin/python: No such file or directory`.
       command:
-        'node e2e/prepare-corpus.mjs && ../../.venv/bin/python -m podcast_scraper.cli serve ' +
+        'node e2e/prepare-corpus.mjs && ' +
+        // The identity ledger before the API boots (ADR-166): without it there are no
+        // cross-episode joins, as on prod before its ledger step.
+        '../../.venv/bin/python -m podcast_scraper.cli identity-ledger --output-dir .e2e-corpus/v3 && ' +
+        '../../.venv/bin/python -m podcast_scraper.cli serve ' +
         '--output-dir .e2e-corpus/v3 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: !process.env.CI,

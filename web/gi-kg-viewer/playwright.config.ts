@@ -92,7 +92,8 @@ export default defineConfig({
       // `prepare-corpus.mjs` is chained into the command rather than run from `globalSetup`
       // because Playwright starts webServer BEFORE globalSetup — seeding there lost the race and
       // the server exited 2 on a corpus directory that did not exist yet.
-      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port 8012 --host 127.0.0.1`,
+      // The identity ledger before the API boots (ADR-166): without it there are no cross-episode joins.
+      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli identity-ledger --output-dir .e2e-corpus/v3 && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port 8012 --host 127.0.0.1`,
       cwd: __dirname,
       url: 'http://127.0.0.1:8012/api/health',
       env: {
