@@ -108,8 +108,8 @@ after (eval-data `n11/n11_simulate.py`, `n11/sim_deltas.json`).
 | Episodes written | 24; refused 0; second apply writes 0 | not reached: the other 3,045 served episodes (0 writes) |
 | S1 hidden by our defect | 17,811 → 17,860 (+49, the N4 `unknown` set) | trade rule: accepted, below |
 | S2 all hidden | 31,421 → 31,474 (+53: unknown +49, unidentified +4) | trade rule: accepted, below |
-| S3 principal unidentified | 9,217 → 9,219 (+2, episode 987ebd8e: its 2 new `unidentified` insights are on a principal voice) | trade rule: needs acceptance |
-| S10a zero visible | 193 → 194 (+1, episode 631e269e: its last 2 visible insights have a raw-label first quote and a named later one) | cross-check: listed, needs acceptance |
+| S3 principal unidentified | 9,217 → 9,219 (+2, episode 987ebd8e: its 2 new `unidentified` insights are on a principal voice) | trade rule: accepted |
+| S10a zero visible | 193 → 194 (+1, episode 631e269e: its last 2 visible insights have a raw-label first quote and a named later one) | cross-check: listed, accepted |
 | S10b panel empty | 2 → 2 | must not move |
 | S1n | 7 → 7 | must not move |
 | S1c | 0 → 0 | must not move |
@@ -124,7 +124,7 @@ raw label. They are the operator's decision of 2026-10-30 ("an insight whose spe
 label is unattributed"), applied to the files. Operator accepted: 2026-10-31 S1 +49 and S2 +53, the 53 N4 insights by id (quiz in the
 naming session).
 
-S3 +2 and S10a +1 (above): acceptance asked 2026-10-31.
+Operator accepted: 2026-10-31 S3 +2 (episode 987ebd8e) and S10a +1 (episode 631e269e).
 
 **What must not move:** every search-index row other than the N8 Quote rows (Insight rows carry no
 speaker and no `surfaceable`); the enrichment sidecars keyed by insight id (`insight_sentiment`,
