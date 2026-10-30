@@ -28,9 +28,12 @@ The operator's rule: a wrong name is worse than a hidden one.
      exemption: voices that diarization merged by fingerprint are already one voice before naming;
    - **publisher list:** the publisher's text names both in one episode, and each is placed on a
      voice or is a Person node there;
-   - **mention co-occurrence:** both are distinct Person nodes in one episode, and at least one is
-     only mentioned. This verdict is *unknown* (no join), and is reported apart from the two
-     guards above, whose verdict is *two people*.
+   - **mention co-occurrence:** both are distinct Person nodes in one episode, and neither is
+     placed on a voice there. This verdict is *unknown* (no join), and is reported apart from the
+     two guards above, whose verdict is *two people*. It does not apply when either name is placed
+     on a voice: the operator decided this at G0 (2026-10-30, delegated "best quality"). On the
+     truth set's train shows the wider form held back three same-person pairs and blocked no
+     wrong merge; held-out shows agreed.
 3. **Guard evidence is built once per episode, before clustering.** For a candidate and a member,
    the guards run only over the episodes the two share. Every blocked join is recorded in the
    identity ledger with its guard and episode (ADR-166).
@@ -76,8 +79,19 @@ The operator's rule: a wrong name is worse than a hidden one.
 
 ## Implementation Notes
 
-- **Module:** the person-identity module of RFC-131, with
-  `EpisodeEvidence(voice_of, mention_only, publisher_named)` keyed by episode.
+- **Module:** `identity/guards.py`. `EpisodeEvidence(present, voice_of, publisher_named)` is keyed
+  by the KG's `episode_id`; `mention_only` is derived from it (present, placed on no voice).
+  - A roster entry or a publisher name belongs to a Person node when the names are equal ignoring
+    case and spacing, or when the name mints the node's id.
+  - Voices follow m0025's placement rule (the entry's own `voices`, else the segment labels of an
+    older record).
+  - Publisher text is what the speakers diagnostics record: `tried.known_hosts`,
+    `tried.metadata_named`, `tried.detected_guests`.
+- **Join test:** `build_entity_canonical_map(..., guard=candidate_guard(evidence))`. A refused join
+  tries the next eligible cluster. Organisations are not guarded. Without a guard the build is
+  unchanged.
+- **Ledger:** `build_ledger` runs the guards and records `[candidate, member, guard, episode]` in
+  `blocked_joins`; its rule version is `cluster-same-show-guarded/2`.
 - **Measure:** `name_report`:
   - R3a for splits, with guard-caused splits listed;
   - R3b for wrong merges per mechanism, chain joins included;
