@@ -134,6 +134,28 @@ def is_raw_speaker_label(name: Optional[str]) -> bool:
     return bool(_BARE_SPEAKER_LABEL_RE.match(text) or _DETECTOR_DEFAULT_LABEL_RE.match(text))
 
 
+_RAW_LABEL_ID_TAIL = re.compile(r"(?:^|-)(?:\d+|unknown-guest-\d+)$")
+_LEGACY_DETECTOR_DEFAULT_ID = re.compile(r"^person:unknown-guest-\d+$")
+
+
+def is_raw_label_person_id(person_id: Optional[str]) -> bool:
+    """True for the id of a voice whose only name is a raw label (RFC-131, S3).
+
+    ``person:speaker-{ep}-{n}`` (a numbered diarization voice), its detector-default family
+    ``person:speaker-{ep}-unknown-guest-{n}``, and the legacy GLOBAL ``person:unknown-guest-{n}``
+    the detector default used to slug to. A role voice (``person:speaker-{ep}-host``) is not one:
+    "Host" stays readable inside its episode. No surface may build a display name from these ids.
+    """
+    if not person_id:
+        return False
+    pid = str(person_id).strip()
+    if _LEGACY_DETECTOR_DEFAULT_ID.match(pid):
+        return True
+    if not pid.startswith("person:speaker-"):
+        return False
+    return bool(_RAW_LABEL_ID_TAIL.search(pid))
+
+
 def is_bare_speaker_label(name: Optional[str]) -> bool:
     """True when *name* is a placeholder rather than a real person.
 

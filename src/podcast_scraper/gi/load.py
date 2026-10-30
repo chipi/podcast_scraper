@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Tuple
 
+from podcast_scraper.graph_id_utils import is_raw_label_person_id, is_raw_speaker_label
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 from .contracts import EvidenceSpan, InsightSummary, InspectOutput, SupportingQuote
@@ -162,6 +163,10 @@ def _speaker_graph_meta(
             continue
         name = (node.get("properties") or {}).get("name")
         nm = str(name).strip() if name is not None else ""
+        # A raw label is not a name (RFC-131, S3): search hits, explore and the MCP insight tools
+        # read this, and a reader must never see "SPEAKER_07" as who said it.
+        if is_raw_speaker_label(nm):
+            return to_id, None
         return to_id, nm or None
     return None, None
 
@@ -261,12 +266,19 @@ def build_inspect_output(
                 char_end,
                 transcript_ref=transcript_ref,
             )
-            _, sp_graph_name = _speaker_graph_meta(artifact, qnid)
+            sp_graph_id, sp_graph_name = _speaker_graph_meta(artifact, qnid)
+            speaker_id = qprops.get("speaker_id")
+            # A raw-label voice's id is withheld too: a client builds a name from an id when there
+            # is no name ("Speaker Ep1 07"), and a raw voice has no name to give.
+            if is_raw_label_person_id(speaker_id) or (
+                sp_graph_name is None and is_raw_label_person_id(sp_graph_id)
+            ):
+                speaker_id = None
             supporting.append(
                 SupportingQuote(
                     quote_id=qnid,
                     text=qprops.get("text", ""),
-                    speaker_id=qprops.get("speaker_id"),
+                    speaker_id=speaker_id,
                     speaker_name=sp_graph_name,
                     timestamp_start_ms=qprops.get("timestamp_start_ms"),
                     timestamp_end_ms=qprops.get("timestamp_end_ms"),

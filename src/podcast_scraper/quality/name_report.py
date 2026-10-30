@@ -256,6 +256,10 @@ def measure_episode(ep: Episode) -> EpisodeResult:
         if kind in ("raw", "role"):
             raw_rows.append(_row(ep, "transcript_segments", seg.speaker or "", kind))
 
+    if isinstance(gi, dict):
+        raw_rows.extend(_read_model_rows(ep, gi))
+    raw_rows.extend(_roster_rows(ep, roster))
+
     kg = ep.artifact(".kg.json")
     kg_ids_by_name: Dict[str, Set[str]] = defaultdict(set)
     if isinstance(kg, dict):
@@ -282,6 +286,69 @@ def measure_episode(ep: Episode) -> EpisodeResult:
         ep.language,
         _person_id_rows(ep, gi, kg),
     )
+
+
+def _read_model_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """R1 on the GI read model and search's lifted speaker, through the app's own functions.
+
+    ``gi.load.build_inspect_output`` feeds search insight hits, ``explore`` top speakers and the
+    MCP insight tools; a supporting quote's ``speaker_name`` and ``speaker_id`` are what those
+    show. The lifted transcript speaker on a search hit is ``transcript_chunk_lift._lifted_speaker``
+    over the bridge's display name.
+    """
+    from podcast_scraper.gi.load import build_inspect_output
+    from podcast_scraper.graph_id_utils import is_raw_label_person_id
+    from podcast_scraper.search import transcript_chunk_lift as lift
+
+    rows: List[Dict[str, Any]] = []
+    try:
+        inspect = build_inspect_output(gi)
+    except Exception:  # noqa: BLE001 - a malformed artifact is counted elsewhere, not here
+        inspect = None
+    for ins in inspect.insights if inspect is not None else []:
+        for q in ins.supporting_quotes:
+            shown = q.speaker_name or ""
+            if label_kind(shown) == "raw":
+                rows.append(
+                    _row(ep, "search_insight_quotes", shown, "raw", insight_id=ins.insight_id)
+                )
+            elif not shown and is_raw_label_person_id(q.speaker_id):
+                rows.append(
+                    _row(
+                        ep,
+                        "search_insight_quotes",
+                        str(q.speaker_id),
+                        "raw",
+                        insight_id=ins.insight_id,
+                    )
+                )
+    bridge = ep.artifact(".bridge.json") or {}
+    for node in gi.get("nodes") or []:
+        if not isinstance(node, dict) or node.get("type") != "Quote":
+            continue
+        pid = lift._person_id_for_quote(gi, str(node.get("id")))
+        name = lift._display_name_from_bridge(bridge, pid) if pid else ""
+        speaker = lift._lifted_speaker(pid, name)
+        if speaker is None:
+            continue
+        if label_kind(speaker["display_name"]) == "raw":
+            rows.append(_row(ep, "search_lifted_speaker", speaker["display_name"], "raw"))
+        elif not speaker["display_name"] and is_raw_label_person_id(speaker["id"]):
+            rows.append(_row(ep, "search_lifted_speaker", speaker["id"], "raw"))
+    return rows
+
+
+def _roster_rows(ep: Episode, roster: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """R1 on the MCP speaker roster: the names ``_roster_from_record`` lists as on the episode."""
+    from podcast_scraper.mcp.tools.enrichment import _roster_from_record
+
+    content = {"speakers": roster}
+    rows = []
+    for entry in _roster_from_record(content, None):
+        kind = label_kind(str(entry.get("name") or ""))
+        if kind in ("raw", "role"):
+            rows.append(_row(ep, "mcp_speaker_roster", str(entry.get("name")), kind))
+    return rows
 
 
 #: Ids the three minting functions give when a name cannot be slugged (see RFC-131, languages).

@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_path_next_to_gi_json
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+from podcast_scraper.graph_id_utils import is_raw_label_person_id, is_raw_speaker_label
 from podcast_scraper.search.cil_lift_overrides import (
     CilLiftOverrides,
     resolve_id_alias,
@@ -46,6 +47,21 @@ def _nodes_by_id(artifact: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
             if isinstance(nid, str) and nid:
                 out[nid] = n
     return out
+
+
+def _lifted_speaker(person_id: Optional[str], display_name: str) -> Optional[Dict[str, str]]:
+    """The ``speaker`` of a lifted chunk, or None for no speaker or a raw-label voice (RFC-131 S3).
+
+    A voice whose only name is a raw diarization label (``SPEAKER_07``, ``unknown_guest_1``) has
+    no speaker to show: omitting it is what stops a client building "Speaker Ep1 07" from the id.
+    """
+    if not person_id:
+        return None
+    if is_raw_speaker_label(display_name) or (
+        not display_name and is_raw_label_person_id(person_id)
+    ):
+        return None
+    return {"id": person_id, "display_name": display_name}
 
 
 def _display_name_from_bridge(bridge: Mapping[str, Any], canonical_id: str) -> str:
@@ -236,8 +252,9 @@ def try_lift_transcript_chunk_from_gi(
             "timestamp_end_ms": ts1_i,
         },
     }
-    if person_id:
-        lifted["speaker"] = {"id": person_id, "display_name": speaker_name}
+    speaker = _lifted_speaker(person_id, speaker_name)
+    if speaker is not None:
+        lifted["speaker"] = speaker
     if topic_id:
         lifted["topic"] = {"id": topic_id, "display_name": topic_name}
     return lifted

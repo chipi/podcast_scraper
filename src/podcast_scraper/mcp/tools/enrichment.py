@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List
 
+from ...graph_id_utils import is_raw_speaker_label
 from ..context import CorpusContext
 
 _ENRICHER_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
@@ -101,6 +102,10 @@ def _roster_from_record(content: Any, diag: Any) -> List[Dict[str, Any]]:
     entries = (content or {}).get("speakers") if isinstance(content, dict) else None
     for sp in entries or []:
         if not isinstance(sp, dict) or not sp.get("name"):
+            continue
+        # A raw label on the record is not a person on the episode (RFC-131 S3); the diagnostics
+        # block below still names voices by their ids, which is what it is for.
+        if is_raw_speaker_label(str(sp.get("name"))):
             continue
         placed = sp.get("placed")
         ids = [str(v) for v in (sp.get("voices") or [])]

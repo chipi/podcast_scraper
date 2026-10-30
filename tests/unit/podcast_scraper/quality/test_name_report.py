@@ -375,3 +375,35 @@ def test_languages_and_lossy_person_ids_are_reported(tmp_path: Path) -> None:
     assert report["l6_person_ids"]["non_latin_names"] == 1
     (row,) = report["l6_person_ids"]["rows"]
     assert row["person_id"] == "person:topic" and row["language"] == "zh"
+
+
+def test_r1_detects_raw_labels_on_search_and_the_mcp_roster(
+    corpus: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The read-model, lifted-speaker and roster surfaces, with the pre-S3 behaviour restored."""
+    from podcast_scraper.gi import load
+    from podcast_scraper.mcp.tools import enrichment
+    from podcast_scraper.search import transcript_chunk_lift as lift
+
+    def old_meta(artifact, quote_node_id):
+        for e in artifact.get("edges", []):
+            if e.get("type") == "SPOKEN_BY" and e.get("from") == quote_node_id:
+                node = next(n for n in artifact["nodes"] if n.get("id") == e.get("to"))
+                return e.get("to"), node["properties"]["name"]
+        return None, None
+
+    monkeypatch.setattr(load, "_speaker_graph_meta", old_meta)
+    monkeypatch.setattr(
+        lift,
+        "_lifted_speaker",
+        lambda pid, name: {"id": pid, "display_name": name} if pid else None,
+    )
+    monkeypatch.setattr(
+        enrichment,
+        "_roster_from_record",
+        lambda content, diag: [{"name": "SPEAKER_09"}] + list(content.get("speakers") or []),
+    )
+    r1 = name_report.run(corpus)["r1_raw_labels"]
+    assert r1["search_insight_quotes:raw"]["items"] >= 2
+    assert r1["search_lifted_speaker:raw"]["items"] >= 1
+    assert r1["mcp_speaker_roster:raw"]["episodes"] == 6
