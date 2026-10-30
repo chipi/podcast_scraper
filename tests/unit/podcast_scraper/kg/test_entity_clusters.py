@@ -591,7 +591,8 @@ def test_ratio_below_agrees_with_the_full_ratio():
     import difflib
     import random
 
-    from podcast_scraper.kg import entity_clusters as ec
+    # The cluster rule lives in identity.person_match since RFC-131 (S1b step 3).
+    from podcast_scraper.identity import person_match as ec
 
     rng = random.Random(7)
     alphabet = "abcdeiou rnst"

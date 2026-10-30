@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
 from ..graph_id_utils import is_numbered_speaker_label as _looks_like_speaker_label
-from ..identity.person_match import edit_distance
+from ..identity.person_match import host_variants
 
 logger = logging.getLogger(__name__)
 
@@ -305,17 +305,10 @@ class CorpusGraph:
                     named[pod][pid].add(ep)
         return named, unnamed_pods, unnamed_eps
 
-    @classmethod
-    def _same_person_variant(cls, a: str, b: str) -> bool:
-        """Two host names that are spelling variants of ONE person: shared surname (exact or edit≤1)
-        + a near first name (edit≤2), and not identical. Conservative — never merges two distinct
-        people (different surname or a first name more than a typo apart)."""
-        at, bt = a.split(), b.split()
-        if len(at) < 2 or len(bt) < 2 or a.lower() == b.lower():
-            return False
-        surname_ok = at[-1].lower() == bt[-1].lower() or (edit_distance(at[-1], bt[-1]) <= 1)
-        first_ok = edit_distance(at[0], bt[0]) <= 2
-        return surname_ok and first_ok
+    @staticmethod
+    def _same_person_variant(a: str, b: str) -> bool:
+        """The ``host_variant`` rule of :mod:`podcast_scraper.identity.person_match` (#1190)."""
+        return host_variants(a, b)
 
     def _collapse_host_name_variants(
         self, named: "Dict[str, Dict[str, Set[str]]]"
