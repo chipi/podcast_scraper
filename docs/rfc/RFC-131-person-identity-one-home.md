@@ -132,6 +132,22 @@ The causes are structural:
 - **The display-name function** with one fallback rule: no name rather than an id or a slug. This includes "Unidentified speaker N" for an unnamed substantive voice, numbered by first appearance in the episode at read time, never stored and never an id.
 - **`place_roster_entry(entry, segment_labels)`,** the one live home of the placement rule m0025 applies to older records.
 
+### 2a. Languages
+
+Identity follows the language parameterisation the rest of naming uses: `speaker_detectors/naming_vocabulary.py` keeps every word list per language (en, de, es, fr, it, pt today), and callers pass `language`.
+
+- **Rules take a language.** Every rule mode takes the episode's language (`languages.resolve_episode_language`).
+  - Titles, credential and generational suffixes, particles and nickname groups come from `naming_vocabulary[language]`. Nothing English-only is built into the module.
+  - The two nickname tables become one per-language table.
+- **An unknown or unsupported language** gets only language-neutral rules: names equal after normalisation, plus the guards. A missing vocabulary can split a person, never merge two.
+- **Phonetics and folding are per language.** Soundex is enabled per language. Fold rules (ü↔ue, ß↔ss, accents) and name order (family name first in zh, ja, ko, hu, vi) come from the vocabulary.
+- **Ids for any script.** One id-minting rule gives a stable id for a name in any script. Today the three minting functions give `person:topic`, `person:unknown`, or raise.
+- **Labels are typed, not strings.** "Unidentified speaker N", "Brief speaker", "Advertisement" and "Host" reach clients as a kind and a number, so the client's i18n renders them in the listener's language. An English string remains as a fallback for MCP and email.
+- **Publisher cues per language.** Cues like "On the show:" and introduction phrases come from the vocabulary.
+- **Measured per language.** Every measure is broken down by episode language, and the truth set and its held-out split are stratified by language.
+- **Across languages,** a person under two spellings (transliteration) joins only with independent evidence.
+- **The guards (ADR-167) are language-neutral.** They read voices, publisher lists and graph nodes, not words.
+
 ### 3. Ledger (ADR-166)
 
 - **Built by:** a deterministic step that runs last on every corpus-writing path: ingest, `upgrade apply`, relabel repair, enrich-edges.
