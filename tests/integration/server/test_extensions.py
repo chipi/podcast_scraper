@@ -201,9 +201,11 @@ def test_a_broken_import_inside_an_extension_is_not_hidden(tmp_path: Path, monke
         extensions._discover()
 
 
-def test_an_extension_found_twice_loads_once_and_the_in_tree_copy_wins(monkeypatch) -> None:
-    """Before the cutover a dev checkout has both the in-tree module and the private package's
-    entry point; mounting both would register every route twice."""
+def test_an_extension_found_twice_loads_once_and_the_installed_package_wins(monkeypatch) -> None:
+    """Before the cutover a checkout or image can have both the in-tree module and the private
+    package's entry point. Mounting both would register every route twice, so it loads once; and
+    the installed package wins, because an image built with the private packages must run them
+    rather than the in-tree copy the cutover deletes."""
     in_tree = Extension(name="fake", routers=lambda: (RouterMount(_router("/in-tree"), "app"),))
     installed = Extension(name="fake", routers=lambda: (RouterMount(_router("/installed"), "app"),))
 
@@ -219,7 +221,7 @@ def test_an_extension_found_twice_loads_once_and_the_in_tree_copy_wins(monkeypat
     monkeypatch.setitem(sys.modules, "podcast_scraper._fake_ext", module)
     monkeypatch.setattr(extensions, "_IN_TREE", ("podcast_scraper._fake_ext",))
     monkeypatch.setattr(extensions.metadata, "entry_points", lambda group: [_EP()])
-    assert extensions._discover() == [in_tree]
+    assert extensions._discover() == [installed]
 
 
 def test_discovery_runs_once_per_process(monkeypatch) -> None:

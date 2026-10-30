@@ -12,7 +12,7 @@ and hooks import what they need inside their own bodies.
 Until the cutover the modules that will become those packages still live in this tree, listed in
 ``_IN_TREE``. Each is optional: a module the split has already removed is skipped, which is exactly
 what ``scripts/tools/split_probe.py`` checks. An extension found both in-tree and through an entry
-point is loaded once, by name.
+point is loaded once, by name, and the installed package wins.
 """
 
 from __future__ import annotations
@@ -195,7 +195,8 @@ def _from_module(module_name: str) -> Extension | None:
 
 
 def load_extensions() -> list[Extension]:
-    """Every installed extension, in-tree ones first, one per name. Discovered once per process:
+    """Every installed extension, installed packages before in-tree modules, one per name.
+    Discovered once per process:
     read paths consult it per request, and a scan of the installed distributions costs ~17 ms."""
     global _discovered
     if _override is not None:
@@ -206,11 +207,10 @@ def load_extensions() -> list[Extension]:
 
 
 def _discover() -> list[Extension]:
+    # Installed packages first: an image that carries the private packages must run them, not the
+    # in-tree copy the cutover will delete. The in-tree module only fills a name nothing installed
+    # provides. Either way each name loads once, so no route registers twice.
     found: dict[str, Extension] = {}
-    for module_name in _IN_TREE:
-        ext = _from_module(module_name)
-        if ext is not None:
-            found.setdefault(ext.name, ext)
     for ep in metadata.entry_points(group=ENTRY_POINT_GROUP):
         ext = ep.load()
         if callable(ext) and not isinstance(ext, Extension):
@@ -218,9 +218,15 @@ def _discover() -> list[Extension]:
         if not isinstance(ext, Extension):
             raise TypeError(f"entry point {ep.name} ({ep.value}) is not an Extension")
         if ext.name in found:
-            logger.debug("extension %s already loaded; skipping entry point %s", ext.name, ep.value)
+            logger.debug("extension %s already installed; skipping entry point %s", ext.name, ep.value)
             continue
         found[ext.name] = ext
+    for module_name in _IN_TREE:
+        ext = _from_module(module_name)
+        if ext is not None and ext.name not in found:
+            found[ext.name] = ext
+        elif ext is not None:
+            logger.debug("extension %s is installed; skipping the in-tree %s", ext.name, module_name)
     return list(found.values())
 
 
