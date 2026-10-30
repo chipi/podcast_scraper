@@ -42,9 +42,6 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 from podcast_scraper.graph_id_utils import is_bare_speaker_label, is_scoped_placeholder_person_id
 
-#: The run directory's timestamp suffix, ``run_<id>_<YYYYMMDD-HHMMSS>``.
-_RUN_TS = re.compile(r"_(\d{8}-\d{6})$")
-
 #: A raw diarization label or the speaker detector's failure default, as a shown name. Wider
 #: than ``is_bare_speaker_label`` on purpose: ``unknown_guest_1`` passes that predicate today, and
 #: the report must see what the predicate misses.
@@ -125,17 +122,13 @@ class Episode:
 
     feed: str
     episode_id: str
-    run_ts: str
+    run_dir: str
     metadata_path: Path
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def stem(self) -> str:
         return str(self.metadata_path)[: -len(".metadata.json")]
-
-    @property
-    def run_dir(self) -> Path:
-        return self.metadata_path.parent.parent
 
     def artifact(self, suffix: str) -> Optional[Dict[str, Any]]:
         """The episode's sibling artifact with ``suffix`` (``.gi.json``, ``.kg.json``), parsed."""
@@ -151,7 +144,7 @@ class Episode:
         if not rel:
             return None
         for candidate in segments_relpaths_for_transcript(rel):
-            payload = _load_json(self.run_dir / candidate)
+            payload = _load_json(self.metadata_path.parent.parent / candidate)
             if payload is None:
                 continue
             rows = payload if isinstance(payload, list) else payload.get("segments")
@@ -173,23 +166,27 @@ def _load_json(path: Path) -> Optional[Any]:
 
 
 def served_episodes(root: Path) -> List[Episode]:
-    """Newest run per ``(feed, episode_id)``, by the run directory's timestamp suffix."""
-    newest: Dict[Tuple[str, str], Episode] = {}
-    for md in sorted(root.glob("feeds/*/run_*/metadata/*.metadata.json")):
-        feed = md.relative_to(root).parts[1]
-        run = md.parent.parent.name
-        m = _RUN_TS.search(run)
-        ts = m.group(1) if m else ""
+    """The episodes the app serves: the catalog's own membership rule, one run per episode.
+
+    ``search.corpus_scope.discover_metadata_files`` is the single rule the catalog, the index
+    and the enrichers share. A copy of it here would drift: the 2026-10-30 scans read the run
+    timestamp with an anchored pattern, missed suffixed run dirs
+    (``run_…_20260819-060035_285e51f2``), and served a superseded run.
+    """
+    from podcast_scraper.search.corpus_scope import discover_metadata_files
+
+    out: List[Episode] = []
+    for md in discover_metadata_files(root):
         meta = _load_json(md)
         if not isinstance(meta, dict):
             continue
         eid = (meta.get("episode") or {}).get("episode_id")
         if not eid:
             continue
-        key = (feed, str(eid))
-        if key not in newest or ts > newest[key].run_ts:
-            newest[key] = Episode(feed, str(eid), ts, md, meta)
-    return [newest[k] for k in sorted(newest)]
+        parts = md.relative_to(root).parts
+        feed = parts[1] if len(parts) > 1 and parts[0] == "feeds" else ""
+        out.append(Episode(feed, str(eid), md.parent.parent.name, md, meta))
+    return sorted(out, key=lambda e: (e.feed, e.episode_id))
 
 
 # ---- voice placement --------------------------------------------------------------------------
@@ -295,7 +292,7 @@ def _row(ep: Episode, surface: str, name: str, kind: str, **extra: Any) -> Dict[
         "kind": kind,
         "feed": ep.feed,
         "episode_id": ep.episode_id,
-        "run_ts": ep.run_ts,
+        "run_dir": ep.run_dir,
         "name": name,
         **extra,
     }
@@ -562,7 +559,7 @@ def run(root: Path) -> Dict[str, Any]:
         "corpus_root": str(root),
         "corpus_token": _corpus_token(root),
         "episodes": len(episodes),
-        "served_runs": [[e.feed, e.episode_id, e.run_ts] for e in episodes],
+        "served_runs": [[e.feed, e.episode_id, e.run_dir] for e in episodes],
         "feeds": len({e.feed for e in episodes}),
         "records": dict(Counter(r.record for r in results)),
         "identity_map": {"merged_variants": len(id_map)},

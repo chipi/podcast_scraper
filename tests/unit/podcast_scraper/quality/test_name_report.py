@@ -208,13 +208,13 @@ def corpus(tmp_path: Path) -> Path:
 
 def test_served_episodes_keep_only_the_newest_run(corpus: Path) -> None:
     eps = name_report.served_episodes(corpus)
-    assert [(e.feed, e.episode_id, e.run_ts) for e in eps] == [
-        ("feed_a", "a1", "20261001-000000"),
-        ("feed_a", "a2", "20261002-000000"),
-        ("feed_b", "b1", "20261003-000000"),
-        ("feed_c", "c1", "20261004-000000"),
-        ("feed_d", "d1", "20261005-000000"),
-        ("feed_d", "d2", "20261006-000000"),
+    assert [(e.feed, e.episode_id, e.run_dir) for e in eps] == [
+        ("feed_a", "a1", "run_x_20261001-000000"),
+        ("feed_a", "a2", "run_y_20261002-000000"),
+        ("feed_b", "b1", "run_z_20261003-000000"),
+        ("feed_c", "c1", "run_w_20261004-000000"),
+        ("feed_d", "d1", "run_v_20261005-000000"),
+        ("feed_d", "d2", "run_u_20261006-000000"),
     ]
 
 
@@ -287,4 +287,30 @@ def test_r4_finds_identical_names_and_variants_across_shows(corpus: Path) -> Non
 def test_report_records_the_corpus_state_and_the_served_runs(corpus: Path) -> None:
     report = name_report.run(corpus)
     assert report["corpus_token"]["newest_kg_count"] == 3
-    assert ["feed_a", "a2", "20261002-000000"] in report["served_runs"]
+    assert ["feed_a", "a2", "run_y_20261002-000000"] in report["served_runs"]
+
+
+def test_a_suffixed_newer_run_wins_as_in_the_catalog(tmp_path: Path) -> None:
+    """Run dirs often carry a suffix after the timestamp (``…_20260819-060035_285e51f2``).
+
+    The 2026-10-30 scans and the first report read the timestamp with ``_(\\d{8}-\\d{6})$``,
+    so a suffixed run read as "" and an older run could win (prod episode f58130f3). The report
+    must serve the run the catalog serves.
+    """
+    root = tmp_path / "corpus"
+    for run, name in (
+        ("run_0194f6d1-aa_20260812-182337_285e51f2", "Old Spelling"),
+        ("run_20260819-060035_285e51f2", "New Spelling"),
+    ):
+        _episode(
+            root,
+            "feed_s",
+            run,
+            "ep",
+            "s1",
+            speakers=[{"name": name, "placed": True, "voices": ["SPEAKER_00"]}],
+            segments=[_seg(0, "SPEAKER_00", name)],
+        )
+    (ep,) = name_report.served_episodes(root)
+    assert ep.metadata_path.parent.parent.name == "run_20260819-060035_285e51f2"
+    assert ep.roster()[0]["name"] == "New Spelling"
