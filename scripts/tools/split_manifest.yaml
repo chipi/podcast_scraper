@@ -73,6 +73,9 @@ player:
       - capability_audit
     podcast_scraper.server:
       - app_player_extension
+      - digest_scheduler_runner
+      - board_summarizer_runner
+      - reel_clips_worker
       - app_another_view_rail
       - app_auto_picks
       - app_board_view
@@ -109,7 +112,6 @@ player:
       - app_rail_turns
       - app_ranking_config
       - app_ranking_config_store
-      - app_ranking_telemetry
       - app_reasons
       - app_recap
       - app_recap_view
@@ -154,8 +156,6 @@ player:
     - scripts/ops/rekey_user_references.py
     - scripts/tools/bench_discover.py
     # The player's sidecars (digests; board and storyline summaries), mounted into compose.
-    - infra/deploy/digest_scheduler.py
-    - infra/deploy/board_summarizer.py
     - docs/prd/PRD-035-learning-platform.md
     - docs/prd/PRD-036-foundation-identity.md
     - docs/prd/PRD-037-discovery.md
@@ -196,21 +196,7 @@ player:
     - docs/guides/E2E_ON_INTEL_MAC.md
     - docs/guides/RECOMMENDATION_GUIDE.md
     - docs/guides/NOTIFICATIONS_GUIDE.md
-    - docs/wip/PLAYER-BACKEND-WAVES-2026-09-10.md
-    - docs/wip/PLAYER-GOLDEN-WALKTHROUGH-v3.md
-    - docs/wip/PLAYER-NEXT-WAVE-G-J-2026-09-10.md
-    - docs/wip/DAILY-RECAP-EMAIL-HANDOFF.md
-    - docs/wip/DEVICE-FEEDBACK-2026-09-19.md
     - docs/wip/DEVICE-ONLY-DEFECTS-2026-09-27.md
-    - docs/wip/DEVICE-TIERS-HANDOVER-2026-09-27.md
-    - docs/wip/APP-LINKS-PRE-BUILD-TODO-2026-10-05.md
-    - docs/wip/HANDOFF-BETA-USER-SHOWS-SMOKE-2026-10-01.md
-    - docs/wip/REDESIGN-CRITIC-FEEDBACK.md
-    - docs/wip/DISCOVER-ARC-PLAN-2026-10-10.md
-    - docs/wip/HANDOVER-player-1.0.4-2026-10-10.md
-    - docs/wip/POST-DEPLOY-BOARDS-AND-DGX-GATEWAY.md
-    - docs/wip/STABLE-REFS-AND-STORYLINE-SUMMARIES-2026-10-13.md
-    - docs/wip/discovery-competitive-analysis-2026-10-09.md
   file_trees:
     - docs/wip/player
     - docs/wip/knowledge-retention
@@ -276,11 +262,12 @@ common:
           - corpus_topic_clusters
         # ADR-166 decision 3: the observability data layer (config, result, _http,
         # sources, aggregate) stays public for the operator Ops view; the MCP server,
-        # its CLI and its auth move.
+        # its CLI, its auth and its tool telemetry move.
         podcast_obs:
           - mcp_server
           - cli
           - auth
+          - telemetry
           - __main__
       packages:
         podcast_scraper.mcp: mcp
@@ -298,13 +285,6 @@ common:
     - docs/guides/EXPLORATION_MCP.md
     - docs/guides/LOCAL_MCP_SERVERS.md
     - docs/guides/MCP_SERVER_GUIDE.md
-    - docs/guides/OBS_MCP_HOMELAB_DEPLOY.md
-    - docs/guides/OBSERVABILITY_CONTROL_PLANE.md
-    - docs/wip/OBS-MCP-ON-VPS-PLAN.md
-    - docs/wip/ENRICHER-HARDENING-ROADMAP.md
-    - docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md
-    - docs/wip/2026-09-02-enricher-reenable-prep.md
-    - docs/wip/PUBLIC-EXPOSURE-AND-PRIVATE-SPLIT.md
 
 # Studio is the full operator viewer as a private app (ADR-166 decision 2). The public
 # repo keeps its own viewer, stripped of the tier-A features (consensus and cluster search,
