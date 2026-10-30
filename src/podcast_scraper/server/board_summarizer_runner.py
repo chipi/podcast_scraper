@@ -118,6 +118,7 @@ class _BoardUseCase:
         self.prompt = "+".join(f"{m['name']}@{str(m['sha256'])[:12]}" for m in meta.values() if m)
 
     def use_case(self, material: dict[str, Any]) -> Any:
+        """The summary use case for one board's material, built from this kind's prompt fields."""
         from podcast_scraper.providers.common.summary_use_case import SummaryUseCase
 
         return SummaryUseCase(
@@ -394,6 +395,7 @@ def backfill_storylines(apply: bool) -> int:
 
 
 def main() -> NoReturn:
+    """Run the sidecar: one summary cycle per interval, forever (or the storylines backfill)."""
     import sys
 
     if "--storylines-backfill" in sys.argv[1:]:

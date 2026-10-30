@@ -177,6 +177,7 @@ def _cycle() -> None:
 
 
 def main() -> NoReturn:
+    """Run the sidecar: one digest-scheduling cycle per interval, forever."""
     reporting = _init_error_reporting()
     _log(
         f"start: corpus={CORPUS_ROOT} data_dir={DATA_DIR} "
