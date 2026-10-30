@@ -25,6 +25,10 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+from ..identity.person_match import (
+    edit_distance as _edit_distance,
+    one_edit_apart as _one_edit_apart,
+)
 from ..languages import primary_language, TARGET_LANGUAGE
 from . import naming_vocabulary
 from .hosts import _HOST_SELF_INTRO_BY_LANGUAGE, _STATED_LC_CHARS, _STATED_UC
@@ -129,31 +133,6 @@ class _Span:
 
     def end(self) -> int:
         return self._e
-
-
-def _one_edit_apart(a: str, b: str) -> bool:
-    """True for strings at Levenshtein distance exactly 1 (case-insensitive)."""
-    a, b = a.lower(), b.lower()
-    if a == b or abs(len(a) - len(b)) > 1:
-        return False
-    if len(a) > len(b):
-        a, b = b, a
-    i = 0
-    while i < len(a) and a[i] == b[i]:
-        i += 1
-    return a[i + (len(a) == len(b)) :] == b[i + 1 :]
-
-
-def _edit_distance(a: str, b: str) -> int:
-    """Levenshtein distance, case-insensitive."""
-    a, b = a.lower(), b.lower()
-    prev = list(range(len(b) + 1))
-    for i, ca in enumerate(a, 1):
-        cur = [i]
-        for j, cb in enumerate(b, 1):
-            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
-        prev = cur
-    return prev[-1]
 
 
 def _surname_variant(spoken: str, stated: str) -> bool:

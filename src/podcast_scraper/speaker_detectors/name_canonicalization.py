@@ -34,58 +34,9 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Sequence, Tuple
 
+from ..identity.person_match import edit_distance as _edit_distance, soundex as _soundex
+
 _MAX_SURNAME_EDIT = 3
-
-
-def _soundex(s: str) -> str:
-    """American Soundex of a token (surname-matching key). Empty for a non-alpha token."""
-    s = re.sub(r"[^a-z]", "", s.lower())
-    if not s:
-        return ""
-    codes = {
-        "b": "1",
-        "f": "1",
-        "p": "1",
-        "v": "1",
-        "c": "2",
-        "g": "2",
-        "j": "2",
-        "k": "2",
-        "q": "2",
-        "s": "2",
-        "x": "2",
-        "z": "2",
-        "d": "3",
-        "t": "3",
-        "l": "4",
-        "m": "5",
-        "n": "5",
-        "r": "6",
-    }
-    first = s[0].upper()
-    prev = codes.get(s[0], "")
-    tail = ""
-    for ch in s[1:]:
-        c = codes.get(ch, "")
-        if c and c != prev:
-            tail += c
-        if ch not in "hw":
-            prev = c
-    return (first + tail + "000")[:4]
-
-
-def _edit_distance(a: str, b: str) -> int:
-    a, b = a.lower(), b.lower()
-    n = len(b)
-    d = list(range(n + 1))
-    for i in range(1, len(a) + 1):
-        prev = d[0]
-        d[0] = i
-        for j in range(1, n + 1):
-            t = d[j]
-            d[j] = min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] != b[j - 1]))
-            prev = t
-    return d[n]
 
 
 def build_canonical_map(present_names: Sequence[str]) -> Dict[str, str]:

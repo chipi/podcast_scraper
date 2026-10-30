@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
+from ..identity.person_match import edit_distance
 
 logger = logging.getLogger(__name__)
 
@@ -315,19 +316,6 @@ class CorpusGraph:
                     named[pod][pid].add(ep)
         return named, unnamed_pods, unnamed_eps
 
-    @staticmethod
-    def _name_edit_distance(a: str, b: str) -> int:
-        """Levenshtein distance (small inline copy — avoids coupling search to the roster)."""
-        if a == b:
-            return 0
-        prev = list(range(len(b) + 1))
-        for i, ca in enumerate(a, 1):
-            cur = [i]
-            for j, cb in enumerate(b, 1):
-                cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
-            prev = cur
-        return prev[-1]
-
     @classmethod
     def _same_person_variant(cls, a: str, b: str) -> bool:
         """Two host names that are spelling variants of ONE person: shared surname (exact or edit≤1)
@@ -336,10 +324,8 @@ class CorpusGraph:
         at, bt = a.split(), b.split()
         if len(at) < 2 or len(bt) < 2 or a.lower() == b.lower():
             return False
-        surname_ok = at[-1].lower() == bt[-1].lower() or (
-            cls._name_edit_distance(at[-1].lower(), bt[-1].lower()) <= 1
-        )
-        first_ok = cls._name_edit_distance(at[0].lower(), bt[0].lower()) <= 2
+        surname_ok = at[-1].lower() == bt[-1].lower() or (edit_distance(at[-1], bt[-1]) <= 1)
+        first_ok = edit_distance(at[0], bt[0]) <= 2
         return surname_ok and first_ok
 
     def _collapse_host_name_variants(

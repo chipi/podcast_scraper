@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 from podcast_scraper.graph_id_utils import is_bare_speaker_label, is_scoped_placeholder_person_id
+from podcast_scraper.identity.person_match import edit_distance
 
 #: A raw diarization label or the speaker detector's failure default, as a shown name. Wider
 #: than ``is_bare_speaker_label`` on purpose: ``unknown_guest_1`` passes that predicate today, and
@@ -84,21 +85,6 @@ def normalise(name: str) -> str:
     s = unicodedata.normalize("NFKD", name)
     s = "".join(c for c in s if not unicodedata.combining(c)).lower()
     return re.sub(r"[\s\-.'’‘`]", "", s)
-
-
-def edit_distance(a: str, b: str, cap: int = 3) -> int:
-    """Levenshtein distance, stopping at ``cap`` (the scan's helper, so pairs match exactly)."""
-    if abs(len(a) - len(b)) >= cap:
-        return cap
-    prev = list(range(len(b) + 1))
-    for i, ca in enumerate(a, 1):
-        cur = [i]
-        for j, cb in enumerate(b, 1):
-            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
-        if min(cur) >= cap:
-            return cap
-        prev = cur
-    return prev[-1]
 
 
 def pair_rule(a: str, b: str) -> Optional[str]:

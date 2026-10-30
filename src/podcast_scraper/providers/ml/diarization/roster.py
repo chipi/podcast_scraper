@@ -46,6 +46,7 @@ from ....graph_id_utils import (
     GENERATIONAL_SUFFIXES as _GENERATIONAL_SUFFIXES,
     is_bare_speaker_label,
 )
+from ....identity.person_match import edit_distance as _edit_distance, soundex as _soundex
 from ....languages import TARGET_LANGUAGE
 from ....speaker_detectors import naming_vocabulary
 from ....speaker_detectors.hosts import (
@@ -1431,42 +1432,6 @@ def _host_name_pool(
         ):
             _add(n, "self_intro")
     return pool
-
-
-def _soundex(word: str) -> str:
-    """Classic Soundex. Catches ASR substitutions that swap vowels but keep the consonant skeleton
-    ("Roose" -> "Russo"). Blind to "Newton" -> "Noon", which edit distance catches instead — the two
-    are complementary and neither alone is enough."""
-    w = "".join(c for c in word.upper() if c.isalpha())
-    if not w:
-        return ""
-    codes = {
-        **dict.fromkeys("BFPV", "1"),
-        **dict.fromkeys("CGJKQSXZ", "2"),
-        **dict.fromkeys("DT", "3"),
-        **dict.fromkeys("L", "4"),
-        **dict.fromkeys("MN", "5"),
-        **dict.fromkeys("R", "6"),
-    }
-    out, prev = w[0], codes.get(w[0], "")
-    for ch in w[1:]:
-        code = codes.get(ch, "")
-        if code and code != prev:
-            out += code
-        if ch not in "HW":
-            prev = code
-    return (out + "000")[:4]
-
-
-def _edit_distance(a: str, b: str) -> int:
-    a, b = a.lower(), b.lower()
-    prev = list(range(len(b) + 1))
-    for i, ca in enumerate(a, 1):
-        cur = [i]
-        for j, cb in enumerate(b, 1):
-            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
-        prev = cur
-    return prev[-1]
 
 
 # Generational suffixes that are not the surname ("Robert Pape Jr." -> surname "pape", not "jr").
