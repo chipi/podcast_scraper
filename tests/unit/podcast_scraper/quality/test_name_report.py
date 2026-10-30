@@ -314,3 +314,32 @@ def test_a_suffixed_newer_run_wins_as_in_the_catalog(tmp_path: Path) -> None:
     (ep,) = name_report.served_episodes(root)
     assert ep.metadata_path.parent.parent.name == "run_20260819-060035_285e51f2"
     assert ep.roster()[0]["name"] == "New Spelling"
+
+
+def test_a_relative_corpus_root_works(corpus: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(corpus.parent)
+    assert len(name_report.served_episodes(Path(corpus.name))) == 6
+
+
+def test_languages_and_lossy_person_ids_are_reported(tmp_path: Path) -> None:
+    root = tmp_path / "corpus"
+    _episode(
+        root,
+        "feed_zh",
+        "run_t_20261007-000000",
+        "ep",
+        "z1",
+        speakers=[{"name": "张川红", "placed": True, "voices": ["SPEAKER_00"]}],
+        segments=[_seg(0, "SPEAKER_00", "张川红")],
+        kg_persons={"person:topic": "张川红", "person:jorna-velt": "Jorna Velt"},
+    )
+    meta = root / "feeds/feed_zh/run_t_20261007-000000/metadata/ep.metadata.json"
+    doc = json.loads(meta.read_text())
+    doc["episode"]["language"] = "zh"
+    meta.write_text(json.dumps(doc))
+    report = name_report.run(root)
+    assert report["languages"]["zh"]["episodes"] == 1
+    assert report["l6_person_ids"]["lossy_ids"] == 1
+    assert report["l6_person_ids"]["non_latin_names"] == 1
+    (row,) = report["l6_person_ids"]["rows"]
+    assert row["person_id"] == "person:topic" and row["language"] == "zh"

@@ -116,6 +116,13 @@ class Episode:
     def stem(self) -> str:
         return str(self.metadata_path)[: -len(".metadata.json")]
 
+    @property
+    def language(self) -> Optional[str]:
+        """The episode's language as the catalog serves it (the episode's, else the feed's)."""
+        from podcast_scraper.server.corpus_catalog import _episode_language
+
+        return _episode_language(self.metadata)
+
     def artifact(self, suffix: str) -> Optional[Dict[str, Any]]:
         """The episode's sibling artifact with ``suffix`` (``.gi.json``, ``.kg.json``), parsed."""
         return _load_json(Path(self.stem + suffix))
@@ -161,6 +168,7 @@ def served_episodes(root: Path) -> List[Episode]:
     """
     from podcast_scraper.search.corpus_scope import discover_metadata_files
 
+    root = root.resolve()  # discover_metadata_files returns absolute paths
     out: List[Episode] = []
     for md in discover_metadata_files(root):
         meta = _load_json(md)
@@ -215,6 +223,8 @@ class EpisodeResult:
     insight_names_served: Counter
     raw_rows: List[Dict[str, Any]]
     kg_ids_by_name: Dict[str, Set[str]] = field(default_factory=dict)
+    language: Optional[str] = None
+    id_rows: List[Dict[str, Any]] = field(default_factory=list)
 
 
 def measure_episode(ep: Episode) -> EpisodeResult:
@@ -269,7 +279,54 @@ def measure_episode(ep: Episode) -> EpisodeResult:
         served_c,
         raw_rows,
         dict(kg_ids_by_name),
+        ep.language,
+        _person_id_rows(ep, gi, kg),
     )
+
+
+#: Ids the three minting functions give when a name cannot be slugged (see RFC-131, languages).
+_LOSSY_PERSON_IDS = frozenset({"person:topic", "person:unknown", "person:"})
+
+
+def _person_id_rows(ep: Episode, *artifacts: Any) -> List[Dict[str, Any]]:
+    """Person nodes whose id lost the name: a lossy id, or a non-Latin name with an ASCII id.
+
+    A name in a non-Latin script slugs to nothing, so ``entity_node_id`` mints ``person:topic``
+    and ``person_node_id`` mints ``person:unknown`` (RFC-131, languages). Two different people
+    then share one id, or one person gets an id unrelated to their name.
+    """
+    rows: List[Dict[str, Any]] = []
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        for node in artifact.get("nodes") or []:
+            if not isinstance(node, dict) or node.get("type") != "Person":
+                continue
+            pid = str(node.get("id") or "")
+            props = node.get("properties") or {}
+            name = str(props.get("name") or props.get("display_name") or "")
+            non_latin = any(c.isalpha() and not _is_latin(c) for c in name)
+            if pid in _LOSSY_PERSON_IDS or non_latin:
+                rows.append(
+                    {
+                        "feed": ep.feed,
+                        "episode_id": ep.episode_id,
+                        "language": ep.language,
+                        "person_id": pid,
+                        "name": name,
+                        "lossy_id": pid in _LOSSY_PERSON_IDS,
+                        "non_latin_name": non_latin,
+                    }
+                )
+    return rows
+
+
+def _is_latin(ch: str) -> bool:
+    """True for a letter in the Latin script (accented Latin letters included)."""
+    try:
+        return "LATIN" in unicodedata.name(ch)
+    except ValueError:
+        return False
 
 
 def _row(ep: Episode, surface: str, name: str, kind: str, **extra: Any) -> Dict[str, Any]:
@@ -533,6 +590,21 @@ def run(root: Path) -> Dict[str, Any]:
             "group_rows": groups,
         }
 
+    by_language: Dict[str, Dict[str, Any]] = {}
+    for r in results:
+        lang = r.language or "none"
+        slot = by_language.setdefault(lang, {"episodes": 0, "r1_items": Counter(), "id_rows": 0})
+        slot["episodes"] += 1
+        slot["id_rows"] += len(r.id_rows)
+        for row in r.raw_rows:
+            slot["r1_items"][f"{row['surface']}:{row['kind']}"] += 1
+    feed_language = {r.feed: r.language for r in results}
+    for mode in modes.values():
+        mode["pairs_by_language"] = dict(
+            Counter(feed_language.get(p["feed"]) or "none" for p in mode["pairs"])
+        )
+    id_rows = [row for r in results for row in r.id_rows]
+
     listed_not_heard = sum(len(r.roster_names - r.voice_names) for r in results)
     heard_not_listed = Counter(
         name for r in results for name in set(r.insight_names_all) - r.roster_names
@@ -553,6 +625,14 @@ def run(root: Path) -> Dict[str, Any]:
         "r1_rows": raw_rows,
         "r2_modes": modes,
         "r4_voice": r4,
+        "languages": {
+            lang: {**v, "r1_items": dict(v["r1_items"])} for lang, v in sorted(by_language.items())
+        },
+        "l6_person_ids": {
+            "lossy_ids": sum(row["lossy_id"] for row in id_rows),
+            "non_latin_names": sum(row["non_latin_name"] for row in id_rows),
+            "rows": id_rows,
+        },
         "r5": {
             "listed_not_heard_entries": listed_not_heard,
             "heard_not_listed_names": sum(heard_not_listed.values()),
@@ -591,6 +671,9 @@ def _summary_line(report: Dict[str, Any]) -> str:
         f"ub={v['upper_bound_non_winning_served']}"
         for m, v in report["r2_modes"].items()
     )
+    langs = " ".join(f"{k}:{v['episodes']}" for k, v in (report.get("languages") or {}).items())
+    l6 = report.get("l6_person_ids") or {}
+    modes += f" L6 lossy={l6.get('lossy_ids')} nonlatin={l6.get('non_latin_names')} langs {langs}"
     r4 = report.get("r4_voice") or {}
     modes += (
         f" R4 identical={r4.get('identical_groups')}(joined {r4.get('identical_map_joined')})"
