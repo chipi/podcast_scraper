@@ -227,7 +227,18 @@ def test_r1_finds_no_raw_label_on_any_surface_after_s3(corpus: Path) -> None:
         for k, v in report["r1_raw_labels"].items()
         if k.endswith(":raw") and not k.startswith("data_")  # data_* is what the files hold
     }
-    assert shown == {}
+    # Every shown surface is listed, scanned and zero: an absent key would not tell "clean" from
+    # "never scanned" (the prod run at c71876a could only infer it).
+    assert shown == {f"{s}:raw": {"episodes": 0, "items": 0} for s in name_report.R1_SHOWN_SURFACES}
+    assert set(name_report.R1_SHOWN_SURFACES) == {
+        "insights_default",
+        "insights_fallback",
+        "transcript_segments",
+        "episode_people_chips",
+        "search_insight_quotes",
+        "search_lifted_speaker",
+        "mcp_speaker_roster",
+    }
     assert "Zed Superseded" not in json.dumps(report)
 
 
@@ -418,3 +429,15 @@ def test_data_level_counts_give_the_before_whatever_the_surfaces_do(corpus: Path
     r1 = name_report.run(corpus)["r1_raw_labels"]
     # Fixture: SPEAKER_07 (a1), unknown_guest_1 (a2) and SPEAKER_04 (c1) each speak one quote.
     assert r1["data_quotes:raw"] == {"episodes": 3, "items": 3}
+
+
+def test_every_surface_the_report_emits_is_listed() -> None:
+    # A surface emitted but not listed would be missing (not 0) whenever it is clean.
+    import re
+
+    source = Path(name_report.__file__).read_text(encoding="utf-8")
+    emitted = set(re.findall(r'_row\(\s*ep,\s*f?"([a-z_]+)', source))
+    if "insights_" in emitted:  # f"insights_{path}", path in default / fallback
+        emitted = (emitted - {"insights_"}) | {"insights_default", "insights_fallback"}
+    listed = set(name_report.R1_SHOWN_SURFACES + name_report.R1_DATA_SURFACES)
+    assert emitted and emitted <= listed, sorted(emitted - listed)

@@ -570,9 +570,27 @@ def groups_of(pairs: List[Dict[str, Any]], stats: Dict[Tuple[str, str], Dict[str
     return sorted(out, key=lambda g: -g["upper_bound_non_winning"])
 
 
+R1_SHOWN_SURFACES = (
+    "insights_default",
+    "insights_fallback",
+    "transcript_segments",
+    "episode_people_chips",
+    "search_insight_quotes",
+    "search_lifted_speaker",
+    "mcp_speaker_roster",
+)
+R1_DATA_SURFACES = ("data_quotes", "data_bridge_identities", "data_roster_entries")
+
+
 def raw_label_totals(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, int]]:
-    """Per surface: episodes and items showing a raw label (insights counted once per insight)."""
-    out: Dict[str, Dict[str, int]] = {}
+    """Per surface: episodes and items showing a raw label (insights counted once per insight).
+
+    Every surface the report scans is listed with its ``:raw`` count, zero included, so a clean
+    surface reads 0 rather than missing (missing would not tell clean from never scanned).
+    """
+    out: Dict[str, Dict[str, int]] = {
+        f"{s}:raw": {"episodes": 0, "items": 0} for s in R1_SHOWN_SURFACES + R1_DATA_SURFACES
+    }
     by_surface: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for row in rows:
         by_surface[f"{row['surface']}:{row['kind']}"].append(row)
@@ -583,7 +601,7 @@ def raw_label_totals(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, int]]:
         else:
             n = len(items)
         out[surface] = {"episodes": len(episodes), "items": n}
-    return out
+    return dict(sorted(out.items()))
 
 
 def cross_show(
