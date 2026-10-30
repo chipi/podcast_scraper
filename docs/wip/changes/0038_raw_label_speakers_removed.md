@@ -35,6 +35,8 @@ record; per-episode lists are in the eval-data repo (`data/eval/name-consolidati
   - `search/indexer.py`: Quote rows carry `speaker_id`, so the index holds the raw id too.
   - `upgrade/migrations/m0029`, `voice_rewrite_derived.py`: the voice-by-voice rewrite. Not reused:
     it rewrites voices from segments, and these episodes' GI is older than their segments (below).
+  - #2304 (episodes whose insight voices carry only `SPEAKER_xx`: touches S10b and S2) and #2294
+    (raw ids in quote text, out of scope): added at step 5.
   - Open issues read: #2197 (Person nodes that are not one person), #2200 / #2198 (hidden insights,
     zero-visible episodes), #2352. None covers this shape.
 
@@ -58,8 +60,14 @@ The change's own numbers, on served episodes:
 | N7 | KG Person nodes whose name is a raw label | 0 |
 | N8 | Search-index Quote rows whose `speaker_id` is an N1 id | to measure on the clone at step 7 |
 
-Scoreboard (S1, S1n, S1c, S2, S3, S10a, S10b, S12, A1): taken on the clone by
-`corpus_change_gate.py` at step 7; not taken yet.
+Scoreboard baseline, whole served corpus, `scripts/measure/corpus_scoreboard.py --corpus <snapshot>
+--label snapshot-prod-20261030` with the branch's `src` (eval-data
+`n11/scoreboard_snapshot-prod-20261030_branch.json`): episodes 3069, insights 135,390; S1 17,811;
+S1n 7; S1c 0; S2 31,421 (unknown 17,811, unidentified 13,516, commercial 94); S3 9,217; S10a 193;
+S10b 2; quotes 262,618; S12 24 (244 with no transcript file); A1 396 hits in 297 episodes.
+
+N8 cannot be measured on the snapshot: the backup does not carry the search index. It is counted on
+prod, read-only, at step 10.
 
 ## 3. Diagnosis by loss
 
@@ -85,36 +93,66 @@ The rule (the pipeline's own, applied to the stored files):
 - an N8 index row's `speaker_id` is cleared in place (no index rebuild);
 - the metadata's GI counts are recomputed.
 
-Integers on snapshot-prod-20261030, after:
+Integers on snapshot-prod-20261030, after. The scoreboard deltas are exact: the edits above applied
+to copies of the 24 episodes and each scored with `corpus_scoreboard.score_episode` before and
+after (eval-data `n11/n11_simulate.py`, `n11/sim_deltas.json`).
 
-| # | After | Population |
+| # | Before → after | Population |
 |---|---|---|
-| N1, N2, N3, N5, N6 | 0 | reached: 24 episodes |
-| N4 | 53 insights change: 49 to `unknown`, 4 to `unidentified`, all `surfaceable: false` | 15 episodes |
-| N7 | 0 (unchanged) | |
-| N8 | 0 | |
-| Episodes written | 24; refused 0 | not reached: every other served episode (0 writes) |
-| S1 hidden by our defect | +49 exactly (the N4 `unknown` set, by insight id) | trade rule: an accepted loss, below |
-| S2 all hidden | +53 exactly (unknown +49, unidentified +4) | trade rule, below |
-| S1n named but hidden | unchanged (the 53 carry no name) | must not move |
-| S1c consistency | 0 | must not move |
-| S12 quotes off their text | unchanged (offsets are not touched) | must not move |
-| S10a, S10b episodes with no visible insight | S10a unchanged against the branch's read time (S3 already keeps these 53 off the attributed surfaces); S10b may rise only for an episode whose every insight is in N4: to measure, each listed | |
-| S3, A1 | unchanged | must not move |
+| N1, N2, N3, N5, N6 | 28, 107, 107, 53, 28 → 0 | reached: 24 episodes |
+| N4 | 53 insights change: 49 to `unknown`, 4 to `unidentified`; `surfaceable` per the pipeline's `VOICE_TYPE_NOT_SURFACEABLE` (all 53 false: no first quote is `cameo`) | 15 episodes, ids in `n11/n4_insights.json`; 7 of the 53 have an unplaced first quote (ids in `n11/rows5.json`) |
+| N2 quotes not first of any insight | 54; their insights keep type and `surfaceable` (21 insights hold only such raw quotes) | must not move |
+| N7 | 0 → 0 | |
+| N8 | measured on prod at step 10 → 0 | |
+| Metadata GI counts | 0 written: none of the 24 carries a `grounded_insights` count block | |
+| Episodes written | 24; refused 0; second apply writes 0 | not reached: the other 3,045 served episodes (0 writes) |
+| S1 hidden by our defect | 17,811 → 17,860 (+49, the N4 `unknown` set) | trade rule: accepted, below |
+| S2 all hidden | 31,421 → 31,474 (+53: unknown +49, unidentified +4) | trade rule: accepted, below |
+| S3 principal unidentified | 9,217 → 9,219 (+2, episode 987ebd8e: its 2 new `unidentified` insights are on a principal voice) | trade rule: needs acceptance |
+| S10a zero visible | 193 → 194 (+1, episode 631e269e: its last 2 visible insights have a raw-label first quote and a named later one) | cross-check: listed, needs acceptance |
+| S10b panel empty | 2 → 2 | must not move |
+| S1n | 7 → 7 | must not move |
+| S1c | 0 → 0 | must not move |
+| S12 | 24 → 24 | must not move |
+| A1 | 396 / 297 → unchanged | must not move |
+| Insights | 135,390 → 135,390 (no insight removed; ids unchanged) | must not move |
+| Served episodes | 3,069 (newest_kg_count 3069) | must not move |
 
 **Trade-rule moves, by identity:** the 53 insights of N4 (ids in eval-data
 `n11/n4_insights.json`, to be committed). They are not "leaving a wrong name": their speaker is a
 raw label. They are the operator's decision of 2026-10-30 ("an insight whose speaker is a raw
-label is unattributed"), applied to the files. **This needs the operator's explicit acceptance of
-S1 +49 and S2 +53 before apply** (method §6: the operator approves predictions that trade numbers).
+label is unattributed"), applied to the files. Operator accepted: 2026-10-31 S1 +49 and S2 +53, the 53 N4 insights by id (quiz in the
+naming session).
 
-**What must not move:** every file outside the 24 episodes; in the 24, every node, edge and field
+S3 +2 and S10a +1 (above): acceptance asked 2026-10-31.
+
+**What must not move:** every search-index row other than the N8 Quote rows (Insight rows carry no
+speaker and no `surfaceable`); the enrichment sidecars keyed by insight id (`insight_sentiment`,
+`insight_density`: insight ids do not change; whether a sidecar reads `surfaceable` is in the
+step-7 census); every file outside the 24 episodes; in the 24, every node, edge and field
 not named above (other quotes, other insights, topics, entities, transcripts, segments, offsets);
 organisations; the identity ledger (no N1 id is a join member: to check at step 7).
 
 ## 5. Acceptance
 
-_TODO_: the prediction read by a fresh agent (§4a), before any code.
+Prediction read 2026-10-31 by a fresh agent (reviewer, Sonnet, 44 s, read the record, the method and
+the tracker only). Its rows, all added above: N8 and the scoreboard rows with values; S10b with an
+integer; the baselines of S1 and S2; metadata counts as an integer; the 15 episodes by id; N2 quotes
+that are not first quotes as a must-not-move row; insight ids and the enrichment sidecars; index
+rows other than N8; the served-episode count; second apply writes 0; which N4 insights have an
+unplaced first quote. Reading list: #2304 and #2294 added below.
+
+Spot checks for step 8, each able to fail:
+
+- (a) the N4 insights whose first quote is the `cameo` or the `unknown` one, if any: after, type and
+  `surfaceable` as `VOICE_TYPE_NOT_SURFACEABLE` says (the simulation shows none is a first quote);
+- (b) 3 of the 19 unplaced quotes' episodes: before, raw `speaker_id`, SPOKEN_BY edge and Person
+  node; after, none of the three, voice type `unknown`, quote `text` and offsets byte-equal;
+- (c) one N4 insight with a named second quote: before, `speaker` is a raw label; after, `speaker`
+  removed and the named quote keeps its `speaker_id`;
+- (d) one episode: a count of the raw Person's name in the gi file, the bridge and (on prod) the
+  index rows: before > 0, after 0 in each;
+- (e) one N1 id: not in the identity ledger.
 
 ## 6. Build
 
