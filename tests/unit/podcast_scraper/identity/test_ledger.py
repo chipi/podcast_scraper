@@ -45,7 +45,8 @@ def corpus(tmp_path: Path) -> Path:
     return root
 
 
-def test_the_ledger_records_exactly_todays_map(corpus: Path) -> None:
+def test_where_nothing_refuses_the_ledger_records_todays_map(corpus: Path) -> None:
+    """S4 changes joins only where its rule or a guard refuses; this corpus has neither."""
     want = entity_clusters.build_entity_id_map(corpus)
     assert want == {"person:korin-vaal": "person:korin-vael"}
     ledger = L.build_ledger(corpus)
@@ -161,3 +162,32 @@ def test_cli_dry_run_writes_nothing_and_status_reads(corpus: Path, capsys) -> No
         )
         == 2
     )
+
+
+def test_a_write_keeps_the_previous_ledger_and_restore_puts_it_back(corpus: Path) -> None:
+    first = L.build_ledger(corpus)
+    L.write_ledger(corpus, first)
+    assert not (corpus / L.PREVIOUS_NAME).exists()  # nothing valid to keep yet
+    second = dict(first, clusters_payload={"clusters": []}, built_at="later")
+    L.write_ledger(corpus, second)
+    kept = json.loads((corpus / L.PREVIOUS_NAME).read_text(encoding="utf-8"))
+    assert kept["built_at"] == first["built_at"]
+    assert L.served_id_map(corpus) == {}
+    change = L.restore_previous(corpus)
+    assert change["restored_from"] == L.PREVIOUS_NAME and change["joins_added"] == 1
+    assert L.served_id_map(corpus) == L.ledger_id_map(first)
+    assert len((corpus / L.CHANGES_NAME).read_text(encoding="utf-8").splitlines()) == 3
+
+
+def test_restore_refuses_without_a_valid_previous_ledger(corpus: Path, capsys) -> None:
+    import logging
+
+    L.write_ledger(corpus, L.build_ledger(corpus))
+    with pytest.raises(FileNotFoundError):
+        L.restore_previous(corpus)
+    (corpus / L.PREVIOUS_NAME).write_text('{"schema_version": "other"}', encoding="utf-8")
+    with pytest.raises(ValueError):
+        L.restore_previous(corpus)
+    args = parse_identity_ledger_argv(["--output-dir", str(corpus), "--restore-previous"])
+    assert run_identity_ledger_cli(args, logging.getLogger("t")) == 1
+    assert L.read_ledger(corpus)[1] == L.STATE_OK  # the current ledger is untouched

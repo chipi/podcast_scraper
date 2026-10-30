@@ -31,6 +31,11 @@ def parse_identity_ledger_argv(argv: Sequence[str]) -> Namespace:
         action="store_true",
         help="Report the current ledger's state and staleness; build nothing.",
     )
+    parser.add_argument(
+        "--restore-previous",
+        action="store_true",
+        help="Put the previous valid ledger back (the undo of the last write); build nothing.",
+    )
     args = parser.parse_args(list(argv))
     args.command = "identity-ledger"
     return args
@@ -44,6 +49,14 @@ def run_identity_ledger_cli(args: Namespace, log: logging.Logger) -> int:
         return 2
     if args.status:
         print(json.dumps(L.ledger_status(root), ensure_ascii=False, sort_keys=True))
+        return 0
+    if args.restore_previous:
+        try:
+            change = L.restore_previous(root)
+        except (OSError, ValueError) as exc:
+            log.error("identity-ledger: nothing restored: %s", exc)
+            return 1
+        print(json.dumps(change, ensure_ascii=False, sort_keys=True))
         return 0
     ledger = L.build_ledger(root)
     if args.dry_run:

@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 #: The ledger and its change log, at the corpus root beside the other derived corpus files.
 LEDGER_NAME = "identity_ledger.json"
 CHANGES_NAME = "identity_ledger_changes.jsonl"
+#: The last valid ledger before the current one: the undo. ``restore_previous`` puts it back. A
+#: missing ledger means no cross-episode joins at all (below), so the undo is never "delete it".
+PREVIOUS_NAME = "identity_ledger.previous.json"
 
 #: The file's shape. A reader refuses any other (ADR-166).
 LEDGER_SCHEMA_VERSION = "identity-ledger/1"
@@ -168,6 +171,8 @@ def ledger_status(root: Path | str) -> Dict[str, Any]:
 def write_ledger(root: Path | str, ledger: Dict[str, Any]) -> Dict[str, Any]:
     """Write ``ledger`` atomically and append what changed to the change log. Returns the change.
 
+    The ledger it replaces, when valid, is kept as ``PREVIOUS_NAME`` first (the undo).
+
     Atomic: a temp file in the corpus root, fsync, then ``os.replace``, so a reader never sees a
     half-written ledger (it would read as unreadable, which means no joins). When run as root the
     files take the corpus root's owner, as every corpus writer must.
@@ -175,11 +180,42 @@ def write_ledger(root: Path | str, ledger: Dict[str, Any]) -> Dict[str, Any]:
     root = Path(root)
     previous, _state = read_ledger(root)
     change = _change_entry(previous, ledger)
-    target = root / LEDGER_NAME
+    if previous is not None:
+        _write_atomic(root, root / PREVIOUS_NAME, previous)
+    _write_atomic(root, root / LEDGER_NAME, ledger)
+    _append_change(root, change)
+    return change
+
+
+def restore_previous(root: Path | str) -> Dict[str, Any]:
+    """Put the previous valid ledger back (the undo of the last write). Returns the change.
+
+    Refuses (``FileNotFoundError`` / ``ValueError``) when there is no valid previous ledger, rather
+    than leave the corpus with none: no ledger means no cross-episode joins.
+    """
+    root = Path(root)
+    path = root / PREVIOUS_NAME
+    with open(path, encoding="utf-8") as fh:
+        previous = json.load(fh)
+    if (
+        not isinstance(previous, dict)
+        or previous.get("schema_version") != LEDGER_SCHEMA_VERSION
+        or not isinstance(previous.get("clusters_payload"), dict)
+    ):
+        raise ValueError(f"{path} is not a valid identity ledger; nothing restored")
+    current, _state = read_ledger(root)
+    change = _change_entry(current, previous)
+    change["restored_from"] = PREVIOUS_NAME
+    _write_atomic(root, root / LEDGER_NAME, previous)
+    _append_change(root, change)
+    return change
+
+
+def _write_atomic(root: Path, target: Path, payload: Dict[str, Any]) -> None:
     fd, tmp = tempfile.mkstemp(prefix=".identity_ledger.", suffix=".tmp", dir=root)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(ledger, fh, ensure_ascii=False, sort_keys=True)
+            json.dump(payload, fh, ensure_ascii=False, sort_keys=True)
             fh.write("\n")
             fh.flush()
             os.fsync(fh.fileno())
@@ -188,11 +224,13 @@ def write_ledger(root: Path | str, ledger: Dict[str, Any]) -> Dict[str, Any]:
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
+
+
+def _append_change(root: Path, change: Dict[str, Any]) -> None:
     changes = root / CHANGES_NAME
     with open(changes, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(change, ensure_ascii=False, sort_keys=True) + "\n")
     _match_corpus_owner(root, changes)
-    return change
 
 
 def _change_entry(previous: Optional[Dict[str, Any]], ledger: Dict[str, Any]) -> Dict[str, Any]:
