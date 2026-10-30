@@ -18,9 +18,11 @@ Measures produced here:
   transcript segments, and the episode people chips.
 * **R2** candidate groups of names that may be one person, per feed, with spellings and
   insights, plus how the identity map (``cached_entity_id_map``'s builder) groups the same ids.
+* **R4** (voice mode) one person across shows: identical names on two or more feeds, and
+  rule-b variants across feeds, each with whether today's identity map already joins them.
 * **R5** names listed but not heard, and names heard (insight speakers) but not listed.
 
-R3 (rates against the labelled truth set), R4 (across shows), R6 and R7 come in later steps.
+R3 (rates against the labelled truth set), R6 and R7 come in later steps.
 
 Nothing is written. Output is one JSON object on stdout; person names are in it, so it belongs
 in the private evaluation data, never in this repository.
@@ -445,6 +447,69 @@ def raw_label_totals(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, int]]:
     return out
 
 
+def cross_show(
+    stats: Dict[Tuple[str, str], Dict[str, int]],
+    ids_by_feed_name: Dict[Tuple[str, str], Set[str]],
+    id_map: Dict[str, str],
+) -> Dict[str, Any]:
+    """R4: one person across shows. Identical names on 2+ feeds, and rule-b variants across feeds.
+
+    ``map_joined`` says whether today's identity map already puts every member under one
+    canonical id. Either way these are candidates, not verdicts: identical names on two shows
+    can be two people.
+    """
+    by_norm: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
+    for feed, name in stats:
+        norm = normalise(name)
+        if norm:
+            by_norm[norm].append((feed, name))
+
+    def member(key: Tuple[str, str]) -> Dict[str, Any]:
+        feed, name = key
+        return {
+            "feed": feed,
+            "name": name,
+            "episodes": stats[key]["episodes"],
+            "insights_served": stats[key]["insights_served"],
+            "canonicals": sorted({id_map.get(p, p) for p in ids_by_feed_name.get(key, ())}),
+            "one_word": len(name.split()) == 1,
+        }
+
+    def joined(members: List[Dict[str, Any]]) -> bool:
+        canon = [set(m["canonicals"]) for m in members]
+        return all(canon) and len(set.union(*canon)) == 1
+
+    identical = []
+    for norm, keys in sorted(by_norm.items()):
+        if len({feed for feed, _ in keys}) < 2:
+            continue
+        members = [member(k) for k in sorted(keys)]
+        identical.append({"norm": norm, "members": members, "map_joined": joined(members)})
+
+    norms = sorted((n for n in by_norm if len(n) >= _RULE_B_MIN_LEN), key=lambda n: (len(n), n))
+    variants = []
+    for i, a in enumerate(norms):
+        for b in norms[i + 1 :]:
+            if len(b) - len(a) > _RULE_B_MAX_EDITS:
+                break
+            if edit_distance(a, b) > _RULE_B_MAX_EDITS:
+                continue
+            feeds_a = {f for f, _ in by_norm[a]}
+            feeds_b = {f for f, _ in by_norm[b]}
+            if feeds_a == feeds_b and len(feeds_a) == 1:
+                continue  # same single show: that is R2's within-show pair
+            members = [member(k) for k in sorted(by_norm[a] + by_norm[b])]
+            variants.append({"norms": [a, b], "members": members, "map_joined": joined(members)})
+    return {
+        "identical_groups": len(identical),
+        "identical_map_joined": sum(g["map_joined"] for g in identical),
+        "variant_pairs": len(variants),
+        "variant_map_joined": sum(v["map_joined"] for v in variants),
+        "identical": identical,
+        "variants": variants,
+    }
+
+
 def run(root: Path) -> Dict[str, Any]:
     """The full report for a corpus root."""
     import podcast_scraper
@@ -461,8 +526,11 @@ def run(root: Path) -> Dict[str, Any]:
             ids_by_feed_name[(r.feed, name)].update(ids)
 
     modes: Dict[str, Any] = {}
+    r4: Dict[str, Any] = {}
     for mode in ("roster", "voice"):
         pairs, stats = candidate_pairs(results, mode)
+        if mode == "voice":
+            r4 = cross_show(stats, ids_by_feed_name, id_map)
         groups = groups_of(pairs, stats)
         for g in groups:
             g["map_canonicals"] = sorted(
@@ -492,13 +560,16 @@ def run(root: Path) -> Dict[str, Any]:
             "package_file": podcast_scraper.__file__,
         },
         "corpus_root": str(root),
+        "corpus_token": _corpus_token(root),
         "episodes": len(episodes),
+        "served_runs": [[e.feed, e.episode_id, e.run_ts] for e in episodes],
         "feeds": len({e.feed for e in episodes}),
         "records": dict(Counter(r.record for r in results)),
         "identity_map": {"merged_variants": len(id_map)},
         "r1_raw_labels": raw_label_totals(raw_rows),
         "r1_rows": raw_rows,
         "r2_modes": modes,
+        "r4_voice": r4,
         "r5": {
             "listed_not_heard_entries": listed_not_heard,
             "heard_not_listed_names": sum(heard_not_listed.values()),
@@ -514,6 +585,15 @@ def run(root: Path) -> Dict[str, Any]:
     }
 
 
+def _corpus_token(root: Path) -> Dict[str, Any]:
+    """The corpus state the report read: ``corpus_mtime`` plus the newest-run kg count."""
+    from podcast_scraper.kg.corpus import newest_run_artifact_paths, scan_kg_artifact_paths
+    from podcast_scraper.perf_cache import corpus_mtime
+
+    kg = newest_run_artifact_paths(root, scan_kg_artifact_paths(root), ".kg.json")
+    return {"corpus_mtime": corpus_mtime(root), "newest_kg_count": len(kg)}
+
+
 def _identity_map(root: Path) -> Dict[str, str]:
     """The variant -> canonical map the app serves today (the builder, not its cache)."""
     from podcast_scraper.kg.entity_clusters import build_entity_id_map
@@ -527,6 +607,11 @@ def _summary_line(report: Dict[str, Any]) -> str:
         f"{m}:pairs={v['pairs_rule_a']}a+{v['pairs_rule_b']}b,groups={v['groups']},"
         f"ub={v['upper_bound_non_winning_served']}"
         for m, v in report["r2_modes"].items()
+    )
+    r4 = report.get("r4_voice") or {}
+    modes += (
+        f" R4 identical={r4.get('identical_groups')}(joined {r4.get('identical_map_joined')})"
+        f" variants={r4.get('variant_pairs')}(joined {r4.get('variant_map_joined')})"
     )
     return (
         f"marker={report['marker']['naming_arc_marker']} "

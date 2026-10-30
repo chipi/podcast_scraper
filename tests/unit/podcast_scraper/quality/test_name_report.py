@@ -177,6 +177,32 @@ def corpus(tmp_path: Path) -> Path:
             {"person:speaker-c1-04": "SPEAKER_04"},
         ),
     )
+    # Feed D: the same person under the same spelling on another show (an identical cross-show
+    # group the map joins, since both mint person:jorna-velt), which is also a cross-show variant
+    # of feed A's "Jorna Vellt".
+    _episode(
+        root,
+        "feed_d",
+        "run_v_20261005-000000",
+        "ep5",
+        "d1",
+        speakers=[
+            {"name": "Jorna Velt", "placed": True, "voices": ["SPEAKER_00"]},
+            {"name": "Brinna Sol", "placed": True, "voices": ["SPEAKER_01"]},
+        ],
+        segments=[_seg(0, "SPEAKER_00", "Jorna Velt"), _seg(5, "SPEAKER_01", "Brinna Sol")],
+        kg_persons={"person:jorna-velt": "Jorna Velt"},
+    )
+    # Feed D again: a within-show variant only ("Brinna Soll"), which R2 pairs and R4 must not.
+    _episode(
+        root,
+        "feed_d",
+        "run_u_20261006-000000",
+        "ep6",
+        "d2",
+        speakers=[{"name": "Brinna Soll", "placed": True, "voices": ["SPEAKER_00"]}],
+        segments=[_seg(0, "SPEAKER_00", "Brinna Soll")],
+    )
     return root
 
 
@@ -187,6 +213,8 @@ def test_served_episodes_keep_only_the_newest_run(corpus: Path) -> None:
         ("feed_a", "a2", "20261002-000000"),
         ("feed_b", "b1", "20261003-000000"),
         ("feed_c", "c1", "20261004-000000"),
+        ("feed_d", "d1", "20261005-000000"),
+        ("feed_d", "d2", "20261006-000000"),
     ]
 
 
@@ -207,12 +235,12 @@ def test_r1_counts_both_raw_shapes_on_insights_and_the_transcript(corpus: Path) 
 def test_roster_mode_pairs_listings_and_voice_mode_pairs_voices(corpus: Path) -> None:
     report = name_report.run(corpus)
     roster, voice = report["r2_modes"]["roster"], report["r2_modes"]["voice"]
-    assert (roster["pairs_rule_a"], roster["pairs_rule_b"]) == (1, 1)
+    assert (roster["pairs_rule_a"], roster["pairs_rule_b"]) == (1, 2)
     # Voice mode: "Jorna Vellt" is placed in ep2, so the rule-b pair stays; in feed_b only
     # "Kai Moreno-Lund" is a segment label, so the old record's rule-a twin is listing-only.
-    assert (voice["pairs_rule_a"], voice["pairs_rule_b"]) == (0, 1)
+    assert (voice["pairs_rule_a"], voice["pairs_rule_b"]) == (0, 2)
     # An entry carrying ``placed`` is the newer record format even without ``voices`` (feed C).
-    assert report["records"] == {"new": 3, "old": 1}
+    assert report["records"] == {"new": 5, "old": 1}
     # Listed but not heard: "Jorna Vellt" in ep1 (placed false), "Kai Moreno Lund" (no segment
     # label), "Odile Brand" (marked unplaced although her name is a segment label).
     assert report["r5"]["listed_not_heard_entries"] == 3
@@ -240,3 +268,23 @@ def test_label_kind_separates_raw_role_and_deliberate() -> None:
 )
 def test_pair_rules_match_the_scan(a: str, b: str, rule: Optional[str]) -> None:
     assert name_report.pair_rule(a, b) == rule
+
+
+def test_r4_finds_identical_names_and_variants_across_shows(corpus: Path) -> None:
+    r4 = name_report.run(corpus)["r4_voice"]
+    assert r4["identical_groups"] == 1
+    (group,) = r4["identical"]
+    assert {(m["feed"], m["name"]) for m in group["members"]} == {
+        ("feed_a", "Jorna Velt"),
+        ("feed_d", "Jorna Velt"),
+    }
+    assert group["map_joined"] is True
+    # "Jorna Vellt" (feed A only) against "Jorna Velt" (feeds A and D): a cross-show variant.
+    assert r4["variant_pairs"] == 1
+    assert r4["variants"][0]["norms"] == ["jornavelt", "jornavellt"]
+
+
+def test_report_records_the_corpus_state_and_the_served_runs(corpus: Path) -> None:
+    report = name_report.run(corpus)
+    assert report["corpus_token"]["newest_kg_count"] == 3
+    assert ["feed_a", "a2", "20261002-000000"] in report["served_runs"]
