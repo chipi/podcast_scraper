@@ -128,7 +128,7 @@ The causes are structural:
   2. the spelling matched to it at naming time;
   3. the most frequent spelling heard;
   4. on a tie, each episode keeps its own.
-- **Placeholder recognition:** numbered diarization labels and the detector default, as names and as ids. Role words are separate, because "Host" stays readable in its own episode.
+- **Placeholder recognition stays in its existing home,** `graph_id_utils`, which 27 modules already import. The copies elsewhere go there (S1b step 2): `_loaders.is_unresolved_speaker_placeholder` and the corpus graph's numbered-label regex. Numbered diarization labels and the detector default are recognised as names and as ids; role words are separate, because "Host" stays readable in its own episode.
 - **The display-name function** with one fallback rule: no name rather than an id or a slug. This includes "Unidentified speaker N" for an unnamed substantive voice, numbered by first appearance in the episode at read time, never stored and never an id.
 - **`place_roster_entry(entry, segment_labels)`,** the one live home of the placement rule m0025 applies to older records.
 
