@@ -56,6 +56,7 @@ from .migrations.m0034_talk_floor_names_removed import TalkFloorNamesRemovedMigr
 from .migrations.m0035_voice_identity_names import VoiceIdentityNamesMigration
 from .migrations.m0036_bridge_identities_restored import BridgeIdentitiesRestoredMigration
 from .migrations.m0037_named_voices_corrected import NamedVoicesCorrectedMigration
+from .migrations.m0038_raw_label_speakers_removed import RawLabelSpeakersRemovedMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -139,6 +140,9 @@ _MIGRATIONS: List[Migration] = [
     # 0037 gives served voices holding another person's name their own (#2094 D5 and night 1's
     # blind reads; frozen list + verdicts, a swap applied whole).
     NamedVoicesCorrectedMigration(),
+    # 0038 brings served episodes' files to what the pipeline now writes for a voice that kept a
+    # raw diarization label: no Person node, quotes and insights typed (RFC-131 N11, text only).
+    RawLabelSpeakersRemovedMigration(),
     # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27;
     # the id stays unused.
 ]

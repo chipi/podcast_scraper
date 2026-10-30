@@ -55,7 +55,7 @@ The change's own numbers, on served episodes:
 | N2 | Quote nodes whose `speaker_id` is such a Person | 107 |
 | N3 | SPOKEN_BY edges to such a Person | 107 |
 | N4 | Insight nodes whose FIRST grounded quote (file order of SUPPORTED_BY) is N2 | 53 in 15 episodes, all surfaceable, no voice type |
-| N5 | Insight nodes whose `speaker` field is a raw label | 53 |
+| N5 | Insight nodes whose `speaker` field is a raw label, in the 24 episodes (corpus-wide 28,938 in 1,340: the pipeline writes the voice id there) | 53 |
 | N6 | Bridge identities whose `display_name` is a raw label | 28 in 24 episodes |
 | N7 | KG Person nodes whose name is a raw label | 0 |
 | N8 | Search-index Quote rows whose `speaker_id` is an N1 id | to measure on the clone at step 7 |
@@ -86,8 +86,7 @@ The rule (the pipeline's own, applied to the stored files):
 - an N2 quote loses `speaker_id` and its SPOKEN_BY edge, and takes `speaker_voice_type` from its
   segment's current type, or `unknown` when the segment carries a raw label or cannot be placed;
 - an N4 insight takes its first quote's voice type and `surfaceable: false`; its routing tag and
-  salience are recomputed by the pipeline's `_apply_route_and_tag`; an N5 `speaker` field is
-  removed;
+  salience are recomputed by the pipeline's `_apply_route_and_tag`;
 - an N1 Person node is removed (every one is orphaned once its edges go);
 - an N6 bridge identity is removed;
 - an N8 index row's `speaker_id` is cleared in place (no index rebuild);
@@ -99,7 +98,8 @@ after (eval-data `n11/n11_simulate.py`, `n11/sim_deltas.json`).
 
 | # | Before → after | Population |
 |---|---|---|
-| N1, N2, N3, N5, N6 | 28, 107, 107, 53, 28 → 0 | reached: 24 episodes |
+| N1, N2, N3, N6 | 28, 107, 107, 28 → 0 | reached: 24 episodes |
+| N5 | 53 → 53, not touched (correction below) | must not move |
 | N4 | 53 insights change: 49 to `unknown`, 4 to `unidentified`; `surfaceable` per the pipeline's `VOICE_TYPE_NOT_SURFACEABLE` (all 53 false: no first quote is `cameo`) | 15 episodes, ids in `n11/n4_insights.json`; 7 of the 53 have an unplaced first quote (ids in `n11/rows5.json`) |
 | N2 quotes not first of any insight | 54; their insights keep type and `surfaceable` (21 insights hold only such raw quotes) | must not move |
 | N7 | 0 → 0 | |
@@ -117,6 +117,15 @@ after (eval-data `n11/n11_simulate.py`, `n11/sim_deltas.json`).
 | A1 | 396 / 297 → unchanged | must not move |
 | Insights | 135,390 → 135,390 (no insight removed; ids unchanged) | must not move |
 | Served episodes | 3,069 (newest_kg_count 3069) | must not move |
+
+**Correction, 2026-10-31 (step 6, before any apply):** the N5 rule ("an insight `speaker` field
+that is a raw label is removed") was wrong and is withdrawn. The pipeline writes the raw voice id of
+the segment under an insight's first quote into `speaker` for every insight
+(`gi/pipeline._speaker_for_insight`), named or not; the migration's dry run on the snapshot with
+that rule wrote 28,938 insights in 1,340 episodes. My N5 baseline (53) was counted only inside the
+24 episodes. Without the rule the dry run equals the rest of this prediction exactly (24 episodes;
+28, 107, 107, 19 unplaced, 53, 53 rerouted, 28; 0 refused). No scoreboard integer moves: S1n
+already ignores a raw-label `speaker`, and no other row reads the field.
 
 **Trade-rule moves, by identity:** the 53 insights of N4 (ids in eval-data
 `n11/n4_insights.json`, to be committed). They are not "leaving a wrong name": their speaker is a
@@ -156,7 +165,23 @@ Spot checks for step 8, each able to fail:
 
 ## 6. Build
 
-_TODO_
+- Scenario tests first: `tests/unit/podcast_scraper/upgrade/test_m0038_raw_label_speakers_removed.py`,
+  13 tests, one per path: a quote on a raw untyped segment, on a typed segment, unplaced; a raw quote
+  that is not a first quote; a named quote beside a raw one; a type the pipeline surfaces (cameo);
+  an insight `speaker` field alone (no change); no raw label (no write); a superseded run (not
+  read); dry run equals apply; verify, second apply (0 writes) and undo (byte-identical); a raw quote
+  on a now-named segment (episode refused, untouched); a raw bridge identity with no GI Person; a
+  quote in another run's transcript.
+- Migration: `src/podcast_scraper/upgrade/migrations/m0038_raw_label_speakers_removed.py`, registered
+  after 0037, `to_version` 2.7.32.
+- Mutants (`replay-proven-fix/scripts/mutate.py`, each with a compile precheck), all 10 killed:
+  surfaceable forced, the last quote instead of the first, the segment's type ignored, no refusal on
+  a named segment, no reroute, the Person kept, SPOKEN_BY kept, the bridge matched by id only, the
+  ref not resolved, superseded runs read. The first run left two alive (bridge by id only, ref not
+  resolved); the two tests above were added for them.
+- Placement follows the gold join's `resolve_ref` (relative to the run directory). The dry run on
+  snapshot-prod-20261030 equals section 4 exactly, quote by quote and insight by insight
+  (107 quotes, 53 insights, 0 type differences; 24 episodes, 0 refused).
 
 ## 7. Measure
 
