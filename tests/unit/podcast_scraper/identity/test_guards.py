@@ -60,6 +60,11 @@ class TestGuardFires:
         voice_plus_mention = {"e1": _ev(PEOPLE, [("Jorna Velt", ["S0"])])}
         assert G.guard_fires(A, B, ["e1"], voice_plus_mention) is None
 
+    def test_one_name_on_two_ids_is_no_evidence_of_two_people(self):
+        same = [(A, "Jorna Velt"), (B, "jorna  velt")]
+        assert G.guard_fires(A, B, ["e1"], {"e1": _ev(same, publisher=["Jorna Velt"])}) is None
+        assert G.guard_fires(A, B, ["e1"], {"e1": _ev(same)}) is None
+
     def test_only_episodes_where_both_are_present(self):
         ev = {"e1": _ev([(A, "Jorna Velt")]), "e2": _ev([(B, "Jorna Vellt")])}
         assert G.guard_fires(A, B, ["e1", "e2"], ev) is None
@@ -185,3 +190,63 @@ def test_ledger_records_the_blocked_join(corpus):
     ledger = build_ledger(corpus)
     assert ledger_id_map(ledger) == {}
     assert ledger["blocked_joins"] == [[B, A, G.GUARD_CO_VOICE, "a1"]]
+
+
+class TestPersonRule:
+    """Mode ``cluster_person`` and the no-one-word-bridge linkage (RFC-131 S4, N12)."""
+
+    @pytest.mark.parametrize(
+        "a,b,same",
+        [
+            ("Hitler", "Schiller", False),
+            ("Einstein", "Wittgenstein", False),
+            ("Yushun", "Yushan", False),
+            ("Erdoğan", "Erdogan", True),
+            ("trump", "Trump", True),
+            ("Patio11", "Patio 11", True),
+            ("Biden", "Joe Biden", True),
+            ("Tracy Alloway", "Tracey Alloway", True),
+        ],
+    )
+    def test_cluster_person_mode(self, a, b, same):
+        from podcast_scraper.identity.person_match import same_person
+
+        assert same_person(a, b, mode="cluster_person") is same
+        assert same_person(b, a, mode="cluster_person") is same
+
+    def test_mode_cluster_is_unchanged(self):
+        from podcast_scraper.identity.person_match import same_person
+
+        assert same_person("Hitler", "Schiller", mode="cluster") is True
+
+    def _build(self, linkage):
+        cands = {
+            c.id: c
+            for c in (
+                _cand("person:joe-biden", "Joe Biden", ["e1", "e2", "e3"]),
+                _cand("person:biden", "Biden", ["e4", "e5"]),
+                _cand("person:hunter-biden", "Hunter Biden", ["e6"]),
+                _cand("person:scott-bessent", "Scott Bessent", ["e7", "e8", "e9", "e10"]),
+                _cand("person:scott-bessett", "Scott Bessett", ["e11"]),
+                _cand("person:president-trump", "President Trump", ["e12", "e13"]),
+                _cand("person:donald-trump", "Donald Trump", ["e14", "e15", "e16"]),
+                _cand("person:eric-trump", "Eric Trump", ["e17"]),
+            )
+        }
+        return build_entity_canonical_map(cands, person_mode="cluster_person", linkage=linkage)[1]
+
+    def test_single_linkage_bridges_through_a_surname(self):
+        id_map = self._build("single")
+        assert id_map["person:hunter-biden"] == "person:joe-biden"
+        assert id_map["person:eric-trump"] == "person:donald-trump"
+
+    def test_no_bridge_keeps_full_names_apart_and_drift_joined(self):
+        id_map = self._build("no_one_word_bridge")
+        assert "person:hunter-biden" not in id_map
+        assert "person:eric-trump" not in id_map  # "President Trump" is one word after the title
+        assert id_map["person:biden"] == "person:joe-biden"
+        assert id_map["person:scott-bessett"] == "person:scott-bessent"
+
+    def test_unknown_linkage_is_refused(self):
+        with pytest.raises(ValueError):
+            build_entity_canonical_map({}, linkage="chain")

@@ -35,7 +35,12 @@ LEDGER_SCHEMA_VERSION = "identity-ledger/1"
 
 #: The rules that decided the joins. Bump it whenever a rule or guard changes what joins, so a
 #: ledger written by the previous rules is refused (no joins) until it is rebuilt.
-RULE_VERSION = "cluster-same-show-guarded/2"
+RULE_VERSION = "cluster-person-no-bridge-guarded/2"
+
+#: The person rule the ledger's joins use (RFC-131 S4): mode ``cluster_person`` (one-word names
+#: join only as one spelling), no one-word bridge between full names, and the guards (ADR-167).
+PERSON_MODE = "cluster_person"
+PERSON_LINKAGE = "no_one_word_bridge"
 
 #: Ledger states, for logs and the state gauge.
 STATE_OK = "ok"
@@ -64,8 +69,9 @@ def corpus_token(root: Path | str) -> Dict[str, Any]:
 def build_ledger(root: Path | str) -> Dict[str, Any]:
     """Build the ledger for a corpus root, from corpus text only. Writes nothing.
 
-    The joins are the cluster rule's, with the identity guards inside the join test (ADR-167);
-    each refused join is recorded in ``blocked_joins``.
+    The joins are the cluster rule's for organisations. For people: rule mode ``PERSON_MODE``,
+    linkage ``PERSON_LINKAGE``, and the identity guards inside the join test (ADR-167); each
+    refused join is recorded in ``blocked_joins``.
     """
     import podcast_scraper
     from podcast_scraper.identity.guards import candidate_guard, collect_episode_evidence
@@ -76,7 +82,10 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
 
     root = Path(root)
     payload, _id_map = build_entity_canonical_map(
-        collect_entity_candidates(root), guard=candidate_guard(collect_episode_evidence(root))
+        collect_entity_candidates(root),
+        guard=candidate_guard(collect_episode_evidence(root)),
+        person_mode=PERSON_MODE,
+        linkage=PERSON_LINKAGE,
     )
     blocked = payload.pop("blocked_joins", [])
     return {

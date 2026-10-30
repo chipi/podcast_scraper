@@ -18,9 +18,11 @@ from typing import Callable, List, Optional
 
 __all__ = [
     "MODES",
+    "cluster_person_variants",
     "cluster_variants",
     "edit_distance",
     "host_variants",
+    "name_words",
     "one_edit_apart",
     "same_person",
     "soundex",
@@ -422,6 +424,37 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
     return True
 
 
+def name_words(name: str) -> int:
+    """How many words the cluster rule compares: the cleaned name without a leading title.
+
+    ``President Trump`` is one word here, because the rule reads it as ``Trump`` against a
+    longer name (family-only reference).
+    """
+    if _clean_cached is None:
+        _bind_kg_filters()
+    assert _clean_cached is not None
+    return len(_strip_title_prefix(_clean_cached(name).split()))
+
+
+def cluster_person_variants(name_a: str, name_b: str, language: Optional[str] = None) -> bool:
+    """Mode ``cluster_person``: mode ``cluster`` for people, except that two ONE-WORD names join
+    only when they are one spelling (case and accents folded) or differ only in spacing.
+
+    A single token carries too little to tell a misspelling from another name: on the production
+    corpus (RFC-131 S4, N12) the fuzzy one-word joins were mostly two people, Hitler/Schiller,
+    Einstein/Wittgenstein, Claude/Claudius, Yushun/Yushan (two guests of one show), against a
+    few right ones (Tutankhamun/Tutankhamen). A false split is visible clutter; a false merge
+    puts one person's words under another's name.
+    """
+    if _clean_cached is None:
+        _bind_kg_filters()
+    assert _clean_cached is not None
+    a, b = _clean_cached(name_a), _clean_cached(name_b)
+    if a and b and len(a.split()) == 1 and len(b.split()) == 1:
+        return a == b  # cleaning already folds case and accents (Erdoğan -> erdogan)
+    return cluster_variants(name_a, name_b, "person", language)
+
+
 def host_variants(a: str, b: str, language: Optional[str] = None) -> bool:
     """Mode ``host_variant``: two host names of one feed that are spellings of one person (#1190).
 
@@ -439,7 +472,11 @@ def host_variants(a: str, b: str, language: Optional[str] = None) -> bool:
 
 
 #: The rule modes, by name. A consumer names its mode rather than importing a function.
-MODES = {"cluster": cluster_variants, "host_variant": host_variants}
+MODES = {
+    "cluster": cluster_variants,
+    "cluster_person": cluster_person_variants,
+    "host_variant": host_variants,
+}
 
 
 def same_person(
@@ -448,6 +485,8 @@ def same_person(
     """Are two names one person (or, for ``cluster``, one entity) under rule ``mode``?"""
     if mode == "cluster":
         return cluster_variants(a, b, kind, language)
+    if mode == "cluster_person":
+        return cluster_person_variants(a, b, language)
     if mode == "host_variant":
         return host_variants(a, b, language)
     raise ValueError(f"unknown same-person mode: {mode!r} (known: {sorted(MODES)})")

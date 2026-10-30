@@ -9,13 +9,17 @@ guards read evidence already on disk, per episode, and only over the episodes th
   voice there: unknown, so no join. (Decided at G0, 2026-10-30: (c) does not apply when either is
   placed on a voice; the in-episode mention-to-speaker collapse owns that shape.)
 
+Two ids with one name (equal ignoring case and spacing) carry no evidence of two people: (b) and
+(c) do not fire on them. Found in the S4 replay: a publisher listing "Yushan" once held two
+"Yushan" ids apart.
+
 The evidence is built once per episode, before clustering, so the order candidates are visited in
 cannot change what a guard sees (D-b).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, FrozenSet, Iterable, List, Mapping, Optional, Sequence, Tuple
 
@@ -44,6 +48,9 @@ class EpisodeEvidence:
     present: FrozenSet[str]
     voice_of: Mapping[str, FrozenSet[str]]
     publisher_named: FrozenSet[str]
+    #: The node's name, normalised (case and spacing): two ids with one name carry no evidence of
+    #: two people, so the publisher-list and mention guards do not fire on them.
+    name_of: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def mention_only(self) -> FrozenSet[str]:
@@ -86,6 +93,7 @@ def episode_evidence(
     named = {pid for name in publisher_names for pid in ids_for(name)}
     return EpisodeEvidence(
         present=frozenset(pid for pid, _ in people),
+        name_of={pid: _keys(name)[0] for pid, name in people},
         voice_of={k: frozenset(v) for k, v in voices.items() if v},
         publisher_named=frozenset(named),
     )
@@ -107,8 +115,11 @@ def guard_fires(
         if ev is None or a == b or a not in ev.present or b not in ev.present:
             continue
         va, vb = ev.voice_of.get(a, frozenset()), ev.voice_of.get(b, frozenset())
+        one_name = bool(ev.name_of.get(a)) and ev.name_of.get(a) == ev.name_of.get(b)
         if GUARD_CO_VOICE in on and va and vb and not (va & vb):
             return GUARD_CO_VOICE, eid
+        if one_name:
+            continue
         if GUARD_PUBLISHER_LIST in on and a in ev.publisher_named and b in ev.publisher_named:
             return GUARD_PUBLISHER_LIST, eid
         if GUARD_MENTION_COOCCURRENCE in on and not va and not vb:

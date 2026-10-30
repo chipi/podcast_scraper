@@ -102,16 +102,65 @@ def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandida
     return out
 
 
+def _words(name: str) -> int:
+    from ..identity.person_match import name_words
+
+    return name_words(name)
+
+
 def _pick_canonical(members: List[EntityCandidate]) -> EntityCandidate:
     """Highest frequency wins; tie → longest name, then lexical."""
     return sorted(members, key=lambda c: (-c.freq, -len(c.name), c.name.lower()))[0]
+
+
+_Guard = Callable[[EntityCandidate, EntityCandidate], Optional[Tuple[str, str]]]
+_LINKAGES = ("single", "no_one_word_bridge", "complete")
+
+
+class _JoinTest:
+    """May a candidate join a cluster? ``build_entity_canonical_map``'s join test, refusals kept."""
+
+    def __init__(self, guard: Optional[_Guard], person_mode: str, linkage: str) -> None:
+        if linkage not in _LINKAGES:
+            raise ValueError(f"unknown linkage: {linkage!r} (known: {list(_LINKAGES)})")
+        self.guard, self.person_mode, self.linkage = guard, person_mode, linkage
+        self.blocked: List[List[str]] = []
+
+    def _match(self, a: str, b: str, kind: str) -> bool:
+        if kind == "person" and self.person_mode != "cluster":
+            from ..identity.person_match import same_person
+
+            return same_person(a, b, mode=self.person_mode)
+        return _are_xep_variants(a, b, kind)
+
+    def _matches(self, cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
+        if kind == "person" and self.linkage == "complete":
+            return all(self._match(cand.name, m.name, kind) for m in cluster)
+        pool = cluster
+        if kind == "person" and self.linkage == "no_one_word_bridge" and _words(cand.name) > 1:
+            pool = [m for m in cluster if _words(m.name) > 1] or cluster
+        return any(self._match(cand.name, m.name, kind) for m in pool)
+
+    def __call__(self, cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
+        if not self._matches(cand, cluster, kind):
+            return False
+        if self.guard is None or kind != "person":
+            return True
+        for m in cluster:
+            fired = self.guard(cand, m)
+            if fired is not None:
+                self.blocked.append([cand.id, m.id, fired[0], fired[1]])
+                return False
+        return True
 
 
 def build_entity_canonical_map(
     candidates: Dict[str, EntityCandidate],
     *,
     same_show_required: bool = True,
-    guard: Optional[Callable[[EntityCandidate, EntityCandidate], Optional[Tuple[str, str]]]] = None,
+    guard: Optional[_Guard] = None,
+    person_mode: str = "cluster",
+    linkage: str = "single",
 ) -> Tuple[Dict[str, Any], Dict[str, str]]:
     """Cluster variants and return ``(entity_clusters_payload, variant→canonical map)``.
 
@@ -119,20 +168,21 @@ def build_entity_canonical_map(
     matches some member and the guard fires against no member; otherwise the next eligible cluster
     is tried. Each refusal is recorded in the payload's ``blocked_joins`` as
     ``[candidate_id, member_id, guard, episode_id]``. Without a guard the build is unchanged.
-    """
-    blocked: List[List[str]] = []
 
-    def joins(cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
-        if not any(_are_xep_variants(cand.name, m.name, kind) for m in cluster):
-            return False
-        if guard is None or kind != "person":
-            return True
-        for m in cluster:
-            fired = guard(cand, m)
-            if fired is not None:
-                blocked.append([cand.id, m.id, fired[0], fired[1]])
-                return False
-        return True
+    ``person_mode`` names the identity module's rule mode for people (``cluster``, today's, or
+    ``cluster_person``). ``linkage`` (people only) is how a candidate must match a cluster:
+
+    * ``single`` (today's): some member;
+    * ``no_one_word_bridge``: some member, and when the candidate has two or more words and the
+      cluster holds a member that does too, one of THOSE. A bare surname then cannot bridge two
+      full names (``Hunter Biden`` ~ ``Biden`` ~ ``Joe Biden``), while spelling drift between
+      full names still chains (``Scott Bessett`` ~ ``Scott Bessent`` ~ ``Scott Bident``);
+    * ``complete``: every member (measured, not used: it splits that drift too).
+
+    The defaults keep today's build.
+    """
+    joins = _JoinTest(guard, person_mode, linkage)
+    blocked = joins.blocked
 
     by_kind: Dict[str, List[EntityCandidate]] = {}
     for cand in candidates.values():
