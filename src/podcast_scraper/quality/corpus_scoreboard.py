@@ -12,7 +12,7 @@ before/after table on two corpus copies compares like with like. Over the served
   is found through the insight's first grounded quote and the segment it sits in (the raw voice
   id), never through the insight's ``speaker``, which is a name after a rename;
 - ``S10a`` / ``S10b``: episodes with insights of which none is visible, without and with the
-  episode panel's unattributed fallback (`server.app_gi_view.insights_from_gi`);
+  episode panel's unattributed fallback (`server.gi_view.insights_from_gi`);
 - ``S12``: quotes whose offsets do not slice to their own text in the file they name;
 - ``A1``: sponsor-marker hits in the served ad-free text (an indicator: `AD_MARKERS`).
 
@@ -174,7 +174,7 @@ def _count_principal(c: Counter, voice: Optional[str], share: Dict[str, float]) 
 
 def score_episode(meta_path: Path) -> Optional[Dict[str, Any]]:
     """One served episode's counters, or None when it has no readable metadata."""
-    from ..server.app_gi_view import insights_from_gi
+    from ..server.gi_view import insights_from_gi
 
     meta = _load(meta_path)
     if not isinstance(meta, dict):
