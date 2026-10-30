@@ -288,6 +288,8 @@ nav:
       - ADR-163 The jobs of Discover: adr/ADR-163-the-jobs-of-discover.md
       - ADR-164 Discover is a taste: adr/ADR-164-discover-is-a-taste.md
       - ADR-165 The validation corpus grounds every insight: adr/ADR-165-validation-corpus-grounds-every-insight.md
+      - ADR-166 Person identity ledger, no joins without it: adr/ADR-166-person-identity-ledger-no-joins-without-it.md
+      - ADR-167 Identity guards inside the join: adr/ADR-167-identity-guards-inside-the-join.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -404,6 +406,7 @@ nav:
       - RFC-128 Durable Storylines: rfc/RFC-128-durable-storylines.md
       - RFC-129 Audio Sync for Dynamic Ads: rfc/RFC-129-audio-sync-for-dynamic-ads.md
       - RFC-130 An Episode in Another Language than Its Show: rfc/RFC-130-episode-language-other-than-its-show.md
+      - RFC-131 Person Identity, One Home: rfc/RFC-131-person-identity-one-home.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
