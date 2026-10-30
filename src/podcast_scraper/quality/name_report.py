@@ -17,7 +17,7 @@ Measures produced here:
 * **R1** raw labels shown, per surface: the insights panel (default and fallback paths), the
   transcript segments, and the episode people chips.
 * **R2** candidate groups of names that may be one person, per feed, with spellings and
-  insights, plus how the identity map (``cached_entity_id_map``'s builder) groups the same ids.
+  insights, plus how the identity map this code serves (the ledger's) groups the same ids.
 * **R4** (voice mode) one person across shows: identical names on two or more feeds, and
   rule-b variants across feeds, each with whether today's identity map already joins them.
 * **R5** names listed but not heard, and names heard (insight speakers) but not listed.
@@ -676,7 +676,7 @@ def run(root: Path) -> Dict[str, Any]:
     results = [measure_episode(ep) for ep in episodes]
     raw_rows = [row for r in results for row in r.raw_rows]
 
-    id_map = _identity_map(root)
+    id_map, id_map_source = _identity_map(root)
     ids_by_feed_name: Dict[Tuple[str, str], Set[str]] = defaultdict(set)
     for r in results:
         for name, ids in r.kg_ids_by_name.items():
@@ -737,7 +737,7 @@ def run(root: Path) -> Dict[str, Any]:
         "served_runs": [[e.feed, e.episode_id, e.run_dir] for e in episodes],
         "feeds": len({e.feed for e in episodes}),
         "records": dict(Counter(r.record for r in results)),
-        "identity_map": {"merged_variants": len(id_map)},
+        "identity_map": {"merged_variants": len(id_map), "source": id_map_source},
         "r1_raw_labels": raw_label_totals(raw_rows),
         "r1_rows": raw_rows,
         "r2_modes": modes,
@@ -774,11 +774,20 @@ def _corpus_token(root: Path) -> Dict[str, Any]:
     return {"corpus_mtime": corpus_mtime(root), "newest_kg_count": len(kg)}
 
 
-def _identity_map(root: Path) -> Dict[str, str]:
-    """The variant -> canonical map the app serves today (the builder, not its cache)."""
-    from podcast_scraper.kg.entity_clusters import build_entity_id_map
+def _identity_map(root: Path) -> Tuple[Dict[str, str], str]:
+    """``(map, source)``: the variant -> canonical map this code serves, and where it came from.
 
-    return build_entity_id_map(root)
+    ``ledger``: the corpus's identity ledger, read as the server reads it. ``ledger_build``: no
+    valid ledger on disk, so the map the ledger step would write (``build_ledger``, guards
+    included). The api of this code never serves the unguarded in-memory build (ADR-166), so the
+    report does not measure it either; the "before" numbers come from the deployed code's own run.
+    """
+    from podcast_scraper.identity.ledger import build_ledger, ledger_id_map, read_ledger
+
+    ledger, _state = read_ledger(root)
+    if ledger is not None:
+        return ledger_id_map(ledger), "ledger"
+    return ledger_id_map(build_ledger(root)), "ledger_build"
 
 
 def _summary_line(report: Dict[str, Any]) -> str:

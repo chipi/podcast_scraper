@@ -61,7 +61,11 @@ def _keys(name: str) -> Tuple[str, str]:
     from podcast_scraper.identity.slugify import person_id
 
     name = " ".join(str(name or "").split())
-    return name.casefold(), person_id(name) if name else ""
+    try:
+        minted = person_id(name) if name else ""
+    except ValueError:  # no letters the slug keeps (e.g. a name in Chinese script): name only
+        minted = ""
+    return name.casefold(), minted
 
 
 def episode_evidence(

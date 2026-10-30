@@ -33,6 +33,11 @@ class TestEpisodeEvidence:
         ev = _ev(PEOPLE, [("Jorna Velt", [])])
         assert ev.mention_only == {A, B}
 
+    def test_a_name_that_mints_no_id_matches_by_name(self):
+        ev = _ev([("person:x-1", "张川红")], [("张川红", ["S0"])], ["张川红"])
+        assert ev.voice_of == {"person:x-1": frozenset({"S0"})}
+        assert ev.publisher_named == {"person:x-1"}
+
     def test_publisher_names_map_to_nodes(self):
         assert _ev(PEOPLE, publisher=["Jorna Velt", "Someone Else"]).publisher_named == {A}
 
