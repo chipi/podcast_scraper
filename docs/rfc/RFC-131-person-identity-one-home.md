@@ -140,7 +140,7 @@ Identity follows the language parameterisation the rest of naming uses: `speaker
   - Titles, credential and generational suffixes, particles and nickname groups come from `naming_vocabulary[language]`. Nothing English-only is built into the module.
   - The two nickname tables become one per-language table.
 - **An unknown or unsupported language** gets only language-neutral rules: names equal after normalisation, plus the guards. A missing vocabulary can split a person, never merge two.
-- **Phonetics and folding are per language.** Soundex is enabled per language. Fold rules (ü↔ue, ß↔ss, accents) and name order (family name first in zh, ja, ko, hu, vi) come from the vocabulary.
+- **Phonetics and folding are per language.** Soundex is enabled per language. Fold rules (ü↔ue, ß↔ss, accents) and name order (family name first in zh, ja, ko, hu, vi) come from the vocabulary. <!-- codespell:ignore ue -->
 - **Ids for any script.** One id-minting rule gives a stable id for a name in any script. Today the three minting functions give `person:topic`, `person:unknown`, or raise.
 - **Labels are typed, not strings.** "Unidentified speaker N", "Brief speaker", "Advertisement" and "Host" reach clients as a kind and a number, so the client's i18n renders them in the listener's language. An English string remains as a fallback for MCP and email.
 - **Publisher cues per language.** Cues like "On the show:" and introduction phrases come from the vocabulary.
