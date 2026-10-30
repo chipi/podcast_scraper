@@ -281,8 +281,17 @@ def test_no_identity_map_keeps_variants_separate(tmp_path):
 
 
 def test_get_corpus_graph_canonicalizes_entities_by_default(tmp_path):
-    # Prod path: get_corpus_graph builds + applies the entity canonical map (#852).
+    # Prod path: the identity ledger step writes the map, and get_corpus_graph applies it
+    # (#852, ADR-166). Without a ledger there are no joins, never the in-memory build.
+    from podcast_scraper import perf_cache
+    from podcast_scraper.identity.ledger import build_ledger, write_ledger
+
     corpus = _write_variant_corpus(tmp_path)
+    perf_cache.clear()
+    clear_corpus_graph_cache()
+    assert get_corpus_graph(corpus).get_node("org:cargil") is not None  # no ledger: no join
+    write_ledger(corpus, build_ledger(corpus))
+    clear_corpus_graph_cache()
     g = get_corpus_graph(corpus)  # canonicalize_entities=True by default
     assert g.get_node("org:cargil") is None  # auto-merged into the canonical
     assert g.get_node("org:cargill") is not None

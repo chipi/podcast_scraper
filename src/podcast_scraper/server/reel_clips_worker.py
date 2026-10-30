@@ -3,8 +3,9 @@
 Reads ``pickle((corpus_root, moments_config, catalog_rows))`` on stdin and writes
 ``pickle([(metadata_relative_path, token, clips), ...])`` on stdout. See
 :func:`podcast_scraper.server.app_cache_warm._score_reel_clips_isolated` for why the scoring leaves
-the api process. A plain ``python -m`` child, not ``multiprocessing``, for the reason
-``kg.entity_id_map_worker`` gives: a spawned worker re-imports the parent's ``__main__``.
+the api process. A plain ``python -m`` child, not ``multiprocessing``: a spawned worker
+re-imports the parent's ``__main__``, which in the api is ``opentelemetry-instrument python -m
+podcast_scraper.cli serve`` and from a test is pytest, so the child crashes.
 
 Pickle is safe here: both ends are this package, and the bytes never leave the pipe between them.
 """

@@ -167,17 +167,40 @@ def lance_mtime(lance_dir: Path | str) -> float:
         return -1.0
 
 
+#: Files every out-of-band writer of corpus ARTIFACTS touches (see :func:`corpus_mtime`).
+_CONTENT_STAMP_NAMES = (
+    "corpus_run_summary.json",
+    "corpus_manifest.json",
+    "upgrade_ledger.json",
+    "corpus_edges_stamp.json",
+)
+
+#: The identity ledger (ADR-166). Its own write must move the token the projections key on, so
+#: person pages and the KG index pick up a rebuilt ledger without a restart.
+_IDENTITY_LEDGER_NAME = "identity_ledger.json"
+
+
 def corpus_mtime(root: Path | str) -> float:
     """Ingest signal: the corpus run-summary mtime (rewritten each run), falling
-    back to the manifest, then the corpus dir mtime."""
-    root = Path(root)
+    back to the manifest, then the corpus dir mtime. Includes the identity ledger."""
+    return _stamp_mtime(Path(root), _CONTENT_STAMP_NAMES + (_IDENTITY_LEDGER_NAME,), True)
+
+
+def corpus_content_mtime(root: Path | str) -> float:
+    """:func:`corpus_mtime` without the identity ledger: the state of the corpus CONTENT.
+
+    The ledger records this as the corpus it was built from. A token that included the ledger
+    could never match after the ledger is written (ADR-166). For the same reason it never falls
+    back to the corpus root's own mtime, which the ledger write moves: a corpus with none of the
+    stamp files has no content mtime (-1), and staleness then rests on the kg count.
+    """
+    return _stamp_mtime(Path(root), _CONTENT_STAMP_NAMES, False)
+
+
+def _stamp_mtime(root: Path, names: tuple, fall_back_to_root: bool) -> float:
+    """MAX mtime over ``names`` under ``root``; else the root's mtime (if allowed), else -1."""
     stamps = []
-    for name in (
-        "corpus_run_summary.json",
-        "corpus_manifest.json",
-        "upgrade_ledger.json",
-        "corpus_edges_stamp.json",
-    ):
+    for name in names:
         try:
             # callers pass a validated corpus root (platform anchor or _resolve_corpus output);
             # name is a constant; getmtime only stats it for the cache token.
@@ -199,6 +222,8 @@ def corpus_mtime(root: Path | str) -> float:
         # corpus artifacts needs a name in THIS tuple; adding one is the price of not silently
         # serving stale projections.
         return max(stamps)
+    if not fall_back_to_root:
+        return -1.0
     try:
         # codeql[py/path-injection] -- same validated corpus root; getmtime stats only (Type 1).
         return os.path.getmtime(root)

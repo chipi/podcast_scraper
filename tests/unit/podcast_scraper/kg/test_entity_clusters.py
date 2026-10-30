@@ -458,13 +458,15 @@ class TestTheSharedIdMapIsBuiltOnce:
 
         from podcast_scraper.kg import entity_clusters
 
-        def fake(root, *, same_show_required=True):
+        def fake(root):
             calls.append(str(root))
             if delay:
                 time.sleep(delay)
             return {"person:variant": "person:canonical"}
 
-        monkeypatch.setattr(entity_clusters, "build_entity_id_map", fake)
+        # Since ADR-166 the server reads the identity ledger instead of building the map; the
+        # caching and single-flight these tests guard sit in front of that read.
+        monkeypatch.setattr(entity_clusters, "_served_id_map", fake)
         return entity_clusters
 
     def test_three_callers_on_one_corpus_build_it_once(self, tmp_path, monkeypatch) -> None:

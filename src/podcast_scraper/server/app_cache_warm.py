@@ -31,10 +31,10 @@ _DEFAULT_INTERVAL_S = 30.0
 
 
 def _warm_entity_id_map(root: Path) -> None:
-    """Build the corpus-wide entity id map into its shared cache (import kept local/optional)."""
+    """Read the identity ledger's map into its shared cache (import kept local/optional)."""
     from ..kg.entity_clusters import cached_entity_id_map
 
-    cached_entity_id_map(root, isolate_process=True)
+    cached_entity_id_map(root)
 
 
 def _warm_search_paths(root: Path) -> None:
@@ -109,9 +109,9 @@ def _score_reel_clips_isolated(root: Path, cfg: Any, rows: list[Any]) -> list[An
     in the api process it holds the GIL against every request thread. That day's post-deploy smoke
     failed on it: ``/api/index/stats``, ~4 s alone, gave no answer at all until the warm ended. A
     request that walks the corpus hands the GIL back on each filesystem call and then queues behind
-    the scorer for it. The entity id map left the process for the same reason
-    (``kg.entity_clusters._build_entity_id_map_isolated``). Here the api thread only waits on a
-    pipe, which holds no GIL, then files the results.
+    the scorer for it. The entity id map once left the process for the same reason, until the
+    identity ledger moved its build out of the api entirely (ADR-166). Here the api thread only
+    waits on a pipe, which holds no GIL, then files the results.
     """
     import pickle  # nosec B403 - our own child, over a private pipe (reel_clips_worker)
     import subprocess  # nosec B404 - fixed argv: this interpreter and a module of this package

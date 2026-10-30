@@ -191,20 +191,33 @@ class TestSpellingVariantsCollapseInTheAppIndex:
         )
         _stamp(root, 1000.0)
 
-    def test_both_spellings_resolve_to_one_person(self, tmp_path: Path) -> None:
+    def _two_spellings_with_ledger(self, root: Path) -> None:
+        """The served path since ADR-166: the ledger step writes the map the index applies."""
+        from podcast_scraper.identity.ledger import build_ledger, write_ledger
+
+        self._two_spellings(root)
+        write_ledger(root, build_ledger(root))
+
+    def test_without_a_ledger_the_two_spellings_stay_two(self, tmp_path: Path) -> None:
+        # ADR-166: no ledger means no cross-episode joins, never the in-memory build.
         self._two_spellings(tmp_path)
+        index = app_kg_index.build_kg_index(tmp_path)
+        assert len({pid for pid in index.person_to_eps if "jaffe" in pid}) == 2
+
+    def test_both_spellings_resolve_to_one_person(self, tmp_path: Path) -> None:
+        self._two_spellings_with_ledger(tmp_path)
         index = app_kg_index.build_kg_index(tmp_path)
         jaffe_ids = {pid for pid in index.person_to_eps if "jaffe" in pid}
         assert len(jaffe_ids) == 1, f"one human must have one id on the cards, got {jaffe_ids}"
 
     def test_the_surviving_person_carries_both_episodes(self, tmp_path: Path) -> None:
-        self._two_spellings(tmp_path)
+        self._two_spellings_with_ledger(tmp_path)
         index = app_kg_index.build_kg_index(tmp_path)
         pid = next(p for p in index.person_to_eps if "jaffe" in p)
         assert len(index.person_to_eps[pid]) == 2, "the merged person appears in both episodes"
 
     def test_searching_either_spelling_finds_the_same_person(self, tmp_path: Path) -> None:
-        self._two_spellings(tmp_path)
+        self._two_spellings_with_ledger(tmp_path)
         index = app_kg_index.build_kg_index(tmp_path)
         refs = {
             app_kg_index.normalize_label("Theo Jaffee"),
