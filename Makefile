@@ -3939,7 +3939,7 @@ test-unit: cleanup-processes
 	# Unit tests are lightweight (~100 MB per worker), so can use more workers
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
-	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-no-ml: cleanup-processes
 	# Runs import guard + unit tests with *current* $(PYTHON) (.venv if present).
@@ -3947,14 +3947,14 @@ test-unit-no-ml: cleanup-processes
 	@echo "Verifying unit tests can import modules without ML dependencies..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
 	@echo "Running unit tests..."
-	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-dev-venv: cleanup-processes
 	@test -x "$(VENVDEV_PY)" || { echo "Missing $(VENVDEV_PY). Run: make venv-dev-init [VENVDEV=$(VENVDEV)]"; exit 1; }
 	@echo "Verifying imports (CI-style, .[dev] only)..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(VENVDEV_PY) scripts/tools/check_unit_test_imports.py
 	@echo "Running unit tests in $(VENVDEV)..."
-	$(VENVDEV_PY) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(VENVDEV_PY) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(VENVDEV_PY) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(VENVDEV_PY) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration: cleanup-processes
 	# Integration tests: parallel execution (3.4x faster, significant benefit)

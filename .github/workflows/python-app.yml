@@ -553,7 +553,7 @@ jobs:
         mkdir -p reports
         # Run tests with coverage and capture output and exit code
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/unit/ -v --tb=short -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-unit.json --junitxml=reports/junit-unit.xml --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/unit/ tests/guardrails/ -v --tb=short -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-unit.json --junitxml=reports/junit-unit.xml --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
