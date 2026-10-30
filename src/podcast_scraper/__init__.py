@@ -58,6 +58,11 @@ __all__ = [
 # tag; bump this marker at milestones (dev0 → b1 → rc1 → 2.7.0).
 __version__ = "2.7.0.dev0"
 
+# Identifies this branch's source in the name-consolidation arc's before/after prod reports, which
+# mount the branch ``src/`` over the image's package: a report that does not print this marker ran
+# the image's code, and is void. Removed when the arc lands on main.
+NAMING_ARC_MARKER = "feat/name-consolidation@gpre-trial"
+
 # API CONTRACT version — a clean semantic ``X.Y.Z``, DECOUPLED from the build version
 # so a pre-release build doesn't move the contract. It is the release BASE of
 # ``__version__`` (test-enforced: ``Version(__version__).base_version == __api_version__``).
