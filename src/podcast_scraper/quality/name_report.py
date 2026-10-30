@@ -353,7 +353,7 @@ def _data_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     rows: List[Dict[str, Any]] = []
     raw_persons = {
-        n.get("id")
+        n.get("id"): str((n.get("properties") or {}).get("name") or "")
         for n in gi.get("nodes") or []
         if isinstance(n, dict)
         and n.get("type") == "Person"
@@ -361,7 +361,8 @@ def _data_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
     }
     for e in gi.get("edges") or []:
         if isinstance(e, dict) and e.get("type") == "SPOKEN_BY" and e.get("to") in raw_persons:
-            rows.append(_row(ep, "data_quotes", str(e.get("to")), "raw"))
+            pid = e.get("to")
+            rows.append(_row(ep, "data_quotes", raw_persons[pid], "raw", person_id=str(pid)))
     bridge = ep.artifact(".bridge.json") or {}
     for ident in bridge.get("identities") or [] if isinstance(bridge, dict) else []:
         if isinstance(ident, dict) and label_kind(str(ident.get("display_name") or "")) == "raw":
