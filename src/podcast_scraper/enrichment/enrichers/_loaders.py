@@ -12,28 +12,14 @@ required input is *expected* but malformed.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from podcast_scraper.enrichment.protocol import EpisodeArtifactBundle
-from podcast_scraper.graph_id_utils import (
+from podcast_scraper.graph_id_utils import (  # noqa: F401 — re-exported for its callers
     is_bare_speaker_label,
     is_scoped_placeholder_person_id,
-)
-
-_SPEAKER_PLACEHOLDER_PATTERN = re.compile(
-    r"^(?:person:)?speaker[_\-]?\d+$"  # global: SPEAKER_03 / person:speaker-03
-    r"|^person:speaker-.+-\d+$"  # episode-scoped: person:speaker-{ep}-03 (#1b)
-    # Episode-scoped BARE NAME: person:unresolved-{name}-{ep} (#1685). A first name with no
-    # surname anywhere in the episode identifies someone within that episode and nobody
-    # globally — the same under-specification as SPEAKER_03, so it belongs in the same bucket.
-    # This one line is what makes the whole change land: the predicate is consulted in twelve
-    # modules, INCLUDING `app_kg_view.entities_from_kg`, which is the single source for entity
-    # cards, discover ranking rows and derived interests. Without it the scoped ids would still
-    # be followable episode-local people — the thing the change exists to prevent.
-    r"|^person:unresolved-.+$",
-    re.IGNORECASE,
+    is_unresolved_speaker_placeholder,
 )
 
 
@@ -188,35 +174,6 @@ def is_surfaceable_insight(node: dict[str, Any]) -> bool:
     if not isinstance(props, dict):
         return True
     return props.get("surfaceable") is not False
-
-
-def is_unresolved_speaker_placeholder(person_id: str, name: str | None = None) -> bool:
-    """True when *person_id* / *name* looks like a per-episode diarization label.
-
-    Upstream NER / speaker-link sometimes leaves diarization output
-    (``SPEAKER_00``, ``SPEAKER_18``) un-resolved to a real Person. The
-    pipeline still slugs them as ``person:speaker-NN`` and puts them in
-    the Person table. Each episode's ``SPEAKER_NN`` is independent —
-    ``SPEAKER_00`` in episode A has nothing to do with ``SPEAKER_00`` in
-    episode B — so corpus-scope enrichers that aggregate across episodes
-    must drop them or they over-count the same label's cross-episode
-    coincidence as a real co-occurrence / co-grounding.
-    """
-    if person_id and _SPEAKER_PLACEHOLDER_PATTERN.match(person_id):
-        return True
-    # ROLE placeholders (#2059): `person:speaker-{ep}-host` and the legacy global `person:host`.
-    # The regex above requires trailing DIGITS, so it matched neither — and this predicate is
-    # consulted in twelve modules, so the gap would have surfaced one followable "Host" person
-    # per episode, strictly worse than the single phantom it replaced. The rule lives in
-    # graph_id_utils beside the id BUILDER and the label set, so filter and builder cannot drift.
-    if is_scoped_placeholder_person_id(person_id):
-        return True
-    if name and _SPEAKER_PLACEHOLDER_PATTERN.match(name):
-        return True
-    # A raw role word as the display NAME, for artifacts whose id was minted before #2059.
-    if name and is_bare_speaker_label(name):
-        return True
-    return False
 
 
 def episode_duration_seconds(meta: dict[str, Any]) -> float:

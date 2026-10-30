@@ -26,7 +26,6 @@ Consumer: RFC-091 `KGProximitySearch` (separate module, builds on `bfs()`).
 from __future__ import annotations
 
 import logging
-import re
 import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -34,20 +33,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
+from ..graph_id_utils import is_numbered_speaker_label as _looks_like_speaker_label
 from ..identity.person_match import edit_distance
 
 logger = logging.getLogger(__name__)
-
-# A raw diarization label that never got a real name (#1056): "SPEAKER_03",
-# "Speaker 3", "speaker-12". Used to tell an unnamed host *voice* from a real
-# person when reconciling network-feed hosts across a show's episodes.
-_SPEAKER_LABEL_RE = re.compile(r"^\s*speaker[\s_\-]*\d+\s*$", re.IGNORECASE)
-
-
-def _looks_like_speaker_label(name: Optional[str]) -> bool:
-    """True when *name* is a bare diarization id (``SPEAKER_03``), not a real name."""
-    return bool(name and _SPEAKER_LABEL_RE.match(str(name)))
-
 
 # Canonical id prefix → normalized node type. Keeps GIL `Person` and KG
 # `Entity(kind=person)` as one `person` node, etc.
