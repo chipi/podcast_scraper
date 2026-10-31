@@ -273,7 +273,7 @@ _TODO_
 ## Not covered
 
 - **The reading of the 51 changed joins is mostly mine.** The operator read 10 cards: 2 agree, 1
-  disagrees (Yushin / Yushan, read as one person: a false split by the one-word mode), 4 can't tell
+  disagrees (one pair of one-word guest names, read as one person: a false split by the one-word mode), 4 can't tell
   from the corpus evidence shown (2 of them I judged from who the names are), 3 of my 5 unclear read
   as one person (false splits). No refusal was confirmed by the operator from the cards alone.
 - **At least 15 false splits are accepted** (one person shown under two names): 11 by my reading

@@ -203,13 +203,13 @@ class TestPersonRule:
     @pytest.mark.parametrize(
         "a,b,same",
         [
-            ("Hitler", "Schiller", False),
-            ("Einstein", "Wittgenstein", False),
-            ("Yushun", "Yushan", False),
-            ("Erdoğan", "Erdogan", True),
-            ("trump", "Trump", True),
+            ("Marvelin", "Garvelin", False),  # one edit apart, two names
+            ("Kestrovan", "Estrovan", False),
+            ("Teshun", "Teshan", False),
+            ("Oğuzan", "Oguzan", True),  # accents folded
+            ("tolvane", "Tolvane", True),
             ("Patio11", "Patio 11", True),
-            ("Biden", "Joe Biden", True),
+            ("Tolvane", "Mara Tolvane", True),
             ("Tracy Alloway", "Tracey Alloway", True),
         ],
     )
@@ -222,35 +222,35 @@ class TestPersonRule:
     def test_mode_cluster_is_unchanged(self):
         from podcast_scraper.identity.person_match import same_person
 
-        assert same_person("Hitler", "Schiller", mode="cluster") is True
+        assert same_person("Marvelin", "Garvelin", mode="cluster") is True
 
     def _build(self, linkage):
         cands = {
             c.id: c
             for c in (
-                _cand("person:joe-biden", "Joe Biden", ["e1", "e2", "e3"]),
-                _cand("person:biden", "Biden", ["e4", "e5"]),
-                _cand("person:hunter-biden", "Hunter Biden", ["e6"]),
-                _cand("person:scott-bessent", "Scott Bessent", ["e7", "e8", "e9", "e10"]),
-                _cand("person:scott-bessett", "Scott Bessett", ["e11"]),
-                _cand("person:president-trump", "President Trump", ["e12", "e13"]),
-                _cand("person:donald-trump", "Donald Trump", ["e14", "e15", "e16"]),
-                _cand("person:eric-trump", "Eric Trump", ["e17"]),
+                _cand("person:mara-tolvane", "Mara Tolvane", ["e1", "e2", "e3"]),
+                _cand("person:tolvane", "Tolvane", ["e4", "e5"]),
+                _cand("person:ilse-tolvane", "Ilse Tolvane", ["e6"]),
+                _cand("person:brannick-holt", "Brannick Holt", ["e7", "e8", "e9", "e10"]),
+                _cand("person:brannick-hollt", "Brannick Hollt", ["e11"]),
+                _cand("person:president-corvel", "President Corvel", ["e12", "e13"]),
+                _cand("person:arno-corvel", "Arno Corvel", ["e14", "e15", "e16"]),
+                _cand("person:wilm-corvel", "Wilm Corvel", ["e17"]),
             )
         }
         return build_entity_canonical_map(cands, person_mode="cluster_person", linkage=linkage)[1]
 
     def test_single_linkage_bridges_through_a_surname(self):
         id_map = self._build("single")
-        assert id_map["person:hunter-biden"] == "person:joe-biden"
-        assert id_map["person:eric-trump"] == "person:donald-trump"
+        assert id_map["person:ilse-tolvane"] == "person:mara-tolvane"
+        assert id_map["person:wilm-corvel"] == "person:arno-corvel"
 
     def test_no_bridge_keeps_full_names_apart_and_drift_joined(self):
         id_map = self._build("no_one_word_bridge")
-        assert "person:hunter-biden" not in id_map
-        assert "person:eric-trump" not in id_map  # "President Trump" is one word after the title
-        assert id_map["person:biden"] == "person:joe-biden"
-        assert id_map["person:scott-bessett"] == "person:scott-bessent"
+        assert "person:ilse-tolvane" not in id_map
+        assert "person:wilm-corvel" not in id_map  # "President Corvel" is one word after the title
+        assert id_map["person:tolvane"] == "person:mara-tolvane"
+        assert id_map["person:brannick-hollt"] == "person:brannick-holt"
 
     def test_unknown_linkage_is_refused(self):
         with pytest.raises(ValueError):
