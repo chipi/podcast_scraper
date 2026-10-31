@@ -1348,3 +1348,19 @@ def test_the_storyline_card_says_what_it_was_called_and_that_it_is_quiet(tmp_pat
     assert card is not None
     assert card.aliases == [old]
     assert (card.state, card.last_active_at) == ("quiet", "2026-01-01")
+
+
+# ---- S6b: the person card shows the group's one spelling (invented names) ----------------------
+
+
+def test_the_person_card_shows_the_group_spelling(tmp_path: Path, monkeypatch) -> None:
+    from podcast_scraper.identity import display as D
+    from podcast_scraper.identity.display import PersonDisplay
+
+    _two_episode_corpus(tmp_path)
+    view = PersonDisplay({"person:jane-doe": "Jane Dough", "person:bob": "Bobby"})
+    monkeypatch.setattr(D, "person_display", lambda _root: view)
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.label == "Jane Dough"
+    names = {p.id: p.name for p in card.related_people}
+    assert names["person:bob"] == "Bobby" and names["person:carol"] == "Carol"

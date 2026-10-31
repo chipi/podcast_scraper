@@ -25,6 +25,12 @@ class PersonDisplay:
             return own_name
         return self._spelling_of.get(person_id.strip(), own_name)
 
+    def name_of(self, person_id: Optional[str]) -> Optional[str]:
+        """The group spelling of a joined id, or None (RFC-131 S6b)."""
+        if not isinstance(person_id, str):
+            return None
+        return self._spelling_of.get(person_id.strip())
+
     def __len__(self) -> int:
         return len(self._spelling_of)
 

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query, Request
 from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+from podcast_scraper.identity.display import person_display, PersonDisplay
 from podcast_scraper.server.app_catalog_cache import cached_catalog_last_run
 from podcast_scraper.server.cil_queries import (
     _insight_ids_supported_by_quotes,
@@ -114,8 +115,10 @@ def _rank_all_persons(root: Path) -> dict[str, Any]:
         from podcast_scraper.kg.entity_clusters import cached_entity_id_map
 
         canonical_by_id = cached_entity_id_map(root)
+        people = person_display(root)
     except Exception:  # noqa: BLE001 — an unresolved duplicate is the status quo, not an outage
         canonical_by_id = {}
+        people = PersonDisplay({})
     rows = cached_catalog_last_run(root)
     all_person_ids: set[str] = set()
     episode_by_person: DefaultDict[str, set[str]] = defaultdict(set)
@@ -157,7 +160,11 @@ def _rank_all_persons(root: Path) -> dict[str, Any]:
             persons_here.add(pid)
             all_person_ids.add(pid)
             if pid not in display_name_by_person:
-                display_name_by_person[pid] = _person_display_name(gi, pid)
+                found = _person_display_name(gi, pid)
+                # The group's one spelling (RFC-131 S6b); and no raw id where a group has a name.
+                display_name_by_person[pid] = (
+                    people.shown(pid, found) if found != pid else (people.name_of(pid) or pid)
+                ) or found
 
         for pid in persons_here:
             spoken = _quote_ids_spoken_by_person(gi, {pid})

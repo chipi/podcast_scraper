@@ -1177,6 +1177,13 @@ def topics_perspectives(
     for topic in topics:
         equiv |= _canonical_equivalents(root_path, topic)
     allowed = {x.strip().lower() for x in insight_types if x.strip()} if insight_types else None
+    from podcast_scraper.identity.display import person_display
+    from podcast_scraper.kg.entity_clusters import cached_entity_id_map
+
+    # One row per PERSON, not per id (RFC-131 S6b): a joined person's ids are one perspective, under
+    # their group's one spelling.
+    canonical = cached_entity_id_map(root_path)
+    people = person_display(root_path)
     by_person: dict[str, dict[str, Any]] = {}
     person_name: dict[str, str] = {}
     for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_where(
@@ -1197,7 +1204,8 @@ def topics_perspectives(
                 pid = str(n.get("id"))
                 nm = (n.get("properties") or {}).get("name")
                 if pid and isinstance(nm, str) and nm.strip():
-                    person_name.setdefault(pid, nm.strip())
+                    cid = canonical.get(pid, pid)
+                    person_name.setdefault(cid, people.shown(cid, nm.strip()) or nm.strip())
 
         episode_id = _episode_id_from_bridge(bridge)
         for iid in about_insights:
@@ -1233,7 +1241,9 @@ def topics_perspectives(
                 qtext = qprops.get("text")
                 if isinstance(qtext, str) and qtext.strip():
                     annotated["_quote_text"] = qtext
-            entry = by_person.setdefault(speaker_id, {"insights": [], "episodes": set()})
+            entry = by_person.setdefault(
+                canonical.get(speaker_id, speaker_id), {"insights": [], "episodes": set()}
+            )
             entry["insights"].append(annotated)
             if episode_id:
                 entry["episodes"].add(episode_id)
@@ -1256,7 +1266,7 @@ def topics_perspectives(
         out.append(
             {
                 "person_id": pid,
-                "person_name": person_name.get(pid, pid.split(":", 1)[-1]),
+                "person_name": person_name.get(pid) or people.name_of(pid) or pid.split(":", 1)[-1],
                 "insight_count": len(insights),
                 "episode_count": len(data["episodes"]),
                 "insights": insights,

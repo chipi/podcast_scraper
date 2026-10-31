@@ -126,3 +126,11 @@ def test_an_unjoined_person_keeps_its_own_name(corpus) -> None:
     root, _ = corpus
     L.write_ledger(root, L.build_ledger(root))
     assert D.person_display(root).shown("person:odile-brand", "Odile Brand") == "Odile Brand"
+
+
+def test_name_of_gives_a_joined_ids_group_spelling(corpus) -> None:
+    root, _ = corpus
+    L.write_ledger(root, L.build_ledger(root))
+    view = D.person_display(root)
+    assert view.name_of("person:korin-vaal") == view.name_of("person:korin-vael") == "Korin Vael"
+    assert view.name_of("person:odile-brand") is None

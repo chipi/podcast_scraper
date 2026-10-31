@@ -130,8 +130,15 @@ def _canonical_person_ids(root: Path) -> dict[str, str]:
 
 
 def build_kg_index(root: Path) -> KgEntityIndex:
-    """One full pass over the corpus KGs → the inverted index (called once per ingest via cache)."""
+    """One full pass over the corpus KGs → the inverted index (called once per ingest via cache).
+
+    A joined person carries their group's one spelling from the ledger (RFC-131 S6b), not the
+    first-seen variant's, so the person card, its related people and the entity refs agree.
+    """
+    from ..identity.display import person_display
+
     canonical = _canonical_person_ids(root)
+    people = person_display(root)
     episodes: list[EpisodeEntities] = []
     person_to_eps: dict[str, list[int]] = defaultdict(list)
     topic_to_eps: dict[str, list[int]] = defaultdict(list)
@@ -142,7 +149,7 @@ def build_kg_index(root: Path) -> KgEntityIndex:
 
     for row, persons, orgs, topics in iter_kg_entities(root, cached_catalog(root)):
         i = len(episodes)
-        if canonical:
+        if canonical or len(people):
             # Rewrite to the canonical id BEFORE the node lands in the projection, and dedupe
             # within the episode: two variant spellings in one episode would otherwise become the
             # same id twice, listing the person on their own card as two co-appearances.
@@ -153,7 +160,11 @@ def build_kg_index(root: Path) -> KgEntityIndex:
                 if cid in seen:
                     continue
                 seen.add(cid)
-                rewritten.append(p if cid == p.id else p.model_copy(update={"id": cid}))
+                shown = people.shown(cid, p.name) or p.name
+                if cid == p.id and shown == p.name:
+                    rewritten.append(p)
+                else:
+                    rewritten.append(p.model_copy(update={"id": cid, "name": shown}))
             persons = rewritten
         episodes.append(EpisodeEntities(row=row, persons=persons, topics=topics, orgs=orgs))
         for p in persons:
