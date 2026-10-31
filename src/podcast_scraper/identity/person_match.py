@@ -427,8 +427,8 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
 def name_words(name: str) -> int:
     """How many words the cluster rule compares: the cleaned name without a leading title.
 
-    ``President Trump`` is one word here, because the rule reads it as ``Trump`` against a
-    longer name (family-only reference).
+    "President <Surname>" is one word here, because the rule reads it as the bare surname against
+    a longer name (family-only reference).
     """
     if _clean_cached is None:
         _bind_kg_filters()
@@ -441,17 +441,18 @@ def cluster_person_variants(name_a: str, name_b: str, language: Optional[str] = 
     only when they are one spelling (case and accents folded) or differ only in spacing.
 
     A single token carries too little to tell a misspelling from another name: on the production
-    corpus (RFC-131 S4, N12) the fuzzy one-word joins were mostly two people, Hitler/Schiller,
-    Einstein/Wittgenstein, Claude/Claudius, Yushun/Yushan (two guests of one show), against a
-    few right ones (Tutankhamun/Tutankhamen). A false split is visible clutter; a false merge
-    puts one person's words under another's name.
+    corpus (RFC-131 S4, N12) 16 of the 23 fuzzy one-word joins were two people (two historical
+    figures whose names rhyme; two guests of one show one letter apart), against 5 right ones
+    (an alternative transliteration). The cases are listed by id in the eval-data repository
+    (``data/eval/name-consolidation/s4/``). A false split is visible clutter; a false merge puts
+    one person's words under another's name.
     """
     if _clean_cached is None:
         _bind_kg_filters()
     assert _clean_cached is not None
     a, b = _clean_cached(name_a), _clean_cached(name_b)
     if a and b and len(a.split()) == 1 and len(b.split()) == 1:
-        return a == b  # cleaning already folds case and accents (Erdoğan -> erdogan)
+        return a == b  # cleaning already folds case and accents ("Oğuz" -> "oguz")
     return cluster_variants(name_a, name_b, "person", language)
 
 

@@ -10,8 +10,8 @@ guards read evidence already on disk, per episode, and only over the episodes th
   placed on a voice; the in-episode mention-to-speaker collapse owns that shape.)
 
 Two ids with one name (equal ignoring case and spacing) carry no evidence of two people: (b) and
-(c) do not fire on them. Found in the S4 replay: a publisher listing "Yushan" once held two
-"Yushan" ids apart.
+(c) do not fire on them. Found in the S4 replay: a publisher listing one guest's name once held
+two ids carrying that same name apart.
 
 The evidence is built once per episode, before clustering, so the order candidates are visited in
 cannot change what a guard sees (D-b).

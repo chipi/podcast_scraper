@@ -175,8 +175,8 @@ def build_entity_canonical_map(
     * ``single`` (today's): some member;
     * ``no_one_word_bridge``: some member, and when the candidate has two or more words and the
       cluster holds a member that does too, one of THOSE. A bare surname then cannot bridge two
-      full names (``Hunter Biden`` ~ ``Biden`` ~ ``Joe Biden``), while spelling drift between
-      full names still chains (``Scott Bessett`` ~ ``Scott Bessent`` ~ ``Scott Bident``);
+      full names (``Ilse Tolvane`` ~ ``Tolvane`` ~ ``Mara Tolvane``, two relatives), while
+      spelling drift between full names still chains (``Brannick Holt`` ~ ``Brannick Hollt``);
     * ``complete``: every member (measured, not used: it splits that drift too).
 
     The defaults keep today's build.
