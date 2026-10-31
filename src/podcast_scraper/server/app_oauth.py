@@ -197,10 +197,10 @@ def provider_from_env() -> OAuthProvider | None:
     if selected in PRIMARY_PROVIDERS:
         build = installed_oauth_providers().get(selected)
         if build is None:
+            # The env value is not interpolated: CodeQL treats it as possibly sensitive.
             logger.warning(
-                "APP_OAUTH_PROVIDER=%s but no installed extension provides it "
-                "— consumer auth disabled.",
-                selected,
+                "APP_OAUTH_PROVIDER names a sign-in provider but no installed extension "
+                "provides it — consumer auth disabled."
             )
             return None
         return build()
