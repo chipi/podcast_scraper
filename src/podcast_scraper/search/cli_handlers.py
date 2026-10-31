@@ -33,6 +33,7 @@ from podcast_scraper.workflow.metadata_generation import _determine_gi_path
 EXIT_SUCCESS = 0
 EXIT_INVALID_ARGS = 2
 EXIT_NO_ARTIFACTS = 3
+EXIT_LEDGER_FAILED = 4
 
 _PLACEHOLDER_RSS = "https://example.com/.podcast-scraper/vector-cli-placeholder"
 
@@ -1996,6 +1997,11 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     print(msg)
 
     _write_edges_stamp(corpus, totals, logger)
+    ledger_failed = False
+    if totals.get("gi_rewritten") or totals.get("kg_scoped"):
+        from podcast_scraper.identity.ledger import refresh_ledger
+
+        ledger_failed = not refresh_ledger(corpus, after="enrich-edges", log=logger)
 
     if retro_audit and retro_rows:
         if retro_summary_path_arg:
@@ -2020,6 +2026,9 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             encoding="utf-8",
         )
         print(f"enrich-edges: retro-audit summary → {summary_path}")
+    if ledger_failed:
+        print("enrich-edges: identity ledger refresh FAILED; the previous ledger stays")
+        return EXIT_LEDGER_FAILED
     return EXIT_SUCCESS
 
 

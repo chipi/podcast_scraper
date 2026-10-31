@@ -352,6 +352,12 @@ def _cmd_run(
                 f"\nNow at version {runner.state.current_version() or 'unstamped'}; "
                 f"{len(remaining)} pending."
             )
+    if not args.dry_run and any(r.applied for r in results):
+        from ..identity.ledger import refresh_ledger
+
+        if not refresh_ledger(ctx.corpus_root, after="upgrade run", log=log):
+            print("identity ledger refresh FAILED after the upgrade; the previous ledger stays")
+            return 4
     return 0
 
 

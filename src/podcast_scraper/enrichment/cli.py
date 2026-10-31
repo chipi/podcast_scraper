@@ -192,6 +192,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "enrichments/person_web_raw/ so re-runs re-derive without re-fetching."
         ),
     )
+    parser.add_argument(
+        "--no-identity-ledger",
+        action="store_true",
+        help=(
+            "Do not rebuild the identity ledger after the run. By default a successful run "
+            "rebuilds it (ADR-166): the post-pipeline chain runs enrichment after every ingest "
+            "and reprocess batch, so this is where new episodes get their cross-episode joins."
+        ),
+    )
     return parser
 
 
@@ -417,7 +426,15 @@ async def run_cli(args: argparse.Namespace) -> int:
         f"enrichment: run_id={result.run_id} status={result.status} "
         f"duration_ms={result.duration_ms}"
     )
-    return 0 if result.status in ("ok", "skipped") else 1
+    if result.status not in ("ok", "skipped"):
+        return 1
+    if not getattr(args, "no_identity_ledger", False):
+        from podcast_scraper.identity.ledger import refresh_ledger
+
+        if not refresh_ledger(corpus_root, after="enrichment", log=logger):
+            print("enrichment: identity ledger refresh FAILED; the previous ledger stays")
+            return 4
+    return 0
 
 
 def build_enricher_set_from_yaml(config_path: Path | None) -> EnricherSet:

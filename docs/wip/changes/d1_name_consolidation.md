@@ -7,6 +7,7 @@ touches:
   - src/podcast_scraper/gi/pipeline.py
   - src/podcast_scraper/providers/ml/diarization/roster.py
   - src/podcast_scraper/speaker_detectors/*.py
+  - src/podcast_scraper/upgrade/cli_handlers.py
 ---
 
 # d1_name_consolidation — the name-consolidation arc's first deploy: one home for identity, raw labels never shown, guards and the one-word rule inside the join
@@ -87,7 +88,18 @@ MISSED: see section 4. Operator accepted: 2026-10-31.
 
 Commits on `feat/name-consolidation` (S1b … S4): 042c8d6af and the S1b series, 1802035eb (S3),
 a89e53fe2 (report), 855a12da6 (guards), a41530cbb (one-word rule, no-bridge linkage), 774de1a28
-(non-Latin names, report reads the ledger), c5bc10c77 (ledger undo).
+(non-Latin names, report reads the ledger), c5bc10c77 (ledger undo), and the ledger step (below).
+- **The ledger step on every corpus-writing path** (plan V3: "the last stage of every
+  corpus-writing path"), added 2026-10-31 after the D1 inventory found it unwired: only the
+  `identity-ledger` command wrote the ledger, so episodes ingested after the deploy would have had
+  no cross-episode joins until a hand-run build. `identity.ledger.refresh_ledger` runs after a
+  successful `enrich` run (the post-pipeline chain, #1653, queues one coalesced run after every
+  ingest and reprocess batch, so one build per batch, not per feed), after an `upgrade run` that
+  applied a migration, and after an `enrich-edges` pass that rewrote artifacts. A failed build
+  leaves the previous ledger and fails the command with exit 4 (never silent). `enrich
+  --no-identity-ledger` opts out. Tests: `test_ledger_refresh.py` 11 passed; 6 mutants killed (each
+  hook off, the upgrade hook on a dry run, enrich-edges always rebuilding, a swallowed failure).
+  It writes only `identity_ledger.json` and its change log and previous copy; no content file.
 
 ## 7. Measure
 
@@ -113,8 +125,12 @@ _TODO_
 ## 12. Retrospective
 
 - The method's gates did not run on this worktree, and I did not check the method when S3 and S4
-  started. The change: the hook and pre-commit check are made to run for worktrees (step 6 of the
-  N11 change will be built with them active).
+  started. The change: until the hooks run on this worktree, `quality.change_gate.check_edit` is
+  run by hand before each content-code edit and each commit (it refused 0038's paths until the
+  record existed, and allowed them after).
+- Missed once more, 2026-10-31: `upgrade/cli_handlers.py` (the ledger hook) was edited before this
+  record listed it; the hand check run before the commit refused it, and it was added under
+  `touches` before the commit.
 
 ## Not covered
 

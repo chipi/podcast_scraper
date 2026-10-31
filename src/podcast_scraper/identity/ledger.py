@@ -187,6 +187,32 @@ def write_ledger(root: Path | str, ledger: Dict[str, Any]) -> Dict[str, Any]:
     return change
 
 
+def refresh_ledger(root: Path | str, *, after: str, log: Optional[logging.Logger] = None) -> bool:
+    """Build and write the ledger as the last stage of a corpus-writing path (plan V3, D1).
+
+    Called after a successful ``enrich`` run (the post-pipeline chain queues one after every
+    ingest and reprocess batch), an ``upgrade run`` that applied a migration, and an
+    ``enrich-edges`` pass that rewrote artifacts. True when the ledger was written. On failure the
+    previous ledger stays as it was (joins as of the last build, never none) and the error is
+    logged; the caller reports it in its exit code, so it is never silent.
+    """
+    log = log or logger
+    try:
+        change = write_ledger(root, build_ledger(root))
+    except Exception:  # noqa: BLE001 - any build or write failure leaves the previous ledger
+        log.exception("identity ledger refresh after %s failed; the previous ledger stays", after)
+        return False
+    log.info(
+        "identity ledger refreshed after %s: %d joins (%d added, %d removed, %d moved)",
+        after,
+        change["joins"],
+        change["joins_added"],
+        change["joins_removed"],
+        change["canonical_changed"],
+    )
+    return True
+
+
 def restore_previous(root: Path | str) -> Dict[str, Any]:
     """Put the previous valid ledger back (the undo of the last write). Returns the change.
 
