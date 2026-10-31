@@ -103,7 +103,7 @@ after (eval-data `n11/n11_simulate.py`, `n11/sim_deltas.json`).
 | N4 | 53 insights change: 49 to `unknown`, 4 to `unidentified`; `surfaceable` per the pipeline's `VOICE_TYPE_NOT_SURFACEABLE` (all 53 false: no first quote is `cameo`) | 15 episodes, ids in `n11/n4_insights.json`; 7 of the 53 have an unplaced first quote (ids in `n11/rows5.json`) |
 | N2 quotes not first of any insight | 54; their insights keep type and `surfaceable` (21 insights hold only such raw quotes) | must not move |
 | N7 | 0 → 0 | |
-| N8 | measured on prod at step 10 → 0 | |
+| N8 | measured read-only on prod at step 10 (0 expected before and after: no index table stores a quote `speaker_id`, record 0031) | |
 | Metadata GI counts | 0 written: none of the 24 carries a `grounded_insights` count block | |
 | Episodes written | 24; refused 0; second apply writes 0 | not reached: the other 3,045 served episodes (0 writes) |
 | S1 hidden by our defect | 17,811 → 17,860 (+49, the N4 `unknown` set) | trade rule: accepted, below |
@@ -210,8 +210,8 @@ type, insight `surfaceable` / voice type / routing / salience, GI Person nodes, 
 | Surface | Persisted? | Effect | Run step |
 |---|---|---|---|
 | `metadata/enrichments/<stem>.insight_density.json`, `.insight_sentiment.json` | yes, per episode | both skip unsurfaceable insights (`_loaders.is_surfaceable_insight`): stale for the 15 | `podcast_scraper enrich --output-dir <corpus> --only insight_density,insight_sentiment`; measured on the copy: 24 episodes run (input fingerprint), 48 sidecar files rewritten, 0 new, 0 failed |
-| search index Quote rows (`search/indexer.py`, `speaker_id`) | yes, on prod (not in the backup) | 107 rows hold a removed id | in-place edit on prod, counted read-only first (N8) |
-| `search/insight_clusters.json` (`search/insight_clusters.py` copies quote `speaker_id`) | yes, on prod (not in the backup) | may hold the removed ids | counted read-only on prod with N8; rebuilt or edited only if it holds any |
+| search index rows of the 24 episodes | yes, on prod (not in the backup) | the indexer passes a Quote's `speaker_id` (`search/indexer.py`), but 0031's prod census found no index table stores it (record 0031, derived surfaces) | the incremental `index` (no `--rebuild`), as 0037's run steps: re-indexes changed episodes and prunes stale rows; N8 = rows holding an N1 id, counted read-only on prod before and after (expected 0 both, by 0031's finding) |
+| `search/insight_clusters.json` (`search/insight_clusters.py` copies quote `speaker_id`) | yes, on prod (not in the backup) | may hold the removed ids | counted read-only on prod with N8; if it holds any, refreshed by its own deterministic builder, else left |
 | `enrichments/guest_coappearance.json` | yes | excludes `person:speaker-*` ids already | none |
 | identity ledger | D1 builds it after 0038 | no N1 id is a join member (raw ids carry no cross-episode joins) | none; checked at D1's ledger step |
 | KG, transcripts, segments, metadata | — | not written (N7 = 0; no metadata count block) | none |
