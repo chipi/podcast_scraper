@@ -136,9 +136,30 @@ Outcome rows measured on the copy so far (`name_report`, eval-data
 | person joins | 760 (in-memory map) | 720 (ledger) |
 | R3 truth set, S1 train wrong merges | 1 | 0 (S4 replay) |
 
-Still to measure for this record: the scoreboard before/after for the whole D1 (S1b+S3+S4 code
-plus 0038) on one clone, the gold gates S6/S7, R3a/R3b/R6 from the report, and the gates (test
-suites, ci-fast, test-integration, the Playwright specs).
+**Whole-D1 scoreboard** (eval-data `d1/d1_measure.sh`): main 5d2b3d6b5 on snapshot-prod-20261030
+(before) against the branch on the copy with 0038 applied (after).
+
+| # | Before | After | Δ | Cause, by identity |
+|---|---|---|---|---|
+| S1 | 17,811 | 17,860 | +49 | 0038's N4 `unknown` set (accepted, record 0038) |
+| S2 | 31,421 | 31,474 | +53 | 0038's N4 set (accepted) |
+| S3 | 9,217 | 9,219 | +2 | 0038, episode 987ebd8e (accepted) |
+| S10a | 191 | 194 | +3 | 0038: 631e269e (accepted). **S3's read rule: 2 episodes** whose every visible insight was credited only to a raw label, now unattributed: art19 `41402031` run 349d0b7e "0010 - Why the neoclassical philosophy", omny `c9fdce2d` run fb659a6a "0001 - AI Agents Are Already Changing" (their panel fallback still shows them: S10b unchanged). Not yet accepted |
+| S1n, S1c, S10b, S12, A1 | 7, 0, 2, 24, 396/297 | the same | 0 | |
+
+**Gold (S7, `scripts/measure/gold_insights.py`, gold in `.test_outputs/naming_gold`):** correct and
+wrong-person unchanged on every set (val_v2 correct 3,707, wrong 439, unnamed 1,109; dev_v1 and
+val_v1 likewise). Three insights outside the scored classes move from shown to hidden
+(quote not placeable 2, scored-no-name 1). **S6 (naming gate)** is not run: D1 renames and unnames
+no voice (0038 writes no segment, transcript or roster), so it would read "no effect".
+
+**Unit suite** (`make test-unit`, branch 07133f738): 17,226 passed, 62 skipped, 1 failed: the
+landing test, refusing 0038 until its step 8 and outcome exist (expected at this point).
+Cheap gates (format-check, lint, type, docstrings, spelling, check-unit-imports,
+check-test-policy) PASS after 476c0002d; `make docs-check` PASS.
+
+Still to run: ci-fast and test-integration on the final tree, the Playwright specs, the viewer
+and player suites; R3a/R3b/R6 rows from the report.
 
 ## 8. Verdict
 
