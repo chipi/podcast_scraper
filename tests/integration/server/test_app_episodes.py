@@ -140,8 +140,13 @@ def test_segments_endpoint_returns_contract(tmp_path: Path) -> None:
         "end": 2.5,
         "text": "Hello world.",
         "speaker": "Alice",
+        "speaker_kind": "person",
+        "speaker_index": None,
     }
-    assert body["segments"][1]["speaker"] == "SPEAKER_01"
+    # A raw diarization label is never shown (RFC-131 S3): the unnamed voice is numbered.
+    assert body["segments"][1]["speaker"] == "Unidentified speaker 1"
+    assert body["segments"][1]["speaker_kind"] == "unidentified"
+    assert body["segments"][1]["speaker_index"] == 1
 
 
 def test_audio_source_returns_origin_url(tmp_path: Path) -> None:
