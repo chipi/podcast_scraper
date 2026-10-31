@@ -206,7 +206,7 @@ def test_the_scope_index_is_built_once_per_corpus_generation(tmp_path, monkeypat
     monkeypatch.setattr(
         corpus_search,
         "_insight_scopes_from_gi",
-        lambda ep, art: calls.append(ep) or real(ep, art),
+        lambda ep, art, id_map=None: calls.append(ep) or real(ep, art, id_map),
     )
     _corpus(tmp_path, monkeypatch)
     first = corpus_search._cached_insight_scopes(tmp_path)

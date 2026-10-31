@@ -128,11 +128,54 @@ Spot checks for step 8:
 
 ## 6. Build
 
-_TODO_
+Tests, written first (`tests/unit/podcast_scraper/search/test_search_shows_what_episodes_show.py`, 5,
+invented names; all failed before the code):
+- the scope marks what the episode view hides;
+- the scope carries the speaker's canonical id;
+- a hidden insight hit is dropped;
+- supporting quotes carry the group spelling;
+- a transcript chunk does not lift to a hidden insight.
+
+Code:
+- `server/app_gi_view.py`: `quote_speaker_name`, the one speaker chain for the episode view and
+  search. `insights_from_gi` calls it; there is no behaviour change, and S6a's gate stays exact
+  below.
+- `search/corpus_search.py`:
+  - `_InsightScope.visible` (from `insights_from_gi`'s default call) and canonical ids in `speakers`;
+  - `_visible_insights` per corpus generation;
+  - `_filter_and_enrich` drops invisible insight hits;
+  - the display view and a per-query artifact cache reach `_enrich_hit`;
+  - visibility and the view reach the lift.
+- `search/cli_handlers.py`:
+  - supporting quotes gain `speaker_name`;
+  - `_speaker_matches` widens the speaker filter to the canonical id;
+  - `_enrich_hit` reuses one parsed artifact per episode per query.
+- `search/transcript_chunk_lift.py`: no lift to an invisible insight (the hit stays a plain
+  transcript hit), and the lifted speaker is spelled through the view. **A correction to section 4**,
+  which said "`lifted.insight` dropped": no lift at all is the honest form, since the lift exists to
+  attribute the chunk.
+- **The consensus operator is not changed.** `topic_consensus` is disabled in the corpus's operator
+  config since 2026-08-24, and the snapshot has no consensus output (searched to depth 3), so no
+  hidden pair can be served today. If it is re-enabled, its pairs need the visible filter (listed
+  under not covered).
+- Test stubs updated to the new keywords: `test_corpus_search.py` and `test_hybrid_dispatch.py`
+  (their mocked hits are marked visible, with the reason written beside it);
+  `test_speaker_topic_prefilters.py` (the scope builder's new `id_map` argument).
 
 ## 7. Measure
 
-_TODO_
+- **Gate** (eval-data `s6/s6c_gate.py`, the real code over snapshot-prod-20261030, the ledger built in
+  memory):
+  - visible 103,845, hidden 31,545, equal to the episode view's served set;
+  - supporting quotes whose `speaker_name` changes: 2,770 in 1,559 insights, equal to S6a's default
+    path, so search and the episode view name speakers identically;
+  - `S6C GATE: PASS`.
+- **Fixture with a real index:** integration search and server tests, 1,948 passed, 1 failed:
+  `test_player_nginx_syntax_ok`. It needs the production Docker socket (`permission denied ...
+  /var/run/docker.sock`), the same failure as in D1's runs; this change does not cause it.
+- **Unit:** search, server, identity and MCP areas, 2,692 passed; flake8 and mypy clean.
+- **Not measured:** the `top_k` underfill, and the effect on ranking, which need an index of prod's
+  size. Prod's post-deploy step measures them.
 
 ## 8. Verdict
 
@@ -147,6 +190,9 @@ _TODO_
 _TODO_
 
 ## Not covered
+
+- The `topic_consensus` operator, if the enricher is re-enabled: its pairs need the visible filter.
+- The relational routes and MCP connectivity listings of insights: S6b.
 
 - Quote hits (`doc_type` quote) of hidden insights are not filtered. Item 7 is about insights; a
   quote hit with an unnamed speaker shows no name.

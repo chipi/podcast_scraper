@@ -223,9 +223,21 @@ def _metadata_relpath_by_scope_from_corpus(output_dir: Path) -> Dict[str, str]:
     return out
 
 
-def _quotes_for_insight(artifact: Dict[str, Any], insight_id: str) -> List[Dict[str, Any]]:
+def _quotes_for_insight(
+    artifact: Dict[str, Any], insight_id: str, people: Any = None
+) -> List[Dict[str, Any]]:
+    """The insight's supporting quotes, each with the name the episode view shows for its speaker
+    (``speaker_name``, spelled through ``people``; RFC-131 S6c). ``speaker_id`` stays the episode's.
+    """
+    from podcast_scraper.server.app_gi_view import quote_speaker_name
+
     quotes: List[Dict[str, Any]] = []
     nodes = {n.get("id"): n for n in artifact.get("nodes") or [] if isinstance(n, dict)}
+    spoken_by = {
+        e.get("from"): e.get("to")
+        for e in artifact.get("edges") or []
+        if isinstance(e, dict) and e.get("type") == "SPOKEN_BY"
+    }
     for e in artifact.get("edges") or []:
         if not isinstance(e, dict):
             continue
@@ -245,6 +257,7 @@ def _quotes_for_insight(artifact: Dict[str, Any], insight_id: str) -> List[Dict[
                 "quote_id": qid,
                 "text": props.get("text"),
                 "speaker_id": props.get("speaker_id"),
+                "speaker_name": quote_speaker_name(artifact, props, spoken_by.get(qid), people),
                 "char_start": props.get("char_start"),
                 "char_end": props.get("char_end"),
                 "timestamp_start_ms": props.get("timestamp_start_ms"),
@@ -254,15 +267,23 @@ def _quotes_for_insight(artifact: Dict[str, Any], insight_id: str) -> List[Dict[
     return quotes
 
 
+def _speaker_matches(sid: Any, key: str, id_map: Optional[Dict[str, str]]) -> bool:
+    """A speaker scope matches the id, or its group's canonical id (RFC-131 S6c)."""
+    if not isinstance(sid, str):
+        return False
+    canonical = (id_map or {}).get(sid) or ""
+    return key in sid.lower() or (bool(canonical) and key in canonical.lower())
+
+
 def _insight_passes_speaker_filter(
     artifact: Dict[str, Any],
     insight_id: str,
     speaker_key: str,
+    id_map: Optional[Dict[str, str]] = None,
 ) -> bool:
     key = speaker_key.lower()
     for q in _quotes_for_insight(artifact, insight_id):
-        sid = q.get("speaker_id")
-        if isinstance(sid, str) and key in sid.lower():
+        if _speaker_matches(q.get("speaker_id"), key, id_map):
             return True
     return False
 
@@ -323,6 +344,7 @@ def _hit_passes_cli_filters(
     episode_id: Optional[str] = None,
     grounded_only: bool,
     gi_by_episode: Dict[str, Path],
+    id_map: Optional[Dict[str, str]] = None,
 ) -> bool:
     meta = hit.metadata
     if grounded_only and meta.get("doc_type") == "insight":
@@ -357,8 +379,7 @@ def _hit_passes_cli_filters(
             return False
 
     if speaker_substr and meta.get("doc_type") == "quote":
-        sid = meta.get("speaker_id")
-        if not isinstance(sid, str) or speaker_substr.lower() not in sid.lower():
+        if not _speaker_matches(meta.get("speaker_id"), speaker_substr.lower(), id_map):
             return False
 
     if speaker_substr and meta.get("doc_type") == "insight":
@@ -375,7 +396,7 @@ def _hit_passes_cli_filters(
         src = meta.get("source_id")
         if not isinstance(src, str):
             return False
-        if not _insight_passes_speaker_filter(art, src, speaker_substr):
+        if not _insight_passes_speaker_filter(art, src, speaker_substr, id_map):
             return False
 
     # Topic substring filter (extracted to keep complexity below flake8's C901 ceiling).
@@ -471,7 +492,11 @@ def _enrich_hit(
     metadata_relpath_by_scope: Optional[Dict[str, str]] = None,
     corpus_root: Optional[Path] = None,
     title_cache: Optional[Dict[str, Tuple[str, str]]] = None,
+    people: Any = None,
+    docs: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    """One search row. ``people`` spells supporting quotes' speakers (RFC-131 S6c); ``docs`` is a
+    per-query cache of parsed GI artifacts, so several hits from one episode parse it once."""
     meta = dict(hit.metadata)
     if metadata_relpath_by_scope:
         smp = meta.get("source_metadata_relative_path")
@@ -510,11 +535,19 @@ def _enrich_hit(
     gpath = gi_by_episode.get(ep)
     if not gpath or not gpath.is_file():
         return row
-    try:
-        art = cast(Dict[str, Any], json.loads(gpath.read_text(encoding="utf-8")))
-    except json.JSONDecodeError:
+    key = str(gpath)
+    if docs is not None and key in docs:
+        art = docs[key]
+    else:
+        try:
+            art = cast(Dict[str, Any], json.loads(gpath.read_text(encoding="utf-8")))
+        except json.JSONDecodeError:
+            art = None
+        if docs is not None:
+            docs[key] = art
+    if not isinstance(art, dict):
         return row
-    row["supporting_quotes"] = _quotes_for_insight(art, src)
+    row["supporting_quotes"] = _quotes_for_insight(art, src, people)
     return row
 
 

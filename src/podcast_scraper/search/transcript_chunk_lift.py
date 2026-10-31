@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional
+from typing import Any, Callable, Dict, List, Mapping, MutableMapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_path_next_to_gi_json
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
@@ -187,14 +187,22 @@ def try_lift_transcript_chunk_from_gi(
     char_start: int,
     char_end: int,
     overrides: Optional[CilLiftOverrides] = None,
+    visible: Optional[Callable[[str], bool]] = None,
+    people: Any = None,
 ) -> Optional[Dict[str, Any]]:
-    """If a Quote overlaps the chunk span, return a ``lifted`` dict, else ``None``."""
+    """If a Quote overlaps the chunk span, return a ``lifted`` dict, else ``None``.
+
+    ``visible(insight_id)``: a chunk does not lift to an insight the episode view hides (RFC-131
+    S6c, D2 item 7); the hit stays a plain transcript hit. ``people`` spells the lifted speaker.
+    """
     quote_id = _best_overlapping_quote(gi, char_start, char_end)
     if quote_id is None:
         return None
 
     insight_id = _insight_for_quote(gi, quote_id)
     if not insight_id:
+        return None
+    if visible is not None and not visible(insight_id):
         return None
 
     nodes = _nodes_by_id(gi)
@@ -252,6 +260,8 @@ def try_lift_transcript_chunk_from_gi(
             "timestamp_end_ms": ts1_i,
         },
     }
+    if people is not None and speaker_name:
+        speaker_name = people.shown(person_id, speaker_name) or speaker_name
     speaker = _lifted_speaker(person_id, speaker_name)
     if speaker is not None:
         lifted["speaker"] = speaker
@@ -290,6 +300,8 @@ def lift_row_if_transcript(
     gi_path: Path,
     cache: TranscriptLiftGiCache,
     overrides: Optional[CilLiftOverrides] = None,
+    visible: Optional[Callable[[str], bool]] = None,
+    people: Any = None,
 ) -> None:
     """Mutate ``row`` in place: set ``lifted`` when doc_type is transcript and lift succeeds."""
     meta = row.get("metadata")
@@ -331,6 +343,8 @@ def lift_row_if_transcript(
         char_start=cs_adj,
         char_end=ce_adj,
         overrides=overrides,
+        visible=visible,
+        people=people,
     )
     if lifted is not None:
         row["lifted"] = lifted

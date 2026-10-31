@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
@@ -192,6 +192,15 @@ def _lift_stats_for_page(enriched: List[Dict[str, Any]]) -> Dict[str, int]:
     }
 
 
+def _visible_in(visible: frozenset, episode_id: str) -> Callable[[str], bool]:
+    """``visible(insight_id)`` for one episode's insights."""
+
+    def check(insight_id: str) -> bool:
+        return (episode_id, insight_id) in visible
+
+    return check
+
+
 def _enrich_lift_and_slice(
     filtered: List[SearchResult],
     output_dir: Path,
@@ -200,8 +209,13 @@ def _enrich_lift_and_slice(
     *,
     top_k: int,
     dedupe_kg_surfaces: bool,
+    visible: Optional[frozenset] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
+    from podcast_scraper.identity.display import person_display
+
+    people = person_display(output_dir)
     title_cache: Dict[str, tuple[str, str]] = {}
+    docs: Dict[str, Any] = {}
     enriched = [
         _enrich_hit(
             h,
@@ -209,6 +223,8 @@ def _enrich_lift_and_slice(
             metadata_relpath_by_scope=rel_by_scope,
             corpus_root=output_dir,
             title_cache=title_cache,
+            people=people,
+            docs=docs,
         )
         for h in filtered
     ]
@@ -229,6 +245,8 @@ def _enrich_lift_and_slice(
                 gpath,
                 lift_cache,
                 lift_overrides,
+                visible=None if visible is None else _visible_in(visible, ep.strip()),
+                people=people,
             )
     if dedupe_kg_surfaces:
         enriched = dedupe_kg_surface_rows(enriched)
@@ -290,10 +308,18 @@ class _InsightScope(NamedTuple):
     #: Every ``topic:`` id it is ABOUT, and those topics' label / name / display_name, lowercased
     #: (``_insight_passes_topic_filter``).
     topics: tuple[str, ...]
+    #: Whether the episode view shows it (``insights_from_gi``'s default call; RFC-131 S6c, D2
+    #: item 7): search returns only what the episode view shows.
+    visible: bool = True
 
 
-def _insight_scopes_from_gi(episode_id: str, artifact: Dict[str, Any]) -> List[_InsightScope]:
+def _insight_scopes_from_gi(
+    episode_id: str, artifact: Dict[str, Any], id_map: Optional[Dict[str, str]] = None
+) -> List[_InsightScope]:
+    from podcast_scraper.server.app_gi_view import insights_from_gi
+
     nodes = {n.get("id"): n for n in artifact.get("nodes") or [] if isinstance(n, dict)}
+    shown = {i.id for i in insights_from_gi(artifact)}
     quotes_of: Dict[Any, List[Any]] = {}
     topics_of: Dict[Any, List[str]] = {}
     for e in artifact.get("edges") or []:
@@ -314,6 +340,11 @@ def _insight_scopes_from_gi(episode_id: str, artifact: Dict[str, Any]) -> List[_
             sid = ((q or {}).get("properties") or {}).get("speaker_id")
             if q and q.get("type") == "Quote" and isinstance(sid, str):
                 speakers.append(sid.lower())
+                canonical = (id_map or {}).get(sid)
+                if canonical and canonical != sid:
+                    # The group's canonical id too: a speaker scope by any of a person's ids finds
+                    # the group (RFC-131 S6c).
+                    speakers.append(canonical.lower())
         topics = []
         for tid in topics_of.get(nid, []):
             topics.append(tid.lower())
@@ -323,7 +354,7 @@ def _insight_scopes_from_gi(episode_id: str, artifact: Dict[str, Any]) -> List[_
                     v = props.get(key)
                     if isinstance(v, str):
                         topics.append(v.lower())
-        out.append(_InsightScope(episode_id, nid, tuple(speakers), tuple(topics)))
+        out.append(_InsightScope(episode_id, nid, tuple(speakers), tuple(topics), nid in shown))
     return out
 
 
@@ -344,6 +375,9 @@ def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
     hit = _SCOPES_BY_PATH_MAP.get(id(paths))
     if hit is not None and hit[0] is paths:
         return hit[1]
+    from podcast_scraper.kg.entity_clusters import cached_entity_id_map
+
+    id_map = cached_entity_id_map(output_dir)
     rows: List[_InsightScope] = []
     for episode_id, path in paths.items():
         try:
@@ -351,11 +385,31 @@ def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
         except (OSError, ValueError):
             continue
         if isinstance(artifact, dict):
-            rows.extend(_insight_scopes_from_gi(episode_id, artifact))
+            rows.extend(_insight_scopes_from_gi(episode_id, artifact, id_map))
     if len(_SCOPES_BY_PATH_MAP) >= 4:  # old generations: their maps are gone from perf_cache
         _SCOPES_BY_PATH_MAP.clear()
     _SCOPES_BY_PATH_MAP[id(paths)] = (paths, rows)
     return rows
+
+
+#: ``id(GI path map) -> (that map, visible (episode_id, insight_id) keys)``.
+_VISIBLE_BY_PATH_MAP: Dict[int, Tuple[Dict[str, Path], frozenset]] = {}
+
+
+def _visible_insights(output_dir: Path) -> frozenset:
+    """``(episode_id, insight_id)`` of every insight the episode view shows, per corpus
+    generation."""
+    paths = cached_episode_gi_paths(output_dir)
+    hit = _VISIBLE_BY_PATH_MAP.get(id(paths))
+    if hit is not None and hit[0] is paths:
+        return hit[1]
+    keys = frozenset(
+        (r.episode_id, r.insight_id) for r in _cached_insight_scopes(output_dir) if r.visible
+    )
+    if len(_VISIBLE_BY_PATH_MAP) >= 4:
+        _VISIBLE_BY_PATH_MAP.clear()
+    _VISIBLE_BY_PATH_MAP[id(paths)] = (paths, keys)
+    return keys
 
 
 def _tier_scope(
@@ -533,9 +587,19 @@ def _filter_and_enrich(
     since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
     gi_cache = cached_episode_gi_paths(output_dir)
     rel_by_scope = cached_metadata_relpath_by_scope(output_dir)
+    visible = _visible_insights(output_dir)
+    from podcast_scraper.kg.entity_clusters import cached_entity_id_map
+
+    id_map = cached_entity_id_map(output_dir)
     filtered: List[SearchResult] = []
     for h in hits:
         dt = h.metadata.get("doc_type")
+        if (
+            dt == "insight"
+            and (h.metadata.get("episode_id"), h.metadata.get("source_id")) not in visible
+        ):
+            # The episode view hides it, so search does too (D2 item 7, operator 2026-10-31).
+            continue
         if types_norm and len(types_norm) > 1:
             if dt not in types_norm:
                 continue
@@ -552,6 +616,7 @@ def _filter_and_enrich(
             episode_id=episode_id,
             grounded_only=grounded_only,
             gi_by_episode=gi_cache,
+            id_map=id_map,
         ):
             filtered.append(h)
         if len(filtered) >= collect_cap:
@@ -564,5 +629,6 @@ def _filter_and_enrich(
         rel_by_scope,
         top_k=top_k,
         dedupe_kg_surfaces=dedupe_kg_surfaces,
+        visible=visible,
     )
     return CorpusSearchOutcome(results=enriched, lift_stats=lift_stats)

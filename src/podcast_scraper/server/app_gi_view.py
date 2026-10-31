@@ -90,6 +90,24 @@ def _speaker_name(artifact: Any, person_id: Any) -> str | None:
     return None
 
 
+def quote_speaker_name(
+    artifact: Any, quote_props: Any, spoken_by_id: Any = None, people: Any = None
+) -> str | None:
+    """The name a surface shows for one quote's speaker, or None when nobody is named.
+
+    The authored ``speaker_name`` first, unless it is a raw label; then the graph, for the quote's
+    own ``speaker_id`` and then its ``SPOKEN_BY`` edge; each spelled through ``people`` when given
+    (RFC-131 S6a). One home: the episode view and search both call this (S6c).
+    """
+    qp = quote_props if isinstance(quote_props, dict) else {}
+    authored = _opt_str(qp.get("speaker_name"))
+    return (
+        (authored if authored and not is_raw_speaker_label(authored) else None)
+        or _shown(people, artifact, qp.get("speaker_id"))
+        or _shown(people, artifact, spoken_by_id)
+    )
+
+
 def _shown(people: Any, artifact: Any, person_id: Any) -> str | None:
     """``_speaker_name``, spelled through ``people`` (the ledger's one spelling) when given."""
     name = _speaker_name(artifact, person_id)
@@ -204,11 +222,7 @@ def insights_from_gi(
             # graph, for both the quote's own `speaker_id` and the SPOKE_BY edge. A raw id is never
             # a fallback — an unnamed voice yields None, and the surface renders no attribution.
             authored = _opt_str(qp.get("speaker_name"))
-            speaker = (
-                (authored if authored and not is_raw_speaker_label(authored) else None)
-                or _shown(people, artifact, qp.get("speaker_id"))
-                or _shown(people, artifact, spoken_by.get(quote_id))
-            )
+            speaker = quote_speaker_name(artifact, qp, spoken_by.get(quote_id), people)
             if speaker:
                 named += 1
             elif (

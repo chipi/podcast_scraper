@@ -16,6 +16,20 @@ pytestmark = [pytest.mark.unit]
 _HYBRID = "podcast_scraper.search.corpus_search.hybrid_candidates"
 
 
+class _AllVisible:
+    def __contains__(self, _key: object) -> bool:
+        return True
+
+
+@pytest.fixture(autouse=True)
+def _every_mocked_hit_is_visible(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests mock hits with no GI behind them; visibility (search shows only what the episode
+    view shows, RFC-131 S6c) is tested in ``test_search_shows_what_episodes_show.py``."""
+    from podcast_scraper.search import corpus_search as _cs
+
+    monkeypatch.setattr(_cs, "_visible_insights", lambda _root: _AllVisible())
+
+
 def test_run_corpus_search_empty_query(tmp_path: Path) -> None:
     out = run_corpus_search(tmp_path, "   ")
     assert out.error == "empty_query"
