@@ -131,11 +131,28 @@ Spot checks for step 8:
 
 ## 6. Build
 
-_TODO_
+Scenario tests, written first (`test_person_match.py::test_org_differing_words_one_edit_apart`,
+`test_the_org_limit_does_not_reach_people`):
+- two failed before the code: a two-letter one-word pair and "West … / East …";
+- a third (a hyphen against a space) failed because today's rule never joined it, and this change
+  only narrows. It is recorded as today's behaviour, and the dedup direction is the next part of S5o.
+
+Code: `identity/person_match.py` `_cluster` = the existing rule (now `_cluster_rule`) AND, for kind
+`org`, `_org_drift_within_one_edit`.
 
 ## 7. Measure
 
-_TODO_
+- **Gate** (`s5o/s5o_gate.sh`, the real code over snapshot-prod-20261030, against S5b's ledger joins):
+  - person joins identical, 731; blocked identical;
+  - org joins 97, org map sha `d05cfbf5f9f3`, equal to the prototype;
+  - `S5O GATE: PASS`.
+- **Read-time map:** 989 → 857 joins, the 132 org joins removed.
+- **Mutants, all killed:**
+  - two edits allowed: gate, org joins and sha;
+  - the limit applied to people: gate, person joins and blocked;
+  - no spacing pass-through: `test_guards.py::TestJoinTest::test_orgs_are_not_guarded`.
+- **Tests:** identity, kg, search and server unit areas: `3152 passed`. black, flake8 and mypy
+  clean.
 
 ## 8. Verdict
 

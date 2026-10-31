@@ -310,6 +310,31 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
 
 def _cluster(name_a: str, name_b: str, kind: str, vocab: _Vocab) -> bool:
     """Mode ``cluster``'s rule with one language's vocabulary."""
+    if not _cluster_rule(name_a, name_b, kind, vocab):
+        return False
+    return kind != "org" or _org_drift_within_one_edit(name_a, name_b)
+
+
+def _org_drift_within_one_edit(name_a: str, name_b: str) -> bool:
+    """An organisation's two names are one only when they differ by spacing or hyphens, or every
+    differing word is at most ONE edit apart (RFC-131 S5o).
+
+    The ratio test alone let names that rhyme or share a stem join: on the production corpus 61 of
+    230 org joins were two entities (places onto places, products onto a company with the same
+    prefix), 53 of them one word against one word. A one-letter slip is a transcription error; two
+    letters is as often another name. The joins and their read are in the eval-data repository
+    (``data/eval/name-consolidation/s5o/``).
+    """
+    assert _clean_cached is not None
+    a, b = _clean_cached(name_a), _clean_cached(name_b)
+    if a.replace(" ", "").replace("-", "") == b.replace(" ", "").replace("-", ""):
+        return True
+    ta, tb = a.replace("-", " ").split(), b.replace("-", " ").split()
+    return len(ta) == len(tb) and all(edit_distance(x, y) <= 1 for x, y in zip(ta, tb) if x != y)
+
+
+def _cluster_rule(name_a: str, name_b: str, kind: str, vocab: _Vocab) -> bool:
+    """The cluster rule's spelling-drift test (#852, #904, #2056)."""
     if _clean_cached is None or _is_acronymish is None:
         _bind_kg_filters()
     assert _clean_cached is not None and _is_acronymish is not None

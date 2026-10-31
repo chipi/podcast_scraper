@@ -205,3 +205,30 @@ def test_the_cluster_mode_ignores_language() -> None:
     for language in (None, "und", "de", "zh"):
         assert pm.cluster_variants("Korin Vael", "Korin Vaal", "person", language)
         assert pm.cluster_variants("Halloway Labs", "Haloway Labs", "org", language)
+
+
+# ---- S5o: an organisation's differing words may be one edit apart, no more (invented names) ------
+
+
+@pytest.mark.parametrize(
+    "a,b,want",
+    [
+        ("Velmora", "Delmora", True),  # one letter: a transcription slip
+        ("Velmora", "Belmira", False),  # two letters: names that rhyme
+        ("Quorlex", "Quorlexa", True),
+        ("West Quorland", "East Quorland", False),  # one word, two edits: two places
+        ("Halloway Labs", "Haloway Labs", True),
+        ("Data Bricks", "Databricks", True),  # spacing only
+        # not joined today and not by this narrowing: the dedup direction is S5o's next part
+        ("Quor-Tech", "Quor Tech", False),
+        ("Quor Tech", "Quortec", False),
+    ],
+)
+def test_org_differing_words_one_edit_apart(a: str, b: str, want: bool) -> None:
+    assert pm.cluster_variants(a, b, "org") is want
+    assert pm.cluster_variants(b, a, "org") is want
+
+
+def test_the_org_limit_does_not_reach_people() -> None:
+    assert pm.cluster_variants("Korin Belmira", "Korin Velmora", "person")
+    assert pm.cluster_person_variants("Korin Belmira", "Korin Velmora")
