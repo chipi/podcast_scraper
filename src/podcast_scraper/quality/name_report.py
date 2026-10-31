@@ -727,10 +727,7 @@ def run(root: Path) -> Dict[str, Any]:
         name for r in results for name in set(r.insight_names_all) - r.roster_names
     )
     return {
-        "marker": {
-            "naming_arc_marker": getattr(podcast_scraper, "NAMING_ARC_MARKER", "absent"),
-            "package_file": podcast_scraper.__file__,
-        },
+        "marker": {"package_file": podcast_scraper.__file__},  # which code ran: image or a mount
         "corpus_root": str(root),
         "corpus_token": _corpus_token(root),
         "episodes": len(episodes),
@@ -806,7 +803,6 @@ def _summary_line(report: Dict[str, Any]) -> str:
         f" variants={r4.get('variant_pairs')}(joined {r4.get('variant_map_joined')})"
     )
     return (
-        f"marker={report['marker']['naming_arc_marker']} "
         f"file={report['marker']['package_file']} episodes={report['episodes']} "
         f"records={report['records']} R1 {r1} R2 {modes} seconds={report['seconds']}"
     )
