@@ -24,7 +24,7 @@ import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 from .migration import MigrationContext, MigrationResult
 from .runner import UpgradeRunner, UpgradeStatus
@@ -47,7 +47,13 @@ def parse_upgrade_argv(argv: Sequence[str]) -> argparse.Namespace:
 
     _add_common(subparsers.add_parser("status", help="Show version + pending migrations"))
     _add_common(subparsers.add_parser("list", help="List all migrations + their state"))
-    _add_common(subparsers.add_parser("verify", help="Verify applied migrations"))
+    verify_p = subparsers.add_parser("verify", help="Verify applied migrations")
+    _add_common(verify_p)
+    verify_p.add_argument(
+        "--only",
+        default=None,
+        help="Comma-separated migration ids or number prefixes (e.g. 0038); check only these.",
+    )
 
     run_p = subparsers.add_parser("run", help="Apply pending migrations")
     _add_common(run_p)
@@ -135,17 +141,32 @@ def _cmd_list(runner: UpgradeRunner, as_json: bool) -> int:
     return 0
 
 
-def _cmd_verify(runner: UpgradeRunner, ctx: MigrationContext, as_json: bool) -> int:
-    results = runner.verify(ctx)
-    ok_all = all(ok for _, ok, _ in results)
+def _cmd_verify(
+    runner: UpgradeRunner, ctx: MigrationContext, as_json: bool, only: Optional[str] = None
+) -> int:
+    wanted = [o.strip() for o in only.split(",") if o.strip()] if only else None
+    if wanted:
+        known = [m.id for m in runner.migrations]
+        unknown = [o for o in wanted if not any(i == o or i.startswith(o + "_") for i in known)]
+        if unknown:
+            print(
+                f"upgrade verify --only: no such migration: {', '.join(unknown)}", file=sys.stderr
+            )
+            return 2
+    results: List[Tuple[str, bool, str]] = []
+    for mid, ok, msg in runner.iter_verify(ctx, only=wanted):
+        results.append((mid, ok, msg))
+        if as_json:
+            # Progress on stderr, one line per check, so a run killed part-way still says how far
+            # it got; stdout keeps the one JSON array.
+            print(f"verified {mid}: {'ok' if ok else 'FAIL'}", file=sys.stderr, flush=True)
+        else:
+            print(f"  [{'OK ' if ok else 'FAIL'}] {mid}: {msg}", flush=True)
     if as_json:
         print(json.dumps([{"id": i, "ok": ok, "message": m} for i, ok, m in results], indent=2))
-    else:
-        if not results:
-            print("No applied migrations to verify.")
-        for mid, ok, msg in results:
-            print(f"  [{'OK ' if ok else 'FAIL'}] {mid}: {msg}")
-    return 0 if ok_all else 1
+    elif not results:
+        print("No applied migrations to verify.")
+    return 0 if all(ok for _, ok, _ in results) else 1
 
 
 def _confirm(status: UpgradeStatus, log: logging.Logger) -> bool:
@@ -379,7 +400,7 @@ def run_upgrade_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     if sub == "list":
         return _cmd_list(runner, args.json)
     if sub == "verify":
-        return _cmd_verify(runner, ctx, args.json)
+        return _cmd_verify(runner, ctx, args.json, getattr(args, "only", None))
     if sub == "run":
         return _cmd_run(runner, ctx, args, log)
     log.error("Unknown upgrade subcommand: %s", sub)

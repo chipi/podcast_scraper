@@ -146,3 +146,57 @@ def test_snapshot_corpus_custom_dir(tmp_path):
     dest_base = tmp_path / "snaps"
     snap = _snapshot_corpus(corpus, "2.6.1", str(dest_base), log)
     assert snap is not None and snap.parent == dest_base and (snap / "f").read_text() == "x"
+
+
+# ---- D2 item 6: verify one migration, and report each check as it finishes -----------------------
+
+
+class _Mig:
+    def __init__(self, mid: str, ok: bool = True) -> None:
+        self.id, self._ok = mid, ok
+        self.verified = False
+
+    def verify(self, ctx):
+        self.verified = True
+        return self._ok, f"{self.id} checked"
+
+
+def _fake_runner(monkeypatch, migs):
+    from podcast_scraper.upgrade import cli_handlers
+    from podcast_scraper.upgrade.runner import UpgradeRunner
+
+    runner = UpgradeRunner.__new__(UpgradeRunner)  # no registry or state from disk
+    runner.migrations = migs
+    runner.state = type(
+        "S", (), {"applied_migration_ids": staticmethod(lambda: [m.id for m in migs])}
+    )()
+    monkeypatch.setattr(cli_handlers, "_runner_for", lambda root: runner)
+    return runner
+
+
+def test_verify_only_checks_the_named_migration(tmp_path, monkeypatch, capsys):
+    migs = [_Mig("0037_named_voices_corrected"), _Mig("0038_raw_label_speakers_removed")]
+    _fake_runner(monkeypatch, migs)
+    assert _run(tmp_path, "verify", "--only", "0038") == 0
+    out = capsys.readouterr().out
+    assert "0038_raw_label_speakers_removed" in out and "0037" not in out
+    assert [m.verified for m in migs] == [False, True]
+
+
+def test_verify_only_an_unknown_id_is_an_error(tmp_path, monkeypatch, capsys):
+    _fake_runner(monkeypatch, [_Mig("0038_raw_label_speakers_removed")])
+    assert _run(tmp_path, "verify", "--only", "0099") == 2
+    assert "0099" in capsys.readouterr().err
+
+
+def test_verify_prints_each_result_before_the_next_check(tmp_path, monkeypatch, capsys):
+    seen = []
+
+    class _Watching(_Mig):
+        def verify(self, ctx):
+            seen.append(capsys.readouterr().out)  # what was printed before this check ran
+            return super().verify(ctx)
+
+    _fake_runner(monkeypatch, [_Watching("0001_a"), _Watching("0002_b", ok=False)])
+    assert _run(tmp_path, "verify") == 1
+    assert "0001_a" in seen[1]  # the first result was out before the second check started

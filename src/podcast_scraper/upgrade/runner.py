@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from packaging.version import InvalidVersion, Version
 
@@ -165,12 +165,28 @@ class UpgradeRunner:
             return outcome_hook.apply_empty(migration, ctx.corpus_root, apply)
         return outcome_hook.measure(prepared, ctx.corpus_root, apply, self.snapshot)
 
-    def verify(self, ctx: MigrationContext) -> List[Tuple[str, bool, str]]:
-        """Run ``verify`` for every applied migration; ``[(id, ok, message)]``."""
+    def verify(
+        self, ctx: MigrationContext, only: Optional[Sequence[str]] = None
+    ) -> List[Tuple[str, bool, str]]:
+        """``verify`` every applied migration (or ``only`` those); ``[(id, ok, message)]``."""
+        return list(self.iter_verify(ctx, only))
+
+    def iter_verify(
+        self, ctx: MigrationContext, only: Optional[Sequence[str]] = None
+    ) -> Iterator[Tuple[str, bool, str]]:
+        """``verify`` each applied migration, yielding ``(id, ok, message)`` as each finishes.
+
+        ``only``: migration ids or their number prefixes ("0038"); the rest are skipped. A
+        generator, so a caller can report each result before the next check starts (D2 item 6:
+        a verify killed part-way had printed nothing).
+        """
         applied = self.state.applied_migration_ids()
-        out: List[Tuple[str, bool, str]] = []
         for migration in self.migrations:
-            if migration.id in applied:
-                ok, msg = migration.verify(ctx)
-                out.append((migration.id, ok, msg))
-        return out
+            if migration.id not in applied:
+                continue
+            if only and not any(
+                migration.id == o or migration.id.startswith(o + "_") for o in only
+            ):
+                continue
+            ok, msg = migration.verify(ctx)
+            yield migration.id, ok, msg
