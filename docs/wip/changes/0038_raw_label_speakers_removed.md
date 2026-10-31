@@ -257,6 +257,10 @@ Verdict: GO WITH CONDITIONS
 - **Condition 1:** `make ci-fast` green on the committed tree, log attached.
 - **Condition 2:** N8 (index rows holding an N1 id) and `search/insight_clusters.json` counted read-only on prod at step 10, before and after the apply.
 
+Outcome: `src/podcast_scraper/upgrade/outcomes/0038_raw_label_speakers_removed.json`, sha256
+5fc432df1fedd5d61c3e3e112c5407d6564eca81970a01a64c81071337ff75f1 (`scripts/measure/build_outcome.py`,
+from the gate report measured on 30303f269 and this verdict).
+
 ## 9. Operator review
 
 _TODO_
