@@ -254,7 +254,27 @@ _TODO_
 
 ## 10. Before apply / deploy
 
-_TODO_
+Prod's read-only prep, 2026-10-31, image `sha-540fb20`, `--user 1000:1000`, corpus read-only, on the
+operator's go typed in prod's session. Outputs are in the operator's `prod-naming-20261027/name-consolidation/`.
+
+- `upgrade status`: applied 0001–0031 and 0033–0037; pending exactly 0038.
+- 0038 `upgrade run --dry-run`: 24 episodes, with the same counters as the clone; the outcome hook's
+  plan diff is 0 episodes.
+- Ledger, read-only (eval-data `d1/d1_ledger_joins.py`, sha256 `31eef0ea…`):
+  - prod has 959 joins (729 person, 230 org, 9 blocked), against the snapshot's 949 (720 / 229 / 9);
+  - the diff is 10 joins added, 0 removed, 0 moved, and the blocked list is identical;
+  - all ten added joins read as one entity in two spellings.
+- Raw-label ids on derived surfaces (eval-data `d1/d1_raw_id_counts.py`, sha256 `6a3144ea…`), before 0038:
+  - 28 ids in 24 episodes;
+  - search index: 0 rows in all three tables (373,329 + 136,617 + 108,821 rows scanned);
+  - `search/insight_clusters.json`: 1 occurrence, one quote entry's `speaker_id`. The file was last
+    built 2026-10-19.
+- That stale id is left in place, with no rebuild in D1:
+  - only the operator CLI commands `gi clusters` and `gi topic-insights` read the file; no api route,
+    MCP tool or app screen does;
+  - a rebuild re-clusters the whole corpus, which this record does not measure.
+  - Step 5 now expects 0 index rows and exactly that 1 occurrence, both before and after.
+  - Its removal is on D2's list: the next rebuild, or a text fix of that one entry.
 
 ## 11. After apply / deploy
 
