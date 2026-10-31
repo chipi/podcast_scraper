@@ -214,7 +214,30 @@ ingested since the snapshot).
 
 ## 8. Verdict
 
-_TODO_
+**First read (2026-10-31, fresh agent): NO-GO**, on missing items: the builder's verdict, the
+not-covered list, the 3 gold moves by identity, the org joins unchanged, the 9 blocked joins
+listed, the S10a artefacts, ledger idempotence, the shipping sha, and the gates not run. Each is
+answered in section 7 ("Added after the first step-8 read") and the gates table.
+
+**Second read (2026-10-31, another fresh agent; not the builder, not the first reader), condensed:**
+
+```text
+REVIEW d1_name_consolidation 2026-10-31 commit 2b1bbfbb3 (shipping code aaf08c6e8; no src diff after it) reviewer Sonnet (fresh) minutes ~6
+PREDICTION vs GATE: no prediction (MISSED, accepted); the scoreboard diff shows exactly the moves listed (S1 +49, S2 +53, S3 +2, S10a +3), each by identity with an acceptance; S1n, S1c, S10b, S12, A1 unchanged; gold 3 moves in 0038's N4, correct/wrong unchanged
+REQUIRED ITEMS: refusals listed by identity; code clean aaf08c6e8; ledger undo and second build recorded; census: the ledger writes only its own files (0038 owns the file census); not-covered present (13 items); ci-fast MAKE_EXIT=0; no per-verdict deciding segment for the 51 joins
+AFTER-STATE READ: from the read list and the operator's reading, not from served-text excerpts: at least 15 false splits accepted against 25-35 wrong merges refused, none confirmed by the operator from the cards; the direction matches "a wrong name is worse than a hidden one"
+OPEN CALLS: titles (Mayor, Senate President) deferred; guard (c) 3 right vs 5 false splits kept on principle; held-out shows only cost; guard (b) unexercised; 22 post-snapshot episodes; S6 not run; nginx test acceptable (CI must be green; its docker guard failed instead of skipping, unexplained); viewer spec acceptable (fails on main too; green or no worse in CI)
+DOUBTED NUMBER: none
+VERDICT: GO WITH CONDITIONS
+```
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** CI green on push for `test_player_nginx_syntax_ok` and the viewer suite (or no worse than main).
+- **Condition 2:** the operator's explicit acceptance, as a set, of the at-least-15 false splits and of guard (c)'s trade (3 wrong merges refused, 5 false splits).
+- **Condition 3:** step 10's prod plan diff covers the 22 episodes ingested after the snapshot.
+
+Open, not a condition: the nginx test's `_docker_is_usable` guard returned true here although `docker run` then hit the closed production socket; why `docker version --format {{.Server.Version}}` succeeded is not diagnosed.
 
 ## 9. Operator review
 
