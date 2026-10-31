@@ -11,13 +11,13 @@ from typing import Any
 
 from podcast_scraper.graph_id_utils import is_bare_speaker_label, is_raw_speaker_label
 from podcast_scraper.providers.ml.diarization.roster import (
+    friendly_speaker_label,
     UNNAMED_HOST_LABEL,
     VOICE_CAMEO,
     VOICE_COMMERCIAL,
     VOICE_TYPE_LABELS,
     VOICE_UNIDENTIFIED,
     VOICE_UNKNOWN,
-    friendly_speaker_label,
 )
 from podcast_scraper.server.schemas import TranscriptSegment
 

@@ -90,7 +90,7 @@ def test_a_named_speaker_and_host_still_render() -> None:
         ],
         {"person:jorna-velt": "Jorna Velt", "person:unresolved-host-ep1": "Host"},
     )
-    speakers = sorted(q.speaker for ins in insights_from_gi(gi) for q in ins.quotes)
+    speakers = sorted(str(q.speaker) for ins in insights_from_gi(gi) for q in ins.quotes)
     assert speakers == ["Host", "Jorna Velt"]
 
 
