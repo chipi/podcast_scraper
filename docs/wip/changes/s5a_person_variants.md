@@ -80,6 +80,43 @@ Predicted on the S4 export (prototype `s5/proto.py`, variant `either_initial_exa
   - every person join D1 makes;
   - the blocked list;
   - everything outside the identity map.
+- **"Only adds" holds for the pair test, not for the map, and the map numbers are measured.** The map
+  build is greedy and order-dependent (`build_entity_canonical_map`, `kg/entity_clusters.py`). An
+  added pair can pull a candidate into an earlier group, add a member that a later guard fires on, or
+  change a group's canonical through `_pick_canonical`'s order: episode count, then length, then name.
+  Measured on the prototype map (eval-data `s5/clusterdiff.py`):
+  - **moved** (a D1 variant whose canonical differs from D1's): 0;
+  - **D1 canonicals that become variants:** 0;
+  - **blocked joins:** identical to D1's 9, compared by content;
+  - **the 11 added:** 8 form new groups; 3 land in existing D1 groups (sizes 18, 4 and 2), and the D1
+    canonical stays in each. The canonical side of each new group is listed in
+    `s5/clusterdiff.txt`. Where the episode counts tie (three groups, 1 against 1), the longer
+    spelling wins. This sometimes shows the less correct spelling; choosing the shown spelling is S6.
+- **Ledger, the first `/3` build over a `/2` ledger:**
+  - the change entry says joins_added 11, joins_removed 0, canonical_changed 0;
+  - `identity_ledger.previous.json` holds the `/2` ledger, so `restore_previous` can undo it;
+  - a `--dry-run` before it reports `previous_state` `ok_previous_rule`.
+- **Ledger state `ok_previous_rule`, by caller:**
+  - `read_ledger` returns the ledger with that state;
+  - `served_id_map` gives exactly D1's map (sha `1f48d22a02b5` on the export);
+  - `write_ledger` and `restore_previous` use it as the previous ledger;
+  - `ledger_cli --dry-run` and `--status` name it and say "rebuild";
+  - `quality/name_report.py` reports the source as `ledger`;
+  - `_observe_state` gets a fifth state, so the gauge reads `ok_previous_rule`=1 and the other four 0.
+  A `/1` or unknown rule version stays `version_mismatch` with no joins.
+- **Rollback order:**
+  - a D1 image reading a `/3` ledger gets `version_mismatch` and serves no joins;
+  - so the undo is: first `identity-ledger --restore-previous`, which puts the `/2` ledger back (it
+    checks the schema only), then the D1 image;
+  - the reverse order leaves a window with no joins.
+- **What a listener or reader sees, for the 11 joins:**
+  - the two spellings show as one person: one person page, episode counts summed over the group, and
+    entity search resolving either id to the canonical;
+  - the shown name is the canonical's spelling;
+  - nothing else is shown differently. The map is read at serve time, and no corpus file is written.
+  - If step 8 reads one of the 2 unclear joins (or any other) as two people, the rule that admitted
+    it is narrowed, or the step goes back to the operator. Nothing ships with a join read as two
+    people.
 - **The real code must give the prototype's map sha.** A different sha is a finding to explain before
   step 7.
 - **Ledger:** `RULE_VERSION` moves to `cluster-person-no-bridge-guarded/3`.
@@ -97,7 +134,21 @@ Predicted on the S4 export (prototype `s5/proto.py`, variant `either_initial_exa
 
 ## 5. Acceptance
 
-_TODO_
+Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, about 1 minute: "Not
+complete". Rows added to section 4 from its findings:
+- "only adds" is about the pair test, not the map; "moved" defined; the 11 joins classified; blocked
+  compared by content;
+- the `ok_previous_rule` callers: `write_ledger`, `restore_previous`, the CLI, the name report and
+  the gauge;
+- the rollback order;
+- what a listener sees, and what happens to an unclear join judged wrong.
+
+Spot checks for step 8:
+1. Read the 2 unclear pairs in the after-state.
+2. One initial-form join with an episode-count tie: confirm the canonical name shown.
+3. A `/2` ledger: confirm the gauge and `--status`.
+4. Confirm `.previous` exists after the first `/3` rebuild.
+5. A `/1` ledger: confirm `version_mismatch` with zero joins.
 
 ## 6. Build
 
