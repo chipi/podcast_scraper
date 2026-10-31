@@ -1,7 +1,7 @@
 ---
 id: 0038_raw_label_speakers_removed
 class: full
-status: open
+status: landed
 issue: none (RFC-131 plan V3, N11 in D1; operator, 2026-10-30: "I would expect migration to clean that up")
 touches:
   - src/podcast_scraper/upgrade/migrations/m0038_raw_label_speakers_removed.py
@@ -267,11 +267,45 @@ _TODO_
 
 ## 10. Before apply / deploy
 
-_TODO_
+- **Prod's per-episode plan against the clone's:**
+  - `upgrade status` with image `sha-540fb20` showed exactly 0038 pending;
+  - `upgrade run --dry-run --yes`: 24 episodes, with the same counters as the clone;
+  - the outcome hook's plan diff: 0 episodes. The 22 episodes added since the snapshot add no rows.
+- **Run steps, as run on prod (each on the operator's go in prod's session):**
+  1. ledger written with the new image, before the api restarted;
+  2. deploy-all-prod on `sha-540fb20`;
+  3. this migration through the corpus-migration skill;
+  4. `enrich --only insight_density,insight_sentiment`, then the incremental index, both as uid 1000;
+  5. raw-label ids on derived surfaces counted before and after (eval-data `d1/d1_raw_id_counts.py`).
+- **Derived surfaces covered:** GI and bridge (this migration), enrichment sidecars (step 4), the
+  search index (step 4, which re-indexed nothing, as expected), and the identity ledger (refreshed
+  by the run).
 
 ## 11. After apply / deploy
 
-_TODO_
+Prod, 2026-10-31. Each step ran on the operator's go typed in prod's session.
+
+- **Dry run** with image `sha-540fb20`: 24 episodes, with the clone's counters. The outcome hook's
+  plan diff: 0 episodes.
+- **Apply**, 12:32:49–12:41:10Z, EXIT=0, snapshot `.corpus-upgrade-backup-2.7.31-20261031T123320Z`:
+  - persons_removed 28, spoken_by_removed 107, quotes_unattributed 107, quotes_unplaced 19,
+    insights_retyped 53, insights_rerouted 53, bridge_identities_removed 28;
+  - now at 2.7.32, 0 pending;
+  - the ledger refreshed after it: 959 joins, 0/0/0;
+  - 0 files not owned by uid 1000.
+- **Verify:**
+  - 0038's own verify passed: ok true, 79 MB, 11 s (eval-data `d1/d1_verify_0038.py`);
+  - the full `upgrade verify` was killed by memory twice. The cause is 0028's verify, which
+    parsed the 490 MB index sidecar whole; 0028 alone passed 3.5 GB in 4 s;
+  - fixed in D2 (`d2_verify_bounded.md`).
+- **Derived surfaces:**
+  - `enrich --only insight_density,insight_sentiment`: 24 of 24 for each, 48 sidecars;
+  - the incremental index re-indexed 0, as expected, because no index field holds what 0038
+    changed (D1 record, step 11);
+  - raw-label ids after: 0 index rows; `insight_clusters.json` 1, the known stale entry (D2 item 5).
+
+Status `landed` (2026-10-31): 0038 is applied on prod, so its outcome is no longer compared with
+later code. D2 changed that code's digest: the docstring scrub, S5 and S5o.
 
 ## 12. Retrospective
 
