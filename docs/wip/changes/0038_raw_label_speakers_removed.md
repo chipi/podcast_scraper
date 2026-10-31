@@ -230,7 +230,30 @@ the operator by identity.
 
 ## 8. Verdict
 
-_TODO_
+Verdict read 2026-10-31 by a fresh agent (reviewer, Sonnet; not the builder, not the step-5 agent),
+inputs as file paths, about 5 minutes, ran nothing over the corpus. Its block, condensed:
+
+```text
+REVIEW 0038_raw_label_speakers_removed 2026-10-31 commit 855143508 (measured code 30303f269; migration and registry unchanged between them) reviewer Sonnet (fresh) minutes ~5
+PREDICTION vs GATE: 15 rows compared, 15 equal, 0 differ
+REQUIRED ITEMS: refusals 0 listed; code clean 30303f269; undo recorded (48 restored, byte-identical); second apply recorded (0); census vs gate suffixes equal (.gi.json 24, .bridge.json 24); not-covered present but thin and stale; ci-fast log not attached (unit log red only on this record's unfilled step 8)
+AFTER-STATE READ: 10 changed insights read, 10 right, 0 wrong; spot checks: (d) passes as far as read; (a), (b), (c), (e) not answerable from the record and excerpts
+OPEN CALLS: the 19 unplaced quotes typed unknown by rule, cause undiagnosed (acceptable: it hides rather than names); N8 and insight_clusters at step 10
+DOUBTED NUMBER: none
+VERDICT: GO WITH CONDITIONS  gate equals the dated prediction row by row; ci-fast not yet run on the committed tree
+```
+
+Conditions, each answered:
+
+1. Section 8 filled (this), the outcome bound (`scripts/measure/build_outcome.py`), and `make ci-fast`
+   green on the committed tree with the log attached: **to do, next.**
+2. The not-covered list corrected: done below.
+3. The unplaced-first-quote path (7 of the 53) and the named-second-quote path (spot check c) are
+   covered by unit tests (`test_an_insight_follows_its_first_quote_and_is_rerouted`, its
+   `insight:unplaced-first` and `insight:raw-first` cases), not by an excerpt: stated here.
+
+Verdict: GO WITH CONDITIONS
+Conditions: make ci-fast green on the committed tree, log attached; N8 and insight_clusters.json counted read-only on prod at step 10.
 
 ## 9. Operator review
 
@@ -250,7 +273,17 @@ _TODO_
 
 ## Not covered
 
-- The 19 quotes the placing join cannot place: why it fails is not diagnosed; they are typed
+- The 19 quotes the placing join cannot place: why it fails is not diagnosed (their segment files
+  exist and the quotes slice their own text; `_segment_char_spans` finds no span). They are typed
   `unknown` by the rule above, because their own record credits a raw label.
-- Enrichment sidecars keyed by insight id (`insight_sentiment`, `insight_density`): whether they
-  read `surfaceable` is checked in the step-7 census, not yet.
+- Their after-state, and the named-second-quote path, were not read in an excerpt; unit tests
+  cover both paths. Spot checks (b), (c) and (e) were not read at step 8.
+- The sidecar refresh (`insight_density`, `insight_sentiment`, which do read `surfaceable`) was
+  measured on the copy only (24 episodes, 48 files); on prod it is a run step, re-measured there.
+- N8 (index rows holding an N1 id) and `search/insight_clusters.json`: not in the backup, so not
+  measured; counted read-only on prod at step 10.
+- **The prod corpus has moved since the snapshot:** the 2026-10-31 nightly added 22 served episodes
+  (3,069 → 3,091, prod's shadow snapshot), written by the deployed pre-S3 code, so they may hold
+  new raw-label Persons. Prod's per-episode plan at step 10 is diffed against this clone's; any new
+  episode is listed with its cause, or a fresh snapshot is measured.
+- The 5 episodes failing 0025's verify are corpus state on main's code too (not this change).
