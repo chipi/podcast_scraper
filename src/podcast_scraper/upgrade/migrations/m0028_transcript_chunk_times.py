@@ -105,13 +105,29 @@ def _plan(ctx: MigrationContext) -> Tuple[Optional[_Plan], str]:
         source_body_timestamps,
     )
 
+    from ...utils.json_stream import iter_json_object_items
+
     root = ctx.corpus_root
     lance = _lance_path(ctx)
-    sidecar = _load(lance.parent / "metadata.json")
-    if not lance.exists() or not isinstance(sidecar, dict):
+    sidecar_path = lance.parent / "metadata.json"
+    if not lance.exists() or not sidecar_path.is_file():
         return None, "no search index or no index sidecar: nothing to time"
     backend = LanceDBBackend(str(lance))
     plan = _Plan()
+    # BOUNDED MEMORY (D2 item 6): the untimed rows first, then only their sidecar entries,
+    # streamed. The production sidecar is 490 MB, and parsing it whole ran the host out of memory
+    # under `upgrade verify` (2026-10-31).
+    untimed: Dict[str, List[str]] = {}
+    for tier in _TIERS:
+        table = backend._open_if_exists(tier)
+        if table is not None:
+            untimed[tier] = _untimed_ids(table)
+    wanted = {row_id for ids in untimed.values() for row_id in ids}
+    try:
+        sidecar = dict(iter_json_object_items(sidecar_path, keys=wanted)) if wanted else {}
+    except (OSError, ValueError):
+        return None, "no search index or no index sidecar: nothing to time"
+    # One transcript held at a time: the candidates are visited grouped by episode.
     body_cache: Dict[Tuple[str, bool], Optional[Tuple[str, List[Dict[str, Any]]]]] = {}
 
     def body_for(meta_rel: str, source: bool) -> Optional[Tuple[str, List[Dict[str, Any]]]]:
@@ -121,6 +137,7 @@ def _plan(ctx: MigrationContext) -> Tuple[Optional[_Plan], str]:
             return body_cache[key]
         from ...workflow.transcript_resolution import load_transcript, TranscriptPurpose
 
+        body_cache.clear()
         body_cache[key] = None
         meta_path = root / meta_rel
         doc = _load(meta_path)
@@ -149,7 +166,7 @@ def _plan(ctx: MigrationContext) -> Tuple[Optional[_Plan], str]:
         table = backend._open_if_exists(tier)
         if table is None:
             continue
-        ids = _untimed_ids(table)
+        ids = untimed.get(tier, [])
         plan.counts["untimed_rows"] += len(ids)
         candidates: Dict[str, Tuple[str, int, int, bool]] = {}
         for row_id in ids:
@@ -169,7 +186,9 @@ def _plan(ctx: MigrationContext) -> Tuple[Optional[_Plan], str]:
             candidates[row_id] = (rel, cs, ce, source)
             plan.counts["source_layer"] += int(source)
         texts = _texts(table, sorted(candidates))
-        for row_id, (rel, cs, ce, source) in sorted(candidates.items()):
+        for row_id, (rel, cs, ce, source) in sorted(
+            candidates.items(), key=lambda kv: (kv[1][0], kv[1][3], kv[0])
+        ):
             body = body_for(rel, source)
             if body is None:
                 plan.counts["no_segments"] += 1
