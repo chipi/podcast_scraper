@@ -1,0 +1,833 @@
+{
+  "applied_before": [
+    "0001_faiss_to_lance",
+    "0002_two_tier_native_reindex",
+    "0003_gi_v3_typed_mentions",
+    "0004_insight_type_reindex",
+    "0005_gi_v3_1_route_and_tag",
+    "0006_kg_v2_typed_entities",
+    "0007_scope_bare_person_names",
+    "0008_object_entity_kind",
+    "0009_backfill_speaker_roles",
+    "0010_canonical_person_names",
+    "0011_shared_artwork_store",
+    "0012_org_speakers_removed",
+    "0013_artwork_thumbnails",
+    "0014_eponymous_hosts_restored",
+    "0015_unpublishable_speaker_names_removed",
+    "0016_ad_reader_names_removed",
+    "0017_speaker_names_canonicalised",
+    "0018_org_speakers_removed_residue",
+    "0019_descriptor_speaker_names_removed",
+    "0020_titled_person_ids_remerged",
+    "0021_backfill_feed_language",
+    "0022_derived_speaker_surfaces_resynced",
+    "0023_transcript_speaker_prefixes_resynced",
+    "0024_shared_removed_speaker_prefixes",
+    "0025_one_person_one_entry",
+    "0026_artwork_medium",
+    "0027_missing_covers_stored",
+    "0028_transcript_chunk_times",
+    "0029_naming_arc_voices_repaired",
+    "0030_adfree_cut_resynced",
+    "0031_named_voices_shown",
+    "0033_hand_removed_names_refused",
+    "0034_talk_floor_names_removed",
+    "0035_voice_identity_names",
+    "0036_bridge_identities_restored",
+    "0037_named_voices_corrected"
+  ],
+  "apply_message": "24 episode(s); persons_removed=28, spoken_by_removed=107, quotes_unattributed=107, quotes_unplaced=19, insights_retyped=53, insights_rerouted=53, bridge_identities_removed=28",
+  "clone": "/Users/claude/snapshots/snapshot-prod-20261030/corpus/corpus",
+  "code": {
+    "dirty": false,
+    "sha": "04cd5a3fa3d4029c4016b4e2034642a924fae1c5"
+  },
+  "code_digest": "27d362754926ff3c79eb2aa77d6ed24d61e636967994667206ea68fa0361328f",
+  "computed_class": "full",
+  "episode_deltas": {
+    "feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/metadata/0008 - NBA Africa_s Biggest Success _ T_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.metadata.json": {
+      "S2_hidden": 1
+    },
+    "feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/metadata/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/metadata/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.metadata.json": {
+      "S1_hidden_unknown": 37,
+      "S2_hidden": 37
+    },
+    "feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/metadata/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.metadata.json": {
+      "S2_hidden": 2,
+      "S3_principal_unidentified": 2
+    },
+    "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/metadata/0001 - When designing a GAME_ what_s in_20260924-070029.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_feeds.simplecast.com_999571cd/run_20260819-060035_285e51f2/metadata/0013 - The Last 12 Weeks_20260819-060035_285e51f2.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_feeds.simplecast.com_999571cd/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620/metadata/0002 - MAGA_s Midterm Defectors_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_feeds.simplecast.com_999571cd/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547/metadata/0010 - Trump Banned the Media. This Tim_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_feeds.simplecast.com_e739a158/run_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531/metadata/0001 - The New Startup Playbook _ Box C_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531.metadata.json": {
+      "S10a_zero_visible": 1,
+      "S1_hidden_unknown": 2,
+      "S2_hidden": 2
+    },
+    "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.metadata.json": {
+      "S2_hidden": 1
+    },
+    "feeds/rss_iono.fm_68146a00/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403/metadata/0004 - BN Daybreak_ Sussman_s unprecede_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_rss.art19.com_41402031/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131/metadata/0010 - Why the neoclassical philosophy _349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    },
+    "feeds/rss_www.omnycontent.com_c9fdce2d/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631/metadata/0001 - AI Agents Are Already Changing t_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631.metadata.json": {
+      "S1_hidden_unknown": 1,
+      "S2_hidden": 1
+    }
+  },
+  "files_changed": 48,
+  "files_changed_by_suffix": {
+    ".bridge.json": 24,
+    ".gi.json": 24
+  },
+  "gating_moves": {
+    "S10a_zero_visible": 1,
+    "S1_hidden_unknown": 49,
+    "S2_hidden": 53,
+    "S3_principal_unidentified": 2
+  },
+  "measured_at": "2026-10-31T00:35:20",
+  "migration": "0038_raw_label_speakers_removed",
+  "plan": [
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 3,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 3
+      },
+      "inputs": {
+        "feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/metadata/0008 - NBA Africa_s Biggest Success _ T_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.bridge.json": "9008db5953a4e2a6fea5f31a648413fb850f213c00943b727e7096d700ddffda",
+        "feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/metadata/0008 - NBA Africa_s Biggest Success _ T_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.gi.json": "6e87e2cd2e6afdb19f3a844de8ee8c85a9da5f7ab7208cf2179994d2a507a246",
+        "feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/transcripts/0008 - NBA Africa_s Biggest Success _ The Khaman Maluach Story_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.adfree.segments.json": "e348f82239b2a40037f2cdf374e1a91c9253a7367aa397f683b55f30cd876cdb",
+        "feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/transcripts/0008 - NBA Africa_s Biggest Success _ The Khaman Maluach Story_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.adfree.txt": "3744f8c56bd8b6efb37fca9397e398c58e85a360441f3f9f390f3035542ca446"
+      },
+      "meta": "feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/metadata/0008 - NBA Africa_s Biggest Success _ T_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261014-130630/metadata/0001 - He Co-Invented the Transformer. _20261014-130630.bridge.json": "fac893d713242e5ad6c7f8853396a6c950dbe3cbcdef6ce6a00bc979d60bb204",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261014-130630/metadata/0001 - He Co-Invented the Transformer. _20261014-130630.gi.json": "6cc468a42d0b36bb5e52a698b0afc7b5ff7316a2bf1aca4f2119b15423f1ddbc",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261014-130630/transcripts/0001 - He Co-Invented the Transformer. _20261014-130630.adfree.segments.json": "67cc4598a6493ee053eb9e5870d2f1586cbc311bd5a1ab08e3b954e63f99cb92",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261014-130630/transcripts/0001 - He Co-Invented the Transformer. _20261014-130630.adfree.txt": "6467e9a2fc4aebc569b3d3e532802770c6173d6c959e8f74258b18483cc7d6f8"
+      },
+      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_20261014-130630/metadata/0001 - He Co-Invented the Transformer. _20261014-130630.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 1,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/metadata/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.bridge.json": "c1dbaf4fab6c4d05f2a4d0ac41c9fb6264351f6b68dabd522408ca1f3a3931bb",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/metadata/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.gi.json": "122a454bda5bdbb9108860ea9600ba0c27919ceda35a35da031061a5c324a56d",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/transcripts/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.adfree.segments.json": "56df80af6ca3cc2b6c09211d5c5e2874a6591a8fe2e71e0f2410f1a3e9147f62",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/transcripts/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.adfree.txt": "bf436361ff7e20d40b28a3f9aa9b6b504dc1c2a9d00b8fb928310b4ee5868311"
+      },
+      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/metadata/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 37,
+        "insights_retyped": 37,
+        "persons_removed": 1,
+        "quotes_unattributed": 71,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 71
+      },
+      "inputs": {
+        "feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/metadata/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.bridge.json": "8ef56ed3e284c5f23d8ea0a4549b1ca1ea7b6d26515836fe90ce725b26e34c4e",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/metadata/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.gi.json": "607c5a9a5c53f2dcf146bc3198cd899801de2421113d031b773fcdcf62060377",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/transcripts/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.adfree.segments.json": "723f016329e60231d4560dab63d0bf21e9f6bb3299ceed8b5d8059dafe40849e",
+        "feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/transcripts/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.adfree.txt": "0869db4571ade4d415e47b120bdfd30eaca4443dc5af4180e8cf260661cf8549"
+      },
+      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/metadata/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_apple.dwarkesh-podcast.workers.dev_da321008/run_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449/metadata/0002 - The rise and fall of agent civil_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449.bridge.json": "dc0b01eda69191b0ca598aee835d1e09c4907f0066916eabc7fd06b6818371f0",
+        "feeds/rss_apple.dwarkesh-podcast.workers.dev_da321008/run_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449/metadata/0002 - The rise and fall of agent civil_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449.gi.json": "8d703f9a7152386944a50896ee453d940e16e06c038f7bfe3a7e8d311c597fb0",
+        "feeds/rss_apple.dwarkesh-podcast.workers.dev_da321008/run_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449/transcripts/0002 - The rise and fall of agent civil_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449.adfree.segments.json": "ef5168e7a5d3885e5df3db493196c1fe803c9261341f4699739536177291cad0",
+        "feeds/rss_apple.dwarkesh-podcast.workers.dev_da321008/run_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449/transcripts/0002 - The rise and fall of agent civil_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449.adfree.txt": "da3b04ad9d916db0eb5c0fa6b5b2cdf532fa65669bac50ba333889cfd87d9db5"
+      },
+      "meta": "feeds/rss_apple.dwarkesh-podcast.workers.dev_da321008/run_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449/metadata/0002 - The rise and fall of agent civil_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 2,
+        "quotes_unplaced": 2,
+        "spoken_by_removed": 2
+      },
+      "inputs": {
+        "feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/metadata/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.bridge.json": "a3e1de8fed2c972ea6e4c880fefa7c2ebdcba8dbe9802baa34ca826c8207977f",
+        "feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/metadata/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.gi.json": "cbe97f610eee015950024e5745fc0ec73778aee9dacb6f283225cbbcf7141657",
+        "feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/transcripts/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.adfree.segments.json": "a2ab051afe3c37de6cb0d23a234582e4ba984edf6903e765b7a1a7ce4c978d6c",
+        "feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/transcripts/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.adfree.txt": "7387496d78de5ce3e307f90ce494459e19561852d129cd3b6f8bf8b8402872cc"
+      },
+      "meta": "feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/metadata/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 2,
+        "insights_retyped": 2,
+        "persons_removed": 1,
+        "quotes_unattributed": 2,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 2
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.bridge.json": "7298cf7f867c2339d5d2c5301fd344a79a3cc904d7bf526c30e7afb53d26c9e6",
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.gi.json": "229e6ee29a6e8f815511431482969df84c29b58144c1803ce88418aa6d595df3",
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/transcripts/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.adfree.segments.json": "f2cd0f3927f99af36e77252f68d0eedd20f0ec82520f838164924343c5b0a9c4",
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/transcripts/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.adfree.txt": "ceb3bcc2083ea1f59f98143a02b5fe4afab61b3a752812eeb877dedfb3cb27db"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 2,
+        "quotes_unplaced": 2,
+        "spoken_by_removed": 2
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.bridge.json": "17e204dafa90dfbee10e4fe3d0d36061bab3b37970c4252c4b53992274972ce6",
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.gi.json": "51b2a04d29f2aa7a80b695e5744972c7b343a320cfc7fbb79600d032fc7c065b",
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/transcripts/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.adfree.segments.json": "f4a6030740455cd20d63ef39d1fd41b60b2ba0e8ebcac5bf78d2f243ea45596f",
+        "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/transcripts/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.adfree.txt": "e090e5c681d10b19b59831e1f8cdd97e5f4fdbb0b3971a1545e54c952846f71e"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 1,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/metadata/0001 - When designing a GAME_ what_s in_20260924-070029.bridge.json": "14e6f9b95b4243bc5ead8595d22732c4f0e759487bb48eee6fea9ce7b87002d0",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/metadata/0001 - When designing a GAME_ what_s in_20260924-070029.gi.json": "2d32ee45a4d16c2f5c27e2d9faa2f3d18862e59c22ad98f1183ad3c264907554",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/transcripts/0001 - When designing a GAME_ what_s in_20260924-070029.adfree.segments.json": "83fdf61f57e62ce92650eb11f1b3919347cecbd5c2293afa17e95dfe598625cd",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/transcripts/0001 - When designing a GAME_ what_s in_20260924-070029.adfree.txt": "866e13ac28f9495d905d875d413fc3245d3747d154201ef38acf3699508ad3e2"
+      },
+      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/metadata/0001 - When designing a GAME_ what_s in_20260924-070029.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 1,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.npr.org_7ce5b183/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026/metadata/0001 - Wanna slow down AI_ These biolog_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026.bridge.json": "3962127057c60ec05a5dddac6d01c5cbdec37e46e45aa4258bc2210dca2ecd2b",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026/metadata/0001 - Wanna slow down AI_ These biolog_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026.gi.json": "9abe5a1ca572491355493a39a8e7d90ec98045c73deebab91272bb82466de443",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026/transcripts/0001 - Wanna slow down AI_ These biolog_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026.adfree.segments.json": "29fef41d69a71550b6ef3f3e702c7429244e947a483736f8e4c8602abab53324",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026/transcripts/0001 - Wanna slow down AI_ These biolog_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026.adfree.txt": "42c31c368e5f866bb7206e9fa55cafe46ad11ae3f431b0d0e9bb15f296623f1d"
+      },
+      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026/metadata/0001 - Wanna slow down AI_ These biolog_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 3,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 3,
+        "quotes_unattributed": 3,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 3
+      },
+      "inputs": {
+        "feeds/rss_feeds.npr.org_7ce5b183/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939/metadata/0003 - Dolly Parton_s _9 to 5__ the tru_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939.bridge.json": "334ed43d2d557928d3cb8ab0033c17b5a42223c44b06c84c7fcf83b988f1535a",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939/metadata/0003 - Dolly Parton_s _9 to 5__ the tru_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939.gi.json": "d62f8c4fd095490adec83f2a006398c7e555738a0f6843cf08f39e73171c2de9",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939/transcripts/0003 - Dolly Parton_s _9 to 5__ the tru_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939.adfree.segments.json": "01fe7272f6d113d0918c7989807240004faf48f1089b981d3644afea528b850c",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939/transcripts/0003 - Dolly Parton_s _9 to 5__ the tru_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939.adfree.txt": "1f20b2923d24a9fb889c4b9b8eae5d0b88f009773d580d51aabd63ec08b69247"
+      },
+      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939/metadata/0003 - Dolly Parton_s _9 to 5__ the tru_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-032939.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 2,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 2,
+        "quotes_unattributed": 3,
+        "quotes_unplaced": 3,
+        "spoken_by_removed": 3
+      },
+      "inputs": {
+        "feeds/rss_feeds.npr.org_7ce5b183/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159/metadata/0001 - Who_s gonna pay for your Social _ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159.bridge.json": "e3d673a47f1679c3ff6640b7b57a6a06ae4d74a80e47bc1c4161a17f7490d377",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159/metadata/0001 - Who_s gonna pay for your Social _ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159.gi.json": "ba1da17f1cde2bd783677c6b696706869d683b55758c37c00a5b548eabd62a87",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159/transcripts/0001 - Who_s gonna pay for your Social _ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159.adfree.segments.json": "722c81df2f0e68f72441e162c79bbe9ac0bc1bf584e53be2fe3f5cf00416d38e",
+        "feeds/rss_feeds.npr.org_7ce5b183/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159/transcripts/0001 - Who_s gonna pay for your Social _ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159.adfree.txt": "1ba3c6da95332b3ca6864c23b2e6c313e479fc2534adfe019e80af6844e86dfb"
+      },
+      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159/metadata/0001 - Who_s gonna pay for your Social _ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 1,
+        "quotes_unattributed": 0,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 0
+      },
+      "inputs": {
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-054206/metadata/0002 - The Ezra Klein Show_ Jensen Huan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-054206.bridge.json": "b45a67686974692a13f907efc0c0a741440f759d3b9e95d114cc336e1eb56fc3",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-054206/metadata/0002 - The Ezra Klein Show_ Jensen Huan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-054206.gi.json": "599a95febdff08fe376ef84ce3ab693487aedb34e617f82bfc429784f8ef60e8"
+      },
+      "meta": "feeds/rss_feeds.simplecast.com_2e104dc7/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-054206/metadata/0002 - The Ezra Klein Show_ Jensen Huan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-054206.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 2,
+        "quotes_unplaced": 2,
+        "spoken_by_removed": 2
+      },
+      "inputs": {
+        "feeds/rss_feeds.simplecast.com_999571cd/run_20260819-060035_285e51f2/metadata/0013 - The Last 12 Weeks_20260819-060035_285e51f2.bridge.json": "8b12e4c2a4f21bd7083bfca6f0666ca5213594f4f51bcd00b99a42f4f2038f88",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_20260819-060035_285e51f2/metadata/0013 - The Last 12 Weeks_20260819-060035_285e51f2.gi.json": "35b1d18ad7053db0aef6c57c3689cc153d16a3349ad2dc9dce30e93e01b6afe9",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_20260819-060035_285e51f2/transcripts/0013 - The Last 12 Weeks_20260819-060035_285e51f2.adfree.segments.json": "e48f1a715e8112c6014adca42845a5c0c3e507c54d830bb9e27df23f151bea7d",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_20260819-060035_285e51f2/transcripts/0013 - The Last 12 Weeks_20260819-060035_285e51f2.adfree.txt": "c4bcbed579333f334373c70eb7e5a249d47e3833fccdd017b7b37ad9850ed920"
+      },
+      "meta": "feeds/rss_feeds.simplecast.com_999571cd/run_20260819-060035_285e51f2/metadata/0013 - The Last 12 Weeks_20260819-060035_285e51f2.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 2,
+        "quotes_unplaced": 2,
+        "spoken_by_removed": 2
+      },
+      "inputs": {
+        "feeds/rss_feeds.simplecast.com_999571cd/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620/metadata/0002 - MAGA_s Midterm Defectors_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620.bridge.json": "be79af8a9172992e43041e1838aa7a30f3a7a1d4f11872cfffecc847fa7f2e08",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620/metadata/0002 - MAGA_s Midterm Defectors_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620.gi.json": "332ea8c25e4eaa13df66146cb51a025499e811ee162358fbdb08b13017408c04",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620/transcripts/0002 - MAGA_s Midterm Defectors_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620.adfree.segments.json": "6cee578c44956cac5bf141f67ad8ba5dfc4ad219c8208ba3cfe6273a17fa2417",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620/transcripts/0002 - MAGA_s Midterm Defectors_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620.adfree.txt": "d73812a2a37439cf18826cffbceb6b8828eb862ab422d5f51ec3a9e9df4d2faa"
+      },
+      "meta": "feeds/rss_feeds.simplecast.com_999571cd/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620/metadata/0002 - MAGA_s Midterm Defectors_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-002620.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 1,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.simplecast.com_999571cd/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547/metadata/0010 - Trump Banned the Media. This Tim_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547.bridge.json": "78c24ea113ea8b969da1aca8257e80714ea0a61e937f76b19b8c4931dac57c7a",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547/metadata/0010 - Trump Banned the Media. This Tim_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547.gi.json": "9ffa11ab338636dd8fddfc3e6ee174112455aa64e604c907bdd49a23bbf4113a",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547/transcripts/0010 - Trump Banned the Media. This Tim_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547.adfree.segments.json": "70291c921c7f1613d5df756cab97a762327652b677db0f11ddd5591a9aa7154c",
+        "feeds/rss_feeds.simplecast.com_999571cd/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547/transcripts/0010 - Trump Banned the Media. This Tim_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547.adfree.txt": "98a293b0270143c15cf1ec3948a36a69da8ec5485ea3b8eab18005ff0ffcd584"
+      },
+      "meta": "feeds/rss_feeds.simplecast.com_999571cd/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547/metadata/0010 - Trump Banned the Media. This Tim_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 2,
+        "insights_retyped": 2,
+        "persons_removed": 1,
+        "quotes_unattributed": 3,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 3
+      },
+      "inputs": {
+        "feeds/rss_feeds.simplecast.com_e739a158/run_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531/metadata/0001 - The New Startup Playbook _ Box C_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531.bridge.json": "a0f4276d1d300d99ba8d7e406b3d781370ca668d2ba59b4d6654c88f68f3ddc7",
+        "feeds/rss_feeds.simplecast.com_e739a158/run_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531/metadata/0001 - The New Startup Playbook _ Box C_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531.gi.json": "18e00dde685c6b5e282cb59c9f52f6589eb715f4eaf0b2d3efd92365a404983b",
+        "feeds/rss_feeds.simplecast.com_e739a158/run_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531/transcripts/0001 - The New Startup Playbook _ Box C_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531.adfree.segments.json": "0c7b7491d2859709bd47721d3ab7af839ffe23c858e17a1ebbd1562d2c99de7a",
+        "feeds/rss_feeds.simplecast.com_e739a158/run_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531/transcripts/0001 - The New Startup Playbook _ Box C_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531.adfree.txt": "cf32924d5f91805859f4fb6cdccb41873c37bc605be337ce812f9c37eeb37ed1"
+      },
+      "meta": "feeds/rss_feeds.simplecast.com_e739a158/run_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531/metadata/0001 - The New Startup Playbook _ Box C_d64b7b3a-47db-4f29-8945-6699821d5d67_20261025-215531.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.bridge.json": "a78b35d35e2e5a026db843fe529c75898875b2a799a1ff1b3ffe8bb99474ddf3",
+        "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.gi.json": "4b49d832c224ec6546cdcdfb2ceab019942cdc19af5a0613b0a00143cfc49529",
+        "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/transcripts/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.adfree.segments.json": "897ea6e63be3dd04523fa893ac9c5767b5297d9ac7411e377057e9fc94ba7268",
+        "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/transcripts/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.adfree.txt": "73bf209ff45f430f22ad6e919cfa2d457b0532796eb5fcd539e6a52bf656a9b0"
+      },
+      "meta": "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_iono.fm_68146a00/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403/metadata/0004 - BN Daybreak_ Sussman_s unprecede_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403.bridge.json": "cff995e223499957938537b1c300fac40d2e81e538d5355ebfdf6d4360f564ed",
+        "feeds/rss_iono.fm_68146a00/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403/metadata/0004 - BN Daybreak_ Sussman_s unprecede_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403.gi.json": "6ee56b183a217ad8494ecb69f6add157589089fe788fe657236e3ba9d02cb4f3",
+        "feeds/rss_iono.fm_68146a00/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403/transcripts/0004 - BN Daybreak_ Sussman_s unprecede_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403.adfree.segments.json": "4e88ecb5906e363be0afd12013ca60378fcccb970a9278b06b05f468e7796fd4",
+        "feeds/rss_iono.fm_68146a00/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403/transcripts/0004 - BN Daybreak_ Sussman_s unprecede_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403.adfree.txt": "136bc34038852531a1329935f7e3a1e7cf0aad298a84ede5c8bcfcfd2fdb18b2"
+      },
+      "meta": "feeds/rss_iono.fm_68146a00/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403/metadata/0004 - BN Daybreak_ Sussman_s unprecede_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-025403.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_rss.art19.com_41402031/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131/metadata/0010 - Why the neoclassical philosophy _349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131.bridge.json": "8b0d75c57128e1325748fe9a41f2753de17503f645bb598395f0eef2e7dc899c",
+        "feeds/rss_rss.art19.com_41402031/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131/metadata/0010 - Why the neoclassical philosophy _349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131.gi.json": "97e010714eaa91cd4a3c5132e658498dddb7cdb7d5eb57225bcb17854455f52c",
+        "feeds/rss_rss.art19.com_41402031/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131/transcripts/0010 - Why the neoclassical philosophy _349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131.adfree.segments.json": "679af06b0627c3f050b55c840bf618e7f0b218b6a580cadc2372169bada3a041",
+        "feeds/rss_rss.art19.com_41402031/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131/transcripts/0010 - Why the neoclassical philosophy _349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131.adfree.txt": "ace0649d5b2d8fb00934093830d3c6d211734796751da323cb420f45c5ddd8e3"
+      },
+      "meta": "feeds/rss_rss.art19.com_41402031/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131/metadata/0010 - Why the neoclassical philosophy _349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-193131.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 1,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_rss.libsyn.com_64633ae1/run_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903/metadata/0009 - Annie Jacobsen on Nuclear War_ I_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903.bridge.json": "e21042a7e8eb0ff41b7c709b05c2f047be403b9759ce165d5a62fb2c03bec44a",
+        "feeds/rss_rss.libsyn.com_64633ae1/run_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903/metadata/0009 - Annie Jacobsen on Nuclear War_ I_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903.gi.json": "d59ed16941fba54f6652db51977999ba20d9fe6363fc1d132588087bec7a0ea5",
+        "feeds/rss_rss.libsyn.com_64633ae1/run_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903/transcripts/0009 - Annie Jacobsen on Nuclear War_ I_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903.adfree.segments.json": "5a9981fabbe1ff23360d3e48bcb4ddda050f8a8f76ae9a3b8de07d3865c1738e",
+        "feeds/rss_rss.libsyn.com_64633ae1/run_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903/transcripts/0009 - Annie Jacobsen on Nuclear War_ I_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903.adfree.txt": "4ce1133323fd8477c69b1683fe20bcdd3c1468a6f5941397f286102626c824b5"
+      },
+      "meta": "feeds/rss_rss.libsyn.com_64633ae1/run_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903/metadata/0009 - Annie Jacobsen on Nuclear War_ I_7d126c9d-eb18-4ad2-97d4-ddd7a04617ca_20260904-115903.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 2,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 2,
+        "quotes_unattributed": 2,
+        "quotes_unplaced": 2,
+        "spoken_by_removed": 2
+      },
+      "inputs": {
+        "feeds/rss_video-api.wsj.com_9acc908e/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120/metadata/0001 - Can Xbox Get Back in the Game__4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120.bridge.json": "b59170cb5037a14fe2f4e76d86eaa7e7d12dc3b2bb04d0207cb222460035e6d8",
+        "feeds/rss_video-api.wsj.com_9acc908e/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120/metadata/0001 - Can Xbox Get Back in the Game__4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120.gi.json": "717c1448eafc7007d61770ae0c648ae137647d7a1dbfcd5f70d49ef64964d876",
+        "feeds/rss_video-api.wsj.com_9acc908e/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120/transcripts/0001 - Can Xbox Get Back in the Game__4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120.adfree.segments.json": "c8a6c30970e085469d0f15b431cccb00c84828ec432028901f8454cb9a02fb7f",
+        "feeds/rss_video-api.wsj.com_9acc908e/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120/transcripts/0001 - Can Xbox Get Back in the Game__4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120.adfree.txt": "130a8e2a0db453df43e875435064816c01d60ed4a248b9dffdf55db4cfc1bd36"
+      },
+      "meta": "feeds/rss_video-api.wsj.com_9acc908e/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120/metadata/0001 - Can Xbox Get Back in the Game__4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-235120.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 0,
+        "insights_retyped": 0,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 1,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_video-api.wsj.com_9acc908e/run_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923/metadata/0001 - Rogue Pilots Are a Growing Safet_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923.bridge.json": "b3404d00e3e4d31321a4f1d6905cb5ab6f835a94383c192a256dfcd8d0f3accf",
+        "feeds/rss_video-api.wsj.com_9acc908e/run_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923/metadata/0001 - Rogue Pilots Are a Growing Safet_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923.gi.json": "6e3dae833b9baa54c5112ef8f7799a893975a1fee459e6a0bba267bec746a51e",
+        "feeds/rss_video-api.wsj.com_9acc908e/run_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923/transcripts/0001 - Rogue Pilots Are a Growing Safet_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923.adfree.segments.json": "0a420d5dd02376baacac0f66ca83d32d794f9192aef2fe54a2880216db6f3f44",
+        "feeds/rss_video-api.wsj.com_9acc908e/run_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923/transcripts/0001 - Rogue Pilots Are a Growing Safet_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923.adfree.txt": "047782717c769c1a703fda200f42b4c8e39ca1aee9f42a522f1f6a6630e75227"
+      },
+      "meta": "feeds/rss_video-api.wsj.com_9acc908e/run_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923/metadata/0001 - Rogue Pilots Are a Growing Safet_6c4badf2-7b25-43b8-86bc-43c3443e2934_20261008-232923.metadata.json"
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "insights_rerouted": 1,
+        "insights_retyped": 1,
+        "persons_removed": 1,
+        "quotes_unattributed": 1,
+        "quotes_unplaced": 0,
+        "spoken_by_removed": 1
+      },
+      "inputs": {
+        "feeds/rss_www.omnycontent.com_c9fdce2d/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631/metadata/0001 - AI Agents Are Already Changing t_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631.bridge.json": "e10528294ef2c6d8fd5e8cad4b8cc7e82b53b4b9cfc3705fa83155c4f9765e0e",
+        "feeds/rss_www.omnycontent.com_c9fdce2d/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631/metadata/0001 - AI Agents Are Already Changing t_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631.gi.json": "8af6f03ed65e893ff1e685bec6bd197344e628fff20bde93ea951b91a877ead4",
+        "feeds/rss_www.omnycontent.com_c9fdce2d/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631/transcripts/0001 - AI Agents Are Already Changing the Price of Goods_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631.adfree.segments.json": "0cd552e869f4c38f13d361d788fc6a910348169c6f41d0e6e96cad252030d3f6",
+        "feeds/rss_www.omnycontent.com_c9fdce2d/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631/transcripts/0001 - AI Agents Are Already Changing the Price of Goods_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631.adfree.txt": "86f4c26ce9c83d841242909ac925dfbde6f2a1781b3bb66c02f235787c5c8209"
+      },
+      "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631/metadata/0001 - AI Agents Are Already Changing t_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631.metadata.json"
+    }
+  ],
+  "plan_sha256": "c2ff50dfb533f9d02ad51bdf87483982d00b94aa52d620a79a072c1bc21ed3df",
+  "scoreboard_after": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 297,
+    "A1_marker_hits": 396,
+    "S10a_zero_visible": 194,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 24,
+    "S1_hidden_unknown": 17860,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 31474,
+    "S2_hidden_commercial": 94,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13520,
+    "S2_hidden_unknown": 17860,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9219,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3069,
+    "episodes_no_gi": 0,
+    "insights": 135390,
+    "metadata_unreadable": 0,
+    "quotes": 262618,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "scoreboard_before": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 297,
+    "A1_marker_hits": 396,
+    "S10a_zero_visible": 193,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 24,
+    "S1_hidden_unknown": 17811,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 31421,
+    "S2_hidden_commercial": 94,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13516,
+    "S2_hidden_unknown": 17811,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9217,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3069,
+    "episodes_no_gi": 0,
+    "insights": 135390,
+    "metadata_unreadable": 0,
+    "quotes": 262618,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "snapshot": "snapshot-prod-20261030",
+  "verdicts_sha256": null,
+  "verify": {
+    "message": "no served episode credits a raw diarization label as a speaker",
+    "ok": true
+  },
+  "verify_all": [
+    {
+      "id": "0001_faiss_to_lance",
+      "message": "FAISS retired (#995); no-op",
+      "ok": true
+    },
+    {
+      "id": "0002_two_tier_native_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0003_gi_v3_typed_mentions",
+      "message": "all 3607 .gi.json parse and are fully migrated to v3",
+      "ok": true
+    },
+    {
+      "id": "0004_insight_type_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0005_gi_v3_1_route_and_tag",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0006_kg_v2_typed_entities",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0007_scope_bare_person_names",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0008_object_entity_kind",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0009_backfill_speaker_roles",
+      "message": "1987 of 1987 recorded role(s) still present in files this migration last wrote; 1227 row(s) in files rewritten since (not judged)",
+      "ok": true
+    },
+    {
+      "id": "0010_canonical_person_names",
+      "message": "every person name is canonical and every id agrees with the name that minted it",
+      "ok": true
+    },
+    {
+      "id": "0011_shared_artwork_store",
+      "message": "all artwork is in the corpus-root store",
+      "ok": true
+    },
+    {
+      "id": "0012_org_speakers_removed",
+      "message": "no served surface names any of 17 org(s) as a speaker",
+      "ok": true
+    },
+    {
+      "id": "0013_artwork_thumbnails",
+      "message": "every stored image has a thumbnail (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0014_eponymous_hosts_restored",
+      "message": "every self-introduced eponymous host holds their seat",
+      "ok": true
+    },
+    {
+      "id": "0015_unpublishable_speaker_names_removed",
+      "message": "no served surface carries any of 31 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0016_ad_reader_names_removed",
+      "message": "no served surface names an ad voice for any of 50 frozen hit(s)",
+      "ok": true
+    },
+    {
+      "id": "0017_speaker_names_canonicalised",
+      "message": "no served surface carries any of 6 name(s) / 64 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0018_org_speakers_removed_residue",
+      "message": "no served surface names any of m0012's 17 org(s)",
+      "ok": true
+    },
+    {
+      "id": "0019_descriptor_speaker_names_removed",
+      "message": "no served surface carries any of 1 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0020_titled_person_ids_remerged",
+      "message": "no served surface carries any of 0 name(s) / 27 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0021_backfill_feed_language",
+      "message": "every backfilled show is consistent across its episodes",
+      "ok": true
+    },
+    {
+      "id": "0022_derived_speaker_surfaces_resynced",
+      "message": "every served episode's context digest and diagnostics follow its segments",
+      "ok": true
+    },
+    {
+      "id": "0023_transcript_speaker_prefixes_resynced",
+      "message": "every served transcript is its segments' render",
+      "ok": true
+    },
+    {
+      "id": "0024_shared_removed_speaker_prefixes",
+      "message": "no served transcript names a removed speaker",
+      "ok": true
+    },
+    {
+      "id": "0025_one_person_one_entry",
+      "message": "5 episode(s) still list one person twice, 0 refused: ['0001 - The wild orchid mystery_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-061541.metadata.json', '0001 - Wayne Susman_ DA leads in 4 Metr_9d13dacf-116b-4803-bafc-673e65b06643_20261019-015223.metadata.json', '0001 - _Ballito Bomb Boy_ stabs 6-year-_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149.metadata.json', '0002 - Lula meets Trump in Washington_20261017-072658.metadata.json', '0008 - Trouble ahead for Brazil-US rela_4e2bef8a-e031-445e-8612-5867574abf5e_20260905-181306.metadata.json']",
+      "ok": false,
+      "on_clone": {
+        "message": "5 episode(s) still list one person twice, 0 refused: ['0001 - The wild orchid mystery_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-061541.metadata.json', '0001 - Wayne Susman_ DA leads in 4 Metr_9d13dacf-116b-4803-bafc-673e65b06643_20261019-015223.metadata.json', '0001 - _Ballito Bomb Boy_ stabs 6-year-_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149.metadata.json', '0002 - Lula meets Trump in Washington_20261017-072658.metadata.json', '0008 - Trouble ahead for Brazil-US rela_4e2bef8a-e031-445e-8612-5867574abf5e_20260905-181306.metadata.json']",
+        "ok": false
+      }
+    },
+    {
+      "id": "0026_artwork_medium",
+      "message": "every stored image has a medium copy (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0027_missing_covers_stored",
+      "message": "every cover is stored, or recorded as unfetchable",
+      "ok": true
+    },
+    {
+      "id": "0028_transcript_chunk_times",
+      "message": "no search index or no index sidecar: nothing to time",
+      "ok": true
+    },
+    {
+      "id": "0029_naming_arc_voices_repaired",
+      "message": "every listed voice carries the name the naming ladder gives it",
+      "ok": true
+    },
+    {
+      "id": "0030_adfree_cut_resynced",
+      "message": "every served ad-free base is today's cut",
+      "ok": true
+    },
+    {
+      "id": "0031_named_voices_shown",
+      "message": "every voice 0029 names carries its name and no hiding, as reviewed; insights_checked=2464, unnamed_checked=1, unreviewed_unchanged=22, admaps_checked=71, served=3069, served_listed=71, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0033_hand_removed_names_refused",
+      "message": "every voice this migration names carries its name and no hiding, as reviewed; insights_checked=58, unnamed_checked=0, unreviewed_unchanged=0, admaps_checked=1, served=3069, served_listed=1, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0034_talk_floor_names_removed",
+      "message": "every voice the review confirmed is off the floor's name",
+      "ok": true
+    },
+    {
+      "id": "0035_voice_identity_names",
+      "message": "every rename the review confirmed carries the fingerprint group's name, and every unnaming the review confirmed is off its voice",
+      "ok": true
+    },
+    {
+      "id": "0036_bridge_identities_restored",
+      "message": "every published GI / KG person has a bridge identity",
+      "ok": true
+    },
+    {
+      "id": "0037_named_voices_corrected",
+      "message": "every rename the review confirmed carries the voice's own person's name",
+      "ok": true
+    },
+    {
+      "id": "0038_raw_label_speakers_removed",
+      "message": "no served episode credits a raw diarization label as a speaker",
+      "ok": true
+    }
+  ],
+  "verify_regressions": [],
+  "why": [
+    "content file written: feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/metadata/0008 - NBA Africa_s Biggest Success _ T_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.bridge.json",
+    "content file written: feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/metadata/0008 - NBA Africa_s Biggest Success _ T_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.gi.json",
+    "content file written: feeds/rss_anchor.fm_e4d3aeb7/run_20261014-130630/metadata/0001 - He Co-Invented the Transformer. _20261014-130630.bridge.json",
+    "content file written: feeds/rss_anchor.fm_e4d3aeb7/run_20261014-130630/metadata/0001 - He Co-Invented the Transformer. _20261014-130630.gi.json",
+    "content file written: feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/metadata/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.bridge.json",
+    "content file written: feeds/rss_anchor.fm_e4d3aeb7/run_20261015-183002/metadata/0001 - DeepMind Genie 3 _World Exclusiv_20261015-183002.gi.json",
+    "content file written: feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/metadata/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.bridge.json",
+    "content file written: feeds/rss_anchor.fm_e4d3aeb7/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353/metadata/0001 - Mathematics Just Changed Forever_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-022353.gi.json",
+    "content file written: feeds/rss_apple.dwarkesh-podcast.workers.dev_da321008/run_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449/metadata/0002 - The rise and fall of agent civil_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449.bridge.json",
+    "content file written: feeds/rss_apple.dwarkesh-podcast.workers.dev_da321008/run_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449/metadata/0002 - The rise and fall of agent civil_3e6c7e87-9692-4ce0-8055-0bf5dbf3cd73_20260905-024449.gi.json",
+    "content file written: feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/metadata/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.bridge.json",
+    "content file written: feeds/rss_cgtn-radio-data.cgtn.com_fb553e67/run_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007/metadata/0005 - From Europe_s heatwave to global_23f0da4f-c74f-4e28-a3a2-78b14e34fbf9_20260911-134007.gi.json",
+    "content file written: feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.bridge.json",
+    "content file written: feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0006 - What happened to the giant bugs__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.gi.json",
+    "content file written: feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.bridge.json",
+    "content file written: feeds/rss_feeds.megaphone.fm_8ee73e4a/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100/metadata/0009 - What_s the oldest story ever tol_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-171100.gi.json",
+    "content file written: feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/metadata/0001 - When designing a GAME_ what_s in_20260924-070029.bridge.json",
+    "content file written: feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/metadata/0001 - When designing a GAME_ what_s in_20260924-070029.gi.json",
+    "content file written: feeds/rss_feeds.npr.org_7ce5b183/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026/metadata/0001 - Wanna slow down AI_ These biolog_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026.bridge.json",
+    "content file written: feeds/rss_feeds.npr.org_7ce5b183/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026/metadata/0001 - Wanna slow down AI_ These biolog_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-000026.gi.json",
+    "gating number moved: S1_hidden_unknown +49",
+    "gating number moved: S2_hidden +53",
+    "gating number moved: S3_principal_unidentified +2",
+    "gating number moved: S10a_zero_visible +1"
+  ]
+}
