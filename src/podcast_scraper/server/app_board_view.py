@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server import app_collections_store, app_user_state
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -120,7 +121,9 @@ def _point(root: Path, row: Any) -> Optional[AppBoardPoint]:
     """The episode's strongest insight and where its best quote is said, or None without GI."""
     if not row.has_gi:
         return None
-    insights = insights_from_gi(load_json_artifact(root, row.gi_relative_path), limit=1)
+    insights = insights_from_gi(
+        load_json_artifact(root, row.gi_relative_path), limit=1, people=person_display(root)
+    )
     if not insights:
         return None
     top = insights[0]

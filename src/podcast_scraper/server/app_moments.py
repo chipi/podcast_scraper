@@ -262,6 +262,7 @@ def score_candidates(
     segments: Sequence[Segment] | None = None,
     ads: Sequence[tuple[int, int]] = (),
     turn_starts: AbstractSet[int] = frozenset(),
+    people: Any = None,
 ) -> list[Moment]:
     """Every insight that could be a moment, in the player's order, with its clip and score.
     Candidates are exactly the insights the Brief shows (``insights_from_gi`` with the episode
@@ -269,7 +270,9 @@ def score_candidates(
     have a timed quote — so whether an episode has moments never depends on naming."""
     if not isinstance(artifact, dict):
         return []
-    insights: list[AppInsight] = insights_from_gi(artifact, unattributed_fallback=True)
+    insights: list[AppInsight] = insights_from_gi(
+        artifact, unattributed_fallback=True, people=people
+    )
     links = _topic_links(artifact)
     clips = {ins.id: build_clip(ins.quotes, segments, config, ads, turn_starts) for ins in insights}
     candidates = [ins for ins in insights if clips[ins.id] is not None]
@@ -355,11 +358,12 @@ def pick_moments(
     segments: Sequence[Segment] | None = None,
     ads: Sequence[tuple[int, int]] = (),
     turn_starts: AbstractSet[int] = frozenset(),
+    people: Any = None,
 ) -> list[Moment]:
     """The episode's moments, in timeline order. ``duration_seconds`` unknown (None or 0) falls
     back to the end of the last clip, which under-counts a long tail but never invents length."""
     cfg = config or MomentsConfig()
-    scored = score_candidates(artifact, cfg, segments, ads, turn_starts)
+    scored = score_candidates(artifact, cfg, segments, ads, turn_starts, people=people)
     if not scored:
         return []
     duration = duration_seconds or max(m.end_ms for m in scored) / 1000.0

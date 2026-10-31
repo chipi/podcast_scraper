@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
 from podcast_scraper.server.app_gi_view import insights_from_gi
@@ -156,7 +157,9 @@ def _engaged_cards(
             continue
         # The episode's own panel (the Brief's insights): the first one with a quote leads.
         insights = insights_from_gi(
-            load_json_artifact(root, row.gi_relative_path), unattributed_fallback=True
+            load_json_artifact(root, row.gi_relative_path),
+            unattributed_fallback=True,
+            people=person_display(root),
         )
         quote = best_grounded_quote(insights, slug)
         if quote is None:

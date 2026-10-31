@@ -22,6 +22,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.languages import primary_language
 from podcast_scraper.rss.licence import LicenceRecord, summary_label
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
@@ -671,7 +672,9 @@ def episode_insights(
     # unattributed, instead of an empty panel. Only this endpoint (and its stats count) opts in.
     return AppInsightsResponse(
         episode_slug=slug,
-        insights=insights_from_gi(artifact, limit=limit, unattributed_fallback=True),
+        insights=insights_from_gi(
+            artifact, limit=limit, unattributed_fallback=True, people=person_display(root)
+        ),
     )
 
 
@@ -797,7 +800,9 @@ def episode_stats(
         # unattributed does not count as zero while its panel shows them (#2198).
         insights = len(
             insights_from_gi(
-                load_json_artifact(root, row.gi_relative_path), unattributed_fallback=True
+                load_json_artifact(root, row.gi_relative_path),
+                unattributed_fallback=True,
+                people=person_display(root),
             )
         )
 
@@ -874,6 +879,7 @@ def episode_moments(
         _raw_segment_tuples(root, row),
         episode_ad_spans(root, row),
         episode_turn_starts(root, row),
+        people=person_display(root),
     )
     moments: list[AppMoment] = []
     for m in picked:
@@ -1173,7 +1179,9 @@ async def episode_search(
                 ],
             )
             # The same insights the Brief's own panel lists (#2198), in its order.
-            for ins in insights_from_gi(artifact, unattributed_fallback=True)
+            for ins in insights_from_gi(
+                artifact, unattributed_fallback=True, people=person_display(root)
+            )
         ]
         results.extend(word_matches(insights, q))
     append_query_event(root, "episode_words")

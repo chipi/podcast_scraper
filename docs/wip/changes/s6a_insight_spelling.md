@@ -10,7 +10,6 @@ touches:
   - src/podcast_scraper/server/*.py
   - src/podcast_scraper/server/routes/app_episodes.py
   - src/podcast_scraper/mcp/tools/gi.py
-  - src/podcast_scraper/quality/name_report.py
 ---
 
 # s6a_insight_spelling — one spelling per person on the insight surfaces, from the ledger
@@ -131,11 +130,46 @@ Spot checks for step 8:
 
 ## 6. Build
 
-_TODO_
+Tests, written first (`tests/unit/podcast_scraper/identity/test_display.py`, invented names):
+- the ledger records the group spelling and its evidence;
+- every episode shows the group spelling, and without the view each episode's own;
+- no ledger: each episode's own name;
+- a `/2` ledger without spellings changes nothing;
+- a rebuilt ledger is picked up without a restart;
+- an unjoined person keeps its name.
+They failed before the code: the module did not exist.
+
+Code:
+- `identity/ledger.py`: `_add_display_spellings`, run in `build_ledger` with the guards' own
+  evidence. Each person cluster gets `display_name` and `display_evidence`.
+- `identity/display.py`: `PersonDisplay.shown`; `display_from_ledger`; `person_display(root)`,
+  cached by `perf_cache.corpus_mtime`.
+- `server/app_gi_view.py`: `insights_from_gi(..., people=)`, applied through `_shown` on the
+  quote's `speaker_id` and `SPOKEN_BY` lookups. An authored `speaker_name` still wins unchanged.
+- Every listener caller passes `person_display(root)`: board, auto-picks, recap, trending, the
+  captured rail (both), episode notes, the episode routes (panel, the second insights read, moments),
+  moments' `score_candidates` and `pick_moments`, the goal reel (both), and MCP `episode_insights`.
+- The OG card and the quality reports' counts are unchanged; they count insights and show no names.
+- **A correction to section 4: `quality/name_report.py` is not changed.** Its `_insight_names` is
+  the scan's own resolution, kept so its roster mode reproduces the scan (its docstring). Changing
+  it would change what that report measures. S6a's R2 is measured by its gate instead.
+- Test stubs of `insights_from_gi` in `test_app_auto_picks.py` and `test_app_trending_episodes.py`
+  now accept the new keyword.
 
 ## 7. Measure
 
-_TODO_
+- **Gate** (eval-data `s6/s6a_gate.py`, the real code over snapshot-prod-20261030, the ledger built
+  in memory, nothing written):
+  - default path: 2,770 quote speakers changed in 1,559 insights;
+  - fallback path: 2,855 quote speakers changed in 1,609 insights;
+  - both equal to the prediction;
+  - insight sets identical; 0 unnamed quotes named;
+  - the ledger's `display_name` equals the prototype's spelling for every group;
+  - `S6A GATE: PASS`.
+  The served output therefore equals the prototype's, and the prototype measured R2 (groups shown
+  in two or more spellings) going 40 → 0 on both paths.
+- **Mutants, both killed by the gate:** frequency instead of publisher text; the view ignored.
+- **Tests:** identity, server, quality and MCP unit areas, `2136 passed`; flake8 and mypy clean.
 
 ## 8. Verdict
 

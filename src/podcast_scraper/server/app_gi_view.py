@@ -90,6 +90,12 @@ def _speaker_name(artifact: Any, person_id: Any) -> str | None:
     return None
 
 
+def _shown(people: Any, artifact: Any, person_id: Any) -> str | None:
+    """``_speaker_name``, spelled through ``people`` (the ledger's one spelling) when given."""
+    name = _speaker_name(artifact, person_id)
+    return people.shown(person_id, name) if people is not None and name else name
+
+
 def _is_raw_label_speaker(artifact: Any, person_id: Any) -> bool:
     """True when ``person_id`` is a Person node whose name is a raw label (``SPEAKER_07``)."""
     if not isinstance(person_id, str) or not person_id.strip():
@@ -106,7 +112,11 @@ def _is_raw_label_speaker(artifact: Any, person_id: Any) -> bool:
 
 
 def insights_from_gi(
-    artifact: Any, *, limit: int | None = None, unattributed_fallback: bool = False
+    artifact: Any,
+    *,
+    limit: int | None = None,
+    unattributed_fallback: bool = False,
+    people: Any = None,
 ) -> list[AppInsight]:
     """Return surfaceable insights from a GI artifact dict, ranked for display.
 
@@ -124,6 +134,9 @@ def insights_from_gi(
     surface (auto-picks, recaps, notes, share cards, MCP) keeps the gate: publishing an
     unattributed stance as a highlight is what the gate exists to prevent. Showing unnamed insights
     beside named ones is NOT wanted — the fix for those is naming them (#2200).
+
+    ``people`` (``identity.display.person_display(root)``, RFC-131 S6a): a joined person's quotes
+    show the group's one spelling. Without it, each episode's own name, as before.
     """
     from podcast_scraper.gi.value_gate import TIER_USEFUL
 
@@ -193,8 +206,8 @@ def insights_from_gi(
             authored = _opt_str(qp.get("speaker_name"))
             speaker = (
                 (authored if authored and not is_raw_speaker_label(authored) else None)
-                or _speaker_name(artifact, qp.get("speaker_id"))
-                or _speaker_name(artifact, spoken_by.get(quote_id))
+                or _shown(people, artifact, qp.get("speaker_id"))
+                or _shown(people, artifact, spoken_by.get(quote_id))
             )
             if speaker:
                 named += 1

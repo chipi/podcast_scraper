@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.languages import translated_from_label
 from podcast_scraper.server.app_capture_export import (
     _e,
@@ -320,7 +321,8 @@ def build_episode_notes(
         doc.topics = [t.label for t in topics if getattr(t, "label", None)]
 
     # No limit: the operator's call is that printed notes are complete or they are a teaser.
-    for ins in insights_from_gi(gi_artifact) if gi_artifact is not None else []:
+    people = person_display(root)
+    for ins in insights_from_gi(gi_artifact, people=people) if gi_artifact is not None else []:
         doc.insights.append(
             NoteInsight(
                 text=ins.text,

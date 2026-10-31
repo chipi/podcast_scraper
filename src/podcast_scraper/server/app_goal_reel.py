@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Optional, Sequence
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_moments import Moment, MomentsConfig, rank_moments, score_candidates
 from podcast_scraper.server.app_reasons import _content_words, MIN_SUPPORT, quote_support
 
@@ -223,7 +224,9 @@ def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[C
     segments, ad_spans, turn_starts = episode_timeline(root, row)
     scored = [
         m
-        for m in score_candidates(artifact, cfg, segments, ad_spans, turn_starts)
+        for m in score_candidates(
+            artifact, cfg, segments, ad_spans, turn_starts, people=person_display(root)
+        )
         if links.get(m.insight_id) and quote_support(m.quote_text, m.text) >= MIN_SUPPORT
     ]
     ranked = rank_moments(scored, cfg)
@@ -376,6 +379,7 @@ def hydrate(
             episode_segments(root, row),
             episode_ad_spans(root, row),
             episode_turn_starts(root, row),
+            people=person_display(root),
         )
     }
     return [by_id[r.insight_id] for r in refs if r.insight_id in by_id]

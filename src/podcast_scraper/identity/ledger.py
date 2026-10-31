@@ -98,12 +98,15 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
     )
 
     root = Path(root)
+    candidates = collect_entity_candidates(root)
+    evidence = collect_episode_evidence(root)
     payload, _id_map = build_entity_canonical_map(
-        collect_entity_candidates(root),
-        guard=candidate_guard(collect_episode_evidence(root)),
+        candidates,
+        guard=candidate_guard(evidence),
         person_mode=PERSON_MODE,
         linkage=PERSON_LINKAGE,
     )
+    _add_display_spellings(payload, candidates, evidence)
     blocked = payload.pop("blocked_joins", [])
     return {
         "schema_version": LEDGER_SCHEMA_VERSION,
@@ -114,6 +117,42 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
         "clusters_payload": payload,
         "blocked_joins": blocked,
     }
+
+
+def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: Any) -> None:
+    """Each person cluster's shown spelling and its evidence (RFC-131 S6a; ADR-166 decision 1).
+
+    Publisher text first: the member that the most episodes' publisher text names
+    (``guards.EpisodeEvidence.publisher_named``), then episode count, then the shorter name, then
+    the name. With no member named by publisher text, the cluster's canonical (frequency).
+    Measured on
+    the truth set's held-out shows: 9 of 33 spellings wrong against frequency's 13 (eval-data
+    ``s6/RESULT-2026-10-31.md``).
+    """
+    from collections import Counter
+
+    named = Counter(pid for ev in evidence.values() for pid in ev.publisher_named)
+    for cluster in payload.get("clusters") or []:
+        canonical = str(cluster.get("canonical_id") or "")
+        if not canonical.startswith("person:"):
+            continue
+        members = [m["id"] for m in cluster.get("members") or [] if m.get("id") in candidates]
+        by_pub = [i for i in members if named[i]]
+        if by_pub:
+            pick = max(
+                by_pub,
+                key=lambda i: (
+                    named[i],
+                    candidates[i].freq,
+                    -len(candidates[i].name),
+                    candidates[i].name,
+                ),
+            )
+            cluster["display_name"] = candidates[pick].name
+            cluster["display_evidence"] = {"rule": "publisher", "episodes": named[pick]}
+        else:
+            cluster["display_name"] = cluster.get("canonical_name")
+            cluster["display_evidence"] = {"rule": "frequency"}
 
 
 def ledger_id_map(ledger: Dict[str, Any]) -> Dict[str, str]:

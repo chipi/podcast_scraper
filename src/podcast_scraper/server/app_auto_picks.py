@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.languages import translation_fields
 from podcast_scraper.server import app_graph_refs
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -28,7 +29,9 @@ def _pick_for_slug(root: Path, slug: str) -> dict[str, Any] | None:
     row = resolve_slug(root, slug)
     if row is None or not row.has_gi:
         return None
-    insights = insights_from_gi(load_json_artifact(root, row.gi_relative_path), limit=1)
+    insights = insights_from_gi(
+        load_json_artifact(root, row.gi_relative_path), limit=1, people=person_display(root)
+    )
     if not insights:
         return None
     ins = insights[0]

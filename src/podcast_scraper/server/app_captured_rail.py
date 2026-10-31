@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_rail_turns import take_turns
 from podcast_scraper.server.app_reasons import (
     best_grounded_quote,
@@ -145,7 +146,9 @@ def capture_links(root: Path, capture: Capture) -> list[ReasonSubject]:
         insight = next(
             (
                 i
-                for i in insights_from_gi(gi, unattributed_fallback=True)
+                for i in insights_from_gi(
+                    gi, unattributed_fallback=True, people=person_display(root)
+                )
                 if i.id == capture.insight_id
             ),
             None,
@@ -209,7 +212,7 @@ def person_quotes(root: Path, person_id: str, person_name: str) -> list[ReasonQu
         if gi is None:
             continue
         q = best_grounded_quote(
-            insights_from_gi(gi, unattributed_fallback=True),
+            insights_from_gi(gi, unattributed_fallback=True, people=person_display(root)),
             ep.slug,
             speaker=person_name,
             said_by=person_name,

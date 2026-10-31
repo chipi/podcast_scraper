@@ -87,7 +87,7 @@ def _wire(
     monkeypatch.setattr(
         te,
         "insights_from_gi",
-        lambda art, limit=None, unattributed_fallback=False: [
+        lambda art, limit=None, unattributed_fallback=False, **kw: [
             NS(
                 id="insight:1",
                 text="insight",

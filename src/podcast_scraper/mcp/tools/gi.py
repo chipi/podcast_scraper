@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING
 
+from podcast_scraper.identity.display import person_display
+
 from ..context import CorpusContext
 
 if TYPE_CHECKING:
@@ -76,7 +78,7 @@ def episode_insights(
     if row is None or not getattr(row, "has_gi", False):
         return {"episode": metadata_path, "insights": [], "note": "no GI artifact for this episode"}
     artifact = load_json_artifact(ctx.corpus_dir, row.gi_relative_path)
-    insights = insights_from_gi(artifact, limit=limit)
+    insights = insights_from_gi(artifact, limit=limit, people=person_display(ctx.corpus_dir))
     return {"episode": metadata_path, "insights": [i.model_dump() for i in insights]}
 
 

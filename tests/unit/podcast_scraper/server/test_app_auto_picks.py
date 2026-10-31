@@ -29,7 +29,7 @@ def _stub(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(app_auto_picks, "load_json_artifact", lambda root, rel: {})
     monkeypatch.setattr(
-        app_auto_picks, "insights_from_gi", lambda artifact, limit=None: [_insight()]
+        app_auto_picks, "insights_from_gi", lambda artifact, limit=None, **kw: [_insight()]
     )
     monkeypatch.setattr(app_graph_refs, "refs_for_slug", lambda root, slug, *, limit=3: list(_REFS))
 
@@ -64,7 +64,9 @@ def test_limit_zero_returns_empty(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
 def test_ungrounded_insight_dropped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _heard(monkeypatch, {"ep-a"})
     monkeypatch.setattr(
-        app_auto_picks, "insights_from_gi", lambda artifact, limit=None: [_insight(grounded=False)]
+        app_auto_picks,
+        "insights_from_gi",
+        lambda artifact, limit=None, **kw: [_insight(grounded=False)],
     )
     assert (
         app_auto_picks.auto_pick_items(_ROOT, tmp_path, "u_x", exclude_slugs=set(), limit=5) == []
@@ -108,7 +110,7 @@ def test_a_translated_episodes_pick_says_so(
     the digest labels it the way a translated capture is labelled."""
     translated = SimpleNamespace(**{**vars(_insight()), "translated_from": "de"})
     monkeypatch.setattr(
-        app_auto_picks, "insights_from_gi", lambda artifact, limit=None: [translated]
+        app_auto_picks, "insights_from_gi", lambda artifact, limit=None, **kw: [translated]
     )
     _heard(monkeypatch, {"ep-de"})
     (item,) = app_auto_picks.auto_pick_items(

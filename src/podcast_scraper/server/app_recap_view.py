@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.search.storylines import (
     storyline_map_by_topic,
     top_storylines_by_member_count,
@@ -95,7 +96,11 @@ def build_episode_recap(
     """
     insights: list[AppInsight] = []
     if row.has_gi:
-        insights = insights_from_gi(load_json_artifact(root, row.gi_relative_path), limit=limit)
+        insights = insights_from_gi(
+            load_json_artifact(root, row.gi_relative_path),
+            limit=limit,
+            people=person_display(root),
+        )
     all_topics: list[AppTopic] = []
     if row.has_kg:
         _p, _o, all_topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
