@@ -453,7 +453,40 @@ def cluster_person_variants(name_a: str, name_b: str, language: Optional[str] = 
     a, b = _clean_cached(name_a), _clean_cached(name_b)
     if a and b and len(a.split()) == 1 and len(b.split()) == 1:
         return a == b  # cleaning already folds case and accents ("Oğuz" -> "oguz")
-    return cluster_variants(name_a, name_b, "person", language)
+    if cluster_variants(name_a, name_b, "person", language):
+        return True
+    return _hyphen_or_initial_variant(a, b, language)
+
+
+def _is_initial(token: str) -> bool:
+    bare = token.rstrip(".")
+    return len(bare) == 1 and bare.isalpha()
+
+
+def _hyphen_or_initial_variant(a: str, b: str, language: Optional[str]) -> bool:
+    """Two same-person forms the cluster rule refuses on word count (RFC-131 S5a), on cleaned names.
+
+    Only ever adds to mode ``cluster``, so no pair it joins is refused:
+
+    - **A hyphen read as a space** ("Orrell-Vanders" / "Orell Vanders"): retried through the
+      cluster rule, so its one-drifting-word limit still applies.
+    - **One middle initial on one side** ("Corwen T. Halloway" / "Corwen Halloway"): dropped only
+      when the rest is IDENTICAL. A fuzzy spelling or nickname on top joined two different people
+      on the production corpus (a bare first name onto a historical figure with a middle initial);
+      two initials, or an initial on both sides, are not dropped either.
+
+    The cases are listed in the eval-data repository (``data/eval/name-consolidation/s5/``).
+    """
+    ta, tb = a.replace("-", " ").split(), b.replace("-", " ").split()
+    if ("-" in a or "-" in b) and cluster_variants(" ".join(ta), " ".join(tb), "person", language):
+        return True
+    ia = [i for i in range(1, len(ta) - 1) if _is_initial(ta[i])]
+    ib = [i for i in range(1, len(tb) - 1) if _is_initial(tb[i])]
+    if sorted((len(ia), len(ib))) != [0, 1]:
+        return False
+    rest_a = [t for i, t in enumerate(ta) if i not in ia]
+    rest_b = [t for i, t in enumerate(tb) if i not in ib]
+    return len(rest_a) >= 2 and rest_a == rest_b
 
 
 def host_variants(a: str, b: str, language: Optional[str] = None) -> bool:

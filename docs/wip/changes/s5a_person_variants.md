@@ -6,6 +6,7 @@ issue: none (RFC-131 S5; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLI
 touches:
   - src/podcast_scraper/identity/person_match.py
   - src/podcast_scraper/identity/ledger.py
+  - src/podcast_scraper/identity/ledger_cli.py
 ---
 
 # s5a_person_variants — two same-person spelling variants join: a hyphen read as a space, one middle initial
@@ -152,7 +153,34 @@ Spot checks for step 8:
 
 ## 6. Build
 
-_TODO_
+Scenario tests, written first and failing before the code (8 failed, 56 passed):
+- `tests/unit/podcast_scraper/identity/test_person_match.py::test_cluster_person_hyphen_and_middle_initial`:
+  12 pairs, both orders, with invented names;
+- `test_cluster_person_only_adds_to_the_cluster_rule`;
+- `tests/unit/podcast_scraper/identity/test_ledger.py`: a previous-rule ledger is served until the
+  rebuild; the rebuild keeps it as `.previous`; an older rule means no joins; the gauge knows all five
+  states; `--dry-run` names the state.
+
+Code:
+- `identity/person_match.py`: `cluster_person_variants` falls through to `_hyphen_or_initial_variant`
+  only when mode `cluster` refuses;
+- `identity/ledger.py`: `RULE_VERSION` `/3`, `PREVIOUS_RULE_VERSION` `/2`, `STATE_OK_PREVIOUS_RULE`,
+  `LEDGER_STATES`, and `rebuild_needed` and `rule_version` in `ledger_status`;
+- ADR-166, decision 3: the one-step-back exception and the undo order.
+- `identity/ledger_cli.py` needed no change: `--dry-run` reports `read_ledger`'s state, and
+  `--status` prints `ledger_status`.
+
+Checks:
+- Identity unit tests: `227 passed`.
+- The real code over the S4 export: `joins=731 blocked=9 sha=13c1fa0188d5`, the prototype's sha.
+- Replay gate `s5/s5a_gate.sh`, with D1's code from a git worktree at 540fb20: `S5A GATE: PASS`.
+- Mutants, all killed:
+  - no hyphen retry: 725 joins;
+  - fuzzy rest after the initial: 733;
+  - initials on both sides: 732;
+  - folding before the as-written check: 286;
+  - previous rule not accepted: 3 ledger tests fail.
+- black, isort and flake8 clean on the changed files; mypy on `identity/`: no issues.
 
 ## 7. Measure
 

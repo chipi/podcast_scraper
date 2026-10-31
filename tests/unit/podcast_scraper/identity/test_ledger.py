@@ -191,3 +191,71 @@ def test_restore_refuses_without_a_valid_previous_ledger(corpus: Path, capsys) -
     args = parse_identity_ledger_argv(["--output-dir", str(corpus), "--restore-previous"])
     assert run_identity_ledger_cli(args, logging.getLogger("t")) == 1
     assert L.read_ledger(corpus)[1] == L.STATE_OK  # the current ledger is untouched
+
+
+# ---- S5a: a ledger of the previous rule is still served, and says it needs a rebuild -------------
+
+
+def _as_previous_rule(corpus: Path) -> dict:
+    ledger = dict(L.build_ledger(corpus), rule_version=L.PREVIOUS_RULE_VERSION)
+    (corpus / L.LEDGER_NAME).write_text(json.dumps(ledger), encoding="utf-8")
+    return ledger
+
+
+def test_a_previous_rule_ledger_is_served_until_the_rebuild(corpus: Path) -> None:
+    """D2's deploy: the new image reads D1's ledger and serves its joins, not none."""
+    assert L.PREVIOUS_RULE_VERSION != L.RULE_VERSION
+    old = _as_previous_rule(corpus)
+    ledger, state = L.read_ledger(corpus)
+    assert state == L.STATE_OK_PREVIOUS_RULE and ledger is not None
+    assert (
+        L.served_id_map(corpus)
+        == L.ledger_id_map(old)
+        == {"person:korin-vaal": "person:korin-vael"}
+    )
+    status = L.ledger_status(corpus)
+    assert status["state"] == L.STATE_OK_PREVIOUS_RULE and status["rebuild_needed"] is True
+    assert L.ledger_status(corpus.parent / "none")["state"] == L.STATE_MISSING
+
+
+def test_the_rebuild_keeps_the_previous_rule_ledger_for_the_undo(corpus: Path) -> None:
+    old = _as_previous_rule(corpus)
+    change = L.write_ledger(corpus, L.build_ledger(corpus))
+    assert (change["joins_added"], change["joins_removed"], change["canonical_changed"]) == (
+        0,
+        0,
+        0,
+    )
+    kept = json.loads((corpus / L.PREVIOUS_NAME).read_text(encoding="utf-8"))
+    assert kept["rule_version"] == L.PREVIOUS_RULE_VERSION == old["rule_version"]
+    assert L.read_ledger(corpus)[1] == L.STATE_OK
+    assert L.ledger_status(corpus)["rebuild_needed"] is False
+    L.restore_previous(corpus)
+    assert L.read_ledger(corpus)[1] == L.STATE_OK_PREVIOUS_RULE
+
+
+def test_an_older_rule_ledger_still_means_no_joins(corpus: Path) -> None:
+    ledger = dict(L.build_ledger(corpus), rule_version="cluster-person-no-bridge-guarded/1")
+    (corpus / L.LEDGER_NAME).write_text(json.dumps(ledger), encoding="utf-8")
+    assert L.read_ledger(corpus) == (None, L.STATE_VERSION_MISMATCH)
+    assert L.served_id_map(corpus) == {}
+
+
+def test_the_state_gauge_knows_every_state() -> None:
+    assert set(L.LEDGER_STATES) == {
+        L.STATE_OK,
+        L.STATE_OK_PREVIOUS_RULE,
+        L.STATE_MISSING,
+        L.STATE_UNREADABLE,
+        L.STATE_VERSION_MISMATCH,
+    }
+
+
+def test_cli_dry_run_names_a_previous_rule_ledger(corpus: Path, capsys) -> None:
+    import logging
+
+    _as_previous_rule(corpus)
+    args = parse_identity_ledger_argv(["--output-dir", str(corpus), "--dry-run"])
+    assert run_identity_ledger_cli(args, logging.getLogger("t")) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["previous_state"] == L.STATE_OK_PREVIOUS_RULE

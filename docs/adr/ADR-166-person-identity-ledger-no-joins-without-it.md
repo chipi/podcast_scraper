@@ -36,6 +36,15 @@ The operator's rule decides the failure mode: a wrong name shown is worse than a
 3. **If the ledger is missing, unreadable, or from another schema or rule version, the server makes
    no cross-episode joins.** It logs a warning and counts the state in a metric. The in-memory
    unguarded build is not a serving fallback.
+   - **One exception, the rule version one step back** (`PREVIOUS_RULE_VERSION`, RFC-131 S5a): a
+     ledger built by it is served as it is. Its state is `ok_previous_rule`, and `--status` reports
+     `rebuild_needed`.
+   - Without the exception, a deploy that bumps the rule serves no joins until the ledger is
+     rebuilt. With the rebuild first, the api still running refuses the new ledger.
+   - That ledger was the one served before the deploy, so serving it shows no join the previous
+     release did not show.
+   - Any older rule version is refused as before.
+   - The undo of such a deploy restores the previous ledger before the previous image.
 4. **A corpus newer than the ledger is served from the ledger as it is.**
    - New episodes stay unjoined until the next build.
    - A changed episode keeps its previous joins until the next build.

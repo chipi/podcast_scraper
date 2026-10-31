@@ -113,3 +113,48 @@ def test_the_old_rule_sites_are_the_modes() -> None:
 
     assert entity_clusters._are_xep_variants is pm.cluster_variants
     assert CorpusGraph._same_person_variant("Erica Barris", "Erika Barris") is True
+
+
+# ---- S5a: a hyphen read as a space, one middle initial (invented names) ------------------------
+
+
+@pytest.mark.parametrize(
+    "a,b,want",
+    [
+        # a hyphen against a space: the word counts differ, so D1's rule refused these
+        ("Tamsin Orrell-Vanders", "Tamsin Orell Vanders", True),
+        ("Corwen Halloway Brisk", "Corwin Halloway-Brisk", True),
+        # D1's joins stay: compared as written first, so folding never splits a pair
+        ("Yi-Ling Quorn", "Yilin Quorn", True),
+        ("Tamsin Orrell-Vanders", "Tamsin Orell-Vanders", True),
+        # the fold does not relax the one-drifting-word rule (#2056)
+        ("Tamsin Orrell-Vanders", "Tamzin Orell Vanders", False),
+        # one middle initial on one side, the rest identical
+        ("Corwen T. Halloway", "Corwen Halloway", True),
+        ("Corwen T Halloway", "Corwen Halloway", True),
+        # ... but no fuzzy spelling or nickname on top of the dropped initial
+        ("Rob E. Halloway", "Robert Halloway", False),
+        ("Lizzi C. Halloway", "Lizzie Halloway", False),
+        # two initials on one side, or an initial on both, are not dropped
+        ("Corwen R.R. Halloway", "Corwen Halloway", False),
+        ("Corwen H. W. Halloway", "Corwen W. Halloway", False),
+        # the one-word rule is unchanged
+        ("Corwen", "Corwin", False),
+    ],
+)
+def test_cluster_person_hyphen_and_middle_initial(a: str, b: str, want: bool) -> None:
+    assert pm.cluster_person_variants(a, b) is want
+    assert pm.cluster_person_variants(b, a) is want
+
+
+def test_cluster_person_only_adds_to_the_cluster_rule() -> None:
+    """Every pair mode ``cluster`` joins, ``cluster_person`` still joins (multi-word names)."""
+    pairs = [
+        ("Bernard Leong", "Bernard Leung"),
+        ("Mike Selig", "Michael Selig"),
+        ("Dr. Elena Fischer", "Elena Fischer"),
+        ("Data Bricks", "Databricks"),
+    ]
+    for a, b in pairs:
+        assert pm.cluster_variants(a, b, "person")
+        assert pm.cluster_person_variants(a, b)

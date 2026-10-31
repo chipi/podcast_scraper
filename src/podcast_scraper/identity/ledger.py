@@ -36,9 +36,15 @@ PREVIOUS_NAME = "identity_ledger.previous.json"
 #: The file's shape. A reader refuses any other (ADR-166).
 LEDGER_SCHEMA_VERSION = "identity-ledger/1"
 
-#: The rules that decided the joins. Bump it whenever a rule or guard changes what joins, so a
-#: ledger written by the previous rules is refused (no joins) until it is rebuilt.
-RULE_VERSION = "cluster-person-no-bridge-guarded/2"
+#: The rules that decided the joins. Bump it whenever a rule or guard changes what joins, and move
+#: the old value to ``PREVIOUS_RULE_VERSION``.
+RULE_VERSION = "cluster-person-no-bridge-guarded/3"
+
+#: The rule version one step back, still served (state ``ok_previous_rule``) until the rebuild.
+#: Without it a deploy that bumps the rule serves no joins between the new api starting and the
+#: ledger rebuild, and a rebuild before the deploy is refused by the api still running (RFC-131
+#: S5a). Any older version is refused: no joins.
+PREVIOUS_RULE_VERSION = "cluster-person-no-bridge-guarded/2"
 
 #: The person rule the ledger's joins use (RFC-131 S4): mode ``cluster_person`` (one-word names
 #: join only as one spelling), no one-word bridge between full names, and the guards (ADR-167).
@@ -47,9 +53,17 @@ PERSON_LINKAGE = "no_one_word_bridge"
 
 #: Ledger states, for logs and the state gauge.
 STATE_OK = "ok"
+STATE_OK_PREVIOUS_RULE = "ok_previous_rule"
 STATE_MISSING = "missing"
 STATE_UNREADABLE = "unreadable"
 STATE_VERSION_MISMATCH = "version_mismatch"
+LEDGER_STATES = (
+    STATE_OK,
+    STATE_OK_PREVIOUS_RULE,
+    STATE_MISSING,
+    STATE_UNREADABLE,
+    STATE_VERSION_MISMATCH,
+)
 
 #: Changes listed per build in the change log; the counts are always complete.
 _MAX_LISTED_CHANGES = 200
@@ -110,7 +124,7 @@ def ledger_id_map(ledger: Dict[str, Any]) -> Dict[str, str]:
 
 
 def read_ledger(root: Path | str) -> Tuple[Optional[Dict[str, Any]], str]:
-    """``(ledger, state)``. The ledger is None unless the state is ``ok``."""
+    """``(ledger, state)``. The ledger is None unless the state is ok or ok_previous_rule."""
     path = Path(root) / LEDGER_NAME
     try:
         with open(path, encoding="utf-8") as fh:
@@ -121,14 +135,15 @@ def read_ledger(root: Path | str) -> Tuple[Optional[Dict[str, Any]], str]:
         return None, STATE_UNREADABLE
     if not isinstance(ledger, dict):
         return None, STATE_UNREADABLE
-    if (
-        ledger.get("schema_version") != LEDGER_SCHEMA_VERSION
-        or ledger.get("rule_version") != RULE_VERSION
+    rule = ledger.get("rule_version")
+    if ledger.get("schema_version") != LEDGER_SCHEMA_VERSION or rule not in (
+        RULE_VERSION,
+        PREVIOUS_RULE_VERSION,
     ):
         return None, STATE_VERSION_MISMATCH
     if not isinstance(ledger.get("clusters_payload"), dict):
         return None, STATE_UNREADABLE
-    return ledger, STATE_OK
+    return ledger, STATE_OK if rule == RULE_VERSION else STATE_OK_PREVIOUS_RULE
 
 
 def served_id_map(root: Path | str) -> Dict[str, str]:
@@ -156,6 +171,8 @@ def ledger_status(root: Path | str) -> Dict[str, Any]:
     out.update(
         {
             "built_at": ledger.get("built_at"),
+            "rule_version": ledger.get("rule_version"),
+            "rebuild_needed": state == STATE_OK_PREVIOUS_RULE,
             "code_version": ledger.get("code_version"),
             "corpus_token_at_build": built,
             "corpus_token_now": current,
@@ -309,11 +326,12 @@ def _observe_state(state: str) -> None:
             return
         _GAUGE["gauge"] = Gauge(
             "podcast_identity_ledger_state",
-            "Identity ledger state the server read (1 = current); not ok means no joins.",
+            "Identity ledger state the server read (1 = current); ok and ok_previous_rule serve "
+            "joins (the second until a rebuild), any other state means no joins.",
             ["state"],
         )
     gauge = _GAUGE["gauge"]
     if gauge is None:
         return
-    for s in (STATE_OK, STATE_MISSING, STATE_UNREADABLE, STATE_VERSION_MISMATCH):
+    for s in LEDGER_STATES:
         gauge.labels(state=s).set(1 if s == state else 0)
