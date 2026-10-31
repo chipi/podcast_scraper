@@ -260,8 +260,8 @@ deliverable of the slice rather than a claim in this document:
 | `topic_timeline_merged` | def `:891` | the same insights across multiple topics |
 | `person_profile` insights-by-topic | defs `:709`, `:752` | a position surface in all but name |
 | `topic_perspective_leaders` | def `:984` | ranks people by their claims on a topic; counts over **edge ids** and never materialises insight nodes, so a node-property predicate needs an id→node map first |
-| `topic_perspectives` | `:1041-1147` | "who holds which take", served to the **consumer app** (`app_relational_view.build_topic_perspectives` ← `routes/app_relational.py:178`) **and to OG share images** (`server/og/build.py:217`, where a claim becomes the headline quote with a person's byline) |
-| `app_gi_view` episode stance display | `server/app_gi_view.py:116` | §2.3 says contradicted claims are excluded from episode stance display; this is that surface |
+| `topic_perspectives` | `:1041-1147` | "who holds which take", served to the **consumer app** (`relational_view.build_topic_perspectives` ← `routes/app_relational.py:178`) **and to OG share images** (`server/og/build.py:217`, where a claim becomes the headline quote with a person's byline) |
+| `gi_view` episode stance display | `server/gi_view.py:116` | §2.3 says contradicted claims are excluded from episode stance display; this is that surface |
 | `search/relational_queries.positions_of` and neighbours | `:170`, plus `who_said`, `cross_show_synthesis`, `related_insights` | served at `routes/relational.py` and via MCP; these read `CorpusGraph`, not `gi.json` nodes, so whether the `translation` block even reaches them depends on the graph builder — verify before assuming the filter can be applied |
 | `enrichment/enrichers/topic_consensus.py` | — | **write time.** No read-time filter reaches it. Needs provenance at extraction, or it corroborates unverified translated claims |
 

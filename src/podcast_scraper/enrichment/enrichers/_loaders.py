@@ -29,7 +29,7 @@ _SPEAKER_PLACEHOLDER_PATTERN = re.compile(
     # surname anywhere in the episode identifies someone within that episode and nobody
     # globally — the same under-specification as SPEAKER_03, so it belongs in the same bucket.
     # This one line is what makes the whole change land: the predicate is consulted in twelve
-    # modules, INCLUDING `app_kg_view.entities_from_kg`, which is the single source for entity
+    # modules, INCLUDING `kg_view.entities_from_kg`, which is the single source for entity
     # cards, discover ranking rows and derived interests. Without it the scoped ids would still
     # be followable episode-local people — the thing the change exists to prevent.
     r"|^person:unresolved-.+$",
@@ -96,7 +96,7 @@ def topic_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
     filtered on the way out, at the two read chokepoints:
 
     * this one, for every corpus enricher, and
-    * ``server.app_kg_view.entities_from_kg`` + ``server.feed_signals._accumulate_kg_entities``,
+    * ``server.kg_view.entities_from_kg`` + ``server.feed_signals._accumulate_kg_entities``,
       for the episode chips, followable interests, discover ranking, show top-topics and the
       #1932 connectivity metric.
 

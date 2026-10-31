@@ -110,7 +110,7 @@ def test_a_storyline_reel_is_clips_about_any_of_its_member_topics() -> None:
     import json
 
     from podcast_scraper.server.app_goal_reel import reel_subject
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.slugs import resolve_slug
 
     subject = reel_subject(ROOT, "thc:managing-risk")
     assert (subject.kind, subject.label) == ("storyline", "Managing risk across domains")

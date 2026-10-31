@@ -69,9 +69,9 @@ def _warm_reel_clips(root: Path, moments_config: Any = None) -> None:
     "15 minutes on" chip, reel or Learn offer scores episodes on a reader's request. Scored in a
     child process (:func:`_score_reel_clips_isolated`), then filed here; after an ingest only
     changed episodes miss."""
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_goal_reel import episode_clips
     from podcast_scraper.server.app_moments import MomentsConfig
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     # The APP's config when the app passes it (review N8, 2026-10-11): the clip cache key
     # includes ``repr(cfg)``, so a warmer building its own from the environment would fill
@@ -150,9 +150,9 @@ def warm_caches(root: Path, *, moments_config: Any = None) -> None:
     not skip the rest. Imports are local so a warm never drags card/relational modules into a
     caller that would not otherwise need them.
     """
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_kg_index import get_kg_index
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.catalog_cache import cached_catalog
+    from podcast_scraper.server.kg_index import get_kg_index
+    from podcast_scraper.server.slugs import resolve_slug
 
     steps = (
         ("catalog", lambda: cached_catalog(root)),

@@ -27,7 +27,7 @@ Common issues and solutions for podcast_scraper development and usage.
 | E2E phase of `test-fast` / `ci-fast` sits at high % a long time | Often Whisper / ML tests (not frozen); was xdist tail on one worker | See [E2E Testing Guide — E2E progress](E2E_TESTING_GUIDE.md#make-test-fast--make-ci-fast-and-e2e-progress); Makefile runs `ml_models` E2E sequentially |
 | Unsure if environment is ready | Python, ffmpeg, cache, or models missing | Run `podcast-scraper doctor` (see below) |
 | Viewer shows no **Choose .gi.json** button but API is down | Something answered `/api/health` on port 8000 (proxy “healthy”) | Stop the other process or use offline flow from a clean profile; E2E tests abort `/api/health` for determinism |
-| `make test-ui-e2e` / Playwright “Executable doesn't exist” | Playwright browsers not installed | `cd web/gi-kg-viewer && npx playwright install firefox` |
+| `make test-ui-e2e` / Playwright “Executable doesn't exist” | Playwright browsers not installed | `cd web/gi-kg-viewer && npx playwright install chromium` (CI: `firefox`) |
 | `make serve` / Vite “port already in use” | Another dev server on 5173 or 5174 | Stop the other process; Playwright E2E uses **5174** by config |
 
 ---

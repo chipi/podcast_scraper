@@ -105,9 +105,9 @@ class TestEpisodeNotes:
 
 class TestHighlightCard:
     def test_a_translated_capture_says_so_on_its_card(self) -> None:
-        from podcast_scraper.server.app_catalog_cache import cached_catalog
-        from podcast_scraper.server.app_slugs import slug_for_row
+        from podcast_scraper.server.catalog_cache import cached_catalog
         from podcast_scraper.server.og.build import build_highlight_card
+        from podcast_scraper.server.slugs import slug_for_row
 
         row = next(r for r in cached_catalog(_CORPUS) if r.feed_id == "p10")
         hl = {"episode_slug": slug_for_row(row), "quote_text": "drainage", "start_ms": 1000}

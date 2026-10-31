@@ -328,4 +328,3 @@ jobs:
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Service-oriented Docker usage
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Local installation and setup
 - [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Provider setup
-- AI Provider Comparison (moved to the private eval repo) - Compare providers

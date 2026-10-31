@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server.app_audio_drift import DRIFT_FILE, MAPS_FILE
-from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_goal_reel import goal_reel
-from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.slugs import slug_for_row
 
 pytestmark = pytest.mark.integration
 

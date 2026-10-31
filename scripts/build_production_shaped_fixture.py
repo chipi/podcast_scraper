@@ -83,32 +83,6 @@ _SEARCH_V3_SLICE_SPECS: list[tuple[str, str, str, dict[str, Any]]] = [
         {"q": "compute governance", "top_k": 5},
     ),
     (
-        "enriched-answer",
-        "/api/search",
-        "get",
-        {
-            "q": "why does Taiwan matter to AI compute",
-            "top_k": 5,
-            "enrich_results": "true",
-        },
-    ),
-    (
-        "operator-cluster",
-        "/api/search",
-        "post",
-        {"q": "supply chain risk", "top_k": 30, "operator": "cluster"},
-    ),
-    (
-        "operator-consensus",
-        "/api/search",
-        "post",
-        {
-            "q": "regulation vs innovation",
-            "top_k": 20,
-            "operator": "consensus",
-        },
-    ),
-    (
         "temporal-intent",
         "/api/search",
         "get",
@@ -243,8 +217,7 @@ def main() -> int:
         action="store_true",
         help=(
             "Append Search v3 query mocks (RFC-107 / PRD-045 §S0(e)). Captures "
-            "compound-lift, enriched-answer, operator=cluster, operator=consensus, "
-            "and temporal-intent scenarios by fetching from the API with the "
+            "compound-lift and temporal-intent scenarios by fetching from the API with the "
             "appropriate query params. Writes to "
             "``<output>/search-v3/mocks.json`` (merge-per-scenario with any "
             "hand-authored content already there)."
@@ -370,10 +343,9 @@ def main() -> int:
             copied += 1
     print(f"artifacts copied: {copied}")
 
-    # 7. Digest, topic clusters, stats, coverage, persons/top, runs/summary, index/stats.
+    # 7. Digest, stats, coverage, persons/top, runs/summary, index/stats.
     for path, name in [
         ("/api/corpus/digest", "digest.json"),
-        ("/api/corpus/topic-clusters", "topic-clusters.json"),
         ("/api/corpus/stats", "stats.json"),
         ("/api/corpus/coverage", "coverage.json"),
         ("/api/corpus/persons/top", "persons-top.json"),

@@ -64,9 +64,9 @@ def reel_subject(root: Path, subject_id: str) -> ReelSubject:
     """The topics a reel on ``subject_id`` is about (none for an unknown theme or storyline)."""
     if subject_id.startswith("topic:"):
         return ReelSubject("topic", frozenset({subject_id}))
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_discover_view import interest_episode_index
     from podcast_scraper.server.app_user_corpus import UMBRELLA_TOPIC_SHARE
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     kind: ReelKind
     if subject_id.startswith("tc:"):
@@ -90,8 +90,8 @@ def reel_subject(root: Path, subject_id: str) -> ReelSubject:
 
 
 def _episode_rows(root: Path, topics: frozenset[str]) -> list:
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_discover_view import interest_episode_index
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     index = interest_episode_index(root)
     paths = set().union(*(index.get(t, set()) for t in topics)) if topics else set()
@@ -210,9 +210,9 @@ def episode_clips(
 def _episode_clips_uncached(root: Path, row: Any, cfg: MomentsConfig) -> tuple[ClipRef, ...]:
     import sys
 
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
     from podcast_scraper.server.app_episode_search import episode_timeline
     from podcast_scraper.server.app_moments import _topic_links
+    from podcast_scraper.server.corpus_access import load_json_artifact
 
     artifact = load_json_artifact(root, row.gi_relative_path)
     if not isinstance(artifact, dict):
@@ -320,7 +320,7 @@ def subject_episodes(
 def _subject_episodes_uncached(
     root: Path, subject_id: str, cfg: MomentsConfig
 ) -> tuple[SubjectEpisode, ...]:
-    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.slugs import slug_for_row
 
     topics = reel_subject(root, subject_id).topics
     candidates: list[tuple[str, Any, list[ClipRef]]] = []
@@ -357,12 +357,12 @@ def hydrate(
 ) -> list[Moment]:
     """The full moments (text, quote, speaker, clip) for ``refs``, all from one episode, in
     their order. A ref whose insight is gone from the episode's files is left out."""
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
     from podcast_scraper.server.app_episode_search import (
         episode_ad_spans,
         episode_segments,
         episode_turn_starts,
     )
+    from podcast_scraper.server.corpus_access import load_json_artifact
 
     cfg = config or MomentsConfig.from_env()
     artifact = load_json_artifact(root, row.gi_relative_path)

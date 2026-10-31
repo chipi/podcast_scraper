@@ -349,9 +349,11 @@ async def run_cli(args: argparse.Namespace) -> int:
     # un-registered ML enricher (see registry.py:_PROVIDER_WIRING_HINT)
     # — operators see exactly why those enrichers got skipped.
     if args.with_ml:
-        from podcast_scraper.enrichment.ml_wiring import register_ml_enrichers
+        from podcast_scraper.extensions import enrichment_contributions
 
-        register_ml_enrichers(registry, enricher_set)
+        for contribution in enrichment_contributions():
+            if contribution.ml_wiring is not None:
+                contribution.ml_wiring(registry, enricher_set)
     # WEB-tier enrichers (person_web) are always REGISTERED (registration is harmless — no network
     # until a run). Whether they RUN is profile membership: the cloud/prod profiles enable
     # person_web by default; the airgapped/CI profiles do not, so it never fetches there.

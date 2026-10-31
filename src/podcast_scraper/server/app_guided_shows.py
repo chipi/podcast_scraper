@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Iterable
 
 from podcast_scraper.server import app_user_state
-from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
+from podcast_scraper.server.slugs import slug_for_row
 
 ACTIVE_DAYS = 30
 # One follow is a stronger statement than one listen; a favourite sits between.

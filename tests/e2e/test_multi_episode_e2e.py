@@ -187,5 +187,4 @@ class TestMultiEpisodeE2E:
 # references and pairwise LLM judging. The pipeline-mechanics dimension
 # (5-episode iteration, file-write ordering, concurrent processing) stays
 # covered by the two sibling tests in this class. Removed in the chore-class
-# CI cleanup PR (sibling of #677). See ``eval-data/data/eval/README.md`` for the
-# replacement evaluation surface.
+# CI cleanup PR (sibling of #677).

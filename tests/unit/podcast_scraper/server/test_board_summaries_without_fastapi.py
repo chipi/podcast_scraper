@@ -13,14 +13,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Imported here only for its name: the program below must name the module wherever it lives.
+from podcast_scraper.server import board_summaries
+
 CORPUS = Path(__file__).resolve().parents[4] / "tests/fixtures/app-validation-corpus/v3"
 
 _PROGRAM = f"""
 import sys
 sys.modules["fastapi"] = None  # ImportError on any `import fastapi`, as on the pipeline image
+import importlib
 import tempfile
 from pathlib import Path
-from podcast_scraper.server import board_summaries as bs
+bs = importlib.import_module({board_summaries.__name__!r})
 result = bs.sweep(
     Path({str(CORPUS)!r}),
     Path(tempfile.mkdtemp()),

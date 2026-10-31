@@ -51,7 +51,7 @@ nav:
       - Splitting a surface into a private repo: guides/SPLITTING_A_SURFACE_INTO_A_PRIVATE_REPO.md
       - Mounting the private eval research repo: guides/EVAL_RESEARCH_MOUNT.md
       # The eval reports, performance reports and perf traces moved to the
-      # private research repo (chipi/podcast-scraper-eval-data). They quote real
+      # private research repo. They quote real
       # episode transcripts and gold references, so they are not published
       # anywhere public and there is deliberately NO link here — a public doc
       # must not point at a private network. Ask the operator for access.
@@ -169,7 +169,6 @@ nav:
       - UXS-005 Semantic Search: uxs/UXS-005-semantic-search.md
       - UXS-006 Dashboard: uxs/UXS-006-dashboard.md
       - UXS-007 Topic Entity View: uxs/UXS-007-topic-entity-view.md
-      - UXS-008 Enriched Search: uxs/UXS-008-enriched-search.md
       - UXS-009 Position Tracker: uxs/UXS-009-position-tracker.md
       - UXS-010 Person Profile: uxs/UXS-010-person-profile.md
       - UXS-011 Consumer Learning App: uxs/UXS-011-consumer-learning-app.md
@@ -288,6 +287,7 @@ nav:
       - ADR-163 The jobs of Discover: adr/ADR-163-the-jobs-of-discover.md
       - ADR-164 Discover is a taste: adr/ADR-164-discover-is-a-taste.md
       - ADR-165 The validation corpus grounds every insight: adr/ADR-165-validation-corpus-grounds-every-insight.md
+      - ADR-166 Installed extensions: adr/ADR-166-installed-extensions.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

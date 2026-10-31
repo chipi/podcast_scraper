@@ -105,8 +105,8 @@ def recent_captures(data_dir: Path, user_id: str, *, limit: int = MAX_CAPTURES) 
 def _gi_and_kg(
     root: Path, slug: str
 ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]], Any]:
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.slugs import resolve_slug
 
     row = resolve_slug(root, slug)
     if row is None:
@@ -123,8 +123,8 @@ def _label(entity: Any) -> str:
 
 def capture_links(root: Path, capture: Capture) -> list[ReasonSubject]:
     """What one capture links out through: topics and people (see the module docstring)."""
-    from podcast_scraper.server.app_gi_view import insights_from_gi
-    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.gi_view import insights_from_gi
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     gi, kg, _row = _gi_and_kg(root, capture.episode_slug)
     labels: dict[str, str] = {}
@@ -181,7 +181,7 @@ def _storyline_topics(root: Path, topic_ids: Iterable[str]) -> dict[str, tuple[s
 
 def topic_quotes(root: Path, topic_id: str) -> list[ReasonQuote]:
     """Grounded quotes about ``topic_id``, one per episode, by speaker take (topic perspectives)."""
-    from podcast_scraper.server.app_relational_view import build_topic_perspectives
+    from podcast_scraper.server.relational_view import build_topic_perspectives
 
     resp = build_topic_perspectives(root, topic_id, mine_slugs=None)
     out: list[ReasonQuote] = []
@@ -199,8 +199,8 @@ def topic_quotes(root: Path, topic_id: str) -> list[ReasonQuote]:
 
 def person_quotes(root: Path, person_id: str, person_name: str) -> list[ReasonQuote]:
     """A quote ``person_name`` said, in each of their episodes (person card episodes, KG-based)."""
-    from podcast_scraper.server.app_gi_view import insights_from_gi
-    from podcast_scraper.server.app_relational_view import build_person_card
+    from podcast_scraper.server.gi_view import insights_from_gi
+    from podcast_scraper.server.relational_view import build_person_card
 
     card = build_person_card(root, person_id)
     out: list[ReasonQuote] = []
@@ -223,12 +223,12 @@ def captured_rail(
     root: Path, data_dir: Path, user_id: str, *, limit: int = 6
 ) -> list[TrendingEpisodeCard]:
     """Episodes on shows the listener does not follow, each linked to one of their captures."""
-    from podcast_scraper.server.app_slugs import resolve_slug
     from podcast_scraper.server.app_user_corpus import (
         experienced_episode_set,
         followed_show_ids,
         saved_episode_set,
     )
+    from podcast_scraper.server.slugs import resolve_slug
 
     captures = recent_captures(data_dir, user_id)
     if not captures:

@@ -3,8 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-09-24
 - **Authors**: Marko Dragoljevic
-- **Related RFCs**: [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md),
-  `RFC-073` (moved to the private eval repo as RFC-003)
+- **Related RFCs**: [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - **Supersedes**: [ADR-043](ADR-043-hybrid-map-reduce-summarization.md),
   [ADR-069](ADR-069-hybrid-ml-pipeline-as-production-direction.md)
 - **Issues**: [#2142](https://github.com/chipi/podcast_scraper/issues/2142)
@@ -25,7 +24,7 @@ and dual-judge scoring, and the conclusion inverted.
 
 ## The evidence
 
-`podcast-scraper-eval-data:docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md` §6, 2026-04-16.
+Held-out v2 evaluation, 2026-04-16.
 Blended scalar (ROUGE-L + dual-judge), held-out `curated_5feeds_benchmark_v2`:
 
 | REDUCE model | Standalone | Hybrid (BART MAP + that REDUCE) | Winner |

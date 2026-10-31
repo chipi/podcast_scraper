@@ -24,10 +24,10 @@ from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_graph_refs import refs_for_slug
-from podcast_scraper.server.app_slugs import _slug_index
 from podcast_scraper.server.app_umbrellas import UMBRELLA_MIN_EPISODES, umbrella_tokens
 from podcast_scraper.server.app_user_store import get_or_create_user
 from podcast_scraper.server.feed_signals import compute_feed_signals
+from podcast_scraper.server.slugs import _slug_index
 
 pytestmark = [pytest.mark.integration]
 

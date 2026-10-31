@@ -7,7 +7,7 @@ identical because the parsers in
 ``providers/common/{bundle_extract_parser,bundle_nli_parser}.py`` expect a
 specific JSON contract.
 
-Keeping these here means a prompt tweak (e.g. RFC-073 Track A optimization)
+Keeping these here means a prompt tweak (e.g. an autoresearch optimization)
 lands in one place and applies to all providers, not six.
 """
 

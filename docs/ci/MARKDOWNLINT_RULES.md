@@ -14,7 +14,7 @@ Legit disabled. Long-form docs, wide tables, URL-heavy prose. Enabling would rew
 
 ### `MD036` — emphasis used as heading (170 violations, deferred fix)
 
-**Deferred, not endorsed.** Sample audit (2026-07-19) confirms most violations are semantic sub-headings that *should* be `### Foo` or `#### Foo`. Example from `docs/guides/eval-reports/EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md` (17 violations, top offender):
+**Deferred, not endorsed.** Sample audit (2026-07-19) confirms most violations are semantic sub-headings that *should* be `### Foo` or `#### Foo`. Example from the top-offender eval report (17 violations):
 
 ```markdown
 ## Model 1: `google/gemma-4-26B-A4B-it`
@@ -30,7 +30,6 @@ Fixing all 170 mechanically is a `sed`-with-thought exercise: promote each `**Fo
 
 Top offenders when we tackle it:
 
-- `docs/guides/eval-reports/EVAL_RFC097_CHUNK7_VLLM_WORKAROUNDS_2026_06_21.md` — 17
 - `docs/api/CONFIGURATION.md` — 11
 - `docs/architecture/VIEWER_ASYNC_STABILITY.md` — 8
 - `docs/architecture/VIEWER_GRAPH_SPEC.md` — 5

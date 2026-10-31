@@ -123,12 +123,11 @@ class TestEveryShippedProfileGroundsWithItsIntendedStack:
         )
 
 
-# TestEvalMatchesProduction moved to chipi/podcast-scraper-eval-data
-# (tests/unit/podcast_scraper_eval/test_eval_matches_production_evidence_stack.py)
-# with the eval harness — its three tests were exactly the three that imported
-# podcast_scraper.evaluation.eval_gi_kg_runtime. The classes that remain here
-# assert APPLICATION behaviour: Config's own auto-align, every shipped profile's
-# grounder, and the NLI threshold matching its entailer. Those read
+# TestEvalMatchesProduction moved out with the eval harness — its three tests were
+# exactly the three that imported podcast_scraper.evaluation.eval_gi_kg_runtime.
+# The classes that remain here assert APPLICATION behaviour: Config's own
+# auto-align, every shipped profile's grounder, and the NLI threshold matching
+# its entailer. Those read
 # config/profiles/*.yaml, which lives in this repo.
 #
 # NOTE: two of the three moved tests resolve a `profile`, so they need these

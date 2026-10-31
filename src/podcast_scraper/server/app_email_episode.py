@@ -22,8 +22,8 @@ from podcast_scraper.search.storylines import (
     top_storylines_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import theme_map_by_topic
-from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.content_source import row_to_summary
+from podcast_scraper.server.slugs import resolve_slug
 
 #: Email clients cannot clamp by line, so the publisher's DESCRIPTION is cut server-side, at a
 #: word, to roughly the three lines the app's episode card shows before "Show more". Our SUMMARY is

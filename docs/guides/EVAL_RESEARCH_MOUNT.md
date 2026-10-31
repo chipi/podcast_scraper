@@ -116,8 +116,7 @@ this repo's. That is the intent — the two rule sets differ in ways that matter
 
 - **This repo is the system under test.** The eval repo depends on it as a pinned
   package and calls its assembly functions rather than re-wiring them. That
-  constraint has its own decision record — `ADR-003` over there, which was
-  `ADR-111` here before it moved.
+  constraint has its own decision record in the eval repo.
 - **Application gates stay here.** `scripts/eval/score/rank_discover_v1.py` and
   `rank_scenarios_v1.py` look like eval and are not: they import only
   `podcast_scraper.server.*` and read public fixtures. See that directory's

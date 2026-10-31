@@ -219,7 +219,7 @@ def test_an_unsurfaceable_insight_never_reaches_the_ui() -> None:
     `insights_from_gi` is the surfacing point. An unattributed stance must not come out of it,
     however the classifier labelled it.
     """
-    from podcast_scraper.server.app_gi_view import insights_from_gi
+    from podcast_scraper.server.gi_view import insights_from_gi
 
     tape = _artifact_for(TAPE_LINE)
     assert _insights(tape), "the insight must still EXIST — the corpus needs it for CONNECT"

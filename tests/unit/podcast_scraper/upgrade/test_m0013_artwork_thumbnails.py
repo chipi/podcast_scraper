@@ -14,7 +14,7 @@ from unittest.mock import patch
 import pytest
 from PIL import Image
 
-from podcast_scraper.server.app_artwork import ensure_thumbnail
+from podcast_scraper.server.artwork import ensure_thumbnail
 from podcast_scraper.upgrade.migration import MigrationContext
 from podcast_scraper.upgrade.migrations.m0013_artwork_thumbnails import ArtworkThumbnailsMigration
 from podcast_scraper.upgrade.registry import get_migrations
@@ -57,7 +57,7 @@ def test_the_writer_makes_the_thumbnail_when_it_downloads(tmp_path: Path) -> Non
 def test_a_read_only_server_serves_an_existing_thumbnail(tmp_path: Path) -> None:
     original = _store(tmp_path, _jpeg())
     ArtworkThumbnailsMigration().apply(MigrationContext(corpus_root=tmp_path))
-    with patch("podcast_scraper.server.app_artwork.write_thumbnail", side_effect=AssertionError):
+    with patch("podcast_scraper.server.artwork.write_thumbnail", side_effect=AssertionError):
         path, media_type = ensure_thumbnail(tmp_path, str(original))
     assert path == str(thumbnail_path(tmp_path, str(original))) and media_type == "image/jpeg"
     assert Path(path).stat().st_size < original.stat().st_size

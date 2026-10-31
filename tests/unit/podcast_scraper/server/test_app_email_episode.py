@@ -8,8 +8,8 @@ from typing import Any
 import pytest
 
 from podcast_scraper.server.app_email_episode import enrich_items, episode_display
-from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import build_catalog_rows
+from podcast_scraper.server.slugs import slug_for_row
 
 pytestmark = [pytest.mark.unit]
 

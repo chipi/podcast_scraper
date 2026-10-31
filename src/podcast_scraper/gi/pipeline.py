@@ -1033,7 +1033,7 @@ def _resolve_quote_speaker(
             #
             # Episode-scoping keeps the true half and refuses the false one: the quote still has a
             # speaker WITHIN its episode, and the id can never aggregate into a corpus-wide person
-            # called "Machine Learning Street". That is exactly the rule `app_gi_view._speaker_name`
+            # called "Machine Learning Street". That is exactly the rule `gi_view._speaker_name`
             # states — an episode-scoped label is meaningful in its episode and meaningless
             # aggregated — so the placeholder filters already hide it from every ranking surface.
             #
@@ -1057,7 +1057,7 @@ def _resolve_quote_speaker(
 
             # A NEUTRAL DISPLAY NAME, not the show's. Scoping the ID keeps the show out of every
             # corpus-wide surface, but the Person node still carried `name = "Machine Learning
-            # Street"` and `app_gi_view` renders that — so the reader saw the show speaking, which
+            # Street"` and `gi_view` renders that — so the reader saw the show speaking, which
             # is the whole complaint. The voice is real and unnamed; say exactly that.
             return (
                 scoped_person_id(person_node_id(speaker_label), episode_id or "unknown"),

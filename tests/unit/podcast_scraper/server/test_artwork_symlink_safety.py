@@ -13,7 +13,7 @@ from pathlib import Path
 
 from podcast_scraper.enrichment.enrichers.org_web import _logo_dir, org_logo_path
 from podcast_scraper.enrichment.enrichers.person_web import _image_dir, person_image_path
-from podcast_scraper.server.app_artwork import safe_artwork_target
+from podcast_scraper.server.artwork import safe_artwork_target
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 
 
