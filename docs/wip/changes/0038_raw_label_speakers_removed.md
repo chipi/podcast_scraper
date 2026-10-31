@@ -253,7 +253,9 @@ Conditions, each answered:
    `insight:unplaced-first` and `insight:raw-first` cases), not by an excerpt: stated here.
 
 Verdict: GO WITH CONDITIONS
-Conditions: make ci-fast green on the committed tree, log attached; N8 and insight_clusters.json counted read-only on prod at step 10.
+
+- **Condition 1:** `make ci-fast` green on the committed tree, log attached.
+- **Condition 2:** N8 (index rows holding an N1 id) and `search/insight_clusters.json` counted read-only on prod at step 10, before and after the apply.
 
 ## 9. Operator review
 
