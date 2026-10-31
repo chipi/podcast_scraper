@@ -107,6 +107,39 @@ def test_create_indices_skips_ann_on_small_tables(backend):
     assert "s1" in {r.doc_id for r in res}  # brute-force FTS still finds the row
 
 
+def _segments_above_ann_floor(tmp_path):
+    b = LanceDBBackend(str(tmp_path / "lance"), embed_dim=4)
+    n = b._MIN_VECTOR_INDEX_ROWS + 44
+    b.upsert_segments(
+        [
+            _seg(f"s{i}", f"row {i}", "A", [((i * k) % 97) / 97.0 for k in (1, 3, 7, 11)])
+            for i in range(n)
+        ]
+    )
+    return b
+
+
+def _vector_indices(b):
+    return [i for i in b._open_if_exists("segment").list_indices() if i.columns == ["embedding"]]
+
+
+def test_create_indices_builds_ann_above_the_floor(tmp_path, monkeypatch):
+    monkeypatch.delenv("PODCAST_SEARCH_EXACT_VECTORS", raising=False)
+    b = _segments_above_ann_floor(tmp_path)
+    b.create_indices()
+    assert _vector_indices(b)
+
+
+def test_exact_vectors_builds_no_ann_index(tmp_path, monkeypatch):
+    # The fixture builds set this: an unseeded IVF index orders near-ties differently per build.
+    monkeypatch.setenv("PODCAST_SEARCH_EXACT_VECTORS", "1")
+    b = _segments_above_ann_floor(tmp_path)
+    b.create_indices()
+    assert _vector_indices(b) == []
+    res = b.search_vector(SearchQuery(text="", embedding=[0.0, 0.0, 0.0, 0.0], tier="segment"))
+    assert res and res[0].doc_id == "s0"
+
+
 @pytest.mark.critical_path
 def test_create_indices_noop_when_no_tables(tmp_path):
     # A fresh backend has no tier tables on disk: every tier short-circuits on the

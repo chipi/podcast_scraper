@@ -114,6 +114,8 @@ export async function buildIndexIfAbsent(): Promise<void> {
       // must already be in the HF cache (CI preloads it; the local dev venv has it).
       HF_HUB_OFFLINE: '1',
       TRANSFORMERS_OFFLINE: '1',
+      // Exact vector search: an unseeded ANN index orders near-ties differently per build.
+      PODCAST_SEARCH_EXACT_VECTORS: '1',
     },
   })
   await warmSearchOnceIndexExists()

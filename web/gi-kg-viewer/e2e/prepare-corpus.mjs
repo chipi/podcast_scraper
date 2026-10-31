@@ -92,5 +92,7 @@ execFileSync(interpreter, ["-m", "podcast_scraper.cli", "index-two-tier", "--out
     // index_corpus runs allow_download=False, so the model must already be in the HF cache.
     HF_HUB_OFFLINE: "1",
     TRANSFORMERS_OFFLINE: "1",
+    // Exact vector search: an unseeded ANN index orders near-ties differently per build.
+    PODCAST_SEARCH_EXACT_VECTORS: "1",
   },
 })

@@ -233,6 +233,9 @@ def _app_validation_inputs_digest() -> str:
                 parts.append(f"{p.relative_to(APP_VALIDATION_CORPUS)}:{p.stat().st_size}")
             except OSError:
                 continue
+    # The build mode is an input too: an index built with the ANN (IVF) index is not the
+    # exact-search index the fixture now builds, so it must rebuild.
+    parts.append("vectors:exact")
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
@@ -333,6 +336,10 @@ def app_validation_search_index() -> Path:
                 return APP_VALIDATION_CORPUS
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
             os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+            # Exact vector search for the fixture: LanceDB's IVF training takes no seed, so an
+            # ANN-indexed fixture reorders near-ties from build to build and the tier-3 search
+            # tests passed or failed by build (2026-10-31). Prod keeps its ANN index.
+            os.environ["PODCAST_SEARCH_EXACT_VECTORS"] = "1"
             # Decide "the extra is absent" BEFORE building, not from whatever the build throws.
             # This used to be inferred from any exception, which meant the reason was a guess:
             # on macOS x86_64 the stub embedder raises ``'object' object has no attribute

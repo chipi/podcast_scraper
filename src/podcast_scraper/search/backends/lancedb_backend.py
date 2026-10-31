@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import os
 import re
 from datetime import timedelta
 from pathlib import Path
@@ -162,6 +163,18 @@ def _aux_schema(dim: int) -> "pa.Schema":
             ("source_id", pa.string()),
         ]
     )
+
+
+#: Build no vector ANN index at all, so every vector query is an exact brute-force search. For the
+#: synthetic fixture corpora only: LanceDB's IVF training takes no seed, so two builds from the
+#: same rows can order near-ties differently, and the tier-3 search tests then pass or fail by
+#: build (measured 2026-10-31: identical rows, different ``_indices``; main's code failed on one
+#: build 2/2, passed on another). Production keeps the ANN index above ``_MIN_VECTOR_INDEX_ROWS``.
+EXACT_VECTORS_ENV = "PODCAST_SEARCH_EXACT_VECTORS"
+
+
+def _exact_vectors() -> bool:
+    return os.environ.get(EXACT_VECTORS_ENV, "").strip().lower() in {"1", "true", "yes"}
 
 
 class LanceDBBackend:
@@ -352,8 +365,8 @@ class LanceDBBackend:
             table.create_fts_index("text", replace=True)
             if tier in self.KEYWORD_ONLY_TIERS:
                 continue  # no vector column: BM25 is the only retrieval this tier supports
-            if n_rows < self._MIN_VECTOR_INDEX_ROWS:
-                continue  # brute-force search below the ANN training floor
+            if n_rows < self._MIN_VECTOR_INDEX_ROWS or _exact_vectors():
+                continue  # brute-force search below the ANN training floor, or when asked for
             try:
                 table.create_index(vector_column_name="embedding", replace=True)
             except Exception:  # noqa: BLE001 - small tables use brute force; index optional
