@@ -103,8 +103,42 @@ a89e53fe2 (report), 855a12da6 (guards), a41530cbb (one-word rule, no-bridge link
 
 ## 7. Measure
 
-_TODO_: the write rehearsal on a fresh prod snapshot clone (scoreboard before/after, full
-`upgrade verify`, gold gates S6/S7, the ledger write and restore, the api against the ledger).
+Write rehearsal, 2026-10-31, on a copy of **snapshot-prod-20261030** (release 11:48Z, archive
+sha256 7e366e70…7035f; corpus token mtime 1793330465, newest_kg_count 3069, equal to prod's at the
+S2–S4 runs), outside `/tmp` (`/Users/claude/snapshots/`, 105 GB free before). The copy is the
+0038 change gate's: 0038 applied, then `enrich --only insight_density,insight_sentiment`
+(24 episodes, 48 sidecars), the after state of D1's corpus steps. Code: the branch at 22762f1c2
+(ledger step) for the ledger and warm-up runs, b0d1a34bb–476c0002d after (docs and two gate fixes).
+
+| Check | Result |
+|---|---|
+| ledger build (`identity-ledger --dry-run`) | 93.4 s; 949 joins: 720 person, 229 org; 9 blocked joins |
+| person joins equal the S4 replay's final map | yes: sha 1f48d22a02b5 both (so 0038 changes no join) |
+| raw `person:speaker-*` ids in any join | 0 |
+| server's served map (`cached_entity_id_map`) equals the ledger | yes |
+| corrupted ledger | state `unreadable`, 0 joins served, a warning logged (ADR-166) |
+| undo | second write kept `identity_ledger.previous.json`; after corrupting the current one, `restore_previous` → state ok, 949 joins |
+| api cache warm-up, branch | 118.4 s (entity map 0.0 s from the ledger; reel_clips 101.3 s) |
+| api cache warm-up after a ledger write | 123.5 s (one rebuild of the projections) |
+| api cache warm-up, main 5d2b3d6b5, same copy | 144.5 s (entity map 28.3 s built in memory) |
+
+Outcome rows measured on the copy so far (`name_report`, eval-data
+`data/eval/name-consolidation/d1/name_report_after_clone.json.gz`), against prod's report c71876a
+(same corpus token, before 0038 and before the ledger):
+
+| Row | Before (prod, c71876a) | After (copy) |
+|---|---|---|
+| R1 shown surfaces | 0 (S3) | 0 |
+| R1 data: raw-label quotes / bridge identities | 107 in 23 / 28 in 24 | 0 / 0 |
+| R2 roster pairs a+b, groups | 8+98, 71 | 8+98, 71 |
+| R2 voice pairs a+b, groups | 6+86, 58 | 6+86, 58 |
+| R4 identical names across shows (joined), variants (joined) | 95 (86), 55 (3) | 95 (86), 55 (3) |
+| person joins | 760 (in-memory map) | 720 (ledger) |
+| R3 truth set, S1 train wrong merges | 1 | 0 (S4 replay) |
+
+Still to measure for this record: the scoreboard before/after for the whole D1 (S1b+S3+S4 code
+plus 0038) on one clone, the gold gates S6/S7, R3a/R3b/R6 from the report, and the gates (test
+suites, ci-fast, test-integration, the Playwright specs).
 
 ## 8. Verdict
 
