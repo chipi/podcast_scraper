@@ -316,7 +316,14 @@ operator's go typed in prod's session. Outputs are in the operator's `prod-namin
   - index rows 0 in every table;
   - `insight_clusters.json` 1 occurrence, the same stale id as before (D2 item 5).
 - **Ownership after enrich and index:** 0 files not owned by uid 1000.
-- **Open:** S4's 51 changed joins as served (`d1/d1_served_51.py`); prod has the script.
+- **S4's 51 changed joins as served** (`d1/d1_served_51.py`, sha256 `f2c158c0…`), 13:51:39Z, uid 1000,
+  corpus read-only: ledger_state ok, served_joins 959, checked 51, as_expected 51, not_as_expected
+  empty. This completes the post-deploy list.
+- **Still open after D1:**
+  - scanned 3,089 of 3,091 served episodes (not read);
+  - the stale cluster entry (D2 item 5);
+  - the full bounded verify (D2 item 6);
+  - the org joins (S5o, D2).
 - **Finding, not acted on (operator decides):** no search module reads `surfaceable`, so search can
   return insights the episode view hides. This was true before 0038 too.
 
