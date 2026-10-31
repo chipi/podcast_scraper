@@ -192,7 +192,7 @@ leftover generated files, like CI's checkout):
 | `make test-integration` | 4,604 passed, **1 failed: `test_player_nginx_syntax_ok`**, which runs `docker` on the production socket (closed to development work here); the branch does not change `web/learning-player/nginx.conf` (0 diff lines); CI runs it |
 | player Playwright, full suite | **702 passed**, 22 skipped, 0 failed |
 | player Playwright, D1 specs at phone size | 43 passed (above) |
-| viewer Playwright, full suite | running |
+| viewer Playwright, full suite | 322 passed, **1 failed, 1 flaky**: `library-pagination-ranking-keyboard` "Load more appends the next page" (a row intercepts the click until timeout) and `artifact-list-load-graph` (browser launch failed, passed on retry). Alone on the branch the pagination spec passes (4 passed, 1 flaky); on main 5d2b3d6b5 the same spec fails too (1 failed, 1 flaky, 3 passed; another of its tests, the same pointer-intercept timeout and 2 ms launch failures). The branch changes no viewer code (only `playwright.config.ts`, the ledger before the api) |
 
 Two earlier runs are not counted, and why:
 
@@ -261,6 +261,6 @@ _TODO_
   the joins.
 - **R3a / R3b / R6 as report rows:** the report does not compute them yet; the S4 replay and the
   read list stand in.
-- **The viewer and player suites, `make ci-fast`, `make test-integration`:** not yet run on the
-  shipping tree.
+- **`test_player_nginx_syntax_ok` is not run here** (production Docker socket); the viewer's
+  `library-pagination-ranking-keyboard` spec is unstable on this machine on main's code too.
 - **The 5 episodes failing 0025's verify** are corpus state on main's code too; they are S6's.
