@@ -577,9 +577,9 @@ def test_show_index_clusters_exactly_like_the_full_scan(seed, same_show_required
     captured = {}
     real_pick = ec._pick_canonical
 
-    def spy(cluster):
+    def spy(cluster, keep=()):
         captured.setdefault(cluster[0].kind, []).append([m.id for m in cluster])
-        return real_pick(cluster)
+        return real_pick(cluster, keep)
 
     monkeypatch.setattr(ec, "_pick_canonical", spy)
     ec.build_entity_canonical_map(cands, same_show_required=same_show_required)

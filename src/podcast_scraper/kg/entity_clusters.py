@@ -31,7 +31,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Collection, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
 from ..identity.person_match import cluster_variants as _are_xep_variants
@@ -144,9 +144,12 @@ def _words(name: str) -> int:
     return name_words(name)
 
 
-def _pick_canonical(members: List[EntityCandidate]) -> EntityCandidate:
-    """Highest frequency wins; tie → longest name, then lexical."""
-    return sorted(members, key=lambda c: (-c.freq, -len(c.name), c.name.lower()))[0]
+def _pick_canonical(members: List[EntityCandidate], keep: Collection[str] = ()) -> EntityCandidate:
+    """A member already serving as a canonical id (``keep``) first; then highest frequency, the
+    longest name, the name, and the id, so the pick never rests on the input order."""
+    return sorted(
+        members, key=lambda c: (c.id not in keep, -c.freq, -len(c.name), c.name.lower(), c.id)
+    )[0]
 
 
 _Guard = Callable[[EntityCandidate, EntityCandidate], Optional[Tuple[str, str]]]
@@ -197,6 +200,7 @@ def build_entity_canonical_map(
     guard: Optional[_Guard] = None,
     person_mode: str = "cluster",
     linkage: str = "single",
+    keep_canonical: Collection[str] = (),
 ) -> Tuple[Dict[str, Any], Dict[str, str]]:
     """Cluster variants and return ``(entity_clusters_payload, variant→canonical map)``.
 
@@ -214,6 +218,10 @@ def build_entity_canonical_map(
       full names (``Ilse Tolvane`` ~ ``Tolvane`` ~ ``Mara Tolvane``, two relatives), while
       spelling drift between full names still chains (``Brannick Holt`` ~ ``Brannick Hollt``);
     * ``complete``: every member (measured, not used: it splits that drift too).
+
+    ``keep_canonical``: ids already serving as a canonical (the served ledger's). A cluster that
+    holds one keeps it, so a person's pages and links do not move when frequencies shift or
+    every member comes to carry one spelling (RFC-131 0039).
 
     The defaults keep today's build.
     """
@@ -263,7 +271,7 @@ def build_entity_canonical_map(
         for cluster in clusters:
             if len(cluster) < 2:
                 continue
-            canonical = _pick_canonical(cluster)
+            canonical = _pick_canonical(cluster, keep_canonical)
             members_json = []
             for m in sorted(cluster, key=lambda c: (-c.freq, c.id)):
                 if m.id != canonical.id:

@@ -88,7 +88,8 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
 
     The joins are the cluster rule's for organisations. For people: rule mode ``PERSON_MODE``,
     linkage ``PERSON_LINKAGE``, and the identity guards inside the join test (ADR-167); each
-    refused join is recorded in ``blocked_joins``.
+    refused join is recorded in ``blocked_joins``. A group keeps the canonical id the served
+    ledger gives it while that id is still a member (RFC-131 0039).
     """
     import podcast_scraper
     from podcast_scraper.identity.guards import candidate_guard, collect_episode_evidence
@@ -100,11 +101,13 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
     root = Path(root)
     candidates = collect_entity_candidates(root)
     evidence = collect_episode_evidence(root)
+    served, _state = read_ledger(root)
     payload, _id_map = build_entity_canonical_map(
         candidates,
         guard=candidate_guard(evidence),
         person_mode=PERSON_MODE,
         linkage=PERSON_LINKAGE,
+        keep_canonical=_canonical_ids(served),
     )
     _add_display_spellings(payload, candidates, evidence)
     blocked = payload.pop("blocked_joins", [])
@@ -116,6 +119,17 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
         "built_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "clusters_payload": payload,
         "blocked_joins": blocked,
+    }
+
+
+def _canonical_ids(ledger: Optional[Dict[str, Any]]) -> set:
+    """The canonical ids a served ledger gives; a rebuild keeps each one that is still a member."""
+    if ledger is None:
+        return set()
+    return {
+        str(c.get("canonical_id"))
+        for c in (ledger.get("clusters_payload") or {}).get("clusters") or []
+        if c.get("canonical_id")
     }
 
 

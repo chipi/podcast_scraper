@@ -317,3 +317,34 @@ def test_an_org_of_unknown_language_still_joins(tmp_path: Path) -> None:
         {"org:haloway-labs": "org:halloway-labs"},
         {"org:halloway-labs": "org:haloway-labs"},
     )
+
+
+def test_a_rebuild_keeps_the_served_canonical_id_while_it_is_a_member(corpus: Path) -> None:
+    """Person pages, links and follows key on the canonical id (RFC-131 0039): a build that shifts
+    the frequencies, or gives every member one spelling, must not move it."""
+    L.write_ledger(corpus, L.build_ledger(corpus))
+    assert L.served_id_map(corpus) == {"person:korin-vaal": "person:korin-vael"}
+    # Two more episodes of the other id: by frequency alone it would now be the canonical.
+    for ep, run in (("e5", "run_v_20261005-000000"), ("e6", "run_u_20261006-000000")):
+        _kg_episode(root := corpus, "show_a", run, ep, {"person:korin-vaal": "Korin Vaal"})
+    assert entity_clusters.build_entity_id_map(root) == {"person:korin-vael": "person:korin-vaal"}
+    rebuilt = L.build_ledger(corpus)
+    assert L.ledger_id_map(rebuilt) == {"person:korin-vaal": "person:korin-vael"}
+
+
+def test_with_no_served_ledger_the_canonical_is_the_rules(corpus: Path) -> None:
+    for ep, run in (("e5", "run_v_20261005-000000"), ("e6", "run_u_20261006-000000")):
+        _kg_episode(corpus, "show_a", run, ep, {"person:korin-vaal": "Korin Vaal"})
+    assert L.ledger_id_map(L.build_ledger(corpus)) == {"person:korin-vael": "person:korin-vaal"}
+
+
+def test_one_spelling_for_every_member_keeps_the_canonical(tmp_path: Path) -> None:
+    """The tie 0039's respelling makes (equal frequency, equal name) is decided by the served
+    ledger, never by file order."""
+    root = tmp_path / "corpus"
+    _kg_episode(root, "show_a", "run_x_20261001-000000", "e1", {"person:korin-vael": "Korin Vael"})
+    _kg_episode(root, "show_a", "run_y_20261002-000000", "e2", {"person:korin-vaal": "Korin Vaal"})
+    L.write_ledger(root, L.build_ledger(root))
+    before = L.served_id_map(root)
+    _kg_episode(root, "show_a", "run_y_20261002-000000", "e2", {"person:korin-vaal": "Korin Vael"})
+    assert L.ledger_id_map(L.build_ledger(root)) == before
