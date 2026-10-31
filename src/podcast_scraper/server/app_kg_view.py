@@ -74,8 +74,14 @@ def objects_from_kg(artifact: Any) -> list[AppEntity]:
     return list(out.values())
 
 
-def entities_from_kg(artifact: Any) -> tuple[list[AppEntity], list[AppEntity], list[AppTopic]]:
-    """Return ``(persons, orgs, topics)`` from a KG artifact dict, de-duplicated by id."""
+def entities_from_kg(
+    artifact: Any, people: Any = None
+) -> tuple[list[AppEntity], list[AppEntity], list[AppTopic]]:
+    """Return ``(persons, orgs, topics)`` from a KG artifact dict, de-duplicated by id.
+
+    ``people`` (``identity.display.person_display(root)``): a joined person carries their group's
+    one spelling (RFC-131 S6d). Without it, the episode's own name.
+    """
     persons: dict[str, AppEntity] = {}
     orgs: dict[str, AppEntity] = {}
     topics: dict[str, AppTopic] = {}
@@ -134,7 +140,8 @@ def entities_from_kg(artifact: Any) -> tuple[list[AppEntity], list[AppEntity], l
                 node_id,
                 AppEntity(
                     id=node_id,
-                    name=person_name,
+                    name=(people.shown(node_id, person_name) if people is not None else None)
+                    or person_name,
                     kind="person",
                     role=_role_of(props),
                     episode_scoped=episode_scoped,

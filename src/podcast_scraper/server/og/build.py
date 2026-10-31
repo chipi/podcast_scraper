@@ -19,6 +19,7 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.languages import translated_from_label
 from podcast_scraper.server.og.card import accent_for_kind, OgCardModel
 
@@ -157,7 +158,9 @@ def _episode_roster(root: Path, row: object) -> tuple[list[str], list[str], list
     rel = getattr(row, "kg_relative_path", None)
     if not rel:
         return [], [], []
-    persons, _orgs, topics = entities_from_kg(load_json_artifact(root, rel))
+    persons, _orgs, topics = entities_from_kg(
+        load_json_artifact(root, rel), people=person_display(root)
+    )
     hosts = [p.name for p in persons if (p.role or "") == "host"]
     guests = [p.name for p in persons if (p.role or "") == "guest"]
     return hosts, guests, [t.label for t in topics if t.label]
@@ -178,7 +181,9 @@ def _show_signals(root: Path, feed_id: str, rows: list) -> tuple[str | None, lis
     for r in rows:
         if (getattr(r, "feed_id", None) or "") != feed_id or not r.kg_relative_path:
             continue
-        persons, _orgs, tps = entities_from_kg(load_json_artifact(root, r.kg_relative_path))
+        persons, _orgs, tps = entities_from_kg(
+            load_json_artifact(root, r.kg_relative_path), people=person_display(root)
+        )
         for p in persons:
             if (p.role or "") == "host":
                 hosts[p.name] += 1

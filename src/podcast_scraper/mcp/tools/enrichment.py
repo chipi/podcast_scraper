@@ -42,8 +42,11 @@ def corpus_enrichment_signals(ctx: CorpusContext) -> Dict[str, Any]:
     temporal_velocity, grounding_rate, guest_coappearance, topic_cooccurrence, etc. Same
     data as ``GET /api/corpus/enrichment``. Use as a capability probe + corpus aggregates.
     """
+    from ...identity.display import person_display, spell_enrichment_people
+
     enrich_dir = Path(ctx.corpus_dir) / "enrichments"
     signals: Dict[str, Any] = {}
+    people = person_display(ctx.corpus_dir)
     if enrich_dir.is_dir():
         for path in sorted(enrich_dir.glob("*.json")):
             enricher_id = path.stem
@@ -51,7 +54,7 @@ def corpus_enrichment_signals(ctx: CorpusContext) -> Dict[str, Any]:
                 continue
             data = _envelope_data(path)
             if data is not None:
-                signals[enricher_id] = data
+                signals[enricher_id] = spell_enrichment_people(enricher_id, data, people)
     note = "" if signals else "no corpus enrichments/ dir (enrichment stage not run?)"
     return {"scope": "corpus", "signals": signals, "note": note}
 

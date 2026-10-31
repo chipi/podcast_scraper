@@ -178,7 +178,9 @@ def build_board_brief(root: Path, board: Board) -> AppBoardBrief:
             points.append(point)
         if not row.has_kg:
             continue
-        persons, _orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+        persons, _orgs, topics = entities_from_kg(
+            load_json_artifact(root, row.kg_relative_path), people=person_display(root)
+        )
         topic_ids = {topic.id for topic in topics if topic.id not in umbrellas}
         for topic in topics:
             if topic.id in topic_ids:

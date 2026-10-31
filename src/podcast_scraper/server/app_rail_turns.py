@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, Optional, Sequence, TypeVar
 
+from podcast_scraper.identity.display import person_display
+
 T = TypeVar("T")
 
 
@@ -19,7 +21,9 @@ def episode_entity_ids(root: Path, kg_relative_path: Optional[str]) -> set[str]:
     from podcast_scraper.server.app_corpus_access import load_json_artifact
     from podcast_scraper.server.app_kg_view import entities_from_kg
 
-    persons, _orgs, topics = entities_from_kg(load_json_artifact(root, kg_relative_path))
+    persons, _orgs, topics = entities_from_kg(
+        load_json_artifact(root, kg_relative_path), people=person_display(root)
+    )
     return {e.id for e in [*persons, *topics] if getattr(e, "id", None)}
 
 

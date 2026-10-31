@@ -14,6 +14,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_captured_rail import person_quotes
 from podcast_scraper.server.app_rail_turns import take_turns
 from podcast_scraper.server.app_reasons import Reason, ReasonQuote, ReasonSubject
@@ -52,7 +53,9 @@ def people_kept_hearing(root: Path, data_dir: Path, user_id: str) -> list[KeptHe
         row = resolve_slug(root, slug)
         if row is None or not row.has_kg:
             continue
-        persons, _orgs, _topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+        persons, _orgs, _topics = entities_from_kg(
+            load_json_artifact(root, row.kg_relative_path), people=person_display(root)
+        )
         for p in persons:
             # An episode-scoped id names someone within one episode only; it cannot recur.
             if p.role not in SPEAKING_ROLES or is_scoped_person_id(p.id):

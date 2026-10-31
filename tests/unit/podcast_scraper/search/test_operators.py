@@ -170,6 +170,21 @@ def _write_consensus(corpus_root: Path, pairs: list[dict]) -> None:
     )
 
 
+class _AllIds:
+    def __contains__(self, _key: object) -> bool:
+        return True
+
+
+@pytest.fixture()
+def every_pair_visible(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These pairs have no GI behind them; the visibility filter itself is tested in
+    ``TestConsensusVisibility`` (RFC-131 S6d)."""
+    from podcast_scraper.search import operators as ops
+
+    monkeypatch.setattr(ops, "_visible_insight_ids", lambda _root: _AllIds())
+
+
+@pytest.mark.usefixtures("every_pair_visible")
 class TestConsensusPairs:
     def test_missing_enrichment_file_returns_empty_list(self, empty_corpus: Path) -> None:
         # No topic_consensus.json under enrichments/.
@@ -310,3 +325,56 @@ class TestConsensusPairs:
         assert p["cosine_similarity"] is None
         assert p["topic_label"] is None
         assert p["insight_a_text"] == ""
+
+
+class TestConsensusVisibility:
+    """Search serves only what episodes serve, here for consensus pairs (RFC-131 S6d)."""
+
+    def test_a_pair_with_a_hidden_insight_is_dropped_and_labels_are_spelled(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from podcast_scraper.identity.display import PersonDisplay
+        from podcast_scraper.search import operators as ops
+
+        # The keys topic_consensus writes (person_a_name / person_b_name), not the response's.
+        base = {"topic_id": "topic:t", "contradiction_score": 0.1, "cosine_similarity": 0.9}
+        _write_consensus(
+            tmp_path,
+            [
+                dict(
+                    base,
+                    insight_a_id="i:1",
+                    insight_b_id="i:2",
+                    person_a_id="person:a",
+                    person_a_name="Korin Vaal",
+                    person_b_id="person:b",
+                    person_b_name="Odile",
+                ),
+                dict(
+                    base,
+                    insight_a_id="i:hidden",
+                    insight_b_id="i:2",
+                    person_a_id="person:c",
+                    person_a_name="Mara",
+                    person_b_id="person:b",
+                    person_b_name="Odile",
+                ),
+                dict(
+                    base,
+                    insight_a_id="i:1",
+                    insight_b_id="i:hidden",
+                    person_a_id="person:a",
+                    person_a_name="Korin Vaal",
+                    person_b_id="person:c",
+                    person_b_name="Mara",
+                ),
+            ],
+        )
+        monkeypatch.setattr(ops, "_visible_insight_ids", lambda _root: {"i:1", "i:2"})
+        monkeypatch.setattr(
+            "podcast_scraper.identity.display.person_display",
+            lambda _root: PersonDisplay({"person:a": "Korin Vael"}),
+        )
+        pairs = consensus_pairs_for_hits([], tmp_path)
+        assert [(p["insight_a_id"], p["insight_b_id"]) for p in pairs] == [("i:1", "i:2")]
+        assert pairs[0]["person_a_label"] == "Korin Vael" and pairs[0]["person_b_label"] == "Odile"

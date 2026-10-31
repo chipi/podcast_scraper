@@ -74,7 +74,9 @@ class Node:
 class CorpusGraph:
     """Undirected, in-memory union of the GIL and KG artifact graphs."""
 
-    def __init__(self, identity_map: Optional[Dict[str, str]] = None) -> None:
+    def __init__(
+        self, identity_map: Optional[Dict[str, str]] = None, people: Optional[Any] = None
+    ) -> None:
         self._nodes: Dict[str, Node] = {}
         self._adj: Dict[str, Set[str]] = {}
         # Typed adjacency (RFC-094 / #882): node -> [(neighbor, edge_type)], undirected.
@@ -85,6 +87,9 @@ class CorpusGraph:
         # variant_id -> canonical_id (#852). Collapses cross-episode entity-spelling
         # variants at read-time; empty = faithful artifact union.
         self._id_map: Dict[str, str] = dict(identity_map or {})
+        # The ledger's display view (RFC-131 S6d): a joined person's node carries the group's one
+        # spelling, not whichever artifact's name was ingested last.
+        self._people = people
 
     # --- construction ----------------------------------------------------------
 
@@ -104,6 +109,17 @@ class CorpusGraph:
         node.layers.add(source)
         if not node.type and ntype:
             node.type = ntype
+
+    def _spell_people(self) -> None:
+        """Every joined person node's ``name`` becomes the group's one spelling."""
+        if self._people is None:
+            return
+        for nid, node in self._nodes.items():
+            if node.type != "person":
+                continue
+            name = node.payload.get("name")
+            if isinstance(name, str) and name.strip():
+                node.payload["name"] = self._people.shown(nid, name) or name
 
     def _add_edge(self, frm: str, to: str, edge_type: str = "") -> None:
         self._adj.setdefault(frm, set()).add(to)
@@ -390,6 +406,7 @@ class CorpusGraph:
         derive_speaker_links: bool = False,
         reconcile_hosts: bool = False,
         identity_map: Optional[Dict[str, str]] = None,
+        people: Optional[Any] = None,
     ) -> "CorpusGraph":
         """Build the unified graph from all GI + KG artifacts under *corpus_dir*.
 
@@ -414,7 +431,7 @@ class CorpusGraph:
         )
 
         corpus_dir = Path(corpus_dir)
-        graph = cls(identity_map=identity_map)
+        graph = cls(identity_map=identity_map, people=people)
         # KG first, then GI: GI payloads win on overlap (see _upsert_node).
         # Newest run per episode, matching the catalog's membership rule — a superseded run
         # must not shape the graph the API serves (see `newest_run_artifact_paths`).
@@ -430,6 +447,7 @@ class CorpusGraph:
             graph._derive_speaker_links()
         if reconcile_hosts:
             graph._reconcile_feed_hosts()
+        graph._spell_people()  # after any merge, so it sees the final ids
         logger.debug(
             "Built corpus graph: %d nodes, %d adjacency entries",
             len(graph._nodes),
@@ -543,16 +561,20 @@ def get_corpus_graph(
             for stale in [k for k in _corpus_graphs if k[0] == _root and k[4] != key[4]]:
                 _corpus_graphs.pop(stale, None)
             identity_map: Optional[Dict[str, str]] = None
+            people = None
             if canonicalize_entities:
+                from ..identity.display import person_display
                 from ..kg.entity_clusters import cached_entity_id_map
 
                 identity_map = cached_entity_id_map(corpus_dir)
+                people = person_display(corpus_dir)
             _corpus_graphs[key] = CorpusGraph.build(
                 corpus_dir,
                 validate=validate,
                 derive_speaker_links=derive_speaker_links,
                 reconcile_hosts=reconcile_hosts,
                 identity_map=identity_map,
+                people=people,
             )
         return _corpus_graphs[key]
 

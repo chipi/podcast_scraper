@@ -20,6 +20,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.search.interest_index import INTEREST_INDEX_FILE
 from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import theme_map_by_topic
@@ -173,7 +174,7 @@ def _episode_features(
     artifact = load_json_artifact(root, row.kg_relative_path)
     if artifact is None:
         return set(), set(), set()
-    persons, _orgs, topics = entities_from_kg(artifact)
+    persons, _orgs, topics = entities_from_kg(artifact, people=person_display(root))
     clusters: set[str] = set()
     topic_ids: set[str] = set()
     for topic in topics:

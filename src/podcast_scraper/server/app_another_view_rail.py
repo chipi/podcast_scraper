@@ -22,6 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_rail_turns import take_turns
 from podcast_scraper.server.app_reasons import (
     best_grounded_quote,
@@ -62,9 +63,14 @@ def engaged_topics(root: Path, data_dir: Path, user_id: str) -> list[tuple[str, 
 
 
 def agreeing_pairs(root: Path) -> set[tuple[str, frozenset[str]]]:
-    """``{(topic id, {person a, person b})}`` recorded as agreeing (topic consensus enricher)."""
+    """``{(topic id, {person a, person b})}`` recorded as agreeing (topic consensus enricher).
+
+    Person ids are the canonical ones, as the topic perspectives group by (RFC-131 S6b); the
+    enricher writes raw episode ids. A person agreeing with themselves is dropped."""
+    from podcast_scraper.identity.ledger import served_id_map
     from podcast_scraper.search.operators import _load_consensus_payload
 
+    id_map = served_id_map(root)
     payload = _load_consensus_payload(root) or {}
     data = payload.get("data")
     pairs = data.get("consensus") if isinstance(data, dict) else None
@@ -76,7 +82,9 @@ def agreeing_pairs(root: Path) -> set[tuple[str, frozenset[str]]]:
             and p.get("person_a_id")
             and p.get("person_b_id")
         ):
-            out.add((str(p["topic_id"]), frozenset({str(p["person_a_id"]), str(p["person_b_id"])})))
+            a, b = (id_map.get(str(p[k]), str(p[k])) for k in ("person_a_id", "person_b_id"))
+            if a != b:
+                out.add((str(p["topic_id"]), frozenset({a, b})))
     return out
 
 
@@ -93,7 +101,9 @@ def speakers_heard(root: Path, episodes: set[str]) -> set[str]:
         row = resolve_slug(root, slug)
         if row is None or not row.has_kg:
             continue
-        persons, _orgs, _topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+        persons, _orgs, _topics = entities_from_kg(
+            load_json_artifact(root, row.kg_relative_path), people=person_display(root)
+        )
         out |= {p.id for p in persons if p.role in ("host", "guest")}
     return out
 

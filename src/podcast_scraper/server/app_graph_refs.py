@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_slugs import resolve_slug
@@ -30,7 +31,9 @@ def refs_for_slug(root: Path, slug: str, *, limit: int = DEFAULT_LIMIT) -> list[
     row = resolve_slug(root, slug)
     if row is None or not row.has_kg:
         return []
-    persons, _orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+    persons, _orgs, topics = entities_from_kg(
+        load_json_artifact(root, row.kg_relative_path), people=person_display(root)
+    )
     refs: list[dict[str, str]] = [{"id": p.id, "kind": "person", "label": p.name} for p in persons]
     umbrellas = umbrella_tokens(root)
     refs += [

@@ -130,7 +130,7 @@ def capture_links(root: Path, capture: Capture) -> list[ReasonSubject]:
     gi, kg, _row = _gi_and_kg(root, capture.episode_slug)
     labels: dict[str, str] = {}
     if kg is not None:
-        persons, _orgs, topics = entities_from_kg(kg)
+        persons, _orgs, topics = entities_from_kg(kg, people=person_display(root))
         labels = {e.id: _label(e) for e in [*persons, *topics]}
     links: list[ReasonSubject] = []
     if capture.insight_id and gi is not None:
@@ -158,7 +158,7 @@ def capture_links(root: Path, capture: Capture) -> list[ReasonSubject]:
         if pid and speaker:
             links.append(ReasonSubject("person", pid, speaker))
     if not links and kg is not None:
-        persons, _orgs, topics = entities_from_kg(kg)
+        persons, _orgs, topics = entities_from_kg(kg, people=person_display(root))
         for e in [*topics, *persons][:MAX_LINKS_PER_CAPTURE]:
             if e.id.startswith("topic:"):
                 links.append(ReasonSubject("topic", e.id, _label(e)))

@@ -256,6 +256,19 @@ def consensus_pairs_for_hits(
     pairs_raw = data.get("consensus")
     if not isinstance(pairs_raw, list) or not pairs_raw:
         return []
+    # Only pairs whose two insights the episode view shows (RFC-131 S6c/S6d, D2 item 7): search
+    # serves exactly what episodes serve. And each person under their group's one spelling.
+    from podcast_scraper.identity.display import person_display
+
+    visible_ids = _visible_insight_ids(corpus_root)
+    pairs_raw = [
+        p
+        for p in pairs_raw
+        if isinstance(p, dict)
+        and p.get("insight_a_id") in visible_ids
+        and p.get("insight_b_id") in visible_ids
+    ]
+    people = person_display(corpus_root)
 
     relevant = set(_relevant_topic_ids(hits))
     if not relevant:
@@ -268,7 +281,7 @@ def consensus_pairs_for_hits(
                 -float(p.get("cosine_similarity") or 0.0),
             ),
         )
-        return _pair_dicts(candidates[:max_pairs])
+        return _pair_dicts(candidates[:max_pairs], people)
 
     matched: list[dict[str, Any]] = []
     for pair in pairs_raw:
@@ -279,10 +292,17 @@ def consensus_pairs_for_hits(
             matched.append(pair)
         if len(matched) >= max_pairs:
             break
-    return _pair_dicts(matched)
+    return _pair_dicts(matched, people)
 
 
-def _pair_dicts(pairs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _visible_insight_ids(corpus_root: Path) -> Any:
+    """Insight ids the episode view shows (S6c's visible set, per corpus generation)."""
+    from podcast_scraper.search.corpus_search import _visible_insights
+
+    return {iid for _ep, iid in _visible_insights(corpus_root)}
+
+
+def _pair_dicts(pairs: list[dict[str, Any]], people: Any = None) -> list[dict[str, Any]]:
     """Normalize enricher-pair dicts into the response shape.
 
     Never fails on unexpected shapes; missing fields fall back to safe
@@ -305,9 +325,17 @@ def _pair_dicts(pairs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "topic_id": str(p.get("topic_id") or ""),
                 "topic_label": _maybe_str(p.get("topic_label")),
                 "person_a_id": str(p.get("person_a_id") or ""),
-                "person_a_label": _maybe_str(p.get("person_a_label")),
+                "person_a_label": _shown_label(
+                    people,
+                    p.get("person_a_id"),
+                    p.get("person_a_label") or p.get("person_a_name"),
+                ),
                 "person_b_id": str(p.get("person_b_id") or ""),
-                "person_b_label": _maybe_str(p.get("person_b_label")),
+                "person_b_label": _shown_label(
+                    people,
+                    p.get("person_b_id"),
+                    p.get("person_b_label") or p.get("person_b_name"),
+                ),
                 "insight_a_id": str(p.get("insight_a_id") or ""),
                 "insight_b_id": str(p.get("insight_b_id") or ""),
                 "insight_a_text": str(p.get("insight_a_text") or ""),
@@ -317,6 +345,14 @@ def _pair_dicts(pairs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+def _shown_label(people: Any, person_id: Any, label: Any) -> str | None:
+    """The label, spelled through the display view when one is given (RFC-131 S6d)."""
+    text = _maybe_str(label)
+    if people is None or text is None:
+        return text
+    return _maybe_str(people.shown(str(person_id or ""), text)) or text
 
 
 def _maybe_str(v: Any) -> str | None:

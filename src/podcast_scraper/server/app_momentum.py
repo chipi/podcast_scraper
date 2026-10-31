@@ -422,8 +422,14 @@ def _labels_from_content(root: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     for row in cs.get("topics") or []:
         out[str(row.get("topic_id") or "")] = str(row.get("topic_label") or "")
+    from podcast_scraper.identity.display import person_display
+
+    people = person_display(root)
     for row in cs.get("persons") or []:
-        out[str(row.get("person_id") or "")] = str(row.get("person_label") or "")
+        pid = str(row.get("person_id") or "")
+        label = str(row.get("person_label") or "")
+        # A joined person's group spelling (RFC-131 S6d), not the enricher's copy of one variant.
+        out[pid] = (people.shown(pid, label) if label else label) or label
     return out
 
 

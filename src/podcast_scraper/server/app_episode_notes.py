@@ -316,7 +316,7 @@ def build_episode_notes(
     )
 
     if kg_artifact is not None:
-        persons, _orgs, topics = entities_from_kg(kg_artifact)
+        persons, _orgs, topics = entities_from_kg(kg_artifact, people=person_display(root))
         doc.people = [p.name for p in persons if getattr(p, "name", None)]
         doc.topics = [t.label for t in topics if getattr(t, "label", None)]
 

@@ -21,6 +21,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache
+from podcast_scraper.identity.display import person_display, spell_enrichment_people
+from podcast_scraper.identity.ledger import served_id_map
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
@@ -97,6 +99,7 @@ def corpus_enrichment(
     root = corpus_root_or_503(request)
     enrich_dir = root / "enrichments"
     signals: dict[str, Any] = {}
+    people = person_display(root)
     if enrich_dir.is_dir():
         for path in sorted(enrich_dir.glob("*.json")):
             if path.name in _SUMMARY_FILES:
@@ -104,7 +107,8 @@ def corpus_enrichment(
             parsed = _parse_envelope(path)
             if parsed is None or parsed.get("data") is None:
                 continue
-            signals[str(parsed.get("enricher_id") or path.stem)] = parsed["data"]
+            enricher_id = str(parsed.get("enricher_id") or path.stem)
+            signals[enricher_id] = spell_enrichment_people(enricher_id, parsed["data"], people)
     return AppCorpusEnrichmentResponse(signals=signals)
 
 
@@ -353,6 +357,7 @@ def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
     self_id = _norm_entity_id(id)
     raw = _corpus_signals(root, _PERSON_ENRICHERS if kind == "person" else _TOPIC_ENRICHERS)
     out: dict[str, Any] = {}
+    people = person_display(root) if kind == "person" else None
 
     def _hit(*ids: Any) -> bool:
         return any(_norm_entity_id(i) == self_id for i in ids)
@@ -366,20 +371,11 @@ def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
             return
         kept = [it for it in items_any if isinstance(it, dict) and keep(it)]
         if kept:
-            out[enricher] = {list_key: kept}
+            out[enricher] = spell_enrichment_people(enricher, {list_key: kept}, people)
 
     if kind == "person":
         # grounding_rate deliberately absent — see _PERSON_ENRICHERS (#1927).
-        _filtered(
-            "guest_coappearance",
-            "pairs",
-            lambda r: _hit(r.get("person_a_id"), r.get("person_b_id")),
-        )
-        _filtered(
-            "topic_consensus",
-            "consensus",
-            lambda r: _hit(r.get("person_a_id"), r.get("person_b_id")),
-        )
+        _person_rows(raw, out, id, served_id_map(root), people)
     else:
         _filtered("temporal_velocity", "topics", lambda r: _hit(r.get("topic_id")))
         _filtered("topic_similarity", "topics", lambda r: _hit(r.get("topic_id")))
@@ -390,6 +386,60 @@ def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
         )
 
     return out
+
+
+def _person_rows(
+    raw: dict[str, Any], out: dict[str, Any], person_id: str, id_map: dict[str, str], people: Any
+) -> None:
+    """One person's co-appearance and consensus rows, every id of the person joined (RFC-131 S6d).
+
+    The enrichers count raw episode ids, so a joined person's rows sit under several ids, and a
+    partner with two ids would be listed twice under one spelling. The card's person matches by
+    group; each row is turned so its own side carries ``person_id`` (the client orients on it) and
+    the partner its canonical id. Co-appearance rows of one partner merge, their episode counts
+    summed: they come from different ids, so different episodes, except where one episode lists
+    the person twice (D2 item 8). A row pairing the person with themselves is dropped.
+    """
+    canonical = lambda i: id_map.get(_norm_entity_id(i), _norm_entity_id(i))  # noqa: E731
+    self_group = canonical(person_id)
+
+    def _turned(row: dict[str, Any]) -> dict[str, Any] | None:
+        a, b = canonical(row.get("person_a_id")), canonical(row.get("person_b_id"))
+        if a == b or self_group not in (a, b):
+            return None
+        new = dict(row)
+        own, other = ("a", "b") if a == self_group else ("b", "a")
+        new[f"person_{own}_id"] = person_id
+        new[f"person_{other}_id"] = canonical(row.get(f"person_{other}_id"))
+        return new
+
+    def _rows(enricher: str, list_key: str) -> list[dict[str, Any]]:
+        env = raw.get(enricher)
+        items = env.get(list_key) if isinstance(env, dict) else None
+        if not isinstance(items, list):
+            return []
+        turned = (_turned(it) for it in items if isinstance(it, dict))
+        return [t for t in turned if t is not None]
+
+    pairs: dict[str, dict[str, Any]] = {}
+    for row in _rows("guest_coappearance", "pairs"):
+        other = row["person_b_id"] if row["person_a_id"] == person_id else row["person_a_id"]
+        if other in pairs:
+            pairs[other]["episode_count"] = _as_int(pairs[other].get("episode_count")) + _as_int(
+                row.get("episode_count")
+            )
+        else:
+            pairs[other] = row
+    if pairs:
+        merged = sorted(pairs.values(), key=lambda r: -_as_int(r.get("episode_count")))
+        out["guest_coappearance"] = spell_enrichment_people(
+            "guest_coappearance", {"pairs": merged}, people
+        )
+    consensus = _rows("topic_consensus", "consensus")
+    if consensus:
+        out["topic_consensus"] = spell_enrichment_people(
+            "topic_consensus", {"consensus": consensus}, people
+        )
 
 
 @router.get("/corpus/entity-signals", response_model=AppEntitySignalsResponse)

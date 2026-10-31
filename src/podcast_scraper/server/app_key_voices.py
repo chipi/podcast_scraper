@@ -17,6 +17,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_relational_view import hosted_photo_urls
@@ -48,7 +49,9 @@ def key_voices_for_user(
     for _slug, row in rows[:_MAX_SCAN]:
         if not row.has_kg:
             continue
-        persons, _orgs, _topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+        persons, _orgs, _topics = entities_from_kg(
+            load_json_artifact(root, row.kg_relative_path), people=person_display(root)
+        )
         for person in persons:
             counts[person.id] += 1
             # entities_from_kg yields AppEntity, whose display field is ``name`` (not ``label``);

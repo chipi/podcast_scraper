@@ -32,6 +32,11 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache
+from podcast_scraper.identity.display import (
+    person_display,
+    PERSON_PAIR_ENRICHERS,
+    spell_enrichment_people,
+)
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.routes.app_enrichment import filtered_entity_signals
 from podcast_scraper.utils.path_validation import (
@@ -241,6 +246,10 @@ def get_corpus_enrichment(
         token,
         lambda: _read_envelope(envelope_path),
     )
+    if isinstance(envelope, dict) and enricher_id in PERSON_PAIR_ENRICHERS:
+        spelled = spell_enrichment_people(enricher_id, envelope.get("data"), person_display(root))
+        if spelled is not envelope.get("data"):
+            envelope = {**envelope, "data": spelled}
     return envelope
 
 

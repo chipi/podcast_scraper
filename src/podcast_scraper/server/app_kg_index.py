@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Iterator, NamedTuple, Sequence
 
 from podcast_scraper import perf_cache
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
@@ -54,7 +55,7 @@ def iter_kg_entities(
         artifact = load_json_artifact(root, row.kg_relative_path)
         if artifact is None:
             continue
-        persons, orgs, topics = entities_from_kg(artifact)
+        persons, orgs, topics = entities_from_kg(artifact, people=person_display(root))
         yield row, persons, orgs, topics
 
 
@@ -135,8 +136,6 @@ def build_kg_index(root: Path) -> KgEntityIndex:
     A joined person carries their group's one spelling from the ledger (RFC-131 S6b), not the
     first-seen variant's, so the person card, its related people and the entity refs agree.
     """
-    from ..identity.display import person_display
-
     canonical = _canonical_person_ids(root)
     people = person_display(root)
     episodes: list[EpisodeEntities] = []

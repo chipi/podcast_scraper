@@ -36,7 +36,7 @@ def _wire(
     monkeypatch.setattr(
         app_key_voices,
         "entities_from_kg",
-        lambda rel: (per_slug.get(rel, []), [], []),
+        lambda rel, **_kw: (per_slug.get(rel, []), [], []),
     )
 
 
@@ -99,7 +99,9 @@ def test_unresolvable_heard_slugs_are_skipped(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setattr(app_key_voices, "load_json_artifact", lambda _root, rel: rel)
     monkeypatch.setattr(app_key_voices, "hosted_photo_urls", lambda _root: {})
     monkeypatch.setattr(
-        app_key_voices, "entities_from_kg", lambda rel: ([_person("person:jane", "Jane")], [], [])
+        app_key_voices,
+        "entities_from_kg",
+        lambda rel, **_kw: ([_person("person:jane", "Jane")], [], []),
     )
     voices = app_key_voices.key_voices_for_user(_ROOT, tmp_path, "u_x")
     assert [v["id"] for v in voices] == ["person:jane"]
@@ -112,5 +114,5 @@ def test_skips_rows_without_kg(tmp_path: Path, monkeypatch) -> None:
     )
     monkeypatch.setattr(app_key_voices, "load_json_artifact", lambda *a: {})
     monkeypatch.setattr(app_key_voices, "hosted_photo_urls", lambda _root: {})
-    monkeypatch.setattr(app_key_voices, "entities_from_kg", lambda *a: (["nope"], [], []))
+    monkeypatch.setattr(app_key_voices, "entities_from_kg", lambda *a, **_kw: (["nope"], [], []))
     assert app_key_voices.key_voices_for_user(_ROOT, tmp_path, "u_x") == []

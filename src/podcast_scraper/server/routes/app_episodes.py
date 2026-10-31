@@ -818,7 +818,9 @@ def episode_entities(
     root, row = _resolve(request, slug)
     if not row.has_kg:
         return AppEntitiesResponse(episode_slug=slug)
-    persons, orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+    persons, orgs, topics = entities_from_kg(
+        load_json_artifact(root, row.kg_relative_path), people=person_display(root)
+    )
     # The Episode notes panel opens on the people in the room with their photos, so the episode's
     # persons carry the same hosted-photo route as every other people-list surface.
     persons = with_photos(persons, hosted_photo_urls(root))

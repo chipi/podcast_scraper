@@ -14,6 +14,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.identity.display import person_display
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -485,7 +486,7 @@ def _episode_entities(root: Path, row: CatalogEpisodeRow) -> list[tuple[str, str
     artifact = load_json_artifact(root, row.kg_relative_path)
     if artifact is None:
         return []
-    persons, _orgs, topics = entities_from_kg(artifact)
+    persons, _orgs, topics = entities_from_kg(artifact, people=person_display(root))
     return [("topic", t.id, t.label) for t in topics if t.id] + [
         ("person", p.id, p.name) for p in persons if p.id
     ]

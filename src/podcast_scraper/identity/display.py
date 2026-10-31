@@ -68,3 +68,55 @@ def person_display(root: Path | str) -> PersonDisplay:
         _NS, str(root.resolve()), corpus_mtime(root), lambda: _build(root)
     )
     return view
+
+
+#: Corpus enrichers whose rows name two people: ``{enricher_id: list key}`` (RFC-131 S6d).
+_PERSON_PAIR_LISTS = {"guest_coappearance": "pairs", "topic_consensus": "consensus"}
+PERSON_PAIR_ENRICHERS = frozenset(_PERSON_PAIR_LISTS)
+
+
+def spell_enrichment_people(enricher_id: str, data: Any, people: Optional[PersonDisplay]) -> Any:
+    """An enrichment envelope's ``data`` with each named person spelled through ``people``.
+
+    Covers the pair rows' ``person_a_name`` / ``person_b_name`` and a co-appearance community's
+    ``community_label`` (its anchor member's name). Returns a copy when anything changes, so a
+    cached envelope is never mutated; ``data`` itself otherwise.
+    """
+    list_key = _PERSON_PAIR_LISTS.get(enricher_id)
+    if people is None or not len(people) or list_key is None or not isinstance(data, dict):
+        return data
+    rows = data.get(list_key)
+    if not isinstance(rows, list):
+        return data
+    own_name: Dict[str, str] = {}
+    spelled_rows = []
+    for row in rows:
+        if not isinstance(row, dict):
+            spelled_rows.append(row)
+            continue
+        new = dict(row)
+        for side in ("a", "b"):
+            pid, name = row.get(f"person_{side}_id"), row.get(f"person_{side}_name")
+            if isinstance(pid, str) and isinstance(name, str):
+                own_name.setdefault(pid, name)
+                new[f"person_{side}_name"] = people.shown(pid, name)
+        spelled_rows.append(new)
+    out = dict(data)
+    out[list_key] = spelled_rows
+    communities = data.get("communities")
+    if isinstance(communities, list):
+        out["communities"] = [_spelled_community(c, own_name, people) for c in communities]
+    return out
+
+
+def _spelled_community(community: Any, own_name: Dict[str, str], people: PersonDisplay) -> Any:
+    """The community's label spelled through its anchor, a member whose own name it is. Several
+    members can carry the name (one person's ids): it is spelled when they all spell it alike."""
+    if not isinstance(community, dict) or not isinstance(community.get("community_label"), str):
+        return community
+    label = community["community_label"]
+    anchors = [m for m in community.get("member_ids") or [] if own_name.get(m) == label]
+    spellings = {people.shown(m, label) for m in anchors}
+    if len(spellings) != 1:
+        return community
+    return {**community, "community_label": spellings.pop()}
