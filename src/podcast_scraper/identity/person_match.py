@@ -310,9 +310,32 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
 
 def _cluster(name_a: str, name_b: str, kind: str, vocab: _Vocab) -> bool:
     """Mode ``cluster``'s rule with one language's vocabulary."""
-    if not _cluster_rule(name_a, name_b, kind, vocab):
+    if _cluster_rule(name_a, name_b, kind, vocab):
+        return kind != "org" or _org_drift_within_one_edit(name_a, name_b)
+    return kind == "org" and _org_same_without_article(name_a, name_b)
+
+
+def _org_same_without_article(name_a: str, name_b: str) -> bool:
+    """ "The Pragmatic Engineer" and "Pragmatic Engineer": EQUAL (case, spacing, hyphens aside) once
+    a leading "the" goes, with two or more words left (RFC-131 S5o part 2).
+
+    Exact on purpose: compared through the fuzzy rule instead, "The Nation" joined "Notion" on the
+    production corpus. One word left ("The Times" / "Times") is too little to tell an outlet from
+    a word. English only: orgs carry no language in mode ``cluster``, so another language's
+    article is not dropped, which can only split.
+    """
+    if _clean_cached is None:
+        _bind_kg_filters()
+    assert _clean_cached is not None
+    wa, wb = (
+        _clean_cached(name_a).replace("-", " ").split(),
+        _clean_cached(name_b).replace("-", " ").split(),
+    )
+    sa = wa[1:] if wa[:1] == ["the"] else wa
+    sb = wb[1:] if wb[:1] == ["the"] else wb
+    if (sa, sb) == (wa, wb) or len(sa) < 2 or len(sb) < 2:
         return False
-    return kind != "org" or _org_drift_within_one_edit(name_a, name_b)
+    return "".join(sa) == "".join(sb)
 
 
 def _org_drift_within_one_edit(name_a: str, name_b: str) -> bool:

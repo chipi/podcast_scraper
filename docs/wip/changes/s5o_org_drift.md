@@ -116,13 +116,52 @@ ledger build and the read-time map):
 - **The real code must give the prototype's org map sha.** Any difference is explained before step
   7.
 
+### 4b. Part 2, the dedup direction (dated 2026-10-31)
+
+- **Inventory** (`s5o/org_splits.py`): org candidates on a shared show that are one name after a light
+  normalisation (case, punctuation, spacing, a leading "the", a plural "s"), yet stay apart under part
+  1's rule. 17 groups: 8 train, 2 held-out, 7 mixed.
+  - On training shows 7 of the 8 are a leading "The" ("The X" / "X").
+  - The 8th is a plural with a spacing difference. That one case is not built.
+- **The rule:** two org names also join when they are EQUAL (case, spacing and hyphens aside) once
+  a leading English article "the" is dropped from either side. There is no fuzzy step on top. A
+  first draft compared them through the fuzzy rule and joined "The Nation" onto "Notion"
+  (`s5o/proto_article.txt` history), so the comparison is exact.
+- **Predicted on snapshot-prod-20261030** (prototype `s5o/proto_article.py`):
+  - org joins 97 → 109; 12 added, 0 removed, 0 moved;
+  - by side: 7 train, 5 mixed, 0 held-out;
+  - by my read: all 12 one entity (newspapers, magazines, podcasts and an institute, each with and
+    without "The").
+- **The 12, by name, are in `s5o/proto_article.txt`.** Every one has two or more words after the
+  article (0 of 12 have one word). On snapshot-prod-20261030 only.
+- **One-word guard, added after the fresh read:** the article is dropped only when two or more words
+  remain. "The Nation" / "Nation" or "The Times" / "Times" stay apart, because one word carries too
+  little, as for people (S4). It costs 0 of the 12 here.
+- **Third members:** all 12 are new two-member groups ("was -" for each, 0 moved). No existing group
+  gains or loses a member, and the 97 prior joins are unchanged by identity. "The Rest is History"
+  and "The Rest is History Club" stay apart, because the match is exact.
+- **The 5 groups the rule leaves apart, of the inventory's 17:**
+  - a plural "s", 4 groups: one training, two held-out, one mixed. Not built: one training case, and
+    a plural can name another thing;
+  - an en dash against a hyphen, 1 group, mixed. No training case; listed for later.
+- **Must not move:** person joins and the blocked list, and part 1's 97 org joins.
+- **Language:** "the" is English. Orgs carry no language in mode `cluster`, so a non-English leading
+  article is not dropped. That can only split, never merge.
+
 ## 5. Acceptance
 
 Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, under a minute: "Not
 complete". Rows added: the rule version and the apply order; which map; the other callers (must
 not move); the surfaces fed by the served map; caches; reference integrity.
 
+Part 2's fresh reader, 2026-10-31, under a minute: "not complete". Rows added: the 5 groups left
+apart with causes; the one-word count, and a one-word guard (taken); third members; the 12 listed
+by path.
+
 Spot checks for step 8:
+- "New Yorker" and "The New Yorker" resolve to one id;
+- "The Rest is History" and "The Rest is History Club" stay two ids;
+- no served org changes beyond part 1's and the 12;
 - the person map and the blocked list byte-identical to S5b on the snapshot;
 - the ledger's rule version, and the org map sha `d05cfbf5f9f3`;
 - the 2 wrong and the 2 unclear joins left, each named and read once;
@@ -153,6 +192,25 @@ Code: `identity/person_match.py` `_cluster` = the existing rule (now `_cluster_r
   - no spacing pass-through: `test_guards.py::TestJoinTest::test_orgs_are_not_guarded`.
 - **Tests:** identity, kg, search and server unit areas: `3152 passed`. black, flake8 and mypy
   clean.
+
+### 6b / 7b. Part 2 build and measure
+
+- **Tests, written first** (`test_org_leading_article`, `test_the_article_rule_does_not_reach_people`):
+  3 failed before the code.
+- **Code:** `_cluster` accepts an org pair when the cluster rule and the one-edit limit both pass,
+  or else when `_org_same_without_article` holds.
+- **Gate** (`s5o/s5o_gate.sh`, now expecting the final numbers):
+  - person joins identical, 731; blocked identical;
+  - org joins 109, sha `a71d0a665d8b`;
+  - the diff against part 1 is exactly the prototype's 12 added joins;
+  - `S5O GATE: PASS`.
+- **Mutants:**
+  - no one-word guard: killed by a unit test;
+  - the article rule applied to people: killed by a unit test;
+  - **fuzzy after the article: SURVIVED the gate.** On the snapshot the one-word guard already
+    refuses the one pair the fuzzy step would add. It is killed by the unit scenario
+    `The Velmora Daily` / `Delmora Daily`, so the guard against it is a test, not the corpus.
+- **Tests:** identity, kg, search and server areas pass; flake8 and mypy clean.
 
 ## 8. Verdict
 

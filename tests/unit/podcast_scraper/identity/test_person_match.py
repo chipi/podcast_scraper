@@ -232,3 +232,27 @@ def test_org_differing_words_one_edit_apart(a: str, b: str, want: bool) -> None:
 def test_the_org_limit_does_not_reach_people() -> None:
     assert pm.cluster_variants("Korin Belmira", "Korin Velmora", "person")
     assert pm.cluster_person_variants("Korin Belmira", "Korin Velmora")
+
+
+@pytest.mark.parametrize(
+    "a,b,want",
+    [
+        # S5o part 2: equal once a leading "the" goes, two or more words left
+        ("The Quorland Review", "Quorland Review", True),
+        ("the quorland review", "Quorland Review", True),
+        ("The Quorland-Review", "Quorland Review", True),
+        # exact only: no fuzzy step after the article
+        ("The Velmora Daily", "Delmora Daily", False),
+        ("The Quorland Review", "Quorland Review Club", False),
+        # one word left: too little to tell an outlet from a word
+        ("The Velmora", "Velmora", False),
+        # people are not affected
+    ],
+)
+def test_org_leading_article(a: str, b: str, want: bool) -> None:
+    assert pm.cluster_variants(a, b, "org") is want
+    assert pm.cluster_variants(b, a, "org") is want
+
+
+def test_the_article_rule_does_not_reach_people() -> None:
+    assert not pm.cluster_variants("The Korin Vael", "Korin Vael", "person")
