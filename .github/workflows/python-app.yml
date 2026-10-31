@@ -314,10 +314,17 @@ jobs:
       run: |
         python -m venv .venv
         .venv/bin/pip install --upgrade pip
+        # CPU-only torch first, as docker/api/Dockerfile does: PyPI's torch brings ~3 GB of NVIDIA
+        # CUDA wheels this GPU-less runner cannot use, and on runner image 20261015.610 they filled
+        # the disk (Errno 28, main 540fb20cf). The no-deps reinstall after the extras keeps the CPU
+        # build if a dependency pulled PyPI's.
+        .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
         # [dev] pulls FastAPI + uvicorn for `podcast_scraper serve`; [search] pulls lancedb +
         # sentence-transformers, which the ten search-* specs and the topic bands need — the
         # routes branch on has_index, so without a real index they render a different claim.
         .venv/bin/pip install -e ".[dev,search]"
+        .venv/bin/pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu
+        .venv/bin/python -c "import torch; assert not torch.version.cuda, torch.version.cuda; print('torch', torch.__version__, 'cpu')"
     - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
       uses: ./.github/actions/install-ffmpeg
     - uses: actions/setup-node@v7
