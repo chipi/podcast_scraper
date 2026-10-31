@@ -237,6 +237,15 @@ Verdict: GO WITH CONDITIONS
 - **Condition 2:** the operator's explicit acceptance, as a set, of the at-least-15 false splits and of guard (c)'s trade (3 wrong merges refused, 5 false splits).
 - **Condition 3:** step 10's prod plan diff covers the 22 episodes ingested after the snapshot.
 
+Operator accepted: 2026-10-31 condition 2, as a set: the at-least-15 false splits and guard (c)'s
+trade (3 wrong merges refused, 5 false splits). The operator also asked that they be tracked and
+monitored on prod: every changed join of `s4/s4_reviewed_changes.json` (40 removed, 11 moved: the
+refusals and the false splits) is read as served on prod after the deploy (step 11), and the
+same list is re-read after each later ledger build until D2.
+
+Operator decided: 2026-10-31 `NAMING_ARC_MARKER` stays in D1 (removing it would change 0038's
+code digest); it is removed in D2.
+
 Open, not a condition: the nginx test's `_docker_is_usable` guard returned true here although `docker run` then hit the closed production socket; why `docker version --format {{.Server.Version}}` succeeded is not diagnosed.
 
 ## 9. Operator review
