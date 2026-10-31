@@ -83,5 +83,15 @@ The operator's rule decides the failure mode: a wrong name shown is worse than a
   the server's cache warm-up path.
 - **Format:** an extension of `ENTITY_CLUSTERS_SCHEMA_VERSION`'s payload.
 - **Token:** `perf_cache.corpus_mtime` gains the ledger file name.
+- **Where the step runs:** `identity.ledger.refresh_ledger`, after a successful `enrich` run (the
+  post-pipeline chain, #1653, queues one coalesced run after every ingest and every reprocess
+  batch, so relabel repair is covered there and the ledger is built once per batch, not per feed),
+  after an `upgrade run` that applied a migration, and after an `enrich-edges` pass that rewrote
+  artifacts. `enrich --no-identity-ledger` opts out; `podcast_scraper identity-ledger` builds it by
+  hand (`--dry-run`, `--status`, `--restore-previous`). A failed build keeps the previous ledger and
+  fails the command with exit 4.
+- **Undo:** each write keeps the ledger it replaces, when valid, as `identity_ledger.previous.json`;
+  `identity-ledger --restore-previous` puts it back. Deleting the ledger is never the undo: no
+  ledger means no joins.
 - **Measure:** the `name_report` field R7 reports the ledger's state, age, and the episodes newer
   than it.
