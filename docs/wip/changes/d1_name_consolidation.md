@@ -158,8 +158,37 @@ landing test, refusing 0038 until its step 8 and outcome exist (expected at this
 Cheap gates (format-check, lint, type, docstrings, spelling, check-unit-imports,
 check-test-policy) PASS after 476c0002d; `make docs-check` PASS.
 
-Still to run: ci-fast and test-integration on the final tree, the Playwright specs, the viewer
-and player suites; R3a/R3b/R6 rows from the report.
+**Added after the first step-8 read (NO-GO, 2026-10-31), each item it found missing:**
+
+- *Gold moves by identity* (eval-data `d1/gold_changed.json`): the 3 insights moving shown →
+  hidden are dev_v1 `e8457907…` `insight:2203f596755b967a`, val_v1 `1_2721666`
+  `insight:8f5207da04583268`, val_v2 `https://iono.fm/e/1726016` `insight:1e582c4abc31bf37`; all
+  three are in 0038's accepted set of 53 (record 0038, N4). None is a correct or wrong attribution.
+- *Organisation joins unchanged:* main's in-memory map on the snapshot and the ledger on the copy
+  both hold 229 org joins, sha `bfb00faa2eec` (eval-data `d1/orgs.py`).
+- *The 9 blocked joins, listed* (ids carry names, so in eval-data `d1/ledger_blocked_joins.json`):
+  the same 9 the S4 replay recorded (record S4 result: 8 mention co-occurrence, 1 co-voice).
+- *The two S10a episodes, stored:* `d1/s10a_zero_visible_main.json` (191) and
+  `d1/s10a_zero_visible_branch_before_0038.json` (193); the difference is exactly the two named
+  above (eval-data `d1/zero_vis.py`).
+- *A second ledger build changes nothing:* `identity-ledger --dry-run` on the copy after the write:
+  949 joins, 0 added, 0 removed, 0 moved, previous state ok.
+- *The person-join changes by identity:* 40 removed and 11 moved, each with a verdict, in eval-data
+  `s4/s4_reviewed_changes.json` (the S4 gate requires the list to equal the map's changes).
+- *Playwright* (phone size, `npx playwright test transcript-speaker-labels entity-pages
+  episode-notes-people entity-and-rails-invariants`, branch 30303f269 tree, its config writes the
+  ledger before the api starts): **43 passed (2.1 m)**.
+
+**The code that ships:** the branch head after the last code commit, 085594053 (0038's outcome; the
+code is 30303f269's plus the outcome file; later commits are records only). ci-fast and
+test-integration run on that tree next.
+
+**Builder's verdict: GO WITH CONDITIONS.** Deciding numbers: wrong merges refused corpus-wide 25
+by my reading (none confirmed by the operator from the cards; 1 disagreement); the truth set's
+reachable wrong merge P159 fixed; R1 0 on every surface including the files; every scoreboard move
+listed by identity and accepted. Conditions: `make ci-fast` and `make test-integration` green on
+the shipping tree; the viewer and player suites once; the prod plan diff at step 10 (22 episodes
+ingested since the snapshot).
 
 ## 8. Verdict
 
@@ -189,4 +218,27 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- **The reading of the 51 changed joins is mostly mine.** The operator read 10 cards: 2 agree, 1
+  disagrees (Yushin / Yushan, read as one person: a false split by the one-word mode), 4 can't tell
+  from the corpus evidence shown (2 of them I judged from who the names are), 3 of my 5 unclear read
+  as one person (false splits). No refusal was confirmed by the operator from the cards alone.
+- **At least 15 false splits are accepted** (one person shown under two names): 11 by my reading
+  plus 4 by the operator's. Titles missing from the rule's list (Mayor, Senate President) cause 2;
+  adding them changes mode `cluster` everywhere and is not done.
+- **The held-out truth set shows only cost** (S1 held-out joined 21 → 19; it held no wrong merge).
+  The gain is corpus-wide and rests on the reading above.
+- **Guard (b), publisher list, is not exercised by prod data** (switching it off changes nothing);
+  unit tests only.
+- **The ledger step on prod's real chain is not rehearsed:** the hooks are tested in unit tests and
+  the enrich hook ran on the copy (24 episodes); the nightly's post-pipeline chain with the new image
+  is first exercised on prod.
+- **Cross-show joining (R4) does not move;** that is S8.
+- **The prod corpus moved after the snapshot:** 22 new served episodes (3,069 → 3,091, 2026-10-31
+  nightly, written by the deployed pre-S3 code): their joins and any raw-label Persons are not in
+  this measurement; prod's plan diff at step 10 covers 0038, and the ledger build on prod covers
+  the joins.
+- **R3a / R3b / R6 as report rows:** the report does not compute them yet; the S4 replay and the
+  read list stand in.
+- **The viewer and player suites, `make ci-fast`, `make test-integration`:** not yet run on the
+  shipping tree.
+- **The 5 episodes failing 0025's verify** are corpus state on main's code too; they are S6's.
