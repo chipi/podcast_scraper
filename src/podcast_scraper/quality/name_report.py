@@ -119,9 +119,9 @@ class Episode:
     @property
     def language(self) -> Optional[str]:
         """The episode's language as the catalog serves it (the episode's, else the feed's)."""
-        from podcast_scraper.server.corpus_catalog import _episode_language
+        from podcast_scraper.languages import episode_language
 
-        return _episode_language(self.metadata)
+        return episode_language(self.metadata)
 
     def artifact(self, suffix: str) -> Optional[Dict[str, Any]]:
         """The episode's sibling artifact with ``suffix`` (``.gi.json``, ``.kg.json``), parsed."""

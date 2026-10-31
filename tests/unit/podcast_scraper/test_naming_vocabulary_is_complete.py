@@ -26,12 +26,32 @@ LANGUAGES = naming_vocabulary.TIER_1_LANGUAGES
 NON_ENGLISH = tuple(lang for lang in LANGUAGES if lang != "en")
 
 
+#: Maps that are per-language but have rows only where a language has something to say, each with
+#: its reason. Checked here, so the exception is reviewed rather than silent, and so a map named
+#: here
+#: that stops being sparse is noticed (`test_every_sparse_map_is_still_sparse`).
+SPARSE_ON_PURPOSE = {
+    # Person-name nicknames: English only until a miss is measured in another language's prod data
+    # (RFC-131 S5b). An invented nickname table would merge two people.
+    "NAME_NICKNAMES": {"en"},
+    # Letters written two ways (German umlauts and sharp s); other languages have none.
+    "NAME_FOLDS": {"de"},
+}
+
+
 def _maps() -> dict[str, dict]:
     return {
         name: value
         for name, value in vars(naming_vocabulary).items()
-        if name.isupper() and isinstance(value, dict)
+        if name.isupper() and isinstance(value, dict) and name not in SPARSE_ON_PURPOSE
     }
+
+
+def test_every_sparse_map_is_still_sparse() -> None:
+    for name, rows in SPARSE_ON_PURPOSE.items():
+        table = getattr(naming_vocabulary, name)
+        assert set(table) == rows, f"{name}: rows {sorted(table)}, recorded {sorted(rows)}"
+        assert all(table[lang] for lang in rows), f"{name} has an empty row"
 
 
 class TestEveryMapCoversEveryLanguage:

@@ -4247,3 +4247,122 @@ DESCRIPTOR_PATTERNS: Dict[str, str] = {
         r"|radicad[oa]s?|nascid[oa]s?)\b"
     ),
 }
+
+
+# =============================================================================================
+# CROSS-EPISODE NAME MATCHING (identity/person_match.py; RFC-131 S5b, plan items L1, L4, L5)
+# =============================================================================================
+
+#: Titles the person rule strips before comparing two names ("Dr. Elena Fischer" ~ "Elena
+#: Fischer"). Lowercase, trailing dot optional. ``en`` is the list the rule always used, moved here
+#: unchanged; the other rows are this module's ``HONORIFIC_TITLES``. A language with a row here, or
+#: in ``FAMILY_NAME_FIRST``, gets the fuzzy spelling rules; any other resolved language gets only
+#: "equal after normalisation" (L2).
+NAME_MATCH_TITLES: Dict[str, FrozenSet[str]] = {
+    "en": frozenset(
+        {
+            "dr",
+            "dr.",
+            "mr",
+            "mr.",
+            "mrs",
+            "mrs.",
+            "ms",
+            "ms.",
+            "prof",
+            "prof.",
+            "professor",
+            "sir",
+            "ayatollah",
+            "rabbi",
+            "imam",
+            "father",
+            "sister",
+            "brother",
+            "president",
+            "senator",
+            "rep",
+            "rep.",
+            "gov",
+            "gov.",
+            "judge",
+            "justice",
+            "captain",
+            "lieutenant",
+            "lt",
+            "lt.",
+            "general",
+            "gen",
+            "gen.",
+            "ambassador",
+        }
+    ),
+    "de": HONORIFIC_TITLES["de"],
+    "es": HONORIFIC_TITLES["es"],
+    "fr": HONORIFIC_TITLES["fr"],
+    "it": HONORIFIC_TITLES["it"],
+    "pt": HONORIFIC_TITLES["pt"],
+}
+
+#: Nicknames where the full first name differs by too much for the ratio test (Michael -> Mike,
+#: Robert -> Rob / Bob) but the people are the same. Lowercase, read both ways. Tuned in #904 from
+#: the #853 silver-eval miss catalogue, and not meant to be exhaustive: add a pair only after you
+#: have seen the miss in real prod data. English only, ON PURPOSE (listed in the completeness test's
+#: ``SPARSE_ON_PURPOSE``): no other language has a measured miss yet.
+NAME_NICKNAMES: Dict[str, Dict[str, FrozenSet[str]]] = {
+    "en": {
+        k: frozenset(vals)
+        for k, vals in {
+            "michael": {"mike"},
+            "nicholas": {"nick"},
+            "elizabeth": {"liz", "beth", "betsy"},
+            "jerome": {"jerry", "jay", "j."},
+            "emmanuel": {"manny"},
+            "richard": {"rich", "rick", "dick"},
+            "robert": {"rob", "bob", "bobby"},
+            "william": {"will", "bill", "billy"},
+            "thomas": {"tom", "tommy"},
+            "joseph": {"joe", "joey"},
+            "anthony": {"tony"},
+            "patrick": {"pat"},
+            "stephen": {"steve"},
+            "steven": {"steve"},
+            "matthew": {"matt"},
+            "jonathan": {"jon"},
+            "christopher": {"chris"},
+            "samuel": {"sam"},
+            "alexander": {"alex", "al"},
+            "daniel": {"dan", "danny"},
+            "edward": {"ed", "eddie", "ted"},
+            "andrew": {"andy", "drew"},
+            "benjamin": {"ben"},
+            "katherine": {"kate", "katie", "kathy"},
+            "catherine": {"cathy", "kate"},
+            "rebecca": {"becky"},
+            "susan": {"sue"},
+            "deborah": {"debbie", "deb"},
+            "barbara": {"barb"},
+            "patricia": {"pat", "patty", "trish"},
+            "jennifer": {"jen", "jenny"},
+            "margaret": {"maggie", "meg", "peggy"},
+        }.items()
+    },
+}
+
+#: Letters a language writes two ways, folded before a name is cleaned (cleaning strips accents,
+#: so without the fold "Müller" and "Mueller" differ by a letter). Applied in order. Sparse ON
+#: PURPOSE (``SPARSE_ON_PURPOSE``): only a language that writes a letter two ways has a row.
+NAME_FOLDS: Dict[str, Tuple[Tuple[str, str], ...]] = {
+    "de": (
+        ("ä", "ae"),
+        ("ö", "oe"),
+        ("ü", "ue"),
+        ("Ä", "Ae"),
+        ("Ö", "Oe"),
+        ("Ü", "Ue"),
+        ("ß", "ss"),
+    ),
+}
+
+#: Languages that write the family name first: a bare family name is the name's FIRST word.
+FAMILY_NAME_FIRST: FrozenSet[str] = frozenset({"zh", "ja", "ko", "hu", "vi"})

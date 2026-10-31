@@ -158,3 +158,50 @@ def test_cluster_person_only_adds_to_the_cluster_rule() -> None:
     for a, b in pairs:
         assert pm.cluster_variants(a, b, "person")
         assert pm.cluster_person_variants(a, b)
+
+
+# ---- S5b: the person rule reads the name's language (invented names) ---------------------------
+
+
+@pytest.mark.parametrize(
+    "a,b,language,want",
+    [
+        # None is today's rule, so every caller that passes no language is unchanged
+        ("Korin Vael", "Korin Vaal", None, True),
+        ("Korin Vael", "Korin Vaal", "en", True),
+        ("Korin Vael", "Korin Vaal", "en-GB", True),
+        # unknown (und) or a code with no vocabulary row: equal after normalisation only
+        ("Korin Vael", "Korin Vaal", "und", False),
+        ("Korin Vael", "Korin Vaal", "ar", False),
+        ("Korin Vael", "KORIN VAEL", "und", True),
+        ("Korin Vael", "KorinVael", "und", True),
+        ("Tamsin Orrell-Vanders", "Tamsin Orrell Vanders", "und", True),
+        ("Dr. Korin Vael", "Korin Vael", "und", False),
+        ("Vael", "Korin Vael", "und", False),
+        ("Corwen T. Halloway", "Corwen Halloway", "und", False),
+        # de: the umlaut fold, and the row's titles
+        ("Jörn Brüll", "Joern Bruell", "de", True),
+        ("Jörn Brüll", "Joern Bruell", None, False),
+        ("Herr Korin Vael", "Korin Vael", "de", True),
+        ("Herr Korin Vael", "Korin Vael", None, False),
+        ("Präsident Korin Vael", "Korin Vael", "de", True),
+        ("Korin Vael", "Korin Vaal", "de", True),
+        # no English nicknames outside English
+        ("Mike Halloway", "Michael Halloway", "en", True),
+        ("Mike Halloway", "Michael Halloway", "de", False),
+        # family name first: the bare family name is the FIRST word
+        ("Wen", "Wen Lirao", "zh", True),
+        ("Lirao", "Wen Lirao", "zh", False),
+        ("Lirao", "Wen Lirao", "en", True),
+    ],
+)
+def test_cluster_person_by_language(a: str, b: str, language, want: bool) -> None:
+    assert pm.cluster_person_variants(a, b, language) is want
+    assert pm.cluster_person_variants(b, a, language) is want
+
+
+def test_the_cluster_mode_ignores_language() -> None:
+    """Orgs, the read-time map and the within-episode merge call mode cluster: unchanged."""
+    for language in (None, "und", "de", "zh"):
+        assert pm.cluster_variants("Korin Vael", "Korin Vaal", "person", language)
+        assert pm.cluster_variants("Halloway Labs", "Haloway Labs", "org", language)

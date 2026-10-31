@@ -20,7 +20,9 @@ def _kg_episode(root: Path, feed: str, run: str, ep: str, persons: Dict[str, str
     meta = root / "feeds" / feed / run / "metadata"
     meta.mkdir(parents=True, exist_ok=True)
     (meta / f"{ep}.metadata.json").write_text(
-        json.dumps({"episode": {"episode_id": ep}, "feed": {"title": feed}}), encoding="utf-8"
+        # An English show, as every prod feed declares one (S5b: untagged joins by equality only).
+        json.dumps({"episode": {"episode_id": ep}, "feed": {"title": feed, "language": "en"}}),
+        encoding="utf-8",
     )
     nodes = [{"id": f"episode:{ep}", "type": "Episode", "properties": {"podcast_id": feed}}]
     nodes += [
@@ -259,3 +261,59 @@ def test_cli_dry_run_names_a_previous_rule_ledger(corpus: Path, capsys) -> None:
     assert run_identity_ledger_cli(args, logging.getLogger("t")) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["previous_state"] == L.STATE_OK_PREVIOUS_RULE
+
+
+# ---- S5b: candidates carry their episodes' languages ---------------------------------------------
+
+
+def _lang_episode(root: Path, feed: str, ep: str, persons: Dict[str, str], language) -> None:
+    _kg_episode(root, feed, f"run_{ep}_20261001-000000", ep, persons)
+    meta = next((root / "feeds" / feed).glob(f"run_{ep}_*/metadata/{ep}.metadata.json"))
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    if language is None:
+        doc["feed"].pop("language", None)
+    else:
+        doc["feed"]["language"] = language
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+
+
+def test_candidates_carry_the_episode_language(tmp_path: Path) -> None:
+    root = tmp_path / "c"
+    _lang_episode(root, "show_de", "d1", {"person:joern-bruell": "Joern Bruell"}, "de-DE")
+    _lang_episode(root, "show_de", "d2", {"person:jorn-brull": "Jörn Brüll"}, "de")
+    _lang_episode(root, "show_x", "x1", {"person:korin-vael": "Korin Vael"}, None)
+    _lang_episode(root, "show_x", "x2", {"person:korin-vaal": "Korin Vaal"}, None)
+    cands = entity_clusters.collect_entity_candidates(root)
+    assert cands["person:joern-bruell"].languages == {"de"}
+    assert cands["person:korin-vael"].languages == {"und"}
+    joins = L.ledger_id_map(L.build_ledger(root))
+    # de: the fold joins the two spellings; und: two different spellings stay apart
+    assert joins.get("person:jorn-brull", joins.get("person:joern-bruell")) in {
+        "person:joern-bruell",
+        "person:jorn-brull",
+    }
+    assert len([k for k in joins if k in {"person:jorn-brull", "person:joern-bruell"}]) == 1
+    assert "person:korin-vaal" not in joins and "person:korin-vael" not in joins
+
+
+def test_an_org_of_unknown_language_still_joins(tmp_path: Path) -> None:
+    root = tmp_path / "c"
+    _lang_episode(root, "show_x", "x1", {}, None)
+    meta = root / "feeds" / "show_x" / "run_x1_20261001-000000" / "metadata" / "x1.kg.json"
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    doc["nodes"] += [
+        {"id": "org:halloway-labs", "type": "Organization", "properties": {"name": "Halloway Labs"}}
+    ]
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    _lang_episode(root, "show_x", "x2", {}, None)
+    meta2 = root / "feeds" / "show_x" / "run_x2_20261001-000000" / "metadata" / "x2.kg.json"
+    doc2 = json.loads(meta2.read_text(encoding="utf-8"))
+    doc2["nodes"] += [
+        {"id": "org:haloway-labs", "type": "Organization", "properties": {"name": "Haloway Labs"}}
+    ]
+    meta2.write_text(json.dumps(doc2), encoding="utf-8")
+    assert entity_clusters.collect_entity_candidates(root)["org:halloway-labs"].languages == {"und"}
+    assert L.ledger_id_map(L.build_ledger(root)) in (
+        {"org:haloway-labs": "org:halloway-labs"},
+        {"org:halloway-labs": "org:haloway-labs"},
+    )

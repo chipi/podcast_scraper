@@ -14,7 +14,8 @@ from __future__ import annotations
 import difflib
 import functools
 import re
-from typing import Callable, List, Optional
+from dataclasses import dataclass
+from typing import Callable, Dict, FrozenSet, List, Optional, Set, Tuple
 
 __all__ = [
     "MODES",
@@ -128,98 +129,6 @@ _ROMAN_NUMERAL_RE = re.compile(
     r"^(?=[ivxlcdm])m{0,4}(c[md]|d?c{0,3})(x[cl]|l?x{0,3})(i[xv]|v?i{0,3})$"
 )
 
-# Nicknames where the canonical pair differs by too much for the ratio test
-# (Michael→Mike, Robert→Rob/Bob) but the people are the same. Lowercase →
-# lowercase, bidirectional (both directions added at module load). Tuned in
-# #904 from the #853 silver-eval miss catalogue. NOT meant to be exhaustive —
-# the catch is "the long-tail of recall improvements at preserved precision":
-# add a pair only after you've seen the miss class in real prod data.
-_NICKNAME_MAP: dict[str, set[str]] = {
-    "michael": {"mike"},
-    "nicholas": {"nick"},
-    "elizabeth": {"liz", "beth", "betsy"},
-    "jerome": {"jerry", "jay", "j."},
-    "emmanuel": {"manny"},
-    "richard": {"rich", "rick", "dick"},
-    "robert": {"rob", "bob", "bobby"},
-    "william": {"will", "bill", "billy"},
-    "thomas": {"tom", "tommy"},
-    "joseph": {"joe", "joey"},
-    "anthony": {"tony"},
-    "patrick": {"pat"},
-    "stephen": {"steve"},
-    "steven": {"steve"},
-    "matthew": {"matt"},
-    "jonathan": {"jon"},
-    "christopher": {"chris"},
-    "samuel": {"sam"},
-    "alexander": {"alex", "al"},
-    "daniel": {"dan", "danny"},
-    "edward": {"ed", "eddie", "ted"},
-    "andrew": {"andy", "drew"},
-    "benjamin": {"ben"},
-    "katherine": {"kate", "katie", "kathy"},
-    "catherine": {"cathy", "kate"},
-    "rebecca": {"becky"},
-    "susan": {"sue"},
-    "deborah": {"debbie", "deb"},
-    "barbara": {"barb"},
-    "patricia": {"pat", "patty", "trish"},
-    "jennifer": {"jen", "jenny"},
-    "margaret": {"maggie", "meg", "peggy"},
-}
-# Symmetric closure so lookup works either direction.
-_NICKNAME_PAIRS: set[tuple[str, str]] = set()
-for _full, _nicks in _NICKNAME_MAP.items():
-    for _n in _nicks:
-        # Strip trailing dot so "j." stored as "j" — `_nickname_token_equiv` does
-        # the same dot-strip on input, so lookups round-trip.
-        _n_norm = _n.rstrip(".")
-        _NICKNAME_PAIRS.add((_full, _n_norm))
-        _NICKNAME_PAIRS.add((_n_norm, _full))
-
-# Title / honorific prefixes the predicate strips before comparing — handles
-# `Dr. Elena Fischer` vs `Elena Fischer`, `Ayatollah Ali Khamenei` vs
-# `Ali Khamenei`. Lowercase, trailing dot optional.
-_TITLE_PREFIXES: frozenset[str] = frozenset(
-    {
-        "dr",
-        "dr.",
-        "mr",
-        "mr.",
-        "mrs",
-        "mrs.",
-        "ms",
-        "ms.",
-        "prof",
-        "prof.",
-        "professor",
-        "sir",
-        "ayatollah",
-        "rabbi",
-        "imam",
-        "father",
-        "sister",
-        "brother",
-        "president",
-        "senator",
-        "rep",
-        "rep.",
-        "gov",
-        "gov.",
-        "judge",
-        "justice",
-        "captain",
-        "lieutenant",
-        "lt",
-        "lt.",
-        "general",
-        "gen",
-        "gen.",
-        "ambassador",
-    }
-)
-_TITLE_PREFIX_STEMS: frozenset[str] = frozenset(p.rstrip(".") for p in _TITLE_PREFIXES)
 
 # The canonical-map build compares every candidate against every same-show cluster member, so
 # one name is cleaned millions of times on the production corpus. Cleaning is pure; cache it.
@@ -238,6 +147,72 @@ def _bind_kg_filters() -> None:
     _is_acronymish = acronymish
 
 
+@dataclass(frozen=True)
+class _Vocab:
+    """One language's name-matching vocabulary (``naming_vocabulary``; RFC-131 S5b, L1/L4/L5)."""
+
+    titles: FrozenSet[str]  # title stems, trailing dot stripped
+    nick_pairs: FrozenSet[Tuple[str, str]]
+    folds: Tuple[Tuple[str, str], ...]
+    family_first: bool
+
+
+#: Built on first use (importing ``speaker_detectors`` at load would pull its package in). The
+#: value None for a language means no vocabulary row: equal-after-normalisation only (L2).
+_VOCABS: Dict[str, Optional[_Vocab]] = {}
+
+
+def _pairs(table: Dict[str, FrozenSet[str]]) -> FrozenSet[Tuple[str, str]]:
+    out: Set[Tuple[str, str]] = set()
+    for full, nicks in table.items():
+        for nick in nicks:
+            # Stored without the trailing dot; `_nickname_token_equiv` strips it on input too.
+            n = nick.rstrip(".")
+            out.update({(full, n), (n, full)})
+    return frozenset(out)
+
+
+def _vocab_for(language: Optional[str]) -> Optional[_Vocab]:
+    """The vocabulary for ``language``: English for None (today's rule), None for no row."""
+    from ..speaker_detectors import naming_vocabulary as nv
+
+    code = "en" if language is None else nv.primary_subtag(language)
+    if code in _VOCABS:
+        return _VOCABS[code]
+    titles = nv.NAME_MATCH_TITLES.get(code)
+    if titles is None and code in nv.FAMILY_NAME_FIRST:
+        titles = frozenset()  # no title list yet; the name order is known
+    vocab: Optional[_Vocab] = None
+    if titles is not None:
+        folds = nv.NAME_FOLDS.get(code, ())
+        if code == "en":
+            stems = frozenset(
+                t.rstrip(".") for t in titles
+            )  # exactly the list the rule always used
+        else:
+            if _clean_cached is None:
+                _bind_kg_filters()
+            assert _clean_cached is not None
+            stems = frozenset(_clean_cached(_fold(t, folds)).rstrip(".") for t in titles)
+        vocab = _Vocab(
+            stems, _pairs(nv.NAME_NICKNAMES.get(code, {})), folds, code in nv.FAMILY_NAME_FIRST
+        )
+    _VOCABS[code] = vocab
+    return vocab
+
+
+def _en() -> _Vocab:
+    vocab = _vocab_for(None)
+    assert vocab is not None
+    return vocab
+
+
+def _fold(name: str, folds: Tuple[Tuple[str, str], ...]) -> str:
+    for src, dst in folds:
+        name = name.replace(src, dst)
+    return name
+
+
 def _ratio_below(a: str, b: str, threshold: float) -> bool:
     """Exactly ``SequenceMatcher(None, a, b).ratio() < threshold``, mostly without the full match.
 
@@ -250,14 +225,14 @@ def _ratio_below(a: str, b: str, threshold: float) -> bool:
     return matcher.ratio() < threshold
 
 
-def _strip_title_prefix(tokens: List[str]) -> List[str]:
+def _strip_title_prefix(tokens: List[str], vocab: Optional[_Vocab] = None) -> List[str]:
     """Drop a leading title token like 'Dr.' or 'Ayatollah'. Returns the rest."""
-    if tokens and tokens[0].rstrip(".") in _TITLE_PREFIX_STEMS:
+    if tokens and tokens[0].rstrip(".") in (vocab or _en()).titles:
         return tokens[1:]
     return tokens
 
 
-def _nickname_token_equiv(x: str, y: str) -> bool:
+def _nickname_token_equiv(x: str, y: str, vocab: Optional[_Vocab] = None) -> bool:
     """True if x and y are the same first-name modulo nickname (case-insensitive).
 
     Tolerates trailing-dot variants on both sides so `J.` and `j` and `j.`
@@ -267,10 +242,10 @@ def _nickname_token_equiv(x: str, y: str) -> bool:
     xn, yn = x.rstrip("."), y.rstrip(".")
     if xn == yn:
         return True
-    return (xn, yn) in _NICKNAME_PAIRS
+    return (xn, yn) in (vocab or _en()).nick_pairs
 
 
-def _token_count_tolerant_match(a: str, b: str, kind: str) -> bool:
+def _token_count_tolerant_match(a: str, b: str, kind: str, vocab: Optional[_Vocab] = None) -> bool:
     """Handle token-count mismatches the strict aligned predicate rejects.
 
     Covers three patterns from the #853 silver-eval miss catalogue (#904
@@ -297,7 +272,8 @@ def _token_count_tolerant_match(a: str, b: str, kind: str) -> bool:
     if len(ta) == len(tb):
         return False  # caller already handled equal-count case
     # 1. Title-prefix strip on either side (or both).
-    sa, sb = _strip_title_prefix(ta), _strip_title_prefix(tb)
+    vocab = vocab or _en()
+    sa, sb = _strip_title_prefix(ta, vocab), _strip_title_prefix(tb, vocab)
     if (sa != ta or sb != tb) and len(sa) == len(sb) and sa == sb:
         return True
     if kind == "person":
@@ -305,7 +281,7 @@ def _token_count_tolerant_match(a: str, b: str, kind: str) -> bool:
         if len(short) == 1 and len(long_) >= 2:
             # 2. Family-only reference: short token matches long's LAST token exactly.
             #    e.g. `Carney` ↔ `Mark Carney`, `Trump` ↔ `Donald Trump`.
-            if short[0] == long_[-1]:
+            if short[0] == (long_[0] if vocab.family_first else long_[-1]):
                 return True
             # NOTE: a first-name-only-merge rule (short matches long's first
             # token) was attempted in an earlier #904 draft but removed —
@@ -324,11 +300,16 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
     """Mode ``cluster``: are two names one entity across episodes (the identity map's rule, #852).
 
     Conservative: spelling drift, not distinct names. ``kind`` is ``"person"`` or ``"org"``.
-    ``language`` is accepted and not yet used: the titles and nicknames below are today's
-    English-only lists for every language, and the per-language vocabulary is wired in a later,
-    measured step (RFC-131, languages).
+    ``language`` is accepted and ignored: this mode is the org rule, the read-time map's and the
+    within-episode merge's, and keeps the English vocabulary for every language. The per-language
+    rules are mode ``cluster_person`` (RFC-131 S5b).
     """
     del language
+    return _cluster(name_a, name_b, kind, _en())
+
+
+def _cluster(name_a: str, name_b: str, kind: str, vocab: _Vocab) -> bool:
+    """Mode ``cluster``'s rule with one language's vocabulary."""
     if _clean_cached is None or _is_acronymish is None:
         _bind_kg_filters()
     assert _clean_cached is not None and _is_acronymish is not None
@@ -343,7 +324,9 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
     # token-ratio test. We compare both as-is AND title-stripped versions —
     # whichever pair matches.
     ta_full, tb_full = a.split(), b.split()
-    ta_stripped, tb_stripped = _strip_title_prefix(ta_full), _strip_title_prefix(tb_full)
+    ta_stripped, tb_stripped = _strip_title_prefix(ta_full, vocab), _strip_title_prefix(
+        tb_full, vocab
+    )
     if ta_stripped != ta_full or tb_stripped != tb_full:
         stripped_a, stripped_b = " ".join(ta_stripped), " ".join(tb_stripped)
         if stripped_a and stripped_b and stripped_a == stripped_b:
@@ -356,7 +339,8 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
             )
             # Family-only-reference only (no first-name-only-merge — see the
             # NOTE in `_token_count_tolerant_match` for why).
-            if kind == "person" and len(short) == 1 and len(long_) >= 2 and short[0] == long_[-1]:
+            family = long_[0] if vocab.family_first else long_[-1]
+            if kind == "person" and len(short) == 1 and len(long_) >= 2 and short[0] == family:
                 return True
     # Spacing variants: "Data Bricks" == "Databricks", "Chat GPT" == "ChatGPT".
     if a.replace(" ", "") == b.replace(" ", "") and a.replace(" ", ""):
@@ -371,7 +355,7 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
     # the acronym guard exists to address doesn't apply on this path.
     # #904 lift: this branch was unconditional reject before #904.
     if len(ta) != len(tb):
-        return _token_count_tolerant_match(a, b, kind)
+        return _token_count_tolerant_match(a, b, kind, vocab)
     # Acronyms never fuzzy-merge (UPS != USPS) — guard applies to the
     # equal-token-count branch where we'd otherwise apply ratio similarity.
     if _is_acronymish(name_a, a) or _is_acronymish(name_b, b):
@@ -387,7 +371,7 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
             and sum(1 for x, y in zip(ta, tb) if x != y) == 1
         ):
             diff_pairs = [(x, y) for x, y in zip(ta, tb) if x != y]
-            if diff_pairs and _nickname_token_equiv(*diff_pairs[0]):
+            if diff_pairs and _nickname_token_equiv(*diff_pairs[0], vocab):
                 return True
         return False
     # A PERSON'S NAME MAY DRIFT IN ONLY ONE TOKEN (#2056). Measured over 287 production
@@ -419,7 +403,7 @@ def cluster_variants(name_a: str, name_b: str, kind: str, language: Optional[str
             and _ROMAN_NUMERAL_RE.match(y)
         ):
             return False  # regnal numbers: Charles I is not Charles II
-        if _ratio_below(x, y, _TOKEN_RATIO) and not _nickname_token_equiv(x, y):
+        if _ratio_below(x, y, _TOKEN_RATIO) and not _nickname_token_equiv(x, y, vocab):
             return False  # distinct words, not a spelling variant
     return True
 
@@ -446,16 +430,34 @@ def cluster_person_variants(name_a: str, name_b: str, language: Optional[str] = 
     (an alternative transliteration). The cases are listed by id in the eval-data repository
     (``data/eval/name-consolidation/s4/``). A false split is visible clutter; a false merge puts
     one person's words under another's name.
+
+    ``language`` (RFC-131 S5b, the candidates' shared episode language): None or ``en`` is the
+    English vocabulary, today's rule. A code with a ``naming_vocabulary.NAME_MATCH_TITLES`` row
+    uses that row's titles, nicknames, folds and name order. Any other code, ``und`` included,
+    joins only names equal after normalisation (L2): a missing vocabulary may split, never merge.
     """
     if _clean_cached is None:
         _bind_kg_filters()
     assert _clean_cached is not None
+    vocab = _vocab_for(language)
+    if vocab is None:
+        return _equal_after_normalisation(name_a, name_b)
+    name_a, name_b = _fold(name_a, vocab.folds), _fold(name_b, vocab.folds)
     a, b = _clean_cached(name_a), _clean_cached(name_b)
     if a and b and len(a.split()) == 1 and len(b.split()) == 1:
         return a == b  # cleaning already folds case and accents ("Oğuz" -> "oguz")
-    if cluster_variants(name_a, name_b, "person", language):
+    if _cluster(name_a, name_b, "person", vocab):
         return True
-    return _hyphen_or_initial_variant(a, b, language)
+    return _hyphen_or_initial_variant(a, b, vocab)
+
+
+def _equal_after_normalisation(name_a: str, name_b: str) -> bool:
+    """L2: one name, written with different case, accents, spacing or hyphens."""
+    assert _clean_cached is not None
+    a, b = _clean_cached(name_a), _clean_cached(name_b)
+    if not a or not b:
+        return False
+    return bool(a.replace("-", "").replace(" ", "") == b.replace("-", "").replace(" ", ""))
 
 
 def _is_initial(token: str) -> bool:
@@ -463,7 +465,7 @@ def _is_initial(token: str) -> bool:
     return len(bare) == 1 and bare.isalpha()
 
 
-def _hyphen_or_initial_variant(a: str, b: str, language: Optional[str]) -> bool:
+def _hyphen_or_initial_variant(a: str, b: str, vocab: _Vocab) -> bool:
     """Two same-person forms the cluster rule refuses on word count (RFC-131 S5a), on cleaned names.
 
     Only ever adds to mode ``cluster``, so no pair it joins is refused:
@@ -478,7 +480,7 @@ def _hyphen_or_initial_variant(a: str, b: str, language: Optional[str]) -> bool:
     The cases are listed in the eval-data repository (``data/eval/name-consolidation/s5/``).
     """
     ta, tb = a.replace("-", " ").split(), b.replace("-", " ").split()
-    if ("-" in a or "-" in b) and cluster_variants(" ".join(ta), " ".join(tb), "person", language):
+    if ("-" in a or "-" in b) and _cluster(" ".join(ta), " ".join(tb), "person", vocab):
         return True
     ia = [i for i in range(1, len(ta) - 1) if _is_initial(ta[i])]
     ib = [i for i in range(1, len(tb) - 1) if _is_initial(tb[i])]

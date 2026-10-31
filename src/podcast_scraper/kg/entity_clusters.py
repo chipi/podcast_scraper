@@ -26,6 +26,7 @@ autoresearch. See issue #852.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from dataclasses import dataclass, field
@@ -50,6 +51,9 @@ class EntityCandidate:
     name: str  # representative display name (most frequent)
     episodes: Set[str] = field(default_factory=set)
     shows: Set[str] = field(default_factory=set)
+    #: Primary language subtags of its episodes (``und`` for an episode whose metadata declares
+    #: none); empty when no episode's metadata was found (RFC-131 S5b).
+    languages: Set[str] = field(default_factory=set)
     _name_counts: Dict[str, int] = field(default_factory=dict)
 
     @property
@@ -69,6 +73,7 @@ def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandida
     _paths = newest_run_artifact_paths(_root, scan_kg_artifact_paths(_root), ".kg.json")
     for _path, data in load_kg_artifacts(_paths):
         episode_id = str(data.get("episode_id") or "")
+        language = _artifact_language(Path(_path))
         show = ""
         for node in data.get("nodes") or []:
             if isinstance(node, dict) and node.get("type") == "Episode":
@@ -94,12 +99,43 @@ def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandida
                 cand.episodes.add(episode_id)
             if show:
                 cand.shows.add(show)
+            if language is not None:
+                cand.languages.add(language)
             cand._name_counts[name] = cand._name_counts.get(name, 0) + 1
     # Representative display name = most frequent surface form.
     for cand in out.values():
         if cand._name_counts:
             cand.name = max(cand._name_counts.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
     return out
+
+
+def _artifact_language(kg_path: Path) -> Optional[str]:
+    """The KG artifact's episode language (primary subtag), ``und`` when its metadata declares
+    none, None when there is no readable metadata beside it. The catalog's rule
+    (``languages.episode_language``)."""
+    from ..languages import episode_language, primary_language
+
+    name = kg_path.name
+    if not name.endswith(".kg.json"):
+        return None
+    meta = kg_path.with_name(name[: -len(".kg.json")] + ".metadata.json")
+    try:
+        doc = json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(doc, dict):
+        return None
+    lang = episode_language(doc)
+    return primary_language(lang) if lang else "und"
+
+
+def _pair_language(a: EntityCandidate, b: EntityCandidate) -> Optional[str]:
+    """The one language two candidates share, ``und`` when they share none or several, None when
+    neither has any (no metadata read: today's rule)."""
+    if not a.languages and not b.languages:
+        return None
+    shared = a.languages & b.languages
+    return next(iter(shared)) if len(shared) == 1 else "und"
 
 
 def _words(name: str) -> int:
@@ -126,20 +162,20 @@ class _JoinTest:
         self.guard, self.person_mode, self.linkage = guard, person_mode, linkage
         self.blocked: List[List[str]] = []
 
-    def _match(self, a: str, b: str, kind: str) -> bool:
+    def _match(self, a: EntityCandidate, b: EntityCandidate, kind: str) -> bool:
         if kind == "person" and self.person_mode != "cluster":
             from ..identity.person_match import same_person
 
-            return same_person(a, b, mode=self.person_mode)
-        return _are_xep_variants(a, b, kind)
+            return same_person(a.name, b.name, mode=self.person_mode, language=_pair_language(a, b))
+        return _are_xep_variants(a.name, b.name, kind)
 
     def _matches(self, cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
         if kind == "person" and self.linkage == "complete":
-            return all(self._match(cand.name, m.name, kind) for m in cluster)
+            return all(self._match(cand, m, kind) for m in cluster)
         pool = cluster
         if kind == "person" and self.linkage == "no_one_word_bridge" and _words(cand.name) > 1:
             pool = [m for m in cluster if _words(m.name) > 1] or cluster
-        return any(self._match(cand.name, m.name, kind) for m in pool)
+        return any(self._match(cand, m, kind) for m in pool)
 
     def __call__(self, cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
         if not self._matches(cand, cluster, kind):

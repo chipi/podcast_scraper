@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
-from podcast_scraper.languages import episode_is_unusable, normalize_language_tag
+from podcast_scraper.languages import (
+    episode_is_unusable,
+    episode_language as _episode_language,
+    feed_language as _feed_language,
+)
 from podcast_scraper.search.corpus_scope import (
     discover_all_metadata_files,
     discover_metadata_files,
@@ -168,36 +172,6 @@ def _feed_authors(doc: dict[str, Any]) -> tuple[str, ...]:
         if isinstance(a, str) and a.strip() and a.strip() not in out:
             out.append(a.strip())
     return tuple(out)
-
-
-def _feed_language(doc: dict[str, Any]) -> Optional[str]:
-    """The feed language tag, NORMALIZED to its primary subtag (e.g. ``'en'``), or None.
-
-    A VALUE CHANGE for existing clients (#2176): this returned the stored tag verbatim, and
-    every episode in ``app-validation-corpus/v3`` stores ``"en-us"`` — so that is what the API
-    served. Normalizing here means a client comparing against ``"en"`` stops missing, and two
-    feeds differing only by region stop looking like different languages.
-    """
-    feed = doc.get("feed")
-    if isinstance(feed, dict):
-        lang = feed.get("language")
-        if isinstance(lang, str) and lang.strip():
-            return normalize_language_tag(lang)
-    return None
-
-
-def _episode_language(doc: dict[str, Any]) -> Optional[str]:
-    """This EPISODE's language, normalized, falling back to the feed's.
-
-    The episode is the answer once #2172 has written it; the feed block is the fallback for
-    every artifact produced before that, and for shows where the two cannot differ.
-    """
-    episode = doc.get("episode")
-    if isinstance(episode, dict):
-        lang = episode.get("language")
-        if isinstance(lang, str) and lang.strip():
-            return normalize_language_tag(lang)
-    return _feed_language(doc)
 
 
 def _feed_last_updated(doc: dict[str, Any]) -> Optional[str]:

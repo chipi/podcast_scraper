@@ -458,3 +458,33 @@ def transcription_language(cfg: Any) -> Optional[str]:
     # metadata writer about the same feed.
     _raw, language, _source = resolve_config_language(cfg)
     return language
+
+
+def feed_language(doc: Dict[str, Any]) -> Optional[str]:
+    """The feed language tag, NORMALIZED to its primary subtag (e.g. ``'en'``), or None.
+
+    A VALUE CHANGE for existing clients (#2176): this returned the stored tag verbatim, and
+    every episode in ``app-validation-corpus/v3`` stores ``"en-us"`` — so that is what the API
+    served. Normalizing here means a client comparing against ``"en"`` stops missing, and two
+    feeds differing only by region stop looking like different languages.
+    """
+    feed = doc.get("feed")
+    if isinstance(feed, dict):
+        lang = feed.get("language")
+        if isinstance(lang, str) and lang.strip():
+            return normalize_language_tag(lang)
+    return None
+
+
+def episode_language(doc: Dict[str, Any]) -> Optional[str]:
+    """This EPISODE's language, normalized, falling back to the feed's (the catalog's rule).
+
+    The episode is the answer once #2172 has written it; the feed block is the fallback for
+    every artifact produced before that, and for shows where the two cannot differ.
+    """
+    episode = doc.get("episode")
+    if isinstance(episode, dict):
+        lang = episode.get("language")
+        if isinstance(lang, str) and lang.strip():
+            return normalize_language_tag(lang)
+    return feed_language(doc)

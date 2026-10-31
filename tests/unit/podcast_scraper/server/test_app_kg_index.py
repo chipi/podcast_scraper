@@ -29,7 +29,9 @@ def _write_episode(
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     doc = {
-        "feed": {"feed_id": "f1", "title": "Show"},
+        # An English show, as every prod feed declares one (S5b: an untagged show's people join
+        # only when their names are equal).
+        "feed": {"feed_id": "f1", "title": "Show", "language": "en"},
         "episode": {
             "episode_id": episode_id,
             "title": episode_id,

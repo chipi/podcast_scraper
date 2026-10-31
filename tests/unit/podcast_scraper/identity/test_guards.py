@@ -167,6 +167,9 @@ def corpus(tmp_path: Path) -> Path:
             run / "metadata" / f"{stem}.metadata.json",
             {
                 "episode": {"episode_id": eid},
+                "feed": {
+                    "language": "en"
+                },  # an English show (S5b: untagged joins by equality only)
                 "content": {
                     "speakers": speakers,
                     "transcript_file_path": f"transcripts/{stem}.txt",

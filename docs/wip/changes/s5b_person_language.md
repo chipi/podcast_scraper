@@ -150,7 +150,51 @@ Spot checks for step 8:
 
 ## 6. Build
 
-_TODO_
+Scenario tests, written first and failing before the code (13 failed):
+- `test_person_match.py::test_cluster_person_by_language`: 23 pairs, both orders;
+- `test_the_cluster_mode_ignores_language`;
+- `test_ledger.py::test_candidates_carry_the_episode_language` and
+  `test_an_org_of_unknown_language_still_joins`.
+
+Code:
+- `languages.py`: `episode_language` and `feed_language`, moved from `server/corpus_catalog.py`
+  without a behaviour change. The catalog imports them under their old private names, and the name
+  report reads them from here, no longer from the server.
+- `speaker_detectors/naming_vocabulary.py`: `NAME_MATCH_TITLES` (the `en` list moved unchanged from
+  `person_match.py`; the other tier-1 rows are `HONORIFIC_TITLES`), `NAME_NICKNAMES` (`en`, moved
+  unchanged), `NAME_FOLDS` (`de`), `FAMILY_NAME_FIRST`.
+- `identity/person_match.py`: a per-language `_Vocab` bound on first use. Mode `cluster` keeps the
+  English vocabulary for every language. Mode `cluster_person` uses the pair's language, and for no
+  row `_equal_after_normalisation`.
+- `kg/entity_clusters.py`: `EntityCandidate.languages`, read from each KG file's metadata (`und` when
+  it declares none); `_pair_language`; the person join passes it.
+- Tests whose fixture show had no language now declare `en`, as every prod feed does:
+  `test_ledger.py`, `test_guards.py`, `server/test_app_kg_index.py`. Under L2 an untagged show joins
+  by equality only, which those tests were not about.
+- `test_naming_vocabulary_is_complete.py`: `SPARSE_ON_PURPOSE` names the two tables that are sparse
+  by design (nicknames `en` only, folds `de` only), each with its reason. A new test fails if either
+  stops being sparse.
+
+Found by the full unit suite, outside S5b, committed separately: the nightly `viewer-e2e` twin
+needed D2 item 0.2's CPU-torch steps (65b8b97b8).
+
+## 7. Measure
+
+- **Snapshot corpus (prod), S5a code (worktree at 0dc85bd33) against S5b:**
+  - ledger joins (`d1/d1_ledger_joins.py`): sha256 `c9add015…` both, byte-identical;
+  - read-time map (`s5/readtime_map.py`): 989 joins, sha `d2b5523f…` both.
+- **Fixture app-validation v3:** 0 person joins before and 0 after; it has no cross-episode person
+  variants, so it does not exercise S5b. Only the unit scenarios judge the non-English rules.
+- **Mutants, each killed by the identity tests:**
+  - unknown language using the English rule;
+  - no `de` fold;
+  - name order ignored;
+  - English nicknames for every language;
+  - English titles for every language.
+- **Unit suite:** `1 failed, 17211 passed`. The one failure is
+  `test_change_gate::test_every_registered_migration_under_the_regime_is_allowed_to_land`: 0038's
+  digest changed in D2 (b6f68866a), and it clears when 0038's record is set to `landed`.
+- **Cheap gates on the changed files:** black, isort and flake8 clean; mypy: no issues in 16 files.
 
 ## 7. Measure
 
