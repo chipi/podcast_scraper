@@ -278,7 +278,47 @@ operator's go typed in prod's session. Outputs are in the operator's `prod-namin
 
 ## 11. After apply / deploy
 
-_TODO_
+2026-10-31, prod. Each step ran on the operator's go typed in prod's session.
+
+- **Ledger:** written 12:14–12:16Z with image `sha-540fb20` as uid 1000: 959 joins, equal to the dry
+  run; `--status` ok.
+- **Deploy:** deploy-all-prod run 41200389951, success; `deploy.py verify 540fb20` VERIFY PASS, 10 of
+  10 containers. o11y-review 12:17Z onward: no warning or error patterns, 0 error spans. The ledger
+  gauge reads `ok`=1.
+- **Name report, deployed code:**
+  - every shown surface 0 raw labels;
+  - identity map source `ledger`, 959 joins;
+  - data surfaces 28/24 and 107/23 before 0038.
+- **0038 apply**, 12:32:49–12:41:10Z, EXIT=0:
+  - 24 episodes, with the clone's counters;
+  - the ledger refreshed after it: 959 joins, 0 added, 0 removed, 0 moved;
+  - 0 files not owned by uid 1000.
+- **Verify:**
+  - 2026-10-31: the full `upgrade verify` on prod did not complete. Run 1 (docker exec in
+    compose-api-1, uncapped) was host-OOM-killed at 13:05:08Z, anon-rss 4.3 GB.
+  - Run 2 (a throwaway container, `--memory 3500m`, corpus read-only) ran 13:10:47–13:33:36Z, steady
+    at about 0.87 GB, then spiked past 3.5 GB and was killed by its cgroup (exit 137).
+  - 0038's own verify passed: ok true, 79 MB, 11 s.
+  - The full 37-check verify is deferred to D2 item 6 (bounded verify). (Lines from prod.)
+- **Enrich** (`insight_density`, `insight_sentiment`), uid 1000:
+  - 24 of 24 ok for each enricher; 48 sidecars;
+  - the ledger refreshed after it: 959 joins, 0/0/0.
+- **Incremental index**, uid 1000: `scanned=3089 skipped=3089 reindexed=0`.
+  - Expected: the index fingerprint (`search/two_tier_indexer.py` `_episode_fingerprint`) hashes
+    only each row's id and text, and 0038 changed no text.
+  - No index column holds a field 0038 changed. The insight row's `speaker_id` is the insight's own
+    voice id, which 0038 leaves; quote rows carry no speaker column; `surfaceable` and the voice type
+    are not stored. So no reindex is needed.
+  - Not read: why 3,089 were scanned against 3,091 served episodes.
+- **Raw-label ids after:**
+  - 28 ids from the before file;
+  - 0 episodes with a raw-label Person now;
+  - index rows 0 in every table;
+  - `insight_clusters.json` 1 occurrence, the same stale id as before (D2 item 5).
+- **Ownership after enrich and index:** 0 files not owned by uid 1000.
+- **Open:** S4's 51 changed joins as served (`d1/d1_served_51.py`); prod has the script.
+- **Finding, not acted on (operator decides):** no search module reads `surfaceable`, so search can
+  return insights the episode view hides. This was true before 0038 too.
 
 ## 12. Retrospective
 
