@@ -179,9 +179,31 @@ check-test-policy) PASS after 476c0002d; `make docs-check` PASS.
   episode-notes-people entity-and-rails-invariants`, branch 30303f269 tree, its config writes the
   ledger before the api starts): **43 passed (2.1 m)**.
 
-**The code that ships:** the branch head after the last code commit, 085594053 (0038's outcome; the
-code is 30303f269's plus the outcome file; later commits are records only). ci-fast and
-test-integration run on that tree next.
+**The code that ships:** aaf08c6e8, the last code commit (a test fix for S3's segment contract,
+found by ci-fast); the migration code is 30303f269's, plus 0038's outcome file (085594053). Later
+commits are records and docs only.
+
+**Gates on aaf08c6e8**, run in a fresh worktree (`/Users/claude/snapshots/branchsrc-fresh`, no
+leftover generated files, like CI's checkout):
+
+| Gate | Result |
+|---|---|
+| `make ci-fast` | **PASS** (`MAKE_EXIT=0`; unit 17,168 passed, integration-fast 2,185 passed, e2e 244 + 40 passed; 0 failed) |
+| `make test-integration` | 4,604 passed, **1 failed: `test_player_nginx_syntax_ok`**, which runs `docker` on the production socket (closed to development work here); the branch does not change `web/learning-player/nginx.conf` (0 diff lines); CI runs it |
+| player Playwright, full suite | **702 passed**, 22 skipped, 0 failed |
+| player Playwright, D1 specs at phone size | 43 passed (above) |
+| viewer Playwright, full suite | running |
+
+Two earlier runs are not counted, and why:
+
+- the first ci-fast (working worktree) failed one test, `test_segments_endpoint_returns_contract`,
+  which pinned the pre-S3 segment shape: fixed in aaf08c6e8;
+- two test-integration runs failed the tier-3 search tests (`test_cluster_hits_…`,
+  `test_consensus_pairs_…`) on a fixture index whose unseeded IVF build reorders near-ties
+  (measured: main 5d2b3d6b5 fails on the same index 2/2; a rebuilt index passes); not this
+  change; the fix ships in D2 (operator, 2026-10-31). A third run failed 22 tests because I
+  moved the tracked `search/topic_clusters.json` aside with the index (my error); restored, the
+  run above is the next one.
 
 **Builder's verdict: GO WITH CONDITIONS.** Deciding numbers: wrong merges refused corpus-wide 25
 by my reading (none confirmed by the operator from the cards; 1 disagreement); the truth set's
