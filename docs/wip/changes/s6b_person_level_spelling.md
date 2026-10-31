@@ -13,9 +13,9 @@ touches:
 # s6b_person_level_spelling — one spelling per person on the person-level surfaces
 
 Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md) §4. Plan V3 S6, after S6a (insight
-surfaces) and S6c (search). The operator's scope (2026-10-31) is the surfaces that show one person
-across episodes. The transcript is out: it keeps each episode's names, and the files are fixed by D2
-item 9's migration instead.
+surfaces) and S6c (search). This change covers the surfaces that show one person across episodes; the
+remaining name surfaces are S6d. The operator excluded only the transcript: it keeps each episode's
+names, and the files are fixed by D2 item 9's migration instead.
 
 ## 1. Intake
 
@@ -142,6 +142,8 @@ least one needs checking against the show text: a first name swapped to its anag
 ## Not covered
 
 - Transcript segments (operator: names only; D2 item 9 fixes the files).
-- People chips, key voices, the people rail, trending people and Your Week refs: episode-scoped or
-  enrichment-built names, not in the operator's person-level scope.
-- MCP relational and connectivity tools: they read the corpus graph's node text. Not measured here.
+- People chips, key voices, the people rail, trending people, Your Week refs, and the MCP relational
+  and connectivity tools: **in scope, as S6d**. A correction: an earlier version of this line called
+  them outside the operator's scope. That was wrong. The operator excluded only the transcript; I
+  wrote the question's option so that it also left these out, and then recorded it as a decision
+  about them.
