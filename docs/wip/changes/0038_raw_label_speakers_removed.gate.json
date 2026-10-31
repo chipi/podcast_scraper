@@ -41,9 +41,9 @@
   "clone": "/Users/claude/snapshots/snapshot-prod-20261030/corpus/corpus",
   "code": {
     "dirty": false,
-    "sha": "04cd5a3fa3d4029c4016b4e2034642a924fae1c5"
+    "sha": "30303f269c72ef1fba1ca2c8d9ff501bacf0997c"
   },
-  "code_digest": "27d362754926ff3c79eb2aa77d6ed24d61e636967994667206ea68fa0361328f",
+  "code_digest": "36bbd2d150b576b028fc35619f5fcef4b8499fffbbf9895678aab96ff75b08c3",
   "computed_class": "full",
   "episode_deltas": {
     "feeds/rss_anchor.fm_daf5f248/run_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150/metadata/0008 - NBA Africa_s Biggest Success _ T_03c9954e-e69a-4ed4-a273-4605a7c2f53f_20260906-034150.metadata.json": {
@@ -117,7 +117,7 @@
     "S2_hidden": 53,
     "S3_principal_unidentified": 2
   },
-  "measured_at": "2026-10-31T00:35:20",
+  "measured_at": "2026-10-31T01:52:48",
   "migration": "0038_raw_label_speakers_removed",
   "plan": [
     {

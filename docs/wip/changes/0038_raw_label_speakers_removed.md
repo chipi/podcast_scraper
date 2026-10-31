@@ -186,8 +186,10 @@ Spot checks for step 8, each able to fail:
 ## 7. Measure
 
 Gate (`scripts/measure/corpus_change_gate.py`, report `0038_raw_label_speakers_removed.gate.json`):
-a copy of snapshot-prod-20261030 (0001-0037 applied), code 04cd5a3fa, clean tree, 2026-10-31
-00:35Z. Class **full** (`.gi.json` 24, `.bridge.json` 24; 48 files).
+a copy of snapshot-prod-20261030 (0001-0037 applied). First run on 04cd5a3fa (00:35Z); **re-run on
+the final code 30303f269, clean tree, 01:52Z**, after the D1 ledger step and two gate fixes changed
+files inside 0038's code digest; the report in the tree is the re-run's, with the same results. Its
+digest equals the code at that commit. Class **full** (`.gi.json` 24, `.bridge.json` 24; 48 files).
 
 | Prediction (section 4) | Measured |
 |---|---|

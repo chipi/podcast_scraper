@@ -144,7 +144,7 @@ Outcome rows measured on the copy so far (`name_report`, eval-data
 | S1 | 17,811 | 17,860 | +49 | 0038's N4 `unknown` set (accepted, record 0038) |
 | S2 | 31,421 | 31,474 | +53 | 0038's N4 set (accepted) |
 | S3 | 9,217 | 9,219 | +2 | 0038, episode 987ebd8e (accepted) |
-| S10a | 191 | 194 | +3 | 0038: 631e269e (accepted). **S3's read rule: 2 episodes** whose every visible insight was credited only to a raw label, now unattributed: art19 `41402031` run 349d0b7e "0010 - Why the neoclassical philosophy", omny `c9fdce2d` run fb659a6a "0001 - AI Agents Are Already Changing" (their panel fallback still shows them: S10b unchanged). Not yet accepted |
+| S10a | 191 | 194 | +3 | 0038: 631e269e (accepted). **S3's read rule: 2 episodes** whose every visible insight was credited only to a raw label, now unattributed: art19 `41402031` run 349d0b7e "0010 - Why the neoclassical philosophy", omny `c9fdce2d` run fb659a6a "0001 - AI Agents Are Already Changing" (their panel fallback still shows them: S10b unchanged). Operator accepted: 2026-10-31 |
 | S1n, S1c, S10b, S12, A1 | 7, 0, 2, 24, 396/297 | the same | 0 | |
 
 **Gold (S7, `scripts/measure/gold_insights.py`, gold in `.test_outputs/naming_gold`):** correct and
