@@ -378,3 +378,15 @@ class TestConsensusVisibility:
         pairs = consensus_pairs_for_hits([], tmp_path)
         assert [(p["insight_a_id"], p["insight_b_id"]) for p in pairs] == [("i:1", "i:2")]
         assert pairs[0]["person_a_label"] == "Korin Vael" and pairs[0]["person_b_label"] == "Odile"
+
+
+def test_consensus_scores_are_read_under_the_enrichers_keys() -> None:
+    """topic_consensus writes ``contradiction`` / ``cosine`` (s6f); a real 0.0 is kept."""
+    from podcast_scraper.search.operators import _pair_dicts
+
+    (row,) = _pair_dicts([{"topic_id": "t", "contradiction": 0.2, "cosine": 0.9}])
+    assert (row["contradiction_score"], row["cosine_similarity"]) == (0.2, 0.9)
+    (row,) = _pair_dicts(
+        [{"contradiction_score": 0.0, "contradiction": 0.7, "cosine_similarity": 0.0}]
+    )
+    assert (row["contradiction_score"], row["cosine_similarity"]) == (0.0, 0.0)

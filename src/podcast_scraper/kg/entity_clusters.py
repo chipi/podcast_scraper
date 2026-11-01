@@ -88,7 +88,10 @@ def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandida
             if kind not in ("person", "org"):
                 continue
             props = node.get("properties") or {}
-            name = str(props.get("name") or props.get("label") or "").strip()
+            # The episode's own spelling when 0041 respelled the node for display (record 4g).
+            name = str(
+                props.get("respelled_from") or props.get("name") or props.get("label") or ""
+            ).strip()
             if not name:
                 continue
             cand = out.get(nid)
@@ -144,6 +147,12 @@ def _words(name: str) -> int:
     return name_words(name)
 
 
+def _scoped(entity_id: str) -> bool:
+    from ..identity.bare_name_scope import is_scoped_person_id
+
+    return is_scoped_person_id(entity_id)
+
+
 def _pick_canonical(members: List[EntityCandidate], keep: Collection[str] = ()) -> EntityCandidate:
     """A member already serving as a canonical id (``keep``) first; then highest frequency, the
     longest name, the name, and the id, so the pick never rests on the input order."""
@@ -176,8 +185,13 @@ class _JoinTest:
         if kind == "person" and self.linkage == "complete":
             return all(self._match(cand, m, kind) for m in cluster)
         pool = cluster
+        if kind == "person" and self.guard is not None and _scoped(cand.id):
+            # Two bare names scoped to their episodes are not evidence of one person: a scoped id
+            # joins only through a member with a name of its own (operator decision 1B,
+            # 2026-11-01; record s5c_scoped_names_not_pooled). The guarded ledger build only.
+            pool = [m for m in cluster if not _scoped(m.id)]
         if kind == "person" and self.linkage == "no_one_word_bridge" and _words(cand.name) > 1:
-            pool = [m for m in cluster if _words(m.name) > 1] or cluster
+            pool = [m for m in pool if _words(m.name) > 1] or pool
         return any(self._match(cand, m, kind) for m in pool)
 
     def __call__(self, cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
@@ -221,7 +235,7 @@ def build_entity_canonical_map(
 
     ``keep_canonical``: ids already serving as a canonical (the served ledger's). A cluster that
     holds one keeps it, so a person's pages and links do not move when frequencies shift or
-    every member comes to carry one spelling (RFC-131 0039).
+    every member comes to carry one spelling (RFC-131 0041).
 
     The defaults keep today's build.
     """

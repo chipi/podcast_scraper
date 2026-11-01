@@ -1364,3 +1364,89 @@ def test_the_person_card_shows_the_group_spelling(tmp_path: Path, monkeypatch) -
     assert card is not None and card.label == "Jane Dough"
     names = {p.id: p.name for p in card.related_people}
     assert names["person:bob"] == "Bobby" and names["person:carol"] == "Carol"
+
+
+def _ledger_with(monkeypatch, members, display: str = "Korin Vael") -> None:
+    from podcast_scraper.identity import ledger as L
+
+    led = {
+        "clusters_payload": {
+            "clusters": [
+                {
+                    "canonical_id": "person:korin-vael",
+                    "display_name": display,
+                    "members": [{"id": i, "name": n, "episode_count": c} for i, n, c in members],
+                }
+            ]
+        }
+    }
+    monkeypatch.setattr(L, "read_ledger", lambda _r: (led, L.STATE_OK))
+
+
+def test_a_joined_persons_bio_and_photo_come_from_another_id_under_their_spelling(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """s6f (operator 3A): the card asks with the canonical id; the bio sits under a member id."""
+    from podcast_scraper.server import app_relational_view as V
+
+    _write_person_web(
+        tmp_path,
+        [
+            {
+                "person_id": "person:korin-vaal",
+                "name": "Korin Vael",
+                "bio": "A historian.",
+                "image_hosted": True,
+            },
+            {
+                "person_id": "person:korin-vahl",
+                "name": "Korin Vahl",
+                "bio": "Somebody else.",
+                "image_hosted": True,
+            },
+        ],
+    )
+    _ledger_with(
+        monkeypatch,
+        [
+            ("person:korin-vael", "Korin Vael", 5),
+            ("person:korin-vaal", "Korin Vaal", 3),
+            ("person:korin-vahl", "Korin Vahl", 9),
+        ],
+    )
+    web = V._person_web(tmp_path, "person:korin-vael")
+    assert web is not None and web.bio == "A historian."  # never the row under another name
+    assert web.image_url == V._photo_route("person:korin-vaal")  # the id that hosts it
+    photos = V.hosted_photo_urls(tmp_path)
+    assert photos["person:korin-vael"] == V._photo_route("person:korin-vaal")
+    assert photos["person:korin-vahl"] == V._photo_route("person:korin-vahl")  # its own wins
+
+
+def test_without_a_ledger_nothing_is_borrowed(tmp_path: Path, monkeypatch) -> None:
+    from podcast_scraper.identity import ledger as L
+    from podcast_scraper.server import app_relational_view as V
+
+    _write_person_web(
+        tmp_path, [{"person_id": "person:korin-vaal", "name": "Korin Vael", "bio": "A historian."}]
+    )
+    monkeypatch.setattr(L, "read_ledger", lambda _r: (None, L.STATE_MISSING))
+    assert V._person_web(tmp_path, "person:korin-vael") is None
+    assert V.hosted_photo_urls(tmp_path) == {}
+
+
+def test_an_empty_own_bio_falls_through_to_the_group(tmp_path: Path, monkeypatch) -> None:
+    from podcast_scraper.server import app_relational_view as V
+
+    _write_person_web(
+        tmp_path,
+        [
+            {"person_id": "person:korin-vael", "name": "Korin Vael", "bio": "  "},
+            {"person_id": "person:korin-vaal", "name": "Korin Vael", "bio": "A historian."},
+        ],
+    )
+    _ledger_with(
+        monkeypatch,
+        [("person:korin-vael", "Korin Vael", 5), ("person:korin-vaal", "Korin Vaal", 3)],
+    )
+    web = V._person_web(tmp_path, "person:korin-vael")
+    assert web is not None and web.bio == "A historian."

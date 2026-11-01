@@ -1,0 +1,333 @@
+{
+  "applied_before": [
+    "0001_faiss_to_lance",
+    "0002_two_tier_native_reindex",
+    "0003_gi_v3_typed_mentions",
+    "0004_insight_type_reindex",
+    "0005_gi_v3_1_route_and_tag",
+    "0006_kg_v2_typed_entities",
+    "0007_scope_bare_person_names",
+    "0008_object_entity_kind",
+    "0009_backfill_speaker_roles",
+    "0010_canonical_person_names",
+    "0011_shared_artwork_store",
+    "0012_org_speakers_removed",
+    "0013_artwork_thumbnails",
+    "0014_eponymous_hosts_restored",
+    "0015_unpublishable_speaker_names_removed",
+    "0016_ad_reader_names_removed",
+    "0017_speaker_names_canonicalised",
+    "0018_org_speakers_removed_residue",
+    "0019_descriptor_speaker_names_removed",
+    "0020_titled_person_ids_remerged",
+    "0021_backfill_feed_language",
+    "0022_derived_speaker_surfaces_resynced",
+    "0023_transcript_speaker_prefixes_resynced",
+    "0024_shared_removed_speaker_prefixes",
+    "0025_one_person_one_entry",
+    "0026_artwork_medium",
+    "0027_missing_covers_stored",
+    "0028_transcript_chunk_times",
+    "0029_naming_arc_voices_repaired",
+    "0030_adfree_cut_resynced",
+    "0031_named_voices_shown",
+    "0033_hand_removed_names_refused",
+    "0034_talk_floor_names_removed",
+    "0035_voice_identity_names",
+    "0036_bridge_identities_restored",
+    "0037_named_voices_corrected",
+    "0038_raw_label_speakers_removed"
+  ],
+  "apply_message": "realigned 187 row(s) in 1 episode(s); 0 refused",
+  "clone": "/Users/claude/snapshots/clone-pre0038a",
+  "code": {
+    "dirty": true,
+    "sha": "aad88300ca935cb98d1c2ca5af2e69356c4342a9"
+  },
+  "code_digest": "e0bedfef5a629b1b1a744a2f89e2cb0d3e2dee8279675cbe0c1b80630b4b36ef",
+  "computed_class": "full",
+  "episode_deltas": {},
+  "files_changed": 1,
+  "files_changed_by_suffix": {
+    ".segments.json": 1
+  },
+  "gating_moves": {},
+  "measured_at": "2026-11-01T15:50:16",
+  "migration": "0039_adfree_segment_offsets_realigned",
+  "plan": [
+    {
+      "counts": {
+        "refused": 0,
+        "rows_realigned": 187
+      },
+      "inputs": {
+        "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227/metadata/0010 - From our listeners_ can AI under_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227.metadata.json": "df63be81848dbcdfdc686ae7b57ea969abbb201db3dfa531a1b899679e0af8bf",
+        "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227/transcripts/0010 - From our listeners_ can AI under_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227.adfree.segments.json": "81b809f27929304e7813ba2196bef713dc39be33dd4d2da293f6dd901aab3a11",
+        "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227/transcripts/0010 - From our listeners_ can AI under_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227.adfree.txt": "c6efd1cb264904724c1e03b7e994828e7d7b87345e839dc5b4acfdc2b37739b4"
+      },
+      "meta": "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227/metadata/0010 - From our listeners_ can AI under_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227.metadata.json",
+      "refused": null
+    }
+  ],
+  "plan_sha256": "73b591950b1ea2b658eca56f9c8469afadffa5019bfb9e8ae147e23f54c76590",
+  "scoreboard_after": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 297,
+    "A1_marker_hits": 396,
+    "S10a_zero_visible": 194,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 24,
+    "S1_hidden_unknown": 17860,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 31474,
+    "S2_hidden_commercial": 94,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13520,
+    "S2_hidden_unknown": 17860,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9219,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3069,
+    "episodes_no_gi": 0,
+    "insights": 135390,
+    "metadata_unreadable": 0,
+    "quotes": 262618,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "scoreboard_before": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 297,
+    "A1_marker_hits": 396,
+    "S10a_zero_visible": 194,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 24,
+    "S1_hidden_unknown": 17860,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 31474,
+    "S2_hidden_commercial": 94,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13520,
+    "S2_hidden_unknown": 17860,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9219,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3069,
+    "episodes_no_gi": 0,
+    "insights": 135390,
+    "metadata_unreadable": 0,
+    "quotes": 262618,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "snapshot": "snapshot-prod-20261030+0038+d2-ledger-final",
+  "verdicts_sha256": null,
+  "verify": {
+    "message": "every served ad-free segment slices to its own text",
+    "ok": true
+  },
+  "verify_all": [
+    {
+      "id": "0001_faiss_to_lance",
+      "message": "FAISS retired (#995); no-op",
+      "ok": true
+    },
+    {
+      "id": "0002_two_tier_native_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0003_gi_v3_typed_mentions",
+      "message": "all 3607 .gi.json parse and are fully migrated to v3",
+      "ok": true
+    },
+    {
+      "id": "0004_insight_type_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0005_gi_v3_1_route_and_tag",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0006_kg_v2_typed_entities",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0007_scope_bare_person_names",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0008_object_entity_kind",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0009_backfill_speaker_roles",
+      "message": "1987 of 1987 recorded role(s) still present in files this migration last wrote; 1227 row(s) in files rewritten since (not judged)",
+      "ok": true
+    },
+    {
+      "id": "0010_canonical_person_names",
+      "message": "every person name is canonical and every id agrees with the name that minted it",
+      "ok": true
+    },
+    {
+      "id": "0011_shared_artwork_store",
+      "message": "all artwork is in the corpus-root store",
+      "ok": true
+    },
+    {
+      "id": "0012_org_speakers_removed",
+      "message": "no served surface names any of 17 org(s) as a speaker",
+      "ok": true
+    },
+    {
+      "id": "0013_artwork_thumbnails",
+      "message": "every stored image has a thumbnail (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0014_eponymous_hosts_restored",
+      "message": "every self-introduced eponymous host holds their seat",
+      "ok": true
+    },
+    {
+      "id": "0015_unpublishable_speaker_names_removed",
+      "message": "no served surface carries any of 31 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0016_ad_reader_names_removed",
+      "message": "no served surface names an ad voice for any of 50 frozen hit(s)",
+      "ok": true
+    },
+    {
+      "id": "0017_speaker_names_canonicalised",
+      "message": "no served surface carries any of 6 name(s) / 64 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0018_org_speakers_removed_residue",
+      "message": "no served surface names any of m0012's 17 org(s)",
+      "ok": true
+    },
+    {
+      "id": "0019_descriptor_speaker_names_removed",
+      "message": "no served surface carries any of 1 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0020_titled_person_ids_remerged",
+      "message": "no served surface carries any of 0 name(s) / 27 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0021_backfill_feed_language",
+      "message": "every backfilled show is consistent across its episodes",
+      "ok": true
+    },
+    {
+      "id": "0022_derived_speaker_surfaces_resynced",
+      "message": "every served episode's context digest and diagnostics follow its segments",
+      "ok": true
+    },
+    {
+      "id": "0023_transcript_speaker_prefixes_resynced",
+      "message": "every served transcript is its segments' render",
+      "ok": true
+    },
+    {
+      "id": "0024_shared_removed_speaker_prefixes",
+      "message": "no served transcript names a removed speaker",
+      "ok": true
+    },
+    {
+      "id": "0025_one_person_one_entry",
+      "message": "1 episode(s) still list one person twice, 0 refused: ['0001 - The wild orchid mystery_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-061541.metadata.json']",
+      "ok": false,
+      "on_clone": {
+        "message": "1 episode(s) still list one person twice, 0 refused: ['0001 - The wild orchid mystery_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-061541.metadata.json']",
+        "ok": false
+      }
+    },
+    {
+      "id": "0026_artwork_medium",
+      "message": "every stored image has a medium copy (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0027_missing_covers_stored",
+      "message": "every cover is stored, or recorded as unfetchable",
+      "ok": true
+    },
+    {
+      "id": "0028_transcript_chunk_times",
+      "message": "no search index or no index sidecar: nothing to time",
+      "ok": true
+    },
+    {
+      "id": "0029_naming_arc_voices_repaired",
+      "message": "every listed voice carries the name the naming ladder gives it",
+      "ok": true
+    },
+    {
+      "id": "0030_adfree_cut_resynced",
+      "message": "every served ad-free base is today's cut",
+      "ok": true
+    },
+    {
+      "id": "0031_named_voices_shown",
+      "message": "every voice 0029 names carries its name and no hiding, as reviewed; insights_checked=2464, unnamed_checked=1, unreviewed_unchanged=22, admaps_checked=71, served=3069, served_listed=71, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0033_hand_removed_names_refused",
+      "message": "every voice this migration names carries its name and no hiding, as reviewed; insights_checked=58, unnamed_checked=0, unreviewed_unchanged=0, admaps_checked=1, served=3069, served_listed=1, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0034_talk_floor_names_removed",
+      "message": "every voice the review confirmed is off the floor's name",
+      "ok": true
+    },
+    {
+      "id": "0035_voice_identity_names",
+      "message": "every rename the review confirmed carries the fingerprint group's name, and every unnaming the review confirmed is off its voice",
+      "ok": true
+    },
+    {
+      "id": "0036_bridge_identities_restored",
+      "message": "every published GI / KG person has a bridge identity",
+      "ok": true
+    },
+    {
+      "id": "0037_named_voices_corrected",
+      "message": "every rename the review confirmed carries the voice's own person's name",
+      "ok": true
+    },
+    {
+      "id": "0038_raw_label_speakers_removed",
+      "message": "no served episode credits a raw diarization label as a speaker",
+      "ok": true
+    },
+    {
+      "id": "0039_adfree_segment_offsets_realigned",
+      "message": "every served ad-free segment slices to its own text",
+      "ok": true
+    }
+  ],
+  "verify_regressions": [],
+  "why": [
+    "content file written: feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227/transcripts/0010 - From our listeners_ can AI under_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-171227.adfree.segments.json"
+  ]
+}

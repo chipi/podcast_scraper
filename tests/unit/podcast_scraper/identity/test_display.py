@@ -134,3 +134,83 @@ def test_name_of_gives_a_joined_ids_group_spelling(corpus) -> None:
     view = D.person_display(root)
     assert view.name_of("person:korin-vaal") == view.name_of("person:korin-vael") == "Korin Vael"
     assert view.name_of("person:odile-brand") is None
+
+
+def test_a_bare_name_never_outranks_a_full_one(tmp_path: Path) -> None:
+    """Publisher text naming a one-word member does not make the group show one word while a
+    member has the full name (m0017: a name reduced to one word is never a repair)."""
+    root = tmp_path / "c"
+    for ep in ("e1", "e2", "e3"):
+        _episode(root, ep, "person:korin-vaal", "Korin Vaal", [])
+    _episode(root, "e4", "person:unresolved-vaal-e4", "Vaal", ["Vaal"])
+    ledger = L.build_ledger(root)
+    assert L.ledger_id_map(ledger) == {"person:unresolved-vaal-e4": "person:korin-vaal"}
+    cluster = next(
+        c
+        for c in ledger["clusters_payload"]["clusters"]
+        if c["canonical_id"] == "person:korin-vaal"
+    )
+    assert cluster["display_name"] == "Korin Vaal"
+
+
+def test_a_bare_canonical_shows_the_full_name_member(tmp_path: Path) -> None:
+    root = tmp_path / "c"
+    for ep in ("e1", "e2", "e3"):
+        _episode(root, ep, "person:vaal", "Vaal", [])  # a legacy unscoped bare id
+    _episode(root, "e4", "person:korin-vaal", "Korin Vaal", [])
+    ledger = L.build_ledger(root)
+    shown = {
+        c["display_name"]
+        for c in ledger["clusters_payload"]["clusters"]
+        if "person:korin-vaal" in {m["id"] for m in c["members"]}
+    }
+    assert shown == {"Korin Vaal"}
+
+
+def _display(root: Path) -> set:
+    ledger = L.build_ledger(root)
+    return {
+        c["display_name"]
+        for c in ledger["clusters_payload"]["clusters"]
+        if c["canonical_id"].startswith("person:")
+    }
+
+
+def test_the_publishers_spelling_wins_even_when_no_episode_spells_it(tmp_path: Path) -> None:
+    """Operator, 2026-11-01: the publisher's own text is the reference spelling (s6e)."""
+    root = tmp_path / "c"
+    _episode(root, "e1", "person:korin-vaal", "Korin Vaal", ["Korin Vael"])
+    _episode(root, "e2", "person:korin-vaal", "Korin Vaal", [])
+    _episode(root, "e3", "person:korin-vahl", "Korin Vahl", [])
+    assert _display(root) == {"Korin Vael"}
+
+
+def test_another_persons_name_in_the_publisher_text_never_counts(tmp_path: Path) -> None:
+    """The publisher names someone present in that episode under exactly that name: it is theirs."""
+    root = tmp_path / "c"
+    _episode(root, "e1", "person:korin-vaal", "Korin Vaal", ["Korin Vael"])
+    _episode(root, "e2", "person:korin-vaal", "Korin Vaal", [])
+    _episode(root, "e3", "person:korin-vahl", "Korin Vahl", [])
+    kg = root / "feeds" / "show_a" / "run_e1_20261001-000000" / "metadata" / "e1.kg.json"
+    doc = json.loads(kg.read_text())
+    doc["nodes"].append(
+        {"id": "person:korin-vael", "type": "Person", "properties": {"name": "Korin Vael"}}
+    )
+    kg.write_text(json.dumps(doc))
+    ledger = L.build_ledger(root)
+    group = next(
+        c
+        for c in ledger["clusters_payload"]["clusters"]
+        if "person:korin-vaal" in {m["id"] for m in c["members"]}
+    )
+    assert "person:korin-vael" not in {m["id"] for m in group["members"]}  # a guard keeps it out
+    assert group["display_name"] != "Korin Vael"
+
+
+def test_two_near_names_in_one_episode_give_no_vote(tmp_path: Path) -> None:
+    """A relative with a near-identical name could be the second one: no spelling is taken."""
+    root = tmp_path / "c"
+    _episode(root, "e1", "person:korin-vaal", "Korin Vaal", ["Korin Vael", "Korin Vahl"])
+    _episode(root, "e2", "person:korin-vaal", "Korin Vaal", [])
+    _episode(root, "e3", "person:korin-vaul", "Korin Vaul", [])
+    assert _display(root) & {"Korin Vael", "Korin Vahl"} == set()

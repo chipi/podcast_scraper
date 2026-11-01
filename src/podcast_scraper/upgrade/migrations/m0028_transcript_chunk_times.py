@@ -104,7 +104,6 @@ def _plan(ctx: MigrationContext) -> Tuple[Optional[_Plan], str]:
         is_source_layer_chunk,
         source_body_timestamps,
     )
-
     from ...utils.json_stream import iter_json_object_items
 
     root = ctx.corpus_root

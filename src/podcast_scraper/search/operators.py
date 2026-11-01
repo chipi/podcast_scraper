@@ -311,11 +311,16 @@ def _pair_dicts(pairs: list[dict[str, Any]], people: Any = None) -> list[dict[st
     """
     out: list[dict[str, Any]] = []
     for p in pairs:
+        # The enricher writes ``contradiction`` / ``cosine``; the response's names are read first.
+        # By presence, so a real 0.0 is kept (s6f).
+        raw_contra = (
+            p["contradiction_score"] if "contradiction_score" in p else p.get("contradiction")
+        )
         try:
-            contradiction = float(p.get("contradiction_score") or 0.0)
+            contradiction = float(raw_contra if raw_contra is not None else 0.0)
         except (TypeError, ValueError):
             contradiction = 0.0
-        cos = p.get("cosine_similarity")
+        cos = p["cosine_similarity"] if "cosine_similarity" in p else p.get("cosine")
         try:
             cos_val = float(cos) if cos is not None else None
         except (TypeError, ValueError):

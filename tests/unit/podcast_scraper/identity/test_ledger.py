@@ -320,7 +320,7 @@ def test_an_org_of_unknown_language_still_joins(tmp_path: Path) -> None:
 
 
 def test_a_rebuild_keeps_the_served_canonical_id_while_it_is_a_member(corpus: Path) -> None:
-    """Person pages, links and follows key on the canonical id (RFC-131 0039): a build that shifts
+    """Person pages, links and follows key on the canonical id (RFC-131 0041): a build that shifts
     the frequencies, or gives every member one spelling, must not move it."""
     L.write_ledger(corpus, L.build_ledger(corpus))
     assert L.served_id_map(corpus) == {"person:korin-vaal": "person:korin-vael"}
@@ -339,7 +339,7 @@ def test_with_no_served_ledger_the_canonical_is_the_rules(corpus: Path) -> None:
 
 
 def test_one_spelling_for_every_member_keeps_the_canonical(tmp_path: Path) -> None:
-    """The tie 0039's respelling makes (equal frequency, equal name) is decided by the served
+    """The tie 0041's respelling makes (equal frequency, equal name) is decided by the served
     ledger, never by file order."""
     root = tmp_path / "corpus"
     _kg_episode(root, "show_a", "run_x_20261001-000000", "e1", {"person:korin-vael": "Korin Vael"})
@@ -348,3 +348,32 @@ def test_one_spelling_for_every_member_keeps_the_canonical(tmp_path: Path) -> No
     before = L.served_id_map(root)
     _kg_episode(root, "show_a", "run_y_20261002-000000", "e2", {"person:korin-vaal": "Korin Vael"})
     assert L.ledger_id_map(L.build_ledger(root)) == before
+
+
+def test_two_scoped_bare_names_are_never_joined_to_each_other(tmp_path: Path) -> None:
+    """Decision 1B (2026-11-01): a bare name scoped to its episode joins only through a full name;
+    two bare names are not evidence of one person (record s5c)."""
+    root = tmp_path / "corpus"
+    _kg_episode(
+        root, "show_a", "run_x_20261001-000000", "e1", {"person:unresolved-korin-e1": "Korin"}
+    )
+    _kg_episode(
+        root, "show_a", "run_y_20261002-000000", "e2", {"person:unresolved-korin-e2": "Korin"}
+    )
+    assert L.ledger_id_map(L.build_ledger(root)) == {}
+
+
+def test_scoped_bare_names_still_join_their_full_name(tmp_path: Path) -> None:
+    root = tmp_path / "corpus"
+    _kg_episode(root, "show_a", "run_w_20261001-000000", "e0", {"person:korin-vael": "Korin Vael"})
+    _kg_episode(root, "show_a", "run_v_20261001-000000", "e5", {"person:korin-vael": "Korin Vael"})
+    _kg_episode(
+        root, "show_a", "run_x_20261002-000000", "e1", {"person:unresolved-vael-e1": "Vael"}
+    )
+    _kg_episode(
+        root, "show_a", "run_y_20261003-000000", "e2", {"person:unresolved-vael-e2": "Vael"}
+    )
+    assert L.ledger_id_map(L.build_ledger(root)) == {
+        "person:unresolved-vael-e1": "person:korin-vael",
+        "person:unresolved-vael-e2": "person:korin-vael",
+    }

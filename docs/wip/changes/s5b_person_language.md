@@ -52,7 +52,7 @@ gain:
   roster's own rules (`providers/ml/diarization/roster.py`, `speaker_detectors/name_canonicalization.py`),
   which belong to #2403 (the roster's same-person rules), outside this arc. Nothing to change here.
 - **L4:** cleaning folds `ü` to `u`, so `Müller` and `Mueller` differ by one letter and join only
-  through the fuzzy ratio. German writes the umlaut as `ue`, `oe`, `ae`, and `ß` as `ss`.
+  through the fuzzy ratio. German writes an umlaut as the vowel followed by `e`, and `ß` as `ss`.
 - **L5:** the family-only reference ("Carney" ~ "Mark Carney") matches the LAST word. In
   family-name-first languages (zh, ja, ko, hu, vi) the family name comes first.
 
@@ -68,7 +68,7 @@ The rule:
 - **`en`:** exactly today's rule. The title and nickname lists move to the vocabulary module
   unchanged.
 - **de, es, fr, it, pt:** that row's titles (`HONORIFIC_TITLES`), no nicknames (no table exists),
-  and the same edit-ratio rules. `de` adds a fold before cleaning: ä→ae, ö→oe, ü→ue, ß→ss.
+  and the same edit-ratio rules. `de` adds a fold before cleaning: each umlaut becomes its vowel followed by `e`, and ß becomes ss.
 - **zh, ja, ko, hu, vi:** the family-only reference matches the FIRST word. Their titles: none.
 - **Who gets a language (corrected after the fresh read):**
   - `language=None` keeps today's rule exactly, so every caller that does not pass a language is

@@ -2,7 +2,8 @@
 
 The deterministic step that runs last on every corpus-writing path (ingest, migration apply,
 relabel repair, enrich-edges), and once with the new image before an api deploy that reads the
-ledger. Corpus text in, one derived file out; nothing else is written.
+ledger. Corpus text in, one derived file out; then the episode files take the build's group
+spellings (``identity.respell``, RFC-131 0041) unless ``--no-respell``.
 """
 
 from __future__ import annotations
@@ -25,6 +26,11 @@ def parse_identity_ledger_argv(argv: Sequence[str]) -> Namespace:
         "--dry-run",
         action="store_true",
         help="Build and report what would change; write nothing.",
+    )
+    parser.add_argument(
+        "--no-respell",
+        action="store_true",
+        help="Write the ledger only; leave the episode files' spellings as they are.",
     )
     parser.add_argument(
         "--status",
@@ -66,7 +72,8 @@ def run_identity_ledger_cli(args: Namespace, log: logging.Logger) -> int:
         change["previous_state"] = state
         print(json.dumps(change, ensure_ascii=False, sort_keys=True))
         return 0
-    change = L.write_ledger(root, ledger)
+    extra = {} if args.no_respell else {"respell": L.respell_for(root, ledger, log)}
+    change = L.write_ledger(root, ledger, extra=extra)
     log.info(
         "identity-ledger: %d joins (%d added, %d removed, %d canonical changed) -> %s",
         change["joins"],

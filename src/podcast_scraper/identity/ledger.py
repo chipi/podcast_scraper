@@ -89,7 +89,7 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
     The joins are the cluster rule's for organisations. For people: rule mode ``PERSON_MODE``,
     linkage ``PERSON_LINKAGE``, and the identity guards inside the join test (ADR-167); each
     refused join is recorded in ``blocked_joins``. A group keeps the canonical id the served
-    ledger gives it while that id is still a member (RFC-131 0039).
+    ledger gives it while that id is still a member (RFC-131 0041).
     """
     import podcast_scraper
     from podcast_scraper.identity.guards import candidate_guard, collect_episode_evidence
@@ -139,19 +139,40 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
     Publisher text first: the member that the most episodes' publisher text names
     (``guards.EpisodeEvidence.publisher_named``), then episode count, then the shorter name, then
     the name. With no member named by publisher text, the cluster's canonical (frequency).
-    Measured on
-    the truth set's held-out shows: 9 of 33 spellings wrong against frequency's 13 (eval-data
-    ``s6/RESULT-2026-10-31.md``).
+    Measured on the truth set's held-out shows: 9 of 33 spellings wrong against frequency's 13
+    (eval-data ``s6/RESULT-2026-10-31.md``).
+
+    **The publisher's own text is the reference spelling** (operator, 2026-11-01; record
+    ``s6e_publisher_spelling``): where an episode holding a member states the person in its title,
+    description or feed, that spelling is shown, voted by episodes (:func:`_publisher_spellings`).
+    The rule above applies only to a group no publisher text names.
+
+    A one-word name never outranks a member's full name (m0017: a name reduced to one word is never
+    a repair): publisher text picks among the full names, and with none named there, the most
+    frequent full name (0041, eval-data ``d2i9/spelling_full_name.py``: 5 of 475 groups move, the
+    truth set's scores unchanged).
     """
     from collections import Counter
 
     named = Counter(pid for ev in evidence.values() for pid in ev.publisher_named)
+    stated = _publisher_spellings(payload, evidence)
+
+    def full(i: str) -> bool:
+        return len(candidates[i].name.split()) >= 2
+
     for cluster in payload.get("clusters") or []:
         canonical = str(cluster.get("canonical_id") or "")
         if not canonical.startswith("person:"):
             continue
         members = [m["id"] for m in cluster.get("members") or [] if m.get("id") in candidates]
-        by_pub = [i for i in members if named[i]]
+        if canonical in stated:
+            spelling, episodes = stated[canonical]
+            cluster["display_name"] = spelling
+            cluster["display_evidence"] = {"rule": "publisher", "episodes": episodes}
+            continue
+        fulls = [i for i in members if full(i)]
+        pool = fulls or members
+        by_pub = [i for i in pool if named[i]]
         if by_pub:
             pick = max(
                 by_pub,
@@ -164,9 +185,112 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
             )
             cluster["display_name"] = candidates[pick].name
             cluster["display_evidence"] = {"rule": "publisher", "episodes": named[pick]}
+        elif fulls and canonical in candidates and not full(canonical):
+            pick = max(
+                fulls,
+                key=lambda i: (candidates[i].freq, len(candidates[i].name), candidates[i].name),
+            )
+            cluster["display_name"] = candidates[pick].name
+            cluster["display_evidence"] = {"rule": "frequency", "full_name": True}
         else:
             cluster["display_name"] = cluster.get("canonical_name")
             cluster["display_evidence"] = {"rule": "frequency"}
+
+
+def _fold(name: str) -> str:
+    """Case, spacing and accents folded: how two spellings of one name are compared."""
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", " ".join(str(name).split()).casefold())
+    return "".join(c for c in text if not unicodedata.combining(c))
+
+
+def _full_name(name: str) -> bool:
+    """Two or more words once leading titles are set aside ("Professor X" is one name)."""
+    from podcast_scraper.speaker_detectors.hosts import HONORIFIC_TITLES
+
+    toks = str(name).split()
+    while toks and toks[0].lower().strip(".,") in HONORIFIC_TITLES:
+        toks = toks[1:]
+    return len(toks) >= 2
+
+
+def _publisher_spellings(payload: Dict[str, Any], evidence: Any) -> Dict[str, Tuple[str, int]]:
+    """``{canonical: (the publisher's spelling, episodes)}`` for each person group publisher text
+    names (record ``s6e_publisher_spelling``, prototype eval-data ``d2i9/spelling_publisher_text``).
+
+    Per episode holding a member, a publisher name counts when it is the name of one of the
+    group's Person nodes IN THAT EPISODE (folded), or a full name the roster's own predicates match
+    to one; never when it is another person's name there. A name only ``detected_guests`` states
+    counts on an exact match only. Two names that fit, neither exactly, give that episode no vote.
+    The spelling is the publisher's own text; a bare one never beats a full one.
+    """
+    from collections import Counter
+
+    from podcast_scraper.providers.ml.diarization import roster as R
+
+    group_of: Dict[str, str] = {}
+    member_names: Dict[str, set] = {}
+    for cluster in payload.get("clusters") or []:
+        canonical = str(cluster.get("canonical_id") or "")
+        if not canonical.startswith("person:"):
+            continue
+        for m in cluster.get("members") or []:
+            if m.get("id"):
+                group_of[str(m["id"])] = canonical
+                member_names.setdefault(canonical, set()).add(str(m.get("name") or ""))
+    votes: Dict[str, Counter] = {}
+    forms: Dict[str, Counter] = {}
+    for ev in evidence.values():
+        if not ev.publisher_names:
+            continue
+        by_group: Dict[str, set] = {}
+        for pid, name in ev.person_names.items():
+            if pid in group_of:
+                by_group.setdefault(group_of[pid], set()).add(name)
+        ner = {_fold(n) for n in ev.ner_only}
+        for canonical, here in by_group.items():
+            others = {
+                _fold(n) for pid, n in ev.person_names.items() if group_of.get(pid) != canonical
+            }
+            hits: List[Tuple[str, bool]] = []
+            for p in ev.publisher_names:
+                fp = _fold(p)
+                if fp in others:
+                    continue
+                exact = any(_fold(n) == fp for n in here)
+                fuzzy = (
+                    fp not in ner
+                    and _full_name(p)
+                    and any(
+                        _full_name(n)
+                        and (R._same_person(p, n) or R._same_person_on_one_episode(p, n))
+                        for n in here
+                    )
+                )
+                if exact or fuzzy:
+                    hits.append((p, exact))
+            if any(e for _p, e in hits):
+                hits = [h for h in hits if h[1]]
+            elif len({_fold(p) for p, _e in hits}) > 1:
+                continue  # two names fit: possibly two people; no vote
+            if hits:
+                p = hits[0][0]
+                votes.setdefault(canonical, Counter())[_fold(p)] += 1
+                forms.setdefault(canonical, Counter())[p] += 1
+    out: Dict[str, Tuple[str, int]] = {}
+    for canonical, v in votes.items():
+        has_full = any(_full_name(n) for n in member_names.get(canonical, ()))
+        cand = {fp: k for fp, k in v.items() if _full_name(fp) or not has_full}
+        if not cand:
+            continue
+        best = max(cand.items(), key=lambda kv: (kv[1], len(kv[0]), kv[0]))[0]
+        spelling = max(
+            (f for f in forms[canonical] if _fold(f) == best),
+            key=lambda f: (forms[canonical][f], f),
+        )
+        out[canonical] = (spelling, cand[best])
+    return out
 
 
 def ledger_id_map(ledger: Dict[str, Any]) -> Dict[str, str]:
@@ -238,7 +362,9 @@ def ledger_status(root: Path | str) -> Dict[str, Any]:
     return out
 
 
-def write_ledger(root: Path | str, ledger: Dict[str, Any]) -> Dict[str, Any]:
+def write_ledger(
+    root: Path | str, ledger: Dict[str, Any], *, extra: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """Write ``ledger`` atomically and append what changed to the change log. Returns the change.
 
     The ledger it replaces, when valid, is kept as ``PREVIOUS_NAME`` first (the undo).
@@ -250,6 +376,7 @@ def write_ledger(root: Path | str, ledger: Dict[str, Any]) -> Dict[str, Any]:
     root = Path(root)
     previous, _state = read_ledger(root)
     change = _change_entry(previous, ledger)
+    change.update(extra or {})
     if previous is not None:
         _write_atomic(root, root / PREVIOUS_NAME, previous)
     _write_atomic(root, root / LEDGER_NAME, ledger)
@@ -265,10 +392,18 @@ def refresh_ledger(root: Path | str, *, after: str, log: Optional[logging.Logger
     ``enrich-edges`` pass that rewrote artifacts. True when the ledger was written. On failure the
     previous ledger stays as it was (joins as of the last build, never none) and the error is
     logged; the caller reports it in its exit code, so it is never silent.
+
+    Before the write, the episode files take the build's group spellings (``identity.respell``,
+    RFC-131 0041); the counts go into the change log under ``respell``.
     """
     log = log or logger
     try:
-        change = write_ledger(root, build_ledger(root))
+        built = build_ledger(root)
+        # Respell the files to this build's spellings BEFORE the write: the write moves
+        # corpus_mtime, which invalidates every cache, so no cache holds old files under the new
+        # token (RFC-131 0041). A respelling that fails or is deferred never blocks the ledger.
+        respell = respell_for(root, built, log)
+        change = write_ledger(root, built, extra={"respell": respell})
     except Exception:  # noqa: BLE001 - any build or write failure leaves the previous ledger
         log.exception("identity ledger refresh after %s failed; the previous ledger stays", after)
         return False
@@ -281,6 +416,17 @@ def refresh_ledger(root: Path | str, *, after: str, log: Optional[logging.Logger
         change["canonical_changed"],
     )
     return True
+
+
+def respell_for(root: Path | str, built: Dict[str, Any], log: logging.Logger) -> Dict[str, Any]:
+    """The ledger step's respelling (``identity.respell``); its failure is counted, not raised."""
+    from podcast_scraper.identity.respell import respell_files
+
+    try:
+        return respell_files(root, built, log=log)
+    except Exception as exc:  # noqa: BLE001 - the files lag; read time keeps the surfaces right
+        log.exception("ledger respell failed; the files keep their spelling until the next build")
+        return {"failed": f"{type(exc).__name__}: {exc}"}
 
 
 def restore_previous(root: Path | str) -> Dict[str, Any]:

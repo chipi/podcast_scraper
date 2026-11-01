@@ -773,6 +773,35 @@ _SHIPPED_VOICES = NAMING_ARC_VOICES
 REVIEWED_BY = "0031_named_voices_shown"
 
 
+def ledger_spellings(root: Path) -> Dict[str, str]:
+    """``{member name: its group's spelling}`` from the served identity ledger, for names that map
+    to one spelling only. Empty with no valid ledger."""
+    from ...identity.ledger import read_ledger
+
+    ledger, _state = read_ledger(root)
+    seen: Dict[str, set] = {}
+    for cluster in ((ledger or {}).get("clusters_payload") or {}).get("clusters") or []:
+        shown = cluster.get("display_name")
+        if not shown or not str(cluster.get("canonical_id") or "").startswith("person:"):
+            continue
+        for m in cluster.get("members") or []:
+            if m.get("name"):
+                seen.setdefault(str(m["name"]), set()).add(str(shown))
+    return {n: next(iter(s)) for n, s in seen.items() if len(s) == 1}
+
+
+def as_listed(name: Optional[str], listed: Tuple[Optional[str], ...], spellings: Dict[str, str]):
+    """A stored name read as the listed name it respells: 0041 writes a joined person's group
+    spelling over a name a frozen list states, and the list's done and before states must still
+    be recognised (RFC-131 0041). Any other name is returned as it is."""
+    if not name or name in listed:
+        return name  # a listed name is itself; only an unlisted spelling is read through the ledger
+    for cand in listed:
+        if cand and cand != name and spellings.get(cand) == name:
+            return cand
+    return name
+
+
 def restored_by_review() -> FrozenSet[Tuple[str, str]]:
     """The entries 0031's review judged ``WRONG_PERSON``: 0031 puts each back to its listed old
     state, so 0029's verify takes that state as done too (as 0031's verify does)."""
@@ -822,9 +851,11 @@ class _Episode(_VoiceEpisode):
             return True
         self._load_seg_voices(rel)
         stored = _stored_by_voice(self.meta, rel)
+        spellings = ledger_spellings(self.root)
         for voice, (old_name, old_role, new_name, new_role, _why) in sorted(mine.items()):
             name, role = stored.get(voice, (None, None))
             name = None if not name or _DIARIZATION_LABEL.match(name) else name
+            name = as_listed(name, (new_name, old_name), spellings)
             if (name, role if new_name else None) == (new_name, new_role if new_name else None):
                 continue  # already done
             if (episode_id, voice) in self._restored and (name, role) == (old_name, old_role):

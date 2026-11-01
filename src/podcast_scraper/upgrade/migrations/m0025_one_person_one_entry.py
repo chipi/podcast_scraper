@@ -78,7 +78,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
 from ...builders.context_digest_builder import build_context_digest
 from ...identity.bare_name_scope import is_scoped_person_id
@@ -108,6 +108,24 @@ def _load(path: Path) -> Optional[Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+_REVIEWED: Dict[str, FrozenSet[Tuple[str, str, str]]] = {}
+
+
+def _reviewed_identity_names() -> FrozenSet[Tuple[str, str, str]]:
+    """``{(episode id, voice, name)}`` for 0035's renames its review confirmed; read once."""
+    if "0035" not in _REVIEWED:
+        from . import m0035_voice_identity_names as m35
+
+        try:
+            apply, _missing = m35.VoiceIdentityNamesMigration()._reviewed()
+        except Exception:  # noqa: BLE001 - no usable list or verdicts: nothing is deferred to
+            apply = {}
+        _REVIEWED["0035"] = frozenset(
+            (str(e), str(v), str(entry[2])) for (e, v), entry in apply.items() if entry[2]
+        )
+    return _REVIEWED["0035"]
 
 
 def same_person(a: str, b: str) -> bool:
@@ -474,7 +492,7 @@ class _Episode:
         claimed: Dict[str, str] = {}
         for s in placed:
             name = str(s["name"])
-            if name in hosts:
+            if name in hosts or self._ledger_spells(name) or self._identity_named(s, diag):
                 continue
             taken = {str(o["name"]) for o in placed if o is not s}
             target, as_host = self._target_for(
@@ -502,6 +520,41 @@ class _Episode:
         if self.left and not self.refused:
             self._unify_left(meta, rel, diag, hosts, participants, placed)
         return bool(self.renames or self.dropped or self.left or self.voice_names)
+
+    def _identity_named(self, entry: dict, diag: Optional[dict]) -> bool:
+        """True when every voice of ``entry`` carries a name 0035's review confirmed for it (a
+        rename judged ``CORRECT`` / ``CORRECT_MISSPELLED``): the person's spelling across their
+        episodes, from their voice group. It outranks this one episode's metadata spelling when
+        the two disagree (RFC-131 0041: publisher texts that disagree are decided by the person's
+        episodes). An unreviewed fingerprint name (the pipeline's ``voice_identity`` rung) is not
+        deferred to, so a wrong match stays open to correction."""
+        voices = self._voices(entry) or []
+        meta = _load(self.meta) or {}
+        episode_id = str((meta.get("episode") or {}).get("episode_id") or "")
+        if not voices or not episode_id:
+            return False
+        reviewed = _reviewed_identity_names()
+        name = str(entry.get("name") or "")
+        return all((episode_id, str(v), name) in reviewed for v in voices)
+
+    def _ledger_spells(self, name: str) -> bool:
+        """True when ``name`` is its joined group's spelling in the served identity ledger: the
+        ledger owns a joined person's spelling across episodes (RFC-131 0041), so this episode's
+        stated spelling does not rename it. No valid ledger: False, the rule as before."""
+        from ...identity.display import person_display
+
+        view = person_display(self.root)
+        if not len(view):
+            return False
+        stem = str(self.meta)[: -len(".metadata.json")]
+        ids = set()
+        for suffix in (".kg.json", ".gi.json"):
+            doc = _load(Path(stem + suffix))
+            for n in (doc or {}).get("nodes") or [] if isinstance(doc, dict) else []:
+                props = (n.get("properties") or {}) if isinstance(n, dict) else {}
+                if n.get("type") == "Person" and str(props.get("name") or "").strip() == name:
+                    ids.add(str(n.get("id") or ""))
+        return bool(ids) and all(view.name_of(i) == name for i in ids)
 
     def _unify_left(
         self,

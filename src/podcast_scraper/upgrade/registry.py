@@ -57,6 +57,14 @@ from .migrations.m0035_voice_identity_names import VoiceIdentityNamesMigration
 from .migrations.m0036_bridge_identities_restored import BridgeIdentitiesRestoredMigration
 from .migrations.m0037_named_voices_corrected import NamedVoicesCorrectedMigration
 from .migrations.m0038_raw_label_speakers_removed import RawLabelSpeakersRemovedMigration
+from .migrations.m0039_adfree_segment_offsets_realigned import (
+    AdfreeSegmentOffsetsRealignedMigration,
+)
+from .migrations.m0040_gi_quote_offsets_realigned import GiQuoteOffsetsRealignedMigration
+from .migrations.m0041_joined_names_respelled import JoinedNamesRespelledMigration
+from .migrations.m0042_insight_cluster_quotes_resynced import (
+    InsightClusterQuotesResyncedMigration,
+)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -143,6 +151,18 @@ _MIGRATIONS: List[Migration] = [
     # 0038 brings served episodes' files to what the pipeline now writes for a voice that kept a
     # raw diarization label: no Person node, quotes and insights typed (RFC-131 N11, text only).
     RawLabelSpeakersRemovedMigration(),
+    # 0039 realigns ad-free segment offsets a 2026-10-06 hand repair left pointing a few
+    # characters early, so every later rewrite's offset carry holds (found by 0041's guard).
+    AdfreeSegmentOffsetsRealignedMigration(),
+    # 0040 realigns GI quotes whose offsets no longer slice to their text, by their own time
+    # window against the transcript's segments; a quote time cannot place is left, listed.
+    GiQuoteOffsetsRealignedMigration(),
+    # 0041 writes the ledger's group spelling of each joined person into the episode files, so
+    # the transcript agrees with every read-time surface; item 8's duplicates fold (RFC-131 D2).
+    JoinedNamesRespelledMigration(),
+    # 0042 resyncs the insight clusters' copied quote fields from the GI (0038's removed ids,
+    # 0041's moved offsets; D2 item 5).
+    InsightClusterQuotesResyncedMigration(),
     # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27;
     # the id stays unused.
 ]

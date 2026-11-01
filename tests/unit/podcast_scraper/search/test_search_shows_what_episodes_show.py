@@ -112,9 +112,10 @@ def test_supporting_quotes_carry_the_group_spelling(tmp_path: Path) -> None:
 
 def test_a_transcript_chunk_does_not_lift_to_a_hidden_insight(tmp_path: Path) -> None:
     gi = _gi("person:korin-vaal", "Korin Vaal", surfaceable=False)
-    kw = dict(char_start=0, char_end=40)
-    assert try_lift_transcript_chunk_from_gi(gi, tmp_path, tmp_path / "e.gi.json", **kw) is not None
+    gi_path = tmp_path / "e.gi.json"
+    lifted = try_lift_transcript_chunk_from_gi(gi, tmp_path, gi_path, char_start=0, char_end=40)
+    assert lifted is not None
     lifted = try_lift_transcript_chunk_from_gi(
-        gi, tmp_path, tmp_path / "e.gi.json", visible=lambda iid: False, **kw
+        gi, tmp_path, gi_path, char_start=0, char_end=40, visible=lambda iid: False
     )
     assert lifted is None

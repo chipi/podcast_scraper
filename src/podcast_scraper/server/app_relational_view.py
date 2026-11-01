@@ -99,6 +99,52 @@ def _person_web_payload(root: Path) -> dict[str, Any] | None:
     return inner if isinstance(inner, dict) else doc
 
 
+def _group_borrows(root: Path, rows: list[Any]) -> tuple[dict[str, str], dict[str, str]]:
+    """``(bio_from, photo_from)``: for each id of a joined person's group whose own row has no bio
+    (no hosted photo), the member id whose row it may borrow (record s6f_person_web).
+
+    A row is borrowed only when its ``name`` is the group's spelling: the enricher looked each id up
+    by its own spelling, so a member's row under another name may describe someone else. The
+    member with the most episodes wins. No valid ledger: nothing is borrowed (today's behaviour)."""
+    from podcast_scraper.identity.ledger import _fold, read_ledger
+
+    ledger, _state = read_ledger(root)
+    if ledger is None:
+        return {}, {}
+    by_id = {str(r.get("person_id")): r for r in rows if isinstance(r, dict) and r.get("person_id")}
+
+    def has_bio(pid: str) -> bool:
+        bio = (by_id.get(pid) or {}).get("bio")
+        return isinstance(bio, str) and bool(bio.strip())
+
+    def has_photo(pid: str) -> bool:
+        return bool((by_id.get(pid) or {}).get("image_hosted"))
+
+    bio_from: dict[str, str] = {}
+    photo_from: dict[str, str] = {}
+    for cluster in (ledger.get("clusters_payload") or {}).get("clusters") or []:
+        canonical = str(cluster.get("canonical_id") or "")
+        shown = cluster.get("display_name")
+        if not canonical.startswith("person:") or not shown:
+            continue
+        members = sorted(
+            (m for m in cluster.get("members") or [] if m.get("id")),
+            key=lambda m: (-int(m.get("episode_count") or 0), str(m["id"])),
+        )
+        ids = [canonical] + [str(m["id"]) for m in members if m["id"] != canonical]
+        named = [
+            i for i in ids if _fold(str((by_id.get(i) or {}).get("name") or "")) == _fold(shown)
+        ]
+        for kind, has, out in (("bio", has_bio, bio_from), ("photo", has_photo, photo_from)):
+            source = next((i for i in named if has(i)), None)
+            if source is None:
+                continue
+            for i in ids:
+                if i != source and not has(i):
+                    out[i] = source
+    return bio_from, photo_from
+
+
 def hosted_photo_urls(root: Path) -> dict[str, str]:
     """``{person_id: served photo route}`` for every person the web enricher HOSTS a photo for.
 
@@ -110,12 +156,16 @@ def hosted_photo_urls(root: Path) -> dict[str, str]:
     if doc is None:
         return {}
     out: dict[str, str] = {}
-    for row in doc.get("persons") or []:
+    rows = doc.get("persons") or []
+    for row in rows:
         if not isinstance(row, dict) or not row.get("image_hosted"):
             continue
         pid = row.get("person_id")
         if isinstance(pid, str) and pid:
             out[pid] = _photo_route(pid)
+    # A joined person's other ids show the photo hosted under the id that has it (s6f).
+    for pid, source in _group_borrows(root, rows)[1].items():
+        out.setdefault(pid, _photo_route(source))
     return out
 
 
@@ -139,7 +189,15 @@ def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
     if doc is None:
         return None
     source = str(doc.get("provider") or "")
-    for row in doc.get("persons") or []:
+    rows = doc.get("persons") or []
+    own = next((r for r in rows if isinstance(r, dict) and r.get("person_id") == person_id), None)
+    own_bio = (own or {}).get("bio")
+    if not isinstance(own_bio, str) or not own_bio.strip():
+        # No bio of its own: another id of the person's group, under the group's spelling (s6f).
+        borrowed = _group_borrows(root, rows)[0].get(person_id)
+        if borrowed is not None:
+            person_id = borrowed
+    for row in rows:
         if not isinstance(row, dict) or row.get("person_id") != person_id:
             continue
         bio = row.get("bio")

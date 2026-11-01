@@ -51,6 +51,12 @@ class EpisodeEvidence:
     #: The node's name, normalised (case and spacing): two ids with one name carry no evidence of
     #: two people, so the publisher-list and mention guards do not fire on them.
     name_of: Mapping[str, str] = field(default_factory=dict)
+    #: The publisher-text names as written, in order (the display rule's reference, s6e), the
+    #: Person nodes' names as written, and the names only ``detected_guests`` states (NER over the
+    #: metadata, not the publisher's own list).
+    publisher_names: Tuple[str, ...] = ()
+    person_names: Mapping[str, str] = field(default_factory=dict)
+    ner_only: FrozenSet[str] = frozenset()
 
     @property
     def mention_only(self) -> FrozenSet[str]:
@@ -72,11 +78,14 @@ def episode_evidence(
     people: Iterable[Tuple[str, str]],
     roster: Iterable[Tuple[str, Sequence[str]]],
     publisher_names: Iterable[str],
+    *,
+    ner_only: Iterable[str] = (),
 ) -> EpisodeEvidence:
     """Evidence from one episode's KG Person nodes ``(id, name)``, roster ``(name, voices)`` and
     publisher-text names. A roster entry or a publisher name belongs to a Person node when the
     names are equal ignoring case and spacing, or when the name mints the node's id."""
     people = [(str(i), str(n or "")) for i, n in people if i]
+    publisher_names = list(dict.fromkeys(str(n) for n in publisher_names if n))
     by_key: Dict[str, List[str]] = {}
     for pid, name in people:
         folded, minted = _keys(name)
@@ -100,6 +109,9 @@ def episode_evidence(
         name_of={pid: _keys(name)[0] for pid, name in people},
         voice_of={k: frozenset(v) for k, v in voices.items() if v},
         publisher_named=frozenset(named),
+        publisher_names=tuple(publisher_names),
+        person_names={pid: name for pid, name in people if name},
+        ner_only=frozenset(ner_only),
     )
 
 
@@ -152,7 +164,11 @@ def collect_episode_evidence(root: Path | str) -> Dict[str, EpisodeEvidence]:
         people = [
             (
                 strip_layer_prefixes(str(n.get("id") or "")),
-                str((n.get("properties") or {}).get("name") or "").strip(),
+                str(
+                    (n.get("properties") or {}).get("respelled_from")
+                    or (n.get("properties") or {}).get("name")
+                    or ""
+                ).strip(),
             )
             for n in data.get("nodes") or []
             if isinstance(n, dict) and n.get("type") == "Person"
@@ -161,17 +177,36 @@ def collect_episode_evidence(root: Path | str) -> Dict[str, EpisodeEvidence]:
         meta = NR._load_json(meta_path)
         roster: List[Tuple[str, Sequence[str]]] = []
         publisher: List[str] = []
+        ner: List[str] = []
         if isinstance(meta, dict):
             ep = NR.Episode("", eid, meta_path.parent.parent.name, meta_path, meta)
             label_voices = NR.segment_label_voices(ep.segments() or [])
-            roster = [(s["name"].strip(), NR.entry_voices(s, label_voices)) for s in ep.roster()]
-            publisher = _publisher_names(meta, meta_path.parent.parent)
-        out[eid] = episode_evidence(people, roster, publisher)
+            # The entry's own spelling (record 0041, 4g); its voices from the entry as written.
+            roster = [
+                (
+                    str(s.get("respelled_from") or s["name"]).strip(),
+                    NR.entry_voices(s, label_voices),
+                )
+                for s in ep.roster()
+            ]
+            by_key = _publisher_names_by_key(meta, meta_path.parent.parent)
+            publisher = [n for k in PUBLISHER_KEYS for n in by_key.get(k, [])]
+            stated = {
+                n for k in PUBLISHER_KEYS if k != "detected_guests" for n in by_key.get(k, [])
+            }
+            ner = [n for n in by_key.get("detected_guests", []) if n not in stated]
+        out[eid] = episode_evidence(people, roster, publisher, ner_only=ner)
     return out
 
 
 def _publisher_names(meta: Mapping, run: Path) -> List[str]:
     """The publisher-text names the episode's speakers diagnostics record."""
+    by_key = _publisher_names_by_key(meta, run)
+    return [n for k in PUBLISHER_KEYS for n in by_key.get(k, [])]
+
+
+def _publisher_names_by_key(meta: Mapping, run: Path) -> Dict[str, List[str]]:
+    """``{publisher key: names}`` from the episode's speakers diagnostics (``tried``)."""
     from podcast_scraper.quality import name_report as NR
 
     rel = str((meta.get("content") or {}).get("transcript_file_path") or "")
@@ -183,11 +218,11 @@ def _publisher_names(meta: Mapping, run: Path) -> List[str]:
             else ""
         )
     if not rel.endswith(".txt"):
-        return []
+        return {}
     diag = NR._load_json(run / rel.replace(".txt", ".speakers.diagnostics.json"))
     tried = (diag or {}).get("tried") if isinstance(diag, dict) else None
     tried = tried if isinstance(tried, dict) else {}
-    return [str(n) for k in PUBLISHER_KEYS for n in tried.get(k) or [] if n]
+    return {k: [str(n) for n in tried.get(k) or [] if n] for k in PUBLISHER_KEYS}
 
 
 def candidate_guard(evidence: Mapping[str, EpisodeEvidence], *, enabled: Iterable[str] = GUARDS):

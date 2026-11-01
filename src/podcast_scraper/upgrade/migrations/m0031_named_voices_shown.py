@@ -105,10 +105,12 @@ class _Episode(DerivedSurfacesEpisode):
         self._load_seg_voices(rel)
         stored = m29._stored_by_voice(self.meta, rel)
         typed = _typed_voices(self.meta, rel)
+        spellings = m29.ledger_spellings(self.root)
         for voice, (old_name, old_role, new_name, new_role, _why) in sorted(mine.items()):
             verdict = self._verdicts.get(episode_id, voice) if self._verdicts else None
             name, role = stored.get(voice, (None, None))
             name = None if not name or m29._DIARIZATION_LABEL.match(name) else name
+            name = m29.as_listed(name, (new_name, old_name), spellings)
             if verdict is not None and verdict.verdict == "WRONG_PERSON":
                 if name is None and old_name is None:
                     continue  # never named, or already unnamed: nothing to take off
