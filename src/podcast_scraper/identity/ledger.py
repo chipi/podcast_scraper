@@ -158,6 +158,11 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
     a repair): publisher text picks among the full names, and with none named there, the most
     frequent full name (0041, eval-data ``d2i9/spelling_full_name.py``: 5 of 475 groups move, the
     truth set's scores unchanged).
+
+    **A tie is not chosen** (operator, 2026-11-02; record ``s6g_tie_spelling_not_chosen``): when no
+    publisher text names the group and the two most frequent spellings of its pool (the full names,
+    else every member; folded) have equal episode counts, no spelling is set and the evidence is
+    ``{"rule": "tie"}``. Each episode keeps its own spelling; the card shows the canonical's name.
     """
     from collections import Counter
 
@@ -192,6 +197,9 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
             )
             cluster["display_name"] = candidates[pick].name
             cluster["display_evidence"] = {"rule": "publisher", "episodes": named[pick]}
+        elif _tie(pool, candidates):
+            cluster.pop("display_name", None)
+            cluster["display_evidence"] = {"rule": "tie"}
         elif fulls and canonical in candidates and not full(canonical):
             pick = max(
                 fulls,
@@ -202,6 +210,17 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
         else:
             cluster["display_name"] = cluster.get("canonical_name")
             cluster["display_evidence"] = {"rule": "frequency"}
+
+
+def _tie(pool: List[str], candidates: Any) -> bool:
+    """The two most frequent spellings of ``pool`` (folded) have equal episode counts."""
+    from collections import Counter
+
+    per: Counter = Counter()
+    for i in pool:
+        per[_fold(candidates[i].name)] += candidates[i].freq
+    top = per.most_common(2)
+    return len(top) == 2 and top[0][1] == top[1][1]
 
 
 def _fold(name: str) -> str:

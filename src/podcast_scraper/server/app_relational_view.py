@@ -124,7 +124,7 @@ def _group_borrows(root: Path, rows: list[Any]) -> tuple[dict[str, str], dict[st
     photo_from: dict[str, str] = {}
     for cluster in (ledger.get("clusters_payload") or {}).get("clusters") or []:
         canonical = str(cluster.get("canonical_id") or "")
-        shown = cluster.get("display_name")
+        shown = cluster.get("display_name") or cluster.get("canonical_name")
         if not canonical.startswith("person:") or not shown:
             continue
         members = sorted(

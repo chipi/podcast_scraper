@@ -191,6 +191,15 @@ class TestSpellingVariantsCollapseInTheAppIndex:
             persons=[("person:theo-jaffe", "Theo Jaffe")],
             show="show:a16z",
         )
+        # A second episode: two one-episode near spellings with no other evidence are not joined
+        # (record s5d), as in production, where one spelling has six episodes.
+        self._episode_on_show(
+            root,
+            stem="0003",
+            episode_id="e3",
+            persons=[("person:theo-jaffe", "Theo Jaffe")],
+            show="show:a16z",
+        )
         _stamp(root, 1000.0)
 
     def _two_spellings_with_ledger(self, root: Path) -> None:
@@ -216,7 +225,7 @@ class TestSpellingVariantsCollapseInTheAppIndex:
         self._two_spellings_with_ledger(tmp_path)
         index = app_kg_index.build_kg_index(tmp_path)
         pid = next(p for p in index.person_to_eps if "jaffe" in p)
-        assert len(index.person_to_eps[pid]) == 2, "the merged person appears in both episodes"
+        assert len(index.person_to_eps[pid]) == 3, "the merged person appears in every episode"
 
     def test_searching_either_spelling_finds_the_same_person(self, tmp_path: Path) -> None:
         self._two_spellings_with_ledger(tmp_path)

@@ -58,10 +58,16 @@ class LedgerView:
     ) -> None:
         self.display, self.id_map = display, id_map
         self.episodes_of = episodes_of or {}
+        self._canonicals = set(id_map.values())
 
     def joined(self, person_id: str) -> bool:
-        """True when the ledger joins ``person_id`` into a group with a spelling."""
-        return self.display.name_of(person_id) is not None
+        """True when the ledger joins ``person_id`` into a group, with a spelling or not (a tie
+        group has none, record s6g)."""
+        return (
+            self.display.name_of(person_id) is not None
+            or person_id in self.id_map
+            or person_id in self._canonicals
+        )
 
 
 def served_view(root: Path) -> Optional[LedgerView]:

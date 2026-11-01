@@ -644,7 +644,41 @@ must-not-move row passes**, the ledger's included:
 - the 2 quotes off their text are among 0040's 6 listed, unchanged by 0041;
 - 1 episode's shown names move from an authored quote name to the group spelling (intended).
 
-## Not covered
+
+### Rerun after s5d (the ledger's near-spelling rule and reviewed list)
+
+0041's code is unchanged. Its input changed: D2's ledger after record s5d (sections 4–4d), 632
+joins instead of 658. The gate and the after-checks were rerun on the same chain of bases, each
+ledger rebuilt with `--no-respell`.
+
+**Gate** (`0041_joined_names_respelled.gate.json`, code digest `2b6374388bbc`, 2026-11-01T21:50):
+- computed class full; gating moves none;
+- **556 episodes, 2,805 files.** That is s5d 4d's prediction (`d2i9/s5d_4d_evidence.py`) exactly.
+  - The 17 fewer episodes come from the joins s5d removed: its two-people pairs, whose spelling
+    0041 would have written over another person's mentions, and the one unclear member
+    (`person:yu-shang`).
+- `upgrade verify` **40 ok, none failing**.
+
+**After-checks** (`d2i9/after_checks_s5d.txt`, base-0041 against base-0042): **every must-not-move
+row passes** ("AFTER CHECKS: FAIL 0").
+- **The ledger fixpoint:**
+  - joins 632 → 632, 0 changed;
+  - blocked joins 39 → 39;
+  - canonical ids gone or new, group members, `display_name`, `display_evidence`: 0 changed.
+- Spoken text, segment text and times, publisher evidence: unchanged.
+- 1 person id removed (the folded duplicate). 25,629 segment labels and 107 transcripts respelled.
+- Search: 107 episodes with changed chunks (1,700 of 2,757), re-embedded on the next reindex.
+- The 2 quotes off their text are among 0040's 6 listed.
+
+**Bare speaker labels kept** (`d2i9/placeholder_labels.py`): **4** episode-scoped names that are
+speaker labels in their segments. Each keeps the episode's bare name in the files, and read time
+shows its group's spelling. All 4 read right: one show's two co-hosts in three episodes, and one
+analyst's surname.
+- The earlier figure, 15 (4f-b), was measured on the ledger before s5d with `d2i9/dry_counts.py`.
+  That script joins the metadata's transcript path, which is absolute on prod, so it missed
+  episodes.
+- The two counts differ in both ledger and method, and the difference is not traced by id.
+
 
 - Frozen copies (highlights, favourites, sent emails).
 - The ledger pooling one bare first name across a show's episodes (103 groups on the snapshot):

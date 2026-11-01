@@ -49,7 +49,15 @@ def display_from_ledger(ledger: Optional[Dict[str, Any]]) -> PersonDisplay:
         for cluster in (ledger.get("clusters_payload") or {}).get("clusters") or []:
             shown = cluster.get("display_name")
             canonical = str(cluster.get("canonical_id") or "")
-            if not shown or not canonical.startswith("person:"):
+            if not canonical.startswith("person:"):
+                continue
+            if not shown:
+                # A tie (record s6g): the card shows the canonical's own name, and each member
+                # keeps its episode's spelling.
+                if (cluster.get("display_evidence") or {}).get("rule") == "tie" and cluster.get(
+                    "canonical_name"
+                ):
+                    spelling_of[canonical] = str(cluster["canonical_name"])
                 continue
             for member in cluster.get("members") or []:
                 if member.get("id"):

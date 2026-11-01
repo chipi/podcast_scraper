@@ -468,3 +468,14 @@ def test_an_unresolved_speaker_placeholder_is_never_respelled(tmp_path: Path, pi
     )
     renames, _folds, refused = m39.episode_renames(p["meta"], view)
     assert renames == {} and refused == {"Korin Vaal": "an episode-scoped id"}
+
+
+def test_a_member_without_a_group_spelling_is_still_joined() -> None:
+    """Record s6g: a tie group shows no spelling, but its ids stay joined for folds and refusals."""
+    view = m39.LedgerView(
+        PersonDisplay({"person:korin-vael": "Korin Vael"}),
+        {"person:korin-vaal": "person:korin-vael"},
+        {"person:korin-vaal": 2, "person:korin-vael": 2},
+    )
+    assert view.joined("person:korin-vaal") and view.joined("person:korin-vael")
+    assert not view.joined("person:odile-brand")

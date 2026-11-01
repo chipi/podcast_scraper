@@ -387,3 +387,61 @@ def test_two_one_episode_mentions_are_not_joined_on_a_near_spelling(tmp_path: Pa
     _kg_episode(root, "show_a", "run_x_20261001-000000", "e1", {"person:korin-vael": "Korin Vael"})
     _kg_episode(root, "show_a", "run_y_20261002-000000", "e2", {"person:korin-vaal": "Korin Vaal"})
     assert L.ledger_id_map(L.build_ledger(root)) == {}
+
+
+def _spelled(members):
+    """``_add_display_spellings`` on one person group of ``(id, name, episodes)``."""
+    cands = {
+        i: entity_clusters.EntityCandidate(
+            id=i, kind="person", name=n, episodes={f"{i}-{k}" for k in range(e)}, shows={"s"}
+        )
+        for i, n, e in members
+    }
+    canonical = members[0][0]
+    cluster = {
+        "canonical_id": canonical,
+        "canonical_name": members[0][1],
+        "members": [{"id": i, "name": n, "episode_count": e} for i, n, e in members],
+    }
+    L._add_display_spellings({"clusters": [cluster]}, cands, {})
+    return cluster
+
+
+def test_a_tie_between_two_spellings_shows_no_group_spelling() -> None:
+    """Record s6g: equal episode counts, no publisher text: no evidence for either spelling."""
+    c = _spelled([("person:korin-vael", "Korin Vael", 2), ("person:korin-vaal", "Korin Vaal", 2)])
+    assert "display_name" not in c and c["display_evidence"] == {"rule": "tie"}
+
+
+def test_a_majority_still_shows_its_spelling() -> None:
+    c = _spelled([("person:korin-vael", "Korin Vael", 3), ("person:korin-vaal", "Korin Vaal", 2)])
+    assert c["display_name"] == "Korin Vael" and c["display_evidence"] == {"rule": "frequency"}
+
+
+def test_one_spelling_written_two_ways_is_not_a_tie() -> None:
+    c = _spelled(
+        [("person:korin-vael", "Korin Vael", 2), ("person:korin-vael-2", "korin  vael", 2)]
+    )
+    assert c["display_name"] == "Korin Vael"
+
+
+def test_the_tie_is_read_among_the_full_names() -> None:
+    """A bare name does not break a tie between two full spellings."""
+    c = _spelled(
+        [
+            ("person:vael", "Vael", 5),
+            ("person:korin-vael", "Korin Vael", 2),
+            ("person:korin-vaal", "Korin Vaal", 2),
+        ]
+    )
+    assert "display_name" not in c and c["display_evidence"] == {"rule": "tie"}
+
+
+def test_a_tie_group_gives_its_card_the_canonical_name_only() -> None:
+    from podcast_scraper.identity.display import display_from_ledger
+
+    c = _spelled([("person:korin-vael", "Korin Vael", 2), ("person:korin-vaal", "Korin Vaal", 2)])
+    view = display_from_ledger({"clusters_payload": {"clusters": [c]}})
+    assert view.name_of("person:korin-vael") == "Korin Vael"
+    assert view.name_of("person:korin-vaal") is None
+    assert view.shown("person:korin-vaal", "Korin Vaal") == "Korin Vaal"
