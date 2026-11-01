@@ -269,9 +269,115 @@ group. Its basis is in the file under `groups_added`. No code changes. The list 
 - **0041: episodes 573 → 563, files 2,864 → 2,830.**
   - Computed with `d2i9/s5d_4c_check.py`: 0041's own plan on the first measured ledger, with
     `person:enoch-karangwana` put back in its group (4c's ledger, simulated).
-  - The same script gives the first measured ledger 562 / 2,827. Karangwana's episode is respelled
+  - The same script gives the first measured ledger 562 / 2,827. `person:enoch-karangwana`'s episode is respelled
     again.
   - The 0041 gate rerun on the real rebuild must give 563 / 2,830.
+
+### 4d. Wrong joins the evidence-free read could not see (step 9's wider read)
+
+Dated: 2026-11-01T23:20
+
+**The reads** (eval-data `d2i9/`), each on D2's measured ledger (`s5d_measure_4c.out`):
+- **The cards** (`card_read.py`): every card whose shown name changes against prod's, 151.
+- **The near-spelling joins with any evidence** (`near_only_members.py`, `near_pairs_ranked.py`):
+  - 276 pairs, edge view, none of them in the earlier reads (`near_pairs_ranked.txt`), each read
+    from that file's names and flags; the short forms (a surname, a title) are set aside;
+  - the 11 unclear ones read with context (`read_group_cards.py`).
+- **Every bare-name join** (`scoped_joins_read.py`): 184 scoped ids in 84 groups.
+
+**Found two people, 16 ids.** Each verdict rests on both sides' show, episode and KG description,
+side by side in `d2i9/s5d_4d_evidence.out`, which also covers the 3 replay pairs and the one gained
+join. The scoped id of `person:zoran-mamdani`'s group is the least certain: its description fits an
+academic namesake better than the group's politician. Unclear goes to split, as for
+`person:yu-shang`.
+- **Full-name pairs, 5.** Each has one side voiced or publisher-named, so rule 1 never applied:
+  - `person:stephen-king` / `person:stephen-hawking`. The card shows the wrong person's name,
+    since the publisher's text names the other;
+  - `person:mike-jones` / `person:mike-johnson`;
+  - `person:thomas-ahle` / `person:thomas-hales`;
+  - `person:michael-ovitz` / `person:michael-moritz`;
+  - `person:mark-cockleberg` / `person:mark-zuckerberg`.
+- **Bare names joined to another person's full name, 11 scoped ids** in the groups of:
+  - `person:christopher-alexander`, `person:eva-leila`, `person:harriet-ryan` (2),
+    `person:geetha-godwin`, `person:henry-i`, `person:rajmohan-gandhi`, `person:thomas-cromwell`,
+    `person:zoran-mamdani` (with `person:zoran-mandani`), `person:steve-pierce`,
+    `person:peter-pavel`.
+  - Read time shows a bare name in its group's spelling, so these put a wrong full name on the page.
+- **The rest:** the other 271 respelling pairs, 173 bare names, and the remaining cards were read
+  as one person. Some cards show the worse of two equal spellings; that is a display tie, not a
+  join.
+
+**The change:** 20 pairs added to `apart`, 30 in all. No code changes.
+- The 12 scoped-id pairs and the 5 full-name pairs above.
+- **3 that the order replay found** (`d2i9/s5d_order_replay_4d.py`):
+  - freed, the scoped id of `person:henry-i`'s group matches `person:david-i` and `person:roger-i`;
+  - the scoped id of `person:zoran-mamdani`'s group matches `person:mayor-mamdani`;
+  - each is another person, so each is an apart pair.
+
+**Order effects** (`s5d_order_replay_4d.out`, each of the 32 ids against every candidate on its
+shows):
+- **One new join:** the scoped id of `person:rajmohan-gandhi`'s group matches
+  `person:mohandas-gandhi`, a single id today.
+  - **Read:** both descriptions name one person, the independence leader (`s5d_4d_evidence.out`).
+  - **Visit order:** both have 1 episode, and the scoped id's name sorts before the full name's. So
+    it is visited first: refused against `person:rajmohan-gandhi`'s cluster (3 episodes, visited
+    earlier), it forms its own cluster, which `person:mohandas-gandhi` then joins. A full-name
+    candidate may match a scoped member; s5c narrows the pool only for a scoped candidate.
+- No other id has a match outside its pairs.
+
+**Predicted** (the same rebuild and `ledger_counts.py`):
+
+| | 4c measured | 4d |
+|---|---|---|
+| joins | 647 | **632** (−16 lost, +1 gained) |
+| person groups | 362 | **350** (13 dissolve, 1 new) |
+| full-name person joins | 354 | **349** |
+| scoped person joins | 184 | **174** (−11, +1) |
+| org joins / groups | 109 / 100 | 109 / 100 |
+| `blocked_joins` rows | 20 | **39** |
+
+- **The 19 new rows** are each pair that meets in the visit order: 5 full-name pairs, plus 14 for
+  the scoped ids:
+  - 1 each for the scoped ids of the groups of `person:christopher-alexander`, `person:eva-leila`,
+    `person:geetha-godwin`, `person:rajmohan-gandhi`, `person:thomas-cromwell`, `person:steve-pierce`
+    and `person:peter-pavel`;
+  - 2 for the two scoped ids of `person:harriet-ryan`'s group;
+  - 3 for the scoped id of `person:henry-i`'s group (against `person:henry-i`, `person:david-i` and
+    `person:roger-i`);
+  - 2 for the scoped id of `person:zoran-mamdani`'s group (against `person:zoran-mamdani` and
+    `person:mayor-mamdani`).
+  - `person:zoran-mandani` joins the canonical's cluster before it can meet that scoped id, so that
+    pair writes no row.
+- **The 13 groups that dissolve:** `christopher-alexander`, `eva-leila`, `harriet-ryan`,
+  `geetha-godwin`, `henry-i`, `rajmohan-gandhi`, `thomas-cromwell`, `steve-pierce`, `peter-pavel`,
+  `stephen-hawking`, `mike-johnson`, `thomas-hales`, `michael-moritz`.
+- `zoran-mamdani` and `mark-zuckerberg` keep two members each.
+- **Lost:** 4c's 11 plus these 16 ids. **Gained:** 1, `person:mohandas-gandhi` with the scoped id
+  above. **Moved:** 0.
+- **0041: episodes 563 → 556, files 2,830 → 2,805.**
+  - Computed with `d2i9/s5d_4d_evidence.py`, 0041's own plan on 4c's measured ledger. The 16 ids
+    are taken out, the new group is added, and every `display_name` is recomputed by the build's
+    own `_add_display_spellings`.
+  - The simulated ledger has 350 person groups, as predicted. The only `display_name` change is the
+    new group's.
+  - Bare names are never respelled (0041's placeholder rule), so the drop comes from the 5
+    full-name ids.
+  - The gate rerun on the real rebuild must give 556 / 2,805.
+
+**Not covered by 4d:**
+- **New wrong bare-name joins.** At least 6% of the 184 read wrong (11).
+  - The count is a lower bound: some bare ids have no description and could not be judged.
+  - The two large groups of one show's co-hosts, `person:yu-shun` and `person:yushan`, hold bare ids
+    whose described roles disagree. They are not read for collisions of one name.
+  - Until voice evidence (1C), a new bare name can still join a namesake's full name on its show.
+    Only a later read catches it.
+- **Cards where the publisher's own spelling loses** (`card_read.out`): one person, but the
+  publisher's text names a spelling the group's fuzzy match does not reach. Examples:
+  `person:wicknell-shevaya`, `person:john-glenn-hill`, `person:sofia-du`, and `person:jeff-glow`
+  (whose person also has a separate group, `person:jeff-guo`). That is a display defect and a missed
+  join, not a wrong merge; it is outside this change.
+- **`person:stephen-king`** itself holds two people of one name (an economist and an author). The
+  rule compares names, so it cannot split them.
 
 ## 5. Acceptance
 
@@ -326,6 +432,22 @@ Dated: 2026-11-01T22:05
     list as the measure that settles them;
   - the evidence for the `display_name` change.
 - **What it confirmed:** the arithmetic, the list's integrity, and the public-repo rule.
+
+**Fourth fresh reader (4d):** 2026-11-01, a sonnet reviewer subagent with read-only tools, one pass
+over 4d before its measurement.
+Dated: 2026-11-02T00:10
+- **Verdict:** "Not complete".
+- **Its findings,** each taken in 4d:
+  - person names in prose, replaced by ids;
+  - 0041's prediction recomputed with the build's own `display_name`;
+  - the gained join read;
+  - every verdict's both-sides evidence put in one file;
+  - the visit-order frequencies shown;
+  - the bare-name rate stated as a lower bound, with the unread co-host groups named;
+  - the cards whose publisher spelling loses;
+  - the list's `apart_basis`.
+- **What it confirmed:** the 4d integers, the visit-order rows (the `person:zoran-mandani` no-row
+  claim in either order), and the list's integrity.
 
 ## 6. Build
 
@@ -383,7 +505,26 @@ and 20 rows. That led to 4c.
 
 - **Lost: 11,** the 10 apart pairs and `person:yu-shang`. Gained 0, moved 0.
 - **Surviving canonicals changed: 0.** `display_name` changed: 1, `person:yushan`'s group.
-- **0041's figures** (563 episodes, 2,830 files predicted) are measured by the 0041 gate rerun,
+**The third measurement,** after 4d (`s5d_measure_4d.out`, plus `ledger_counts.py`, against the
+4c ledger the clone then served):
+
+| | 4c measured | 4d predicted | 4d measured |
+|---|---|---|---|
+| joins | 647 | 632 | **632** |
+| person groups | 362 | 350 | **350** |
+| full-name person joins | 354 | 349 | **349** |
+| scoped person joins | 184 | 174 | **174** |
+| org joins / groups | 109 / 100 | 109 / 100 | **109 / 100** |
+| `blocked_joins` rows | 20 | 39 | **39** (29 `reviewed_apart`) |
+
+- **Lost: 15. Moved: 1. Gained: 0.**
+  - The id-map diff counts the scoped id of `person:rajmohan-gandhi`'s former group as moved, to
+    `person:mohandas-gandhi`. 4d's prediction counted that as one lost and one gained; it is the
+    same change.
+  - The 15 lost are exactly 4d's other 15 ids.
+- **New canonicals: 1,** `person:mohandas-gandhi`. **`display_name` changed: 0** in surviving
+  groups.
+- **0041's figure** (556 episodes, 2,805 files predicted) is measured by the 0041 gate rerun,
   recorded with the D2 gates.
 
 ## Not covered

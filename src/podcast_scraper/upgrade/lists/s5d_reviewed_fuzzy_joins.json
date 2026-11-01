@@ -297,6 +297,21 @@
    "76-pair read #38"
   ],
   [
+   "person:mark-cockleberg",
+   "person:mark-zuckerberg",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:michael-ovitz",
+   "person:michael-moritz",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:mike-jones",
+   "person:mike-johnson",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
    "person:nick-warner",
    "person:senator-warner",
    "76-pair read #49"
@@ -317,12 +332,97 @@
    "59-pair read #56"
   ],
   [
+   "person:stephen-king",
+   "person:stephen-hawking",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:thomas-ahle",
+   "person:thomas-hales",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-alexander-substack-post-202769820",
+   "person:christopher-alexander",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-cromwell-urn-bbc-podcast-m002wkhq",
+   "person:thomas-cromwell",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-gandhi-075c3f24-fddc-4537-931a-7e7b6ae44b64",
+   "person:rajmohan-gandhi",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-godwin-e869c826-c231-11f1-ab75-dbadf888ec48",
+   "person:geetha-godwin",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-i-85d2cc14-60f0-11f1-8fa4-f300161eae39",
+   "person:david-i",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-i-85d2cc14-60f0-11f1-8fa4-f300161eae39",
+   "person:henry-i",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-i-85d2cc14-60f0-11f1-8fa4-f300161eae39",
+   "person:roger-i",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-leila-a00277d1-9d4f-47b0-9804-0575f581359a",
+   "person:eva-leila",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-mamdani-f50ae759-a407-44b9-9fcb-693ea68c115d",
+   "person:mayor-mamdani",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-mamdani-f50ae759-a407-44b9-9fcb-693ea68c115d",
+   "person:zoran-mamdani",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-mamdani-f50ae759-a407-44b9-9fcb-693ea68c115d",
+   "person:zoran-mandani",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-pavel-buzzsprout-19480825",
+   "person:peter-pavel",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-pierce-4016f8a4-ad52-11f1-99a1-6fcf090d4f32",
+   "person:steve-pierce",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-ryan-83c4f48e-70d5-11f1-94d3-5f5d225c248a",
+   "person:harriet-ryan",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
+   "person:unresolved-ryan-936e1268-b39b-11f1-99bb-3b4fd730c0bf",
+   "person:harriet-ryan",
+   "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
+  ],
+  [
    "person:wisena-williams",
    "person:wilson-williams",
    "76-pair read #75"
   ]
  ],
- "apart_basis": "the same read, 2026-11-01: two people who share a word and a few letters (different roles, countries or eras in the KG's descriptions); eval-data d2i9/read_pairs_76.txt and read_pairs_59_verdicts.md",
+ "apart_basis": "the same read, 2026-11-01: two people who share a word and a few letters (different roles, countries or eras in the KG's descriptions); eval-data d2i9/read_pairs_76.txt and read_pairs_59_verdicts.md; 4d: d2i9/s5d_4d_evidence.out (both sides' show, episode and description)",
  "groups_added": [
   [
    "person:enoch-godongwana",
