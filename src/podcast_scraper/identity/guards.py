@@ -26,6 +26,8 @@ from typing import Dict, FrozenSet, Iterable, List, Mapping, Optional, Sequence,
 GUARD_CO_VOICE = "co_voice"
 GUARD_PUBLISHER_LIST = "publisher_list"
 GUARD_MENTION_COOCCURRENCE = "mention_cooccurrence"
+#: A pair a human read judged two people (record s5d): refused in any episode, at any count.
+GUARD_REVIEWED_APART = "reviewed_apart"
 
 #: Every guard, in the order they are tried; the first that fires is recorded.
 GUARDS: Tuple[str, ...] = (GUARD_CO_VOICE, GUARD_PUBLISHER_LIST, GUARD_MENTION_COOCCURRENCE)
@@ -35,7 +37,14 @@ VERDICT = {
     GUARD_CO_VOICE: "different",
     GUARD_PUBLISHER_LIST: "different",
     GUARD_MENTION_COOCCURRENCE: "unknown",
+    GUARD_REVIEWED_APART: "different",
 }
+
+#: The reviewed near-spelling list (record s5d): ``groups`` a human read judged one person, and
+#: ``apart`` pairs it judged two.
+REVIEWED_LIST = (
+    Path(__file__).resolve().parents[1] / "upgrade" / "lists" / "s5d_reviewed_fuzzy_joins.json"
+)
 
 #: The speakers diagnostics' publisher-text names (feed and show notes); m0025 reads these keys.
 PUBLISHER_KEYS: Tuple[str, ...] = ("known_hosts", "metadata_named", "detected_guests")
@@ -236,3 +245,45 @@ def candidate_guard(evidence: Mapping[str, EpisodeEvidence], *, enabled: Iterabl
         )
 
     return guard
+
+
+def load_reviewed(path: Optional[Path] = None) -> Dict[str, list]:
+    """The reviewed list: ``{"groups": [[id, ...]], "apart": [[id, id, basis]]}``."""
+    import json
+
+    data = json.loads(Path(path or REVIEWED_LIST).read_text(encoding="utf-8"))
+    return {"groups": list(data.get("groups") or []), "apart": list(data.get("apart") or [])}
+
+
+def reviewed_pair_rule(evidence: Mapping[str, EpisodeEvidence], reviewed: Mapping[str, list]):
+    """The cluster build's ``pair_rule(candidate, member)`` (record s5d): ``"apart"`` for a pair
+    the reviewed list judged two people; ``"ignore"`` for a near spelling between two ids of at
+    most one episode each, neither a voice nor named by publisher text, not in one reviewed group;
+    None otherwise. Only people; an episode-scoped id is s5c's."""
+    from podcast_scraper.identity.bare_name_scope import is_scoped_person_id
+    from podcast_scraper.identity.person_match import near_spelling_only
+    from podcast_scraper.kg.entity_clusters import _pair_language
+
+    group_of = {str(i): n for n, g in enumerate(reviewed.get("groups") or []) for i in g}
+    apart = {frozenset((str(p[0]), str(p[1]))) for p in reviewed.get("apart") or []}
+    voiced = {pid for ev in evidence.values() for pid, vs in ev.voice_of.items() if vs}
+    named = {pid for ev in evidence.values() for pid in ev.publisher_named}
+
+    def rule(cand, member) -> Optional[str]:
+        if cand.kind != "person" or member.kind != "person":
+            return None
+        if frozenset((cand.id, member.id)) in apart:
+            return "apart"
+        ids = (cand.id, member.id)
+        if any(is_scoped_person_id(i) for i in ids) or cand.freq > 1 or member.freq > 1:
+            return None
+        if any(i in voiced or i in named for i in ids):
+            return None
+        g = group_of.get(cand.id)
+        if g is not None and g == group_of.get(member.id):
+            return None
+        if near_spelling_only(cand.name, member.name, _pair_language(cand, member)):
+            return "ignore"
+        return None
+
+    return rule

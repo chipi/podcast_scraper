@@ -162,16 +162,24 @@ def _pick_canonical(members: List[EntityCandidate], keep: Collection[str] = ()) 
 
 
 _Guard = Callable[[EntityCandidate, EntityCandidate], Optional[Tuple[str, str]]]
+_PairRule = Callable[[EntityCandidate, EntityCandidate], Optional[str]]
 _LINKAGES = ("single", "no_one_word_bridge", "complete")
 
 
 class _JoinTest:
     """May a candidate join a cluster? ``build_entity_canonical_map``'s join test, refusals kept."""
 
-    def __init__(self, guard: Optional[_Guard], person_mode: str, linkage: str) -> None:
+    def __init__(
+        self,
+        guard: Optional[_Guard],
+        person_mode: str,
+        linkage: str,
+        pair_rule: Optional[_PairRule] = None,
+    ) -> None:
         if linkage not in _LINKAGES:
             raise ValueError(f"unknown linkage: {linkage!r} (known: {list(_LINKAGES)})")
         self.guard, self.person_mode, self.linkage = guard, person_mode, linkage
+        self.pair_rule = pair_rule
         self.blocked: List[List[str]] = []
 
     def _match(self, a: EntityCandidate, b: EntityCandidate, kind: str) -> bool:
@@ -192,9 +200,24 @@ class _JoinTest:
             pool = [m for m in cluster if not _scoped(m.id)]
         if kind == "person" and self.linkage == "no_one_word_bridge" and _words(cand.name) > 1:
             pool = [m for m in pool if _words(m.name) > 1] or pool
+        if kind == "person" and self.pair_rule is not None:
+            # A near spelling of two one-episode mentions is not evidence (record s5d, rule 1).
+            pool = [m for m in pool if self.pair_rule(cand, m) != "ignore"]
         return any(self._match(cand, m, kind) for m in pool)
 
+    def _apart(self, cand: EntityCandidate, cluster: List[EntityCandidate]) -> bool:
+        """Record s5d, rule 2: a reviewed two-people pair, over the whole cluster; recorded."""
+        assert self.pair_rule is not None
+        for m in cluster:
+            if self.pair_rule(cand, m) == "apart" and self._match(cand, m, "person"):
+                episode = sorted(cand.episodes)[0] if cand.episodes else ""
+                self.blocked.append([cand.id, m.id, "reviewed_apart", episode])
+                return True
+        return False
+
     def __call__(self, cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
+        if kind == "person" and self.pair_rule is not None and self._apart(cand, cluster):
+            return False
         if not self._matches(cand, cluster, kind):
             return False
         if self.guard is None or kind != "person":
@@ -215,6 +238,7 @@ def build_entity_canonical_map(
     person_mode: str = "cluster",
     linkage: str = "single",
     keep_canonical: Collection[str] = (),
+    pair_rule: Optional[_PairRule] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, str]]:
     """Cluster variants and return ``(entity_clusters_payload, variant→canonical map)``.
 
@@ -237,9 +261,13 @@ def build_entity_canonical_map(
     holds one keeps it, so a person's pages and links do not move when frequencies shift or
     every member comes to carry one spelling (RFC-131 0041).
 
+    ``pair_rule(candidate, member)`` (record s5d), for persons: ``"ignore"`` drops that member
+    from the ones the candidate may match through; ``"apart"`` refuses the cluster, recorded in
+    ``blocked_joins`` as guard ``reviewed_apart``. The ledger build passes one.
+
     The defaults keep today's build.
     """
-    joins = _JoinTest(guard, person_mode, linkage)
+    joins = _JoinTest(guard, person_mode, linkage, pair_rule)
     blocked = joins.blocked
 
     by_kind: Dict[str, List[EntityCandidate]] = {}
@@ -308,7 +336,7 @@ def build_entity_canonical_map(
         "merged_variants": len(id_map),
         "clusters": clusters_out,
     }
-    if guard is not None:
+    if guard is not None or pair_rule is not None:
         payload["blocked_joins"] = blocked
     return payload, id_map
 

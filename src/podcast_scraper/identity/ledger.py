@@ -88,11 +88,17 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
 
     The joins are the cluster rule's for organisations. For people: rule mode ``PERSON_MODE``,
     linkage ``PERSON_LINKAGE``, and the identity guards inside the join test (ADR-167); each
-    refused join is recorded in ``blocked_joins``. A group keeps the canonical id the served
+    refused join is recorded in ``blocked_joins``. The reviewed near-spelling list (record s5d)
+    applies as the build's ``pair_rule``. A group keeps the canonical id the served
     ledger gives it while that id is still a member (RFC-131 0041).
     """
     import podcast_scraper
-    from podcast_scraper.identity.guards import candidate_guard, collect_episode_evidence
+    from podcast_scraper.identity.guards import (
+        candidate_guard,
+        collect_episode_evidence,
+        load_reviewed,
+        reviewed_pair_rule,
+    )
     from podcast_scraper.kg.entity_clusters import (
         build_entity_canonical_map,
         collect_entity_candidates,
@@ -108,6 +114,7 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
         person_mode=PERSON_MODE,
         linkage=PERSON_LINKAGE,
         keep_canonical=_canonical_ids(served),
+        pair_rule=reviewed_pair_rule(evidence, load_reviewed()),
     )
     _add_display_spellings(payload, candidates, evidence)
     blocked = payload.pop("blocked_joins", [])

@@ -258,3 +258,122 @@ class TestPersonRule:
     def test_unknown_linkage_is_refused(self):
         with pytest.raises(ValueError):
             build_entity_canonical_map({}, linkage="chain")
+
+
+class TestReviewedPairRule:
+    """Record s5d: a near spelling of two one-episode mentions with no voice and no publisher text
+    is not evidence of one person, unless a reviewed group lists both; a reviewed two-people pair is
+    never joined. Synthetic names only."""
+
+    C, D = "person:tavik-orlen", "person:tavik-orlan"
+
+    def _build(self, cands, evidence, reviewed):
+        rule = G.reviewed_pair_rule(evidence, reviewed)
+        payload, id_map = build_entity_canonical_map(
+            {c.id: c for c in cands},
+            guard=G.candidate_guard(evidence),
+            person_mode="cluster_person",
+            linkage="no_one_word_bridge",
+            pair_rule=rule,
+        )
+        return payload, id_map
+
+    def _one_episode_each(self, roster=(), publisher=()):
+        cands = [_cand(self.C, "Tavik Orlen", {"e1"}), _cand(self.D, "Tavik Orlan", {"e2"})]
+        evidence = {
+            "e1": _ev([(self.C, "Tavik Orlen")], roster, publisher),
+            "e2": _ev([(self.D, "Tavik Orlan")]),
+        }
+        return cands, evidence
+
+    def test_two_one_episode_mentions_are_not_joined_on_a_near_spelling(self):
+        cands, ev = self._one_episode_each()
+        payload, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert id_map == {}
+        assert payload["blocked_joins"] == []
+
+    def test_a_reviewed_group_lets_the_pair_join(self):
+        cands, ev = self._one_episode_each()
+        _p, id_map = self._build(cands, ev, {"groups": [[self.C, self.D]], "apart": []})
+        assert len(id_map) == 1
+
+    def test_a_second_episode_lets_the_pair_join(self):
+        cands, ev = self._one_episode_each()
+        cands[0].episodes.add("e3")
+        ev["e3"] = _ev([(self.C, "Tavik Orlen")])
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert id_map == {self.D: self.C}
+
+    def test_a_voice_lets_the_pair_join(self):
+        cands, ev = self._one_episode_each(roster=[("Tavik Orlen", ["S0"])])
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert len(id_map) == 1
+
+    def test_publisher_text_lets_the_pair_join(self):
+        cands, ev = self._one_episode_each(publisher=["Tavik Orlen"])
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert len(id_map) == 1
+
+    def test_an_equal_name_is_never_ignored(self):
+        cands = [_cand(self.C, "Tavik Orlen", {"e1"}), _cand(self.D, "tavik  orlen", {"e2"})]
+        ev = {"e1": _ev([(self.C, "Tavik Orlen")]), "e2": _ev([(self.D, "tavik  orlen")])}
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert len(id_map) == 1
+
+    def test_a_middle_initial_variant_is_never_ignored(self):
+        cands = [_cand(self.C, "Tavik R. Orlen", {"e1"}), _cand(self.D, "Tavik Orlen", {"e2"})]
+        ev = {"e1": _ev([(self.C, "Tavik R. Orlen")]), "e2": _ev([(self.D, "Tavik Orlen")])}
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert len(id_map) == 1
+
+    def test_an_id_with_no_episode_counts_as_one_episode(self):
+        cands = [_cand(self.C, "Tavik Orlen", set()), _cand(self.D, "Tavik Orlan", {"e2"})]
+        ev = {"e2": _ev([(self.D, "Tavik Orlan")])}
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert id_map == {}
+
+    def test_any_edge_that_counts_admits_the_candidate(self):
+        """A third member with two episodes matches the candidate: that edge stands."""
+        e = "person:tavik-orlenn"
+        cands, ev = self._one_episode_each()
+        cands.append(_cand(e, "Tavik Orlenn", {"e4", "e5"}))
+        ev["e4"], ev["e5"] = _ev([(e, "Tavik Orlenn")]), _ev([(e, "Tavik Orlenn")])
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": []})
+        assert id_map == {self.C: e, self.D: e}
+
+    def test_a_reviewed_apart_pair_is_refused_and_recorded(self):
+        cands, ev = self._one_episode_each()
+        for c in cands:  # with two episodes each, rule 1 no longer applies; rule 2 still does
+            c.episodes.add(c.id + "-x")
+            ev[c.id + "-x"] = _ev([(c.id, c.name)])
+        payload, id_map = self._build(cands, ev, {"groups": [], "apart": [[self.C, self.D, "r"]]})
+        assert id_map == {}
+        assert [r[:3] for r in payload["blocked_joins"]] == [
+            [self.C, self.D, G.GUARD_REVIEWED_APART]
+        ]
+
+    def test_an_apart_pair_is_refused_even_through_a_matching_third_member(self):
+        e = "person:tavik-orlenn"
+        cands, ev = self._one_episode_each()
+        cands.append(_cand(e, "Tavik Orlenn", {"e4", "e5"}))
+        ev["e4"], ev["e5"] = _ev([(e, "Tavik Orlenn")]), _ev([(e, "Tavik Orlenn")])
+        _p, id_map = self._build(cands, ev, {"groups": [], "apart": [[self.C, self.D, "r"]]})
+        # The second of the pair visited (C) may not join the group its partner joined.
+        assert id_map == {self.D: e}
+
+    def test_without_a_pair_rule_the_build_is_unchanged(self):
+        cands, ev = self._one_episode_each()
+        _p, id_map = build_entity_canonical_map(
+            {c.id: c for c in cands},
+            guard=G.candidate_guard(ev),
+            person_mode="cluster_person",
+            linkage="no_one_word_bridge",
+        )
+        assert len(id_map) == 1
+
+    def test_the_shipped_list_loads(self):
+        reviewed = G.load_reviewed()
+        assert len(reviewed["groups"]) == 65 and len(reviewed["apart"]) == 10
+        ids = [i for g in reviewed["groups"] for i in g]
+        assert len(ids) == len(set(ids))
+        assert not {i for p in reviewed["apart"] for i in p[:2]} & set(ids)

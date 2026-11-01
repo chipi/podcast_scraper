@@ -499,6 +499,24 @@ def cluster_person_variants(name_a: str, name_b: str, language: Optional[str] = 
     return _hyphen_or_initial_variant(a, b, vocab)
 
 
+def near_spelling_only(name_a: str, name_b: str, language: Optional[str] = None) -> bool:
+    """True when two names are neither one name after normalisation nor a hyphen or initial variant
+    under ``language``'s vocabulary: a match between them rests on a near spelling alone (record
+    s5d). With no vocabulary row only equal names match, so nothing is a near spelling."""
+    if _clean_cached is None:
+        _bind_kg_filters()
+    assert _clean_cached is not None
+    if _equal_after_normalisation(name_a, name_b):
+        return False
+    vocab = _vocab_for(language)
+    if vocab is None:
+        return False
+    fa, fb = _fold(name_a, vocab.folds), _fold(name_b, vocab.folds)
+    if _equal_after_normalisation(fa, fb):  # one name under the language's folds ("ö" / "oe")
+        return False
+    return not _hyphen_or_initial_variant(_clean_cached(fa), _clean_cached(fb), vocab)
+
+
 def _equal_after_normalisation(name_a: str, name_b: str) -> bool:
     """L2: one name, written with different case, accents, spacing or hyphens."""
     assert _clean_cached is not None

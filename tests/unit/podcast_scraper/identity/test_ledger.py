@@ -343,6 +343,8 @@ def test_one_spelling_for_every_member_keeps_the_canonical(tmp_path: Path) -> No
     ledger, never by file order."""
     root = tmp_path / "corpus"
     _kg_episode(root, "show_a", "run_x_20261001-000000", "e1", {"person:korin-vael": "Korin Vael"})
+    # A second episode: two one-episode near spellings are not joined at all (record s5d).
+    _kg_episode(root, "show_a", "run_w_20261001-000000", "e0", {"person:korin-vael": "Korin Vael"})
     _kg_episode(root, "show_a", "run_y_20261002-000000", "e2", {"person:korin-vaal": "Korin Vaal"})
     L.write_ledger(root, L.build_ledger(root))
     before = L.served_id_map(root)
@@ -377,3 +379,11 @@ def test_scoped_bare_names_still_join_their_full_name(tmp_path: Path) -> None:
         "person:unresolved-vael-e1": "person:korin-vael",
         "person:unresolved-vael-e2": "person:korin-vael",
     }
+
+
+def test_two_one_episode_mentions_are_not_joined_on_a_near_spelling(tmp_path: Path) -> None:
+    """Record s5d: no voice, no publisher text, one episode each: a spelling is not evidence."""
+    root = tmp_path / "corpus"
+    _kg_episode(root, "show_a", "run_x_20261001-000000", "e1", {"person:korin-vael": "Korin Vael"})
+    _kg_episode(root, "show_a", "run_y_20261002-000000", "e2", {"person:korin-vaal": "Korin Vaal"})
+    assert L.ledger_id_map(L.build_ledger(root)) == {}
