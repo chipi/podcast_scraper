@@ -40,40 +40,38 @@
     "0039_adfree_segment_offsets_realigned",
     "0040_gi_quote_offsets_realigned"
   ],
-  "apply_message": "rewrote 501 episode(s); admaps_carried=56, bridge_identities_merged=1, bridge_names_respelled=451, bridge_names_rewritten=130, context_rebuilt=501, detected_names=27, diagnostics_voices_renamed=108, gi_ids_rewritten=131, gi_names_rewritten=1461, gi_person_nodes_merged=1, in_place_episodes=105, in_place_lines=7045, kg_names_rewritten=129, metadata_counts_synced=68, names_refused=179, person_labels_respelled=580, person_names_respelled=517, quotes_moved=3962, quotes_retexted=11, roster_names=109, segments_relabelled=48057, turns_rebuilt=68, unplaced_dropped=1",
+  "apply_message": "rewrote 467 episode(s); admaps_carried=48, bridge_identities_merged=1, bridge_names_respelled=424, bridge_names_rewritten=116, context_rebuilt=467, detected_names=26, diagnostics_voices_renamed=94, gi_ids_rewritten=131, gi_names_rewritten=1199, gi_person_nodes_merged=1, in_place_episodes=92, in_place_lines=5764, kg_names_rewritten=115, metadata_counts_synced=64, names_refused=179, person_labels_respelled=539, person_names_respelled=485, quotes_moved=3297, quotes_retexted=11, roster_names=95, segments_relabelled=40283, turns_rebuilt=54, unplaced_dropped=1",
   "clone": "/Users/claude/snapshots/base-0041",
   "code": {
     "dirty": true,
-    "sha": "584406514dd93b60e9656e43ea10164811b7a3af"
+    "sha": "4b7438233dc22790d2e1166e0cbc456c57f9174e"
   },
-  "code_digest": "0fc9cb8307129bd79f79853cc717453024bde3455262455a6f90f13839961ce4",
+  "code_digest": "bc3c9bb670fd61897fd82812f436960f99a6cad165ccc7d5d11832a8ec3f0e7f",
   "computed_class": "full",
   "episode_deltas": {},
-  "files_changed": 2525,
+  "files_changed": 2289,
   "files_changed_by_suffix": {
     ". Agents_ Cute_ Cuddly and Ma_d84e801f-1c96-46ec-8a11-b9918ed25938_20261003-090156.txt": 1,
     ". Is Actually Doing to t_20260819-060035_285e51f2.txt": 1,
-    ". Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.txt": 1,
     ". M_4614cf73-2783-4717-b68f-8be9c812fc8b_20261009-234106.txt": 1,
     ". Missile Stockpile Is Da_ce229089-0492-4711-8b31-faa11bd20f4c_20260811-173233_285e51f2.txt": 1,
     ". This Tim_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-042547.txt": 1,
     ". Wright_20261015-065517.txt": 1,
-    ". chocolate skimp_20260819-043606_285e51f2.txt": 1,
-    ".adfree.txt": 99,
-    ".admap.json": 56,
-    ".bridge.json": 501,
-    ".cleaned.txt": 94,
-    ".context.json": 501,
-    ".diagnostics.json": 99,
-    ".gi.json": 150,
-    ".kg.json": 499,
-    ".metadata.json": 161,
-    ".segments.json": 198,
-    ".turns.json": 68,
-    ".txt": 91
+    ".adfree.txt": 86,
+    ".admap.json": 48,
+    ".bridge.json": 467,
+    ".cleaned.txt": 81,
+    ".context.json": 467,
+    ".diagnostics.json": 86,
+    ".gi.json": 132,
+    ".kg.json": 465,
+    ".metadata.json": 145,
+    ".segments.json": 172,
+    ".turns.json": 54,
+    ".txt": 80
   },
   "gating_moves": {},
-  "measured_at": "2026-11-02T02:49:08",
+  "measured_at": "2026-11-02T09:16:21",
   "migration": "0041_joined_names_respelled",
   "plan": [
     {
@@ -96,7 +94,7 @@
         "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/transcripts/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.segments.json": "8db387e453399ddd8fefe112f8183cd60a47ad01a41b4786415c15681fcc9b18",
         "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/transcripts/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.speakers.diagnostics.json": "e0c76f80efae62a6bb47a44c63757189a48f02b041a70b0ab9ee56b03b5a0410",
         "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/transcripts/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.txt": "6878f45d9b64ae6c615d4898d64fb4b2bbf45aedd105ea5cfe95a842d78333bf",
-        "identity_ledger.json": "76bd9fa586a5d2d76991f3b2dbe12e7690fc690bf3f8bbbeda33ddd0f4573794"
+        "identity_ledger.json": "611bf95397a311368160ef61945137d82c2aab7ed1594f4d7fc02032d4bebbca"
       },
       "meta": "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/metadata/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.metadata.json",
       "refused": null,
@@ -938,32 +936,6 @@
       },
       "folds": {},
       "inputs": {
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.bridge.json": "a65d4dc407f4b1d74a066ff822870150390e673a506eee068740516348d70409",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.context.json": "648022db88d89c10de4df7967ad587ed83d066232c8bdf5969310aef901339f7",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.gi.json": "9508d7ffda87890edb176ae66106580dd1efca7934803562d9d7a9a1bec21dcf",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.kg.json": "b153637fca0f17931d68072c4a64d409bc253d9ca214e677e1100a66ac4485b6",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json": "2b99b54e6f122ffa9c551eff408818bba47a96b091231bd725dab49f175d68cb",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.segments.json": "d1ddb648ce93fb1cabde3067b23fd012024411538ae01b6471851daf2a1fa6ce",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.txt": "685b906e083d60b928e57c1a4ac2e9d4f60055d94142412075f6b2eea04c4823",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.cleaned.txt": "a4c12581e54c46d8800ae04a32302798629fe7a76830f34c4d6a1b354be4fe61",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.segments.json": "bee27b659c215c2ad2f9b583358d76363deb021cbff90995ebcc6a3b9e269af2",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.speakers.diagnostics.json": "97dfb288d8373d25a9a4cfd4506fb9ce0499ab0a9b15b1839befd117dcfed165",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.txt": "685b906e083d60b928e57c1a4ac2e9d4f60055d94142412075f6b2eea04c4823"
-      },
-      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0002 - The AI Models Smart Enough to Kn_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "metadata_counts_synced": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
         "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0005 - Evolution _Doesn_t Need_ Mutatio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.bridge.json": "ee2ac19a3476dcc18724936c4dce14dd604642487913741f71d4214969853e2b",
         "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0005 - Evolution _Doesn_t Need_ Mutatio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.context.json": "13efbfa5cc6dcc12e336ba4ec4c509e17fb3527838c14a7f2fe4ddc4678dd7af",
         "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0005 - Evolution _Doesn_t Need_ Mutatio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.gi.json": "83527acc1eb6566749cba772e7189c36cfe2739173ccb685f67b4ab54def3ca6",
@@ -984,35 +956,9 @@
       "counts": {
         "bridge_names_respelled": 1,
         "context_rebuilt": 1,
-        "names_refused": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.bridge.json": "a7be9a22650777b8d70783bf11b869421578603013a469e691b1173fe47c2515",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.context.json": "73fd66af78a04a0c20cbc533ad2fbbbeb14922a14977ba5cc4df4f4420b796ac",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.gi.json": "28dd2783272dc30c4a7ff7ae60edb48e64c3ce9eb3783311d4bdb8bb77e5b754",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.kg.json": "80066e8c3a3cf4385016f6830f1077583a072f8205ac6eadd63ee37e12abc686",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json": "5d29fcdc0c05a459c7c3162aa6743fe3434be99c58274a8483322a350b15113d",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.segments.json": "f74b2353e29f6c3323bfd05d4d2d89df50acf223e87056e5b7658d7a8b28acc9",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.txt": "8bbfed7f1753769ad9250ecc17b9c09436212ea013921f1d4f91414a37081183",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.cleaned.txt": "140799db2e6cd36785c520ce7a20be2b690a928acc14808908a5ee9ec2a0751b",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.segments.json": "1e1d1b3f28efcbe071e15ed33707b7b61003f53771185d954064132a7072708f",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.speakers.diagnostics.json": "87c1f1b922880d5d87b11d387dcfe99bbe905fdda4318426bf34f87076ad09bc",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.txt": "8bbfed7f1753769ad9250ecc17b9c09436212ea013921f1d4f91414a37081183"
-      },
-      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0007 - Abstraction _ Idealization_ AI_s_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 2,
-        "context_rebuilt": 1,
         "metadata_counts_synced": 1,
-        "person_labels_respelled": 2,
-        "person_names_respelled": 2
+        "person_labels_respelled": 1,
+        "person_names_respelled": 1
       },
       "folds": {},
       "inputs": {
@@ -1030,7 +976,7 @@
       },
       "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0008 - Why Every Brain Metaphor in Hist_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
       "refused": null,
-      "renames": 2
+      "renames": 1
     },
     {
       "counts": {
@@ -1039,32 +985,6 @@
         "metadata_counts_synced": 1,
         "person_labels_respelled": 1,
         "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.bridge.json": "4625bad9899ab9e4ff497232304f3b4daf6df76aa1d7cfb7eab45140665c392f",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.context.json": "3ff59e95296434de400fd43419f7f6f2b3a6449dab13d85bb11adb0d3e57672b",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.gi.json": "022df75c785e4f76a88109441d1c2a671ddf850681470216c80e3cfbfb70b978",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.kg.json": "4eb85c6e53bbb3c543469c0e39e216ee33c8b64e9939616192115a185a93552c",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json": "df032b3c4fb8aa4ad96d90a2cc74617df3d143b168e2d531f17ee55caa7dc6e0",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.segments.json": "219729e3abd2a47d87f2843a808e6159f53339ad1fbc456dc921ac56e9068620",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.txt": "909683af14db83b076a98f8eb6e00ef5e23f3b1d7e99f1c6122d3cf81325c922",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.cleaned.txt": "cd7b887607255242cddad11d5f49ceb2f64f07fd70413864f4b3c0cefac6776e",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.segments.json": "cd6e8e9758ee3669f2e51435e51ec13d3733ccba23e6d5c3025cc701322d7ec0",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.speakers.diagnostics.json": "fca6509b9cd21e9e7644e722c9b1dfb13c90a4b997040c1e1b2fb15ac6297c41",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.txt": "909683af14db83b076a98f8eb6e00ef5e23f3b1d7e99f1c6122d3cf81325c922"
-      },
-      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0017 - The Universal Hierarchy of Life _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 2,
-        "context_rebuilt": 1,
-        "metadata_counts_synced": 1,
-        "person_labels_respelled": 2,
-        "person_names_respelled": 2
       },
       "folds": {},
       "inputs": {
@@ -1082,7 +1002,7 @@
       },
       "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0018 - Google Researcher Shows Life _Em_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
       "refused": null,
-      "renames": 2
+      "renames": 1
     },
     {
       "counts": {
@@ -1127,57 +1047,6 @@
       "counts": {
         "bridge_names_respelled": 1,
         "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.bridge.json": "a02ba7914278bba0aa00dd442df0e5870dcef274675b306274f622c4387b3954",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.context.json": "cc9a920f1e6c87196051d1821cc74531e22a554eb6c79b309debc543e8f6e0b1",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.gi.json": "e97eb93f5c1968f3e88dc410e6115c51d57040a753c371f479628ee7b9ed4466",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.kg.json": "e58c05dfa59d4e0c5359719505f97691119ddcb5bf90253fb8ad462b33a973a4",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json": "8d5b6722d26bc7d08222150c0c7eff81dc54c90b2f36a7d978dbe60a31ff57d0",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.segments.json": "83cf65a1ff4a76ca4589a902cd1901a99b0c86c7f4576915fa7a4ef818a0cc49",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.txt": "53f314c6a161cc2b2bd31479da445b1af4b18dfec64308b9f5cdeb26f88c985e",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.cleaned.txt": "d98afa18a283f1cfbad62a3aa8f7bf7ff1bc5fde80dd280114d6f6c4f359e010",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.segments.json": "b80e1fd175f61e48042b50a264c5ad763ef9712b8a3501844a1f121ed3ad3679",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.speakers.diagnostics.json": "2b2750ebef0e3dbcdf2bfca6b3a02a97b50788547a6af4d1e8276aac2d70752c",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.txt": "abf1d1b890d40f831ec3859a3cbceafdfb98c44ccaa081d6b50a8a11d64a8e0c"
-      },
-      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0022 - Deep Learning is Not So Mysterio_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 2,
-        "context_rebuilt": 1,
-        "metadata_counts_synced": 1,
-        "person_labels_respelled": 2,
-        "person_names_respelled": 3
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.bridge.json": "48ae106997a264912a50ed51f311355c28465dfbebc626810ece7d34b1855e33",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.context.json": "397d6397a173d16140f593dbfd6966851ae6f3655c244d5dde46a660254aaca8",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.gi.json": "2514dac488a2a6b2e01669fa1f66c8d1f0a519162a58200cd8da7dba64713bdf",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.kg.json": "b2df497ea927a5f0d0f62e7f004d8255c7f16b92a1226d6eb005fa994cbb29f7",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json": "271ba6341c00f56356d5fc2cd5d53a4c3505a82f1c7b5efe1a61debc6b184aef",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.segments.json": "83f339e4c080ecfe3b32c54b8e914e5cb9bbc3f76226cf597e39859f90e42abd",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.txt": "0544e7b059ffeca3c7636af659b5b41253a6aaf51f6c8f600fff0104a407f988",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.cleaned.txt": "391d33985dad8793bde3869473d9214247258c24a741132d73ecfef6cb3b0ab8",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.segments.json": "2abd640bae9017d4e33b730d3b3b713cb4a856114811d9bba732eb6adbd49ed5",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.speakers.diagnostics.json": "b075bd45a1c2a7bf0863ca67721b98095297f68ac3c44dd1c110a2a1e97a37c0",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.txt": "0544e7b059ffeca3c7636af659b5b41253a6aaf51f6c8f600fff0104a407f988"
-      },
-      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0023 - Karl Friston - Why Intelligence _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
-      "refused": null,
-      "renames": 2
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
         "names_refused": 1,
         "person_labels_respelled": 1,
         "person_names_respelled": 2
@@ -1197,67 +1066,6 @@
         "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0024 - The Day AI Solves My Puzzles Is _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.txt": "a304d5a923279ec76da5ce03349ed2aa0952dfc4d9bf5fd0b725e7d6377c3fef"
       },
       "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0024 - The Day AI Solves My Puzzles Is _467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.bridge.json": "9a4808e1a54e6576db14415bb47f820e70ca20d2a84615ce10450180eedf0272",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.context.json": "13fbdb90d9c9549b84ce06063cb93c418871f54b2bff4fdecd3e8c2d3c2c4e20",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.gi.json": "be1ceb8758f6e84b1abdca3f8ad7f4b1ae9b100ef08d51dfa7ea42955acaead1",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.kg.json": "0c51d3a0f6208767a284cbc542ae0337b923f8b305ba03f443c2a5a9b2cc1b63",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json": "e2462509f1e620c8eb888ec2483c09bf2bf5437fc63a265c497592381fb84b9b",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.segments.json": "cfee0c98af340cd29e2b1d61c20d1c20c49d55bf2a4a059bcd5d123c8852c7e4",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.adfree.txt": "421dadd1374ea49895babb28050db8c910b95bc77168649f1191746f9cd6008a",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.cleaned.txt": "525de9ba942a90f60696ff88fba783a2c920f017ec6dc4a66ee1a120f4cb41c9",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.segments.json": "af5fb719e8781e126131dd198184092f7e5f9b67184b0484549e8c26cc5a7a01",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.speakers.diagnostics.json": "1e574db721dabe6187412ca2f4e7be0402e4995f0965a6602a84ac451c1f4bde",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/transcripts/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.txt": "421dadd1374ea49895babb28050db8c910b95bc77168649f1191746f9cd6008a"
-      },
-      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544/metadata/0025 - Michael Timothy Bennett_ Definin_467a9a0b-2c69-4951-ac9e-eb28107553ef_20260907-180544.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 45,
-        "in_place_episodes": 1,
-        "in_place_lines": 85,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "roster_names": 1,
-        "segments_relabelled": 896,
-        "turns_rebuilt": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/metadata/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.bridge.json": "88f7d36bd072f0b32763a5f87768b6b2582627bf34caa3d745cd49a49bd34ef8",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/metadata/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.context.json": "f1006fbf2d6338cd0abf1f0c3e0a0d11a9a70b3a4f5418a5b20f69db3783e60a",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/metadata/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.gi.json": "7240190b3c039bae525e328d37ef98ba7dcf65587bb708ea1a3e1841db12dc10",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/metadata/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.kg.json": "c782cce6ad0e5597c7638103794a2fa12583b82f7880e93b50e9f8c189fe4c10",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/metadata/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.metadata.json": "fe900fee94bea6bbdaa952285b02bd34a3da00e1ef1157ae1679f6dc36ba070a",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.adfree.admap.json": "acb4806a6541dc24dbb35f7cecf8b93cebc9f7a1cd3c0248ef946bd1cb007cdb",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.adfree.segments.json": "00aad5b03eec75bd999e21de1b923e8d1f091c64b57ba7c1acc8dfda4a1f0e67",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.adfree.turns.json": "543ed2156d4dd7a867b79fa84784c9d6c78b70fa7f3b60abc9944707a22be4d9",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.adfree.txt": "06df70ea0d627a9e2f4749531c3229e64cc31ea8f80fc3caae24c12750d96d33",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.cleaned.txt": "b519de65b90a283817e5f602e17c7d0d8a333214701db0cacbe5109deb41da7a",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.segments.json": "0b202c6721bb4e6038ab977a6c05ad62418f0eb81c59bfbebb4a484846ec79a2",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.speakers.diagnostics.json": "ea816935c1fea9702cc705323f3f56903c93a79b310e33d10ffb6967aa33104d",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.turns.json": "ccb2cba812dbce613504e12620c0412336b5b3355b5fb3d609cf87d8d988e138",
-        "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/transcripts/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.txt": "06df70ea0d627a9e2f4749531c3229e64cc31ea8f80fc3caae24c12750d96d33"
-      },
-      "meta": "feeds/rss_anchor.fm_e4d3aeb7/run_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251/metadata/0001 - What Most People Get Wrong About_476bb84f-3172-40b5-ae20-ae917bf790b6_20261011-000251.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -1420,31 +1228,6 @@
       },
       "folds": {},
       "inputs": {
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/metadata/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.bridge.json": "94da3ccfda5f24730666ea9a73a0d4de6ae61d6f5c62dc8e36f15e3af6b7e705",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/metadata/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.context.json": "03e3456e832d2fe0bae036472b9cae0568e9a017087f17abd2381f8de1c954e6",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/metadata/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.gi.json": "dfa17f75a8233927c5cfe50da4251206b8e2b3754dd1a8743db664659160ecf6",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/metadata/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.kg.json": "81add4ddf8f6f1490086faa48bb9f64a8fba4f45969ef39042d1301f631db685",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/metadata/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.metadata.json": "c9d9873e6175138b690354d9564bef904e2fd550f6d69d807c01aade9c264268",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/transcripts/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.adfree.segments.json": "ea5968006c7d85e617761e5913750c5bf8b7f39fe8a748a3be6fb0915cb1f0db",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/transcripts/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.adfree.txt": "2f169f3207403cd48d4d99c69815ec6ba6988ebb2d35404b86e45b15b5704e85",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/transcripts/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.cleaned.txt": "0add1990860046d3659070c7cf7dfbc8dce1ff50adf38aa43b9d97578344318f",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/transcripts/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.segments.json": "5372eadd4d96d927c7a2c4a0798356df6293bbd3b85da19ef60456a934dac452",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/transcripts/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.speakers.diagnostics.json": "b28bf5669e0ca60d67a99819306bfaa4f9d8b1644326b7741d9d291050ec0d67",
-        "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/transcripts/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.txt": "2f169f3207403cd48d4d99c69815ec6ba6988ebb2d35404b86e45b15b5704e85"
-      },
-      "meta": "feeds/rss_api.substack.com_d04cbbb1/run_d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355/metadata/0010 - Sebastian Mallaby_ The Infinity _d39b10a9-1dd5-48bb-83fe-621acc2547d3_20260830-083355.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
         "feeds/rss_api.substack.com_deda024b/run_089ecbbe-92c4-4083-b4aa-2374108ab004_20260814-022718_285e51f2/metadata/0001 - What world-class GTM looks like _089ecbbe-92c4-4083-b4aa-2374108ab004_20260814-022718_285e51f2.bridge.json": "65f6f2649647ce4d84f3c66c7a4e40d47963247b48c58b0ba0db340816185347",
         "feeds/rss_api.substack.com_deda024b/run_089ecbbe-92c4-4083-b4aa-2374108ab004_20260814-022718_285e51f2/metadata/0001 - What world-class GTM looks like _089ecbbe-92c4-4083-b4aa-2374108ab004_20260814-022718_285e51f2.context.json": "16eebe28d709b99478d34e64ec8d20d21233211989789e8518586f22887c287d",
         "feeds/rss_api.substack.com_deda024b/run_089ecbbe-92c4-4083-b4aa-2374108ab004_20260814-022718_285e51f2/metadata/0001 - What world-class GTM looks like _089ecbbe-92c4-4083-b4aa-2374108ab004_20260814-022718_285e51f2.gi.json": "5bdf0bde1d7ec474f19b11f98d045425d0c3a03521d1458295457c3a47f093f4",
@@ -1545,56 +1328,6 @@
         "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0012 - AI is critical for humanity_s su_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.txt": "7c1b5f063cd189772bcddbb230e1762d3668a257c3835f63dfaf8f5acd75e651"
       },
       "meta": "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0012 - AI is critical for humanity_s su_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.bridge.json": "5e5793ce412afd35934f6a0d6d5023ef4d7447ab01ddc1a09dd8634a35465107",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.context.json": "f9c81285c09746aad139d8e99066748529f91e36f1fb9c2c45ae6cb43138c46a",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.gi.json": "8a6e5d44b44a224fcc72a693d972d8850a09aad51075ddd0df03edb0e3f6ef25",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.kg.json": "c234a43dc01361ca89006f0a5ac99612ae6ad36a74eb85e806c60dbd8982c934",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json": "1b46ccfd32651c68db7f95858f63d20dd1777866d5437bb3eeaa5958e3c5a0b5",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.segments.json": "8df4b28d99310a128140bac8ab0b876203f984b17e3976f9298b916de5ce929d",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.txt": "ca89346dbd5387451feecd3869019257c8394e515be3c3e8047383ec90a51600",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.txt": "8eb1f698431ac5eb86d09e82eaf4a59bf413f801a079c87b9ec513ecce34573b",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.segments.json": "a806470cfdf2fa8cf6adad2f6cd472985b4278b54d6d13551ea7c8693d4c33ab",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.speakers.diagnostics.json": "ba0011af7ffa1a704be319066645a58faf4e979531c9c6e45d0b2cbdcff1ed3c",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.txt": "637b8f2daf8fd430f18c26d902bd774f016319e2354fcc670522915e48be1d6f"
-      },
-      "meta": "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.bridge.json": "28e368e7a3dbf455978f03aefc095633f336dca2da1bfdd2718a9f6c718f66bd",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.context.json": "4619dddee4a67a4b3231cd01ddb4ed972c985dc59d957f76e4b800708347e88a",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.gi.json": "096af7faeacfff66543fc3b9c917bafb960be2224334e7915a35026a06612993",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.kg.json": "38efbbd5bfafbfd6beddb209f14d6c096000ca8b59b2e3251fd18daa6d25fa3a",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json": "64ceb5b020fb6bcec0f51282b4da9ee97b8f348fdfa658c05426f4d32bb6028e",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.segments.json": "68852b2134c06951ce425c965d8afa367fb02cfd2b474ac6358647ac03581625",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.txt": "ddc40ca024a13308160236740d7abf35cffe4e6771d4c77900df90d74d783260",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.txt": "1b8e2173688a5bd498e80dfd5da0e61492459fe58ebef0bcd0b379a7f9e67129",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.segments.json": "6a99a4d08596769bb259f4b7690e7f29c12ce55dc5657fa5b8a1fe337811fb9a",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.speakers.diagnostics.json": "bc8e0d7ede0de372390b9aaaadf8b52ff3cc3032f17c1ec73bb1b21d413d5148",
-        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.txt": "427d3ba59bbc1b8d8678db31a1874aff2b91970f90564d69734983f13a9e61c0"
-      },
-      "meta": "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -2450,31 +2183,6 @@
     },
     {
       "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/metadata/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.bridge.json": "6e54d7d43ea24b9cd23db64e792083b639169fccc99b45d86a76913cfa524362",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/metadata/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.context.json": "81c0a07957478eabb90502e851928e31b8cc06384ff3ba6250f34cd852918291",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/metadata/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.gi.json": "3f5bdf50fd0504ea1a8177bea85e93a77ae209cb5d820da1beda647e71c2c54b",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/metadata/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.kg.json": "11d2d5f283cc5eea1dd4f96c2af775b14d128b67c8e6df5dae25ba70e036edf9",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/metadata/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.metadata.json": "34327f921501f359ff8247128d4880d0cccf9ca13eb307e7cb8d76f4ee178991",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/transcripts/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.adfree.segments.json": "a5dc725d09608b6e8f61e01523f5a7054a02ef9c860fe31b5e3598497dc18c7e",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/transcripts/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.adfree.txt": "e470e07c5786dd80ca77fd0d7766cf94d751ee78482fd97ffcb80bd760312a72",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/transcripts/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.cleaned.txt": "5bd4b5f0d0ab57146b6d5766d839a66fa6967c2d89e2eb19493b8fd6a55a091d",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/transcripts/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.segments.json": "368ff08c40901cf97b56f168ba0977c443de924d54c55d1733cfb688dd39f0c5",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/transcripts/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.speakers.diagnostics.json": "61520f34245e07dece620b30a3d7f0c434188c43203ba544a9e78133c07fb8b8",
-        "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/transcripts/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.txt": "e470e07c5786dd80ca77fd0d7766cf94d751ee78482fd97ffcb80bd760312a72"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260819-030507_285e51f2/metadata/0012 - How Visa Is Making Payments Safe_20260819-030507_285e51f2.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
         "bridge_names_rewritten": 1,
         "context_rebuilt": 1,
         "detected_names": 1,
@@ -2766,67 +2474,6 @@
         "feeds/rss_feeds.megaphone.fm_431f1b58/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-235037/transcripts/0005 - The Lives of the Philosophers_ H_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-235037.txt": "324996cb2b51b93722cfb07d18740a2aa713e94c496cd047d2f35de92183ed88"
       },
       "meta": "feeds/rss_feeds.megaphone.fm_431f1b58/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-235037/metadata/0005 - The Lives of the Philosophers_ H_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-235037.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.bridge.json": "7747eca5ea59b148feb0236b77da000dc1c5022496433e26c5889152eca81bb1",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.context.json": "8f7d5ba27c0666344172712207bcd6340bc74faf8335a9f0db72d105a20df82d",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.gi.json": "fed6e79de63158ff31508ddf545ce8dcd0f085e6294550062939fb77b2e188fd",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.kg.json": "d2960b5f6c8f9a74b777db6715cfc208c2a589ffe9f6a3d8567c89bcbf2a39c7",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.metadata.json": "20e03258227bf30f579d0489d527d64b39f693d50ad5017cbd65a85cbf2eef81",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.adfree.segments.json": "cc31b6e6119386ffa880c277158b0d020266028df25dfe133bf6d8bd7985ccb6",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.adfree.txt": "ebbd7b895aa5f53a23ea610e409c7cb1b63f4b3144cf386ae1ea40b89fafa049",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.cleaned.txt": "7baa9d66725e34e0baa98695cbd37033240e50e5dd82e4c3a112e331e572f820",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.segments.json": "8158fdac648d4902dd383253cd91f3e17770079bd0aed730052445a62c3073fe",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.speakers.diagnostics.json": "b2484f4cf4560c6caff5c346f55b42d6c8deb62d1e8754515085e950dce18cf2",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.txt": "ebbd7b895aa5f53a23ea610e409c7cb1b63f4b3144cf386ae1ea40b89fafa049"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0008 - How to Define Old Age_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 12,
-        "in_place_episodes": 1,
-        "in_place_lines": 115,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "roster_names": 1,
-        "segments_relabelled": 346,
-        "turns_rebuilt": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.bridge.json": "7a9c5464c921c9bb50b6d182a8a3e78766bbff39851dc181d94789ae1269ccdd",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.context.json": "5b2df6da6f35294c5483d475a5ce3b16e1553850d95d096d8624a6026d9e137f",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.gi.json": "160b65f22788ee71e7093410bdf5958180d02d0abb42ac9c40f76a3b9da71e49",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.kg.json": "077b13ddd6bf968044911ae699d12d9f201e7c11a33fd55a3ad36c2d91855848",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.metadata.json": "7629674ba35b5a21d7b7e5d1c5af450630ad7f6f69bb9750635e8782ea8ccfa5",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.adfree.admap.json": "2caa47d8582ae117b6423b4e06457f7480acd13c10f937e495434998e674c049",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.adfree.segments.json": "6574a43f6472799e1035bd42654decbc51c036bb7392273ac2a7cd06d85be98d",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.adfree.turns.json": "0b5dd23f14b9af847bdc0af876d1cffbc50db04a7f44e365321756e02f31d092",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.adfree.txt": "a9d34251c32ae3ca2740d3e9d34a2f08e361f2955b00443093ca26fcf2f486d4",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.cleaned.txt": "3fb7d36bef5dd8c7f8fcbf0027bf0356c9370ef6af6866dd6a4583a621db9eb4",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.segments.json": "1b0515fb2afe8a8dc3d93fdc6285a22db6b6c25fdbe722ffa9da1b9219d293c5",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.speakers.diagnostics.json": "8de25eaf40b36203a84fd625d043212051a7c945276cd0aceda2a536b7c6f8f2",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.turns.json": "90d6dcd29bbed80b87c6fb93ad79f350a4b518e04f8db16de4cb67b645457ca2",
-        "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/transcripts/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.txt": "a9d34251c32ae3ca2740d3e9d34a2f08e361f2955b00443093ca26fcf2f486d4"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_579b44e3/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335/metadata/0010 - How to Fuel Up_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-101335.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -3949,42 +3596,6 @@
         "bridge_names_rewritten": 1,
         "context_rebuilt": 1,
         "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 2,
-        "in_place_episodes": 1,
-        "in_place_lines": 70,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "roster_names": 1,
-        "segments_relabelled": 1596,
-        "turns_rebuilt": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/metadata/0002 - The millennial midlife crisis_20261014-070147.bridge.json": "c3fbac58b856d802d795f886abc219accdb9f0475871128ab1bacce3a1c3f6ba",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/metadata/0002 - The millennial midlife crisis_20261014-070147.context.json": "f115d5ec9cd28f2a05fd363979a661914c1b476174ffb8a0cc78c1adbda702f7",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/metadata/0002 - The millennial midlife crisis_20261014-070147.gi.json": "283f96b99b28b1869c53e1b717f07fa2d2a7d99dbc4a91a6a7a5b4a0ab3e0dbf",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/metadata/0002 - The millennial midlife crisis_20261014-070147.kg.json": "7c9829c7cc14561e43a4bc43c6e625438f7403c15f8fbaf3d16e924675b434f8",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/metadata/0002 - The millennial midlife crisis_20261014-070147.metadata.json": "6e75fb2d8b5a7312fe060758a7d967262b2bcbf14660e856cfa5950c9dd51809",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.adfree.admap.json": "bded7602b088831fb12c2cb75db832228e28e181c33bdb0cb050f01de437f611",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.adfree.segments.json": "5104e32b40ba41a4ccf45a5ed1c4d73f10ed9515bf139e8a669d99dd2d8e74ec",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.adfree.turns.json": "9136e0d79b95b1cbaba7477d98ecf491d356366a4e3b89a8fd72b67d3d2b859a",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.adfree.txt": "0fd102f4dea8ac3586077a6f22a185a194996741c803d5ae6e52ea819a7757b1",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.cleaned.txt": "d737197193e3f309a97bd3596caf07e3fea99d4b432c35c6a45121869c9f3c00",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.segments.json": "fcdfbd41be2c5b41d14a9fa9e5c41e8e3ccfe4d2e027609faf90a203b45fd6b9",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.speakers.diagnostics.json": "f65e4785e5f7846a59a2c0f41c4d5ebc7530321973d47b1fe364198f190df836",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.turns.json": "327468c7c8d5653463b26dea0ece55f919d1dc77254c1407718d0c2c15b92c1f",
-        "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/transcripts/0002 - The millennial midlife crisis_20261014-070147.txt": "488f34a84f0bc8930f302cd2a124fb2dbcfcdcfaef08f101e79e378e261b88a9"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_9a61c204/run_20261014-070147/metadata/0002 - The millennial midlife crisis_20261014-070147.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
         "gi_names_rewritten": 5,
         "in_place_episodes": 1,
         "in_place_lines": 93,
@@ -4416,190 +4027,6 @@
     },
     {
       "counts": {
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 3,
-        "in_place_episodes": 1,
-        "in_place_lines": 84,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "roster_names": 1,
-        "segments_relabelled": 167,
-        "turns_rebuilt": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.bridge.json": "1f09d8e4914a99e03533855c103d366d5cef37def8059812fe58c567882f600c",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.context.json": "e49b3a437a4534d8aa8e4bfc43e66c11983ebcf693389c447d20f2ac6007f0a2",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.gi.json": "174155d9c2c3c16baf2bf4cf04ef741ded625c16740dbfde8f9eff8cdf0b445f",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.kg.json": "61ef3a15a0f42da1718426e11bb958030b4b90ee0bfb6b04de5158ba9bb8542e",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json": "b476fb1a66f6b721620cbe90528060f12654530693f6c3f0084c20dbbeab1bb0",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.admap.json": "c2bb847939f241a010aa7106d9a1fe5671d6a5225e00864ff8103c0a46252678",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.segments.json": "6a8825f1c177aa5153ec7df5bb64587eaebf6cbc0939cd9ba80af942520a3ec7",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.turns.json": "61a4932fdfba892f6f8795fa7d51da28b7a05efa91ac96fd214c21b0f2557a56",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.txt": "22bce8aa8b8ed0601c3a19c047f4b9aca52d123e0de7137862c02dc529f12c2d",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.txt": "d2686e8f2fbdf011c7b0ae22854ab7f244b6aa6af69c283ad61eafc7212998f0",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.segments.json": "c6dc4bb658ac98ddb8b60d3e2fcb6e60fc3a85323be1534d54d12e7289536dc8",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.speakers.diagnostics.json": "4c5cdc71c173c47c3379cd8283226ef6eeafc553e2890d668753615e38f6e220",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.turns.json": "cbd2a49df4141f8257aa0f1626be2b4ac6fdb7e7522a376efcba35d3a7361182",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.txt": "69a0e02831a5bc00981ab4e0667d0b1d28f27ca51018013180b521e6b70ebaa2"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0003 - Mass-produced fashion slop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 3,
-        "in_place_episodes": 1,
-        "in_place_lines": 55,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 81,
-        "roster_names": 1,
-        "segments_relabelled": 182,
-        "turns_rebuilt": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.bridge.json": "b5dd5dae5c962bac8adc567db0572232e325db72b08391a4af6a889231a183d6",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.context.json": "7c72b71d946f30edd3aed717afcbebaf7cd43ea7f1b95ff46c305c65a0e710aa",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.gi.json": "8b245565c2f02a317b3e4f85ec180f341489f0410a954d950f935eb9d3a1a0cb",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.kg.json": "af0cbbbd34598561a9f95cb5c772cab7a70e1d6363b4a7cac3efb44906f0acfa",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json": "3aaa8d0dbdf93cdc88bb4098f346aecf56897b5f87d95c94db0cf2fd7e242caf",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.admap.json": "f74d7a000ed1073d1683a0dad5e1a3c16678cbd4fd7d76c2805b74538cdafdd1",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.segments.json": "26d8ce462b4149366709a0fd4c68859f04b7f06fabddfc640c4b9e37f7524738",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.turns.json": "f16026529dda55cb36aecd5c97a2525d6dd4b16a08c12f03277eff5d7e22df85",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.txt": "c76a4891746f937e76f7ce6561cc5d04f7ef4644e94c0d1a36d988da388be727",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.txt": "3f29bb723bd417ee549f7a47eabddeee637eb995dee02962251ef17b51a8762d",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.segments.json": "fa6fd891e687da6c13409b1b5b3c6fbc3eea0aaa2dd2e99d777933e86bd8d073",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.speakers.diagnostics.json": "e6dfd8a919159e90faed3e50d4948398147a60a1fe5e21c22dc3be6737ba6609",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.turns.json": "58ff8cfaa8a398fa1937a638d2a47fb951c313bdcc3e45a4403fba0e7002940f",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.txt": "c76a4891746f937e76f7ce6561cc5d04f7ef4644e94c0d1a36d988da388be727"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0006 - How to date IRL_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 1,
-        "in_place_episodes": 1,
-        "in_place_lines": 93,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "roster_names": 1,
-        "segments_relabelled": 161,
-        "turns_rebuilt": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.bridge.json": "883e496c7858aa427687f72add46bb138f80f85af9dbd6d88c4bace8701164ba",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.context.json": "98875a00c20bdfeb413fdcd90ae44d139fe671f46302a1ed55a2266cc01df402",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.gi.json": "25c26ef8873a1aa47afa724f13f686473e69c32b3ad3204bcdff69dbd777d5fe",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.kg.json": "422b16b1b4a27262af3cf1f810fe062c2f5552e388d811eea2ae91cd36b45d58",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json": "832430e7dfc00698de4f5ee5745e56a5fedecd8abb412fed89f806e6b4484e40",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.admap.json": "9bdc7c6b426a70887baf355210aaf2793dbcd7c91070b9181cd9d1b38351003b",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.segments.json": "3e8e4064a53c13ced437aa1cfcd8f7826e12e2267f355855ee8f61fd07ce27b2",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.turns.json": "ef5a2cf984bbcea728bf1654e8251f3b145c44dc06f325017b3ca5af643d50ec",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.txt": "2b962297286e5606eb6fa4104c07d6a7267ca92e460703bc4978af4b55afc074",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.txt": "9d273ad8c2b5fc5f72903131977996d51fe4f8a2166b613caa813c23a790d29e",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.segments.json": "c4fec419da6e5a99001033c39cd68d2a9ea3e245f416aed52072e86285abdce1",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.speakers.diagnostics.json": "759c5d40d1ce99ba717586733839c0943f110645893a5ebd1f96ea74a5ae1fa1",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.turns.json": "3dc6a440bc49e8d2f77393bbf699ad1c61b5a65fa5ea0815662589edf154eb94",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.txt": "33094a2d1d61d0f6efa27b03cd5223838e82f00abc73732875593d26ca894ff9"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0007 - How to survive a flop_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "in_place_episodes": 1,
-        "in_place_lines": 19,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 79,
-        "roster_names": 1,
-        "segments_relabelled": 84,
-        "turns_rebuilt": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.bridge.json": "cd462084e3067be5af9b05239e928cf9c3623292651b1bc9099e32fbc60828ea",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.context.json": "f382fc70217703cdf14153c63eec52e9a0809d140e1aaf41bb391807fc66c77d",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.gi.json": "2f3a86e5f0d1f850a0add9724241e4f88228e7161df1836c1b9f1cb313b242a2",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.kg.json": "5e107087cdc982b380c79955e4c60d12d4da04ba93a9de5ddc86ab64ca237a78",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json": "aff6c152e03025e7c3dbea7c3abf6e7bfdcece2ddbd1772bbc502c2f3138e38c",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.admap.json": "85c68d0b6fa687b11206a7e86c0ed5c2ebd3385b90e241c136b1da40b5d82eda",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.segments.json": "9d0d0a91f9a1e5404fe03f75eeee3da6b470a774499a4ab2962fc95dd3c0776d",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.turns.json": "1eb81306aea19e0fb8da135ca4f77b44438542fbd709d3e8835e182a3fd0679d",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.adfree.txt": "b1448d765f6c06cf23206b649d72aaf82de802c7c1e63d3207c8f75669a6305e",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.cleaned.txt": "6a179bf01fbeacb7b423eba930ee9b017655fb1e4e758e4bfc9ffec93625052e",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.segments.json": "72548bbb0a6eb3fd03b917d566bea7f87de556c6a6bb53ba7babd18447d776cc",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.speakers.diagnostics.json": "10983f63d72cd647cbeb6f3f9d08bbfda6107eae13a59acb1d18ce2e62581955",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.turns.json": "cff1f3e7459cd8b6cc2bc4576fca3240c0c2b30a9927bb396e40816793c15898",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/transcripts/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.txt": "b1448d765f6c06cf23206b649d72aaf82de802c7c1e63d3207c8f75669a6305e"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_f0a13754/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959/metadata/0010 - Vacation_ In this economy__80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-160959.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 4,
-        "in_place_episodes": 1,
-        "in_place_lines": 43,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 78,
-        "roster_names": 1,
-        "segments_relabelled": 88
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/metadata/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.bridge.json": "c7d2111475157f0f2187155dae17b4a48d804e48d629649a4cc116ec31e7c993",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/metadata/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.context.json": "777c7a99e131cfd165f0a24a170828ed378fdcd6a7342d7c1ec881ee3a46895d",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/metadata/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.gi.json": "f8247209cd38813f3e5ff233afff5f470e891570c13c184253ae858a862663e4",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/metadata/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.kg.json": "1710e4c9bc581176b7157cf2750479d059acbf89f1cf4ce767a81169e5de08b9",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/metadata/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.metadata.json": "5fffd4b7d644945235accb0448dbdd17ade19252760157eaa11d053cf7145a79",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.adfree.admap.json": "f97e1503234032d8528262fd6dd01df8f3ad48b39a5da302ab4ff65e632acb23",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.adfree.segments.json": "d4e1403cfc8028c727f103908cef9055b7201c3afe367bcbd34e0ada4b077728",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.adfree.turns.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.adfree.txt": "4bc3c8cfcf7f564188d6dbe1f5e4494c6de528da0322fd43d28a4b7dd52b287b",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.cleaned.txt": "6058b4e6aa66ce94be90ecaff0225c14e5cc9ebfde6f5d18f684df0c8454d393",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.segments.json": "8844a2ddfe959e5cb1c0dfa13febf7b74c964dce800cd1a3080629d3b20fb927",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.speakers.diagnostics.json": "afba182661fc7d3ddb68b3c5991ac76623510ca9c9df77a3a140632468eac104",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.turns.json": "absent",
-        "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/transcripts/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.txt": "110ab82033f524b276c0ca492863a5354580994dc77fcbcfff4a055dd4a6af6e"
-      },
-      "meta": "feeds/rss_feeds.megaphone.fm_f0a13754/run_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345/metadata/0001 - The end of etiquette_8b1b664e-8c7e-430d-92c2-69b808ccffa4_20261001-222345.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
         "admaps_carried": 1,
         "bridge_names_rewritten": 1,
         "context_rebuilt": 1,
@@ -4663,44 +4090,6 @@
     },
     {
       "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "detected_names": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 2,
-        "in_place_episodes": 1,
-        "in_place_lines": 159,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 9,
-        "roster_names": 1,
-        "segments_relabelled": 250
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/metadata/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.bridge.json": "7d8f83a0d91c142cc7032318f604131f9f7fb6b320c5f1667a85a1a1133f33b8",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/metadata/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.context.json": "f6f19f4c2cbc3dd21f745a8a97b26bdc776beb6dccf1cec868d28f2d54770e86",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/metadata/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.gi.json": "cb2b51c419a3020bee4c578ed4189d45dd86967f62dbc0406ba40cc2e2e1cfbd",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/metadata/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.kg.json": "906e59768a712ac00da6f1b8f9725a2a9857d12db3a4f54d605048fd000e9574",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/metadata/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.metadata.json": "961ad03b3bfbcdbb649b93e11bb2a399bc7f60f47c6cbdbb43b053499320eb1d",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.adfree.admap.json": "bd43d70e6eb89a937dd7e3abe243928e31a2756a776b6dc9260ddf75896235c3",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.adfree.segments.json": "0db101a4901490d2da0be2d0b1bfff2d328e5050873c047b29a8064504f29368",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.adfree.turns.json": "absent",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.adfree.txt": "e28a5ce870d3e301328032a9126a47b8e50dc2cba3a33c36f56c73136253aafe",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.cleaned.txt": "00171a103e5632352805829cf25b579e77d677215863c63f3ab39b6831d451c7",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.segments.json": "ed4e9b8ed96611569042e00ebf1827713a804e9eeec14adaf4127bf6db88b818",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.speakers.diagnostics.json": "176d8d3841060d60909a3e97ef73253e10f5795c7c90a76315d7ee6fadfd8e56",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.turns.json": "absent",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/transcripts/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.txt": "e28a5ce870d3e301328032a9126a47b8e50dc2cba3a33c36f56c73136253aafe"
-      },
-      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_20260819-043606_285e51f2/metadata/0011 - Reese_s heir vs. chocolate skimp_20260819-043606_285e51f2.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
         "bridge_names_rewritten": 2,
         "context_rebuilt": 1,
         "diagnostics_voices_renamed": 2,
@@ -4735,31 +4124,6 @@
       "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_20260924-070029/metadata/0001 - When designing a GAME_ what_s in_20260924-070029.metadata.json",
       "refused": null,
       "renames": 2
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/metadata/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.bridge.json": "99fa11fe513f37867107d9050cf92327a136eedbd8f1cdad1a225a157152063b",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/metadata/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.context.json": "bed8c2f4d2083cbd852700d4091a89cb7d7b83fe787b782afa513eec535d4ca4",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/metadata/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.gi.json": "7853b8f5e1b5d1a18d06c9ade665e4fceac348938627bcf5570cadbef95bff3d",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/metadata/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.kg.json": "117e3783f8516e0e0b3fb30297dfac34614b9c69d531bc1655b8ff56b8a5be12",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/metadata/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.metadata.json": "0c70dbfbff3fc46ac56c12c6ec69a1905a8f9eaeee41658c54d5d2600bde7e2b",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/transcripts/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.adfree.segments.json": "c5b7c1e6fbb8a0f2ab865563bf7c154f6e1871142c66aa77b67cb120dea36f76",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/transcripts/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.adfree.txt": "acc02872075edc8fb2e56481203203437e194f089ef7cb23aee7220a1136525e",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/transcripts/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.cleaned.txt": "2d7e588ae3d35f1239648c894877c5302d5be4d11fa1f389359f59b603aea0b8",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/transcripts/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.segments.json": "59e616f40392fe6f7202dacbb0de25e6fce292b6e615041829fbe5d3ad0dea8d",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/transcripts/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.speakers.diagnostics.json": "a64088bdc282a29c6440dcad257b6cec10321b726fc83f5eb3b91b891d081467",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/transcripts/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.txt": "acc02872075edc8fb2e56481203203437e194f089ef7cb23aee7220a1136525e"
-      },
-      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2/metadata/0002 - It_s my tree. Why can_t I cut it_2e8dd80f-a73f-4111-8669-9520434ea042_20260811-204702_285e51f2.metadata.json",
-      "refused": null,
-      "renames": 1
     },
     {
       "counts": {
@@ -4868,31 +4232,6 @@
         "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/transcripts/0013 - So are we in an AI bubble_ Here _4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.txt": "3f876a8f8bdaba46d6a169830af378d346e2333a843a32ded91690b6ff17d44d"
       },
       "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/metadata/0013 - So are we in an AI bubble_ Here _4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/metadata/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.bridge.json": "4fb10add5effa7e284bf575d20f94ab26a69096aefc02b8ba126b95b098fc1e0",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/metadata/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.context.json": "ac00af9fd8a4ff38e65f170a4f631c0c5dc16fd58a30282ca88d15143e4f20db",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/metadata/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.gi.json": "4c04b1161e41571bc4926f46a08622b0300d7c009073c593bbd37ffbf806cb21",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/metadata/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.kg.json": "abdd18268665fe8c3f09f2006be8522f888392358a5b1a89bf2c1ff3cdbecaa4",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/metadata/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.metadata.json": "a0f2bfc8b84791877af2a30da3b1d95f6a119bb77b7a9cc2f68f9aa714478a18",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/transcripts/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.adfree.segments.json": "d2416ea4158717fbe1df41fcb587a345421b8dac12a9f85656b25e9bae163d6d",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/transcripts/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.adfree.txt": "260a1db283588bae29f99d2380d3b2f8d19dcf14c7de2fe077f44986c551832f",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/transcripts/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.cleaned.txt": "18e92c22ec097e84a0e16fc8d809676c6a88992bb5423446248f574ee98e7b05",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/transcripts/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.segments.json": "6e2337f5138c8e4ad123d73abbd9dd8a719dcb7430e0246cd19a59ea9ba3fe67",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/transcripts/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.speakers.diagnostics.json": "aa64232538804c864c0b9855892571aa6d971ead89bec8d744f76363779789b4",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/transcripts/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.txt": "260a1db283588bae29f99d2380d3b2f8d19dcf14c7de2fe077f44986c551832f"
-      },
-      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2/metadata/0015 - Venezuela_s recent economic hist_4eb197bf-45ac-4c64-915f-a6cdd428f6a9_20260813-071904_285e51f2.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -5166,31 +4505,6 @@
     },
     {
       "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.bridge.json": "0fa6fc5e3ce08eedc3b247a71e70ac5a013426764034c7a03609362b7ab3343a",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.context.json": "e5a87124fceb6e5a23e3d5e5654f2a3548027deb834a1fcc47294c2ae47ad17e",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.gi.json": "6b32cbfb036c2c42357d1155d43ce90d5e3caacd20a036f7d06348af6038143a",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.kg.json": "57ffcb3f20f54f52f934888322697cba139b4cb08d09a49f49b7610ae11fa720",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.metadata.json": "6c746504451fe62e7e75a263d79ecd77e8c0f0720e9074d73a3a381d02a678f7",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/transcripts/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.adfree.segments.json": "4fcc5becc17e8eaa8a11caa1383b282fdceec0b05bf621b3ffe5246eeef7c3a0",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/transcripts/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.adfree.txt": "329a36082d4a9b4b9fc9dd8b3d3df64c677d9144ae30f08e019f0a5bf59930c6",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/transcripts/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.cleaned.txt": "8a25f07b87b3dba532b9917436027259878b480b9e00c4eaa8a80c536a1ec36e",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/transcripts/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.segments.json": "3f650e334194fafd987cdfc922173e4febdb8a21456625c1143af55aec9dbfa1",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/transcripts/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.speakers.diagnostics.json": "fdea08e6e7f28857dff4e0d0b26c1b28dce39872807436bcd62934dd09b5a831",
-        "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/transcripts/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.txt": "2f5e9ac69415667ca8b63b261b0a2c56b593ace062f011691e9ad5d5add808d7"
-      },
-      "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2/metadata/0005 - Currency Chaos in Argentina _Sum_e890f2bd-dc0d-4fff-8922-586d8e37ef95_20260828-191006_285e51f2.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
         "bridge_names_rewritten": 1,
         "context_rebuilt": 1,
         "diagnostics_voices_renamed": 1,
@@ -5226,16 +4540,16 @@
     },
     {
       "counts": {
-        "bridge_names_rewritten": 2,
+        "bridge_names_rewritten": 1,
         "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 2,
-        "gi_names_rewritten": 15,
+        "diagnostics_voices_renamed": 1,
+        "gi_names_rewritten": 5,
         "in_place_episodes": 1,
-        "in_place_lines": 137,
-        "kg_names_rewritten": 2,
-        "person_labels_respelled": 2,
-        "roster_names": 2,
-        "segments_relabelled": 250
+        "in_place_lines": 61,
+        "kg_names_rewritten": 1,
+        "person_labels_respelled": 1,
+        "roster_names": 1,
+        "segments_relabelled": 88
       },
       "folds": {},
       "inputs": {
@@ -5257,7 +4571,7 @@
       },
       "meta": "feeds/rss_feeds.npr.org_7ce5b183/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159/metadata/0002 - Middlegarchs are the new Oligarc_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-040159.metadata.json",
       "refused": null,
-      "renames": 2
+      "renames": 1
     },
     {
       "counts": {
@@ -5387,68 +4701,6 @@
         "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/transcripts/0025 - AI for Science with Sir Paul Nur_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.txt": "b81357c9a80bbcdd29345d307415103d4b9aaea92395ed975181385958e33e6b"
       },
       "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0025 - AI for Science with Sir Paul Nur_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.bridge.json": "a7dfc6274b6f0767bcf4cc4123a137fcdc6d0b45cf8c8797210a3d9e83316648",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.context.json": "30566cfe453ca930482c198352794932678663d6467dafd868bbf5b21fd77489",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.gi.json": "013e4b1106587a29ca44ce6000c9eecbfc189fc356d2ff6a760d3869db4ded79",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.kg.json": "8e04e0eac6ccd49d53880ad0eb3594c404b89cf20c58478b23752d9046a891b4",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json": "9fd2850952608f78ea6edb547345c61ff87d544134c2d9aa52d7574be825a5f2",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/transcripts/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.adfree.segments.json": "09ecfbbde5ed815428c48b753ae4c588b8725d153eabae726921fd02d15f8626",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/transcripts/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.adfree.txt": "72b1cd117d7f00cad50ed49a8b4f6ad67896c4c9e49a493757f1d86ba82569b0",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/transcripts/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.cleaned.txt": "c69090d5086ae80459b519d424b4e142da67764734d759d11ede439a9734be05",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/transcripts/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.segments.json": "cae4686fc32a69be27d73a1e8bac30f1369bbff289cd44fc8a5cef3eecce415d",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/transcripts/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.speakers.diagnostics.json": "2633ffa00d36e1065e9c3cdcfd4748950cfa0af4c912fd3ff2ef0c6aa3eb472c",
-        "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/transcripts/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.txt": "72b1cd117d7f00cad50ed49a8b4f6ad67896c4c9e49a493757f1d86ba82569b0"
-      },
-      "meta": "feeds/rss_feeds.simplecast.com_0d35b453/run_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529/metadata/0030 - Decoding Google Gemini with Jeff_f6849285-735f-4381-85de-4a69316cbac1_20261008-041529.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 47,
-        "in_place_episodes": 1,
-        "in_place_lines": 176,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 111,
-        "roster_names": 1,
-        "segments_relabelled": 748
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/metadata/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.bridge.json": "428eede15cc361fbe79249c2e144866b6a51973a7a348baa92e3949a3d88ca0e",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/metadata/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.context.json": "3deb0da87a16ccc6e675f9eaf09702a2fb7bb191066cc74c0c048513d5e6e280",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/metadata/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.gi.json": "8f8dadf7f476c98fb1fbf8e2112b03f2e8347fc25857a46f207053e7ce52c9db",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/metadata/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.kg.json": "c6b7e74e21f996a5ed634db8417c9318345e81153106c0d65c1f310bb90efd53",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/metadata/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.metadata.json": "74cb85a8590fb020a9c12ab53e32059ad3efbd1986b236e59244122f134c289a",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.adfree.admap.json": "d1bba6b4dfa6c9bdade4af2d4d2317df6f6c0b213261893983f5f163bdf7e996",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.adfree.segments.json": "c6858e72e37918452b3974102f15049969039b92e7f32e3ab79c20bfd9ba3d9e",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.adfree.turns.json": "absent",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.adfree.txt": "455ffe0e3c855082a22dc69c121eaf48ba79ec2634692133c131b8948f2725c0",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.cleaned.txt": "02ec47f628e633aa7d4ffa05f7dafe06e3ca17ded9247430e0aaa9aa62e0085f",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.segments.json": "b8637f0b41d2278469c3d20434506a2792605b4d4e75175fd68345ed151cab9b",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.speakers.diagnostics.json": "bc079e8222fc8bcef58ff575ed1456ae792bcaa09ddad602eb6fdc8c5759ed3b",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.turns.json": "absent",
-        "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/transcripts/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.txt": "455ffe0e3c855082a22dc69c121eaf48ba79ec2634692133c131b8948f2725c0"
-      },
-      "meta": "feeds/rss_feeds.simplecast.com_2638932a/run_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158/metadata/0001 - What Is Intelligence_ With David_67a6c0f8-c444-49a6-b530-8ade9d69dbee_20261003-165158.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -6614,43 +5866,6 @@
     },
     {
       "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 29,
-        "in_place_episodes": 1,
-        "in_place_lines": 101,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 56,
-        "roster_names": 1,
-        "segments_relabelled": 1512
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/metadata/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.bridge.json": "6ac6ebbc861b577bd91993586ff4dc997b3ba80dce90dec38850a376708ebfe5",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/metadata/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.context.json": "4e7c5207b910bfb1c03987f25c4ed1ed74781a5ccabda7da9b405477db068354",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/metadata/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.gi.json": "107ded10c7b2a15e94f358eadf26370d86ca79da8191818d5c4251bed12b4ac0",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/metadata/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.kg.json": "392771da3a67537df93a472236e7bbee6834b431a36d5bcb07cbe1509f9cf00a",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/metadata/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.metadata.json": "735bd5d6515ee633c1fde9c2601078f70128ec2d4f070b33c08a5740b8c9fa6e",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.adfree.admap.json": "9c5d50b33712fb0297126c31f5ad08337e52797960c3361e57debcd3b384e14d",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.adfree.segments.json": "b338939846599d21b0a20ca4897e8fc6bf4aac3a36b21657038d63c3238c825d",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.adfree.turns.json": "absent",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.adfree.txt": "82efd85beadd329e409939ae06a1ef1c963b2a47ea66988b077ea4b8e9a2ff10",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.cleaned.txt": "6a8e986ad7296bdf4eaf4a9dc3be8402be1640c5cb75e187c5287787df6f3789",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.segments.json": "cf7354ec4eb926139d8af6ee112d440e2f2094b72c1cf2ca8ff74aaa51335f21",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.speakers.diagnostics.json": "ab0b092fcb08e5d42013a6051cffaa16397a6bc1156be06c85283a0245a3383d",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.turns.json": "absent",
-        "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/transcripts/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.txt": "adf816e67b749e5b3e12c06135e7f90921a1370f54aad94ca1a2d4a87869664f"
-      },
-      "meta": "feeds/rss_feeds.simplecast.com_999571cd/run_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923/metadata/0003 - A.I. Is Outsmarting Its Creators_91ae9dcf-d05a-47b8-9457-0f3ee6267899_20260907-034923.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
         "bridge_names_rewritten": 1,
         "context_rebuilt": 1,
         "diagnostics_voices_renamed": 1,
@@ -7281,10 +6496,10 @@
     },
     {
       "counts": {
-        "bridge_names_respelled": 2,
+        "bridge_names_respelled": 1,
         "context_rebuilt": 1,
-        "person_labels_respelled": 2,
-        "person_names_respelled": 3
+        "person_labels_respelled": 1,
+        "person_names_respelled": 1
       },
       "folds": {},
       "inputs": {
@@ -7302,7 +6517,7 @@
       },
       "meta": "feeds/rss_feeds.simplecast.com_aef1e4c0/run_20261010-090927/metadata/0001 - Sandra Borda on the Figures and _20261010-090927.metadata.json",
       "refused": null,
-      "renames": 2
+      "renames": 1
     },
     {
       "counts": {
@@ -8770,31 +7985,6 @@
       },
       "folds": {},
       "inputs": {
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/metadata/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.bridge.json": "8e6c14d4eeaeaee687138a0e0ee60dc9c69cffcf52f4ea05340750100c2d4432",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/metadata/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.context.json": "918e5287d75dacc7a32288ce8497f5f8e3332da78842bdc16aefe59cbd497931",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/metadata/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.gi.json": "cde0e6ab0de9a7643766889bfa4fb3b8e0e405908213fcdd9ba3e4c91bfd09ea",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/metadata/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.kg.json": "b1cd8f4ec0752565da3fa94e918f32d30b51edf2414012770b757bebc6047549",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/metadata/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.metadata.json": "05f780e3bb226977d1adf2258c64a177166819ea71a2a735e48a1d3e69f9365e",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/transcripts/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.adfree.segments.json": "04397b6592847413ca8d9c634f8124bb3af25f74499fe2e853b168893454c36d",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/transcripts/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.adfree.txt": "7739f82715bb7c5266166e982ebeb9aea15ab221ce49169f9591c0c52874dba9",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/transcripts/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.cleaned.txt": "965f70074939deb969e7d3cbf0c41983dd235549a8c981fefb12e5b9e4059c86",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/transcripts/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.segments.json": "34364ae39d54b13032f5380cbc0795e0593a4571c1340ce417ab371e04a7ac95",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/transcripts/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.speakers.diagnostics.json": "2c459900b7029c2acd07e1694f5030e9e4eb404b820c9a67e6e66d53175da66a",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/transcripts/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.txt": "7739f82715bb7c5266166e982ebeb9aea15ab221ce49169f9591c0c52874dba9"
-      },
-      "meta": "feeds/rss_feeds.simplecast.com_eff6d29f/run_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407/metadata/0010 - Colonialism_ Slavery_ and Foreig_bd6d73ee-5f73-4b1d-a6c0-caac58a8e0f3_20260905-000407.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
         "feeds/rss_feeds.simplecast.com_eff6d29f/run_e3a30ff2-c349-4278-adef-8db7946171a5_20260831-222106/metadata/0006 - Tom Cruise_s Body of Work _with _e3a30ff2-c349-4278-adef-8db7946171a5_20260831-222106.bridge.json": "e946c1795c51fa61986b909c55f06b505e8230cb76a65c7a14cca21e4c5417e2",
         "feeds/rss_feeds.simplecast.com_eff6d29f/run_e3a30ff2-c349-4278-adef-8db7946171a5_20260831-222106/metadata/0006 - Tom Cruise_s Body of Work _with _e3a30ff2-c349-4278-adef-8db7946171a5_20260831-222106.context.json": "1455cfd62927c7cec982d7e44c5175e920f67b2456bd94b6b937b9ab5212df23",
         "feeds/rss_feeds.simplecast.com_eff6d29f/run_e3a30ff2-c349-4278-adef-8db7946171a5_20260831-222106/metadata/0006 - Tom Cruise_s Body of Work _with _e3a30ff2-c349-4278-adef-8db7946171a5_20260831-222106.gi.json": "85de53781df5eeda86b06e1c460f06a5ac72320a6040e09b4db3b00961a51cc7",
@@ -8833,43 +8023,6 @@
         "feeds/rss_feeds.simplecast.com_eff6d29f/run_eb9f2dc4-e2b3-4000-a86c-e232ce3fbb93_20260902-113830/transcripts/0003 - The Unseen Work_ Stewart Brand o_eb9f2dc4-e2b3-4000-a86c-e232ce3fbb93_20260902-113830.txt": "db00b493b3240b0ce716e013b6a8e62c61a24fa47f3639a6600e73a8a9f7330b"
       },
       "meta": "feeds/rss_feeds.simplecast.com_eff6d29f/run_eb9f2dc4-e2b3-4000-a86c-e232ce3fbb93_20260902-113830/metadata/0003 - The Unseen Work_ Stewart Brand o_eb9f2dc4-e2b3-4000-a86c-e232ce3fbb93_20260902-113830.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 51,
-        "in_place_episodes": 1,
-        "in_place_lines": 72,
-        "kg_names_rewritten": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 151,
-        "roster_names": 1,
-        "segments_relabelled": 866
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/metadata/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.bridge.json": "aae880281f8eda631bca5c3b1e637aeb28b4aca74cb8ea26221c8bca97fb1297",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/metadata/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.context.json": "0db17f702130fd7499fe18c9aeb58cf3b0d46e1b9ccb4df4373de735b36d3fad",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/metadata/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.gi.json": "26b6bcc6222c24d51e9660c5d9cee37592272b95641feacfa9bd5c3338e73078",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/metadata/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.kg.json": "8390d3dd9f73956934a129ff48f49c272e9354b25d81f739888eb807ae6f25d6",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/metadata/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.metadata.json": "36084eb3e6aaf587690325b97b82baf9fd80776c76f6c0074be9e627b4bb1e04",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.adfree.admap.json": "3c34fa825eea89cf0a73ce1d9db87f75ab4d5677a197428b61754f3ac5e5b4bd",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.adfree.segments.json": "f896ecd14d024a6e2e1fd34c18a6a36fee67a61fc299f6901df295151a07ee1a",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.adfree.turns.json": "absent",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.adfree.txt": "7cbe702131963436a04645a8a695a6ca79ad5dd008179c533db331d10ffb8e80",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.cleaned.txt": "99cdd9a3bce50e531d4004a22f43ff102e7671b6cbfdb196968359f083716dca",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.segments.json": "48906c6f4cde278396ff1cd0b950ea6cc1600a9c182a23f52c9a293177ec7bce",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.speakers.diagnostics.json": "b3f638f134838f6e1a38cc78d382c335f6532a9c8364db5b3da9f4078b318130",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.turns.json": "absent",
-        "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/transcripts/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.txt": "7cbe702131963436a04645a8a695a6ca79ad5dd008179c533db331d10ffb8e80"
-      },
-      "meta": "feeds/rss_feeds.simplecast.com_eff6d29f/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354/metadata/0001 - Public Choice and Politics Witho_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261002-161354.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -10007,45 +9160,6 @@
         "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0011 - Will science make God obsolete_ _26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.txt": "eb7dc1c398e4a6533d1fbb9652d5170c18c327e3d4888764c9263ab47d1b4aa1"
       },
       "meta": "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/metadata/0011 - Will science make God obsolete_ _26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "admaps_carried": 1,
-        "bridge_names_rewritten": 1,
-        "context_rebuilt": 1,
-        "diagnostics_voices_renamed": 1,
-        "gi_names_rewritten": 53,
-        "in_place_episodes": 1,
-        "in_place_lines": 133,
-        "kg_names_rewritten": 1,
-        "metadata_counts_synced": 1,
-        "names_refused": 1,
-        "person_labels_respelled": 1,
-        "quotes_moved": 100,
-        "roster_names": 1,
-        "segments_relabelled": 716
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/metadata/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.bridge.json": "539f4198b0e30c38ed1890a92eb5975bdc2a49806a416a03c1bcaea466435cb7",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/metadata/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.context.json": "b4315576856c4f467fae020602666ed8574a1fa873f9e1a31bb69f641022321d",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/metadata/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.gi.json": "3b18b0e400f35bed7a7d1175520acd19e2f40c540417547e6a1abff2d753beda",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/metadata/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.kg.json": "955d282998244d187f4fba0bb4c15c573d10786c0979dd352b8470b01095eb64",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/metadata/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.metadata.json": "bc5fe134cf13a6c5e88a3d2e4a967ed8a7724dcbe0e31693eecc80482a2051b9",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.adfree.admap.json": "2c08674a746a56ba0bf867357e41a51aafe36b3ed6e7fd82c33d50e5f9612e8a",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.adfree.segments.json": "514572935e56d6f63644c8764c87758116947ca03bdfc009880147a5aa0e8985",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.adfree.turns.json": "absent",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.adfree.txt": "1b6eefb0ac878c9777659934a2eb7917fc8c41b45b043d0438f24159fb7a56ed",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.cleaned.adfree.admap.json": "absent",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.cleaned.txt": "ae6c16c35a4b989d16157d5fc44d61683774bfcc4d852193d6ae775678cc9369",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.segments.json": "448d12f6d45ab62660105f579ac49f24085493f5f3d4de57b2ab1064d7526941",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.speakers.diagnostics.json": "820429282ae34a8dac51f40e270a7bdddc1655996e00a6426eae14d2dea3929f",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.turns.json": "absent",
-        "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/transcripts/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.txt": "1b6eefb0ac878c9777659934a2eb7917fc8c41b45b043d0438f24159fb7a56ed"
-      },
-      "meta": "feeds/rss_pcr-rss.streamguys1.com_9c7f03aa/run_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754/metadata/0021 - Why I am not a Christian Nationa_26498f0a-718f-48c9-b40c-5cc714741055_20261005-100754.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -12090,31 +11204,6 @@
         "bridge_names_respelled": 1,
         "context_rebuilt": 1,
         "person_labels_respelled": 1,
-        "person_names_respelled": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/metadata/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.bridge.json": "357f3bd0334d1ec8b1257eacf14c0945d4303030372a1a6417a5cc84a0d8cea8",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/metadata/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.context.json": "8aa70a441e82e0acd178e54eb83fdd875515907ccb32247c0bcdc46b355020d2",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/metadata/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.gi.json": "7786a91a55fb96552751c6405f334db45e30c807c2051866d53590f59052a76c",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/metadata/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.kg.json": "b4b01b677d36f2afd0487a4b538b4fc01c2cec3aace745238203970391318a81",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/metadata/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.metadata.json": "d75e0363adbc2d1e32c682649892a6a7f1f22036392dcc844a6f6f286b9976d1",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/transcripts/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.adfree.segments.json": "0157484f586d8b425a19e53979e0c517c6b71a9da55d7436c6f24e7a6207b612",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/transcripts/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.adfree.txt": "bf9cf9ee14446c715ad77f83cbbe37239d7bd243e280031fa8506f80f26b1f91",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/transcripts/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.cleaned.txt": "78858bffe7af5e2608b91c3fe4adbb4d6d466fb6cd2d28ee02781757885516dc",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/transcripts/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.segments.json": "ab9565bee31dd7ef0832f086337b36519363ebfa0f22fd50b8c92d74b60e92ca",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/transcripts/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.speakers.diagnostics.json": "4751b33d646ab5848b34abfc6f5f5c4319d892da95821daf3d2abd3ae1cfdade",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/transcripts/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.txt": "871fd67186db2f83cb067efd1e149618f6db1035bec549472a1e67ecf0c3ee99"
-      },
-      "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620/metadata/0001 - Colombia_s Unreliable Relationsh_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-185620.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
         "person_names_respelled": 1
       },
       "folds": {},
@@ -12144,31 +11233,6 @@
       },
       "folds": {},
       "inputs": {
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.bridge.json": "674f91d51b5de427e1a7e320a6439e21a2f477ea9ab0671293c06abd41bdf04e",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.context.json": "12654ff0921dfa6d84f100c7e86f0b7145a9fbe994a80ba3c807cf33570f020a",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.gi.json": "ec85ac968bf9574775d0c5eadc3cf46be5d1bdabbc1f84ba67575a3e58c74fe1",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.kg.json": "2c7ef8f00224d4e3879d566a86dd10d36031a471941a9f3dc90d94963cfefad4",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.metadata.json": "d6b79760e0c6c308133f1e5399b921d1b1867743057547f3575ff9d5860925d7",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.adfree.segments.json": "da83eeed0cec7e42dc4adcef7c4c8b4bb7cdd6abaa217c2b453089c20d9bf74a",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.adfree.txt": "343c2c5fd1e3b6e57e14e492d218bf908584e26fa6a14ab9d288ec8b0ab14952",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.cleaned.txt": "b2bb9a8bd91cb8ad99f7a2b1e8342570899aba11e4b0e81f4bf137c4d4f23240",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.segments.json": "288d8c7a4ddabd1af5dfd3a6827d398ce56103450e4a9d663d676711a8ca596e",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.speakers.diagnostics.json": "a03d0f508ac4811900edd9ef9a76c6621369240f1366ca678bf7d86264ba9801",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.txt": "b695f7e393b99edc0e8b66ed92b331135f1db8c4b153b4a3df7608b358b45692"
-      },
-      "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0002 - Exploring the Architecture of Po_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 2,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 2,
-        "person_names_respelled": 2
-      },
-      "folds": {},
-      "inputs": {
         "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0004 - Exploring TikTok_s Role in Colom_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.bridge.json": "700ce2d37c8020d5b35463c61a4861b78d72755eea48a68ea3237cbc5be1255d",
         "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0004 - Exploring TikTok_s Role in Colom_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.context.json": "058628e7a2baae0561112418a32c95151bb2f63dc837d4ce8b1536200e9a1b57",
         "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0004 - Exploring TikTok_s Role in Colom_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.gi.json": "304b6f0f8525b0d7831bf9ada36072414d0d471f576bd5ba7b4d16d36de81492",
@@ -12182,31 +11246,6 @@
         "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0004 - Exploring TikTok_s Role in Colom_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.txt": "c51400bd8dba60f426a15e76c98d38daaa4aabfcbc85ccbea6605297330da9f2"
       },
       "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0004 - Exploring TikTok_s Role in Colom_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.metadata.json",
-      "refused": null,
-      "renames": 2
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 2
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.bridge.json": "61cbd3a0ff4911878260025de349923a2876f4de220f0650ef63d45e9fb0162a",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.context.json": "25ea87ccb22fc508c4fcc122c20a7bdd3296dee6b5c8cade6c9ab14649faa0bd",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.gi.json": "dd43e2ae22e1b23c7183715d05cfc21a027811b8efcedd7df9f1d66760f32433",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.kg.json": "08d455b18fa82e2007b75fbc81ce89f0e27983f912a7067a232da9882128b646",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.metadata.json": "cccdef921c47a80a2e4923c51cefd9c60b077a9c268911574eb1eeb56dcc93fa",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.adfree.segments.json": "a89ec6d6945f30761edda372c387e39e726988d84a3437d28def3b463a240b1f",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.adfree.txt": "90b86a5c39d7ebff1e45d11ffccf2130be93b83df3f43c7e744124bbed132f83",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.cleaned.txt": "6c09f8741f7c5eb0a030c9d81f01625e9f056545066599e2a3826c5e245af441",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.segments.json": "276cf8ce586b3e179beb2fce4d8c4e675de06b2df4ef4bf4ae530995be568111",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.speakers.diagnostics.json": "80cdce7133746408ff7207c8f21616f7494caf5ff94bc9eb169d2f66319f2564",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/transcripts/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.txt": "5ef01492c43e5f247dc6d11976d357d297e849c0867632023d8825316cee6a04"
-      },
-      "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711/metadata/0005 - Navigating Uncertainty_ The Firs_4dc794c0-34b3-4c90-92f4-345890857e08_20260911-215711.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -12239,34 +11278,9 @@
       "counts": {
         "bridge_names_respelled": 1,
         "context_rebuilt": 1,
+        "names_refused": 1,
         "person_labels_respelled": 1,
         "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/metadata/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.bridge.json": "97faed3e3f8190916c0bd8d9f8313ff5a16c8e9f51738b670be680c9cce435e7",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/metadata/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.context.json": "f64365660153bf8f0c7bf77074de43f7c888d9e103b08f18fb7890b9eeb51026",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/metadata/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.gi.json": "8bb95af7c8754e1d8baf3b807cf3de3a34b239658935d4ae5fbc1d8d81d8494c",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/metadata/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.kg.json": "4f3d1b1a2c420cc6073ceb4613d39dce36464059a68740e83524c457865a938b",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/metadata/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.metadata.json": "765c140bc3d9a4e684fb447d12832c86ccf160523dc3a7fe965ffa16e42dddf0",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/transcripts/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.adfree.segments.json": "436ce06fcefa0edd0aab40ecc8514b09ae900fb04c5e6a6123497ebddca5262c",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/transcripts/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.adfree.txt": "cb7b0d1a4d6c8609cfda8b395b62628913652c9230854942be23aeeb657d7717",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/transcripts/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.cleaned.txt": "00892e427424c855637ec0639bde62bbb25508584727a47e17e7e4874f9662c0",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/transcripts/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.segments.json": "2ea273a2781e45c142b68616f1b704671955ca929978b4e0bbda5724e16d50fb",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/transcripts/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.speakers.diagnostics.json": "9bbd5b2cfa62af1441643c4ab50c8367adb3b5a363457774e4fab16da827fba8",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/transcripts/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.txt": "a0cf4c00e0734ecb1cd2d6140c52d342781fdc4a7d818e5a349415ee325971a6"
-      },
-      "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127/metadata/0001 - Exploring Colombia_s Human Right_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-022127.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 2,
-        "context_rebuilt": 1,
-        "names_refused": 1,
-        "person_labels_respelled": 2,
-        "person_names_respelled": 2
       },
       "folds": {},
       "inputs": {
@@ -12284,7 +11298,7 @@
       },
       "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0001 - Riding Political Identities in C_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.metadata.json",
       "refused": null,
-      "renames": 2
+      "renames": 1
     },
     {
       "counts": {
@@ -12308,31 +11322,6 @@
         "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/transcripts/0002 - Navigating Business and Life in _ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.txt": "a19fe40627323d36609bc0b6595b92a447e863ed090288ed166da53e722c11d1"
       },
       "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0002 - Navigating Business and Life in _ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.metadata.json",
-      "refused": null,
-      "renames": 1
-    },
-    {
-      "counts": {
-        "bridge_names_respelled": 1,
-        "context_rebuilt": 1,
-        "person_labels_respelled": 1,
-        "person_names_respelled": 1
-      },
-      "folds": {},
-      "inputs": {
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.bridge.json": "9c888717660f4d3f0c0e6811d538e8e43a8a42dc56b71b631391802033b5b595",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.context.json": "c1d2a877750d388de29fdfc74ad676396737be9db4f364b45abf422018f35adf",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.gi.json": "f2ced46a5b11dc2beb9940ed36862b34fd21cf30f8c433d22b952e7bb7df2923",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.kg.json": "8ebdb3d89f787a37b4091a5dd56e5c45742cdfea8e4aa523859b017f0da59440",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.metadata.json": "3299772f88147cf4f7b8d4d293ca217860ecd106dbce558ec96dbefa4f4f3539",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/transcripts/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.adfree.segments.json": "dda77888b713e78c156a29fd8b3ba3c1dbe1d2b76916c3d16a3f35b0ba197d24",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/transcripts/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.adfree.txt": "0625bc9a7f0f5c2533287fdbcd7d4792f3d8140daaa51c8c98f4e7a4667956db",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/transcripts/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.cleaned.txt": "2317bc6a6aa9f9ed1c2d2feb61bf67378da536144b7049e870b7f40e5c1c9af3",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/transcripts/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.segments.json": "0c3a969d587b88becc97a0bef32a804fdf1de3985ec340b8d92dcd77458c953c",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/transcripts/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.speakers.diagnostics.json": "f5d34bc6642bd8efe38c8e81445df586df5e10e8d8173864365aa072a76e0093",
-        "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/transcripts/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.txt": "a8ad892c4cad91a837654dc513960ec927a9912e2a807f2f5ce901bad33ad5f8"
-      },
-      "meta": "feeds/rss_rss.pdrl.fm_872eb3e3/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719/metadata/0003 - Colombian Mercenaries in Sudan_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-073719.metadata.json",
       "refused": null,
       "renames": 1
     },
@@ -13886,7 +12875,7 @@
       "renames": 1
     }
   ],
-  "plan_sha256": "38e4746af433fa012a5e30883f48f9222aebb809523ff514c1dfb0259c454777",
+  "plan_sha256": "bb5600e5f2a8a4d267a555ec25f4843d64c0aea37b4aa9b220f2fd3eb1a9289f",
   "scoreboard_after": {
     "A1_episodes_no_adfree": 2,
     "A1_episodes_with_hits": 297,
@@ -13941,7 +12930,7 @@
     "quotes_no_offsets": 0,
     "quotes_ref_unresolved": 244
   },
-  "snapshot": "snapshot-prod-20261030+0038+0039+0040+d2-ledger-final",
+  "snapshot": "snapshot-prod-20261030+0038+0039+0040+d2-ledger-s6h",
   "verdicts_sha256": null,
   "verify": {
     "message": "every joined person's name in the episode files is the group's spelling",
@@ -13990,7 +12979,7 @@
     },
     {
       "id": "0009_backfill_speaker_roles",
-      "message": "1823 of 1823 recorded role(s) still present in files this migration last wrote; 1391 row(s) in files rewritten since (not judged)",
+      "message": "1835 of 1835 recorded role(s) still present in files this migration last wrote; 1379 row(s) in files rewritten since (not judged)",
       "ok": true
     },
     {

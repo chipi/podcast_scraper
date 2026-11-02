@@ -129,6 +129,17 @@ Gate (`0042_insight_cluster_quotes_resynced.gate.json`, the final batch, code di
   - A likely cause, not traced by id: 0041 writes 501 episodes instead of 573 on this ledger, so
     fewer GI quotes move before 0042.
 
+### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
+
+Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain `scratchpad/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+- 33,162 quotes, **1,835 resynced**: `char_start` 1,760, `char_end` 1,758, `speaker_id` 338, `text`
+  5. 0 unmatched; 13 keys in several runs. Computed class light, 1 file changed.
+- `upgrade verify` 41 of 41 ok, none failing; no gating moves. Prod's clusters file was checked by
+  sha256 before the gate (`CLUSTERS_FILE_OK`).
+- **Against the run above** (1,885): 50 fewer offset changes. `speaker_id` and `text` are
+  unchanged. This fits 0041 respelling 467 episodes instead of 501, but it is not traced per
+  quote.
+
 ## Not covered
 
 - Cluster membership built from an older corpus; a rebuild decides that, not this.

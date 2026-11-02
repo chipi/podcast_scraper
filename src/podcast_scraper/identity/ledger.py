@@ -163,6 +163,11 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
     publisher text names the group and the two most frequent spellings of its pool (the full names,
     else every member; folded) have equal episode counts, no spelling is set and the evidence is
     ``{"rule": "tie"}``. Each episode keeps its own spelling; the card shows the canonical's name.
+
+    **No majority, no choice** (record ``s6h_publisher_ties_and_pluralities``): when the most
+    frequent spelling holds at most half of the pool's counted episodes, the evidence is
+    ``{"rule": "plurality"}``; when the publisher's own text names the group two ways equally often,
+    ``{"rule": "publisher_tie"}``. Neither sets a spelling, as a tie.
     """
     from collections import Counter
 
@@ -179,6 +184,10 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
         members = [m["id"] for m in cluster.get("members") or [] if m.get("id") in candidates]
         if canonical in stated:
             spelling, episodes = stated[canonical]
+            if spelling is None:
+                cluster.pop("display_name", None)
+                cluster["display_evidence"] = {"rule": "publisher_tie"}
+                continue
             cluster["display_name"] = spelling
             cluster["display_evidence"] = {"rule": "publisher", "episodes": episodes}
             continue
@@ -197,9 +206,9 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
             )
             cluster["display_name"] = candidates[pick].name
             cluster["display_evidence"] = {"rule": "publisher", "episodes": named[pick]}
-        elif _tie(pool, candidates):
+        elif (undecided := _undecided(pool, candidates)) is not None:
             cluster.pop("display_name", None)
-            cluster["display_evidence"] = {"rule": "tie"}
+            cluster["display_evidence"] = {"rule": undecided}
         elif fulls and canonical in candidates and not full(canonical):
             pick = max(
                 fulls,
@@ -212,15 +221,23 @@ def _add_display_spellings(payload: Dict[str, Any], candidates: Any, evidence: A
             cluster["display_evidence"] = {"rule": "frequency"}
 
 
-def _tie(pool: List[str], candidates: Any) -> bool:
-    """The two most frequent spellings of ``pool`` (folded) have equal episode counts."""
+def _undecided(pool: List[str], candidates: Any) -> Optional[str]:
+    """Why ``pool``'s spellings choose none, or None when a majority decides (records s6g, s6h).
+
+    A spelling's count is the sum of its members' episode counts, spellings folded, so an episode
+    holding two spellings counts for both. ``"tie"``: the two highest counts are equal.
+    ``"plurality"``: the highest is at most half the sum, which is no majority."""
     from collections import Counter
 
     per: Counter = Counter()
     for i in pool:
         per[_fold(candidates[i].name)] += candidates[i].freq
     top = per.most_common(2)
-    return len(top) == 2 and top[0][1] == top[1][1]
+    if len(top) == 2 and top[0][1] == top[1][1]:
+        return "tie"
+    if top and top[0][1] * 2 <= sum(per.values()):
+        return "plurality"
+    return None
 
 
 def _fold(name: str) -> str:
@@ -241,7 +258,9 @@ def _full_name(name: str) -> bool:
     return len(toks) >= 2
 
 
-def _publisher_spellings(payload: Dict[str, Any], evidence: Any) -> Dict[str, Tuple[str, int]]:
+def _publisher_spellings(
+    payload: Dict[str, Any], evidence: Any
+) -> Dict[str, Tuple[Optional[str], int]]:
     """``{canonical: (the publisher's spelling, episodes)}`` for each person group publisher text
     names (record ``s6e_publisher_spelling``, prototype eval-data ``d2i9/spelling_publisher_text``).
 
@@ -249,7 +268,8 @@ def _publisher_spellings(payload: Dict[str, Any], evidence: Any) -> Dict[str, Tu
     group's Person nodes IN THAT EPISODE (folded), or a full name the roster's own predicates match
     to one; never when it is another person's name there. A name only ``detected_guests`` states
     counts on an exact match only. Two names that fit, neither exactly, give that episode no vote.
-    The spelling is the publisher's own text; a bare one never beats a full one.
+    The spelling is the publisher's own text; a bare one never beats a full one. When the top two
+    spellings have equal votes the spelling is None (record s6h): the text does not decide.
     """
     from collections import Counter
 
@@ -304,11 +324,15 @@ def _publisher_spellings(payload: Dict[str, Any], evidence: Any) -> Dict[str, Tu
                 p = hits[0][0]
                 votes.setdefault(canonical, Counter())[_fold(p)] += 1
                 forms.setdefault(canonical, Counter())[p] += 1
-    out: Dict[str, Tuple[str, int]] = {}
+    out: Dict[str, Tuple[Optional[str], int]] = {}
     for canonical, v in votes.items():
         has_full = any(_full_name(n) for n in member_names.get(canonical, ()))
         cand = {fp: k for fp, k in v.items() if _full_name(fp) or not has_full}
         if not cand:
+            continue
+        top = sorted(cand.values(), reverse=True)
+        if len(top) > 1 and top[0] == top[1]:
+            out[canonical] = (None, top[0])  # a tie in the publisher's own text: none (s6h)
             continue
         best = max(cand.items(), key=lambda kv: (kv[1], len(kv[0]), kv[0]))[0]
         spelling = max(

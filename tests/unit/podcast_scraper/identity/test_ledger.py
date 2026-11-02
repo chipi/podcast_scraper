@@ -445,3 +445,111 @@ def test_a_tie_group_gives_its_card_the_canonical_name_only() -> None:
     assert view.name_of("person:korin-vael") == "Korin Vael"
     assert view.name_of("person:korin-vaal") is None
     assert view.shown("person:korin-vaal", "Korin Vaal") == "Korin Vaal"
+
+
+def test_no_spelling_holding_a_majority_shows_no_group_spelling() -> None:
+    """Record s6h: 2 of 4 episodes is no majority; the other spellings hold as many."""
+    c = _spelled(
+        [
+            ("person:korin-vael", "Korin Vael", 2),
+            ("person:korin-vaal", "Korin Vaal", 1),
+            ("person:korin-veal", "Korin Veal", 1),
+        ]
+    )
+    assert "display_name" not in c and c["display_evidence"] == {"rule": "plurality"}
+
+
+def test_more_than_half_is_a_majority() -> None:
+    c = _spelled(
+        [
+            ("person:korin-vael", "Korin Vael", 3),
+            ("person:korin-vaal", "Korin Vaal", 1),
+            ("person:korin-veal", "Korin Veal", 1),
+        ]
+    )
+    assert c["display_name"] == "Korin Vael" and c["display_evidence"] == {"rule": "frequency"}
+
+
+@pytest.mark.parametrize(
+    "counts, why",
+    [((2, 2), "tie"), ((2, 1, 1), "plurality"), ((3, 2), None), ((1,), None), ((2, 2, 1), "tie")],
+)
+def test_undecided_reads_a_tie_before_a_plurality(counts, why) -> None:
+    cands = {
+        f"p{k}": entity_clusters.EntityCandidate(
+            id=f"p{k}",
+            kind="person",
+            name=f"Korin V{'a' * (k + 1)}l",
+            episodes={f"e{k}-{j}" for j in range(n)},
+            shows={"s"},
+        )
+        for k, n in enumerate(counts)
+    }
+    assert L._undecided(list(cands), cands) == why
+
+
+def _stated(members, stated):
+    """``_add_display_spellings`` on one person group of ``(id, name, episode)``, each episode's
+    publisher text naming ``stated[episode]``."""
+    from podcast_scraper.identity.guards import EpisodeEvidence
+
+    cands = {
+        i: entity_clusters.EntityCandidate(id=i, kind="person", name=n, episodes={e}, shows={"s"})
+        for i, n, e in members
+    }
+    evidence = {
+        e: EpisodeEvidence(
+            present=frozenset({i}),
+            voice_of={},
+            publisher_named=frozenset({i}),
+            publisher_names=(stated[e],),
+            person_names={i: n},
+        )
+        for i, n, e in members
+    }
+    cluster = {
+        "canonical_id": members[0][0],
+        "canonical_name": members[0][1],
+        "members": [{"id": i, "name": n, "episode_count": 1} for i, n, _e in members],
+    }
+    L._add_display_spellings({"clusters": [cluster]}, cands, evidence)
+    return cluster
+
+
+def test_a_tie_in_the_publisher_text_shows_no_group_spelling() -> None:
+    """Record s6h: the publisher writes the name two ways, once each: the text does not decide."""
+    c = _stated(
+        [("person:korin-vael", "Korin Vael", "e1"), ("person:korin-c-vael", "Korin C. Vael", "e2")],
+        {"e1": "Korin Vael", "e2": "Korin C. Vael"},
+    )
+    assert "display_name" not in c and c["display_evidence"] == {"rule": "publisher_tie"}
+
+
+def test_a_majority_in_the_publisher_text_keeps_its_spelling() -> None:
+    c = _stated(
+        [
+            ("person:korin-vael", "Korin Vael", "e1"),
+            ("person:korin-vael-2", "Korin Vael", "e3"),
+            ("person:korin-c-vael", "Korin C. Vael", "e2"),
+        ],
+        {"e1": "Korin Vael", "e2": "Korin C. Vael", "e3": "Korin Vael"},
+    )
+    assert c["display_name"] == "Korin Vael" and c["display_evidence"]["rule"] == "publisher"
+
+
+@pytest.mark.parametrize("rule", ["tie", "plurality", "publisher_tie"])
+def test_an_undecided_group_gives_its_card_the_canonical_name_only(rule) -> None:
+    from podcast_scraper.identity.display import display_from_ledger
+
+    c = {
+        "canonical_id": "person:korin-vael",
+        "canonical_name": "Korin Vael",
+        "members": [
+            {"id": "person:korin-vael", "name": "Korin Vael", "episode_count": 2},
+            {"id": "person:korin-vaal", "name": "Korin Vaal", "episode_count": 2},
+        ],
+        "display_evidence": {"rule": rule},
+    }
+    view = display_from_ledger({"clusters_payload": {"clusters": [c]}})
+    assert view.name_of("person:korin-vael") == "Korin Vael"
+    assert view.name_of("person:korin-vaal") is None

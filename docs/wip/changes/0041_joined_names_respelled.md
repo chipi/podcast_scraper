@@ -664,7 +664,8 @@ ledger rebuilt with `--no-respell`.
 - `upgrade verify` **40 ok, none failing**.
 
 **After-checks** (`d2i9/after_checks_s5d.txt`, base-0041 against base-0042): **every must-not-move
-row passes** ("AFTER CHECKS: FAIL 0").
+row passes**. The script's verdict line reads "AFTER CHECKS: FAIL 0". It prints FAIL whenever a
+quote span is off its text, here the 2 below, and 0 is the count of must-not-move breaches.
 - **The ledger fixpoint:**
   - joins 632 → 632, 0 changed;
   - blocked joins 39 → 39;
@@ -683,6 +684,29 @@ analyst's surname.
   episodes.
 - The two counts differ in both ledger and method, and the difference is not traced by id.
 
+### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
+
+Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain `scratchpad/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+- **Gate:**
+  - **467 episodes, 2,289 files**, as s6h's 4b predicted. s6g's run gave 501 / 2,525 (record
+    s6g section 7); s6h's 12 groups with no group spelling are respelled no more.
+  - names refused 179 (173 episode-scoped, 6 a fold needs two full names), folds 1;
+  - `upgrade verify` 40 of 40 ok, none failing; no gating moves.
+- **After-checks** (eval-data `d2out/after_checks_s6h.txt`): 0 must-not-move breaches.
+  - The verdict line reads "FAIL 0". FAIL is printed for the 2 quote spans off their text, both
+    among 0040's 6 and byte-identical before and after (`d2out/quote_spans_both.out`).
+  - joins 631 → 631, blocked 40 → 40, `display_name` and `display_evidence` changed 0, members and
+    canonical ids 0.
+  - 1 GI person id removed and one episode's shown names moved: the fold. Its 65 quotes now show
+    the group's spelling (`d2out/shown_moved.out`). This row was 1 in every run since s5d, and the
+    section above did not list it.
+  - 84 transcripts and 19,563 segment labels respelled; 84 episodes with changed chunks (1,273 of
+    2,136).
+- **Bare speaker labels kept** (`d2i9/placeholder_labels.py` on this base →
+  `d2out/placeholder_labels_s6h.out`): **2**, one name in two episodes. Read time shows its group
+  spelling. The section above counted 4 on the s5d ledger; the difference is not traced by id.
+
+## Not covered
 
 - Frozen copies (highlights, favourites, sent emails).
 - The ledger pooling one bare first name across a show's episodes (103 groups on the snapshot):

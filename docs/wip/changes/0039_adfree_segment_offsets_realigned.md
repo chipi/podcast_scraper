@@ -148,6 +148,13 @@ Gate (`0039_adfree_segment_offsets_realigned.gate.json`, the final batch, code d
   ad-free text and the ad map byte-identical; a second run writes nothing.
 - **Drift measured in full:** 1 to 8 characters (15 rows at 8), inside `MAX_DRIFT` 16.
 
+### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
+
+Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain `scratchpad/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+- 187 segment rows realigned in 1 episode, 0 refused: unchanged from the final batch.
+- `upgrade verify` ok ("every served ad-free segment slices to its own text"), no regressions,
+  no gating moves.
+
 ## Not covered
 
 - Raw-transcript (`.txt`) segment rows: they carry no offsets of their own

@@ -96,6 +96,12 @@ Gate (`0040_gi_quote_offsets_realigned.gate.json`, the final batch, code digest 
 - `upgrade verify` 38 ok; failing 0025 alone, no regression;
 - after 0041 (`d2i9/quote_spans.py`): the 6 quotes time cannot place, unchanged in 4 episodes.
 
+### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
+
+Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain `scratchpad/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+- 18 quotes realigned in 8 episodes, 6 left: unchanged from the final batch.
+- `upgrade verify` ok, no regressions, no gating moves.
+
 ## Not covered
 
 - The 6 quotes time cannot place: listed for the operator; no fix without evidence.

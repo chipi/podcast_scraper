@@ -234,7 +234,13 @@ Black, isort, flake8, codespell and `make type` pass.
 - **501 episodes, 2,525 files**, as predicted (v3);
 - `upgrade verify` 40 ok, none failing.
 
-**After-checks** on the real 0041 apply (`d2i9/after_checks_s6g.txt`): "AFTER CHECKS: FAIL 0".
+**After-checks** on the real 0041 apply (`d2i9/after_checks_s6g.txt`): 0 must-not-move breaches.
+- The verdict line reads "AFTER CHECKS: FAIL 0". It prints FAIL because 2 quote spans are off
+  their text.
+- Both quotes are among 0040's 6 left. They are unchanged by 0041: eval-data
+  `d2out/quote_spans_both.out` measured the same 2, byte-identical before and after, on the s6h
+  chain.
+- This record first quoted the line as a pass without saying so (corrected 2026-11-02).
 - joins 632 → 632;
 - `display_name` changed 0, `display_evidence` changed 0, so the 75 tie groups are unchanged
   after 0041;

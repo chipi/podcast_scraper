@@ -13,6 +13,9 @@ from typing import Any, Dict, Optional
 
 _NS = "identity_person_display"
 
+#: Group spelling rules that choose none (records s6g, s6h): the card shows the canonical's name.
+UNDECIDED = frozenset({"tie", "plurality", "publisher_tie"})
+
 
 class PersonDisplay:
     """``shown(person_id, own_name)``: the spelling to show for one person id."""
@@ -54,7 +57,7 @@ def display_from_ledger(ledger: Optional[Dict[str, Any]]) -> PersonDisplay:
             if not shown:
                 # A tie (record s6g): the card shows the canonical's own name, and each member
                 # keeps its episode's spelling.
-                if (cluster.get("display_evidence") or {}).get("rule") == "tie" and cluster.get(
+                if (cluster.get("display_evidence") or {}).get("rule") in UNDECIDED and cluster.get(
                     "canonical_name"
                 ):
                     spelling_of[canonical] = str(cluster["canonical_name"])
