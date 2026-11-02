@@ -4,20 +4,111 @@
  "basis": "a human read, 2026-11-01, of each pair's show, episode titles and the KG's description of each person: one person spelled two ways (ASR or transliteration)",
  "groups": [
   [
+   "person:aaron-levie",
+   "person:aaron-levy"
+  ],
+  [
+   "person:abelardo-de-la-esbriega",
+   "person:abelardo-de-la-espriega",
+   "person:abelardo-de-la-espriela",
+   "person:abelardo-de-la-espriella",
+   "person:abelardo-de-la-esprija",
+   "person:abelardo-de-la-estrella",
+   "person:president-abelardo-de-la-espriela"
+  ],
+  [
    "person:ada-weatherall",
    "person:ada-wetherill"
+  ],
+  [
+   "person:adam-reichardt",
+   "person:adam-reichert"
+  ],
+  [
+   "person:akarsh-kumar",
+   "person:arkash-kumar"
+  ],
+  [
+   "person:akib-zakaria",
+   "person:aqib-zakaria"
+  ],
+  [
+   "person:alastair-campbell",
+   "person:alistair-campbell"
+  ],
+  [
+   "person:albert-camus",
+   "person:unresolved-camus-3dbfb0cc-9354-11f1-affc-7f9beb0d3786",
+   "person:unresolved-camus-6cf2bdd6-a2e9-11f1-9c4e-6b32ad1ff3c6",
+   "person:unresolved-camus-79552590-8148-11f1-a7ee-7f19c2f2a7f5"
+  ],
+  [
+   "person:albert-einstein",
+   "person:unresolved-einstein-substack-post-193466212"
+  ],
+  [
+   "person:alec-rari",
+   "person:alec-ryrie"
+  ],
+  [
+   "person:aleksandar-vucic",
+   "person:alexander-vucic"
   ],
   [
    "person:aleksandr-turchinov",
    "person:oleksandr-turchinov"
   ],
   [
+   "person:alex-mayasi",
+   "person:alex-mayassi"
+  ],
+  [
+   "person:alexander-carpe",
+   "person:alexander-carpey",
+   "person:alexander-carpi"
+  ],
+  [
    "person:alexander-shuvaev",
    "person:alexander-shuvayev"
   ],
   [
+   "person:alexandra-karpi",
+   "person:alexandra-karppi"
+  ],
+  [
+   "person:alissa-wilkinson",
+   "person:alyssa-wilkinson"
+  ],
+  [
    "person:alon-lee",
    "person:elon-lee"
+  ],
+  [
+   "person:amanda-aronchik",
+   "person:amanda-aronchyk",
+   "person:amanda-aronczyk"
+  ],
+  [
+   "person:andre-carpathy",
+   "person:andre-karpathy",
+   "person:andrej-karpathy",
+   "person:unresolved-karpathy-substack-post-182443852"
+  ],
+  [
+   "person:andre-mendonca",
+   "person:andre-mendoza"
+  ],
+  [
+   "person:andres-van-heerden",
+   "person:andries-van-heerden"
+  ],
+  [
+   "person:angela-merkel",
+   "person:unresolved-merkel-96ca5de4-4556-11f1-b9db-1f96282fa8e2"
+  ],
+  [
+   "person:anish-ramah",
+   "person:anish-raman"
   ],
   [
    "person:annie-aerno",
@@ -32,28 +123,145 @@
    "person:anton-silvanov"
   ],
   [
+   "person:ariel-shipper",
+   "person:arielle-shipper"
+  ],
+  [
+   "person:arthur-krober",
+   "person:arthur-kroeber"
+  ],
+  [
    "person:arthur-lira",
    "person:artur-lira"
+  ],
+  [
+   "person:b-r-ambedkar",
+   "person:unresolved-ambedkar-bb4390e2-0012-4214-b544-01f4effe5cef"
   ],
   [
    "person:bamba-dilip-singh",
    "person:bamba-dulip-singh"
   ],
   [
+   "person:barack-obama",
+   "person:president-barack-obama",
+   "person:president-obama"
+  ],
+  [
    "person:becky-tele",
    "person:becky-trele"
+  ],
+  [
+   "person:ben-casselman",
+   "person:ben-castleman"
+  ],
+  [
+   "person:ben-horowitz",
+   "person:unresolved-horowitz-631e269e-b6a1-4241-8992-8a9d97cb83ff"
+  ],
+  [
+   "person:benito-mussolini",
+   "person:unresolved-mussolini-01e704f8-69bd-11f1-b262-8fa334988761"
+  ],
+  [
+   "person:benjamin-disraeli",
+   "person:unresolved-disraeli-b9bffd86-a6ef-11f1-b4b3-efa221ba3b62"
+  ],
+  [
+   "person:bernard-leong",
+   "person:bernard-leung"
+  ],
+  [
+   "person:bernie-sanders",
+   "person:senator-sanders"
+  ],
+  [
+   "person:bill-cassidy",
+   "person:unresolved-cassidy-6ebbe026-0058-4c5c-b697-9449fe2b9d8f"
+  ],
+  [
+   "person:bird-pinkerton",
+   "person:byrd-pinkerton"
+  ],
+  [
+   "person:boris-cherni",
+   "person:boris-cherny"
   ],
   [
    "person:brandon-mckenzie",
    "person:brandon-mckinzie"
   ],
   [
+   "person:brian-chan",
+   "person:brian-chen"
+  ],
+  [
+   "person:brian-clark",
+   "person:bryan-clark"
+  ],
+  [
+   "person:carin-zissis",
+   "person:karin-zesis",
+   "person:karin-zissas",
+   "person:karin-zissis",
+   "person:karin-zissus"
+  ],
+  [
+   "person:carl-friston",
+   "person:karl-friston"
+  ],
+  [
+   "person:carl-gustav-jung",
+   "person:unresolved-jung-252b2cf8-98d3-4a07-aa67-d218dfe74a22",
+   "person:unresolved-jung-3b7240b6-5fe8-4739-8a7a-0de809762f3e",
+   "person:unresolved-jung-42ebae97-50d7-40f2-84e1-35fb2f506369",
+   "person:unresolved-jung-57a8d509-872e-4906-b6e2-9ce2e993dd5b"
+  ],
+  [
+   "person:casey-newn",
+   "person:casey-newton"
+  ],
+  [
+   "person:casey-nood",
+   "person:casey-noon"
+  ],
+  [
    "person:cash-patel",
    "person:kash-patel"
   ],
   [
+   "person:cat-wu",
+   "person:kat-wu"
+  ],
+  [
+   "person:catherine-benhold",
+   "person:catherine-benholt"
+  ],
+  [
+   "person:celestin-ntawirema",
+   "person:celestine-ntawirema"
+  ],
+  [
+   "person:charles-dickens",
+   "person:unresolved-dickens-urn-bbc-podcast-m002pqnc"
+  ],
+  [
+   "person:charlotte-robespierre",
+   "person:maximilien-robespierre",
+   "person:unresolved-robespierre-5b3a78c0-b826-11f1-8f96-8ba30ba9f7aa"
+  ],
+  [
    "person:chip-huyen",
    "person:chip-nguyen"
+  ],
+  [
+   "person:chris-hustane",
+   "person:chris-stain",
+   "person:chris-stane"
+  ],
+  [
+   "person:chris-kempes",
+   "person:chris-kempis"
   ],
   [
    "person:christophe-van-der-riede",
@@ -65,20 +273,168 @@
    "person:claire-tennisgetter"
   ],
   [
+   "person:clarence-thomas",
+   "person:justice-thomas"
+  ],
+  [
+   "person:claudia-sheinbaum",
+   "person:claudio-sheinbaum"
+  ],
+  [
+   "person:claudius-ptolemy",
+   "person:unresolved-ptolemy-buzzsprout-19688530"
+  ],
+  [
+   "person:cobus-van-staden",
+   "person:kobus-van-staden",
+   "person:kobus-van-staten"
+  ],
+  [
+   "person:corey-combs",
+   "person:cory-combs"
+  ],
+  [
+   "person:cyril-ramaphosa",
+   "person:president-cyril-ramaphosa",
+   "person:president-ramaphosa",
+   "person:unresolved-ramaphosa-https-iono-fm-e-1723918",
+   "person:unresolved-ramaphosa-https-iono-fm-e-1728890"
+  ],
+  [
+   "person:dan-hendricks",
+   "person:dan-hendrycks"
+  ],
+  [
+   "person:dan-safar",
+   "person:dan-saffer"
+  ],
+  [
+   "person:dan-wang",
+   "person:dan-wong"
+  ],
+  [
+   "person:daniel-kahneman",
+   "person:unresolved-kahneman-b6ddc30d-9b7d-4192-8939-a821301570f5"
+  ],
+  [
+   "person:daniel-vorcado",
+   "person:daniel-vorcato"
+  ],
+  [
+   "person:danny-mcmahon",
+   "person:denny-mcmahon",
+   "person:dinny-mcmahon"
+  ],
+  [
+   "person:dara-obrey",
+   "person:dara-obriain",
+   "person:dara-obrien",
+   "person:daryl-obrien"
+  ],
+  [
+   "person:dario-aimodaey",
+   "person:dario-amade",
+   "person:dario-amadei",
+   "person:dario-amadeo",
+   "person:dario-amodei"
+  ],
+  [
    "person:dashel-bennett",
    "person:dashiell-bennett"
+  ],
+  [
+   "person:davi-alcolumbre",
+   "person:unresolved-alcolumbre-buzzsprout-18629745"
+  ],
+  [
+   "person:david-ha",
+   "person:david-haar"
+  ],
+  [
+   "person:david-sachs",
+   "person:david-sacks"
+  ],
+  [
+   "person:dean-macpherson",
+   "person:dean-mcpherson"
+  ],
+  [
+   "person:demis-asadis",
+   "person:demis-hassabis"
+  ],
+  [
+   "person:denise-fisher",
+   "person:judge-denise-fisher"
+  ],
+  [
+   "person:desiderius-erasmus",
+   "person:unresolved-erasmus-urn-bbc-podcast-m0031jz3"
+  ],
+  [
+   "person:dias-toffoli",
+   "person:unresolved-toffoli-buzzsprout-18876100"
+  ],
+  [
+   "person:dietrich-bonhoeffer",
+   "person:unresolved-bonhoeffer-6fd0a1d0-749e-11f1-a4b8-3f3a56965308"
   ],
   [
    "person:dimitri-kozak",
    "person:dmitry-kozak"
   ],
   [
+   "person:dmitriy-gerasimov",
+   "person:unresolved-gerasimov-buzzsprout-18725041"
+  ],
+  [
+   "person:dmitry-medvedev",
+   "person:unresolved-medvedev-buzzsprout-19114855",
+   "person:unresolved-medvedev-buzzsprout-19868884"
+  ],
+  [
+   "person:donald-j-trump",
+   "person:donald-trump",
+   "person:president-trump",
+   "person:unresolved-trump-01a05e5a-996e-7d99-b147-1826b0c8b703",
+   "person:unresolved-trump-0442bfa7-6dca-486f-ad7b-a23c37686d8b",
+   "person:unresolved-trump-08dda9cc-52e5-11f1-a213-dbc4a9fc28cd",
+   "person:unresolved-trump-0dcb75ec-ecb0-43b2-946f-447a52790176",
+   "person:unresolved-trump-0e9a5b4a-1950-11f1-84a2-436d7b81518e",
+   "person:unresolved-trump-46b45ed6-748b-11f1-99ef-3bb80ac64520",
+   "person:unresolved-trump-552098c9-70cf-47a8-9e54-37a9137191e8",
+   "person:unresolved-trump-b1fbfe40-271e-4c8c-be03-2070d007b5f8",
+   "person:unresolved-trump-b78dd0f2-6aff-4ba1-a74a-e173e58bd7dc",
+   "person:unresolved-trump-buzzsprout-18272446",
+   "person:unresolved-trump-buzzsprout-18767884",
+   "person:unresolved-trump-c0fa0fda-4db5-11f1-9f8a-1ff347bd9355",
+   "person:unresolved-trump-da3d39cc-6f93-4527-89bc-9bbd466780f0",
+   "person:unresolved-trump-fa751d5e-b0ac-11f1-9359-1fdd594078a2",
+   "person:unresolved-trump-gid-art19-episode-locator-v0-8wt46qx06hadjafeolya2uzy5kb-zpc5jf3n-q9sijs",
+   "person:unresolved-trump-gid-art19-episode-locator-v0-y2sies4thofcd3slnfghq5ul13orr-qluqkrhz-svo4"
+  ],
+  [
+   "person:donald-mackay",
+   "person:donald-mckay"
+  ],
+  [
    "person:duleep-singh",
    "person:dulip-singh"
   ],
   [
+   "person:elena-berger",
+   "person:elena-burger"
+  ],
+  [
+   "person:emily-cochran",
+   "person:emily-cochrane"
+  ],
+  [
    "person:emily-fang",
    "person:emily-feng"
+  ],
+  [
+   "person:emmanuel-macron",
+   "person:unresolved-macron-e92cf23c-fea6-11f0-8168-4b93663cd509"
   ],
   [
    "person:enoch-gaurangwana",
@@ -91,12 +447,110 @@
    "person:enzo-blindow"
   ],
   [
+   "person:eric-schwartzel",
+   "person:eric-schwarzel"
+  ],
+  [
+   "person:erica-barris",
+   "person:erika-barris"
+  ],
+  [
+   "person:euan-marshall",
+   "person:ewan-marshall"
+  ],
+  [
+   "person:fabricio-ricalde",
+   "person:fabrizio-ricalde"
+  ],
+  [
    "person:fani-basimura",
    "person:fani-masamura"
   ],
   [
+   "person:faroz-khan",
+   "person:feroz-khan",
+   "person:unresolved-khan-https-iono-fm-e-1731302"
+  ],
+  [
+   "person:fernando-haddad",
+   "person:unresolved-haddad-01a0f39e-c0d2-7e34-ab83-a316564a0a79"
+  ],
+  [
+   "person:fiona-feng",
+   "person:fiona-fong",
+   "person:fiona-fung"
+  ],
+  [
+   "person:francois-chalet",
+   "person:francois-cholet",
+   "person:francois-chollet",
+   "person:francois-jollet",
+   "person:unresolved-cholet-e51c0c84-f709-44b4-b7b0-9ed8d2b0cb42",
+   "person:unresolved-chollet-b09afda8-4f1b-4697-8a85-04f8f692e990"
+  ],
+  [
+   "person:gabriel-vasquez",
+   "person:gabriel-vazquez"
+  ],
+  [
+   "person:gabriel-zuckman",
+   "person:gabriel-zucman"
+  ],
+  [
+   "person:garry-tan",
+   "person:gary-tan"
+  ],
+  [
+   "person:gaten-mckenzie",
+   "person:gayton-mckenzie"
+  ],
+  [
+   "person:gen-kha",
+   "person:jen-kha"
+  ],
+  [
+   "person:general-syrsky",
+   "person:unresolved-syrsky-buzzsprout-19550283"
+  ],
+  [
+   "person:geoffrey-hinton",
+   "person:jeff-hinton",
+   "person:jeffrey-hinton"
+  ],
+  [
+   "person:georg-northoff",
+   "person:george-northoff"
+  ],
+  [
+   "person:georges-danton",
+   "person:unresolved-danton-5b3a78c0-b826-11f1-8f96-8ba30ba9f7aa"
+  ],
+  [
    "person:glenis-kinnock",
    "person:glennis-kinnock"
+  ],
+  [
+   "person:greg-grozolski",
+   "person:greg-rizalski",
+   "person:greg-rosalski"
+  ],
+  [
+   "person:gustave-flaubert",
+   "person:unresolved-flaubert-76838ad8-c242-11f1-9d09-5bed77e8bdd7"
+  ],
+  [
+   "person:gustavo-petro",
+   "person:president-gustavo-petro",
+   "person:unresolved-petro-43494f90-a694-409f-9175-84be95a296bb"
+  ],
+  [
+   "person:hanna-krueger",
+   "person:hannah-krueger"
+  ],
+  [
+   "person:hannah-frey",
+   "person:hannah-fry",
+   "person:hannah-frye"
   ],
   [
    "person:harald-hardrada",
@@ -107,24 +561,119 @@
    "person:hassan-thaci"
   ],
   [
+   "person:heather-hadden",
+   "person:heather-haddon"
+  ],
+  [
+   "person:helen-zilla",
+   "person:helen-zille",
+   "person:helen-ziller"
+  ],
+  [
+   "person:hemant-mashaba",
+   "person:herman-mashaba",
+   "person:unresolved-mashaba-https-iono-fm-e-1731217"
+  ],
+  [
+   "person:henry-kissinger",
+   "person:unresolved-kissinger-c0fa0fda-4db5-11f1-9f8a-1ff347bd9355"
+  ],
+  [
    "person:huang-lihe",
    "person:huang-lihes"
+  ],
+  [
+   "person:ian-mcgilchrist",
+   "person:unresolved-mcgilchrist-1e51b6d1-3a9c-47ab-8951-01e4d612d134",
+   "person:unresolved-mcgilchrist-57a8d509-872e-4906-b6e2-9ce2e993dd5b"
+  ],
+  [
+   "person:iason-gabriel",
+   "person:yasson-gabriel"
+  ],
+  [
+   "person:igor-gyrkin-strelkov",
+   "person:unresolved-strelkov-buzzsprout-19412242"
   ],
   [
    "person:igor-kostyuk",
    "person:igor-kostyukov"
   ],
   [
+   "person:ilin-liu",
+   "person:yi-ling-liu",
+   "person:yilin-liu"
+  ],
+  [
+   "person:imani-moise",
+   "person:imani-moiz",
+   "person:imani-mouiz"
+  ],
+  [
+   "person:isaac-newton",
+   "person:unresolved-newton-substack-post-193466212"
+  ],
+  [
+   "person:jakub-borneo",
+   "person:jakub-bornio"
+  ],
+  [
    "person:jalen-brunson",
    "person:jaylen-brunson"
+  ],
+  [
+   "person:james-mongi",
+   "person:james-mwangi"
+  ],
+  [
+   "person:james-talarico",
+   "person:james-tallarico"
   ],
   [
    "person:jan-pieterszoon-coen",
    "person:jan-pieterzoon-coen"
   ],
   [
+   "person:jason-zinnerman",
+   "person:jason-zinoman"
+  ],
+  [
+   "person:jawaharlal-nehru",
+   "person:unresolved-nehru-1aef7230-fe28-4eaf-a311-003ffe5a72c8",
+   "person:unresolved-nehru-c5da99a8-538b-11f1-bc74-43ef9dc8568a",
+   "person:unresolved-nehru-eb7d800e-0c4f-487f-a48c-5ae63f7b79e1"
+  ],
+  [
+   "person:jay-powell",
+   "person:jerome-powell"
+  ],
+  [
    "person:jeevika-verma",
    "person:jivika-verma"
+  ],
+  [
+   "person:jeff-glow",
+   "person:jeff-lowe"
+  ],
+  [
+   "person:jeff-guo",
+   "person:jeff-kuo"
+  ],
+  [
+   "person:jen-abel",
+   "person:jenna-abel"
+  ],
+  [
+   "person:jennifer-hatam",
+   "person:jennifer-hattam"
+  ],
+  [
+   "person:jessica-chiam",
+   "person:jessica-chum"
+  ],
+  [
+   "person:jimmy-beast",
+   "person:mr-beast"
   ],
   [
    "person:joanna-salataroff",
@@ -133,32 +682,234 @@
    "person:joanna-solotaroff"
   ],
   [
+   "person:joe-biden",
+   "person:unresolved-biden-198a23f7-d19f-42be-9631-0e65e04c10b9",
+   "person:unresolved-biden-da3d39cc-6f93-4527-89bc-9bbd466780f0"
+  ],
+  [
+   "person:joe-liemandt",
+   "person:joe-limont"
+  ],
+  [
+   "person:joe-peisel",
+   "person:joe-peissel"
+  ],
+  [
    "person:joe-polchinski",
    "person:joke-polchinski"
+  ],
+  [
+   "person:joe-weisenthal",
+   "person:joe-wiesenthal",
+   "person:joe-wisenthal"
+  ],
+  [
+   "person:johannes-hartel",
+   "person:johannes-hartl"
+  ],
+  [
+   "person:john-caramonica",
+   "person:john-karamonika"
+  ],
+  [
+   "person:john-castellan",
+   "person:john-kastrelin"
+  ],
+  [
+   "person:john-d-rockefeller",
+   "person:unresolved-rockefeller-51637684-c105-11f1-8533-5f8d8fa01772"
+  ],
+  [
+   "person:john-glenn-hill",
+   "person:john-glyn-hill"
+  ],
+  [
+   "person:john-whalen",
+   "person:john-whelan"
+  ],
+  [
+   "person:jonathan-czin",
+   "person:jonathan-zinn"
   ],
   [
    "person:jose-antonio-cast",
    "person:jose-antonio-kast"
   ],
   [
+   "person:joseph-stalin",
+   "person:unresolved-stalin-1a2be8c6-b201-11f1-ac30-53a8cd92176f"
+  ],
+  [
+   "person:josh-ellman",
+   "person:josh-elman"
+  ],
+  [
+   "person:josh-franklin",
+   "person:joshua-franklin"
+  ],
+  [
+   "person:joshua-barone",
+   "person:joshua-broney"
+  ],
+  [
    "person:julio-valarde",
    "person:julio-velarde"
+  ],
+  [
+   "person:kaiser-guo",
+   "person:kaiser-kuo"
+  ],
+  [
+   "person:kalia-robertson",
+   "person:khalea-robertson"
+  ],
+  [
+   "person:karthik-srivastava",
+   "person:kartik-srivastava"
+  ],
+  [
+   "person:kat-matlala",
+   "person:kat-matlanga"
+  ],
+  [
+   "person:kathy-hochel",
+   "person:kathy-hochul"
+  ],
+  [
+   "person:kelly-weinersmith",
+   "person:kelly-wienersmith"
+  ],
+  [
+   "person:ken-stanley",
+   "person:kenji-stanley"
+  ],
+  [
+   "person:kevin-losano",
+   "person:kevin-lozano"
+  ],
+  [
+   "person:kevin-roose",
+   "person:kevin-roost"
+  ],
+  [
+   "person:kevin-walsh",
+   "person:kevin-warsh",
+   "person:kevin-waters",
+   "person:kevin-worsch"
+  ],
+  [
+   "person:kieran-klaassen",
+   "person:kieran-klassen"
   ],
   [
    "person:kirill-obudanov",
    "person:kirill-obudnov"
   ],
   [
+   "person:kurt-bassiner",
+   "person:kurt-bassuener"
+  ],
+  [
+   "person:kwamena-afful",
+   "person:kwamena-afoul"
+  ],
+  [
+   "person:lane-floresheim",
+   "person:lane-florsheim"
+  ],
+  [
+   "person:laurence-bristow",
+   "person:laurie-bristow"
+  ],
+  [
+   "person:layman-pascal",
+   "person:lehman-pascal"
+  ],
+  [
+   "person:leila-faldel",
+   "person:leila-faldil"
+  ],
+  [
+   "person:leon-trotsky",
+   "person:unresolved-trotsky-03a1375e-add9-11f1-b040-630646393448",
+   "person:unresolved-trotsky-1a2be8c6-b201-11f1-ac30-53a8cd92176f"
+  ],
+  [
    "person:leticia-james",
    "person:letitia-james"
+  ],
+  [
+   "person:li-luan",
+   "person:li-luen",
+   "person:li-lun"
+  ],
+  [
+   "person:lily-odinger",
+   "person:lily-ottinger"
+  ],
+  [
+   "person:lina-kahn",
+   "person:lina-khan"
   ],
   [
    "person:lindsay-clancy",
    "person:lindsey-clancy"
   ],
   [
+   "person:lindsay-stonebridge",
+   "person:lyndsey-stonebridge"
+  ],
+  [
+   "person:louisa-lemme",
+   "person:luisa-lemme"
+  ],
+  [
+   "person:louisa-lemmy",
+   "person:luisa-laini",
+   "person:luisa-lemi",
+   "person:luisa-lemio",
+   "person:luisa-lemming",
+   "person:luisa-lemmy",
+   "person:luisa-leni"
+  ],
+  [
+   "person:lucia-zingales",
+   "person:luisa-zingales"
+  ],
+  [
+   "person:luciano-floridi",
+   "person:unresolved-floridi-59c0fecb-f78b-4197-97a7-1f6e15028ea9"
+  ],
+  [
+   "person:lucius-cornelius-sulla",
+   "person:unresolved-sulla-d0138942-a77e-11f1-9f5e-537d1277241d",
+   "person:unresolved-sulla-e7f48b14-a789-11f1-ae45-0b669e864200"
+  ],
+  [
+   "person:ludwig-wittgenstein",
+   "person:unresolved-wittgenstein-3dbfb0cc-9354-11f1-affc-7f9beb0d3786",
+   "person:unresolved-wittgenstein-4479f55a-96fe-11f1-af09-c70911d6f9a2"
+  ],
+  [
+   "person:lula-garcia-navarro",
+   "person:lulu-garcia-navarro"
+  ],
+  [
    "person:luyanda-boerthak",
    "person:luyanda-buerta"
+  ],
+  [
+   "person:marc-andreessen",
+   "person:mark-andreessen",
+   "person:unresolved-andreessen-631e269e-b6a1-4241-8992-8a9d97cb83ff"
+  ],
+  [
+   "person:marc-morris",
+   "person:mark-morris"
+  ],
+  [
+   "person:marek-basajada",
+   "person:marek-masojada"
   ],
   [
    "person:maria-zakarova",
@@ -169,6 +920,36 @@
    "person:marianne-patton"
   ],
   [
+   "person:mark-galeotti",
+   "person:mark-galliotti",
+   "person:unresolved-galeotti-buzzsprout-19038502",
+   "person:unresolved-galeotti-buzzsprout-19077408"
+  ],
+  [
+   "person:mark-seidel",
+   "person:mark-sidel"
+  ],
+  [
+   "person:mark-teminitsky",
+   "person:mark-temnycky"
+  ],
+  [
+   "person:mark-zuckerberg",
+   "person:unresolved-zuckerberg-7d0c77c0-e9d0-11f0-94ad-5b3c892e6997"
+  ],
+  [
+   "person:martin-heidegger",
+   "person:unresolved-heidegger-6cf2bdd6-a2e9-11f1-9c4e-6b32ad1ff3c6"
+  ],
+  [
+   "person:matt-hodap",
+   "person:matt-hodapp"
+  ],
+  [
+   "person:max-read",
+   "person:max-reed"
+  ],
+  [
    "person:maxwell-ramstead",
    "person:maxwell-ramsted"
   ],
@@ -177,8 +958,94 @@
    "person:melanie-benish"
   ],
   [
+   "person:melvin-bragg",
+   "person:melvyn-bragg"
+  ],
+  [
+   "person:michael-bloomberg",
+   "person:mike-bloomberg"
+  ],
+  [
+   "person:michael-munger",
+   "person:mike-munger"
+  ],
+  [
+   "person:mikhail-gorbachev",
+   "person:unresolved-gorbachev-substack-post-177641179"
+  ],
+  [
+   "person:mikhailo-fyodorov",
+   "person:unresolved-fyodorov-buzzsprout-19550283"
+  ],
+  [
+   "person:miles-bryan",
+   "person:myles-bryan"
+  ],
+  [
+   "person:miriam-francois",
+   "person:myriam-francois"
+  ],
+  [
+   "person:mohandas-gandhi",
+   "person:unresolved-gandhi-075c3f24-fddc-4537-931a-7e7b6ae44b64"
+  ],
+  [
+   "person:moonjal-shah",
+   "person:munjal-shah"
+  ],
+  [
+   "person:mr-madhavan",
+   "person:unresolved-madhavan-720d099d-e3ca-404a-8ed7-152911a0f695"
+  ],
+  [
+   "person:mum-galeotti",
+   "person:mump-galeotti",
+   "person:mump-galliotti"
+  ],
+  [
+   "person:neal-froneman",
+   "person:neel-froneman"
+  ],
+  [
+   "person:niccolo-machiavelli",
+   "person:unresolved-machiavelli-substack-post-190118311"
+  ],
+  [
+   "person:nick-bounton",
+   "person:nick-fountain"
+  ],
+  [
+   "person:nicolas-maduro",
+   "person:unresolved-maduro-f53af782-a648-11f1-83e1-6b8e4294944c"
+  ],
+  [
    "person:nigel-bigar",
    "person:nigel-biggar"
+  ],
+  [
+   "person:nikhil-krishnan",
+   "person:nikil-krishnan"
+  ],
+  [
+   "person:nita-farahani",
+   "person:nita-farahany"
+  ],
+  [
+   "person:nixon-kanadi",
+   "person:nixon-kanali"
+  ],
+  [
+   "person:noah-krabitz",
+   "person:noah-kravitz",
+   "person:noah-prabutz"
+  ],
+  [
+   "person:noam-hasenfeld",
+   "person:noam-hassenfeld"
+  ],
+  [
+   "person:olivia-nat",
+   "person:olivia-natt"
   ],
   [
    "person:paige-cowet",
@@ -189,6 +1056,10 @@
    "person:patio-levin"
   ],
   [
+   "person:patricia-kim",
+   "person:patty-kim"
+  ],
+  [
    "person:pedro-franceschi",
    "person:pedro-francesi"
   ],
@@ -197,36 +1068,211 @@
    "person:peter-bunz"
   ],
   [
+   "person:peter-francopan",
+   "person:peter-frankopan"
+  ],
+  [
+   "person:peter-schoenberger",
+   "person:peter-steinberger"
+  ],
+  [
    "person:pia-gadkari",
    "person:pia-gedkari"
+  ],
+  [
+   "person:pierce-singe",
+   "person:pierce-singhi"
   ],
   [
    "person:prashant-redditi",
    "person:prashant-reddy"
   ],
   [
+   "person:president-lula",
+   "person:unresolved-lula-019fc942-8414-758d-bbe7-009c07c22275",
+   "person:unresolved-lula-01a05e5a-996e-7d99-b147-1826b0c8b703",
+   "person:unresolved-lula-01a0828e-a084-7450-883f-b74f42a09f06",
+   "person:unresolved-lula-01a0e993-0d47-76e6-a5dd-f268a6ebcab6",
+   "person:unresolved-lula-01a0f39e-c0d2-7e34-ab83-a316564a0a79",
+   "person:unresolved-lula-01a15a63-948d-7d3a-afff-cd2eaeeecd7d",
+   "person:unresolved-lula-buzzsprout-17042125",
+   "person:unresolved-lula-buzzsprout-17503238",
+   "person:unresolved-lula-buzzsprout-17696753",
+   "person:unresolved-lula-buzzsprout-18629745",
+   "person:unresolved-lula-buzzsprout-18678501",
+   "person:unresolved-lula-buzzsprout-19066916",
+   "person:unresolved-lula-buzzsprout-19280635",
+   "person:unresolved-lula-buzzsprout-19489666",
+   "person:unresolved-lula-buzzsprout-19545344"
+  ],
+  [
+   "person:president-putin",
+   "person:unresolved-putin-0e9a5b4a-1950-11f1-84a2-436d7b81518e",
+   "person:unresolved-putin-94c185b4-c980-11f1-8795-2be70695a3d9",
+   "person:unresolved-putin-ad094494-0dac-11f1-939b-af7d796bc29c",
+   "person:unresolved-putin-buzzsprout-18725041",
+   "person:unresolved-putin-buzzsprout-18767884",
+   "person:unresolved-putin-buzzsprout-18924103",
+   "person:unresolved-putin-buzzsprout-19189597",
+   "person:unresolved-putin-buzzsprout-19228550",
+   "person:unresolved-putin-buzzsprout-19266920",
+   "person:unresolved-putin-buzzsprout-19304003",
+   "person:unresolved-putin-buzzsprout-19342724",
+   "person:unresolved-putin-buzzsprout-19761001",
+   "person:vladimir-putin"
+  ],
+  [
+   "person:president-xi-jinping",
+   "person:xi-jinping"
+  ],
+  [
+   "person:president-zelensky",
+   "person:unresolved-zelensky-buzzsprout-18272446",
+   "person:unresolved-zelensky-buzzsprout-19304003",
+   "person:unresolved-zelensky-buzzsprout-19342724",
+   "person:unresolved-zelensky-buzzsprout-19550283",
+   "person:unresolved-zelensky-buzzsprout-19686879",
+   "person:unresolved-zelensky-buzzsprout-19761001",
+   "person:unresolved-zelensky-buzzsprout-19868884",
+   "person:volodymyr-zelensky",
+   "person:volodymyr-zelenskyy"
+  ],
+  [
+   "person:professor-liang",
+   "person:yan-liang"
+  ],
+  [
+   "person:pushmeet-kohli",
+   "person:pushmi-kohli"
+  ],
+  [
    "person:rachel-cohen",
    "person:rachel-cohn"
+  ],
+  [
+   "person:rachel-jambaza",
+   "person:rachel-jambazzo"
+  ],
+  [
+   "person:radek-sikorski",
+   "person:radek-sikorsky"
   ],
   [
    "person:rafael-bostic",
    "person:raphael-bostic"
   ],
   [
+   "person:raghu-raghuram",
+   "person:raghul-raghuram",
+   "person:unresolved-raghuram-0d7337fd-a622-445f-b24c-50da17330d06",
+   "person:unresolved-raghuram-36a8220e-1090-417d-8ba7-c483df5c4f5d"
+  ],
+  [
+   "person:raghuram-rajan",
+   "person:ragu-rajan"
+  ],
+  [
+   "person:rainer-pope",
+   "person:reiner-pope"
+  ],
+  [
+   "person:ramzan-kadyrov",
+   "person:unresolved-kadyrov-buzzsprout-19868884"
+  ],
+  [
+   "person:ratan-roy",
+   "person:rathin-roy"
+  ],
+  [
+   "person:recep-tayyip-erdogan",
+   "person:unresolved-erdogan-turkeybooktalk-podbean-com-b4503e63-5ca5-3b91-aa73-f8128eaf7d8d"
+  ],
+  [
+   "person:richard-mccall",
+   "person:richard-mccoll"
+  ],
+  [
+   "person:richard-nixon",
+   "person:unresolved-nixon-567febdc-1469-4bf1-acf1-e1dc6e1d0d13"
+  ],
+  [
    "person:ricky-nevetsky",
    "person:ricky-nowetsky"
+  ],
+  [
+   "person:rob-malley",
+   "person:robert-malley"
   ],
   [
    "person:robert-giscar",
    "person:robert-giscard"
   ],
   [
+   "person:robin-hansen",
+   "person:robin-hanson"
+  ],
+  [
    "person:roland-schoeman",
    "person:roland-schumann"
   ],
   [
+   "person:rolf-winkler",
+   "person:rolfe-winkler"
+  ],
+  [
+   "person:ronald-reagan",
+   "person:unresolved-reagan-f6efdcb8-b89f-4bde-b606-5af3c12cda55"
+  ],
+  [
+   "person:ryan-greenblatt",
+   "person:ryan-greenblood"
+  ],
+  [
+   "person:ryan-haas",
+   "person:ryan-hass"
+  ],
+  [
+   "person:ryan-knudson",
+   "person:ryan-knutson"
+  ],
+  [
    "person:saad-qutb",
    "person:said-qutb"
+  ],
+  [
+   "person:sajid-pai",
+   "person:sajith-pai"
+  ],
+  [
+   "person:saki-masaikos",
+   "person:saki-misaikos"
+  ],
+  [
+   "person:sam-allman",
+   "person:sam-altman"
+  ],
+  [
+   "person:sam-azersky",
+   "person:sam-mazursky"
+  ],
+  [
+   "person:sam-brazell",
+   "person:sam-brazil"
+  ],
+  [
+   "person:sam-mckee",
+   "person:samuel-mckee"
+  ],
+  [
+   "person:sarah-gonzales",
+   "person:sarah-gonzalez"
+  ],
+  [
+   "person:scott-besant",
+   "person:scott-bessent",
+   "person:scott-bessett",
+   "person:scott-besson",
+   "person:scott-bident"
   ],
   [
    "person:senso-mchunu",
@@ -242,16 +1288,123 @@
    "person:sergei-naryshkin"
   ],
   [
+   "person:shadrach-sabia",
+   "person:shadrach-sabio",
+   "person:shadrach-sabir"
+  ],
+  [
+   "person:simon-schuster",
+   "person:simon-shuster"
+  ],
+  [
+   "person:simon-willison",
+   "person:simon-wilson"
+  ],
+  [
+   "person:simone-eredin",
+   "person:simone-heradien"
+  ],
+  [
+   "person:sofia-du",
+   "person:sophia-du"
+  ],
+  [
    "person:sophia-duleep-singh",
    "person:sophia-dulip-singh"
+  ],
+  [
+   "person:sophie-dionet",
+   "person:sophie-dionnet"
+  ],
+  [
+   "person:st-augustine",
+   "person:unresolved-augustine-57b0f1c0-538a-11f1-8b1b-c9a7144d1291"
+  ],
+  [
+   "person:stefan-valdisavlio",
+   "person:stefan-vladisavljev"
+  ],
+  [
+   "person:stephen-miran",
+   "person:stephen-moran"
+  ],
+  [
+   "person:stephen-pinker",
+   "person:steven-pinker"
+  ],
+  [
+   "person:stephen-wolfram",
+   "person:unresolved-wolfram-78ae3b32-d001-4795-870d-b572603b56ed"
+  ],
+  [
+   "person:steve-cole",
+   "person:steve-coll"
+  ],
+  [
+   "person:steve-hatherley",
+   "person:steve-hatherly",
+   "person:steve-heatherly"
+  ],
+  [
+   "person:steve-witkoff",
+   "person:unresolved-witkoff-buzzsprout-18272446"
+  ],
+  [
+   "person:stewart-brand",
+   "person:stuart-brand"
+  ],
+  [
+   "person:teresa-bejan",
+   "person:theresa-bejan"
   ],
   [
    "person:thabo-beki",
    "person:thabo-mbeki"
   ],
   [
+   "person:theo-jaffe",
+   "person:theo-jaffee"
+  ],
+  [
+   "person:therese-fessenden",
+   "person:therese-fessendit"
+  ],
+  [
+   "person:thomas-nagel",
+   "person:unresolved-nagel-gid-art19-episode-locator-v0-bwyf9adfbpytsriqwpyst7sitsw9s7lr2aybzl1oq6c"
+  ],
+  [
+   "person:toby-board",
+   "person:toby-ord"
+  ],
+  [
    "person:tom-hennig",
    "person:tom-honig"
+  ],
+  [
+   "person:tom-nenlis",
+   "person:tom-nunlist"
+  ],
+  [
+   "person:tracy-allaway",
+   "person:tracy-alloway"
+  ],
+  [
+   "person:tyler-cowan",
+   "person:tyler-cowen"
+  ],
+  [
+   "person:unresolved-churchill-1a2be8c6-b201-11f1-ac30-53a8cd92176f",
+   "person:unresolved-churchill-98c7ed02-67fa-11f1-b56c-4b3ccb89be32",
+   "person:winston-churchill"
+  ],
+  [
+   "person:unresolved-gladstone-b9bffd86-a6ef-11f1-b4b3-efa221ba3b62",
+   "person:william-gladstone"
+  ],
+  [
+   "person:unresolved-yanukovych-10d3c480221e9349754296a51691",
+   "person:viktor-yanukovych"
   ],
   [
    "person:valerie-schenkman",
@@ -262,12 +1415,41 @@
    "person:warwick-power"
   ],
   [
+   "person:wes-morgan",
+   "person:wesley-morgan"
+  ],
+  [
    "person:wicknell-shevao",
    "person:wicknell-shevaya"
   ],
   [
+   "person:william-capston",
+   "person:william-caxton"
+  ],
+  [
+   "person:william-de-rimpel",
+   "person:william-de-rumpel"
+  ],
+  [
+   "person:yamini-aiyar",
+   "person:yamini-ayer"
+  ],
+  [
+   "person:yasmin-tayad",
+   "person:yasmin-tayag",
+   "person:yasmin-tayeg"
+  ],
+  [
    "person:yevgeny-pigozhin",
    "person:yevgeny-prigozhin"
+  ],
+  [
+   "person:zolan-kano-youngs",
+   "person:zolin-kano-youngs"
+  ],
+  [
+   "person:zoran-mamdani",
+   "person:zoran-mandani"
   ]
  ],
  "apart": [
@@ -352,6 +1534,11 @@
    "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
   ],
   [
+   "person:unresolved-fisher-f8ad589c-6503-4d8d-81b2-4a64dce7f60f",
+   "person:john-fisher",
+   "record s5d 4e: the near-spelling report's one open pair, read 2026-11-02"
+  ],
+  [
    "person:unresolved-gandhi-075c3f24-fddc-4537-931a-7e7b6ae44b64",
    "person:rajmohan-gandhi",
    "record s5d 4d: the step-9 read of joins with evidence and of bare-name joins"
@@ -427,6 +1614,10 @@
   [
    "person:enoch-godongwana",
    "record s5d 4c: read after section 7's first measurement; one show, one office in every description, and the episode's publisher text names the canonical's spelling"
+  ],
+  [
+   "(step 9, 2026-11-02)",
+   "the one-person verdicts of D2's join reads: the 59-pair read, the 276 respelling pairs, the bare-name and title-form joins (eval-data d2i9/near_joins_read_one_person.json, near_joins_unread.txt)"
   ]
  ]
 }

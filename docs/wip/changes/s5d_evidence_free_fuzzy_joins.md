@@ -379,6 +379,39 @@ shows):
 - **`person:stephen-king`** itself holds two people of one name (an economist and an author). The
   rule compares names, so it cannot split them.
 
+### 4e. The reviewed list holds every read verdict, and the report's open pair
+
+Dated: 2026-11-02T03:10
+
+**The report.** `scripts/measure/near_spelling_joins.py` (`identity/near_joins`) lists every ledger
+member whose only link into its group is a near spelling and that no read has reviewed. It is the
+step to run after each ledger rebuild until voice evidence (1C) decides these joins.
+- **Its first run** on the clone: 451 open pairs. 280 had been read as one person by name this
+  session; 170 were bare names and title forms of the same person, read in
+  `d2i9/near_joins_unread.txt`.
+- **The one-person verdicts go to `groups`**, merged by union-find: 65 → 329 groups, 790 ids.
+  - `groups` acts only on rule 1's pairs, so the ledger does not change. Measured
+    (`scratchpad lst_check.py`): joins 632 → 632, id map identical, `display_name` and evidence
+    identical, `blocked_joins` 39 → 39.
+  - No apart pair sits inside one group.
+- **One pair stayed open,** `person:john-fisher` with the bare id
+  `person:unresolved-fisher-f8ad589c-6503-4d8d-81b2-4a64dce7f60f`, which has no description. Read
+  from its episodes:
+  - the bare id is a voiced speaker in one show's bookstore episode;
+  - the full id's two episodes are two people of one name, a businessman and a sixteenth-century
+    bishop.
+  - So the bare id is another person, and the pair goes to `apart` (31 pairs).
+
+**Predicted** (the ledger rebuilt on the clone):
+- joins 632 → **631**, scoped joins 174 → **173**;
+- person groups 350 → **349** (the two-member group dissolves);
+- `blocked_joins` 39 → **40** (one `reviewed_apart` row);
+- 0041's plan **unchanged**: bare names are never respelled, and the full id keeps its own name;
+- the report after: **0 open pairs**.
+
+Not covered: `person:john-fisher` and `person:stephen-king` each hold two people of one name; a name
+rule cannot split them.
+
 ## 5. Acceptance
 
 **First fresh reader:** 2026-11-01, a sonnet reviewer subagent with read-only tools, one pass before

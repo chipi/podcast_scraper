@@ -373,7 +373,13 @@ class TestReviewedPairRule:
 
     def test_the_shipped_list_loads(self):
         reviewed = G.load_reviewed()
-        assert len(reviewed["groups"]) == 65 and len(reviewed["apart"]) == 30
+        assert len(reviewed["groups"]) == 329 and len(reviewed["apart"]) == 31
         ids = [i for g in reviewed["groups"] for i in g]
         assert len(ids) == len(set(ids))
-        assert not {i for p in reviewed["apart"] for i in p[:2]} & set(ids)
+        group_of = {i: n for n, g in enumerate(reviewed["groups"]) for i in g}
+        # No pair read as two people sits inside a group read as one person.
+        assert not [
+            p
+            for p in reviewed["apart"]
+            if p[0] in group_of and group_of[p[0]] == group_of.get(p[1])
+        ]

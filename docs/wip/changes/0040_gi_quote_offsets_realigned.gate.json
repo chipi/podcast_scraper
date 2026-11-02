@@ -43,9 +43,9 @@
   "clone": "/Users/claude/snapshots/base-0040",
   "code": {
     "dirty": true,
-    "sha": "aad88300ca935cb98d1c2ca5af2e69356c4342a9"
+    "sha": "00f7534c5a4ea6f67ca2ae4c74d921470980b4cc"
   },
-  "code_digest": "e0bedfef5a629b1b1a744a2f89e2cb0d3e2dee8279675cbe0c1b80630b4b36ef",
+  "code_digest": "0fc9cb8307129bd79f79853cc717453024bde3455262455a6f90f13839961ce4",
   "computed_class": "full",
   "episode_deltas": {
     "feeds/rss_www.omnycontent.com_c9fdce2d/run_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343/metadata/0002 - The Creator of Claude Code on Th_274eda60-3c18-4bec-b1e8-be995439992d_20260902-105343.metadata.json": {
@@ -80,7 +80,7 @@
   "gating_moves": {
     "S12_quotes_off_text": -18
   },
-  "measured_at": "2026-11-01T15:52:18",
+  "measured_at": "2026-11-02T00:23:49",
   "migration": "0040_gi_quote_offsets_realigned",
   "plan": [
     {
@@ -293,7 +293,7 @@
     "quotes_no_offsets": 0,
     "quotes_ref_unresolved": 244
   },
-  "snapshot": "snapshot-prod-20261030+0038+0039+d2-ledger-final",
+  "snapshot": "snapshot-prod-20261030+0038+0039+d2-ledger-s6g",
   "verdicts_sha256": null,
   "verify": {
     "message": "every GI quote time can place slices to its text (6 left, listed)",

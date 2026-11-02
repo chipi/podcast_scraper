@@ -42,9 +42,9 @@
   "clone": "/Users/claude/snapshots/clone-pre0038a",
   "code": {
     "dirty": true,
-    "sha": "aad88300ca935cb98d1c2ca5af2e69356c4342a9"
+    "sha": "00f7534c5a4ea6f67ca2ae4c74d921470980b4cc"
   },
-  "code_digest": "e0bedfef5a629b1b1a744a2f89e2cb0d3e2dee8279675cbe0c1b80630b4b36ef",
+  "code_digest": "0fc9cb8307129bd79f79853cc717453024bde3455262455a6f90f13839961ce4",
   "computed_class": "full",
   "episode_deltas": {},
   "files_changed": 1,
@@ -52,7 +52,7 @@
     ".segments.json": 1
   },
   "gating_moves": {},
-  "measured_at": "2026-11-01T15:50:16",
+  "measured_at": "2026-11-01T23:48:36",
   "migration": "0039_adfree_segment_offsets_realigned",
   "plan": [
     {
@@ -124,7 +124,7 @@
     "quotes_no_offsets": 0,
     "quotes_ref_unresolved": 244
   },
-  "snapshot": "snapshot-prod-20261030+0038+d2-ledger-final",
+  "snapshot": "snapshot-prod-20261030+0038+d2-ledger-s6g",
   "verdicts_sha256": null,
   "verify": {
     "message": "every served ad-free segment slices to its own text",

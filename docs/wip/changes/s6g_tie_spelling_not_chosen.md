@@ -188,6 +188,61 @@ Dated: 2026-11-02T01:15
   add."
 - Every finding is taken in 4b.
 
+## 6. Build
+
+**Tests, written first:**
+- In `tests/unit/podcast_scraper/identity/test_ledger.py`:
+  - a tie shows no group spelling, `{"rule": "tie"}`;
+  - a majority keeps its spelling;
+  - one spelling written two ways is not a tie;
+  - the tie is read among the full names;
+  - the card gets the canonical's name only.
+- In `test_m0041_joined_names_respelled.py`: a member with no group spelling is still joined.
+- Before the code: 4 failed (the majority and same-spelling tests already passed, as they should).
+
+**Code:**
+- `identity/ledger._tie` and its branch in `_add_display_spellings`;
+- `identity/display.display_from_ledger` (a tie group maps the canonical id only);
+- `m0041.LedgerView.joined` (membership);
+- `server/app_relational_view._group_borrows` (`display_name or canonical_name`).
+
+**Mutants** (`mutate.py`): **killed 5 of 5**.
+- the tie branch off;
+- a loose tie test;
+- spellings not folded;
+- the canonical-only card dropped;
+- membership dropped from `joined`.
+
+**Full unit suite:** 17,335 passed, 1 failed: the landing test, red until the step-8 verdicts.
+- The suite also found that s5d's commit had broken a server test,
+  `test_app_kg_index.TestSpellingVariantsCollapseInTheAppIndex`.
+- Its fixture joins two one-episode spellings with no evidence, which s5d refuses. It now gives one
+  spelling a second episode.
+- I had run only the identity, KG and upgrade areas for s5d.
+
+Black, isort, flake8, codespell and `make type` pass.
+
+## 7. Measure
+
+**The ledger** rebuilt on the clone (`--no-respell`), diffed per group against `ledger_s5d4d.json`
+(`d2i9/s6g_group_diff.py` → `s6g_group_diff.out`):
+- "groups changed as predicted (tie): 75 | of the 75: 75";
+- "other changes: 0";
+- blocked joins 39 → 39.
+
+**0041 gate** (`0041_joined_names_respelled.gate.json`, digest `0fc9cb830712`):
+- **501 episodes, 2,525 files**, as predicted (v3);
+- `upgrade verify` 40 ok, none failing.
+
+**After-checks** on the real 0041 apply (`d2i9/after_checks_s6g.txt`): "AFTER CHECKS: FAIL 0".
+- joins 632 → 632;
+- `display_name` changed 0, `display_evidence` changed 0, so the 75 tie groups are unchanged
+  after 0041;
+- blocked 39 → 39.
+
+**0039 and 0040 gates** rerun on this digest: unchanged outcomes (18 quotes realigned, 6 left; 187
+segment rows in 1 episode).
+
 ## Not covered
 
 - **The 82 respellings this undoes** include about 40 that were improvements (a garble replaced by
