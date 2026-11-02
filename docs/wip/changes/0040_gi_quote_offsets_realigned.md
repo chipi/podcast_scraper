@@ -102,6 +102,38 @@ Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger`
 - 18 quotes realigned in 8 episodes, 6 left: unchanged from the final batch.
 - `upgrade verify` ok, no regressions, no gating moves.
 
+## 8. Verdict
+
+**Builder's verdict, before the review (2026-11-02): GO WITH CONDITIONS.** 18 quotes realigned in 8 episodes, 6 left and listed, as predicted; verify ok; second apply 0; undo byte-identical (8 files). Gate report on committed code `b64e08e04` (clean, code digest `bc3c9bb670fd`, worktree run `scratchpad/chain7.sh`), equal in outcome to the final rerun in section 7. Second apply and full-copy undo: record d2_name_consolidation, Undo.
+Conditions: `make ci-fast` and `make test-integration` green on the committed tree (plan step 13);
+at the apply, prod's dry-run plan diffed against the clone's (method step 10: prod has 43 episodes
+the snapshot lacks).
+
+Verdict read 2026-11-02 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5 reader), inputs as file paths (brief `scratchpad/step8_prompt.txt`), about 10 minutes for all four, ran nothing over the corpus. Its block, condensed:
+
+```text
+REVIEW 0040_gi_quote_offsets_realigned 2026-11-02 commit b64e08e04 reviewer Sonnet (fresh) minutes 2
+PREDICTION vs GATE: 6 rows compared, 6 equal, 0 differ
+REQUIRED ITEMS: 6 quotes left, listed in the plan; code clean b64e08e04; undo recorded (8 restored, byte-identical); second apply recorded (0); census vs gate suffixes equal (.gi.json 8); not-covered present, thin; ci-fast log missing
+AFTER-STATE READ: the 2 quote spans off their text are among the 6 left, byte-identical before and after 0041; no per-quote excerpts for the 18
+OPEN CALLS: the 6 left stay (no evidence on disk to place them); accepted
+DOUBTED NUMBER: none
+VERDICT: GO WITH CONDITIONS  every gate number equals the prediction; ci-fast and test-integration not yet run on the committed tree
+```
+
+Conditions, each answered:
+
+1. ci-fast and test-integration on the committed tree: plan step 13, next. **Open.**
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** `make ci-fast` and `make test-integration` green on the committed tree (plan step 13).
+- **Condition 2:** At the apply, prod's dry-run plan diffed against the clone's (method step 10).
+
+Outcome: `src/podcast_scraper/upgrade/outcomes/0040_gi_quote_offsets_realigned.json`, sha256
+1220975cafcf0ef0ef50550a85f62bbaa62c69443a6ac9ac21e426b38676f1d6 (`scripts/measure/build_outcome.py`, from the gate report measured on
+b64e08e04 and this verdict).
+
 ## Not covered
 
 - The 6 quotes time cannot place: listed for the operator; no fix without evidence.

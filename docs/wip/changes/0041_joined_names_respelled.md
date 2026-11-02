@@ -706,6 +706,46 @@ Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger`
   `d2out/placeholder_labels_s6h.out`): **2**, one name in two episodes. Read time shows its group
   spelling. The section above counted 4 on the s5d ledger; the difference is not traced by id.
 
+## 8. Verdict
+
+**Builder's verdict, before the review (2026-11-02): GO WITH CONDITIONS.** 467 episodes, 2,289 files, 179 refused, 1 fold, as s6h predicted; 40 of 40 verify ok; after-checks 0 must-not-move breaches; second apply 0; undo byte-identical (2,289 files). Gate report on committed code `b64e08e04` (clean, code digest `bc3c9bb670fd`, worktree run `scratchpad/chain7.sh`), equal in outcome to the final rerun in section 7. Second apply and full-copy undo: record d2_name_consolidation, Undo.
+Conditions: `make ci-fast` and `make test-integration` green on the committed tree (plan step 13);
+at the apply, prod's dry-run plan diffed against the clone's (method step 10: prod has 43 episodes
+the snapshot lacks).
+
+Verdict read 2026-11-02 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5 reader), inputs as file paths (brief `scratchpad/step8_prompt.txt`), about 10 minutes for all four, ran nothing over the corpus. Its block, condensed:
+
+```text
+REVIEW 0041_joined_names_respelled 2026-11-02 commit b64e08e04 reviewer Sonnet (fresh) minutes 4
+PREDICTION vs GATE: 11 rows compared (s6h 4b, the latest prediction), 11 equal
+REQUIRED ITEMS: 0 episodes refused, 179 names refused (counted; the plan itemises 30); code clean b64e08e04; undo recorded (2,289 restored, byte-identical); second apply recorded (0); census vs gate suffixes differ: written .txt / .adfree.txt / .cleaned.txt 86 / 86 / 81 against the after-checks' changed 84 / 84 / 79, unexplained; not-covered present; ci-fast log missing
+AFTER-STATE READ: the fold's 65 quotes read right; the 2 bare labels read right; the step-5 spot checks (item 8's five, one episode end to end in the player, one reindexed episode's hits) not present as reads
+OPEN CALLS: the 4 vs 2 bare labels not traced by id (accepted); the refused names itemised at the prod apply; frozen copies keep the old spelling (disclosed)
+DOUBTED NUMBER: the 2-per-kind transcript gap (86 vs 84); particular to this change; one read of the receipts with the operator's go
+VERDICT: GO WITH CONDITIONS  every dated prediction row met; conditions ci-fast and test-integration, and the transcript-count gap explained
+```
+
+Conditions, each answered:
+
+1. ci-fast and test-integration on the committed tree: plan step 13, next. **Open.**
+2. The transcript-count gap (written 86 / 86 / 81, after-checks changed 84 / 84 / 79): not yet
+   explained. The re-measure is one read of 0041's receipts against the after-checks' episode
+   loop. It walks no corpus and takes seconds. It needs the operator's go (the method's
+   recalculation rule). **Open.**
+3. The step-5 spot checks as reads (one episode end to end in the player, one reindexed
+   episode's hits): the player read needs the deployed stack. They are made on prod after the
+   apply (step 10 of the method), where the reindex runs. **Open, at the apply.**
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** `make ci-fast` and `make test-integration` green on the committed tree (plan step 13).
+- **Condition 2:** The transcript-count gap (86 / 86 / 81 written, 84 / 84 / 79 changed) explained, with the operator's go for the read.
+- **Condition 3:** At the apply, prod's dry-run plan diffed against the clone's, and the spot checks read on prod after the reindex (method step 10).
+
+Outcome: `src/podcast_scraper/upgrade/outcomes/0041_joined_names_respelled.json`, sha256
+79274a8794f82d042c173eaddb01216e7664f94d05d2b97dfa7c64573bae5c35 (`scripts/measure/build_outcome.py`, from the gate report measured on
+b64e08e04 and this verdict).
+
 ## Not covered
 
 - Frozen copies (highlights, favourites, sent emails).

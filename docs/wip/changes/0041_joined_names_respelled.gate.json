@@ -43,8 +43,8 @@
   "apply_message": "rewrote 467 episode(s); admaps_carried=48, bridge_identities_merged=1, bridge_names_respelled=424, bridge_names_rewritten=116, context_rebuilt=467, detected_names=26, diagnostics_voices_renamed=94, gi_ids_rewritten=131, gi_names_rewritten=1199, gi_person_nodes_merged=1, in_place_episodes=92, in_place_lines=5764, kg_names_rewritten=115, metadata_counts_synced=64, names_refused=179, person_labels_respelled=539, person_names_respelled=485, quotes_moved=3297, quotes_retexted=11, roster_names=95, segments_relabelled=40283, turns_rebuilt=54, unplaced_dropped=1",
   "clone": "/Users/claude/snapshots/base-0041",
   "code": {
-    "dirty": true,
-    "sha": "4b7438233dc22790d2e1166e0cbc456c57f9174e"
+    "dirty": false,
+    "sha": "b64e08e0400732b16923eb2a0ef38ae978950ed9"
   },
   "code_digest": "bc3c9bb670fd61897fd82812f436960f99a6cad165ccc7d5d11832a8ec3f0e7f",
   "computed_class": "full",
@@ -71,7 +71,7 @@
     ".txt": 80
   },
   "gating_moves": {},
-  "measured_at": "2026-11-02T09:16:21",
+  "measured_at": "2026-11-02T12:39:21",
   "migration": "0041_joined_names_respelled",
   "plan": [
     {

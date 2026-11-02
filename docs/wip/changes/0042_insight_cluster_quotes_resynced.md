@@ -140,6 +140,52 @@ Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger`
   unchanged. This fits 0041 respelling 467 episodes instead of 501, but it is not traced per
   quote.
 
+## 8. Verdict
+
+**Builder's verdict, before the review (2026-11-02): GO WITH CONDITIONS.** 1,835 of 33,162 cluster quotes resynced, 0 unmatched; 41 of 41 verify ok; second apply 0; undo byte-identical. The count moved from 1,885 after s6h without an integer prediction (section 7, the final rerun). Gate report on committed code `b64e08e04` (clean, code digest `bc3c9bb670fd`, worktree run `scratchpad/chain7.sh`), equal in outcome to the final rerun in section 7. Second apply and full-copy undo: record d2_name_consolidation, Undo.
+Conditions: `make ci-fast` and `make test-integration` green on the committed tree (plan step 13);
+at the apply, prod's dry-run plan diffed against the clone's (method step 10: prod has 43 episodes
+the snapshot lacks).
+
+Verdict read 2026-11-02 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5 reader), inputs as file paths (brief `scratchpad/step8_prompt.txt`), about 10 minutes for all four, ran nothing over the corpus. Its block, condensed:
+
+```text
+REVIEW 0042_insight_cluster_quotes_resynced 2026-11-02 commit b64e08e04 reviewer Sonnet (fresh) minutes 2
+PREDICTION vs GATE: 5 rows compared, 4 equal, 1 without an integer prediction (resynced 1,835; 1,896 -> 1,885 -> 1,835 across reruns, the cause not traced by id)
+REQUIRED ITEMS: 0 unmatched; code clean b64e08e04; undo recorded (1 restored, byte-identical); second apply recorded (0); census vs gate suffixes equal (1 file); not-covered present, thin; ci-fast log missing
+AFTER-STATE READ: the 4b by-eye check of 3 or more resynced members not recorded; verify passes
+OPEN CALLS: accept 1,835 as measured, not predicted (operator told); the by-eye read
+DOUBTED NUMBER: 1,835, only as untraced (a gate row comparing 0042's offset changes with 0041's moved GI quotes would settle it)
+VERDICT: GO WITH CONDITIONS  invariants hold (0 unmatched, 1 file, 41 of 41 verify, no-op second apply); 1,835 had no integer prediction and the by-eye read is not recorded
+```
+
+Conditions, each answered:
+
+1. ci-fast and test-integration on the committed tree: plan step 13, next. **Open.**
+2. The by-eye read of 3 or more resynced members (4b): **done** after the review (eval-data
+   `d2out/s42_read.py` → `.out`, base-0042 against d2-final). Five entries, each equal to its GI
+   quote on text, `speaker_id`, `char_start` and `char_end`, and each after-span slicing to the
+   quote's text:
+   - item 5's own entry (`https://iono.fm/e/1726016`, `quote:18dce0dab1c49e18`): `speaker_id` was
+     the raw label `person:speaker-…-09` and is now null, as in its GI quote;
+   - an unresolved id set to null;
+   - a text change (a "Name: " prefix dropped);
+   - two offset-only changes in two episodes.
+   - The script counts 1,832 changed by key (episode, insight, quote) against the gate's 1,835;
+     the 13 keys in several runs collapse duplicates.
+3. 1,835 with no integer prediction: measured, not predicted. The 50 fewer offset changes than the
+   run before s6h are not traced by id. **Operator's call**: accept as measured, or trace it.
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** `make ci-fast` and `make test-integration` green on the committed tree (plan step 13).
+- **Condition 2:** The operator's call on 1,835 resynced: accepted as measured, or traced.
+- **Condition 3:** At the apply, prod's dry-run plan diffed against the clone's (method step 10).
+
+Outcome: `src/podcast_scraper/upgrade/outcomes/0042_insight_cluster_quotes_resynced.json`, sha256
+42e6b3c73efe314adaa9a98a934c5241a966ce16cd73b0394c018b998b8705c8 (`scripts/measure/build_outcome.py`, from the gate report measured on
+b64e08e04 and this verdict).
+
 ## Not covered
 
 - Cluster membership built from an older corpus; a rebuild decides that, not this.

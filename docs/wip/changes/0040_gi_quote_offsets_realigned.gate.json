@@ -42,8 +42,8 @@
   "apply_message": "realigned 18 quote(s) in 8 episode(s); 6 left",
   "clone": "/Users/claude/snapshots/base-0040",
   "code": {
-    "dirty": true,
-    "sha": "4b7438233dc22790d2e1166e0cbc456c57f9174e"
+    "dirty": false,
+    "sha": "b64e08e0400732b16923eb2a0ef38ae978950ed9"
   },
   "code_digest": "bc3c9bb670fd61897fd82812f436960f99a6cad165ccc7d5d11832a8ec3f0e7f",
   "computed_class": "full",
@@ -80,7 +80,7 @@
   "gating_moves": {
     "S12_quotes_off_text": -18
   },
-  "measured_at": "2026-11-02T08:25:04",
+  "measured_at": "2026-11-02T11:49:07",
   "migration": "0040_gi_quote_offsets_realigned",
   "plan": [
     {

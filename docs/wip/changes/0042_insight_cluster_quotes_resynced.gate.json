@@ -44,8 +44,8 @@
   "apply_message": "resynced 1835 cluster quote(s); {'quotes': 33162, 'unmatched': 0, 'quotes_resynced': 1835, 'char_start_changed': 1760, 'char_end_changed': 1758, 'speaker_id_changed': 338, 'text_changed': 5, 'gi_keys_in_several_runs': 13}",
   "clone": "/Users/claude/snapshots/base-0042",
   "code": {
-    "dirty": true,
-    "sha": "4b7438233dc22790d2e1166e0cbc456c57f9174e"
+    "dirty": false,
+    "sha": "b64e08e0400732b16923eb2a0ef38ae978950ed9"
   },
   "code_digest": "bc3c9bb670fd61897fd82812f436960f99a6cad165ccc7d5d11832a8ec3f0e7f",
   "computed_class": "light",
@@ -55,7 +55,7 @@
     ".json": 1
   },
   "gating_moves": {},
-  "measured_at": "2026-11-02T10:02:15",
+  "measured_at": "2026-11-02T12:28:01",
   "migration": "0042_insight_cluster_quotes_resynced",
   "plan": [
     {

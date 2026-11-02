@@ -41,8 +41,8 @@
   "apply_message": "realigned 187 row(s) in 1 episode(s); 0 refused",
   "clone": "/Users/claude/snapshots/clone-pre0038a",
   "code": {
-    "dirty": true,
-    "sha": "4b7438233dc22790d2e1166e0cbc456c57f9174e"
+    "dirty": false,
+    "sha": "b64e08e0400732b16923eb2a0ef38ae978950ed9"
   },
   "code_digest": "bc3c9bb670fd61897fd82812f436960f99a6cad165ccc7d5d11832a8ec3f0e7f",
   "computed_class": "full",
@@ -52,7 +52,7 @@
     ".segments.json": 1
   },
   "gating_moves": {},
-  "measured_at": "2026-11-02T07:49:13",
+  "measured_at": "2026-11-02T11:47:30",
   "migration": "0039_adfree_segment_offsets_realigned",
   "plan": [
     {
