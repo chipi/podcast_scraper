@@ -374,9 +374,9 @@ def _cmd_run(
                 f"{len(remaining)} pending."
             )
     if not args.dry_run and any(r.applied for r in results):
-        from ..identity.ledger import refresh_ledger
+        from ..identity.refresh_guard import refresh_ledger_after
 
-        if not refresh_ledger(ctx.corpus_root, after="upgrade run", log=log):
+        if not refresh_ledger_after(ctx.corpus_root, after="upgrade run", log=log):
             print("identity ledger refresh FAILED after the upgrade; the previous ledger stays")
             return 4
     return 0

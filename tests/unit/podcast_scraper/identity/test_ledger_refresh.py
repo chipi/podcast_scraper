@@ -67,7 +67,9 @@ def test_a_failed_enrich_run_does_not_touch_the_ledger(tmp_path: Path, monkeypat
 
 
 def test_a_failed_refresh_fails_the_enrich_run(tmp_path: Path, monkeypatch, capsys) -> None:
-    monkeypatch.setattr(L, "refresh_ledger", lambda *_a, **_k: False)
+    from podcast_scraper.identity import refresh_guard
+
+    monkeypatch.setattr(refresh_guard, "refresh_ledger_after", lambda *_a, **_k: False)
     assert _enrich(tmp_path, monkeypatch) == 4
     assert "identity ledger refresh FAILED" in capsys.readouterr().out
 

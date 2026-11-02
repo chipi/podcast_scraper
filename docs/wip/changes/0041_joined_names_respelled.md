@@ -625,6 +625,21 @@ predicate. Measured (`d2i9/spelling_publisher_match.py`):
 `--no-respell`, so the respelling happens inside 0041's own run, with its receipts and the outcome
 hook. The ledger step respells only from then on.
 
+**Found at step 14's planning (2026-11-02), and fixed:** the code did not hold to that order.
+`refresh_ledger` respelled on every build, and `upgrade run` calls it after any run that applies a
+migration, and `enrich` after every run. On prod, the 0039 run, or any enrich before 0041, would
+have done 0041's whole respelling outside its measured run, and 0041 would then have found an empty
+plan. The clone chains applied migrations directly, never through `upgrade run`, so no gate saw it.
+- **The fix:** `identity/refresh_guard.refresh_ledger_after`, used by `upgrade run` and `enrich`.
+  While 0041 is not applied it builds and writes the ledger and defers the respelling,
+  `{"respell": {"deferred": true, ...}}` in the change log. From 0041 on, it is `refresh_ledger`.
+  Tests: `tests/unit/podcast_scraper/identity/test_refresh_guard.py`.
+- **Outside the measured code:** the guard is in no D2 migration's import closure (a test pins it),
+  so the four code digests stay `bc3c9bb670fd` and the gates and outcomes stand.
+- **Not guarded:** `enrich-edges` (`search/cli_handlers`). It is inside the closure and refreshes
+  only when a pass rewrites artifacts. The run steps require that no `enrich-edges` pass runs
+  between the deploy and 0041's run.
+
 ## 7. Measure
 
 The gates and after-checks, newest last.

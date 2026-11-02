@@ -677,6 +677,11 @@ def test_search_operator_consensus_reads_topic_consensus_json(
             },
         ],
     )
+    # Every pair's insights shown by the episode view (RFC-131 S6c): this test is about the topic
+    # filter; the visibility filter has its own tests (unit test_operators).
+    from podcast_scraper.search import operators as _ops
+
+    monkeypatch.setattr(_ops, "_visible_insight_ids", lambda _root: {"i:a", "i:b", "i:c", "i:d"})
     app = create_app(tmp_path, static_dir=False)
     body = (
         TestClient(app)

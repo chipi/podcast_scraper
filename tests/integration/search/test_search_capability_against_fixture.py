@@ -145,7 +145,9 @@ class TestSearchOperatorsAgainstFixture:
         assert g["size"] == len(g["hit_indices"])
         assert g.get("label")
 
-    def test_consensus_pairs_are_cross_person(self, corpus: Path) -> None:
+    def test_consensus_pairs_are_cross_person(
+        self, corpus: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Query a topic the corpus HAS consensus on, chosen from the corpus.
 
         This used to search ``_Q`` ("risk management"), which worked only while topics were
@@ -166,6 +168,12 @@ class TestSearchOperatorsAgainstFixture:
         topic = consensus[0]["insight_a_id"].split(":")[2]  # insight:consensus:<topic>:<person>
         query = topic.replace("topic-", "").replace("-", " ")
 
+        # The fixture's topic_consensus.json is hand-made: its insight ids
+        # (``insight:consensus:<topic>:<person>``) are in no GI file, so RFC-131 S6c's visibility
+        # filter drops every pair. The real enricher writes GI insight ids. This test is about
+        # topic matching and cross-person pairs, so every pair counts as visible here.
+        pair_ids = {p[k] for p in consensus for k in ("insight_a_id", "insight_b_id")}
+        monkeypatch.setattr(operators, "_visible_insight_ids", lambda _root: pair_ids)
         out = _search(corpus, query, top_k=20)
         pairs = operators.consensus_pairs_for_hits(out["results"], corpus, max_pairs=10)
         assert pairs, (
