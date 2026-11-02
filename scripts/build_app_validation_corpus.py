@@ -2081,15 +2081,47 @@ def _accumulate_topic_persons(
     topic_ids: list[str],
     *,
     topic_persons: dict[str, list[tuple[str, str]]],
+    topic_person_insights: dict[tuple[str, str], list[str]] | None = None,
+    topic_insights: dict[str, list[str]] | None = None,
 ) -> None:
     """Fold one episode's persons × topics into the topic_consensus per-Topic person set (in place).
 
     Within an episode every rostered person is associated with every episode topic (topics are
     episode-level in this fixture), which gives topic_consensus its cross-Person pairs per Topic.
+    Each (topic, person) also takes, at first sight, one of this episode's GI insights ABOUT the
+    topic, so a pair names real insights: search keeps only pairs whose insights the episode view
+    shows (RFC-131 S6c), as the real enricher's GI ids are.
     """
     for tid in topic_ids:
-        for pid, name in ep_persons:
+        # The insights ABOUT the topic first, then the episode's others: in this fixture a person
+        # and a topic meet at the episode level.
+        ti = topic_insights or {}
+        about = list(dict.fromkeys((ti.get(tid) or []) + ti.get("", [])))
+        for i, (pid, name) in enumerate(ep_persons):
             topic_persons.setdefault(tid, []).append((pid, name))
+            if topic_person_insights is not None and about:
+                k = i % len(about)
+                topic_person_insights.setdefault((tid, pid), about[k:] + about[:k])
+
+
+def _topic_insights(gi: dict[str, Any]) -> dict[str, list[str]]:
+    """``{topic id: [insight ids ABOUT it]}`` from one episode's GI, in edge order; key ``""``
+    holds every insight of the episode, in node order."""
+    out: dict[str, list[str]] = {
+        "": [
+            str(n["id"])
+            for n in gi.get("nodes") or []
+            if isinstance(n, dict) and n.get("type") == "Insight" and n.get("id")
+        ]
+    }
+    for e in gi.get("edges") or []:
+        if (
+            isinstance(e, dict)
+            and e.get("type") == "ABOUT"
+            and str(e.get("from", "")).startswith("insight:")
+        ):
+            out.setdefault(str(e["to"]), []).append(str(e["from"]))
+    return out
 
 
 def _episode_persons(kg: dict[str, Any]) -> list[tuple[str, str]]:
@@ -2106,6 +2138,7 @@ def _episode_persons(kg: dict[str, Any]) -> list[tuple[str, str]]:
 def _topic_consensus_data(
     topic_persons: dict[str, list[tuple[str, str]]],
     *,
+    topic_person_insights: dict[tuple[str, str], list[str]] | None = None,
     cos_threshold: float = 0.70,
     max_rows: int = 12,
 ) -> dict[str, Any]:
@@ -2134,6 +2167,13 @@ def _topic_consensus_data(
             f"Agreed — {label} rewards a systems view; the edge is in the process, "
             "not any single call."
         )
+        # Real GI insights (the person's first episode on the topic), two different ones.
+        cands_a = (topic_person_insights or {}).get((tid, pid_a)) or []
+        cands_b = (topic_person_insights or {}).get((tid, pid_b)) or []
+        id_a = cands_a[0] if cands_a else f"insight:consensus:{slug(tid)}:{slug(pid_a)}"
+        id_b = next(
+            (c for c in cands_b if c != id_a), f"insight:consensus:{slug(tid)}:{slug(pid_b)}"
+        )
         h = int(hashlib.sha256(f"{tid}|{pid_a}|{pid_b}".encode()).hexdigest(), 16)
         cosine = round(cos_threshold + (h % 1000) / 1000.0 * (0.95 - cos_threshold), 6)
         contradiction = round((h % 137) / 137.0 * 0.15, 6)  # low (< contra_threshold 0.5)
@@ -2145,9 +2185,9 @@ def _topic_consensus_data(
                 "person_a_name": name_a,
                 "person_b_id": pid_b,
                 "person_b_name": name_b,
-                "insight_a_id": f"insight:consensus:{slug(tid)}:{slug(pid_a)}",
+                "insight_a_id": id_a,
                 "insight_a_text": txt_a,
-                "insight_b_id": f"insight:consensus:{slug(tid)}:{slug(pid_b)}",
+                "insight_b_id": id_b,
                 "insight_b_text": txt_b,
                 "consensus_score": cosine,
                 "cosine": cosine,
@@ -2490,6 +2530,7 @@ def main() -> int:
     # ADR-108 topic_consensus: topic_id → [(person_id, name)], authored deterministically from the
     # episode's own persons × topics (like content_series).
     corpus_topic_persons: dict[str, list[tuple[str, str]]] = {}
+    corpus_topic_person_insights: dict[tuple[str, str], list[str]] = {}
 
     for show_rss_stem, show_dir in shows:
         rss_path = args.rss_dir / f"{show_rss_stem}.xml"
@@ -2683,6 +2724,8 @@ def main() -> int:
                 _episode_persons(kg),
                 topic_ids,
                 topic_persons=corpus_topic_persons,
+                topic_person_insights=corpus_topic_person_insights,
+                topic_insights=_topic_insights(gi),
             )
 
             # Transcript text + RAW canonical segments (player contract).
@@ -2908,7 +2951,9 @@ def main() -> int:
     # corpus's own persons × topics so the operator viewer's Consensus edges + Person "Consensus"
     # surfaces render + pivot on the fixture. (Per-person / per-topic stance over time is a
     # read-time CIL query — conversation-arc / position-arc — not an enricher artifact.)
-    consensus = _topic_consensus_data(corpus_topic_persons)
+    consensus = _topic_consensus_data(
+        corpus_topic_persons, topic_person_insights=corpus_topic_person_insights
+    )
     (corpus_enrich_dir / "topic_consensus.json").write_text(
         json.dumps(_enrichment_envelope("topic_consensus", consensus), indent=2, sort_keys=True)
         + "\n",
