@@ -186,6 +186,9 @@ Outcome: `src/podcast_scraper/upgrade/outcomes/0042_insight_cluster_quotes_resyn
 42e6b3c73efe314adaa9a98a934c5241a966ce16cd73b0394c018b998b8705c8 (`scripts/measure/build_outcome.py`, from the gate report measured on
 b64e08e04 and this verdict).
 
+**Condition 2, answered after the verdict:** the operator accepts 1,835 as measured, not traced
+(2026-11-02: "I take your recommendations").
+
 ## Not covered
 
 - Cluster membership built from an older corpus; a rebuild decides that, not this.

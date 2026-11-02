@@ -746,6 +746,19 @@ Outcome: `src/podcast_scraper/upgrade/outcomes/0041_joined_names_respelled.json`
 79274a8794f82d042c173eaddb01216e7664f94d05d2b97dfa7c64573bae5c35 (`scripts/measure/build_outcome.py`, from the gate report measured on
 b64e08e04 and this verdict).
 
+**Condition 2, answered after the verdict (operator's go, 2026-11-02: "I take your
+recommendations"):** the 2-per-kind gap is 2 episodes whose metadata stores an absolute
+transcript path. My after-check script skips such an episode (eval-data `d2out/gap_0041.py` →
+`.out`).
+- The two are substack `deda024b` "0005" and simplecast `999571cd` "0007".
+- The after-checks' must-not-move rows, run on both runs' episodes with the transcript resolved
+  by name (`d2out/gap_0041_checks.py` → `.out`, "FAILS 0"):
+  - publisher evidence equal;
+  - spoken text equal on `.txt`, `.adfree.txt` and `.cleaned.txt`;
+  - segment text and times equal;
+  - 0 GI quotes off their text (224 and 79 checked).
+- The gap is in my measuring script, not in 0041.
+
 ## Not covered
 
 - Frozen copies (highlights, favourites, sent emails).
