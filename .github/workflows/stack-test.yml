@@ -57,7 +57,7 @@ concurrency:
 
 jobs:
   stack-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Skip when the upstream "Python application" run did not succeed
     # (workflow_run fires on completion regardless of conclusion).
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
@@ -236,7 +236,7 @@ jobs:
   # ============================================================
   publish:
     needs: stack-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Strict gate: only on main pushes (workflow_run from main) AND
     # when stack-test succeeded AND in the canonical repo (avoid
     # forks accidentally pushing).
@@ -416,7 +416,7 @@ jobs:
   # ============================================================
   verify-manifests:
     needs: publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: |
       github.repository == 'chipi/podcast_scraper'
       && github.ref == 'refs/heads/main'

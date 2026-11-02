@@ -46,7 +46,7 @@ jobs:
   # Scan Python dependencies
   snyk-dependencies:
     name: Snyk - Dependencies
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: snyk-changes
     # PR: only when the Python manifest or the image inputs change — a PR that only bumps an npm
     # lockfile must not pay for a Python scan. Main, schedule, manual: always.
@@ -104,7 +104,7 @@ jobs:
   # args as docker-build-full `ml` matrix so the scanned image matches prod bake)
   snyk-docker:
     name: Snyk - Docker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # ML+preload bake can run ~17 min; do not cancel mid-build when another push lands.
     timeout-minutes: 45
     needs: snyk-changes
@@ -208,7 +208,7 @@ jobs:
   # Monitor dependencies (for PRs and scheduled runs)
   snyk-monitor:
     name: Snyk - Monitor
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # main pushes, the weekly schedule and a manual run — never a PR (operator 2026-10-06). `monitor`
     # records a snapshot Snyk keeps re-testing; a PR's code is not what ships, and each snapshot
     # spends a test.
@@ -265,7 +265,7 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   snyk-changes:
     name: Snyk - apps changed
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       python: ${{ steps.filter.outputs.python }}
       npm: ${{ steps.filter.outputs.npm }}
@@ -304,7 +304,7 @@ jobs:
 
   snyk-npm:
     name: Snyk - npm (${{ matrix.app }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: snyk-changes
     # Not on the weekly schedule: the Snyk app's GitHub import re-tests both npm trees weekly itself.
     if: |
@@ -335,7 +335,7 @@ jobs:
 
   snyk-ios:
     name: Snyk - iOS pods
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: snyk-changes
     # Not on the weekly schedule: the Snyk app's GitHub import re-tests Podfile.lock weekly itself.
     if: |
@@ -363,7 +363,7 @@ jobs:
 
   snyk-android:
     name: Snyk - Android Gradle
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: snyk-changes
     if: github.event_name != 'pull_request' || needs.snyk-changes.outputs.android == 'true'
     steps:

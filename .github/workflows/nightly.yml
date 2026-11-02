@@ -60,7 +60,7 @@ jobs:
   # Preload ML models - runs first, validates cache
   # ===========================================================================
   preload-ml-models-nightly:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30  # May need to download production models
     env:
       HF_HOME: /home/runner/.cache/huggingface
@@ -152,7 +152,7 @@ jobs:
   # ===========================================================================
   # Fast lint checks - blocks tests to catch issues early
   nightly-lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10  # Fast checks: format, lint, markdown, type
     steps:
     - uses: actions/checkout@v7
@@ -187,7 +187,7 @@ jobs:
 
   # Security and quality checks - gated by lint/build, runs independently to nightly-metrics (does not gate tests)
   nightly-security-quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     steps:
@@ -221,7 +221,7 @@ jobs:
   # Docs deployment happens in docs.yml workflow (separate, already gated properly)
   # ===========================================================================
   nightly-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [nightly-metrics]  # Very last step - validates docs after all tests and metrics pass
     steps:
@@ -263,7 +263,7 @@ jobs:
   # Fast check (~2-3 min) that gates test-unit to catch packaging issues early
   # ===========================================================================
   nightly-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v7
@@ -287,7 +287,7 @@ jobs:
   # Unit tests - isolated job (no ML dependencies, runs in parallel with preload)
   # ===========================================================================
   nightly-test-unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30  # was 15; the suite ran 14-15+ min and hit the cap on 6 of 8 nights (2026-10-12..19)
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate unit tests)
     steps:
@@ -365,7 +365,7 @@ jobs:
 
   # GI/KG viewer v2 — Vitest (same parallel segment as nightly-security-quality + nightly-test-unit)
   nightly-viewer-unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [nightly-lint, nightly-build]
     steps:
@@ -388,7 +388,7 @@ jobs:
   # Integration tests - isolated job
   # ===========================================================================
   nightly-test-integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60  # was 30; integration suite outgrew it (hit the 30m cap 2026-08-03)
     needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
@@ -468,7 +468,7 @@ jobs:
   # E2E tests - isolated job, multi_episode mode (same as regular CI)
   # ===========================================================================
   nightly-test-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60  # was 45; full e2e suite hit the 45m cap (cancelled 2026-08-03)
     needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
@@ -552,7 +552,7 @@ jobs:
 
   # GI/KG viewer v2 — Playwright after pytest E2E (matches python-app viewer-e2e placement)
   nightly-viewer-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Was 20 when this job was `npm ci` + Vite. It now mirrors python-app's `viewer-e2e`:
     # [dev,search] (torch + lancedb), MiniLM preload, index build, real API.
     timeout-minutes: 45
@@ -648,7 +648,7 @@ jobs:
   # dashboard. See VIEWER_GRAPH_SPEC.md "Graph handoff orchestrator".
   # ===========================================================================
   nightly-tier3-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [nightly-lint, nightly-build]
     if: |
@@ -889,7 +889,7 @@ jobs:
   # every step for post-hoc inspection.
   # ===========================================================================
   nightly-tier3-app-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [nightly-lint, nightly-build]
     if: |
@@ -1081,7 +1081,7 @@ jobs:
   # Only runs after unit, integration, E2E, and viewer tests pass (expensive, run as final stage)
   # ===========================================================================
   nightly-only-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120  # ~75 min typical sequential run + buffer
     needs:
       - nightly-test-unit
@@ -1176,7 +1176,7 @@ jobs:
   # Metrics collection and dashboard generation
   # ===========================================================================
   nightly-metrics:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs:
       - nightly-lint

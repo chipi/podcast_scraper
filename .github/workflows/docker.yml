@@ -40,7 +40,7 @@ jobs:
   # Most code changes affect both variants, so LLM-only is sufficient for PR validation
   docker-build-fast:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v7
 
@@ -113,7 +113,7 @@ jobs:
   # Builds both LLM-only and ML-enabled variants to ensure full validation
   docker-build-full:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:

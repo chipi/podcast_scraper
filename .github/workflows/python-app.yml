@@ -140,7 +140,7 @@ jobs:
   #                    "anything actionable"); kept for backwards-compat
   #                    with existing gates
   detect-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       docs-only: ${{ steps.filter.outputs.docs }}
       code: ${{ steps.filter.outputs.code }}
@@ -280,7 +280,7 @@ jobs:
   # benefit. (See ``detect-changes.viewer`` filter and the path-A split
   # rationale.)
   viewer-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 20 was right when this job was `npm ci` + Vite. Since #1619 it also installs [search]
     # (torch + lancedb, the slow part), preloads MiniLM, builds the two-tier index and boots the
     # API — against a suite whose measured baseline is ~15m for 226 specs. 45 matches the other
@@ -365,7 +365,7 @@ jobs:
 
   # Fast lint checks - blocks tests to catch issues early
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10  # Fast checks: format, lint, markdown, type
     steps:
     - uses: actions/checkout@v7
@@ -419,7 +419,7 @@ jobs:
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
     needs: [lint, build, detect-changes]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     # Python-only gate (path-A): bandit/flake8/codespell only scan Python
@@ -491,7 +491,7 @@ jobs:
 
   # Unit tests - fast, no ML dependencies, network isolation enforced
   test-unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 25, not 15: the suite now takes ~13.7 min on a hosted runner (13m40s, 13m39s, 13m53s on the
     # last three green runs, 2026-10-07), so 15 left ~1 min of headroom and a slower runner
     # cancelled main's run on f5ab549a9 at 15m16s with no test failing.
@@ -648,7 +648,7 @@ jobs:
   # N-1 corpus compat — current server code × prior-release fixture (#796).
   test-corpus-version-compat:
     name: N-1 corpus compat (current code × prior fixture)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [detect-changes, test-unit]
     if: needs.detect-changes.outputs.python == 'true'
@@ -672,7 +672,7 @@ jobs:
 
   # GI/KG viewer v2 — Vitest unit tests (same parallel segment as security-quality + test-unit)
   viewer-unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Same 5-minute cliff as app-unit above — see the note there for the measured durations.
     timeout-minutes: 12
     needs: [lint, build, detect-changes]
@@ -711,7 +711,7 @@ jobs:
   # Python venv AND the fixture corpus — see playwright.config.ts webServer.
 
   app-unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 12 minutes, not 5. Both node unit jobs were sitting ON their old 5-minute budget and being
     # killed by it — GitHub reports a timeout as "cancelled", which reads as a flake rather than a
     # limit, so it kept getting re-run instead of fixed:
@@ -755,7 +755,7 @@ jobs:
         npm run type-check:test
 
   app-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       HF_HOME: /home/runner/.cache/huggingface
@@ -830,7 +830,7 @@ jobs:
   # can be triaged without blocking the whole app pipeline; PWA-audit failures
   # here are the real signal (broken install / manifest / SW).
   app-lighthouse:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [app-unit, detect-changes]
     # PR: only when the player changes. Main: always.
@@ -867,7 +867,7 @@ jobs:
   # are cached for integration and e2e tests. Path-A gate: skipped on
   # viewer-only PRs and docs-only PRs (the viewer doesn't use ML models).
   preload-ml-models:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Cold cache: production preload (Whisper + many HF + GIL evidence models) can take 20–40+ min;
     # cache-hit path still finishes quickly; generous cap avoids killing long downloads.
     timeout-minutes: 60
@@ -984,7 +984,7 @@ jobs:
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Large ml-models artifact + full integration suite; align headroom with preload growth.
     timeout-minutes: 45
     # ``test-unit`` added for fail-fast: don't run expensive integration on Python
@@ -1110,7 +1110,7 @@ jobs:
   # Fast integration tests - critical path only, runs on PRs only
   # Full integration tests run on main branch only
   test-integration-fast:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Same ml-models artifact as E2E; allow time for download/unpack + integration pytest.
     # 35 min was too tight on days when runner network is slow: PR #1274 saw
     # the ml-models artifact download take 24 min once and the ffmpeg apt-get
@@ -1232,7 +1232,7 @@ jobs:
   # Fast E2E tests - critical path only, runs on PRs only
   # Full E2E tests run on main branch only
   test-e2e-fast:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # After preload: large ml-models artifact restore + pip + ffmpeg + pytest; keep headroom vs preload duration.
     timeout-minutes: 45
     # ``test-unit`` added for fail-fast (don't run e2e on Python unit
@@ -1350,7 +1350,7 @@ jobs:
 
   # Full E2E tests - all E2E tests, runs on main branch only
   test-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Full E2E suite + same artifact path as fast E2E; needs slack if models keep growing.
     timeout-minutes: 60
     # ``test-unit`` added for fail-fast. Path-A python gate skips on viewer-only.
@@ -1500,7 +1500,7 @@ jobs:
   # fixture-driven post-unit tests that don't share build outputs. Gates on
   # ``test-unit`` for fail-fast (same pattern as test-integration / test-e2e).
   test-acceptance-fixtures:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     needs: [detect-changes, preload-ml-models, test-unit]
     env:
@@ -1565,7 +1565,7 @@ jobs:
   # Runs as very last step after all tests and coverage pass (final validation)
   # Docs deployment happens in docs.yml workflow (separate, already gated properly)
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [coverage-unified, viewer-unit, viewer-e2e]  # Docs after coverage + viewer tests
     # Path-A: on viewer-only PRs ``coverage-unified`` is skipped; allow docs
     # to still run as long as viewer-unit + viewer-e2e succeeded. On a PR that does not touch the
@@ -1604,7 +1604,7 @@ jobs:
   # Waits for all test jobs to complete, then combines their coverage reports
   # Path-A: skip on docs-only AND viewer-only (no Python coverage to combine).
   coverage-unified:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [detect-changes, security-quality, test-unit, test-integration, test-integration-fast, test-e2e, test-e2e-fast, viewer-e2e]  # Python tests + Playwright before merge report
     # `!cancelled()`, NOT `always()`. This job combines coverage from eight upstream jobs, and
     # `always()` made it run even when every one of them was CANCELLED — which is what concurrency
@@ -1946,7 +1946,7 @@ jobs:
   # Catches packaging issues (pyproject.toml errors, missing files, etc.)
   # Fast check (~2-3 min) that gates test-unit to catch packaging issues early
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
