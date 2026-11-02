@@ -169,6 +169,7 @@ test.describe('Search — result-set operator bar (#1234)', () => {
       consensus_pairs: {
         insight_a_text: string
         person_a_label: string | null
+        person_b_label: string | null
         cosine_similarity: number | null
       }[]
     }
