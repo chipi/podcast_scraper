@@ -116,6 +116,28 @@ Dated: 2026-11-01T10:55
 "Not complete": the registry also gained 0041; 0039's file changed after the measurement. Both are
 taken: 4c is corrected, and the change is re-measured.
 
+## 6. Build
+
+Tests (`tests/unit/podcast_scraper/upgrade/test_m0039_adfree_segment_offsets_realigned.py`):
+- registered between 0038 and 0041;
+- rows left early by a shortened prefix take their text again;
+- each of these refuses the episode:
+  - a repeated short line near the row;
+  - a drift that shrinks;
+  - a span that would overlap the row before;
+  - a drift that reverses;
+  - a row that slices again after the drift began;
+- an episode whose rows slice is untouched.
+
+Code: `upgrade/migrations/m0039_adfree_segment_offsets_realigned.py`, `MAX_DRIFT` 16, through
+`upgrade/file_rewrite` (backup, receipt, atomic write, undo).
+
+**Mutants** (`mutate.py`, run 2026-11-02 after the landing check found this section missing):
+- killed 6 of 6: several occurrences accepted; the direction check off; the shrink check off; the
+  overlap check off; an unbounded window; and "slices again after the drift began" off.
+- The last one survived the first run: no test covered that branch. The test above was added, and
+  then it was killed.
+
 ## 7. Measure
 
 Gate (`0039_adfree_segment_offsets_realigned.gate.json`, the final batch, code digest `e0bedfef5a62`, 2026-11-01; each gate on its own base: snapshot-prod-20261030 with 0038, the D2 ledger built with the final rules (`--no-respell`), and the migrations before it applied):

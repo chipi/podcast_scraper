@@ -40,11 +40,11 @@
     "0039_adfree_segment_offsets_realigned",
     "0040_gi_quote_offsets_realigned"
   ],
-  "apply_message": "rewrote 501 episode(s); admaps_carried=56, bridge_identities_merged=1, bridge_names_respelled=451, bridge_names_rewritten=130, context_rebuilt=501, detected_names=27, diagnostics_voices_renamed=108, gi_ids_rewritten=131, gi_names_rewritten=1461, gi_person_nodes_merged=1, in_place_episodes=105, in_place_lines=7045, kg_names_rewritten=129, metadata_counts_synced=68, names_refused=180, person_labels_respelled=580, person_names_respelled=517, quotes_moved=3962, quotes_retexted=11, roster_names=109, segments_relabelled=48057, turns_rebuilt=68, unplaced_dropped=1",
+  "apply_message": "rewrote 501 episode(s); admaps_carried=56, bridge_identities_merged=1, bridge_names_respelled=451, bridge_names_rewritten=130, context_rebuilt=501, detected_names=27, diagnostics_voices_renamed=108, gi_ids_rewritten=131, gi_names_rewritten=1461, gi_person_nodes_merged=1, in_place_episodes=105, in_place_lines=7045, kg_names_rewritten=129, metadata_counts_synced=68, names_refused=179, person_labels_respelled=580, person_names_respelled=517, quotes_moved=3962, quotes_retexted=11, roster_names=109, segments_relabelled=48057, turns_rebuilt=68, unplaced_dropped=1",
   "clone": "/Users/claude/snapshots/base-0041",
   "code": {
     "dirty": true,
-    "sha": "00f7534c5a4ea6f67ca2ae4c74d921470980b4cc"
+    "sha": "584406514dd93b60e9656e43ea10164811b7a3af"
   },
   "code_digest": "0fc9cb8307129bd79f79853cc717453024bde3455262455a6f90f13839961ce4",
   "computed_class": "full",
@@ -73,7 +73,7 @@
     ".txt": 91
   },
   "gating_moves": {},
-  "measured_at": "2026-11-02T01:13:03",
+  "measured_at": "2026-11-02T02:49:08",
   "migration": "0041_joined_names_respelled",
   "plan": [
     {
@@ -96,7 +96,7 @@
         "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/transcripts/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.segments.json": "8db387e453399ddd8fefe112f8183cd60a47ad01a41b4786415c15681fcc9b18",
         "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/transcripts/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.speakers.diagnostics.json": "e0c76f80efae62a6bb47a44c63757189a48f02b041a70b0ab9ee56b03b5a0410",
         "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/transcripts/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.txt": "6878f45d9b64ae6c615d4898d64fb4b2bbf45aedd105ea5cfe95a842d78333bf",
-        "identity_ledger.json": "baea6b62240b057c16c8873fea5f1042b6bd62e1db87206584a33d43b454faa7"
+        "identity_ledger.json": "76bd9fa586a5d2d76991f3b2dbe12e7690fc690bf3f8bbbeda33ddd0f4573794"
       },
       "meta": "feeds/rss_aezfm.meldingcloud.com_908b8aa4/run_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101/metadata/0001 - Why does everything have to be a_19aa1683-7436-421b-ba45-dafb8720a180_20261023-020101.metadata.json",
       "refused": null,
@@ -13886,7 +13886,7 @@
       "renames": 1
     }
   ],
-  "plan_sha256": "e7ac7977b3ba202ef5b8361ebcf44e1eac4259847d5357ea4df86582494043e1",
+  "plan_sha256": "38e4746af433fa012a5e30883f48f9222aebb809523ff514c1dfb0259c454777",
   "scoreboard_after": {
     "A1_episodes_no_adfree": 2,
     "A1_episodes_with_hits": 297,
@@ -13941,7 +13941,7 @@
     "quotes_no_offsets": 0,
     "quotes_ref_unresolved": 244
   },
-  "snapshot": "snapshot-prod-20261030+0038+0039+0040+d2-ledger-s6g",
+  "snapshot": "snapshot-prod-20261030+0038+0039+0040+d2-ledger-final",
   "verdicts_sha256": null,
   "verify": {
     "message": "every joined person's name in the episode files is the group's spelling",

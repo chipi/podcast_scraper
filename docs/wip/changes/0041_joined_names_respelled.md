@@ -625,6 +625,10 @@ predicate. Measured (`d2i9/spelling_publisher_match.py`):
 `--no-respell`, so the respelling happens inside 0041's own run, with its receipts and the outcome
 hook. The ledger step respells only from then on.
 
+## 7. Measure
+
+The gates and after-checks, newest last.
+
 ### Final batch
 
 Gate (`0041_joined_names_respelled.gate.json`, the final batch, code digest `e0bedfef5a62`, 2026-11-01; each gate on its own base: snapshot-prod-20261030 with 0038, the D2 ledger built with the final rules (`--no-respell`), and the migrations before it applied):

@@ -149,3 +149,14 @@ def test_an_episode_whose_rows_slice_is_untouched(tmp_path: Path) -> None:
     before = p["seg"].read_bytes()
     assert _apply(tmp_path).details["episodes"] == []
     assert p["seg"].read_bytes() == before and _verify(tmp_path)[0]
+
+
+def test_a_row_that_slices_again_after_the_drift_began_refuses_the_episode() -> None:
+    """One shortened prefix shifts every later row by the same amount; a later row that slices
+    as stored is a different shape, and nothing is guessed."""
+    text = "\n".join(LINES)
+    rows = _rows_for(text)
+    rows[1]["char_start"] += 2  # drifted
+    rows[1]["char_end"] += 2  # rows[2] left as stored: it slices again
+    with pytest.raises(m38a.Refused, match="slices again"):
+        m38a.realigned(text, rows)

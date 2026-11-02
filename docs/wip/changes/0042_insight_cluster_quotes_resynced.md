@@ -112,6 +112,23 @@ Gate (`0042_insight_cluster_quotes_resynced.gate.json`, the final batch, code di
 - Dry run over prod's file after 0041 (`dry40.py`): 33,162 quotes, **1,896 resynced** (`char_start`
   1,821, `char_end` 1,819, `speaker_id` 338, `text` 5), 0 unmatched, 13 keys in several runs.
 
+
+**Rerun on D2's final ledger (s5d through 4e, s6g; 2026-11-02):** the gate report is from this run.
+- **Invalid earlier reruns:** two reruns between these (the s5d ledger, then s6g's) ran without
+  prod's clusters file. My chain script's copy into `search/` failed, because the folder did not
+  exist on those bases, and the script did not stop on the error.
+  - They reported "resynced 0 cluster quote(s)", and the first was committed (`00f7534c5`) as if
+    valid.
+  - Both are void. The chain now creates the folder, checks the file's sha256 before the gate, and
+    stops on any error.
+- **This run:** computed class light, 1 file changed, `upgrade verify` 41 ok, none failing.
+  - 33,162 quotes, **1,885 resynced**: `char_start` 1,810, `char_end` 1,808, `speaker_id` 338,
+    `text` 5. 0 unmatched; 13 keys in several runs.
+- **Against the batch above** (1,896 resynced): 11 fewer offset changes. `speaker_id` and `text`
+  are unchanged.
+  - A likely cause, not traced by id: 0041 writes 501 episodes instead of 573 on this ledger, so
+    fewer GI quotes move before 0042.
+
 ## Not covered
 
 - Cluster membership built from an older corpus; a rebuild decides that, not this.
