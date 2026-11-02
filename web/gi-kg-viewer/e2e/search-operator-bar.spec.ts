@@ -182,12 +182,12 @@ test.describe('Search — result-set operator bar (#1234)', () => {
      * are not guaranteed to agree on cardinality. Equality made this flaky; the contract that
      * matters is that the panel renders the server's pairs at all. */
     await expect(rows.first()).toBeVisible()
-    /* Assert on the evidence text, which the corpus does carry. The old fixture also asserted
-     * speaker names ("Alice" / "Bob") and a cosine score — this corpus returns
-     * `person_a_label`, `person_b_label` and `cosine_similarity` as NULL, so those are unnamed
-     * pairs. Ladder §B: v4 should carry a consensus pair with named speakers. */
+    /* Assert on the evidence text, which the corpus does carry. Since RFC-131 S6d the server
+     * names each side from the enricher's `person_a_name` / `person_b_name` (under the person's
+     * group spelling), so the pair is named, not NULL as it was before. */
     await expect(rows.first()).toContainText(pairs[0]!.insight_a_text.slice(0, 40))
-    expect(pairs[0]!.person_a_label).toBeNull()
+    expect(pairs[0]!.person_a_label).toBeTruthy()
+    expect(pairs[0]!.person_b_label).toBeTruthy()
   })
 
   test('Cluster: over-fetch — the operator request uses top_k × 3', async ({ page }) => {
