@@ -24,7 +24,10 @@ from typing import Any, Callable, Iterator, Sequence
 from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
-from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
+from podcast_scraper.search.corpus_scope import (
+    dedupe_metadata_paths_newest_run_per_episode,
+    latest_feed_run_allowed_relpaths,
+)
 from podcast_scraper.server.corpus_catalog import (
     _optional_image_url,
     _optional_relpath_field,
@@ -37,17 +40,46 @@ logger = logging.getLogger(__name__)
 
 
 def _latest_run_bridge_paths(bridge_paths: list[str], corpus_base: str) -> list[str]:
-    """Drop bridges under superseded ``feeds/<feed>/run_*`` siblings — keep the latest run per feed.
+    """The bridges of the corpus's member episodes, by the central corpus-membership rule.
 
-    The CIL read surfaces (timeline / position-arc / conversation-arc) walk every ``*.bridge.json``
-    under the corpus. When a feed has been re-run, that includes insights from older runs, which
-    then double-count in the timeline and render un-tinted (enrichment only writes the latest run).
-    Apply the same latest-run-per-feed dedup the indexer + enrichment use so the reads match the
-    enriched set. Non-run (flat) layouts are unaffected.
+    The CIL read surfaces walk every ``*.bridge.json`` under the corpus. A reprocessed episode has
+    a copy in an older run too, which would double-count. A bridge whose ``<stem>.metadata.json``
+    sibling exists is kept exactly when that file is a member under
+    :func:`dedupe_metadata_paths_newest_run_per_episode`, the rule indexing, enrichment and the
+    catalog share: every episode of every run, a reprocessed one from its newest run only.
+
+    This used to keep only the run whose NAME sorted highest per feed. Prod writes one run per
+    nightly holding only that night's episodes, named ``run_<uuid>_<timestamp>_<hash>``, so the
+    readers saw 289 of 3,668 bridges on snapshot-prod-20261103 and some persons' profiles were
+    empty. A bridge with no metadata sibling has no readable identity; for those that name rule
+    still drops a superseded copy.
     """
-    rel_by_abs = {p: os.path.relpath(p, corpus_base).replace(os.sep, "/") for p in bridge_paths}
-    allowed = latest_feed_run_allowed_relpaths(rel_by_abs.values())
-    return [p for p in bridge_paths if rel_by_abs[p] in allowed]
+    meta_by_bridge: dict[str, str] = {}
+    for p in bridge_paths:
+        meta = p[: -len(".bridge.json")] + ".metadata.json"
+        if os.path.isfile(meta):
+            meta_by_bridge[p] = meta
+    members = {
+        os.path.normpath(str(m))
+        for m in dedupe_metadata_paths_newest_run_per_episode(
+            Path(corpus_base), [Path(m) for m in meta_by_bridge.values()]
+        )
+    }
+    bare = {
+        p: os.path.relpath(p, corpus_base).replace(os.sep, "/")
+        for p in bridge_paths
+        if p not in meta_by_bridge
+    }
+    allowed = latest_feed_run_allowed_relpaths(bare.values())
+    return [
+        p
+        for p in bridge_paths
+        if (
+            os.path.normpath(meta_by_bridge[p]) in members
+            if p in meta_by_bridge
+            else bare[p] in allowed
+        )
+    ]
 
 
 def canonical_cil_entity_id(viewer_graph_id: str) -> str:
