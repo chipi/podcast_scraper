@@ -16,7 +16,6 @@ hardware sizing, ML workload distribution, observability, and downstream digest 
 | [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) | **Current constraints** — performance, reliability, observability targets |
 | [Testing Strategy](TESTING_STRATEGY.md) | **Current testing** — test pyramid, patterns, CI integration |
 | **This document** | **Target state** — where we are going, what to build next |
-| [Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md) | **Content evolution** — generic core, pluggable content types and transports (v3.0) |
 
 **Last updated:** 2026-04-03.
 
@@ -2411,8 +2410,7 @@ Aligned with the unified graduation table in D.7.
 ## Part G. Content extensibility and plugin architecture
 
 **Depends on:** Stable podcast capabilities (GIL, KG, bridge, enrichment, viewer, search,
-Postgres projection). Full specification in the
-[Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md).
+Postgres projection).
 
 ### G.1 Vision
 
@@ -2514,11 +2512,9 @@ by design -- their protocols work for any content type producing GIL/KG/bridge a
 
 ### G.8 Full specification
 
-The complete extensibility architecture -- core protocol code, manifest dataclasses, registry
-implementation, external module packaging examples (news-ingest, social-ingest), CI/CD for
-the private monorepo, local development workflow, and future design areas (storage layout,
-viewer v3, cross-content-type KG, prompt routing, scheduling) -- lives in the
-[Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md).
+The content-evolution design (core protocols, registration, content types, terminology) is
+being revised; this Part G is superseded in detail and will be cut to a short note. Decisions
+land as ADRs and RFCs in this repository.
 
 ---
 
@@ -2530,7 +2526,6 @@ viewer v3, cross-content-type KG, prompt routing, scheduling) -- lives in the
 - [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md) — current one-shot service mode
 - [CI/CD Overview](../ci/index.md) — workflows, metrics, quality trends
 - [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) — observability, performance
-- [Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md) — generic core, pluggable content types and transports (v3.0)
 
 ### Product requirements (PRDs)
 
@@ -2643,4 +2638,4 @@ architecture, observability stack, deployment pipeline). This file remains **WIP
 | RFC: Secrets & configuration management | Part F (F.5) | Environment contract, secrets strategy, config layers |
 | RFC: Per-service health checks & degradation model | Part E (E.6) | Health endpoint contract, degradation levels, Docker healthchecks |
 | RFC: AI agent on-call (actionable observability) | Part E (E.9) | Agent architecture, runbook engine, safety guardrails, human-mirrored deploy workflow |
-| RFC: Content extensibility protocols | Part G + [Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md) | Core protocols (`ContentItem`, `ContentSource`, `ContentTypeHandler`), manifest schema, plugin registry, entry-point discovery, packaging |
+| RFC: Content extensibility protocols | Part G | Core protocols (`ContentItem`, `ContentSource`, `ContentTypeHandler`), manifest schema, plugin registry, entry-point discovery, packaging |

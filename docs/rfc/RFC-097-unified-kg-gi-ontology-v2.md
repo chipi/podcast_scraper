@@ -947,7 +947,6 @@ Pinned so the chunked execution doesn't accidentally do them:
 8. ML query intent router (RFC-092 territory)
 9. KG proximity-based retrieval (RFC-091 stays REJECTED)
 
-v3 wishlist with rationale lives at
-`docs/architecture/corpus/ontology-v3-forward-look.md` (preserved
-through v2 implementation — when v2 ships in production, this
-forward-look + 2–4 weeks of observations become the v3 spec input).
+A v3 wishlist with rationale was kept through v2 implementation as
+input to a future v3 spec, together with 2–4 weeks of production
+observations.
