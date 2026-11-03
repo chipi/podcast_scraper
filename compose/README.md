@@ -10,7 +10,7 @@ For the operator's run-it-on-your-machine guide, start at [`docs/guides/DOCKER_C
 
 | File | Purpose |
 | ---- | ------- |
-| `docker-compose.stack.yml` | **Base** — `viewer` (Nginx + SPA), `api` (FastAPI), and the `pipeline` / `pipeline-llm` services (Compose profiles `pipeline` / `pipeline-llm`, only spawned per job). Production-ready when paired with the `jobs-docker` overlay below and a deployment's own overlays. |
+| `docker-compose.stack.yml` | **Base** — `viewer` (Nginx + SPA), `api` (FastAPI), and the `pipeline` / `pipeline-llm` services (Compose profiles `pipeline` / `pipeline-llm`, only spawned per job), plus `postgres` (Postgres 18, app state) and the one-shot `db-migrate` (`db upgrade --plane player`) that `api` waits for. `db-migrate` is for dev and stack-test; production runs `db upgrade` as its own step. Production-ready when paired with the `jobs-docker` overlay below and a deployment's own overlays. |
 | `docker-compose.stack-test.yml` | **Overlay** — adds `mock-feeds` (Nginx sidecar serving bundled RSS / audio / transcripts) plus the Docker job-mode wiring on the `api` service so the API factory can spawn pipeline containers. Used by `make stack-test-*` and the GitHub stack-test workflow. |
 | `docker-compose.jobs-docker.yml` | **Overlay** — production equivalent of the stack-test overlay's job-mode wiring: bind-mounts the host repo + `/var/run/docker.sock` into `api` and sets `PODCAST_PIPELINE_EXEC_MODE=docker`. Merge this on top of `stack.yml` when you want production deployments to spawn jobs the same way the stack-test does, without the `mock-feeds` sidecar. |
 

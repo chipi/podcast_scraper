@@ -96,7 +96,7 @@ export default defineConfig({
       // because Playwright starts webServer BEFORE globalSetup — seeding there lost the race and
       // the server exited 2 on a corpus directory that did not exist yet.
       // The identity ledger before the API boots (ADR-166): without it there are no cross-episode joins.
-      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli identity-ledger --output-dir .e2e-corpus/v3 && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
+      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli identity-ledger --output-dir .e2e-corpus/v3 && ${pythonBin} -m podcast_scraper.cli db upgrade --plane player && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
       cwd: __dirname,
       url: `http://127.0.0.1:${API_PORT}/api/health`,
       env: {
@@ -114,6 +114,9 @@ export default defineConfig({
         HF_HUB_CACHE: process.env.HF_HUB_CACHE || `${process.env.HOME}/.cache/huggingface/hub`,
         // Never the dev observability config (`.env.obs.dev`): a test server must not read
         // production telemetry or report into the homelab (operator, 2026-10-06).
+        // App state is Postgres (ADR-169): PODCAST_DATABASE_URL, else the test database.
+        PODCAST_DATABASE_URL:
+          process.env.PODCAST_DATABASE_URL || process.env.PODCAST_TEST_DATABASE_URL || '',
         PODCAST_DEV_OBS_ENV: '0',
         APP_OAUTH_PROVIDER: 'mock',
         APP_SESSION_SECRET: 'e2e-secret',
