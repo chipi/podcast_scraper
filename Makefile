@@ -1604,8 +1604,14 @@ cleanup-processes:
 	# is CWD-gated to $(CURDIR) before killing, so a sibling worktree's test run is never
 	# touched (the bare ``pkill -f pytest`` this replaced was machine-wide and could kill
 	# another worktree's suite). Same scoping model as the SessionEnd reap.
+	# The recipe's own shell and its ancestors (make, the caller's shell) are skipped: the
+	# pattern is in this shell's command line and its cwd is $(CURDIR), so `pgrep -f`
+	# matches it, and killing it terminated make itself (procps pgrep, Linux).
 	@echo "Cleaning up leftover test processes (this repo only)..."
-	@for pid in $$(pgrep -f "pytest|gw[0-9]|ml_model_cache_helpers|calculate_test_workers" 2>/dev/null); do \
+	@self=" "; p=$$$$; while [ -n "$$p" ] && [ "$$p" -gt 1 ]; do self="$$self$$p "; \
+	  p=$$(ps -o ppid= -p $$p 2>/dev/null | tr -d ' '); done; \
+	for pid in $$(pgrep -f "pytest|gw[0-9]|ml_model_cache_helpers|calculate_test_workers" 2>/dev/null); do \
+	  case "$$self" in *" $$pid "*) continue ;; esac; \
 	  cwd=$$(lsof -p $$pid -a -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1); \
 	  case "$$cwd" in "$(CURDIR)" | "$(CURDIR)"/*) kill $$pid 2>/dev/null || true ;; esac; \
 	done
