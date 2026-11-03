@@ -39,7 +39,7 @@ def _registry() -> EnricherRegistry:
 
 def _source(enricher_id: str) -> pathlib.Path:
     """The module the enricher's class is defined in, wherever its package lives (an extension's
-    enrichers are not under ``podcast_scraper``, ADR-166)."""
+    enrichers are not under ``podcast_scraper``, ADR-168)."""
     found = inspect.getsourcefile(type(_registry().get(enricher_id)))
     return pathlib.Path(found) if found else pathlib.Path(f"<no source for {enricher_id}>")
 

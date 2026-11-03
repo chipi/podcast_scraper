@@ -1,4 +1,4 @@
-"""Installed extensions: how packages add to the platform (ADR-166 decision 4).
+"""Installed extensions: how packages add to the platform (ADR-168 decision 4).
 
 A package that wants to add routes or take part in account
 deletion publishes an :class:`Extension` under the ``podcast_scraper.extensions`` entry-point group;
@@ -11,7 +11,7 @@ and hooks import what they need inside their own bodies.
 
 Extensions that live in this tree are listed in ``_IN_TREE``. Each is optional: a module that is
 not there is skipped. An extension found both in-tree and through an entry point is loaded once,
-by name, and the installed package wins (ADR-166 decision 6).
+by name, and the installed package wins (ADR-168 decision 6).
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ def _no_query_enrichers(corpus_root_provider: Callable[[], Path]) -> Sequence[An
 
 @dataclass(frozen=True)
 class EnrichmentContribution:
-    """Enrichers an extension adds (ADR-166 decision 5). Each part is a callable so importing the
+    """Enrichers an extension adds (ADR-168 decision 5). Each part is a callable so importing the
     extension stays cheap; the enrichment code calls them where it builds its registries."""
 
     #: Every enricher class the extension owns. Their class-level ``manifest`` feeds the accuracy

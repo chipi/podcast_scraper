@@ -139,12 +139,11 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-165](ADR-165-validation-corpus-grounds-every-insight.md) | The validation corpus grounds every insight in what is said | Accepted | [ADR-163](ADR-163-the-jobs-of-discover.md) | A quote backs its insight or does not exist; insights are claims (no questions, greetings or ad reads); authored claims are anchored to their verbatim line; builder and committed corpus follow the same rules. | Yes |
 | [ADR-166](ADR-166-person-identity-ledger-no-joins-without-it.md) | Person identity is decided once, in a ledger; without a valid ledger there are no joins | Proposed | [RFC-131](../rfc/RFC-131-person-identity-one-home.md) | A deterministic step writes every cross-episode join, blocked join and display spelling with evidence to a ledger the server applies; a missing, unreadable or version-mismatched ledger means no joins, never the unguarded in-memory map. | No |
 | [ADR-167](ADR-167-identity-guards-inside-the-join.md) | Identity guards run inside the join; a cautious split is acceptable, a wrong merge is not | Proposed | [RFC-131](../rfc/RFC-131-person-identity-one-home.md) | A name joins a cluster only if no guard fires against any member: co-voice, publisher list (two people), mention co-occurrence (unknown, no join); guard-caused splits are listed, never fixed by weakening a guard. | No |
-
-| [ADR-166](ADR-166-installed-extensions.md) | Installed extensions — how packages add to the platform | Accepted | [ADR-104](ADR-104-enrichment-layer-boundary-vs-kg-direct.md) | Entry-point discovery; routes, hooks, jobs, CLI, sign-in providers and enrichers come from extensions; an installed package wins over its in-tree copy |
+| [ADR-168](ADR-168-installed-extensions.md) | Installed extensions — how packages add to the platform | Accepted | [ADR-104](ADR-104-enrichment-layer-boundary-vs-kg-direct.md) | Entry-point discovery; routes, hooks, jobs, CLI, sign-in providers and enrichers come from extensions; an installed package wins over its in-tree copy | Yes |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **132** files under `docs/adr/ADR-*.md` (ADR-001–ADR-167;
+**Counts (reconcile when adding ADRs):** **133** files under `docs/adr/ADR-*.md` (ADR-001–ADR-168;
 numbering has historical gaps; ADR-134 = #1273 speaker-labeling renumber, ADR-135 = v2.4,
 ADR-137–140 = host/guest role, ad-cleaning stage, text-normalization contract, versioned labeling
 profiles; ADR-149 = corpus reprocess methodology;

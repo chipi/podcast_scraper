@@ -6,7 +6,7 @@ Two responsibilities:
    ``web/gi-kg-viewer/e2e/fixtures/production-shaped/`` is well-formed and its
    scenarios cover the public shapes RFC-107 / UXS-016 spec (compound-lift,
    temporal-intent). The cluster and consensus operators and the enriched answer read
-   enrichers outside the base set (ADR-166) and have no scenario here.
+   enrichers outside the base set (ADR-168) and have no scenario here.
 2. Every ``episode_id`` the mocks reference exists in the parent fixture's
    ``manifest.json`` — so hit-card handoffs to Library / Graph resolve
    cleanly against the same fixture and don't break spec-time.

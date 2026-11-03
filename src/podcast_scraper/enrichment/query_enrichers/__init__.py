@@ -1,5 +1,5 @@
 """Query enrichers (RFC-088 Phase 4). The platform ships none; installed extensions add them
-(ADR-166 decision 5) through :func:`podcast_scraper.extensions.enrichment_contributions`."""
+(ADR-168 decision 5) through :func:`podcast_scraper.extensions.enrichment_contributions`."""
 
 from __future__ import annotations
 

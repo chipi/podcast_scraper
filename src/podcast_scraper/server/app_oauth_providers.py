@@ -1,6 +1,6 @@
 """The real sign-in providers: Google and Sign in with Apple (#1063, #2275).
 
-Registered by the identity extension (ADR-166): the platform keeps the :class:`OAuthProvider`
+Registered by the identity extension (ADR-168): the platform keeps the :class:`OAuthProvider`
 protocol, the provider registry and the mock; installed extensions supply these by name.
 ``GoogleProvider`` implements the OAuth2 authorization-code flow with ``httpx``. ``AppleProvider``
 is Sign in with Apple, which App Store guideline 4.8 requires next to Google Sign-In; it sits

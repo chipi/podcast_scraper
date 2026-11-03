@@ -1,4 +1,4 @@
-"""Identity as an extension (ADR-166): the Google and Apple sign-in providers, and the MCP
+"""Identity as an extension (ADR-168): the Google and Apple sign-in providers, and the MCP
 sign-in surface (token management, the OAuth authorization server, the internal verify seam, and
 what account deletion must remove for it).
 

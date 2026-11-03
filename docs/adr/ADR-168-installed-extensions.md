@@ -1,4 +1,4 @@
-# ADR-166: Installed extensions — how packages add to the platform
+# ADR-168: Installed extensions — how packages add to the platform
 
 - **Status**: Accepted
 - **Date**: 2026-10-31

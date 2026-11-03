@@ -1,4 +1,4 @@
-"""The enrichers outside the base set, as an extension (ADR-166 decision 5): storyline themes,
+"""The enrichers outside the base set, as an extension (ADR-168 decision 5): storyline themes,
 temporal velocity, topic similarity and consensus, and the web person/org enrichers, with their
 query enricher, scorer and provider types; and the themes and storylines built from them, with the
 search operators over them; and the trend stat, photos and logos the public share cards show.

@@ -2,7 +2,7 @@
 
 A small protocol so the auth routes don't hard-code a vendor and tests can inject a stub
 (no real OAuth call in CI). The real providers (Google, Apple) reach the registry below through
-extensions (ADR-166).
+extensions (ADR-168).
 
 ``MockOAuthProvider`` (#1079, RFC-099 §1) is a local, network-free provider for dev and
 e2e: it self-completes the code flow with a fixed dev identity. It is selected **only**
@@ -179,7 +179,7 @@ def provider_from_env() -> OAuthProvider | None:
 
     * ``mock``   → :class:`MockOAuthProvider` (dev/e2e only, logged loudly; never prod).
     * ``google`` → the provider an installed extension registers under that name
-      (ADR-166), built from its own env; ``None`` + a warning when no extension provides
+      (ADR-168), built from its own env; ``None`` + a warning when no extension provides
       it or its credentials are absent.
     * anything else / unset → ``None`` (consumer auth disabled).
 

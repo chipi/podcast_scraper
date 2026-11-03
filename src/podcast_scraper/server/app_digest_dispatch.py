@@ -59,7 +59,7 @@ ENQUEUERS: tuple[tuple[str, str, str], ...] = (
 
 def enqueuer_module(module_name: str) -> ModuleType:
     """An enqueuer's module, imported from this module's own package (the enqueuers live beside
-    the dispatch, in whichever package that is: ADR-166)."""
+    the dispatch, in whichever package that is: ADR-168)."""
     return importlib.import_module(f".{module_name}", __package__)
 
 

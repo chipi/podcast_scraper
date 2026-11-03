@@ -289,7 +289,7 @@ nav:
       - ADR-165 The validation corpus grounds every insight: adr/ADR-165-validation-corpus-grounds-every-insight.md
       - ADR-166 Person identity ledger, no joins without it: adr/ADR-166-person-identity-ledger-no-joins-without-it.md
       - ADR-167 Identity guards inside the join: adr/ADR-167-identity-guards-inside-the-join.md
-      - ADR-166 Installed extensions: adr/ADR-166-installed-extensions.md
+      - ADR-168 Installed extensions: adr/ADR-168-installed-extensions.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
