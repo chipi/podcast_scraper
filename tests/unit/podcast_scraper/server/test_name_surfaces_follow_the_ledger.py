@@ -122,10 +122,10 @@ def test_consensus_rows_follow_the_ledger() -> None:
 
 
 def test_the_person_card_signals_follow_the_ledger(tmp_path, monkeypatch) -> None:
-    from podcast_scraper.server.routes import app_enrichment as E
+    from podcast_scraper.server import corpus_signals as E
 
     monkeypatch.setattr(
-        E, "_corpus_signals", lambda _root, _wanted: {"guest_coappearance": COAPPEARANCE}
+        E, "corpus_signals", lambda _root, _wanted: {"guest_coappearance": COAPPEARANCE}
     )
     monkeypatch.setattr(E, "person_display", lambda _root: VIEW)
     monkeypatch.setattr(E, "served_id_map", lambda _root: {})
@@ -136,7 +136,7 @@ def test_the_person_card_signals_follow_the_ledger(tmp_path, monkeypatch) -> Non
 def test_the_person_card_joins_a_persons_ids(tmp_path, monkeypatch) -> None:
     """A partner under two ids is listed once, a person never co-appears with themselves, and the
     card of either id sees the group's rows, turned to the id it asked for."""
-    from podcast_scraper.server.routes import app_enrichment as E
+    from podcast_scraper.server import corpus_signals as E
 
     def pair(a: str, b: str, n: int) -> dict:
         names = {"k1": "Korin Vaal", "k2": "Korin Vael", "o": "Odile Brand", "m": "Mara Tull"}
@@ -160,7 +160,7 @@ def test_the_person_card_joins_a_persons_ids(tmp_path, monkeypatch) -> None:
         "topic_consensus": {"consensus": [dict(pair("k2", "o", 0), topic_id="topic:t")]},
     }
     joined = {"person:k1": "person:k1", "person:k2": "person:k1"}
-    monkeypatch.setattr(E, "_corpus_signals", lambda _root, _wanted: signals)
+    monkeypatch.setattr(E, "corpus_signals", lambda _root, _wanted: signals)
     monkeypatch.setattr(E, "served_id_map", lambda _root: joined)
     monkeypatch.setattr(
         E,
