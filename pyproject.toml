@@ -153,7 +153,7 @@ otel = [
 ml = [
   "openai-whisper>=20250625",
   # spaCy 3.8 / thinc 8.3 for numpy 2.x compatibility (required by pyannote.audio 4.x).
-  "spacy>=3.8.0,<4.0.0",
+  "spacy>=3.8.18,<4.0.0",
   # preshed 3.0.14 makes spaCy 3.8.16 raise OverflowError while loading en_core_web_sm;
   # 3.0.13 loads it. Lift when a preshed release loads the model again.
   "preshed>=3.0.13,<3.0.14",
